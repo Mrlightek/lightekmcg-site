@@ -1,0 +1,2 @@
+class StorylineArena < ApplicationRecord
+end

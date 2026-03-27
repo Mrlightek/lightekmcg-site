@@ -1,0 +1,1 @@
+json.partial! "storyline_world_communities/storyline_world_community", storyline_world_community: @storyline_world_community

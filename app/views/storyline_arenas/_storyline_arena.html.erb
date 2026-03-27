@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STORYLINE — The Arena</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Barlow+Condensed:wght@200;300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  --void:#020108;--deep:#06040E;--mid:#0A0814;--panel:#0F0C1C;--card:#131020;--lift:#181428;
+  --white:#F2EEE6;--off:#C4BAB0;--muted:#524C64;--dim:#181428;
+  /* arena accent palette */
+  --gold:#D4A010;--gold2:#ECC020;--gold3:#FCD840;--gold4:#FEE870;
+  --blood:#C01828;--blood2:#E02030;--blood3:#FF3848;
+  --cyan:#00B8D8;--cyan2:#00D4F8;
+  --arena:#A03010;--arena2:#C84018;--arena3:#F05020;
+  /* faction colors */
+  --fac-a:#CC2830;--fac-b:#2858C8;--fac-c:#18A860;--fac-d:#9820C8;
+  /* status */
+  --live:#E02030;--win:#20C870;--loss:#5A5468;--tbd:#C89010;
+  --fb:'Bebas Neue',sans-serif;
+  --fg:'EB Garamond',serif;
+  --fc:'Barlow Condensed',sans-serif;
+  --fp:'Playfair Display',serif;
+  --fm:'Space Mono',monospace;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--void);color:var(--white);font-family:var(--fg);overflow-x:hidden;}
+
+/* grain overlay */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");background-size:200px;pointer-events:none;z-index:0;opacity:.6;}
+
+/* cursor — crosshair for arena */
+#cur{width:10px;height:10px;position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);}
+#cur::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--gold2);transform:translateX(-50%);}
+#cur::after{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--gold2);transform:translateY(-50%);}
+#cur-dot{width:4px;height:4px;background:var(--gold2);position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 8px var(--gold);}
+#cur2{width:36px;height:36px;border:1px solid rgba(212,160,16,.2);position:fixed;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);transition:left .1s cubic-bezier(.16,1,.3,1),top .1s,width .2s,height .2s;}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
+@keyframes pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.02)}}
+@keyframes scanLine{from{top:-3%}to{top:103%}}
+@keyframes goldShimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes arenaGlow{0%,100%{box-shadow:0 0 20px rgba(212,160,16,.2)}50%{box-shadow:0 0 40px rgba(212,160,16,.4),0 0 80px rgba(212,160,16,.1)}}
+@keyframes bracketDraw{from{stroke-dashoffset:1000}to{stroke-dashoffset:0}}
+@keyframes voteCount{from{transform:scale(.95);opacity:.5}to{transform:scale(1);opacity:1}}
+@keyframes waveBar{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:none}}
+@keyframes chatIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes countdownPulse{0%,100%{color:var(--gold2)}50%{color:var(--gold4)}}
+.fade-up{opacity:0;transform:translateY(20px);transition:opacity .85s cubic-bezier(.16,1,.3,1),transform .85s cubic-bezier(.16,1,.3,1);}
+.fade-up.vis{opacity:1;transform:none;}
+
+/* VIEWS */
+.view{display:none;}.view.active{display:block;}
+
+/* ═══════════════════════════════════════════════
+   TOPNAV
+═══════════════════════════════════════════════ */
+.topnav{
+  position:fixed;top:0;left:0;right:0;z-index:400;
+  height:56px;background:rgba(2,1,8,.98);
+  border-bottom:1px solid rgba(212,160,16,.1);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+}
+.topnav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,var(--gold),var(--gold2),var(--gold),transparent);opacity:.35;}
+.tn-left{display:flex;align-items:center;gap:14px;}
+.tn-logo{font-family:var(--fb);font-size:20px;letter-spacing:.14em;cursor:pointer;color:var(--white);}
+.tn-logo span{background:linear-gradient(to right,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tn-arena-badge{display:flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(212,160,16,.08);border:1px solid rgba(212,160,16,.22);animation:arenaGlow 4s infinite;}
+.tnab-icon{font-size:12px;}
+.tnab-text{font-family:var(--fm);font-size:6px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold2);}
+.tn-season{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);}
+.tn-sep{width:1px;height:18px;background:rgba(212,160,16,.12);}
+.tn-tabs{display:flex;gap:0;}
+.tn-tab{font-family:var(--fm);font-size:7px;letter-spacing:.15em;text-transform:uppercase;color:rgba(242,238,230,.3);padding:0 16px;height:56px;display:flex;align-items:center;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.tn-tab:hover{color:rgba(242,238,230,.7);}
+.tn-tab.on{color:var(--gold2);border-bottom-color:var(--gold2);}
+.tn-tab.live-tab{color:rgba(224,32,48,.7);}
+.tn-tab.live-tab.on{color:var(--live);border-bottom-color:var(--live);}
+.tn-right{display:flex;align-items:center;gap:8px;}
+.tn-live-pill{display:flex;align-items:center;gap:5px;padding:5px 12px;background:rgba(224,32,48,.1);border:1px solid rgba(224,32,48,.3);cursor:pointer;animation:arenaGlow 3s infinite;}
+.tnlp-dot{width:5px;height:5px;border-radius:50%;background:var(--live);animation:blink .5s infinite;}
+.tnlp-text{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--live);}
+.tn-codex-btn{font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(212,160,16,.25);color:var(--gold2);background:rgba(212,160,16,.06);padding:7px 16px;cursor:pointer;transition:all .2s;}
+.tn-codex-btn:hover{background:rgba(212,160,16,.12);}
+
+/* ═══════════════════════════════════════════════
+   SHARED COMPONENTS
+═══════════════════════════════════════════════ */
+.section-label{font-family:var(--fm);font-size:7px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold2);display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.section-label::before{content:'◈';}
+.section-title{font-family:var(--fb);font-size:clamp(28px,4vw,56px);letter-spacing:.05em;line-height:.88;margin-bottom:6px;}
+.section-sub{font-family:var(--fg);font-style:italic;font-size:clamp(13px,1.4vw,16px);color:rgba(242,238,230,.38);line-height:2;}
+.gold-stripe{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--gold),var(--gold2),var(--gold));}
+.blood-stripe{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--blood),var(--blood2),var(--blood));}
+.card-base{background:var(--panel);border:1px solid rgba(212,160,16,.07);position:relative;overflow:hidden;transition:all .22s;}
+.card-base:hover{border-color:rgba(212,160,16,.2);}
+
+/* stat cell */
+.stat-cell{background:var(--card);border:1px solid rgba(212,160,16,.07);padding:12px 16px;position:relative;}
+.sc-val{font-family:var(--fb);font-size:clamp(22px,3vw,40px);letter-spacing:.04em;display:block;line-height:1;}
+.sc-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:block;margin-top:3px;}
+.sc-delta{font-family:var(--fm);font-size:6px;margin-top:2px;}
+.delta-up{color:var(--win);}
+.delta-down{color:var(--blood2);}
+
+/* ═══════════════════════════════════════════════
+   VIEW 1: ARENA HOME
+═══════════════════════════════════════════════ */
+#view-home{padding-top:56px;}
+
+/* championship hero */
+.arena-hero{
+  min-height:88vh;display:flex;flex-direction:column;justify-content:flex-end;
+  padding:48px;position:relative;overflow:hidden;
+}
+.ah-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(192,24,40,.08) 0%,transparent 50%),radial-gradient(ellipse at 20% 80%,rgba(212,160,16,.06) 0%,transparent 50%),linear-gradient(to bottom,rgba(2,1,8,.3),rgba(2,1,8,.95));}
+/* arena grid lines - stadium feel */
+.ah-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(212,160,16,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(212,160,16,.018) 1px,transparent 1px);background-size:60px 60px;}
+/* spotlight effect */
+.ah-spotlight{position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:60%;height:80%;background:radial-gradient(ellipse at center,rgba(212,160,16,.06) 0%,transparent 70%);pointer-events:none;}
+.ah-scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,rgba(212,160,16,.04),transparent);animation:scanLine 18s linear infinite;pointer-events:none;}
+.ah-content{position:relative;z-index:2;max-width:800px;}
+.ah-season{font-family:var(--fm);font-size:7px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold2);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.ah-season::before{content:'◈';}
+.ah-title{font-family:var(--fb);font-size:clamp(60px,12vw,160px);letter-spacing:.04em;line-height:.82;margin-bottom:8px;background:linear-gradient(160deg,var(--white),var(--gold3),var(--white));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.ah-sub{font-family:var(--fg);font-style:italic;font-size:clamp(14px,1.6vw,19px);color:rgba(242,238,230,.45);max-width:560px;line-height:2;margin-bottom:22px;}
+/* featured matchup teaser in hero */
+.ah-matchup-teaser{display:flex;align-items:center;gap:0;max-width:680px;margin-bottom:24px;}
+.ahmt-side{flex:1;padding:14px 20px;background:rgba(242,238,230,.04);border:1px solid rgba(242,238,230,.07);}
+.ahmt-side.left{border-right:none;}
+.ahmt-side.right{border-left:none;text-align:right;}
+.ahmts-label{font-family:var(--fm);font-size:5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.ahmts-project{font-family:var(--fb);font-size:clamp(16px,2.5vw,26px);letter-spacing:.06em;}
+.ahmts-creator{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,238,230,.4);}
+.ahmts-pct{font-family:var(--fc);font-size:clamp(28px,4vw,44px);font-weight:900;line-height:1;margin-top:5px;}
+.ahmt-vs{padding:0 16px;display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;}
+.ahmtv-vs{font-family:var(--fb);font-size:28px;letter-spacing:.06em;background:linear-gradient(to bottom,var(--gold),var(--blood2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.ahmtv-countdown{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);animation:countdownPulse 1s infinite;}
+.ah-actions{display:flex;gap:6px;}
+.ah-btn-primary{font-family:var(--fc);font-size:15px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--void);border:none;padding:13px 32px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden;}
+.ah-btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-100%);transition:transform .5s;}
+.ah-btn-primary:hover::before{transform:translateX(100%);}
+.ah-btn-outline{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(242,238,230,.45);border:1px solid rgba(242,238,230,.15);padding:13px 24px;cursor:pointer;transition:all .22s;}
+.ah-btn-outline:hover{border-color:rgba(242,238,230,.38);color:var(--white);}
+/* arena stats strip */
+.arena-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:0 48px;background:rgba(2,1,8,.95);border-top:1px solid rgba(212,160,16,.1);border-bottom:1px solid rgba(212,160,16,.07);}
+/* section padding */
+.arena-section{padding:36px 48px;}
+
+/* season standings */
+.standings-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+@media(max-width:900px){.standings-grid{grid-template-columns:1fr;}}
+.standing-row{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--card);border:1px solid rgba(212,160,16,.06);transition:all .2s;cursor:pointer;}
+.standing-row:hover{border-color:rgba(212,160,16,.2);}
+.standing-row.champion{border-color:rgba(212,160,16,.3);background:rgba(212,160,16,.05);}
+.sr-rank{font-family:var(--fb);font-size:22px;letter-spacing:.04em;min-width:36px;text-align:right;}
+.sr-rank.gold{color:var(--gold2);}
+.sr-rank.silver{color:rgba(200,195,190,.6);}
+.sr-rank.bronze{color:rgba(180,110,60,.6);}
+.sr-info{flex:1;}
+.sri-name{font-family:var(--fb);font-size:clamp(14px,2vw,19px);letter-spacing:.06em;}
+.sri-creator{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.sr-record{text-align:right;}
+.srr-wins{font-family:var(--fc);font-size:clamp(18px,2.5vw,26px);font-weight:900;line-height:1;}
+.srr-pts{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.sr-crown{font-size:14px;flex-shrink:0;}
+
+/* faction power bar */
+.faction-powers{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;}
+.fp-card{background:var(--card);border:1px solid rgba(242,238,230,.05);padding:14px;position:relative;overflow:hidden;cursor:pointer;transition:all .22s;}
+.fp-card:hover{border-color:rgba(242,238,230,.15);}
+.fpc-bar{position:absolute;bottom:0;left:0;right:0;transition:height .8s ease;}
+.fpc-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.fpct-name{font-family:var(--fb);font-size:clamp(12px,1.8vw,17px);letter-spacing:.06em;}
+.fpct-seal{font-size:18px;}
+.fpc-pct{font-family:var(--fc);font-size:clamp(28px,4vw,44px);font-weight:900;position:relative;z-index:1;line-height:1;}
+.fpc-label{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);position:relative;z-index:1;margin-top:2px;}
+
+/* ═══════════════════════════════════════════════
+   VIEW 2: THE BATTLE BRACKET
+═══════════════════════════════════════════════ */
+#view-bracket{padding-top:56px;}
+.bracket-wrap{padding:32px 40px;overflow-x:auto;}
+.bracket-hdr{text-align:center;margin-bottom:28px;}
+/* bracket layout */
+.bracket-container{display:flex;gap:0;min-width:1100px;position:relative;}
+.bracket-round{display:flex;flex-direction:column;flex:1;min-width:220px;}
+.br-label{font-family:var(--fm);font-size:7px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:10px;border-bottom:1px solid rgba(212,160,16,.08);margin-bottom:0;}
+.br-matches{display:flex;flex-direction:column;justify-content:space-around;flex:1;padding:8px 0;}
+/* matchup card */
+.matchup{background:var(--panel);border:1px solid rgba(242,238,230,.06);margin:6px 8px;position:relative;overflow:hidden;cursor:pointer;transition:all .25s;}
+.matchup:hover{border-color:rgba(212,160,16,.25);}
+.matchup.featured{border-color:rgba(212,160,16,.3);animation:arenaGlow 4s infinite;}
+.matchup.completed{opacity:.85;}
+.mu-round-stripe{position:absolute;top:0;left:0;right:0;height:2px;}
+.mu-competitor{display:flex;align-items:center;gap:9px;padding:10px 12px;border-bottom:1px solid rgba(242,238,230,.04);position:relative;transition:background .15s;}
+.mu-competitor:last-child{border-bottom:none;}
+.mu-competitor.winner{background:rgba(32,200,112,.06);}
+.mu-competitor.loser{opacity:.45;}
+.muc-icon{font-size:16px;flex-shrink:0;}
+.muc-info{flex:1;}
+.muci-name{font-family:var(--fb);font-size:clamp(11px,1.5vw,14px);letter-spacing:.05em;line-height:1;}
+.muci-creator{font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.muc-score{font-family:var(--fc);font-size:clamp(16px,2vw,22px);font-weight:900;line-height:1;}
+.muc-score.leading{color:var(--gold2);}
+.muc-score.winning{color:var(--win);}
+.muc-score.losing{color:var(--muted);}
+.muc-badge{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:2px 6px;}
+.mu-badge-canon{border-color:rgba(32,200,112,.3);color:var(--win);}
+.mu-badge-disputed{border-color:rgba(200,144,12,.3);color:var(--tbd);}
+.mu-badge-live{border-color:rgba(224,32,48,.35);color:var(--live);animation:blink .8s infinite;}
+.mu-badge-tbd{border-color:rgba(82,76,100,.3);color:var(--muted);}
+/* vote bar at bottom of matchup */
+.mu-vote-bar{height:4px;display:flex;}
+.muvb-a{transition:width .8s ease;}
+.muvb-b{transition:width .8s ease;}
+/* bracket connector lines SVG */
+.bracket-connectors{position:absolute;inset:0;pointer-events:none;}
+/* championship match */
+.championship-slot{background:rgba(212,160,16,.07);border:2px solid rgba(212,160,16,.3);margin:6px 8px;padding:18px;text-align:center;position:relative;animation:arenaGlow 3s infinite;}
+.cs-label{font-family:var(--fm);font-size:7px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold2);margin-bottom:6px;}
+.cs-trophy{font-size:32px;display:block;margin-bottom:8px;}
+.cs-title{font-family:var(--fb);font-size:clamp(18px,2.5vw,28px);letter-spacing:.07em;color:var(--gold2);margin-bottom:4px;}
+.cs-sub{font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(242,238,230,.38);}
+
+/* ═══════════════════════════════════════════════
+   VIEW 3: CHARACTER DRAFT
+═══════════════════════════════════════════════ */
+#view-draft{padding-top:56px;}
+.draft-layout{display:grid;grid-template-columns:1fr 320px;min-height:calc(100vh - 56px);}
+/* draft board */
+.draft-board{padding:28px 32px;overflow-y:auto;}
+.db-my-roster{margin-bottom:24px;}
+.dbmr-title{font-family:var(--fc);font-size:18px;font-weight:800;letter-spacing:.07em;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+.dbmrt-score{font-family:var(--fb);font-size:22px;letter-spacing:.05em;color:var(--gold2);}
+/* roster slots */
+.roster-slots{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:14px;}
+@media(max-width:1000px){.roster-slots{grid-template-columns:repeat(3,1fr);}}
+.roster-slot{background:var(--card);border:1px solid rgba(212,160,16,.08);padding:12px 10px;text-align:center;position:relative;min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .22s;}
+.roster-slot.filled{border-color:rgba(212,160,16,.25);background:rgba(212,160,16,.05);}
+.roster-slot.empty{border-style:dashed;border-color:rgba(242,238,230,.08);opacity:.6;}
+.roster-slot:hover{border-color:rgba(212,160,16,.3);}
+.rs-icon{font-size:22px;display:block;margin-bottom:5px;}
+.rs-name{font-family:var(--fb);font-size:clamp(10px,1.4vw,13px);letter-spacing:.05em;line-height:1.1;}
+.rs-pts{font-family:var(--fc);font-size:clamp(16px,2vw,22px);font-weight:900;color:var(--gold2);line-height:1;}
+.rs-pts-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.rs-trend{font-family:var(--fm);font-size:6px;font-weight:700;margin-top:2px;}
+/* available characters */
+.db-available{margin-bottom:24px;}
+.dba-filters{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;}
+.dbaf-pill{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;border:1px solid rgba(242,238,230,.1);background:transparent;color:rgba(242,238,230,.35);padding:5px 12px;cursor:pointer;transition:all .18s;}
+.dbaf-pill.on{border-color:var(--gold);color:var(--gold2);background:rgba(212,160,16,.08);}
+/* character draft card */
+.char-draft-card{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:11px 14px;background:var(--card);border:1px solid rgba(242,238,230,.05);margin-bottom:3px;cursor:pointer;transition:all .22s;}
+.char-draft-card:hover{border-color:rgba(212,160,16,.2);background:rgba(212,160,16,.04);}
+.char-draft-card.drafted{opacity:.4;pointer-events:none;}
+.cdc-icon{font-size:22px;}
+.cdc-info{}
+.cdci-name{font-family:var(--fb);font-size:clamp(14px,2vw,18px);letter-spacing:.06em;line-height:1;}
+.cdci-role{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.cdci-projects{font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(242,238,230,.38);margin-top:1px;}
+.cdc-stats{text-align:right;}
+.cdcs-pts{font-family:var(--fc);font-size:clamp(18px,2.5vw,26px);font-weight:900;color:var(--gold2);line-height:1;}
+.cdcs-rank{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.cdc-draft-btn{font-family:var(--fc);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(212,160,16,.3);color:var(--gold2);background:rgba(212,160,16,.06);padding:7px 14px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.cdc-draft-btn:hover{background:rgba(212,160,16,.14);}
+/* draft sidebar — league standings */
+.draft-sidebar{background:rgba(6,5,14,.98);border-left:1px solid rgba(212,160,16,.07);overflow-y:auto;padding:16px;}
+.draft-sidebar::-webkit-scrollbar{width:0;}
+.ds-section{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(212,160,16,.06);}
+.ds-section:last-child{border-bottom:none;}
+.dss-title{font-family:var(--fm);font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:5px;}
+.dss-title::before{content:'◈';color:var(--gold2);}
+.league-row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid rgba(212,160,16,.04);cursor:pointer;}
+.league-row:last-child{border-bottom:none;}
+.lr-rank{font-family:var(--fb);font-size:16px;letter-spacing:.04em;min-width:24px;}
+.lr-info{flex:1;}
+.lri-name{font-family:var(--fm);font-size:7px;font-weight:700;letter-spacing:.06em;}
+.lri-roster{font-family:var(--fm);font-size:5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+.lr-score{font-family:var(--fc);font-size:clamp(16px,2vw,20px);font-weight:900;color:var(--gold2);}
+.lr-me{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(212,160,16,.25);color:var(--gold2);padding:1px 5px;flex-shrink:0;}
+
+/* ═══════════════════════════════════════════════
+   VIEW 4: THE COLOSSEUM (LIVE)
+═══════════════════════════════════════════════ */
+#view-colosseum{padding-top:56px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.colosseum-layout{flex:1;display:grid;grid-template-columns:1fr 340px;overflow:hidden;}
+/* performance stage */
+.colo-stage{position:relative;overflow:hidden;display:flex;flex-direction:column;background:var(--mid);}
+/* dramatic bg */
+.cs-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 20%,rgba(192,24,40,.1) 0%,transparent 60%);}
+.cs-scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,rgba(224,32,48,.04),transparent);animation:scanLine 10s linear infinite;pointer-events:none;z-index:2;}
+.cs-spotlights{position:absolute;inset:0;pointer-events:none;}
+.cs-spotlight{position:absolute;top:0;width:200px;height:300px;border-radius:0 0 50% 50%;opacity:.04;}
+/* creator performance area */
+.cs-performance{position:relative;z-index:3;padding:28px 36px;flex:1;display:flex;flex-direction:column;}
+.csp-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;}
+/* live indicator */
+.csp-live{display:flex;align-items:center;gap:7px;}
+.cspl-dot{width:8px;height:8px;border-radius:50%;background:var(--live);animation:blink .5s infinite;}
+.cspl-text{font-family:var(--fm);font-size:7px;letter-spacing:.22em;text-transform:uppercase;color:var(--live);}
+.cspl-count{font-family:var(--fm);font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+/* creator card */
+.csp-creator{display:flex;gap:14px;align-items:center;margin-bottom:16px;}
+.cspc-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid rgba(212,160,16,.35);flex-shrink:0;}
+.cspc-info{}
+.cspci-name{font-family:var(--fb);font-size:clamp(16px,2.5vw,26px);letter-spacing:.07em;display:flex;align-items:center;gap:8px;}
+.cspci-badge{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(224,32,48,.3);color:var(--live);padding:2px 7px;animation:blink .9s infinite;}
+.cspci-ep{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:rgba(242,238,230,.4);}
+.cspci-project{font-family:var(--fg);font-style:italic;font-size:13px;color:rgba(242,238,230,.55);}
+/* waveform */
+.csp-waveform{height:72px;display:flex;align-items:center;gap:2px;margin-bottom:14px;padding:10px 0;border-top:1px solid rgba(242,238,230,.05);border-bottom:1px solid rgba(242,238,230,.05);}
+.cspw-bar{flex:1;border-radius:1px;min-height:3px;transition:height .2s;}
+/* current narrative moment */
+.csp-narrative{flex:1;margin-bottom:16px;}
+.cspn-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.cspn-text{font-family:var(--fg);font-style:italic;font-size:clamp(16px,2vw,21px);color:rgba(242,238,230,.82);line-height:1.9;max-width:720px;}
+/* live branch point */
+.csp-branch{background:rgba(2,1,8,.7);border:1px solid rgba(212,160,16,.25);padding:18px 20px;backdrop-filter:blur(8px);}
+.cspb-label{font-family:var(--fm);font-size:7px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold2);margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.cspb-label::before{content:'⬡';}
+.cspb-question{font-family:var(--fg);font-style:italic;font-size:clamp(14px,1.6vw,17px);color:rgba(242,238,230,.8);line-height:1.75;margin-bottom:12px;}
+/* live choice buttons */
+.cspb-choices{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;}
+.cspbc-btn{padding:12px 14px;background:rgba(242,238,230,.03);border:1px solid rgba(242,238,230,.08);cursor:pointer;text-align:left;transition:all .22s;position:relative;overflow:hidden;}
+.cspbc-btn:hover{border-color:var(--gold);background:rgba(212,160,16,.08);}
+.cspbc-btn.leading{border-color:rgba(212,160,16,.3);background:rgba(212,160,16,.07);}
+.cspbc-btn.voted{border-color:var(--gold2);}
+/* live vote fill */
+.cspbcb-fill{position:absolute;top:0;left:0;bottom:0;background:rgba(212,160,16,.1);pointer-events:none;transition:width 1s ease;}
+.cspbcb-content{position:relative;z-index:1;}
+.cspbcbc-choice{font-family:var(--fg);font-style:italic;font-size:13px;color:rgba(242,238,230,.75);margin-bottom:3px;line-height:1.5;}
+.cspbcbc-pct{font-family:var(--fc);font-size:clamp(20px,2.5vw,28px);font-weight:900;line-height:1;}
+.cspbcbc-votes{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+/* colosseum sidebar */
+.colo-sidebar{background:rgba(6,5,14,.98);border-left:1px solid rgba(212,160,16,.07);overflow:hidden;display:flex;flex-direction:column;}
+.colo-sb-hdr{padding:12px 14px;border-bottom:1px solid rgba(212,160,16,.07);flex-shrink:0;}
+.colsbh-title{font-family:var(--fc);font-size:15px;font-weight:800;letter-spacing:.08em;margin-bottom:3px;}
+.colsbh-sub{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+/* chat feed — in-universe only */
+.colo-chat{flex:1;overflow-y:auto;padding:0;}
+.colo-chat::-webkit-scrollbar{width:0;}
+.cc-item{padding:9px 12px;border-bottom:1px solid rgba(242,238,230,.04);animation:chatIn .3s cubic-bezier(.16,1,.3,1);}
+.cci-header{display:flex;gap:7px;align-items:center;margin-bottom:3px;}
+.ccih-avatar{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;border:1px solid;flex-shrink:0;}
+.ccih-name{font-family:var(--fm);font-size:6px;font-weight:700;letter-spacing:.07em;flex:1;}
+.ccih-faction{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.ccih-time{font-family:var(--fm);font-size:5px;color:var(--muted);}
+.cci-text{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,230,.5);line-height:1.55;}
+/* in-universe flavor */
+.cci-text.in-universe{color:rgba(242,238,230,.65);}
+/* chat input */
+.colo-input{padding:10px 12px;border-top:1px solid rgba(212,160,16,.08);flex-shrink:0;display:flex;gap:6px;}
+.ci-field{flex:1;background:rgba(242,238,230,.04);border:1px solid rgba(242,238,230,.1);padding:8px 12px;font-family:var(--fg);font-style:italic;font-size:12px;color:var(--white);outline:none;}
+.ci-field:focus{border-color:rgba(212,160,16,.3);}
+.ci-field::placeholder{color:rgba(242,238,230,.2);}
+.ci-send{font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(212,160,16,.1);border:1px solid rgba(212,160,16,.2);color:var(--gold2);padding:8px 16px;cursor:pointer;transition:all .2s;}
+.ci-send:hover{background:rgba(212,160,16,.18);}
+
+/* ═══════════════════════════════════════════════
+   VIEW 5: THE CODEX
+═══════════════════════════════════════════════ */
+#view-codex{padding-top:56px;}
+.codex-wrap{padding:36px 48px;}
+/* codex hero */
+.codex-hero{
+  background:linear-gradient(135deg,rgba(212,160,16,.07),rgba(192,24,40,.05));
+  border:1px solid rgba(212,160,16,.15);
+  padding:28px 32px;margin-bottom:4px;
+  position:relative;overflow:hidden;
+}
+.codex-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,var(--gold),var(--gold2),var(--blood2),var(--gold2),var(--gold));}
+.ch-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+.cht-left{}
+.chtl-label{font-family:var(--fm);font-size:6px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold2);margin-bottom:5px;}
+.chtl-name{font-family:var(--fb);font-size:clamp(28px,5vw,64px);letter-spacing:.06em;line-height:.88;margin-bottom:4px;background:linear-gradient(to right,var(--white),var(--gold3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.chtl-title{font-family:var(--fg);font-style:italic;font-size:clamp(13px,1.5vw,16px);color:rgba(242,238,230,.45);}
+.cht-right{text-align:right;}
+.chtr-impact{font-family:var(--fb);font-size:clamp(36px,5vw,64px);letter-spacing:.04em;color:var(--gold2);line-height:1;display:block;}
+.chtr-lbl{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);}
+/* codex quick stats */
+.codex-quick{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:4px;}
+@media(max-width:1000px){.codex-quick{grid-template-columns:repeat(3,1fr);}}
+/* achievement sections */
+.codex-sections{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+@media(max-width:900px){.codex-sections{grid-template-columns:1fr;}}
+.codex-panel{background:var(--panel);border:1px solid rgba(212,160,16,.07);padding:20px;position:relative;overflow:hidden;}
+.codex-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.cp-title{font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.07em;margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+/* endings tracker */
+.endings-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;}
+.ending-cell{aspect-ratio:1;background:var(--card);border:1px solid rgba(242,238,230,.05);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;padding:8px;}
+.ending-cell.reached{border-color:rgba(212,160,16,.25);background:rgba(212,160,16,.07);}
+.ending-cell.unreached{opacity:.35;filter:grayscale(.8);}
+.ec-icon{font-size:16px;display:block;margin-bottom:3px;}
+.ec-name{font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;text-align:center;line-height:1.3;}
+/* crossover nodes */
+.node-item{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid rgba(242,238,230,.04);}
+.node-item:last-child{border-bottom:none;}
+.ni-icon{font-size:14px;flex-shrink:0;margin-top:1px;}
+.ni-body{flex:1;}
+.nib-name{font-family:var(--fg);font-size:13px;font-weight:600;margin-bottom:1px;}
+.nib-projects{font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.ni-status{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:2px 6px;flex-shrink:0;}
+.ni-found{border-color:rgba(212,160,16,.3);color:var(--gold2);}
+.ni-hidden{border-color:rgba(82,76,100,.2);color:var(--muted);}
+/* arena record */
+.record-display{display:flex;align-items:center;gap:16px;margin-bottom:14px;}
+.rd-wins{text-align:center;}
+.rdw-val{font-family:var(--fb);font-size:clamp(36px,5vw,60px);letter-spacing:.04em;color:var(--win);display:block;line-height:1;}
+.rdw-lbl{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.rd-sep{font-family:var(--fb);font-size:32px;color:rgba(242,238,230,.1);}
+.rd-losses{}
+.rdl-val{font-family:var(--fb);font-size:clamp(36px,5vw,60px);letter-spacing:.04em;color:var(--muted);display:block;line-height:1;}
+.rdl-lbl{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.rd-history{display:flex;gap:3px;flex-wrap:wrap;}
+.rdh-dot{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:7px;font-weight:700;}
+.rdh-dot.w{background:rgba(32,200,112,.15);color:var(--win);}
+.rdh-dot.l{background:rgba(82,76,100,.12);color:var(--muted);}
+/* season history */
+.season-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid rgba(242,238,230,.04);}
+.season-row:last-child{border-bottom:none;}
+.sesr-season{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);min-width:70px;}
+.sesr-faction{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;border:1px solid;padding:1px 6px;flex-shrink:0;}
+.sesr-impact{font-family:var(--fc);font-size:clamp(16px,2vw,20px);font-weight:900;color:var(--gold2);margin-left:auto;}
+.sesr-rank{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+</style>
+</head>
+<body>
+<div id="cur"></div>
+<div id="cur-dot"></div>
+<div id="cur2"></div>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="tn-left">
+    <div class="tn-logo" onclick="sw('home',null)">STORY<span>LINE</span></div>
+    <div class="tn-sep"></div>
+    <div class="tn-arena-badge">
+      <span class="tnab-icon">🏟</span>
+      <span class="tnab-text">THE ARENA</span>
+    </div>
+    <div class="tn-season">SEASON 1 · IRONBELL CITY · WEEK 8 OF 12</div>
+  </div>
+  <div class="tn-tabs">
+    <button class="tn-tab on" onclick="sw('home',this)">🏟 ARENA HOME</button>
+    <button class="tn-tab" onclick="sw('bracket',this)">⚔ BATTLE BRACKET</button>
+    <button class="tn-tab" onclick="sw('draft',this)">🎯 CHARACTER DRAFT</button>
+    <button class="tn-tab live-tab" onclick="sw('colosseum',this)">◉ COLOSSEUM</button>
+    <button class="tn-tab" onclick="sw('codex',this)">📖 MY CODEX</button>
+  </div>
+  <div class="tn-right">
+    <div class="tn-live-pill" onclick="sw('colosseum',null)">
+      <div class="tnlp-dot"></div>
+      <span class="tnlp-text">LIVE — HOLLOWAY VS HEIGHTS</span>
+    </div>
+    <button class="tn-codex-btn" onclick="sw('codex',null)">MY CODEX →</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════ ARENA HOME ══════════════════════ -->
+<div class="view active" id="view-home">
+
+  <div class="arena-hero">
+    <div class="ah-bg"></div>
+    <div class="ah-grid"></div>
+    <div class="ah-spotlight"></div>
+    <div class="ah-scan"></div>
+    <div class="ah-content fade-up">
+      <div class="ah-season">◈ SEASON 1 · IRONBELL CITY NARRATIVE LEAGUE · WEEK 8 OF 12</div>
+      <div class="ah-title">THE<br>ARENA.</div>
+      <div class="ah-sub">Where stories fight for canon supremacy. Two creators. One crossover moment. The audience decides whose version of history is real — and whose becomes the disputed account.</div>
+      <div class="ah-matchup-teaser">
+        <div class="ahmt-side left">
+          <div class="ahmts-label">HOLLOWAY BLOOD · CREATOR</div>
+          <div class="ahmts-project" style="color:#CC2830;">THE DYNASTY PROTOCOLS</div>
+          <div class="ahmts-creator">MARCUS HOLLOWAY</div>
+          <div class="ahmts-pct" style="color:#CC2830;" id="hero-pct-a">52%</div>
+        </div>
+        <div class="ahmt-vs">
+          <div class="ahmtv-vs">VS</div>
+          <div class="ahmtv-countdown" id="hero-countdown">LIVE NOW</div>
+        </div>
+        <div class="ahmt-side right">
+          <div class="ahmts-label">THE HEIGHTS ACCORD · CREATOR</div>
+          <div class="ahmts-project" style="color:#28A0F0;">THE HEIGHTS</div>
+          <div class="ahmts-creator">SOLOMON VANCE</div>
+          <div class="ahmts-pct" style="color:#28A0F0;" id="hero-pct-b">48%</div>
+        </div>
+      </div>
+      <div class="ah-actions">
+        <button class="ah-btn-primary" onclick="sw('colosseum',null)">◉ WATCH LIVE →</button>
+        <button class="ah-btn-outline" onclick="sw('bracket',null)">VIEW FULL BRACKET</button>
+        <button class="ah-btn-outline" onclick="sw('draft',null)">MY ROSTER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARENA STATS STRIP -->
+  <div class="arena-stats" id="arena-stats"></div>
+
+  <!-- STANDINGS -->
+  <div class="arena-section fade-up">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;">
+      <div>
+        <div class="section-label">SEASON 1 STANDINGS</div>
+        <div class="section-title">WHO'S<br>WINNING.</div>
+      </div>
+      <button style="font-family:var(--fm);font-size:7px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);background:none;border:none;cursor:pointer;" onclick="sw('bracket',null)">FULL BRACKET →</button>
+    </div>
+    <div class="standings-grid" id="standings"></div>
+  </div>
+
+  <!-- FACTION POWERS -->
+  <div class="arena-section fade-up" style="background:rgba(6,5,14,.6);padding-top:28px;padding-bottom:28px;">
+    <div style="margin-bottom:14px;">
+      <div class="section-label">FACTION POWER INDEX · WEEK 8</div>
+      <div class="section-title" style="font-size:clamp(24px,3.5vw,44px);">WHO CONTROLS THE CITY.</div>
+    </div>
+    <div class="faction-powers" id="faction-powers"></div>
+    <div style="font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,230,.3);margin-top:10px;text-align:center;">Power index calculated from: canon victories, theory accuracy, live event votes, community dispatch citations, and character draft performance.</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════ BATTLE BRACKET ══════════════════════ -->
+<div class="view" id="view-bracket">
+  <div class="bracket-wrap">
+    <div class="bracket-hdr fade-up">
+      <div class="section-label" style="justify-content:center;">◈ SEASON 1 · IRONBELL CITY NARRATIVE LEAGUE</div>
+      <div class="section-title" style="text-align:center;font-size:clamp(40px,7vw,88px);">BATTLE<br>BRACKET</div>
+      <div class="section-sub" style="text-align:center;max-width:580px;margin:0 auto;">Head-to-head creator matchups. Two universes, one crossover moment. The audience votes. The winner\'s version becomes canon. The loser\'s version becomes the disputed account.</div>
+    </div>
+    <div class="bracket-container fade-up" id="bracket-container"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ CHARACTER DRAFT ══════════════════════ -->
+<div class="view" id="view-draft">
+  <div class="draft-layout">
+    <div class="draft-board">
+      <!-- my roster -->
+      <div class="db-my-roster fade-up">
+        <div class="dbmr-title">
+          <span>MY ROSTER — <span style="color:var(--muted);font-size:14px;">WEEK 8</span></span>
+          <span class="dbmrt-score" id="roster-total-score">2,840 PTS</span>
+        </div>
+        <div class="roster-slots" id="roster-slots"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" class="fade-up">
+          <div style="background:rgba(212,160,16,.05);border:1px solid rgba(212,160,16,.15);padding:8px 14px;flex:1;">
+            <div style="font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold2);margin-bottom:3px;">SEASON INFLUENCE REWARD</div>
+            <div style="font-family:var(--fg);font-size:12px;color:rgba(242,238,230,.55);line-height:1.6;">Your top-scoring character this season gets a <em>creator note acknowledgment</em> in Season 2 Episode 1. Marcus Holloway is currently your highest scorer.</div>
+          </div>
+          <div style="background:rgba(192,24,40,.05);border:1px solid rgba(192,24,40,.15);padding:8px 14px;flex:1;">
+            <div style="font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--blood2);margin-bottom:3px;">TRADE WINDOW — CLOSES FRIDAY</div>
+            <div style="font-family:var(--fg);font-size:12px;color:rgba(242,238,230,.55);line-height:1.6;">You have 2 trade slots available. Thomas Vance is the most-requested character in the league right now.</div>
+          </div>
+        </div>
+      </div>
+      <!-- available characters -->
+      <div class="db-available fade-up">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+          <div style="font-family:var(--fc);font-size:18px;font-weight:800;letter-spacing:.07em;">DRAFT BOARD</div>
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">24 CHARACTERS AVAILABLE</div>
+        </div>
+        <div class="dba-filters">
+          <button class="dbaf-pill on" onclick="filterDraft(this,'all')">ALL</button>
+          <button class="dbaf-pill" onclick="filterDraft(this,'dynasty')">DYNASTY</button>
+          <button class="dbaf-pill" onclick="filterDraft(this,'heights')">THE HEIGHTS</button>
+          <button class="dbaf-pill" onclick="filterDraft(this,'meridian')">MERIDIAN</button>
+          <button class="dbaf-pill" onclick="filterDraft(this,'coldwater')">COLDWATER</button>
+          <button class="dbaf-pill" onclick="filterDraft(this,'high')">HIGH SCORE</button>
+        </div>
+        <div id="draft-board-list"></div>
+      </div>
+    </div>
+    <div class="draft-sidebar">
+      <div class="ds-section">
+        <div class="dss-title">LEAGUE STANDINGS</div>
+        <div id="league-standings"></div>
+      </div>
+      <div class="ds-section">
+        <div class="dss-title">THIS WEEK\'S SCORING</div>
+        <div style="font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,230,.38);line-height:1.7;margin-bottom:8px;">Points awarded for: branch point appearances (+40 each), canon episode events (+80), crossover involvement (+120), creator spotlight mention (+200).</div>
+        <div id="weekly-scoring"></div>
+      </div>
+      <div class="ds-section">
+        <div class="dss-title">HOT PICKUPS</div>
+        <div id="hot-pickups"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ THE COLOSSEUM ══════════════════════ -->
+<div class="view" id="view-colosseum">
+  <div class="colosseum-layout">
+
+    <div class="colo-stage">
+      <div class="cs-bg"></div>
+      <div class="cs-scan"></div>
+      <div class="cs-spotlights">
+        <div class="cs-spotlight" style="left:20%;background:radial-gradient(var(--blood2),transparent);"></div>
+        <div class="cs-spotlight" style="right:20%;background:radial-gradient(var(--gold),transparent);"></div>
+      </div>
+      <div class="cs-performance">
+        <div class="csp-header">
+          <div class="csp-live">
+            <div class="cspl-dot"></div>
+            <span class="cspl-text">◉ LIVE COLOSSEUM SESSION</span>
+            <span class="cspl-count">· 4,284 WITNESSES</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <div style="font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);">RECORDING FOR CANON · </div>
+            <div style="font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold2);border:1px solid rgba(212,160,16,.25);padding:2px 8px;">WEEK 8 BATTLE</div>
+          </div>
+        </div>
+
+        <div class="csp-creator">
+          <div class="cspc-avatar" style="background:linear-gradient(135deg,#CC2830,#880A18);">🧑</div>
+          <div class="cspc-info">
+            <div class="cspci-name">MARCUS HOLLOWAY <div class="cspci-badge">◉ PERFORMING LIVE</div></div>
+            <div class="cspci-ep">THE DYNASTY PROTOCOLS · BATTLE EP. "THE IRON GATE NIGHT" · WEEK 8</div>
+            <div class="cspci-project">vs. Solomon Vance (The Heights) · Crossover Battle · Canon Vote Open</div>
+          </div>
+        </div>
+
+        <div class="csp-waveform" id="colo-waveform"></div>
+
+        <div class="csp-narrative">
+          <div class="cspn-label">◈ CURRENT NARRATIVE MOMENT</div>
+          <div class="cspn-text" id="colo-narrative">"The fire at the Iron Gate started in the east wing. Reyes knew before the fire department did. What Marcus doesn't know — what he won't know until this moment — is that the call that alerted her came from inside the Heights building. From a number that doesn't exist in any directory. From a voice he'll recognize in the next scene, if the audience decides he should."</div>
+        </div>
+
+        <div class="csp-branch">
+          <div class="cspb-label">⬡ LIVE BRANCH POINT · AUDIENCE DECIDES · 4,284 VOTING</div>
+          <div class="cspb-question">"Does Marcus recognize the voice on the recording that Reyes plays for him in the next scene?"</div>
+          <div class="cspb-choices" id="colo-choices"></div>
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:rgba(212,160,16,.5);">→ Majority vote determines the next 4 minutes of this live performance. This recording becomes canon.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="colo-sidebar">
+      <div class="colo-sb-hdr">
+        <div class="colsbh-title">THE SIGNAL FEED</div>
+        <div class="colsbh-sub">IN-UNIVERSE TRANSMISSIONS ONLY · 4,284 ACTIVE</div>
+      </div>
+      <div class="colo-chat" id="colo-chat"></div>
+      <div class="colo-input">
+        <input class="ci-field" type="text" placeholder="Transmit as a citizen of Ironbell City…" id="chat-input" />
+        <button class="ci-send" onclick="sendChat()">SEND</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════ THE CODEX ══════════════════════ -->
+<div class="view" id="view-codex">
+  <div class="codex-wrap">
+
+    <div class="codex-hero fade-up">
+      <div class="ch-top">
+        <div class="cht-left">
+          <div class="chtl-label">◈ YOUR CODEX · IRONBELL CITY · SEASON 1</div>
+          <div class="chtl-name">CITIZEN<br>RECORD</div>
+          <div class="chtl-title">Holloway Blood faction · Distributor tier · 8 seasons tracked</div>
+        </div>
+        <div class="cht-right">
+          <span class="chtr-impact" id="codex-impact">8,420</span>
+          <span class="chtr-lbl">CANON IMPACT SCORE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- quick stats -->
+    <div class="codex-quick fade-up" id="codex-quick"></div>
+
+    <!-- achievement sections -->
+    <div class="codex-sections fade-up">
+
+      <!-- endings reached -->
+      <div class="codex-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--gold),var(--gold2));"></div>
+        <div class="cp-title">⬡ ENDINGS REACHED — 7 of 12</div>
+        <div class="endings-grid" id="endings-grid"></div>
+        <div style="font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(242,238,230,.3);margin-top:10px;line-height:1.6;">5 endings remain. Path D of Branch Point 4 + the three-way crossover finale are your most likely next unlocks based on your current path.</div>
+      </div>
+
+      <!-- crossover nodes -->
+      <div class="codex-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--gold2),var(--tbd));"></div>
+        <div class="cp-title">◆ CROSSOVER NODES — 8 of 24</div>
+        <div id="codex-nodes"></div>
+      </div>
+
+      <!-- arena record -->
+      <div class="codex-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--blood),var(--blood2));"></div>
+        <div class="cp-title">⚔ ARENA RECORD</div>
+        <div class="record-display">
+          <div class="rd-wins"><span class="rdw-val">14</span><span class="rdw-lbl">BATTLES WON</span></div>
+          <div class="rd-sep">—</div>
+          <div class="rd-losses"><span class="rdl-val">6</span><span class="rdl-lbl">BATTLES LOST</span></div>
+        </div>
+        <div class="rd-history" id="rd-history"></div>
+        <div style="font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);margin-top:10px;border:1px solid rgba(212,160,16,.2);padding:6px 10px;background:rgba(212,160,16,.05);display:inline-block;">SEASON 1 RANK: #3 OF 2,847 PLAYERS</div>
+      </div>
+
+      <!-- season history -->
+      <div class="codex-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--gold),var(--arena2));"></div>
+        <div class="cp-title">📅 SEASON HISTORY</div>
+        <div id="season-history"></div>
+        <div style="font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,230,.35);margin-top:12px;line-height:1.65;">You were ranked in the top 5% for theory accuracy in Season 1. Two of your theories — the Coldwater Night = Iron Gate connection and the Signal predating Devon — were confirmed by creators.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CURSOR ──────────────────────────────────
+const cur=document.getElementById('cur');
+const curDot=document.getElementById('cur-dot');
+const cur2=document.getElementById('cur2');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{
+  mx=e.clientX;my=e.clientY;
+  cur.style.left=mx+'px';cur.style.top=my+'px';
+  curDot.style.left=mx+'px';curDot.style.top=my+'px';
+});
+(function l(){rx+=(mx-rx)*.11;ry+=(my-ry)*.11;cur2.style.left=rx+'px';cur2.style.top=ry+'px';requestAnimationFrame(l);})();
+function bigCur(){cur.style.transform='translate(-50%,-50%) scale(1.5)';cur2.style.width='48px';cur2.style.height='48px';}
+function normCur(){cur.style.transform='translate(-50%,-50%) scale(1)';cur2.style.width='36px';cur2.style.height='36px';}
+
+// ── VIEW SWITCH ──────────────────────────────
+function sw(id,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.tn-tab').forEach(t=>t.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  window.scrollTo(0,0);
+  const renders={home:renderHome,bracket:renderBracket,draft:renderDraft,colosseum:renderColosseum,codex:renderCodex};
+  if(renders[id])renders[id]();
+  setTimeout(initReveal,50);
+}
+
+// ── DATA ─────────────────────────────────────
+const ARENA_STATS=[
+  {val:'284K',lbl:'TOTAL WITNESSES',color:'var(--gold2)'},{val:'Season 1',lbl:'CURRENT SEASON',color:'var(--white)'},
+  {val:'8/12',lbl:'WEEKS COMPLETE',color:'var(--gold2)'},{val:'24',lbl:'BATTLES FOUGHT',color:'var(--blood2)'},
+  {val:'6',lbl:'LIVE THIS WEEK',color:'var(--live)'},{val:'12',lbl:'POSSIBLE ENDINGS',color:'var(--tbd)'},
+];
+const STANDINGS=[
+  {name:'THE DYNASTY PROTOCOLS',creator:'Marcus Holloway',wins:6,losses:1,pts:2840,rank:1,champion:false,color:'#CC2830',icon:'🏙'},
+  {name:'THE COLDWATER ARCHIVES',creator:'Rashida Chen',wins:5,losses:2,pts:2640,rank:2,champion:false,color:'#4878D0',icon:'📚'},
+  {name:'THE HEIGHTS',creator:'Solomon Vance',wins:5,losses:2,pts:2580,rank:3,champion:false,color:'#28A0F0',icon:'🏢'},
+  {name:'MERIDIAN SIGNAL',creator:'Devon Ross',wins:4,losses:3,pts:2240,rank:4,champion:false,color:'#20C0A0',icon:'📡'},
+  {name:'NEON GOSPEL',creator:'Aaliyah Pierce',wins:3,losses:4,pts:1980,rank:5,champion:false,color:'#C830D0',icon:'⛪'},
+  {name:'COLD DISPATCH',creator:'Lena Park',wins:3,losses:4,pts:1840,rank:6,champion:false,color:'#CC4010',icon:'📰'},
+  {name:'THE HOLLOWAY TESTAMENT',creator:'Marcus Holloway',wins:2,losses:5,pts:1480,rank:7,champion:false,color:'#A82828',icon:'📖'},
+  {name:'RUST & RUIN',creator:'Keisha Morgan',wins:1,losses:6,pts:1040,rank:8,champion:false,color:'#D06020',icon:'🏚'},
+];
+const FACTION_POWERS=[
+  {name:'HOLLOWAY BLOOD',seal:'🩸',color:'#CC2830',pct:68,delta:'+4%'},
+  {name:'HEIGHTS ACCORD',seal:'🏛',color:'#2858C8',pct:74,delta:'+2%'},
+  {name:'MERIDIAN',seal:'📡',color:'#18A860',pct:44,delta:'-1%'},
+  {name:'THE ARCHIVE',seal:'📚',color:'#9820C8',pct:38,delta:'+6%'},
+];
+const BRACKET_ROUNDS=[
+  {label:'ROUND OF 16',matches:[
+    {a:{name:'DYNASTY PROTOCOLS',creator:'M. Holloway',icon:'🏙',color:'#CC2830',score:68,status:'winner'},b:{name:'RUST & RUIN',creator:'K. Morgan',icon:'🏚',color:'#D06020',score:32,status:'loser'},status:'completed'},
+    {a:{name:'COLDWATER ARCHIVES',creator:'R. Chen',icon:'📚',color:'#4878D0',score:61,status:'winner'},b:{name:'NEON GOSPEL',creator:'A. Pierce',icon:'⛪',color:'#C830D0',score:39,status:'loser'},status:'completed'},
+    {a:{name:'THE HEIGHTS',creator:'S. Vance',icon:'🏢',color:'#28A0F0',score:55,status:'winner'},b:{name:'HOLLOWAY TESTAMENT',creator:'M. Holloway',icon:'📖',color:'#A82828',score:45,status:'loser'},status:'completed'},
+    {a:{name:'MERIDIAN SIGNAL',creator:'D. Ross',icon:'📡',color:'#20C0A0',score:58,status:'winner'},b:{name:'COLD DISPATCH',creator:'L. Park',icon:'📰',color:'#CC4010',score:42,status:'loser'},status:'completed'},
+  ]},
+  {label:'QUARTERFINALS',matches:[
+    {a:{name:'DYNASTY PROTOCOLS',creator:'M. Holloway',icon:'🏙',color:'#CC2830',score:62,status:'winner'},b:{name:'MERIDIAN SIGNAL',creator:'D. Ross',icon:'📡',color:'#20C0A0',score:38,status:'loser'},status:'completed'},
+    {a:{name:'COLDWATER ARCHIVES',creator:'R. Chen',icon:'📚',color:'#4878D0',score:54,status:'winner'},b:{name:'THE HEIGHTS',creator:'S. Vance',icon:'🏢',color:'#28A0F0',score:46,status:'loser'},status:'completed'},
+  ]},
+  {label:'SEMIFINALS',matches:[
+    {a:{name:'DYNASTY PROTOCOLS',creator:'M. Holloway',icon:'🏙',color:'#CC2830',score:52,status:'leading'},b:{name:'THE HEIGHTS',creator:'S. Vance',icon:'🏢',color:'#28A0F0',score:48,status:'trailing'},status:'live',featured:true},
+    {a:{name:'COLDWATER ARCHIVES',creator:'R. Chen',icon:'📚',color:'#4878D0',score:0,status:'tbd'},b:{name:'MERIDIAN SIGNAL',creator:'D. Ross',icon:'📡',color:'#20C0A0',score:0,status:'tbd'},status:'upcoming'},
+  ]},
+  {label:'CHAMPIONSHIP',matches:[
+    {championship:true},
+  ]},
+];
+const DRAFT_CHARS=[
+  {name:'MARCUS HOLLOWAY',role:'PROTAGONIST',icon:'🧑',color:'#CC2830',pts:840,rank:1,projects:'Dynasty Protocols',drafted:true,trend:'+120 this week'},
+  {name:'ELENA REYES',role:'ANTAGONIST / AMBIGUOUS',icon:'👩',color:'#28A0F0',pts:720,rank:2,projects:'Dynasty + The Heights',drafted:false,trend:'+84 this week'},
+  {name:'THOMAS VANCE',role:'THE UNKNOWN',icon:'🧔',color:'#9820C8',pts:680,rank:3,projects:'Heights + Dynasty + Meridian',drafted:false,trend:'+204 this week'},
+  {name:'RASHIDA OKAFOR',role:'THE ARCHIVIST',icon:'👩',color:'#4878D0',pts:560,rank:4,projects:'Coldwater Archives',drafted:false,trend:'+48 this week'},
+  {name:'DEVON ROSS',role:'THE SIGNAL SOURCE',icon:'🧔',color:'#20C0A0',pts:520,rank:5,projects:'Meridian Signal',drafted:true,trend:'+96 this week'},
+  {name:'LENA PARK',role:'THE JOURNALIST',icon:'👩',color:'#CC4010',pts:440,rank:6,projects:'Cold Dispatch',drafted:false,trend:'+60 this week'},
+  {name:'JAMES HOLLOWAY SR.',role:'FATHER · DECEASED',icon:'👴',color:'#CC2830',pts:380,rank:7,projects:'Dynasty (flashbacks)',drafted:false,trend:'+180 this week'},
+  {name:'REYES\'S ASSISTANT',role:'MINOR · RISING',icon:'👤',color:'#28A0F0',pts:280,rank:8,projects:'The Heights EP.6-8',drafted:false,trend:'+320 this week'},
+];
+const MY_ROSTER=[
+  {name:'MARCUS HOLLOWAY',icon:'🧑',color:'#CC2830',pts:840,trend:'+120',filled:true},
+  {name:'DEVON ROSS',icon:'🧔',color:'#20C0A0',pts:520,trend:'+96',filled:true},
+  {name:'RASHIDA OKAFOR',icon:'👩',color:'#4878D0',pts:560,trend:'+48',filled:true},
+  {name:'JAMES H. SR.',icon:'👴',color:'#CC2830',pts:380,trend:'+180',filled:false},
+  {name:'EMPTY SLOT',icon:'➕',color:'rgba(242,238,230,.2)',pts:0,trend:'',filled:false},
+];
+const LEAGUE_STANDINGS=[
+  {rank:1,name:'IronbellOracle',roster:'Vance · Reyes · Holloway',score:3240,me:false},
+  {rank:2,name:'SignalFreqMapper',roster:'Ross · Park · Okafor',score:2980,me:false},
+  {rank:3,name:'YOU',roster:'Holloway · Ross · Okafor',score:2840,me:true},
+  {rank:4,name:'DynastyChronicles',roster:'Holloway · Vance · Sr.',score:2640,me:false},
+  {rank:5,name:'BloodlineTrue',roster:'Reyes · Okafor · Park',score:2280,me:false},
+];
+const WEEKLY_SCORING=[
+  {char:'THOMAS VANCE',pts:204,reason:'3 project appearances · EP.9 pivotal scene'},{char:'JAMES HOLLOWAY SR.',pts:180,reason:'Dynasty flashback · canon reveal'},
+  {char:'MARCUS HOLLOWAY',pts:120,reason:'4 branch point appearances'},{char:'DEVON ROSS',pts:96,reason:'Signal EP.8 key event'},
+];
+const HOT_PICKUPS=[
+  {name:'REYES\'S ASSISTANT',pts:'+320',reason:'Breakout EP.6-8 · 3 scenes'},
+  {name:'THOMAS VANCE',pts:'+204',reason:'Cross-project appearances spiking'},
+];
+const COLO_CHOICES=[
+  {choice:'Yes — he recognizes the voice. It\'s someone from his past.',pct:58,votes:2484,color:'#CC2830'},
+  {choice:'No — the voice is distorted. He can\'t be sure. Not yet.',pct:42,votes:1800,color:'#28A0F0'},
+];
+const CHAT_MESSAGES=[
+  {name:'IronbellWatch',avatar:'🧑',fColor:'#CC2830',faction:'HOLLOWAY BLOOD',time:'just now',text:'The voice is his uncle. It has to be. His uncle\'s been mentioned twice and never appeared. This is the moment.',inUniverse:false},
+  {name:'SignalCitizen',avatar:'🧔',fColor:'#18A860',faction:'MERIDIAN',time:'12s ago',text:'A transmission just crossed the Meridian frequency. Someone in the Heights building made a call to the Iron Gate seven minutes before the fire started.',inUniverse:true},
+  {name:'ArchivedTruth',avatar:'👩',fColor:'#9820C8',faction:'THE ARCHIVE',time:'28s ago',text:'I have a document that predates this conversation by sixteen years. The voice on that recording is in the Archive.',inUniverse:true},
+  {name:'BloodlineTrue',avatar:'👩',fColor:'#CC2830',faction:'HOLLOWAY BLOOD',time:'44s ago',text:'Marcus not recognizing the voice is the more interesting narrative choice. The recognition moment hits harder in Episode 7 if delayed.',inUniverse:false},
+  {name:'HeightsSentinel',avatar:'🧑',fColor:'#2858C8',faction:'HEIGHTS ACCORD',time:'1m ago',text:'The Heights building\'s communications were logged that night. The log has been redacted. The Accord knows what it contains.',inUniverse:true},
+  {name:'FrequencyMapper',avatar:'🧔',fColor:'#18A860',faction:'MERIDIAN',time:'1m ago',text:'If he recognizes the voice, the next 4 minutes of this session become the most important 4 minutes of Season 1.',inUniverse:false},
+  {name:'ColdwaterArchivist',avatar:'👩',fColor:'#4878D0',faction:'THE ARCHIVE',time:'2m ago',text:'Voting YES. The recognition has to happen now. Every path after this converges differently if he knows.',inUniverse:false},
+  {name:'DynastyChronicles',avatar:'🧔',fColor:'#CC2830',faction:'HOLLOWAY BLOOD',time:'2m ago',text:'58% of us think he knows. Marcus Holloway always knows. The question is what he does with knowing.',inUniverse:false},
+];
+const ENDINGS=[
+  {name:'THE ASH',icon:'🔥',reached:true},{name:'THE ARCHIVE',icon:'📚',reached:true},
+  {name:'THE FALL',icon:'🌆',reached:true},{name:'THE COLDWATER KEY',icon:'🗝',reached:true},
+  {name:'DYNASTY ENDS',icon:'👑',reached:true},{name:'THE SIGNAL',icon:'📡',reached:true},
+  {name:'THE WITNESS',icon:'👁',reached:true},{name:'DISPUTED',icon:'⚠',reached:false},
+  {name:'THE HEIR',icon:'🧬',reached:false},{name:'HOLLOWAY FALLS',icon:'🩸',reached:false},
+  {name:'THE FOURTH PATH',icon:'◆',reached:false},{name:'TRUE ENDING',icon:'✦',reached:false},
+];
+const CODEX_NODES=[
+  {name:'THE COLDWATER NIGHT',projects:'Dynasty + Coldwater',found:true},{name:'THE SIGNAL FREQUENCY',projects:'Meridian + Cold Dispatch',found:true},
+  {name:'THE HEIGHTS INHERITANCE',projects:'Heights + Dynasty + Testament',found:false},{name:'IRON GATE FINAL TRUTH',projects:'All 8 projects',found:false},
+];
+const ARENA_RECORD=['w','w','l','w','w','w','l','w','w','w','l','w','w','l','w','w','w','w','l','w'];
+const SEASON_HISTORY=[
+  {season:'S1 WK1-8',faction:'HOLLOWAY BLOOD',color:'#CC2830',impact:8420,rank:'#3'},
+  {season:'PRE-SEASON',faction:'HOLLOWAY BLOOD',color:'#CC2830',impact:4280,rank:'#7'},
+];
+const CODEX_QUICK=[
+  {val:'7/12',lbl:'ENDINGS REACHED',color:'var(--gold2)'},{val:'8/24',lbl:'CROSSOVER NODES',color:'var(--tbd)'},
+  {val:'14W–6L',lbl:'ARENA RECORD',color:'var(--win)'},{val:'#3',lbl:'LEAGUE RANK',color:'var(--gold2)'},
+  {val:'2/5',lbl:'THEORIES CONFIRMED',color:'var(--win)'},{val:'Holloway Blood',lbl:'CURRENT FACTION',color:'#CC2830'},
+];
+
+// ── RENDER FUNCTIONS ──────────────────────────
+
+let homeRendered=false;
+function renderHome(){
+  if(homeRendered)return;
+  homeRendered=true;
+  // stats strip
+  const stats=document.getElementById('arena-stats');
+  ARENA_STATS.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='stat-cell';
+    d.style.borderTop='2px solid rgba(212,160,16,.15)';
+    d.innerHTML=`<span class="sc-val" style="color:${s.color};">${s.val}</span><span class="sc-lbl">${s.lbl}</span>`;
+    stats.appendChild(d);
+  });
+  // standings
+  const sg=document.getElementById('standings');
+  STANDINGS.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='standing-row'+(s.rank<=2?' champion':'');
+    d.onclick=()=>sw('bracket',null);
+    const rankClass=s.rank===1?'gold':s.rank===2?'silver':s.rank===3?'bronze':'';
+    const rankColor=s.rank===1?'var(--gold2)':s.rank===2?'rgba(200,195,190,.6)':s.rank===3?'rgba(180,110,60,.6)':'var(--muted)';
+    d.innerHTML=`
+      ${s.rank===1?'<div class="gold-stripe"></div>':''}
+      <div class="sr-rank ${rankClass}" style="color:${rankColor};">${s.rank}</div>
+      <div class="sr-info">
+        <div class="sri-name" style="color:${s.color};">${s.icon} ${s.name}</div>
+        <div class="sri-creator">${s.creator}</div>
+      </div>
+      <div class="sr-record">
+        <div class="srr-wins" style="color:${s.rank<=3?'var(--gold2)':'var(--muted)'};">${s.wins}W — ${s.losses}L</div>
+        <div class="srr-pts">${s.pts.toLocaleString()} PTS</div>
+      </div>
+      ${s.rank===1?'<div class="sr-crown">👑</div>':''}`;
+    sg.appendChild(d);
+  });
+  // faction powers
+  const fp=document.getElementById('faction-powers');
+  FACTION_POWERS.forEach(f=>{
+    const d=document.createElement('div');
+    d.className='fp-card';
+    d.onclick=()=>{}
+    d.innerHTML=`
+      <div class="fpc-bar" style="height:${f.pct*.4}%;background:${f.color};opacity:.1;"></div>
+      <div class="fpc-top"><div class="fpct-name" style="color:${f.color};">${f.name}</div><div class="fpct-seal">${f.seal}</div></div>
+      <div class="fpc-pct" style="color:${f.color};">${f.pct}%</div>
+      <div class="fpc-label">POWER INDEX <span style="color:${f.delta.startsWith('+')?'var(--win)':'var(--blood2)'};">${f.delta} THIS WEEK</span></div>`;
+    fp.appendChild(d);
+  });
+  addHoverFX();
+}
+
+let bracketRendered=false;
+function renderBracket(){
+  if(bracketRendered)return;
+  bracketRendered=true;
+  const container=document.getElementById('bracket-container');
+  BRACKET_ROUNDS.forEach(round=>{
+    const col=document.createElement('div');
+    col.className='bracket-round';
+    col.innerHTML=`<div class="br-label">${round.label}</div><div class="br-matches" id="round-${round.label.replace(/\s/g,'_')}"></div>`;
+    container.appendChild(col);
+    const matchesDiv=col.querySelector('.br-matches');
+    round.matches.forEach(m=>{
+      if(m.championship){
+        const cs=document.createElement('div');
+        cs.className='championship-slot';
+        cs.innerHTML=`<div class="cs-label">◈ SEASON 1 CHAMPIONSHIP</div><span class="cs-trophy">🏆</span><div class="cs-title">WINNER TO BE DECIDED</div><div class="cs-sub">Semifinals determine the finalists · Week 10 · Canon on the line</div>`;
+        matchesDiv.appendChild(cs);
+        return;
+      }
+      const mu=document.createElement('div');
+      mu.className='matchup'+(m.featured?' featured':'')+(m.status==='completed'?' completed':'');
+      mu.onclick=()=>{if(m.status==='live')sw('colosseum',null);};
+      const getScoreClass=(s,opp)=>{
+        if(m.status==='completed')return s>opp?'winning':'losing';
+        if(m.status==='live')return s>opp?'leading':'';
+        return '';
+      };
+      const getBadge=(status,aScore,bScore)=>{
+        if(status==='completed') return `<div class="muc-badge mu-badge-canon">✓ CANON</div>`;
+        if(status==='live') return `<div class="muc-badge mu-badge-live">◉ LIVE</div>`;
+        return `<div class="muc-badge mu-badge-tbd">TBD</div>`;
+      };
+      mu.innerHTML=`
+        <div class="mu-round-stripe" style="background:${m.featured?'linear-gradient(to right,var(--gold),var(--blood2),var(--gold))':m.status==='completed'?'rgba(32,200,112,.4)':'rgba(212,160,16,.2)'};"></div>
+        <div class="mu-competitor ${m.status==='completed'&&m.a.score>m.b.score?'winner':m.status==='completed'?'loser':''}">
+          <div class="muc-icon">${m.a.icon}</div>
+          <div class="muc-info"><div class="muci-name" style="color:${m.a.color};">${m.a.name}</div><div class="muci-creator">${m.a.creator}</div></div>
+          <div class="muc-score ${getScoreClass(m.a.score,m.b.score)}" style="color:${m.status==='tbd'?'var(--muted)':m.a.color};">${m.status==='upcoming'?'—':m.a.score+'%'}</div>
+          ${m.status==='completed'&&m.a.score>m.b.score?getBadge(m.status,m.a.score,m.b.score):''}
+        </div>
+        <div class="mu-competitor ${m.status==='completed'&&m.b.score>m.a.score?'winner':m.status==='completed'?'loser':''}">
+          <div class="muc-icon">${m.b.icon}</div>
+          <div class="muc-info"><div class="muci-name" style="color:${m.b.color};">${m.b.name}</div><div class="muci-creator">${m.b.creator}</div></div>
+          <div class="muc-score ${getScoreClass(m.b.score,m.a.score)}" style="color:${m.status==='tbd'?'var(--muted)':m.b.color};">${m.status==='upcoming'?'—':m.b.score+'%'}</div>
+          ${m.status==='completed'&&m.b.score>m.a.score?getBadge(m.status,m.a.score,m.b.score):''}
+        </div>
+        ${m.status!=='upcoming'?`<div class="mu-vote-bar"><div class="muvb-a" style="width:${m.a.score||50}%;background:${m.a.color};opacity:.7;"></div><div class="muvb-b" style="width:${m.b.score||50}%;background:${m.b.color};opacity:.7;"></div></div>`:''}`;
+      matchesDiv.appendChild(mu);
+    });
+  });
+  addHoverFX();
+}
+
+let draftRendered=false;
+function renderDraft(){
+  if(draftRendered)return;
+  draftRendered=true;
+  // roster
+  const rs=document.getElementById('roster-slots');
+  MY_ROSTER.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='roster-slot'+(c.filled?' filled':' empty');
+    d.innerHTML=c.filled?`
+      <span class="rs-icon">${c.icon}</span>
+      <div class="rs-name" style="color:${c.color};">${c.name}</div>
+      <span class="rs-pts" style="color:${c.color};">${c.pts}</span>
+      <span class="rs-pts-lbl">PTS</span>
+      <span class="rs-trend" style="color:${c.trend.startsWith('+')&&c.trend!==''?'var(--win)':'var(--muted)'};">${c.trend}</span>`
+      :`<span class="rs-icon" style="opacity:.3;">➕</span><div class="rs-name" style="color:var(--muted);">DRAFT A CHARACTER</div>`;
+    rs.appendChild(d);
+  });
+  // draft board
+  const dl=document.getElementById('draft-board-list');
+  DRAFT_CHARS.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='char-draft-card'+(c.drafted?' drafted':'');
+    d.innerHTML=`
+      <div class="cdc-icon">${c.icon}</div>
+      <div class="cdc-info">
+        <div class="cdci-name" style="color:${c.color};">${c.name}</div>
+        <div class="cdci-role">${c.role}</div>
+        <div class="cdci-projects">${c.projects}</div>
+      </div>
+      <div class="cdc-stats">
+        <div class="cdcs-pts">${c.pts}</div>
+        <div class="cdcs-rank">RANK #${c.rank}</div>
+      </div>
+      <button class="cdc-draft-btn" onclick="draftChar(this,'${c.name}')" ${c.drafted?'disabled':''} style="${c.drafted?'opacity:.3;pointer-events:none;':''}">
+        ${c.drafted?'ON ROSTER':'DRAFT →'}
+      </button>`;
+    dl.appendChild(d);
+  });
+  // league standings
+  const ls=document.getElementById('league-standings');
+  LEAGUE_STANDINGS.forEach(r=>{
+    const d=document.createElement('div');
+    d.className='league-row';
+    const rankColor=r.rank===1?'var(--gold2)':r.rank<=3?'var(--off)':'var(--muted)';
+    d.innerHTML=`
+      <div class="lr-rank" style="color:${rankColor};">${r.rank}</div>
+      <div class="lr-info"><div class="lri-name" style="color:${r.me?'var(--gold2)':'rgba(242,238,230,.6)'};">${r.name}</div><div class="lri-roster">${r.roster}</div></div>
+      <div class="lr-score" style="color:${r.me?'var(--gold2)':'rgba(242,238,230,.5)'};">${r.score.toLocaleString()}</div>
+      ${r.me?'<div class="lr-me">YOU</div>':''}`;
+    ls.appendChild(d);
+  });
+  // weekly scoring
+  const ws=document.getElementById('weekly-scoring');
+  WEEKLY_SCORING.forEach(w=>{
+    const d=document.createElement('div');
+    d.style.cssText='padding:5px 0;border-bottom:1px solid rgba(212,160,16,.06);display:flex;justify-content:space-between;align-items:center;';
+    d.innerHTML=`<div><div style="font-family:var(--fb);font-size:13px;letter-spacing:.05em;">${w.char}</div><div style="font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">${w.reason}</div></div><div style="font-family:var(--fc);font-size:20px;font-weight:900;color:var(--gold2);">+${w.pts}</div>`;
+    ws.appendChild(d);
+  });
+  // hot pickups
+  const hp=document.getElementById('hot-pickups');
+  HOT_PICKUPS.forEach(h=>{
+    const d=document.createElement('div');
+    d.style.cssText='padding:5px 0;border-bottom:1px solid rgba(212,160,16,.06);display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .15s;';
+    d.innerHTML=`<div><div style="font-family:var(--fb);font-size:13px;letter-spacing:.05em;">${h.name}</div><div style="font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">${h.reason}</div></div><div style="font-family:var(--fc);font-size:20px;font-weight:900;color:var(--win);">${h.pts}</div>`;
+    hp.appendChild(d);
+  });
+  addHoverFX();
+}
+
+let coloRendered=false;
+function renderColosseum(){
+  if(coloRendered)return;
+  coloRendered=true;
+  // waveform
+  const wf=document.getElementById('colo-waveform');
+  for(let i=0;i<100;i++){
+    const b=document.createElement('div');
+    b.className='cspw-bar';
+    const h=Math.max(12,Math.random()*100);
+    const isLive=i>=40&&i<=70;
+    b.style.height=h+'%';
+    b.style.background=isLive?`rgba(224,32,48,${.4+Math.random()*.5})`:`rgba(242,238,230,${.06+Math.random()*.08})`;
+    if(isLive){b.style.animation=`waveBar ${.4+Math.random()*.6}s ease-in-out ${Math.random()*.8}s infinite`;}
+    wf.appendChild(b);
+  }
+  // choices
+  const cc=document.getElementById('colo-choices');
+  let voted=null;
+  COLO_CHOICES.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='cspbc-btn'+(c.pct>50?' leading':'');
+    d.innerHTML=`
+      <div class="cspbcb-fill" style="width:${c.pct}%;background:${c.color}20;"></div>
+      <div class="cspbcb-content">
+        <div class="cspbcbc-choice">${c.choice}</div>
+        <span class="cspbcbc-pct" style="color:${c.color};">${c.pct}%</span>
+        <div class="cspbcbc-votes">${c.votes.toLocaleString()} votes</div>
+      </div>`;
+    d.onclick=()=>{
+      if(voted)return;voted=c;
+      document.querySelectorAll('.cspbc-btn').forEach(b=>b.classList.remove('voted'));
+      d.classList.add('voted');
+    };
+    cc.appendChild(d);
+  });
+  // chat
+  const chat=document.getElementById('colo-chat');
+  CHAT_MESSAGES.forEach((msg,i)=>{
+    const d=document.createElement('div');
+    d.className='cc-item';
+    d.style.animationDelay=(i*.05)+'s';
+    d.innerHTML=`
+      <div class="cci-header">
+        <div class="ccih-avatar" style="border-color:${msg.fColor}40;background:${msg.fColor}12;">${msg.avatar}</div>
+        <div class="ccih-name" style="color:${msg.fColor};">${msg.name}</div>
+        <div class="ccih-faction">${msg.faction}</div>
+        <div class="ccih-time">${msg.time}</div>
+      </div>
+      <div class="cci-text${msg.inUniverse?' in-universe':''}">${msg.text}</div>`;
+    chat.appendChild(d);
+  });
+  addHoverFX();
+}
+
+let codexRendered=false;
+function renderCodex(){
+  if(codexRendered)return;
+  codexRendered=true;
+  // quick stats
+  const cq=document.getElementById('codex-quick');
+  CODEX_QUICK.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='stat-cell';
+    d.innerHTML=`<div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:${s.color};opacity:.6;"></div><span class="sc-val" style="color:${s.color};">${s.val}</span><span class="sc-lbl">${s.lbl}</span>`;
+    cq.appendChild(d);
+  });
+  // endings
+  const eg=document.getElementById('endings-grid');
+  ENDINGS.forEach(e=>{
+    const d=document.createElement('div');
+    d.className='ending-cell'+(e.reached?' reached':' unreached');
+    d.innerHTML=`<span class="ec-icon">${e.icon}</span><div class="ec-name" style="color:${e.reached?'var(--gold2)':'var(--muted)'};">${e.name}</div>`;
+    eg.appendChild(d);
+  });
+  // crossover nodes
+  const cn=document.getElementById('codex-nodes');
+  CODEX_NODES.forEach(n=>{
+    const d=document.createElement('div');
+    d.className='node-item';
+    d.innerHTML=`
+      <div class="ni-icon">${n.found?'◆':'◇'}</div>
+      <div class="ni-body">
+        <div class="nib-name" style="color:${n.found?'var(--gold2)':'rgba(242,238,230,.45)'};">${n.name}</div>
+        <div class="nib-projects">${n.projects}</div>
+      </div>
+      <div class="ni-status ${n.found?'ni-found':'ni-hidden'}">${n.found?'FOUND':'HIDDEN'}</div>`;
+    cn.appendChild(d);
+  });
+  // arena record history dots
+  const rh=document.getElementById('rd-history');
+  ARENA_RECORD.forEach(r=>{
+    const d=document.createElement('div');
+    d.className=`rdh-dot ${r}`;
+    d.textContent=r.toUpperCase();
+    rh.appendChild(d);
+  });
+  // season history
+  const sh=document.getElementById('season-history');
+  SEASON_HISTORY.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='season-row';
+    d.innerHTML=`
+      <div class="sesr-season">${s.season}</div>
+      <div class="sesr-faction" style="border-color:${s.color}40;color:${s.color};">${s.faction}</div>
+      <div class="sesr-impact" style="margin-left:auto;">${s.impact.toLocaleString()}</div>
+      <div class="sesr-rank">${s.rank}</div>`;
+    sh.appendChild(d);
+  });
+  addHoverFX();
+}
+
+// ── INTERACTIONS ─────────────────────────────
+function draftChar(btn,name){
+  btn.textContent='✓ DRAFTED';
+  btn.style.background='rgba(32,200,112,.1)';
+  btn.style.borderColor='rgba(32,200,112,.3)';
+  btn.style.color='var(--win)';
+  btn.disabled=true;
+  const score=parseInt(document.getElementById('roster-total-score').textContent.replace(/[^0-9]/g,''));
+  document.getElementById('roster-total-score').textContent=(score+200).toLocaleString()+' PTS';
+}
+
+function filterDraft(btn,filter){
+  document.querySelectorAll('.dbaf-pill').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const cards=document.querySelectorAll('.char-draft-card');
+  cards.forEach(c=>{
+    if(filter==='all'||filter==='high'){c.style.display='grid';return;}
+    const project=c.querySelector('.cdci-projects').textContent.toLowerCase();
+    c.style.display=project.includes(filter)?'grid':'none';
+  });
+}
+
+function sendChat(){
+  const input=document.getElementById('chat-input');
+  if(!input.value.trim())return;
+  const chat=document.getElementById('colo-chat');
+  const d=document.createElement('div');
+  d.className='cc-item';
+  d.style.background='rgba(212,160,16,.04)';
+  d.style.borderLeft='2px solid rgba(212,160,16,.3)';
+  d.innerHTML=`
+    <div class="cci-header">
+      <div class="ccih-avatar" style="border-color:rgba(212,160,16,.3);background:rgba(212,160,16,.1);">✦</div>
+      <div class="ccih-name" style="color:var(--gold2);">YOU</div>
+      <div class="ccih-faction">HOLLOWAY BLOOD</div>
+      <div class="ccih-time">just now</div>
+    </div>
+    <div class="cci-text in-universe">${input.value}</div>`;
+  chat.insertBefore(d,chat.firstChild);
+  input.value='';
+}
+
+function addHoverFX(){
+  document.querySelectorAll('button,.standing-row,.matchup,.char-draft-card,.league-row,.roster-slot,.fp-card,.ending-cell,.node-item,.cspbc-btn').forEach(el=>{
+    if(!el._hb){
+      el.addEventListener('mouseenter',bigCur);
+      el.addEventListener('mouseleave',normCur);
+      el._hb=true;
+    }
+  });
+}
+
+function initReveal(){
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.04});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+}
+
+// ── LIVE VOTE FLICKER ────────────────────────
+let voteA=52,voteB=48;
+setInterval(()=>{
+  const shift=Math.random()>.5?1:-1;
+  voteA=Math.max(45,Math.min(55,voteA+shift));
+  voteB=100-voteA;
+  const pa=document.getElementById('hero-pct-a');
+  const pb=document.getElementById('hero-pct-b');
+  if(pa)pa.textContent=voteA+'%';
+  if(pb)pb.textContent=voteB+'%';
+},3000);
+
+// ── INIT ────────────────────────────────────
+renderHome();
+initReveal();
+</script>
+</body>
+</html>

@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lightek Media Communications Group — Infrastructure for the Sovereign Economy</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  --steel:#040C18;--steel2:#07121F;--steel3:#0A1628;--steel4:#0E1E36;
+  --panel:#0C1830;--card:#101E38;--lift:#152440;
+  --cyan:#00C8E8;--cyan2:#00E0FF;--cyan3:#60EEFF;
+  --gold:#C49820;--gold2:#DEB030;--gold3:#F0C840;
+  --signal:#0070C8;--signal2:#0090E8;--signal3:#20AEFF;
+  --red:#D82020;--red2:#F03030;
+  --lime:#28C040;--lime2:#40E058;
+  --white:#EEF4FC;--off:#C8D8EC;--muted:#5A7090;--dim:#1A2840;
+  --fc:'Barlow Condensed',sans-serif;
+  --fb:'IBM Plex Sans',sans-serif;
+  --fm:'Space Mono',monospace;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--steel);color:var(--white);font-family:var(--fb);}
+
+/* circuit-board grid */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,200,232,.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,200,232,.015) 1px,transparent 1px),
+    linear-gradient(rgba(0,200,232,.006) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,200,232,.006) 1px,transparent 1px);
+  background-size:80px 80px,80px 80px,16px 16px,16px 16px;
+  pointer-events:none;z-index:0;
+}
+
+/* cursor */
+#cur{width:6px;height:6px;background:var(--cyan);position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 12px rgba(0,200,232,.9);transition:width .15s,height .15s;}
+#cur2{width:28px;height:28px;border:1px solid rgba(0,200,232,.2);position:fixed;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);transition:left .1s cubic-bezier(.16,1,.3,1),top .1s cubic-bezier(.16,1,.3,1),width .2s,height .2s;}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes pulse{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.01)}}
+@keyframes shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes scanH{from{left:-100%}to{left:200%}}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.fade-up{opacity:0;transform:translateY(24px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);}
+.fade-up.vis{opacity:1;transform:none;}
+
+/* ═══════════════════════════════════════════════
+   TOPNAV
+═══════════════════════════════════════════════ */
+.topnav{
+  position:fixed;top:0;left:0;right:0;height:60px;
+  background:rgba(4,12,24,.98);
+  border-bottom:1px solid rgba(0,200,232,.08);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 48px;z-index:200;
+}
+.topnav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(0,200,232,.3),rgba(0,200,232,.5),rgba(0,200,232,.3),transparent);}
+
+.nav-logo{display:flex;align-items:center;gap:12px;}
+.nl-mark{width:32px;height:32px;border:1.5px solid rgba(0,200,232,.4);display:flex;align-items:center;justify-content:center;font-family:var(--fc);font-size:18px;font-weight:800;letter-spacing:.06em;color:var(--cyan);position:relative;}
+.nl-mark::before{content:'';position:absolute;inset:-3px;border:1px solid rgba(0,200,232,.1);}
+.nl-text{}
+.nl-name{font-family:var(--fc);font-size:15px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--white);line-height:1;}
+.nl-sub{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);}
+.nav-links{display:flex;gap:0;align-items:center;}
+.nav-link{font-family:var(--fm);font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:rgba(238,244,252,.38);padding:0 18px;height:60px;display:flex;align-items:center;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;background:transparent;border-top:none;border-left:none;border-right:none;}
+.nav-link:hover{color:rgba(238,244,252,.8);}
+.nav-link.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.nav-tag{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);}
+.nav-cta{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--cyan);color:var(--steel);border:none;padding:9px 22px;cursor:pointer;transition:all .2s;}
+.nav-cta:hover{background:var(--cyan2);}
+
+/* ═══════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════ */
+.hero{
+  min-height:100vh;padding:120px 80px 80px;
+  display:flex;flex-direction:column;justify-content:center;
+  position:relative;z-index:1;overflow:hidden;
+}
+/* scan line */
+.hero-scan{position:absolute;top:0;bottom:0;width:120px;background:linear-gradient(to right,transparent,rgba(0,200,232,.025),transparent);animation:scanH 12s linear infinite;pointer-events:none;}
+.hero-vignette{position:absolute;inset:0;background:radial-gradient(ellipse 80% 70% at 75% 50%,rgba(0,200,232,.06) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 20% 80%,rgba(196,152,32,.05) 0%,transparent 60%);pointer-events:none;}
+
+.hero-content{max-width:1000px;position:relative;z-index:2;}
+.hero-eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+.he-tag{font-family:var(--fm);font-size:6px;letter-spacing:.32em;text-transform:uppercase;color:var(--cyan);border:1px solid rgba(0,200,232,.2);padding:4px 14px;background:rgba(0,200,232,.04);}
+.he-sep{width:1px;height:14px;background:rgba(0,200,232,.2);}
+.he-dymond{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:rgba(196,152,32,.7);}
+
+.hero-headline{
+  font-family:var(--fc);
+  font-size:clamp(52px,10vw,144px);
+  font-weight:900;
+  letter-spacing:.02em;
+  line-height:.85;
+  margin-bottom:16px;
+}
+.hh-1{display:block;color:var(--white);}
+.hh-2{display:block;color:var(--cyan);position:relative;}
+.hh-2::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:3px;background:var(--cyan);animation:expandLine 1.5s 1s cubic-bezier(.16,1,.3,1) forwards;}
+@keyframes expandLine{from{width:0}to{width:100%}}
+.hh-3{display:block;color:transparent;-webkit-text-stroke:1px rgba(238,244,252,.07);}
+
+.hero-body{
+  font-family:var(--fb);font-weight:300;
+  font-size:clamp(15px,1.5vw,20px);
+  color:rgba(238,244,252,.45);
+  max-width:680px;
+  line-height:2;
+  margin-bottom:32px;
+}
+.hero-body strong{color:var(--white);font-weight:500;}
+.hero-body em{color:var(--cyan);font-style:normal;}
+
+/* what lightek is */
+.inception-diagram{
+  display:flex;align-items:center;gap:0;
+  margin-bottom:36px;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.id-node{
+  background:var(--card);
+  border:1px solid rgba(0,200,232,.1);
+  padding:10px 16px;
+  position:relative;
+}
+.id-node.active{border-color:rgba(0,200,232,.4);background:rgba(0,200,232,.07);}
+.id-node.gold-node{border-color:rgba(196,152,32,.3);background:rgba(196,152,32,.06);}
+.idn-label{font-family:var(--fm);font-size:5px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:3px;}
+.idn-name{font-family:var(--fc);font-size:clamp(12px,1.8vw,18px);font-weight:700;letter-spacing:.06em;line-height:1;}
+.id-arrow{font-family:var(--fc);font-size:22px;font-weight:700;color:var(--cyan);opacity:.4;padding:0 4px;}
+
+.hero-ctas{display:flex;gap:8px;flex-wrap:wrap;}
+.hero-btn-primary{font-family:var(--fc);font-size:16px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--cyan);color:var(--steel);border:none;padding:14px 32px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden;}
+.hero-btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-100%);transition:transform .5s;}
+.hero-btn-primary:hover{background:var(--cyan2);}
+.hero-btn-primary:hover::before{transform:translateX(100%);}
+.hero-btn-secondary{font-family:var(--fc);font-size:16px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(238,244,252,.55);border:1px solid rgba(238,244,252,.15);padding:14px 32px;cursor:pointer;transition:all .22s;}
+.hero-btn-secondary:hover{border-color:rgba(238,244,252,.4);color:var(--white);}
+
+/* live ticker */
+.hero-ticker{
+  position:absolute;bottom:0;left:0;right:0;height:36px;
+  background:rgba(0,200,232,.07);
+  border-top:1px solid rgba(0,200,232,.12);
+  display:flex;align-items:center;overflow:hidden;
+}
+.ht-badge{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--steel);background:var(--cyan);padding:0 16px;height:100%;display:flex;align-items:center;flex-shrink:0;font-weight:700;}
+.ht-scroll{display:flex;animation:tickerScroll 50s linear infinite;white-space:nowrap;}
+@keyframes tickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.ht-item{font-family:var(--fm);font-size:7px;letter-spacing:.1em;color:rgba(0,200,232,.7);padding:0 40px;}
+
+/* ═══════════════════════════════════════════════
+   SECTION CHROME
+═══════════════════════════════════════════════ */
+.section{padding:84px 80px;position:relative;z-index:1;}
+.section.alt{background:rgba(7,12,22,.95);}
+.section.dark{background:rgba(3,6,12,.98);}
+.sec-eyebrow{font-family:var(--fm);font-size:7px;letter-spacing:.3em;text-transform:uppercase;color:var(--cyan);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.sec-eyebrow::before{content:'◈';}
+.sec-title{font-family:var(--fc);font-size:clamp(36px,6vw,88px);font-weight:900;letter-spacing:.03em;line-height:.87;margin-bottom:12px;}
+.sec-title .cc{color:var(--cyan);}
+.sec-title .cg{color:var(--gold2);}
+.sec-title .cs{color:var(--signal2);}
+.sec-sub{font-family:var(--fb);font-weight:300;font-size:clamp(14px,1.4vw,18px);color:rgba(238,244,252,.38);max-width:640px;line-height:2;margin-bottom:48px;}
+
+/* ═══════════════════════════════════════════════
+   THE ARCHITECTURE — 4-LAYER DIAGRAM
+═══════════════════════════════════════════════ */
+.arch-diagram{max-width:1100px;margin:0 auto;}
+.arch-layers{display:flex;flex-direction:column;gap:3px;}
+.arch-layer{
+  display:grid;grid-template-columns:180px 1fr;gap:0;
+  border:1px solid rgba(0,200,232,.08);
+  position:relative;overflow:hidden;
+  transition:border-color .25s;
+  cursor:pointer;
+}
+.arch-layer:hover{border-color:rgba(0,200,232,.25);}
+.arch-layer::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.al-num{background:rgba(0,200,232,.06);border-right:1px solid rgba(0,200,232,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;}
+.al-num-val{font-family:var(--fc);font-size:40px;font-weight:900;line-height:1;margin-bottom:4px;}
+.al-num-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);}
+.al-content{padding:20px 28px;display:flex;gap:24px;align-items:center;}
+.alc-main{flex:1;}
+.alc-name{font-family:var(--fc);font-size:clamp(18px,2.5vw,28px);font-weight:800;letter-spacing:.06em;margin-bottom:4px;}
+.alc-entity{font-family:var(--fm);font-size:7px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px;}
+.alc-desc{font-family:var(--fb);font-weight:300;font-size:clamp(12px,1.2vw,14px);color:rgba(238,244,252,.45);line-height:1.7;}
+.alc-right{text-align:right;flex-shrink:0;}
+.alcr-arrow{font-family:var(--fc);font-size:28px;font-weight:900;color:rgba(0,200,232,.15);}
+.alcr-tag{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+/* flow arrows between layers */
+.arch-connector{height:28px;display:flex;align-items:center;justify-content:center;position:relative;}
+.arch-connector::before{content:'↓';font-family:var(--fc);font-size:18px;font-weight:900;color:rgba(0,200,232,.2);}
+.arch-connector-line{position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,rgba(0,200,232,.15),rgba(0,200,232,.06));transform:translateX(-50%);}
+
+/* ═══════════════════════════════════════════════
+   PRODUCT CATALOG PREVIEW
+═══════════════════════════════════════════════ */
+.catalog-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;max-width:1100px;margin:0 auto;}
+@media(max-width:1000px){.catalog-preview{grid-template-columns:repeat(2,1fr);}}
+.cat-card{background:var(--card);border:1px solid rgba(0,200,232,.06);padding:20px 18px;position:relative;overflow:hidden;cursor:pointer;transition:all .25s;}
+.cat-card:hover{border-color:rgba(0,200,232,.22);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.5);}
+.cat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.cc-sku{font-family:var(--fm);font-size:5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;}
+.cc-icon{font-size:24px;display:block;margin-bottom:9px;}
+.cc-name{font-family:var(--fc);font-size:clamp(15px,1.8vw,20px);font-weight:700;letter-spacing:.06em;line-height:1.1;margin-bottom:4px;}
+.cc-category{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;}
+.cc-desc{font-family:var(--fb);font-weight:300;font-size:11px;color:rgba(238,244,252,.38);line-height:1.6;margin-bottom:10px;}
+.cc-price-row{display:flex;justify-content:space-between;align-items:baseline;}
+.cc-price{font-family:var(--fc);font-size:clamp(16px,2vw,22px);font-weight:700;}
+.cc-period{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.cc-add{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);border:1px solid rgba(0,200,232,.2);padding:4px 9px;background:rgba(0,200,232,.04);cursor:pointer;transition:all .2s;}
+.cc-add:hover{background:rgba(0,200,232,.1);}
+
+/* ═══════════════════════════════════════════════
+   REVENUE MODEL DIAGRAM
+═══════════════════════════════════════════════ */
+.rev-model{max-width:1100px;margin:0 auto;}
+.rm-flow{display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr 40px 1fr;gap:0;align-items:center;margin-bottom:32px;}
+@media(max-width:900px){.rm-flow{grid-template-columns:1fr;gap:8px;}}
+.rmf-node{background:var(--card);border:1px solid rgba(0,200,232,.08);padding:18px;text-align:center;position:relative;}
+.rmf-node::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.rmfn-tier{font-family:var(--fm);font-size:5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.rmfn-name{font-family:var(--fc);font-size:clamp(14px,2vw,20px);font-weight:800;letter-spacing:.06em;margin-bottom:4px;}
+.rmfn-take{font-family:var(--fc);font-size:clamp(18px,2.5vw,28px);font-weight:900;}
+.rmfn-sub{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+.rm-arrow{font-family:var(--fc);font-size:24px;font-weight:900;color:rgba(0,200,232,.2);text-align:center;}
+
+/* totals */
+.rm-totals{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;}
+.rmt-cell{background:var(--panel);border:1px solid rgba(0,200,232,.07);padding:18px;text-align:center;}
+.rmtc-label{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.rmtc-val{font-family:var(--fc);font-size:clamp(20px,3vw,36px);font-weight:900;letter-spacing:.04em;display:block;line-height:1;}
+.rmtc-sub{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:3px;}
+
+/* ═══════════════════════════════════════════════
+   RESELLER TIERS
+═══════════════════════════════════════════════ */
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;max-width:1100px;margin:0 auto;}
+@media(max-width:800px){.tier-grid{grid-template-columns:1fr;}}
+.tier-card{background:var(--card);border:1px solid rgba(0,200,232,.07);padding:28px 26px;position:relative;overflow:hidden;transition:all .28s;}
+.tier-card:hover{border-color:rgba(0,200,232,.22);}
+.tier-card.featured{border-color:rgba(0,200,232,.25);background:linear-gradient(180deg,rgba(0,200,232,.05) 0%,var(--card) 50%);}
+.tier-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.tc2-badge{display:inline-block;font-family:var(--fm);font-size:5px;letter-spacing:.2em;text-transform:uppercase;background:var(--cyan);color:var(--steel);padding:3px 9px;margin-bottom:8px;}
+.tc2-tier{font-family:var(--fm);font-size:6px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.tc2-name{font-family:var(--fc);font-size:clamp(24px,3vw,36px);font-weight:900;letter-spacing:.05em;margin-bottom:5px;}
+.tc2-tagline{font-family:var(--fb);font-weight:300;font-style:italic;font-size:12px;color:rgba(238,244,252,.35);margin-bottom:18px;line-height:1.6;}
+.tc2-price-block{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid rgba(0,200,232,.08);}
+.tc2p-buy{font-family:var(--fc);font-size:clamp(14px,1.8vw,18px);font-weight:700;letter-spacing:.06em;display:block;margin-bottom:3px;}
+.tc2p-sell{font-family:var(--fc);font-size:clamp(20px,2.5vw,28px);font-weight:900;letter-spacing:.04em;display:block;margin-bottom:3px;}
+.tc2p-margin{font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.tc2-benefits{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;}
+.tc2b-item{display:flex;gap:8px;align-items:flex-start;font-family:var(--fb);font-weight:300;font-size:12px;color:rgba(238,244,252,.5);line-height:1.4;}
+.tc2b-item.yes::before{content:'◈';color:var(--cyan);flex-shrink:0;font-size:9px;margin-top:2px;}
+.tc2b-item.no::before{content:'—';color:rgba(238,244,252,.2);flex-shrink:0;font-size:9px;margin-top:2px;}
+.tc2b-item.no{opacity:.4;}
+.tc2-cta{display:block;width:100%;font-family:var(--fc);font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border:1px solid;padding:12px;cursor:pointer;transition:all .22s;text-align:center;}
+
+/* ═══════════════════════════════════════════════
+   SOCIAL PROOF / LOGOS
+═══════════════════════════════════════════════ */
+.social-proof{max-width:1100px;margin:0 auto;text-align:center;}
+.sp-label{font-family:var(--fm);font-size:7px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted);margin-bottom:24px;}
+.sp-logos{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;}
+@media(max-width:700px){.sp-logos{grid-template-columns:repeat(3,1fr);}}
+.spl-card{background:var(--card);border:1px solid rgba(238,244,252,.04);padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;cursor:pointer;transition:all .2s;}
+.spl-card:hover{border-color:rgba(0,200,232,.15);}
+.spl-icon{font-size:22px;}
+.spl-name{font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.08em;text-align:center;}
+.spl-type{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;}
+
+/* ═══════════════════════════════════════════════
+   FINAL CTA SECTION
+═══════════════════════════════════════════════ */
+.final-cta{
+  padding:100px 80px;
+  text-align:center;
+  background:linear-gradient(135deg,rgba(0,200,232,.04),rgba(0,112,200,.06),rgba(196,152,32,.04));
+  border-top:1px solid rgba(0,200,232,.1);
+  border-bottom:1px solid rgba(0,200,232,.1);
+  position:relative;overflow:hidden;
+  z-index:1;
+}
+.final-cta::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,200,232,.08) 0%,transparent 60%);pointer-events:none;}
+.fct-eyebrow{font-family:var(--fm);font-size:7px;letter-spacing:.32em;text-transform:uppercase;color:var(--cyan);margin-bottom:14px;}
+.fct-title{font-family:var(--fc);font-size:clamp(40px,7vw,100px);font-weight:900;letter-spacing:.04em;line-height:.87;margin-bottom:14px;}
+.fct-sub{font-family:var(--fb);font-weight:300;font-size:clamp(15px,1.5vw,19px);color:rgba(238,244,252,.4);max-width:580px;margin:0 auto 32px;line-height:2;}
+.fct-sub strong{color:var(--white);font-weight:500;}
+.fct-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+.fct-btn-p{font-family:var(--fc);font-size:16px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--cyan);color:var(--steel);border:none;padding:16px 40px;cursor:pointer;transition:all .22s;}
+.fct-btn-p:hover{background:var(--cyan2);transform:translateY(-2px);}
+.fct-btn-s{font-family:var(--fc);font-size:16px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(238,244,252,.45);border:1px solid rgba(238,244,252,.15);padding:16px 40px;cursor:pointer;transition:all .22s;}
+.fct-btn-s:hover{border-color:rgba(238,244,252,.4);color:var(--white);}
+
+/* ═══════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════ */
+.site-footer{padding:60px 80px;background:rgba(2,4,8,.98);border-top:1px solid rgba(0,200,232,.06);}
+.sf-top{display:flex;justify-content:space-between;align-items:flex-start;gap:40px;flex-wrap:wrap;margin-bottom:40px;padding-bottom:40px;border-bottom:1px solid rgba(0,200,232,.06);}
+.sf-brand{}
+.sfb-mark{font-family:var(--fc);font-size:22px;font-weight:900;letter-spacing:.1em;color:var(--cyan);display:block;margin-bottom:4px;}
+.sfb-full{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.sfb-desc{font-family:var(--fb);font-weight:300;font-size:12px;color:rgba(238,244,252,.3);max-width:260px;line-height:1.7;}
+.sf-cols{display:flex;gap:48px;flex-wrap:wrap;}
+.sf-col{}
+.sfc-title{font-family:var(--fm);font-size:6px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.sfc-link{display:block;font-family:var(--fb);font-weight:300;font-size:12px;color:rgba(238,244,252,.38);margin-bottom:7px;cursor:pointer;transition:color .2s;}
+.sfc-link:hover{color:var(--cyan);}
+.sf-bottom{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.sfb-copy{font-family:var(--fm);font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:rgba(238,244,252,.2);}
+.sfb-powered{display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:rgba(238,244,252,.2);}
+.sfbp-gold{color:rgba(196,152,32,.6);}
+</style>
+</head>
+<body>
+<div id="cur"></div><div id="cur2"></div>
+
+<!-- TOPNAV -->
+<nav class="topnav">
+  <div class="nav-logo">
+    <div class="nl-mark">L</div>
+    <div class="nl-text">
+      <div class="nl-name">LIGHTEK MCG</div>
+      <div class="nl-sub">Media · Communications · Group</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <button class="nav-link active">Platform</button>
+    <button class="nav-link">Catalog</button>
+    <button class="nav-link">Resellers</button>
+    <button class="nav-link">Architecture</button>
+    <button class="nav-link">About</button>
+  </div>
+  <div class="nav-right">
+    <div class="nav-tag">DYMOND EMPIRE · AUTHORIZED DISTRIBUTOR</div>
+    <button class="nav-cta" onclick="this.textContent='→ REDIRECTING'">ACCESS WAREHOUSE →</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-scan"></div>
+  <div class="hero-vignette"></div>
+  <div class="hero-content fade-up">
+    <div class="hero-eyebrow">
+      <div class="he-tag">◈ LIGHTEK MCG · AUTHORIZED EMPIRE DISTRIBUTOR</div>
+      <div class="he-sep"></div>
+      <div class="he-dymond">POWERED BY DYMOND EMPIRE INFRASTRUCTURE</div>
+    </div>
+    <div class="hero-headline">
+      <span class="hh-1">THE WHOLESALE</span>
+      <span class="hh-2">WAREHOUSE</span>
+      <span class="hh-3">FOR SOVEREIGNTY.</span>
+    </div>
+    <div class="hero-body">
+      Lightek Media Communications Group holds the <strong>Empire-tier license</strong> from DYMOND Empire. We operate as the <em>wholesale distributor</em> — packaging every DYMOND module as a discrete SaaS product and selling it to organizations that want to deploy sovereign infrastructure under their own brand. <strong>Your platform. Our supply chain. Their infrastructure.</strong>
+    </div>
+
+    <!-- inception diagram -->
+    <div class="inception-diagram fade-up">
+      <div class="id-node gold-node">
+        <div class="idn-label" style="color:rgba(196,152,32,.6);">LAYER 1 · ORIGIN</div>
+        <div class="idn-name" style="color:var(--gold2);">DYMOND<br>EMPIRE</div>
+      </div>
+      <div class="id-arrow">→</div>
+      <div class="id-node active">
+        <div class="idn-label" style="color:var(--cyan);">LAYER 2 · DISTRIBUTOR</div>
+        <div class="idn-name" style="color:var(--cyan);">LIGHTEK<br>MCG</div>
+      </div>
+      <div class="id-arrow">→</div>
+      <div class="id-node">
+        <div class="idn-label">LAYER 3 · RESELLERS</div>
+        <div class="idn-name">YOUR<br>CLIENTS</div>
+      </div>
+      <div class="id-arrow">→</div>
+      <div class="id-node">
+        <div class="idn-label">LAYER 4 · END USERS</div>
+        <div class="idn-name">THEIR<br>CITIZENS</div>
+      </div>
+    </div>
+
+    <div class="hero-ctas fade-up">
+      <button class="hero-btn-primary" onclick="this.textContent='→ OPENING WAREHOUSE'">ENTER THE WAREHOUSE →</button>
+      <button class="hero-btn-secondary">VIEW RESELLER TIERS</button>
+    </div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="hero-ticker">
+    <div class="ht-badge">◉ LIVE</div>
+    <div class="ht-scroll">
+      <span class="ht-item">DYMOND BANK MODULE · SKU-001 · $840/mo · 24 active deployments</span>
+      <span class="ht-item">DYMOND+ STREAMING LICENSE · SKU-014 · $1,200/mo · 8 deployments</span>
+      <span class="ht-item">DYMOND CHURCH BUNDLE · SKU-008 · $480/mo · 34 active deployments</span>
+      <span class="ht-item">NEW: DYMOND TWIN MODULE · SKU-031 · NOW IN CATALOG</span>
+      <span class="ht-item">RESELLER NETWORK · 240 certified partners · 14 nations</span>
+      <span class="ht-item">DYMOND BANK MODULE · SKU-001 · $840/mo · 24 active deployments</span>
+      <span class="ht-item">DYMOND+ STREAMING LICENSE · SKU-014 · $1,200/mo · 8 deployments</span>
+      <span class="ht-item">DYMOND CHURCH BUNDLE · SKU-008 · $480/mo · 34 active deployments</span>
+      <span class="ht-item">NEW: DYMOND TWIN MODULE · SKU-031 · NOW IN CATALOG</span>
+    </div>
+  </div>
+</div>
+
+<!-- THE ARCHITECTURE -->
+<div class="section alt">
+  <div class="sec-eyebrow fade-up">The Architecture · Four-Layer Inception Model</div>
+  <h2 class="sec-title fade-up">HOW THE<br><span class="cc">LAYERS</span><br>WORK.</h2>
+  <p class="sec-sub fade-up">DYMOND Empire builds the nation. Lightek MCG operates the wholesale channel. Resellers deploy branded instances. End users experience sovereign infrastructure without ever knowing the supply chain behind it. Every layer generates margin. Every layer is protected by the Constitution.</p>
+
+  <div class="arch-diagram fade-up">
+    <div class="arch-layers">
+      <div class="arch-layer" style="--lc:var(--gold2);" onclick="this.style.borderColor='rgba(196,152,32,.3)'">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold2);"></div>
+        <div class="al-num"><span class="al-num-val" style="color:var(--gold2);">L1</span><span class="al-num-lbl">Foundation</span></div>
+        <div class="al-content">
+          <div class="alc-main">
+            <div class="alc-name" style="color:var(--gold2);">DYMOND EMPIRE</div>
+            <div class="alc-entity" style="color:rgba(196,152,32,.6);">THE SOVEREIGN INFRASTRUCTURE NATION</div>
+            <div class="alc-desc">Builds and maintains all 31+ modules. Owns the servers, the Constitution, the Ministry Engine, The Black House. Sells the Empire-tier license to Lightek MCG at sovereign wholesale pricing — the raw infrastructure at cost.</div>
+          </div>
+          <div class="alc-right"><div class="alcr-arrow">↓</div><div class="alcr-tag">Sells Empire Tier to Lightek</div></div>
+        </div>
+      </div>
+
+      <div class="arch-connector"><div class="arch-connector-line"></div></div>
+
+      <div class="arch-layer" onclick="this.style.borderColor='rgba(0,200,232,.3)'">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cyan);"></div>
+        <div class="al-num"><span class="al-num-val" style="color:var(--cyan);">L2</span><span class="al-num-lbl">Distributor</span></div>
+        <div class="al-content">
+          <div class="alc-main">
+            <div class="alc-name" style="color:var(--cyan);">LIGHTEK MEDIA COMMUNICATIONS GROUP</div>
+            <div class="alc-entity" style="color:rgba(0,200,232,.6);">THE WHOLESALE WAREHOUSE · YOU ARE HERE</div>
+            <div class="alc-desc">Holds the Empire-tier license. Packages each DYMOND module as a discrete SaaS product with its own SKU, pricing, and documentation. Operates the digital warehouse catalog. Manages the reseller network. Provides go-to-market support, training, and technical onboarding for every tier below. <strong style="color:var(--white);">Lightek earns the spread between wholesale cost and retail price on every SKU sold.</strong></div>
+          </div>
+          <div class="alc-right"><div class="alcr-arrow">↓</div><div class="alcr-tag">Sells SKUs to Resellers</div></div>
+        </div>
+      </div>
+
+      <div class="arch-connector"><div class="arch-connector-line"></div></div>
+
+      <div class="arch-layer" onclick="this.style.borderColor='rgba(0,144,232,.3)'">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--signal2);"></div>
+        <div class="al-num"><span class="al-num-val" style="color:var(--signal2);">L3</span><span class="al-num-lbl">Resellers</span></div>
+        <div class="al-content">
+          <div class="alc-main">
+            <div class="alc-name" style="color:var(--signal2);">CERTIFIED LIGHTEK RESELLERS</div>
+            <div class="alc-entity" style="color:rgba(0,144,232,.6);">240 PARTNERS · 14 NATIONS · GROWING</div>
+            <div class="alc-desc">Agencies, consultancies, community organizations, and tech firms that purchase SKUs from Lightek's catalog and deploy them for their own clients. They can bundle modules, white-label the deployment, set their own pricing, and build recurring revenue streams. <strong style="color:var(--white);">Resellers earn the spread between what they pay Lightek and what they charge their clients.</strong></div>
+          </div>
+          <div class="alc-right"><div class="alcr-arrow">↓</div><div class="alcr-tag">Deploys to End Clients</div></div>
+        </div>
+      </div>
+
+      <div class="arch-connector"><div class="arch-connector-line"></div></div>
+
+      <div class="arch-layer" onclick="this.style.borderColor='rgba(238,244,252,.12)'">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(238,244,252,.2);"></div>
+        <div class="al-num"><span class="al-num-val" style="color:rgba(238,244,252,.35);">L4</span><span class="al-num-lbl">End Users</span></div>
+        <div class="al-content">
+          <div class="alc-main">
+            <div class="alc-name" style="color:rgba(238,244,252,.65);">END USER ORGANIZATIONS + CITIZENS</div>
+            <div class="alc-entity" style="color:var(--muted);">CHURCHES · HBCUS · CITIES · DIASPORA NETWORKS · ENTERPRISES</div>
+            <div class="alc-desc">The organization that actually runs the branded platform. They pay the reseller (or Lightek directly) a monthly/annual SaaS fee. Their end users — citizens, students, congregation members, customers — experience a fully branded platform with no visible connection to DYMOND Empire or Lightek. Pure white-label sovereignty.</div>
+          </div>
+          <div class="alc-right"><div class="alcr-arrow" style="opacity:.3;">●</div><div class="alcr-tag">Sovereign end deployment</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CATALOG PREVIEW -->
+<div class="section dark">
+  <div class="sec-eyebrow fade-up">Product Catalog · Digital Warehouse</div>
+  <h2 class="sec-title fade-up">EVERY MODULE.<br><span class="cc">ONE</span> WAREHOUSE.</h2>
+  <p class="sec-sub fade-up">31+ DYMOND modules packaged as discrete SaaS products. Each with its own SKU, documentation, integration guide, and pricing tier. Browse the catalog, build your bundle, deploy under your brand.</p>
+
+  <div class="catalog-preview fade-up">
+    <div class="cat-card" onclick="this.style.borderColor='rgba(30,168,102,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#1EA866;"></div>
+      <div class="cc-sku"><span>SKU-001</span><span style="color:#1EA866;">● IN STOCK</span></div>
+      <span class="cc-icon">🏦</span>
+      <div class="cc-name">BANK MODULE</div>
+      <div class="cc-category" style="color:#1EA866;">TREASURY · FINANCIAL SERVICES</div>
+      <div class="cc-desc">Full neobank deployment. Accounts, lending, transfers, financial coaching. Community Credit Pool included.</div>
+      <div class="cc-price-row"><div><span class="cc-price" style="color:#1EA866;">$840</span><span class="cc-period">/mo wholesale</span></div><button class="cc-add" onclick="event.stopPropagation();this.textContent='✓ ADDED'">ADD TO ORDER</button></div>
+    </div>
+    <div class="cat-card" onclick="this.style.borderColor='rgba(0,200,232,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--cyan);"></div>
+      <div class="cc-sku"><span>SKU-008</span><span style="color:var(--cyan);">● IN STOCK</span></div>
+      <span class="cc-icon">✝</span>
+      <div class="cc-name">CHURCH MODULE</div>
+      <div class="cc-category" style="color:var(--cyan);">FAITH AFFAIRS · MINISTRY</div>
+      <div class="cc-desc">Live streaming, sermon notes, prayer wall, tithe collection, Bible study groups. Ministry Engine included.</div>
+      <div class="cc-price-row"><div><span class="cc-price" style="color:var(--cyan);">$480</span><span class="cc-period">/mo wholesale</span></div><button class="cc-add" onclick="event.stopPropagation();this.textContent='✓ ADDED'">ADD TO ORDER</button></div>
+    </div>
+    <div class="cat-card" onclick="this.style.borderColor='rgba(216,32,32,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--red);"></div>
+      <div class="cc-sku"><span>SKU-014</span><span style="color:var(--red);">● IN STOCK</span></div>
+      <span class="cc-icon">📺</span>
+      <div class="cc-name">STREAMING MODULE</div>
+      <div class="cc-category" style="color:var(--red);">CULTURE · MEDIA · DYMOND+</div>
+      <div class="cc-desc">Full streaming platform. Content library, live broadcast, creator dashboard, royalty tracking.</div>
+      <div class="cc-price-row"><div><span class="cc-price" style="color:var(--red);">$1,200</span><span class="cc-period">/mo wholesale</span></div><button class="cc-add" onclick="event.stopPropagation();this.textContent='✓ ADDED'">ADD TO ORDER</button></div>
+    </div>
+    <div class="cat-card" onclick="this.style.borderColor='rgba(196,152,32,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold2);"></div>
+      <div class="cc-sku"><span>SKU-022</span><span style="color:var(--gold2);">● IN STOCK</span></div>
+      <span class="cc-icon">🌿</span>
+      <div class="cc-name">WELLNESS MODULE</div>
+      <div class="cc-category" style="color:var(--gold2);">HEALTH · WELLNESS · FIT</div>
+      <div class="cc-desc">Mental health, fitness gamification, nutrition tracking, pastoral counseling pathway, recovery protocols.</div>
+      <div class="cc-price-row"><div><span class="cc-price" style="color:var(--gold2);">$360</span><span class="cc-period">/mo wholesale</span></div><button class="cc-add" onclick="event.stopPropagation();this.textContent='✓ ADDED'">ADD TO ORDER</button></div>
+    </div>
+    <div class="cat-card" onclick="this.style.borderColor='rgba(106,170,248,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#6AAAF8;"></div>
+      <div class="cc-sku"><span>SKU-017</span><span style="color:#6AAAF8;">● IN STOCK</span></div>
+      <span class="cc-icon">🏠</span>
+      <div class="cc-name">REAL ESTATE MODULE</div>
+      <div class="cc-category" style="color:#6AAAF8;">HOUSING · PROPERTY</div>
+      <div class="cc-desc">Property search, mortgage integration, smart home deployment, neighborhood analytics.</div>
+      <div class="cc-price-row"><div><span class="cc-price" style="color:#6AAAF8;">$720</span><span class="cc-period">/mo wholesale</span></div><button class="cc-add" onclick="event.stopPropagation();this.textContent='✓ ADDED'">ADD TO ORDER</button></div>
+    </div>
+    <div class="cat-card" onclick="this.style.borderColor='rgba(216,40,106,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#D8286A;"></div>
+      <div class="cc-sku"><span>SKU-019</span><span style="color:#D8286A;">● IN STOCK</span></div>
+      <span class="cc-icon">💑</span>
+      <div class="cc-name">MATCH MODULE</div>
+      <div class="cc-category" style="color:#D8286A;">FAMILY AFFAIRS · COMMUNITY</div>
+      <div class="cc-desc">Compatibility matching, pastoral counseling bridge, marriage journey pipeline, ordination network access.</div>
+      <div class="cc-price-row"><div><span class="cc-price" style="color:#D8286A;">$480</span><span class="cc-period">/mo wholesale</span></div><button class="cc-add" onclick="event.stopPropagation();this.textContent='✓ ADDED'">ADD TO ORDER</button></div>
+    </div>
+    <div class="cat-card" onclick="this.style.borderColor='rgba(0,200,240,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#00C8F0;"></div>
+      <div class="cc-sku"><span>SKU-004</span><span style="color:#00C8F0;">● IN STOCK</span></div>
+      <span class="cc-icon">📡</span>
+      <div class="cc-name">CONNECT MODULE</div>
+      <div class="cc-category" style="color:#00C8F0;">COMMUNICATIONS · ISP · CELL</div>
+      <div class="cc-desc">ISP infrastructure, VoIP, cell service, TV bundle. No throttling. Community equity access built in.</div>
+      <div class="cc-price-row"><div><span class="cc-price" style="color:#00C8F0;">$1,800</span><span class="cc-period">/mo wholesale</span></div><button class="cc-add" onclick="event.stopPropagation();this.textContent='✓ ADDED'">ADD TO ORDER</button></div>
+    </div>
+    <div class="cat-card" onclick="this.style.borderColor='rgba(152,64,255,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#9840FF;"></div>
+      <div class="cc-sku"><span>SKU-031</span><span style="color:#9840FF;">● NEW</span></div>
+      <span class="cc-icon">🌐</span>
+      <div class="cc-name">TWIN MODULE</div>
+      <div class="cc-category" style="color:#9840FF;">TECHNOLOGY · AVATAR OS</div>
+      <div class="cc-desc">Digital twin platform, virtual world deployment, real-to-digital data loop, AI avatar generation.</div>
+      <div class="cc-price-row"><div><span class="cc-price" style="color:#9840FF;">$960</span><span class="cc-period">/mo wholesale</span></div><button class="cc-add" onclick="event.stopPropagation();this.textContent='✓ ADDED'">ADD TO ORDER</button></div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:28px;" class="fade-up">
+    <button style="font-family:var(--fc);font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border:1px solid rgba(0,200,232,.25);background:rgba(0,200,232,.05);color:var(--cyan);padding:13px 32px;cursor:pointer;transition:all .22s;" onclick="this.textContent='→ LOADING FULL CATALOG'">VIEW ALL 31 MODULES IN THE WAREHOUSE →</button>
+  </div>
+</div>
+
+<!-- REVENUE MODEL -->
+<div class="section">
+  <div class="sec-eyebrow fade-up">Revenue Model · The Margin Stack</div>
+  <h2 class="sec-title fade-up">WHERE YOUR<br><span class="cc">MARGIN</span> LIVES.</h2>
+  <p class="sec-sub fade-up">Four layers. Three spreads. Revenue flows up through every tier. Lightek captures the wholesale-to-retail spread. Resellers capture the reseller margin. Everyone wins because the infrastructure keeps running regardless of who's selling it.</p>
+
+  <div class="rev-model fade-up">
+    <div class="rm-flow">
+      <div class="rmf-node">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold2);"></div>
+        <div class="rmfn-tier">DYMOND</div>
+        <div class="rmfn-name" style="color:var(--gold2);">EMPIRE COST</div>
+        <div class="rmfn-take" style="color:var(--gold2);">$4,200</div>
+        <div class="rmfn-sub">Full stack wholesale/mo</div>
+      </div>
+      <div class="rm-arrow">→</div>
+      <div class="rmf-node">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--cyan);"></div>
+        <div class="rmfn-tier">LIGHTEK CATALOG</div>
+        <div class="rmfn-name" style="color:var(--cyan);">SELL PRICE</div>
+        <div class="rmfn-take" style="color:var(--cyan);">$12,600</div>
+        <div class="rmfn-sub">Per deployment/mo</div>
+      </div>
+      <div class="rm-arrow">→</div>
+      <div class="rmf-node">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--signal2);"></div>
+        <div class="rmfn-tier">RESELLER PRICE</div>
+        <div class="rmfn-name" style="color:var(--signal2);">TO CLIENT</div>
+        <div class="rmfn-take" style="color:var(--signal2);">$18,000</div>
+        <div class="rmfn-sub">+ reseller margin/mo</div>
+      </div>
+      <div class="rm-arrow">→</div>
+      <div class="rmf-node">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:rgba(238,244,252,.2);"></div>
+        <div class="rmfn-tier">END CLIENT</div>
+        <div class="rmfn-name" style="color:rgba(238,244,252,.6);">PAYS</div>
+        <div class="rmfn-take" style="color:rgba(238,244,252,.6);">$18K+</div>
+        <div class="rmfn-sub">Sovereign platform monthly</div>
+      </div>
+    </div>
+    <div class="rm-totals fade-up">
+      <div class="rmt-cell"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold2);"></div><span class="rmtc-label">DYMOND EARNS</span><span class="rmtc-val" style="color:var(--gold2);">$4,200</span><span class="rmtc-sub">Per deployment · Sovereign cost</span></div>
+      <div class="rmt-cell"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--cyan);"></div><span class="rmtc-label">LIGHTEK MARGIN</span><span class="rmtc-val" style="color:var(--cyan);">$8,400</span><span class="rmtc-sub">Per deployment · 200% markup</span></div>
+      <div class="rmt-cell"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--signal2);"></div><span class="rmtc-label">RESELLER MARGIN</span><span class="rmtc-val" style="color:var(--signal2);">$5,400</span><span class="rmtc-sub">Per deployment · 43% above Lightek</span></div>
+      <div class="rmt-cell"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--lime2);"></div><span class="rmtc-label">ECOSYSTEM TOTAL</span><span class="rmtc-val" style="color:var(--lime2);">$18K+</span><span class="rmtc-sub">Monthly · Per deployment · Recurring</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- RESELLER TIERS -->
+<div class="section alt">
+  <div class="sec-eyebrow fade-up">Reseller Program · Join the Network</div>
+  <h2 class="sec-title fade-up">SELL<br><span class="cc">SOVEREIGNTY.</span><br>KEEP THE SPREAD.</h2>
+  <p class="sec-sub fade-up">Three tiers of Lightek reseller certification. Each tier gives you access to a different segment of the catalog with different margin structures. Buy wholesale. Sell retail. Build a recurring SaaS business on infrastructure you didn't have to build.</p>
+
+  <div class="tier-grid fade-up">
+    <div class="tier-card">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,var(--signal),var(--signal2));"></div>
+      <div class="tc2-tier" style="color:var(--signal2);">TIER A · ASSOCIATE</div>
+      <div class="tc2-name" style="color:var(--signal2);">ASSOCIATE</div>
+      <div class="tc2-tagline">For agencies and consultancies entering the sovereign infrastructure market. Access to 12 entry-level SKUs.</div>
+      <div class="tc2-price-block">
+        <span class="tc2p-buy" style="color:var(--muted);">BUY FROM LIGHTEK: $500–$1,200/mo per SKU</span>
+        <span class="tc2p-sell" style="color:var(--signal2);">SELL TO CLIENTS: Your price</span>
+        <span class="tc2p-margin" style="color:var(--lime2);">TARGET MARGIN: 35–60%</span>
+      </div>
+      <div class="tc2-benefits">
+        <div class="tc2b-item yes">Access to 12 catalog SKUs (Community, Church, Wellness, Podcast, Studio, Match + 6 more)</div>
+        <div class="tc2b-item yes">Lightek reseller certification + training</div>
+        <div class="tc2b-item yes">Lightek branded partner portal access</div>
+        <div class="tc2b-item yes">Technical documentation + integration guides</div>
+        <div class="tc2b-item yes">Email + community support</div>
+        <div class="tc2b-item no">DYMOND BANK module (requires Distributor)</div>
+        <div class="tc2b-item no">White-label + custom domain rights</div>
+        <div class="tc2b-item no">Sub-reseller licensing rights</div>
+      </div>
+      <button class="tc2-cta" style="border-color:var(--signal2);color:var(--signal2);" onclick="this.textContent='→ APPLICATION SENT'">APPLY FOR ASSOCIATE →</button>
+    </div>
+
+    <div class="tier-card featured">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,var(--cyan),var(--cyan2));"></div>
+      <div class="tc2-badge">MOST POPULAR</div>
+      <div class="tc2-tier" style="color:var(--cyan);">TIER B · DISTRIBUTOR</div>
+      <div class="tc2-name" style="color:var(--cyan);">DISTRIBUTOR</div>
+      <div class="tc2-tagline">Full catalog access, white-label rights, and the ability to license sub-resellers beneath you. The full MLM-SaaS model activated.</div>
+      <div class="tc2-price-block">
+        <span class="tc2p-buy" style="color:var(--muted);">BUY FROM LIGHTEK: $400–$1,000/mo per SKU</span>
+        <span class="tc2p-sell" style="color:var(--cyan);">SELL TO CLIENTS OR RESELLERS: Your price</span>
+        <span class="tc2p-margin" style="color:var(--lime2);">TARGET MARGIN: 50–120%</span>
+      </div>
+      <div class="tc2-benefits">
+        <div class="tc2b-item yes">Access to all 31 catalog SKUs — full warehouse</div>
+        <div class="tc2b-item yes">White-label + custom domain rights on all deployments</div>
+        <div class="tc2b-item yes"><strong>Sub-reseller licensing — recruit your own Associate network</strong></div>
+        <div class="tc2b-item yes">DYMOND BANK module access</div>
+        <div class="tc2b-item yes">Priority support + dedicated account manager</div>
+        <div class="tc2b-item yes">Lightek marketing co-op fund access</div>
+        <div class="tc2b-item yes">Annual Lightek Summit — seat included</div>
+        <div class="tc2b-item yes">Earn override commission on your sub-resellers' sales</div>
+      </div>
+      <button class="tc2-cta" style="border-color:var(--cyan);color:var(--steel);background:var(--cyan);" onclick="this.textContent='→ APPLICATION SENT'">APPLY FOR DISTRIBUTOR →</button>
+    </div>
+
+    <div class="tier-card">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,var(--gold),var(--gold2));"></div>
+      <div class="tc2-tier" style="color:var(--gold2);">TIER C · MASTER PARTNER</div>
+      <div class="tc2-name" style="color:var(--gold2);">MASTER</div>
+      <div class="tc2-tagline">Regional exclusivity. Your own branded version of the Lightek warehouse. The top of the MLM-SaaS stack beneath DYMOND and Lightek.</div>
+      <div class="tc2-price-block">
+        <span class="tc2p-buy" style="color:var(--muted);">BUY FROM LIGHTEK: Negotiated wholesale rates</span>
+        <span class="tc2p-sell" style="color:var(--gold2);">RUN YOUR OWN DISTRIBUTION CHANNEL</span>
+        <span class="tc2p-margin" style="color:var(--lime2);">TARGET MARGIN: 80–200%+</span>
+      </div>
+      <div class="tc2-benefits">
+        <div class="tc2b-item yes">Everything in Distributor tier</div>
+        <div class="tc2b-item yes"><strong>Regional exclusivity — your territory, your market</strong></div>
+        <div class="tc2b-item yes">Your own branded version of the Lightek catalog</div>
+        <div class="tc2b-item yes">Recruit and manage your own Distributor + Associate network</div>
+        <div class="tc2b-item yes">Override commissions on your full network depth</div>
+        <div class="tc2b-item yes">Negotiate custom module bundles directly with Lightek</div>
+        <div class="tc2b-item yes">Co-branded marketing campaigns with Lightek budget</div>
+        <div class="tc2b-item yes">Direct line to DYMOND Empire partnership team</div>
+      </div>
+      <button class="tc2-cta" style="border-color:var(--gold2);color:var(--gold2);" onclick="this.textContent='→ REQUEST RECEIVED'">REQUEST MASTER CONSULTATION →</button>
+    </div>
+  </div>
+</div>
+
+<!-- WHO BUYS THIS -->
+<div class="section dark">
+  <div class="sec-eyebrow fade-up">Ideal Clients · Who You'll Sell To</div>
+  <h2 class="sec-title fade-up">YOUR<br><span class="cg">CLIENTS</span><br>ALREADY EXIST.</h2>
+  <p class="sec-sub fade-up">Every organization below is looking for sovereign infrastructure and doesn't know it yet. They're paying Salesforce, Squarespace, Stripe, Comcast, and YouTube individually — getting fractional solutions from platforms not built for them. You bring them the full stack.</p>
+
+  <div class="social-proof fade-up">
+    <div class="sp-label">ORGANIZATIONS ACTIVELY SEEKING WHAT YOU SELL</div>
+    <div class="sp-logos">
+      <div class="spl-card"><span class="spl-icon">🎓</span><div class="spl-name">HBCUs</div><div class="spl-type">Education · Full Ecosystem</div></div>
+      <div class="spl-card"><span class="spl-icon">✝</span><div class="spl-name">MEGACHURCHES</div><div class="spl-type">Faith · Media · Community</div></div>
+      <div class="spl-card"><span class="spl-icon">🏛</span><div class="spl-name">CITY PROGRAMS</div><div class="spl-type">Government · Infrastructure</div></div>
+      <div class="spl-card"><span class="spl-icon">🌍</span><div class="spl-name">DIASPORA ORGS</div><div class="spl-type">Community · Banking · Media</div></div>
+      <div class="spl-card"><span class="spl-icon">🏢</span><div class="spl-name">BLACK AGENCIES</div><div class="spl-type">Creative · Tech · Strategy</div></div>
+      <div class="spl-card"><span class="spl-icon">🎤</span><div class="spl-name">ARTIST MGMT</div><div class="spl-type">Label · Studio · Streaming</div></div>
+      <div class="spl-card"><span class="spl-icon">⚽</span><div class="spl-name">SPORTS ORGS</div><div class="spl-type">Media · Community · Fan</div></div>
+      <div class="spl-card"><span class="spl-icon">🏥</span><div class="spl-name">HEALTH SYSTEMS</div><div class="spl-type">Wellness · Community Care</div></div>
+      <div class="spl-card"><span class="spl-icon">💼</span><div class="spl-name">CORP DEI DEPTS</div><div class="spl-type">Community · Education · Bank</div></div>
+      <div class="spl-card"><span class="spl-icon">📻</span><div class="spl-name">MEDIA COMPANIES</div><div class="spl-type">Streaming · Studio · Podcast</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- FINAL CTA -->
+<div class="final-cta fade-up">
+  <div class="fct-eyebrow">◈ LIGHTEK MCG · AUTHORIZED DYMOND EMPIRE DISTRIBUTOR</div>
+  <div class="fct-title">ENTER THE<br>WAREHOUSE.</div>
+  <p class="fct-sub">31 products. Three reseller tiers. Four layers of recurring revenue. <strong>The most complete sovereign infrastructure catalog ever assembled.</strong> The organizations you serve are waiting. The modules are in stock. The margin is real.</p>
+  <div class="fct-btns">
+    <button class="fct-btn-p" onclick="this.textContent='→ LOADING WAREHOUSE'">BROWSE THE FULL CATALOG →</button>
+    <button class="fct-btn-s" onclick="this.textContent='→ SENT'">BECOME A RESELLER</button>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  <div class="sf-top">
+    <div class="sf-brand">
+      <span class="sfb-mark">LIGHTEK MCG</span>
+      <div class="sfb-full">LIGHTEK MEDIA COMMUNICATIONS GROUP</div>
+      <div class="sfb-desc">Authorized Empire-tier distributor of DYMOND Empire infrastructure. Wholesale SaaS catalog, reseller network, and go-to-market support for sovereign digital deployments worldwide.</div>
+    </div>
+    <div class="sf-cols">
+      <div class="sf-col">
+        <div class="sfc-title">CATALOG</div>
+        <div class="sfc-link">All 31 Modules</div>
+        <div class="sfc-link">Featured Bundles</div>
+        <div class="sfc-link">New Arrivals</div>
+        <div class="sfc-link">Custom Orders</div>
+      </div>
+      <div class="sf-col">
+        <div class="sfc-title">RESELLERS</div>
+        <div class="sfc-link">Associate Program</div>
+        <div class="sfc-link">Distributor Program</div>
+        <div class="sfc-link">Master Partner</div>
+        <div class="sfc-link">Partner Portal</div>
+      </div>
+      <div class="sf-col">
+        <div class="sfc-title">RESOURCES</div>
+        <div class="sfc-link">Integration Docs</div>
+        <div class="sfc-link">Training Center</div>
+        <div class="sfc-link">Case Studies</div>
+        <div class="sfc-link">Architecture Guide</div>
+      </div>
+      <div class="sf-col">
+        <div class="sfc-title">CONTACT</div>
+        <div class="sfc-link">sales@lightek.io</div>
+        <div class="sfc-link">partners@lightek.io</div>
+        <div class="sfc-link">support@lightek.io</div>
+        <div class="sfc-link">lightek.io</div>
+      </div>
+    </div>
+  </div>
+  <div class="sf-bottom">
+    <div class="sfb-copy">© 2026 LIGHTEK MEDIA COMMUNICATIONS GROUP · ALL RIGHTS RESERVED</div>
+    <div class="sfb-powered">POWERED BY <span class="sfbp-gold">◈ DYMOND EMPIRE INFRASTRUCTURE</span> · EMPIRE TIER LICENSE</div>
+  </div>
+</footer>
+
+<script>
+const cur=document.getElementById('cur'),cur2=document.getElementById('cur2');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function l(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;cur2.style.left=rx+'px';cur2.style.top=ry+'px';requestAnimationFrame(l);})();
+document.querySelectorAll('button,.cat-card,.tier-card,.arch-layer,.spl-card,.rmt-cell').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cur.style.width='11px';cur.style.height='11px';cur2.style.width='38px';cur2.style.height='38px';});
+  el.addEventListener('mouseleave',()=>{cur.style.width='6px';cur.style.height='6px';cur2.style.width='28px';cur2.style.height='28px';});
+});
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');});},{threshold:.05});
+document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+setTimeout(()=>{document.querySelectorAll('.hero .fade-up').forEach((el,i)=>{setTimeout(()=>el.classList.add('vis'),i*120);});},100);
+</script>
+</body>
+</html>

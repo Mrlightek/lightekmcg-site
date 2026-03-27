@@ -1,0 +1,16 @@
+<p style="color: green"><%= notice %></p>
+
+<% content_for :title, "Storyline world forges" %>
+
+<h1>Storyline world forges</h1>
+
+<div id="storyline_world_forges">
+  <% @storyline_world_forges.each do |storyline_world_forge| %>
+    <%= render storyline_world_forge %>
+    <p>
+      <%= link_to "Show this storyline world forge", storyline_world_forge %>
+    </p>
+  <% end %>
+</div>
+
+<%= link_to "New storyline world forge", new_storyline_world_forge_path %>

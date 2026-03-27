@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STORYLINE — The Narrative Universe Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Barlow+Condensed:wght@200;300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  --void:#040308;--deep:#070510;--mid:#0C0818;--panel:#100C1E;--lift:#161228;
+  --white:#F2EEE8;--off:#C8C0B8;--muted:#6A6070;--dim:#1C1628;
+  --gold:#D4A020;--gold2:#ECC030;
+  /* format colors */
+  --album-a:#E03050;--album-b:#FF5070;
+  --book-a:#2858A8;--book-b:#4878D0;
+  --mag-a:#C84010;--mag-b:#F06030;
+  /* project accent vars (overridden per project) */
+  --accent:#E03050;--accent2:#FF5070;--accent3:#FF8090;
+  --bg-glow:rgba(224,48,80,.12);
+  /* fonts */
+  --fb:'Bebas Neue',sans-serif;
+  --fg:'EB Garamond',serif;
+  --fc:'Barlow Condensed',sans-serif;
+  --fp:'Playfair Display',serif;
+  --fm:'Space Mono',monospace;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--void);color:var(--white);font-family:var(--fg);overflow-x:hidden;}
+
+/* grain */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");background-size:200px;pointer-events:none;z-index:0;opacity:.7;}
+
+/* cursor */
+#cur{width:8px;height:8px;background:var(--accent);position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);border-radius:50%;box-shadow:0 0 16px var(--accent);transition:width .15s,height .15s,background .3s,box-shadow .3s;}
+#cur2{width:32px;height:32px;border:1px solid rgba(242,238,232,.15);border-radius:50%;position:fixed;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);transition:left .1s cubic-bezier(.16,1,.3,1),top .1s,width .2s,height .2s;}
+
+@keyframes shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes breathe{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.015)}}
+@keyframes branchPulse{0%{box-shadow:0 0 0 0 var(--accent)}70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@keyframes scanLine{from{top:-5%}to{top:105%}}
+@keyframes waveBar{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.fade-up{opacity:0;transform:translateY(20px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);}
+.fade-up.vis{opacity:1;transform:none;}
+
+/* VIEWS */
+.view{display:none;}
+.view.active{display:block;}
+
+/* ════════════════════════════════════════════
+   GLOBAL NAV
+════════════════════════════════════════════ */
+.global-nav{
+  position:fixed;top:0;left:0;right:0;z-index:400;
+  height:58px;
+  background:rgba(4,3,8,.96);
+  border-bottom:1px solid rgba(242,238,232,.05);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;
+}
+.gn-logo{font-family:var(--fb);font-size:22px;letter-spacing:.14em;cursor:pointer;background:linear-gradient(to right,var(--white),var(--off));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.gn-logo span{background:linear-gradient(to right,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.gn-tabs{display:flex;gap:0;}
+.gn-tab{font-family:var(--fm);font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,238,232,.32);padding:0 18px;height:58px;display:flex;align-items:center;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.gn-tab:hover{color:rgba(242,238,232,.7);}
+.gn-tab.on{color:var(--white);border-bottom-color:var(--accent);}
+.gn-right{display:flex;align-items:center;gap:10px;}
+.gn-search{background:rgba(242,238,232,.06);border:1px solid rgba(242,238,232,.08);padding:7px 14px;font-family:var(--fm);font-size:7px;letter-spacing:.1em;color:rgba(242,238,232,.4);width:180px;outline:none;transition:all .2s;}
+.gn-search:focus{border-color:rgba(242,238,232,.2);background:rgba(242,238,232,.09);}
+.gn-search::placeholder{color:rgba(242,238,232,.22);}
+.gn-create-btn{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--accent);color:var(--void);border:none;padding:8px 20px;cursor:pointer;transition:background .2s;}
+.gn-create-btn:hover{background:var(--accent2);}
+.gn-avatar{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--accent);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;}
+
+/* ════════════════════════════════════════════
+   VIEW 1: DISCOVERY FEED
+════════════════════════════════════════════ */
+#view-discover{padding-top:58px;}
+
+/* hero — featured universe */
+.discover-hero{
+  min-height:88vh;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  padding:60px 48px;
+  position:relative;overflow:hidden;
+}
+/* animated cover art bleed */
+.dh-bg{
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,#1A0808 0%,#2A0518 30%,#08082A 70%,#0A1A08 100%);
+  z-index:0;
+}
+.dh-cover-art{
+  position:absolute;right:0;top:0;bottom:0;
+  width:55%;
+  background:linear-gradient(135deg,#E03050,#8820C0,#0040E0);
+  z-index:1;
+  clip-path:polygon(15% 0,100% 0,100% 100%,0% 100%);
+  opacity:.45;
+  animation:breathe 8s ease-in-out infinite;
+}
+.dh-cover-art::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 60% 40%,rgba(255,80,120,.3),transparent 60%);}
+.dh-vignette{position:absolute;inset:0;background:radial-gradient(ellipse 120% 100% at 30% 100%,rgba(4,3,8,.95) 30%,rgba(4,3,8,.5) 70%,transparent 100%);z-index:2;}
+.dh-scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,rgba(242,238,232,.04),transparent);animation:scanLine 16s linear infinite;pointer-events:none;z-index:3;}
+.dh-content{position:relative;z-index:4;max-width:700px;}
+.dh-format-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(224,48,80,.15);border:1px solid rgba(224,48,80,.3);padding:4px 14px;margin-bottom:16px;}
+.dhfb-icon{font-size:12px;}
+.dhfb-text{font-family:var(--fm);font-size:6px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent2);}
+.dhfb-dot{width:4px;height:4px;border-radius:50%;background:var(--accent2);animation:blink .9s infinite;}
+.dh-title{font-family:var(--fb);font-size:clamp(52px,10vw,140px);letter-spacing:.04em;line-height:.84;margin-bottom:10px;background:linear-gradient(160deg,var(--white),var(--off),var(--white));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.dh-creator{font-family:var(--fm);font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:rgba(242,238,232,.4);margin-bottom:8px;}
+.dh-logline{font-family:var(--fg);font-style:italic;font-size:clamp(15px,1.6vw,20px);color:rgba(242,238,232,.6);max-width:560px;line-height:1.9;margin-bottom:20px;}
+.dh-meta{display:flex;gap:16px;align-items:center;margin-bottom:24px;flex-wrap:wrap;}
+.dh-meta-item{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.dh-meta-item span{color:rgba(242,238,232,.5);}
+.dh-actions{display:flex;gap:8px;}
+.dh-play-btn{font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;background:var(--accent);color:var(--void);border:none;padding:13px 32px;cursor:pointer;transition:all .22s;display:flex;align-items:center;gap:8px;}
+.dh-play-btn:hover{background:var(--accent2);}
+.dh-detail-btn{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(242,238,232,.55);border:1px solid rgba(242,238,232,.15);padding:13px 24px;cursor:pointer;transition:all .22s;}
+.dh-detail-btn:hover{border-color:rgba(242,238,232,.4);color:var(--white);}
+/* universe strip — crossovers */
+.dh-universe-strip{position:absolute;bottom:24px;right:48px;z-index:4;display:flex;align-items:center;gap:8px;}
+.dus-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:rgba(242,238,232,.3);}
+.dus-links{display:flex;gap:-4px;}
+.dus-link{width:28px;height:28px;border-radius:50%;border:2px solid var(--void);display:flex;align-items:center;justify-content:center;font-size:12px;margin-left:-6px;cursor:pointer;transition:transform .2s;}
+.dus-link:hover{transform:scale(1.2);z-index:5;}
+.dus-link:first-child{margin-left:0;}
+
+/* section */
+.section{padding:48px;position:relative;z-index:1;}
+.section-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px;}
+.sh-title{font-family:var(--fc);font-size:clamp(22px,3vw,36px);font-weight:800;letter-spacing:.06em;}
+.sh-action{font-family:var(--fm);font-size:7px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);cursor:pointer;transition:color .2s;background:none;border:none;}
+.sh-action:hover{color:var(--accent);}
+
+/* project cards — three display modes */
+.cards-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;}
+.cards-row::-webkit-scrollbar{height:2px;}
+.cards-row::-webkit-scrollbar-track{background:rgba(242,238,232,.04);}
+.cards-row::-webkit-scrollbar-thumb{background:rgba(242,238,232,.15);}
+
+/* ALBUM card */
+.card-album{width:200px;flex-shrink:0;cursor:pointer;transition:transform .25s;}
+.card-album:hover{transform:translateY(-4px);}
+.ca-art{width:200px;height:200px;border-radius:2px;position:relative;overflow:hidden;margin-bottom:9px;}
+.ca-art-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.ca-art-inner::before{content:'';position:absolute;inset:0;opacity:.5;}
+.ca-art-overlay{position:absolute;inset:0;background:rgba(4,3,8,.2);}
+.ca-play-icon{position:absolute;bottom:10px;right:10px;width:36px;height:36px;border-radius:50%;background:rgba(4,3,8,.7);display:flex;align-items:center;justify-content:center;font-size:14px;opacity:0;transition:opacity .2s;}
+.card-album:hover .ca-play-icon{opacity:1;}
+.ca-format-tag{position:absolute;top:8px;left:8px;font-family:var(--fm);font-size:5px;letter-spacing:.16em;text-transform:uppercase;border:1px solid;padding:2px 7px;}
+.ca-crossover{position:absolute;top:8px;right:8px;font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;background:rgba(212,160,32,.2);border:1px solid rgba(212,160,32,.4);color:var(--gold2);padding:2px 6px;}
+.ca-title{font-family:var(--fb);font-size:17px;letter-spacing:.06em;line-height:1.1;margin-bottom:3px;}
+.ca-creator{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.ca-meta{display:flex;gap:8px;margin-top:5px;align-items:center;}
+.ca-eps{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:rgba(242,238,232,.3);}
+.ca-branch{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(242,238,232,.12);padding:2px 6px;color:rgba(242,238,232,.35);}
+
+/* BOOK card */
+.card-book{width:140px;flex-shrink:0;cursor:pointer;transition:transform .25s;}
+.card-book:hover{transform:translateY(-4px) rotate(1deg);}
+.cb-spine-wrap{display:flex;height:210px;box-shadow:4px 4px 20px rgba(0,0,0,.6);}
+.cb-spine{width:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.cb-spine-text{font-family:var(--fb);font-size:9px;letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(180deg);color:rgba(242,238,232,.6);}
+.cb-cover{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:12px 10px;}
+.cb-cover::before{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(4,3,8,.8),rgba(4,3,8,.1));}
+.cb-title{font-family:var(--fp);font-size:clamp(14px,2vw,18px);font-style:italic;font-weight:700;line-height:1.2;position:relative;z-index:1;margin-bottom:4px;}
+.cb-author{font-family:var(--fg);font-size:10px;font-style:italic;color:rgba(242,238,232,.55);position:relative;z-index:1;}
+.cb-vol{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:rgba(242,238,232,.35);position:relative;z-index:1;margin-bottom:3px;}
+.cb-meta{margin-top:8px;}
+.cb-genre{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+
+/* MAGAZINE card */
+.card-mag{width:170px;flex-shrink:0;cursor:pointer;transition:transform .25s;}
+.card-mag:hover{transform:translateY(-4px);}
+.cm-cover{height:230px;position:relative;overflow:hidden;}
+.cm-cover::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(4,3,8,.85) 0%,rgba(4,3,8,.1) 60%);}
+.cm-masthead{position:absolute;top:0;left:0;right:0;z-index:2;padding:10px 10px 0;}
+.cmm-title{font-family:var(--fc);font-size:clamp(18px,2.5vw,24px);font-weight:900;letter-spacing:.08em;line-height:.9;}
+.cmm-issue{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,238,232,.5);margin-top:2px;}
+.cm-headline{position:absolute;bottom:0;left:0;right:0;z-index:2;padding:10px;}
+.cmh-kicker{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,238,232,.5);margin-bottom:3px;}
+.cmh-text{font-family:var(--fc);font-size:clamp(13px,1.8vw,16px);font-weight:700;letter-spacing:.04em;line-height:1.2;}
+.cm-meta{padding:8px 0 0;}
+.cm-meta-row{display:flex;justify-content:space-between;align-items:center;}
+.cmm-label{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+
+/* grid of cards */
+.cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+@media(max-width:1100px){.cards-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:800px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
+
+/* ════════════════════════════════════════════
+   VIEW 2: PROJECT DETAIL + FORMAT SKINS
+════════════════════════════════════════════ */
+#view-project{padding-top:58px;}
+.project-hero{
+  min-height:70vh;
+  display:flex;align-items:flex-end;
+  padding:48px;
+  position:relative;overflow:hidden;
+}
+.ph-bg{position:absolute;inset:0;z-index:0;}
+.ph-vignette{position:absolute;inset:0;background:linear-gradient(to top,rgba(4,3,8,1) 0%,rgba(4,3,8,.6) 60%,rgba(4,3,8,.2) 100%);z-index:1;}
+.ph-content{position:relative;z-index:2;max-width:760px;}
+/* format skin switcher */
+.format-switcher{display:flex;gap:3px;margin-bottom:20px;}
+.fs-btn{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;border:1px solid;padding:7px 16px;cursor:pointer;background:transparent;transition:all .22s;display:flex;align-items:center;gap:6px;}
+.fs-btn .fs-icon{font-size:12px;}
+.fs-btn.album{border-color:rgba(224,48,80,.3);color:rgba(224,48,80,.6);}
+.fs-btn.album.active,.fs-btn.album:hover{border-color:var(--album-a);color:var(--album-b);background:rgba(224,48,80,.1);}
+.fs-btn.book{border-color:rgba(40,88,168,.3);color:rgba(40,88,168,.6);}
+.fs-btn.book.active,.fs-btn.book:hover{border-color:var(--book-a);color:var(--book-b);background:rgba(40,88,168,.1);}
+.fs-btn.magazine{border-color:rgba(200,64,16,.3);color:rgba(200,64,16,.6);}
+.fs-btn.magazine.active,.fs-btn.magazine:hover{border-color:var(--mag-a);color:var(--mag-b);background:rgba(200,64,16,.1);}
+
+/* SKIN PANELS */
+.skin-panel{display:none;}
+.skin-panel.active{display:block;}
+
+/* ─── ALBUM SKIN ─── */
+.album-skin{padding:0 48px 48px;}
+.as-header{display:flex;gap:28px;align-items:flex-start;margin-bottom:32px;}
+.as-art{width:200px;height:200px;flex-shrink:0;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.8);animation:float 6s ease-in-out infinite;}
+.as-art-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px;}
+.as-art::after{content:'';position:absolute;inset:0;border:1px solid rgba(242,238,232,.1);}
+.as-info{}
+.as-format-label{font-family:var(--fm);font-size:6px;letter-spacing:.22em;text-transform:uppercase;color:var(--album-b);margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+.as-format-label::before{content:'◉';color:var(--album-a);}
+.as-title{font-family:var(--fb);font-size:clamp(40px,7vw,88px);letter-spacing:.04em;line-height:.86;margin-bottom:8px;}
+.as-creator{font-family:var(--fm);font-size:7px;letter-spacing:.16em;text-transform:uppercase;color:rgba(242,238,232,.45);margin-bottom:10px;}
+.as-stats{display:flex;gap:16px;margin-bottom:14px;}
+.as-stat{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,238,232,.3);}
+.as-stat span{color:rgba(242,238,232,.65);font-weight:700;}
+.as-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.as-btn-play{font-family:var(--fc);font-size:15px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;background:var(--album-a);color:var(--void);border:none;padding:11px 28px;cursor:pointer;transition:background .2s;}
+.as-btn-play:hover{background:var(--album-b);}
+.as-btn-outline{font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(242,238,232,.45);border:1px solid rgba(242,238,232,.15);padding:11px 20px;cursor:pointer;transition:all .2s;}
+.as-btn-outline:hover{border-color:rgba(242,238,232,.35);color:var(--white);}
+/* tracklist */
+.as-tracklist{border-top:1px solid rgba(242,238,232,.07);}
+.as-track-hdr{display:grid;grid-template-columns:40px 1fr auto auto auto;gap:12px;padding:10px 0;border-bottom:1px solid rgba(242,238,232,.07);}
+.ath-cell{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+.as-track{display:grid;grid-template-columns:40px 1fr auto auto auto;gap:12px;padding:11px 0;border-bottom:1px solid rgba(242,238,232,.04);align-items:center;cursor:pointer;transition:background .15s;border-radius:2px;}
+.as-track:hover{background:rgba(242,238,232,.04);}
+.as-track.playing{background:rgba(224,48,80,.06);}
+.at-num{font-family:var(--fm);font-size:11px;font-weight:700;color:rgba(242,238,232,.25);text-align:right;}
+.as-track.playing .at-num{color:var(--album-a);}
+.at-info{}
+.at-title{font-family:var(--fg);font-size:14px;color:rgba(242,238,232,.82);margin-bottom:1px;}
+.as-track.playing .at-title{color:var(--white);font-weight:600;}
+.at-subtitle{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.at-branch{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(224,48,80,.3);color:var(--album-a);padding:2px 7px;background:rgba(224,48,80,.06);}
+.at-dur{font-family:var(--fm);font-size:9px;font-weight:700;color:rgba(242,238,232,.3);}
+.at-waveform{display:flex;align-items:center;gap:1px;width:40px;height:16px;}
+.at-bar{width:3px;border-radius:1px 1px 0 0;animation:waveBar 1s ease-in-out infinite;}
+
+/* ─── BOOK SKIN ─── */
+.book-skin{padding:0 48px 48px;max-width:1100px;margin:0 auto;}
+.bs-layout{display:grid;grid-template-columns:280px 1fr;gap:40px;}
+@media(max-width:900px){.bs-layout{grid-template-columns:1fr;}}
+.bs-cover{position:sticky;top:80px;height:fit-content;}
+.bsc-book{width:240px;height:340px;position:relative;transform:perspective(800px) rotateY(-8deg);box-shadow:-12px 12px 40px rgba(0,0,0,.8),4px 0 12px rgba(0,0,0,.5);animation:float 7s ease-in-out infinite;}
+.bsc-front{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;overflow:hidden;}
+.bsc-front::before{content:'';position:absolute;inset:0;}
+.bsc-spine{position:absolute;left:0;top:0;bottom:0;width:28px;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;}
+.bsc-spine-text{font-family:var(--fb);font-size:10px;letter-spacing:.14em;writing-mode:vertical-rl;transform:rotate(180deg);color:rgba(242,238,232,.6);}
+.bsc-content{position:relative;z-index:1;}
+.bsc-series{font-family:var(--fm);font-size:5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,238,232,.5);margin-bottom:5px;}
+.bsc-title{font-family:var(--fp);font-size:clamp(16px,2.5vw,22px);font-style:italic;font-weight:900;line-height:1.2;margin-bottom:4px;}
+.bsc-author{font-family:var(--fg);font-size:11px;font-style:italic;color:rgba(242,238,232,.55);}
+.bs-meta{margin-top:16px;}
+.bsm-row{display:flex;justify-content:space-between;font-family:var(--fm);font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:rgba(242,238,232,.3);padding:5px 0;border-bottom:1px solid rgba(242,238,232,.05);}
+.bsm-val{color:rgba(242,238,232,.65);}
+/* book content */
+.bs-content{}
+.bsc-header{margin-bottom:24px;}
+.bsch-title{font-family:var(--fp);font-size:clamp(28px,4vw,52px);font-style:italic;font-weight:900;line-height:1.1;margin-bottom:8px;}
+.bsch-meta{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,238,232,.3);}
+/* table of contents */
+.bs-toc{border:1px solid rgba(40,88,168,.15);background:rgba(40,88,168,.05);padding:20px 24px;margin-bottom:24px;}
+.bstoc-title{font-family:var(--fp);font-size:14px;font-style:italic;color:rgba(242,238,232,.5);margin-bottom:12px;text-align:center;}
+.bstoc-item{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid rgba(242,238,232,.04);cursor:pointer;transition:all .18s;}
+.bstoc-item:hover{background:rgba(40,88,168,.06);}
+.bstoc-item:last-child{border-bottom:none;}
+.bsti-num{font-family:var(--fm);font-size:9px;font-weight:700;color:rgba(40,88,168,.8);min-width:28px;}
+.bsti-title{font-family:var(--fg);font-size:14px;font-style:italic;flex:1;}
+.bsti-dots{flex:1;border-bottom:1px dotted rgba(242,238,232,.12);margin:0 8px;min-width:20px;}
+.bsti-badge{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(40,88,168,.3);color:var(--book-b);padding:2px 6px;}
+/* excerpt */
+.bs-excerpt{font-family:var(--fg);font-size:clamp(15px,1.6vw,18px);line-height:2.1;color:rgba(242,238,232,.7);margin-bottom:20px;}
+.bs-excerpt::first-letter{font-size:3.5em;font-style:italic;font-weight:700;color:var(--book-b);float:left;line-height:.75;margin-right:8px;margin-top:6px;}
+.bs-read-btn{font-family:var(--fp);font-size:16px;font-style:italic;font-weight:700;background:var(--book-a);color:var(--white);border:none;padding:12px 28px;cursor:pointer;transition:background .2s;}
+.bs-read-btn:hover{background:var(--book-b);}
+
+/* ─── MAGAZINE SKIN ─── */
+.magazine-skin{padding:0 48px 48px;}
+.ms-masthead{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:12px;margin-bottom:20px;border-bottom:3px solid var(--mag-a);}
+.msm-title{font-family:var(--fc);font-size:clamp(36px,7vw,100px);font-weight:900;letter-spacing:.05em;line-height:.85;}
+.msm-right{text-align:right;}
+.msmr-issue{font-family:var(--fm);font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,238,232,.4);}
+.msmr-tagline{font-family:var(--fg);font-style:italic;font-size:14px;color:rgba(242,238,232,.4);}
+/* magazine grid */
+.ms-layout{display:grid;grid-template-columns:2fr 1fr;gap:3px;margin-bottom:3px;}
+.ms-layout-2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;}
+.ms-feature{position:relative;overflow:hidden;height:340px;cursor:pointer;}
+.ms-feature::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(4,3,8,.95) 0%,rgba(4,3,8,.2) 60%);}
+.ms-feature-bg{position:absolute;inset:0;}
+.ms-feature-content{position:absolute;bottom:0;left:0;right:0;padding:20px;z-index:1;}
+.msfc-kicker{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--mag-b);margin-bottom:5px;}
+.msfc-headline{font-family:var(--fc);font-size:clamp(22px,3.5vw,40px);font-weight:900;letter-spacing:.04em;line-height:1;margin-bottom:5px;}
+.msfc-deck{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,232,.55);line-height:1.6;}
+.ms-sidebar-article{background:var(--panel);border:1px solid rgba(242,238,232,.05);padding:16px;cursor:pointer;transition:all .2s;height:50%;}
+.ms-sidebar-article:hover{background:rgba(242,238,232,.04);}
+.mssa-issue{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.mssa-headline{font-family:var(--fc);font-size:clamp(14px,2vw,18px);font-weight:700;letter-spacing:.04em;line-height:1.2;margin-bottom:5px;}
+.mssa-byline{font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(242,238,232,.4);}
+.ms-column{background:var(--panel);border:1px solid rgba(242,238,232,.05);padding:16px;cursor:pointer;transition:all .2s;}
+.ms-column:hover{background:rgba(242,238,232,.04);}
+.msc-rubric{font-family:var(--fm);font-size:5px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:5px;border-bottom:2px solid;display:inline-block;padding-bottom:2px;}
+.msc-headline{font-family:var(--fp);font-size:clamp(14px,2vw,18px);font-style:italic;font-weight:700;line-height:1.2;margin-bottom:5px;}
+.msc-excerpt{font-family:var(--fg);font-size:11px;color:rgba(242,238,232,.4);line-height:1.55;}
+
+/* ════════════════════════════════════════════
+   VIEW 3: THE BRANCH — INTERACTIVE PLAYER
+════════════════════════════════════════════ */
+#view-branch{padding-top:58px;min-height:100vh;display:flex;flex-direction:column;}
+.branch-layout{display:grid;grid-template-columns:1fr 340px;flex:1;overflow:hidden;}
+@media(max-width:1000px){.branch-layout{grid-template-columns:1fr;}}
+/* player main */
+.branch-main{padding:32px 40px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;}
+.branch-main::-webkit-scrollbar{width:3px;}
+.branch-main::-webkit-scrollbar-thumb{background:rgba(242,238,232,.1);}
+/* episode info */
+.bp-episode-info{display:flex;gap:16px;align-items:flex-start;}
+.bpei-art{width:80px;height:80px;flex-shrink:0;position:relative;overflow:hidden;}
+.bpei-text{}
+.bpeit-series{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.bpeit-title{font-family:var(--fb);font-size:clamp(22px,3.5vw,40px);letter-spacing:.05em;line-height:1;margin-bottom:4px;}
+.bpeit-meta{font-family:var(--fm);font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,238,232,.35);}
+/* waveform player */
+.bp-player{background:var(--panel);border:1px solid rgba(242,238,232,.06);padding:18px 20px;}
+.bpp-waveform{height:56px;display:flex;align-items:center;gap:2px;margin-bottom:10px;cursor:pointer;position:relative;}
+.bpp-wave-bar{flex:1;border-radius:1px;transition:background .3s;min-height:4px;}
+.bpp-playhead{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--accent);left:38%;pointer-events:none;}
+.bpp-playhead::after{content:'';position:absolute;top:-3px;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--accent);}
+.bpp-controls{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.bppc-time{font-family:var(--fm);font-size:9px;font-weight:700;color:rgba(242,238,232,.4);min-width:36px;}
+.bppc-play{width:44px;height:44px;border-radius:50%;background:var(--accent);border:none;color:var(--void);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;flex-shrink:0;}
+.bppc-play:hover{background:var(--accent2);transform:scale(1.05);}
+.bppc-btn{background:transparent;border:1px solid rgba(242,238,232,.12);color:rgba(242,238,232,.45);font-family:var(--fm);font-size:8px;font-weight:700;padding:6px 11px;cursor:pointer;transition:all .2s;}
+.bppc-btn:hover{border-color:rgba(242,238,232,.3);color:rgba(242,238,232,.8);}
+.bppc-speed{color:var(--muted);}
+.bpp-progress{height:3px;background:rgba(242,238,232,.08);position:relative;cursor:pointer;}
+.bpp-prog-fill{height:100%;background:linear-gradient(to right,var(--accent),var(--accent2));width:38%;}
+.bpp-prog-dot{position:absolute;top:-4px;left:38%;width:10px;height:10px;border-radius:50%;background:var(--accent2);transform:translateX(-50%);}
+/* THE BRANCH — choice point */
+.branch-point{background:rgba(242,238,232,.04);border:1px solid rgba(242,238,232,.1);padding:20px;position:relative;overflow:hidden;}
+.branch-point::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--accent),var(--accent2));}
+.bp-label{font-family:var(--fm);font-size:7px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+.bp-label::before{content:'⬡';font-size:10px;}
+.bp-active-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:branchPulse 1.5s infinite;}
+.bp-question{font-family:var(--fg);font-style:italic;font-size:clamp(16px,1.8vw,20px);color:rgba(242,238,248,.75);line-height:1.8;margin-bottom:16px;}
+.bp-timer{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+.bpt-label{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.bpt-bar{flex:1;height:3px;background:rgba(242,238,232,.08);}
+.bpt-fill{height:100%;background:var(--accent);transition:width 1s linear;}
+.bpt-time{font-family:var(--fm);font-size:9px;font-weight:700;color:var(--accent);}
+/* choices */
+.choices-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+@media(max-width:700px){.choices-grid{grid-template-columns:1fr;}}
+.choice-btn{
+  padding:14px 16px;
+  background:rgba(242,238,232,.04);
+  border:1px solid rgba(242,238,232,.1);
+  cursor:pointer;
+  transition:all .22s;
+  text-align:left;
+  position:relative;
+  overflow:hidden;
+}
+.choice-btn:hover{border-color:var(--accent);background:rgba(224,48,80,.08);}
+.choice-btn.selected{border-color:var(--accent);background:rgba(224,48,80,.12);}
+.choice-btn::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);transform:scaleX(0);transition:transform .22s;}
+.choice-btn:hover::before,.choice-btn.selected::before{transform:scaleX(1);}
+.cb-letter{font-family:var(--fb);font-size:22px;color:rgba(242,238,232,.18);position:absolute;top:8px;right:12px;line-height:1;}
+.cb-path{font-family:var(--fm);font-size:5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.cb-choice{font-family:var(--fg);font-size:14px;font-style:italic;color:rgba(242,238,248,.75);line-height:1.6;margin-bottom:5px;}
+.cb-consequence{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:rgba(242,238,232,.3);}
+/* crossover unlock */
+.crossover-unlock{background:rgba(212,160,32,.06);border:1px solid rgba(212,160,32,.2);padding:14px 16px;display:flex;gap:12px;align-items:flex-start;}
+.cu-icon{font-size:20px;flex-shrink:0;}
+.cu-body{}
+.cub-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold2);margin-bottom:3px;}
+.cub-title{font-family:var(--fg);font-size:14px;font-weight:600;margin-bottom:3px;}
+.cub-desc{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,232,.45);line-height:1.6;}
+.cu-btn{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;background:var(--gold);color:var(--void);border:none;padding:5px 12px;cursor:pointer;margin-top:8px;transition:background .2s;}
+.cu-btn:hover{background:var(--gold2);}
+/* branch sidebar */
+.branch-sidebar{background:rgba(6,5,10,.98);border-left:1px solid rgba(242,238,232,.05);overflow-y:auto;padding:20px;}
+.branch-sidebar::-webkit-scrollbar{width:0;}
+.brs-section{margin-bottom:20px;}
+.brss-title{font-family:var(--fm);font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.brss-title::before{content:'⬡';color:var(--accent);font-size:9px;}
+/* your path */
+.path-tree{display:flex;flex-direction:column;gap:0;}
+.pt-node{display:flex;gap:8px;align-items:flex-start;padding:6px 0;position:relative;}
+.pt-node::before{content:'';position:absolute;left:6px;top:20px;bottom:-2px;width:1px;background:rgba(242,238,232,.08);}
+.pt-node:last-child::before{display:none;}
+.ptn-dot{width:13px;height:13px;border-radius:50%;border:1.5px solid;flex-shrink:0;margin-top:2px;}
+.ptn-content{}
+.ptnc-ep{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.ptnc-choice{font-family:var(--fg);font-size:11px;font-style:italic;color:rgba(242,238,232,.6);}
+/* listener stats */
+.path-stat{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(242,238,232,.04);}
+.ps-label{font-family:var(--fb);font-size:12px;letter-spacing:.04em;color:rgba(242,238,232,.5);}
+.ps-val{font-family:var(--fm);font-size:8px;font-weight:700;}
+.ps-bar{width:100%;height:3px;background:rgba(242,238,232,.06);margin-top:3px;}
+.ps-bar-fill{height:100%;}
+/* upcoming nodes */
+.upcoming-node{padding:8px 10px;background:var(--panel);border:1px solid rgba(242,238,232,.05);margin-bottom:4px;cursor:pointer;transition:all .18s;}
+.upcoming-node:hover{border-color:rgba(242,238,232,.12);}
+.un-ep{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.un-title{font-family:var(--fg);font-size:12px;font-style:italic;color:rgba(242,238,232,.6);}
+.un-branch-badge{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(224,48,80,.25);color:var(--album-a);padding:1px 5px;margin-top:4px;display:inline-block;}
+
+/* ════════════════════════════════════════════
+   VIEW 4: UNIVERSE MAP
+════════════════════════════════════════════ */
+#view-universe{padding-top:58px;}
+.universe-wrap{padding:40px 48px;}
+.universe-hdr{text-align:center;margin-bottom:40px;}
+.uh-title{font-family:var(--fb);font-size:clamp(40px,8vw,100px);letter-spacing:.06em;line-height:.86;margin-bottom:8px;}
+.uh-sub{font-family:var(--fg);font-style:italic;font-size:clamp(14px,1.5vw,18px);color:rgba(242,238,232,.4);max-width:560px;margin:0 auto;line-height:2;}
+/* universe map canvas */
+.umap-container{position:relative;height:520px;background:var(--panel);border:1px solid rgba(242,238,232,.06);overflow:hidden;margin-bottom:28px;}
+.umap-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(242,238,232,.02) 0%,transparent 70%);}
+/* grid lines */
+.umap-bg::after{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(0deg,rgba(242,238,232,.015) 0,rgba(242,238,232,.015) 1px,transparent 1px,transparent 60px),repeating-linear-gradient(90deg,rgba(242,238,232,.015) 0,rgba(242,238,232,.015) 1px,transparent 1px,transparent 60px);}
+/* project nodes */
+.umap-node{position:absolute;cursor:pointer;transition:transform .2s;}
+.umap-node:hover{transform:scale(1.08)!important;}
+.umn-circle{border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid rgba(242,238,232,.15);position:relative;margin:0 auto;}
+.umn-circle::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:1px solid;opacity:.25;animation:branchPulse 2s infinite;}
+.umn-label{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;text-align:center;margin-top:6px;color:rgba(242,238,232,.55);}
+.umn-format{font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;text-align:center;color:var(--muted);}
+/* crossover lines - SVG */
+.umap-svg{position:absolute;inset:0;pointer-events:none;}
+/* crossover nodes */
+.umap-crossover{position:absolute;transform:translate(-50%,-50%);cursor:pointer;}
+.umc-diamond{width:14px;height:14px;background:var(--gold);transform:rotate(45deg);animation:branchPulse 1.8s infinite;}
+.umc-label{font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);text-align:center;margin-top:8px;white-space:nowrap;}
+/* legend */
+.umap-legend{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
+.uml-item{display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,238,232,.4);}
+.uml-dot{width:10px;height:10px;border-radius:50%;}
+.uml-diamond{width:8px;height:8px;transform:rotate(45deg);}
+/* crossover cards */
+.crossover-section{margin-top:28px;}
+.co-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+@media(max-width:900px){.co-cards{grid-template-columns:1fr;}}
+.co-card{background:rgba(212,160,32,.05);border:1px solid rgba(212,160,32,.15);padding:20px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden;}
+.co-card:hover{border-color:rgba(212,160,32,.3);background:rgba(212,160,32,.09);}
+.co-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--gold),var(--gold2));}
+.coc-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold2);margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.coc-label::before{content:'◆';font-size:8px;}
+.coc-title{font-family:var(--fg);font-size:clamp(16px,2vw,22px);font-weight:600;margin-bottom:5px;}
+.coc-projects{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.cocp{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(212,160,32,.25);padding:2px 7px;color:var(--gold);}
+.coc-desc{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,232,.4);line-height:1.65;}
+.coc-unlock{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);margin-top:8px;}
+
+/* ════════════════════════════════════════════
+   VIEW 5: CREATOR STUDIO
+════════════════════════════════════════════ */
+#view-studio{padding-top:58px;}
+.studio-wrap{padding:36px 48px;}
+.studio-hdr{margin-bottom:28px;}
+.stuh-title{font-family:var(--fb);font-size:clamp(36px,6vw,80px);letter-spacing:.06em;line-height:.86;margin-bottom:6px;}
+.stuh-sub{font-family:var(--fg);font-style:italic;font-size:14px;color:rgba(242,238,232,.38);}
+/* creator stats */
+.studio-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:24px;}
+.sts-card{background:var(--panel);border:1px solid rgba(242,238,232,.06);padding:16px 18px;position:relative;overflow:hidden;}
+.sts-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
+.stsc-val{font-family:var(--fb);font-size:clamp(24px,3.5vw,44px);letter-spacing:.04em;display:block;line-height:1;margin-bottom:4px;}
+.stsc-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:block;}
+.stsc-delta{font-family:var(--fm);font-size:7px;margin-top:3px;}
+/* projects */
+.studio-projects{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:24px;}
+@media(max-width:900px){.studio-projects{grid-template-columns:1fr;}}
+.sp-card{background:var(--panel);border:1px solid rgba(242,238,232,.06);padding:20px;position:relative;cursor:pointer;transition:all .22s;}
+.sp-card:hover{border-color:rgba(242,238,232,.16);}
+.sp-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.spc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.spch-icon{font-size:28px;}
+.spch-format{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;border:1px solid;padding:2px 7px;}
+.spc-name{font-family:var(--fb);font-size:clamp(18px,2.5vw,26px);letter-spacing:.06em;margin-bottom:3px;}
+.spc-status{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:4px;}
+.spc-status-dot{width:5px;height:5px;border-radius:50%;}
+.spc-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.spcm-item{background:rgba(242,238,232,.03);border:1px solid rgba(242,238,232,.04);padding:8px;}
+.spcmi-val{font-family:var(--fb);font-size:18px;letter-spacing:.04em;display:block;line-height:1;}
+.spcmi-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-top:2px;}
+/* branch analytics */
+.branch-analytics{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+@media(max-width:800px){.branch-analytics{grid-template-columns:1fr;}}
+.ba-card{background:var(--panel);border:1px solid rgba(242,238,232,.06);padding:18px 20px;}
+.bac-title{font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.07em;margin-bottom:12px;}
+/* path distribution */
+.path-dist{display:flex;flex-direction:column;gap:6px;}
+.pd-item{display:flex;align-items:center;gap:10px;}
+.pdi-label{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,232,.55);min-width:120px;}
+.pdi-bar{flex:1;height:4px;background:rgba(242,238,232,.06);}
+.pdi-fill{height:100%;border-radius:2px;}
+.pdi-pct{font-family:var(--fm);font-size:8px;font-weight:700;min-width:32px;text-align:right;}
+/* crossover add */
+.co-new-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border:1px dashed rgba(212,160,32,.25);background:rgba(212,160,32,.04);cursor:pointer;transition:all .2s;font-family:var(--fc);font-size:16px;font-weight:700;letter-spacing:.1em;color:rgba(212,160,32,.6);}
+.co-new-btn:hover{border-color:rgba(212,160,32,.5);background:rgba(212,160,32,.08);color:var(--gold2);}
+</style>
+</head>
+<body>
+<div id="cur"></div>
+<div id="cur2"></div>
+
+<!-- GLOBAL NAV -->
+<nav class="global-nav">
+  <div class="gn-logo" onclick="switchView('discover')">STORY<span>LINE</span></div>
+  <div class="gn-tabs">
+    <button class="gn-tab on" onclick="switchTab(this,'discover')">DISCOVER</button>
+    <button class="gn-tab" onclick="switchTab(this,'branch')">THE BRANCH</button>
+    <button class="gn-tab" onclick="switchTab(this,'universe')">UNIVERSE MAP</button>
+    <button class="gn-tab" onclick="switchTab(this,'studio')">CREATOR STUDIO</button>
+  </div>
+  <div class="gn-right">
+    <input class="gn-search" type="text" placeholder="Search universes, creators…" />
+    <button class="gn-create-btn" onclick="switchView('studio')">CREATE →</button>
+    <div class="gn-avatar">✦</div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════
+     VIEW: DISCOVER
+══════════════════════════════════════ -->
+<div class="view active" id="view-discover">
+
+  <!-- HERO -->
+  <div class="discover-hero">
+    <div class="dh-bg"></div>
+    <div class="dh-cover-art"></div>
+    <div class="dh-vignette"></div>
+    <div class="dh-scan"></div>
+    <div class="dh-content fade-up">
+      <div class="dh-format-badge">
+        <div class="dhfb-dot"></div>
+        <span class="dhfb-text">◉ ALBUM FORMAT · INTERACTIVE SERIES · 8 BRANCH POINTS</span>
+      </div>
+      <div class="dh-title">THE DYNASTY<br>PROTOCOLS</div>
+      <div class="dh-creator">BY MARCUS HOLLOWAY · 12 EPISODES · SEASON 1</div>
+      <div class="dh-logline">A crime dynasty. A missing heir. Seven paths through the same city that all lead to the same blood. But only one path tells you who really built it — and what they burned to keep it standing.</div>
+      <div class="dh-meta">
+        <div class="dh-meta-item">🎙 <span>AUDIO SERIES</span></div>
+        <div class="dh-meta-item">⬡ <span>8 BRANCH POINTS</span></div>
+        <div class="dh-meta-item">◆ <span>3 CROSSOVERS</span></div>
+        <div class="dh-meta-item">👁 <span>284K LISTENERS</span></div>
+        <div class="dh-meta-item">🔀 <span>12 POSSIBLE ENDINGS</span></div>
+      </div>
+      <div class="dh-actions">
+        <button class="dh-play-btn" onclick="switchView('branch')">▶ ENTER THE STORY</button>
+        <button class="dh-detail-btn" onclick="switchView('project')">VIEW PROJECT →</button>
+      </div>
+    </div>
+    <div class="dh-universe-strip">
+      <div class="dus-label">CROSSES OVER WITH</div>
+      <div class="dus-links">
+        <div class="dus-link" style="background:linear-gradient(135deg,#1A3A6A,#2858A8);" title="THE COLDWATER ARCHIVES">📚</div>
+        <div class="dus-link" style="background:linear-gradient(135deg,#3A1A1A,#8A2020);" title="NEON GOSPEL">🎭</div>
+        <div class="dus-link" style="background:linear-gradient(135deg,#1A3A1A,#2A6A2A);" title="THE MERIDIAN PAPERS">📰</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRENDING ALBUMS -->
+  <div class="section fade-up">
+    <div class="section-hdr">
+      <div class="sh-title">🎵 TRENDING ALBUMS</div>
+      <button class="sh-action">SEE ALL →</button>
+    </div>
+    <div class="cards-row" id="albums-row"></div>
+  </div>
+
+  <!-- NEW VOLUMES -->
+  <div class="section fade-up" style="background:rgba(7,5,16,.6);padding:36px 48px;">
+    <div class="section-hdr">
+      <div class="sh-title">📚 NEW VOLUMES</div>
+      <button class="sh-action">SEE ALL →</button>
+    </div>
+    <div class="cards-row" id="books-row"></div>
+  </div>
+
+  <!-- MAGAZINE ISSUES -->
+  <div class="section fade-up">
+    <div class="section-hdr">
+      <div class="sh-title">📰 LATEST ISSUES</div>
+      <button class="sh-action">SEE ALL →</button>
+    </div>
+    <div class="cards-row" id="mags-row"></div>
+  </div>
+
+  <!-- UNIVERSE CROSSOVERS TEASER -->
+  <div class="section fade-up" style="background:rgba(12,10,22,.7);padding:40px 48px;">
+    <div class="section-hdr">
+      <div class="sh-title">◆ UNIVERSE CROSSOVERS — LIVE NOW</div>
+      <button class="sh-action" onclick="switchView('universe')">FULL MAP →</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;" id="crossovers-preview"></div>
+  </div>
+
+</div><!-- /view-discover -->
+
+<!-- ══════════════════════════════════════
+     VIEW: PROJECT (with format skins)
+══════════════════════════════════════ -->
+<div class="view" id="view-project">
+
+  <div class="project-hero">
+    <div class="ph-bg" style="background:linear-gradient(135deg,#1A0808 0%,#3A0A18 40%,#0A0830 100%);"></div>
+    <div class="ph-vignette"></div>
+    <div class="ph-content">
+      <div style="font-family:var(--fm);font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;cursor:pointer;" onclick="switchView('discover')">← BACK TO DISCOVER</div>
+      <div style="font-family:var(--fb);font-size:clamp(48px,9vw,120px);letter-spacing:.04em;line-height:.84;margin-bottom:8px;">THE DYNASTY<br>PROTOCOLS</div>
+      <div style="font-family:var(--fm);font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,238,232,.4);margin-bottom:16px;">BY MARCUS HOLLOWAY · UNIVERSE: IRONBELL CITY</div>
+      <div class="format-switcher">
+        <button class="fs-btn album active" onclick="switchSkin('album',this)"><span class="fs-icon">💿</span>ALBUM</button>
+        <button class="fs-btn book" onclick="switchSkin('book',this)"><span class="fs-icon">📖</span>BOOK</button>
+        <button class="fs-btn magazine" onclick="switchSkin('magazine',this)"><span class="fs-icon">📰</span>MAGAZINE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALBUM SKIN -->
+  <div class="skin-panel active" id="skin-album">
+    <div class="album-skin">
+      <div class="as-header">
+        <div class="as-art">
+          <div class="as-art-inner" style="background:linear-gradient(135deg,#E03050,#8820C0,#0040E0);">🏙</div>
+          <div class="as-art-overlay"></div>
+        </div>
+        <div class="as-info">
+          <div class="as-format-label">ALBUM FORMAT · INTERACTIVE SERIES</div>
+          <div class="as-title" style="color:var(--album-b);">THE DYNASTY<br>PROTOCOLS</div>
+          <div class="as-creator">MARCUS HOLLOWAY · IRONBELL CITY UNIVERSE · 2026</div>
+          <div class="as-stats">
+            <div class="as-stat">EPISODES <span>12</span></div>
+            <div class="as-stat">RUNTIME <span>8h 42m</span></div>
+            <div class="as-stat">ENDINGS <span>12</span></div>
+            <div class="as-stat">LISTENERS <span>284K</span></div>
+          </div>
+          <div class="as-actions">
+            <button class="as-btn-play" onclick="switchView('branch')">▶ PLAY FROM START</button>
+            <button class="as-btn-outline">+ FOLLOW</button>
+            <button class="as-btn-outline">◆ CROSSOVERS</button>
+          </div>
+        </div>
+      </div>
+      <!-- tracklist -->
+      <div class="as-tracklist">
+        <div class="as-track-hdr">
+          <div class="ath-cell">#</div><div class="ath-cell">EPISODE</div><div class="ath-cell">BRANCH</div><div class="ath-cell">DURATION</div><div class="ath-cell"></div>
+        </div>
+        <div id="tracklist"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOK SKIN -->
+  <div class="skin-panel" id="skin-book">
+    <div class="book-skin">
+      <div class="bs-layout">
+        <div class="bs-cover">
+          <div class="bsc-book">
+            <div class="bsc-front" style="background:linear-gradient(160deg,#0A1040,#2030A0,#0A0820);">
+              <div class="bsc-spine"><div class="bsc-spine-text">THE DYNASTY PROTOCOLS</div></div>
+              <div class="bsc-content">
+                <div class="bsc-series">IRONBELL CITY · VOL. I</div>
+                <div class="bsc-title">The Dynasty Protocols</div>
+                <div class="bsc-author">Marcus Holloway</div>
+              </div>
+            </div>
+          </div>
+          <div class="bs-meta">
+            <div class="bsm-row"><span>VOLUMES</span><span class="bsm-val">1 of 3</span></div>
+            <div class="bsm-row"><span>CHAPTERS</span><span class="bsm-val">12</span></div>
+            <div class="bsm-row"><span>BRANCH PATHS</span><span class="bsm-val">8 choice points</span></div>
+            <div class="bsm-row"><span>ENDINGS</span><span class="bsm-val">12 possible</span></div>
+            <div class="bsm-row"><span>GENRE</span><span class="bsm-val">Crime · Neo-Noir</span></div>
+            <div class="bsm-row"><span>CROSSOVERS</span><span class="bsm-val">3 connected universes</span></div>
+          </div>
+        </div>
+        <div class="bs-content">
+          <div class="bsc-header">
+            <div class="bsch-title">The Dynasty Protocols</div>
+            <div class="bsch-meta">VOL. I · IRONBELL CITY CHRONICLES · MARCUS HOLLOWAY · 2026</div>
+          </div>
+          <div class="bs-toc">
+            <div class="bstoc-title">— Table of Contents —</div>
+            <div id="toc-list"></div>
+          </div>
+          <div class="bs-excerpt">
+            The night Ironbell City buried its first family, the rain came sideways and the candles went out one by one. That was the story everyone told afterward. What nobody said — what nobody dared to say — was that the candles didn't blow out. They were <em>snuffed</em>. Deliberately. By a woman in a black dress who knew exactly what the Holloway family had paid to keep in the dark, and exactly how long that particular debt had left to run before it came calling at the door with both hands out and nothing left to lose.
+          </div>
+          <button class="bs-read-btn" onclick="switchView('branch')">READ / LISTEN FROM HERE →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAGAZINE SKIN -->
+  <div class="skin-panel" id="skin-magazine">
+    <div class="magazine-skin">
+      <div class="ms-masthead">
+        <div>
+          <div class="ms-masthead-kicker" style="font-family:var(--fm);font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:var(--mag-b);margin-bottom:3px;">THE IRONBELL CITY CHRONICLE</div>
+          <div class="msm-title" style="color:var(--mag-b);">THE DYNASTY<br>PROTOCOLS</div>
+        </div>
+        <div class="msm-right">
+          <div class="msmr-issue">VOL. I · ISSUE 01 · 2026</div>
+          <div class="msmr-tagline">12 episodes. 12 possible endings. One city.</div>
+        </div>
+      </div>
+      <div class="ms-layout">
+        <div class="ms-feature" onclick="switchView('branch')" style="position:relative;">
+          <div class="ms-feature-bg" style="background:linear-gradient(135deg,#1A0808,#5A0A20,#0A0830);"></div>
+          <div style="position:absolute;inset:0;opacity:.4;background:radial-gradient(ellipse at 60% 40%,#E03050,transparent 60%);"></div>
+          <div class="ms-feature-content">
+            <div class="msfc-kicker">◉ INTERACTIVE SERIES · EPISODE 1</div>
+            <div class="msfc-headline">THE NIGHT THE<br>DYNASTY DIED</div>
+            <div class="msfc-deck">Everything you think you know about the Holloway family is wrong. Your first choice changes everything that comes after it.</div>
+          </div>
+        </div>
+        <div>
+          <div class="ms-sidebar-article" style="border-bottom:none;height:50%;">
+            <div class="mssa-issue">CREATOR INTERVIEW</div>
+            <div class="mssa-headline">MARCUS HOLLOWAY ON BUILDING A CRIME UNIVERSE ACROSS THREE FORMATS</div>
+            <div class="mssa-byline">By the Storyline editorial team</div>
+          </div>
+          <div class="ms-sidebar-article" style="height:50%;">
+            <div class="mssa-issue">UNIVERSE GUIDE</div>
+            <div class="mssa-headline">THE COMPLETE MAP OF IRONBELL CITY — ALL CROSSOVERS CHARTED</div>
+            <div class="mssa-byline">8 projects · 24 crossover points · 1 city</div>
+          </div>
+        </div>
+      </div>
+      <div class="ms-layout-2">
+        <div class="ms-column" style="border-top:3px solid var(--album-a);">
+          <div class="msc-rubric" style="border-color:var(--album-a);color:var(--album-a);">EPISODE GUIDE</div>
+          <div class="msc-headline">ALL 12 EPISODES RANKED BY LISTENER PATH FREQUENCY</div>
+          <div class="msc-excerpt">Episode 4 "The Ledger" has the most divergent listener paths of any episode — 31% choose path A, 31% choose path B, and 38% discover the hidden third path that unlocks only if you heard Episode 2 in full.</div>
+        </div>
+        <div class="ms-column" style="border-top:3px solid var(--gold);">
+          <div class="msc-rubric" style="border-color:var(--gold);color:var(--gold);">CROSSOVER REPORT</div>
+          <div class="msc-headline">HOW "THE COLDWATER ARCHIVES" CHANGES EVERYTHING IN EPISODE 7</div>
+          <div class="msc-excerpt">The crossover point with The Coldwater Archives isn't just a cameo — it's a full canon rewrite. If you've heard both series, Episode 7 plays completely differently for you than for first-time listeners.</div>
+        </div>
+        <div class="ms-column" style="border-top:3px solid var(--book-b);">
+          <div class="msc-rubric" style="border-color:var(--book-b);color:var(--book-b);">WORLD-BUILDING</div>
+          <div class="msc-headline">IRONBELL CITY: THE COMPLETE GEOGRAPHY OF A FICTIONAL METROPOLIS</div>
+          <div class="msc-excerpt">From the Coldwater Docks to the Heights District, every location in The Dynasty Protocols exists in physical relationship to the world Marcus Holloway has been building since 2022.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /view-project -->
+
+<!-- ══════════════════════════════════════
+     VIEW: THE BRANCH (interactive player)
+══════════════════════════════════════ -->
+<div class="view" id="view-branch">
+  <div class="branch-layout">
+    <div class="branch-main">
+
+      <!-- episode info -->
+      <div class="bp-episode-info">
+        <div class="bpei-art" style="background:linear-gradient(135deg,#E03050,#8820C0);">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:32px;">🏙</div>
+        </div>
+        <div class="bpei-text">
+          <div class="bpeit-series">THE DYNASTY PROTOCOLS · EP. 04 · "THE LEDGER"</div>
+          <div class="bpeit-title">THE LEDGER</div>
+          <div class="bpeit-meta">PATH: HOLLOWAY BLOODLINE · 28:14 REMAINING · BRANCH POINT IN 3:42</div>
+        </div>
+      </div>
+
+      <!-- player -->
+      <div class="bp-player">
+        <div class="bpp-waveform" id="waveform" onclick="seekWave(event,this)">
+          <div class="bpp-playhead" id="playhead"></div>
+        </div>
+        <div class="bpp-controls">
+          <span class="bppc-time">24:32</span>
+          <button class="bppc-btn" onclick="this.textContent='↩ 15'">← 15s</button>
+          <button class="bppc-play" id="play-btn" onclick="togglePlay(this)">▶</button>
+          <button class="bppc-btn">15s →</button>
+          <button class="bppc-btn bppc-speed" onclick="cycleSpeed(this)">1.0×</button>
+          <button class="bppc-btn">♡</button>
+          <button class="bppc-btn">↗ SHARE PATH</button>
+          <span class="bppc-time" style="text-align:right;margin-left:auto;">28:14</span>
+        </div>
+        <div class="bpp-progress" onclick="seekProgress(event,this)">
+          <div class="bpp-prog-fill" id="progress-fill"></div>
+          <div class="bpp-prog-dot" id="progress-dot"></div>
+        </div>
+      </div>
+
+      <!-- BRANCH POINT -->
+      <div class="branch-point">
+        <div class="bp-label">THE BRANCH · CHOICE POINT 4 OF 8 <div class="bp-active-dot"></div></div>
+        <div class="bp-question">Marcus has the ledger. The ledger has everything — every name, every payment, every night the Holloway family bought silence from the people who were supposed to be watching. He has thirty seconds before Reyes walks back through that door. What does he do with what he knows?</div>
+        <div class="bp-timer">
+          <div class="bpt-label">CHOOSE IN</div>
+          <div class="bpt-bar"><div class="bpt-fill" id="timer-fill" style="width:100%;"></div></div>
+          <div class="bpt-time" id="timer-val">0:45</div>
+        </div>
+        <div class="choices-grid">
+          <button class="choice-btn" onclick="makeChoice(this,'A')" id="choice-A">
+            <div class="cb-letter">A</div>
+            <div class="cb-path">PATH: THE LOYALIST</div>
+            <div class="cb-choice">"He takes the ledger and burns it in the sink. The dynasty stays buried. Reyes never knows. Nobody knows. That's how it stays."</div>
+            <div class="cb-consequence">→ 31% of listeners chose this · UNLOCKS: Episode 5A "The Ash"</div>
+          </button>
+          <button class="choice-btn" onclick="makeChoice(this,'B')" id="choice-B">
+            <div class="cb-letter">B</div>
+            <div class="cb-path">PATH: THE WITNESS</div>
+            <div class="cb-choice">"He photographs every page on his phone before Reyes comes back. Keeps the original in place. Plays the long game."</div>
+            <div class="cb-consequence">→ 31% of listeners chose this · UNLOCKS: Episode 5B "The Archive"</div>
+          </button>
+          <button class="choice-btn" onclick="makeChoice(this,'C')" id="choice-C">
+            <div class="cb-letter">C</div>
+            <div class="cb-path">PATH: THE RECKONING</div>
+            <div class="cb-choice">"He takes the ledger and walks out the front door. If the dynasty burns, it burns on his terms. He's done protecting their secrets."</div>
+            <div class="cb-consequence">→ 38% chose this path · UNLOCKS: Episode 5C "The Fall" + CROSSOVER NODE</div>
+          </button>
+          <button class="choice-btn" onclick="makeChoice(this,'D')" id="choice-D" style="border-color:rgba(212,160,32,.2);background:rgba(212,160,32,.04);">
+            <div class="cb-letter" style="color:rgba(212,160,32,.3);">◆</div>
+            <div class="cb-path" style="color:var(--gold2);">PATH: THE COLDWATER KEY</div>
+            <div class="cb-choice">"He finds a name in the ledger he recognizes. Not from here. From the Coldwater case. The two worlds just collapsed into one."</div>
+            <div class="cb-consequence" style="color:var(--gold);">→ UNLOCKED by hearing The Coldwater Archives Ep.6 · 12% reached this path</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- crossover unlock teaser -->
+      <div class="crossover-unlock">
+        <div class="cu-icon">◆</div>
+        <div class="cu-body">
+          <div class="cub-label">◆ UNIVERSE CROSSOVER AVAILABLE</div>
+          <div class="cub-title">THE COLDWATER ARCHIVES — Episode 6 unlocks Path D above</div>
+          <div class="cub-desc">You're 6 minutes away from a crossover node that only 12% of Dynasty listeners have found. "The Coldwater Archives" Episode 6 shares a character with Episode 7 of The Dynasty Protocols. Hearing both changes what you find in The Ledger.</div>
+          <button class="cu-btn" onclick="this.textContent='→ OPENING'">JUMP TO COLDWATER ARCHIVES →</button>
+        </div>
+      </div>
+
+    </div><!-- /branch-main -->
+
+    <!-- branch sidebar -->
+    <div class="branch-sidebar">
+
+      <div class="brs-section">
+        <div class="brss-title">YOUR CANON PATH</div>
+        <div class="path-tree" id="path-tree"></div>
+      </div>
+
+      <div class="brs-section">
+        <div class="brss-title">LISTENER PATHS — THIS EPISODE</div>
+        <div id="path-stats"></div>
+      </div>
+
+      <div class="brs-section">
+        <div class="brss-title">UPCOMING BRANCH NODES</div>
+        <div class="upcoming-node"><div class="un-ep">EP. 05 · BRANCH POINT 5</div><div class="un-title">"The fire at the Coldwater building — who do you believe set it?"</div><div class="un-branch-badge">3 PATHS</div></div>
+        <div class="upcoming-node"><div class="un-ep">EP. 07 · BRANCH POINT 6</div><div class="un-title">"Reyes offers Marcus a way out. Does he take it?"</div><div class="un-branch-badge">2 PATHS · CROSSOVER</div></div>
+        <div class="upcoming-node"><div class="un-ep">EP. 10 · BRANCH POINT 7</div><div class="un-title">"The final inheritance. Four heirs. One envelope."</div><div class="un-branch-badge">4 PATHS · SERIES FINALE</div></div>
+      </div>
+
+      <div class="brs-section">
+        <div class="brss-title">SHARE YOUR PATH</div>
+        <div style="font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,232,.38);line-height:1.7;margin-bottom:10px;">Your path through this story is uniquely yours. 284K people are listening — but your specific sequence of choices has been taken by only 4% of them.</div>
+        <button style="width:100%;font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(242,238,232,.45);border:1px solid rgba(242,238,232,.15);padding:10px;cursor:pointer;transition:all .2s;" onclick="this.textContent='✓ LINK COPIED'">COPY PATH LINK</button>
+      </div>
+
+    </div><!-- /branch-sidebar -->
+  </div><!-- /branch-layout -->
+</div><!-- /view-branch -->
+
+<!-- ══════════════════════════════════════
+     VIEW: UNIVERSE MAP
+══════════════════════════════════════ -->
+<div class="view" id="view-universe">
+  <div class="universe-wrap">
+    <div class="universe-hdr fade-up">
+      <div class="uh-title">IRONBELL CITY<br>UNIVERSE</div>
+      <div class="uh-sub">Eight projects. Twenty-four crossover points. One city built by eight creators who didn't know they were building the same world until they started finding each other's characters in their own stories.</div>
+    </div>
+
+    <div class="umap-container fade-up">
+      <div class="umap-bg"></div>
+      <!-- SVG connection lines -->
+      <svg class="umap-svg" id="umap-svg"></svg>
+      <!-- project nodes rendered by JS -->
+      <div id="umap-nodes"></div>
+    </div>
+
+    <div class="umap-legend fade-up">
+      <div class="uml-item"><div class="uml-dot" style="background:var(--album-a);"></div>ALBUM FORMAT</div>
+      <div class="uml-item"><div class="uml-dot" style="background:var(--book-b);"></div>BOOK FORMAT</div>
+      <div class="uml-item"><div class="uml-dot" style="background:var(--mag-b);"></div>MAGAZINE FORMAT</div>
+      <div class="uml-item"><div class="uml-diamond" style="background:var(--gold);"></div>CROSSOVER NODE</div>
+      <div class="uml-item" style="font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,238,232,.25);">LINE THICKNESS = CONNECTION STRENGTH</div>
+    </div>
+
+    <div class="crossover-section fade-up">
+      <div class="section-hdr">
+        <div class="sh-title">◆ ACTIVE CROSSOVER EVENTS</div>
+        <button class="sh-action">ALL CROSSOVERS →</button>
+      </div>
+      <div class="co-cards" id="co-cards"></div>
+    </div>
+  </div>
+</div><!-- /view-universe -->
+
+<!-- ══════════════════════════════════════
+     VIEW: CREATOR STUDIO
+══════════════════════════════════════ -->
+<div class="view" id="view-studio">
+  <div class="studio-wrap">
+    <div class="studio-hdr fade-up">
+      <div class="stuh-title">YOUR<br>UNIVERSE</div>
+      <div class="stuh-sub">Build worlds. Release albums, books, magazines. Plant branches. Watch listeners find paths you didn't plan. Connect to other creators. Let the universes collide.</div>
+    </div>
+
+    <div class="studio-stats fade-up">
+      <div class="sts-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--album-a);"></div><span class="stsc-val" style="color:var(--album-a);">284K</span><span class="stsc-lbl">Total Listeners</span><div class="stsc-delta" style="color:#28C070;">↑ +12.4K this week</div></div>
+      <div class="sts-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--book-b);"></div><span class="stsc-val" style="color:var(--book-b);">3</span><span class="stsc-lbl">Active Projects</span><div class="stsc-delta" style="color:rgba(242,238,232,.35);">Album · Book · Magazine</div></div>
+      <div class="sts-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold2);"></div><span class="stsc-val" style="color:var(--gold2);">24</span><span class="stsc-lbl">Crossover Connections</span><div class="stsc-delta" style="color:#28C070;">↑ 3 new this month</div></div>
+      <div class="sts-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--mag-b);"></div><span class="stsc-val" style="color:var(--mag-b);">12</span><span class="stsc-lbl">Possible Endings</span><div class="stsc-delta" style="color:rgba(242,238,232,.35);">Across all projects</div></div>
+    </div>
+
+    <div class="studio-projects fade-up" id="studio-projects"></div>
+
+    <div class="section-hdr fade-up" style="padding:0;margin-bottom:14px;">
+      <div class="sh-title">⬡ BRANCH ANALYTICS</div>
+    </div>
+    <div class="branch-analytics fade-up">
+      <div class="ba-card">
+        <div class="bac-title">PATH DISTRIBUTION — THE DYNASTY PROTOCOLS</div>
+        <div class="path-dist" id="path-dist"></div>
+      </div>
+      <div class="ba-card">
+        <div class="bac-title">CONNECT TO ANOTHER UNIVERSE</div>
+        <div style="font-family:var(--fg);font-style:italic;font-size:13px;color:rgba(242,238,232,.45);line-height:1.8;margin-bottom:16px;">A crossover node is a moment in your story where another creator's universe intersects yours. Listeners who've heard both projects unlock a third path that neither of you wrote alone.</div>
+        <div class="co-new-btn" onclick="this.textContent='→ OPENING CROSSOVER BUILDER'">◆ CREATE CROSSOVER NODE</div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /view-studio -->
+
+<script>
+// ── CURSOR ──────────────────────────────────
+const cur=document.getElementById('cur'),cur2=document.getElementById('cur2');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function l(){rx+=(mx-rx)*.11;ry+=(my-ry)*.11;cur2.style.left=rx+'px';cur2.style.top=ry+'px';requestAnimationFrame(l);})();
+function bigCursor(){cur.style.width='12px';cur.style.height='12px';cur2.style.width='44px';cur2.style.height='44px';}
+function normCursor(){cur.style.width='8px';cur.style.height='8px';cur2.style.width='32px';cur2.style.height='32px';}
+document.querySelectorAll('button,.card-album,.card-book,.card-mag,.choice-btn,.cat-card').forEach(el=>{
+  el.addEventListener('mouseenter',bigCursor);
+  el.addEventListener('mouseleave',normCursor);
+});
+
+// ── VIEW & TAB MANAGER ──────────────────────
+function switchView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id)?.classList.add('active');
+  window.scrollTo(0,0);
+  if(id==='discover')renderDiscover();
+  if(id==='universe')renderUniverse();
+  if(id==='studio')renderStudio();
+  if(id==='branch')initBranch();
+}
+function switchTab(btn,id){
+  document.querySelectorAll('.gn-tab').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  switchView(id);
+}
+
+// ── FORMAT SKIN SWITCHER ────────────────────
+function switchSkin(skin,btn){
+  document.querySelectorAll('.fs-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.skin-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('skin-'+skin)?.classList.add('active');
+}
+
+// ── DATA ─────────────────────────────────────
+const ALBUM_PROJECTS=[
+  {title:'THE DYNASTY PROTOCOLS',creator:'Marcus Holloway',color:'#E03050',bg:'linear-gradient(135deg,#4A0818,#E03050,#8820C0)',icon:'🏙',eps:12,branches:8,crossovers:3},
+  {title:'NEON GOSPEL',creator:'Aaliyah Pierce',color:'#C830D0',bg:'linear-gradient(135deg,#2A0840,#C830D0,#F08020)',icon:'⛪',eps:8,branches:5,crossovers:2},
+  {title:'THE MERIDIAN SIGNAL',creator:'Devon Ross',color:'#20C0A0',bg:'linear-gradient(135deg,#082840,#20C0A0,#20A0E0)',icon:'📡',eps:10,branches:6,crossovers:4},
+  {title:'RUST & RUIN',creator:'Keisha Morgan',color:'#D06020',bg:'linear-gradient(135deg,#2A1008,#D06020,#A04020)',icon:'🏚',eps:6,branches:4,crossovers:1},
+  {title:'THE HEIGHTS',creator:'Solomon Vance',color:'#28A0F0',bg:'linear-gradient(135deg,#081A40,#28A0F0,#2050D0)',icon:'🏢',eps:14,branches:9,crossovers:5},
+];
+const BOOK_PROJECTS=[
+  {title:'THE COLDWATER ARCHIVES',author:'Rashida Chen',color:'#4878D0',bg:'linear-gradient(160deg,#081040,#2858A8)',vol:'Vol. I',genre:'Mystery · Noir'},
+  {title:'IRONBELL CITY: A HISTORY',author:'James Okafor',color:'#2870A0',bg:'linear-gradient(160deg,#041828,#1A5080)',vol:'Reference Vol.',genre:'World-Building'},
+  {title:'THE HOLLOWAY TESTAMENT',author:'Marcus Holloway',color:'#A82828',bg:'linear-gradient(160deg,#280808,#802020)',vol:'Vol. II',genre:'Crime · Legacy'},
+  {title:'MERIDIAN PROTOCOLS',author:'Devon Ross',color:'#208080',bg:'linear-gradient(160deg,#082828,#186060)',vol:'Vol. I',genre:'Sci-Fi · Tech Noir'},
+];
+const MAG_PROJECTS=[
+  {title:'THE COLD DISPATCH',issue:'VOL.I NO.04',kicker:'EXCLUSIVE',headline:'THE NIGHT IRONBELL CITY STOPPED MAKING SENSE',color:'#CC4010',bg:'linear-gradient(135deg,#280A04,#CC4010)'},
+  {title:'MERIDIAN WEEKLY',issue:'VOL.III NO.12',kicker:'INVESTIGATION',headline:'WHO BUILT THE SIGNAL THAT NOBODY WAS SUPPOSED TO FIND',color:'#20A0B0',bg:'linear-gradient(135deg,#04202A,#20A0B0)'},
+  {title:'THE HEIGHTS REPORT',issue:'VOL.II NO.08',kicker:'FIRST LOOK',headline:'THE HOLLOWAY FAMILY TREE HAS MORE ROOTS THAN ANYONE ADMITTED',color:'#8020D0',bg:'linear-gradient(135deg,#140A28,#8020D0)'},
+];
+const CROSSOVERS=[
+  {title:'THE COLDWATER NIGHT',projects:['DYNASTY PROTOCOLS','COLDWATER ARCHIVES'],desc:"The same night. Two creators. Marcus Holloway's EP.7 and Rashida Chen's EP.6 happen simultaneously. Listeners who've heard both unlock a third scene neither episode contains alone.",unlock:'Heard both projects'},
+  {title:'THE SIGNAL FREQUENCY',projects:['MERIDIAN SIGNAL','COLD DISPATCH'],desc:"Devon Ross's AI signal storyline intersects with the investigative journalism universe of The Cold Dispatch. EP.5 of Meridian references a broadcast that The Cold Dispatch Vol.I No.3 covered in full.",unlock:'Heard Signal EP.1-5'},
+  {title:'THE HEIGHTS INHERITANCE',projects:['THE HEIGHTS','HOLLOWAY TESTAMENT','DYNASTY PROTOCOLS'],desc:"Three-way crossover. The Holloway family land dispute in Vol. II connects to the Heights development in EP.8, which connects to the Dynasty Protocols finale. All three must be heard to reach the true ending.",unlock:'All three active'},
+];
+const TRACKS=[
+  {num:1,title:'The Night of the Burial',sub:'Introduction · City of Ironbell',branch:false,dur:'42:18'},
+  {num:2,title:'The Holloway Name',sub:'Episode 2 · The History',branch:false,dur:'38:44'},
+  {num:3,title:'What the Neighbors Knew',sub:'Episode 3 · The Block',branch:false,dur:'45:12'},
+  {num:4,title:'The Ledger',sub:'Episode 4 · BRANCH POINT 4',branch:true,dur:'52:46',playing:true},
+  {num:5,title:'The Ash / The Archive / The Fall',sub:'Episode 5 · THREE POSSIBLE PATHS',branch:true,dur:'44:xx'},
+  {num:6,title:'Reyes Returns',sub:'Episode 6 · Convergence',branch:false,dur:'40:33'},
+  {num:7,title:'The Coldwater Connection',sub:'Episode 7 · CROSSOVER NODE',branch:true,dur:'55:18'},
+  {num:8,title:'The Second Family',sub:'Episode 8 · Revelation',branch:false,dur:'48:22'},
+];
+const TOC=[
+  {num:'I',title:'The Night of the Burial',branch:false},
+  {num:'II',title:'The Holloway Name',branch:false},
+  {num:'III',title:'What the Neighbors Knew',branch:false},
+  {num:'IV',title:'The Ledger',branch:true},
+  {num:'V',title:'The Ash / The Archive / The Fall',branch:true},
+  {num:'VI',title:'Reyes Returns',branch:false},
+  {num:'VII',title:'The Coldwater Connection',branch:true},
+];
+const UNIVERSE_NODES=[
+  {id:'dynasty',label:'DYNASTY\nPROTOCOLS',format:'ALBUM',icon:'🏙',color:'#E03050',x:22,y:18,size:72},
+  {id:'coldwater',label:'COLDWATER\nARCHIVES',format:'BOOK',icon:'📚',color:'#4878D0',x:65,y:12,size:56},
+  {id:'neon',label:'NEON\nGOSPEL',format:'ALBUM',icon:'⛪',color:'#C830D0',x:14,y:58,size:48},
+  {id:'meridian',label:'MERIDIAN\nSIGNAL',format:'ALBUM',icon:'📡',color:'#20C0A0',x:55,y:55,size:60},
+  {id:'dispatch',label:'COLD\nDISPATCH',format:'MAGAZINE',icon:'📰',color:'#CC4010',x:80,y:30,size:44},
+  {id:'heights',label:'THE\nHEIGHTS',format:'ALBUM',icon:'🏢',color:'#28A0F0',x:35,y:78,size:52},
+  {id:'holloway',label:'HOLLOWAY\nTESTAMENT',format:'BOOK',icon:'📖',color:'#A82828',x:80,y:70,size:44},
+  {id:'rust',label:'RUST\n& RUIN',format:'ALBUM',icon:'🏚',color:'#D06020',x:10,y:85,size:40},
+];
+const UNIVERSE_CONNECTIONS=[
+  {a:'dynasty',b:'coldwater',strength:3},
+  {a:'dynasty',b:'neon',strength:2},
+  {a:'dynasty',b:'meridian',strength:2},
+  {a:'coldwater',b:'dispatch',strength:3},
+  {a:'meridian',b:'dispatch',strength:2},
+  {a:'heights',b:'dynasty',strength:3},
+  {a:'heights',b:'holloway',strength:2},
+  {a:'holloway',b:'dynasty',strength:2},
+  {a:'rust',b:'neon',strength:1},
+  {a:'meridian',b:'heights',strength:1},
+];
+const UNIVERSE_CROSSOVER_NODES=[
+  {x:43,y:14,label:'COLDWATER\nNIGHT'},
+  {x:68,y:41,label:'SIGNAL\nFREQUENCY'},
+  {x:57,y:74,label:'HEIGHTS\nINHERITANCE'},
+];
+const PATH_TREE_DATA=[
+  {ep:'EP.01',choice:'Began the Holloway path',color:'var(--album-a)',done:true},
+  {ep:'EP.02',choice:'Listened to the full testament',color:'var(--album-a)',done:true},
+  {ep:'EP.03',choice:'Chose: Trust the neighbor',color:'#28A0F0',done:true},
+  {ep:'EP.04',choice:'CHOOSING NOW…',color:'var(--gold)',done:false},
+];
+const PATH_STATS_DATA=[
+  {label:'Path A — The Loyalist',pct:31,color:'var(--album-a)'},
+  {label:'Path B — The Witness',pct:31,color:'var(--book-b)'},
+  {label:'Path C — The Reckoning',pct:38,color:'var(--mag-b)'},
+  {label:'Path D — The Coldwater Key',pct:12,color:'var(--gold2)'},
+];
+const STUDIO_PROJ=[
+  {name:'THE DYNASTY PROTOCOLS',format:'ALBUM',icon:'🏙',color:'#E03050',status:'LIVE',eps:12,listeners:'284K',branches:8,endings:12},
+  {name:'THE IRONBELL JOURNALS',format:'BOOK',icon:'📖',color:'#4878D0',status:'WRITING',eps:6,listeners:'—',branches:3,endings:5},
+  {name:'IRONBELL DISPATCH',format:'MAGAZINE',icon:'📰',color:'#CC4010',status:'DRAFTING',eps:4,listeners:'—',branches:2,endings:3},
+];
+
+// ── RENDER FUNCTIONS ──────────────────────────
+
+function renderDiscover(){
+  // albums
+  const ar=document.getElementById('albums-row');
+  if(ar&&!ar.children.length){
+    ALBUM_PROJECTS.forEach(p=>{
+      const d=document.createElement('div');
+      d.className='card-album';
+      d.onclick=()=>switchView('project');
+      d.innerHTML=`
+        <div class="ca-art">
+          <div class="ca-art-inner" style="background:${p.bg};"></div>
+          <div class="ca-art-overlay"></div>
+          <div class="ca-format-tag" style="border-color:${p.color}40;color:${p.color};">💿 ALBUM</div>
+          ${p.crossovers>0?`<div class="ca-crossover">◆ ${p.crossovers} XOVER</div>`:''}
+          <div class="ca-play-icon">▶</div>
+        </div>
+        <div class="ca-title" style="color:${p.color};">${p.title}</div>
+        <div class="ca-creator">${p.creator}</div>
+        <div class="ca-meta">
+          <div class="ca-eps">${p.eps} EPISODES</div>
+          <div class="ca-branch">⬡ ${p.branches} BRANCHES</div>
+        </div>`;
+      ar.appendChild(d);
+    });
+  }
+  // books
+  const br=document.getElementById('books-row');
+  if(br&&!br.children.length){
+    BOOK_PROJECTS.forEach(p=>{
+      const d=document.createElement('div');
+      d.className='card-book';
+      d.onclick=()=>switchView('project');
+      d.innerHTML=`
+        <div class="cb-spine-wrap">
+          <div class="cb-spine" style="background:${p.color}40;"><div class="cb-spine-text" style="color:${p.color};">${p.title.slice(0,16)}</div></div>
+          <div class="cb-cover" style="background:${p.bg};">
+            <div class="cb-vol">${p.vol}</div>
+            <div class="cb-title" style="color:rgba(242,238,232,.92);">${p.title}</div>
+            <div class="cb-author">${p.author}</div>
+          </div>
+        </div>
+        <div class="cb-meta"><div class="cb-genre">${p.genre}</div></div>`;
+      br.appendChild(d);
+    });
+  }
+  // mags
+  const mr=document.getElementById('mags-row');
+  if(mr&&!mr.children.length){
+    MAG_PROJECTS.forEach(p=>{
+      const d=document.createElement('div');
+      d.className='card-mag';
+      d.onclick=()=>switchView('project');
+      d.innerHTML=`
+        <div class="cm-cover" style="background:${p.bg};">
+          <div class="cm-masthead">
+            <div class="cmm-title" style="color:${p.color};">${p.title}</div>
+            <div class="cmm-issue">${p.issue}</div>
+          </div>
+          <div class="cm-headline">
+            <div class="cmh-kicker" style="color:${p.color};">${p.kicker}</div>
+            <div class="cmh-text">${p.headline}</div>
+          </div>
+        </div>
+        <div class="cm-meta"><div class="cm-meta-row"><div class="cmm-label" style="color:${p.color};">📰 MAGAZINE</div><div class="cmm-label">⬡ BRANCHES</div></div></div>`;
+      mr.appendChild(d);
+    });
+  }
+  // crossover previews
+  const cp=document.getElementById('crossovers-preview');
+  if(cp&&!cp.children.length){
+    CROSSOVERS.forEach(c=>{
+      const d=document.createElement('div');
+      d.className='co-card';
+      d.onclick=()=>switchView('universe');
+      d.innerHTML=`
+        <div class="coc-label">◆ UNIVERSE CROSSOVER · LIVE</div>
+        <div class="coc-title">${c.title}</div>
+        <div class="coc-projects">${c.projects.map(p=>`<div class="cocp">${p}</div>`).join('')}</div>
+        <div class="coc-desc">${c.desc}</div>
+        <div class="coc-unlock">🔑 UNLOCK: ${c.unlock}</div>`;
+      cp.appendChild(d);
+    });
+  }
+  addHoverListeners();
+  // scroll reveal
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.04});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+}
+
+function renderTracklist(){
+  const tl=document.getElementById('tracklist');
+  if(!tl||tl.children.length)return;
+  TRACKS.forEach(t=>{
+    const d=document.createElement('div');
+    d.className='as-track'+(t.playing?' playing':'');
+    d.onclick=()=>switchView('branch');
+    const bars=t.playing?`<div class="at-waveform">${[1,2,3,4,5].map(()=>`<div class="at-bar" style="height:${40+Math.random()*60}%;background:var(--album-a);animation-delay:${Math.random()*.8}s;animation-duration:${.6+Math.random()*.6}s;"></div>`).join('')}</div>`:'';
+    d.innerHTML=`
+      <div class="at-num">${t.num}</div>
+      <div class="at-info">
+        <div class="at-title">${t.title}</div>
+        <div class="at-subtitle">${t.sub}</div>
+      </div>
+      <div>${t.branch?`<div class="at-branch">⬡ BRANCH</div>`:''}</div>
+      <div class="at-dur">${t.dur}</div>
+      <div>${bars}</div>`;
+    tl.appendChild(d);
+  });
+}
+
+function renderTOC(){
+  const tl=document.getElementById('toc-list');
+  if(!tl||tl.children.length)return;
+  TOC.forEach(t=>{
+    const d=document.createElement('div');
+    d.className='bstoc-item';
+    d.onclick=()=>switchView('branch');
+    d.innerHTML=`
+      <div class="bsti-num">${t.num}</div>
+      <div class="bsti-title" style="font-style:italic;">${t.title}</div>
+      <div class="bsti-dots"></div>
+      ${t.branch?`<div class="bsti-badge" style="border-color:var(--book-b)30;color:var(--book-b);">⬡ BRANCH</div>`:''}`;
+    tl.appendChild(d);
+  });
+}
+
+function renderUniverse(){
+  const container=document.getElementById('umap-nodes');
+  const svg=document.getElementById('umap-svg');
+  if(!container||!svg)return;
+  if(container.children.length>0)return;
+
+  // Draw connection lines
+  const cW=container.parentElement.clientWidth||900;
+  const cH=500;
+  svg.setAttribute('viewBox',`0 0 ${cW} ${cH}`);
+
+  const nodePos={};
+  UNIVERSE_NODES.forEach(n=>{nodePos[n.id]={x:n.x/100*cW,y:n.y/100*cH};});
+
+  UNIVERSE_CONNECTIONS.forEach(c=>{
+    const a=nodePos[c.a],b=nodePos[c.b];
+    if(!a||!b)return;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x);line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x);line.setAttribute('y2',b.y);
+    line.setAttribute('stroke',`rgba(212,160,32,${c.strength*.1+.06})`);
+    line.setAttribute('stroke-width',c.strength);
+    line.setAttribute('stroke-dasharray','4 6');
+    svg.appendChild(line);
+  });
+
+  // Render nodes
+  UNIVERSE_NODES.forEach(n=>{
+    const d=document.createElement('div');
+    d.className='umap-node';
+    d.style.left=(n.x)+'%';
+    d.style.top=(n.y)+'%';
+    d.style.transform='translate(-50%,-50%)';
+    d.onclick=()=>switchView('project');
+    d.innerHTML=`
+      <div class="umn-circle" style="width:${n.size}px;height:${n.size}px;background:radial-gradient(circle,${n.color}40,${n.color}15);border-color:${n.color}50;">
+        <div style="font-size:${n.size*.35}px;">${n.icon}</div>
+        <div style="position:absolute;inset:-8px;border-radius:50%;border:1px solid ${n.color};opacity:.2;"></div>
+      </div>
+      <div class="umn-label" style="color:${n.color};">${n.label.replace('\n','<br>')}</div>
+      <div class="umn-format">${n.format}</div>`;
+    container.appendChild(d);
+  });
+
+  // Crossover nodes
+  UNIVERSE_CROSSOVER_NODES.forEach(n=>{
+    const d=document.createElement('div');
+    d.className='umap-crossover';
+    d.style.left=n.x+'%';d.style.top=n.y+'%';
+    d.innerHTML=`<div class="umc-diamond"></div><div class="umc-label">${n.label.replace('\n','<br>')}</div>`;
+    container.appendChild(d);
+  });
+
+  // crossover cards
+  const cc=document.getElementById('co-cards');
+  if(cc&&!cc.children.length){
+    CROSSOVERS.forEach(c=>{
+      const d=document.createElement('div');
+      d.className='co-card';
+      d.innerHTML=`
+        <div class="coc-label">◆ ACTIVE CROSSOVER</div>
+        <div class="coc-title">${c.title}</div>
+        <div class="coc-projects">${c.projects.map(p=>`<div class="cocp">${p}</div>`).join('')}</div>
+        <div class="coc-desc">${c.desc}</div>
+        <div class="coc-unlock" style="margin-top:6px;">🔑 ${c.unlock}</div>`;
+      cc.appendChild(d);
+    });
+  }
+  addHoverListeners();
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.04});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+}
+
+function renderStudio(){
+  // project cards
+  const sp=document.getElementById('studio-projects');
+  if(sp&&!sp.children.length){
+    STUDIO_PROJ.forEach(p=>{
+      const d=document.createElement('div');
+      d.className='sp-card';
+      d.innerHTML=`
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${p.color};"></div>
+        <div class="spc-header">
+          <div class="spch-icon">${p.icon}</div>
+          <div class="spch-format" style="border-color:${p.color}40;color:${p.color};">${p.format}</div>
+        </div>
+        <div class="spc-name" style="color:${p.color};">${p.name}</div>
+        <div class="spc-status">
+          <div class="spc-status-dot" style="background:${p.status==='LIVE'?'#28C070':p.color};${p.status==='LIVE'?'animation:blink .9s infinite':''}"></div>
+          <span style="font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:${p.status==='LIVE'?'#28C070':p.color};">${p.status}</span>
+        </div>
+        <div class="spc-metrics">
+          <div class="spcm-item"><span class="spcmi-val" style="color:${p.color};">${p.listeners}</span><span class="spcmi-lbl">LISTENERS</span></div>
+          <div class="spcm-item"><span class="spcmi-val" style="color:${p.color};">${p.eps}</span><span class="spcmi-lbl">EPISODES</span></div>
+          <div class="spcm-item"><span class="spcmi-val" style="color:${p.color};">${p.branches}</span><span class="spcmi-lbl">BRANCH PTS</span></div>
+          <div class="spcm-item"><span class="spcmi-val" style="color:${p.color};">${p.endings}</span><span class="spcmi-lbl">ENDINGS</span></div>
+        </div>`;
+      sp.appendChild(d);
+    });
+    // new project button
+    const newCard=document.createElement('div');
+    newCard.innerHTML=`<div class="sp-card" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;min-height:180px;border-style:dashed;border-color:rgba(242,238,232,.1);" onclick="this.style.opacity='.5'">
+      <div style="font-size:28px;opacity:.3;">＋</div>
+      <div style="font-family:var(--fc);font-size:16px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,238,232,.3);">NEW PROJECT</div>
+      <div style="font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(242,238,232,.2);">Album · Book · Magazine</div>
+    </div>`;
+    sp.appendChild(newCard.firstElementChild);
+  }
+  // path distribution
+  const pd=document.getElementById('path-dist');
+  if(pd&&!pd.children.length){
+    PATH_STATS_DATA.forEach(p=>{
+      const d=document.createElement('div');
+      d.className='pd-item';
+      d.innerHTML=`
+        <div class="pdi-label">${p.label}</div>
+        <div class="pdi-bar"><div class="pdi-fill" style="width:${p.pct}%;background:${p.color};"></div></div>
+        <div class="pdi-pct" style="color:${p.color};">${p.pct}%</div>`;
+      pd.appendChild(d);
+    });
+  }
+  addHoverListeners();
+}
+
+function initBranch(){
+  // waveform
+  const wf=document.getElementById('waveform');
+  if(wf&&wf.querySelectorAll('.bpp-wave-bar').length<2){
+    for(let i=0;i<80;i++){
+      const b=document.createElement('div');
+      b.className='bpp-wave-bar';
+      const h=Math.max(15,Math.random()*100);
+      const isPlayed=i<31;
+      b.style.height=h+'%';
+      b.style.background=isPlayed?`rgba(224,48,80,${.5+Math.random()*.5})`:`rgba(242,238,232,${.08+Math.random()*.1})`;
+      b.style.minHeight='4px';
+      wf.insertBefore(b,document.getElementById('playhead'));
+    }
+  }
+  // path tree
+  const pt=document.getElementById('path-tree');
+  if(pt&&!pt.children.length){
+    PATH_TREE_DATA.forEach(n=>{
+      const d=document.createElement('div');
+      d.className='pt-node';
+      d.innerHTML=`
+        <div class="ptn-dot" style="border-color:${n.color};background:${n.done?n.color:'transparent'};"></div>
+        <div class="ptn-content">
+          <div class="ptnc-ep">${n.ep}</div>
+          <div class="ptnc-choice" style="color:${n.done?'rgba(242,238,232,.65)':n.color};">${n.choice}</div>
+        </div>`;
+      pt.appendChild(d);
+    });
+  }
+  // path stats
+  const ps=document.getElementById('path-stats');
+  if(ps&&!ps.children.length){
+    PATH_STATS_DATA.forEach(p=>{
+      const d=document.createElement('div');
+      d.innerHTML=`
+        <div class="path-stat"><div class="ps-label">${p.label}</div><div class="ps-val" style="color:${p.color};">${p.pct}%</div></div>
+        <div class="ps-bar"><div class="ps-bar-fill" style="width:${p.pct}%;background:${p.color};"></div></div>`;
+      ps.appendChild(d);
+    });
+  }
+  // timer
+  startTimer();
+  addHoverListeners();
+}
+
+// ── BRANCH TIMER ────────────────────────────
+let timerVal=45,timerInt=null;
+function startTimer(){
+  clearInterval(timerInt);
+  timerVal=45;
+  const fill=document.getElementById('timer-fill');
+  const val=document.getElementById('timer-val');
+  timerInt=setInterval(()=>{
+    timerVal--;
+    const pct=timerVal/45*100;
+    if(fill)fill.style.width=pct+'%';
+    if(fill)fill.style.background=pct>40?'var(--album-a)':pct>20?'var(--gold)':'var(--red2)';
+    if(val)val.textContent='0:'+String(timerVal).padStart(2,'0');
+    if(timerVal<=0){clearInterval(timerInt);autoChoose();}
+  },1000);
+}
+function autoChoose(){makeChoice(document.getElementById('choice-C'),'C');}
+
+function makeChoice(btn,letter){
+  clearInterval(timerInt);
+  document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const fill=document.getElementById('timer-fill');
+  if(fill){fill.style.width='100%';fill.style.background='var(--green)';}
+  const tv=document.getElementById('timer-val');
+  if(tv)tv.textContent='CHOSEN: '+letter;
+  // update path tree
+  const nodes=document.querySelectorAll('.pt-node');
+  if(nodes.length>0){
+    const last=nodes[nodes.length-1];
+    const choice=last.querySelector('.ptnc-choice');
+    if(choice){choice.textContent=`Chose: Path ${letter}`;choice.style.color='rgba(242,238,232,.65)';}
+    const dot=last.querySelector('.ptn-dot');
+    if(dot){dot.style.background='var(--album-a)';}
+  }
+}
+
+// ── PLAYER CONTROLS ──────────────────────────
+let playing=false,speed=1,seekPos=38;
+const SPEEDS=[1.0,1.25,1.5,1.75,2.0];let speedI=0;
+function togglePlay(btn){
+  playing=!playing;
+  btn.textContent=playing?'⏸':'▶';
+  if(playing){cur.style.background='var(--green)';setTimeout(()=>{cur.style.background='var(--accent)';},500);}
+}
+function cycleSpeed(btn){speedI=(speedI+1)%SPEEDS.length;btn.textContent=SPEEDS[speedI]+'×';}
+function seekProgress(e,bar){
+  const pct=e.offsetX/bar.offsetWidth*100;
+  seekPos=pct;
+  document.getElementById('progress-fill').style.width=pct+'%';
+  document.getElementById('progress-dot').style.left=pct+'%';
+}
+function seekWave(e,el){
+  const pct=e.offsetX/el.offsetWidth;
+  const bars=el.querySelectorAll('.bpp-wave-bar');
+  const played=Math.floor(pct*bars.length);
+  bars.forEach((b,i)=>{b.style.background=i<played?`rgba(224,48,80,${.5+Math.random()*.5})`:`rgba(242,238,232,${.08+Math.random()*.1})`;});
+  document.getElementById('playhead').style.left=(pct*100)+'%';
+}
+
+// ── UTILS ────────────────────────────────────
+function addHoverListeners(){
+  document.querySelectorAll('button,.card-album,.card-book,.card-mag,.choice-btn,.sp-card,.co-card,.bstoc-item,.umap-node,.co-new-btn').forEach(el=>{
+    if(!el._hoverBound){
+      el.addEventListener('mouseenter',bigCursor);
+      el.addEventListener('mouseleave',normCursor);
+      el._hoverBound=true;
+    }
+  });
+}
+function initScrollReveal(){
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.04});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+}
+
+// ── INIT ────────────────────────────────────
+renderDiscover();
+renderTracklist();
+renderTOC();
+initScrollReveal();
+</script>
+</body>
+</html>

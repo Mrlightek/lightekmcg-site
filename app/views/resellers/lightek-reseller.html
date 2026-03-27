@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lightek MCG — Reseller Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  --steel:#040C18;--steel2:#07121F;--steel3:#0A1628;
+  --panel:#0C1830;--card:#101E38;--lift:#152440;
+  --cyan:#00C8E8;--cyan2:#00E0FF;--cyan3:#60F0FF;
+  --gold:#C49820;--gold2:#DEB030;--gold3:#F0C840;
+  --signal:#0070C8;--signal2:#0090E8;
+  --green:#1A8A50;--green2:#20B060;--green3:#28D870;
+  --red:#D82020;--red2:#F03030;
+  --white:#EEF4FC;--muted:#5A7090;--dim:#1A2840;
+  --fc:'Barlow Condensed',sans-serif;
+  --fb:'IBM Plex Sans',sans-serif;
+  --fm:'Space Mono',monospace;
+}
+body{background:var(--steel);color:var(--white);font-family:var(--fb);overflow:hidden;height:100vh;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,232,.01) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,232,.01) 1px,transparent 1px);background-size:24px 24px;pointer-events:none;z-index:0;}
+
+#cur{width:6px;height:6px;background:var(--cyan);position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 12px rgba(0,200,232,.9);}
+#cur2{width:26px;height:26px;border:1px solid rgba(0,200,232,.18);position:fixed;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);transition:left .1s,top .1s;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes countUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.fade-in{opacity:0;animation:countUp .6s cubic-bezier(.16,1,.3,1) forwards;}
+
+/* ─ TOPBAR ─ */
+.topbar{height:52px;background:rgba(4,12,24,.99);border-bottom:1px solid rgba(0,200,232,.08);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;position:relative;z-index:100;}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(0,200,232,.4),transparent);}
+.tb-left{display:flex;align-items:center;gap:12px;}
+.tb-logo{font-family:var(--fc);font-size:14px;font-weight:800;letter-spacing:.1em;color:var(--cyan);}
+.tb-sep{width:1px;height:16px;background:rgba(0,200,232,.15);}
+.tb-section{font-family:var(--fm);font-size:6px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);}
+.tb-center{display:flex;align-items:center;gap:12px;}
+.tb-live{display:flex;align-items:center;gap:4px;font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;}
+.tb-live-dot{width:5px;height:5px;border-radius:50%;animation:blink .9s infinite;}
+.tb-right{display:flex;align-items:center;gap:10px;}
+.tb-user{display:flex;align-items:center;gap:8px;}
+.tb-avatar{width:28px;height:28px;border:1px solid rgba(0,200,232,.2);display:flex;align-items:center;justify-content:center;font-size:12px;}
+.tb-user-name{font-family:var(--fm);font-size:7px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(238,244,252,.5);}
+.tb-user-tier{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;}
+.tb-notif{width:30px;height:30px;border:1px solid rgba(0,200,232,.1);background:rgba(0,200,232,.04);display:flex;align-items:center;justify-content:center;font-size:12px;position:relative;cursor:pointer;}
+.tb-notif-badge{position:absolute;top:-3px;right:-3px;width:12px;height:12px;background:var(--red);border-radius:50%;font-family:var(--fm);font-size:5px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;}
+.tb-warehouse-btn{font-family:var(--fc);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--cyan);color:var(--steel);border:none;padding:7px 16px;cursor:pointer;transition:background .2s;}
+.tb-warehouse-btn:hover{background:var(--cyan2);}
+
+/* ─ MAIN LAYOUT ─ */
+.dash-layout{display:grid;grid-template-columns:196px 1fr;flex:1;overflow:hidden;position:relative;z-index:1;}
+
+/* ─ LEFT NAV ─ */
+.leftnav{background:rgba(4,8,18,.99);border-right:1px solid rgba(0,200,232,.06);overflow-y:auto;padding:14px 0;}
+.leftnav::-webkit-scrollbar{width:0;}
+.ln-reseller-card{padding:14px 14px 12px;border-bottom:1px solid rgba(0,200,232,.06);margin-bottom:8px;}
+.lnrc-tier{font-family:var(--fm);font-size:5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.lnrc-name{font-family:var(--fc);font-size:14px;font-weight:800;letter-spacing:.07em;margin-bottom:2px;}
+.lnrc-id{font-family:var(--fm);font-size:6px;letter-spacing:.1em;color:var(--cyan);}
+.lnrc-tier-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(0,200,232,.08);border:1px solid rgba(0,200,232,.2);padding:3px 8px;margin-top:6px;}
+.lnrc-tb-dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);}
+.lnrc-tb-text{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);}
+.ln-sec-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.26em;text-transform:uppercase;color:rgba(238,244,252,.2);padding:0 14px;margin-bottom:4px;}
+.ln-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-left:2px solid transparent;cursor:pointer;transition:all .15s;}
+.ln-item:hover{background:rgba(0,200,232,.04);}
+.ln-item.active{background:rgba(0,200,232,.06);border-left-color:var(--cyan);}
+.ln-item.active .ln-label{color:var(--cyan);}
+.ln-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.ln-label{font-family:var(--fb);font-weight:400;font-size:11px;color:rgba(238,244,252,.42);flex:1;}
+.ln-count{font-family:var(--fm);font-size:6px;font-weight:700;color:rgba(238,244,252,.25);}
+.ln-count.hot{color:var(--green2);}
+.ln-divider{height:1px;background:rgba(0,200,232,.05);margin:8px 0;}
+
+/* ─ MAIN CONTENT ─ */
+.main-content{overflow-y:auto;padding:16px 20px;}
+.main-content::-webkit-scrollbar{width:3px;}
+.main-content::-webkit-scrollbar-track{background:rgba(0,200,232,.03);}
+.main-content::-webkit-scrollbar-thumb{background:rgba(0,200,232,.15);}
+
+/* ─ PAGE HEADER ─ */
+.page-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+.ph-breadcrumb{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:rgba(238,244,252,.2);margin-bottom:4px;}
+.ph-title{font-family:var(--fc);font-size:20px;font-weight:900;letter-spacing:.08em;display:flex;align-items:center;gap:10px;}
+.ph-live{display:flex;align-items:center;gap:4px;font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--red2);}
+.ph-live-dot{width:4px;height:4px;border-radius:50%;background:var(--red2);animation:blink .8s infinite;}
+.ph-right{text-align:right;}
+.phr-period{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.phr-date{font-family:var(--fm);font-size:9px;font-weight:700;color:rgba(238,244,252,.5);}
+
+/* ─ EARNINGS ROW ─ */
+.earnings-row{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:14px;}
+.earn-card{background:var(--card);border:1px solid rgba(0,200,232,.06);padding:13px 14px;position:relative;overflow:hidden;cursor:pointer;transition:all .2s;}
+.earn-card:hover{border-color:rgba(0,200,232,.2);}
+.earn-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
+.ec-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.ec-val{font-family:var(--fc);font-size:clamp(18px,2.5vw,26px);font-weight:900;letter-spacing:.04em;display:block;line-height:1;}
+.ec-delta{font-family:var(--fm);font-size:6px;margin-top:3px;}
+.delta-up{color:var(--green2);}
+.delta-down{color:var(--red2);}
+
+/* ─ TWO-COL ROW ─ */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:14px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-bottom:14px;}
+
+/* panel */
+.dash-panel{background:var(--card);border:1px solid rgba(0,200,232,.06);padding:16px 18px;position:relative;overflow:hidden;}
+.dp-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.dp-title{font-family:var(--fc);font-size:14px;font-weight:800;letter-spacing:.07em;}
+.dp-action{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);cursor:pointer;}
+.dp-badge{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(0,200,232,.2);color:var(--cyan);padding:2px 6px;background:rgba(0,200,232,.04);}
+
+/* deployment list */
+.deploy-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(0,200,232,.05);}
+.deploy-item:last-child{border-bottom:none;}
+.di-icon{font-size:16px;flex-shrink:0;}
+.di-body{flex:1;}
+.dib-name{font-family:var(--fc);font-size:12px;font-weight:700;letter-spacing:.05em;line-height:1.1;}
+.dib-client{font-family:var(--fb);font-weight:300;font-size:9px;color:rgba(238,244,252,.38);margin-top:1px;}
+.dib-modules{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;}
+.dib-mod{font-family:var(--fm);font-size:4px;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(0,200,232,.12);padding:1px 5px;color:rgba(238,244,252,.3);}
+.di-right{text-align:right;flex-shrink:0;}
+.dir-mrr{font-family:var(--fc);font-size:14px;font-weight:700;color:var(--green2);display:block;line-height:1;}
+.dir-status{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
+
+/* network tree */
+.network-item{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid rgba(0,200,232,.05);}
+.network-item:last-child{border-bottom:none;}
+.ni-level{font-family:var(--fm);font-size:9px;font-weight:700;flex-shrink:0;width:20px;text-align:right;}
+.ni-body{flex:1;}
+.nib-name{font-family:var(--fc);font-size:12px;font-weight:700;letter-spacing:.05em;}
+.nib-tier{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:1px;}
+.nib-deployments{font-family:var(--fb);font-weight:300;font-size:9px;color:rgba(238,244,252,.35);margin-top:1px;}
+.ni-override{text-align:right;flex-shrink:0;}
+.nio-val{font-family:var(--fc);font-size:13px;font-weight:700;color:var(--gold2);display:block;line-height:1;}
+.nio-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+
+/* bar chart */
+.bar-chart{display:flex;align-items:flex-end;gap:3px;height:60px;margin-top:8px;}
+.bc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.bcf{width:100%;border-radius:1px 1px 0 0;transition:height .8s ease;}
+.bcl{font-family:var(--fm);font-size:5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;}
+
+/* commission breakdown */
+.comm-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,232,.05);}
+.comm-row:last-child{border-bottom:none;}
+.cr-left{}
+.crl-source{font-family:var(--fc);font-size:11px;font-weight:700;letter-spacing:.05em;}
+.crl-type{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:1px;}
+.cr-bar{flex:1;height:3px;background:rgba(255,255,255,.04);margin:0 10px;}
+.cr-bar-fill{height:100%;}
+.cr-val{font-family:var(--fm);font-size:9px;font-weight:700;text-align:right;min-width:50px;}
+
+/* lead pipeline */
+.lead-item{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,232,.05);}
+.lead-item:last-child{border-bottom:none;}
+.li-org{font-family:var(--fc);font-size:11px;font-weight:700;letter-spacing:.05em;flex:1;}
+.li-type{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:1px;}
+.li-stage{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:2px 6px;flex-shrink:0;}
+.stage-prospect{border-color:rgba(0,200,232,.2);color:var(--cyan);}
+.stage-demo{border-color:rgba(196,152,32,.2);color:var(--gold2);}
+.stage-proposal{border-color:rgba(0,144,232,.2);color:var(--signal2);}
+.stage-close{border-color:rgba(40,216,112,.25);color:var(--green2);}
+.li-val{font-family:var(--fc);font-size:12px;font-weight:700;flex-shrink:0;}
+
+/* sub-reseller recruit */
+.recruit-item{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,200,232,.05);}
+.recruit-item:last-child{border-bottom:none;}
+.ri-name{font-family:var(--fc);font-size:12px;font-weight:700;letter-spacing:.05em;flex:1;}
+.ri-status{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:2px 6px;}
+.rs-pending{border-color:rgba(196,152,32,.25);color:var(--gold2);}
+.rs-active{border-color:rgba(40,216,112,.25);color:var(--green2);}
+.ri-override{font-family:var(--fm);font-size:7px;font-weight:700;color:var(--gold2);text-align:right;flex-shrink:0;}
+
+/* quick actions */
+.quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:14px;}
+.qa-btn{background:var(--card);border:1px solid rgba(0,200,232,.07);padding:12px 10px;text-align:center;cursor:pointer;transition:all .22s;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.qa-btn:hover{border-color:rgba(0,200,232,.22);background:rgba(0,200,232,.05);}
+.qa-icon{font-size:18px;}
+.qa-label{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:rgba(238,244,252,.4);line-height:1.3;}
+</style>
+</head>
+<body>
+<div id="cur"></div><div id="cur2"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-logo">LIGHTEK MCG</div>
+    <div class="tb-sep"></div>
+    <div class="tb-section">◈ RESELLER PORTAL · DISTRIBUTOR TIER</div>
+  </div>
+  <div class="tb-center">
+    <div class="tb-live" style="color:var(--green2);"><div class="tb-live-dot" style="background:var(--green2);"></div>SESSION ACTIVE</div>
+    <div class="tb-live" style="color:var(--cyan);"><div class="tb-live-dot" style="background:var(--cyan);"></div>8 DEPLOYMENTS LIVE</div>
+  </div>
+  <div class="tb-right">
+    <div class="tb-notif">🔔<div class="tb-notif-badge">4</div></div>
+    <div class="tb-user">
+      <div class="tb-avatar">👤</div>
+      <div>
+        <div class="tb-user-name">YOUR AGENCY</div>
+        <div class="tb-user-tier" style="color:var(--cyan);">DISTRIBUTOR · TIER B</div>
+      </div>
+    </div>
+    <button class="tb-warehouse-btn" onclick="this.textContent='→ OPENING'">WAREHOUSE CATALOG →</button>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="dash-layout">
+
+  <!-- LEFT NAV -->
+  <nav class="leftnav">
+    <div class="ln-reseller-card">
+      <div class="lnrc-tier">LIGHTEK MCG · CERTIFIED PARTNER</div>
+      <div class="lnrc-name">YOUR AGENCY</div>
+      <div class="lnrc-id">LT-DIST-004821</div>
+      <div class="lnrc-tier-badge"><div class="lnrc-tb-dot"></div><div class="lnrc-tb-text">DISTRIBUTOR · TIER B</div></div>
+    </div>
+
+    <div style="padding:4px 0 8px;">
+      <div class="ln-sec-lbl">OVERVIEW</div>
+      <div class="ln-item active"><div class="ln-dot" style="background:var(--cyan);"></div><div class="ln-label">Dashboard</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--red2);animation:blink .9s infinite;"></div><div class="ln-label">Live Deployments</div><div class="ln-count hot">8</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--green2);"></div><div class="ln-label">Earnings</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--gold2);"></div><div class="ln-label">Commissions</div></div>
+    </div>
+    <div class="ln-divider"></div>
+    <div style="padding:4px 0 8px;">
+      <div class="ln-sec-lbl">MY NETWORK</div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--signal2);"></div><div class="ln-label">Sub-Resellers</div><div class="ln-count hot">6</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--signal2);"></div><div class="ln-label">Recruit Partners</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Override Earnings</div></div>
+    </div>
+    <div class="ln-divider"></div>
+    <div style="padding:4px 0 8px;">
+      <div class="ln-sec-lbl">CLIENTS</div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">All Clients</div><div class="ln-count">12</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Lead Pipeline</div><div class="ln-count">8</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Proposals Out</div><div class="ln-count">3</div></div>
+    </div>
+    <div class="ln-divider"></div>
+    <div style="padding:4px 0 8px;">
+      <div class="ln-sec-lbl">RESOURCES</div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Warehouse Catalog</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Training Center</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Marketing Assets</div></div>
+      <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Support</div></div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- PAGE HEADER -->
+    <div class="page-hdr fade-in">
+      <div>
+        <div class="ph-breadcrumb">LIGHTEK MCG → RESELLER PORTAL → DASHBOARD</div>
+        <div class="ph-title">RESELLER DASHBOARD <div class="ph-live"><div class="ph-live-dot"></div>LIVE</div></div>
+      </div>
+      <div class="ph-right">
+        <div class="phr-period">CURRENT PERIOD</div>
+        <div class="phr-date" id="dash-date">MARCH 2026</div>
+      </div>
+    </div>
+
+    <!-- EARNINGS ROW -->
+    <div class="earnings-row fade-in" style="animation-delay:.05s;">
+      <div class="earn-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--green2);"></div><div class="ec-lbl">MRR THIS MONTH</div><span class="ec-val" style="color:var(--green2);" id="mrr">$84,600</span><div class="ec-delta delta-up">↑ +$12,400 vs last mo</div></div>
+      <div class="earn-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--cyan);"></div><div class="ec-lbl">OVERRIDE EARNINGS</div><span class="ec-val" style="color:var(--cyan);">$8,240</span><div class="ec-delta delta-up">↑ 6 active sub-resellers</div></div>
+      <div class="earn-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold2);"></div><div class="ec-lbl">ACTIVE DEPLOYMENTS</div><span class="ec-val" style="color:var(--gold2);">8</span><div class="ec-delta" style="color:rgba(238,244,252,.35);">84 modules live total</div></div>
+      <div class="earn-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--signal2);"></div><div class="ec-lbl">PIPELINE VALUE</div><span class="ec-val" style="color:var(--signal2);">$216K</span><div class="ec-delta delta-up">8 leads · 3 proposals</div></div>
+      <div class="earn-card"><div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--green3);"></div><div class="ec-lbl">TOTAL EARNED (YTD)</div><span class="ec-val" style="color:var(--green3);">$348K</span><div class="ec-delta delta-up">↑ +28% vs 2025</div></div>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="quick-actions fade-in" style="animation-delay:.1s;">
+      <div class="qa-btn" onclick="this.querySelector('.qa-label').textContent='→ OPENING'"><div class="qa-icon">🛒</div><div class="qa-label">ORDER FROM WAREHOUSE</div></div>
+      <div class="qa-btn" onclick="this.querySelector('.qa-label').textContent='→ CREATING'"><div class="qa-icon">📋</div><div class="qa-label">NEW CLIENT PROPOSAL</div></div>
+      <div class="qa-btn" onclick="this.querySelector('.qa-label').textContent='→ OPENING'"><div class="qa-icon">👥</div><div class="qa-label">RECRUIT SUB-RESELLER</div></div>
+      <div class="qa-btn" onclick="this.querySelector('.qa-label').textContent='→ DOWNLOADING'"><div class="qa-icon">📊</div><div class="qa-label">COMMISSION REPORT</div></div>
+    </div>
+
+    <!-- TWO COL: DEPLOYMENTS + NETWORK ─ -->
+    <div class="two-col fade-in" style="animation-delay:.15s;">
+
+      <!-- ACTIVE DEPLOYMENTS -->
+      <div class="dash-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--cyan),var(--cyan2));"></div>
+        <div class="dp-hdr">
+          <div class="dp-title">LIVE DEPLOYMENTS</div>
+          <div class="dp-badge">8 ACTIVE</div>
+        </div>
+        <div class="deploy-item">
+          <div class="di-icon">✝</div>
+          <div class="di-body">
+            <div class="dib-name">GRACE COMMUNITY CHURCH</div>
+            <div class="dib-client">Atlanta, GA · Since Jan 2026</div>
+            <div class="dib-modules"><div class="dib-mod">CHURCH</div><div class="dib-mod">WELLNESS</div><div class="dib-mod">COMMUNITY</div><div class="dib-mod">MESSAGES</div></div>
+          </div>
+          <div class="di-right"><span class="dir-mrr" style="color:var(--green2);">$2,400</span><div class="dir-status" style="color:var(--green2);font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;">ACTIVE</div></div>
+        </div>
+        <div class="deploy-item">
+          <div class="di-icon">🎓</div>
+          <div class="di-body">
+            <div class="dib-name">MILES COLLEGE</div>
+            <div class="dib-client">Birmingham, AL · Since Feb 2026</div>
+            <div class="dib-modules"><div class="dib-mod">INSTITUTE</div><div class="dib-mod">BANK</div><div class="dib-mod">STUDIO</div><div class="dib-mod">COMMUNITY</div><div class="dib-mod">WELLNESS</div></div>
+          </div>
+          <div class="di-right"><span class="dir-mrr" style="color:var(--green2);">$8,400</span><div class="dir-status" style="color:var(--green2);font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;">ACTIVE</div></div>
+        </div>
+        <div class="deploy-item">
+          <div class="di-icon">🏛</div>
+          <div class="di-body">
+            <div class="dib-name">CITY OF COMPTON — DIGITAL SERVICES</div>
+            <div class="dib-client">Compton, CA · Since Mar 2026</div>
+            <div class="dib-modules"><div class="dib-mod">COMMUNITY</div><div class="dib-mod">BANK</div><div class="dib-mod">CONNECT</div><div class="dib-mod">WELLNESS</div></div>
+          </div>
+          <div class="di-right"><span class="dir-mrr" style="color:var(--gold2);">$12,000</span><div class="dir-status" style="color:var(--gold2);font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;">ONBOARDING</div></div>
+        </div>
+        <div class="deploy-item">
+          <div class="di-icon">🎤</div>
+          <div class="di-body">
+            <div class="dib-name">GRIND HARD MUSIC GROUP</div>
+            <div class="dib-client">Houston, TX · Since Dec 2025</div>
+            <div class="dib-modules"><div class="dib-mod">D+</div><div class="dib-mod">STUDIO</div><div class="dib-mod">PODCAST</div><div class="dib-mod">DIRECTOR</div></div>
+          </div>
+          <div class="di-right"><span class="dir-mrr" style="color:var(--green2);">$9,600</span><div class="dir-status" style="color:var(--green2);font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;">ACTIVE</div></div>
+        </div>
+        <div class="deploy-item">
+          <div class="di-icon">🌍</div>
+          <div class="di-body">
+            <div class="dib-name">PAN-AFRICAN ALLIANCE — US CHAPTER</div>
+            <div class="dib-client">New York, NY · Since Mar 2026</div>
+            <div class="dib-modules"><div class="dib-mod">COMMUNITY</div><div class="dib-mod">BANK</div><div class="dib-mod">MESSAGES</div><div class="dib-mod">SOCIAL</div></div>
+          </div>
+          <div class="di-right"><span class="dir-mrr" style="color:var(--green2);">$6,000</span><div class="dir-status" style="color:var(--green2);font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;">ACTIVE</div></div>
+        </div>
+        <div style="text-align:center;margin-top:10px;"><div style="font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);cursor:pointer;" onclick="this.textContent='→ LOADING ALL'">VIEW ALL 8 DEPLOYMENTS →</div></div>
+      </div>
+
+      <!-- SUB-RESELLER NETWORK -->
+      <div class="dash-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--signal),var(--signal2));"></div>
+        <div class="dp-hdr">
+          <div class="dp-title">MY RESELLER NETWORK</div>
+          <div class="dp-action" onclick="this.textContent='→ INVITING'">+ RECRUIT</div>
+        </div>
+        <div class="network-item">
+          <div class="ni-level" style="color:var(--signal2);">A1</div>
+          <div class="ni-body">
+            <div class="nib-name">APEX DIGITAL AGENCY</div>
+            <div class="nib-tier" style="color:var(--signal2);">ASSOCIATE · UNDER YOU</div>
+            <div class="nib-deployments">4 active deployments · 28 modules live</div>
+          </div>
+          <div class="ni-override"><span class="nio-val" style="color:var(--signal2);">$1,680</span><div class="nio-lbl">Override/mo</div></div>
+        </div>
+        <div class="network-item">
+          <div class="ni-level" style="color:var(--signal2);">A2</div>
+          <div class="ni-body">
+            <div class="nib-name">BLACK TECH COLLECTIVE</div>
+            <div class="nib-tier" style="color:var(--signal2);">ASSOCIATE · UNDER YOU</div>
+            <div class="nib-deployments">3 active deployments · 18 modules live</div>
+          </div>
+          <div class="ni-override"><span class="nio-val" style="color:var(--signal2);">$1,260</span><div class="nio-lbl">Override/mo</div></div>
+        </div>
+        <div class="network-item">
+          <div class="ni-level" style="color:var(--signal2);">A3</div>
+          <div class="ni-body">
+            <div class="nib-name">DIASPORA TECH PARTNERS</div>
+            <div class="nib-tier" style="color:var(--signal2);">ASSOCIATE · UNDER YOU</div>
+            <div class="nib-deployments">2 deployments · Lagos + London pipeline</div>
+          </div>
+          <div class="ni-override"><span class="nio-val" style="color:var(--signal2);">$960</span><div class="nio-lbl">Override/mo</div></div>
+        </div>
+        <div class="network-item">
+          <div class="ni-level" style="color:var(--muted);">P</div>
+          <div class="ni-body">
+            <div class="nib-name">CROWN CITY MEDIA</div>
+            <div class="nib-tier" style="color:var(--gold2);">PENDING CERTIFICATION</div>
+            <div class="nib-deployments">Training complete · First deployment pending</div>
+          </div>
+          <div class="ni-override"><span class="nio-val" style="color:var(--gold2);">$0</span><div class="nio-lbl">Activates soon</div></div>
+        </div>
+        <div class="network-item">
+          <div class="ni-level" style="color:var(--muted);">P</div>
+          <div class="ni-body">
+            <div class="nib-name">SOVEREIGN DIGITAL SOLUTIONS</div>
+            <div class="nib-tier" style="color:var(--gold2);">PENDING CERTIFICATION</div>
+            <div class="nib-deployments">Application approved · Training in progress</div>
+          </div>
+          <div class="ni-override"><span class="nio-val" style="color:var(--gold2);">$0</span><div class="nio-lbl">Activates soon</div></div>
+        </div>
+        <div style="background:rgba(0,144,232,.06);border:1px solid rgba(0,144,232,.15);padding:10px 12px;margin-top:10px;">
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--signal2);margin-bottom:3px;">◈ TOTAL OVERRIDE EARNINGS</div>
+          <div style="font-family:var(--fc);font-size:22px;font-weight:900;color:var(--signal2);">$3,900</div>
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">/month · from 3 active associates · grows as they deploy</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THREE COL: COMMISSIONS + LEADS + REVENUE CHART -->
+    <div class="three-col fade-in" style="animation-delay:.2s;">
+
+      <!-- COMMISSION BREAKDOWN -->
+      <div class="dash-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--gold),var(--gold2));"></div>
+        <div class="dp-hdr"><div class="dp-title">COMMISSION BREAKDOWN</div></div>
+        <div class="comm-row">
+          <div class="cr-left"><div class="crl-source">DIRECT DEPLOYMENTS</div><div class="crl-type">8 clients · Margin on wholesale</div></div>
+          <div class="cr-bar"><div class="cr-bar-fill" style="width:100%;background:var(--green2);height:100%;"></div></div>
+          <div class="cr-val" style="color:var(--green2);">$84,600</div>
+        </div>
+        <div class="comm-row">
+          <div class="cr-left"><div class="crl-source">NETWORK OVERRIDES</div><div class="crl-type">3 associates · 10% override</div></div>
+          <div class="cr-bar"><div class="cr-bar-fill" style="width:46%;background:var(--signal2);height:100%;"></div></div>
+          <div class="cr-val" style="color:var(--signal2);">$3,900</div>
+        </div>
+        <div class="comm-row">
+          <div class="cr-left"><div class="crl-source">BUNDLE BONUSES</div><div class="crl-type">2 full-stack deals closed</div></div>
+          <div class="cr-bar"><div class="cr-bar-fill" style="width:20%;background:var(--gold2);height:100%;"></div></div>
+          <div class="cr-val" style="color:var(--gold2);">$1,800</div>
+        </div>
+        <div class="comm-row">
+          <div class="cr-left"><div class="crl-source">TRAINING FEES</div><div class="crl-type">2 new associates trained</div></div>
+          <div class="cr-bar"><div class="cr-bar-fill" style="width:12%;background:var(--cyan);height:100%;"></div></div>
+          <div class="cr-val" style="color:var(--cyan);">$540</div>
+        </div>
+        <div style="border-top:1px solid rgba(0,200,232,.1);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:baseline;">
+          <div style="font-family:var(--fc);font-size:13px;font-weight:800;letter-spacing:.06em;color:rgba(238,244,252,.5);">TOTAL THIS MONTH</div>
+          <div style="font-family:var(--fc);font-size:22px;font-weight:900;color:var(--green2);">$90,840</div>
+        </div>
+      </div>
+
+      <!-- LEAD PIPELINE -->
+      <div class="dash-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--cyan),var(--signal2));"></div>
+        <div class="dp-hdr"><div class="dp-title">LEAD PIPELINE</div><div class="dp-action" onclick="this.textContent='→ CREATING'">+ NEW LEAD</div></div>
+        <div class="lead-item">
+          <div><div class="li-org">BETHEL GLOBAL MINISTRIES</div><div class="li-type">Faith Network · 12 campuses</div></div>
+          <div class="li-stage stage-close">CLOSING</div>
+          <div class="li-val" style="color:var(--green2);">$21,600</div>
+        </div>
+        <div class="lead-item">
+          <div><div class="li-org">XAVIER UNIVERSITY OF LA</div><div class="li-type">HBCU · Full Stack</div></div>
+          <div class="li-stage stage-proposal">PROPOSAL</div>
+          <div class="li-val" style="color:var(--signal2);">$18,000</div>
+        </div>
+        <div class="lead-item">
+          <div><div class="li-org">COLUMBIA, SC CITY PROGRAM</div><div class="li-type">Municipal · Community + Bank</div></div>
+          <div class="li-stage stage-proposal">PROPOSAL</div>
+          <div class="li-val" style="color:var(--signal2);">$14,400</div>
+        </div>
+        <div class="lead-item">
+          <div><div class="li-org">AFROBEATS COLLECTIVE UK</div><div class="li-type">Media Co · Studio + D+ + Podcast</div></div>
+          <div class="li-stage stage-demo">DEMO SET</div>
+          <div class="li-val" style="color:var(--gold2);">$7,200</div>
+        </div>
+        <div class="lead-item">
+          <div><div class="li-org">HARBOR HEALTH SYSTEM</div><div class="li-type">Healthcare · Wellness + Community</div></div>
+          <div class="li-stage stage-demo">DEMO SET</div>
+          <div class="li-val" style="color:var(--gold2);">$4,800</div>
+        </div>
+        <div class="lead-item">
+          <div><div class="li-org">LEGACY SPORTS MANAGEMENT</div><div class="li-type">Agency · Studio + Match + Community</div></div>
+          <div class="li-stage stage-prospect">PROSPECT</div>
+          <div class="li-val" style="color:var(--cyan);">$6,000</div>
+        </div>
+      </div>
+
+      <!-- REVENUE TREND -->
+      <div class="dash-panel">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--green),var(--green2));"></div>
+        <div class="dp-hdr"><div class="dp-title">REVENUE TREND</div><div class="dp-badge">12 MONTHS</div></div>
+        <div class="bar-chart" id="rev-bars"></div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(0,200,232,.07);">
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">GROWTH TRAJECTORY</div>
+          <div style="font-family:var(--fc);font-size:13px;font-weight:700;color:var(--green2);">↑ +340% since Q1 2025</div>
+          <div style="font-family:var(--fb);font-weight:300;font-size:10px;color:rgba(238,244,252,.35);margin-top:3px;line-height:1.5;">From $6K to $84K MRR in 12 months. Each new deployment compounds. Each new sub-reseller multiplies the stack.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- THE INCEPTION VISUAL -->
+    <div class="dash-panel fade-in" style="animation-delay:.25s;margin-bottom:14px;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,var(--gold2),var(--cyan),var(--signal2),transparent);"></div>
+      <div class="dp-hdr"><div class="dp-title">YOUR POSITION IN THE INCEPTION STACK</div><div class="dp-badge">DISTRIBUTOR TIER B</div></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;">
+        <div style="background:rgba(196,152,32,.05);border:1px solid rgba(196,152,32,.15);padding:14px;text-align:center;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold2);"></div>
+          <div style="font-family:var(--fm);font-size:5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(196,152,32,.5);margin-bottom:5px;">LAYER 1 · ABOVE YOU</div>
+          <div style="font-family:var(--fc);font-size:16px;font-weight:900;color:var(--gold2);">DYMOND EMPIRE</div>
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">Infrastructure Origin</div>
+          <div style="font-family:var(--fc);font-size:13px;font-weight:700;color:rgba(196,152,32,.4);margin-top:6px;">Earns $4,200/mo</div>
+          <div style="font-family:var(--fm);font-size:5px;color:var(--muted);">from your deployment cost</div>
+        </div>
+        <div style="background:rgba(0,200,232,.06);border:1px solid rgba(0,200,232,.25);padding:14px;text-align:center;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--cyan);"></div>
+          <div style="font-family:var(--fm);font-size:5px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);margin-bottom:5px;">LAYER 2 · YOU ARE HERE</div>
+          <div style="font-family:var(--fc);font-size:16px;font-weight:900;color:var(--cyan);">LIGHTEK MCG</div>
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">Wholesale Distributor</div>
+          <div style="font-family:var(--fc);font-size:13px;font-weight:700;color:var(--cyan);margin-top:6px;">Earns spread</div>
+          <div style="font-family:var(--fm);font-size:5px;color:var(--muted);">wholesale → retail margin</div>
+        </div>
+        <div style="background:rgba(0,144,232,.05);border:1px solid rgba(0,144,232,.15);padding:14px;text-align:center;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--signal2);"></div>
+          <div style="font-family:var(--fm);font-size:5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(0,144,232,.5);margin-bottom:5px;">LAYER 3 · YOUR RESELLERS</div>
+          <div style="font-family:var(--fc);font-size:16px;font-weight:900;color:var(--signal2);">YOUR NETWORK</div>
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">3 Active Associates</div>
+          <div style="font-family:var(--fc);font-size:13px;font-weight:700;color:var(--signal2);margin-top:6px;">$3,900/mo</div>
+          <div style="font-family:var(--fm);font-size:5px;color:var(--muted);">override income to you</div>
+        </div>
+        <div style="background:rgba(40,216,112,.04);border:1px solid rgba(40,216,112,.12);padding:14px;text-align:center;position:relative;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--green2);"></div>
+          <div style="font-family:var(--fm);font-size:5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(40,216,112,.5);margin-bottom:5px;">LAYER 4 · END CLIENTS</div>
+          <div style="font-family:var(--fc);font-size:16px;font-weight:900;color:var(--green2);">12 CLIENTS</div>
+          <div style="font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;">Your + Network's Clients</div>
+          <div style="font-family:var(--fc);font-size:13px;font-weight:700;color:var(--green2);margin-top:6px;">$90,840/mo</div>
+          <div style="font-family:var(--fm);font-size:5px;color:var(--muted);">total revenue flowing to you</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const cur=document.getElementById('cur'),cur2=document.getElementById('cur2');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function l(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;cur2.style.left=rx+'px';cur2.style.top=ry+'px';requestAnimationFrame(l);})();
+document.querySelectorAll('.earn-card,.deploy-item,.network-item,.lead-item,.qa-btn,.comm-row').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cur.style.width='10px';cur.style.height='10px';cur2.style.width='32px';cur2.style.height='32px';});
+  el.addEventListener('mouseleave',()=>{cur.style.width='6px';cur.style.height='6px';cur2.style.width='26px';cur2.style.height='26px';});
+});
+
+// Revenue chart
+const months=['A','S','O','N','D','J','F','M','A','M','J','M'];
+const values=[8,12,14,18,22,28,36,44,52,68,76,84];
+const colors=['rgba(0,200,232,.3)','rgba(0,200,232,.3)','rgba(0,200,232,.3)','rgba(0,200,232,.3)','rgba(0,200,232,.35)','rgba(0,200,232,.4)','rgba(0,200,232,.5)','rgba(0,200,232,.6)','rgba(0,200,232,.7)','rgba(0,200,232,.8)','rgba(0,200,232,.9)','var(--cyan2)'];
+const bars = document.getElementById('rev-bars');
+months.forEach((m,i)=>{
+  const col = document.createElement('div');
+  col.className = 'bc-col';
+  col.innerHTML = `<div class="bcf" style="height:${values[i]}%;background:${colors[i]};min-height:4px;"></div><div class="bcl">${m}</div>`;
+  bars.appendChild(col);
+});
+
+// Date
+document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
+
+// Live MRR fluctuation
+let mrr = 84600;
+setInterval(()=>{
+  mrr += Math.floor(Math.random()*400);
+  document.getElementById('mrr').textContent = '$' + mrr.toLocaleString();
+},8000);
+</script>
+</body>
+</html>

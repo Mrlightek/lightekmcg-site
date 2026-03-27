@@ -1,0 +1,11 @@
+<% content_for :title, "New catalog" %>
+
+<h1>New catalog</h1>
+
+<%= render "form", catalog: @catalog %>
+
+<br>
+
+<div>
+  <%= link_to "Back to catalogs", catalogs_path %>
+</div>

@@ -1,0 +1,10 @@
+<p style="color: green"><%= notice %></p>
+
+<%= render @storyline_arena %>
+
+<div>
+  <%= link_to "Edit this storyline arena", edit_storyline_arena_path(@storyline_arena) %> |
+  <%= link_to "Back to storyline arenas", storyline_arenas_path %>
+
+  <%= button_to "Destroy this storyline arena", @storyline_arena, method: :delete %>
+</div>

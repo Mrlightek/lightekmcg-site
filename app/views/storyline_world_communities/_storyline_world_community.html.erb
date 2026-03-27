@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STORYLINE — World Communities</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  --void:#030208;--deep:#06050E;--mid:#0A0818;--panel:#0F0C1C;--card:#131020;--lift:#181428;
+  --white:#F0ECE4;--off:#C0B8B0;--muted:#5A5468;--dim:#1C1830;
+  /* faction colors — bleed into UI when faction selected */
+  --fac-blood:#CC2830;--fac-blood2:#F03040;--fac-blood3:#FF5060;
+  --fac-heights:#2858C8;--fac-heights2:#4878F0;--fac-heights3:#70A0FF;
+  --fac-meridian:#18A860;--fac-meridian2:#20D078;--fac-meridian3:#40F090;
+  --fac-archive:#9820C8;--fac-archive2:#C030F8;--fac-archive3:#E060FF;
+  /* active faction (JS override) */
+  --fac:#CC2830;--fac2:#F03040;--fac3:#FF5060;
+  --gold:#C8980C;--gold2:#E0B020;--gold3:#F8C838;
+  --canon-yes:#20C870;--canon-no:#CC2030;
+  --fb:'Bebas Neue',sans-serif;
+  --fg:'EB Garamond',serif;
+  --fc:'Barlow Condensed',sans-serif;
+  --fp:'Playfair Display',serif;
+  --fm:'Space Mono',monospace;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--void);color:var(--white);font-family:var(--fg);overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");background-size:200px;pointer-events:none;z-index:0;opacity:.8;}
+
+#cur{width:8px;height:8px;background:var(--fac2);border-radius:50%;position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 14px var(--fac);transition:all .15s;}
+#cur2{width:32px;height:32px;border:1px solid rgba(204,40,48,.2);border-radius:50%;position:fixed;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);transition:left .1s cubic-bezier(.16,1,.3,1),top .1s,width .18s,height .18s;}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.08}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes liveIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+@keyframes voteBar{from{width:0}to{width:var(--target-w)}}
+@keyframes eventCountdown{from{stroke-dashoffset:0}to{stroke-dashoffset:440}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes glow{0%,100%{box-shadow:0 0 8px var(--fac)}50%{box-shadow:0 0 24px var(--fac),0 0 48px var(--fac2)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.fade-up{opacity:0;transform:translateY(20px);transition:opacity .85s cubic-bezier(.16,1,.3,1),transform .85s cubic-bezier(.16,1,.3,1);}
+.fade-up.vis{opacity:1;transform:none;}
+
+/* VIEWS */
+.view{display:none;}.view.active{display:block;}
+
+/* ═══════════════════════════════════════════
+   TOP NAV
+═══════════════════════════════════════════ */
+.topnav{position:fixed;top:0;left:0;right:0;z-index:400;height:56px;background:rgba(3,2,8,.97);border-bottom:1px solid rgba(204,40,48,.08);display:flex;align-items:center;justify-content:space-between;padding:0 28px;}
+.topnav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,var(--fac),var(--fac2),var(--fac),transparent);opacity:.4;}
+.tn-left{display:flex;align-items:center;gap:14px;}
+.tn-logo{font-family:var(--fb);font-size:20px;letter-spacing:.14em;cursor:pointer;color:var(--white);}
+.tn-logo span{color:var(--fac2);}
+.tn-sep{width:1px;height:18px;background:rgba(204,40,48,.12);}
+.tn-world{display:flex;align-items:center;gap:8px;}
+.tnw-icon{font-size:14px;}
+.tnw-name{font-family:var(--fb);font-size:15px;letter-spacing:.08em;color:var(--fac2);}
+.tnw-community{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:rgba(204,40,48,.55);border:1px solid rgba(204,40,48,.2);padding:2px 7px;}
+.tn-center{display:flex;gap:0;}
+.tn-tab{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:rgba(240,236,228,.3);padding:0 16px;height:56px;display:flex;align-items:center;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.tn-tab:hover{color:rgba(240,236,228,.7);}
+.tn-tab.on{color:var(--white);border-bottom-color:var(--fac2);}
+.tn-right{display:flex;align-items:center;gap:10px;}
+/* faction badge in nav */
+.tn-faction-badge{display:flex;align-items:center;gap:7px;padding:5px 12px;border:1px solid;cursor:pointer;transition:all .2s;}
+.tnfb-dot{width:6px;height:6px;border-radius:50%;animation:pulse 1.5s infinite;}
+.tnfb-name{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;}
+.tn-live-event{display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(240,48,64,.1);border:1px solid rgba(240,48,64,.3);cursor:pointer;transition:all .2s;animation:glow 3s infinite;}
+.tnle-dot{width:5px;height:5px;border-radius:50%;background:var(--fac2);animation:blink .6s infinite;}
+.tnle-text{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--fac2);}
+
+/* ═══════════════════════════════════════════
+   LIVE ALERT BAR (when event active)
+═══════════════════════════════════════════ */
+.live-bar{height:30px;background:linear-gradient(to right,rgba(204,40,48,.15),rgba(200,144,12,.1),rgba(204,40,48,.15));border-bottom:1px solid rgba(204,40,48,.2);display:flex;align-items:center;justify-content:center;gap:12px;flex-shrink:0;}
+.lb-dot{width:6px;height:6px;border-radius:50%;background:var(--fac2);animation:blink .5s infinite;}
+.lb-text{font-family:var(--fm);font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--fac2);}
+.lb-action{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(204,40,48,.35);color:var(--fac2);padding:3px 10px;cursor:pointer;background:transparent;transition:all .18s;}
+.lb-action:hover{background:rgba(204,40,48,.1);}
+
+/* ═══════════════════════════════════════════
+   SHARED COMPONENTS
+═══════════════════════════════════════════ */
+.page-wrap{padding-top:86px;}/* 56 topnav + 30 live bar */
+.two-col{display:grid;grid-template-columns:1fr 320px;gap:0;min-height:calc(100vh - 86px);}
+@media(max-width:1000px){.two-col{grid-template-columns:1fr;}}
+.main-col{padding:28px 36px;overflow-y:auto;}
+.side-col{background:rgba(6,5,14,.98);border-left:1px solid rgba(204,40,48,.06);overflow-y:auto;padding:16px;}
+.side-col::-webkit-scrollbar{width:0;}
+
+/* section header */
+.sec-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;}
+.sh-title{font-family:var(--fc);font-size:clamp(20px,2.5vw,28px);font-weight:800;letter-spacing:.06em;display:flex;align-items:center;gap:8px;}
+.sh-action{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);cursor:pointer;background:none;border:none;transition:color .2s;}
+.sh-action:hover{color:var(--fac2);}
+
+/* sidebar section */
+.ss-section{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(204,40,48,.06);}
+.ss-section:last-child{border-bottom:none;}
+.sss-title{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:5px;}
+.sss-title::before{content:'◈';color:var(--fac2);}
+
+/* faction pill */
+.fac-pill{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;border:1px solid;padding:2px 7px;display:inline-block;}
+
+/* user row */
+.user-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.ur-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;border:1.5px solid;flex-shrink:0;}
+.ur-name{font-family:var(--fm);font-size:7px;letter-spacing:.08em;flex:1;color:rgba(240,236,228,.5);}
+.ur-fac{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+
+/* ═══════════════════════════════════════════
+   VIEW 1: FACTION HUB
+═══════════════════════════════════════════ */
+#view-factions{padding-top:86px;}
+/* faction onboarding — shown if no faction selected */
+.faction-onboard{min-height:calc(100vh - 86px);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:48px;text-align:center;position:relative;overflow:hidden;}
+.fo-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(204,40,48,.06) 0%,transparent 60%);pointer-events:none;}
+.fo-eyebrow{font-family:var(--fm);font-size:7px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.fo-title{font-family:var(--fb);font-size:clamp(48px,10vw,130px);letter-spacing:.06em;line-height:.84;margin-bottom:10px;}
+.fo-sub{font-family:var(--fg);font-style:italic;font-size:clamp(14px,1.6vw,18px);color:rgba(240,236,228,.42);max-width:520px;line-height:2;margin-bottom:36px;}
+/* faction choice grid */
+.fo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:100%;max-width:1000px;}
+@media(max-width:900px){.fo-grid{grid-template-columns:repeat(2,1fr);}}
+.fo-card{background:var(--panel);border:1px solid rgba(240,236,228,.06);padding:24px 18px;cursor:pointer;transition:all .28s;position:relative;overflow:hidden;text-align:left;}
+.fo-card:hover{transform:translateY(-3px);}
+.fo-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.fo-card::after{content:'';position:absolute;inset:0;opacity:0;transition:opacity .28s;}
+.fo-card:hover::after{opacity:.05;}
+.foc-seal{font-size:32px;display:block;margin-bottom:12px;position:relative;z-index:1;}
+.foc-name{font-family:var(--fb);font-size:clamp(18px,2.5vw,28px);letter-spacing:.06em;line-height:1;margin-bottom:4px;position:relative;z-index:1;}
+.foc-motto{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(240,236,228,.42);margin-bottom:10px;line-height:1.6;position:relative;z-index:1;}
+.foc-members{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;position:relative;z-index:1;}
+.foc-btn{font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:8px 16px;cursor:pointer;background:transparent;transition:all .2s;position:relative;z-index:1;display:inline-block;}
+/* faction hub (post-selection) */
+.faction-hub{display:none;}
+.fh-hero{padding:32px 36px;border-bottom:1px solid rgba(204,40,48,.07);position:relative;overflow:hidden;}
+.fhh-bg{position:absolute;inset:0;pointer-events:none;}
+.fhh-content{position:relative;z-index:1;}
+.fhh-status{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.fhhs-dot{width:6px;height:6px;border-radius:50%;animation:pulse 1.5s infinite;}
+.fhhs-text{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;}
+.fhh-name{font-family:var(--fb);font-size:clamp(40px,7vw,90px);letter-spacing:.06em;line-height:.86;margin-bottom:6px;}
+.fhh-motto{font-family:var(--fg);font-style:italic;font-size:clamp(14px,1.5vw,17px);color:rgba(240,236,228,.45);margin-bottom:14px;}
+/* faction stats */
+.fh-stats{display:flex;gap:0;border-bottom:1px solid rgba(204,40,48,.07);}
+.fhs-cell{flex:1;padding:14px 24px;border-right:1px solid rgba(204,40,48,.07);}
+.fhs-cell:last-child{border-right:none;}
+.fhsc-val{font-family:var(--fb);font-size:clamp(24px,3.5vw,44px);letter-spacing:.04em;display:block;line-height:1;}
+.fhsc-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:block;margin-top:3px;}
+/* faction feed */
+.faction-feed{padding:24px 36px;}
+.ff-item{padding:14px 0;border-bottom:1px solid rgba(240,236,228,.04);cursor:pointer;transition:background .15s;}
+.ff-item:hover{background:rgba(204,40,48,.03);}
+.ffi-header{display:flex;gap:9px;align-items:flex-start;margin-bottom:6px;}
+.ffih-avatar{width:28px;height:28px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.ffih-meta{}
+.ffihm-name{font-family:var(--fm);font-size:7px;font-weight:700;letter-spacing:.08em;margin-bottom:1px;}
+.ffihm-time{font-family:var(--fm);font-size:6px;letter-spacing:.08em;color:var(--muted);}
+.ffi-content{font-family:var(--fg);font-size:clamp(13px,1.4vw,15px);color:rgba(240,236,228,.65);line-height:1.75;margin-bottom:6px;}
+.ffi-reactions{display:flex;gap:6px;flex-wrap:wrap;}
+.ffir-btn{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(240,236,228,.1);background:transparent;color:rgba(240,236,228,.35);padding:3px 9px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:4px;}
+.ffir-btn:hover{border-color:var(--fac);color:var(--fac2);}
+.ffir-btn.active{border-color:var(--fac);color:var(--fac2);background:rgba(204,40,48,.06);}
+/* faction challenge */
+.faction-challenge{background:var(--panel);border:1px solid rgba(204,40,48,.15);padding:20px 24px;margin:0 36px 20px;position:relative;overflow:hidden;}
+.faction-challenge::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--fac),var(--fac2));}
+.fcha-label{font-family:var(--fm);font-size:6px;letter-spacing:.22em;text-transform:uppercase;color:var(--fac2);margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+.fcha-label::before{content:'⬡';}
+.fcha-title{font-family:var(--fc);font-size:clamp(18px,2.5vw,26px);font-weight:800;letter-spacing:.06em;margin-bottom:5px;}
+.fcha-desc{font-family:var(--fg);font-style:italic;font-size:13px;color:rgba(240,236,228,.5);line-height:1.75;margin-bottom:12px;}
+.fcha-progress{margin-bottom:10px;}
+.fchap-label{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between;}
+.fchap-bar{height:5px;background:rgba(240,236,228,.06);}
+.fchap-fill{height:100%;transition:width .8s ease;}
+
+/* ═══════════════════════════════════════════
+   VIEW 2: THE WITNESS WALL
+═══════════════════════════════════════════ */
+#view-witness{padding-top:86px;}
+.witness-layout{display:grid;grid-template-columns:1fr 300px;min-height:calc(100vh - 86px);}
+.witness-main{padding:28px 36px;}
+.wm-intro{margin-bottom:24px;}
+.wmi-title{font-family:var(--fb);font-size:clamp(36px,6vw,80px);letter-spacing:.05em;line-height:.86;margin-bottom:6px;}
+.wmi-sub{font-family:var(--fg);font-style:italic;font-size:clamp(13px,1.4vw,16px);color:rgba(240,236,228,.38);max-width:560px;line-height:2;}
+/* quote card */
+.quote-card{background:var(--panel);border:1px solid rgba(240,236,228,.06);margin-bottom:4px;position:relative;overflow:hidden;transition:all .22s;cursor:pointer;}
+.quote-card:hover{border-color:rgba(240,236,228,.16);}
+.quote-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.qc-body{padding:20px 22px;}
+/* the quote itself */
+.qc-mark{font-family:var(--fb);font-size:80px;color:rgba(240,236,228,.04);position:absolute;top:-10px;left:14px;line-height:1;pointer-events:none;}"
+.qc-text{font-family:var(--fg);font-style:italic;font-size:clamp(17px,2vw,22px);color:rgba(240,236,228,.82);line-height:1.85;margin-bottom:12px;position:relative;z-index:1;}
+.qc-source{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
+.qcs-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.qcs-project{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.qcs-sep{width:1px;height:10px;background:rgba(240,236,228,.1);}
+.qcs-ep{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:rgba(240,236,228,.3);}
+.qcs-char{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(240,236,228,.45);}
+/* annotation layer */
+.qc-annotations{border-top:1px solid rgba(240,236,228,.05);padding-top:12px;}
+.qca-label{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.qca-item{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid rgba(240,236,228,.03);}
+.qca-item:last-child{border-bottom:none;}
+.qcai-avatar{width:18px;height:18px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:8px;flex-shrink:0;margin-top:1px;}
+.qcai-body{}
+.qcaib-name{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px;}
+.qcaib-text{font-family:var(--fg);font-size:12px;color:rgba(240,236,228,.5);line-height:1.6;}
+/* actions row */
+.qc-actions{display:flex;gap:6px;padding:10px 22px;border-top:1px solid rgba(240,236,228,.04);background:rgba(240,236,228,.02);}
+.qca-btn{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(240,236,228,.08);background:transparent;color:rgba(240,236,228,.3);padding:4px 10px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:4px;}
+.qca-btn:hover{border-color:rgba(240,236,228,.25);color:rgba(240,236,228,.65);}
+.qca-btn.elevated{border-color:var(--fac);color:var(--fac2);background:rgba(204,40,48,.05);}
+/* witness sidebar */
+.witness-sidebar{background:rgba(6,5,14,.98);border-left:1px solid rgba(240,236,228,.05);padding:16px;overflow-y:auto;}
+.witness-sidebar::-webkit-scrollbar{width:0;}
+
+/* ═══════════════════════════════════════════
+   VIEW 3: CANON DEBATES
+═══════════════════════════════════════════ */
+#view-debates{padding-top:86px;}
+.debates-layout{display:grid;grid-template-columns:1fr 300px;min-height:calc(100vh - 86px);}
+.debates-main{padding:28px 36px;}
+/* debate card */
+.debate-card{background:var(--panel);border:1px solid rgba(240,236,228,.06);margin-bottom:4px;overflow:hidden;position:relative;transition:all .22s;}
+.debate-card.featured::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,var(--fac),var(--gold));}
+.dc-header{padding:18px 20px;border-bottom:1px solid rgba(240,236,228,.04);}
+.dch-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.dcht-badges{display:flex;gap:5px;}
+.dcht-badge{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;border:1px solid;padding:2px 7px;}
+.dcht-badge.open{border-color:rgba(204,40,48,.3);color:var(--fac2);}
+.dcht-badge.creator{border-color:rgba(200,144,12,.3);color:var(--gold2);}
+.dcht-badge.resolved{border-color:rgba(32,200,112,.3);color:var(--canon-yes);}
+.dcht-badge.hot{border-color:rgba(240,96,32,.3);color:#F06020;animation:blink .9s infinite;}
+.dcht-voters{font-family:var(--fm);font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.dch-question{font-family:var(--fg);font-size:clamp(17px,2vw,22px);color:rgba(240,236,228,.88);line-height:1.7;margin-bottom:8px;}
+.dch-context{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(240,236,228,.42);line-height:1.65;}
+/* vote bar */
+.dc-vote{padding:14px 20px;border-bottom:1px solid rgba(240,236,228,.04);}
+.dcv-bars{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.dcvb-yes,.dcvb-no{height:8px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+.dcvb-yes{background:linear-gradient(to right,var(--canon-yes),rgba(32,200,112,.6));border-radius:2px 0 0 2px;}
+.dcvb-no{background:linear-gradient(to left,var(--canon-no),rgba(204,32,48,.6));border-radius:0 2px 2px 0;}
+.dcvb-pcts{display:flex;justify-content:space-between;margin-bottom:12px;}
+.dcvb-yes-pct{font-family:var(--fc);font-size:clamp(20px,2.5vw,28px);font-weight:900;color:var(--canon-yes);}
+.dcvb-no-pct{font-family:var(--fc);font-size:clamp(20px,2.5vw,28px);font-weight:900;color:var(--canon-no);}
+.dcvb-mid{font-family:var(--fm);font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center;flex:1;}
+/* vote buttons */
+.dcv-btns{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.dcvb-btn{font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:11px;cursor:pointer;background:transparent;transition:all .22s;position:relative;overflow:hidden;}
+.dcvb-btn::before{content:'';position:absolute;inset:0;background:currentColor;opacity:0;transition:opacity .22s;}
+.dcvb-btn:hover::before{opacity:.08;}
+.dcvb-yes-btn{border-color:rgba(32,200,112,.3);color:var(--canon-yes);}
+.dcvb-yes-btn:hover{border-color:var(--canon-yes);}
+.dcvb-yes-btn.voted{background:rgba(32,200,112,.1);border-color:var(--canon-yes);}
+.dcvb-no-btn{border-color:rgba(204,32,48,.3);color:var(--canon-no);}
+.dcvb-no-btn:hover{border-color:var(--canon-no);}
+.dcvb-no-btn.voted{background:rgba(204,32,48,.1);border-color:var(--canon-no);}
+/* creator response */
+.dc-creator-response{padding:14px 20px;background:rgba(200,144,12,.04);border-top:1px solid rgba(200,144,12,.1);}
+.dccr-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold2);margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+.dccr-label::before{content:'✍';}
+.dccr-text{font-family:var(--fg);font-style:italic;font-size:13px;color:rgba(240,236,228,.6);line-height:1.75;}
+/* resolved verdict */
+.dc-verdict{padding:14px 20px;border-top:1px solid rgba(240,236,228,.05);}
+.dcv-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.dcv-result{display:flex;gap:10px;align-items:center;}
+.dcvr-icon{font-size:20px;}
+.dcvr-text{font-family:var(--fg);font-size:14px;font-weight:600;color:rgba(240,236,228,.72);}
+.dcvr-pct{font-family:var(--fc);font-size:22px;font-weight:900;}
+
+/* ═══════════════════════════════════════════
+   VIEW 4: THEORY BOARD
+═══════════════════════════════════════════ */
+#view-theories{padding-top:86px;}
+.theory-layout{display:grid;grid-template-columns:1fr 300px;min-height:calc(100vh - 86px);}
+.theory-main{padding:28px 36px;}
+/* theory card */
+.theory-card{background:var(--panel);border:1px solid rgba(240,236,228,.06);margin-bottom:4px;overflow:hidden;position:relative;transition:all .22s;cursor:pointer;}
+.theory-card:hover{border-color:rgba(240,236,228,.14);}
+.theory-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.theory-card.confirmed{border-color:rgba(32,200,112,.2);}
+.theory-card.confirmed::before{background:var(--canon-yes);}
+.theory-card.debunked{border-color:rgba(204,32,48,.2);opacity:.7;}
+.theory-card.debunked::before{background:var(--canon-no);}
+.tc-body{padding:18px 20px;}
+.tc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.tc-verdict{display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;border:1px solid;padding:3px 9px;}
+.tc-verdict.confirmed{border-color:rgba(32,200,112,.3);color:var(--canon-yes);}
+.tc-verdict.debunked{border-color:rgba(204,32,48,.3);color:var(--canon-no);}
+.tc-verdict.pending{border-color:rgba(240,236,228,.12);color:rgba(240,236,228,.4);}
+.tc-support{font-family:var(--fm);font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.tc-title{font-family:var(--fg);font-size:clamp(16px,1.8vw,20px);font-weight:600;color:rgba(240,236,228,.85);margin-bottom:6px;line-height:1.5;}
+.tc-because{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(240,236,228,.45);line-height:1.65;margin-bottom:10px;}
+/* evidence chain */
+.tc-evidence{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;}
+.tce-item{display:flex;gap:8px;align-items:flex-start;font-family:var(--fm);font-size:6px;letter-spacing:.06em;color:rgba(240,236,228,.4);line-height:1.5;}
+.tce-ref{min-width:70px;text-align:right;color:rgba(240,236,228,.25);}
+.tce-fact::before{content:'→ ';color:rgba(240,236,228,.2);}
+/* resolution box */
+.tc-resolution{background:rgba(32,200,112,.06);border:1px solid rgba(32,200,112,.15);padding:11px 14px;margin-top:8px;}
+.tc-resolution.debunked-box{background:rgba(204,32,48,.06);border-color:rgba(204,32,48,.15);}
+.tcres-label{font-family:var(--fm);font-size:5px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:3px;}
+.tcres-text{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(240,236,228,.55);line-height:1.65;}
+/* vote row */
+.tc-vote-row{display:flex;gap:6px;align-items:center;padding:9px 20px;border-top:1px solid rgba(240,236,228,.04);background:rgba(240,236,228,.015);}
+.tcvr-label{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);flex:1;}
+.tcvr-up{font-family:var(--fm);font-size:8px;font-weight:700;color:var(--canon-yes);border:1px solid rgba(32,200,112,.2);padding:3px 11px;cursor:pointer;background:transparent;transition:all .18s;}
+.tcvr-up:hover,.tcvr-up.on{background:rgba(32,200,112,.08);border-color:var(--canon-yes);}
+.tcvr-down{font-family:var(--fm);font-size:8px;font-weight:700;color:var(--canon-no);border:1px solid rgba(204,32,48,.2);padding:3px 11px;cursor:pointer;background:transparent;transition:all .18s;}
+.tcvr-down:hover,.tcvr-down.on{background:rgba(204,32,48,.08);border-color:var(--canon-no);}
+.tcvr-count{font-family:var(--fm);font-size:7px;font-weight:700;color:rgba(240,236,228,.35);}
+
+/* ═══════════════════════════════════════════
+   VIEW 5: FIELD DISPATCHES
+═══════════════════════════════════════════ */
+#view-dispatches{padding-top:86px;}
+.dispatch-layout{display:grid;grid-template-columns:1fr 300px;min-height:calc(100vh - 86px);}
+.dispatch-main{padding:28px 36px;}
+/* dispatch card */
+.dispatch-card{background:var(--panel);border:1px solid rgba(240,236,228,.06);margin-bottom:4px;overflow:hidden;cursor:pointer;transition:all .22s;}
+.dispatch-card:hover{border-color:rgba(240,236,228,.16);}
+.dispatch-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.dpc-masthead{padding:14px 20px 10px;border-bottom:1px solid rgba(240,236,228,.04);}
+.dpcm-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.dpcmt-pub{font-family:var(--fb);font-size:16px;letter-spacing:.08em;}
+.dpcmt-date{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.dpcm-byline{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:rgba(240,236,228,.35);display:flex;align-items:center;gap:8px;}
+.dpcmb-author{color:rgba(240,236,228,.5);}
+.dpcmb-faction{border:1px solid;padding:1px 5px;}
+.dpc-article{padding:14px 20px;}
+.dpca-kicker{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--fac2);margin-bottom:5px;}
+.dpca-headline{font-family:var(--fp);font-style:italic;font-size:clamp(18px,2.5vw,26px);font-weight:700;line-height:1.2;margin-bottom:8px;}
+.dpca-deck{font-family:var(--fg);font-style:italic;font-size:13px;color:rgba(240,236,228,.5);line-height:1.7;margin-bottom:10px;}
+.dpca-body{font-family:var(--fg);font-size:13px;color:rgba(240,236,228,.55);line-height:1.85;}
+.dpca-body::first-letter{font-size:2.5em;font-style:italic;font-weight:700;float:left;line-height:.75;margin-right:5px;margin-top:4px;}
+/* dispatch metadata */
+.dpc-meta{padding:9px 20px;border-top:1px solid rgba(240,236,228,.04);display:flex;gap:10px;align-items:center;background:rgba(240,236,228,.015);}
+.dpcm-tags{display:flex;gap:4px;flex:1;}
+.dpcmt-tag{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(240,236,228,.1);padding:2px 6px;color:rgba(240,236,228,.3);}
+.dpcm-featured{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold2);border:1px solid rgba(200,144,12,.25);padding:2px 7px;}
+
+/* ═══════════════════════════════════════════
+   VIEW 6: LIVE WORLD EVENT
+═══════════════════════════════════════════ */
+#view-event{padding-top:56px;min-height:100vh;display:flex;flex-direction:column;}
+.event-full{flex:1;display:grid;grid-template-columns:1fr 360px;}
+/* event main */
+.event-main{position:relative;overflow:hidden;display:flex;flex-direction:column;}
+/* dramatic event bg */
+.em-bg{position:absolute;inset:0;z-index:0;}
+.em-vignette{position:absolute;inset:0;background:linear-gradient(to top,rgba(3,2,8,1) 0%,rgba(3,2,8,.5) 60%,rgba(3,2,8,.2) 100%);z-index:1;}
+.em-scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,rgba(204,40,48,.04),transparent);animation:scanLine 10s linear infinite;pointer-events:none;z-index:2;}
+@keyframes scanLine{from{top:-2%}to{top:102%}}
+.em-content{position:relative;z-index:3;padding:48px;flex:1;display:flex;flex-direction:column;justify-content:flex-end;}
+/* live badge */
+.em-live-badge{display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+.emlb-dot{width:8px;height:8px;border-radius:50%;background:var(--fac2);animation:blink .5s infinite;}
+.emlb-text{font-family:var(--fm);font-size:7px;letter-spacing:.24em;text-transform:uppercase;color:var(--fac2);}
+.emlb-count{font-family:var(--fm);font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+/* countdown ring */
+.em-countdown{position:absolute;top:40px;right:48px;text-align:center;z-index:3;}
+.emc-svg{width:80px;height:80px;}
+.emc-track{fill:none;stroke:rgba(240,236,228,.06);stroke-width:4;}
+.emc-fill{fill:none;stroke:var(--fac2);stroke-width:4;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s linear;}
+.emc-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.emc-time{font-family:var(--fb);font-size:18px;letter-spacing:.04em;color:var(--fac2);}
+.emc-unit{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+/* event title */
+.em-title{font-family:var(--fb);font-size:clamp(40px,7vw,96px);letter-spacing:.05em;line-height:.86;margin-bottom:8px;}
+.em-premise{font-family:var(--fg);font-style:italic;font-size:clamp(14px,1.6vw,18px);color:rgba(240,236,228,.55);max-width:640px;line-height:1.95;margin-bottom:20px;}
+/* the collective choice */
+.em-collective-choice{background:rgba(3,2,8,.8);border:1px solid rgba(204,40,48,.25);padding:20px 22px;backdrop-filter:blur(8px);max-width:700px;}
+.emcc-label{font-family:var(--fm);font-size:7px;letter-spacing:.24em;text-transform:uppercase;color:var(--fac2);margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+.emcc-label::before{content:'⬡';}
+.emcc-question{font-family:var(--fg);font-style:italic;font-size:clamp(15px,1.8vw,19px);color:rgba(240,236,228,.82);line-height:1.8;margin-bottom:14px;}
+/* vote options */
+.emcc-options{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:12px;}
+.emcco-btn{padding:14px 16px;background:rgba(240,236,228,.03);border:1px solid rgba(240,236,228,.08);cursor:pointer;text-align:left;transition:all .22s;position:relative;overflow:hidden;}
+.emcco-btn:hover{border-color:var(--fac);background:rgba(204,40,48,.07);}
+.emcco-btn.leading{border-color:rgba(204,40,48,.35);background:rgba(204,40,48,.08);}
+.emcco-btn.voted{border-color:var(--fac2);}
+/* live vote fill bar */
+.emcco-fill{position:absolute;top:0;left:0;bottom:0;background:rgba(204,40,48,.1);transition:width 1s ease;pointer-events:none;}
+.emcco-content{position:relative;z-index:1;}
+.emccoc-option{font-family:var(--fg);font-style:italic;font-size:14px;color:rgba(240,236,228,.75);margin-bottom:4px;line-height:1.5;}
+.emccoc-pct{font-family:var(--fc);font-size:22px;font-weight:900;display:block;line-height:1;}
+.emccoc-votes{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+/* live consequence */
+.emcc-consequence{font-family:var(--fm);font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:rgba(204,40,48,.6);display:flex;align-items:center;gap:6px;}
+/* event sidebar */
+.event-sidebar{background:rgba(6,5,14,.98);border-left:1px solid rgba(204,40,48,.08);overflow-y:auto;display:flex;flex-direction:column;}
+.event-sidebar::-webkit-scrollbar{width:0;}
+.es-header{padding:16px;border-bottom:1px solid rgba(204,40,48,.07);}
+.esh-title{font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.07em;margin-bottom:4px;}
+.esh-sub{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+/* live signal feed */
+.es-feed{flex:1;overflow-y:auto;padding:0;}
+.es-feed::-webkit-scrollbar{width:0;}
+.esf-item{padding:10px 14px;border-bottom:1px solid rgba(240,236,228,.04);animation:liveIn .4s cubic-bezier(.16,1,.3,1) both;}
+.esfi-header{display:flex;gap:8px;align-items:center;margin-bottom:4px;}
+.esfih-avatar{width:20px;height:20px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;}
+.esfih-name{font-family:var(--fm);font-size:6px;font-weight:700;letter-spacing:.08em;flex:1;}
+.esfih-time{font-family:var(--fm);font-size:5px;letter-spacing:.06em;color:var(--muted);}
+.esfi-text{font-family:var(--fg);font-size:12px;color:rgba(240,236,228,.5);line-height:1.55;}
+.esfi-vote{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:1px 5px;margin-top:4px;display:inline-block;}
+/* vote totals bar */
+.es-totals{padding:12px 14px;border-bottom:1px solid rgba(204,40,48,.08);}
+.est-label{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.est-bar{display:flex;height:10px;overflow:hidden;}
+.estb-a{background:var(--fac2);transition:width 1s ease;}
+.estb-b{background:var(--fac-heights2);transition:width 1s ease;}
+.estb-c{background:var(--fac-meridian2);transition:width 1s ease;}
+.estb-d{background:var(--fac-archive2);transition:width 1s ease;}
+.est-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.estl-item{display:flex;align-items:center;gap:4px;font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.estl-dot{width:6px;height:6px;border-radius:50%;}
+</style>
+</head>
+<body>
+<div id="cur"></div>
+<div id="cur2"></div>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="tn-left">
+    <div class="tn-logo" onclick="sw('factions',null)">STORY<span>LINE</span></div>
+    <div class="tn-sep"></div>
+    <div class="tn-world">
+      <span class="tnw-icon">🏙</span>
+      <span class="tnw-name">IRONBELL CITY</span>
+      <span class="tnw-community">COMMUNITIES</span>
+    </div>
+  </div>
+  <div class="tn-center">
+    <button class="tn-tab on" onclick="sw('factions',this)">⚔ FACTION HUB</button>
+    <button class="tn-tab" onclick="sw('witness',this)">👁 WITNESS WALL</button>
+    <button class="tn-tab" onclick="sw('debates',this)">⚖ CANON DEBATES</button>
+    <button class="tn-tab" onclick="sw('theories',this)">🔮 THEORY BOARD</button>
+    <button class="tn-tab" onclick="sw('dispatches',this)">📰 DISPATCHES</button>
+    <button class="tn-tab" onclick="sw('event',this)" style="color:var(--fac2);font-weight:700;">◉ LIVE EVENT</button>
+  </div>
+  <div class="tn-right">
+    <div class="tn-faction-badge" id="tn-faction-badge" style="border-color:rgba(204,40,48,.3);color:var(--fac2);" onclick="sw('factions',null)">
+      <div class="tnfb-dot" style="background:var(--fac2);"></div>
+      <span class="tnfb-name" id="tnfb-name">CHOOSE YOUR FACTION</span>
+    </div>
+    <div class="tn-live-event" onclick="sw('event',null)">
+      <div class="tnle-dot"></div>
+      <span class="tnle-text">◉ LIVE — THE IRON GATE INCIDENT</span>
+    </div>
+  </div>
+</nav>
+
+<!-- LIVE ALERT BAR -->
+<div class="live-bar">
+  <div class="lb-dot"></div>
+  <span class="lb-text">◉ LIVE WORLD EVENT ACTIVE — THE IRON GATE INCIDENT · 2,847 CITIZENS PARTICIPATING · VOTE CLOSES IN 14:32</span>
+  <button class="lb-action" onclick="sw('event',null)">JOIN NOW →</button>
+</div>
+
+<!-- ══════ FACTION HUB ══════ -->
+<div class="view active" id="view-factions">
+
+  <!-- ONBOARDING — shown until faction chosen -->
+  <div class="faction-onboard" id="faction-onboard">
+    <div class="fo-bg"></div>
+    <div class="fo-eyebrow">◈ IRONBELL CITY · CHOOSE YOUR ALLEGIANCE</div>
+    <div class="fo-title">WHICH SIDE<br>OF HISTORY<br>ARE YOU ON?</div>
+    <div class="fo-sub">Your faction determines what you see, who you hear from, and which community events you're invited to. You can change later — but your first choice reveals something about how you listen.</div>
+    <div class="fo-grid" id="fo-grid"></div>
+  </div>
+
+  <!-- FACTION HUB — shown after faction chosen -->
+  <div class="faction-hub" id="faction-hub">
+    <div class="fh-hero" id="fh-hero">
+      <div class="fhh-bg" id="fhh-bg"></div>
+      <div class="fhh-content">
+        <div class="fhh-status" id="fhh-status"></div>
+        <div class="fhh-name" id="fhh-name"></div>
+        <div class="fhh-motto" id="fhh-motto"></div>
+      </div>
+    </div>
+    <div class="fh-stats" id="fh-stats"></div>
+    <div id="faction-challenge-wrap"></div>
+    <div class="faction-feed" id="faction-feed"></div>
+  </div>
+</div>
+
+<!-- ══════ WITNESS WALL ══════ -->
+<div class="view" id="view-witness">
+  <div class="witness-layout">
+    <div class="witness-main">
+      <div class="wm-intro fade-up">
+        <div class="wmi-title">THE WITNESS<br>WALL</div>
+        <div class="wmi-sub">Every line the community has decided matters. The quotes that changed how people understood the story. Annotated, argued over, elevated by 284,000 witnesses.</div>
+      </div>
+      <div id="quotes-list"></div>
+    </div>
+    <div class="witness-sidebar">
+      <div class="ss-section">
+        <div class="sss-title">MOST ELEVATED THIS WEEK</div>
+        <div id="top-quotes-sidebar"></div>
+      </div>
+      <div class="ss-section">
+        <div class="sss-title">RECENTLY ANNOTATED</div>
+        <div id="recent-annotations"></div>
+      </div>
+      <div class="ss-section">
+        <div class="sss-title">YOUR ELEVATIONS</div>
+        <div style="font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(240,236,228,.28);line-height:1.65;">You've elevated 12 quotes. 3 made it to the Wall this season.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ CANON DEBATES ══════ -->
+<div class="view" id="view-debates">
+  <div class="debates-layout">
+    <div class="debates-main">
+      <div class="sec-hdr fade-up">
+        <div class="sh-title">⚖ CANON DEBATES</div>
+        <button class="sh-action">PROPOSE A DEBATE →</button>
+      </div>
+      <div style="font-family:var(--fg);font-style:italic;font-size:clamp(13px,1.4vw,15px);color:rgba(240,236,228,.35);max-width:600px;line-height:2;margin-bottom:20px;" class="fade-up">The story contains contradictions. Multiple creators, multiple timelines, multiple truths. This is where the community decides what actually happened — and creators weigh in.</div>
+      <div id="debates-list"></div>
+    </div>
+    <div class="side-col">
+      <div class="ss-section">
+        <div class="sss-title">YOUR VOTES</div>
+        <div id="my-votes-sidebar"></div>
+      </div>
+      <div class="ss-section">
+        <div class="sss-title">CREATOR RESPONSES</div>
+        <div id="creator-responses-sidebar"></div>
+      </div>
+      <div class="ss-section">
+        <div class="sss-title">RECENTLY RESOLVED</div>
+        <div id="resolved-sidebar"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ THEORY BOARD ══════ -->
+<div class="view" id="view-theories">
+  <div class="theory-layout">
+    <div class="theory-main">
+      <div class="sec-hdr fade-up">
+        <div class="sh-title">🔮 THEORY BOARD</div>
+        <button class="sh-action" onclick="this.textContent='→ OPENING FORM'">POST A THEORY →</button>
+      </div>
+      <div style="font-family:var(--fg);font-style:italic;font-size:clamp(13px,1.4vw,15px);color:rgba(240,236,228,.35);max-width:600px;line-height:2;margin-bottom:20px;" class="fade-up">Theories are structured predictions grounded in evidence from the story. When the canon resolves your theory — or destroys it — you find out here.</div>
+      <div id="theories-list"></div>
+    </div>
+    <div class="side-col">
+      <div class="ss-section">
+        <div class="sss-title">THEORY LEADERBOARD</div>
+        <div id="theory-leaderboard"></div>
+      </div>
+      <div class="ss-section">
+        <div class="sss-title">RECENTLY RESOLVED</div>
+        <div id="theory-resolved-sidebar"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ FIELD DISPATCHES ══════ -->
+<div class="view" id="view-dispatches">
+  <div class="dispatch-layout">
+    <div class="dispatch-main">
+      <div class="sec-hdr fade-up">
+        <div class="sh-title">📰 FIELD DISPATCHES</div>
+        <button class="sh-action" onclick="this.textContent='→ OPENING FORM'">FILE A DISPATCH →</button>
+      </div>
+      <div style="font-family:var(--fg);font-style:italic;font-size:clamp(13px,1.4vw,15px);color:rgba(240,236,228,.35);max-width:600px;line-height:2;margin-bottom:20px;" class="fade-up">Write as a citizen of Ironbell City. As a journalist. As a witness. As a faction operative. The best dispatches get featured — and some get referenced in creator notes.</div>
+      <div id="dispatches-list"></div>
+    </div>
+    <div class="side-col">
+      <div class="ss-section">
+        <div class="sss-title">FEATURED DISPATCHES</div>
+        <div id="featured-dispatches"></div>
+      </div>
+      <div class="ss-section">
+        <div class="sss-title">MOST CITED BY CREATORS</div>
+        <div id="creator-cited"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ LIVE WORLD EVENT ══════ -->
+<div class="view" id="view-event">
+  <div class="event-full">
+    <div class="event-main">
+      <div class="em-bg" style="background:linear-gradient(135deg,#1A0808 0%,#380818 40%,#080830 100%);"></div>
+      <div class="em-vignette"></div>
+      <div class="em-scan"></div>
+      <div class="em-countdown">
+        <svg class="emc-svg" viewBox="0 0 80 80">
+          <circle class="emc-track" cx="40" cy="40" r="34"/>
+          <circle class="emc-fill" cx="40" cy="40" r="34" stroke-dasharray="214" stroke-dashoffset="53" id="countdown-circle"/>
+        </svg>
+        <div class="emc-label">
+          <div class="emc-time" id="event-time">14:32</div>
+          <div class="emc-unit">REMAINING</div>
+        </div>
+      </div>
+      <div class="em-content">
+        <div class="em-live-badge">
+          <div class="emlb-dot"></div>
+          <span class="emlb-text">◉ LIVE WORLD EVENT · IRONBELL CITY</span>
+          <span class="emlb-count">· 2,847 CITIZENS ACTIVE</span>
+        </div>
+        <div class="em-title">THE IRON<br>GATE INCIDENT</div>
+        <div class="em-premise">It is Year 2 of the Ironbell City timeline. The Iron Gate — the original Holloway compound — has just caught fire. Every faction in the city has eyes on this. What the community collectively believes happened next will be written into the official world canon. This is a real event with real consequences for every project set in Year 3 or later.</div>
+        <div class="emcc-label" style="font-family:var(--fm);font-size:7px;letter-spacing:.24em;text-transform:uppercase;color:var(--fac2);margin-bottom:12px;display:flex;align-items:center;gap:6px;">⬡ COLLECTIVE CHOICE — THE WHOLE COMMUNITY VOTES · 2,847 VOTES CAST</div>
+        <div class="em-collective-choice">
+          <div class="emcc-question">"The Iron Gate is burning. The fire began in the east wing at 11:42 PM. Witnesses are being interviewed. What do the people of Ironbell City collectively believe started it?"</div>
+          <div class="emcc-options" id="event-options"></div>
+          <div class="emcc-consequence" id="event-consequence">→ The majority vote will be written into the World Bible as a canon event within 24 hours.</div>
+        </div>
+      </div>
+    </div>
+    <div class="event-sidebar">
+      <div class="es-header">
+        <div class="esh-title">THE SIGNAL FEED</div>
+        <div class="esh-sub">LIVE TRANSMISSIONS FROM IRONBELL CITY · 2,847 ACTIVE</div>
+      </div>
+      <div class="es-totals">
+        <div class="est-label">LIVE VOTE BREAKDOWN BY FACTION</div>
+        <div class="est-bar">
+          <div class="estb-a" style="width:38%;" id="vote-bar-blood"></div>
+          <div class="estb-b" style="width:31%;" id="vote-bar-heights"></div>
+          <div class="estb-c" style="width:18%;" id="vote-bar-meridian"></div>
+          <div class="estb-d" style="width:13%;" id="vote-bar-archive"></div>
+        </div>
+        <div class="est-legend">
+          <div class="estl-item"><div class="estl-dot" style="background:var(--fac-blood2);"></div>HOLLOWAY BLOOD 38%</div>
+          <div class="estl-item"><div class="estl-dot" style="background:var(--fac-heights2);"></div>HEIGHTS ACCORD 31%</div>
+          <div class="estl-item"><div class="estl-dot" style="background:var(--fac-meridian2);"></div>MERIDIAN 18%</div>
+          <div class="estl-item"><div class="estl-dot" style="background:var(--fac-archive2);"></div>THE ARCHIVE 13%</div>
+        </div>
+      </div>
+      <div class="es-feed" id="es-feed"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CURSOR ──────────────────────────────────
+const cur=document.getElementById('cur'),cur2=document.getElementById('cur2');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function l(){rx+=(mx-rx)*.11;ry+=(my-ry)*.11;cur2.style.left=rx+'px';cur2.style.top=ry+'px';requestAnimationFrame(l);})();
+
+// ── VIEW SWITCH ──────────────────────────────
+function sw(id,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.tn-tab').forEach(t=>t.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  window.scrollTo(0,0);
+  const renders={witness:renderWitness,debates:renderDebates,theories:renderTheories,dispatches:renderDispatches,event:renderEvent};
+  if(renders[id])renders[id]();
+  initScrollReveal();
+}
+
+// ── DATA ─────────────────────────────────────
+const FACTIONS=[
+  {id:'blood',name:'HOLLOWAY BLOOD',motto:'"The name carries the weight."',seal:'🩸',color:'#CC2830',color2:'#F03040',color3:'#FF5060',members:'84,204',entries:'1,284',strength:68,desc:'The old-money criminal dynasty that built Ironbell City.',feed:[
+    {user:'MarcusWatcher',avatar:'🧑',color:'#CC2830',time:'4m ago',text:'I\'ve listened to Episode 4 six times. Marcus doesn\'t burn the ledger. I know it. The ash in Episode 5A is from something else entirely.',reactions:[{emoji:'🔥',count:247},{emoji:'⬡',count:89},{emoji:'💯',count:312}]},
+    {user:'BloodlineTrue',avatar:'👩',color:'#CC2830',time:'12m ago',text:'The Iron Gate didn\'t burn. The Holloway family staged it. That\'s what the Gate does — it disappears when it needs to.',reactions:[{emoji:'🔥',count:184},{emoji:'❓',count:156},{emoji:'⬡',count:64}]},
+    {user:'DynastyChronicles',avatar:'🧔',color:'#CC2830',time:'28m ago',text:'Path C listeners: have you noticed that the timestamp in Episode 5C doesn\'t match the one in Episode 7? I have a theory.',reactions:[{emoji:'🔍',count:423},{emoji:'⬡',count:201}]},
+  ]},
+  {id:'heights',name:'THE HEIGHTS ACCORD',motto:'"Progress is just power with better PR."',seal:'🏛',color:'#2858C8',color2:'#4878F0',color3:'#70A0FF',members:'72,841',entries:'982',strength:74,desc:'The corporate-political apparatus that runs the new Ironbell City.',feed:[
+    {user:'AccordAnalyst',avatar:'👩',color:'#2858C8',time:'6m ago',text:'Elena Reyes in Episode 8 uses the same phrase her father used in the Heights flashback. "The view from here." That\'s not coincidental.',reactions:[{emoji:'🔍',count:312},{emoji:'💡',count:198}]},
+    {user:'GlassTowerTakes',avatar:'🧑',color:'#2858C8',time:'19m ago',text:'The Heights and Dynasty crossover in Episode 7 confirms what I\'ve said since Episode 3. Reyes isn\'t building a case against Marcus. She\'s protecting him from something worse.',reactions:[{emoji:'🔥',count:289},{emoji:'⬡',count:143}]},
+  ]},
+  {id:'meridian',name:'THE MERIDIAN COLLECTIVE',motto:'"The Signal tells the truth. We just translate."',seal:'📡',color:'#18A860',color2:'#20D078',color3:'#40F090',members:'51,204',entries:'1,891',strength:44,desc:'The network organizing around Devon Ross\'s unauthorized signal.',feed:[
+    {user:'SignalListener',avatar:'🧔',color:'#18A860',time:'2m ago',text:'The Signal in Episode 3 broadcast a conversation from 1987. Devon wasn\'t born until 1990. How is that possible. HOW IS THAT POSSIBLE.',reactions:[{emoji:'🤯',count:891},{emoji:'📡',count:512},{emoji:'⬡',count:247}]},
+    {user:'FrequencyMapper',avatar:'👩',color:'#18A860',time:'15m ago',text:'I mapped every Signal broadcast to a location in Ironbell City. They form a pattern. I think the pattern spells something.',reactions:[{emoji:'🔍',count:673},{emoji:'💡',count:412}]},
+  ]},
+  {id:'archive',name:'THE ARCHIVE',motto:'"Silence is complicity. Documentation is resistance."',seal:'📚',color:'#9820C8',color2:'#C030F8',color3:'#E060FF',members:'28,547',entries:'3,284',strength:38,desc:'The smallest faction. The most dangerous by information advantage.',feed:[
+    {user:'ArchivedTruth',avatar:'👩',color:'#9820C8',time:'8m ago',text:'I\'ve cross-referenced every instance of the name "Vance" across all four projects. Same first name, same initial last name, different details. The Archive says: same person. Different timeline.',reactions:[{emoji:'🔍',count:542},{emoji:'⬡',count:388},{emoji:'💯',count:201}]},
+    {user:'DocumentEverything',avatar:'🧑',color:'#9820C8',time:'32m ago',text:'Rashida\'s third archive entry references a "Holloway document from 2008." Dynasty Protocol\'s Season 1 takes place in 2024. That document has 16 years of history we haven\'t heard yet.',reactions:[{emoji:'🔥',count:312},{emoji:'📚',count:187}]},
+  ]},
+];
+const QUOTES=[
+  {text:'The name carries the weight. The name and the weight and nothing else. Everything else was just the story we told ourselves so we could sleep through the carrying.',project:'THE DYNASTY PROTOCOLS',ep:'EP.02 · "THE HOLLOWAY NAME"',char:'Marcus Holloway (narration)',color:'#CC2830',elevations:8420,annotations:[
+    {user:'SignalListener',avatar:'🧔',facColor:'#18A860',text:'This line is doing three things simultaneously: Marcus understanding his family, Marcus resenting his family, and Marcus deciding he isn\'t going to put the ledger down.'},
+    {user:'ArchivedTruth',avatar:'👩',facColor:'#9820C8',text:'Compare this to Rashida\'s line in Coldwater EP.3: "Some people carry names. Some names carry people." Same observation from the outside.'},
+  ]},
+  {text:'The Signal doesn\'t lie. That\'s not the same thing as the Signal telling the truth.',project:'THE MERIDIAN SIGNAL',ep:'EP.05 · "FREQUENCY"',char:'Devon Ross',color:'#20C0A0',elevations:6841,annotations:[
+    {user:'FrequencyMapper',avatar:'👩',facColor:'#18A860',text:'Devon\'s clearest moment in the entire series. He built something that broadcasts facts and lets them arrange themselves into lies.'},
+    {user:'DynastyChronicles',avatar:'🧔',facColor:'#CC2830',text:'This is also about Marcus and the ledger. A ledger doesn\'t lie either. That doesn\'t mean what it says is true.'},
+  ]},
+  {text:'They called it the Coldwater Night because the temperature dropped eight degrees the moment it happened. That\'s not meteorology. That\'s the city remembering.',project:'THE COLDWATER ARCHIVES',ep:'VOL.I · CH.06',char:'Rashida Okafor',color:'#4878D0',elevations:5203,annotations:[
+    {user:'BloodlineTrue',avatar:'👩',facColor:'#CC2830',text:'The phrase "the city remembering" is doing so much work in this sentence. Ironbell City isn\'t a setting. It\'s a character.'},
+  ]},
+];
+const DEBATES=[
+  {question:'Did the Iron Gate actually burn in Year 2 of the Ironbell City timeline?',context:'Dynasty Protocols EP.2 and EP.7 both describe the Iron Gate burning in Year 2. Neon Gospel EP.4 references a visit to the Iron Gate "three years ago" — placing it after Year 2. The Coldwater Archives never directly address it.',yesVotes:54,noVotes:46,totalVoters:28401,status:'open',hot:true,featured:true,creatorResponse:{creator:'Marcus Holloway',text:'I\'ll say this: Marcus believes it burned. What Marcus believes and what actually happened are not always the same thing in this universe. The community will find out what I intended in Season 2.'},resolution:null},
+  {question:'Is the Thomas Vance who appears in The Heights the same person as the Thomas in Dynasty Protocols EP.9?',context:'Both are described as "an advisor." Both have the same first name. The Heights Vance has a scar on his left hand. Dynasty Vance\'s hands are never described. Community analysis has found 11 other textual similarities.',yesVotes:61,noVotes:39,totalVoters:14820,status:'open',hot:false,featured:false,creatorResponse:null,resolution:null},
+  {question:'Was the Meridian Signal already broadcasting before Devon Ross was born?',context:'Signal broadcast transcripts in EP.3 include a conversation dated to 1987. Devon was born in 1990. Either the timestamp is wrong, someone else activated the Signal before Devon, or the Signal transcends linear time.',yesVotes:78,noVotes:22,totalVoters:9841,status:'resolved',hot:false,featured:false,creatorResponse:{creator:'Devon Ross',text:'Yes. And Devon doesn\'t know this yet. When he finds out — in Season 2 — it will change everything he thought he understood about what he built.'},resolution:{verdict:'CONFIRMED',text:'The Signal predates Devon Ross. Season 2 will reveal how this is possible.',pct:78,color:'var(--canon-yes)'}},
+];
+const THEORIES=[
+  {title:'Thomas Vance is the architect of every faction — he built all four to control Ironbell City from the center',because:'In every project, Vance appears at the moment a faction makes its most consequential decision. He\'s never a member. He\'s always adjacent.',evidence:[{ref:'DYNASTY EP.9',fact:'Vance advises Marcus after the ledger decision'},{ref:'HEIGHTS EP.8',fact:'Vance signs the document that creates the Heights Accord'},{ref:'MERIDIAN EP.7',fact:'A "T. Vance" is in the Signal\'s 1987 broadcast'},{ref:'COLDWATER CH.4',fact:'Rashida\'s archive contains a Vance document from 2001'}],support:1284,oppose:342,status:'pending',color:'#9820C8',resolution:null},
+  {title:'The Coldwater Night and the Iron Gate fire are the same event seen from two different timelines',because:'The temperature drop described in Coldwater CH.6 ("eight degrees, the moment it happened") corresponds precisely with the timeline of the Iron Gate fire in Dynasty.',evidence:[{ref:'COLDWATER CH.6',fact:'"Temperature dropped eight degrees"'},{ref:'DYNASTY EP.2',fact:'Iron Gate fire: "the night went cold"'},{ref:'TIMELINE',fact:'Both events place in Year 2, Month 9'}],support:2841,oppose:1204,status:'confirmed',color:'#CC2830',resolution:{text:'Creator Marcus Holloway confirmed in Season 2 announcement: "The Coldwater Night and the Gate are the same night."',verdict:'CONFIRMED'}},
+  {title:'Lena Park is writing the Coldwater Archives under a pseudonym',because:'The writing style of the Cold Dispatch and the Coldwater Archives share eleven distinct stylistic markers. Rashida is too careful with her sources. Lena is exactly that kind of journalist.',evidence:[{ref:'BOTH PROJECTS',fact:'11 shared stylistic markers (documented)'},{ref:'COLDWATER CH.3',fact:'Reference to a story "filed under a name I no longer use"'},{ref:'COLD DISPATCH V.2',fact:'Lena\'s byline disappears for the same period as Archive Vol.I'}],support:892,oppose:1841,status:'debunked',color:'#CC4010',resolution:{text:'Devon Ross (creator, Meridian Signal) confirmed in a creator note: "Lena and Rashida are not the same person, but they are looking for the same thing."',verdict:'DEBUNKED'}},
+];
+const DISPATCHES=[
+  {pub:'THE IRONBELL OBSERVER',date:'MARCH 14, YEAR 3',author:'A. Okafor-James',facId:'archive',kicker:'BREAKING',headline:'IRON GATE: WHAT THE CITY RECORDS SHOW ABOUT THE NIGHT THEY SAY NEVER HAPPENED',deck:'City records from Year 2, Month 9 include three separate fire marshal reports. None of them describe the same building.',body:'The official record of the Iron Gate burning contains a seventeen-minute gap in the dispatch log. I have been trying to explain this gap for sixteen months. I have four theories and none of them are comfortable. The first is that the fire department\'s system was down. The second is that someone edited the record. The third is that the fire happened so fast there was no time to log it. The fourth I will not print until I have more than a hunch and a timestamp.',tags:['IRON GATE','YEAR 2','OFFICIAL RECORD','FIRE'],featured:true,citations:3},
+  {pub:'THE HEIGHTS QUARTERLY',date:'FEBRUARY 28, YEAR 3',author:'G. Whitmore',facId:'heights',kicker:'PROFILE',headline:'ELENA REYES AND THE QUESTION SHE WILL NOT ANSWER: WHAT HAPPENED TO THE HOLLOWAY LAND',deck:'She has been asked seventeen times. Seventeen different journalists, seventeen different framings. The answer has been seventeen different non-answers.',body:'Reyes has a tell. It is subtle, and I have watched hours of footage to be certain of it. When she is avoiding the truth, she straightens her left cuff. It is an unconscious gesture. She does it twice in every interview where the Holloway land comes up. She did it eleven times in our hour together.',tags:['REYES','HEIGHTS ACCORD','HOLLOWAY','LAND'],featured:false,citations:1},
+];
+const EVENT_OPTIONS=[
+  {label:'An accident — old wiring in a building that was already dying',pct:18,votes:512,color:'#5A5468'},
+  {label:'The Holloway family burned it themselves — to bury something inside',pct:44,votes:1252,color:'#CC2830'},
+  {label:'An opposing faction set it — the first true act of faction warfare',pct:28,votes:795,color:'#2858C8'},
+  {label:'The Signal caused it — Devon Ross\'s broadcast disrupted the building\'s systems',pct:10,votes:288,color:'#18A860'},
+];
+const SIGNAL_FEED=[
+  {user:'BloodlineTrue',avatar:'👩',fColor:'#CC2830',time:'just now',text:'Voted: Holloway burned it themselves. The dynasty has always known when to disappear.',vote:'HOLLOWAY BLOOD'},
+  {user:'FrequencyMapper',avatar:'🧔',fColor:'#18A860',time:'12s ago',text:'The Signal broadcast on the night of the fire is 47 seconds longer than any other broadcast. That 47 seconds is worth examining.',vote:'MERIDIAN'},
+  {user:'AccordAnalyst',avatar:'👩',fColor:'#2858C8',time:'28s ago',text:'The Heights Accord would not have done this in Year 2. Their power play doesn\'t happen until Year 3. This wasn\'t strategic.',vote:'NOT THE HEIGHTS'},
+  {user:'ArchivedTruth',avatar:'🧔',fColor:'#9820C8',time:'45s ago',text:'I have the fire marshal\'s log. There is a 17-minute gap. The official record has been edited.',vote:'THE ARCHIVE KNOWS'},
+  {user:'SignalListener',avatar:'🧑',fColor:'#18A860',time:'1m ago',text:'Option D is wrong but I voted it anyway because Devon deserves to be part of this conversation.',vote:'MERIDIAN'},
+  {user:'DynastyChronicles',avatar:'🧔',fColor:'#CC2830',time:'1m ago',text:'Path C listeners: Marcus walks out of the Gate in Episode 5C. He walks out. Does he look back?',vote:'HOLLOWAY BLOOD'},
+  {user:'GlassTowerTakes',avatar:'👩',fColor:'#2858C8',time:'2m ago',text:'Whatever burned the Iron Gate created a power vacuum that the Heights Accord filled within eighteen months. Make of that what you will.',vote:'HEIGHTS ACCORD'},
+  {user:'DocumentEverything',avatar:'🧑',fColor:'#9820C8',time:'2m ago',text:'Adding to the archive: all four options contain a truth. This is how complex events work.',vote:'THE ARCHIVE'},
+];
+
+let selectedFaction=null;
+let votedDebates={};
+let votedEvent=null;
+let timerVal=14*60+32;
+let timerInterval=null;
+
+// ── FACTION ONBOARD ──────────────────────────
+function renderFactionOnboard(){
+  const grid=document.getElementById('fo-grid');
+  if(grid.children.length)return;
+  FACTIONS.forEach(f=>{
+    const d=document.createElement('div');
+    d.className='fo-card';
+    d.style.setProperty('--fac',f.color);
+    d.innerHTML=`
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${f.color};"></div>
+      <div style="position:absolute;inset:0;background:${f.color};pointer-events:none;opacity:0;transition:opacity .28s;" class="fo-hover-bg"></div>
+      <span class="foc-seal">${f.seal}</span>
+      <div class="foc-name" style="color:${f.color};">${f.name}</div>
+      <div class="foc-motto">${f.motto}</div>
+      <div class="foc-members">${f.members} citizens aligned</div>
+      <div class="foc-desc" style="font-family:var(--fg);font-size:12px;color:rgba(240,236,228,.4);line-height:1.65;margin-bottom:10px;">${f.desc}</div>
+      <button class="foc-btn" style="border-color:${f.color};color:${f.color};" onclick="joinFaction('${f.id}')">ALIGN WITH ${f.name.split(' ').slice(-1)[0]} →</button>`;
+    d.addEventListener('mouseenter',()=>{d.querySelector('.fo-hover-bg').style.opacity='.04';bigCur();});
+    d.addEventListener('mouseleave',()=>{d.querySelector('.fo-hover-bg').style.opacity='0';normCur();});
+    grid.appendChild(d);
+  });
+}
+
+function joinFaction(id){
+  selectedFaction=FACTIONS.find(f=>f.id===id);
+  const f=selectedFaction;
+  // update CSS vars
+  document.documentElement.style.setProperty('--fac',f.color);
+  document.documentElement.style.setProperty('--fac2',f.color2);
+  document.documentElement.style.setProperty('--fac3',f.color3);
+  // update nav badge
+  document.getElementById('tnfb-name').textContent=f.name;
+  document.querySelector('.tnfb-dot').style.background=f.color2;
+  document.querySelector('.tn-faction-badge').style.borderColor=f.color+'50';
+  document.querySelector('.tn-faction-badge').style.color=f.color2;
+  document.querySelector('.topnav::after');
+  // update cursor
+  cur.style.background=f.color2;
+  cur.style.boxShadow=`0 0 14px ${f.color}`;
+  cur2.style.borderColor=f.color2+'30';
+  // show hub
+  document.getElementById('faction-onboard').style.display='none';
+  const hub=document.getElementById('faction-hub');
+  hub.style.display='block';
+  renderFactionHub(f);
+}
+
+function renderFactionHub(f){
+  // hero
+  document.getElementById('fhh-bg').style.background=`radial-gradient(ellipse at 20% 50%,${f.color}15 0%,transparent 60%)`;
+  document.getElementById('fhh-status').innerHTML=`<div class="fhhs-dot" style="background:${f.color2};"></div><span class="fhhs-text" style="font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:${f.color2};">ALIGNED · ${f.name}</span>`;
+  document.getElementById('fhh-name').style.color=f.color2;
+  document.getElementById('fhh-name').textContent=f.name;
+  document.getElementById('fhh-motto').textContent=f.motto;
+  // stats
+  document.getElementById('fh-stats').innerHTML=`
+    <div class="fhs-cell"><span class="fhsc-val" style="color:${f.color2};">${f.members}</span><span class="fhsc-lbl">CITIZENS ALIGNED</span></div>
+    <div class="fhs-cell"><span class="fhsc-val" style="color:${f.color2};">${f.entries}</span><span class="fhsc-lbl">DISPATCHES FILED</span></div>
+    <div class="fhs-cell"><span class="fhsc-val" style="color:${f.color2};">${f.strength}%</span><span class="fhsc-lbl">POWER INDEX</span></div>
+    <div class="fhs-cell"><span class="fhsc-val" style="color:${f.color2};">3</span><span class="fhsc-lbl">ACTIVE CHALLENGES</span></div>`;
+  // challenge
+  document.getElementById('faction-challenge-wrap').innerHTML=`
+    <div class="faction-challenge" style="--fac:${f.color};--fac2:${f.color2};">
+      <div class="fcha-label" style="color:${f.color2};">⬡ ACTIVE FACTION CHALLENGE</div>
+      <div class="fcha-title" style="color:${f.color2};">THE IRON GATE VOTE — FACTION ASSIGNMENT</div>
+      <div class="fcha-desc">The Live World Event is active. ${f.name} has been assigned a faction goal: vote collectively on the Iron Gate cause and present a unified position to the other factions. Your vote matters.</div>
+      <div class="fcha-progress">
+        <div class="fchap-label"><span>FACTION PARTICIPATION</span><span style="color:${f.color2};">1,204 of ${f.members} voted</span></div>
+        <div class="fchap-bar"><div class="fchap-fill" style="width:47%;background:${f.color};"></div></div>
+      </div>
+      <button style="font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid ${f.color};color:${f.color2};background:rgba(${hexToRgb(f.color)},0.08);padding:9px 22px;cursor:pointer;transition:all .2s;" onclick="sw('event',null)">CAST YOUR FACTION VOTE →</button>
+    </div>`;
+  // feed
+  const feed=document.getElementById('faction-feed');
+  feed.innerHTML='';
+  f.feed.forEach((item,i)=>{
+    const d=document.createElement('div');
+    d.className='ff-item';
+    d.style.animationDelay=(i*.08)+'s';
+    d.innerHTML=`
+      <div class="ffi-header">
+        <div class="ffih-avatar" style="border-color:${f.color}40;background:${f.color}12;">${item.avatar}</div>
+        <div class="ffih-meta">
+          <div class="ffihm-name" style="color:${f.color2};">${item.user}</div>
+          <div class="ffihm-time">${item.time}</div>
+        </div>
+      </div>
+      <div class="ffi-content">${item.text}</div>
+      <div class="ffi-reactions">${item.reactions.map(r=>`<button class="ffir-btn" onclick="reactFeed(this)">${r.emoji} <span>${r.count}</span></button>`).join('')}</div>`;
+    feed.appendChild(d);
+  });
+  addHoverFX();
+}
+
+function reactFeed(btn){
+  btn.classList.toggle('active');
+  const span=btn.querySelector('span');
+  const n=parseInt(span.textContent);
+  span.textContent=btn.classList.contains('active')?n+1:n-1;
+}
+
+// ── WITNESS WALL ─────────────────────────────
+function renderWitness(){
+  const list=document.getElementById('quotes-list');
+  if(list.children.length)return;
+  QUOTES.forEach(q=>{
+    const d=document.createElement('div');
+    d.className='quote-card fade-up';
+    d.innerHTML=`
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${q.color};"></div>
+      <div class="qc-body">
+        <div class="qc-mark">"</div>
+        <div class="qc-text">"${q.text}"</div>
+        <div class="qc-source">
+          <div class="qcs-dot" style="background:${q.color};"></div>
+          <div class="qcs-project" style="color:${q.color};">${q.project}</div>
+          <div class="qcs-sep"></div>
+          <div class="qcs-ep">${q.ep}</div>
+          <div class="qcs-sep"></div>
+          <div class="qcs-char">${q.char}</div>
+        </div>
+        <div class="qc-annotations">
+          <div class="qca-label">◈ ${q.annotations.length} ANNOTATIONS · ${q.elevations.toLocaleString()} ELEVATIONS</div>
+          ${q.annotations.map(a=>`
+          <div class="qca-item">
+            <div class="qcai-avatar" style="border-color:${a.facColor}40;background:${a.facColor}12;">🧑</div>
+            <div class="qcai-body">
+              <div class="qcaib-name" style="color:${a.facColor};">${a.user}</div>
+              <div class="qcaib-text">${a.text}</div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="qc-actions">
+        <button class="qca-btn elevated">▲ ELEVATED · ${q.elevations.toLocaleString()}</button>
+        <button class="qca-btn" onclick="this.textContent='+ ANNOTATING'">+ ANNOTATE</button>
+        <button class="qca-btn" onclick="this.textContent='↗ COPIED'">↗ SHARE</button>
+        <button class="qca-btn" onclick="this.textContent='⬡ BRANCHED'">⬡ SEE BRANCH CONTEXT</button>
+      </div>`;
+    list.appendChild(d);
+  });
+  // sidebar
+  const tq=document.getElementById('top-quotes-sidebar');
+  if(!tq.children.length){
+    QUOTES.forEach(q=>{
+      const d=document.createElement('div');
+      d.className='bs-item';
+      d.innerHTML=`<div style="font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:${q.color};margin-bottom:2px;">▲ ${q.elevations.toLocaleString()}</div><div style="font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(240,236,228,.55);line-height:1.5;">"${q.text.slice(0,60)}…"</div>`;
+      tq.appendChild(d);
+    });
+  }
+  addHoverFX();initScrollReveal();
+}
+
+// ── CANON DEBATES ────────────────────────────
+function renderDebates(){
+  const list=document.getElementById('debates-list');
+  if(list.children.length)return;
+  DEBATES.forEach(db=>{
+    const voted=votedDebates[db.question];
+    const d=document.createElement('div');
+    d.className='debate-card fade-up'+(db.featured?' featured':'');
+    const yPct=db.yesVotes;const nPct=db.noVotes;
+    const isResolved=db.status==='resolved';
+    d.innerHTML=`
+      <div class="dc-header">
+        <div class="dch-top">
+          <div class="dcht-badges">
+            <div class="dcht-badge ${isResolved?'resolved':'open'}">${isResolved?'✓ RESOLVED':'◉ OPEN DEBATE'}</div>
+            ${db.hot?'<div class="dcht-badge hot">🔥 HOT</div>':''}
+            ${db.creatorResponse?'<div class="dcht-badge creator">✍ CREATOR RESPONDED</div>':''}
+          </div>
+          <div class="dcht-voters">${db.totalVoters.toLocaleString()} CITIZENS VOTED</div>
+        </div>
+        <div class="dch-question">${db.question}</div>
+        <div class="dch-context">${db.context}</div>
+      </div>
+      <div class="dc-vote">
+        <div class="dcvb-pcts">
+          <div class="dcvb-yes-pct">${yPct}% YES</div>
+          <div class="dcvb-mid">${db.totalVoters.toLocaleString()} votes</div>
+          <div class="dcvb-no-pct">${nPct}% NO</div>
+        </div>
+        <div class="dcvb-bars" style="width:100%;">
+          <div class="dcvb-yes" style="width:${yPct*.7}%;"></div>
+          <div style="flex:1;height:8px;background:rgba(240,236,228,.03);"></div>
+          <div class="dcvb-no" style="width:${nPct*.7}%;"></div>
+        </div>
+        ${!isResolved?`<div class="dcv-btns" style="margin-top:10px;">
+          <button class="dcvb-btn dcvb-yes-btn${voted==='yes'?' voted':''}" onclick="voteDebate(this,'${db.question}','yes')">✓ YES — IT HAPPENED</button>
+          <button class="dcvb-btn dcvb-no-btn${voted==='no'?' voted':''}" onclick="voteDebate(this,'${db.question}','no')">✗ NO — IT DIDN'T</button>
+        </div>`:''}
+      </div>
+      ${db.creatorResponse?`<div class="dc-creator-response"><div class="dccr-label">CREATOR RESPONSE — ${db.creatorResponse.creator.toUpperCase()}</div><div class="dccr-text">"${db.creatorResponse.text}"</div></div>`:''}
+      ${isResolved&&db.resolution?`<div class="dc-verdict"><div class="dcv-label">◈ COMMUNITY VERDICT</div><div class="dcv-result"><div class="dcvr-icon">${db.resolution.verdict==='CONFIRMED'?'✓':'✗'}</div><div class="dcvr-text">${db.resolution.text}</div><div class="dcvr-pct" style="color:${db.resolution.color};">${db.resolution.pct}%</div></div></div>`:''}`;
+    list.appendChild(d);
+  });
+  // sidebar
+  const mvs=document.getElementById('my-votes-sidebar');
+  if(!mvs.children.length){
+    mvs.innerHTML=`<div style="font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(240,236,228,.28);line-height:1.65;">You've voted on 8 debates. 3 have been resolved: 2 aligned with your vote, 1 didn't.</div>`;
+  }
+  const crs=document.getElementById('creator-responses-sidebar');
+  if(!crs.children.length){
+    DEBATES.filter(d=>d.creatorResponse).forEach(d=>{
+      const el=document.createElement('div');
+      el.className='bs-item';
+      el.innerHTML=`<div style="font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold2);margin-bottom:2px;">✍ ${d.creatorResponse.creator.toUpperCase()}</div><div style="font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(240,236,228,.5);line-height:1.5;">"${d.creatorResponse.text.slice(0,70)}…"</div>`;
+      crs.appendChild(el);
+    });
+  }
+  addHoverFX();initScrollReveal();
+}
+
+function voteDebate(btn,question,vote){
+  votedDebates[question]=vote;
+  const card=btn.closest('.debate-card');
+  card.querySelectorAll('.dcvb-btn').forEach(b=>{b.classList.remove('voted');});
+  btn.classList.add('voted');
+  btn.textContent=vote==='yes'?'✓ YOU VOTED YES':'✗ YOU VOTED NO';
+}
+
+// ── THEORIES ─────────────────────────────────
+function renderTheories(){
+  const list=document.getElementById('theories-list');
+  if(list.children.length)return;
+  THEORIES.forEach(t=>{
+    const d=document.createElement('div');
+    d.className=`theory-card fade-up ${t.status}`;
+    d.innerHTML=`
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${t.color};"></div>
+      <div class="tc-body">
+        <div class="tc-top">
+          <div class="tc-verdict ${t.status}">${t.status==='pending'?'⬡ PENDING RESOLUTION':t.status==='confirmed'?'✓ CONFIRMED':'✗ DEBUNKED'}</div>
+          <div class="tc-support" style="color:${t.status==='debunked'?'var(--canon-no)':t.status==='confirmed'?'var(--canon-yes)':'rgba(240,236,228,.3)'};">${t.support.toLocaleString()} SUPPORT · ${t.oppose.toLocaleString()} DOUBT</div>
+        </div>
+        <div class="tc-title" style="color:rgba(240,236,228,${t.status==='debunked'?.5:.88});">${t.title}</div>
+        <div class="tc-because">Because: ${t.because}</div>
+        <div class="tc-evidence">
+          ${t.evidence.map(e=>`<div class="tce-item"><div class="tce-ref">${e.ref}</div><div class="tce-fact">${e.fact}</div></div>`).join('')}
+        </div>
+        ${t.resolution?`<div class="tc-resolution${t.status==='debunked'?' debunked-box':''}"><div class="tcres-label" style="color:${t.status==='confirmed'?'var(--canon-yes)':'var(--canon-no)'};">◈ ${t.status==='confirmed'?'THEORY CONFIRMED':'THEORY DEBUNKED'}</div><div class="tcres-text">"${t.resolution.text}"</div></div>`:''}
+      </div>
+      <div class="tc-vote-row">
+        <div class="tcvr-label">Do you support this theory?</div>
+        <button class="tcvr-up" onclick="this.classList.toggle('on')">▲ ${t.support.toLocaleString()}</button>
+        <button class="tcvr-down" onclick="this.classList.toggle('on')">▼ ${t.oppose.toLocaleString()}</button>
+      </div>`;
+    list.appendChild(d);
+  });
+  // leaderboard sidebar
+  const tl=document.getElementById('theory-leaderboard');
+  if(!tl.children.length){
+    [['BloodlineTrue','4 confirmed theories','#CC2830'],['FrequencyMapper','3 confirmed, 1 debunked','#18A860'],['DynastyChronicles','2 confirmed, 0 debunked','#CC2830'],['SignalListener','1 confirmed, 2 pending','#18A860']].forEach(([n,s,c])=>{
+      const d=document.createElement('div');
+      d.className='bs-item';
+      d.innerHTML=`<div style="font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:${c};margin-bottom:2px;">${s}</div><div class="bsi-name">${n}</div>`;
+      tl.appendChild(d);
+    });
+  }
+  addHoverFX();initScrollReveal();
+}
+
+// ── DISPATCHES ───────────────────────────────
+function renderDispatches(){
+  const list=document.getElementById('dispatches-list');
+  if(list.children.length)return;
+  DISPATCHES.forEach(dp=>{
+    const fac=FACTIONS.find(f=>f.id===dp.facId)||FACTIONS[0];
+    const d=document.createElement('div');
+    d.className='dispatch-card fade-up';
+    d.style.position='relative';
+    d.innerHTML=`
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${fac.color};"></div>
+      <div class="dpc-masthead">
+        <div class="dpcm-top"><div class="dpcmt-pub" style="color:${fac.color2};">${dp.pub}</div><div class="dpcmt-date">${dp.date}</div></div>
+        <div class="dpcm-byline">FILED BY <span class="dpcmb-author" style="color:${fac.color2};">${dp.author}</span> <div class="dpcmb-faction" style="border-color:${fac.color}40;color:${fac.color2};">${fac.name}</div></div>
+      </div>
+      <div class="dpc-article">
+        <div class="dpca-kicker" style="color:${fac.color2};">${dp.kicker}</div>
+        <div class="dpca-headline">${dp.headline}</div>
+        <div class="dpca-deck">${dp.deck}</div>
+        <div class="dpca-body">${dp.body}</div>
+      </div>
+      <div class="dpc-meta">
+        <div class="dpcm-tags">${dp.tags.map(t=>`<div class="dpcmt-tag">${t}</div>`).join('')}</div>
+        ${dp.featured?`<div class="dpcm-featured">◉ FEATURED</div>`:''}
+        ${dp.citations>0?`<div style="font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold2);border:1px solid rgba(200,144,12,.2);padding:2px 7px;">✍ CITED BY ${dp.citations} CREATOR${dp.citations>1?'S':''}</div>`:''}
+      </div>`;
+    list.appendChild(d);
+  });
+  const fd=document.getElementById('featured-dispatches');
+  if(!fd.children.length){fd.innerHTML=`<div style="font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(240,236,228,.28);line-height:1.65;">2 dispatches currently featured on the Ironbell City World page. Yours could be next — file a dispatch that changes the conversation.</div>`;}
+  addHoverFX();initScrollReveal();
+}
+
+// ── LIVE EVENT ───────────────────────────────
+function renderEvent(){
+  const opts=document.getElementById('event-options');
+  if(!opts.children.length){
+    const total=EVENT_OPTIONS.reduce((s,o)=>s+o.votes,0);
+    EVENT_OPTIONS.forEach(o=>{
+      const d=document.createElement('div');
+      d.className='emcco-btn'+(o.pct===44?' leading':'');
+      d.innerHTML=`<div class="emcco-fill" style="width:${o.pct}%;background:${o.color}30;"></div><div class="emcco-content"><div class="emccoc-option">${o.label}</div><span class="emccoc-pct" style="color:${o.color};">${o.pct}%</span><div class="emccoc-votes">${o.votes.toLocaleString()} votes</div></div>`;
+      d.onclick=()=>{if(votedEvent)return;votedEvent=o;document.querySelectorAll('.emcco-btn').forEach(b=>b.classList.remove('voted'));d.classList.add('voted');document.getElementById('event-consequence').textContent=`→ You voted: "${o.label.slice(0,40)}…" Your vote has been recorded.`;};
+      opts.appendChild(d);
+    });
+  }
+  // Signal feed
+  const feed=document.getElementById('es-feed');
+  if(!feed.children.length){
+    SIGNAL_FEED.forEach((item,i)=>{
+      const d=document.createElement('div');
+      d.className='esf-item';
+      d.style.animationDelay=(i*.06)+'s';
+      d.innerHTML=`
+        <div class="esfi-header">
+          <div class="esfih-avatar" style="border-color:${item.fColor}40;background:${item.fColor}12;">${item.avatar}</div>
+          <div class="esfih-name" style="color:${item.fColor};">${item.user}</div>
+          <div class="esfih-time">${item.time}</div>
+        </div>
+        <div class="esfi-text">${item.text}</div>
+        <div class="esfi-vote" style="border-color:${item.fColor}40;color:${item.fColor};">${item.vote}</div>`;
+      feed.appendChild(d);
+    });
+  }
+  // Countdown
+  if(!timerInterval){
+    timerInterval=setInterval(()=>{
+      timerVal--;
+      if(timerVal<0){clearInterval(timerInterval);timerVal=0;}
+      const m=Math.floor(timerVal/60),s=timerVal%60;
+      const el=document.getElementById('event-time');
+      if(el)el.textContent=m+':'+(s<10?'0':'')+s;
+      const circle=document.getElementById('countdown-circle');
+      if(circle){
+        const maxDash=214,elapsed=(14*60+32-timerVal)/(14*60+32);
+        circle.setAttribute('stroke-dashoffset',maxDash*elapsed);
+      }
+    },1000);
+  }
+  addHoverFX();
+}
+
+// ── UTILS ────────────────────────────────────
+function hexToRgb(hex){try{const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);return r?`${parseInt(r[1],16)},${parseInt(r[2],16)},${parseInt(r[3],16)}`:'0,0,0';}catch(e){return'0,0,0';}}
+function bigCur(){cur.style.width='12px';cur.style.height='12px';cur2.style.width='42px';cur2.style.height='42px';}
+function normCur(){cur.style.width='8px';cur.style.height='8px';cur2.style.width='32px';cur2.style.height='32px';}
+function addHoverFX(){
+  document.querySelectorAll('button,.ff-item,.quote-card,.debate-card,.theory-card,.dispatch-card,.fo-card,.emcco-btn,.bs-item,.upcoming-node').forEach(el=>{
+    if(!el._hb){el.addEventListener('mouseenter',bigCur);el.addEventListener('mouseleave',normCur);el._hb=true;}
+  });
+}
+function initScrollReveal(){
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.04});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+}
+
+// ── INIT ────────────────────────────────────
+renderFactionOnboard();
+addHoverFX();
+</script>
+</body>
+</html>

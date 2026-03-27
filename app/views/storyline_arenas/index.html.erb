@@ -1,0 +1,16 @@
+<p style="color: green"><%= notice %></p>
+
+<% content_for :title, "Storyline arenas" %>
+
+<h1>Storyline arenas</h1>
+
+<div id="storyline_arenas">
+  <% @storyline_arenas.each do |storyline_arena| %>
+    <%= render storyline_arena %>
+    <p>
+      <%= link_to "Show this storyline arena", storyline_arena %>
+    </p>
+  <% end %>
+</div>
+
+<%= link_to "New storyline arena", new_storyline_arena_path %>

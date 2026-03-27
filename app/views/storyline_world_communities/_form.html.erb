@@ -1,0 +1,17 @@
+<%= form_with(model: storyline_world_community) do |form| %>
+  <% if storyline_world_community.errors.any? %>
+    <div style="color: red">
+      <h2><%= pluralize(storyline_world_community.errors.count, "error") %> prohibited this storyline_world_community from being saved:</h2>
+
+      <ul>
+        <% storyline_world_community.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.submit %>
+  </div>
+<% end %>

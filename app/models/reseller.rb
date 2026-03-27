@@ -1,0 +1,2 @@
+class Reseller < ApplicationRecord
+end

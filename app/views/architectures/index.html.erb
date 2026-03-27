@@ -1,0 +1,16 @@
+<p style="color: green"><%= notice %></p>
+
+<% content_for :title, "Architectures" %>
+
+<h1>Architectures</h1>
+
+<div id="architectures">
+  <% @architectures.each do |architecture| %>
+    <%= render architecture %>
+    <p>
+      <%= link_to "Show this architecture", architecture %>
+    </p>
+  <% end %>
+</div>
+
+<%= link_to "New architecture", new_architecture_path %>

@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STORYLINE — World Forge</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  --void:#030208;--deep:#06050E;--mid:#0A0818;--panel:#0F0C1C;--card:#131020;--lift:#181428;
+  --white:#F0ECE4;--off:#C0B8B0;--muted:#5A5468;--dim:#1C1830;
+  --world:#D04820;--world2:#F06030;--world3:#FF8050;
+  --gold:#C8980C;--gold2:#E0B020;--gold3:#F8C838;
+  --fac-a:#CC2830;--fac-b:#2858C8;--fac-c:#18A860;--fac-d:#9820C8;
+  --canon:#28C088;--canon2:#40E0A0;
+  --fb:'Bebas Neue',sans-serif;
+  --fg:'EB Garamond',serif;
+  --fc:'Barlow Condensed',sans-serif;
+  --fp:'Playfair Display',serif;
+  --fm:'Space Mono',monospace;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--void);color:var(--white);font-family:var(--fg);overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");background-size:200px;pointer-events:none;z-index:0;opacity:.8;}
+
+#cur{width:8px;height:8px;background:var(--world2);position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);border-radius:50%;box-shadow:0 0 16px var(--world);transition:all .15s;}
+#cur2{width:32px;height:32px;border:1px solid rgba(240,96,48,.2);border-radius:50%;position:fixed;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);transition:left .1s cubic-bezier(.16,1,.3,1),top .1s,width .2s,height .2s;}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-6px) rotate(.5deg)}}
+@keyframes pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.02)}}
+@keyframes scanLine{from{top:-5%}to{top:105%}}
+@keyframes mapPulse{0%,100%{box-shadow:0 0 0 0 var(--world)}60%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@keyframes shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes timelineIn{from{opacity:0;transform:scaleX(0)}to{opacity:1;transform:scaleX(1)}}
+.fade-up{opacity:0;transform:translateY(22px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);}
+.fade-up.vis{opacity:1;transform:none;}
+
+/* VIEWS */
+.view{display:none;}
+.view.active{display:block;}
+
+/* ═══════════════════════════════════════════
+   TOPNAV
+═══════════════════════════════════════════ */
+.topnav{position:fixed;top:0;left:0;right:0;z-index:400;height:56px;background:rgba(3,2,8,.97);border-bottom:1px solid rgba(240,96,48,.08);display:flex;align-items:center;justify-content:space-between;padding:0 28px;}
+.topnav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(240,96,48,.35),rgba(240,96,48,.55),rgba(240,96,48,.35),transparent);}
+.tn-left{display:flex;align-items:center;gap:14px;}
+.tn-logo{font-family:var(--fb);font-size:20px;letter-spacing:.14em;cursor:pointer;color:var(--white);}
+.tn-logo span{color:var(--world2);}
+.tn-sep{width:1px;height:18px;background:rgba(240,96,48,.12);}
+.tn-world{display:flex;align-items:center;gap:7px;}
+.tnw-icon{font-size:14px;}
+.tnw-name{font-family:var(--fb);font-size:15px;letter-spacing:.08em;color:var(--world2);}
+.tnw-status{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:rgba(240,96,48,.55);border:1px solid rgba(240,96,48,.2);padding:2px 7px;}
+.tn-tabs{display:flex;gap:0;}
+.tn-tab{font-family:var(--fm);font-size:7px;letter-spacing:.16em;text-transform:uppercase;color:rgba(240,236,228,.3);padding:0 16px;height:56px;display:flex;align-items:center;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.tn-tab:hover{color:rgba(240,236,228,.7);}
+.tn-tab.on{color:var(--white);border-bottom-color:var(--world2);}
+.tn-right{display:flex;align-items:center;gap:8px;}
+.tn-btn{font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:7px 16px;cursor:pointer;transition:all .2s;background:transparent;}
+.tn-btn.outline{border-color:rgba(240,236,228,.12);color:rgba(240,236,228,.38);}
+.tn-btn.outline:hover{border-color:rgba(240,236,228,.3);color:rgba(240,236,228,.7);}
+.tn-btn.primary{border-color:var(--world);color:var(--world2);background:rgba(208,72,32,.08);}
+.tn-btn.primary:hover{background:rgba(208,72,32,.16);}
+.tn-collab{display:flex;align-items:center;gap:-2px;}
+.tnc-avatar{width:24px;height:24px;border-radius:50%;border:2px solid var(--void);display:flex;align-items:center;justify-content:center;font-size:10px;margin-left:-4px;transition:transform .2s;}
+.tnc-avatar:hover{transform:scale(1.2);z-index:5;}
+.tnc-avatar:first-child{margin-left:0;}
+
+/* ═══════════════════════════════════════════
+   VIEW 1: THE WORLD MAP
+═══════════════════════════════════════════ */
+#view-map{padding-top:56px;}
+.map-layout{display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 56px);}
+/* map canvas */
+.map-canvas{position:relative;overflow:hidden;background:var(--mid);}
+/* atmospheric background */
+.mc-atmosphere{position:absolute;inset:0;background:radial-gradient(ellipse at 40% 45%,rgba(208,72,32,.08) 0%,rgba(40,30,60,.3) 50%,rgba(3,2,8,.9) 100%);}
+/* map grid */
+.mc-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(240,236,228,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(240,236,228,.018) 1px,transparent 1px);background-size:48px 48px;}
+/* map districts — SVG territories */
+.mc-svg{position:absolute;inset:0;}
+/* location pins */
+.map-pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer;transition:transform .2s;}
+.map-pin:hover{transform:translate(-50%,-100%) scale(1.15);}
+.mp-dot{width:12px;height:12px;border-radius:50%;border:2px solid;margin:0 auto;position:relative;z-index:1;}
+.mp-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid;opacity:.3;animation:mapPulse 2s infinite;}
+.mp-stem{width:2px;height:14px;margin:0 auto;background:linear-gradient(to bottom,rgba(240,236,228,.4),transparent);}
+.mp-label{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;text-align:center;white-space:nowrap;margin-top:3px;padding:2px 6px;background:rgba(3,2,8,.8);}
+/* map controls */
+.map-controls{position:absolute;top:16px;left:16px;z-index:10;display:flex;flex-direction:column;gap:3px;}
+.mc-btn{width:32px;height:32px;background:rgba(3,2,8,.85);border:1px solid rgba(240,236,228,.1);color:rgba(240,236,228,.5);font-family:var(--fb);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.mc-btn:hover{border-color:var(--world);color:var(--world2);}
+/* layer toggles */
+.map-layers{position:absolute;top:16px;right:16px;z-index:10;display:flex;flex-direction:column;gap:4px;}
+.ml-item{display:flex;align-items:center;gap:7px;padding:5px 10px;background:rgba(3,2,8,.85);border:1px solid rgba(240,236,228,.08);cursor:pointer;transition:all .2s;}
+.ml-item.on{border-color:rgba(240,236,228,.2);}
+.ml-dot{width:8px;height:8px;border-radius:50%;}
+.ml-label{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:rgba(240,236,228,.45);}
+/* map sidebar */
+.map-sidebar{background:rgba(6,5,14,.98);border-left:1px solid rgba(240,96,48,.07);overflow-y:auto;display:flex;flex-direction:column;}
+.map-sidebar::-webkit-scrollbar{width:0;}
+.ms-location-card{border-bottom:1px solid rgba(240,96,48,.07);}
+.mslc-header{padding:14px 16px;cursor:pointer;transition:background .15s;}
+.mslc-header:hover{background:rgba(240,96,48,.04);}
+.mslch-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;}
+.mslcht-name{font-family:var(--fb);font-size:16px;letter-spacing:.07em;}
+.mslcht-type{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;border:1px solid;padding:2px 6px;}
+.mslch-desc{font-family:var(--fg);font-style:italic;font-size:11px;color:rgba(240,236,228,.42);line-height:1.6;}
+.mslc-stories{padding:0 16px 12px;display:flex;flex-wrap:wrap;gap:4px;}
+.mslcs-tag{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(240,96,48,.2);padding:2px 7px;color:rgba(208,72,32,.7);}
+/* selected location detail */
+.ms-detail{padding:14px 16px;flex:1;}
+.msd-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--world2);margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+.msd-label::before{content:'◈';}
+.msd-name{font-family:var(--fb);font-size:26px;letter-spacing:.06em;margin-bottom:4px;}
+.msd-lore{font-family:var(--fg);font-style:italic;font-size:13px;color:rgba(240,236,228,.55);line-height:1.8;margin-bottom:14px;}
+.msd-appears{margin-bottom:12px;}
+.msda-label{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.msda-item{display:flex;gap:7px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(240,236,228,.04);}
+.msda-item:last-child{border-bottom:none;}
+.msdai-ep{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);min-width:60px;}
+.msdai-title{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(240,236,228,.6);}
+.msd-faction{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.msdf-label{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);width:100%;margin-bottom:2px;}
+.msdf-tag{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:3px 9px;}
+
+/* ═══════════════════════════════════════════
+   VIEW 2: WORLD BIBLE
+═══════════════════════════════════════════ */
+#view-bible{padding-top:56px;}
+.bible-layout{display:grid;grid-template-columns:220px 1fr 260px;min-height:calc(100vh - 56px);}
+/* bible nav */
+.bible-nav{background:rgba(6,5,14,.98);border-right:1px solid rgba(240,96,48,.07);overflow-y:auto;padding:14px 0;}
+.bible-nav::-webkit-scrollbar{width:0;}
+.bn-section{padding:8px 0 4px;}
+.bn-hdr{font-family:var(--fm);font-size:6px;letter-spacing:.24em;text-transform:uppercase;color:rgba(90,84,104,.9);padding:0 14px;margin-bottom:5px;}
+.bn-item{display:flex;align-items:center;gap:7px;padding:7px 12px;border-left:2px solid transparent;cursor:pointer;transition:all .15s;}
+.bn-item:hover{background:rgba(240,96,48,.04);}
+.bn-item.on{background:rgba(240,96,48,.06);border-left-color:var(--world2);}
+.bn-item.on .bn-label{color:var(--world2);}
+.bn-icon{font-size:12px;flex-shrink:0;}
+.bn-label{font-family:var(--fg);font-size:12px;color:rgba(240,236,228,.42);}
+.bn-count{font-family:var(--fm);font-size:6px;font-weight:700;color:rgba(240,236,228,.2);}
+.bn-divider{height:1px;background:rgba(240,96,48,.05);margin:6px 0;}
+/* bible main */
+.bible-main{padding:28px 36px;overflow-y:auto;}
+.bible-main::-webkit-scrollbar{width:3px;}
+.bible-main::-webkit-scrollbar-thumb{background:rgba(240,96,48,.15);}
+/* lore entry */
+.lore-hdr{margin-bottom:24px;}
+.lh-category{font-family:var(--fm);font-size:7px;letter-spacing:.26em;text-transform:uppercase;color:var(--world2);margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+.lh-category::before{content:'◈';}
+.lh-title{font-family:var(--fb);font-size:clamp(36px,5vw,68px);letter-spacing:.05em;line-height:.88;margin-bottom:8px;}
+.lh-canon-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(40,192,136,.08);border:1px solid rgba(40,192,136,.25);padding:4px 12px;margin-bottom:10px;}
+.lhcb-dot{width:5px;height:5px;border-radius:50%;background:var(--canon);animation:blink .9s infinite;}
+.lhcb-text{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--canon2);}
+.lh-summary{font-family:var(--fg);font-size:clamp(15px,1.6vw,18px);color:rgba(240,236,228,.68);line-height:2;margin-bottom:16px;}
+/* lore sections */
+.lore-section{margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid rgba(240,236,228,.05);}
+.lore-section:last-child{border-bottom:none;}
+.ls-title{font-family:var(--fc);font-size:18px;font-weight:800;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.ls-title::before{content:'';display:block;width:3px;height:17px;background:var(--world2);}
+.ls-text{font-family:var(--fg);font-size:clamp(13px,1.35vw,15px);color:rgba(240,236,228,.55);line-height:2;}
+.ls-text em{color:var(--world3);font-style:italic;}
+.ls-text strong{color:rgba(240,236,228,.8);font-style:normal;font-weight:600;}
+/* disputed badge */
+.disputed{background:rgba(200,144,12,.06);border:1px solid rgba(200,144,12,.2);padding:10px 14px;display:flex;gap:9px;align-items:flex-start;margin:12px 0;}
+.dis-icon{font-size:14px;flex-shrink:0;}
+.dis-body{}
+.disb-label{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold2);margin-bottom:3px;}
+.disb-text{font-family:var(--fg);font-style:italic;font-size:12px;color:rgba(240,236,228,.45);line-height:1.6;}
+/* appearances table */
+.appearances-table{width:100%;}
+.at-head{display:grid;grid-template-columns:1fr 1.5fr 1fr 1fr;gap:8px;padding:6px 0;border-bottom:1px solid rgba(240,96,48,.12);}
+.at-th{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+.at-row{display:grid;grid-template-columns:1fr 1.5fr 1fr 1fr;gap:8px;padding:7px 0;border-bottom:1px solid rgba(240,236,228,.04);align-items:center;cursor:pointer;transition:background .15s;}
+.at-row:hover{background:rgba(240,96,48,.03);}
+.at-cell{font-family:var(--fg);font-size:12px;color:rgba(240,236,228,.5);}
+.at-cell.strong{color:rgba(240,236,228,.8);font-weight:600;}
+.at-cell.ep{font-family:var(--fm);font-size:7px;letter-spacing:.06em;color:var(--muted);}
+.at-canon{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:1px 5px;}
+.at-canon.confirmed{border-color:rgba(40,192,136,.3);color:var(--canon);}
+.at-canon.disputed{border-color:rgba(200,144,12,.3);color:var(--gold2);}
+/* bible sidebar */
+.bible-sidebar{background:rgba(6,5,14,.98);border-left:1px solid rgba(240,96,48,.07);padding:14px;overflow-y:auto;}
+.bible-sidebar::-webkit-scrollbar{width:0;}
+.bs-section{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(240,96,48,.06);}
+.bs-section:last-child{border-bottom:none;}
+.bss-title{font-family:var(--fm);font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:5px;}
+.bss-title::before{content:'◈';color:var(--world2);}
+.bs-item{padding:7px 9px;background:var(--panel);border:1px solid rgba(240,236,228,.04);margin-bottom:3px;cursor:pointer;transition:all .18s;}
+.bs-item:hover{border-color:rgba(240,96,48,.2);}
+.bsi-label{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.bsi-name{font-family:var(--fg);font-size:13px;font-style:italic;color:rgba(240,236,228,.65);}
+/* edit controls */
+.bs-edit-btn{display:block;width:100%;font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(240,96,48,.22);color:var(--world2);background:rgba(208,72,32,.06);padding:10px;cursor:pointer;transition:all .2s;text-align:center;margin-bottom:5px;}
+.bs-edit-btn:hover{background:rgba(208,72,32,.12);}
+
+/* ═══════════════════════════════════════════
+   VIEW 3: CHARACTER NETWORK
+═══════════════════════════════════════════ */
+#view-characters{padding-top:56px;}
+.char-layout{display:grid;grid-template-columns:1fr 320px;min-height:calc(100vh - 56px);}
+/* character network visualization */
+.char-network{background:var(--mid);position:relative;overflow:hidden;}
+.cn-title{position:absolute;top:20px;left:20px;z-index:5;}
+.cnt-label{font-family:var(--fm);font-size:6px;letter-spacing:.24em;text-transform:uppercase;color:var(--world2);margin-bottom:4px;}
+.cnt-name{font-family:var(--fb);font-size:22px;letter-spacing:.07em;}
+/* character nodes — CSS only */
+.cn-canvas{position:absolute;inset:0;}
+.cn-svg{position:absolute;inset:0;}
+/* character node */
+.char-node{position:absolute;cursor:pointer;transform:translate(-50%,-50%);transition:transform .2s;}
+.char-node:hover,.char-node.selected{transform:translate(-50%,-50%) scale(1.12);}
+.chn-ring{border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;background:rgba(3,2,8,.6);transition:all .2s;}
+.char-node.selected .chn-ring,.char-node:hover .chn-ring{border-width:3px;box-shadow:0 0 24px rgba(208,72,32,.4);}
+.chn-name{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;text-align:center;margin-top:5px;white-space:nowrap;}
+.chn-role{font-family:var(--fm);font-size:5px;letter-spacing:.06em;text-transform:uppercase;text-align:center;color:var(--muted);white-space:nowrap;}
+/* char filter bar */
+.char-filters{position:absolute;bottom:20px;left:20px;z-index:5;display:flex;gap:5px;}
+.cf-btn{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;border:1px solid rgba(240,236,228,.1);background:rgba(3,2,8,.8);color:rgba(240,236,228,.35);padding:5px 11px;cursor:pointer;transition:all .2s;}
+.cf-btn.on{border-color:var(--world);color:var(--world2);background:rgba(208,72,32,.1);}
+/* char sidebar */
+.char-sidebar{background:rgba(6,5,14,.98);border-left:1px solid rgba(240,96,48,.07);overflow-y:auto;padding:0;}
+.char-sidebar::-webkit-scrollbar{width:0;}
+/* character card */
+.char-card{padding:20px 18px;border-bottom:1px solid rgba(240,96,48,.07);}
+.cc-header{display:flex;gap:14px;align-items:flex-start;margin-bottom:12px;}
+.cch-avatar{width:56px;height:56px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.cch-info{}
+.cchi-name{font-family:var(--fb);font-size:20px;letter-spacing:.07em;line-height:1;margin-bottom:3px;}
+.cchi-role{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:3px;}
+.cchi-faction{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:2px 7px;display:inline-block;}
+.cc-desc{font-family:var(--fg);font-style:italic;font-size:13px;color:rgba(240,236,228,.5);line-height:1.75;margin-bottom:12px;}
+/* appearances */
+.cc-appearances{margin-bottom:12px;}
+.cca-label{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+.cca-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(240,236,228,.04);}
+.cca-item:last-child{border-bottom:none;}
+.ccai-project{font-family:var(--fg);font-size:12px;font-style:italic;color:rgba(240,236,228,.55);}
+.ccai-eps{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+/* relationships */
+.cc-rels{margin-bottom:12px;}
+.ccr-label{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+.ccr-item{display:flex;gap:9px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(240,236,228,.04);}
+.ccr-item:last-child{border-bottom:none;}
+.ccri-avatar{width:22px;height:22px;border-radius:50%;border:1px solid rgba(240,236,228,.15);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+.ccri-name{font-family:var(--fg);font-size:12px;flex:1;}
+.ccri-rel{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+
+/* ═══════════════════════════════════════════
+   VIEW 4: CANON TIMELINE
+═══════════════════════════════════════════ */
+#view-timeline{padding-top:56px;padding-bottom:60px;}
+.timeline-wrap{padding:36px 48px;}
+.tl-header{text-align:center;margin-bottom:36px;}
+.tlh-title{font-family:var(--fb);font-size:clamp(36px,7vw,88px);letter-spacing:.06em;line-height:.86;margin-bottom:8px;}
+.tlh-sub{font-family:var(--fg);font-style:italic;font-size:clamp(13px,1.4vw,16px);color:rgba(240,236,228,.38);max-width:560px;margin:0 auto;line-height:2;}
+/* project filter */
+.tl-filters{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:32px;}
+.tlf-pill{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(240,236,228,.1);background:rgba(240,236,228,.03);color:rgba(240,236,228,.35);padding:6px 14px;cursor:pointer;transition:all .18s;}
+.tlf-pill.on{border-color:var(--world);color:var(--world2);background:rgba(208,72,32,.08);}
+/* the timeline axis */
+.timeline-axis{position:relative;margin-bottom:20px;}
+.ta-track{height:3px;background:linear-gradient(to right,transparent,rgba(240,96,48,.3),rgba(240,96,48,.6),rgba(240,96,48,.3),transparent);margin-bottom:0;position:relative;}
+.ta-year-markers{display:flex;justify-content:space-between;padding:0 40px;}
+.ta-year{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+/* event rows per project */
+.tl-rows{position:relative;}
+.tl-row{display:flex;align-items:center;gap:0;margin-bottom:4px;position:relative;}
+.tlr-label{width:140px;flex-shrink:0;text-align:right;padding-right:16px;}
+.tlrl-name{font-family:var(--fm);font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:rgba(240,236,228,.5);}
+.tlrl-format{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.tlr-track{flex:1;height:36px;position:relative;border-top:1px solid rgba(240,236,228,.04);}
+/* event marker */
+.tl-event{position:absolute;top:50%;transform:translateY(-50%);cursor:pointer;}
+.tle-dot{width:10px;height:10px;border-radius:50%;border:2px solid;background:var(--void);transform:translateX(-50%);position:relative;transition:transform .2s;}
+.tl-event:hover .tle-dot{transform:translateX(-50%) scale(1.4);}
+.tle-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid;opacity:.3;}
+.tle-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(3,2,8,.95);border:1px solid rgba(240,96,48,.2);padding:7px 10px;white-space:nowrap;z-index:10;pointer-events:none;opacity:0;transition:opacity .18s;min-width:160px;}
+.tl-event:hover .tle-tooltip{opacity:1;}
+.tlet-project{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:var(--world2);margin-bottom:2px;}
+.tlet-title{font-family:var(--fg);font-size:12px;font-style:italic;}
+.tlet-type{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+/* crossover moment */
+.tl-crossover-marker{position:absolute;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);opacity:.5;pointer-events:none;}
+.tl-crossover-label{position:absolute;top:-22px;transform:translateX(-50%);font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold2);background:rgba(3,2,8,.9);padding:2px 6px;white-space:nowrap;}
+
+/* ═══════════════════════════════════════════
+   VIEW 5: FACTION MAP
+═══════════════════════════════════════════ */
+#view-factions{padding-top:56px;}
+.factions-wrap{padding:36px 48px;}
+.factions-hdr{text-align:center;margin-bottom:32px;}
+.fh-title{font-family:var(--fb);font-size:clamp(36px,7vw,88px);letter-spacing:.06em;line-height:.86;margin-bottom:8px;}
+.fh-sub{font-family:var(--fg);font-style:italic;font-size:clamp(13px,1.4vw,16px);color:rgba(240,236,228,.38);max-width:520px;margin:0 auto;line-height:2;}
+/* faction cards grid */
+.factions-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin-bottom:28px;}
+@media(max-width:900px){.factions-grid{grid-template-columns:1fr;}}
+.faction-card{background:var(--panel);border:1px solid rgba(240,236,228,.06);padding:28px 26px;position:relative;overflow:hidden;cursor:pointer;transition:all .28s;}
+.faction-card:hover{border-color:rgba(240,236,228,.18);transform:translateY(-2px);}
+.faction-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+/* bg pattern */
+.faction-card::after{content:'';position:absolute;inset:0;opacity:.04;background-image:repeating-linear-gradient(45deg,currentColor 0,currentColor 1px,transparent 1px,transparent 12px);}
+.fc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+.fc-seal{font-size:36px;position:relative;z-index:1;}
+.fc-strength{position:relative;z-index:1;text-align:right;}
+.fcs-val{font-family:var(--fb);font-size:28px;letter-spacing:.04em;display:block;line-height:1;}
+.fcs-lbl{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.fc-name{font-family:var(--fb);font-size:clamp(24px,4vw,40px);letter-spacing:.06em;line-height:1;margin-bottom:4px;position:relative;z-index:1;}
+.fc-motto{font-family:var(--fg);font-style:italic;font-size:14px;color:rgba(240,236,228,.45);margin-bottom:12px;position:relative;z-index:1;}
+.fc-desc{font-family:var(--fg);font-size:12px;color:rgba(240,236,228,.4);line-height:1.7;margin-bottom:14px;position:relative;z-index:1;}
+.fc-territory{position:relative;z-index:1;margin-bottom:10px;}
+.fct-label{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.fct-districts{display:flex;flex-wrap:wrap;gap:4px;}
+.fctd{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:2px 7px;}
+.fc-appears-in{position:relative;z-index:1;}
+.fcai-label{font-family:var(--fm);font-size:5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.fcai-projects{display:flex;flex-wrap:wrap;gap:4px;}
+.fcaip{font-family:var(--fm);font-size:5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(240,96,48,.2);padding:2px 7px;color:rgba(208,72,32,.7);}
+.fc-join-btn{position:relative;z-index:1;display:inline-block;margin-top:12px;font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:8px 20px;cursor:pointer;background:transparent;transition:all .22s;}
+/* faction conflict map */
+.faction-conflict{background:var(--panel);border:1px solid rgba(240,236,228,.06);padding:24px;margin-bottom:28px;}
+.fc-conflict-title{font-family:var(--fc);font-size:20px;font-weight:800;letter-spacing:.07em;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.fc-conflict-title::before{content:'⚔';font-size:14px;}
+.conflict-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(240,236,228,.04);}
+.conflict-row:last-child{border-bottom:none;}
+.cr-fac-a,.cr-fac-b{font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;min-width:100px;}
+.cr-fac-b{text-align:right;}
+.cr-bar-wrap{flex:1;display:flex;align-items:center;gap:0;}
+.cr-bar-a,.cr-bar-b{height:8px;transition:width .8s ease;}
+.cr-center{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 8px;white-space:nowrap;}
+</style>
+</head>
+<body>
+<div id="cur"></div><div id="cur2"></div>
+
+<!-- TOPNAV -->
+<nav class="topnav">
+  <div class="tn-left">
+    <div class="tn-logo" onclick="location.reload()">STORY<span>LINE</span></div>
+    <div class="tn-sep"></div>
+    <div class="tn-world">
+      <span class="tnw-icon">🏙</span>
+      <span class="tnw-name">IRONBELL CITY</span>
+      <div class="tnw-status">WORLD FORGE</div>
+    </div>
+  </div>
+  <div class="tn-tabs">
+    <button class="tn-tab on" onclick="sw('map',this)">🗺 WORLD MAP</button>
+    <button class="tn-tab" onclick="sw('bible',this)">📜 WORLD BIBLE</button>
+    <button class="tn-tab" onclick="sw('characters',this)">👤 CHARACTERS</button>
+    <button class="tn-tab" onclick="sw('timeline',this)">⏱ CANON TIMELINE</button>
+    <button class="tn-tab" onclick="sw('factions',this)">⚔ FACTIONS</button>
+  </div>
+  <div class="tn-right">
+    <div class="tn-collab">
+      <div class="tnc-avatar" style="background:#CC2830;" title="Marcus Holloway">🧑</div>
+      <div class="tnc-avatar" style="background:#2858C8;" title="Rashida Chen">👩</div>
+      <div class="tnc-avatar" style="background:#18A860;" title="Devon Ross">🧔</div>
+      <div class="tnc-avatar" style="background:#9820C8;" title="Keisha Morgan">👱</div>
+    </div>
+    <button class="tn-btn outline">INVITE CREATOR</button>
+    <button class="tn-btn primary">+ ADD LORE</button>
+  </div>
+</nav>
+
+<!-- ════ VIEW: WORLD MAP ════ -->
+<div class="view active" id="view-map">
+  <div class="map-layout">
+    <div class="map-canvas">
+      <div class="mc-atmosphere"></div>
+      <div class="mc-grid"></div>
+      <!-- Districts SVG -->
+      <svg class="mc-svg" viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
+        <!-- Coldwater Docks district -->
+        <polygon points="60,380 180,340 220,440 160,520 60,500" fill="rgba(40,88,200,.12)" stroke="rgba(40,88,200,.25)" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <text x="110" y="440" fill="rgba(40,88,200,.4)" font-size="9" font-family="Space Mono" letter-spacing="2" text-anchor="middle">COLDWATER</text>
+        <!-- Heights District -->
+        <polygon points="300,60 520,40 580,180 440,220 280,180" fill="rgba(40,160,240,.1)" stroke="rgba(40,160,240,.2)" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <text x="420" y="130" fill="rgba(40,160,240,.4)" font-size="9" font-family="Space Mono" letter-spacing="2" text-anchor="middle">THE HEIGHTS</text>
+        <!-- Meridian Quarter -->
+        <polygon points="500,260 680,240 720,380 580,420 480,360" fill="rgba(32,192,160,.1)" stroke="rgba(32,192,160,.22)" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <text x="600" y="330" fill="rgba(32,192,160,.4)" font-size="9" font-family="Space Mono" letter-spacing="2" text-anchor="middle">MERIDIAN</text>
+        <!-- Old Quarter -->
+        <polygon points="200,200 380,180 400,320 260,360 180,300" fill="rgba(208,72,32,.1)" stroke="rgba(208,72,32,.22)" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <text x="290" y="275" fill="rgba(208,72,32,.45)" font-size="9" font-family="Space Mono" letter-spacing="2" text-anchor="middle">OLD QUARTER</text>
+        <!-- Rust Belt -->
+        <polygon points="80,200 200,180 220,320 100,350 60,270" fill="rgba(200,60,20,.08)" stroke="rgba(200,60,20,.18)" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <text x="145" y="270" fill="rgba(200,60,20,.4)" font-size="8" font-family="Space Mono" letter-spacing="1" text-anchor="middle">RUST BELT</text>
+        <!-- Connection roads -->
+        <line x1="200" y1="300" x2="400" y2="280" stroke="rgba(240,236,228,.06)" stroke-width="2"/>
+        <line x1="400" y1="280" x2="580" y2="320" stroke="rgba(240,236,228,.06)" stroke-width="2"/>
+        <line x1="290" y1="200" x2="420" y2="140" stroke="rgba(240,236,228,.06)" stroke-width="2"/>
+        <line x1="150" y1="380" x2="250" y2="340" stroke="rgba(240,236,228,.06)" stroke-width="2"/>
+      </svg>
+      <!-- Location pins -->
+      <div id="map-pins"></div>
+      <!-- Map controls -->
+      <div class="map-controls">
+        <button class="mc-btn" onclick="this.textContent='−'">+</button>
+        <button class="mc-btn">−</button>
+        <button class="mc-btn" style="font-size:10px;" onclick="this.style.color='var(--world2)'">⌖</button>
+      </div>
+      <!-- Layer toggles -->
+      <div class="map-layers" id="map-layers"></div>
+    </div>
+    <div class="map-sidebar">
+      <div id="location-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ VIEW: WORLD BIBLE ════ -->
+<div class="view" id="view-bible">
+  <div class="bible-layout">
+    <nav class="bible-nav" id="bible-nav"></nav>
+    <main class="bible-main" id="bible-main"></main>
+    <aside class="bible-sidebar" id="bible-sidebar"></aside>
+  </div>
+</div>
+
+<!-- ════ VIEW: CHARACTERS ════ -->
+<div class="view" id="view-characters">
+  <div class="char-layout">
+    <div class="char-network" id="char-network">
+      <div class="cn-title">
+        <div class="cnt-label">◈ CHARACTER NETWORK · IRONBELL CITY</div>
+        <div class="cnt-name">WHO KNOWS WHO</div>
+      </div>
+      <svg class="cn-svg" id="cn-svg"></svg>
+      <div class="cn-canvas" id="cn-canvas"></div>
+      <div class="char-filters">
+        <button class="cf-btn on" onclick="filterChars(this,'all')">ALL</button>
+        <button class="cf-btn" onclick="filterChars(this,'dynasty')">DYNASTY</button>
+        <button class="cf-btn" onclick="filterChars(this,'coldwater')">COLDWATER</button>
+        <button class="cf-btn" onclick="filterChars(this,'meridian')">MERIDIAN</button>
+        <button class="cf-btn" onclick="filterChars(this,'heights')">THE HEIGHTS</button>
+      </div>
+    </div>
+    <div class="char-sidebar" id="char-sidebar"></div>
+  </div>
+</div>
+
+<!-- ════ VIEW: CANON TIMELINE ════ -->
+<div class="view" id="view-timeline">
+  <div class="timeline-wrap">
+    <div class="tl-header fade-up">
+      <div class="tlh-title">THE COMPLETE<br>CANON TIMELINE</div>
+      <div class="tlh-sub">Every event, from every project, placed on a single axis. What happened first. What was happening simultaneously. Where the universes touched.</div>
+    </div>
+    <div class="tl-filters fade-up" id="tl-filters"></div>
+    <div class="timeline-axis fade-up">
+      <div class="ta-track"></div>
+      <div class="ta-year-markers">
+        <div class="ta-year">YEAR 1</div><div class="ta-year">YEAR 2</div>
+        <div class="ta-year">YEAR 3</div><div class="ta-year">YEAR 4 ◈ NOW</div>
+      </div>
+    </div>
+    <div class="tl-rows fade-up" id="tl-rows"></div>
+  </div>
+</div>
+
+<!-- ════ VIEW: FACTIONS ════ -->
+<div class="view" id="view-factions">
+  <div class="factions-wrap">
+    <div class="factions-hdr fade-up">
+      <div class="fh-title">THE FACTIONS<br>OF IRONBELL CITY</div>
+      <div class="fh-sub">Four factions. Every project in the universe eventually picks a side — or gets caught between them.</div>
+    </div>
+    <div class="factions-grid fade-up" id="factions-grid"></div>
+    <div class="faction-conflict fade-up">
+      <div class="fc-conflict-title">CURRENT POWER BALANCE</div>
+      <div id="conflict-rows"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CURSOR ──────────────────────────────────
+const cur=document.getElementById('cur'),cur2=document.getElementById('cur2');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function l(){rx+=(mx-rx)*.11;ry+=(my-ry)*.11;cur2.style.left=rx+'px';cur2.style.top=ry+'px';requestAnimationFrame(l);})();
+
+// ── VIEW SWITCH ──────────────────────────────
+function sw(id,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.tn-tab').forEach(t=>t.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  window.scrollTo(0,0);
+  if(id==='map')renderMap();
+  if(id==='bible')renderBible();
+  if(id==='characters')renderCharacters();
+  if(id==='timeline')renderTimeline();
+  if(id==='factions')renderFactions();
+}
+
+// ── DATA ─────────────────────────────────────
+const MAP_PINS=[
+  {label:'COLDWATER DOCKS',type:'DISTRICT',desc:'The oldest part of the city. Where the Holloway family made their first money and their first enemies.',x:14,y:68,color:'#4878D0',stories:['DYNASTY PROTOCOLS EP.1','COLDWATER ARCHIVES EP.1-6']},
+  {label:'THE HEIGHTS',type:'DISTRICT',desc:'New money. Old grudges. The glass tower district where the second Holloway generation tried to go legitimate.',x:48,y:20,color:'#28A0F0',stories:['THE HEIGHTS EP.1-14','DYNASTY PROTOCOLS EP.7']},
+  {label:'MERIDIAN QUARTER',type:'DISTRICT',desc:'The tech corridor. Where Devon Ross\'s signal was broadcast from, and where no one is quite who they say they are.',x:67,y:52,color:'#20C0A0',stories:['MERIDIAN SIGNAL EP.1-10','COLD DISPATCH VOL.I']},
+  {label:'OLD QUARTER',type:'DISTRICT',desc:'The Holloway dynasty\'s original territory. Every family secret begins and ends here.',x:33,y:42,color:'#D06020',stories:['DYNASTY PROTOCOLS EP.1-4','NEON GOSPEL EP.2']},
+  {label:'RUST BELT',type:'DISTRICT',desc:'Where things go to die — or to hide. Devon Ross\'s lab was here. So was Marcus before the Holloway name found him.',x:14,y:38,color:'#CC4010',stories:['RUST & RUIN EP.1-6','MERIDIAN SIGNAL EP.3']},
+  {label:'THE IRON GATE',type:'LANDMARK',desc:'The original Holloway compound. Burned down in Year 2. Or did it? Three projects tell three different stories.',x:28,y:58,color:'#E03050',stories:['DYNASTY PROTOCOLS EP.2,7,11']},
+  {label:'COLDWATER STATION',type:'LANDMARK',desc:'The crossover point. This is where the Dynasty and Coldwater timelines physically intersect in Year 3.',x:22,y:52,color:'#C8980C',stories:['CROSSOVER: COLDWATER NIGHT']},
+];
+const BIBLE_ENTRIES=[
+  {id:'ironbell',cat:'WORLD OVERVIEW',title:'IRONBELL CITY',canon:true,summary:'A fictional American metropolis spanning four generations of wealth, crime, faith, and technology. Home to eight active narrative universes. Every story that takes place here eventually touches every other story.',sections:[
+    {title:'Geography & Districts',text:'Ironbell City is divided into five primary districts: the Coldwater Docks (oldest, working class, criminal history), The Heights (new money, corporate, glass towers), Meridian Quarter (tech corridor, surveillance, signals), Old Quarter (Holloway territory, political corruption, legacy crime), and the Rust Belt (abandoned industrial, secrets, laboratories).'},
+    {title:'The Holloway Family',text:'The Holloway family built Ironbell City — or at least, they built the version of it that everyone talks about. <em>Three generations</em> of power, each with its own origin story that contradicts the previous one. <strong>Marcus Holloway</strong> is the current heir. Whether he wants the inheritance is the central question of The Dynasty Protocols.'},
+    {title:'The Coldwater Connection',text:'The Coldwater Docks were named for a company that no longer exists. What the company did — and why it stopped — is the central mystery of The Coldwater Archives, and a secret that crossover listeners of both series are the only ones who can fully reconstruct.'},
+  ],disputed:{label:'DISPUTED CANON',text:'Whether the Iron Gate actually burned in Year 2 is disputed across three projects. The Dynasty Protocols says yes. Neon Gospel says no. The Coldwater Archives refuses to say. The community is currently 54% / 46% split.'}},
+  {id:'signal',cat:'TECHNOLOGY',title:'THE MERIDIAN SIGNAL',canon:true,summary:'An unauthorized broadcast that has been running on an unlicensed frequency for three years. Nobody knows who is sending it. It contains information that should not exist. Every project in the Meridian universe is, in some way, about this signal.',sections:[
+    {title:'What It Broadcasts',text:'The Signal transmits fragments of <strong>documented conversations</strong> that appear to have been recorded in private locations, at private moments, years before the recording technology required to capture them existed. The Signal does not explain this. It simply broadcasts.'},
+    {title:'Who Is Listening',text:'By Year 3, an estimated 40% of Ironbell City residents have heard the Signal. Most dismiss it as interference. A small number — including Devon Ross and a journalist named Lena Park — have been actively trying to trace it for years.'},
+  ]},
+];
+const BIBLE_NAV=[
+  {icon:'🌍',label:'World Overview',count:1},{icon:'🏙',label:'Districts & Locations',count:8},
+  {icon:'👥',label:'Characters',count:24},{icon:'⚔',label:'Factions',count:4},
+  {icon:'📅',label:'Timeline',count:47},{icon:'🔮',label:'Technology & Systems',count:6},
+  {icon:'📜',label:'Laws & Politics',count:9},{icon:'💰',label:'Economy & Crime',count:11},
+  {icon:'⬡',label:'Disputed Canon',count:8},{icon:'◆',label:'Crossover Events',count:3},
+];
+const CHARACTERS=[
+  {id:'marcus',name:'MARCUS HOLLOWAY',role:'PROTAGONIST',faction:'HOLLOWAY BLOOD',factionColor:'#E03050',icon:'🧑',color:'#E03050',desc:'The unwilling heir. Marcus has spent five years trying to not be a Holloway. The ledger in Episode 4 is the moment he stops having a choice.',projects:['Dynasty Protocols (EP.1-12)','Neon Gospel (EP.3 cameo)'],rels:[{name:'Elena Reyes',rel:'ADVERSARY',icon:'👩'},{name:'James Holloway Sr.',rel:'FATHER (DECEASED)',icon:'👴'},{name:'Rashida Okafor',rel:'ALLY',icon:'👩'},{name:'Thomas Vance',rel:'UNKNOWN',icon:'🧔'}],x:40,y:45,size:64},
+  {id:'reyes',name:'ELENA REYES',role:'ANTAGONIST / AMBIGUOUS',faction:'THE HEIGHTS',factionColor:'#28A0F0',icon:'👩',color:'#28A0F0',desc:'Reyes runs the Meridian Quarter investment apparatus. She knows things about the Holloway family that Marcus doesn\'t. Whether she\'s protecting him or building a case against him depends on which path you chose.',projects:['Dynasty Protocols (EP.2-12)','The Heights (EP.5-8)'],rels:[{name:'Marcus Holloway',rel:'ADVERSARY',icon:'🧑'},{name:'Devon Ross',rel:'EMPLOYER',icon:'🧔'},{name:'Thomas Vance',rel:'UNKNOWN',icon:'🧔'}],x:62,y:30,size:52},
+  {id:'devon',name:'DEVON ROSS',role:'THE SIGNAL SOURCE',faction:'MERIDIAN',factionColor:'#20C0A0',icon:'🧔',color:'#20C0A0',desc:'Devon built the Signal. He didn\'t mean to. What the Signal is and whether Devon can turn it off are the twin questions of The Meridian Signal.',projects:['Meridian Signal (EP.1-10)','Cold Dispatch (VOL.I NO.3)'],rels:[{name:'Elena Reyes',rel:'EMPLOYEE',icon:'👩'},{name:'Lena Park',rel:'JOURNALIST / ALLY',icon:'👩'},{name:'Marcus Holloway',rel:'UNKNOWN (not yet met)',icon:'🧑'}],x:72,y:58,size:52},
+  {id:'rashida',name:'RASHIDA OKAFOR',role:'THE ARCHIVIST',faction:'COLDWATER',factionColor:'#4878D0',icon:'👩',color:'#4878D0',desc:'The keeper of the Coldwater Archives. She has been documenting the Ironbell City secrets for twelve years. She knows about Marcus before he knows about the ledger.',projects:['Coldwater Archives (EP.1-6)','Dynasty Protocols (EP.7 crossover)'],rels:[{name:'Marcus Holloway',rel:'ALLY (COVERT)',icon:'🧑'},{name:'James Holloway Sr.',rel:'DOCUMENTED',icon:'👴'},{name:'Lena Park',rel:'SOURCE',icon:'👩'}],x:24,y:30,size:52},
+  {id:'lena',name:'LENA PARK',role:'THE JOURNALIST',faction:'COLD DISPATCH',factionColor:'#CC4010',icon:'👩',color:'#CC4010',desc:'Lena Park has been covering Ironbell City for the Cold Dispatch for eight years. She was the first person to report on the Signal. She doesn\'t know yet that Devon is listening to her apartment.',projects:['Cold Dispatch (ALL ISSUES)','Meridian Signal (EP.4 reference)'],rels:[{name:'Devon Ross',rel:'SUBJECT (UNAWARE)',icon:'🧔'},{name:'Rashida Okafor',rel:'SOURCE',icon:'👩'},{name:'Thomas Vance',rel:'EDITOR',icon:'🧔'}],x:50,y:70,size:44},
+  {id:'vance',name:'THOMAS VANCE',role:'THE UNKNOWN',faction:'UNCLEAR',factionColor:'#9820C8',icon:'🧔',color:'#9820C8',desc:'He appears in four projects. Nobody knows who he works for. Nobody knows if the Thomas Vance in The Heights is the same person as the Thomas in Dynasty. The community is 61% convinced he\'s the same person.',projects:['The Heights (EP.1,8,12)','Dynasty Protocols (EP.9)','Meridian Signal (EP.7)'],rels:[{name:'Elena Reyes',rel:'UNKNOWN',icon:'👩'},{name:'Lena Park',rel:'EDITOR',icon:'👩'},{name:'Everyone',rel:'POSSIBLE ARCHITECT',icon:'👥'}],x:50,y:42,size:48},
+];
+const CHAR_CONNECTIONS=[
+  {a:'marcus',b:'reyes',strength:3,type:'adversary'},{a:'marcus',b:'rashida',strength:3,type:'ally'},
+  {a:'reyes',b:'devon',strength:2,type:'employer'},{a:'devon',b:'lena',strength:2,type:'surveillance'},
+  {a:'rashida',b:'lena',strength:2,type:'source'},{a:'reyes',b:'vance',strength:1,type:'unknown'},
+  {a:'vance',b:'lena',strength:2,type:'editor'},{a:'marcus',b:'vance',strength:1,type:'unknown'},
+  {a:'devon',b:'vance',strength:1,type:'unknown'},
+];
+const TIMELINE_PROJECTS=[
+  {id:'dynasty',name:'DYNASTY PROTOCOLS',color:'#E03050',format:'ALBUM'},
+  {id:'coldwater',name:'COLDWATER ARCHIVES',color:'#4878D0',format:'BOOK'},
+  {id:'meridian',name:'MERIDIAN SIGNAL',color:'#20C0A0',format:'ALBUM'},
+  {id:'dispatch',name:'COLD DISPATCH',color:'#CC4010',format:'MAGAZINE'},
+  {id:'heights',name:'THE HEIGHTS',color:'#28A0F0',format:'ALBUM'},
+];
+const TIMELINE_EVENTS=[
+  {project:'dynasty',pct:5,title:'The Night of the Burial',type:'NARRATIVE'},
+  {project:'coldwater',pct:8,title:'First Archive Entry',type:'NARRATIVE'},
+  {project:'heights',pct:12,title:'The Heights Commission',type:'NARRATIVE'},
+  {project:'dispatch',pct:18,title:'Lena Park\'s First Signal Report',type:'DISPATCH'},
+  {project:'dynasty',pct:22,title:'The Holloway Name',type:'NARRATIVE'},
+  {project:'meridian',pct:25,title:'Signal Activated',type:'KEY EVENT'},
+  {project:'coldwater',pct:31,title:'The Coldwater Night ◆',type:'CROSSOVER'},
+  {project:'dynasty',pct:31,title:'The Coldwater Connection EP.7',type:'CROSSOVER'},
+  {project:'dispatch',pct:36,title:'The Iron Gate Report',type:'DISPATCH'},
+  {project:'heights',pct:44,title:'The Heights / Dynasty Intersection',type:'CROSSOVER'},
+  {project:'meridian',pct:48,title:'Devon Identifies Lena',type:'KEY EVENT'},
+  {project:'dynasty',pct:52,title:'The Ledger · EP.4',type:'BRANCH POINT'},
+  {project:'coldwater',pct:58,title:'Archive Vol.II Complete',type:'NARRATIVE'},
+  {project:'dispatch',pct:62,title:'Signal Frequency Investigation',type:'DISPATCH'},
+  {project:'meridian',pct:66,title:'Signal Decoded (Path A)',type:'BRANCH ENDING'},
+  {project:'dynasty',pct:72,title:'Reyes Returns · EP.6',type:'NARRATIVE'},
+  {project:'heights',pct:78,title:'The Heights Inheritance ◆◆',type:'CROSSOVER'},
+  {project:'dynasty',pct:78,title:'Three-Way Crossover Node',type:'CROSSOVER'},
+  {project:'meridian',pct:84,title:'The Signal Goes Quiet (Path C)',type:'BRANCH ENDING'},
+  {project:'dynasty',pct:90,title:'Season 1 Finale (12 endings)',type:'FINALE'},
+];
+const CROSSOVER_MARKERS=[
+  {pct:31,label:'COLDWATER NIGHT'},{pct:78,label:'HEIGHTS INHERITANCE'}
+];
+const FACTIONS=[
+  {name:'HOLLOWAY BLOOD',motto:'"The name carries the weight."',seal:'🩸',color:'#CC2830',desc:'The old-money criminal dynasty that built Ironbell City on secrets, favors, and fear. Not evil, exactly — but willing to be, when the situation demands.',territory:['Old Quarter','Coldwater Docks (partial)','Iron Gate'],projects:['Dynasty Protocols','Neon Gospel'],strength:68,join:'CLAIM YOUR BLOODLINE'},
+  {name:'THE HEIGHTS ACCORD',motto:'"Progress is just power with better PR."',seal:'🏛',color:'#2858C8',desc:'The corporate-political apparatus that runs the new Ironbell City. Elena Reyes is the visible face. What\'s behind her is considerably less presentable.',territory:['The Heights District','Meridian Quarter (partial)'],projects:['The Heights','Meridian Signal (antagonist)'],strength:74,join:'ENTER THE ACCORD'},
+  {name:'THE MERIDIAN COLLECTIVE',motto:'"The Signal tells the truth. We just translate."',seal:'📡',color:'#18A860',desc:'The loose network of technologists, journalists, and activists who believe the Signal represents something the powerful want suppressed. Devon Ross doesn\'t lead them — he just built the thing they organize around.',territory:['Meridian Quarter','Rust Belt'],projects:['Meridian Signal','Cold Dispatch','Coldwater Archives'],strength:44,join:'TUNE IN'},
+  {name:'THE ARCHIVE',motto:'"Silence is complicity. Documentation is resistance."',seal:'📚',color:'#9820C8',desc:'The smallest faction by membership and the most dangerous by information advantage. Rashida Okafor has been building The Archive for twelve years. She has documentation on everyone.',territory:['Coldwater Docks','Unknown secondary locations'],projects:['Coldwater Archives','Cold Dispatch'],strength:38,join:'FILE YOUR REPORT'},
+];
+const CONFLICTS=[
+  {a:'HOLLOWAY BLOOD',b:'THE HEIGHTS ACCORD',aColor:'#CC2830',bColor:'#2858C8',aPct:46,bPct:54,label:'THE INHERITANCE WAR'},
+  {a:'HOLLOWAY BLOOD',b:'MERIDIAN COLLECTIVE',aColor:'#CC2830',bColor:'#18A860',aPct:62,bPct:38,label:'THE SIGNAL DISPUTE'},
+  {a:'HEIGHTS ACCORD',b:'THE ARCHIVE',aColor:'#2858C8',bColor:'#9820C8',aPct:71,bPct:29,label:'THE DOCUMENTATION THREAT'},
+  {a:'MERIDIAN COLLECTIVE',b:'THE ARCHIVE',aColor:'#18A860',bColor:'#9820C8',aPct:55,bPct:45,label:'SIGNAL VS. RECORD'},
+];
+const LAYERS=[
+  {label:'FACTIONS',color:'#CC2830',on:true},{label:'STORIES',color:'#E03050',on:true},
+  {label:'CROSSOVERS',color:'#C8980C',on:true},{label:'CHARACTERS',color:'#9820C8',on:false},
+];
+const LOCATIONS=[
+  {label:'COLDWATER DOCKS',type:'DISTRICT',color:'#4878D0',desc:'Where everything started. The oldest part of the city.',stories:['DYNASTY EP.1','COLDWATER EP.1-6']},
+  {label:'THE HEIGHTS',type:'DISTRICT',color:'#28A0F0',desc:'New money. Glass towers. Old corruption with a better view.',stories:['THE HEIGHTS EP.1-14','DYNASTY EP.7']},
+  {label:'OLD QUARTER',type:'DISTRICT',color:'#D06020',desc:'Holloway territory. Every family secret begins here.',stories:['DYNASTY EP.1-4','NEON GOSPEL EP.2']},
+  {label:'THE IRON GATE',type:'LANDMARK',color:'#E03050',desc:'Burned in Year 2. Or it didn\'t. Three projects, three answers.',stories:['DYNASTY EP.2,7,11']},
+  {label:'COLDWATER STATION',type:'CROSSOVER',color:'#C8980C',desc:'The crossover node. Dynasty and Coldwater timelines meet here in Year 3.',stories:['CROSSOVER: COLDWATER NIGHT']},
+];
+
+// ── RENDER FUNCTIONS ──────────────────────────
+
+function renderMap(){
+  // Pins
+  const container=document.querySelector('.map-canvas');
+  if(!document.getElementById('map-pins').children.length){
+    MAP_PINS.forEach(p=>{
+      const d=document.createElement('div');
+      d.className='map-pin';
+      d.style.left=p.x+'%';d.style.top=p.y+'%';
+      d.onclick=()=>selectLocation(p);
+      d.innerHTML=`<div class="mp-dot" style="background:${p.color}20;border-color:${p.color};"></div><div class="mp-stem" style="background:linear-gradient(to bottom,${p.color},transparent);"></div><div class="mp-label" style="color:${p.color};">${p.label}</div>`;
+      document.getElementById('map-pins').appendChild(d);
+    });
+  }
+  // Layers
+  const ml=document.getElementById('map-layers');
+  if(!ml.children.length){
+    LAYERS.forEach(l=>{
+      const d=document.createElement('div');
+      d.className='ml-item'+(l.on?' on':'');
+      d.onclick=()=>d.classList.toggle('on');
+      d.innerHTML=`<div class="ml-dot" style="background:${l.color};"></div><div class="ml-label">${l.label}</div>`;
+      ml.appendChild(d);
+    });
+  }
+  // Location list
+  const ll=document.getElementById('location-list');
+  if(!ll.children.length){
+    LOCATIONS.forEach(l=>{
+      const d=document.createElement('div');
+      d.className='ms-location-card';
+      d.innerHTML=`
+        <div class="mslc-header" onclick="this.nextElementSibling.style.display='flex'">
+          <div class="mslch-top">
+            <div class="mslcht-name" style="color:${l.color};">${l.label}</div>
+            <div class="mslcht-type" style="border-color:${l.color}40;color:${l.color};">${l.type}</div>
+          </div>
+          <div class="mslch-desc">${l.desc}</div>
+        </div>
+        <div class="mslc-stories" style="display:none;">${l.stories.map(s=>`<div class="mslcs-tag">${s}</div>`).join('')}</div>`;
+      ll.appendChild(d);
+    });
+  }
+  addHoverFX();
+}
+
+function selectLocation(pin){
+  // This would open detail in sidebar — simplified to console
+}
+
+function renderBible(){
+  // Nav
+  const nav=document.getElementById('bible-nav');
+  if(!nav.children.length){
+    const sections=[['BROWSE',BIBLE_NAV]];
+    sections[0][1].forEach(item=>{
+      const d=document.createElement('div');
+      d.className='bn-item';
+      d.onclick=()=>{document.querySelectorAll('.bn-item').forEach(i=>i.classList.remove('on'));d.classList.add('on');};
+      d.innerHTML=`<span class="bn-icon">${item.icon}</span><span class="bn-label">${item.label}</span><span class="bn-count">${item.count}</span>`;
+      nav.appendChild(d);
+      if(['Timeline','Crossover Events'].includes(item.label)){const divider=document.createElement('div');divider.className='bn-divider';nav.appendChild(divider);}
+    });
+    nav.children[0].classList.add('on');
+  }
+  // Main content
+  const main=document.getElementById('bible-main');
+  if(!main.children.length){
+    const e=BIBLE_ENTRIES[0];
+    main.innerHTML=`
+      <div class="lore-hdr">
+        <div class="lh-category">${e.cat}</div>
+        <div class="lh-title">${e.title}</div>
+        <div class="lh-canon-badge"><div class="lhcb-dot"></div><span class="lhcb-text">CONFIRMED CANON · AGREED BY ALL 4 WORLD CREATORS</span></div>
+        <div class="lh-summary">${e.summary}</div>
+      </div>
+      ${e.sections.map(s=>`<div class="lore-section"><div class="ls-title">${s.title}</div><div class="ls-text">${s.text}</div></div>`).join('')}
+      ${e.disputed?`<div class="disputed"><div class="dis-icon">⚠</div><div class="dis-body"><div class="disb-label">◈ DISPUTED CANON — COMMUNITY VOTE OPEN</div><div class="disb-text">${e.disputed.text}</div></div></div>`:''}
+      <div class="lore-section">
+        <div class="ls-title">APPEARS IN</div>
+        <div class="appearances-table">
+          <div class="at-head"><div class="at-th">PROJECT</div><div class="at-th">EPISODE/CHAPTER</div><div class="at-th">FORMAT</div><div class="at-th">CANON STATUS</div></div>
+          ${[['Dynasty Protocols','EP.1,2,4,7,11,12','ALBUM','CONFIRMED'],['Coldwater Archives','VOL.I CH.1,3,6','BOOK','CONFIRMED'],['The Heights','EP.3,8','ALBUM','CONFIRMED'],['Neon Gospel','EP.2 (peripheral)','ALBUM','DISPUTED'],['Cold Dispatch','VOL.I NO.1,4','MAGAZINE','CONFIRMED']].map(([p,e,f,c])=>`<div class="at-row"><div class="at-cell strong">${p}</div><div class="at-cell ep">${e}</div><div class="at-cell">${f}</div><div class="at-cell"><div class="at-canon ${c.toLowerCase()}">${c}</div></div></div>`).join('')}
+        </div>
+      </div>`;
+  }
+  // Sidebar
+  const sb=document.getElementById('bible-sidebar');
+  if(!sb.children.length){
+    sb.innerHTML=`
+      <div class="bs-section">
+        <div class="bss-title">WORLD CONTRIBUTORS</div>
+        ${[['Marcus Holloway','Dynasty · Neon Gospel','🧑','#E03050'],['Rashida Chen','Coldwater Archives','👩','#4878D0'],['Devon Ross','Meridian Signal','🧔','#20C0A0'],['Keisha Morgan','Cold Dispatch','👩','#CC4010']].map(([n,p,ic,c])=>`<div class="bs-item"><div class="bsi-label" style="color:${c};">${p}</div><div class="bsi-name">${ic} ${n}</div></div>`).join('')}
+      </div>
+      <div class="bs-section">
+        <div class="bss-title">DISPUTED ENTRIES</div>
+        ${[['The Iron Gate Fire','54% YES / 46% NO'],['Vance Identity','61% SAME PERSON'],['Signal Origin','Community vote open']].map(([t,v])=>`<div class="bs-item"><div class="bsi-label" style="color:var(--gold2);">${v}</div><div class="bsi-name">⚠ ${t}</div></div>`).join('')}
+      </div>
+      <div class="bs-section">
+        <button class="bs-edit-btn" onclick="this.textContent='✓ PROPOSAL SUBMITTED'">PROPOSE CANON EDIT</button>
+        <button class="bs-edit-btn" onclick="this.textContent='✓ DISPUTE FILED'" style="border-color:rgba(200,144,12,.2);color:var(--gold2);background:rgba(200,144,12,.05);">FILE CANON DISPUTE</button>
+      </div>`;
+  }
+  addHoverFX();
+}
+
+function renderCharacters(){
+  const canvas=document.getElementById('cn-canvas');
+  const svg=document.getElementById('cn-svg');
+  if(canvas.children.length>0)return;
+  const w=canvas.parentElement.clientWidth||900;
+  const h=canvas.parentElement.clientHeight||560;
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+  // Draw connections
+  const nodePos={};
+  CHARACTERS.forEach(c=>{nodePos[c.id]={x:c.x/100*w,y:c.y/100*h};});
+  CHAR_CONNECTIONS.forEach(conn=>{
+    const a=nodePos[conn.a],b=nodePos[conn.b];
+    if(!a||!b)return;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x);line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x);line.setAttribute('y2',b.y);
+    const typeColors={adversary:'rgba(204,40,48,.3)',ally:'rgba(40,192,136,.3)',employer:'rgba(40,160,240,.3)',surveillance:'rgba(152,32,200,.25)',source:'rgba(200,144,12,.25)',editor:'rgba(200,96,16,.25)',unknown:'rgba(240,236,228,.08)'};
+    line.setAttribute('stroke',typeColors[conn.type]||'rgba(240,236,228,.1)');
+    line.setAttribute('stroke-width',conn.strength+1);
+    svg.appendChild(line);
+  });
+  // Draw nodes
+  CHARACTERS.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='char-node';
+    d.id='node-'+c.id;
+    d.style.left=c.x+'%';d.style.top=c.y+'%';
+    d.onclick=()=>selectChar(c);
+    d.innerHTML=`<div class="chn-ring" style="width:${c.size}px;height:${c.size}px;border-color:${c.color};color:${c.color};">${c.icon}<div style="position:absolute;inset:-6px;border-radius:50%;border:1px solid ${c.color};opacity:.25;"></div></div><div class="chn-name" style="color:${c.color};">${c.name.split(' ').join('\n')}</div><div class="chn-role">${c.role.split(' ').slice(0,2).join(' ')}</div>`;
+    canvas.appendChild(d);
+  });
+  // Default select first char
+  selectChar(CHARACTERS[0]);
+  addHoverFX();
+}
+
+function selectChar(c){
+  document.querySelectorAll('.char-node').forEach(n=>n.classList.remove('selected'));
+  const node=document.getElementById('node-'+c.id);
+  if(node)node.classList.add('selected');
+  const sb=document.getElementById('char-sidebar');
+  sb.innerHTML=`<div class="char-card">
+    <div class="cc-header">
+      <div class="cch-avatar" style="border-color:${c.color};background:${c.color}20;">${c.icon}</div>
+      <div class="cch-info">
+        <div class="cchi-name" style="color:${c.color};">${c.name}</div>
+        <div class="cchi-role" style="color:${c.factionColor};">${c.role}</div>
+        <div class="cchi-faction" style="border-color:${c.factionColor}40;color:${c.factionColor};">${c.faction}</div>
+      </div>
+    </div>
+    <div class="cc-desc">${c.desc}</div>
+    <div class="cc-appearances">
+      <div class="cca-label">APPEARS IN</div>
+      ${c.projects.map(p=>`<div class="cca-item"><div class="ccai-project">${p.split('(')[0].trim()}</div><div class="ccai-eps">${p.includes('(')?p.match(/\(([^)]+)\)/)[1]:''}</div></div>`).join('')}
+    </div>
+    <div class="cc-rels">
+      <div class="ccr-label">RELATIONSHIPS</div>
+      ${c.rels.map(r=>`<div class="ccr-item"><div class="ccri-avatar" style="border-color:rgba(240,236,228,.15);">${r.icon}</div><div class="ccri-name">${r.name}</div><div class="ccri-rel">${r.rel}</div></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function filterChars(btn,filter){
+  document.querySelectorAll('.cf-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  // Filter logic would fade nodes — simplified here
+  document.querySelectorAll('.char-node').forEach(n=>{n.style.opacity=filter==='all'?'1':'0.3';});
+  if(filter==='all')return;
+  CHARACTERS.forEach(c=>{
+    if(c.projects.some(p=>p.toLowerCase().includes(filter))){
+      const node=document.getElementById('node-'+c.id);
+      if(node)node.style.opacity='1';
+    }
+  });
+}
+
+function renderTimeline(){
+  // Filters
+  const tf=document.getElementById('tl-filters');
+  if(!tf.children.length){
+    const allBtn=document.createElement('button');
+    allBtn.className='tlf-pill on';allBtn.textContent='ALL PROJECTS';
+    allBtn.onclick=()=>{document.querySelectorAll('.tlf-pill').forEach(b=>b.classList.remove('on'));allBtn.classList.add('on');};
+    tf.appendChild(allBtn);
+    TIMELINE_PROJECTS.forEach(p=>{
+      const b=document.createElement('button');
+      b.className='tlf-pill';b.textContent=p.name;
+      b.style.setProperty('--pc',p.color);
+      b.onclick=()=>{document.querySelectorAll('.tlf-pill').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+      tf.appendChild(b);
+    });
+  }
+  // Timeline rows
+  const rows=document.getElementById('tl-rows');
+  if(!rows.children.length){
+    TIMELINE_PROJECTS.forEach(proj=>{
+      const row=document.createElement('div');
+      row.className='tl-row';
+      row.innerHTML=`<div class="tlr-label"><div class="tlrl-name" style="color:${proj.color};">${proj.name}</div><div class="tlrl-format">${proj.format}</div></div><div class="tlr-track" id="track-${proj.id}"></div>`;
+      rows.appendChild(row);
+    });
+    // Add crossover markers
+    const firstTrack=document.querySelector('.tlr-track');
+    if(firstTrack){
+      CROSSOVER_MARKERS.forEach(m=>{
+        const marker=document.createElement('div');
+        marker.className='tl-crossover-marker';
+        marker.style.left=m.pct+'%';
+        marker.innerHTML=`<div class="tl-crossover-label">${m.label}</div>`;
+        firstTrack.style.position='relative';
+        firstTrack.parentElement.appendChild(marker);
+      });
+    }
+    // Add events
+    TIMELINE_EVENTS.forEach(ev=>{
+      const track=document.getElementById('track-'+ev.project);
+      if(!track)return;
+      const d=document.createElement('div');
+      d.className='tl-event';
+      d.style.left=ev.pct+'%';
+      const proj=TIMELINE_PROJECTS.find(p=>p.id===ev.project);
+      const isCrossover=ev.type==='CROSSOVER';
+      d.innerHTML=`<div class="tle-dot" style="border-color:${isCrossover?'var(--gold)':proj.color};${isCrossover?'background:rgba(200,144,12,.15)':''}"></div><div class="tle-tooltip"><div class="tlet-project" style="color:${proj.color};">${proj.name}</div><div class="tlet-title">${ev.title}</div><div class="tlet-type" style="${isCrossover?'color:var(--gold2);':''}">${ev.type}</div></div>`;
+      track.appendChild(d);
+    });
+  }
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.04});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+  addHoverFX();
+}
+
+function renderFactions(){
+  const grid=document.getElementById('factions-grid');
+  if(!grid.children.length){
+    FACTIONS.forEach(f=>{
+      const d=document.createElement('div');
+      d.className='faction-card';
+      d.style.color=f.color;
+      d.innerHTML=`
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${f.color};"></div>
+        <div class="fc-top"><div class="fc-seal">${f.seal}</div><div class="fc-strength"><span class="fcs-val" style="color:${f.color};">${f.strength}%</span><span class="fcs-lbl">POWER INDEX</span></div></div>
+        <div class="fc-name" style="color:${f.color};">${f.name}</div>
+        <div class="fc-motto">${f.motto}</div>
+        <div class="fc-desc" style="color:rgba(240,236,228,.45);">${f.desc}</div>
+        <div class="fc-territory"><div class="fct-label">CONTROLS</div><div class="fct-districts">${f.territory.map(t=>`<div class="fctd" style="border-color:${f.color}40;color:${f.color};">${t}</div>`).join('')}</div></div>
+        <div class="fc-appears-in"><div class="fcai-label">FEATURED IN</div><div class="fcai-projects">${f.projects.map(p=>`<div class="fcaip">${p}</div>`).join('')}</div></div>
+        <button class="fc-join-btn" style="border-color:${f.color};color:${f.color};" onclick="this.textContent='✓ ALIGNED';">${f.join} →</button>`;
+      grid.appendChild(d);
+    });
+  }
+  const cr=document.getElementById('conflict-rows');
+  if(!cr.children.length){
+    CONFLICTS.forEach(c=>{
+      const d=document.createElement('div');
+      d.className='conflict-row';
+      d.innerHTML=`
+        <div class="cr-fac-a" style="color:${c.aColor};">${c.a.split(' ').slice(-1)[0]}</div>
+        <div class="cr-bar-wrap">
+          <div class="cr-bar-a" style="width:${c.aPct/2}%;background:${c.aColor};opacity:.7;"></div>
+          <div class="cr-center">${c.label}</div>
+          <div class="cr-bar-b" style="width:${c.bPct/2}%;background:${c.bColor};opacity:.7;"></div>
+        </div>
+        <div class="cr-fac-b" style="color:${c.bColor};">${c.b.split(' ').slice(-1)[0]}</div>`;
+      cr.appendChild(d);
+    });
+  }
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.04});
+  document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+  addHoverFX();
+}
+
+function addHoverFX(){
+  document.querySelectorAll('button,.faction-card,.char-node,.map-pin,.tl-event,.bs-item,.bn-item,.at-row,.bstoc-item,.ms-location-card').forEach(el=>{
+    if(!el._hb){
+      el.addEventListener('mouseenter',()=>{cur.style.width='12px';cur.style.height='12px';cur2.style.width='40px';cur2.style.height='40px';});
+      el.addEventListener('mouseleave',()=>{cur.style.width='8px';cur.style.height='8px';cur2.style.width='32px';cur2.style.height='32px';});
+      el._hb=true;
+    }
+  });
+}
+
+// Init
+renderMap();
+</script>
+</body>
+</html>

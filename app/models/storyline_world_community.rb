@@ -1,0 +1,2 @@
+class StorylineWorldCommunity < ApplicationRecord
+end

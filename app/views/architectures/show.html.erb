@@ -1,0 +1,10 @@
+<p style="color: green"><%= notice %></p>
+
+<%= render @architecture %>
+
+<div>
+  <%= link_to "Edit this architecture", edit_architecture_path(@architecture) %> |
+  <%= link_to "Back to architectures", architectures_path %>
+
+  <%= button_to "Destroy this architecture", @architecture, method: :delete %>
+</div>

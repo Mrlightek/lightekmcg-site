@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lightek MCG — Product Warehouse Catalog</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  --steel:#040C18;--steel2:#07121F;--steel3:#0A1628;--steel4:#0E1E36;
+  --panel:#0C1830;--card:#101E38;--lift:#152440;
+  --cyan:#00C8E8;--cyan2:#00E0FF;
+  --gold:#C49820;--gold2:#DEB030;
+  --signal:#0070C8;--signal2:#0090E8;
+  --white:#EEF4FC;--off:#C8D8EC;--muted:#5A7090;--dim:#1A2840;
+  --green:#1A8A50;--green2:#20B060;--green3:#28D870;
+  --fc:'Barlow Condensed',sans-serif;
+  --fb:'IBM Plex Sans',sans-serif;
+  --fm:'Space Mono',monospace;
+}
+body{background:var(--steel);color:var(--white);font-family:var(--fb);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,232,.01) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,232,.01) 1px,transparent 1px);background-size:24px 24px;pointer-events:none;z-index:0;}
+
+#cur{width:6px;height:6px;background:var(--cyan);position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 12px rgba(0,200,232,.9);}
+#cur2{width:26px;height:26px;border:1px solid rgba(0,200,232,.18);position:fixed;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);transition:left .1s,top .1s,width .18s,height .18s;}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+
+/* ─ TOP BAR ─ */
+.topbar{
+  height:52px;background:rgba(4,12,24,.99);
+  border-bottom:1px solid rgba(0,200,232,.08);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;flex-shrink:0;position:relative;z-index:100;
+}
+.topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(0,200,232,.35),rgba(0,200,232,.55),rgba(0,200,232,.35),transparent);}
+.tb-left{display:flex;align-items:center;gap:14px;}
+.tb-mark{width:28px;height:28px;border:1.5px solid rgba(0,200,232,.4);display:flex;align-items:center;justify-content:center;font-family:var(--fc);font-size:16px;font-weight:800;color:var(--cyan);}
+.tb-name{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
+.tb-sep{width:1px;height:18px;background:rgba(0,200,232,.15);}
+.tb-section{font-family:var(--fm);font-size:7px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);}
+.tb-center{display:flex;align-items:center;gap:0;}
+.tb-tab{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:rgba(238,244,252,.3);padding:0 16px;height:52px;display:flex;align-items:center;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;background:transparent;border-top:none;border-left:none;border-right:none;}
+.tb-tab:hover{color:rgba(238,244,252,.7);}
+.tb-tab.on{color:var(--cyan);border-bottom-color:var(--cyan);}
+.tb-right{display:flex;align-items:center;gap:8px;}
+.cart-btn{display:flex;align-items:center;gap:7px;background:rgba(0,200,232,.08);border:1px solid rgba(0,200,232,.2);padding:6px 14px;cursor:pointer;transition:all .2s;}
+.cart-btn:hover{background:rgba(0,200,232,.14);}
+.cart-icon{font-size:14px;}
+.cart-text{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);}
+.cart-count{background:var(--cyan);color:var(--steel);font-family:var(--fm);font-size:8px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+
+/* ─ MAIN LAYOUT ─ */
+.warehouse-layout{display:grid;grid-template-columns:220px 1fr 300px;flex:1;overflow:hidden;position:relative;z-index:1;}
+
+/* ─ LEFT SIDEBAR — FILTERS ─ */
+.filter-sidebar{background:rgba(5,10,20,.99);border-right:1px solid rgba(0,200,232,.06);overflow-y:auto;padding:16px;}
+.filter-sidebar::-webkit-scrollbar{width:0;}
+.fs-search{margin-bottom:14px;}
+.fss-input{width:100%;background:rgba(0,200,232,.05);border:1px solid rgba(0,200,232,.12);padding:8px 12px;font-family:var(--fm);font-size:8px;letter-spacing:.08em;color:var(--white);outline:none;transition:border-color .2s;}
+.fss-input:focus{border-color:rgba(0,200,232,.35);}
+.fss-input::placeholder{color:var(--muted);}
+.fs-section{margin-bottom:16px;}
+.fss-title{font-family:var(--fm);font-size:6px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid rgba(0,200,232,.06);}
+.filter-opt{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;transition:all .15s;}
+.filter-opt:hover .fo-label{color:rgba(238,244,252,.8);}
+.fo-box{width:14px;height:14px;border:1px solid rgba(0,200,232,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.fo-box.checked{background:var(--cyan);border-color:var(--cyan);}
+.fo-box.checked::after{content:'✓';font-size:7px;color:var(--steel);font-family:var(--fm);font-weight:700;}
+.fo-label{font-family:var(--fb);font-size:11px;font-weight:300;color:rgba(238,244,252,.45);flex:1;}
+.fo-count{font-family:var(--fm);font-size:7px;font-weight:700;color:rgba(238,244,252,.25);}
+/* price slider label */
+.price-range{display:flex;justify-content:space-between;margin-bottom:6px;}
+.pr-lbl{font-family:var(--fm);font-size:7px;letter-spacing:.08em;color:var(--muted);}
+.price-track{height:3px;background:rgba(0,200,232,.1);position:relative;margin-bottom:10px;}
+.price-fill{position:absolute;left:20%;right:10%;top:0;height:100%;background:var(--cyan);}
+/* bundle tag */
+.bundle-tag{background:rgba(0,200,232,.06);border:1px solid rgba(0,200,232,.15);padding:10px 12px;margin-top:8px;cursor:pointer;transition:all .2s;}
+.bundle-tag:hover{background:rgba(0,200,232,.1);}
+.bt-label{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);margin-bottom:3px;}
+.bt-name{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.06em;margin-bottom:2px;}
+.bt-price{font-family:var(--fm);font-size:8px;font-weight:700;color:var(--green2);}
+
+/* ─ CENTER — PRODUCT GRID ─ */
+.product-area{overflow-y:auto;padding:16px;}
+.product-area::-webkit-scrollbar{width:3px;}
+.product-area::-webkit-scrollbar-track{background:rgba(0,200,232,.03);}
+.product-area::-webkit-scrollbar-thumb{background:rgba(0,200,232,.15);}
+.pa-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.pah-title{font-family:var(--fc);font-size:18px;font-weight:800;letter-spacing:.06em;}
+.pah-count{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.pah-sort{display:flex;gap:3px;}
+.sort-btn{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;padding:5px 9px;border:1px solid rgba(0,200,232,.1);background:transparent;color:rgba(238,244,252,.35);cursor:pointer;transition:all .2s;}
+.sort-btn.on{border-color:rgba(0,200,232,.3);color:var(--cyan);background:rgba(0,200,232,.06);}
+
+/* product grid */
+.prod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;}
+@media(max-width:1300px){.prod-grid{grid-template-columns:repeat(2,1fr);}}
+
+.prod-card{
+  background:var(--card);
+  border:1px solid rgba(0,200,232,.06);
+  padding:16px;
+  position:relative;
+  overflow:hidden;
+  cursor:pointer;
+  transition:all .22s;
+  display:flex;
+  flex-direction:column;
+}
+.prod-card:hover{border-color:rgba(0,200,232,.22);transform:translateY(-1px);}
+.prod-card.in-cart{border-color:rgba(0,200,232,.35);background:rgba(0,200,232,.05);}
+.prod-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+
+/* card top row */
+.pc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.pc-sku{font-family:var(--fm);font-size:5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);}
+.pc-stock{display:flex;align-items:center;gap:3px;font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;}
+.pcs-dot{width:4px;height:4px;border-radius:50%;}
+.pc-icon{font-size:22px;display:block;margin-bottom:7px;}
+.pc-name{font-family:var(--fc);font-size:clamp(14px,1.5vw,17px);font-weight:700;letter-spacing:.05em;line-height:1.1;margin-bottom:2px;}
+.pc-dept{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;}
+.pc-desc{font-family:var(--fb);font-weight:300;font-size:10px;color:rgba(238,244,252,.38);line-height:1.6;flex:1;margin-bottom:10px;}
+.pc-bottom{display:flex;justify-content:space-between;align-items:flex-end;margin-top:auto;}
+.pc-pricing{}
+.pcp-wholesale{font-family:var(--fc);font-size:clamp(15px,1.8vw,19px);font-weight:800;letter-spacing:.04em;display:block;line-height:1;}
+.pcp-retail{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--green2);}
+.pc-add-btn{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;border:1px solid;padding:5px 10px;cursor:pointer;transition:all .2s;background:transparent;flex-shrink:0;}
+/* ministry engine badge */
+.pc-me-badge{position:absolute;top:6px;right:6px;font-family:var(--fm);font-size:4px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(196,152,32,.25);color:rgba(196,152,32,.6);padding:2px 5px;background:rgba(196,152,32,.05);}
+/* new badge */
+.pc-new-badge{position:absolute;top:6px;right:6px;font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;background:var(--cyan);color:var(--steel);padding:2px 6px;font-weight:700;}
+
+/* ─ RIGHT SIDEBAR — CART + ORDER SUMMARY ─ */
+.cart-sidebar{background:rgba(5,10,20,.99);border-left:1px solid rgba(0,200,232,.06);overflow-y:auto;display:flex;flex-direction:column;}
+.cart-sidebar::-webkit-scrollbar{width:0;}
+.cs-header{padding:14px 16px;border-bottom:1px solid rgba(0,200,232,.07);flex-shrink:0;}
+.csh-title{font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.08em;display:flex;justify-content:space-between;align-items:center;}
+.csh-count{font-family:var(--fm);font-size:8px;font-weight:700;background:var(--cyan);color:var(--steel);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.cart-items{flex:1;padding:12px 16px;overflow-y:auto;}
+.cart-items::-webkit-scrollbar{width:0;}
+.cart-item{padding:9px 0;border-bottom:1px solid rgba(0,200,232,.06);display:flex;gap:8px;align-items:flex-start;}
+.cart-item:last-child{border-bottom:none;}
+.ci-icon{font-size:14px;flex-shrink:0;margin-top:1px;}
+.ci-body{flex:1;}
+.cib-name{font-family:var(--fc);font-size:12px;font-weight:700;letter-spacing:.05em;line-height:1.1;}
+.cib-sku{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:1px;}
+.cib-price{font-family:var(--fm);font-size:8px;font-weight:700;color:var(--cyan);margin-top:3px;}
+.ci-remove{font-family:var(--fm);font-size:8px;color:rgba(238,244,252,.2);cursor:pointer;flex-shrink:0;transition:color .2s;}
+.ci-remove:hover{color:rgba(216,32,32,.6);}
+/* empty cart state */
+.cart-empty{padding:28px 16px;text-align:center;}
+.ce-icon{font-size:28px;display:block;margin-bottom:8px;opacity:.3;}
+.ce-text{font-family:var(--fb);font-weight:300;font-size:12px;color:rgba(238,244,252,.25);line-height:1.6;}
+
+/* order summary */
+.order-summary{padding:14px 16px;border-top:1px solid rgba(0,200,232,.08);flex-shrink:0;}
+.os-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;}
+.osr-label{font-family:var(--fb);font-weight:300;font-size:11px;color:rgba(238,244,252,.4);}
+.osr-val{font-family:var(--fm);font-size:9px;font-weight:700;}
+.os-divider{height:1px;background:rgba(0,200,232,.08);margin:8px 0;}
+.os-total-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.ostr-label{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.06em;}
+.ostr-val{font-family:var(--fc);font-size:clamp(20px,2.5vw,28px);font-weight:900;letter-spacing:.04em;}
+.os-margin{font-family:var(--fm);font-size:7px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;}
+.os-checkout{display:block;width:100%;background:var(--cyan);border:none;color:var(--steel);font-family:var(--fc);font-size:15px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:12px;cursor:pointer;transition:background .2s;margin-bottom:6px;}
+.os-checkout:hover{background:var(--cyan2);}
+.os-save{display:block;width:100%;background:transparent;border:1px solid rgba(0,200,232,.15);color:rgba(238,244,252,.4);font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:9px;cursor:pointer;transition:all .2s;}
+.os-save:hover{border-color:rgba(0,200,232,.3);color:rgba(238,244,252,.7);}
+
+/* retail margin indicator */
+.margin-indicator{background:rgba(40,216,112,.06);border:1px solid rgba(40,216,112,.15);padding:9px 12px;margin-bottom:8px;}
+.mi-label{font-family:var(--fm);font-size:5px;letter-spacing:.2em;text-transform:uppercase;color:var(--green2);margin-bottom:3px;}
+.mi-val{font-family:var(--fc);font-size:20px;font-weight:900;color:var(--green2);}
+.mi-sub{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:rgba(40,216,112,.5);}
+</style>
+</head>
+<body>
+<div id="cur"></div><div id="cur2"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-mark">L</div>
+    <div class="tb-sep"></div>
+    <div class="tb-name">LIGHTEK MCG</div>
+    <div class="tb-sep"></div>
+    <div class="tb-section">◈ PRODUCT WAREHOUSE · CATALOG v1.0</div>
+  </div>
+  <div class="tb-center">
+    <button class="tb-tab on">ALL MODULES</button>
+    <button class="tb-tab">BUNDLES</button>
+    <button class="tb-tab">FEATURED</button>
+    <button class="tb-tab">NEW ARRIVALS</button>
+    <button class="tb-tab">MY ORDERS</button>
+  </div>
+  <div class="tb-right">
+    <div class="cart-btn" onclick="document.querySelector('.cart-sidebar').style.display='flex'">
+      <span class="cart-icon">🛒</span>
+      <span class="cart-text">ORDER CART</span>
+      <span class="cart-count" id="cart-badge">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- WAREHOUSE LAYOUT -->
+<div class="warehouse-layout">
+
+  <!-- LEFT FILTERS -->
+  <aside class="filter-sidebar">
+    <div class="fs-search">
+      <input class="fss-input" type="text" placeholder="Search catalog… SKU, name, dept" oninput="filterProducts(this.value)" />
+    </div>
+
+    <div class="fs-section">
+      <div class="fss-title">DEPARTMENT</div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Treasury · Finance</div><div class="fo-count">4</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Culture · Media</div><div class="fo-count">6</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Faith · Ministry</div><div class="fo-count">3</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Health · Wellness</div><div class="fo-count">3</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Housing · Real Estate</div><div class="fo-count">3</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Communications</div><div class="fo-count">3</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Community · Social</div><div class="fo-count">4</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Technology · Dev</div><div class="fo-count">3</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">Commerce · Logistics</div><div class="fo-count">3</div></div>
+    </div>
+
+    <div class="fs-section">
+      <div class="fss-title">PRICE RANGE (WHOLESALE/MO)</div>
+      <div class="price-range"><span class="pr-lbl">$0</span><span class="pr-lbl">$2,400</span></div>
+      <div class="price-track"><div class="price-fill"></div></div>
+      <div class="price-range"><span class="pr-lbl" style="color:var(--cyan);">$240 – $1,800</span></div>
+    </div>
+
+    <div class="fs-section">
+      <div class="fss-title">AVAILABILITY</div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box checked"></div><div class="fo-label">In Stock</div><div class="fo-count">29</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box"></div><div class="fo-label">New Arrivals</div><div class="fo-count">2</div></div>
+      <div class="filter-opt" onclick="toggleFilter(this)"><div class="fo-box"></div><div class="fo-label">Ministry Engine Included</div><div class="fo-count">12</div></div>
+    </div>
+
+    <div class="fs-section">
+      <div class="fss-title">PRE-BUILT BUNDLES</div>
+      <div class="bundle-tag" onclick="addBundle('church-bundle')">
+        <div class="bt-label">◈ BUNDLE · SAVE 22%</div>
+        <div class="bt-name">FAITH ORG STARTER</div>
+        <div class="bt-price">$1,080/mo — Church + Wellness + Community</div>
+      </div>
+      <div class="bundle-tag" onclick="addBundle('hbcu-bundle')" style="margin-top:5px;">
+        <div class="bt-label">◈ BUNDLE · SAVE 28%</div>
+        <div class="bt-name">HBCU FULL STACK</div>
+        <div class="bt-price">$2,880/mo — Institute + Bank + Studio + Community</div>
+      </div>
+      <div class="bundle-tag" onclick="addBundle('media-bundle')" style="margin-top:5px;">
+        <div class="bt-label">◈ BUNDLE · SAVE 18%</div>
+        <div class="bt-name">MEDIA CO. PACKAGE</div>
+        <div class="bt-price">$2,160/mo — D+ + Studio + Podcast + Director</div>
+      </div>
+      <div class="bundle-tag" onclick="addBundle('full-stack')" style="margin-top:5px;border-color:rgba(196,152,32,.25);background:rgba(196,152,32,.05);">
+        <div class="bt-label" style="color:var(--gold2);">◈ FULL STACK · SAVE 35%</div>
+        <div class="bt-name" style="color:var(--gold2);">SOVEREIGN FULL DEPLOY</div>
+        <div class="bt-price" style="color:var(--gold2);">$9,800/mo — All 31 modules</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTER PRODUCTS -->
+  <main class="product-area">
+    <div class="pa-header">
+      <div>
+        <div class="pah-title">PRODUCT WAREHOUSE</div>
+        <div class="pah-count" id="prod-count">SHOWING 31 OF 31 SKUs · LIGHTEK MCG AUTHORIZED CATALOG</div>
+      </div>
+      <div class="pah-sort">
+        <button class="sort-btn on" onclick="sortBy(this,'sku')">SKU #</button>
+        <button class="sort-btn" onclick="sortBy(this,'price')">PRICE</button>
+        <button class="sort-btn" onclick="sortBy(this,'dept')">DEPT</button>
+        <button class="sort-btn" onclick="sortBy(this,'margin')">MARGIN</button>
+      </div>
+    </div>
+
+    <div class="prod-grid" id="prod-grid"></div>
+  </main>
+
+  <!-- RIGHT CART -->
+  <aside class="cart-sidebar">
+    <div class="cs-header">
+      <div class="csh-title">ORDER CART <span class="csh-count" id="cart-count">0</span></div>
+    </div>
+
+    <div class="cart-items" id="cart-items">
+      <div class="cart-empty" id="cart-empty">
+        <span class="ce-icon">🛒</span>
+        <div class="ce-text">Your order is empty.<br>Add SKUs from the catalog to build your deployment order.</div>
+      </div>
+    </div>
+
+    <div class="order-summary">
+      <div class="margin-indicator">
+        <div class="mi-label">◈ YOUR PROJECTED MONTHLY MARGIN</div>
+        <div class="mi-val" id="margin-display">$0</div>
+        <div class="mi-sub">AT 200% MARKUP · ADJUST IN RESELLER PORTAL</div>
+      </div>
+      <div class="os-row"><div class="osr-label">Wholesale cost / month</div><div class="osr-val" style="color:var(--muted);" id="wholesale-total">$0</div></div>
+      <div class="os-row"><div class="osr-label">Recommended retail (200%)</div><div class="osr-val" style="color:var(--cyan);" id="retail-total">$0</div></div>
+      <div class="os-row"><div class="osr-label">Modules selected</div><div class="osr-val" id="module-count">0</div></div>
+      <div class="os-divider"></div>
+      <div class="os-total-row">
+        <div class="ostr-label">TOTAL WHOLESALE</div>
+        <div class="ostr-val" style="color:var(--cyan);" id="order-total">$0</div>
+      </div>
+      <div class="os-margin" style="color:var(--green2);" id="margin-label">/ month · recurring</div>
+      <button class="os-checkout" onclick="checkout()">SUBMIT ORDER →</button>
+      <button class="os-save" onclick="saveQuote()">SAVE AS QUOTE</button>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+// ─ CURSOR ─
+const cur=document.getElementById('cur'),cur2=document.getElementById('cur2');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function l(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;cur2.style.left=rx+'px';cur2.style.top=ry+'px';requestAnimationFrame(l);})();
+
+// ─ PRODUCT DATA ─
+const PRODUCTS = [
+  {sku:'SKU-001',name:'BANK MODULE',dept:'Treasury · Finance',icon:'🏦',color:'#1EA866',price:840,retail:2100,desc:'Full neobank deployment. Accounts, lending, transfers, financial coaching. Community Credit Pool included. DYMOND BANK white-labeled.',me:true,stock:true},
+  {sku:'SKU-002',name:'BUSINESS MODULE',dept:'Treasury · Commerce',icon:'💼',color:'#C87820',price:480,retail:1200,desc:'Business incubation OS. Formation, tracking, payroll integration, banking bridge. DYMOND BUSINESS white-labeled.',me:false,stock:true},
+  {sku:'SKU-003',name:'INSTITUTE MODULE',dept:'Education',icon:'🎓',color:'#146414',price:600,retail:1500,desc:'Full e-learning platform. Curriculum management, enrollment, certifications, flywheel loan bridge to Bank module.',me:false,stock:true},
+  {sku:'SKU-004',name:'CONNECT MODULE',dept:'Communications · ISP',icon:'📡',color:'#1040E0',price:1800,retail:4500,desc:'ISP infrastructure, VoIP, cell service, TV bundle. No throttling. Community equity access. Requires infrastructure setup.',me:false,stock:true},
+  {sku:'SKU-005',name:'MESSAGES MODULE',dept:'Communications',icon:'💬',color:'#7A5AE8',price:240,retail:600,desc:'End-to-end encrypted messaging platform. Group chats, channels, file sharing. Zero data retention model.',me:false,stock:true},
+  {sku:'SKU-006',name:'CLOUD MODULE',dept:'Technology',icon:'☁️',color:'#1848D8',price:480,retail:1200,desc:'Sovereign cloud storage. File management, sharing, sync. No AWS. No Google. Constitutional data sovereignty.',me:false,stock:true},
+  {sku:'SKU-007',name:'COMPUTE MODULE',dept:'Technology · Dev',icon:'⚡',color:'#38C820',price:720,retail:1800,desc:'Developer cloud infrastructure. Container orchestration, deployment pipeline, job queuing. Sovereign compute.',me:false,stock:true},
+  {sku:'SKU-008',name:'CHURCH MODULE',dept:'Faith · Ministry',icon:'✝',color:'#C49820',price:480,retail:1200,desc:'Live streaming, sermon notes, prayer wall, tithe collection, Bible study groups. Ministry Engine fully included.',me:true,stock:true},
+  {sku:'SKU-009',name:'WELLNESS MODULE',dept:'Health · Wellness',icon:'🌿',color:'#2A8A6A',price:360,retail:900,desc:'Mental health access, meditation, recovery protocols, pastoral counseling pathway. Faith-based wellness OS.',me:true,stock:true},
+  {sku:'SKU-010',name:'FIT MODULE',dept:'Health · Fitness',icon:'🔥',color:'#FF4A0A',price:360,retail:900,desc:'Gamified fitness platform. Workouts, macros, leaderboards, PR tracking. Body as Temple protocol active.',me:true,stock:true},
+  {sku:'SKU-011',name:'DELIVERY MODULE',dept:'Commerce · Food',icon:'🚚',color:'#E85010',price:480,retail:1200,desc:'Food and specialty delivery platform. Restaurant integration, cold chain logistics, macro-matched meal engine.',me:false,stock:true},
+  {sku:'SKU-012',name:'WAREHOUSE MODULE',dept:'Commerce · Logistics',icon:'🏭',color:'#C87820',price:600,retail:1500,desc:'Inventory management, fulfillment, barcode scanning, reorder automation. DYMOND WAREHOUSE white-labeled.',me:false,stock:true},
+  {sku:'SKU-013',name:'REAL ESTATE MODULE',dept:'Housing · Property',icon:'🏛',color:'#2860A8',price:720,retail:1800,desc:'Property search, listing management, mortgage integration, virtual tours. First-gen homeowner protocols active.',me:false,stock:true},
+  {sku:'SKU-014',name:'STREAMING MODULE',dept:'Culture · Media',icon:'📺',color:'#E82020',price:1200,retail:3000,desc:'Full streaming platform deployment. Content library, live broadcast, creator dashboard, royalty tracking. DYMOND+ white-labeled.',me:false,stock:true},
+  {sku:'SKU-015',name:'STUDIO MODULE',dept:'Culture · Production',icon:'🎬',color:'#E84C4C',price:720,retail:1800,desc:'Content creation suite. Video production, audio tools, collaboration workspace, distribution pipeline.',me:false,stock:true},
+  {sku:'SKU-016',name:'PODCAST MODULE',dept:'Culture · Audio',icon:'🎙',color:'#E86010',price:360,retail:900,desc:'Full podcast platform. Show creation, RSS distribution, analytics, monetization. Multi-format: Solo, Panel, Red Table, After Show.',me:false,stock:true},
+  {sku:'SKU-017',name:'BARS MODULE',dept:'Culture · Sport',icon:'🎤',color:'#8A0A0A',price:840,retail:2100,desc:'Battle rap league OS. Tournament brackets, scoring, VOD, broadcast. Cultural sovereignty attribution built in.',me:false,stock:true},
+  {sku:'SKU-018',name:'DIRECTOR MODULE',dept:'Culture · AI',icon:'🎭',color:'#C49820',price:960,retail:2400,desc:'AI live production pipeline. Script generation, AI video engine connectors, TikTok RTMP, chat reactor. Full autonomous stream.',me:false,stock:true},
+  {sku:'SKU-019',name:'MATCH MODULE',dept:'Family · Community',icon:'💑',color:'#D8286A',price:480,retail:1200,desc:'Compatibility matching with marriage journey pipeline. Pastor counseling bridge, Ring Shopping phase, ordination network.',me:true,stock:true},
+  {sku:'SKU-020',name:'COMMUNITY MODULE',dept:'Community · Social',icon:'👥',color:'#5A38C8',price:360,retail:900,desc:'Full community platform. Groups, events, mutual aid, feeds, notifications. Sets social architecture included.',me:true,stock:true},
+  {sku:'SKU-021',name:'SOCIAL MODULE',dept:'Community · Media',icon:'📱',color:'#7A5AE8',price:360,retail:900,desc:'Social feed, stories, reels, direct share. Algorithm-free timeline. Constitutional Article I content ownership.',me:true,stock:true},
+  {sku:'SKU-022',name:'HOME MODULE',dept:'Housing · IoT',icon:'🏠',color:'#0A7870',price:480,retail:1200,desc:'Smart home platform. Device management, scene builder, energy monitoring, neighborhood connect.',me:false,stock:true},
+  {sku:'SKU-023',name:'BOOKING MODULE',dept:'Commerce · Services',icon:'📅',color:'#1A8A78',price:360,retail:900,desc:'Talent and services marketplace. Calendar management, booking flow, payment processing, review system.',me:false,stock:true},
+  {sku:'SKU-024',name:'SETS MODULE',dept:'Community · Culture',icon:'🏘',color:'#C41818',price:360,retail:900,desc:'Neighborhood-level social architecture. Set identity, mutual aid, collective action, protected community space.',me:true,stock:true},
+  {sku:'SKU-025',name:'TWIN MODULE',dept:'Technology · AI',icon:'🌐',color:'#9840FF',price:960,retail:2400,desc:'Digital twin OS. Living avatar, virtual world access, real-to-digital data loop, AI character generation.',me:false,stock:true,isNew:true},
+  {sku:'SKU-026',name:'FORGE MODULE',dept:'Technology · Build',icon:'🔧',color:'#50E830',price:600,retail:1500,desc:'Web and app builder platform. Drag-and-drop + code editor, templates, deployment, custom domain management.',me:false,stock:true},
+  {sku:'SKU-027',name:'MINISTRY ENGINE',dept:'Faith · System',icon:'⚖️',color:'#C49820',price:360,retail:900,desc:'Standalone Ministry Engine deployment. Faith-based ethical protocol layer. Cross-module governance. Constitutional Articles I–VIII enforcement.',me:true,stock:true},
+  {sku:'SKU-028',name:'INSTITUTE+ MODULE',dept:'Education · Advanced',icon:'🏫',color:'#3AAA72',price:840,retail:2100,desc:'Full Institute with flywheel loan engine. Automated Institute→Studio→D+→Royalties→Bank cycle. Complete education economy.',me:false,stock:true},
+  {sku:'SKU-029',name:'BLACK HOUSE LITE',dept:'Governance · Civic',icon:'🏛',color:'#B8901C',price:1200,retail:3000,desc:'Civic government portal deployment. Citizen services, departmental structure, constitutional framework, press room. For orgs deploying their own governing body.',me:true,stock:true},
+  {sku:'SKU-030',name:'PRESS ROOM MODULE',dept:'Communications · Media',icon:'📰',color:'#5A7090',price:480,retail:1200,desc:'Press briefing room platform. Scheduled briefings, press credentials, live broadcast integration, media asset library.',me:false,stock:true},
+  {sku:'SKU-031',name:'REPARATIONS FUND',dept:'Treasury · Constitutional',icon:'⚖️',color:'#D82020',price:240,retail:600,desc:'Article VII implementation module. Automated 2% allocation, distribution tracking, Legacy Endowment management, quarterly reporting.',me:true,stock:true,isNew:true},
+];
+
+let cart = {};
+let activeSort = 'sku';
+
+function renderGrid(products) {
+  const grid = document.getElementById('prod-grid');
+  grid.innerHTML = '';
+  document.getElementById('prod-count').textContent = `SHOWING ${products.length} OF 31 SKUs · LIGHTEK MCG AUTHORIZED CATALOG`;
+
+  products.forEach(p => {
+    const inCart = !!cart[p.sku];
+    const div = document.createElement('div');
+    div.className = 'prod-card' + (inCart ? ' in-cart' : '');
+    div.id = 'card-' + p.sku;
+    div.style.setProperty('--stripe', p.color);
+    div.innerHTML = `
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${p.color};"></div>
+      ${p.me ? '<div class="pc-me-badge">⚖ MINISTRY ENGINE</div>' : ''}
+      ${p.isNew ? '<div class="pc-new-badge">NEW</div>' : ''}
+      <div class="pc-top">
+        <div class="pc-sku">${p.sku}</div>
+        <div class="pc-stock">
+          <div class="pcs-dot" style="background:${p.stock?'#28D870':'#D82020'};animation:blink 1s infinite;"></div>
+          <span style="font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;color:${p.stock?'#28D870':'#D82020'};">${p.stock?'IN STOCK':'WAITLIST'}</span>
+        </div>
+      </div>
+      <span class="pc-icon">${p.icon}</span>
+      <div class="pc-name">${p.name}</div>
+      <div class="pc-dept" style="color:${p.color};">${p.dept}</div>
+      <div class="pc-desc">${p.desc}</div>
+      <div class="pc-bottom">
+        <div class="pc-pricing">
+          <span class="pcp-wholesale" style="color:${p.color};">$${p.price.toLocaleString()}</span>
+          <span class="pcp-retail">Retail: ~$${p.retail.toLocaleString()}/mo</span>
+        </div>
+        <button class="pc-add-btn"
+          style="border-color:${inCart?'var(--cyan)':'rgba(238,244,252,.18)'};color:${inCart?'var(--cyan)':'rgba(238,244,252,.4)'};"
+          onclick="toggleCart('${p.sku}',event)">${inCart ? '✓ IN CART' : '+ ADD'}</button>
+      </div>`;
+    div.addEventListener('mouseenter',()=>{cur.style.width='10px';cur.style.height='10px';cur2.style.width='32px';cur2.style.height='32px';});
+    div.addEventListener('mouseleave',()=>{cur.style.width='6px';cur.style.height='6px';cur2.style.width='26px';cur2.style.height='26px';});
+    grid.appendChild(div);
+  });
+}
+
+function toggleCart(sku, e) {
+  if(e) e.stopPropagation();
+  const p = PRODUCTS.find(x=>x.sku===sku);
+  if(cart[sku]) {
+    delete cart[sku];
+  } else {
+    cart[sku] = p;
+  }
+  updateCart();
+  renderGrid(getCurrentProducts());
+}
+
+function updateCart() {
+  const count = Object.keys(cart).length;
+  document.getElementById('cart-badge').textContent = count;
+  document.getElementById('cart-count').textContent = count;
+
+  const itemsEl = document.getElementById('cart-items');
+  const emptyEl = document.getElementById('cart-empty');
+
+  if(count === 0) {
+    itemsEl.innerHTML = '<div class="cart-empty" id="cart-empty"><span class="ce-icon">🛒</span><div class="ce-text">Your order is empty.<br>Add SKUs from the catalog to build your deployment order.</div></div>';
+  } else {
+    const items = Object.values(cart).map(p => `
+      <div class="cart-item">
+        <div class="ci-icon">${p.icon}</div>
+        <div class="ci-body">
+          <div class="cib-name">${p.name}</div>
+          <div class="cib-sku">${p.sku}</div>
+          <div class="cib-price">$${p.price.toLocaleString()}/mo wholesale</div>
+        </div>
+        <div class="ci-remove" onclick="toggleCart('${p.sku}')">✕</div>
+      </div>`).join('');
+    itemsEl.innerHTML = items;
+  }
+
+  const wholesale = Object.values(cart).reduce((s,p)=>s+p.price,0);
+  const retail = wholesale * 2;
+  const margin = retail - wholesale;
+  document.getElementById('wholesale-total').textContent = '$' + wholesale.toLocaleString();
+  document.getElementById('retail-total').textContent = '$' + retail.toLocaleString();
+  document.getElementById('order-total').textContent = '$' + wholesale.toLocaleString();
+  document.getElementById('module-count').textContent = count;
+  document.getElementById('margin-display').textContent = '$' + margin.toLocaleString();
+  document.getElementById('margin-label').textContent = count > 0 ? `/ month recurring · ${count} module${count>1?'s':''} deployed` : '/ month · recurring';
+}
+
+function getCurrentProducts() {
+  let products = [...PRODUCTS];
+  if(activeSort === 'price') products.sort((a,b)=>a.price-b.price);
+  else if(activeSort === 'dept') products.sort((a,b)=>a.dept.localeCompare(b.dept));
+  else if(activeSort === 'margin') products.sort((a,b)=>(b.retail-b.price)-(a.retail-a.price));
+  return products;
+}
+
+function sortBy(btn, type) {
+  activeSort = type;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderGrid(getCurrentProducts());
+}
+
+function filterProducts(q) {
+  if(!q) { renderGrid(getCurrentProducts()); return; }
+  const filtered = PRODUCTS.filter(p =>
+    p.name.toLowerCase().includes(q.toLowerCase()) ||
+    p.sku.toLowerCase().includes(q.toLowerCase()) ||
+    p.dept.toLowerCase().includes(q.toLowerCase())
+  );
+  renderGrid(filtered);
+}
+
+function toggleFilter(el) {
+  el.querySelector('.fo-box').classList.toggle('checked');
+}
+
+function addBundle(type) {
+  const bundles = {
+    'church-bundle': ['SKU-008','SKU-009','SKU-020'],
+    'hbcu-bundle': ['SKU-003','SKU-001','SKU-015','SKU-020'],
+    'media-bundle': ['SKU-014','SKU-015','SKU-016','SKU-018'],
+    'full-stack': PRODUCTS.map(p=>p.sku)
+  };
+  (bundles[type]||[]).forEach(sku=>{
+    const p = PRODUCTS.find(x=>x.sku===sku);
+    if(p) cart[sku] = p;
+  });
+  updateCart();
+  renderGrid(getCurrentProducts());
+}
+
+function checkout() {
+  if(!Object.keys(cart).length) return;
+  const btn = document.querySelector('.os-checkout');
+  btn.textContent = '✓ ORDER SUBMITTED — LIGHTEK WILL CONFIRM';
+  btn.style.background = 'var(--green2)';
+}
+
+function saveQuote() {
+  const btn = document.querySelector('.os-save');
+  btn.textContent = '✓ QUOTE SAVED';
+  setTimeout(()=>btn.textContent='SAVE AS QUOTE',2500);
+}
+
+// Init
+renderGrid(PRODUCTS);
+</script>
+</body>
+</html>

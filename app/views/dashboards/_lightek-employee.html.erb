@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lightek MCG — Internal Operations Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  /* foundation */
+  --bg:#020508;--bg2:#040810;--bg3:#060B14;
+  --panel:#08101C;--card:#0A1422;--lift:#0D1A2C;--border:#0F2040;
+  /* brand */
+  --cyan:#00B8D4;--cyan2:#00D4F4;--cyan3:#40E8FF;
+  --gold:#C0900A;--gold2:#D4A818;--gold3:#ECC030;
+  /* departments */
+  --sales:#0A7840;--sales2:#10A858;--sales3:#18D870;
+  --deploy:#0848B8;--deploy2:#0A60E0;--deploy3:#2880FF;
+  --channel:#6010A0;--channel2:#8018CC;--channel3:#A030F0;
+  --finance:#884400;--finance2:#B05808;--finance3:#D87010;
+  --comms:#007088;--comms2:#009CB8;--comms3:#00C0E0;
+  --compliance:#880020;--compliance2:#B00030;--compliance3:#D80040;
+  --support:#405800;--support2:#587800;--support3:#70A000;
+  --exec:#402808;--exec2:#604010;--exec3:#805818;
+  /* status */
+  --green:#18D870;--yellow:#E8C020;--red:#E82020;--orange:#E86020;
+  /* text */
+  --white:#E8F0F8;--muted:#3A5070;--dim:#1A2840;--ghost:#0E1828;
+  /* fonts */
+  --fm:'IBM Plex Mono',monospace;
+  --fc:'Barlow Condensed',sans-serif;
+  --fb:'IBM Plex Sans',sans-serif;
+}
+html{font-size:13px;}
+body{background:var(--bg);color:var(--white);font-family:var(--fm);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+/* micro circuit bg */
+body::before{content:'';position:fixed;inset:0;background-image:
+  linear-gradient(rgba(0,184,212,.006) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,184,212,.006) 1px,transparent 1px);
+  background-size:20px 20px;pointer-events:none;z-index:0;}
+
+/* cursor — crosshair */
+#cx1{position:fixed;width:1px;height:16px;background:rgba(0,184,212,.7);z-index:9999;pointer-events:none;transform:translate(-50%,-50%);}
+#cx2{position:fixed;width:16px;height:1px;background:rgba(0,184,212,.7);z-index:9999;pointer-events:none;transform:translate(-50%,-50%);}
+#cxdot{position:fixed;width:3px;height:3px;background:var(--cyan2);z-index:9999;pointer-events:none;transform:translate(-50%,-50%);}
+
+/* animations */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.08}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes tickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+.slide-in{animation:slideIn .4s cubic-bezier(.16,1,.3,1) forwards;}
+
+/* ═══════════════════════════════════════════
+   SYSTEM BAR — top 28px
+═══════════════════════════════════════════ */
+.sysbar{
+  height:28px;flex-shrink:0;
+  background:rgba(2,5,8,1);
+  border-bottom:1px solid rgba(0,184,212,.06);
+  display:flex;align-items:center;
+  justify-content:space-between;
+  padding:0 16px;
+  position:relative;z-index:200;
+}
+.sb-left{display:flex;align-items:center;gap:10px;}
+.sb-logo{font-family:var(--fc);font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);}
+.sb-sep{width:1px;height:12px;background:rgba(0,184,212,.12);}
+.sb-label{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);}
+.sb-env{font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);display:flex;align-items:center;gap:3px;}
+.sb-env-dot{width:4px;height:4px;border-radius:50%;background:var(--red);animation:blink .6s infinite;}
+.sb-center{display:flex;align-items:center;gap:12px;}
+.sb-stat{display:flex;align-items:center;gap:4px;}
+.sbst-val{font-size:9px;font-weight:700;letter-spacing:.04em;}
+.sbst-lbl{font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.sb-pipe{width:1px;height:10px;background:rgba(0,184,212,.08);}
+.sb-right{display:flex;align-items:center;gap:10px;}
+.sb-clock{font-size:10px;font-weight:600;color:rgba(232,240,248,.4);letter-spacing:.04em;}
+.sb-user{display:flex;align-items:center;gap:5px;}
+.sbu-dept{font-size:7px;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;border:1px solid;}
+.sbu-name{font-size:8px;font-weight:700;letter-spacing:.06em;color:rgba(232,240,248,.5);}
+/* alert ticker */
+.alert-ticker{
+  height:22px;flex-shrink:0;
+  background:var(--ghost);
+  border-bottom:1px solid rgba(0,184,212,.05);
+  display:flex;align-items:center;
+  overflow:hidden;
+  position:relative;z-index:190;
+}
+.at-badge{font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:var(--bg);background:var(--cyan);padding:0 10px;height:100%;display:flex;align-items:center;font-weight:700;flex-shrink:0;}
+.at-scroll{white-space:nowrap;animation:tickerScroll 60s linear infinite;display:inline-block;}
+.at-item{font-size:7px;letter-spacing:.08em;color:rgba(0,184,212,.5);padding:0 30px;}
+.at-item.alert{color:rgba(232,32,32,.7);}
+.at-item.good{color:rgba(24,216,112,.6);}
+.at-item.warn{color:rgba(232,192,32,.6);}
+
+/* ═══════════════════════════════════════════
+   DEPT TAB BAR
+═══════════════════════════════════════════ */
+.dept-bar{
+  height:38px;flex-shrink:0;
+  background:rgba(4,8,16,.98);
+  border-bottom:1px solid rgba(0,184,212,.06);
+  display:flex;align-items:center;
+  padding:0 0 0 8px;
+  position:relative;z-index:180;
+}
+.dept-tab{
+  height:38px;
+  display:flex;align-items:center;gap:5px;
+  padding:0 14px;
+  border-bottom:2px solid transparent;
+  border-top:none;border-left:none;border-right:none;
+  background:transparent;
+  font-family:var(--fm);font-size:7px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);cursor:pointer;transition:all .15s;
+  position:relative;
+}
+.dept-tab:hover{color:rgba(232,240,248,.7);}
+.dept-tab.active{color:var(--white);}
+.dt-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.dt-count{font-size:6px;font-weight:700;opacity:.7;}
+.dept-bar-right{margin-left:auto;display:flex;align-items:center;gap:6px;padding-right:14px;}
+.dbr-role{font-size:7px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+.dbr-switch{font-size:7px;letter-spacing:.12em;text-transform:uppercase;border:1px solid rgba(0,184,212,.12);padding:3px 8px;color:var(--cyan);background:rgba(0,184,212,.04);cursor:pointer;transition:all .18s;}
+.dbr-switch:hover{background:rgba(0,184,212,.08);}
+
+/* ═══════════════════════════════════════════
+   MAIN LAYOUT
+═══════════════════════════════════════════ */
+.main-wrap{display:grid;grid-template-columns:180px 1fr 220px;flex:1;overflow:hidden;position:relative;z-index:1;}
+
+/* ─ LEFT NAV ─ */
+.leftnav{background:rgba(4,8,16,.99);border-right:1px solid rgba(0,184,212,.05);overflow-y:auto;padding:0;}
+.leftnav::-webkit-scrollbar{width:0;}
+.ln-section{padding:10px 0 2px;}
+.ln-hdr{font-size:7px;letter-spacing:.22em;text-transform:uppercase;color:rgba(58,80,112,.8);padding:0 12px;margin-bottom:4px;}
+.ln-item{display:flex;align-items:center;gap:7px;padding:6px 10px;border-left:2px solid transparent;cursor:pointer;transition:all .12s;position:relative;}
+.ln-item:hover{background:rgba(0,184,212,.03);}
+.ln-item.active{background:rgba(0,184,212,.05);border-left-color:var(--cyan);}
+.ln-item.active .ln-label{color:var(--cyan);}
+.ln-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.ln-label{font-size:8px;letter-spacing:.06em;color:rgba(232,240,248,.38);flex:1;text-transform:uppercase;}
+.ln-badge{font-size:6px;font-weight:700;color:rgba(232,240,248,.2);padding:1px 4px;border:1px solid rgba(232,240,248,.08);}
+.ln-badge.live{color:var(--red);border-color:rgba(232,32,32,.2);animation:blink .8s infinite;}
+.ln-badge.good{color:var(--green);border-color:rgba(24,216,112,.2);}
+.ln-badge.warn{color:var(--yellow);border-color:rgba(232,192,32,.2);}
+.ln-divider{height:1px;background:rgba(0,184,212,.05);margin:6px 0;}
+
+/* ─ CENTER CONTENT ─ */
+.center-content{overflow-y:auto;padding:12px;background:var(--bg);}
+.center-content::-webkit-scrollbar{width:3px;}
+.center-content::-webkit-scrollbar-track{background:rgba(0,184,212,.02);}
+.center-content::-webkit-scrollbar-thumb{background:rgba(0,184,212,.1);}
+
+/* ─ RIGHT RAIL ─ */
+.right-rail{background:rgba(4,8,16,.99);border-left:1px solid rgba(0,184,212,.05);overflow-y:auto;padding:10px 0;}
+.right-rail::-webkit-scrollbar{width:0;}
+
+/* ═══════════════════════════════════════════
+   SHARED WIDGET COMPONENTS
+═══════════════════════════════════════════ */
+.widget{background:var(--panel);border:1px solid rgba(0,184,212,.06);margin-bottom:4px;position:relative;overflow:hidden;}
+.widget-hdr{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(0,184,212,.05);}
+.wh-title{font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center;gap:5px;}
+.wh-title-dot{width:4px;height:4px;border-radius:50%;}
+.wh-action{font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);cursor:pointer;opacity:.6;transition:opacity .15s;}
+.wh-action:hover{opacity:1;}
+.wh-badge{font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:1px 5px;}
+.widget-body{padding:8px 10px;}
+.widget-stripe{position:absolute;top:0;left:0;right:0;height:2px;}
+
+/* stat row */
+.stat-row{display:grid;gap:4px;margin-bottom:4px;}
+.stat-cell{background:var(--card);border:1px solid rgba(0,184,212,.05);padding:8px 10px;position:relative;}
+.sc-lbl{font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.sc-val{font-family:var(--fc);font-size:clamp(18px,2.5vw,28px);font-weight:900;letter-spacing:.03em;display:block;line-height:1;}
+.sc-sub{font-size:7px;letter-spacing:.06em;margin-top:2px;}
+.sc-delta-up{color:var(--green);}
+.sc-delta-down{color:var(--red);}
+.sc-delta-flat{color:var(--yellow);}
+.sc-bar{position:absolute;bottom:0;left:0;right:0;height:2px;}
+
+/* table */
+.data-table{width:100%;}
+.dt-head{display:grid;padding:4px 0;border-bottom:1px solid rgba(0,184,212,.07);margin-bottom:2px;}
+.dt-th{font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.dt-row{display:grid;padding:5px 0;border-bottom:1px solid rgba(0,184,212,.04);align-items:center;transition:background .12s;cursor:pointer;}
+.dt-row:hover{background:rgba(0,184,212,.025);}
+.dt-row:last-child{border-bottom:none;}
+.dt-cell{font-size:8px;letter-spacing:.04em;color:rgba(232,240,248,.55);}
+.dt-cell.strong{color:rgba(232,240,248,.82);font-weight:600;}
+.dt-cell.mono{font-family:var(--fm);font-size:7px;}
+
+/* status pills */
+.status-pill{font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:1px 5px;display:inline-block;}
+.sp-active{border-color:rgba(24,216,112,.25);color:var(--green);}
+.sp-live{border-color:rgba(232,32,32,.3);color:var(--red);animation:blink .9s infinite;}
+.sp-warn{border-color:rgba(232,192,32,.25);color:var(--yellow);}
+.sp-pending{border-color:rgba(0,184,212,.2);color:var(--cyan);}
+.sp-closed{border-color:rgba(58,80,112,.3);color:var(--muted);}
+
+/* progress bar */
+.prog-bar{height:3px;background:rgba(232,240,248,.05);position:relative;margin-top:4px;}
+.prog-fill{position:absolute;top:0;left:0;height:100%;transition:width .8s ease;}
+
+/* feed item */
+.feed-item{display:flex;gap:7px;align-items:flex-start;padding:5px 0;border-bottom:1px solid rgba(0,184,212,.04);}
+.feed-item:last-child{border-bottom:none;}
+.fi-time{font-size:7px;font-weight:700;color:var(--muted);flex-shrink:0;min-width:32px;padding-top:1px;}
+.fi-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.fi-text{font-size:8px;color:rgba(232,240,248,.48);line-height:1.45;flex:1;}
+.fi-text strong{color:rgba(232,240,248,.75);font-weight:600;}
+
+/* mini bar chart */
+.minibars{display:flex;align-items:flex-end;gap:2px;height:40px;}
+.mb-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.mb-bar{width:100%;border-radius:1px 1px 0 0;min-height:2px;}
+.mb-lbl{font-size:5px;letter-spacing:.04em;color:var(--muted);}
+
+/* right rail widgets */
+.rr-section{padding:0 10px 10px;border-bottom:1px solid rgba(0,184,212,.05);margin-bottom:2px;}
+.rrs-title{font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);padding:8px 0 5px;display:flex;align-items:center;gap:5px;}
+.rrs-title::before{content:'◈';color:var(--cyan);font-size:8px;}
+.rr-item{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(0,184,212,.04);}
+.rr-item:last-child{border-bottom:none;}
+.rri-label{font-size:8px;color:rgba(232,240,248,.4);}
+.rri-val{font-size:8px;font-weight:700;}
+
+/* pipeline stage */
+.pipeline-stage{display:flex;align-items:center;gap:3px;margin-bottom:5px;}
+.ps-name{font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:rgba(232,240,248,.35);min-width:72px;}
+.ps-bar{flex:1;height:5px;background:rgba(232,240,248,.04);}
+.ps-fill{height:100%;}
+.ps-count{font-size:7px;font-weight:700;min-width:18px;text-align:right;}
+.ps-val{font-size:7px;color:var(--muted);min-width:42px;text-align:right;}
+
+/* person card in nav */
+.ln-person{display:flex;gap:6px;align-items:center;padding:6px 10px;cursor:pointer;transition:background .12s;border-left:2px solid transparent;}
+.ln-person:hover{background:rgba(0,184,212,.025);}
+.lnp-avatar{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;flex-shrink:0;}
+.lnp-name{font-size:8px;letter-spacing:.04em;color:rgba(232,240,248,.45);flex:1;}
+.lnp-status{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div id="cx1"></div><div id="cx2"></div><div id="cxdot"></div>
+
+<!-- SYSTEM BAR -->
+<div class="sysbar">
+  <div class="sb-left">
+    <div class="sb-logo">LIGHTEK MCG</div>
+    <div class="sb-sep"></div>
+    <div class="sb-label">INTERNAL OPERATIONS PLATFORM</div>
+    <div class="sb-sep"></div>
+    <div class="sb-env"><div class="sb-env-dot"></div>LIVE · v2.4.1</div>
+  </div>
+  <div class="sb-center">
+    <div class="sb-stat"><span class="sbst-val" style="color:var(--green);" id="sys-mrr">$84,600</span><span class="sbst-lbl">MRR</span></div>
+    <div class="sb-pipe"></div>
+    <div class="sb-stat"><span class="sbst-val" style="color:var(--cyan);">8</span><span class="sbst-lbl">DEPLOYMENTS</span></div>
+    <div class="sb-pipe"></div>
+    <div class="sb-stat"><span class="sbst-val" style="color:var(--yellow);" id="sys-tickets">14</span><span class="sbst-lbl">OPEN TICKETS</span></div>
+    <div class="sb-pipe"></div>
+    <div class="sb-stat"><span class="sbst-val" style="color:var(--green);">99.97%</span><span class="sbst-lbl">UPTIME</span></div>
+    <div class="sb-pipe"></div>
+    <div class="sb-stat"><span class="sbst-val" style="color:var(--cyan);">31</span><span class="sbst-lbl">SKUS LIVE</span></div>
+  </div>
+  <div class="sb-right">
+    <div class="sb-clock" id="sys-clock">09:41:00</div>
+    <div class="sb-sep"></div>
+    <div class="sb-user">
+      <div class="sbu-dept" style="border-color:rgba(0,120,64,.3);color:var(--sales2);">SALES</div>
+      <div class="sbu-name">EMPLOYEE NAME</div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERT TICKER -->
+<div class="alert-ticker">
+  <div class="at-badge">◉ OPS</div>
+  <div class="at-scroll">
+    <span class="at-item good">MILES COLLEGE DEPLOYMENT — All 5 modules live · SLA nominal</span>
+    <span class="at-item warn">TICKET LT-2841 — City of Compton onboarding · Bank module pending auth · Assigned: @darius.m</span>
+    <span class="at-item">RESELLER CERTIFICATION — Crown City Media · Training complete · Awaiting first deployment</span>
+    <span class="at-item good">Q1 COMMISSION RUN — $90,840 processed · All resellers paid · 0 disputes</span>
+    <span class="at-item alert">MINISTRY ENGINE ALERT — Violation flagged on Reseller A4 deployment · Compliance team notified</span>
+    <span class="at-item">LIGHTEK SUMMIT — Annual partner meeting · June 14-16, 2026 · 240 resellers invited</span>
+    <span class="at-item good">NEW PROPOSAL — Xavier University of LA · $18K MRR · Demo set for Thursday</span>
+    <span class="at-item">DYMOND EMPIRE — Module update v3.1.4 · Deploying to all instances tonight 2:00 AM EST</span>
+    <span class="at-item good">MILES COLLEGE DEPLOYMENT — All 5 modules live · SLA nominal</span>
+    <span class="at-item warn">TICKET LT-2841 — City of Compton onboarding · Bank module pending auth · Assigned: @darius.m</span>
+    <span class="at-item">RESELLER CERTIFICATION — Crown City Media · Training complete · Awaiting first deployment</span>
+    <span class="at-item good">Q1 COMMISSION RUN — $90,840 processed · All resellers paid · 0 disputes</span>
+  </div>
+</div>
+
+<!-- DEPT TAB BAR -->
+<div class="dept-bar">
+  <button class="dept-tab active" onclick="switchDept('sales',this)" id="tab-sales">
+    <div class="dt-dot" style="background:var(--sales2);"></div>SALES<span class="dt-count">8 DEALS</span>
+  </button>
+  <button class="dept-tab" onclick="switchDept('deploy',this)" id="tab-deploy">
+    <div class="dt-dot" style="background:var(--deploy2);"></div>DEPLOYMENT<span class="dt-count">8 LIVE</span>
+  </button>
+  <button class="dept-tab" onclick="switchDept('channel',this)" id="tab-channel">
+    <div class="dt-dot" style="background:var(--channel2);"></div>CHANNEL MGMT<span class="dt-count">6 PARTNERS</span>
+  </button>
+  <button class="dept-tab" onclick="switchDept('finance',this)" id="tab-finance">
+    <div class="dt-dot" style="background:var(--finance2);"></div>FINANCE<span class="dt-count">Q1 2026</span>
+  </button>
+  <button class="dept-tab" onclick="switchDept('compliance',this)" id="tab-compliance">
+    <div class="dt-dot" style="background:var(--compliance2);animation:blink .9s infinite;"></div>COMPLIANCE<span class="dt-count" style="color:var(--red);">1 ALERT</span>
+  </button>
+  <button class="dept-tab" onclick="switchDept('support',this)" id="tab-support">
+    <div class="dt-dot" style="background:var(--support2);"></div>SUPPORT<span class="dt-count">14 OPEN</span>
+  </button>
+  <button class="dept-tab" onclick="switchDept('executive',this)" id="tab-executive">
+    <div class="dt-dot" style="background:var(--gold2);"></div>EXECUTIVE<span class="dt-count">OVERVIEW</span>
+  </button>
+  <div class="dept-bar-right">
+    <div class="dbr-role">ROLE: SALES REP</div>
+    <button class="dbr-switch" onclick="cycleRole(this)">SWITCH ROLE</button>
+  </div>
+</div>
+
+<!-- MAIN WRAP -->
+<div class="main-wrap">
+
+  <!-- ─ LEFT NAV ─ -->
+  <nav class="leftnav" id="leftnav">
+    <!-- Populated by JS per dept -->
+  </nav>
+
+  <!-- ─ CENTER CONTENT ─ -->
+  <div class="center-content" id="center">
+    <!-- Populated by JS per dept -->
+  </div>
+
+  <!-- ─ RIGHT RAIL ─ -->
+  <aside class="right-rail" id="right-rail">
+    <!-- Populated by JS per dept -->
+  </aside>
+
+</div>
+
+<script>
+// ── CURSOR ─────────────────────────────────
+const cx1=document.getElementById('cx1');
+const cx2=document.getElementById('cx2');
+const cxd=document.getElementById('cxdot');
+document.addEventListener('mousemove',e=>{
+  const {clientX:x,clientY:y}=e;
+  cx1.style.left=x+'px';cx1.style.top=y+'px';
+  cx2.style.left=x+'px';cx2.style.top=y+'px';
+  cxd.style.left=x+'px';cxd.style.top=y+'px';
+});
+
+// ── CLOCK ──────────────────────────────────
+function tick(){
+  const n=new Date();
+  const t=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+  document.getElementById('sys-clock').textContent=t;
+}
+tick();setInterval(tick,1000);
+
+// ── LIVE MRR FLICKER ───────────────────────
+let mrr=84600;
+setInterval(()=>{mrr+=Math.floor(Math.random()*300);document.getElementById('sys-mrr').textContent='$'+mrr.toLocaleString();},9000);
+
+// ── DEPT DATA ──────────────────────────────
+const DEPTS={
+
+  // ════════════════════════════════════════
+  // SALES
+  // ════════════════════════════════════════
+  sales:{
+    color:'var(--sales2)',bg:'rgba(10,120,64,.08)',
+    nav:`
+      <div class="ln-section">
+        <div class="ln-hdr">MY PIPELINE</div>
+        <div class="ln-item active"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">All Deals</div><div class="ln-badge">8</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);animation:blink .9s infinite;"></div><div class="ln-label">Closing This Week</div><div class="ln-badge live">1</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--sales2);"></div><div class="ln-label">Proposals Out</div><div class="ln-badge warn">3</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Demos Scheduled</div><div class="ln-badge">2</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Prospects</div><div class="ln-badge">2</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">CATALOG</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Browse SKUs</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Build Quote</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Bundle Calculator</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">MY TARGETS</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Q1 Quota</div><div class="ln-badge good">84%</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Commission YTD</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Team Leaderboard</div></div>
+      </div>
+    `,
+    center:`
+      <!-- QUOTA STATS -->
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--sales2);"></div><div class="sc-lbl">PIPELINE VALUE</div><span class="sc-val" style="color:var(--sales2);">$216K</span><div class="sc-sub sc-delta-up">↑ +$44K this week</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">Q1 QUOTA ATTAINMENT</div><span class="sc-val" style="color:var(--green);">84%</span><div class="sc-sub sc-delta-up">$84K of $100K target</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--sales3);"></div><div class="sc-lbl">WON THIS QUARTER</div><span class="sc-val" style="color:var(--sales3);">5</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">Deals · $68K ARR</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--yellow);"></div><div class="sc-lbl">AVG DEAL SIZE</div><span class="sc-val" style="color:var(--yellow);">$13.6K</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">MRR per close</div></div>
+      </div>
+
+      <!-- PIPELINE TABLE -->
+      <div class="widget">
+        <div class="widget-stripe" style="background:var(--sales2);"></div>
+        <div class="widget-hdr">
+          <div class="wh-title"><div class="wh-title-dot" style="background:var(--sales2);"></div>DEAL PIPELINE — ALL STAGES</div>
+          <div class="wh-action" onclick="this.textContent='+ ADDED'">+ NEW DEAL</div>
+        </div>
+        <div class="widget-body" style="padding:0 10px;">
+          <div class="data-table">
+            <div class="dt-head" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-th">ORGANIZATION</div><div class="dt-th">TYPE</div><div class="dt-th">SKUs</div><div class="dt-th">MRR VALUE</div><div class="dt-th">STAGE</div><div class="dt-th">CLOSE EST</div>
+            </div>
+            <div class="dt-row" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">BETHEL GLOBAL MINISTRIES</div>
+              <div class="dt-cell">Faith Network · 12 campus</div>
+              <div class="dt-cell mono" style="color:var(--sales2);">6 SKUs</div>
+              <div class="dt-cell mono" style="color:var(--green);">$21,600</div>
+              <div class="dt-cell"><span class="status-pill sp-active">CLOSING</span></div>
+              <div class="dt-cell mono">Mar 28</div>
+            </div>
+            <div class="dt-row" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">XAVIER UNIVERSITY OF LA</div>
+              <div class="dt-cell">HBCU · Full Stack</div>
+              <div class="dt-cell mono" style="color:var(--sales2);">9 SKUs</div>
+              <div class="dt-cell mono" style="color:var(--green);">$18,000</div>
+              <div class="dt-cell"><span class="status-pill sp-pending">PROPOSAL</span></div>
+              <div class="dt-cell mono">Apr 15</div>
+            </div>
+            <div class="dt-row" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">COLUMBIA SC CITY PROGRAM</div>
+              <div class="dt-cell">Municipal · Community</div>
+              <div class="dt-cell mono" style="color:var(--sales2);">4 SKUs</div>
+              <div class="dt-cell mono" style="color:var(--green);">$14,400</div>
+              <div class="dt-cell"><span class="status-pill sp-pending">PROPOSAL</span></div>
+              <div class="dt-cell mono">Apr 22</div>
+            </div>
+            <div class="dt-row" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">AFROBEATS COLLECTIVE UK</div>
+              <div class="dt-cell">Media Co · Studio</div>
+              <div class="dt-cell mono" style="color:var(--sales2);">3 SKUs</div>
+              <div class="dt-cell mono" style="color:var(--green);">$7,200</div>
+              <div class="dt-cell"><span class="status-pill sp-warn">DEMO SET</span></div>
+              <div class="dt-cell mono">Thu 2pm</div>
+            </div>
+            <div class="dt-row" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">HARBOR HEALTH SYSTEM</div>
+              <div class="dt-cell">Healthcare · Wellness</div>
+              <div class="dt-cell mono" style="color:var(--sales2);">2 SKUs</div>
+              <div class="dt-cell mono" style="color:var(--green);">$4,800</div>
+              <div class="dt-cell"><span class="status-pill sp-warn">DEMO SET</span></div>
+              <div class="dt-cell mono">Fri 10am</div>
+            </div>
+            <div class="dt-row" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">LEGACY SPORTS MANAGEMENT</div>
+              <div class="dt-cell">Agency · Studio+Match</div>
+              <div class="dt-cell mono" style="color:var(--muted);">3 SKUs</div>
+              <div class="dt-cell mono" style="color:var(--muted);">$6,000</div>
+              <div class="dt-cell"><span class="status-pill" style="border-color:rgba(0,184,212,.15);color:var(--cyan);">PROSPECT</span></div>
+              <div class="dt-cell mono">TBD</div>
+            </div>
+            <div class="dt-row" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">NATIONAL URBAN LEAGUE</div>
+              <div class="dt-cell">Nonprofit · Full Stack</div>
+              <div class="dt-cell mono" style="color:var(--muted);">12 SKUs</div>
+              <div class="dt-cell mono" style="color:var(--muted);">$36,000</div>
+              <div class="dt-cell"><span class="status-pill" style="border-color:rgba(0,184,212,.15);color:var(--cyan);">PROSPECT</span></div>
+              <div class="dt-cell mono">Q2</div>
+            </div>
+            <div class="dt-row" style="grid-template-columns:2fr 1.2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">MOREHOUSE COLLEGE</div>
+              <div class="dt-cell">HBCU · Pilot Program</div>
+              <div class="dt-cell mono" style="color:var(--muted);">5 SKUs</div>
+              <div class="dt-cell mono" style="color:var(--muted);">$14,400</div>
+              <div class="dt-cell"><span class="status-pill" style="border-color:rgba(0,184,212,.15);color:var(--cyan);">PROSPECT</span></div>
+              <div class="dt-cell mono">Q2</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIPELINE + RECENT ACTIVITY -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--sales2);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--sales2);"></div>PIPELINE BY STAGE</div></div>
+          <div class="widget-body">
+            <div class="pipeline-stage"><span class="ps-name">CLOSING</span><div class="ps-bar"><div class="ps-fill" style="width:100%;background:var(--green);"></div></div><span class="ps-count" style="color:var(--green);">1</span><span class="ps-val" style="color:var(--green);">$21,600</span></div>
+            <div class="pipeline-stage"><span class="ps-name">PROPOSAL</span><div class="ps-bar"><div class="ps-fill" style="width:65%;background:var(--sales2);"></div></div><span class="ps-count" style="color:var(--sales2);">2</span><span class="ps-val" style="color:var(--sales2);">$32,400</span></div>
+            <div class="pipeline-stage"><span class="ps-name">DEMO SET</span><div class="ps-bar"><div class="ps-fill" style="width:40%;background:var(--yellow);"></div></div><span class="ps-count" style="color:var(--yellow);">2</span><span class="ps-val" style="color:var(--yellow);">$12,000</span></div>
+            <div class="pipeline-stage"><span class="ps-name">PROSPECT</span><div class="ps-bar"><div class="ps-fill" style="width:28%;background:var(--cyan);"></div></div><span class="ps-count" style="color:var(--cyan);">3</span><span class="ps-val" style="color:var(--cyan);">$56,400</span></div>
+            <div style="border-top:1px solid rgba(0,184,212,.06);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;align-items:baseline;">
+              <div style="font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">TOTAL PIPELINE</div>
+              <div style="font-family:var(--fc);font-size:22px;font-weight:900;color:var(--green);">$216K</div>
+            </div>
+          </div>
+        </div>
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--sales2);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--sales2);"></div>ACTIVITY FEED</div></div>
+          <div class="widget-body">
+            <div class="feed-item"><div class="fi-time">09:38</div><div class="fi-dot" style="background:var(--green);"></div><div class="fi-text"><strong>Bethel Global</strong> — Signed LOI. Contract review starts today. Close: Mar 28.</div></div>
+            <div class="feed-item"><div class="fi-time">09:12</div><div class="fi-dot" style="background:var(--sales2);"></div><div class="fi-text"><strong>Xavier University</strong> — CFO approved budget. Waiting on IT security review of DYMOND BANK module.</div></div>
+            <div class="feed-item"><div class="fi-time">08:44</div><div class="fi-dot" style="background:var(--yellow);"></div><div class="fi-text"><strong>Afrobeats Collective UK</strong> — Demo confirmed for Thursday 2pm GMT. Prepare D+ + Studio + Podcast flow.</div></div>
+            <div class="feed-item"><div class="fi-time">08:20</div><div class="fi-dot" style="background:var(--cyan);"></div><div class="fi-text"><strong>National Urban League</strong> — Inbound inquiry via Lightek.io. Routed to your queue. Full stack interest — 12 SKUs.</div></div>
+            <div class="feed-item"><div class="fi-time">Yest</div><div class="fi-dot" style="background:var(--green);"></div><div class="fi-text"><strong>Columbia SC</strong> — City council approved DYMOND pilot. Proposal accepted pending legal.</div></div>
+          </div>
+        </div>
+      </div>
+    `,
+    rail:`
+      <div class="rr-section">
+        <div class="rrs-title">MY QUOTA — Q1 2026</div>
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:7px;color:var(--muted);">ATTAINMENT</span><span style="font-size:8px;font-weight:700;color:var(--green);">84%</span></div>
+          <div class="prog-bar"><div class="prog-fill" style="width:84%;background:var(--green);"></div></div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px;"><span style="font-size:7px;color:var(--muted);">$84K of $100K</span></div>
+        </div>
+        <div class="rr-item"><div class="rri-label">Deals won</div><div class="rri-val" style="color:var(--green);">5</div></div>
+        <div class="rr-item"><div class="rri-label">MRR generated</div><div class="rri-val" style="color:var(--green);">$84K</div></div>
+        <div class="rr-item"><div class="rri-label">Commission earned</div><div class="rri-val" style="color:var(--gold2);">$12,600</div></div>
+        <div class="rr-item"><div class="rri-label">Remaining to quota</div><div class="rri-val" style="color:var(--yellow);">$16K</div></div>
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">TEAM LEADERBOARD</div>
+        ${[['M. Thompson','$96K','#1','var(--gold2)'],['A. Pierce','$84K','#2','var(--green)'],['K. Williams','$72K','#3','rgba(232,240,248,.5)'],['D. Jackson','$68K','#4','rgba(232,240,248,.35)'],['R. Okonkwo','$54K','#5','rgba(232,240,248,.25)']].map(([n,v,r,c])=>`
+          <div class="rr-item">
+            <div style="font-family:var(--fc);font-size:9px;font-weight:700;color:${c};min-width:20px;">${r}</div>
+            <div class="rri-label" style="flex:1;">${n}</div>
+            <div class="rri-val" style="color:${c};">${v}</div>
+          </div>`).join('')}
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">TODAY'S TASKS</div>
+        ${[['09:00 AM','Bethel contract review call','var(--green)'],['02:00 PM','Afrobeats demo prep','var(--yellow)'],['04:00 PM','Xavier IT Q&A session','var(--cyan)'],['EOD','Submit Harbor Health proposal','var(--muted)']].map(([t,n,c])=>`
+          <div class="rr-item"><div style="font-size:7px;font-weight:700;color:${c};min-width:52px;">${t}</div><div class="rri-label">${n}</div></div>`).join('')}
+      </div>
+    `
+  },
+
+  // ════════════════════════════════════════
+  // DEPLOYMENT
+  // ════════════════════════════════════════
+  deploy:{
+    color:'var(--deploy2)',bg:'rgba(8,72,184,.08)',
+    nav:`
+      <div class="ln-section">
+        <div class="ln-hdr">ACTIVE DEPLOYMENTS</div>
+        <div class="ln-item active"><div class="ln-dot" style="background:var(--deploy2);animation:blink .9s infinite;"></div><div class="ln-label">All Live (8)</div><div class="ln-badge live">8</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--yellow);"></div><div class="ln-label">Onboarding (2)</div><div class="ln-badge warn">2</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">Stable</div><div class="ln-badge good">6</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Scheduled Updates</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">MODULE HEALTH</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">Bank Module</div><div class="ln-badge good">OK</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">Streaming Module</div><div class="ln-badge good">OK</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--yellow);"></div><div class="ln-label">Connect Module</div><div class="ln-badge warn">LAG</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">Church Module</div><div class="ln-badge good">OK</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">All Others</div><div class="ln-badge good">OK</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">TOOLS</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Deploy New Instance</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Module Update Queue</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">SLA Dashboard</div></div>
+      </div>
+    `,
+    center:`
+      <div class="stat-row" style="grid-template-columns:repeat(5,1fr);">
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--deploy2);"></div><div class="sc-lbl">LIVE INSTANCES</div><span class="sc-val" style="color:var(--deploy2);">8</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">Across 6 client orgs</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">SYSTEM UPTIME</div><span class="sc-val" style="color:var(--green);">99.97%</span><div class="sc-sub sc-delta-up">↑ Above SLA target</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--deploy3);"></div><div class="sc-lbl">MODULES LIVE</div><span class="sc-val" style="color:var(--deploy3);">84</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">Across all instances</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--yellow);"></div><div class="sc-lbl">ONBOARDING</div><span class="sc-val" style="color:var(--yellow);">2</span><div class="sc-sub sc-delta-flat">In progress</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--orange);"></div><div class="sc-lbl">OPEN INCIDENTS</div><span class="sc-val" style="color:var(--orange);">1</span><div class="sc-sub sc-delta-flat">Connect Module lag</div></div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-stripe" style="background:var(--deploy2);"></div>
+        <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--deploy2);"></div>DEPLOYMENT STATUS BOARD</div><div class="wh-badge" style="border-color:rgba(8,96,224,.3);color:var(--deploy2);">ALL INSTANCES</div></div>
+        <div class="widget-body" style="padding:0 10px;">
+          <div class="data-table">
+            <div class="dt-head" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-th">CLIENT</div><div class="dt-th">MODULES</div><div class="dt-th">UPTIME</div><div class="dt-th">CITIZENS</div><div class="dt-th">STATUS</div><div class="dt-th">SLA</div>
+            </div>
+            ${[
+              ['GRACE COMMUNITY CHURCH','4','100%','2,840','STABLE','✓ MET'],
+              ['MILES COLLEGE','5','99.98%','1,240','STABLE','✓ MET'],
+              ['CITY OF COMPTON','4','99.90%','420','ONBOARDING','⚠ SETUP'],
+              ['GRIND HARD MUSIC GROUP','4','100%','8,420','STABLE','✓ MET'],
+              ['PAN-AFRICAN ALLIANCE','4','99.97%','3,840','STABLE','✓ MET'],
+              ['BETHEL GLOBAL (PENDING)','—','—','—','PENDING','— SETUP'],
+              ['XAVIER UNIV (PENDING)','—','—','—','PENDING','— SETUP'],
+              ['APEX AGENCY (VIA RESELLER)','6','99.95%','5,200','STABLE','✓ MET'],
+            ].map(([n,m,u,c,s,sla])=>`
+            <div class="dt-row" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">${n}</div>
+              <div class="dt-cell mono" style="color:var(--deploy2);">${m}</div>
+              <div class="dt-cell mono" style="color:${u==='100%'?'var(--green)':u.startsWith('99.9')?'var(--green)':'var(--yellow)'};">${u}</div>
+              <div class="dt-cell mono">${c}</div>
+              <div class="dt-cell"><span class="status-pill ${s==='STABLE'?'sp-active':s==='ONBOARDING'?'sp-warn':'sp-pending'}">${s}</span></div>
+              <div class="dt-cell mono" style="color:${sla.startsWith('✓')?'var(--green)':'var(--yellow)'};">${sla}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--deploy2);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--deploy2);"></div>MODULE HEALTH MATRIX</div></div>
+          <div class="widget-body">
+            ${[['🏦 BANK','var(--green)','99.97%'],['📺 STREAMING','var(--green)','100%'],['✝ CHURCH','var(--green)','100%'],['🌿 WELLNESS','var(--green)','99.99%'],['👥 COMMUNITY','var(--green)','99.98%'],['📡 CONNECT','var(--yellow)','98.40%'],['💑 MATCH','var(--green)','99.97%'],['☁️ CLOUD','var(--green)','100%']].map(([n,c,u])=>`
+            <div class="feed-item">
+              <div class="fi-dot" style="background:${c};margin-top:4px;"></div>
+              <div class="fi-text" style="display:flex;justify-content:space-between;"><span><strong>${n}</strong></span><span style="color:${c};font-family:var(--fm);font-size:7px;">${u}</span></div>
+            </div>`).join('')}
+          </div>
+        </div>
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--orange);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--orange);"></div>INCIDENT LOG</div><div class="wh-badge" style="border-color:rgba(232,96,32,.3);color:var(--orange);">1 OPEN</div></div>
+          <div class="widget-body">
+            <div style="background:rgba(232,96,32,.06);border:1px solid rgba(232,96,32,.2);padding:9px 10px;margin-bottom:8px;">
+              <div style="font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--orange);margin-bottom:4px;">◉ OPEN · INC-0041</div>
+              <div style="font-size:8px;font-weight:600;color:rgba(232,240,248,.75);margin-bottom:3px;">CONNECT MODULE — Response lag on Compton deployment</div>
+              <div style="font-size:7px;color:rgba(232,240,248,.4);line-height:1.5;">Avg response 340ms vs 180ms SLA target. ISP handoff timing. Assigned: @tech-malik. ETA: 2hrs.</div>
+              <div style="margin-top:8px;display:flex;gap:6px;">
+                <button style="font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(232,96,32,.3);color:var(--orange);background:transparent;padding:3px 8px;cursor:pointer;" onclick="this.textContent='→ RESOLVED'">RESOLVE</button>
+                <button style="font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(232,240,248,.1);color:rgba(232,240,248,.35);background:transparent;padding:3px 8px;cursor:pointer;">ESCALATE</button>
+              </div>
+            </div>
+            <div class="feed-item"><div class="fi-time">08:14</div><div class="fi-dot" style="background:var(--green);"></div><div class="fi-text"><strong>INC-0040 CLOSED</strong> — Miles College DB latency resolved. Root cause: index rebuild. 42min MTTR.</div></div>
+            <div class="feed-item"><div class="fi-time">Yest</div><div class="fi-dot" style="background:var(--green);"></div><div class="fi-text"><strong>INC-0039 CLOSED</strong> — Grind Hard stream dropout. CDN cache miss. Auto-healed. 8min MTTR.</div></div>
+          </div>
+        </div>
+      </div>
+    `,
+    rail:`
+      <div class="rr-section">
+        <div class="rrs-title">SLA SCORECARD</div>
+        <div class="rr-item"><div class="rri-label">Target uptime</div><div class="rri-val" style="color:var(--muted);">99.90%</div></div>
+        <div class="rr-item"><div class="rri-label">Actual uptime</div><div class="rri-val" style="color:var(--green);">99.97%</div></div>
+        <div class="rr-item"><div class="rri-label">SLA breaches Q1</div><div class="rri-val" style="color:var(--green);">0</div></div>
+        <div class="rr-item"><div class="rri-label">Avg MTTR</div><div class="rri-val" style="color:var(--cyan);">28 min</div></div>
+        <div class="rr-item"><div class="rri-label">Incidents Q1</div><div class="rri-val" style="color:var(--yellow);">3</div></div>
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">TONIGHT'S UPDATES</div>
+        <div class="rr-item"><div class="rri-label">Module v3.1.4</div><div class="rri-val" style="color:var(--cyan);">2:00 AM</div></div>
+        <div class="rr-item"><div class="rri-label">Instances affected</div><div class="rri-val">All 8</div></div>
+        <div class="rr-item"><div class="rri-label">Est. downtime</div><div class="rri-val" style="color:var(--green);">0 min</div></div>
+        <div class="rr-item"><div class="rri-label">Rolling deploy</div><div class="rri-val" style="color:var(--green);">✓ YES</div></div>
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">ONBOARDING QUEUE</div>
+        <div class="rr-item"><div class="rri-label">City of Compton</div><div class="rri-val" style="color:var(--yellow);">Day 12/90</div></div>
+        <div class="rr-item"><div class="rri-label">— Bank module auth</div><div class="rri-val" style="color:var(--yellow);">PENDING</div></div>
+        <div class="rr-item"><div class="rri-label">Bethel Global</div><div class="rri-val" style="color:var(--cyan);">STAGING</div></div>
+      </div>
+    `
+  },
+
+  // ════════════════════════════════════════
+  // CHANNEL
+  // ════════════════════════════════════════
+  channel:{
+    color:'var(--channel2)',bg:'rgba(96,16,160,.08)',
+    nav:`
+      <div class="ln-section">
+        <div class="ln-hdr">RESELLER NETWORK</div>
+        <div class="ln-item active"><div class="ln-dot" style="background:var(--channel2);"></div><div class="ln-label">All Partners</div><div class="ln-badge">240</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">Active Distributors</div><div class="ln-badge good">42</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--channel2);"></div><div class="ln-label">Active Associates</div><div class="ln-badge good">198</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--yellow);"></div><div class="ln-label">Pending Cert.</div><div class="ln-badge warn">14</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">CERTIFICATION</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Training Queue</div><div class="ln-badge">8</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Exams Pending</div><div class="ln-badge">6</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Issue Credential</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">COMMISSIONS</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Override Payouts</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Dispute Queue</div><div class="ln-badge good">0</div></div>
+      </div>
+    `,
+    center:`
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--channel2);"></div><div class="sc-lbl">TOTAL PARTNERS</div><span class="sc-val" style="color:var(--channel2);">240</span><div class="sc-sub sc-delta-up">↑ +18 this quarter</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">NETWORK MRR</div><span class="sc-val" style="color:var(--green);">$2.4M</span><div class="sc-sub sc-delta-up">↑ Reseller-generated</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--gold2);"></div><div class="sc-lbl">OVERRIDE INCOME</div><span class="sc-val" style="color:var(--gold2);">$84K</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">To Lightek monthly</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--yellow);"></div><div class="sc-lbl">CERT. PIPELINE</div><span class="sc-val" style="color:var(--yellow);">14</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">Pending approval</div></div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-stripe" style="background:var(--channel2);"></div>
+        <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--channel2);"></div>TOP RESELLERS BY NETWORK MRR</div><div class="wh-action">VIEW ALL 240 →</div></div>
+        <div class="widget-body" style="padding:0 10px;">
+          <div class="data-table">
+            <div class="dt-head" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-th">PARTNER</div><div class="dt-th">TIER</div><div class="dt-th">DEPLOYMENTS</div><div class="dt-th">NETWORK MRR</div><div class="dt-th">SUB-RESELLERS</div><div class="dt-th">STATUS</div>
+            </div>
+            ${[
+              ['Apex Digital Agency','DISTRIBUTOR','4','$84,600','3',true],
+              ['Black Tech Collective','DISTRIBUTOR','6','$72,000','5',true],
+              ['Diaspora Tech Partners','DISTRIBUTOR','3','$54,000','2',true],
+              ['Crown City Media','ASSOCIATE','2','$12,000','0',true],
+              ['Sovereign Digital Solutions','ASSOCIATE','1','$6,000','0',false],
+              ['ATL Media House','ASSOCIATE','3','$18,000','0',true],
+              ['Kingdom Tech Group','ASSOCIATE','2','$9,600','0',true],
+              ['Pacific Rim Agency','ASSOCIATE','1','$4,800','0',true],
+            ].map(([n,t,d,m,s,active])=>`
+            <div class="dt-row" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">${n}</div>
+              <div class="dt-cell"><span class="status-pill" style="border-color:${t==='DISTRIBUTOR'?'rgba(96,16,160,.3)':'rgba(0,184,212,.15)'};color:${t==='DISTRIBUTOR'?'var(--channel2)':'var(--cyan)'};">${t}</span></div>
+              <div class="dt-cell mono" style="color:var(--deploy2);">${d}</div>
+              <div class="dt-cell mono" style="color:var(--green);">${m}</div>
+              <div class="dt-cell mono" style="color:${s==='0'?'var(--muted)':'var(--channel2)'};">${s}</div>
+              <div class="dt-cell"><span class="status-pill ${active?'sp-active':'sp-warn'}">${active?'ACTIVE':'PENDING'}</span></div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--channel2);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--channel2);"></div>CERTIFICATION QUEUE</div><div class="wh-badge" style="border-color:rgba(232,192,32,.2);color:var(--yellow);">14 PENDING</div></div>
+          <div class="widget-body">
+            ${[['Crown City Media','Day 8/10','EXAM READY','var(--green)'],['Sovereign Digital','Day 4/10','TRAINING','var(--yellow)'],['Harlem Digital','Day 2/10','TRAINING','var(--yellow)'],['Lagos Tech Hub','Day 1/10','ONBOARDING','var(--cyan)'],['Morehouse Consulting','—','APPLICATION','var(--muted)']].map(([n,d,s,c])=>`
+            <div class="feed-item">
+              <div class="fi-dot" style="background:${c};"></div>
+              <div class="fi-text" style="display:flex;justify-content:space-between;align-items:center;">
+                <div><strong>${n}</strong><div style="font-size:7px;color:var(--muted);">${d}</div></div>
+                <span class="status-pill" style="border-color:${c.replace('var(','').replace(')','')};color:${c};">${s}</span>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--channel2);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--channel2);"></div>NETWORK GROWTH</div></div>
+          <div class="widget-body">
+            <div style="font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">PARTNERS JOINED — LAST 12 MONTHS</div>
+            <div class="minibars" id="chan-bars"></div>
+            <div style="border-top:1px solid rgba(0,184,212,.06);margin-top:8px;padding-top:7px;">
+              <div style="display:flex;justify-content:space-between;"><span style="font-size:7px;color:var(--muted);">TOTAL PARTNERS</span><span style="font-family:var(--fc);font-size:18px;font-weight:900;color:var(--channel2);">240</span></div>
+              <div style="font-size:7px;color:var(--green);margin-top:2px;">↑ +240 since Q1 2025 · Zero churn</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `,
+    rail:`
+      <div class="rr-section">
+        <div class="rrs-title">COMMISSION OVERRIDES DUE</div>
+        <div class="rr-item"><div class="rri-label">Apex Digital (D)</div><div class="rri-val" style="color:var(--gold2);">$8,400</div></div>
+        <div class="rr-item"><div class="rri-label">Black Tech Coll. (D)</div><div class="rri-val" style="color:var(--gold2);">$7,200</div></div>
+        <div class="rr-item"><div class="rri-label">Diaspora Tech (D)</div><div class="rri-val" style="color:var(--gold2);">$5,400</div></div>
+        <div class="rr-item"><div class="rri-label">ATL Media (A)</div><div class="rri-val" style="color:var(--muted);">$1,800</div></div>
+        <div class="rr-item"><div class="rri-label" style="font-weight:700;">TOTAL THIS MONTH</div><div class="rri-val" style="color:var(--green);">$84K</div></div>
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">NETWORK METRICS</div>
+        <div class="rr-item"><div class="rri-label">Avg deployments/partner</div><div class="rri-val" style="color:var(--cyan);">1.8</div></div>
+        <div class="rr-item"><div class="rri-label">Avg SKUs per deploy</div><div class="rri-val" style="color:var(--cyan);">4.2</div></div>
+        <div class="rr-item"><div class="rri-label">Partner churn rate</div><div class="rri-val" style="color:var(--green);">0%</div></div>
+        <div class="rr-item"><div class="rri-label">Cert completion rate</div><div class="rri-val" style="color:var(--green);">94%</div></div>
+      </div>
+    `
+  },
+
+  // ════════════════════════════════════════
+  // FINANCE
+  // ════════════════════════════════════════
+  finance:{
+    color:'var(--finance2)',bg:'rgba(136,68,0,.08)',
+    nav:`
+      <div class="ln-section">
+        <div class="ln-hdr">REVENUE</div>
+        <div class="ln-item active"><div class="ln-dot" style="background:var(--finance2);"></div><div class="ln-label">P&L Overview</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">MRR Dashboard</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">By Module SKU</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">By Reseller Tier</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Churn Analysis</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">COSTS</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">DYMOND Wholesale</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Payroll</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Commission Runs</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">REPORTS</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Q1 2026 Report</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Investor Summary</div></div>
+      </div>
+    `,
+    center:`
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">GROSS REVENUE Q1</div><span class="sc-val" style="color:var(--green);">$2.4M</span><div class="sc-sub sc-delta-up">↑ +340% YoY</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--finance2);"></div><div class="sc-lbl">DYMOND WHOLESALE COST</div><span class="sc-val" style="color:var(--finance2);">$840K</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">35% of gross</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--gold2);"></div><div class="sc-lbl">GROSS MARGIN</div><span class="sc-val" style="color:var(--gold2);">65%</span><div class="sc-sub sc-delta-up">↑ vs 58% last Q</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">NET OPERATING INCOME</div><span class="sc-val" style="color:var(--green);">$840K</span><div class="sc-sub sc-delta-up">Q1 2026</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:4px;margin-bottom:4px;">
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--finance2);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--finance2);"></div>P&L SUMMARY — Q1 2026</div></div>
+          <div class="widget-body">
+            ${[
+              ['GROSS REVENUE','$2,400,000','var(--green)',true],
+              ['— DYMOND Wholesale Cost','($840,000)','var(--red)',false],
+              ['— Reseller Commissions','($480,000)','var(--red)',false],
+              ['— Payroll + Operations','($240,000)','var(--red)',false],
+              ['GROSS PROFIT','$840,000','var(--gold2)',true],
+              ['— Infrastructure + Hosting','($48,000)','var(--red)',false],
+              ['— Marketing + Summit','($36,000)','var(--red)',false],
+              ['NET OPERATING INCOME','$756,000','var(--green)',true],
+            ].map(([l,v,c,b])=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(0,184,212,.04);">
+              <div style="font-size:8px;${b?'font-weight:700;color:rgba(232,240,248,.8)':'color:rgba(232,240,248,.42);'};">${l}</div>
+              <div style="font-family:var(--fc);font-size:${b?'16':'13'}px;font-weight:${b?'900':'600'};color:${c};">${v}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--finance2);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--finance2);"></div>REVENUE BY TIER</div></div>
+          <div class="widget-body">
+            ${[['Direct (Lightek → Client)','$1,800,000','75%','var(--green)'],['Reseller Network Override','$480,000','20%','var(--channel2)'],['Training + Certification','$72,000','3%','var(--cyan)'],['Bundle Bonuses','$48,000','2%','var(--gold2)']].map(([n,v,p,c])=>`
+            <div style="margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                <span style="font-size:8px;color:rgba(232,240,248,.5);">${n}</span>
+                <span style="font-size:8px;font-weight:700;color:${c};">${v}</span>
+              </div>
+              <div class="prog-bar"><div class="prog-fill" style="width:${p};background:${c};"></div></div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-stripe" style="background:var(--finance2);"></div>
+        <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--finance2);"></div>MRR BY TOP SKU — WHOLESALE COST vs MARGIN</div></div>
+        <div class="widget-body" style="padding:0 10px;">
+          <div class="data-table">
+            <div class="dt-head" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-th">MODULE SKU</div><div class="dt-th">DEPLOYMENTS</div><div class="dt-th">WHOLESALE/MO</div><div class="dt-th">RETAIL/MO</div><div class="dt-th">GROSS MARGIN</div><div class="dt-th">NET MRR</div>
+            </div>
+            ${[
+              ['📺 Streaming (SKU-014)','8','$9,600','$24,000','60%','$14,400'],
+              ['🏦 Bank (SKU-001)','5','$4,200','$10,500','60%','$6,300'],
+              ['📡 Connect (SKU-004)','2','$3,600','$9,000','60%','$5,400'],
+              ['🌐 Twin (SKU-025)','3','$2,880','$7,200','60%','$4,320'],
+              ['✝ Church (SKU-008)','6','$2,880','$7,200','60%','$4,320'],
+              ['🎙 Podcast (SKU-016)','8','$2,880','$7,200','60%','$4,320'],
+            ].map(([n,d,w,r,m,net])=>`
+            <div class="dt-row" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong">${n}</div>
+              <div class="dt-cell mono" style="color:var(--deploy2);">${d}x</div>
+              <div class="dt-cell mono" style="color:var(--red);">${w}</div>
+              <div class="dt-cell mono" style="color:var(--green);">${r}</div>
+              <div class="dt-cell mono" style="color:var(--gold2);">${m}</div>
+              <div class="dt-cell mono" style="color:var(--green);font-weight:700;">${net}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    `,
+    rail:`
+      <div class="rr-section">
+        <div class="rrs-title">UNIT ECONOMICS</div>
+        <div class="rr-item"><div class="rri-label">Avg CAC</div><div class="rri-val" style="color:var(--cyan);">$2,400</div></div>
+        <div class="rr-item"><div class="rri-label">Avg client LTV</div><div class="rri-val" style="color:var(--green);">$86,400</div></div>
+        <div class="rr-item"><div class="rri-label">LTV:CAC ratio</div><div class="rri-val" style="color:var(--green);">36:1</div></div>
+        <div class="rr-item"><div class="rri-label">Payback period</div><div class="rri-val" style="color:var(--green);">2.8 mo</div></div>
+        <div class="rr-item"><div class="rri-label">Churn rate</div><div class="rri-val" style="color:var(--green);">0%</div></div>
+        <div class="rr-item"><div class="rri-label">NRR</div><div class="rri-val" style="color:var(--green);">118%</div></div>
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">NEXT COMMISSION RUN</div>
+        <div class="rr-item"><div class="rri-label">Run date</div><div class="rri-val" style="color:var(--cyan);">Apr 1, 2026</div></div>
+        <div class="rr-item"><div class="rri-label">Resellers paid</div><div class="rri-val">240</div></div>
+        <div class="rr-item"><div class="rri-label">Est. payout</div><div class="rri-val" style="color:var(--gold2);">$480K</div></div>
+        <div class="rr-item"><div class="rri-label">Override to Lightek</div><div class="rri-val" style="color:var(--green);">$84K</div></div>
+        <div class="rr-item"><div class="rri-label">Disputes open</div><div class="rri-val" style="color:var(--green);">0</div></div>
+      </div>
+    `
+  },
+
+  // ════════════════════════════════════════
+  // COMPLIANCE
+  // ════════════════════════════════════════
+  compliance:{
+    color:'var(--compliance2)',bg:'rgba(136,0,32,.08)',
+    nav:`
+      <div class="ln-section">
+        <div class="ln-hdr">MINISTRY ENGINE</div>
+        <div class="ln-item active"><div class="ln-dot" style="background:var(--red);animation:blink .7s infinite;"></div><div class="ln-label">Active Violations</div><div class="ln-badge live">1</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">Protocol Status</div><div class="ln-badge good">7 ACTIVE</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Attribution Registry</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Article VI Enforcement</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">CONSTITUTIONAL</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Articles I–VIII Monitor</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Citizen Rights Log</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Partner Agreements</div></div>
+      </div>
+    `,
+    center:`
+      <div style="background:rgba(232,32,32,.08);border:1px solid rgba(232,32,32,.25);padding:10px 12px;margin-bottom:4px;position:relative;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--red);"></div>
+        <div style="font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--red);margin-bottom:5px;display:flex;align-items:center;gap:5px;"><div style="width:6px;height:6px;border-radius:50%;background:var(--red);animation:blink .7s infinite;"></div>◉ ACTIVE VIOLATION · PRIORITY HIGH · VIO-0012</div>
+        <div style="font-size:10px;font-weight:700;color:rgba(232,240,248,.85);margin-bottom:4px;">ARTICLE VI VIOLATION — RESELLER A4 (CROWN CITY MEDIA)</div>
+        <div style="font-size:8px;color:rgba(232,240,248,.5);line-height:1.6;margin-bottom:8px;">Reseller A4 distributed citizen-originated content from a Miles College deployment without documented attribution to the originating student creator. Content has been viewed 2,840 times on an external platform with no attribution. No revenue-sharing agreement in place. Article VI §6.1 and §6.2 directly violated.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button style="font-size:7px;letter-spacing:.1em;text-transform:uppercase;border:none;background:var(--red);color:#fff;padding:5px 12px;cursor:pointer;" onclick="this.textContent='→ SUSPENDING'">SUSPEND PARTNER ACCESS</button>
+          <button style="font-size:7px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(232,192,32,.3);color:var(--yellow);background:transparent;padding:5px 12px;cursor:pointer;" onclick="this.textContent='→ NOTIFIED'">NOTIFY AFFECTED CITIZEN</button>
+          <button style="font-size:7px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(232,240,248,.1);color:rgba(232,240,248,.35);background:transparent;padding:5px 12px;cursor:pointer;" onclick="this.textContent='→ LOGGING'">LOG FOR REGISTRY</button>
+        </div>
+      </div>
+
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--red);"></div><div class="sc-lbl">OPEN VIOLATIONS</div><span class="sc-val" style="color:var(--red);">1</span><div class="sc-sub sc-delta-flat">Priority: HIGH</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">PROTOCOLS ACTIVE</div><span class="sc-val" style="color:var(--green);">7 of 7</span><div class="sc-sub sc-delta-up">All modules compliant</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--gold2);"></div><div class="sc-lbl">VIOLATIONS RESOLVED Q1</div><span class="sc-val" style="color:var(--gold2);">12</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">100% resolution rate</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">REPARATIONS FUND</div><span class="sc-val" style="color:var(--green);">$1,680</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">VIO enforcement inflow</div></div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-stripe" style="background:var(--compliance2);"></div>
+        <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--green);"></div>MINISTRY ENGINE — PROTOCOL STATUS</div><div class="wh-badge" style="border-color:rgba(24,216,112,.2);color:var(--green);">ALL ACTIVE</div></div>
+        <div class="widget-body" style="padding:0 10px;">
+          <div class="data-table">
+            <div class="dt-head" style="grid-template-columns:2fr 1.5fr 1fr 1fr;">
+              <div class="dt-th">PROTOCOL</div><div class="dt-th">MODULES</div><div class="dt-th">INSTANCES</div><div class="dt-th">STATUS</div>
+            </div>
+            ${[
+              ['Grace-First Matching','MATCH · COMMUNITY','8','ACTIVE'],
+              ['Prayer Recovery Protocol','WELLNESS · CHURCH','8','ACTIVE'],
+              ['Cultural Sovereignty Filter','SOCIAL · STUDIO · BARS','8','ACTIVE'],
+              ['Ownership Protection Layer','CLOUD · STUDIO · BANK','8','ACTIVE'],
+              ['Economic Equity Override','BANK · REAL ESTATE','5','ACTIVE'],
+              ['Body As Temple — FIT','FIT · WELLNESS · CHURCH','8','ACTIVE'],
+              ['Restorative Justice Path','JUSTICE · SETS · COMMUNITY','8','ACTIVE'],
+            ].map(([n,m,i,s])=>`
+            <div class="dt-row" style="grid-template-columns:2fr 1.5fr 1fr 1fr;">
+              <div class="dt-cell strong">${n}</div>
+              <div class="dt-cell" style="color:var(--muted);">${m}</div>
+              <div class="dt-cell mono" style="color:var(--deploy2);">${i}</div>
+              <div class="dt-cell"><span class="status-pill sp-active">${s}</span></div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-stripe" style="background:var(--compliance2);"></div>
+        <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--compliance2);"></div>ATTRIBUTION VIOLATION REGISTRY — Q1 2026</div></div>
+        <div class="widget-body" style="padding:0 10px;">
+          <div class="data-table">
+            <div class="dt-head" style="grid-template-columns:1fr 1.5fr 1.5fr 1fr 1fr;">
+              <div class="dt-th">VIO #</div><div class="dt-th">PARTY</div><div class="dt-th">ARTICLE</div><div class="dt-th">OUTCOME</div><div class="dt-th">FUND CREDIT</div>
+            </div>
+            ${[
+              ['VIO-0012','Crown City Media (A4)','Art. VI §6.1 §6.2','OPEN','$0'],
+              ['VIO-0011','External Partner (Revoked)','Art. VI §6.4','RESOLVED','$336'],
+              ['VIO-0010','Anon. 3rd Party','Art. VI §6.1','RESOLVED','$840'],
+              ['VIO-0009','Platform Scraper','Art. VI §6.3','RESOLVED','$504'],
+            ].map(([n,p,a,o,f])=>`
+            <div class="dt-row" style="grid-template-columns:1fr 1.5fr 1.5fr 1fr 1fr;">
+              <div class="dt-cell mono" style="color:var(--compliance2);">${n}</div>
+              <div class="dt-cell strong">${p}</div>
+              <div class="dt-cell" style="color:var(--muted);font-size:7px;">${a}</div>
+              <div class="dt-cell"><span class="status-pill ${o==='OPEN'?'sp-live':'sp-active'}">${o}</span></div>
+              <div class="dt-cell mono" style="color:${f==='$0'?'var(--muted)':'var(--green)'};">${f}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    `,
+    rail:`
+      <div class="rr-section">
+        <div class="rrs-title">CONSTITUTIONAL STATUS</div>
+        <div class="rr-item"><div class="rri-label">Article I</div><div class="rri-val" style="color:var(--green);">✓ ACTIVE</div></div>
+        <div class="rr-item"><div class="rri-label">Article II</div><div class="rri-val" style="color:var(--green);">✓ ACTIVE</div></div>
+        <div class="rr-item"><div class="rri-label">Article III</div><div class="rri-val" style="color:var(--green);">✓ ACTIVE</div></div>
+        <div class="rr-item"><div class="rri-label">Article IV</div><div class="rri-val" style="color:var(--green);">✓ ACTIVE</div></div>
+        <div class="rr-item"><div class="rri-label">Article V</div><div class="rri-val" style="color:var(--green);">✓ ACTIVE</div></div>
+        <div class="rr-item"><div class="rri-label">Article VI</div><div class="rri-val" style="color:var(--red);">⚠ VIO-0012</div></div>
+        <div class="rr-item"><div class="rri-label">Article VII</div><div class="rri-val" style="color:var(--green);">✓ ACTIVE</div></div>
+        <div class="rr-item"><div class="rri-label">Article VIII</div><div class="rri-val" style="color:var(--green);">✓ ACTIVE</div></div>
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">REPARATIONS FUND Q1</div>
+        <div class="rr-item"><div class="rri-label">Fund balance</div><div class="rri-val" style="color:var(--green);">$48,000</div></div>
+        <div class="rr-item"><div class="rri-label">VIO enforcement inflow</div><div class="rri-val" style="color:var(--gold2);">$1,680</div></div>
+        <div class="rr-item"><div class="rri-label">Q1 disbursements</div><div class="rri-val">$9,600</div></div>
+        <div class="rr-item"><div class="rri-label">Citizens served</div><div class="rri-val" style="color:var(--cyan);">40</div></div>
+      </div>
+    `
+  },
+
+  // ════════════════════════════════════════
+  // SUPPORT
+  // ════════════════════════════════════════
+  support:{
+    color:'var(--support2)',bg:'rgba(64,88,0,.08)',
+    nav:`
+      <div class="ln-section">
+        <div class="ln-hdr">TICKET QUEUE</div>
+        <div class="ln-item active"><div class="ln-dot" style="background:var(--red);animation:blink .9s infinite;"></div><div class="ln-label">Open Tickets</div><div class="ln-badge live">14</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--yellow);"></div><div class="ln-label">Assigned to Me</div><div class="ln-badge warn">3</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">Resolved Today</div><div class="ln-badge good">5</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Escalations</div><div class="ln-badge">2</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">CATEGORIES</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Deployment Help</div><div class="ln-badge">4</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Billing Questions</div><div class="ln-badge">3</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Module Issues</div><div class="ln-badge">4</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Training Requests</div><div class="ln-badge">3</div></div>
+      </div>
+    `,
+    center:`
+      <div class="stat-row" style="grid-template-columns:repeat(5,1fr);">
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--red);"></div><div class="sc-lbl">OPEN TICKETS</div><span class="sc-val" style="color:var(--red);" id="ticket-count">14</span><div class="sc-sub sc-delta-down">↑ +2 vs yesterday</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">RESOLVED TODAY</div><span class="sc-val" style="color:var(--green);">5</span><div class="sc-sub sc-delta-up">↑ +5 from 0 yesterday</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--support2);"></div><div class="sc-lbl">AVG RESOLUTION TIME</div><span class="sc-val" style="color:var(--support2);">4.2h</span><div class="sc-sub sc-delta-up">↓ vs 6.8h last week</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--cyan);"></div><div class="sc-lbl">CSAT SCORE</div><span class="sc-val" style="color:var(--cyan);">96%</span><div class="sc-sub sc-delta-up">↑ +4% this month</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--yellow);"></div><div class="sc-lbl">ESCALATIONS</div><span class="sc-val" style="color:var(--yellow);">2</span><div class="sc-sub sc-delta-flat">Deployment + Billing</div></div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-stripe" style="background:var(--support2);"></div>
+        <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--support2);"></div>OPEN TICKET QUEUE</div><div class="wh-action" onclick="this.textContent='+ CREATED'">+ NEW TICKET</div></div>
+        <div class="widget-body" style="padding:0 10px;">
+          <div class="data-table">
+            <div class="dt-head" style="grid-template-columns:1fr 2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-th">TICKET #</div><div class="dt-th">SUBJECT</div><div class="dt-th">REPORTER</div><div class="dt-th">CATEGORY</div><div class="dt-th">PRIORITY</div><div class="dt-th">ASSIGNED</div>
+            </div>
+            ${[
+              ['LT-2841','BANK MODULE AUTH PENDING — Compton deploy','City of Compton','Deployment','HIGH','@darius.m'],
+              ['LT-2840','CONNECT MODULE LAG — 340ms avg','City of Compton','Module Issue','HIGH','@tech-malik'],
+              ['LT-2839','COMMISSION STATEMENT — Q4 2025 question','Apex Digital','Billing','MED','@finance-jen'],
+              ['LT-2838','SKU-014 API DOCS — streaming integration','Grind Hard Music','Training','MED','@unassigned'],
+              ['LT-2837','USER IMPORT — Miles College 1,240 accounts','Miles College','Deployment','MED','@darius.m'],
+              ['LT-2836','CHURCH MODULE — tithe report export','Grace Community','Module Issue','LOW','@support-kay'],
+              ['LT-2835','RESELLER PORTAL — login 2FA issue','ATL Media House','Access','LOW','@support-kay'],
+              ['LT-2834','CUSTOM DOMAIN — SSL cert renewal','Pan-African Alliance','Technical','LOW','@tech-malik'],
+            ].map(([n,s,r,c,p,a])=>`
+            <div class="dt-row" style="grid-template-columns:1fr 2fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell mono" style="color:var(--support2);">${n}</div>
+              <div class="dt-cell strong">${s}</div>
+              <div class="dt-cell" style="font-size:7px;">${r}</div>
+              <div class="dt-cell" style="font-size:7px;">${c}</div>
+              <div class="dt-cell"><span class="status-pill ${p==='HIGH'?'sp-live':p==='MED'?'sp-warn':'sp-active'}">${p}</span></div>
+              <div class="dt-cell mono" style="font-size:7px;color:${a==='@unassigned'?'var(--muted)':'var(--cyan)'};">${a}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    `,
+    rail:`
+      <div class="rr-section">
+        <div class="rrs-title">TEAM STATUS</div>
+        ${[['@darius.m','DEPLOY','online'],['@tech-malik','TECH','online'],['@finance-jen','BILLING','away'],['@support-kay','GENERAL','online'],['@training-mo','TRAINING','offline']].map(([n,d,s])=>`
+        <div class="rr-item">
+          <div style="width:5px;height:5px;border-radius:50%;background:${s==='online'?'var(--green)':s==='away'?'var(--yellow)':'var(--muted)'};flex-shrink:0;"></div>
+          <div class="rri-label" style="flex:1;">${n}</div>
+          <div style="font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">${d}</div>
+        </div>`).join('')}
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">SLA DEADLINES TODAY</div>
+        <div class="rr-item"><div class="rri-label">LT-2841 (HIGH)</div><div class="rri-val" style="color:var(--red);">2hrs left</div></div>
+        <div class="rr-item"><div class="rri-label">LT-2840 (HIGH)</div><div class="rri-val" style="color:var(--red);">4hrs left</div></div>
+        <div class="rr-item"><div class="rri-label">LT-2839 (MED)</div><div class="rri-val" style="color:var(--yellow);">Tomorrow</div></div>
+        <div class="rr-item"><div class="rri-label">LT-2837 (MED)</div><div class="rri-val" style="color:var(--yellow);">Tomorrow</div></div>
+      </div>
+    `
+  },
+
+  // ════════════════════════════════════════
+  // EXECUTIVE
+  // ════════════════════════════════════════
+  executive:{
+    color:'var(--gold2)',bg:'rgba(64,40,8,.08)',
+    nav:`
+      <div class="ln-section">
+        <div class="ln-hdr">COMMAND</div>
+        <div class="ln-item active"><div class="ln-dot" style="background:var(--gold2);"></div><div class="ln-label">Empire Overview</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--green);"></div><div class="ln-label">Revenue + P&L</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Dept Scorecards</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--red);animation:blink .9s infinite;"></div><div class="ln-label">Priority Items</div><div class="ln-badge live">3</div></div>
+      </div>
+      <div class="ln-divider"></div>
+      <div class="ln-section">
+        <div class="ln-hdr">STRATEGY</div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Q2 OKRs</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">DYMOND Relations</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Franchise Expansion</div></div>
+        <div class="ln-item"><div class="ln-dot" style="background:var(--muted);"></div><div class="ln-label">Annual Summit Prep</div></div>
+      </div>
+    `,
+    center:`
+      <div class="stat-row" style="grid-template-columns:repeat(5,1fr);">
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--green);"></div><div class="sc-lbl">MONTHLY REVENUE</div><span class="sc-val" style="color:var(--green);">$840K</span><div class="sc-sub sc-delta-up">↑ +340% YoY</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--gold2);"></div><div class="sc-lbl">GROSS MARGIN</div><span class="sc-val" style="color:var(--gold2);">65%</span><div class="sc-sub sc-delta-up">↑ vs 58% Q4</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--cyan);"></div><div class="sc-lbl">PARTNER NETWORK</div><span class="sc-val" style="color:var(--cyan);">240</span><div class="sc-sub sc-delta-up">↑ +18 this Q</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--deploy2);"></div><div class="sc-lbl">LIVE DEPLOYMENTS</div><span class="sc-val" style="color:var(--deploy2);">8</span><div class="sc-sub" style="color:rgba(232,240,248,.35);">84 modules across</div></div>
+        <div class="stat-cell"><div class="sc-bar" style="background:var(--red);"></div><div class="sc-lbl">PRIORITY ISSUES</div><span class="sc-val" style="color:var(--red);">3</span><div class="sc-sub sc-delta-flat">Compliance+Onboard+SLA</div></div>
+      </div>
+
+      <!-- DEPT SCORECARDS -->
+      <div class="widget">
+        <div class="widget-stripe" style="background:var(--gold2);"></div>
+        <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--gold2);"></div>DEPARTMENT SCORECARDS</div></div>
+        <div class="widget-body" style="padding:0 10px;">
+          <div class="data-table">
+            <div class="dt-head" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-th">DEPT</div><div class="dt-th">KEY METRIC</div><div class="dt-th">vs TARGET</div><div class="dt-th">OPEN ITEMS</div><div class="dt-th">STATUS</div><div class="dt-th">TREND</div><div class="dt-th">LEAD</div>
+            </div>
+            ${[
+              ['🟢 SALES','$216K pipeline','84% quota','8 deals','ON TRACK','↑','M. Thompson'],
+              ['🔵 DEPLOYMENT','99.97% uptime','Above SLA','1 incident','ON TRACK','↑','D. Jenkins'],
+              ['🟣 CHANNEL','240 partners','↑ +18 Q','14 cert pending','ON TRACK','↑','A. Pierce'],
+              ['🟠 FINANCE','65% margin','↑ vs 58%','Q2 forecast due','ON TRACK','↑','J. Williams'],
+              ['🔴 COMPLIANCE','1 violation','⚠ OPEN','VIO-0012 active','AT RISK','—','R. Okonkwo'],
+              ['🟡 SUPPORT','4.2h avg TTR','↓ vs 6.8h','14 open tickets','ON TRACK','↑','K. Davis'],
+            ].map(([d,k,t,o,s,tr,l])=>`
+            <div class="dt-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;">
+              <div class="dt-cell strong" style="font-size:8px;">${d}</div>
+              <div class="dt-cell mono" style="font-size:7px;">${k}</div>
+              <div class="dt-cell mono" style="font-size:7px;color:${t.includes('⚠')?'var(--yellow)':'var(--green)'};">${t}</div>
+              <div class="dt-cell" style="font-size:7px;">${o}</div>
+              <div class="dt-cell"><span class="status-pill ${s==='ON TRACK'?'sp-active':'sp-warn'}">${s}</span></div>
+              <div class="dt-cell" style="color:${tr==='↑'?'var(--green)':'var(--yellow)'};font-weight:700;">${tr}</div>
+              <div class="dt-cell mono" style="font-size:7px;">${l}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- PRIORITY + DYMOND RELATION -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--red);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--red);animation:blink .9s infinite;"></div>PRIORITY ITEMS — EXEC ACTION</div></div>
+          <div class="widget-body">
+            <div style="background:rgba(232,32,32,.06);border:1px solid rgba(232,32,32,.18);padding:8px;margin-bottom:5px;">
+              <div style="font-size:7px;color:var(--red);margin-bottom:3px;letter-spacing:.1em;text-transform:uppercase;">① COMPLIANCE — VIO-0012</div>
+              <div style="font-size:8px;color:rgba(232,240,248,.65);">Crown City Media Art. VI violation. Suspension decision needed. 14-day resolution clock started.</div>
+            </div>
+            <div style="background:rgba(232,192,32,.05);border:1px solid rgba(232,192,32,.15);padding:8px;margin-bottom:5px;">
+              <div style="font-size:7px;color:var(--yellow);margin-bottom:3px;letter-spacing:.1em;text-transform:uppercase;">② DEPLOYMENT — Compton Bank Auth</div>
+              <div style="font-size:8px;color:rgba(232,240,248,.65);">City of Compton Bank module authorization stuck. DYMOND liaison needed for approval pathway. Day 12/90.</div>
+            </div>
+            <div style="background:rgba(0,184,212,.04);border:1px solid rgba(0,184,212,.12);padding:8px;">
+              <div style="font-size:7px;color:var(--cyan);margin-bottom:3px;letter-spacing:.1em;text-transform:uppercase;">③ SALES — National Urban League</div>
+              <div style="font-size:8px;color:rgba(232,240,248,.65);">$36K/mo inbound deal. 12 SKUs. Executive intro call requested. Full stack — requires Empire-tier discussion with DYMOND.</div>
+            </div>
+          </div>
+        </div>
+        <div class="widget">
+          <div class="widget-stripe" style="background:var(--gold2);"></div>
+          <div class="widget-hdr"><div class="wh-title"><div class="wh-title-dot" style="background:var(--gold2);"></div>DYMOND EMPIRE — RELATIONSHIP STATUS</div></div>
+          <div class="widget-body">
+            <div class="rr-item" style="padding:5px 0;"><div class="rri-label">License tier</div><div class="rri-val" style="color:var(--gold2);">EMPIRE · AUTHORIZED</div></div>
+            <div class="rr-item" style="padding:5px 0;"><div class="rri-label">Contract term</div><div class="rri-val" style="color:var(--cyan);">3-year · Jan 2026</div></div>
+            <div class="rr-item" style="padding:5px 0;"><div class="rri-label">Monthly wholesale payment</div><div class="rri-val" style="color:var(--gold2);">$4,200</div></div>
+            <div class="rr-item" style="padding:5px 0;"><div class="rri-label">DYMOND liaison</div><div class="rri-val" style="color:var(--cyan);">@partnership.dymond</div></div>
+            <div class="rr-item" style="padding:5px 0;"><div class="rri-label">Next QBR</div><div class="rri-val">Apr 15, 2026</div></div>
+            <div class="rr-item" style="padding:5px 0;"><div class="rri-label">Pending: Compton bank auth</div><div class="rri-val" style="color:var(--yellow);">WAITING</div></div>
+            <div class="rr-item" style="padding:5px 0;"><div class="rri-label">Module update v3.1.4</div><div class="rri-val" style="color:var(--green);">Tonight 2am</div></div>
+            <div class="rr-item" style="padding:5px 0;"><div class="rri-label">Relationship health</div><div class="rri-val" style="color:var(--green);">✓ STRONG</div></div>
+          </div>
+        </div>
+      </div>
+    `,
+    rail:`
+      <div class="rr-section">
+        <div class="rrs-title">Q2 2026 TARGETS</div>
+        <div class="rr-item"><div class="rri-label">MRR target</div><div class="rri-val" style="color:var(--gold2);">$160K</div></div>
+        <div class="rr-item"><div class="rri-label">New deployments</div><div class="rri-val" style="color:var(--gold2);">+6</div></div>
+        <div class="rr-item"><div class="rri-label">New partners</div><div class="rri-val" style="color:var(--gold2);">+40</div></div>
+        <div class="rr-item"><div class="rri-label">International nodes</div><div class="rri-val" style="color:var(--gold2);">Lagos launch</div></div>
+        <div class="rr-item"><div class="rri-label">Lightek Summit</div><div class="rri-val" style="color:var(--cyan);">Jun 14–16</div></div>
+      </div>
+      <div class="rr-section">
+        <div class="rrs-title">TEAM HEADCOUNT</div>
+        <div class="rr-item"><div class="rri-label">Sales</div><div class="rri-val">6</div></div>
+        <div class="rr-item"><div class="rri-label">Deployment</div><div class="rri-val">4</div></div>
+        <div class="rr-item"><div class="rri-label">Channel</div><div class="rri-val">3</div></div>
+        <div class="rr-item"><div class="rri-label">Finance</div><div class="rri-val">2</div></div>
+        <div class="rr-item"><div class="rri-label">Compliance</div><div class="rri-val">2</div></div>
+        <div class="rr-item"><div class="rri-label">Support</div><div class="rri-val">5</div></div>
+        <div class="rr-item"><div class="rri-label" style="font-weight:700;">TOTAL</div><div class="rri-val" style="color:var(--gold2);">22</div></div>
+      </div>
+    `
+  }
+};
+
+// ── DEPT SWITCHER ──────────────────────────
+let currentDept = 'sales';
+const DEPT_COLORS = {
+  sales:'var(--sales2)',deploy:'var(--deploy2)',channel:'var(--channel2)',
+  finance:'var(--finance2)',compliance:'var(--compliance2)',support:'var(--support2)',executive:'var(--gold2)'
+};
+
+function switchDept(id, btn){
+  currentDept = id;
+  document.querySelectorAll('.dept-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  const d = DEPTS[id];
+  if(!d) return;
+  document.getElementById('leftnav').innerHTML = d.nav;
+  document.getElementById('center').innerHTML = d.center;
+  document.getElementById('right-rail').innerHTML = d.rail;
+  // channel bars
+  if(id==='channel'){
+    const b=document.getElementById('chan-bars');
+    if(b){const v=[8,12,18,22,28,36,44,52,68,84,120,240];v.forEach((val,i)=>{const c=document.createElement('div');c.className='mb-col';c.innerHTML=`<div class="mb-bar" style="height:${Math.round(val/240*100)}%;background:${i===v.length-1?'var(--channel2)':'rgba(128,24,204,.4)'}"></div><div class="mb-lbl">${['A','M','J','J','A','S','O','N','D','J','F','M'][i]}</div>`;b.appendChild(c);});}
+  }
+  addHoverFX();
+}
+
+function addHoverFX(){
+  document.querySelectorAll('.ln-item,.ln-person,.dt-row,.feed-item,.rr-item,.stat-cell').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{cx1.style.opacity='1';cxd.style.width='5px';cxd.style.height='5px';});
+    el.addEventListener('mouseleave',()=>{cx1.style.opacity='.7';cxd.style.width='3px';cxd.style.height='3px';});
+  });
+}
+
+const ROLES=['SALES REP','DEPLOY ENG','CHANNEL MGR','FINANCE LEAD','COMPLIANCE','SUPPORT LEAD','EXECUTIVE'];
+let roleIdx=0;
+function cycleRole(btn){
+  roleIdx=(roleIdx+1)%ROLES.length;
+  btn.textContent=ROLES[roleIdx];
+  document.querySelector('.sbu-dept').textContent=ROLES[roleIdx].split(' ')[0];
+}
+
+// init
+switchDept('sales',document.getElementById('tab-sales'));
+</script>
+</body>
+</html>

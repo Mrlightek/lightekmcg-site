@@ -1,0 +1,10 @@
+<p style="color: green"><%= notice %></p>
+
+<%= render @storyline_world_community %>
+
+<div>
+  <%= link_to "Edit this storyline world community", edit_storyline_world_community_path(@storyline_world_community) %> |
+  <%= link_to "Back to storyline world communities", storyline_world_communities_path %>
+
+  <%= button_to "Destroy this storyline world community", @storyline_world_community, method: :delete %>
+</div>

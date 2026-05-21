@@ -1,5 +1,7 @@
 class DashboardsController < ApplicationController
   before_action :set_dashboard, only: %i[ show edit update destroy ]
+  skip_authorization_check
+  #allow_unauthenticated_access
 
   # GET /dashboards or /dashboards.json
   def index

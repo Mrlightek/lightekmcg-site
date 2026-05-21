@@ -1,5 +1,7 @@
 class HomesController < ApplicationController
   before_action :set_home, only: %i[ show edit update destroy ]
+  #allow_unauthenticated_access only: %i[ index show ]
+  allow_unauthenticated_access
 
   # GET /homes or /homes.json
   def index

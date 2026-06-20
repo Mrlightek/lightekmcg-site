@@ -25,6 +25,13 @@ GIT
       railties (>= 7.2)
       sidekiq (>= 7.0)
 
+GIT
+  remote: git@github.com:lightekmcg/dymond_site.git
+  revision: e7490428d4ddfa51f4b739d9da8686dc793f53ac
+  specs:
+    dymond_site (0.1.0)
+      rails (>= 8.0.5)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -541,6 +548,7 @@ DEPENDENCIES
   debug
   dymond_bank!
   dymond_dash!
+  dymond_site!
   factory_bot_rails (~> 6.0)
   faraday (~> 2.0)
   image_processing (~> 1.2)

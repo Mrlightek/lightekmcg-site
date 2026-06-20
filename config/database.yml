@@ -1,17 +1,22 @@
+# Reconcile with your existing config/database.yml rather than blindly
+# overwriting if yours has custom blocks. The key change is host/credentials
+# coming from ENV so the app talks to the `db` container, not a local socket.
 default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  timeout: 5000
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
+  host: <%= ENV.fetch("DB_HOST", "localhost") %>
+  username: <%= ENV.fetch("POSTGRES_USER", "postgres") %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD", "") %>
 
 development:
   <<: *default
-  database: lightekmcg_development
+  database: <%= ENV.fetch("POSTGRES_DB", "lightekmcg_site_development") %>
 
 test:
   <<: *default
-  database: lightekmcg_test
+  database: lightekmcg_site_test
 
 production:
   <<: *default
-  url: <%= ENV["DATABASE_URL"] %>
+  database: <%= ENV.fetch("POSTGRES_DB", "lightekmcg_site_production") %>

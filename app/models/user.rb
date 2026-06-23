@@ -4,11 +4,11 @@ class User < ApplicationRecord
   # ── Rails 8 native authentication ─────────────────────────────────────────────
   has_secure_password
 
-  # Normalise email before save
-  normalizes :email, with: -> e { e.strip.downcase }
+  # Normalise email_address before save
+  normalizes :email_address, with: -> e { e.strip.downcase }
 
   # ── Validations ───────────────────────────────────────────────────────────────
-  validates :email,      presence: true, uniqueness: true,
+  validates :email_address,      presence: true, uniqueness: true,
                          format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :first_name, presence: true
   validates :last_name,  presence: true
@@ -87,7 +87,7 @@ class User < ApplicationRecord
 
   # ── Sessions (Rails 8 auth) ───────────────────────────────────────────────────
   generates_token_for :email_verification, expires_in: 2.days do
-    email
+    email_address
   end
 
   generates_token_for :password_reset, expires_in: 20.minutes do

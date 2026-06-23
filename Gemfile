@@ -73,11 +73,12 @@ gem "dymond_bank", git: "git@github.com:lightekmcg/dymond_bank.git"       # Bill
 gem "dymond_site", git: "git@github.com:lightekmcg/dymond_site.git"       # CMS engine shell
 
 # Add remaining gems as you complete them:
-# gem "dymond_core",    path: "../dymond_core"
-# gem "dymond_social",  path: "../dymond_social"
-# gem "dymond_safety",  path: "../dymond_safety"
-# gem "lightek_core",   path: "../lightek_core"
-# gem "lightek_studio", path: "../lightek_studio"
+gem "dymond_theme", git: "git@github.com:lightekmcg/dymond_theme.git" 
+# gem "dymond_core", git: "git@github.com:lightekmcg/dymond_core"
+# gem "dymond_social", git: "git@github.com:lightekmcg/dymond_social"
+# gem "dymond_safety", git: "git@github.com:lightekmcg/dymond_safety"
+# gem "lightek_core", git: "git@github.com:lightekmcg/lightek_core"
+# gem "lightek_studio", git: "git@github.com:lightekmcg/lightek_studio"
 
 # ── Development & test ─────────────────────────────────────────────────────────
 group :development, :test do

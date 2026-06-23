@@ -29,14 +29,14 @@ module Authentication
       Session.find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
     end
 
-    def request_authentication
-      session[:return_to_after_authenticating] = request.url
-      redirect_to new_session_path
-    end
+  def request_authentication
+  session[:return_to_after_authenticating] = request.url
+  redirect_to main_app.new_session_path     # was: new_session_path
+end
 
     def after_authentication_url
-      session.delete(:return_to_after_authenticating) || root_url
-    end
+  session.delete(:return_to_after_authenticating) || main_app.root_url
+end
 
     def start_new_session_for(user)
       user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip).tap do |session|

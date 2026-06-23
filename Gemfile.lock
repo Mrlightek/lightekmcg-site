@@ -27,7 +27,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_site.git
-  revision: 94342c8d5383f15ce61bdca73741116b259ce43e
+  revision: 6b0388e3c45d973d8901d3991738b6e61a1e9bf9
   specs:
     dymond_site (0.1.0)
       rails (>= 8.0.5)

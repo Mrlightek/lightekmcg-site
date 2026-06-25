@@ -15,7 +15,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 5a370001d675152eadd50550151e7727abc78091
+  revision: de76f590704789ee3e9878482033ffed68ff90b3
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -168,7 +168,7 @@ GEM
       logger (~> 1.5)
     concurrent-ruby (1.3.7)
     connection_pool (3.0.2)
-    crass (1.0.6)
+    crass (1.0.7)
     date (3.5.1)
     debug (1.11.1)
       irb (~> 1.10)

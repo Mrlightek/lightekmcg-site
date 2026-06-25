@@ -35,7 +35,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_theme.git
-  revision: 295d45fae25c2f9711cedc3c1cd9e232699cca45
+  revision: ebc38fb5a8605a3cd5261fe877d825bdff8b2db9
   specs:
     dymond_theme (0.1.0)
       rails (>= 8.0.5)

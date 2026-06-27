@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# dev — LightekMCG VM development helper
+# One command for the Docker dance. Run: ./dev <command>
+# Install: put in repo root, chmod +x dev, then ./dev help
+set -euo pipefail
+
+# ── config ────────────────────────────────────────────────────────────────
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
+DB_USER="${DB_USER:-lightek}"
+DB_NAME="${DB_NAME:-lightekmcg_site_development}"
+BACKUP_DIR="${BACKUP_DIR:-$HOME}"
+
+# ── helpers ───────────────────────────────────────────────────────────────
+c_green="\033[32m"; c_yellow="\033[33m"; c_red="\033[31m"; c_off="\033[0m"
+say()  { echo -e "${c_green}▶ $*${c_off}"; }
+warn() { echo -e "${c_yellow}! $*${c_off}"; }
+die()  { echo -e "${c_red}✗ $*${c_off}"; exit 1; }
+
+# Load the ssh-agent + key (idempotent) so the --mount=type=ssh build can clone
+# the private gems. Safe to call every time.
+load_agent() {
+  if ! ssh-add -l >/dev/null 2>&1; then
+    eval "$(ssh-agent -s)" >/dev/null
+  fi
+  ssh-add "$SSH_KEY" >/dev/null 2>&1 || true
+  export DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1
+}
+
+# Verify git/Dockerfile integrity — catches the OOM/reboot corruption early.
+check_repo() {
+  if find .git -size 0 2>/dev/null | grep -q .; then
+    warn "empty git objects found (reboot corruption) — run: ./dev repair"
+    return 1
+  fi
+  if [ ! -s Dockerfile ]; then
+    die "Dockerfile is empty or missing — run: ./dev repair"
+  fi
+}
+
+# ── commands ──────────────────────────────────────────────────────────────
+cmd_up() {            # start the stack (no rebuild)
+  load_agent
+  say "starting stack…"
+  docker compose up -d
+  cmd_wait
+}
+
+cmd_down() {          # stop the stack
+  say "stopping stack…"
+  docker compose down
+}
+
+cmd_restart() {       # restart web only (use after app-code edits — NO rebuild)
+  say "restarting web…"
+  docker compose restart web
+  cmd_wait
+}
+
+cmd_build() {         # full rebuild (use after a gem/Gemfile.lock change)
+  check_repo || die "repo check failed; fix before building"
+  load_agent
+  say "pre-pulling buildkit frontend (avoids the resolve hang)…"
+  docker pull docker/dockerfile:1 >/dev/null 2>&1 || warn "frontend pre-pull skipped"
+  say "building web + sidekiq…"
+  docker compose build web sidekiq
+  say "starting stack…"
+  docker compose up -d
+  cmd_wait
+}
+
+cmd_migrate() {       # install engine migrations + db:migrate + restart
+  say "installing engine migrations…"
+  for g in dymond_theme dymond_site dymond_dash dymond_bank; do
+    docker compose exec -T web bin/rails "${g}:install:migrations" 2>/dev/null || true
+  done
+  say "running db:migrate…"
+  docker compose exec -T web bin/rails db:migrate
+  cmd_restart
+}
+
+cmd_wait() {          # block until Puma is listening
+  say "waiting for web to listen on :3000…"
+  for i in $(seq 1 40); do
+    if docker compose logs web 2>/dev/null | grep -q "Listening on"; then
+      echo -e "${c_green}✓ web is up — http://192.168.64.2:3000${c_off}"; return 0
+    fi
+    sleep 1
+  done
+  warn "didn't see 'Listening' in 40s — check: ./dev logs"
+}
+
+cmd_logs() {          # follow web logs
+  docker compose logs -f web
+}
+
+cmd_ps() {            # status of all services
+  docker compose ps
+}
+
+cmd_console() {       # rails console
+  docker compose exec web bin/rails console
+}
+
+cmd_run() {           # run an arbitrary rails command: ./dev run "runner '...'"
+  shift || true
+  docker compose exec web bin/rails "$@"
+}
+
+cmd_backup() {        # pg_dump the dev database
+  local f="$BACKUP_DIR/lightek_db_backup_$(date +%F_%H%M%S).sql"
+  say "backing up $DB_NAME → $f"
+  docker compose exec -T db pg_dump -U "$DB_USER" "$DB_NAME" > "$f"
+  [ -s "$f" ] && echo -e "${c_green}✓ backup ok ($(du -h "$f" | cut -f1))${c_off}" || die "backup is empty!"
+}
+
+cmd_repair() {        # repair OOM/reboot corruption (git + tracked files)
+  say "removing empty git objects…"
+  find .git -size 0 -delete 2>/dev/null || true
+  say "re-fetching from origin…"
+  git fetch --all
+  say "fsck…"
+  git fsck --full || true
+  say "restoring any truncated tracked files from HEAD…"
+  git checkout -- Dockerfile Gemfile.lock db/schema.rb 2>/dev/null || true
+  warn "untracked db/migrate/*.rb left alone (intentional)."
+  say "repair done — verify with: git status && head -3 Dockerfile"
+}
+
+cmd_sync() {          # pull latest code, then rebuild + migrate (the full deploy loop)
+  check_repo || cmd_repair
+  say "pulling latest…"
+  git pull
+  cmd_build
+  cmd_migrate
+}
+
+cmd_help() {
+  cat <<EOF
+dev — LightekMCG VM helper
+
+  ./dev up         start the stack (no rebuild)
+  ./dev down       stop the stack
+  ./dev restart    restart web only — after APP-CODE edits (no rebuild)
+  ./dev build      full rebuild — after a GEM / Gemfile.lock change
+  ./dev migrate    install engine migrations + db:migrate + restart
+  ./dev sync       git pull → build → migrate (the full update loop)
+  ./dev wait       block until web is listening
+  ./dev logs       follow web logs
+  ./dev ps         service status
+  ./dev console    rails console
+  ./dev run ...    rails <args>, e.g. ./dev run "runner 'puts User.count'"
+  ./dev backup     pg_dump the dev database
+  ./dev repair     fix OOM/reboot corruption (git objects + truncated files)
+  ./dev help       this
+
+  Rule of thumb: gem changed → build. app code changed → restart.
+EOF
+}
+
+# ── dispatch ──────────────────────────────────────────────────────────────
+cmd="${1:-help}"
+case "$cmd" in
+  up) cmd_up ;; down) cmd_down ;; restart) cmd_restart ;;
+  build) cmd_build ;; migrate) cmd_migrate ;; sync) cmd_sync ;;
+  wait) cmd_wait ;; logs) cmd_logs ;; ps) cmd_ps ;;
+  console) cmd_console ;; run) cmd_run "$@" ;; backup) cmd_backup ;;
+  repair) cmd_repair ;; help|*) cmd_help ;;
+esac

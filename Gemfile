@@ -99,3 +99,4 @@ group :test do
   gem "selenium-webdriver"
   gem "shoulda-matchers"
 end
+gem "dotenv-rails", "~> 3.2"

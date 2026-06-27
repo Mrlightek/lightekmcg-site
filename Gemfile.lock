@@ -15,7 +15,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 181493fdb8393064fb54c67030dbb2fc2e64bb45
+  revision: c3e84cdaba18c2118ee58724e8f76be29f19c65e
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -175,6 +175,9 @@ GEM
       reline (>= 0.3.8)
     diff-lcs (1.6.2)
     dotenv (3.2.0)
+    dotenv-rails (3.2.0)
+      dotenv (= 3.2.0)
+      railties (>= 6.1)
     drb (2.2.3)
     ed25519 (1.4.0)
     erb (6.0.4)
@@ -555,6 +558,7 @@ DEPENDENCIES
   cancancan (~> 3.6)
   capybara
   debug
+  dotenv-rails (~> 3.2)
   dymond_bank!
   dymond_dash!
   dymond_site!

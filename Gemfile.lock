@@ -14,8 +14,16 @@ GIT
       sidekiq (>= 7.0)
 
 GIT
+  remote: git@github.com:lightekmcg/dymond_compute.git
+  revision: 279f32f64861e08910d86dda413e09ade1e7058c
+  specs:
+    dymond_compute (0.1.0)
+      aws-sdk-s3 (~> 1.0)
+      rails (>= 7.2)
+
+GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: c3e84cdaba18c2118ee58724e8f76be29f19c65e
+  revision: 0421342ee10c806c8ca2c9e110d2ae08643e4742
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -27,7 +35,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_site.git
-  revision: 08eb1f08101418a883be2c9f77ec9e2c86fc57b5
+  revision: 7c5e89b9f63612e6bb4d56197e70562a41b75f16
   specs:
     dymond_site (0.1.0)
       dymond_theme
@@ -267,7 +275,7 @@ GEM
     loofah (2.25.1)
       crass (~> 1.0.2)
       nokogiri (>= 1.12.0)
-    mail (2.9.0)
+    mail (2.9.1)
       logger
       mini_mime (>= 0.1.1)
       net-imap
@@ -560,6 +568,7 @@ DEPENDENCIES
   debug
   dotenv-rails (~> 3.2)
   dymond_bank!
+  dymond_compute!
   dymond_dash!
   dymond_site!
   dymond_theme!

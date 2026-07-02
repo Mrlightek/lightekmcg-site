@@ -74,6 +74,7 @@ gem "dymond_site", git: "git@github.com:lightekmcg/dymond_site.git"       # CMS 
 
 # Add remaining gems as you complete them:
 gem "dymond_theme", git: "git@github.com:lightekmcg/dymond_theme.git" 
+gem "dymond_compute", git: "git@github.com:lightekmcg/dymond_compute.git"
 # gem "dymond_core", git: "git@github.com:lightekmcg/dymond_core"
 # gem "dymond_social", git: "git@github.com:lightekmcg/dymond_social"
 # gem "dymond_safety", git: "git@github.com:lightekmcg/dymond_safety"

@@ -10,13 +10,41 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_05_20_182508) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_30_151955) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "abouts", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "filename", null: false
+    t.string "content_type"
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.datetime "created_at", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
   create_table "architectures", force: :cascade do |t|
@@ -304,6 +332,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_20_182508) do
     t.index ["metered_type", "metered_id"], name: "index_dymond_bank_usage_records_on_metered_type_and_metered_id"
   end
 
+  create_table "dymond_compute_assets", force: :cascade do |t|
+    t.string "filename"
+    t.string "content_type"
+    t.bigint "byte_size"
+    t.string "kind"
+    t.string "purpose"
+    t.string "alt_text"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kind"], name: "index_dymond_compute_assets_on_kind"
+    t.index ["purpose"], name: "index_dymond_compute_assets_on_purpose"
+  end
+
   create_table "dymond_dash_account_plans", force: :cascade do |t|
     t.string "plan_slug", default: "starter", null: false
     t.string "status", default: "active", null: false
@@ -435,6 +476,75 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_20_182508) do
     t.index ["slug"], name: "index_dymond_dash_themes_on_slug", unique: true
   end
 
+  create_table "dymond_site_pages", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "title", null: false
+    t.string "slug", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "published", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "theme_id"
+    t.index ["site_id", "position"], name: "index_dymond_site_pages_on_site_id_and_position"
+    t.index ["site_id", "slug"], name: "index_dymond_site_pages_on_site_id_and_slug", unique: true
+    t.index ["site_id"], name: "index_dymond_site_pages_on_site_id"
+    t.index ["theme_id"], name: "index_dymond_site_pages_on_theme_id"
+  end
+
+  create_table "dymond_site_sections", force: :cascade do |t|
+    t.bigint "page_id", null: false
+    t.string "kind", null: false
+    t.integer "position", default: 0, null: false
+    t.jsonb "data", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "theme_id"
+    t.index ["page_id", "position"], name: "index_dymond_site_sections_on_page_id_and_position"
+    t.index ["page_id"], name: "index_dymond_site_sections_on_page_id"
+    t.index ["theme_id"], name: "index_dymond_site_sections_on_theme_id"
+  end
+
+  create_table "dymond_site_sites", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "host", null: false
+    t.bigint "active_theme_id"
+    t.string "tenant_type"
+    t.bigint "tenant_id"
+    t.jsonb "manifest", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active_theme_id"], name: "index_dymond_site_sites_on_active_theme_id"
+    t.index ["host"], name: "index_dymond_site_sites_on_host", unique: true
+    t.index ["tenant_type", "tenant_id"], name: "index_dymond_site_sites_on_tenant_type_and_tenant_id"
+  end
+
+  create_table "dymond_site_themes", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "site_id"
+    t.jsonb "tokens", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "custom_css"
+    t.jsonb "templates", default: {}, null: false
+    t.index ["site_id"], name: "index_dymond_site_themes_on_site_id"
+  end
+
+  create_table "dymond_theme_themes", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "scope", default: "site", null: false
+    t.string "owner_type"
+    t.bigint "owner_id"
+    t.jsonb "tokens", default: {}, null: false
+    t.text "custom_css"
+    t.jsonb "templates", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "preset", default: false, null: false
+    t.index ["owner_type", "owner_id"], name: "index_dymond_theme_themes_on_owner_type_and_owner_id"
+    t.index ["preset"], name: "index_dymond_theme_themes_on_preset"
+    t.index ["scope"], name: "index_dymond_theme_themes_on_scope"
+  end
+
   create_table "homes", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -500,6 +610,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_20_182508) do
     t.index ["role"], name: "index_users_on_role"
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "dymond_bank_invoice_line_items", "dymond_bank_invoices", column: "invoice_id"
   add_foreign_key "dymond_bank_invoices", "dymond_bank_linked_accounts", column: "linked_account_id"
   add_foreign_key "dymond_bank_ledger_entries", "dymond_bank_accounts", column: "account_id"
@@ -512,9 +624,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_20_182508) do
   add_foreign_key "dymond_bank_subscriptions", "dymond_bank_subscription_plans", column: "plan_id"
   add_foreign_key "dymond_bank_transactions", "dymond_bank_accounts", column: "account_id"
   add_foreign_key "dymond_bank_transactions", "dymond_bank_invoices", column: "invoice_id"
-  add_foreign_key "dymond_dash_app_configs", "dymond_dash_themes", column: "theme_id"
+  add_foreign_key "dymond_dash_app_configs", "dymond_theme_themes", column: "theme_id"
   add_foreign_key "dymond_dash_installed_gems", "dymond_dash_ecosystem_gems", column: "ecosystem_gem_id"
   add_foreign_key "dymond_dash_nav_items", "dymond_dash_nav_sections", column: "section_id"
   add_foreign_key "dymond_dash_pending_gemfile_changes", "dymond_dash_ecosystem_gems", column: "ecosystem_gem_id"
+  add_foreign_key "dymond_site_pages", "dymond_site_sites", column: "site_id"
+  add_foreign_key "dymond_site_pages", "dymond_theme_themes", column: "theme_id"
+  add_foreign_key "dymond_site_sections", "dymond_site_pages", column: "page_id"
+  add_foreign_key "dymond_site_sections", "dymond_theme_themes", column: "theme_id"
+  add_foreign_key "dymond_site_themes", "dymond_site_sites", column: "site_id"
   add_foreign_key "sessions", "users"
 end

@@ -23,7 +23,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 0421342ee10c806c8ca2c9e110d2ae08643e4742
+  revision: 432fecbada0116e2aa64312b19e4a0a35fdd5d1f
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -35,7 +35,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_site.git
-  revision: 7c5e89b9f63612e6bb4d56197e70562a41b75f16
+  revision: 0bc7631e038f892f1438dc5c002591f24e42831c
   specs:
     dymond_site (0.1.0)
       dymond_theme
@@ -47,6 +47,13 @@ GIT
   specs:
     dymond_theme (0.1.0)
       rails (>= 8.0.5)
+
+GIT
+  remote: git@github.com:lightekmcg/lightek_kernel
+  revision: 0b29cfd7fa97a7f1fc01c0f3c200730ad9b26021
+  specs:
+    lightek_kernel (0.1.0)
+      activesupport (>= 7.2)
 
 GEM
   remote: https://rubygems.org/
@@ -580,6 +587,7 @@ DEPENDENCIES
   kamal
   kaminari (~> 1.2)
   letter_opener
+  lightek_kernel!
   lockbox (~> 1.3)
   money-rails (~> 1.15)
   pg (>= 1.5)

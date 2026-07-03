@@ -68,6 +68,7 @@ gem "tzinfo-data", platforms: %i[windows jruby]
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Core infrastructure
+gem "lightek_kernel", git: "git@github.com:lightekmcg/lightek_kernel"
 gem "dymond_dash", git: "git@github.com:lightekmcg/dymond_dash.git"       # CMS dashboard engine — mount first
 gem "dymond_bank", git: "git@github.com:lightekmcg/dymond_bank.git"       # Billing & financial layer
 gem "dymond_site", git: "git@github.com:lightekmcg/dymond_site.git"       # CMS engine shell

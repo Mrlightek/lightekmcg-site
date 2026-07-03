@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_30_151955) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_03_205364) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -476,6 +476,38 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_30_151955) do
     t.index ["slug"], name: "index_dymond_dash_themes_on_slug", unique: true
   end
 
+  create_table "dymond_site_footers", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.jsonb "columns", default: []
+    t.string "copyright"
+    t.string "tagline"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_dymond_site_footers_on_site_id"
+  end
+
+  create_table "dymond_site_nav_items", force: :cascade do |t|
+    t.bigint "nav_menu_id", null: false
+    t.bigint "parent_id"
+    t.bigint "page_id"
+    t.string "label", null: false
+    t.string "external_url"
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nav_menu_id"], name: "index_dymond_site_nav_items_on_nav_menu_id"
+    t.index ["page_id"], name: "index_dymond_site_nav_items_on_page_id"
+    t.index ["parent_id"], name: "index_dymond_site_nav_items_on_parent_id"
+  end
+
+  create_table "dymond_site_nav_menus", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", default: "Main Menu"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_dymond_site_nav_menus_on_site_id"
+  end
+
   create_table "dymond_site_pages", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.string "title", null: false
@@ -504,6 +536,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_30_151955) do
     t.index ["theme_id"], name: "index_dymond_site_sections_on_theme_id"
   end
 
+  create_table "dymond_site_site_templates", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "key", null: false
+    t.string "description"
+    t.jsonb "settings", default: {}
+    t.boolean "preset", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_dymond_site_site_templates_on_key", unique: true
+  end
+
   create_table "dymond_site_sites", force: :cascade do |t|
     t.string "name", null: false
     t.string "host", null: false
@@ -513,6 +556,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_30_151955) do
     t.jsonb "manifest", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "active_template_id"
+    t.index ["active_template_id"], name: "index_dymond_site_sites_on_active_template_id"
     t.index ["active_theme_id"], name: "index_dymond_site_sites_on_active_theme_id"
     t.index ["host"], name: "index_dymond_site_sites_on_host", unique: true
     t.index ["tenant_type", "tenant_id"], name: "index_dymond_site_sites_on_tenant_type_and_tenant_id"
@@ -628,10 +673,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_30_151955) do
   add_foreign_key "dymond_dash_installed_gems", "dymond_dash_ecosystem_gems", column: "ecosystem_gem_id"
   add_foreign_key "dymond_dash_nav_items", "dymond_dash_nav_sections", column: "section_id"
   add_foreign_key "dymond_dash_pending_gemfile_changes", "dymond_dash_ecosystem_gems", column: "ecosystem_gem_id"
+  add_foreign_key "dymond_site_footers", "dymond_site_sites", column: "site_id"
+  add_foreign_key "dymond_site_nav_items", "dymond_site_nav_items", column: "parent_id"
+  add_foreign_key "dymond_site_nav_items", "dymond_site_nav_menus", column: "nav_menu_id"
+  add_foreign_key "dymond_site_nav_items", "dymond_site_pages", column: "page_id"
+  add_foreign_key "dymond_site_nav_menus", "dymond_site_sites", column: "site_id"
   add_foreign_key "dymond_site_pages", "dymond_site_sites", column: "site_id"
   add_foreign_key "dymond_site_pages", "dymond_theme_themes", column: "theme_id"
   add_foreign_key "dymond_site_sections", "dymond_site_pages", column: "page_id"
   add_foreign_key "dymond_site_sections", "dymond_theme_themes", column: "theme_id"
+  add_foreign_key "dymond_site_sites", "dymond_site_site_templates", column: "active_template_id"
   add_foreign_key "dymond_site_themes", "dymond_site_sites", column: "site_id"
   add_foreign_key "sessions", "users"
 end

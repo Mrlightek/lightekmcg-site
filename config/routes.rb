@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  get "/studio", to: "dymond_studio/studio#index"
+  mount DymondStudio::Engine => "/studio"
   resource :session
   resources :passwords, param: :token
   resources :storyline_world_communities

@@ -14,6 +14,8 @@ Rails.application.configure do
 
   # Enable server timing.
   config.server_timing = true
+  # config/environments/development.rb
+  config.active_job.queue_adapter = :async
 
   # Enable/disable Action Controller caching. By default Action Controller caching is disabled.
   # Run rails dev:cache to toggle Action Controller caching.

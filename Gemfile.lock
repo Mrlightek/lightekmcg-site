@@ -1,6 +1,6 @@
 GIT
   remote: git@github.com:lightekmcg/dymond_bank.git
-  revision: e271d069d619f21304e09485d38b9e137b2bd838
+  revision: c670ca2828f60d1ba468c27013ed4fa875f0964a
   specs:
     dymond_bank (0.1.0)
       activerecord (>= 7.2)
@@ -15,7 +15,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_compute.git
-  revision: 279f32f64861e08910d86dda413e09ade1e7058c
+  revision: e36a373d90a4f2aaa788bb337420ee732ecff653
   specs:
     dymond_compute (0.1.0)
       aws-sdk-s3 (~> 1.0)
@@ -23,7 +23,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 432fecbada0116e2aa64312b19e4a0a35fdd5d1f
+  revision: c410331cdae595ea92f1843e5a669e2cbff55bec
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -35,11 +35,20 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_site.git
-  revision: 0bc7631e038f892f1438dc5c002591f24e42831c
+  revision: e3c6b2de950b154bf0a18899ff9086397c583bb7
   specs:
     dymond_site (0.1.0)
       dymond_theme
       rails (>= 8.0.5)
+
+GIT
+  remote: git@github.com:lightekmcg/dymond_studio.git
+  revision: dc5c040a5c75ae3796803ba4f2cbd9c5242aac25
+  specs:
+    dymond_studio (0.1.0)
+      lightek_kernel
+      lightek_ui
+      rails (>= 7.2)
 
 GIT
   remote: git@github.com:lightekmcg/dymond_theme.git
@@ -50,10 +59,24 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/lightek_kernel
-  revision: 0b29cfd7fa97a7f1fc01c0f3c200730ad9b26021
+  revision: b3b4ef839c39a4f07e666ea2e746e47d66844361
   specs:
     lightek_kernel (0.1.0)
       activesupport (>= 7.2)
+
+GIT
+  remote: git@github.com:lightekmcg/lightek_ui.git
+  revision: 0caf954e1c8970ff8cb065ad1e94e87840a9cd32
+  specs:
+    lightek_ui (0.1.0)
+      rails (>= 7.2)
+
+GIT
+  remote: git@github.com:lightekmcg/marlon.git
+  revision: 824f2e48a27669a61de2d1297684a9e20b6a4c8b
+  specs:
+    marlon (0.1.0)
+      rails (>= 8.0.5)
 
 GEM
   remote: https://rubygems.org/
@@ -135,8 +158,8 @@ GEM
       fiddle
     ast (2.4.3)
     aws-eventstream (1.4.0)
-    aws-partitions (1.1262.0)
-    aws-sdk-core (3.252.0)
+    aws-partitions (1.1269.0)
+    aws-sdk-core (3.254.0)
       aws-eventstream (~> 1, >= 1.3.0)
       aws-partitions (~> 1, >= 1.992.0)
       aws-sigv4 (~> 1.9)
@@ -144,11 +167,11 @@ GEM
       bigdecimal
       jmespath (~> 1, >= 1.6.1)
       logger
-    aws-sdk-kms (1.129.0)
-      aws-sdk-core (~> 3, >= 3.248.0)
+    aws-sdk-kms (1.130.0)
+      aws-sdk-core (~> 3, >= 3.254.0)
       aws-sigv4 (~> 1.5)
-    aws-sdk-s3 (1.226.0)
-      aws-sdk-core (~> 3, >= 3.248.0)
+    aws-sdk-s3 (1.227.0)
+      aws-sdk-core (~> 3, >= 3.254.0)
       aws-sdk-kms (~> 1)
       aws-sigv4 (~> 1.5)
     aws-sigv4 (1.12.1)
@@ -161,7 +184,7 @@ GEM
     benchmark (0.5.0)
     bigdecimal (3.3.1)
     bindex (0.8.1)
-    blind_index (2.8.0)
+    blind_index (2.8.1)
       activesupport (>= 7.2)
       argon2-kdf (>= 1)
     bootsnap (1.24.6)
@@ -221,7 +244,7 @@ GEM
     ffi (1.17.4-x86_64-linux-gnu)
     ffi (1.17.4-x86_64-linux-musl)
     fiddle (1.1.8)
-    fugit (1.12.2)
+    fugit (1.13.0)
       et-orbi (~> 1.4)
       raabro (~> 1.4)
     globalid (1.4.0)
@@ -245,7 +268,7 @@ GEM
       actionview (>= 7.0.0)
       activesupport (>= 7.0.0)
     jmespath (1.6.2)
-    json (2.20.0)
+    json (2.21.1)
     kamal (2.12.0)
       activesupport (>= 7.0)
       base64 (~> 0.2)
@@ -269,7 +292,7 @@ GEM
       activerecord
       kaminari-core (= 1.2.2)
     kaminari-core (1.2.2)
-    language_server-protocol (3.17.0.5)
+    language_server-protocol (3.17.0.6)
     launchy (3.1.1)
       addressable (~> 2.8)
       childprocess (~> 5.0)
@@ -322,7 +345,7 @@ GEM
       net-ssh (>= 5.0.0, < 8.0.0)
     net-smtp (0.5.1)
       net-protocol
-    net-ssh (7.3.2)
+    net-ssh (7.3.3)
     nio4r (2.7.5)
     nokogiri (1.19.4-aarch64-linux-gnu)
       racc (~> 1.4)
@@ -449,7 +472,7 @@ GEM
       rspec-mocks (~> 3.13)
       rspec-support (~> 3.13)
     rspec-support (3.13.7)
-    rubocop (1.88.0)
+    rubocop (1.88.2)
       json (~> 2.3)
       language_server-protocol (~> 3.17.0.2)
       lint_roller (~> 1.1.0)
@@ -460,14 +483,14 @@ GEM
       rubocop-ast (>= 1.49.0, < 2.0)
       ruby-progressbar (~> 1.7)
       unicode-display_width (>= 2.4.0, < 4.0)
-    rubocop-ast (1.49.1)
+    rubocop-ast (1.50.0)
       parser (>= 3.3.7.2)
       prism (~> 1.7)
     rubocop-performance (1.26.1)
       lint_roller (~> 1.1)
       rubocop (>= 1.75.0, < 2.0)
       rubocop-ast (>= 1.47.1, < 2.0)
-    rubocop-rails (2.35.5)
+    rubocop-rails (2.36.0)
       activesupport (>= 4.2.0)
       lint_roller (~> 1.1)
       rack (>= 1.1)
@@ -481,9 +504,9 @@ GEM
     ruby-vips (2.3.0)
       ffi (~> 1.12)
       logger
-    rubyzip (3.4.0)
+    rubyzip (3.4.1)
     securerandom (0.4.1)
-    selenium-webdriver (4.45.0)
+    selenium-webdriver (4.46.0)
       base64 (~> 0.2)
       logger (~> 1.4)
       rexml (~> 3.2, >= 3.2.5)
@@ -520,11 +543,11 @@ GEM
     stimulus-rails (1.3.4)
       railties (>= 6.0.0)
     thor (1.5.0)
-    thruster (0.1.21)
-    thruster (0.1.21-aarch64-linux)
-    thruster (0.1.21-arm64-darwin)
-    thruster (0.1.21-x86_64-darwin)
-    thruster (0.1.21-x86_64-linux)
+    thruster (0.1.22)
+    thruster (0.1.22-aarch64-linux)
+    thruster (0.1.22-arm64-darwin)
+    thruster (0.1.22-x86_64-darwin)
+    thruster (0.1.22-x86_64-linux)
     timeout (0.6.1)
     tsort (0.2.0)
     ttfunk (1.8.0)
@@ -578,6 +601,7 @@ DEPENDENCIES
   dymond_compute!
   dymond_dash!
   dymond_site!
+  dymond_studio!
   dymond_theme!
   factory_bot_rails (~> 6.0)
   faraday (~> 2.0)
@@ -588,7 +612,9 @@ DEPENDENCIES
   kaminari (~> 1.2)
   letter_opener
   lightek_kernel!
+  lightek_ui!
   lockbox (~> 1.3)
+  marlon!
   money-rails (~> 1.15)
   pg (>= 1.5)
   prawn (~> 2.5)

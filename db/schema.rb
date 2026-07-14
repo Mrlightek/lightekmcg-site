@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_03_205364) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_06_162151) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -341,6 +341,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_03_205364) do
     t.string "alt_text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "transcode_status"
+    t.string "hls_key"
+    t.text "transcode_error"
+    t.jsonb "transcode_meta", default: {}
     t.index ["kind"], name: "index_dymond_compute_assets_on_kind"
     t.index ["purpose"], name: "index_dymond_compute_assets_on_purpose"
   end
@@ -364,6 +368,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_03_205364) do
     t.bigint "theme_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "logo_asset_id"
+    t.string "support_email"
+    t.string "time_zone"
+    t.string "date_format"
+    t.string "default_locale"
+    t.string "cdn_base_url"
+    t.string "transcode_runner"
     t.index ["theme_id"], name: "index_dymond_dash_app_configs_on_theme_id"
   end
 
@@ -455,27 +466,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_03_205364) do
     t.index ["plan_slug", "feature_slug"], name: "index_dymond_dash_plan_features_on_plan_slug_and_feature_slug", unique: true
   end
 
-  create_table "dymond_dash_themes", force: :cascade do |t|
-    t.string "name", null: false
-    t.string "slug", null: false
-    t.boolean "is_preset", default: false, null: false
-    t.string "sidebar_bg", default: "#111318"
-    t.string "topbar_bg", default: "#111318"
-    t.string "accent_primary", default: "#C4952A"
-    t.string "accent_hover", default: "#E8B84B"
-    t.string "text_primary", default: "#F0EEE8"
-    t.string "text_secondary", default: "#9A9890"
-    t.string "text_muted", default: "#4E4E5A"
-    t.string "border_color", default: "rgba(255,255,255,0.07)"
-    t.string "card_bg", default: "#181B22"
-    t.string "danger_color", default: "#CD4D3D"
-    t.string "success_color", default: "#3DAE82"
-    t.text "custom_css"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["slug"], name: "index_dymond_dash_themes_on_slug", unique: true
-  end
-
   create_table "dymond_site_footers", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.jsonb "columns", default: []
@@ -563,15 +553,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_03_205364) do
     t.index ["tenant_type", "tenant_id"], name: "index_dymond_site_sites_on_tenant_type_and_tenant_id"
   end
 
-  create_table "dymond_site_themes", force: :cascade do |t|
-    t.string "name", null: false
-    t.bigint "site_id"
-    t.jsonb "tokens", default: {}, null: false
+  create_table "dymond_studio_media_assets", force: :cascade do |t|
+    t.bigint "asset_id", null: false
+    t.string "title"
+    t.string "status", default: "uploaded", null: false
+    t.jsonb "pipeline_log", default: []
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.text "custom_css"
-    t.jsonb "templates", default: {}, null: false
-    t.index ["site_id"], name: "index_dymond_site_themes_on_site_id"
+    t.index ["asset_id"], name: "index_dymond_studio_media_assets_on_asset_id"
+    t.index ["status"], name: "index_dymond_studio_media_assets_on_status"
   end
 
   create_table "dymond_theme_themes", force: :cascade do |t|
@@ -683,6 +673,5 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_03_205364) do
   add_foreign_key "dymond_site_sections", "dymond_site_pages", column: "page_id"
   add_foreign_key "dymond_site_sections", "dymond_theme_themes", column: "theme_id"
   add_foreign_key "dymond_site_sites", "dymond_site_site_templates", column: "active_template_id"
-  add_foreign_key "dymond_site_themes", "dymond_site_sites", column: "site_id"
   add_foreign_key "sessions", "users"
 end

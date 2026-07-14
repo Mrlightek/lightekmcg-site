@@ -68,7 +68,9 @@ gem "tzinfo-data", platforms: %i[windows jruby]
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Core infrastructure
+gem "marlon", git: "git@github.com:lightekmcg/marlon.git"
 gem "lightek_kernel", git: "git@github.com:lightekmcg/lightek_kernel"
+gem "lightek_ui", git: "git@github.com:lightekmcg/lightek_ui.git"
 gem "dymond_dash", git: "git@github.com:lightekmcg/dymond_dash.git"       # CMS dashboard engine — mount first
 gem "dymond_bank", git: "git@github.com:lightekmcg/dymond_bank.git"       # Billing & financial layer
 gem "dymond_site", git: "git@github.com:lightekmcg/dymond_site.git"       # CMS engine shell
@@ -80,7 +82,6 @@ gem "dymond_compute", git: "git@github.com:lightekmcg/dymond_compute.git"
 # gem "dymond_social", git: "git@github.com:lightekmcg/dymond_social"
 # gem "dymond_safety", git: "git@github.com:lightekmcg/dymond_safety"
 # gem "lightek_core", git: "git@github.com:lightekmcg/lightek_core"
-# gem "lightek_studio", git: "git@github.com:lightekmcg/lightek_studio"
 
 # ── Development & test ─────────────────────────────────────────────────────────
 group :development, :test do
@@ -102,3 +103,5 @@ group :test do
   gem "shoulda-matchers"
 end
 gem "dotenv-rails", "~> 3.2"
+
+gem "dymond_studio", git: "git@github.com:lightekmcg/dymond_studio.git"   # domain: studio

@@ -19,11 +19,14 @@ DymondDash.configure do |config|
   config.nav_reorder_enabled         = true
 end
 
-# Seed DymondDash defaults on first boot in development
+# Seed DymondDash defaults on first boot (idempotent; only when empty).
+# Checks canonical admin themes — the legacy dymond_dash_themes table was
+# consolidated into dymond_theme_themes.
 Rails.application.config.after_initialize do
-  if ActiveRecord::Base.connection.table_exists?("dymond_dash_themes")
-    DymondDash::Seeds.run if DymondDash::Theme.count.zero?
+  if defined?(DymondTheme::Theme) &&
+     DymondTheme::Theme.where(scope: "admin").count.zero?
+    DymondDash::Seeds.run
   end
-rescue StandardError
-  nil
+rescue StandardError => e
+  Rails.logger.warn "[DymondDash] boot seed skipped: #{e.message}" if defined?(Rails) && Rails.logger
 end

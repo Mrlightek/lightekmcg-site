@@ -1,6 +1,6 @@
 GIT
   remote: git@github.com:lightekmcg/dymond_bank.git
-  revision: c670ca2828f60d1ba468c27013ed4fa875f0964a
+  revision: fe51dd7b5028e138d640ff140691a0f88269e51a
   specs:
     dymond_bank (0.1.0)
       activerecord (>= 7.2)
@@ -15,7 +15,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_compute.git
-  revision: e36a373d90a4f2aaa788bb337420ee732ecff653
+  revision: c306b6cb9951f2045960b0f073cf77c2ec875db5
   specs:
     dymond_compute (0.1.0)
       aws-sdk-s3 (~> 1.0)
@@ -34,6 +34,13 @@ GIT
       sidekiq (>= 7.0)
 
 GIT
+  remote: git@github.com:lightekmcg/dymond_dispatch.git
+  revision: 59ba13fddbfe1e6c0a3cb790d8556d11e59c221c
+  specs:
+    dymond_dispatch (0.1.0)
+      rails (>= 8.0)
+
+GIT
   remote: git@github.com:lightekmcg/dymond_site.git
   revision: e3c6b2de950b154bf0a18899ff9086397c583bb7
   specs:
@@ -43,7 +50,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_studio.git
-  revision: dc5c040a5c75ae3796803ba4f2cbd9c5242aac25
+  revision: da2f182f162a631ec686591e2ffe0bbb5fc8c890
   specs:
     dymond_studio (0.1.0)
       lightek_kernel
@@ -600,6 +607,7 @@ DEPENDENCIES
   dymond_bank!
   dymond_compute!
   dymond_dash!
+  dymond_dispatch!
   dymond_site!
   dymond_studio!
   dymond_theme!

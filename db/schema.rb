@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_06_162151) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_15_035407) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -349,6 +349,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_06_162151) do
     t.index ["purpose"], name: "index_dymond_compute_assets_on_purpose"
   end
 
+  create_table "dymond_compute_prayer_schedules", force: :cascade do |t|
+    t.string "job_class", null: false
+    t.string "prayer", null: false
+    t.integer "offset_seconds", default: 0
+    t.boolean "recurring", default: true
+    t.string "tenant_key"
+    t.jsonb "job_args", default: []
+    t.boolean "active", default: true
+    t.datetime "last_enqueued_at"
+    t.datetime "fires_on"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active", "recurring"], name: "index_dymond_compute_prayer_schedules_on_active_and_recurring"
+    t.index ["tenant_key"], name: "index_dymond_compute_prayer_schedules_on_tenant_key"
+  end
+
   create_table "dymond_dash_account_plans", force: :cascade do |t|
     t.string "plan_slug", default: "starter", null: false
     t.string "status", default: "active", null: false
@@ -464,6 +480,30 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_06_162151) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["plan_slug", "feature_slug"], name: "index_dymond_dash_plan_features_on_plan_slug_and_feature_slug", unique: true
+  end
+
+  create_table "dymond_dispatch_work_items", force: :cascade do |t|
+    t.string "handler", null: false
+    t.jsonb "args", default: []
+    t.string "queue", default: "default", null: false
+    t.integer "priority", default: 5, null: false
+    t.string "status", default: "queued", null: false
+    t.string "worker_id"
+    t.jsonb "dispositions", default: []
+    t.jsonb "result", default: {}
+    t.text "error"
+    t.integer "attempts", default: 0, null: false
+    t.datetime "run_at"
+    t.datetime "enqueued_at"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.string "tenant_key"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["enqueued_at"], name: "index_dymond_dispatch_work_items_on_enqueued_at"
+    t.index ["run_at"], name: "index_dymond_dispatch_work_items_on_run_at"
+    t.index ["status", "queue"], name: "index_dymond_dispatch_work_items_on_status_and_queue"
+    t.index ["tenant_key"], name: "index_dymond_dispatch_work_items_on_tenant_key"
   end
 
   create_table "dymond_site_footers", force: :cascade do |t|
@@ -585,6 +625,93 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_06_162151) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "marlon_blueprint_concerns", force: :cascade do |t|
+    t.bigint "feature_id", null: false
+    t.string "key", null: false
+    t.string "name", null: false
+    t.string "target_type", default: "model", null: false
+    t.string "implementation_class"
+    t.text "description"
+    t.boolean "active", default: true, null: false
+    t.json "configuration", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["feature_id", "key"], name: "idx_marlon_concerns_feature_key", unique: true
+    t.index ["feature_id"], name: "index_marlon_blueprint_concerns_on_feature_id"
+  end
+
+  create_table "marlon_capability_pack_dependencies", force: :cascade do |t|
+    t.bigint "capability_pack_id", null: false
+    t.bigint "dependency_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["capability_pack_id", "dependency_id"], name: "idx_marlon_pack_dependencies_unique", unique: true
+  end
+
+  create_table "marlon_capability_pack_features", force: :cascade do |t|
+    t.bigint "capability_pack_id", null: false
+    t.bigint "feature_id", null: false
+    t.integer "position", default: 0, null: false
+    t.json "configuration", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["capability_pack_id", "feature_id"], name: "idx_marlon_pack_features_unique", unique: true
+  end
+
+  create_table "marlon_capability_packs", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.boolean "active", default: true, null: false
+    t.json "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_marlon_capability_packs_on_key", unique: true
+  end
+
+  create_table "marlon_features", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.boolean "active", default: true, null: false
+    t.json "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_marlon_features_on_key", unique: true
+  end
+
+  create_table "marlon_generated_artifacts", force: :cascade do |t|
+    t.string "blueprint_key", null: false
+    t.string "artifact_type", null: false
+    t.string "path", null: false
+    t.string "checksum"
+    t.json "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blueprint_key", "path"], name: "idx_marlon_generated_artifacts_unique", unique: true
+  end
+
+  create_table "marlon_project_type_capability_packs", force: :cascade do |t|
+    t.bigint "project_type_id", null: false
+    t.bigint "capability_pack_id", null: false
+    t.integer "position", default: 0, null: false
+    t.json "configuration", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_type_id", "capability_pack_id"], name: "idx_marlon_project_type_packs_unique", unique: true
+  end
+
+  create_table "marlon_project_types", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.boolean "active", default: true, null: false
+    t.json "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_marlon_project_types_on_key", unique: true
+  end
+
   create_table "resellers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -673,5 +800,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_06_162151) do
   add_foreign_key "dymond_site_sections", "dymond_site_pages", column: "page_id"
   add_foreign_key "dymond_site_sections", "dymond_theme_themes", column: "theme_id"
   add_foreign_key "dymond_site_sites", "dymond_site_site_templates", column: "active_template_id"
+  add_foreign_key "marlon_blueprint_concerns", "marlon_features", column: "feature_id"
+  add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "capability_pack_id"
+  add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "dependency_id"
+  add_foreign_key "marlon_capability_pack_features", "marlon_capability_packs", column: "capability_pack_id"
+  add_foreign_key "marlon_capability_pack_features", "marlon_features", column: "feature_id"
+  add_foreign_key "marlon_project_type_capability_packs", "marlon_capability_packs", column: "capability_pack_id"
+  add_foreign_key "marlon_project_type_capability_packs", "marlon_project_types", column: "project_type_id"
   add_foreign_key "sessions", "users"
 end

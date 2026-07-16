@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_15_035407) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_16_165358) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -92,6 +92,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_15_035407) do
     t.index ["borrower_type", "borrower_id"], name: "idx_on_borrower_type_borrower_id_bd9cc06bc0"
   end
 
+  create_table "dymond_bank_customers", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "email"
+    t.string "phone"
+    t.string "company"
+    t.bigint "user_id"
+    t.jsonb "address", default: {}
+    t.string "status", default: "active", null: false
+    t.text "notes"
+    t.jsonb "meta", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_dymond_bank_customers_on_email"
+    t.index ["status"], name: "index_dymond_bank_customers_on_status"
+    t.index ["user_id"], name: "index_dymond_bank_customers_on_user_id"
+  end
+
   create_table "dymond_bank_invoice_line_items", force: :cascade do |t|
     t.bigint "invoice_id", null: false
     t.string "description", null: false
@@ -168,6 +185,30 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_15_035407) do
     t.index ["status"], name: "index_dymond_bank_linked_accounts_on_status"
   end
 
+  create_table "dymond_bank_offers", force: :cascade do |t|
+    t.string "offerable_type"
+    t.bigint "offerable_id"
+    t.string "slug", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.string "mode", default: "paid", null: false
+    t.bigint "setup_fee_cents"
+    t.bigint "subscription_plan_id"
+    t.string "billing_period", default: "customer_choice", null: false
+    t.boolean "usage_billing", default: false, null: false
+    t.integer "trial_days"
+    t.string "currency", default: "usd", null: false
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.jsonb "meta", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_dymond_bank_offers_on_active"
+    t.index ["offerable_type", "offerable_id"], name: "idx_dymond_bank_offers_offerable"
+    t.index ["slug"], name: "index_dymond_bank_offers_on_slug", unique: true
+    t.index ["subscription_plan_id"], name: "index_dymond_bank_offers_on_subscription_plan_id"
+  end
+
   create_table "dymond_bank_payouts", force: :cascade do |t|
     t.string "recipient_type", null: false
     t.bigint "recipient_id", null: false
@@ -186,6 +227,33 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_15_035407) do
     t.index ["linked_account_id"], name: "index_dymond_bank_payouts_on_linked_account_id"
     t.index ["recipient_type", "recipient_id"], name: "index_dymond_bank_payouts_on_recipient_type_and_recipient_id"
     t.index ["status"], name: "index_dymond_bank_payouts_on_status"
+  end
+
+  create_table "dymond_bank_purchases", force: :cascade do |t|
+    t.bigint "offer_id", null: false
+    t.string "customer_type", null: false
+    t.bigint "customer_id", null: false
+    t.bigint "invoice_id"
+    t.bigint "subscription_id"
+    t.string "status", default: "pending", null: false
+    t.string "mode"
+    t.string "billing_interval"
+    t.bigint "amount_cents", default: 0, null: false
+    t.string "currency", default: "usd", null: false
+    t.jsonb "provision_spec", default: {}
+    t.bigint "work_item_id"
+    t.datetime "provisioned_at"
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "instance_id"
+    t.string "instance_host"
+    t.index ["customer_type", "customer_id"], name: "idx_dymond_bank_purchases_customer"
+    t.index ["instance_id"], name: "index_dymond_bank_purchases_on_instance_id"
+    t.index ["invoice_id"], name: "index_dymond_bank_purchases_on_invoice_id"
+    t.index ["offer_id"], name: "index_dymond_bank_purchases_on_offer_id"
+    t.index ["status"], name: "index_dymond_bank_purchases_on_status"
+    t.index ["subscription_id"], name: "index_dymond_bank_purchases_on_subscription_id"
   end
 
   create_table "dymond_bank_revenue_events", force: :cascade do |t|

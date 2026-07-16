@@ -1,6 +1,6 @@
 GIT
   remote: git@github.com:lightekmcg/dymond_bank.git
-  revision: 023d22fc04a9084c4a963d1ca027b13f35d0c6b4
+  revision: 7f44d965e2ffebbc46440a4aea15bff7fc7a24df
   specs:
     dymond_bank (0.1.0)
       activerecord (>= 7.2)
@@ -23,7 +23,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: c410331cdae595ea92f1843e5a669e2cbff55bec
+  revision: 8447641b66ceb227f7c676d17c74758dcd49bb31
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)

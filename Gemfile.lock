@@ -1,11 +1,12 @@
 GIT
   remote: git@github.com:lightekmcg/dymond_bank.git
-  revision: 7f44d965e2ffebbc46440a4aea15bff7fc7a24df
+  revision: 259334f50254bcbb1d7057958e87fab39592630b
   specs:
     dymond_bank (0.1.0)
       activerecord (>= 7.2)
       activesupport (>= 7.2)
       faraday (~> 2.0)
+      jwt (~> 2.7)
       money-rails (~> 1.15)
       plaid (~> 26.0)
       prawn (~> 2.5)
@@ -23,7 +24,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 8447641b66ceb227f7c676d17c74758dcd49bb31
+  revision: 2f1728f1e55cd02e468fd1b8e451592be376bb0c
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -35,14 +36,14 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dispatch.git
-  revision: 59ba13fddbfe1e6c0a3cb790d8556d11e59c221c
+  revision: e9c2a25695d165b1086d7b7e5e6ade3abb0337bb
   specs:
     dymond_dispatch (0.1.0)
       rails (>= 8.0)
 
 GIT
   remote: git@github.com:lightekmcg/dymond_site.git
-  revision: e3c6b2de950b154bf0a18899ff9086397c583bb7
+  revision: 67a96149cdd7b61fe9611ff1d5c9c8f2109da080
   specs:
     dymond_site (0.1.0)
       dymond_theme
@@ -211,7 +212,7 @@ GEM
       xpath (~> 3.2)
     childprocess (5.1.0)
       logger (~> 1.5)
-    concurrent-ruby (1.3.7)
+    concurrent-ruby (1.3.8)
     connection_pool (3.0.2)
     crass (1.0.7)
     date (3.5.1)
@@ -225,7 +226,7 @@ GEM
       railties (>= 6.1)
     drb (2.2.3)
     ed25519 (1.4.0)
-    erb (6.0.4)
+    erb (6.0.6)
     erubi (1.13.1)
     et-orbi (1.4.0)
       tzinfo
@@ -276,6 +277,8 @@ GEM
       activesupport (>= 7.0.0)
     jmespath (1.6.2)
     json (2.21.1)
+    jwt (2.10.3)
+      base64
     kamal (2.12.0)
       activesupport (>= 7.0)
       base64 (~> 0.2)

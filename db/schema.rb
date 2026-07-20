@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_16_165358) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_20_141619) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -229,6 +229,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_16_165358) do
     t.index ["status"], name: "index_dymond_bank_payouts_on_status"
   end
 
+  create_table "dymond_bank_platforms", force: :cascade do |t|
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "dymond_bank_purchases", force: :cascade do |t|
     t.bigint "offer_id", null: false
     t.string "customer_type", null: false
@@ -294,11 +300,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_16_165358) do
     t.bigint "splittable_id", null: false
     t.string "recipient_type", null: false
     t.bigint "recipient_id", null: false
-    t.decimal "percentage", precision: 5, scale: 2, null: false
+    t.decimal "percentage", precision: 5, scale: 2
     t.boolean "active", default: true
     t.string "label"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "split_type", default: "percentage", null: false
+    t.bigint "fixed_amount_cents"
+    t.integer "position", default: 0, null: false
+    t.index ["split_type"], name: "index_dymond_bank_royalty_splits_on_split_type"
     t.index ["splittable_type", "splittable_id"], name: "idx_on_splittable_type_splittable_id_09428d710e"
   end
 
@@ -351,9 +361,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_16_165358) do
     t.text "failure_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "payout_id"
     t.index ["account_id"], name: "index_dymond_bank_transactions_on_account_id"
     t.index ["idempotency_key"], name: "index_dymond_bank_transactions_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["invoice_id"], name: "index_dymond_bank_transactions_on_invoice_id"
+    t.index ["payout_id"], name: "index_dymond_bank_transactions_on_payout_id"
     t.index ["processor_ref"], name: "index_dymond_bank_transactions_on_processor_ref"
     t.index ["status"], name: "index_dymond_bank_transactions_on_status"
   end
@@ -528,6 +540,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_16_165358) do
     t.index ["slug"], name: "index_dymond_dash_nav_sections_on_slug", unique: true
   end
 
+  create_table "dymond_dash_notifications", force: :cascade do |t|
+    t.string "recipient_type", null: false
+    t.bigint "recipient_id", null: false
+    t.string "subject_type"
+    t.bigint "subject_id"
+    t.string "category", default: "system", null: false
+    t.string "title", null: false
+    t.text "body"
+    t.string "url"
+    t.datetime "read_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["read_at"], name: "index_dymond_dash_notifications_on_read_at"
+    t.index ["recipient_type", "recipient_id"], name: "idx_on_recipient_type_recipient_id_9cf999bace"
+    t.index ["subject_type", "subject_id"], name: "index_dymond_dash_notifications_on_subject_type_and_subject_id"
+  end
+
   create_table "dymond_dash_pending_gemfile_changes", force: :cascade do |t|
     t.bigint "ecosystem_gem_id", null: false
     t.string "action", null: false
@@ -568,9 +597,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_16_165358) do
     t.string "tenant_key"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "subject_type"
+    t.bigint "subject_id"
+    t.string "kind", default: "job", null: false
     t.index ["enqueued_at"], name: "index_dymond_dispatch_work_items_on_enqueued_at"
+    t.index ["kind", "status"], name: "idx_dispatch_work_items_kind_status"
+    t.index ["kind"], name: "index_dymond_dispatch_work_items_on_kind"
     t.index ["run_at"], name: "index_dymond_dispatch_work_items_on_run_at"
     t.index ["status", "queue"], name: "index_dymond_dispatch_work_items_on_status_and_queue"
+    t.index ["subject_type", "subject_id"], name: "idx_dispatch_work_items_subject"
     t.index ["tenant_key"], name: "index_dymond_dispatch_work_items_on_tenant_key"
   end
 

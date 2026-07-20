@@ -1,0 +1,9 @@
+<h1>Plans</h1>
+
+<% DymondBank::Offer.where(active: true).order(:sort_order).each do |offer| %>
+  <div class="offer-card">
+    <h2><%= offer.name %></h2>
+    <p><%= offer.description %></p>
+    <%= link_to "Subscribe", dymond_bank.checkout_path(offer.slug) %>
+  </div>
+<% end %>

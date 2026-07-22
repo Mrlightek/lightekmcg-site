@@ -1,0 +1,16 @@
+<% content_for :page_title, "Clients" %>
+<div class="dd-card">
+  <% if @clients.any? %>
+    <% @clients.each do |c| %>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--dd-border);">
+        <div>
+          <span style="font-weight:600;"><%= c.full_name %></span>
+          <span style="color:var(--dd-text-muted); font-size:12px;"> · <%= c.email_address %></span>
+        </div>
+        <%= link_to "View", employee_client_path(c), class: "dd-topbar-btn dd-btn-ghost" %>
+      </div>
+    <% end %>
+  <% else %>
+    <p style="color:var(--dd-text-secondary); font-size:13px;">No clients yet.</p>
+  <% end %>
+</div>

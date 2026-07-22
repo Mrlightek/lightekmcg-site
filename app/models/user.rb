@@ -69,6 +69,12 @@ class User < ApplicationRecord
       employee? || admin?
     when :lightek_studio
       employee? || admin?
+      when :employee_clients
+    employee? || admin?
+    when :employee_tickets
+    employee? || admin?
+    when :employee_users
+  admin?
     else
       true
     end

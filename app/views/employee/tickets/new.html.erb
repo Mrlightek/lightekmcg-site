@@ -1,0 +1,16 @@
+<% content_for :page_title, "New Ticket" %>
+<%= form_with model: @ticket, url: employee_tickets_path do |f| %>
+  <div class="dd-card" style="display:flex; flex-direction:column; gap:12px; max-width:600px;">
+    <label>Category
+      <%= f.select :category, Marlon::TicketCategories.ids.map { |id| [Marlon::TicketCategories.label_for(id), id] }, {}, class: "fg-input" %>
+    </label>
+    <label>Title <%= f.text_field :title, class: "fg-input" %></label>
+    <label>Description <%= f.text_area :description, class: "fg-input" %></label>
+    <label>Priority
+      <%= f.select :priority, Marlon::Ticket::PRIORITIES.map { |p| [p.humanize, p] }, {}, class: "fg-input" %>
+    </label>
+    <label>Urgency (1-10) <%= f.number_field :urgency, min: 1, max: 10, class: "fg-input" %></label>
+    <label>Organization <%= f.text_field :organization_name, class: "fg-input" %></label>
+    <%= f.submit "Create Ticket", class: "dd-topbar-btn dd-btn-primary" %>
+  </div>
+<% end %>

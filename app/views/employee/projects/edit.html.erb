@@ -1,0 +1,13 @@
+<% content_for :page_title, "Edit #{@project.title}" %>
+<%= form_with model: @project, url: employee_project_path(@project) do |f| %>
+  <div class="dd-card" style="display:flex; flex-direction:column; gap:12px; max-width:600px;">
+    <label>Title <%= f.text_field :title, class: "fg-input" %></label>
+    <label>Description <%= f.text_area :description, class: "fg-input" %></label>
+    <label>Status
+      <%= f.select :status, Marlon::Project::STATUSES.map { |s| [s.humanize, s] }, {}, class: "fg-input" %>
+    </label>
+    <label>Start Date <%= f.date_field :start_date, class: "fg-input" %></label>
+    <label>Due Date <%= f.date_field :due_date, class: "fg-input" %></label>
+    <%= f.submit class: "dd-topbar-btn dd-btn-primary" %>
+  </div>
+<% end %>

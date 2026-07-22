@@ -1,0 +1,29 @@
+<% content_for :page_title, "Timesheets" %>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Log Time</div>
+  <%= form_with url: employee_timesheets_path, method: :post do |f| %>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+      <label>Project
+        <%= f.select :project_id, options_for_select(Marlon::Project.active_first.map { |p| [p.title, p.id] }), {}, name: "timesheet[project_id]", class: "fg-input" %>
+      </label>
+      <label>Hours <%= text_field_tag "timesheet[hours]", nil, class: "fg-input", style: "width:80px;" %></label>
+      <label>Date <%= date_field_tag "timesheet[worked_on]", Date.current, class: "fg-input" %></label>
+      <label>Notes <%= text_field_tag "timesheet[notes]", nil, class: "fg-input" %></label>
+      <%= f.submit "Log", class: "dd-topbar-btn dd-btn-primary" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="dd-card">
+  <% if @timesheets.any? %>
+    <% @timesheets.each do |t| %>
+      <div style="padding:8px 0; border-bottom:1px solid var(--dd-border); font-size:13px;">
+        <%= t.worked_on.strftime("%b %-d, %Y") %> · <%= t.project.title %> · <%= t.user.full_name %> · <%= t.hours %>h
+        <% if t.notes.present? %><span style="color:var(--dd-text-secondary);"> — <%= t.notes %></span><% end %>
+      </div>
+    <% end %>
+  <% else %>
+    <p style="color:var(--dd-text-secondary); font-size:13px;">No time entries yet.</p>
+  <% end %>
+</div>

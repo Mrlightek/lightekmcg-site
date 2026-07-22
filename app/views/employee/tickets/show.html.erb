@@ -1,0 +1,37 @@
+<% content_for :page_title, "#{@ticket.number} — #{@ticket.title}" %>
+<% content_for :topbar_actions do %>
+  <% if @ticket.status != "resolved" %>
+    <%= button_to "Mark Resolved", resolve_employee_ticket_path(@ticket), method: :patch, class: "dd-topbar-btn dd-btn-primary" %>
+  <% end %>
+  <%= link_to "All Tickets", employee_tickets_path, class: "dd-topbar-btn dd-btn-ghost" %>
+<% end %>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Overview</div>
+  <p style="font-size:13px;"><%= @ticket.category_meta&.dig(:icon) %> <%= Marlon::TicketCategories.label_for(@ticket.category) %> · Priority: <%= @ticket.priority.upcase %> · Urgency: <%= @ticket.urgency %>/10</p>
+  <p style="font-size:13px;">Status: <%= @ticket.status.humanize %> · Assigned: <%= @ticket.assigned_team %> (<%= @ticket.assigned_rep %>)</p>
+  <p style="font-size:13px; color:var(--dd-text-secondary);"><%= @ticket.description %></p>
+  <% if @ticket.related %>
+    <p style="font-size:13px;">Related: <%= @ticket.related_type %> ##<%= @ticket.related_id %></p>
+  <% end %>
+</div>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Timeline</div>
+  <% @events.each do |e| %>
+    <div style="padding:8px 0; border-bottom:1px solid var(--dd-border); font-size:13px;">
+      <strong><%= e.action %></strong> · <%= e.created_at.strftime("%b %-d, %l:%M %p") %>
+      <% if e.detail.present? %><div style="color:var(--dd-text-secondary); margin-top:2px;"><%= e.detail %></div><% end %>
+    </div>
+  <% end %>
+</div>
+
+<div class="dd-card">
+  <div class="dd-card-title">Reply</div>
+  <%= form_with url: reply_employee_ticket_path(@ticket), method: :patch do %>
+    <textarea name="detail" rows="3" class="fg-input" placeholder="Add a reply to this ticket's timeline..." style="width:100%;"></textarea>
+    <div style="margin-top:8px;">
+      <%= submit_tag "Send Reply", class: "dd-topbar-btn dd-btn-primary" %>
+    </div>
+  <% end %>
+</div>

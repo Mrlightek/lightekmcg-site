@@ -1,0 +1,36 @@
+<% content_for :page_title, @project.title %>
+<% content_for :topbar_actions do %>
+  <%= link_to "Edit", edit_employee_project_path(@project), class: "dd-topbar-btn dd-btn-ghost" %>
+  <%= link_to "All Projects", employee_projects_path, class: "dd-topbar-btn dd-btn-ghost" %>
+<% end %>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Overview</div>
+  <p style="font-size:13px;">Status: <%= @project.status.humanize %></p>
+  <p style="font-size:13px; color:var(--dd-text-secondary);"><%= @project.description %></p>
+  <p style="font-size:13px;">Client: <%= @project.client&.full_name || "—" %></p>
+  <p style="font-size:13px;">Owner: <%= @project.owner&.full_name || "—" %></p>
+  <p style="font-size:13px;">Total hours logged: <%= @project.total_hours %></p>
+</div>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Deliverables</div>
+  <% if @deliverables.any? %>
+    <% @deliverables.each do |d| %>
+      <p style="font-size:13px;"><%= d.name %> · <%= d.status.humanize %><%= " · due #{d.due_date.strftime('%b %-d')}" if d.due_date %></p>
+    <% end %>
+  <% else %>
+    <p style="font-size:13px; color:var(--dd-text-secondary);">No deliverables yet.</p>
+  <% end %>
+</div>
+
+<div class="dd-card">
+  <div class="dd-card-title">Recent Time Entries</div>
+  <% if @timesheets.any? %>
+    <% @timesheets.each do |t| %>
+      <p style="font-size:13px;"><%= t.worked_on.strftime("%b %-d") %> · <%= t.user.full_name %> · <%= t.hours %>h<%= " — #{t.notes}" if t.notes.present? %></p>
+    <% end %>
+  <% else %>
+    <p style="font-size:13px; color:var(--dd-text-secondary);">No time logged yet.</p>
+  <% end %>
+</div>

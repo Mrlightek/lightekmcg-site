@@ -106,3 +106,7 @@ end
 gem "dotenv-rails", "~> 3.2"
 
 gem "dymond_studio", git: "git@github.com:lightekmcg/dymond_studio.git"   # domain: studio
+
+gem "dymond_catalog", git: "git@github.com:lightekmcg/dymond_catalog.git"   # domain: catalog
+
+gem "dymond_kb", git: "git@github.com:lightekmcg/dymond_kb.git"   # domain: kb

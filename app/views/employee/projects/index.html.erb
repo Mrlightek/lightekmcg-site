@@ -1,0 +1,16 @@
+<% content_for :page_title, "Projects" %>
+<div class="dd-card">
+  <% if @projects.any? %>
+    <% @projects.each do |p| %>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--dd-border);">
+        <div>
+          <span style="font-weight:600;"><%= p.title %></span>
+          <span style="color:var(--dd-text-muted); font-size:12px;"> · <%= p.status.humanize %><%= " · due #{p.due_date.strftime('%b %-d')}" if p.due_date %></span>
+        </div>
+        <%= link_to "View", employee_project_path(p), class: "dd-topbar-btn dd-btn-ghost" %>
+      </div>
+    <% end %>
+  <% else %>
+    <p style="color:var(--dd-text-secondary); font-size:13px;">No projects yet.</p>
+  <% end %>
+</div>

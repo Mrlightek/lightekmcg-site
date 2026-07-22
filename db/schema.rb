@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_20_141619) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_22_191817) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -412,6 +412,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_20_141619) do
     t.index ["metered_type", "metered_id"], name: "index_dymond_bank_usage_records_on_metered_type_and_metered_id"
   end
 
+  create_table "dymond_catalog_products", force: :cascade do |t|
+    t.string "sku", null: false
+    t.string "name", null: false
+    t.string "department"
+    t.string "icon"
+    t.string "color"
+    t.bigint "wholesale_price_cents", default: 0, null: false
+    t.text "description"
+    t.boolean "ministry_engine", default: false, null: false
+    t.jsonb "includes_json"
+    t.jsonb "specs_json"
+    t.boolean "active", default: true, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_dymond_catalog_products_on_active"
+    t.index ["sku"], name: "index_dymond_catalog_products_on_sku", unique: true
+  end
+
   create_table "dymond_compute_assets", force: :cascade do |t|
     t.string "filename"
     t.string "content_type"
@@ -609,6 +628,35 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_20_141619) do
     t.index ["tenant_key"], name: "index_dymond_dispatch_work_items_on_tenant_key"
   end
 
+  create_table "dymond_kb_articles", force: :cascade do |t|
+    t.bigint "topic_id", null: false
+    t.string "article_id", null: false
+    t.string "title", null: false
+    t.string "article_type", default: "guide", null: false
+    t.text "excerpt"
+    t.text "body"
+    t.integer "read_minutes", default: 5
+    t.boolean "featured", default: false, null: false
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["article_id"], name: "index_dymond_kb_articles_on_article_id", unique: true
+    t.index ["featured"], name: "index_dymond_kb_articles_on_featured"
+    t.index ["topic_id"], name: "index_dymond_kb_articles_on_topic_id"
+  end
+
+  create_table "dymond_kb_topics", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "topic_id", null: false
+    t.string "icon"
+    t.string "color"
+    t.text "description"
+    t.integer "sort_order", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["topic_id"], name: "index_dymond_kb_topics_on_topic_id", unique: true
+  end
+
   create_table "dymond_site_footers", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.jsonb "columns", default: []
@@ -772,6 +820,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_20_141619) do
     t.index ["key"], name: "index_marlon_capability_packs_on_key", unique: true
   end
 
+  create_table "marlon_deliverables", force: :cascade do |t|
+    t.bigint "project_id", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.string "status", default: "pending", null: false
+    t.date "due_date"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_marlon_deliverables_on_project_id"
+    t.index ["status"], name: "index_marlon_deliverables_on_status"
+  end
+
   create_table "marlon_features", force: :cascade do |t|
     t.string "key", null: false
     t.string "name", null: false
@@ -813,6 +874,72 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_20_141619) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_marlon_project_types_on_key", unique: true
+  end
+
+  create_table "marlon_projects", force: :cascade do |t|
+    t.string "title", null: false
+    t.text "description"
+    t.bigint "client_id"
+    t.bigint "owner_id"
+    t.bigint "purchase_id"
+    t.string "status", default: "planning", null: false
+    t.date "start_date"
+    t.date "due_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_marlon_projects_on_client_id"
+    t.index ["owner_id"], name: "index_marlon_projects_on_owner_id"
+    t.index ["purchase_id"], name: "index_marlon_projects_on_purchase_id"
+    t.index ["status"], name: "index_marlon_projects_on_status"
+  end
+
+  create_table "marlon_ticket_events", force: :cascade do |t|
+    t.bigint "ticket_id", null: false
+    t.bigint "actor_id"
+    t.string "action", null: false
+    t.text "detail"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ticket_id"], name: "index_marlon_ticket_events_on_ticket_id"
+  end
+
+  create_table "marlon_tickets", force: :cascade do |t|
+    t.string "number", null: false
+    t.string "category", null: false
+    t.string "title", null: false
+    t.text "description"
+    t.string "priority", default: "medium", null: false
+    t.integer "urgency", default: 5, null: false
+    t.string "status", default: "open", null: false
+    t.bigint "submitted_by_id"
+    t.string "organization_name"
+    t.string "reseller_id"
+    t.string "assigned_team"
+    t.string "assigned_rep"
+    t.jsonb "extra_fields"
+    t.string "related_type"
+    t.bigint "related_id"
+    t.datetime "resolved_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category"], name: "index_marlon_tickets_on_category"
+    t.index ["number"], name: "index_marlon_tickets_on_number", unique: true
+    t.index ["related_type", "related_id"], name: "index_marlon_tickets_on_related_type_and_related_id"
+    t.index ["status"], name: "index_marlon_tickets_on_status"
+    t.index ["submitted_by_id"], name: "index_marlon_tickets_on_submitted_by_id"
+  end
+
+  create_table "marlon_timesheets", force: :cascade do |t|
+    t.bigint "project_id", null: false
+    t.bigint "user_id", null: false
+    t.decimal "hours", precision: 6, scale: 2, null: false
+    t.date "worked_on", null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_marlon_timesheets_on_project_id"
+    t.index ["user_id"], name: "index_marlon_timesheets_on_user_id"
+    t.index ["worked_on"], name: "index_marlon_timesheets_on_worked_on"
   end
 
   create_table "resellers", force: :cascade do |t|
@@ -893,6 +1020,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_20_141619) do
   add_foreign_key "dymond_dash_installed_gems", "dymond_dash_ecosystem_gems", column: "ecosystem_gem_id"
   add_foreign_key "dymond_dash_nav_items", "dymond_dash_nav_sections", column: "section_id"
   add_foreign_key "dymond_dash_pending_gemfile_changes", "dymond_dash_ecosystem_gems", column: "ecosystem_gem_id"
+  add_foreign_key "dymond_kb_articles", "dymond_kb_topics", column: "topic_id"
   add_foreign_key "dymond_site_footers", "dymond_site_sites", column: "site_id"
   add_foreign_key "dymond_site_nav_items", "dymond_site_nav_items", column: "parent_id"
   add_foreign_key "dymond_site_nav_items", "dymond_site_nav_menus", column: "nav_menu_id"
@@ -908,7 +1036,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_20_141619) do
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "dependency_id"
   add_foreign_key "marlon_capability_pack_features", "marlon_capability_packs", column: "capability_pack_id"
   add_foreign_key "marlon_capability_pack_features", "marlon_features", column: "feature_id"
+  add_foreign_key "marlon_deliverables", "marlon_projects", column: "project_id"
   add_foreign_key "marlon_project_type_capability_packs", "marlon_capability_packs", column: "capability_pack_id"
   add_foreign_key "marlon_project_type_capability_packs", "marlon_project_types", column: "project_type_id"
+  add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
+  add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
   add_foreign_key "sessions", "users"
 end

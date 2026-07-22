@@ -1,0 +1,15 @@
+<%= form_with model: @user, url: (@user.persisted? ? employee_user_path(@user) : employee_users_path) do |f| %>
+  <div class="dd-card" style="display:flex; flex-direction:column; gap:12px; max-width:500px;">
+    <label>First Name <%= f.text_field :first_name, class: "fg-input" %></label>
+    <label>Last Name <%= f.text_field :last_name, class: "fg-input" %></label>
+    <label>Email <%= f.email_field :email_address, class: "fg-input" %></label>
+    <label>Role
+      <%= f.select :role,
+            User::ROLES.reject { |r| r == "super_admin" && current_user.role != "super_admin" }.map { |r| [r.humanize, r] },
+            {}, class: "fg-input" %>
+    </label>
+    <label>Password <%= f.password_field :password, class: "fg-input", placeholder: (@user.persisted? ? "Leave blank to keep current password" : "") %></label>
+    <label>Confirm Password <%= f.password_field :password_confirmation, class: "fg-input" %></label>
+    <%= f.submit (@user.persisted? ? "Update User" : "Create User"), class: "dd-topbar-btn dd-btn-primary" %>
+  </div>
+<% end %>

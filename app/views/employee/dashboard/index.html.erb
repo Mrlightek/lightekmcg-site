@@ -1,0 +1,7 @@
+<% content_for :page_title, "Employee Dashboard" %>
+<div class="dd-card">
+  <div class="dd-card-title">Welcome, <%= current_user.full_name %></div>
+  <p style="color:var(--dd-text-secondary); font-size:13px;">
+    <%= link_to "View Clients", employee_clients_path %>
+  </p>
+</div>

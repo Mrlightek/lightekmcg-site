@@ -1,0 +1,58 @@
+<% content_for :page_title, @client.full_name %>
+<% content_for :topbar_actions do %>
+  <%= link_to "All Clients", employee_clients_path, class: "dd-topbar-btn dd-btn-ghost" %>
+<% end %>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Contact</div>
+  <p style="font-size:13px;"><%= @client.email_address %></p>
+  <p style="font-size:13px; color:var(--dd-text-secondary);">Role: <%= @client.role.capitalize %></p>
+</div>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Subscription</div>
+  <% if @subscription %>
+    <p style="font-size:13px;">
+      <%= @subscription.status.capitalize %> · <%= @subscription.billing_interval %> ·
+      renews <%= @subscription.current_period_end&.strftime("%B %-d, %Y") %>
+    </p>
+  <% else %>
+    <p style="font-size:13px; color:var(--dd-text-secondary);">No active subscription.</p>
+  <% end %>
+</div>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Invoices</div>
+  <% if @invoices.any? %>
+    <% @invoices.each do |inv| %>
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--dd-border); font-size:13px;">
+        <span><%= inv.number %> · <%= inv.status.capitalize %></span>
+        <span>$<%= number_with_delimiter(inv.total_cents / 100.0, precision: 2) %></span>
+      </div>
+    <% end %>
+  <% else %>
+    <p style="font-size:13px; color:var(--dd-text-secondary);">No invoices.</p>
+  <% end %>
+</div>
+
+<div class="dd-card" style="margin-bottom:16px;">
+  <div class="dd-card-title">Linked Bank Accounts</div>
+  <% if @linked_accounts.any? %>
+    <% @linked_accounts.each do |acct| %>
+      <p style="font-size:13px;"><%= acct.institution_name %> · <%= acct.account_last4 %> · <%= acct.status.capitalize %></p>
+    <% end %>
+  <% else %>
+    <p style="font-size:13px; color:var(--dd-text-secondary);">No linked accounts.</p>
+  <% end %>
+</div>
+
+<div class="dd-card">
+  <div class="dd-card-title">Recent Notifications</div>
+  <% if @notifications.any? %>
+    <% @notifications.each do |n| %>
+      <p style="font-size:13px;"><%= n.title %> · <%= n.created_at.strftime("%b %-d") %></p>
+    <% end %>
+  <% else %>
+    <p style="font-size:13px; color:var(--dd-text-secondary);">No notifications.</p>
+  <% end %>
+</div>

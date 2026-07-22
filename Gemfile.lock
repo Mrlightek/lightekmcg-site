@@ -1,6 +1,6 @@
 GIT
   remote: git@github.com:lightekmcg/dymond_bank.git
-  revision: 259334f50254bcbb1d7057958e87fab39592630b
+  revision: d9f08b5abb6cfd55ad17d1f5e7f08da5df7d759e
   specs:
     dymond_bank (0.1.0)
       activerecord (>= 7.2)
@@ -15,6 +15,15 @@ GIT
       sidekiq (>= 7.0)
 
 GIT
+  remote: git@github.com:lightekmcg/dymond_catalog.git
+  revision: af4fc53e45fa51ece47a6ef9078d1a350c76864f
+  specs:
+    dymond_catalog (0.1.0)
+      lightek_kernel
+      lightek_ui
+      rails (>= 7.2)
+
+GIT
   remote: git@github.com:lightekmcg/dymond_compute.git
   revision: c306b6cb9951f2045960b0f073cf77c2ec875db5
   specs:
@@ -24,7 +33,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 2f1728f1e55cd02e468fd1b8e451592be376bb0c
+  revision: 73ee397135d036ce45d32845c9ea6ca11f28a493
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -36,14 +45,23 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dispatch.git
-  revision: e9c2a25695d165b1086d7b7e5e6ade3abb0337bb
+  revision: a1c3acfb51be1ac572154adb7122ca16696cfb79
   specs:
     dymond_dispatch (0.1.0)
       rails (>= 8.0)
 
 GIT
+  remote: git@github.com:lightekmcg/dymond_kb.git
+  revision: 964f65fc683d3929e9d1d8760b5d4dcbd2a86097
+  specs:
+    dymond_kb (0.1.0)
+      lightek_kernel
+      lightek_ui
+      rails (>= 7.2)
+
+GIT
   remote: git@github.com:lightekmcg/dymond_site.git
-  revision: 67a96149cdd7b61fe9611ff1d5c9c8f2109da080
+  revision: d314fdaa98edfb20764e2ebb609825a2f316458a
   specs:
     dymond_site (0.1.0)
       dymond_theme
@@ -67,7 +85,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/lightek_kernel
-  revision: b3b4ef839c39a4f07e666ea2e746e47d66844361
+  revision: 13efbd4f70ac58a91f909bccb031dc5715c47d55
   specs:
     lightek_kernel (0.1.0)
       activesupport (>= 7.2)
@@ -459,7 +477,7 @@ GEM
       tsort
     redis (5.4.1)
       redis-client (>= 0.22.0)
-    redis-client (0.30.0)
+    redis-client (0.30.1)
       connection_pool
     regexp_parser (2.12.0)
     reline (0.6.3)
@@ -608,9 +626,11 @@ DEPENDENCIES
   debug
   dotenv-rails (~> 3.2)
   dymond_bank!
+  dymond_catalog!
   dymond_compute!
   dymond_dash!
   dymond_dispatch!
+  dymond_kb!
   dymond_site!
   dymond_studio!
   dymond_theme!

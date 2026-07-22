@@ -1,4 +1,8 @@
 Rails.application.routes.draw do
+  get "/kb", to: "dymond_kb/kb#index"
+  mount DymondKb::Engine => "/kb"
+  get "/catalog", to: "dymond_catalog/catalog#index"
+  mount DymondCatalog::Engine => "/catalog"
   get "/studio", to: "dymond_studio/studio#index"
   mount DymondStudio::Engine => "/studio"
   resource :session
@@ -8,7 +12,9 @@ Rails.application.routes.draw do
   resources :storyline_arenas
   resources :storylines
   #resources :dashboards
-  resources :supports
+  resources :supports, only: %i[index create] do
+    member { patch :reply }
+  end
   resources :stores
   resources :architectures
   resources :abouts
@@ -43,6 +49,10 @@ end
 
 # ── Employee portal ────────────────────────────────────────────────────────────
 namespace :employee do
+    resources :users, only: %i[index new create edit update destroy]
+    resources :tickets, only: %i[index show new create] do
+      member { patch :reply; patch :resolve }
+    end
   root "dashboard#index"
   resources :clients,   only: %i[index show]
   resources :projects,  only: %i[index show edit update]

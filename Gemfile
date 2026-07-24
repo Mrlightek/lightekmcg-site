@@ -110,3 +110,5 @@ gem "dymond_studio", git: "git@github.com:lightekmcg/dymond_studio.git"   # doma
 gem "dymond_catalog", git: "git@github.com:lightekmcg/dymond_catalog.git"   # domain: catalog
 
 gem "dymond_kb", git: "git@github.com:lightekmcg/dymond_kb.git"   # domain: kb
+
+gem "dymond_booking", git: "git@github.com:lightekmcg/dymond_booking.git"   # domain: booking

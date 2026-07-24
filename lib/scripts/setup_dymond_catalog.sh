@@ -1,0 +1,1222 @@
+#!/bin/bash
+set -e
+cd ~/Desktop/Development/dymond_catalog
+
+echo "Writing migration..."
+TS=$(date -u +%Y%m%d%H%M%S)
+mkdir -p db/migrate
+cat > "db/migrate/${TS}_create_dymond_catalog_products.rb" << 'EOF'
+# frozen_string_literal: true
+class CreateDymondCatalogProducts < ActiveRecord::Migration[8.0]
+  def change
+    create_table :dymond_catalog_products do |t|
+      t.string  :sku,                    null: false
+      t.string  :name,                   null: false
+      t.string  :department
+      t.string  :icon
+      t.string  :color
+      t.bigint  :wholesale_price_cents,  null: false, default: 0
+      t.text    :description
+      t.boolean :ministry_engine,        default: false, null: false
+      t.jsonb   :includes_json
+      t.jsonb   :specs_json
+      t.boolean :active,                 default: true, null: false
+      t.integer :sort_order,             default: 0
+      t.timestamps
+    end
+    add_index :dymond_catalog_products, :sku, unique: true
+    add_index :dymond_catalog_products, :active
+  end
+end
+EOF
+
+echo "Writing model..."
+mkdir -p app/models/dymond_catalog
+cat > app/models/dymond_catalog/product.rb << 'EOF'
+# frozen_string_literal: true
+module DymondCatalog
+  class Product < ActiveRecord::Base
+    self.table_name = "dymond_catalog_products"
+
+    validates :sku, presence: true, uniqueness: true
+    validates :name, presence: true
+    validates :wholesale_price_cents, numericality: { greater_than_or_equal_to: 0 }
+
+    scope :active,  -> { where(active: true) }
+    scope :ordered, -> { order(:sort_order, :name) }
+
+    def wholesale_price
+      wholesale_price_cents.to_i / 100.0
+    end
+
+    def wholesale_price=(dollars)
+      self.wholesale_price_cents = (dollars.to_f * 100).round
+    end
+  end
+end
+EOF
+
+echo "Writing catalog service..."
+cat > app/services/dymond_catalog/catalog_service.rb << 'EOF'
+# frozen_string_literal: true
+module DymondCatalog
+  class CatalogService < Lightek::Service
+    def products
+      DymondCatalog::Product.active.ordered
+    end
+
+    def all_products
+      DymondCatalog::Product.ordered
+    end
+
+    def find(sku)
+      DymondCatalog::Product.find_by(sku: sku)
+    end
+  end
+end
+EOF
+
+echo "Writing public catalog controller..."
+cat > app/controllers/dymond_catalog/catalog_controller.rb << 'EOF'
+# frozen_string_literal: true
+module DymondCatalog
+  class CatalogController < ::DymondSite::ApplicationController
+    def index
+      @service  = lightek(:catalog) if respond_to?(:lightek)
+      @products = DymondCatalog::Product.active.ordered
+    end
+  end
+end
+EOF
+
+echo "Writing admin dashboard controller..."
+cat > app/controllers/dymond_catalog/catalog_dashboard_controller.rb << 'EOF'
+# frozen_string_literal: true
+module DymondCatalog
+  class CatalogDashboardController < ::DymondDash::ApplicationController
+    before_action :set_product, only: %i[edit update destroy toggle_active]
+
+    def index
+      @products = DymondCatalog::Product.ordered
+    end
+
+    def new
+      @product = DymondCatalog::Product.new
+    end
+
+    def create
+      @product = DymondCatalog::Product.new(product_params)
+      if @product.save
+        redirect_to dymond_dash.catalog_dashboard_path, notice: "Product created."
+      else
+        render :new, status: :unprocessable_entity
+      end
+    end
+
+    def edit; end
+
+    def update
+      if @product.update(product_params)
+        redirect_to dymond_dash.catalog_dashboard_path, notice: "Product updated."
+      else
+        render :edit, status: :unprocessable_entity
+      end
+    end
+
+    def destroy
+      @product.destroy
+      redirect_to dymond_dash.catalog_dashboard_path, notice: "Product removed."
+    end
+
+    def toggle_active
+      @product.update!(active: !@product.active)
+      redirect_to dymond_dash.catalog_dashboard_path
+    end
+
+    private
+
+    def set_product
+      @product = DymondCatalog::Product.find(params[:id])
+    end
+
+    def product_params
+      permitted = params.require(:product).permit(
+        :sku, :name, :department, :icon, :color, :wholesale_price,
+        :description, :ministry_engine, :active, :sort_order
+      ).to_h
+
+      permitted["includes_json"] = params[:product][:includes_text].to_s
+                                      .split("\n").map(&:strip).reject(&:blank?)
+
+      permitted["specs_json"] = params[:product][:specs_text].to_s.split("\n")
+                                   .each_with_object({}) do |line, h|
+        k, v = line.split(":", 2)
+        h[k.strip] = v.strip if k.present? && v.present?
+      end
+
+      permitted
+    end
+  end
+end
+EOF
+
+echo "Writing editor routes..."
+cat > lib/dymond_catalog/editor_routes.rb << 'EOF'
+# frozen_string_literal: true
+module DymondCatalog
+  module EditorRoutesRegistration
+    module_function
+    def register!
+      return unless defined?(DymondDash::EditorRoutes)
+      c = "dymond_catalog/catalog_dashboard"
+      DymondDash::EditorRoutes.register(path: "catalog",                     to: "#{c}#index",        as: "catalog_dashboard",       verb: :get)
+      DymondDash::EditorRoutes.register(path: "catalog/products/new",        to: "#{c}#new",          as: "new_catalog_product",     verb: :get)
+      DymondDash::EditorRoutes.register(path: "catalog/products",            to: "#{c}#create",       as: "catalog_products",        verb: :post)
+      DymondDash::EditorRoutes.register(path: "catalog/products/:id/edit",   to: "#{c}#edit",         as: "edit_catalog_product",    verb: :get)
+      DymondDash::EditorRoutes.register(path: "catalog/products/:id",        to: "#{c}#update",       as: "catalog_product",         verb: :patch)
+      DymondDash::EditorRoutes.register(path: "catalog/products/:id",        to: "#{c}#destroy",      as: "destroy_catalog_product", verb: :delete)
+      DymondDash::EditorRoutes.register(path: "catalog/products/:id/toggle", to: "#{c}#toggle_active",as: "toggle_catalog_product",  verb: :patch)
+    end
+  end
+end
+EOF
+
+echo "Writing admin views..."
+mkdir -p app/views/dymond_catalog/catalog_dashboard
+cat > app/views/dymond_catalog/catalog_dashboard/index.html.erb << 'EOF'
+<% content_for :page_title, "Catalog" %>
+<% content_for :topbar_actions do %>
+  <%= link_to "New Product", dymond_dash.new_catalog_product_path, class: "dd-topbar-btn dd-btn-primary" %>
+<% end %>
+
+<div class="dd-card">
+  <% @products.each do |p| %>
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--dd-border); <%= 'opacity:.5;' unless p.active %>">
+      <div>
+        <span style="font-weight:600;"><%= p.icon %> <%= p.name %></span>
+        <span style="color:var(--dd-text-muted); font-size:12px;"> · <%= p.sku %> · $<%= p.wholesale_price %>/mo</span>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <%= link_to "Edit", dymond_dash.edit_catalog_product_path(p), class: "dd-topbar-btn dd-btn-ghost" %>
+        <%= button_to (p.active ? "Deactivate" : "Activate"), dymond_dash.toggle_catalog_product_path(p), method: :patch, class: "dd-topbar-btn dd-btn-ghost" %>
+        <%= button_to "Delete", dymond_dash.destroy_catalog_product_path(p), method: :delete, form: { data: { turbo_confirm: "Remove #{p.name}?" } }, class: "dd-topbar-btn dd-btn-ghost" %>
+      </div>
+    </div>
+  <% end %>
+</div>
+EOF
+
+cat > app/views/dymond_catalog/catalog_dashboard/_form.html.erb << 'EOF'
+<%= form_with model: @product, url: (@product.persisted? ? dymond_dash.catalog_product_path(@product) : dymond_dash.catalog_products_path) do |f| %>
+  <div class="dd-card" style="display:flex; flex-direction:column; gap:12px; max-width:600px;">
+    <label>SKU <%= f.text_field :sku, class: "fg-input" %></label>
+    <label>Name <%= f.text_field :name, class: "fg-input" %></label>
+    <label>Department <%= f.text_field :department, class: "fg-input" %></label>
+    <label>Icon (emoji) <%= f.text_field :icon, class: "fg-input" %></label>
+    <label>Color (hex) <%= f.text_field :color, class: "fg-input" %></label>
+    <label>Wholesale price (USD/month) <%= f.text_field :wholesale_price, value: @product.wholesale_price, class: "fg-input" %></label>
+    <label>Description <%= f.text_area :description, class: "fg-input" %></label>
+    <label><%= f.check_box :ministry_engine %> Ministry Engine included</label>
+    <label>Includes (one per line)
+      <%= text_area_tag "product[includes_text]", Array(@product.includes_json).join("\n"), class: "fg-input" %>
+    </label>
+    <label>Specs (key: value, one per line)
+      <%= text_area_tag "product[specs_text]", (@product.specs_json || {}).map { |k,v| "#{k}: #{v}" }.join("\n"), class: "fg-input" %>
+    </label>
+    <label><%= f.check_box :active %> Active</label>
+    <%= f.submit class: "dd-topbar-btn dd-btn-primary" %>
+  </div>
+<% end %>
+EOF
+
+cat > app/views/dymond_catalog/catalog_dashboard/new.html.erb << 'EOF'
+<% content_for :page_title, "New Product" %>
+<%= render "form" %>
+EOF
+
+cat > app/views/dymond_catalog/catalog_dashboard/edit.html.erb << 'EOF'
+<% content_for :page_title, "Edit Product" %>
+<%= render "form" %>
+EOF
+
+echo "Writing public storefront view..."
+mkdir -p app/views/dymond_catalog/catalog
+cat > app/views/dymond_catalog/catalog/index.html.erb << 'STOREFRONT_EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lightek MCG — Module Store</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;cursor:none;}
+:root{
+  --bg:#030810;--bg2:#050C18;--bg3:#070F1E;
+  --panel:#091220;--card:#0B1628;--lift:#0E1C34;--border:rgba(0,180,220,.08);
+  --cyan:#00B4CC;--cyan2:#00D0EC;--cyan3:#40E8FF;
+  --gold:#C09018;--gold2:#D8A828;--gold3:#F0C040;
+  --green:#18C870;--green2:#20E880;
+  --red:#CC1818;--red2:#EE2828;
+  --orange:#CC6818;--orange2:#EC8828;
+  --white:#E4EEF8;--off:#B0C4D8;--muted:#3C5068;--dim:#1A2A3A;
+  --fc:'Barlow Condensed',sans-serif;
+  --fm:'IBM Plex Mono',monospace;
+  --fb:'IBM Plex Sans',sans-serif;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--white);font-family:var(--fb);overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,180,220,.008) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,220,.008) 1px,transparent 1px);background-size:28px 28px;pointer-events:none;z-index:0;}
+
+#cur{width:7px;height:7px;background:var(--cyan2);position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 14px rgba(0,180,220,.8);transition:width .15s,height .15s;}
+#cur2{width:30px;height:30px;border:1px solid rgba(0,180,220,.2);position:fixed;z-index:9998;pointer-events:none;transform:translate(-50%,-50%);transition:left .1s cubic-bezier(.16,1,.3,1),top .1s,width .18s,height .18s;}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
+@keyframes shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes slideRight{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.fade-up{opacity:0;transform:translateY(20px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1);}
+.fade-up.vis{opacity:1;transform:none;}
+
+/* VIEWS */
+.view{display:none;}
+.view.active{display:block;}
+
+/* ═══════════════════════════════════════
+   STORE NAV
+═══════════════════════════════════════ */
+.store-nav{
+  position:sticky;top:0;z-index:200;
+  background:rgba(3,8,16,.98);
+  border-bottom:1px solid var(--border);
+  height:56px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 40px;
+}
+.store-nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,rgba(0,180,220,.3),rgba(0,180,220,.5),rgba(0,180,220,.3),transparent);}
+.sn-left{display:flex;align-items:center;gap:14px;}
+.sn-logo{display:flex;align-items:center;gap:9px;cursor:pointer;} 
+.snl-mark{width:28px;height:28px;border:1.5px solid rgba(0,180,220,.4);display:flex;align-items:center;justify-content:center;font-family:var(--fc);font-size:16px;font-weight:800;color:var(--cyan);}
+.snl-name{font-family:var(--fc);font-size:14px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--white);}
+.sn-sep{width:1px;height:18px;background:var(--border);}
+.sn-tag{font-family:var(--fm);font-size:6px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);}
+.sn-links{display:flex;gap:2px;}
+.sn-link{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:rgba(228,238,248,.35);padding:0 14px;height:56px;display:flex;align-items:center;border:none;background:transparent;cursor:pointer;transition:color .18s;border-bottom:2px solid transparent;}
+.sn-link:hover{color:rgba(228,238,248,.7);}
+.sn-link.on{color:var(--cyan);border-bottom-color:var(--cyan);}
+.sn-right{display:flex;align-items:center;gap:8px;}
+.sn-reseller{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+.cart-trigger{display:flex;align-items:center;gap:8px;background:rgba(0,180,220,.08);border:1px solid rgba(0,180,220,.2);padding:7px 16px;cursor:pointer;transition:all .18s;position:relative;}
+.cart-trigger:hover{background:rgba(0,180,220,.14);}
+.ct-icon{font-size:14px;}
+.ct-text{font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);}
+.ct-badge{background:var(--cyan);color:var(--bg);font-family:var(--fm);font-size:7px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.checkout-btn{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--cyan);color:var(--bg);border:none;padding:9px 22px;cursor:pointer;transition:background .18s;}
+.checkout-btn:hover{background:var(--cyan2);}
+
+/* ═══════════════════════════════════════
+   VIEW: STORE — PRODUCT GRID
+═══════════════════════════════════════ */
+#view-store{padding-bottom:80px;}
+.store-hero{
+  padding:60px 40px 40px;position:relative;z-index:1;
+  background:linear-gradient(to bottom,rgba(0,180,220,.04),transparent);
+  border-bottom:1px solid var(--border);
+  margin-bottom:0;
+}
+.sh-eyebrow{font-family:var(--fm);font-size:7px;letter-spacing:.3em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px;}
+.sh-title{font-family:var(--fc);font-size:clamp(36px,5vw,72px);font-weight:900;letter-spacing:.04em;line-height:.88;margin-bottom:8px;}
+.sh-sub{font-family:var(--fb);font-weight:300;font-size:14px;color:rgba(228,238,248,.4);max-width:560px;line-height:1.8;margin-bottom:20px;}
+/* filter bar */
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0;}
+.fb-pill{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(0,180,220,.12);background:rgba(0,180,220,.04);color:rgba(228,238,248,.38);padding:6px 14px;cursor:pointer;transition:all .18s;}
+.fb-pill.on,.fb-pill:hover{border-color:rgba(0,180,220,.4);background:rgba(0,180,220,.1);color:var(--cyan);}
+
+/* product grid */
+.store-grid-wrap{padding:20px 40px;}
+.sg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.sgh-count{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.sgh-sort{display:flex;gap:3px;}
+.srt-btn{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(0,180,220,.1);background:transparent;color:rgba(228,238,248,.3);padding:4px 9px;cursor:pointer;transition:all .18s;}
+.srt-btn.on{border-color:rgba(0,180,220,.3);color:var(--cyan);background:rgba(0,180,220,.06);}
+.product-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;}
+@media(max-width:1200px){.product-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:900px){.product-grid{grid-template-columns:repeat(2,1fr);}}
+
+.product-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  padding:0;
+  position:relative;overflow:hidden;
+  cursor:pointer;
+  transition:all .22s;
+  display:flex;flex-direction:column;
+}
+.product-card:hover{border-color:rgba(0,180,220,.25);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.5);}
+.pc-stripe{height:2px;width:100%;flex-shrink:0;}
+.pc-body{padding:16px;flex:1;display:flex;flex-direction:column;}
+.pc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.pc-sku{font-family:var(--fm);font-size:5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);}
+.pc-stock-dot{width:5px;height:5px;border-radius:50%;}
+.pc-icon{font-size:28px;display:block;margin-bottom:10px;}
+.pc-name{font-family:var(--fc);font-size:clamp(14px,1.8vw,18px);font-weight:800;letter-spacing:.06em;line-height:1.1;margin-bottom:3px;}
+.pc-dept{font-family:var(--fm);font-size:5px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:7px;}
+.pc-desc{font-family:var(--fb);font-weight:300;font-size:10px;color:rgba(228,238,248,.38);line-height:1.6;flex:1;margin-bottom:10px;}
+/* ME badge */
+.pc-me{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(192,144,24,.25);color:var(--gold2);padding:2px 6px;background:rgba(192,144,24,.06);display:inline-block;margin-bottom:7px;}
+.pc-footer{border-top:1px solid var(--border);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,180,220,.02);}
+.pcf-price{}
+.pcfp-val{font-family:var(--fc);font-size:clamp(16px,2vw,22px);font-weight:900;letter-spacing:.04em;display:block;line-height:1;}
+.pcfp-period{font-family:var(--fm);font-size:5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.pcf-btns{display:flex;gap:4px;}
+.pc-detail-btn{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid rgba(228,238,248,.1);color:rgba(228,238,248,.35);background:transparent;padding:5px 9px;cursor:pointer;transition:all .18s;}
+.pc-detail-btn:hover{border-color:rgba(228,238,248,.3);color:rgba(228,238,248,.7);}
+.pc-add-btn{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:5px 9px;cursor:pointer;transition:all .18s;background:transparent;}
+
+/* ═══════════════════════════════════════
+   VIEW: PRODUCT DETAIL
+═══════════════════════════════════════ */
+#view-detail{padding:0;}
+.detail-wrap{display:grid;grid-template-columns:1fr 380px;min-height:calc(100vh - 56px);}
+@media(max-width:1100px){.detail-wrap{grid-template-columns:1fr;}}
+.detail-main{padding:40px;border-right:1px solid var(--border);}
+.dm-back{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);cursor:pointer;margin-bottom:20px;display:flex;align-items:center;gap:5px;opacity:.7;transition:opacity .18s;background:none;border:none;}
+.dm-back:hover{opacity:1;}
+.dm-header{margin-bottom:28px;}
+.dmh-sku{font-family:var(--fm);font-size:6px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.dmh-name{font-family:var(--fc);font-size:clamp(32px,5vw,64px);font-weight:900;letter-spacing:.04em;line-height:.88;margin-bottom:6px;}
+.dmh-dept{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;}
+.dmh-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.dmhb{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;padding:3px 9px;}
+.dmhb-me{border-color:rgba(192,144,24,.3);color:var(--gold2);background:rgba(192,144,24,.07);}
+.dmhb-stock{border-color:rgba(24,200,112,.3);color:var(--green);}
+.dmhb-const{border-color:rgba(0,180,220,.2);color:var(--cyan);background:rgba(0,180,220,.05);}
+.dmh-desc{font-family:var(--fb);font-size:15px;font-weight:300;color:rgba(228,238,248,.6);line-height:1.9;max-width:640px;}
+
+/* spec table */
+.spec-section{margin-bottom:28px;}
+.sps-title{font-family:var(--fc);font-size:18px;font-weight:800;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.sps-title::before{content:'';display:block;width:3px;height:18px;background:var(--cyan);}
+.spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;}
+.spec-item{background:var(--panel);border:1px solid var(--border);padding:11px 14px;}
+.si-label{font-family:var(--fm);font-size:6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.si-val{font-family:var(--fb);font-size:13px;font-weight:400;color:rgba(228,238,248,.72);line-height:1.5;}
+.si-val.highlight{color:var(--cyan);font-family:var(--fm);font-size:11px;}
+
+/* what's included */
+.included-list{display:flex;flex-direction:column;gap:4px;}
+.inc-item{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;background:var(--panel);border:1px solid var(--border);}
+.inc-check{color:var(--green);flex-shrink:0;font-size:10px;margin-top:2px;}
+.inc-body{}
+.incb-name{font-family:var(--fb);font-size:12px;font-weight:500;margin-bottom:1px;}
+.incb-desc{font-family:var(--fb);font-weight:300;font-size:10px;color:rgba(228,238,248,.35);line-height:1.5;}
+
+/* compatible bundles */
+.bundle-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.bc-chip{background:var(--panel);border:1px solid var(--border);padding:8px 14px;cursor:pointer;transition:all .18s;}
+.bc-chip:hover{border-color:rgba(0,180,220,.3);}
+.bcc-name{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.06em;}
+.bcc-save{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-top:2px;}
+
+/* detail sidebar */
+.detail-sidebar{padding:28px;background:rgba(5,10,20,.98);position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;display:flex;flex-direction:column;}
+.detail-sidebar::-webkit-scrollbar{width:0;}
+.ds-price-block{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+.dspb-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.dspb-wholesale{font-family:var(--fc);font-size:clamp(32px,4vw,52px);font-weight:900;letter-spacing:.04em;display:block;line-height:1;margin-bottom:3px;}
+.dspb-period{font-family:var(--fm);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.dspb-retail{display:flex;justify-content:space-between;align-items:center;background:rgba(24,200,112,.06);border:1px solid rgba(24,200,112,.15);padding:8px 12px;margin-bottom:6px;}
+.dspbr-label{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--green);}
+.dspbr-val{font-family:var(--fc);font-size:18px;font-weight:900;color:var(--green);}
+.dspb-margin{display:flex;justify-content:space-between;align-items:center;background:rgba(0,180,220,.04);border:1px solid rgba(0,180,220,.12);padding:8px 12px;}
+.dspbm-label{font-family:var(--fm);font-size:6px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);}
+.dspbm-val{font-family:var(--fc);font-size:18px;font-weight:900;color:var(--cyan);}
+/* qty */
+.ds-qty{display:flex;align-items:center;gap:0;border:1px solid var(--border);margin-bottom:12px;width:fit-content;}
+.dsq-btn{width:36px;height:36px;background:rgba(0,180,220,.06);border:none;color:var(--cyan);font-family:var(--fc);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.dsq-btn:hover{background:rgba(0,180,220,.14);}
+.dsq-val{width:48px;height:36px;background:transparent;border:none;border-left:1px solid var(--border);border-right:1px solid var(--border);font-family:var(--fm);font-size:14px;font-weight:700;color:var(--white);text-align:center;}
+/* add to cart */
+.ds-add-btn{display:block;width:100%;font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;background:var(--cyan);color:var(--bg);border:none;padding:14px;cursor:pointer;transition:all .22s;margin-bottom:6px;position:relative;overflow:hidden;}
+.ds-add-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .5s;}
+.ds-add-btn:hover{background:var(--cyan2);}
+.ds-add-btn:hover::before{transform:translateX(100%);}
+.ds-save-btn{display:block;width:100%;font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(228,238,248,.4);border:1px solid var(--border);padding:11px;cursor:pointer;transition:all .2s;margin-bottom:16px;}
+.ds-save-btn:hover{border-color:rgba(228,238,248,.25);color:rgba(228,238,248,.7);}
+/* trust signals */
+.ds-trust{display:flex;flex-direction:column;gap:6px;}
+.dst-item{display:flex;gap:8px;align-items:flex-start;font-family:var(--fb);font-weight:300;font-size:11px;color:rgba(228,238,248,.38);line-height:1.5;}
+.dst-icon{flex-shrink:0;margin-top:1px;}
+
+/* ═══════════════════════════════════════
+   VIEW: CART
+═══════════════════════════════════════ */
+#view-cart{padding:0;}
+.cart-layout{display:grid;grid-template-columns:1fr 400px;min-height:calc(100vh - 56px);}
+@media(max-width:1000px){.cart-layout{grid-template-columns:1fr;}}
+.cart-main{padding:32px 40px;}
+.cart-back{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);cursor:pointer;margin-bottom:20px;display:flex;align-items:center;gap:5px;opacity:.7;transition:opacity .18s;background:none;border:none;}
+.cart-back:hover{opacity:1;}
+.cart-title{font-family:var(--fc);font-size:clamp(28px,4vw,48px);font-weight:900;letter-spacing:.06em;margin-bottom:6px;}
+.cart-subtitle{font-family:var(--fm);font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:24px;}
+/* cart items */
+.cart-item{display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);}
+.ci-icon-wrap{width:44px;height:44px;background:var(--panel);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;}
+.ci-info{}
+.cii-name{font-family:var(--fc);font-size:clamp(14px,1.8vw,18px);font-weight:800;letter-spacing:.06em;margin-bottom:2px;}
+.cii-sku{font-family:var(--fm);font-size:6px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.cii-dept{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
+.ci-qty-ctrl{display:flex;align-items:center;gap:0;border:1px solid var(--border);}
+.ciq-btn{width:28px;height:28px;background:rgba(0,180,220,.05);border:none;color:var(--cyan);font-family:var(--fc);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.ciq-btn:hover{background:rgba(0,180,220,.12);}
+.ciq-val{width:36px;height:28px;background:transparent;border:none;border-left:1px solid var(--border);border-right:1px solid var(--border);font-family:var(--fm);font-size:10px;font-weight:700;color:var(--white);text-align:center;}
+.ci-price-col{text-align:right;}
+.cipc-price{font-family:var(--fc);font-size:clamp(16px,2vw,22px);font-weight:900;display:block;line-height:1;}
+.cipc-period{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.cipc-remove{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;color:rgba(204,24,24,.5);cursor:pointer;display:block;margin-top:4px;transition:color .15s;background:none;border:none;}
+.cipc-remove:hover{color:var(--red2);}
+
+/* margin calculator */
+.margin-calc{background:var(--panel);border:1px solid var(--border);padding:18px 20px;margin-top:20px;position:relative;overflow:hidden;}
+.margin-calc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,var(--green),transparent);}
+.mc-title{font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.07em;margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+.mc-title::before{content:'◈';color:var(--green);font-size:12px;}
+.mc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:12px;}
+.mc-cell{background:var(--card);border:1px solid var(--border);padding:12px;text-align:center;}
+.mcc-label{font-family:var(--fm);font-size:5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.mcc-val{font-family:var(--fc);font-size:clamp(20px,2.5vw,28px);font-weight:900;letter-spacing:.03em;display:block;line-height:1;}
+.mcc-sub{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;margin-top:2px;}
+.mc-markup{display:flex;gap:4px;flex-wrap:wrap;}
+.mc-markup-btn{font-family:var(--fm);font-size:6px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:rgba(228,238,248,.35);padding:5px 10px;cursor:pointer;transition:all .18s;}
+.mc-markup-btn.on{border-color:rgba(24,200,112,.3);color:var(--green);background:rgba(24,200,112,.06);}
+.mc-markup-btn:hover{border-color:rgba(0,180,220,.25);color:var(--cyan);}
+
+/* cart sidebar (order summary) */
+.cart-sidebar{padding:28px 24px;background:rgba(5,10,20,.98);border-left:1px solid var(--border);position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;display:flex;flex-direction:column;}
+.cart-sidebar::-webkit-scrollbar{width:0;}
+.cs-title{font-family:var(--fc);font-size:18px;font-weight:800;letter-spacing:.08em;margin-bottom:16px;}
+.cs-line{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,180,220,.05);}
+.cs-line:last-of-type{border-bottom:none;}
+.csl-label{font-family:var(--fb);font-weight:300;font-size:12px;color:rgba(228,238,248,.42);}
+.csl-val{font-family:var(--fm);font-size:10px;font-weight:700;}
+.cs-divider{height:1px;background:rgba(0,180,220,.08);margin:12px 0;}
+.cs-total-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.cstr-label{font-family:var(--fc);font-size:14px;font-weight:800;letter-spacing:.07em;}
+.cstr-val{font-family:var(--fc);font-size:clamp(24px,3vw,36px);font-weight:900;letter-spacing:.04em;}
+.cs-margin-box{background:rgba(24,200,112,.06);border:1px solid rgba(24,200,112,.15);padding:10px 12px;margin-bottom:16px;}
+.csmb-label{font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--green);margin-bottom:4px;}
+.csmb-val{font-family:var(--fc);font-size:clamp(22px,3vw,32px);font-weight:900;color:var(--green);display:block;line-height:1;}
+.csmb-sub{font-family:var(--fm);font-size:6px;letter-spacing:.08em;text-transform:uppercase;color:rgba(24,200,112,.5);margin-top:2px;}
+.cs-checkout-btn{display:block;width:100%;font-family:var(--fc);font-size:16px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;background:var(--cyan);color:var(--bg);border:none;padding:14px;cursor:pointer;transition:all .22s;margin-bottom:6px;}
+.cs-checkout-btn:hover{background:var(--cyan2);}
+.cs-continue{display:block;width:100%;font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(228,238,248,.35);border:1px solid var(--border);padding:11px;cursor:pointer;transition:all .2s;margin-bottom:14px;}
+.cs-continue:hover{border-color:rgba(228,238,248,.2);color:rgba(228,238,248,.6);}
+.cs-trust-mini{display:flex;flex-direction:column;gap:4px;}
+.cstm-item{font-family:var(--fb);font-weight:300;font-size:10px;color:rgba(228,238,248,.28);display:flex;align-items:center;gap:6px;}
+
+/* ═══════════════════════════════════════
+   VIEW: CHECKOUT (multi-step)
+═══════════════════════════════════════ */
+#view-checkout{padding:0;}
+.checkout-layout{display:grid;grid-template-columns:1fr 380px;min-height:calc(100vh - 56px);}
+@media(max-width:1000px){.checkout-layout{grid-template-columns:1fr;}}
+.checkout-main{padding:36px 40px;}
+
+/* step progress */
+.step-progress{display:flex;align-items:center;gap:0;margin-bottom:32px;}
+.sp-step{display:flex;align-items:center;gap:7px;}
+.sps-num{width:24px;height:24px;border-radius:50%;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:8px;font-weight:700;flex-shrink:0;transition:all .3s;}
+.sps-label{font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;transition:color .3s;}
+.sp-connector{flex:1;height:1px;background:var(--border);margin:0 10px;min-width:20px;}
+/* step states */
+.sp-step.done .sps-num{background:var(--cyan);border-color:var(--cyan);color:var(--bg);}
+.sp-step.done .sps-label{color:var(--cyan);}
+.sp-step.active .sps-num{background:transparent;border-color:var(--cyan);color:var(--cyan);}
+.sp-step.active .sps-label{color:var(--white);}
+.sp-step.pending .sps-num{background:transparent;border-color:var(--muted);color:var(--muted);}
+.sp-step.pending .sps-label{color:var(--muted);}
+
+.co-step-title{font-family:var(--fc);font-size:clamp(24px,3.5vw,44px);font-weight:900;letter-spacing:.05em;margin-bottom:6px;}
+.co-step-sub{font-family:var(--fb);font-weight:300;font-size:13px;color:rgba(228,238,248,.38);margin-bottom:24px;line-height:1.8;}
+
+/* form */
+.form-row{display:grid;gap:10px;margin-bottom:10px;}
+.form-row.two{grid-template-columns:1fr 1fr;}
+.form-row.three{grid-template-columns:1fr 1fr 1fr;}
+.form-group{}
+.fg-label{font-family:var(--fm);font-size:6px;letter-spacing:.2em;text-transform:uppercase;color:rgba(228,238,248,.35);margin-bottom:5px;display:block;}
+.fg-label.req::after{content:' *';color:var(--cyan);}
+.fg-input{width:100%;background:rgba(0,180,220,.04);border:1px solid rgba(0,180,220,.12);padding:11px 14px;font-family:var(--fb);font-size:13px;color:var(--white);outline:none;transition:border-color .18s;}
+.fg-input:focus{border-color:rgba(0,180,220,.4);background:rgba(0,180,220,.06);}
+.fg-input::placeholder{color:rgba(228,238,248,.2);}
+.fg-select{width:100%;background:rgba(0,180,220,.04);border:1px solid rgba(0,180,220,.12);padding:11px 14px;font-family:var(--fm);font-size:10px;letter-spacing:.06em;color:rgba(228,238,248,.6);outline:none;-webkit-appearance:none;}
+.fg-select:focus{border-color:rgba(0,180,220,.4);}
+.fg-textarea{width:100%;background:rgba(0,180,220,.04);border:1px solid rgba(0,180,220,.12);padding:11px 14px;font-family:var(--fb);font-size:13px;color:var(--white);outline:none;resize:none;transition:border-color .18s;line-height:1.6;}
+.fg-textarea:focus{border-color:rgba(0,180,220,.4);}
+/* radio group */
+.radio-group{display:flex;flex-direction:column;gap:6px;}
+.radio-item{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;background:rgba(0,180,220,.03);border:1px solid rgba(0,180,220,.1);cursor:pointer;transition:all .18s;}
+.radio-item:hover,.radio-item.sel{border-color:rgba(0,180,220,.35);background:rgba(0,180,220,.07);}
+.ri-dot{width:16px;height:16px;border-radius:50%;border:1.5px solid rgba(0,180,220,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;transition:all .18s;}
+.radio-item.sel .ri-dot{border-color:var(--cyan);}
+.radio-item.sel .ri-dot::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--cyan);}
+.ri-body{}
+.rib-name{font-family:var(--fb);font-size:13px;font-weight:500;margin-bottom:2px;}
+.rib-desc{font-family:var(--fb);font-weight:300;font-size:11px;color:rgba(228,238,248,.38);line-height:1.5;}
+/* checkbox */
+.check-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;}
+.ci-box{width:16px;height:16px;border:1.5px solid rgba(0,180,220,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .18s;margin-top:1px;}
+.ci-box.checked{background:var(--cyan);border-color:var(--cyan);}
+.ci-box.checked::after{content:'✓';font-family:var(--fm);font-size:8px;color:var(--bg);font-weight:700;}
+.ci-label{font-family:var(--fb);font-weight:300;font-size:12px;color:rgba(228,238,248,.5);line-height:1.6;}
+.ci-label strong{color:rgba(228,238,248,.75);font-weight:500;}
+
+/* step nav */
+.step-nav{display:flex;gap:8px;margin-top:28px;}
+.sn-back-btn{font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(228,238,248,.38);border:1px solid var(--border);padding:12px 28px;cursor:pointer;transition:all .2s;}
+.sn-back-btn:hover{border-color:rgba(228,238,248,.2);color:rgba(228,238,248,.65);}
+.sn-next-btn{font-family:var(--fc);font-size:15px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;background:var(--cyan);color:var(--bg);border:none;padding:13px 36px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden;}
+.sn-next-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .5s;}
+.sn-next-btn:hover{background:var(--cyan2);}
+.sn-next-btn:hover::before{transform:translateX(100%);}
+
+/* review order section */
+.review-section{margin-bottom:20px;}
+.rs-title{font-family:var(--fc);font-size:14px;font-weight:800;letter-spacing:.08em;margin-bottom:8px;display:flex;align-items:center;gap:7px;}
+.rs-title::before{content:'';display:block;width:3px;height:14px;background:var(--cyan);}
+.rs-items{display:flex;flex-direction:column;gap:3px;}
+.rsi-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:var(--panel);border:1px solid var(--border);font-family:var(--fb);font-size:12px;color:rgba(228,238,248,.55);}
+.rsi-row.total{background:rgba(0,180,220,.05);border-color:rgba(0,180,220,.2);}
+.rsi-label{}
+.rsi-val{font-family:var(--fm);font-size:9px;font-weight:700;}
+
+/* ORDER CONFIRMATION */
+#view-confirm{padding:60px 40px;text-align:center;position:relative;z-index:1;}
+.confirm-seal{font-size:56px;display:block;margin:0 auto 20px;filter:drop-shadow(0 0 20px rgba(0,180,220,.4));}
+.confirm-eyebrow{font-family:var(--fm);font-size:7px;letter-spacing:.32em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px;}
+.confirm-title{font-family:var(--fc);font-size:clamp(36px,6vw,80px);font-weight:900;letter-spacing:.04em;line-height:.88;margin-bottom:10px;}
+.confirm-sub{font-family:var(--fb);font-weight:300;font-size:15px;color:rgba(228,238,248,.45);max-width:560px;margin:0 auto 32px;line-height:2;}
+.confirm-order-num{font-family:var(--fm);font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--cyan);border:1px solid rgba(0,180,220,.2);padding:10px 24px;display:inline-block;margin-bottom:32px;}
+/* order summary card */
+.confirm-card{max-width:700px;margin:0 auto 32px;background:var(--panel);border:1px solid var(--border);text-align:left;position:relative;overflow:hidden;}
+.cc-stripe{height:3px;background:linear-gradient(to right,var(--cyan),var(--cyan2));}
+.cc-body{padding:24px;}
+.ccb-section{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.ccb-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.ccbs-title{font-family:var(--fm);font-size:7px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.ccbs-row{display:flex;justify-content:space-between;font-family:var(--fb);font-size:12px;color:rgba(228,238,248,.55);padding:4px 0;}
+.ccbs-row.strong{color:rgba(228,238,248,.8);font-weight:500;}
+.ccbs-val{font-family:var(--fm);font-size:9px;font-weight:700;color:var(--cyan);}
+/* next steps */
+.next-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;max-width:700px;margin:0 auto 32px;}
+.ns-card{background:var(--panel);border:1px solid var(--border);padding:20px;text-align:left;position:relative;}
+.ns-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.nsc-num{font-family:var(--fc);font-size:28px;font-weight:900;color:rgba(0,180,220,.15);margin-bottom:6px;}
+.nsc-title{font-family:var(--fc);font-size:14px;font-weight:800;letter-spacing:.06em;margin-bottom:4px;}
+.nsc-desc{font-family:var(--fb);font-weight:300;font-size:11px;color:rgba(228,238,248,.35);line-height:1.6;}
+.confirm-btns{display:flex;gap:8px;justify-content:center;}
+.cb-primary{font-family:var(--fc);font-size:15px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;background:var(--cyan);color:var(--bg);border:none;padding:13px 32px;cursor:pointer;transition:background .2s;}
+.cb-primary:hover{background:var(--cyan2);}
+.cb-secondary{font-family:var(--fc);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:rgba(228,238,248,.38);border:1px solid var(--border);padding:13px 28px;cursor:pointer;transition:all .2s;}
+.cb-secondary:hover{border-color:rgba(228,238,248,.2);color:rgba(228,238,248,.65);}
+</style>
+</head>
+<body>
+<div id="cur"></div><div id="cur2"></div>
+
+<!-- STORE NAV -->
+<nav class="store-nav">
+  <div class="sn-left">
+    <div class="sn-logo" onclick="showView('store')">
+      <div class="snl-mark">L</div>
+      <div class="snl-name">LIGHTEK MCG</div>
+    </div>
+    <div class="sn-sep"></div>
+    <div class="sn-tag">MODULE STORE · AUTHORIZED DISTRIBUTOR</div>
+  </div>
+  <div class="sn-links">
+    <button class="sn-link on" onclick="showView('store')">ALL MODULES</button>
+    <button class="sn-link" onclick="showView('store')">BUNDLES</button>
+    <button class="sn-link" onclick="showView('store')">MY ORDERS</button>
+  </div>
+  <div class="sn-right">
+    <div class="sn-reseller" id="nav-reseller-info">RESELLER: APEX DIGITAL · DISTRIBUTOR TIER</div>
+    <div class="cart-trigger" onclick="showView('cart')">
+      <span class="ct-icon">🛒</span>
+      <span class="ct-text">CART</span>
+      <span class="ct-badge" id="nav-cart-count">0</span>
+    </div>
+    <button class="checkout-btn" onclick="showView('checkout')">CHECKOUT →</button>
+  </div>
+</nav>
+
+<!-- ═══════ VIEW: STORE ═══════ -->
+<div class="view active" id="view-store">
+  <div class="store-hero">
+    <div class="sh-eyebrow">◈ LIGHTEK MCG · MODULE STORE · <%= @products.count %> PRODUCTS IN STOCK</div>
+    <div class="sh-title">DEPLOY<br>SOVEREIGNTY.</div>
+    <div class="sh-sub">Every DYMOND Empire module, available wholesale. Buy what you need, deploy under your brand, keep the margin. All purchases include Ministry Engine compliance and Constitutional Article coverage.</div>
+    <div class="filter-bar" id="filter-bar"></div>
+  </div>
+  <div class="store-grid-wrap">
+    <div class="sg-header">
+      <div class="sgh-count" id="grid-count">31 MODULES · ALL DEPARTMENTS</div>
+      <div class="sgh-sort">
+        <button class="srt-btn on" onclick="setSort(this,'sku')">SKU</button>
+        <button class="srt-btn" onclick="setSort(this,'price-asc')">PRICE ↑</button>
+        <button class="srt-btn" onclick="setSort(this,'price-desc')">PRICE ↓</button>
+        <button class="srt-btn" onclick="setSort(this,'margin')">MARGIN</button>
+      </div>
+    </div>
+    <div class="product-grid" id="product-grid"></div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: PRODUCT DETAIL ═══════ -->
+<div class="view" id="view-detail">
+  <div class="detail-wrap">
+    <div class="detail-main" id="detail-main"></div>
+    <div class="detail-sidebar" id="detail-sidebar"></div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: CART ═══════ -->
+<div class="view" id="view-cart">
+  <div class="cart-layout">
+    <div class="cart-main">
+      <button class="cart-back" onclick="showView('store')">← CONTINUE SHOPPING</button>
+      <div class="cart-title">DEPLOYMENT ORDER</div>
+      <div class="cart-subtitle" id="cart-subtitle">0 MODULES · $0 WHOLESALE/MONTH</div>
+      <div id="cart-items-list"></div>
+      <div class="margin-calc">
+        <div class="mc-title">MARGIN CALCULATOR</div>
+        <div class="mc-grid">
+          <div class="mc-cell"><div class="mcc-label">YOUR COST</div><span class="mcc-val" style="color:var(--muted);" id="mc-cost">$0</span><div class="mcc-sub" style="color:var(--muted);">Wholesale/mo</div></div>
+          <div class="mc-cell"><div class="mcc-label">RETAIL PRICE</div><span class="mcc-val" style="color:var(--cyan);" id="mc-retail">$0</span><div class="mcc-sub" style="color:var(--cyan);">At selected markup</div></div>
+          <div class="mc-cell"><div class="mcc-label">YOUR MARGIN</div><span class="mcc-val" style="color:var(--green);" id="mc-margin">$0</span><div class="mcc-sub" style="color:var(--green);">Monthly recurring</div></div>
+        </div>
+        <div style="font-family:var(--fm);font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">SELECT MARKUP STRATEGY</div>
+        <div class="mc-markup">
+          <button class="mc-markup-btn" onclick="setMarkup(this,1.5)">1.5× — COMPETITIVE</button>
+          <button class="mc-markup-btn on" onclick="setMarkup(this,2.0)">2.0× — STANDARD</button>
+          <button class="mc-markup-btn" onclick="setMarkup(this,2.5)">2.5× — PREMIUM</button>
+          <button class="mc-markup-btn" onclick="setMarkup(this,3.0)">3.0× — ENTERPRISE</button>
+        </div>
+      </div>
+    </div>
+    <div class="cart-sidebar">
+      <div class="cs-title">ORDER SUMMARY</div>
+      <div id="cs-lines"></div>
+      <div class="cs-divider"></div>
+      <div class="cs-total-row">
+        <div class="cstr-label">TOTAL WHOLESALE</div>
+        <div class="cstr-val" style="color:var(--cyan);" id="cs-total">$0</div>
+      </div>
+      <div style="font-family:var(--fm);font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;" id="cs-period">/ month · recurring</div>
+      <div class="cs-margin-box">
+        <div class="csmb-label">◈ YOUR PROJECTED MARGIN @ 2×</div>
+        <span class="csmb-val" id="cs-margin-box">$0</span>
+        <div class="csmb-sub">MONTHLY RECURRING</div>
+      </div>
+      <button class="cs-checkout-btn" onclick="showView('checkout')">PROCEED TO CHECKOUT →</button>
+      <button class="cs-continue" onclick="showView('store')">+ ADD MORE MODULES</button>
+      <div class="cs-trust-mini">
+        <div class="cstm-item"><span>◈</span>Ministry Engine included on all orders</div>
+        <div class="cstm-item"><span>◈</span>Constitutional Articles I–VIII apply to all deployments</div>
+        <div class="cstm-item"><span>◈</span>White-label rights included for Distributor+ tier</div>
+        <div class="cstm-item"><span>◈</span>Net-15 billing · Cancel with 30-day notice</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: CHECKOUT ═══════ -->
+<div class="view" id="view-checkout">
+  <div class="checkout-layout">
+    <div class="checkout-main">
+      <!-- step progress -->
+      <div class="step-progress" id="step-progress"></div>
+      <div id="checkout-step-content"></div>
+    </div>
+    <!-- checkout sidebar -->
+    <div class="cart-sidebar" style="padding:28px 24px;">
+      <div class="cs-title">ORDER REVIEW</div>
+      <div id="co-order-lines"></div>
+      <div class="cs-divider"></div>
+      <div class="cs-total-row"><div class="cstr-label">WHOLESALE TOTAL</div><div class="cstr-val" style="color:var(--cyan);" id="co-total">$0</div></div>
+      <div style="font-family:var(--fm);font-size:7px;color:var(--muted);margin-bottom:10px;">/ month · recurring · Net-15</div>
+      <div class="cs-margin-box" style="margin-bottom:14px;">
+        <div class="csmb-label">◈ YOUR MARGIN @ 2×</div>
+        <span class="csmb-val" id="co-margin">$0</span>
+        <div class="csmb-sub">/ MONTH RECURRING</div>
+      </div>
+      <div class="cs-trust-mini">
+        <div class="cstm-item"><span>◈</span>Deployment begins within 3 business days</div>
+        <div class="cstm-item"><span>◈</span>Dedicated onboarding rep assigned</div>
+        <div class="cstm-item"><span>◈</span>DYMOND Empire infrastructure SLA: 99.97%</div>
+        <div class="cstm-item"><span>◈</span>Ministry Engine active from day one</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: CONFIRM ═══════ -->
+<div class="view" id="view-confirm">
+  <span class="confirm-seal">✅</span>
+  <div class="confirm-eyebrow">◈ DEPLOYMENT ORDER CONFIRMED</div>
+  <div class="confirm-title">ORDER<br>RECEIVED.</div>
+  <div class="confirm-sub">Your deployment order has been submitted and assigned to a Lightek onboarding specialist. You will receive a confirmation email and a call within one business day. Your sovereign infrastructure is being prepared.</div>
+  <div class="confirm-order-num" id="confirm-order-num">ORDER: LT-ORD-000000</div>
+
+  <div class="confirm-card">
+    <div class="cc-stripe"></div>
+    <div class="cc-body">
+      <div class="ccb-section">
+        <div class="ccbs-title">MODULES ORDERED</div>
+        <div id="confirm-modules"></div>
+      </div>
+      <div class="ccb-section">
+        <div class="ccbs-title">ORDER DETAILS</div>
+        <div class="ccbs-row"><span>Wholesale total</span><span class="ccbs-val" id="conf-total">$0/mo</span></div>
+        <div class="ccbs-row"><span>Billing cycle</span><span class="ccbs-val">MONTHLY · NET-15</span></div>
+        <div class="ccbs-row"><span>Deployment timeline</span><span class="ccbs-val">3 BUSINESS DAYS</span></div>
+        <div class="ccbs-row"><span>Assigned rep</span><span class="ccbs-val">@darius.m · DEPLOYMENT</span></div>
+        <div class="ccbs-row strong"><span>Your projected margin</span><span class="ccbs-val" style="color:var(--green);" id="conf-margin">$0/mo</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="next-steps">
+    <div class="ns-card"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--cyan);"></div><div class="nsc-num">01</div><div class="nsc-title">ONBOARDING CALL</div><div class="nsc-desc">Your dedicated Lightek rep will call within 1 business day to schedule your 90-day onboarding.</div></div>
+    <div class="ns-card"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--green);"></div><div class="nsc-num">02</div><div class="nsc-title">INSTANCE SETUP</div><div class="nsc-desc">Your white-labeled instance will be configured and live within 3 business days of your onboarding call.</div></div>
+    <div class="ns-card"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold2);"></div><div class="nsc-num">03</div><div class="nsc-title">TRAINING + LAUNCH</div><div class="nsc-desc">Lightek Institute certification for your team. Then your sovereign platform launches to your clients.</div></div>
+  </div>
+
+  <div class="confirm-btns">
+    <button class="cb-primary" onclick="window.location.reload()">ORDER ANOTHER MODULE →</button>
+    <button class="cb-secondary" onclick="showView('store')">BACK TO STORE</button>
+  </div>
+</div>
+
+<script>
+// ── CURSOR ──────────────────────────────────
+const cur=document.getElementById('cur'),cur2=document.getElementById('cur2');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function l(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;cur2.style.left=rx+'px';cur2.style.top=ry+'px';requestAnimationFrame(l);})();
+
+// ── PRODUCT DATA ────────────────────────────
+// ── PRODUCT DATA ─ real data from DymondCatalog::Product, not hardcoded ────
+const PRODUCTS = <%= raw @products.map { |p|
+  {
+    sku: p.sku, name: p.name, dept: p.department, icon: p.icon, color: p.color,
+    price: p.wholesale_price.to_i, desc: p.description, me: p.ministry_engine,
+    includes: p.includes_json || [], specs: p.specs_json || {}
+  }
+}.to_json %>;
+
+const CATEGORIES=['ALL','TREASURY','CULTURE','FAITH','HEALTH','HOUSING','COMMUNITY','TECHNOLOGY','COMMERCE'];
+let cart={};
+let currentMarkup=2.0;
+let currentSort='sku';
+let currentFilter='ALL';
+let selectedProduct=null;
+let checkoutStep=0;
+
+// ── VIEW MANAGER ────────────────────────────
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  window.scrollTo(0,0);
+  if(id==='cart')renderCart();
+  if(id==='checkout')renderCheckout();
+  if(id==='store')renderGrid();
+}
+
+// ── FILTER BAR ──────────────────────────────
+function renderFilterBar(){
+  const fb=document.getElementById('filter-bar');
+  fb.innerHTML=CATEGORIES.map(c=>`<button class="fb-pill ${c==='ALL'?'on':''}" onclick="filterBy(this,'${c}')">${c}</button>`).join('');
+}
+
+function filterBy(btn,cat){
+  currentFilter=cat;
+  document.querySelectorAll('.fb-pill').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderGrid();
+}
+
+// ── PRODUCT GRID ────────────────────────────
+function renderGrid(){
+  let prods=[...PRODUCTS];
+  if(currentFilter!=='ALL') prods=prods.filter(p=>p.dept.toUpperCase().includes(currentFilter));
+  if(currentSort==='price-asc') prods.sort((a,b)=>a.price-b.price);
+  else if(currentSort==='price-desc') prods.sort((a,b)=>b.price-a.price);
+  else if(currentSort==='margin') prods.sort((a,b)=>(b.price)-(a.price));
+  document.getElementById('grid-count').textContent=`${prods.length} MODULES · ${currentFilter} DEPT${currentFilter!=='ALL'?'':' — ALL'}`;
+  const grid=document.getElementById('product-grid');
+  grid.innerHTML='';
+  prods.forEach(p=>{
+    const inCart=!!cart[p.sku];
+    const div=document.createElement('div');
+    div.className='product-card';
+    div.innerHTML=`
+      <div class="pc-stripe" style="background:${p.color};"></div>
+      <div class="pc-body">
+        <div class="pc-top">
+          <div class="pc-sku">${p.sku}</div>
+          <div class="pc-stock-dot" style="background:${p.price?'var(--green)':'var(--yellow)'};"></div>
+        </div>
+        <span class="pc-icon">${p.icon}</span>
+        <div class="pc-name" style="color:${p.color};">${p.name}</div>
+        <div class="pc-dept" style="color:rgba(228,238,248,.38);">${p.dept}</div>
+        ${p.me?'<div class="pc-me">⚖ MINISTRY ENGINE INCLUDED</div>':''}
+        <div class="pc-desc">${p.desc}</div>
+      </div>
+      <div class="pc-footer">
+        <div class="pcf-price">
+          <span class="pcfp-val" style="color:${p.color};">$${p.price.toLocaleString()}</span>
+          <span class="pcfp-period">/ month wholesale</span>
+        </div>
+        <div class="pcf-btns">
+          <button class="pc-detail-btn" onclick="viewDetail('${p.sku}',event)">DETAILS</button>
+          <button class="pc-add-btn" style="border-color:${inCart?p.color:'rgba(228,238,248,.15)'};color:${inCart?p.color:'rgba(228,238,248,.38)'};" onclick="toggleCart('${p.sku}',event)">${inCart?'✓ ADDED':'+ ADD'}</button>
+        </div>
+      </div>`;
+    grid.appendChild(div);
+  });
+  addHoverFX();
+}
+
+function setSort(btn,type){currentSort=type;document.querySelectorAll('.srt-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderGrid();}
+
+// ── PRODUCT DETAIL ──────────────────────────
+function viewDetail(sku,e){
+  if(e)e.stopPropagation();
+  selectedProduct=PRODUCTS.find(p=>p.sku===sku);
+  if(!selectedProduct)return;
+  const p=selectedProduct;
+  const inCart=!!cart[p.sku];
+  document.getElementById('detail-main').innerHTML=`
+    <button class="dm-back" onclick="showView('store')">← ALL MODULES</button>
+    <div class="dm-header">
+      <div class="dmh-sku">${p.sku}</div>
+      <div class="dmh-name" style="color:${p.color};">${p.icon} ${p.name}</div>
+      <div class="dmh-dept" style="color:rgba(228,238,248,.38);">${p.dept}</div>
+      <div class="dmh-badges">
+        ${p.me?'<div class="dmhb dmhb-me">⚖ MINISTRY ENGINE INCLUDED</div>':''}
+        <div class="dmhb dmhb-stock">◉ IN STOCK</div>
+        <div class="dmhb dmhb-const">◈ ARTICLES I–VIII COMPLIANT</div>
+      </div>
+      <div class="dmh-desc">${p.desc}</div>
+    </div>
+    <div class="spec-section">
+      <div class="sps-title">TECHNICAL SPECIFICATIONS</div>
+      <div class="spec-grid">
+        ${Object.entries(p.specs).map(([k,v])=>`<div class="spec-item"><div class="si-label">${k.toUpperCase()}</div><div class="si-val highlight">${v}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="spec-section">
+      <div class="sps-title">WHAT'S INCLUDED</div>
+      <div class="included-list">
+        ${p.includes.map(i=>`<div class="inc-item"><div class="inc-check">◈</div><div class="inc-body"><div class="incb-name">${i.split('—')[0].trim()}</div>${i.includes('—')?`<div class="incb-desc">${i.split('—')[1].trim()}</div>`:''}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="spec-section">
+      <div class="sps-title">FREQUENTLY BUNDLED WITH</div>
+      <div class="bundle-chips">
+        <div class="bc-chip"><div class="bcc-name">FAITH ORG STARTER</div><div class="bcc-save">SAVE 22% — Church + Wellness + Community</div></div>
+        <div class="bc-chip"><div class="bcc-name">HBCU FULL STACK</div><div class="bcc-save">SAVE 28% — Institute + Bank + Studio + Community</div></div>
+        <div class="bc-chip"><div class="bcc-name">MEDIA CO. PACKAGE</div><div class="bcc-save">SAVE 18% — Streaming + Studio + Podcast + Director</div></div>
+      </div>
+    </div>`;
+
+  document.getElementById('detail-sidebar').innerHTML=`
+    <div class="ds-price-block">
+      <div class="dspb-label">WHOLESALE PRICE</div>
+      <span class="dspb-wholesale" style="color:${p.color};">$${p.price.toLocaleString()}</span>
+      <div class="dspb-period">/ month · recurring · Net-15</div>
+      <div class="dspb-retail"><div class="dspbr-label">◈ YOUR RETAIL @ 2× MARKUP</div><div class="dspbr-val">$${(p.price*2).toLocaleString()}</div></div>
+      <div class="dspb-margin"><div class="dspbm-label">◈ YOUR MARGIN / MONTH</div><div class="dspbm-val">$${p.price.toLocaleString()}</div></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-family:var(--fm);font-size:6px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">QUANTITY (DEPLOYMENTS)</div>
+      <div class="ds-qty">
+        <button class="dsq-btn" onclick="changeQty(-1)">−</button>
+        <input class="dsq-val" type="number" value="1" min="1" max="99" id="detail-qty" />
+        <button class="dsq-btn" onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+    <button class="ds-add-btn" id="detail-add-btn" onclick="addFromDetail('${p.sku}')">${inCart?'✓ IN CART — ADD ANOTHER':'+ ADD TO ORDER'}</button>
+    <button class="ds-save-btn" onclick="this.textContent='✓ SAVED TO WISHLIST'">♡ SAVE FOR LATER</button>
+    <div class="ds-trust">
+      <div class="dst-item"><span>◈</span><span>Ministry Engine ${p.me?'included and active':'compliant — integrates with your ME deployment'}</span></div>
+      <div class="dst-item"><span>◈</span><span>White-label rights included for Distributor+ tier</span></div>
+      <div class="dst-item"><span>◈</span><span>3-day deployment SLA · Dedicated onboarding rep</span></div>
+      <div class="dst-item"><span>◈</span><span>Constitutional Articles I–VIII apply to all citizen interactions</span></div>
+      <div class="dst-item"><span>◈</span><span>Cancel with 30-day written notice · No lock-in</span></div>
+    </div>`;
+  showView('detail');
+}
+
+function changeQty(d){const el=document.getElementById('detail-qty');el.value=Math.max(1,parseInt(el.value||1)+d);}
+function addFromDetail(sku){
+  toggleCart(sku);
+  const btn=document.getElementById('detail-add-btn');
+  if(btn)btn.textContent='✓ ADDED TO ORDER';
+}
+
+// ── CART LOGIC ──────────────────────────────
+function toggleCart(sku,e){
+  if(e)e.stopPropagation();
+  const p=PRODUCTS.find(x=>x.sku===sku);
+  if(!p)return;
+  if(cart[sku]){cart[sku].qty=(cart[sku].qty||1)+1;}
+  else{cart[sku]={...p,qty:1};}
+  updateCartBadge();
+  renderGrid();
+}
+
+function removeFromCart(sku){delete cart[sku];updateCartBadge();renderCart();renderCheckoutSidebar();}
+function updateCartBadge(){const n=Object.keys(cart).length;document.getElementById('nav-cart-count').textContent=n;}
+
+function renderCart(){
+  const items=Object.values(cart);
+  const total=items.reduce((s,p)=>s+p.price*(p.qty||1),0);
+  document.getElementById('cart-subtitle').textContent=`${items.length} MODULE${items.length!==1?'S':''} · $${total.toLocaleString()} WHOLESALE/MONTH`;
+  // items list
+  const list=document.getElementById('cart-items-list');
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:40px;font-family:var(--fm);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);">YOUR ORDER IS EMPTY<br><br><button onclick="showView(\'store\')" style="font-family:var(--fc);font-size:14px;font-weight:700;letter-spacing:.1em;background:var(--cyan);color:var(--bg);border:none;padding:10px 22px;cursor:pointer;margin-top:10px;">BROWSE MODULES →</button></div>';return;}
+  list.innerHTML=items.map(p=>`
+    <div class="cart-item">
+      <div class="ci-icon-wrap" style="border-color:rgba(${hexToRgb(p.color)?.join(',')},0.2);">${p.icon}</div>
+      <div class="ci-info">
+        <div class="cii-name" style="color:${p.color};">${p.name}</div>
+        <div class="cii-sku">${p.sku} · LIGHTEK MCG</div>
+        <div class="cii-dept" style="color:rgba(228,238,248,.35);">${p.dept}</div>
+      </div>
+      <div class="ci-qty-ctrl">
+        <button class="ciq-btn" onclick="adjustQty('${p.sku}',-1)">−</button>
+        <input class="ciq-val" type="number" value="${p.qty||1}" min="1" onchange="setQty('${p.sku}',this.value)" />
+        <button class="ciq-btn" onclick="adjustQty('${p.sku}',1)">+</button>
+      </div>
+      <div class="ci-price-col">
+        <span class="cipc-price" style="color:${p.color};">$${(p.price*(p.qty||1)).toLocaleString()}</span>
+        <span class="cipc-period">/ month</span>
+        <button class="cipc-remove" onclick="removeFromCart('${p.sku}')">× REMOVE</button>
+      </div>
+    </div>`).join('');
+  // margin calc
+  updateMarginCalc(total);
+  // sidebar
+  const csLines=document.getElementById('cs-lines');
+  csLines.innerHTML=items.map(p=>`<div class="cs-line"><div class="csl-label">${p.icon} ${p.name} ×${p.qty||1}</div><div class="csl-val" style="color:${p.color};">$${(p.price*(p.qty||1)).toLocaleString()}</div></div>`).join('');
+  document.getElementById('cs-total').textContent='$'+total.toLocaleString();
+  document.getElementById('cs-period').textContent=`${items.length} modules · recurring monthly`;
+  document.getElementById('cs-margin-box').textContent='$'+Math.round(total*(currentMarkup-1)).toLocaleString();
+  addHoverFX();
+}
+
+function adjustQty(sku,d){if(cart[sku]){cart[sku].qty=Math.max(1,(cart[sku].qty||1)+d);renderCart();}}
+function setQty(sku,v){if(cart[sku]){cart[sku].qty=Math.max(1,parseInt(v)||1);renderCart();}}
+
+function updateMarginCalc(total){
+  if(total===undefined)total=Object.values(cart).reduce((s,p)=>s+p.price*(p.qty||1),0);
+  const retail=Math.round(total*currentMarkup);
+  const margin=retail-total;
+  document.getElementById('mc-cost').textContent='$'+total.toLocaleString();
+  document.getElementById('mc-retail').textContent='$'+retail.toLocaleString();
+  document.getElementById('mc-margin').textContent='$'+margin.toLocaleString();
+}
+
+function setMarkup(btn,mult){
+  currentMarkup=mult;
+  document.querySelectorAll('.mc-markup-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const total=Object.values(cart).reduce((s,p)=>s+p.price*(p.qty||1),0);
+  updateMarginCalc(total);
+  document.getElementById('cs-margin-box').textContent='$'+Math.round(total*(currentMarkup-1)).toLocaleString();
+}
+
+// ── CHECKOUT ────────────────────────────────
+const CO_STEPS=['ORG DETAILS','TECH CONFIG','BILLING','REVIEW'];
+let coData={billing:'monthly',paymentMethod:'invoice',deployEnv:'cloud',agreed:false};
+
+function renderCheckout(){
+  renderCheckoutSidebar();
+  renderStepProgress();
+  renderStepContent();
+}
+
+function renderCheckoutSidebar(){
+  const items=Object.values(cart);
+  const total=items.reduce((s,p)=>s+p.price*(p.qty||1),0);
+  const lines=document.getElementById('co-order-lines');
+  if(lines){lines.innerHTML=items.map(p=>`<div class="cs-line"><div class="csl-label">${p.icon} ${p.name}</div><div class="csl-val" style="color:${p.color};">$${(p.price*(p.qty||1)).toLocaleString()}</div></div>`).join('');}
+  const tot=document.getElementById('co-total');if(tot)tot.textContent='$'+total.toLocaleString();
+  const mar=document.getElementById('co-margin');if(mar)mar.textContent='$'+Math.round(total*(currentMarkup-1)).toLocaleString();
+}
+
+function renderStepProgress(){
+  const sp=document.getElementById('step-progress');
+  sp.innerHTML=CO_STEPS.map((s,i)=>{
+    const state=i<checkoutStep?'done':i===checkoutStep?'active':'pending';
+    const conn=i<CO_STEPS.length-1?'<div class="sp-connector"></div>':'';
+    return `<div class="sp-step ${state}"><div class="sps-num">${i<checkoutStep?'✓':i+1}</div><div class="sps-label">${s}</div></div>${conn}`;
+  }).join('');
+}
+
+function renderStepContent(){
+  const el=document.getElementById('checkout-step-content');
+  const backBtn=checkoutStep>0?`<button class="sn-back-btn" onclick="coBack()">← BACK</button>`:'';
+  if(checkoutStep===0){
+    el.innerHTML=`
+      <div class="co-step-title">YOUR ORGANIZATION</div>
+      <div class="co-step-sub">Tell us about the organization that will receive this deployment. This information is used to configure your instance and establish your account with Lightek MCG.</div>
+      <div class="form-row two">
+        <div class="form-group"><label class="fg-label req">ORGANIZATION NAME</label><input class="fg-input" placeholder="e.g. Apex Digital Agency" /></div>
+        <div class="form-group"><label class="fg-label req">ORGANIZATION TYPE</label><select class="fg-select"><option>Select type…</option><option>Reseller Agency</option><option>Faith Organization / Church</option><option>HBCU / University</option><option>Municipal / City Program</option><option>Media Company</option><option>Diaspora Organization</option><option>Healthcare System</option><option>Enterprise / Corporate</option><option>Nonprofit</option></select></div>
+      </div>
+      <div class="form-row two">
+        <div class="form-group"><label class="fg-label req">PRIMARY CONTACT NAME</label><input class="fg-input" placeholder="Full name" /></div>
+        <div class="form-group"><label class="fg-label req">TITLE / ROLE</label><input class="fg-input" placeholder="e.g. CTO, Director of Technology" /></div>
+      </div>
+      <div class="form-row two">
+        <div class="form-group"><label class="fg-label req">EMAIL ADDRESS</label><input class="fg-input" type="email" placeholder="you@organization.com" /></div>
+        <div class="form-group"><label class="fg-label req">PHONE NUMBER</label><input class="fg-input" type="tel" placeholder="+1 (000) 000-0000" /></div>
+      </div>
+      <div class="form-row two">
+        <div class="form-group"><label class="fg-label">CITY</label><input class="fg-input" placeholder="City" /></div>
+        <div class="form-group"><label class="fg-label">STATE / COUNTRY</label><input class="fg-input" placeholder="State or Country" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="fg-label">WEBSITE</label><input class="fg-input" placeholder="https://yourorganization.com" /></div>
+      </div>
+      <div class="step-nav">${backBtn}<button class="sn-next-btn" onclick="coNext()">CONTINUE TO TECH CONFIG →</button></div>`;
+  } else if(checkoutStep===1){
+    el.innerHTML=`
+      <div class="co-step-title">TECHNICAL CONFIGURATION</div>
+      <div class="co-step-sub">Configure your deployment environment and go-live preferences. Your technical contact will be the primary point of contact during the onboarding process.</div>
+      <div class="form-row two">
+        <div class="form-group"><label class="fg-label req">TECHNICAL CONTACT NAME</label><input class="fg-input" placeholder="Your IT lead or integrations contact" /></div>
+        <div class="form-group"><label class="fg-label req">TECHNICAL CONTACT EMAIL</label><input class="fg-input" type="email" placeholder="tech@organization.com" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="fg-label req">DEPLOYMENT ENVIRONMENT</label>
+          <div class="radio-group">
+            <div class="radio-item sel" onclick="selRadio(this,'cloud')"><div class="ri-dot"></div><div class="ri-body"><div class="rib-name">Lightek Cloud (Recommended)</div><div class="rib-desc">Fully managed on Lightek's sovereign infrastructure. 99.97% SLA. Auto-updates. Zero DevOps required.</div></div></div>
+            <div class="radio-item" onclick="selRadio(this,'hybrid')"><div class="ri-dot"></div><div class="ri-body"><div class="rib-name">Hybrid Deployment</div><div class="rib-desc">Lightek cloud with your custom domain and SSL. Additional setup time of 2 business days.</div></div></div>
+            <div class="radio-item" onclick="selRadio(this,'dedicated')"><div class="ri-dot"></div><div class="ri-body"><div class="rib-name">Dedicated Node (Empire Partners only)</div><div class="rib-desc">Your own dedicated infrastructure node. Maximum control and performance. Contact sales for pricing.</div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row two">
+        <div class="form-group"><label class="fg-label">CUSTOM DOMAIN</label><input class="fg-input" placeholder="app.yourorganization.com (optional)" /></div>
+        <div class="form-group"><label class="fg-label req">TARGET GO-LIVE DATE</label><input class="fg-input" type="date" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="fg-label">SPECIAL REQUIREMENTS OR NOTES</label><textarea class="fg-textarea" rows="3" placeholder="Any specific configuration requirements, compliance considerations, or integration notes…"></textarea></div>
+      </div>
+      <div class="step-nav">${backBtn}<button class="sn-next-btn" onclick="coNext()">CONTINUE TO BILLING →</button></div>`;
+  } else if(checkoutStep===2){
+    const total=Object.values(cart).reduce((s,p)=>s+p.price*(p.qty||1),0);
+    el.innerHTML=`
+      <div class="co-step-title">BILLING TERMS</div>
+      <div class="co-step-sub">Select your billing cycle and payment method. All Lightek MCG accounts are billed on Net-15 terms. Your first invoice is issued upon deployment confirmation.</div>
+      <div class="form-row">
+        <div class="form-group"><label class="fg-label req">BILLING CYCLE</label>
+          <div class="radio-group">
+            <div class="radio-item sel" onclick="selRadio(this,'monthly')"><div class="ri-dot"></div><div class="ri-body"><div class="rib-name">Monthly · $${total.toLocaleString()}/month</div><div class="rib-desc">Pay month-to-month. Cancel with 30-day written notice. Maximum flexibility.</div></div></div>
+            <div class="radio-item" onclick="selRadio(this,'annual')"><div class="ri-dot"></div><div class="ri-body"><div class="rib-name">Annual · $${Math.round(total*10.8).toLocaleString()}/year <span style="color:var(--green);font-size:10px;">SAVE 10%</span></div><div class="rib-desc">Pay annually and receive 10% discount on all modules. Locked for 12 months.</div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="fg-label req">PAYMENT METHOD</label>
+          <div class="radio-group">
+            <div class="radio-item sel" onclick="selRadio(this,'invoice')"><div class="ri-dot"></div><div class="ri-body"><div class="rib-name">Net-15 Invoice (Recommended for businesses)</div><div class="rib-desc">Receive a digital invoice. Pay via ACH, wire, or DYMOND BANK transfer within 15 days.</div></div></div>
+            <div class="radio-item" onclick="selRadio(this,'card')"><div class="ri-dot"></div><div class="ri-body"><div class="rib-name">Credit / Debit Card</div><div class="rib-desc">Auto-charged on billing date. Visa, Mastercard, or Amex accepted.</div></div></div>
+            <div class="radio-item" onclick="selRadio(this,'dymond-bank')"><div class="ri-dot"></div><div class="ri-body"><div class="rib-name">DYMOND BANK Transfer</div><div class="rib-desc">Direct transfer from your DYMOND BANK account. Instant. Zero fees.</div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row two">
+        <div class="form-group"><label class="fg-label req">BILLING EMAIL</label><input class="fg-input" type="email" placeholder="billing@organization.com" /></div>
+        <div class="form-group"><label class="fg-label">PO NUMBER (if required)</label><input class="fg-input" placeholder="Optional purchase order number" /></div>
+      </div>
+      <div class="step-nav">${backBtn}<button class="sn-next-btn" onclick="coNext()">REVIEW ORDER →</button></div>`;
+  } else if(checkoutStep===3){
+    const items=Object.values(cart);
+    const total=items.reduce((s,p)=>s+p.price*(p.qty||1),0);
+    el.innerHTML=`
+      <div class="co-step-title">REVIEW & CONFIRM</div>
+      <div class="co-step-sub">Review your complete deployment order before submitting. Once submitted, your Lightek onboarding rep will contact you within 1 business day.</div>
+      <div class="review-section">
+        <div class="rs-title">MODULES ORDERED</div>
+        <div class="rs-items">
+          ${items.map(p=>`<div class="rsi-row"><span>${p.icon} ${p.name} — ${p.sku}</span><span class="rsi-val" style="color:${p.color};">$${(p.price*(p.qty||1)).toLocaleString()}/mo</span></div>`).join('')}
+          <div class="rsi-row total"><span style="font-weight:600;">TOTAL WHOLESALE</span><span class="rsi-val" style="color:var(--cyan);">$${total.toLocaleString()}/month</span></div>
+        </div>
+      </div>
+      <div class="review-section">
+        <div class="rs-title">AGREEMENT</div>
+        <div class="check-item">
+          <div class="ci-box ${coData.agreed?'checked':''}" id="agree-box" onclick="toggleAgree()"></div>
+          <div class="ci-label">I agree to the <strong>Lightek MCG Reseller Terms of Service</strong>, the <strong>DYMOND Empire Deployment Agreement</strong>, and acknowledge that <strong>Constitutional Articles I–VIII</strong> apply to all citizens on my deployed instances. I understand that Ministry Engine protocols will be active from day one and cannot be disabled.</div>
+        </div>
+      </div>
+      <div class="step-nav">${backBtn}<button class="sn-next-btn" onclick="submitOrder()" style="${!coData.agreed?'opacity:.5;':''}">SUBMIT DEPLOYMENT ORDER →</button></div>`;
+  }
+  addHoverFX();
+}
+
+function selRadio(el,val){el.closest('.radio-group').querySelectorAll('.radio-item').forEach(r=>{r.classList.remove('sel');r.querySelector('.ri-dot').innerHTML='';});el.classList.add('sel');const dot=el.querySelector('.ri-dot');dot.innerHTML='';}
+function coNext(){if(checkoutStep<CO_STEPS.length-1){checkoutStep++;renderStepProgress();renderStepContent();window.scrollTo(0,0);}}
+function coBack(){if(checkoutStep>0){checkoutStep--;renderStepProgress();renderStepContent();window.scrollTo(0,0);}}
+function toggleAgree(){coData.agreed=!coData.agreed;const box=document.getElementById('agree-box');if(box)box.className='ci-box'+(coData.agreed?' checked':'');const submitBtn=document.querySelector('.sn-next-btn');if(submitBtn)submitBtn.style.opacity=coData.agreed?'1':'.5';}
+
+function submitOrder(){
+  if(!coData.agreed)return;
+  const orderNum='LT-ORD-'+Math.floor(Math.random()*900000+100000);
+  const items=Object.values(cart);
+  const total=items.reduce((s,p)=>s+p.price*(p.qty||1),0);
+  document.getElementById('confirm-order-num').textContent='ORDER: '+orderNum;
+  document.getElementById('conf-total').textContent='$'+total.toLocaleString()+'/mo';
+  document.getElementById('conf-margin').textContent='$'+Math.round(total*(currentMarkup-1)).toLocaleString()+'/mo';
+  const cm=document.getElementById('confirm-modules');
+  cm.innerHTML=items.map(p=>`<div class="ccbs-row"><span>${p.icon} ${p.name}</span><span class="ccbs-val" style="color:${p.color};">$${(p.price*(p.qty||1)).toLocaleString()}/mo</span></div>`).join('');
+  showView('confirm');
+  cart={};checkoutStep=0;updateCartBadge();
+}
+
+// ── UTILS ───────────────────────────────────
+function hexToRgb(hex){try{const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);return r?[parseInt(r[1],16),parseInt(r[2],16),parseInt(r[3],16)]:null;}catch(e){return null;}}
+function addHoverFX(){
+  document.querySelectorAll('button,.product-card,.radio-item,.cart-item,.bc-chip,.mc-markup-btn').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{cur.style.width='10px';cur.style.height='10px';cur2.style.width='36px';cur2.style.height='36px';});
+    el.addEventListener('mouseleave',()=>{cur.style.width='7px';cur.style.height='7px';cur2.style.width='30px';cur2.style.height='30px';});
+  });
+}
+
+// ── SCROLL REVEAL ───────────────────────────
+const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis');}),{threshold:.05});
+document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+
+// ── INIT ────────────────────────────────────
+renderFilterBar();renderGrid();
+</script>
+</body>
+</html>
+STOREFRONT_EOF
+
+echo ""
+echo "All files written. Next steps:"
+echo "  git add -A"
+echo "  git commit -m 'Real Product model, admin CRUD, live storefront'"
+echo "  git push"
+echo ""
+echo "Then in the host app:"
+echo "  cd ~/Desktop/Development/lightekmcg-site"
+echo "  bundle update dymond_catalog"
+echo "  bin/rails db:migrate"
+echo "  rm -rf tmp/cache/bootsnap*"
+echo "  bin/rails server"

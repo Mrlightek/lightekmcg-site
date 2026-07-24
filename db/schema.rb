@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_22_191817) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_23_171105) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -412,6 +412,58 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_22_191817) do
     t.index ["metered_type", "metered_id"], name: "index_dymond_bank_usage_records_on_metered_type_and_metered_id"
   end
 
+  create_table "dymond_booking_bookings", force: :cascade do |t|
+    t.bigint "resource_id", null: false
+    t.bigint "requested_by_id", null: false
+    t.datetime "start_time", null: false
+    t.datetime "end_time", null: false
+    t.string "status", default: "pending", null: false
+    t.text "notes"
+    t.bigint "total_cents", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["resource_id"], name: "index_dymond_booking_bookings_on_resource_id"
+    t.index ["start_time"], name: "index_dymond_booking_bookings_on_start_time"
+    t.index ["status"], name: "index_dymond_booking_bookings_on_status"
+  end
+
+  create_table "dymond_booking_event_rsvps", force: :cascade do |t|
+    t.bigint "event_id", null: false
+    t.bigint "attendee_id", null: false
+    t.string "status", default: "going", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_id", "attendee_id"], name: "index_dymond_booking_event_rsvps_on_event_id_and_attendee_id", unique: true
+    t.index ["event_id"], name: "index_dymond_booking_event_rsvps_on_event_id"
+  end
+
+  create_table "dymond_booking_events", force: :cascade do |t|
+    t.string "title", null: false
+    t.text "description"
+    t.string "location"
+    t.datetime "start_time", null: false
+    t.datetime "end_time"
+    t.bigint "organizer_id"
+    t.integer "capacity"
+    t.boolean "public", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["public"], name: "index_dymond_booking_events_on_public"
+    t.index ["start_time"], name: "index_dymond_booking_events_on_start_time"
+  end
+
+  create_table "dymond_booking_resources", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "resource_type", default: "service", null: false
+    t.bigint "owner_id"
+    t.text "description"
+    t.bigint "rate_cents", default: 0
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["resource_type"], name: "index_dymond_booking_resources_on_resource_type"
+  end
+
   create_table "dymond_catalog_products", force: :cascade do |t|
     t.string "sku", null: false
     t.string "name", null: false
@@ -744,6 +796,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_22_191817) do
     t.index ["tenant_type", "tenant_id"], name: "index_dymond_site_sites_on_tenant_type_and_tenant_id"
   end
 
+  create_table "dymond_studio_blender_scenes", force: :cascade do |t|
+    t.string "title", null: false
+    t.bigint "asset_id", null: false
+    t.string "status", default: "uploaded", null: false
+    t.bigint "output_asset_id"
+    t.text "render_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_dymond_studio_blender_scenes_on_status"
+  end
+
   create_table "dymond_studio_media_assets", force: :cascade do |t|
     t.bigint "asset_id", null: false
     t.string "title"
@@ -753,6 +816,97 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_22_191817) do
     t.datetime "updated_at", null: false
     t.index ["asset_id"], name: "index_dymond_studio_media_assets_on_asset_id"
     t.index ["status"], name: "index_dymond_studio_media_assets_on_status"
+  end
+
+  create_table "dymond_studio_scripts", force: :cascade do |t|
+    t.string "title", null: false
+    t.bigint "project_id"
+    t.bigint "owner_id"
+    t.string "format", default: "screenplay", null: false
+    t.string "status", default: "draft", null: false
+    t.text "body"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_dymond_studio_scripts_on_project_id"
+    t.index ["status"], name: "index_dymond_studio_scripts_on_status"
+  end
+
+  create_table "dymond_studio_storyboard_panels", force: :cascade do |t|
+    t.bigint "storyboard_id", null: false
+    t.integer "panel_number", default: 1, null: false
+    t.text "description"
+    t.string "shot_type", default: "medium"
+    t.integer "duration_seconds", default: 5
+    t.bigint "media_asset_id"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["storyboard_id", "panel_number"], name: "idx_on_storyboard_id_panel_number_25bf91628c", unique: true
+    t.index ["storyboard_id"], name: "index_dymond_studio_storyboard_panels_on_storyboard_id"
+  end
+
+  create_table "dymond_studio_storyboards", force: :cascade do |t|
+    t.string "title", null: false
+    t.bigint "script_id"
+    t.bigint "project_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_dymond_studio_storyboards_on_project_id"
+    t.index ["script_id"], name: "index_dymond_studio_storyboards_on_script_id"
+  end
+
+  create_table "dymond_studio_text_overlays", force: :cascade do |t|
+    t.bigint "timeline_id", null: false
+    t.string "content", null: false
+    t.float "start_time", default: 0.0, null: false
+    t.float "end_time", null: false
+    t.string "position", default: "bottom"
+    t.integer "font_size", default: 36
+    t.string "color", default: "white"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["timeline_id"], name: "index_dymond_studio_text_overlays_on_timeline_id"
+  end
+
+  create_table "dymond_studio_timeline_clips", force: :cascade do |t|
+    t.bigint "track_id", null: false
+    t.bigint "media_asset_id", null: false
+    t.float "timeline_start", default: 0.0, null: false
+    t.float "source_in", default: 0.0, null: false
+    t.float "source_out", null: false
+    t.string "transition_in", default: "cut"
+    t.string "transition_out", default: "cut"
+    t.float "transition_duration", default: 0.5
+    t.string "filter"
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["track_id", "position"], name: "index_dymond_studio_timeline_clips_on_track_id_and_position"
+    t.index ["track_id"], name: "index_dymond_studio_timeline_clips_on_track_id"
+  end
+
+  create_table "dymond_studio_timeline_tracks", force: :cascade do |t|
+    t.bigint "timeline_id", null: false
+    t.string "track_type", default: "video", null: false
+    t.string "name"
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["timeline_id", "position"], name: "idx_on_timeline_id_position_58099e9345"
+    t.index ["timeline_id"], name: "index_dymond_studio_timeline_tracks_on_timeline_id"
+  end
+
+  create_table "dymond_studio_timelines", force: :cascade do |t|
+    t.string "title", null: false
+    t.bigint "storyboard_id"
+    t.bigint "project_id"
+    t.string "status", default: "draft", null: false
+    t.bigint "output_asset_id"
+    t.text "render_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_dymond_studio_timelines_on_status"
+    t.index ["storyboard_id"], name: "index_dymond_studio_timelines_on_storyboard_id"
   end
 
   create_table "dymond_theme_themes", force: :cascade do |t|
@@ -1016,6 +1170,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_22_191817) do
   add_foreign_key "dymond_bank_subscriptions", "dymond_bank_subscription_plans", column: "plan_id"
   add_foreign_key "dymond_bank_transactions", "dymond_bank_accounts", column: "account_id"
   add_foreign_key "dymond_bank_transactions", "dymond_bank_invoices", column: "invoice_id"
+  add_foreign_key "dymond_booking_bookings", "dymond_booking_resources", column: "resource_id"
+  add_foreign_key "dymond_booking_event_rsvps", "dymond_booking_events", column: "event_id"
   add_foreign_key "dymond_dash_app_configs", "dymond_theme_themes", column: "theme_id"
   add_foreign_key "dymond_dash_installed_gems", "dymond_dash_ecosystem_gems", column: "ecosystem_gem_id"
   add_foreign_key "dymond_dash_nav_items", "dymond_dash_nav_sections", column: "section_id"
@@ -1031,6 +1187,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_22_191817) do
   add_foreign_key "dymond_site_sections", "dymond_site_pages", column: "page_id"
   add_foreign_key "dymond_site_sections", "dymond_theme_themes", column: "theme_id"
   add_foreign_key "dymond_site_sites", "dymond_site_site_templates", column: "active_template_id"
+  add_foreign_key "dymond_studio_storyboard_panels", "dymond_studio_storyboards", column: "storyboard_id"
+  add_foreign_key "dymond_studio_text_overlays", "dymond_studio_timelines", column: "timeline_id"
+  add_foreign_key "dymond_studio_timeline_clips", "dymond_studio_timeline_tracks", column: "track_id"
+  add_foreign_key "dymond_studio_timeline_tracks", "dymond_studio_timelines", column: "timeline_id"
   add_foreign_key "marlon_blueprint_concerns", "marlon_features", column: "feature_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "capability_pack_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "dependency_id"

@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  get "/booking", to: "dymond_booking/booking#index"
+  mount DymondBooking::Engine => "/booking"
   get "/kb", to: "dymond_kb/kb#index"
   mount DymondKb::Engine => "/kb"
   get "/catalog", to: "dymond_catalog/catalog#index"

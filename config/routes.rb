@@ -61,6 +61,19 @@ namespace :employee do
   resources :timesheets, only: %i[index create]
 end
 
+# config/routes.rb
+
+# ── Video Networking System ──────────────────────────────────────────────
+get "kitchen_sink",
+    to: "kitchen_sink#index",
+    defaults: { format: :json },
+    as: :kitchen_sink
+
+get "kitchen_config",
+    to: "kitchen_sink#platform_config",
+    defaults: { format: :json },
+    as: :kitchen_config
+
 # ── Dymond CMS engine — main admin/ops dashboard ──────────────────────────────
 mount DymondDash::Engine => "/dashboard"
 

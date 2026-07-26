@@ -78,7 +78,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_studio.git
-  revision: 1e89902d7a0ef402c47b57520c6d509c95a122e3
+  revision: 605abb7f427971389146d2112bd249dd08582489
   specs:
     dymond_studio (0.1.0)
       lightek_kernel

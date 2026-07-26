@@ -133,7 +133,7 @@ class KitchenSinkController < ApplicationController
             label: "Watch Now",
             type: "play",
             content_id: "featured-stream",
-            playback_url: "https://media.example.com/streams/featured/master.m3u8",
+            playback_url: "https://hls-harbor-livepush.akamaized.net/live_cdn/nsqIStpj8PaG-Ev/emcQJ0pGpremocy/index.m3u8",
             stream_format: "hls"
           }
         ]
@@ -171,7 +171,7 @@ class KitchenSinkController < ApplicationController
               action: {
                 type: "play",
                 content_id: "featured-002",
-                playback_url: "https://media.example.com/live/master.m3u8",
+                playback_url: "https://stream-akamai.castr.com/5b9352dbda7b8c769937e459/live_2361c920455111ea85db6911fe397b9e/index.fmp4.m3u8",
                 stream_format: "hls"
               }
             }

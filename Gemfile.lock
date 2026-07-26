@@ -34,7 +34,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_compute.git
-  revision: 6db21208545a278564f0dbd93de39cfd196c07d3
+  revision: 4616a84a37f1a08b8e6a33b35bd7c8ed1c70229b
   specs:
     dymond_compute (0.1.0)
       aws-sdk-s3 (~> 1.0)
@@ -193,7 +193,7 @@ GEM
       fiddle
     ast (2.4.3)
     aws-eventstream (1.4.0)
-    aws-partitions (1.1272.0)
+    aws-partitions (1.1273.0)
     aws-sdk-core (3.254.0)
       aws-eventstream (~> 1, >= 1.3.0)
       aws-partitions (~> 1, >= 1.992.0)

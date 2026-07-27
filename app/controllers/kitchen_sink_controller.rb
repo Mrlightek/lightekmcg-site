@@ -320,6 +320,20 @@ class KitchenSinkController < ApplicationController
                 content_id: "documentary-001-episode-001",
                 playback_url: FEATURED_PLAYBACK_URL
               )
+            },
+            {
+              id: "documentary-001-episode-002",
+              content_type: "episode",
+              title: "Episode 2",
+              subtitle: "Building the Network",
+              description: "The work expands from individual builders into a connected community network.",
+              image_url: roku_image_url("lightek-live.jpg"),
+              action: play_action(
+                id: "episode-002-play",
+                label: "Play",
+                content_id: "documentary-001-episode-002",
+                playback_url: FEATURED_PLAYBACK_URL
+              )
             }
           ]
         }

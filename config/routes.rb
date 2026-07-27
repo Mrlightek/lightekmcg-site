@@ -79,6 +79,11 @@ get "roku/content/:id",
     defaults: { format: :json },
     as: :roku_content
 
+    get "roku/screens/live",
+    to: "kitchen_sink#live",
+    defaults: { format: :json },
+    as: :roku_live
+
 
 # ── Dymond CMS engine — main admin/ops dashboard ──────────────────────────────
 mount DymondDash::Engine => "/dashboard"

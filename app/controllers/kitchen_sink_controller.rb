@@ -91,7 +91,7 @@ class KitchenSinkController < ApplicationController
             label: "Live",
             action: {
               type: "open_screen",
-              target: "#{request.base_url}/roku/screens/live.json"
+              target: roku_live_url(format: :json)
             }
           },
           {
@@ -141,6 +141,100 @@ class KitchenSinkController < ApplicationController
       end
 
     render json: payload.merge(metadata: response_metadata)
+  end
+
+  def live
+    render json: {
+      schema_version: API_VERSION,
+      screen: {
+        id: "live",
+        type: "channel",
+        title: "Lightek Live",
+        background_color: "#080808",
+        refresh_after_seconds: 60
+      },
+      details: {
+        content_id: "featured-002",
+        content_type: "live channel",
+        is_live: true,
+        title: "Lightek Live",
+        subtitle: "Streaming now",
+        description: "The Lightek network live—original programming, culture, documentaries, and community stories in one continuous stream.",
+        background_image_url: roku_image_url("lightek-live.jpg"),
+        badge: "LIVE",
+        indicator: {
+          type: "status_dot",
+          color: "#FF3B30"
+        },
+        metadata: {
+          duration: "24/7",
+          genre: "Live Programming"
+        },
+        actions: [
+          play_action(
+            id: "live-watch",
+            label: "Watch Live",
+            content_id: "featured-002",
+            playback_url: LIVE_PLAYBACK_URL
+          )
+        ]
+      },
+      rows: [
+        {
+          component_type: "content_row",
+          id: "live-schedule",
+          title: "On Now & Up Next",
+          card_type: "landscape_card",
+          card_width: 300,
+          card_height: 169,
+          items: [
+            {
+              id: "live-now",
+              content_type: "live channel",
+              is_live: true,
+              title: "Lightek Live",
+              subtitle: "On Now",
+              description: "Watch the Lightek network live.",
+              image_url: roku_image_url("lightek-live.jpg"),
+              hero_image_url: roku_image_url("lightek-live.jpg"),
+              badge: "LIVE",
+              indicator: {
+                type: "status_dot",
+                color: "#FF3B30"
+              },
+              action: play_action(
+                id: "live-now-watch",
+                label: "Watch Live",
+                content_id: "featured-002",
+                playback_url: LIVE_PLAYBACK_URL
+              )
+            },
+            {
+              id: "featured-001",
+              content_type: "documentary",
+              title: "Featured Documentary",
+              subtitle: "Up Next",
+              description: "Meet the builders creating durable institutions and community-owned futures.",
+              image_url: roku_image_url("featured-documentary.jpg"),
+              hero_image_url: roku_image_url("featured-documentary.jpg"),
+              badge: "NEXT",
+              action: details_action("featured-001")
+            },
+            {
+              id: "documentary-001",
+              content_type: "documentary series",
+              title: "The Resistance Economy",
+              subtitle: "Later Today",
+              description: "A documentary series about ownership, labor, and community power.",
+              image_url: roku_image_url("resistance-economy-poster.jpg"),
+              hero_image_url: roku_image_url("hero-background.jpg"),
+              action: details_action("documentary-001")
+            }
+          ]
+        }
+      ],
+      metadata: response_metadata
+    }
   end
 
   private

@@ -257,7 +257,9 @@ class KitchenSinkController < ApplicationController
               content_type: "show",
               title: "The Resistance Economy",
               subtitle: "Season 1",
+              description: "A documentary series about ownership, labor, and community power.",
               image_url: roku_image_url("resistance-economy-poster.jpg"),
+              hero_image_url: roku_image_url("hero-background.jpg"),
               action: details_action("documentary-001")
             }
           ]
@@ -291,7 +293,7 @@ class KitchenSinkController < ApplicationController
         actions: [
           play_action(
             id: "documentary-001-watch",
-            label: "Watch Episode 1",
+            label: "Watch Episode",
             content_id: "documentary-001-episode-001",
             playback_url: FEATURED_PLAYBACK_URL
           )
@@ -313,6 +315,7 @@ class KitchenSinkController < ApplicationController
               subtitle: "The Work Begins",
               description: "The builders define what ownership means and begin laying the foundation.",
               image_url: roku_image_url("featured-documentary.jpg"),
+              hero_image_url: roku_image_url("featured-documentary.jpg"),
               badge: "NEW",
               action: play_action(
                 id: "episode-001-play",
@@ -328,6 +331,7 @@ class KitchenSinkController < ApplicationController
               subtitle: "Building the Network",
               description: "The work expands from individual builders into a connected community network.",
               image_url: roku_image_url("lightek-live.jpg"),
+              hero_image_url: roku_image_url("lightek-live.jpg"),
               action: play_action(
                 id: "episode-002-play",
                 label: "Play",

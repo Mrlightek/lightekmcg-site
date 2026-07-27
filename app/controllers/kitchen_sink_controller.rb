@@ -97,7 +97,10 @@ class KitchenSinkController < ApplicationController
           {
             id: "nav-search",
             label: "Search",
-            action: { type: "search" }
+            action: {
+              type: "search",
+              target: roku_search_url(format: :json)
+            }
           }
         ]
       },
@@ -237,7 +240,118 @@ class KitchenSinkController < ApplicationController
     }
   end
 
+  def search
+    query = params[:q].to_s.strip
+    normalized_query = query.downcase
+    results =
+      if normalized_query.blank?
+        search_catalog
+      else
+        search_catalog.select do |item|
+          [
+            item[:title],
+            item[:subtitle],
+            item[:description],
+            item[:content_type]
+          ].compact.any? { |value| value.downcase.include?(normalized_query) }
+        end
+      end
+
+    title = query.blank? ? "Discover Lightek" : "Results for “#{query}”"
+    description =
+      if results.any?
+        "#{results.length} #{results.length == 1 ? 'result' : 'results'} from across the Lightek network."
+      else
+        "No matches yet. Press Back and search for another title, genre, or channel."
+      end
+
+    render json: {
+      schema_version: API_VERSION,
+      screen: {
+        id: "search",
+        type: "search",
+        title: title,
+        background_color: "#080808"
+      },
+      details: {
+        content_id: "search",
+        content_type: "search",
+        title: title,
+        subtitle: query.blank? ? "Explore the network" : "Search",
+        description: description,
+        background_image_url: roku_image_url("hero-background.jpg"),
+        metadata: {
+          genre: "Lightek FAST"
+        },
+        actions: []
+      },
+      rows: results.any? ? [
+        {
+          component_type: "content_row",
+          id: "search-results",
+          title: query.blank? ? "Explore" : "Search Results",
+          card_type: "landscape_card",
+          card_width: 300,
+          card_height: 169,
+          items: results
+        }
+      ] : [],
+      search: {
+        query: query,
+        endpoint: roku_search_url(format: :json)
+      },
+      metadata: response_metadata
+    }
+  end
+
   private
+
+  def search_catalog
+    [
+      {
+        id: "featured-001",
+        content_type: "documentary",
+        title: "Featured Documentary",
+        subtitle: "Lightek Originals",
+        description: "Meet the builders creating durable institutions and community-owned futures.",
+        image_url: roku_image_url("featured-documentary.jpg"),
+        hero_image_url: roku_image_url("featured-documentary.jpg"),
+        badge: "NEW",
+        action: details_action("featured-001")
+      },
+      {
+        id: "featured-002",
+        content_type: "live channel",
+        is_live: true,
+        title: "Lightek Live",
+        subtitle: "Streaming now",
+        description: "Watch the Lightek network live.",
+        image_url: roku_image_url("lightek-live.jpg"),
+        hero_image_url: roku_image_url("lightek-live.jpg"),
+        badge: "LIVE",
+        indicator: {
+          type: "status_dot",
+          color: "#FF3B30"
+        },
+        action: play_action(
+          id: "search-live-watch",
+          label: "Watch Live",
+          content_id: "featured-002",
+          playback_url: LIVE_PLAYBACK_URL
+        )
+      },
+      {
+        id: "documentary-001",
+        content_type: "documentary series",
+        title: "The Resistance Economy",
+        subtitle: "Season 1",
+        description: "A documentary series about ownership, labor, and community power.",
+        image_url: roku_image_url("resistance-economy-poster.jpg"),
+        hero_image_url: roku_image_url("hero-background.jpg"),
+        action: details_action("documentary-001")
+      }
+    ]
+  end
 
   def home_rows
     [

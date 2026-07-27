@@ -61,28 +61,35 @@ namespace :employee do
   resources :timesheets, only: %i[index create]
 end
 
-# config/routes.rb
-
 # ── Video Networking System ──────────────────────────────────────────────
 get "kitchen_sink",
     to: "kitchen_sink#index",
     defaults: { format: :json },
     as: :kitchen_sink
 
+# ── Video Networking System config feed ──────────────────────────────────────────────
 get "kitchen_config",
     to: "kitchen_sink#platform_config",
     defaults: { format: :json },
     as: :kitchen_config
 
+# ── Video Networking System content feed ──────────────────────────────────────────────
 get "roku/content/:id",
     to: "kitchen_sink#content",
     defaults: { format: :json },
     as: :roku_content
 
+    # ── Video Networking System Live feed ──────────────────────────────────────────────
     get "roku/screens/live",
     to: "kitchen_sink#live",
     defaults: { format: :json },
     as: :roku_live
+
+    # ── Video Networking System search feed ──────────────────────────────────────────────
+    get "roku/search",
+    to: "kitchen_sink#search",
+    defaults: { format: :json },
+    as: :roku_search
 
 
 # ── Dymond CMS engine — main admin/ops dashboard ──────────────────────────────

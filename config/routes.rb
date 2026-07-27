@@ -74,6 +74,12 @@ get "kitchen_config",
     defaults: { format: :json },
     as: :kitchen_config
 
+get "roku/content/:id",
+    to: "kitchen_sink#content",
+    defaults: { format: :json },
+    as: :roku_content
+
+
 # ── Dymond CMS engine — main admin/ops dashboard ──────────────────────────────
 mount DymondDash::Engine => "/dashboard"
 

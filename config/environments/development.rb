@@ -17,6 +17,8 @@ Rails.application.configure do
   # config/environments/development.rb
   config.active_job.queue_adapter = :async
 
+  config.hosts << "community.lightekmcg.com"
+
   # Enable/disable Action Controller caching. By default Action Controller caching is disabled.
   # Run rails dev:cache to toggle Action Controller caching.
   if Rails.root.join("tmp/caching-dev.txt").exist?

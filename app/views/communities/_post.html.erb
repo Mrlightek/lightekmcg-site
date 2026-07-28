@@ -1,0 +1,51 @@
+<section class="community-post">
+
+
+<div class="post-header">
+
+
+<div class="post-author">
+
+<%= author %>
+
+</div>
+
+
+
+<div class="post-role">
+
+<%= role %>
+
+</div>
+
+
+</div>
+
+
+
+
+
+<% if local_assigns[:status] %>
+
+<div class="community-status <%= status_class %>">
+
+<%= status %>
+
+</div>
+
+<% end %>
+
+
+
+
+
+
+<div class="art-content">
+
+<%= content %>
+
+</div>
+
+
+
+</section>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_23_171105) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_28_112132) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -53,6 +53,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_23_171105) do
   end
 
   create_table "catalogs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "communities", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -1096,6 +1101,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_23_171105) do
     t.index ["worked_on"], name: "index_marlon_timesheets_on_worked_on"
   end
 
+  create_table "posts", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.text "content"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_posts_on_user_id"
+  end
+
   create_table "resellers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -1201,5 +1214,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_23_171105) do
   add_foreign_key "marlon_project_type_capability_packs", "marlon_project_types", column: "project_type_id"
   add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
+  add_foreign_key "posts", "users"
   add_foreign_key "sessions", "users"
 end

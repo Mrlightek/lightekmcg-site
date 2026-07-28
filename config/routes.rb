@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  resources :posts
+  resources :communities
   get "/booking", to: "dymond_booking/booking#index"
   mount DymondBooking::Engine => "/booking"
   get "/kb", to: "dymond_kb/kb#index"
@@ -90,6 +92,26 @@ get "roku/content/:id",
     to: "kitchen_sink#search",
     defaults: { format: :json },
     as: :roku_search
+
+    # ── Community preview ──────────────────────────────────────────────
+    
+    get "preview/community", 
+        to: "community_preview#index"
+
+    get "preview/community/topic",
+        to: "community_preview#topic"
+
+    get "preview/community/discussion",
+        to: "community_preview#discussion"
+
+    get "preview/community/new",
+        to: "community_preview#new"
+
+    get "preview/community/profile",
+        to: "community_preview#profile"
+
+    get "preview/community/admin",
+        to: "community_preview#admin"
 
 
 # ── Dymond CMS engine — main admin/ops dashboard ──────────────────────────────

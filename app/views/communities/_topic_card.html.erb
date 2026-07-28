@@ -1,0 +1,27 @@
+<div class="topic-card">
+
+  <% if local_assigns[:icon] %>
+    <span class="tc-icon">
+      <%= icon %>
+    </span>
+  <% end %>
+
+
+  <div class="tc-name">
+    <%= title %>
+  </div>
+
+
+  <div class="tc-desc">
+    <%= description %>
+  </div>
+
+
+  <% if local_assigns[:count] %>
+    <div class="tc-count">
+      <%= count %>
+    </div>
+  <% end %>
+
+
+</div>

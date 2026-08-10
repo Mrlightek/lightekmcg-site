@@ -304,6 +304,188 @@ class KitchenSinkController < ApplicationController
     }
   end
 
+  #TV Guide / EPG Endpoint
+  #GET /kitchen_sink/guide.json
+  def guide
+    render json: {
+  "screen": {
+    "id": "guide",
+    "type": "tv_guide",
+    "title": "LBN Guide"
+  },
+  "channels": [
+    {
+      "id": "lbn-originals",
+      "number": "101",
+      "name": "LBN Originals",
+      "logo": "/images/channels/lbn-originals.png",
+      "schedule": [
+        {
+          "start_time": "2026-08-07T20:00:00Z",
+          "end_time": "2026-08-07T21:00:00Z",
+          "title": "The Resistance Economy",
+          "episode": "Episode 1",
+          "content_id": "documentary-001"
+        },
+        {
+          "start_time": "2026-08-07T21:00:00Z",
+          "end_time": "2026-08-07T22:00:00Z",
+          "title": "LBN Live",
+          "content_id": "live-001"
+        }
+      ]
+    }
+  ]
+}
+  end
+
+  #Channel Lineup
+  #GET /channels.json
+  def channels
+    render json: {
+  "channels": [
+    {
+      "number": 100,
+      "call_sign": "LBN",
+      "name": "Lightek Network",
+      "type": "fast",
+      "live": true
+    },
+    {
+      "number": 101,
+      "call_sign": "LBN-DOC",
+      "name": "LBN Documentaries",
+      "type": "fast",
+      "live": true
+    }
+  ]
+}
+  end
+
+  #Master Control State
+  #GET /master_control.json
+
+  def master_control
+    render json: {
+  "channels": [
+    {
+      "channel": "LBN Originals",
+      "status": "on_air",
+      "current_program": {
+        "title": "The Resistance Economy",
+        "remaining_seconds": 1432
+      },
+      "next_program": {
+        "title": "Community Builders"
+      }
+    }
+  ]
+}
+  end
+
+  #Content Submission Pipeline
+#This connects the creator side.
+#The flow: 
+#Creator>Submit Program>Review>Approved>Scheduled>Broadcast
+
+def creator_submission
+  render json: {
+ "submission": {
+   "id": "submission-001",
+   "status": "approved",
+   "eligible_channels": [
+     "LBN Originals",
+     "LBN Community"
+   ]
+ }
+}
+end
+
+#Scheduler
+#GET /scheduler.json
+
+def scheduler
+  render json: {
+ "schedule_date":"2026-08-07",
+ "slots":[
+   {
+     "channel":"LBN Comedy",
+     "time":"8:00 PM",
+     "program":"Creator Showcase",
+     "status":"scheduled"
+   }
+ ]
+}
+end
+
+#EPG schema
+
+def epg
+#LBN Guide Protocol
+
+#Channel
+#Program
+#Episode
+#Air Time
+#Duration
+#Genre
+#Rating
+#Description
+#Artwork
+#Playback Source
+#Availability Window
+end
+
+#Stations
+#This is different from channels.
+#You mentioned public access.
+
+
+#Distribution
+
+def distribution
+  render json: {
+    "program":"Creator Showcase",
+
+    "destinations":[
+
+        {
+            "type":"roku"
+        },
+
+        {
+            "type":"apple_tv"
+        },
+
+        {
+            "type":"android_tv"
+        },
+
+        {
+            "type":"public_access"
+        },
+
+        {
+            "type":"web"
+        }
+
+    ]
+}
+end
+
+#Clock
+#Server time the external devices should all be checking versus internal device clocks
+
+def clock
+  render json: {
+    "utc":"2026-08-07T18:25:11Z",
+
+    "broadcast_day":"2026-08-07",
+
+    "frame":"running"
+}
+end
+
   private
 
   def search_catalog

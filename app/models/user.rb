@@ -4,7 +4,10 @@ class User < ApplicationRecord
   # ── Rails 8 native authentication ─────────────────────────────────────────────
   has_secure_password
 
-  # Normalise email_address before save
+  # ── Automatically handles generating and regenerating the 'api_token' ─────────────────────────────────────────────
+  has_secure_token :api_token
+
+  # ── Normalise email_address before save ─────────────────────────────────────────────
   normalizes :email_address, with: -> e { e.strip.downcase }
 
   # ── Validations ───────────────────────────────────────────────────────────────

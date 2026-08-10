@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_28_112132) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_10_111349) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1165,6 +1165,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_28_112132) do
     t.string "avatar_url"
     t.string "timezone", default: "Eastern Time (US & Canada)"
     t.string "locale", default: "en"
+    t.string "api_token"
+    t.index ["api_token"], name: "index_users_on_api_token", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
     t.index ["role"], name: "index_users_on_role"
   end

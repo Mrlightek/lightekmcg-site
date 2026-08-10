@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_10_111349) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_10_171653) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1109,6 +1109,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_111349) do
     t.index ["user_id"], name: "index_posts_on_user_id"
   end
 
+  create_table "profile_visits", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "profile_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["profile_id"], name: "index_profile_visits_on_profile_id"
+    t.index ["user_id"], name: "index_profile_visits_on_user_id"
+  end
+
+  create_table "profiles", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.text "bio"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_profiles_on_user_id"
+  end
+
   create_table "resellers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -1217,5 +1234,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_111349) do
   add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
   add_foreign_key "posts", "users"
+  add_foreign_key "profile_visits", "profiles"
+  add_foreign_key "profile_visits", "users"
+  add_foreign_key "profiles", "users"
   add_foreign_key "sessions", "users"
 end

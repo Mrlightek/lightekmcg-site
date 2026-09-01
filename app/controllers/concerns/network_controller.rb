@@ -3,6 +3,63 @@
 module NetworkController
   extend ActiveSupport::Concern
 
+  def web_hook(
+    port:,
+    protocol:,
+    payload: nil,
+    socket: nil,
+    source_ip: nil,
+    metadata: {}
+  )
+    case protocol.to_s.downcase
+    when "smtp"
+      handle_smtp(
+        port: port,
+        payload: payload,
+        socket: socket,
+        source_ip: source_ip
+      )
+
+    when "ssh"
+      handle_ssh(
+        port: port,
+        socket: socket,
+        source_ip: source_ip
+      )
+
+    when "tcp"
+      handle_tcp(
+        port: port,
+        payload: payload,
+        socket: socket,
+        source_ip: source_ip
+      )
+
+    when "udp"
+      handle_udp(
+        port: port,
+        payload: payload,
+        source_ip: source_ip
+      )
+
+    when "http", "https"
+      handle_http(
+        port: port,
+        payload: payload,
+        source_ip: source_ip,
+        metadata: metadata
+      )
+
+    else
+      {
+        routed: false,
+        error: "Unsupported protocol",
+        protocol: protocol,
+        port: port
+      }
+    end
+  end
+
   def outbound(
   host:,
   port:,
@@ -67,63 +124,6 @@ module NetworkController
     }
   end
 end
-
-def web_hook(
-    port:,
-    protocol:,
-    payload: nil,
-    socket: nil,
-    source_ip: nil,
-    metadata: {}
-  )
-    case protocol.to_s.downcase
-    when "smtp"
-      handle_smtp(
-        port: port,
-        payload: payload,
-        socket: socket,
-        source_ip: source_ip
-      )
-
-    when "ssh"
-      handle_ssh(
-        port: port,
-        socket: socket,
-        source_ip: source_ip
-      )
-
-    when "tcp"
-      handle_tcp(
-        port: port,
-        payload: payload,
-        socket: socket,
-        source_ip: source_ip
-      )
-
-    when "udp"
-      handle_udp(
-        port: port,
-        payload: payload,
-        source_ip: source_ip
-      )
-
-    when "http", "https"
-      handle_http(
-        port: port,
-        payload: payload,
-        source_ip: source_ip,
-        metadata: metadata
-      )
-
-    else
-      {
-        routed: false,
-        error: "Unsupported protocol",
-        protocol: protocol,
-        port: port
-      }
-    end
-  end
 
   private
 

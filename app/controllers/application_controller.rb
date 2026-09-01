@@ -8,6 +8,10 @@ class ApplicationController < ActionController::Base
   
   protect_from_forgery with: :null_session, if: -> { request.format.json? }
 
+  # ── Nevaeh ─────────────────────────────────────────────────────────────────
+  def start_awareness
+  end
+  
   # ── CanCanCan ─────────────────────────────────────────────────────────────────
   check_authorization unless: :skip_authorization?
 
@@ -29,10 +33,7 @@ class ApplicationController < ActionController::Base
 
   # Catch Rails strong parameter missing errors globally
   rescue_from ActionController::ParameterMissing, with: :handle_parameter_missing
-
-  # Listener
-   # config.x.network_listener = nil
-    
+  
     private
 
   def handle_parameter_missing(exception)

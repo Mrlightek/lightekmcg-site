@@ -1,0 +1,20 @@
+# frozen_string_literal: true
+
+module Nevaeh
+  module Macros
+    module <%= class_name %>
+      extend ActiveSupport::Concern
+
+      def <%= macro_method_name %>
+        # Define associations, callbacks, validations,
+        # scopes, or other model behavior here.
+<% helper_method_names.each do |helper| %>
+
+        define_method(:<%= helper %>) do |**attributes|
+          # Implement <%= helper %> here.
+        end
+<% end %>
+      end
+    end
+  end
+end

@@ -1,10 +1,13 @@
-# app/controllers/kitchen_sink_controller.rb
+class GatekeeperController < ApplicationController
+end
 
-class KitchenSinkController < ApplicationController
+# app/controllers/gatekeeper_controller.rb
+
+class GatekeeperController < ApplicationController
   allow_unauthenticated_access
 
    # The single entry point / router method
-  def set_up_the_kitchen_sink_req
+  def octavia
 
   API_VERSION = "1.0".freeze
   LIGHTEK_ENV = Rails.env
@@ -42,8 +45,8 @@ class KitchenSinkController < ApplicationController
   end
 
   private
-
-   def listener
+    
+    def listener
     listener = NetworkListener.new
     listener.start
     end
@@ -863,3 +866,4 @@ end
     }
   end
 end
+

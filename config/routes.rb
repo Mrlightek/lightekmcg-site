@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  resources :nevaehs
   resources :profiles
   resources :posts
   resources :communities

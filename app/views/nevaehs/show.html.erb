@@ -1,0 +1,10 @@
+<p style="color: green"><%= notice %></p>
+
+<%= render @nevaeh %>
+
+<div>
+  <%= link_to "Edit this nevaeh", edit_nevaeh_path(@nevaeh) %> |
+  <%= link_to "Back to nevaehs", nevaehs_path %>
+
+  <%= button_to "Destroy this nevaeh", @nevaeh, method: :delete %>
+</div>

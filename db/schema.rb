@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_10_171653) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1101,6 +1101,39 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_171653) do
     t.index ["worked_on"], name: "index_marlon_timesheets_on_worked_on"
   end
 
+  create_table "network_events", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "source"
+    t.string "destination"
+    t.string "transport"
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["enabled"], name: "index_network_events_on_enabled"
+    t.index ["name"], name: "index_network_events_on_name", unique: true
+  end
+
+  create_table "network_ports", force: :cascade do |t|
+    t.integer "port", null: false
+    t.string "protocol", null: false
+    t.string "service"
+    t.string "host"
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["enabled"], name: "index_network_ports_on_enabled"
+    t.index ["port", "protocol"], name: "index_network_ports_on_port_and_protocol", unique: true
+  end
+
+  create_table "nevaehs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id"], name: "index_nevaehs_on_user_id"
+  end
+
   create_table "posts", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.text "content"
@@ -1233,6 +1266,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_171653) do
   add_foreign_key "marlon_project_type_capability_packs", "marlon_project_types", column: "project_type_id"
   add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
+  add_foreign_key "nevaehs", "users"
   add_foreign_key "posts", "users"
   add_foreign_key "profile_visits", "profiles"
   add_foreign_key "profile_visits", "users"

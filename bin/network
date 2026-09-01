@@ -1,0 +1,11 @@
+# bin/network
+#!/usr/bin/env ruby
+
+require_relative "../config/environment"
+
+listener = NetworkListener.new
+
+Signal.trap("TERM") { listener.stop }
+Signal.trap("INT")  { listener.stop }
+
+listener.start

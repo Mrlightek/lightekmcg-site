@@ -1,0 +1,17 @@
+<%= form_with(model: nevaeh) do |form| %>
+  <% if nevaeh.errors.any? %>
+    <div style="color: red">
+      <h2><%= pluralize(nevaeh.errors.count, "error") %> prohibited this nevaeh from being saved:</h2>
+
+      <ul>
+        <% nevaeh.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.submit %>
+  </div>
+<% end %>

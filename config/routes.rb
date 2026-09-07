@@ -1,4 +1,10 @@
 Rails.application.routes.draw do
+  resources :departments
+  resources :system_jobs
+  resources :job_items
+  resources :channels
+  resources :shows
+  resources :episodes
   resources :nevaehs
   resources :profiles
   resources :posts

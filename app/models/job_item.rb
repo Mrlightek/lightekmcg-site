@@ -1,0 +1,2 @@
+class JobItem < ApplicationRecord
+end

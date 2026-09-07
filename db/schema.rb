@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_05_163611) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -57,6 +57,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "channels", force: :cascade do |t|
+    t.string "name"
+    t.string "logo"
+    t.bigint "show_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["show_id"], name: "index_channels_on_show_id"
+  end
+
   create_table "communities", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -65,6 +74,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
   create_table "dashboards", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "departments", force: :cascade do |t|
+    t.string "title"
+    t.bigint "system_job_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["system_job_id"], name: "index_departments_on_system_job_id"
   end
 
   create_table "dymond_bank_accounts", force: :cascade do |t|
@@ -930,7 +947,26 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
     t.index ["scope"], name: "index_dymond_theme_themes_on_scope"
   end
 
+  create_table "episodes", force: :cascade do |t|
+    t.string "title"
+    t.string "subtitle"
+    t.string "url"
+    t.text "description"
+    t.string "show_title"
+    t.text "show_description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "season"
+  end
+
   create_table "homes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "job_items", force: :cascade do |t|
+    t.string "title"
+    t.text "description"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -1173,6 +1209,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "shows", force: :cascade do |t|
+    t.string "title"
+    t.string "network"
+    t.bigint "episode_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["episode_id"], name: "index_shows_on_episode_id"
+  end
+
   create_table "stores", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -1203,6 +1248,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "system_jobs", force: :cascade do |t|
+    t.string "name"
+    t.integer "priority"
+    t.bigint "job_item_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["job_item_id"], name: "index_system_jobs_on_job_item_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email_address", null: false
     t.string "password_digest", null: false
@@ -1223,6 +1277,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "channels", "shows"
+  add_foreign_key "departments", "system_jobs"
   add_foreign_key "dymond_bank_invoice_line_items", "dymond_bank_invoices", column: "invoice_id"
   add_foreign_key "dymond_bank_invoices", "dymond_bank_linked_accounts", column: "linked_account_id"
   add_foreign_key "dymond_bank_ledger_entries", "dymond_bank_accounts", column: "account_id"
@@ -1272,4 +1328,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_28_201548) do
   add_foreign_key "profile_visits", "users"
   add_foreign_key "profiles", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "shows", "episodes"
+  add_foreign_key "system_jobs", "job_items"
 end

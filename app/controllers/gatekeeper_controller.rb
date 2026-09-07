@@ -1,6 +1,3 @@
-class GatekeeperController < ApplicationController
-end
-
 # app/controllers/gatekeeper_controller.rb
 
 class GatekeeperController < ApplicationController
@@ -21,6 +18,9 @@ class GatekeeperController < ApplicationController
   LIGHTEK_SCREEN_TTL_SECONDS = 300
   LIGHTEK_THEME_COLORS = :lightek_theme_colors
   LIGHTEK_SUPPORTED_SCREEN_TYPES = :supported_screen_types
+  LIGHTEK_SUPPORTED_COMPONENT_TYPES = :supported_component_types
+  LIGHTEK_SUPPORTED_ACTION_TYPES = :supported_action_types
+  LIGHTEK_SUPPORTED_STREAM_FORMATS = :supported_stream_formats
   LIGHTEK_THEME_TYPOGRAPHY =  :theme_typography
   LIGHTEK_THEME_DIMENSIONS = :theme_dimensions
   LIGHTEK_ALLOWED_ACTIONS = :permitted_actions
@@ -44,6 +44,7 @@ class GatekeeperController < ApplicationController
     end
   end
 
+  
   private
     
     def listener
@@ -55,7 +56,7 @@ class GatekeeperController < ApplicationController
     #Assign all web hooks here.
     #Start with listeners on all incomming traffic ports
     #This is our ip router function.
-    #Example: mail comes in on port 22, we route that to our custom mail functions
+    #Example: mail comes in on port 25, we route that to our custom mail functions
     
     end
 
@@ -153,18 +154,28 @@ class GatekeeperController < ApplicationController
       },
       capabilities: {
         supported_screen_types: LIGHTEK_SUPPORTED_SCREEN_TYPES,
-        supported_component_types: %w[
-          hero navigation content_row poster_card landscape_card live_card text
-        ],
-        supported_action_types: %w[open_screen open_details play search exit],
-        supported_stream_formats: %w[hls mp4]
+        supported_component_types: LIGHTEK_SUPPORTED_COMPONENT_TYPES,
+        supported_action_types: LIGHTEK_SUPPORTED_ACTION_TYPES,
+        supported_stream_formats: LIGHTEK_SUPPORTED_STREAM_FORMATS
       }
     }
   end
 
    
-  def supported_screen_types 
+  def supported_stream_formats
+    %w[hls mp4]
+    end
+    
+    def supported_action_types
+    %w[open_screen open_details play search exit]
+    end
+    
+    def supported_screen_types 
     %w[home details search channel player]
+  end
+
+  def supported_component_types
+    %w[hero navigation content_row poster_card landscape_card live_card text]
   end
 
   def index

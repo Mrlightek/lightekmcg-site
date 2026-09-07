@@ -1,0 +1,12 @@
+<% content_for :title, "Editing system job" %>
+
+<h1>Editing system job</h1>
+
+<%= render "form", system_job: @system_job %>
+
+<br>
+
+<div>
+  <%= link_to "Show this system job", @system_job %> |
+  <%= link_to "Back to system jobs", system_jobs_path %>
+</div>

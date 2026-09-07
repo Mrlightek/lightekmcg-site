@@ -1,0 +1,32 @@
+<%= form_with(model: show) do |form| %>
+  <% if show.errors.any? %>
+    <div style="color: red">
+      <h2><%= pluralize(show.errors.count, "error") %> prohibited this show from being saved:</h2>
+
+      <ul>
+        <% show.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :title, style: "display: block" %>
+    <%= form.text_field :title %>
+  </div>
+
+  <div>
+    <%= form.label :network, style: "display: block" %>
+    <%= form.text_field :network %>
+  </div>
+
+  <div>
+    <%= form.label :episode_id, style: "display: block" %>
+    <%= form.text_field :episode_id %>
+  </div>
+
+  <div>
+    <%= form.submit %>
+  </div>
+<% end %>

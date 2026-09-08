@@ -1,9 +1,18 @@
 require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
+  # Prepare the ingress controller used to receive mail
+  # config.action_mailbox.ingress = :relay
+
   # Settings specified here will take precedence over those in config/application.rb.
 
-  # Code is not reloaded between requests.
+  # Postfix server for Action Mailbox
+config.action_mailbox.ingress = :postfix
+
+# Configure Action Mailbox to expect this password from Postfix
+  config.action_mailbox.postfix.ingress_password = ENV.fetch("INGRESS_PASSWORD")
+
+# Code is not reloaded between requests.
   config.enable_reloading = false
 
   # Eager load code on boot for better performance and memory savings (ignored by Rake tasks).

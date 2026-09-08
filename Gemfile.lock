@@ -42,7 +42,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 73ee397135d036ce45d32845c9ea6ca11f28a493
+  revision: 033f69297a83e38a83d962278070137655688ec6
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -70,7 +70,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_site.git
-  revision: 2e112281aa715fc22870be718c83f9cdf46fa3c2
+  revision: bb5af635ae96e7cdfb4b6557a6d0b1fbcdf86dff
   specs:
     dymond_site (0.1.0)
       dymond_theme
@@ -303,7 +303,7 @@ GEM
       actionview (>= 7.0.0)
       activesupport (>= 7.0.0)
     jmespath (1.6.2)
-    json (2.21.1)
+    json (2.21.2)
     jwt (2.10.3)
       base64
     kamal (2.12.0)
@@ -551,7 +551,7 @@ GEM
       websocket (~> 1.0)
     shoulda-matchers (8.0.1)
       activesupport (>= 7.2)
-    sidekiq (8.1.6)
+    sidekiq (8.1.7)
       connection_pool (>= 3.0.0)
       json (>= 2.16.0)
       logger (>= 1.7.0)

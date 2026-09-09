@@ -85,7 +85,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`yourdomain.com`) || HostRegexp(`{subdomain:[a-z0-9-]+}.yourdomain.com`)"
+      - "traefik.http.routers.web.rule=Host(`lightekmcg.com`) || HostRegexp(`{subdomain:[a-z0-9-]+}.octavia.lightekmcg.com`)"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=myresolver"
       - "traefik.http.services.web.loadbalancer.server.port=3000"
@@ -116,7 +116,7 @@ services:
       - "--entrypoints.websecure.address=:443"
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=your-email@yourdomain.com"
+      - "--certificatesresolvers.myresolver.acme.email=your-mrlightek@lightekmcg.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"

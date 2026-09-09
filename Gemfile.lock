@@ -568,10 +568,6 @@ GEM
       activejob (>= 7.2)
       activerecord (>= 7.2)
       railties (>= 7.2)
-    solid_cache (1.0.10)
-      activejob (>= 7.2)
-      activerecord (>= 7.2)
-      railties (>= 7.2)
     sshkit (1.25.0)
       base64
       logger
@@ -674,7 +670,6 @@ DEPENDENCIES
   sidekiq (>= 7.0)
   sidekiq-cron (~> 1.12)
   solid_cable
-  solid_cache
   stimulus-rails
   thruster
   turbo-rails

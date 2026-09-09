@@ -28,7 +28,7 @@ gem "sidekiq-cron", "~> 1.12"    # scheduled jobs (revenue engine, usage aggrega
 gem "redis",        "~> 5.0"     # Sidekiq + ActionCable backend
 
 # ── Caching ────────────────────────────────────────────────────────────────────
-gem "solid_cache"                # keep for Rails.cache (DB-backed)
+#gem "solid_cache"                # keep for Rails.cache (DB-backed)
 
 # ── ActionCable ────────────────────────────────────────────────────────────────
 gem "solid_cable"                # keep for ActionCable (or swap to Redis adapter)

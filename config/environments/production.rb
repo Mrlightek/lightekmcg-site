@@ -10,7 +10,7 @@ Rails.application.configure do
 config.action_mailbox.ingress = :postfix
 
 # Configure Action Mailbox to expect this password from Postfix
-  config.action_mailbox.postfix.ingress_password = ENV.fetch("INGRESS_PASSWORD")
+  config.action_mailbox.ingress = :relay
 
 # Code is not reloaded between requests.
   config.enable_reloading = false

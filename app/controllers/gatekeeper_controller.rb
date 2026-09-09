@@ -3,9 +3,6 @@
 class GatekeeperController < ApplicationController
   allow_unauthenticated_access
 
-   # The single entry point / router method
-  def octavia
-
   API_VERSION = "1.0".freeze
   LIGHTEK_ENV = Rails.env
   LIGHTEK_NETWORK_LISTENER = :listener
@@ -29,6 +26,9 @@ class GatekeeperController < ApplicationController
     "https://hls-harbor-livepush.akamaized.net/live_cdn/nsqIStpj8PaG-Ev/emcQJ0pGpremocy/index.m3u8".freeze
   LIVE_PLAYBACK_URL =
     "https://stream-akamai.castr.com/5b9352dbda7b8c769937e459/live_2361c920455111ea85db6911fe397b9e/index.fmp4.m3u8".freeze
+
+   # The single entry point / router method
+  def octavia
 
     # 1. Grab the target method name from parameters
     target_action = params[:method_type] 

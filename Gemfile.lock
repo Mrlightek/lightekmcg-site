@@ -1,6 +1,6 @@
 GIT
   remote: git@github.com:lightekmcg/dymond_bank.git
-  revision: d9f08b5abb6cfd55ad17d1f5e7f08da5df7d759e
+  revision: f39cbcbf50fda500428db6c7f0dac3f5231656d3
   specs:
     dymond_bank (0.1.0)
       activerecord (>= 7.2)
@@ -262,6 +262,8 @@ GEM
     factory_bot_rails (6.5.1)
       factory_bot (~> 6.5)
       railties (>= 6.1.0)
+    faker (3.8.0)
+      i18n (>= 1.8.11, < 2)
     faraday (2.14.3)
       faraday-net_http (>= 2.0, < 3.5)
       json
@@ -645,6 +647,7 @@ DEPENDENCIES
   dymond_studio!
   dymond_theme!
   factory_bot_rails (~> 6.0)
+  faker (~> 3.8)
   faraday (~> 2.0)
   image_processing (~> 1.2)
   importmap-rails

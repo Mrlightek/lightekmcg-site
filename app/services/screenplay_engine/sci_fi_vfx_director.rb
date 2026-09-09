@@ -1,5 +1,5 @@
 module ScreenplayEngine
-  class SciFiVFXDirector
+  class SciFiVfxDirector
     # Sci-Fi environmental and visual effects presets
     EFFECTS_PRESETS = {
       subterranean_ashgray: {

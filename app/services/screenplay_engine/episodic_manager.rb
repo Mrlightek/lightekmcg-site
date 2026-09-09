@@ -95,7 +95,7 @@ module ScreenplayEngine
         metadata: { episode: ep_number, title: ep_data[:title] },
         scene_info: { name: ep_data[:scene_name], environment: ep_data[:environment].to_sym },
         social_media: SocialMediaExporter.configure_target(:tiktok_reels),
-        sci_fi_vfx: SciFiVFXDirector.select_effects(:frantic),
+        sci_fi_vfx: SciFiVfxDirector.select_effects(:frantic),
         script_data: script_lines
       }
     end

@@ -3,7 +3,7 @@
 module NevaehConcern
   extend ActiveSupport::Concern
 
-  class_methods
+  class_methods do
     def tracks_unique_visits
       has_many :profile_visits, dependent: :destroy
 

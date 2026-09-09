@@ -1,5 +1,6 @@
 # app/controllers/api_controller.rb
-class ApiController < ActionController::API
+module Api
+  class ApiController < ApplicationController
   include ActionController::HttpAuthentication::Token::ControllerMethods
 
   # Require API authentication for every action inheriting from this class
@@ -18,4 +19,5 @@ class ApiController < ActionController::API
   def current_user
     @current_user
   end
+end
 end

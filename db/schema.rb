@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_08_141336) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_22_121636) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -403,9 +403,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_08_141336) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "payout_id"
+    t.bigint "principal_cents", default: 0, null: false
+    t.bigint "processor_recovery_cents", default: 0, null: false
+    t.bigint "network_fee_cents", default: 0, null: false
+    t.string "payable_type"
+    t.bigint "payable_id"
+    t.string "payment_context"
     t.index ["account_id"], name: "index_dymond_bank_transactions_on_account_id"
     t.index ["idempotency_key"], name: "index_dymond_bank_transactions_on_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["invoice_id"], name: "index_dymond_bank_transactions_on_invoice_id"
+    t.index ["payable_type", "payable_id"], name: "index_dymond_bank_transactions_on_payable"
     t.index ["payout_id"], name: "index_dymond_bank_transactions_on_payout_id"
     t.index ["processor_ref"], name: "index_dymond_bank_transactions_on_processor_ref"
     t.index ["status"], name: "index_dymond_bank_transactions_on_status"
@@ -1267,6 +1274,47 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_08_141336) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "susu_contributions", force: :cascade do |t|
+    t.bigint "susu_group_id", null: false
+    t.bigint "user_id", null: false
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.integer "cycle_number", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "paid_at"
+    t.text "failure_message"
+    t.index ["status"], name: "index_susu_contributions_on_status"
+    t.index ["susu_group_id", "user_id", "cycle_number"], name: "idx_susu_contributions_unique_per_cycle", unique: true
+    t.index ["susu_group_id"], name: "index_susu_contributions_on_susu_group_id"
+    t.index ["user_id"], name: "index_susu_contributions_on_user_id"
+  end
+
+  create_table "susu_groups", force: :cascade do |t|
+    t.string "name", null: false
+    t.decimal "contribution_amount", precision: 10, scale: 2, null: false
+    t.string "cycle_frequency", default: "monthly", null: false
+    t.integer "current_cycle", default: 1, null: false
+    t.integer "status", default: 0, null: false
+    t.bigint "organizer_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organizer_id"], name: "index_susu_groups_on_organizer_id"
+  end
+
+  create_table "susu_memberships", force: :cascade do |t|
+    t.bigint "susu_group_id", null: false
+    t.bigint "user_id", null: false
+    t.integer "payout_position", null: false
+    t.boolean "payout_received", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["susu_group_id", "payout_position"], name: "index_susu_memberships_on_susu_group_id_and_payout_position", unique: true
+    t.index ["susu_group_id", "user_id"], name: "index_susu_memberships_on_susu_group_id_and_user_id", unique: true
+    t.index ["susu_group_id"], name: "index_susu_memberships_on_susu_group_id"
+    t.index ["user_id"], name: "index_susu_memberships_on_user_id"
+  end
+
   create_table "system_jobs", force: :cascade do |t|
     t.string "name"
     t.integer "priority"
@@ -1348,5 +1396,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_08_141336) do
   add_foreign_key "profiles", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "shows", "episodes"
+  add_foreign_key "susu_contributions", "susu_groups"
+  add_foreign_key "susu_contributions", "users"
+  add_foreign_key "susu_groups", "users", column: "organizer_id"
+  add_foreign_key "susu_memberships", "susu_groups"
+  add_foreign_key "susu_memberships", "users"
   add_foreign_key "system_jobs", "job_items"
 end

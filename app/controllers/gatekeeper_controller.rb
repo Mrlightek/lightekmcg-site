@@ -2,6 +2,7 @@
 
 class GatekeeperController < ApplicationController
   allow_unauthenticated_access
+  skip_forgery_protection only: :stripe_webhook
 
   API_VERSION = "1.0".freeze
   LIGHTEK_ENV = Rails.env
@@ -45,7 +46,61 @@ class GatekeeperController < ApplicationController
   end
 
   
-  private
+  def stripe_webhook
+  payload = request.raw_post
+  signature = request.headers["Stripe-Signature"]
+
+  webhook_secret = ENV["STRIPE_WEBHOOK_SECRET"]
+
+  if webhook_secret.blank?
+    Rails.logger.error "[Gatekeeper] STRIPE_WEBHOOK_SECRET is missing"
+
+    render json: {
+      error: "Stripe webhook is not configured"
+    }, status: :service_unavailable
+
+    return
+  end
+
+  event = Stripe::Webhook.construct_event(
+    payload,
+    signature,
+    webhook_secret
+  )
+
+  DymondBank::StripeWebhookService.process!(event)
+
+  render json: {
+    received: true,
+    event_id: event.id,
+    event_type: event.type
+  }, status: :ok
+
+rescue JSON::ParserError => e
+  Rails.logger.warn "[Gatekeeper] Invalid Stripe JSON: #{e.message}"
+
+  render json: {
+    error: "Invalid JSON"
+  }, status: :bad_request
+
+rescue Stripe::SignatureVerificationError => e
+  Rails.logger.warn "[Gatekeeper] Invalid Stripe signature: #{e.message}"
+
+  render json: {
+    error: "Invalid Stripe signature"
+  }, status: :unauthorized
+
+rescue StandardError => e
+  Rails.logger.error(
+    "[Gatekeeper] Stripe webhook failure: #{e.class}: #{e.message}"
+  )
+
+  render json: {
+    error: "Webhook processing failed"
+  }, status: :unprocessable_entity
+end
+
+private
     
     def listener
     listener = NetworkListener.new

@@ -34,5 +34,19 @@ class Ability
       can :manage, DymondBank::LinkedAccount, linkable: user
       can :read,   :portal
     end
+
+    # Any authenticated user can create or view active Susus
+    can :read, SusuGroup, status: "active"
+    can :create, SusuGroup
+
+    # Members can record their contribution for the active cycle
+    can :contribute, SusuGroup do |susu|
+      susu.active? && 
+        susu.members.include?(user) && 
+        !susu.contributed_for_current_cycle?(user)
+    end
+
+    # Group creator/organizer permissions
+    can [:update, :destroy, :start], SusuGroup, organizer_id: user.id, status: "draft"
   end
 end

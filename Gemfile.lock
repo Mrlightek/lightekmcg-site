@@ -1,10 +1,11 @@
 GIT
   remote: git@github.com:lightekmcg/dymond_bank.git
-  revision: f39cbcbf50fda500428db6c7f0dac3f5231656d3
+  revision: 2a1aa523121ff1d1df8589b3351055f540e619d0
   specs:
     dymond_bank (0.1.0)
       activerecord (>= 7.2)
       activesupport (>= 7.2)
+      dwolla_v2 (~> 4.0)
       faraday (~> 2.0)
       jwt (~> 2.7)
       money-rails (~> 1.15)
@@ -13,6 +14,7 @@ GIT
       prawn-table (~> 0.2)
       railties (>= 7.2)
       sidekiq (>= 7.0)
+      stripe (>= 19.0, < 20)
 
 GIT
   remote: git@github.com:lightekmcg/dymond_booking.git
@@ -252,6 +254,10 @@ GEM
       dotenv (= 3.2.0)
       railties (>= 6.1)
     drb (2.2.3)
+    dwolla_v2 (4.0.0)
+      faraday (~> 2.0)
+      faraday-multipart
+      hashie (>= 3.6)
     ed25519 (1.4.0)
     erb (6.0.7)
     erubi (1.13.1)
@@ -264,7 +270,7 @@ GEM
       railties (>= 6.1.0)
     faker (3.8.0)
       i18n (>= 1.8.11, < 2)
-    faraday (2.14.3)
+    faraday (2.14.4)
       faraday-net_http (>= 2.0, < 3.5)
       json
       logger
@@ -286,6 +292,8 @@ GEM
       raabro (~> 1.4)
     globalid (1.4.0)
       activesupport (>= 6.1)
+    hashie (5.1.0)
+      logger
     i18n (1.15.2)
       concurrent-ruby (~> 1.0)
     image_processing (1.14.0)
@@ -295,7 +303,7 @@ GEM
       actionpack (>= 6.0.0)
       activesupport (>= 6.0.0)
       railties (>= 6.0.0)
-    io-console (0.9.2)
+    io-console (0.9.4)
     irb (1.18.0)
       pp (>= 0.6.0)
       prism (>= 1.3.0)
@@ -577,6 +585,9 @@ GEM
       ostruct
     stimulus-rails (1.3.4)
       railties (>= 6.0.0)
+    stripe (19.6.2)
+      bigdecimal
+      logger
     thor (1.5.0)
     thruster (0.1.22)
     thruster (0.1.22-aarch64-linux)
@@ -632,6 +643,7 @@ DEPENDENCIES
   capybara
   debug
   dotenv-rails (~> 3.2)
+  dwolla_v2 (~> 4.0)
   dymond_bank!
   dymond_booking!
   dymond_catalog!

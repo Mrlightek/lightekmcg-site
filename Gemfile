@@ -114,3 +114,5 @@ gem "dymond_kb", git: "git@github.com:lightekmcg/dymond_kb.git"   # domain: kb
 gem "dymond_booking", git: "git@github.com:lightekmcg/dymond_booking.git"   # domain: booking
 
 gem "faker", "~> 3.8"
+
+gem "dwolla_v2", "~> 4.0"

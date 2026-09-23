@@ -1,0 +1,66 @@
+<% content_for :title, "Susu Contribution" %>
+
+<section class="susu-payment-shell">
+  <header class="susu-payment-hero">
+    <p class="susu-eyebrow">SUSU • CYCLE <%= @susu_group.current_cycle %></p>
+    <h1><%= @susu_group.name %></h1>
+    <p>Make your contribution for this cycle. Your payout amount is not reduced by Dymond network fees.</p>
+  </header>
+
+  <% if params[:payment] == "processing" %>
+    <div class="susu-payment-notice susu-payment-notice--processing">
+      Your bank payment was authorized. We’ll mark this cycle paid when the ACH settlement is confirmed.
+    </div>
+  <% elsif params[:payment] == "cancelled" %>
+    <div class="susu-payment-notice">
+      Payment was cancelled. No contribution was recorded as paid.
+    </div>
+  <% end %>
+
+  <% if @existing_contribution&.succeeded? %>
+    <div class="susu-payment-card susu-payment-card--success">
+      <h2>Cycle paid</h2>
+      <p>Your <%= number_to_currency(@existing_contribution.amount) %> contribution for cycle <%= @existing_contribution.cycle_number %> is complete.</p>
+    </div>
+  <% else %>
+    <div class="susu-payment-card">
+      <div class="susu-payment-row">
+        <span>Your contribution</span>
+        <strong><%= number_to_currency(@payment_quote.principal_cents / 100.0) %></strong>
+      </div>
+
+      <div class="susu-payment-row">
+        <span>Dymond Network Fee</span>
+        <strong><%= number_to_currency(@payment_quote.display_network_fee_cents / 100.0) %></strong>
+      </div>
+
+      <p class="susu-payment-note">
+        The network fee covers payment-network costs and Dymond’s service fee. It does not reduce your Susu contribution or future payout.
+      </p>
+
+      <div class="susu-payment-total">
+        <span>Total today</span>
+        <strong><%= number_to_currency(@payment_quote.total_cents / 100.0) %></strong>
+      </div>
+
+      <%= button_to "Pay from Bank",
+      contribute_susu_group_path(@susu_group),
+      method: :post,
+      form: { data: { turbo: false } },
+      class: "susu-pay-button" %>
+    </div>
+  <% end %>
+
+  <aside class="susu-cycle-card">
+    <span>Current cycle</span>
+    <strong><%= @susu_group.current_cycle %> of <%= @susu_group.members.count %></strong>
+    <% if (recipient = @susu_group.current_payout_recipient) %>
+      <span>Current recipient</span>
+      <strong><%= recipient.respond_to?(:full_name) ? recipient.full_name : recipient.to_s %></strong>
+    <% end %>
+  </aside>
+</section>
+
+<style>
+  .susu-payment-shell{max-width:760px;margin:0 auto;padding:32px 20px 64px}.susu-payment-hero{margin-bottom:24px}.susu-eyebrow{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;opacity:.65}.susu-payment-card,.susu-cycle-card{border:1px solid rgba(127,127,127,.25);border-radius:18px;padding:22px;margin-top:16px}.susu-payment-row,.susu-payment-total{display:flex;justify-content:space-between;gap:24px;padding:12px 0}.susu-payment-total{margin-top:12px;border-top:1px solid rgba(127,127,127,.25);font-size:1.2rem}.susu-payment-note{font-size:.9rem;opacity:.7}.susu-pay-button{width:100%;margin-top:18px;padding:14px 18px;border:0;border-radius:12px;font-weight:700;cursor:pointer}.susu-payment-notice{padding:14px 16px;border-radius:12px;border:1px solid rgba(127,127,127,.25);margin-bottom:16px}.susu-payment-card--success{border-width:2px}.susu-cycle-card{display:grid;grid-template-columns:1fr auto;gap:10px 20px}
+</style>

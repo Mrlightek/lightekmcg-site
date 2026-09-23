@@ -1,0 +1,10 @@
+# config/schedule.yml
+susu_cycle_reminders:
+  cron: "0 9 * * *" # Daily at 9:00 AM
+  class: "SusuCycleReminderJob"
+  queue: default
+
+susu_cycle_advance:
+  cron: "0 0 * * 0" # Every Sunday at midnight
+  class: "SusuCycleAdvanceJob"
+  queue: default

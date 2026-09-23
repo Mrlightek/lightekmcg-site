@@ -12,7 +12,7 @@ class User < ApplicationRecord
 
   # ── Validations ───────────────────────────────────────────────────────────────
   validates :email_address,      presence: true, uniqueness: true,
-                         format: { with: URI::MailTo::EMAIL_REGEXP }
+  format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :first_name, presence: true
   validates :last_name,  presence: true
 
@@ -22,33 +22,38 @@ class User < ApplicationRecord
   # ── Associations — DymondBank ─────────────────────────────────────────────────
   # A user's internal DymondBank ledger accounts
   has_many :bank_accounts,    class_name: "DymondBank::Account",
-                              as: :accountable,
-                              dependent: :restrict_with_error
+  as: :accountable,
+  dependent: :restrict_with_error
 
   # Linked external bank accounts (Plaid)
   has_many :linked_accounts,  class_name: "DymondBank::LinkedAccount",
-                              as: :linkable,
-                              dependent: :destroy
+  as: :linkable,
+  dependent: :destroy
 
   # Subscription plan
   has_one  :subscription,     class_name: "DymondBank::Subscription",
-                              as: :subscriber
+  as: :subscriber
 
   # Invoices billed to this user
   has_many :invoices,         class_name: "DymondBank::Invoice",
-                              as: :billable
+  as: :billable
 
   # Payouts received by this user
   has_many :payouts,          class_name: "DymondBank::Payout",
-                              as: :recipient
+  as: :recipient
 
   # Royalty splits this user is entitled to
   has_many :royalty_splits,   class_name: "DymondBank::RoyaltySplit",
-                              as: :recipient
+  as: :recipient
 
   # Account plan for DymondDash feature gating
   has_one  :account_plan,     class_name: "DymondDash::AccountPlan",
-                              as: :account
+  as: :account
+
+  has_many :organized_susu_groups, class_name: "SusuGroup", foreign_key: :organizer_id, dependent: :destroy
+  has_many :susu_memberships, dependent: :destroy
+  has_many :susu_groups, through: :susu_memberships
+  has_many :susu_contributions, dependent: :destroy
 
   # ── Helpers ────────────────────────────────────────────────────────────────────
   def full_name
@@ -86,7 +91,7 @@ class User < ApplicationRecord
   # ── DymondBank — default linked bank account ───────────────────────────────────
   def default_linked_account
     linked_accounts.active.find_by(is_default: true) ||
-      linked_accounts.active.first
+    linked_accounts.active.first
   end
 
   # ── DymondDash — current plan slug for nav gating ─────────────────────────────

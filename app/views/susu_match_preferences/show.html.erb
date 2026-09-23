@@ -1,0 +1,53 @@
+<% content_for :title, "Suggested Participants" %>
+<section class="susu-shell">
+<div class="susu-actions" style="margin-bottom: 20px;">
+  <%= link_to "All Susus", susu_groups_path, class: "susu-secondary-button" %>
+</div>
+
+  <div class="susu-heading">
+    <p class="susu-eyebrow">MATCHING POOL</p>
+    <h1>Suggested participants</h1>
+    <p>
+      <%= number_to_currency(@preference.contribution_amount) %> /
+      <%= @preference.cycle_frequency.humanize.downcase %> •
+      <%= @preference.desired_member_count %>-member circle •
+      <%= number_to_currency(@preference.desired_payout) %> payout
+    </p>
+  </div>
+
+  <div class="susu-stat-grid">
+    <div class="susu-stat"><span>Matches found</span><strong><%= @suggestions.count %></strong></div>
+    <div class="susu-stat"><span>Needed besides you</span><strong><%= @preference.desired_member_count - 1 %></strong></div>
+    <div class="susu-stat"><span>Ready to propose circle?</span><strong><%= @enough_for_circle ? "Yes" : "Not yet" %></strong></div>
+    <div class="susu-stat"><span>Mode</span><strong><%= @preference.matching_mode.humanize %></strong></div>
+  </div>
+
+  <div class="susu-section">
+    <div class="susu-section-head">
+      <div><p class="susu-eyebrow">COMPATIBLE MEMBERS</p><h2>Suggestions</h2></div>
+    </div>
+
+    <% if @suggestions.any? %>
+      <div class="susu-list">
+        <% @suggestions.each do |match| %>
+          <div class="susu-member">
+            <div class="susu-position">•</div>
+            <div>
+              <strong><%= match.user.respond_to?(:full_name) && match.user.full_name.present? ? match.user.full_name : match.user.email_address %></strong>
+              <small><%= match.contribution_amount.to_f %> • <%= match.cycle_frequency %> • wants <%= number_to_currency(match.desired_payout) %></small>
+            </div>
+            <span class="susu-badge">suggested</span>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="susu-empty">No compatible participants yet. Your request remains open in the pool.</div>
+    <% end %>
+  </div>
+
+  <div class="susu-actions susu-section">
+    <%= link_to "Back to Matching", susu_match_preferences_path, class: "susu-secondary-button" %>
+    <%= button_to "Close Matching Request", @preference, method: :delete, class: "susu-danger-button" %>
+  </div>
+</section>
+<%= render "shared/susu_styles" %>

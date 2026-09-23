@@ -1,13 +1,15 @@
 class SusuContribution < ApplicationRecord
   belongs_to :susu_group
   belongs_to :user
+  belongs_to :susu_round, optional: true
+  belongs_to :susu_membership, optional: true
 
   has_one :payment_transaction,
           as: :payable,
           class_name: "DymondBank::Transaction",
           dependent: :nullify
 
-  STATUSES = %w[pending succeeded failed].freeze
+  STATUSES = %w[pending processing succeeded failed grace_period retrying delinquent defaulted].freeze
 
   validates :amount, numericality: { greater_than: 0 }
   validates :cycle_number, presence: true, numericality: { greater_than: 0 }

@@ -1,66 +1,121 @@
 <% content_for :title, "Susu Contribution" %>
-
-<section class="susu-payment-shell">
-  <header class="susu-payment-hero">
-    <p class="susu-eyebrow">SUSU • CYCLE <%= @susu_group.current_cycle %></p>
+<section class="susu-shell susu-narrow">
+  <header class="susu-heading">
+    <p class="susu-eyebrow">SUSU • ROUND <%= @susu_group.current_round_number %></p>
     <h1><%= @susu_group.name %></h1>
-    <p>Make your contribution for this cycle. Your payout amount is not reduced by Dymond network fees.</p>
+    <p>
+      Make your contribution for this round.
+      Your payout amount is not reduced by Dymond network fees.
+    </p>
   </header>
 
-  <% if params[:payment] == "processing" %>
-    <div class="susu-payment-notice susu-payment-notice--processing">
-      Your bank payment was authorized. We’ll mark this cycle paid when the ACH settlement is confirmed.
+  <% if params[:payment] == "processing" || @existing_contribution&.pending? || @existing_contribution&.status == "processing" %>
+    <div class="susu-panel" style="margin-bottom:16px">
+      <strong>Payment processing</strong>
+      <p class="susu-note">
+        Your bank payment was authorized. We’ll mark this round paid when ACH settlement is confirmed.
+        No additional payment is needed.
+      </p>
     </div>
   <% elsif params[:payment] == "cancelled" %>
-    <div class="susu-payment-notice">
-      Payment was cancelled. No contribution was recorded as paid.
+    <div class="susu-panel" style="margin-bottom:16px">
+      <strong>Payment cancelled</strong>
+      <p class="susu-note">Nothing was recorded as paid.</p>
     </div>
   <% end %>
 
   <% if @existing_contribution&.succeeded? %>
-    <div class="susu-payment-card susu-payment-card--success">
-      <h2>Cycle paid</h2>
-      <p>Your <%= number_to_currency(@existing_contribution.amount) %> contribution for cycle <%= @existing_contribution.cycle_number %> is complete.</p>
+    <div class="susu-panel">
+      <p class="susu-eyebrow">ROUND PAID</p>
+      <h2><%= number_to_currency(@existing_contribution.amount) %> settled</h2>
+      <p>
+        Your contribution for Round <%= @existing_contribution.round_number %>
+        of Cycle <%= @existing_contribution.cycle_number %> is complete.
+      </p>
+      <%= link_to "Back to Susu", @susu_group, class: "susu-primary-button" %>
     </div>
   <% else %>
-    <div class="susu-payment-card">
-      <div class="susu-payment-row">
+    <div class="susu-panel">
+      <div class="susu-summary">
         <span>Your contribution</span>
         <strong><%= number_to_currency(@payment_quote.principal_cents / 100.0) %></strong>
       </div>
 
-      <div class="susu-payment-row">
+      <div class="susu-summary">
         <span>Dymond Network Fee</span>
         <strong><%= number_to_currency(@payment_quote.display_network_fee_cents / 100.0) %></strong>
       </div>
 
-      <p class="susu-payment-note">
-        The network fee covers payment-network costs and Dymond’s service fee. It does not reduce your Susu contribution or future payout.
+      <p class="susu-note">
+        The network fee covers payment-network costs and Dymond’s service fee.
+        It does not reduce your Susu contribution or future payout.
       </p>
 
-      <div class="susu-payment-total">
+      <div class="susu-summary">
         <span>Total today</span>
         <strong><%= number_to_currency(@payment_quote.total_cents / 100.0) %></strong>
       </div>
 
-      <%= button_to "Pay from Bank",
-      contribute_susu_group_path(@susu_group),
-      method: :post,
-      form: { data: { turbo: false } },
-      class: "susu-pay-button" %>
+      <% if @existing_contribution&.pending? || @existing_contribution&.status == "processing" %>
+        <div
+          class="susu-secondary-button"
+          style="width:100%;box-sizing:border-box;margin-top:18px;cursor:default"
+        >
+          ACH Processing
+        </div>
+      <% else %>
+        <!-- Deliberately use a plain HTML POST form here.
+             This removes Turbo/button_to from the submission path so the browser
+             must make a normal POST directly to SusuGroupsController#contribute. -->
+        <form
+          action="<%= contribute_susu_group_path(@susu_group) %>"
+          method="post"
+          data-turbo="false"
+          style="margin:0"
+        >
+          <input
+            type="hidden"
+            name="authenticity_token"
+            value="<%= form_authenticity_token %>"
+            autocomplete="off"
+          >
+
+          <button
+            type="submit"
+            class="susu-primary-button"
+            style="width:100%;margin-top:18px"
+          >
+            Pay from Bank
+          </button>
+        </form>
+      <% end %>
     </div>
   <% end %>
 
-  <aside class="susu-cycle-card">
-    <span>Current cycle</span>
-    <strong><%= @susu_group.current_cycle %> of <%= @susu_group.members.count %></strong>
+  <aside class="susu-panel" style="margin-top:16px">
+    <div class="susu-summary">
+      <span>Current round</span>
+      <strong><%= @susu_group.current_round_number %> of <%= @susu_group.members.count %></strong>
+    </div>
+
+    <div class="susu-summary">
+      <span>Cycle</span>
+      <strong><%= @susu_group.current_cycle %></strong>
+    </div>
+
     <% if (recipient = @susu_group.current_payout_recipient) %>
-      <span>Current recipient</span>
-      <strong><%= recipient.respond_to?(:full_name) ? recipient.full_name : recipient.to_s %></strong>
+      <div class="susu-summary">
+        <span>Current recipient</span>
+        <strong>
+          <%= recipient.respond_to?(:full_name) && recipient.full_name.present? ? recipient.full_name : recipient.email_address %>
+        </strong>
+      </div>
     <% end %>
   </aside>
-</section>
 
-<style>
-  .susu-payment-shell{max-width:760px;margin:0 auto;padding:32px 20px 64px}.susu-payment-hero{margin-bottom:24px}.susu-eyebrow{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;opacity:.65}.susu-payment-card,.susu-cycle-card{border:1px solid rgba(127,127,127,.25);border-radius:18px;padding:22px;margin-top:16px}.susu-payment-row,.susu-payment-total{display:flex;justify-content:space-between;gap:24px;padding:12px 0}.susu-payment-total{margin-top:12px;border-top:1px solid rgba(127,127,127,.25);font-size:1.2rem}.susu-payment-note{font-size:.9rem;opacity:.7}.susu-pay-button{width:100%;margin-top:18px;padding:14px 18px;border:0;border-radius:12px;font-weight:700;cursor:pointer}.susu-payment-notice{padding:14px 16px;border-radius:12px;border:1px solid rgba(127,127,127,.25);margin-bottom:16px}.susu-payment-card--success{border-width:2px}.susu-cycle-card{display:grid;grid-template-columns:1fr auto;gap:10px 20px}
-</style>
+  <div class="susu-actions" style="margin-top:16px">
+    <%= link_to "Back to Susu", @susu_group, class: "susu-secondary-button" %>
+    <%= link_to "All Susus", susu_groups_path, class: "susu-secondary-button" %>
+  </div>
+</section>
+<%= render "shared/susu_styles" %>

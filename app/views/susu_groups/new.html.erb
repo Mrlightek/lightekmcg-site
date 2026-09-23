@@ -1,0 +1,10 @@
+<% content_for :title, "Create a Susu" %>
+<section class="susu-shell susu-narrow">
+  <div class="susu-heading">
+    <p class="susu-eyebrow">START A CIRCLE</p>
+    <h1>Create a Susu</h1>
+    <p>Set the contribution, schedule, and group size. You’ll be added automatically as payout position #1.</p>
+  </div>
+  <div class="susu-panel"><%= render "form", susu_group: @susu_group %></div>
+</section>
+<%= render "shared/susu_styles" %>

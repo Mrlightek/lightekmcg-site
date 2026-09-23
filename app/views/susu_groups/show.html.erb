@@ -1,0 +1,189 @@
+<% content_for :title, @susu_group.name %>
+<section class="susu-shell">
+  <div class="susu-section-head">
+    <div class="susu-heading">
+      <p class="susu-eyebrow">SUSU • <%= @susu_group.status.upcase %></p>
+      <h1><%= @susu_group.name %></h1>
+      <p>
+        <%= number_to_currency(@susu_group.contribution_amount) %> /
+        <%= @susu_group.cycle_frequency.humanize.downcase %> round
+      </p>
+    </div>
+
+    <div class="susu-actions">
+      <%= link_to "All Susus", susu_groups_path, class: "susu-secondary-button" %>
+      <% if @susu_group.organizer?(current_user) && @susu_group.draft? %>
+        <%= link_to "Edit", edit_susu_group_path(@susu_group), class: "susu-secondary-button" %>
+      <% end %>
+    </div>
+  </div>
+
+  <% if @susu_group.draft? %>
+    <div class="susu-stat-grid">
+      <div class="susu-stat"><span>Contribution</span><strong><%= number_to_currency(@susu_group.contribution_amount) %> / round</strong></div>
+      <div class="susu-stat"><span>Projected payout</span><strong><%= number_to_currency(@susu_group.projected_payout_amount) %></strong></div>
+      <div class="susu-stat"><span>Rounds per cycle</span><strong><%= @susu_group.target_member_count %></strong></div>
+      <div class="susu-stat"><span>Rotation length</span><strong><%= @susu_group.duration_label %></strong></div>
+    </div>
+
+    <div class="susu-panel susu-section">
+      <strong>Commitment preview</strong>
+      <p class="susu-note">
+        At <%= @susu_group.target_member_count %> members, each person contributes
+        <%= number_to_currency(@susu_group.contribution_amount) %>
+        for <%= @susu_group.target_member_count %> rounds
+        (<%= number_to_currency(@susu_group.contribution_amount * @susu_group.target_member_count) %> total)
+        and receives one <%= number_to_currency(@susu_group.projected_payout_amount) %> payout.
+      </p>
+    </div>
+  <% else %>
+    <% recipient = @round&.recipient || @susu_group.current_payout_recipient %>
+
+    <div class="susu-stat-grid">
+      <div class="susu-stat"><span>Payout each round</span><strong><%= number_to_currency(@susu_group.payout_amount) %></strong></div>
+      <div class="susu-stat"><span>Round</span><strong><%= @susu_group.current_round_number %> of <%= @susu_group.members.count %></strong></div>
+      <div class="susu-stat"><span>Collected this round</span><strong><%= number_to_currency(@round&.collected_amount || 0) %> of <%= number_to_currency(@round&.expected_pot || @susu_group.payout_amount) %></strong></div>
+      <div class="susu-stat"><span>Current recipient</span><strong><%= recipient&.respond_to?(:full_name) && recipient.full_name.present? ? recipient.full_name : recipient&.email_address || "Not set" %></strong></div>
+    </div>
+  <% end %>
+
+  <% if @current_user_membership && @susu_group.active? %>
+    <div class="susu-grid susu-section">
+      <div class="susu-panel">
+        <p class="susu-eyebrow">MY POSITION</p>
+        <h2>Round <%= @current_user_membership.payout_position %></h2>
+        <p>Your payout is <strong><%= number_to_currency(@susu_group.payout_amount) %></strong>.</p>
+      </div>
+
+      <div class="susu-panel">
+        <p class="susu-eyebrow">MY COMMITMENT</p>
+        <% if @commitment %>
+          <h2><%= number_to_currency(@commitment.remaining_amount) %> remaining</h2>
+          <p>
+            <%= number_to_currency(@commitment.contribution_amount) %> ×
+            <%= @commitment.rounds_committed %> rounds =
+            <strong><%= number_to_currency(@commitment.contribution_amount * @commitment.rounds_committed) %></strong>
+            total commitment.
+          </p>
+        <% else %>
+          <p>Commitment data is unavailable for this legacy Susu.</p>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="susu-panel susu-section">
+      <div class="susu-section-head">
+        <div>
+          <p class="susu-eyebrow">MY CONTRIBUTION</p>
+          <h2>Round <%= @susu_group.current_round_number %></h2>
+        </div>
+        <span class="susu-badge susu-badge--<%= @susu_group.payment_state_for(current_user) %>"><%= @susu_group.payment_state_for(current_user) %></span>
+      </div>
+
+      <% if @current_contribution&.succeeded? %>
+        <p>Your contribution is settled for this round.</p>
+      <% elsif @current_contribution&.pending? || @current_contribution&.status == "processing" %>
+        <p>Your bank payment is processing. No additional payment is needed.</p>
+      <% elsif @current_contribution&.failed? %>
+        <p>The last payment attempt failed. You can try again.</p>
+        <%= link_to "Try contribution again", contribution_susu_group_path(@susu_group), class: "susu-primary-button" %>
+      <% else %>
+        <p>Your <%= number_to_currency(@susu_group.contribution_amount) %> contribution is due for this round.</p>
+        <%= link_to "Make Contribution", contribution_susu_group_path(@susu_group), class: "susu-primary-button" %>
+      <% end %>
+    </div>
+
+    <div class="susu-panel susu-section">
+      <p class="susu-eyebrow">LEAVING THE CIRCLE</p>
+      <% if @current_user_membership.exit_requested_at.present? %>
+        <h2>Exit requested</h2>
+        <p class="susu-note">
+          Your request does not cancel any remaining contribution obligation in the current cycle.
+        </p>
+      <% else %>
+        <h2>Need to leave?</h2>
+        <p class="susu-note">
+          You can request an exit. If you already received your payout or still owe future rounds,
+          the remaining commitment stays due.
+        </p>
+        <%= button_to "Request Exit", request_exit_susu_group_path(@susu_group), method: :post, class: "susu-secondary-button" %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="susu-section">
+    <div class="susu-section-head">
+      <div><p class="susu-eyebrow">PAYOUT ORDER</p><h2>Members</h2></div>
+      <span class="susu-note"><%= @susu_group.members.count %> of <%= @susu_group.target_member_count %> seats filled</span>
+    </div>
+
+    <div class="susu-list">
+      <% @memberships.each do |membership| %>
+        <% user = membership.user %>
+        <% contribution = @susu_group.contribution_for_current_cycle(user) if @susu_group.active? %>
+
+        <div class="susu-member">
+          <div class="susu-position"><%= membership.payout_position %></div>
+
+          <div>
+            <strong><%= user.respond_to?(:full_name) && user.full_name.present? ? user.full_name : user.email_address %></strong>
+            <small><%= user.lightek_email_address.presence || "Lightek email provisioning pending" %></small>
+            <small>Payout: Round <%= membership.payout_position %></small>
+            <% if @susu_group.active? %>
+              <small>Current round status: <%= contribution&.status || "due" %></small>
+            <% end %>
+          </div>
+
+          <% if @susu_group.organizer?(current_user) && @susu_group.draft? %>
+            <div class="susu-actions">
+              <%= form_with model: [@susu_group, membership], class: "susu-actions" do |form| %>
+                <%= form.number_field :payout_position, min: 1, max: @susu_group.target_member_count, style: "width:70px" %>
+                <%= form.submit "Move", class: "susu-secondary-button" %>
+              <% end %>
+
+              <% unless membership.user_id == @susu_group.organizer_id %>
+                <%= button_to "Remove", [@susu_group, membership], method: :delete, class: "susu-danger-button" %>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <% if @susu_group.organizer?(current_user) && @susu_group.draft? %>
+    <div class="susu-grid susu-section">
+      <div class="susu-panel">
+        <p class="susu-eyebrow">ADD MEMBER</p>
+        <h2>Add an existing Lightek member</h2>
+        <p class="susu-note">Add people you know, or use Dymond Matching to find suggested participants.</p>
+
+        <%= form_with url: susu_group_susu_memberships_path(@susu_group), scope: :susu_membership, class: "susu-inline-form" do |form| %>
+          <%= form.email_field :email_address, required: true, placeholder: "member@example.com" %>
+          <%= form.submit "Add Member", class: "susu-primary-button" %>
+        <% end %>
+
+        <div class="susu-actions" style="margin-top:12px">
+          <%= link_to "Find Suggested Participants", new_susu_match_preference_path, class: "susu-secondary-button" %>
+        </div>
+      </div>
+
+      <div class="susu-panel">
+        <p class="susu-eyebrow">ACTIVATION</p>
+        <h2><%= @susu_group.ready_to_activate? ? "Ready to start Cycle 1" : "Finish building the circle" %></h2>
+        <p><%= @susu_group.members.count %> / <%= @susu_group.target_member_count %> members added.</p>
+
+        <% if @susu_group.ready_to_activate? %>
+          <p class="susu-note">
+            Activation locks the roster for Cycle 1 and creates
+            <%= @susu_group.target_member_count %> payout rounds plus each member’s full-cycle commitment.
+          </p>
+          <%= button_to "Activate Cycle 1", activate_susu_group_path(@susu_group), method: :post, class: "susu-primary-button" %>
+        <% else %>
+          <p class="susu-note">Confirm every member and payout position before activation.</p>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</section>
+<%= render "shared/susu_styles" %>

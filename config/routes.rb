@@ -49,12 +49,18 @@ post "gatekeeper/webhooks/stripe",
      to: "gatekeeper#stripe_webhook",
      as: :gatekeeper_stripe_webhook
 
+resources :susu_match_preferences, only: %i[index new create show destroy]
+
 # ── Susu ───────────────────────────────────────────────────────
 resources :susu_groups do
   member do
+    post :activate
+    post :request_exit
     get  :contribution
     post :contribute
   end
+
+  resources :susu_memberships, only: %i[create update destroy]
 end
 
 # ── Rails 8 native auth ───────────────────────────────────────────────────────

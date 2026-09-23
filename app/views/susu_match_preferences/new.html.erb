@@ -1,0 +1,62 @@
+<% content_for :title, "Find Me a Susu" %>
+<section class="susu-shell susu-narrow">
+  <div class="susu-section-head">
+  <div class="susu-heading">
+    <p class="susu-eyebrow">DYMOND MATCHING</p>
+    <h1>Find me a circle</h1>
+    <p>Tell Dymond the Susu you want. We’ll suggest compatible Lightek members who are looking for the same structure.</p>
+  </div>
+  <%= link_to "All Susus", susu_groups_path, class: "susu-secondary-button" %>
+</div>
+
+  <div class="susu-panel">
+    <%= form_with model: @preference, class: "susu-form" do |form| %>
+      <% if @preference.errors.any? %>
+        <div class="susu-alert"><%= @preference.errors.full_messages.to_sentence %></div>
+      <% end %>
+
+      <div class="susu-form-grid">
+        <label>
+          <span>Contribution each round</span>
+          <%= form.number_field :contribution_amount, min: 1, step: "0.01", required: true %>
+        </label>
+
+        <label>
+          <span>Desired payout</span>
+          <%= form.number_field :desired_payout, min: 1, step: "0.01", required: true %>
+        </label>
+      </div>
+
+      <div class="susu-form-grid">
+        <label>
+          <span>Schedule</span>
+          <%= form.select :cycle_frequency,
+                [["Weekly", "weekly"], ["Every two weeks", "biweekly"], ["Monthly", "monthly"]],
+                {}, required: true %>
+        </label>
+
+        <label>
+          <span>Circle size</span>
+          <%= form.number_field :desired_member_count, min: 2, max: 100, required: true %>
+        </label>
+      </div>
+
+      <label>
+        <span>How should Dymond help?</span>
+        <%= form.select :matching_mode,
+              [["Suggest participants", "suggestions"],
+               ["Match me into a circle", "matched_circle"],
+               ["Hybrid — friends + matches", "hybrid"]],
+              {}, required: true %>
+      </label>
+
+      <div class="susu-panel" style="margin-top:6px">
+        <strong>Matching does not enroll anyone automatically.</strong>
+        <p class="susu-note">Dymond proposes compatible participants. Everyone still reviews the commitment and accepts before a financial circle activates.</p>
+      </div>
+
+      <%= form.submit "Join Matching Pool", class: "susu-primary-button" %>
+    <% end %>
+  </div>
+</section>
+<%= render "shared/susu_styles" %>

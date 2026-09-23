@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_22_121636) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_23_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1274,6 +1274,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_22_121636) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "susu_commitments", force: :cascade do |t|
+    t.bigint "susu_membership_id", null: false
+    t.bigint "susu_cycle_id"
+    t.decimal "contribution_amount", precision: 12, scale: 2, null: false
+    t.integer "rounds_committed", null: false
+    t.decimal "remaining_amount", precision: 12, scale: 2, null: false
+    t.datetime "accepted_at"
+    t.string "terms_version", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["susu_cycle_id"], name: "index_susu_commitments_on_susu_cycle_id"
+    t.index ["susu_membership_id"], name: "index_susu_commitments_on_susu_membership_id"
+  end
+
   create_table "susu_contributions", force: :cascade do |t|
     t.bigint "susu_group_id", null: false
     t.bigint "user_id", null: false
@@ -1284,10 +1299,29 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_22_121636) do
     t.string "status", default: "pending", null: false
     t.datetime "paid_at"
     t.text "failure_message"
+    t.integer "round_number", default: 1, null: false
+    t.bigint "susu_round_id"
+    t.bigint "susu_membership_id"
+    t.datetime "next_retry_at"
+    t.integer "attempt_count", default: 0, null: false
     t.index ["status"], name: "index_susu_contributions_on_status"
-    t.index ["susu_group_id", "user_id", "cycle_number"], name: "idx_susu_contributions_unique_per_cycle", unique: true
+    t.index ["susu_group_id", "user_id", "cycle_number", "round_number"], name: "idx_susu_contributions_unique_per_round", unique: true
     t.index ["susu_group_id"], name: "index_susu_contributions_on_susu_group_id"
+    t.index ["susu_membership_id"], name: "index_susu_contributions_on_susu_membership_id"
+    t.index ["susu_round_id"], name: "index_susu_contributions_on_susu_round_id"
     t.index ["user_id"], name: "index_susu_contributions_on_user_id"
+  end
+
+  create_table "susu_cycles", force: :cascade do |t|
+    t.bigint "susu_group_id", null: false
+    t.integer "number", null: false
+    t.string "status", default: "draft", null: false
+    t.datetime "starts_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["susu_group_id", "number"], name: "index_susu_cycles_on_susu_group_id_and_number", unique: true
+    t.index ["susu_group_id"], name: "index_susu_cycles_on_susu_group_id"
   end
 
   create_table "susu_groups", force: :cascade do |t|
@@ -1299,7 +1333,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_22_121636) do
     t.bigint "organizer_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "target_member_count", default: 2, null: false
+    t.integer "current_round_number", default: 1, null: false
     t.index ["organizer_id"], name: "index_susu_groups_on_organizer_id"
+  end
+
+  create_table "susu_match_preferences", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.decimal "contribution_amount", precision: 12, scale: 2, null: false
+    t.string "cycle_frequency", null: false
+    t.decimal "desired_payout", precision: 12, scale: 2, null: false
+    t.integer "desired_member_count", null: false
+    t.string "matching_mode", default: "suggestions", null: false
+    t.string "status", default: "open", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_susu_match_preferences_on_user_id"
   end
 
   create_table "susu_memberships", force: :cascade do |t|
@@ -1309,10 +1358,30 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_22_121636) do
     t.boolean "payout_received", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "commitment_status", default: "pending", null: false
+    t.boolean "autopay_enabled", default: false, null: false
+    t.datetime "joined_at"
+    t.datetime "exit_requested_at"
     t.index ["susu_group_id", "payout_position"], name: "index_susu_memberships_on_susu_group_id_and_payout_position", unique: true
     t.index ["susu_group_id", "user_id"], name: "index_susu_memberships_on_susu_group_id_and_user_id", unique: true
     t.index ["susu_group_id"], name: "index_susu_memberships_on_susu_group_id"
     t.index ["user_id"], name: "index_susu_memberships_on_user_id"
+  end
+
+  create_table "susu_rounds", force: :cascade do |t|
+    t.bigint "susu_cycle_id", null: false
+    t.integer "number", null: false
+    t.bigint "recipient_membership_id", null: false
+    t.datetime "due_at"
+    t.string "status", default: "scheduled", null: false
+    t.decimal "expected_pot", precision: 12, scale: 2, default: "0.0", null: false
+    t.decimal "collected_amount", precision: 12, scale: 2, default: "0.0", null: false
+    t.datetime "paid_out_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["recipient_membership_id"], name: "index_susu_rounds_on_recipient_membership_id"
+    t.index ["susu_cycle_id", "number"], name: "index_susu_rounds_on_susu_cycle_id_and_number", unique: true
+    t.index ["susu_cycle_id"], name: "index_susu_rounds_on_susu_cycle_id"
   end
 
   create_table "system_jobs", force: :cascade do |t|
@@ -1337,8 +1406,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_22_121636) do
     t.string "timezone", default: "Eastern Time (US & Canada)"
     t.string "locale", default: "en"
     t.string "api_token"
+    t.string "lightek_email_address"
     t.index ["api_token"], name: "index_users_on_api_token", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
+    t.index ["lightek_email_address"], name: "index_users_on_lightek_email_address", unique: true
     t.index ["role"], name: "index_users_on_role"
   end
 
@@ -1396,10 +1467,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_22_121636) do
   add_foreign_key "profiles", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "shows", "episodes"
+  add_foreign_key "susu_commitments", "susu_cycles"
+  add_foreign_key "susu_commitments", "susu_memberships"
   add_foreign_key "susu_contributions", "susu_groups"
+  add_foreign_key "susu_contributions", "susu_memberships"
+  add_foreign_key "susu_contributions", "susu_rounds"
   add_foreign_key "susu_contributions", "users"
+  add_foreign_key "susu_cycles", "susu_groups"
   add_foreign_key "susu_groups", "users", column: "organizer_id"
+  add_foreign_key "susu_match_preferences", "users"
   add_foreign_key "susu_memberships", "susu_groups"
   add_foreign_key "susu_memberships", "users"
+  add_foreign_key "susu_rounds", "susu_cycles"
+  add_foreign_key "susu_rounds", "susu_memberships", column: "recipient_membership_id"
   add_foreign_key "system_jobs", "job_items"
 end

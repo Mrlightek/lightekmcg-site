@@ -1,0 +1,40 @@
+<%= form_with model: susu_group, class: "susu-form" do |form| %>
+  <% if susu_group.errors.any? %>
+    <div class="susu-alert"><%= susu_group.errors.full_messages.to_sentence %></div>
+  <% end %>
+
+  <label>
+    <span>Circle name</span>
+    <%= form.text_field :name, required: true, placeholder: "Family Circle" %>
+  </label>
+
+  <div class="susu-form-grid">
+    <label>
+      <span>Contribution each round</span>
+      <%= form.number_field :contribution_amount, min: 1, step: "0.01", required: true %>
+    </label>
+
+    <label>
+      <span>Members</span>
+      <%= form.number_field :target_member_count, min: 2, max: 100, required: true %>
+    </label>
+  </div>
+
+  <label>
+    <span>Round schedule</span>
+    <%= form.select :cycle_frequency,
+          [["Weekly", "weekly"], ["Every two weeks", "biweekly"], ["Monthly", "monthly"]],
+          {}, required: true %>
+  </label>
+
+  <div class="susu-panel">
+    <strong>How this Susu works</strong>
+    <p class="susu-note">
+      Every member contributes the selected amount each round.
+      One member receives the full funded payout each round.
+      The payout position rotates until every member has received once; that completes one cycle.
+    </p>
+  </div>
+
+  <%= form.submit susu_group.persisted? ? "Save Susu" : "Create Private Susu", class: "susu-primary-button" %>
+<% end %>

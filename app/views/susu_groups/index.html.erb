@@ -1,0 +1,81 @@
+<% content_for :title, "Susu" %>
+<section class="susu-shell">
+  <div class="susu-section-head">
+    <div class="susu-heading">
+      <p class="susu-eyebrow">DYMOND SUSU</p>
+      <h1>My Susus</h1>
+      <p>Save together, rotate the payout, and keep every member’s obligation transparent.</p>
+    </div>
+
+    <div class="susu-actions">
+      <%= link_to "Find Me a Circle", new_susu_match_preference_path, class: "susu-secondary-button" %>
+      <%= link_to "Create Private Susu", new_susu_group_path, class: "susu-primary-button" %>
+    </div>
+  </div>
+
+  <div class="susu-section">
+    <div class="susu-section-head"><h2>Organized by me</h2></div>
+
+    <% if @organized_susus.any? %>
+      <div class="susu-grid">
+        <% @organized_susus.each do |group| %>
+          <article class="susu-card">
+            <div class="susu-status-line">
+              <span class="susu-badge susu-badge--<%= group.status %>"><%= group.status %></span>
+              <span class="susu-note"><%= group.cycle_frequency.humanize %></span>
+            </div>
+
+            <h2><%= group.name %></h2>
+
+            <div class="susu-card-meta">
+              <div class="susu-stat">
+                <span>Contribution</span>
+                <strong><%= number_to_currency(group.contribution_amount) %> / round</strong>
+              </div>
+
+              <div class="susu-stat">
+                <span>Members</span>
+                <strong><%= group.members.count %> / <%= group.target_member_count %></strong>
+              </div>
+
+              <div class="susu-stat">
+                <span><%= group.draft? ? "Projected payout" : "Payout" %></span>
+                <strong><%= number_to_currency(group.draft? ? group.projected_payout_amount : group.payout_amount) %></strong>
+              </div>
+
+              <div class="susu-stat">
+                <span><%= group.draft? ? "Rotation" : "Current round" %></span>
+                <strong><%= group.draft? ? group.duration_label : "#{group.current_round_number} of #{group.members.count}" %></strong>
+              </div>
+            </div>
+
+            <%= link_to "Open Susu", group, class: "susu-secondary-button" %>
+          </article>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="susu-empty">You haven’t created a private Susu yet.</div>
+    <% end %>
+  </div>
+
+  <div class="susu-section">
+    <div class="susu-section-head"><h2>Susus I joined</h2></div>
+
+    <% if @member_susus.any? %>
+      <div class="susu-grid">
+        <% @member_susus.each do |group| %>
+          <article class="susu-card">
+            <span class="susu-badge susu-badge--<%= group.status %>"><%= group.status %></span>
+            <h2><%= group.name %></h2>
+            <p><%= number_to_currency(group.contribution_amount) %> / round • <%= group.cycle_frequency.humanize %></p>
+            <p class="susu-note">Payout: <%= number_to_currency(group.payout_amount) %></p>
+            <%= link_to "Open Susu", group, class: "susu-secondary-button" %>
+          </article>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="susu-empty">You haven’t joined another Susu yet.</div>
+    <% end %>
+  </div>
+</section>
+<%= render "shared/susu_styles" %>

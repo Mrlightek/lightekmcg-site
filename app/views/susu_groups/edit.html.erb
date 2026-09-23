@@ -1,0 +1,6 @@
+<% content_for :title, "Edit Susu" %>
+<section class="susu-shell susu-narrow">
+  <div class="susu-heading"><p class="susu-eyebrow">ORGANIZER SETTINGS</p><h1>Edit <%= @susu_group.name %></h1></div>
+  <div class="susu-panel"><%= render "form", susu_group: @susu_group %></div>
+</section>
+<%= render "shared/susu_styles" %>

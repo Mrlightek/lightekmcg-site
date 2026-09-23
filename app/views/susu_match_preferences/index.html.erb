@@ -1,0 +1,33 @@
+<% content_for :title, "Susu Matching" %>
+<section class="susu-shell">
+  <div class="susu-section-head">
+    <div class="susu-heading">
+      <p class="susu-eyebrow">DYMOND MATCHING</p>
+      <h1>My matching requests</h1>
+      <p>Find people looking for the same contribution, schedule, payout, and circle size.</p>
+    </div>
+<div class="susu-actions">
+  <%= link_to "All Susus", susu_groups_path, class: "susu-secondary-button" %>
+  <%= link_to "Find Me a Circle", new_susu_match_preference_path, class: "susu-primary-button" %>
+</div>
+  </div>
+
+  <% if @preferences.any? %>
+    <div class="susu-grid">
+      <% @preferences.each do |preference| %>
+        <article class="susu-card">
+          <span class="susu-badge"><%= preference.status %></span>
+          <h2><%= number_to_currency(preference.contribution_amount) %> / <%= preference.cycle_frequency.humanize %></h2>
+          <div class="susu-card-meta">
+            <div class="susu-stat"><span>Desired payout</span><strong><%= number_to_currency(preference.desired_payout) %></strong></div>
+            <div class="susu-stat"><span>Members</span><strong><%= preference.desired_member_count %></strong></div>
+          </div>
+          <%= link_to "View Matches", preference, class: "susu-secondary-button" %>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="susu-empty">You don’t have an active matching request yet.</div>
+  <% end %>
+</section>
+<%= render "shared/susu_styles" %>

@@ -16,9 +16,11 @@ services:
       retries: 5
 
   redis:
-    image: redis:7
-    volumes:
-      - redis_data:/data
+  image: redis:7
+  ports:
+    - "127.0.0.1:6379:6379"
+  volumes:
+    - redis_data:/data
 
   minio:
     image: minio/minio

@@ -93,7 +93,12 @@ fi
 chown "${APP_USER}:${APP_USER}" "${PROFILE}"
 
 if [[ ! -x "${RBENV_ROOT}/versions/${RUBY_VERSION}/bin/ruby" ]]; then
-  sudo -u "${APP_USER}" -H env     RBENV_ROOT="${RBENV_ROOT}"     PATH="${RBENV_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"     "${RBENV_ROOT}/bin/rbenv" install "${RUBY_VERSION}"
+  sudo -u "${APP_USER}" -H bash -lc "
+    cd '${APP_HOME}'
+    export RBENV_ROOT='${RBENV_ROOT}'
+    export PATH='${RBENV_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+    '${RBENV_ROOT}/bin/rbenv' install '${RUBY_VERSION}'
+  "
 fi
 
 sudo -u "${APP_USER}" -H env   RBENV_ROOT="${RBENV_ROOT}"   PATH="${RBENV_ROOT}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"   "${RBENV_ROOT}/bin/rbenv" global "${RUBY_VERSION}"

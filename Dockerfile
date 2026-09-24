@@ -12,7 +12,7 @@ WORKDIR /app
 RUN mkdir -p -m 0700 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
 
 COPY Gemfile Gemfile.lock ./
-RUN --mount=type=ssh bundle install --jobs 4
+RUN --mount=type=ssh bundle install --jobs 1
 
 COPY . .
 

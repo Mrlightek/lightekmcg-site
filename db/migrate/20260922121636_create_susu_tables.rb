@@ -30,6 +30,9 @@ class CreateSusuTables < ActiveRecord::Migration[8.0]
       t.references :user, null: false, foreign_key: true
       t.decimal :amount, precision: 10, scale: 2, null: false
       t.integer :cycle_number, null: false
+      t.string :status, null: false, default: "pending"
+      t.datetime :paid_at
+      t.text :failure_message
 
       t.timestamps
     end
@@ -38,5 +41,6 @@ class CreateSusuTables < ActiveRecord::Migration[8.0]
     add_index :susu_contributions, [:susu_group_id, :user_id, :cycle_number], 
               unique: true, 
               name: "idx_susu_contributions_unique_per_cycle"
+    add_index :susu_contributions, :status
   end
 end

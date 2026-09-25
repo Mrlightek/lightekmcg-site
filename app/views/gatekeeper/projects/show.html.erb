@@ -2,7 +2,8 @@
 <p><%= @project.domain %> · <%= @project.status %></p>
 <p><%= link_to "Edit", edit_gatekeeper_project_path(@project) %></p>
 <p>
-  <%= button_to "Deploy", deploy_gatekeeper_project_path(@project), method: :post %>
+  <%= button_to "Deploy Direct", deploy_gatekeeper_project_path(@project), method: :post %>
+  <%= button_to "Deploy via GitHub Actions", deploy_github_gatekeeper_project_path(@project), method: :post %>
   <%= button_to "Healthcheck", healthcheck_gatekeeper_project_path(@project), method: :post %>
 </p>
 <h2>Recent Operations</h2>

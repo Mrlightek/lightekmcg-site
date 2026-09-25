@@ -1,6 +1,6 @@
 module Gatekeeper
   class ProjectsController < ApplicationController
-    before_action :set_project, only: %i[show edit update destroy deploy healthcheck]
+    before_action :set_project, only: %i[show edit update destroy deploy deploy_github healthcheck]
 
     def index = @projects = GatekeeperProject.includes(:gatekeeper_node).order(:name)
 
@@ -44,6 +44,13 @@ module Gatekeeper
         parameters: { "branch" => @project.branch }
       )
       redirect_to gatekeeper_project_path(@project), notice: "Deployment queued."
+    end
+
+    def deploy_github
+      operation = GitHubActionsService.dispatch_deploy!(project: @project, requested_by: requester_name, ref: @project.branch)
+      redirect_to gatekeeper_project_path(@project), notice: "GitHub Actions deployment queued as Gatekeeper operation ##{operation.id}."
+    rescue Gatekeeper::GitHubActionsService::ConfigurationError, Gatekeeper::GitHubActionsService::DispatchError => e
+      redirect_to gatekeeper_project_path(@project), alert: "GitHub deployment could not be queued: #{e.message}"
     end
 
     def healthcheck

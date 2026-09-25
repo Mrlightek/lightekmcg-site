@@ -3,7 +3,7 @@ require "json"
 require "uri"
 
 module Gatekeeper
-  class GitHubActionsService
+  class GithubActionsService
     class ConfigurationError < StandardError; end
     class DispatchError < StandardError; end
 

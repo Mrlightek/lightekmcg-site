@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-/var/www/lightekmcg-site}"
+APP_USER="${APP_USER:-lightek}"
+APP_NAME="${APP_NAME:-lightekmcg-site}"
+RUBY_VERSION="${RUBY_VERSION:-3.3.6}"
+ENV_FILE="${ENV_FILE:-/etc/lightek/${APP_NAME}.env}"
+RUBY_BIN="/home/${APP_USER}/.rbenv/versions/${RUBY_VERSION}/bin"
+
+sudo -u "${APP_USER}" -H env -u GEM_HOME -u GEM_PATH bash -lc "
+  set -a
+  source '${ENV_FILE}'
+  set +a
+  export RBENV_ROOT='/home/${APP_USER}/.rbenv'
+  export PATH='${RUBY_BIN}:/home/${APP_USER}/.rbenv/bin:/usr/local/bin:/usr/bin:/bin'
+  cd '${APP_ROOT}'
+
+  echo '=== ZEITWERK CHECK ==='
+  bundle exec rails zeitwerk:check
+
+  echo
+  echo '=== PRODUCTION BOOT CHECK ==='
+  bundle exec rails runner '
+    puts "Rails booted: #{Rails.version}"
+    puts "Environment: #{Rails.env}"
+    puts "DB: #{ActiveRecord::Base.connection.select_value(%q{SELECT 1})}"
+  '
+"

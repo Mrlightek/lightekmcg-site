@@ -47,9 +47,9 @@ module Gatekeeper
     end
 
     def deploy_github
-      operation = GitHubActionsService.dispatch_deploy!(project: @project, requested_by: requester_name, ref: @project.branch)
+      operation = GithubActionsService.dispatch_deploy!(project: @project, requested_by: requester_name, ref: @project.branch)
       redirect_to gatekeeper_project_path(@project), notice: "GitHub Actions deployment queued as Gatekeeper operation ##{operation.id}."
-    rescue Gatekeeper::GitHubActionsService::ConfigurationError, Gatekeeper::GitHubActionsService::DispatchError => e
+    rescue Gatekeeper::GithubActionsService::ConfigurationError, Gatekeeper::GithubActionsService::DispatchError => e
       redirect_to gatekeeper_project_path(@project), alert: "GitHub deployment could not be queued: #{e.message}"
     end
 

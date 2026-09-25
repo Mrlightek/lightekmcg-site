@@ -17,7 +17,7 @@ RUBY_BIN="/home/${APP_USER}/.rbenv/versions/${RUBY_VERSION}/bin"
 [[ -d "${APP_ROOT}/.git" ]] || { echo "ERROR: ${APP_ROOT} is not a git checkout"; exit 1; }
 [[ -f "${ENV_FILE}" ]] || { echo "ERROR: missing ${ENV_FILE}"; exit 1; }
 
-echo "[1/7] Pull"
+echo "[1/8] Pull"
 git config --global --add safe.directory "${APP_ROOT}" >/dev/null 2>&1 || true
 git -C "${APP_ROOT}" fetch origin "${APP_BRANCH}"
 git -C "${APP_ROOT}" checkout "${APP_BRANCH}"
@@ -35,25 +35,28 @@ run_rails() {
   "
 }
 
-echo "[2/7] Bundle"
+echo "[2/8] Bundle"
 run_rails "bundle install --jobs 1"
 
-echo "[3/7] Migrate"
+echo "[3/8] Migrate"
 run_rails "bundle exec rails db:migrate"
 
-echo "[4/7] Assets"
+echo "[4/8] Assets"
 run_rails "bundle exec rails assets:precompile"
 
-echo "[5/7] Sidekiq"
+echo "[5/8] Zeitwerk / boot validation"
+run_rails "bundle exec rails zeitwerk:check"
+
+echo "[6/8] Sidekiq"
 systemctl restart "${SIDEKIQ_SERVICE}"
 systemctl is-active --quiet "${SIDEKIQ_SERVICE}"
 
-echo "[6/7] Apache"
+echo "[7/8] Apache"
 apache2ctl configtest
 systemctl reload "${APACHE_SERVICE}"
 systemctl is-active --quiet "${APACHE_SERVICE}"
 
-echo "[7/7] Health"
+echo "[8/8] Health"
 HTTP_CODE="$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://${APP_DOMAIN}/up")"
 [[ "$HTTP_CODE" == "200" ]] || { echo "ERROR: healthcheck HTTP ${HTTP_CODE}"; exit 1; }
 

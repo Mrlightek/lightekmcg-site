@@ -26,7 +26,7 @@ require "json"
 require "uri"
 
 module Gatekeeper
-  class GitHubActionsService
+  class GithubActionsService
     class ConfigurationError < StandardError; end
     class DispatchError < StandardError; end
 
@@ -212,7 +212,7 @@ s=p.read_text()
 s=s.replace('before_action :set_project, only: %i[show edit update destroy deploy healthcheck]', 'before_action :set_project, only: %i[show edit update destroy deploy deploy_github healthcheck]')
 if 'def deploy_github' not in s:
     marker='    def healthcheck\n'
-    method='''    def deploy_github\n      operation = GitHubActionsService.dispatch_deploy!(project: @project, requested_by: requester_name, ref: @project.branch)\n      redirect_to gatekeeper_project_path(@project), notice: "GitHub Actions deployment queued as Gatekeeper operation ##{operation.id}."\n    rescue Gatekeeper::GitHubActionsService::ConfigurationError, Gatekeeper::GitHubActionsService::DispatchError => e\n      redirect_to gatekeeper_project_path(@project), alert: "GitHub deployment could not be queued: #{e.message}"\n    end\n\n'''
+    method='''    def deploy_github\n      operation = GithubActionsService.dispatch_deploy!(project: @project, requested_by: requester_name, ref: @project.branch)\n      redirect_to gatekeeper_project_path(@project), notice: "GitHub Actions deployment queued as Gatekeeper operation ##{operation.id}."\n    rescue Gatekeeper::GithubActionsService::ConfigurationError, Gatekeeper::GithubActionsService::DispatchError => e\n      redirect_to gatekeeper_project_path(@project), alert: "GitHub deployment could not be queued: #{e.message}"\n    end\n\n'''
     if marker not in s: raise SystemExit('ERROR: healthcheck action not found')
     s=s.replace(marker, method+marker, 1)
 p.write_text(s)

@@ -1,0 +1,124 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      project_id:
+        required: false
+        type: string
+      operation_id:
+        required: false
+        type: string
+      requested_by:
+        required: false
+        default: gatekeeper
+        type: string
+
+concurrency:
+  group: lightekmcg-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  APP_NAME: lightekmcg-site
+  APP_ROOT: /var/www/lightekmcg-site
+  APP_USER: lightek
+  APP_DOMAIN: lightekmcg.com
+  APP_BRANCH: main
+  RUBY_VERSION: 3.3.6
+  APACHE_SERVICE: apache2
+  SIDEKIQ_SERVICE: lightekmcg-site-sidekiq
+  ENV_FILE: /etc/lightek/lightekmcg-site.env
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_deploy
+          chmod 600 ~/.ssh/lightek_deploy
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Notify Gatekeeper started
+        id: start
+        continue-on-error: true
+        env:
+          CALLBACK_URL: ${{ vars.GATEKEEPER_CALLBACK_URL }}
+          CALLBACK_TOKEN: ${{ secrets.GATEKEEPER_DEPLOY_CALLBACK_TOKEN }}
+          INPUT_PROJECT_ID: ${{ inputs.project_id }}
+          INPUT_OPERATION_ID: ${{ inputs.operation_id }}
+          INPUT_REQUESTED_BY: ${{ inputs.requested_by }}
+        run: |
+          set -euo pipefail
+          [[ -n "${CALLBACK_URL:-}" && -n "${CALLBACK_TOKEN:-}" ]] || exit 0
+          REQUESTED_BY="${INPUT_REQUESTED_BY:-github_push:${GITHUB_ACTOR}}"
+          PAYLOAD=$(jq -n --arg state started --arg project_id "${INPUT_PROJECT_ID:-}" --arg operation_id "${INPUT_OPERATION_ID:-}" --arg requested_by "$REQUESTED_BY" --arg repository "$GITHUB_REPOSITORY" --arg ref "$GITHUB_REF_NAME" --arg run_id "$GITHUB_RUN_ID" --arg run_url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" '{state:$state,project_id:(if $project_id=="" then null else $project_id end),project_name:"lightekmcg-site",operation_id:(if $operation_id=="" then null else $operation_id end),requested_by:$requested_by,repository:$repository,ref:$ref,run_id:$run_id,run_url:$run_url}')
+          RESPONSE=$(curl --fail-with-body -sS -X POST "$CALLBACK_URL" -H "Authorization: Bearer $CALLBACK_TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD")
+          echo "$RESPONSE"
+          OP_ID=$(echo "$RESPONSE" | jq -r '.operation_id // empty')
+          [[ -z "$OP_ID" ]] || echo "GATEKEEPER_OPERATION_ID=$OP_ID" >> "$GITHUB_ENV"
+
+      - name: Deploy production
+        id: deploy
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "APP_ROOT='$APP_ROOT' APP_USER='$APP_USER' APP_NAME='$APP_NAME' APP_DOMAIN='$APP_DOMAIN' APP_BRANCH='$APP_BRANCH' RUBY_VERSION='$RUBY_VERSION' APACHE_SERVICE='$APACHE_SERVICE' SIDEKIQ_SERVICE='$SIDEKIQ_SERVICE' ENV_FILE='$ENV_FILE' bash '$APP_ROOT/lib/scripts/gatekeeper/deploy_project.sh'" | tee deploy-output.txt
+          echo "sha=$(grep '^GATEKEEPER_DEPLOYED_SHA=' deploy-output.txt | tail -1 | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          echo "http=$(grep '^GATEKEEPER_HTTP_STATUS=' deploy-output.txt | tail -1 | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Gatekeeper succeeded
+        if: success()
+        continue-on-error: true
+        env:
+          CALLBACK_URL: ${{ vars.GATEKEEPER_CALLBACK_URL }}
+          CALLBACK_TOKEN: ${{ secrets.GATEKEEPER_DEPLOY_CALLBACK_TOKEN }}
+          INPUT_PROJECT_ID: ${{ inputs.project_id }}
+          INPUT_OPERATION_ID: ${{ inputs.operation_id }}
+          INPUT_REQUESTED_BY: ${{ inputs.requested_by }}
+          DEPLOYED_SHA: ${{ steps.deploy.outputs.sha }}
+          HTTP_STATUS: ${{ steps.deploy.outputs.http }}
+        run: |
+          set -euo pipefail
+          [[ -n "${CALLBACK_URL:-}" && -n "${CALLBACK_TOKEN:-}" ]] || exit 0
+          OP_ID="${GATEKEEPER_OPERATION_ID:-${INPUT_OPERATION_ID:-}}"
+          REQUESTED_BY="${INPUT_REQUESTED_BY:-github_push:${GITHUB_ACTOR}}"
+          jq -n --arg state succeeded --arg project_id "${INPUT_PROJECT_ID:-}" --arg operation_id "$OP_ID" --arg requested_by "$REQUESTED_BY" --arg repository "$GITHUB_REPOSITORY" --arg ref "$GITHUB_REF_NAME" --arg run_id "$GITHUB_RUN_ID" --arg run_url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --arg sha "$DEPLOYED_SHA" --arg http_status "$HTTP_STATUS" '{state:$state,project_id:(if $project_id=="" then null else $project_id end),project_name:"lightekmcg-site",operation_id:(if $operation_id=="" then null else $operation_id end),requested_by:$requested_by,repository:$repository,ref:$ref,run_id:$run_id,run_url:$run_url,sha:$sha,http_status:$http_status}' > callback.json
+          curl --fail-with-body -sS -X POST "$CALLBACK_URL" -H "Authorization: Bearer $CALLBACK_TOKEN" -H "Content-Type: application/json" --data @callback.json
+
+      - name: Notify Gatekeeper failed
+        if: failure()
+        continue-on-error: true
+        env:
+          CALLBACK_URL: ${{ vars.GATEKEEPER_CALLBACK_URL }}
+          CALLBACK_TOKEN: ${{ secrets.GATEKEEPER_DEPLOY_CALLBACK_TOKEN }}
+          INPUT_PROJECT_ID: ${{ inputs.project_id }}
+          INPUT_OPERATION_ID: ${{ inputs.operation_id }}
+          INPUT_REQUESTED_BY: ${{ inputs.requested_by }}
+        run: |
+          set -euo pipefail
+          [[ -n "${CALLBACK_URL:-}" && -n "${CALLBACK_TOKEN:-}" ]] || exit 0
+          OP_ID="${GATEKEEPER_OPERATION_ID:-${INPUT_OPERATION_ID:-}}"
+          REQUESTED_BY="${INPUT_REQUESTED_BY:-github_push:${GITHUB_ACTOR}}"
+          OUTPUT=""; [[ ! -f deploy-output.txt ]] || OUTPUT=$(tail -c 12000 deploy-output.txt)
+          jq -n --arg state failed --arg project_id "${INPUT_PROJECT_ID:-}" --arg operation_id "$OP_ID" --arg requested_by "$REQUESTED_BY" --arg repository "$GITHUB_REPOSITORY" --arg ref "$GITHUB_REF_NAME" --arg run_id "$GITHUB_RUN_ID" --arg run_url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --arg output "$OUTPUT" --arg error "GitHub Actions production deployment failed" '{state:$state,project_id:(if $project_id=="" then null else $project_id end),project_name:"lightekmcg-site",operation_id:(if $operation_id=="" then null else $operation_id end),requested_by:$requested_by,repository:$repository,ref:$ref,run_id:$run_id,run_url:$run_url,output:$output,error:$error}' > callback.json
+          curl --fail-with-body -sS -X POST "$CALLBACK_URL" -H "Authorization: Bearer $CALLBACK_TOKEN" -H "Content-Type: application/json" --data @callback.json

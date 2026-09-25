@@ -75,16 +75,41 @@ jobs:
 
       - name: Deploy production
         id: deploy
+        shell: bash
         env:
           SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
           SSH_USER: ${{ secrets.PRODUCTION_USER }}
           SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
-            "APP_ROOT='$APP_ROOT' APP_USER='$APP_USER' APP_NAME='$APP_NAME' APP_DOMAIN='$APP_DOMAIN' APP_BRANCH='$APP_BRANCH' RUBY_VERSION='$RUBY_VERSION' APACHE_SERVICE='$APACHE_SERVICE' SIDEKIQ_SERVICE='$SIDEKIQ_SERVICE' ENV_FILE='$ENV_FILE' bash '$APP_ROOT/lib/scripts/gatekeeper/deploy_project.sh'" | tee deploy-output.txt
-          echo "sha=$(grep '^GATEKEEPER_DEPLOYED_SHA=' deploy-output.txt | tail -1 | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
-          echo "http=$(grep '^GATEKEEPER_HTTP_STATUS=' deploy-output.txt | tail -1 | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          PORT="${SSH_PORT:-22}"
+
+          ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" '
+            set -e
+
+            cd /var/www/lightekmcg-site
+
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+
+            APP_ROOT=/var/www/lightekmcg-site \
+            APP_USER=lightek \
+            APP_NAME=lightekmcg-site \
+            APP_DOMAIN=lightekmcg.com \
+            APP_BRANCH=main \
+            RUBY_VERSION=3.3.6 \
+            APACHE_SERVICE=apache2 \
+            SIDEKIQ_SERVICE=lightekmcg-site-sidekiq \
+            ENV_FILE=/etc/lightek/lightekmcg-site.env \
+            bash /var/www/lightekmcg-site/lib/scripts/gatekeeper/deploy_project.sh
+          ' | tee deploy-output.txt
+
+          DEPLOYED_SHA="$(grep '^GATEKEEPER_DEPLOYED_SHA=' deploy-output.txt | tail -1 | cut -d= -f2-)"
+          HTTP_STATUS="$(grep '^GATEKEEPER_HTTP_STATUS=' deploy-output.txt | tail -1 | cut -d= -f2-)"
+
+          echo "deployed_sha=$DEPLOYED_SHA" >> "$GITHUB_OUTPUT"
+          echo "http_status=$HTTP_STATUS" >> "$GITHUB_OUTPUT"
 
       - name: Notify Gatekeeper succeeded
         if: success()

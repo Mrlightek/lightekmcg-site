@@ -51,6 +51,19 @@ post "gatekeeper/webhooks/stripe",
 
 resources :susu_match_preferences, only: %i[index new create show destroy]
 
+
+# ── Gatekeeper Infrastructure Control ────────────────────────────────────────
+namespace :gatekeeper do
+  get "infrastructure", to: "infrastructure#index", as: :infrastructure
+  resources :nodes
+  resources :projects do
+    member do
+      post :deploy
+      post :healthcheck
+    end
+  end
+end
+
 # ── Susu ───────────────────────────────────────────────────────
 resources :susu_groups do
   member do

@@ -1,0 +1,13 @@
+<%= form_with model: [:gatekeeper, project] do |f| %>
+  <% project.errors.full_messages.each { |message| concat(content_tag(:p, message)) } %>
+  <p><%= f.label :gatekeeper_node_id, "Node" %><br><%= f.collection_select :gatekeeper_node_id, GatekeeperNode.order(:name), :id, :name %></p>
+  <p><%= f.label :name %><br><%= f.text_field :name, required: true %></p>
+  <p><%= f.label :repository %><br><%= f.text_field :repository, required: true %></p>
+  <p><%= f.label :branch %><br><%= f.text_field :branch %></p>
+  <p><%= f.label :domain %><br><%= f.text_field :domain, required: true %></p>
+  <p><%= f.label :app_root %><br><%= f.text_field :app_root, required: true %></p>
+  <p><%= f.label :app_user %><br><%= f.text_field :app_user %></p>
+  <p><%= f.label :ruby_version %><br><%= f.text_field :ruby_version %></p>
+  <p><%= f.label :sidekiq_service_name %><br><%= f.text_field :sidekiq_service_name %></p>
+  <%= f.submit %>
+<% end %>

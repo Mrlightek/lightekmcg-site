@@ -1,0 +1,5 @@
+<h1>Gatekeeper Projects</h1>
+<p><%= link_to "Infrastructure", gatekeeper_infrastructure_path %> · <%= link_to "New Project", new_gatekeeper_project_path %></p>
+<% @projects.each do |project| %>
+  <p><%= link_to project.name, gatekeeper_project_path(project) %> — <%= project.status %> — <%= project.domain %></p>
+<% end %>

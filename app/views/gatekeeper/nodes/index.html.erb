@@ -1,0 +1,5 @@
+<h1>Gatekeeper Nodes</h1>
+<p><%= link_to "Infrastructure", gatekeeper_infrastructure_path %> · <%= link_to "New Node", new_gatekeeper_node_path %></p>
+<% @nodes.each do |node| %>
+  <p><%= link_to node.name, gatekeeper_node_path(node) %> — <%= node.status %> — <%= node.display_host %></p>
+<% end %>

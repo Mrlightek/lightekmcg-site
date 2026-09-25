@@ -1,0 +1,12 @@
+<%= form_with model: [:gatekeeper, node] do |f| %>
+  <% node.errors.full_messages.each { |message| concat(content_tag(:p, message)) } %>
+  <p><%= f.label :name %><br><%= f.text_field :name, required: true %></p>
+  <p><%= f.label :hostname %><br><%= f.text_field :hostname %></p>
+  <p><%= f.label :ip_address %><br><%= f.text_field :ip_address, required: true %></p>
+  <p><%= f.label :ssh_user %><br><%= f.text_field :ssh_user %></p>
+  <p><%= f.label :ssh_port %><br><%= f.number_field :ssh_port %></p>
+  <p><%= f.label :ssh_key_path %><br><%= f.text_field :ssh_key_path %></p>
+  <p><%= f.label :provider %><br><%= f.text_field :provider %></p>
+  <p><%= f.label :region %><br><%= f.text_field :region %></p>
+  <%= f.submit %>
+<% end %>

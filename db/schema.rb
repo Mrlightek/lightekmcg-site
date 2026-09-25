@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_23_110000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_25_123259) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -740,8 +740,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_23_110000) do
     t.integer "sort_order", default: 0
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "metadata", default: {}, null: false
     t.index ["article_id"], name: "index_dymond_kb_articles_on_article_id", unique: true
     t.index ["featured"], name: "index_dymond_kb_articles_on_featured"
+    t.index ["metadata"], name: "index_dymond_kb_articles_on_metadata", using: :gin
     t.index ["topic_id"], name: "index_dymond_kb_articles_on_topic_id"
   end
 
@@ -983,6 +985,74 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_23_110000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "season"
+  end
+
+  create_table "gatekeeper_nodes", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "hostname"
+    t.string "ip_address", null: false
+    t.string "ssh_user", default: "root", null: false
+    t.integer "ssh_port", default: 22, null: false
+    t.string "ssh_key_path"
+    t.string "provider"
+    t.string "provider_id"
+    t.string "region"
+    t.string "status", default: "unknown", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "last_healthcheck_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_gatekeeper_nodes_on_name", unique: true
+    t.index ["status"], name: "index_gatekeeper_nodes_on_status"
+  end
+
+  create_table "gatekeeper_operations", force: :cascade do |t|
+    t.bigint "gatekeeper_node_id", null: false
+    t.bigint "gatekeeper_project_id"
+    t.string "capability", null: false
+    t.string "requested_by", null: false
+    t.string "status", default: "queued", null: false
+    t.text "command"
+    t.text "output"
+    t.integer "exit_status"
+    t.jsonb "parameters", default: {}, null: false
+    t.jsonb "result", default: {}, null: false
+    t.string "error_class"
+    t.text "error_message"
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["capability"], name: "index_gatekeeper_operations_on_capability"
+    t.index ["created_at"], name: "index_gatekeeper_operations_on_created_at"
+    t.index ["gatekeeper_node_id"], name: "index_gatekeeper_operations_on_gatekeeper_node_id"
+    t.index ["gatekeeper_project_id"], name: "index_gatekeeper_operations_on_gatekeeper_project_id"
+    t.index ["status"], name: "index_gatekeeper_operations_on_status"
+  end
+
+  create_table "gatekeeper_projects", force: :cascade do |t|
+    t.bigint "gatekeeper_node_id", null: false
+    t.string "name", null: false
+    t.string "repository", null: false
+    t.string "branch", default: "main", null: false
+    t.string "domain", null: false
+    t.string "app_root", null: false
+    t.string "app_user", default: "lightek", null: false
+    t.string "ruby_version", default: "3.3.6", null: false
+    t.string "rails_env", default: "production", null: false
+    t.string "apache_service_name", default: "apache2", null: false
+    t.string "sidekiq_service_name"
+    t.string "status", default: "unknown", null: false
+    t.string "deployed_sha"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "last_deployed_at"
+    t.datetime "last_healthcheck_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["domain"], name: "index_gatekeeper_projects_on_domain", unique: true
+    t.index ["gatekeeper_node_id"], name: "index_gatekeeper_projects_on_gatekeeper_node_id"
+    t.index ["name"], name: "index_gatekeeper_projects_on_name", unique: true
+    t.index ["status"], name: "index_gatekeeper_projects_on_status"
   end
 
   create_table "homes", force: :cascade do |t|
@@ -1450,6 +1520,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_23_110000) do
   add_foreign_key "dymond_studio_text_overlays", "dymond_studio_timelines", column: "timeline_id"
   add_foreign_key "dymond_studio_timeline_clips", "dymond_studio_timeline_tracks", column: "track_id"
   add_foreign_key "dymond_studio_timeline_tracks", "dymond_studio_timelines", column: "timeline_id"
+  add_foreign_key "gatekeeper_operations", "gatekeeper_nodes"
+  add_foreign_key "gatekeeper_operations", "gatekeeper_projects"
+  add_foreign_key "gatekeeper_projects", "gatekeeper_nodes"
   add_foreign_key "marlon_blueprint_concerns", "marlon_features", column: "feature_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "capability_pack_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "dependency_id"

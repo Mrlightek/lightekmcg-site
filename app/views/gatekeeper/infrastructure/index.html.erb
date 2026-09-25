@@ -1,0 +1,50 @@
+<% content_for :title, "Gatekeeper Infrastructure" %>
+<section style="max-width:1200px;margin:0 auto;padding:32px 20px;">
+  <p>GATEKEEPER</p>
+  <h1>Infrastructure Control</h1>
+  <p>Nevaeh decides. Gatekeeper executes. Marlon handles the unknown.</p>
+
+  <p>
+    <%= link_to "Nodes", gatekeeper_nodes_path %> ·
+    <%= link_to "Projects", gatekeeper_projects_path %> ·
+    <%= link_to "Add Node", new_gatekeeper_node_path %> ·
+    <%= link_to "Add Project", new_gatekeeper_project_path %>
+  </p>
+
+  <h2>Marlon Dependency</h2>
+  <ul>
+    <li>Operations: <%= @metrics[:operations] %></li>
+    <li>Succeeded: <%= @metrics[:succeeded] %></li>
+    <li>Failed: <%= @metrics[:failed] %></li>
+    <li>Support tickets: <%= @metrics[:support_tickets] %></li>
+    <li>Need intervention: <%= @metrics[:open_support_tickets] %></li>
+    <li>Dependency rate: <%= number_to_percentage(@metrics[:marlon_dependency_rate] * 100, precision: 2) %></li>
+  </ul>
+
+  <h2>Nodes</h2>
+  <% @nodes.each do |node| %>
+    <p><%= link_to node.name, gatekeeper_node_path(node) %> — <%= node.status %> — <%= node.display_host %></p>
+  <% end %>
+
+  <h2>Gatekeeper Trouble Tickets</h2>
+  <% if @support_tickets.any? %>
+    <% @support_tickets.each do |ticket| %>
+      <p>
+        <strong><%= ticket.number %></strong> — <%= ticket.status %> — <%= ticket.title %>
+        — <%= link_to "Open", employee_ticket_path(ticket) %>
+      </p>
+    <% end %>
+  <% else %>
+    <p>Nothing requires your attention.</p>
+  <% end %>
+
+  <h2>Recent Operations</h2>
+  <% @operations.each do |operation| %>
+    <p>
+      <%= operation.capability %> — <%= operation.status %> — <%= operation.requested_by %>
+      <% if operation.result.to_h["support_ticket_number"].present? %>
+        — Ticket <%= operation.result["support_ticket_number"] %>
+      <% end %>
+    </p>
+  <% end %>
+</section>

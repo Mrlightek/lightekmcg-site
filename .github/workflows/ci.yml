@@ -13,6 +13,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create Lightek private dependency token
+        id: lightek_private_repos
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID }}
+          private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+          owner: lightekmcg
+
+      - name: Configure Lightek private dependency access
+        shell: bash
+        env:
+          LIGHTEK_GITHUB_TOKEN: ${{ steps.lightek_private_repos.outputs.token }}
+        run: |
+          set -euo pipefail
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          echo "Configured Lightek private dependency authentication."
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -29,6 +47,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create Lightek private dependency token
+        id: lightek_private_repos
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID }}
+          private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+          owner: lightekmcg
+
+      - name: Configure Lightek private dependency access
+        shell: bash
+        env:
+          LIGHTEK_GITHUB_TOKEN: ${{ steps.lightek_private_repos.outputs.token }}
+        run: |
+          set -euo pipefail
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          echo "Configured Lightek private dependency authentication."
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -43,6 +79,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Create Lightek private dependency token
+        id: lightek_private_repos
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID }}
+          private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+          owner: lightekmcg
+
+      - name: Configure Lightek private dependency access
+        shell: bash
+        env:
+          LIGHTEK_GITHUB_TOKEN: ${{ steps.lightek_private_repos.outputs.token }}
+        run: |
+          set -euo pipefail
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          echo "Configured Lightek private dependency authentication."
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -68,6 +122,24 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Create Lightek private dependency token
+        id: lightek_private_repos
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID }}
+          private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+          owner: lightekmcg
+
+      - name: Configure Lightek private dependency access
+        shell: bash
+        env:
+          LIGHTEK_GITHUB_TOKEN: ${{ steps.lightek_private_repos.outputs.token }}
+        run: |
+          set -euo pipefail
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          echo "Configured Lightek private dependency authentication."
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1

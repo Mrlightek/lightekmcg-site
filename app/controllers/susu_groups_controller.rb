@@ -1,5 +1,5 @@
 # app/controllers/susu_groups_controller.rb
-class SusuGroupsController < ApplicationController
+class SusuGroupsController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   before_action :set_susu_group, only: %i[show edit update activate contribution contribute request_exit]
   before_action :require_organizer!, only: %i[edit update activate]

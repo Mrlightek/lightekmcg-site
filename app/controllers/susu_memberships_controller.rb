@@ -1,4 +1,4 @@
-class SusuMembershipsController < ApplicationController
+class SusuMembershipsController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   before_action :set_susu_group
   before_action :require_organizer!

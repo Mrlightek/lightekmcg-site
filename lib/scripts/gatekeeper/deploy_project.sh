@@ -44,6 +44,9 @@ run_rails "bundle exec rails db:migrate"
 echo "[nav] Register dashboard control-plane navigation"
 run_rails "bundle exec rails gatekeeper:dashboard_nav"
 
+echo "[knowledge] Record known operational lessons"
+run_rails "bundle exec rails gatekeeper:learn_dymond_dash_controller_contract" || echo "[knowledge] Lesson recording skipped; deployment continues"
+
 echo "[4/8] Assets"
 run_rails "bundle exec rails assets:precompile"
 

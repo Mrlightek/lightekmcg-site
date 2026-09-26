@@ -1,4 +1,4 @@
-class SusuMatchPreferencesController < ApplicationController
+class SusuMatchPreferencesController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   def index
     @preferences = SusuMatchPreference.where(user: current_user).order(created_at: :desc)

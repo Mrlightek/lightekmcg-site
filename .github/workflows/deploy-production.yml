@@ -120,8 +120,8 @@ jobs:
           INPUT_PROJECT_ID: ${{ inputs.project_id }}
           INPUT_OPERATION_ID: ${{ inputs.operation_id }}
           INPUT_REQUESTED_BY: ${{ inputs.requested_by }}
-          DEPLOYED_SHA: ${{ steps.deploy.outputs.sha }}
-          HTTP_STATUS: ${{ steps.deploy.outputs.http }}
+          DEPLOYED_SHA: ${{ steps.deploy.outputs.deployed_sha }}
+          HTTP_STATUS: ${{ steps.deploy.outputs.http_status }}
         run: |
           set -euo pipefail
           [[ -n "${CALLBACK_URL:-}" && -n "${CALLBACK_TOKEN:-}" ]] || exit 0

@@ -41,6 +41,9 @@ run_rails "bundle install --jobs 1"
 echo "[3/8] Migrate"
 run_rails "bundle exec rails db:migrate"
 
+echo "[nav] Register dashboard control-plane navigation"
+run_rails "bundle exec rails gatekeeper:dashboard_nav"
+
 echo "[4/8] Assets"
 run_rails "bundle exec rails assets:precompile"
 

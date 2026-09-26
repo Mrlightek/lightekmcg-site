@@ -159,6 +159,15 @@ get "roku/content/:id",
 
 
 # ── Dymond CMS engine — main admin/ops dashboard ──────────────────────────────
+  # Lightek human control plane
+  get "/dashboard/infrastructure",
+      to: "dashboard/infrastructure#index",
+      as: :dashboard_infrastructure
+
+  get "/dashboard/susu",
+      to: "dashboard/susu#index",
+      as: :dashboard_susu
+
 mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────

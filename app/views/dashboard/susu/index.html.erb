@@ -1,0 +1,8 @@
+<% content_for :page_title, "Susu" %>
+<div style="margin-bottom:20px"><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Financial Services · Susu</div><h2 style="font-size:22px;margin:6px 0 0">Susu Operations</h2></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px">
+  <% [["Production", (@ready ? "READY" : "CHECK")], ["Groups", SusuGroup.count], ["Memberships", @memberships_count], ["Cycles", @cycles_count], ["Contributions", @contributions_count], ["Pending", @pending_contributions]].each do |label, value| %>
+    <div class="dd-card" style="padding:18px"><div style="font-size:25px;font-weight:700"><%= value %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= label %></div></div>
+  <% end %>
+</div>
+<div class="dd-card" style="padding:20px"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Recent Groups</h3><%= link_to "Open Susu →", main_app.susu_groups_path, class: "dd-topbar-btn dd-btn-primary" %></div><% if @groups.any? %><% @groups.each do |group| %><div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color)"><strong><%= group.respond_to?(:name) ? group.name : "Susu ##{group.id}" %></strong></div><% end %><% else %><p style="padding:24px 0;text-align:center;color:var(--dd-text-secondary)">Susu is production-ready. No groups have been created yet.</p><% end %></div>

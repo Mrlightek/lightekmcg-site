@@ -1,0 +1,19 @@
+<% content_for :page_title, "Infrastructure" %>
+<div style="margin-bottom:20px">
+  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Gatekeeper · Operations</div>
+  <h2 style="font-size:22px;margin:6px 0 0">Infrastructure Control</h2>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Nevaeh decides. Gatekeeper executes. Marlon handles the unknown.</p>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px">
+  <% [["Nodes", @nodes.count], ["Projects", @projects.count], ["Operations", @metrics[:operations]], ["Succeeded", @metrics[:succeeded]], ["Failed", @metrics[:failed]], ["Need Intervention", @metrics[:open_support_tickets]]].each do |label, value| %>
+    <div class="dd-card" style="padding:18px"><div style="font-size:28px;font-weight:700"><%= value %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= label %></div></div>
+  <% end %>
+</div>
+<div class="dd-card" style="padding:20px;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center"><strong>Marlon Dependency</strong><strong style="font-size:24px;color:var(--dd-accent-primary)"><%= number_to_percentage(@metrics[:marlon_dependency_rate].to_f * 100, precision: 2) %></strong></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+  <div class="dd-card" style="padding:20px"><h3>Nodes</h3><% @nodes.each do |node| %><div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color)"><strong><%= node.name %></strong> · <%= node.status %><br><small style="color:var(--dd-text-secondary)"><%= node.display_host %></small></div><% end %></div>
+  <div class="dd-card" style="padding:20px"><h3>Projects</h3><% @projects.each do |project| %><div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color)"><strong><%= project.name %></strong> · <%= project.status %><br><small style="color:var(--dd-text-secondary)"><%= project.domain %><% if project.deployed_sha.present? %> · <%= project.deployed_sha.first(8) %><% end %></small></div><% end %></div>
+</div>
+<div class="dd-card" style="padding:20px;margin-top:16px"><h3>Recent Automation</h3><% if @operations.any? %><% @operations.each do |op| %><div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color);font-size:13px"><strong><%= op.capability.humanize %></strong> · <%= op.status %> · <span style="color:var(--dd-text-secondary)"><%= op.requested_by %></span></div><% end %><% else %><p style="color:var(--dd-text-secondary)">No Gatekeeper operations yet.</p><% end %></div>

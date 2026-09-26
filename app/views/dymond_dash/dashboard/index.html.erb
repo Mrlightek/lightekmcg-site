@@ -1,0 +1,19 @@
+<% content_for :page_title, "Dashboard" %>
+<%
+  metrics = defined?(Gatekeeper::Metrics) ? Gatekeeper::Metrics.summary : { operations: 0, succeeded: 0, failed: 0, open_support_tickets: 0, human_interventions: 0, marlon_dependency_rate: 0.0 }
+  node_count = defined?(GatekeeperNode) ? GatekeeperNode.count : 0
+  healthy_nodes = defined?(GatekeeperNode) ? GatekeeperNode.where(status: "healthy").count : 0
+  project_count = defined?(GatekeeperProject) ? GatekeeperProject.count : 0
+  healthy_projects = defined?(GatekeeperProject) ? GatekeeperProject.where(status: "healthy").count : 0
+  susu_ready = defined?(SusuGroup) && %w[susu_groups susu_memberships susu_contributions susu_cycles susu_rounds susu_commitments susu_match_preferences].all? { |t| ActiveRecord::Base.connection.data_source_exists?(t) }
+  susu_groups = defined?(SusuGroup) ? SusuGroup.count : 0
+  pending = defined?(SusuContribution) && SusuContribution.column_names.include?("status") ? SusuContribution.where(status: "pending").count : 0
+%>
+<div style="margin-bottom:20px"><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Nevaeh · Organizational Overview</div><h2 style="font-size:24px;margin:6px 0 0">LIGHTEK TODAY</h2><p style="color:var(--dd-text-secondary);font-size:13px"><%= Date.current.strftime("%A, %B %-d %Y") %> · What needs your attention, and what does not.</p></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+  <%= link_to main_app.dashboard_infrastructure_path, class: "dd-card", style: "display:block;padding:20px;text-decoration:none;color:inherit" do %><small style="color:var(--dd-text-muted)">INFRASTRUCTURE</small><div style="font-size:28px;font-weight:700;margin-top:8px"><%= healthy_nodes %>/<%= node_count %></div><div style="color:var(--dd-text-secondary);font-size:12px">nodes healthy · <%= healthy_projects %>/<%= project_count %> projects healthy</div><% end %>
+  <%= link_to main_app.dashboard_susu_path, class: "dd-card", style: "display:block;padding:20px;text-decoration:none;color:inherit" do %><small style="color:var(--dd-text-muted)">SUSU</small><div style="font-size:28px;font-weight:700;margin-top:8px"><%= susu_ready ? "READY" : "CHECK" %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= susu_groups %> groups · <%= pending %> pending contributions</div><% end %>
+  <div class="dd-card" style="padding:20px"><small style="color:var(--dd-text-muted)">AUTOMATION</small><div style="font-size:28px;font-weight:700;margin-top:8px"><%= metrics[:operations] %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= metrics[:succeeded] %> succeeded · <%= metrics[:failed] %> failed · <%= metrics[:open_support_tickets] %> need intervention</div></div>
+  <div class="dd-card" style="padding:20px"><small style="color:var(--dd-text-muted)">MARLON DEPENDENCY</small><div style="font-size:28px;font-weight:700;margin-top:8px"><%= number_to_percentage(metrics[:marlon_dependency_rate].to_f * 100, precision: 2) %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= metrics[:human_interventions] %> human intervention(s)</div></div>
+</div>
+<div class="dd-card" style="padding:20px;margin-top:16px"><% if metrics[:open_support_tickets].to_i.zero? %><strong>Nothing requires Marlon right now.</strong><div style="color:var(--dd-text-secondary);font-size:12px;margin-top:4px">Gatekeeper has no open operational escalations.</div><% else %><strong><%= metrics[:open_support_tickets] %> item(s) require intervention.</strong><div style="color:var(--dd-text-secondary);font-size:12px;margin-top:4px">Open Infrastructure for Gatekeeper diagnostics.</div><% end %></div>

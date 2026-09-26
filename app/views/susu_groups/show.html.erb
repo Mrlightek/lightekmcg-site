@@ -187,3 +187,45 @@
   <% end %>
 </section>
 <%= render "shared/susu_styles" %>
+
+
+<!-- SUSU PAYOUT CONTROL -->
+<% round = @susu_group.current_round_record %>
+<% if round %>
+  <section class="susu-card" style="margin-top:20px">
+    <div class="susu-eyebrow">CURRENT ROUND PAYOUT</div>
+    <h2>Round <%= round.number %> · <%= round.status.humanize %></h2>
+    <p>Recipient: <strong><%= round.recipient.respond_to?(:full_name) ? round.recipient.full_name : round.recipient.email_address %></strong></p>
+    <p>
+      Settled:
+      <strong><%= number_to_currency(round.collected_amount) %></strong>
+      of
+      <strong><%= number_to_currency(round.expected_pot) %></strong>
+    </p>
+
+    <% if round.recipient == current_user && !current_user.stripe_connect_ready? %>
+      <%= link_to "Set up my payout account",
+                  dashboard_susu_payout_account_path,
+                  class: "susu-button susu-button-primary" %>
+    <% end %>
+
+    <% if @susu_group.organizer?(current_user) && round.status == "funded" %>
+      <% if round.recipient.stripe_connect_ready? %>
+        <%= button_to "Send funded round payout",
+                      request_payout_susu_group_path(@susu_group),
+                      method: :post,
+                      class: "susu-button susu-button-primary",
+                      data: { turbo_confirm: "Send this funded Susu round to the scheduled recipient?" } %>
+      <% else %>
+        <p class="susu-muted">The scheduled recipient must finish payout setup before this round can be sent.</p>
+      <% end %>
+    <% end %>
+
+    <% if round.dymond_bank_payout %>
+      <p class="susu-muted">
+        Dymond payout #<%= round.dymond_bank_payout.id %> ·
+        <%= round.dymond_bank_payout.status.humanize %>
+      </p>
+    <% end %>
+  </section>
+<% end %>

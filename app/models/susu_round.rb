@@ -23,4 +23,9 @@ class SusuRound < ApplicationRecord
   end
 
   def recipient = recipient_membership.user
+
+  def dymond_bank_payout
+    return if dymond_bank_payout_id.blank?
+    DymondBank::Payout.find_by(id: dymond_bank_payout_id)
+  end
 end

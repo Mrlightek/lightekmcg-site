@@ -55,6 +55,8 @@ post "gatekeeper/webhooks/stripe",
      to: "gatekeeper#stripe_webhook",
      as: :gatekeeper_stripe_webhook
 
+post "/susu_groups/:id/request_payout", to: "susu_groups#request_payout", as: :request_payout_susu_group
+
 resources :susu_match_preferences, only: %i[index new create show destroy]
 
 
@@ -173,6 +175,10 @@ get "roku/content/:id",
   get "/dashboard/susu",
       to: "dashboard/susu#index",
       as: :dashboard_susu
+
+post "/dashboard/susu/payout-account/connect", to: "susu_payout_accounts#connect", as: :connect_dashboard_susu_payout_account
+get "/dashboard/susu/payout-account/refresh", to: "susu_payout_accounts#refresh", as: :refresh_dashboard_susu_payout_account
+get "/dashboard/susu/payout-account", to: "susu_payout_accounts#show", as: :dashboard_susu_payout_account
 
 mount DymondDash::Engine => "/dashboard"
 

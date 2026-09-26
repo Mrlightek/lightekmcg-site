@@ -1,7 +1,7 @@
 # app/controllers/susu_groups_controller.rb
 class SusuGroupsController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
-  before_action :set_susu_group, only: %i[show edit update activate contribution contribute request_exit]
+  before_action :set_susu_group, only: %i[show edit update activate contribution contribute request_exit request_payout]
   before_action :require_organizer!, only: %i[edit update activate]
 
   def index
@@ -64,6 +64,17 @@ class SusuGroupsController < DymondDash::ApplicationController
 
     Susu::LifecycleService.activate!(@susu_group)
     redirect_to @susu_group, notice: "Susu activated. Cycle 1, Round 1 contributions are now open."
+  end
+
+
+  def request_payout
+    round = @susu_group.current_round_record
+    raise Susu::PayoutService::NotReady, "No current Susu round exists" unless round
+
+    payout = Susu::PayoutService.request!(round: round, requested_by: current_user)
+    redirect_to @susu_group, notice: "Payout sent. Dymond payout ##{payout.id}."
+  rescue Susu::PayoutService::NotReady, DymondBank::StripeService::ConfigurationError, DymondBank::StripeService::StripeError => e
+    redirect_to @susu_group, alert: e.message
   end
 
   def contribution

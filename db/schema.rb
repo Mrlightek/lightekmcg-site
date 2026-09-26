@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_25_123259) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_26_182319) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1449,6 +1449,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_25_123259) do
     t.datetime "paid_out_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "dymond_bank_payout_id"
+    t.index ["dymond_bank_payout_id"], name: "index_susu_rounds_on_dymond_bank_payout_id"
     t.index ["recipient_membership_id"], name: "index_susu_rounds_on_recipient_membership_id"
     t.index ["susu_cycle_id", "number"], name: "index_susu_rounds_on_susu_cycle_id_and_number", unique: true
     t.index ["susu_cycle_id"], name: "index_susu_rounds_on_susu_cycle_id"
@@ -1461,6 +1463,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_25_123259) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["job_item_id"], name: "index_system_jobs_on_job_item_id"
+  end
+
+  create_table "user_feature_entitlements", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "feature_slug", null: false
+    t.string "source", default: "manual", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "granted_at", null: false
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "feature_slug"], name: "idx_user_feature_entitlements_unique", unique: true
+    t.index ["user_id"], name: "index_user_feature_entitlements_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -1477,10 +1492,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_25_123259) do
     t.string "locale", default: "en"
     t.string "api_token"
     t.string "lightek_email_address"
+    t.string "stripe_connect_account_id"
+    t.boolean "stripe_connect_details_submitted", default: false, null: false
+    t.boolean "stripe_connect_payouts_enabled", default: false, null: false
+    t.datetime "stripe_connect_onboarded_at"
     t.index ["api_token"], name: "index_users_on_api_token", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
     t.index ["lightek_email_address"], name: "index_users_on_lightek_email_address", unique: true
     t.index ["role"], name: "index_users_on_role"
+    t.index ["stripe_connect_account_id"], name: "index_users_on_stripe_connect_account_id", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
@@ -1554,4 +1574,5 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_25_123259) do
   add_foreign_key "susu_rounds", "susu_cycles"
   add_foreign_key "susu_rounds", "susu_memberships", column: "recipient_membership_id"
   add_foreign_key "system_jobs", "job_items"
+  add_foreign_key "user_feature_entitlements", "users"
 end

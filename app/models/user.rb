@@ -55,6 +55,11 @@ class User < ApplicationRecord
   has_many :susu_groups, through: :susu_memberships
   has_many :susu_contributions, dependent: :destroy
 
+  has_many :feature_entitlements,
+           class_name: "UserFeatureEntitlement",
+           dependent: :destroy
+
+
   # ── Helpers ────────────────────────────────────────────────────────────────────
   def full_name
     "#{first_name} #{last_name}".strip
@@ -69,23 +74,37 @@ class User < ApplicationRecord
   def client?      = role == "client"
   def contractor?  = role == "contractor"
 
-  # ── DymondDash role gating ─────────────────────────────────────────────────────
-  # Called by FeatureRegistry#role_allows? — return false to hide a nav item
+  # ── DymondDash product entitlements ────────────────────────────────────────
   def can_access_feature?(feature_slug)
-    case feature_slug.to_sym
-    when :dymond_bank
-      employee? || admin?
-    when :lightek_studio
-      employee? || admin?
-      when :employee_clients
-    employee? || admin?
-    when :employee_tickets
-    employee? || admin?
-    when :employee_users
-  admin?
-    else
-      true
-    end
+    return true if employee? || admin?
+
+    feature_entitlements.active.exists?(feature_slug: feature_slug.to_s)
+  end
+
+  def grant_feature!(feature_slug, source: "manual")
+    entitlement = feature_entitlements.find_or_initialize_by(feature_slug: feature_slug.to_s)
+    entitlement.assign_attributes(
+      active: true,
+      source: source,
+      granted_at: entitlement.granted_at || Time.current,
+      revoked_at: nil
+    )
+    entitlement.save!
+    entitlement
+  end
+
+  def revoke_feature!(feature_slug)
+    feature_entitlements.find_by(feature_slug: feature_slug.to_s)&.revoke!
+  end
+
+  def susu_entitled?
+    employee? || admin? || feature_entitlements.active.exists?(feature_slug: "susu")
+  end
+
+  def stripe_connect_ready?
+    stripe_connect_account_id.present? &&
+      stripe_connect_details_submitted? &&
+      stripe_connect_payouts_enabled?
   end
 
   # ── DymondBank — default linked bank account ───────────────────────────────────

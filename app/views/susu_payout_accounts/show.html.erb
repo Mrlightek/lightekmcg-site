@@ -1,0 +1,21 @@
+<div class="susu-shell susu-narrow">
+  <div class="susu-heading">
+    <div class="susu-eyebrow">SUSU PAYOUTS</div>
+    <h1>Payout account</h1>
+    <p>Connect a Stripe payout account so funded Susu rounds can be transferred to you.</p>
+  </div>
+
+  <div class="susu-card">
+    <% if current_user.stripe_connect_ready? %>
+      <h2>Ready for payouts</h2>
+      <p>Your Stripe payout account completed onboarding and is payout-enabled.</p>
+    <% else %>
+      <h2><%= current_user.stripe_connect_account_id.present? ? "Finish payout setup" : "Connect your payout account" %></h2>
+      <p>Stripe-hosted onboarding collects the payout information required for your account.</p>
+      <%= button_to "Continue with Stripe",
+                    connect_dashboard_susu_payout_account_path,
+                    method: :post,
+                    class: "susu-button susu-button-primary" %>
+    <% end %>
+  </div>
+</div>

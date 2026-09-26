@@ -1,0 +1,48 @@
+<% content_for :title, "Susu Pricing — Clear Contribution Costs" %>
+<% content_for :description, "See how Susu handles pool creation and contribution checkout costs." %>
+
+<main>
+  <section class="page-hero">
+    <div class="eyebrow">PRICING</div>
+    <h1>Know what the system charges before you pay.</h1>
+    <p>Pool setup is separate from contribution payment processing. Contribution checkout shows the payment total before the member submits it.</p>
+  </section>
+
+  <section class="section">
+    <div class="pricing-grid">
+      <article class="pricing-card featured">
+        <div class="badge">CURRENT MODEL</div>
+        <h2>Pool creation</h2>
+        <div class="price">No setup fee</div>
+        <p>Create a draft Susu, add members, choose the payout order and manage the circle without a separate Susu subscription charge.</p>
+      </article>
+      <article class="pricing-card">
+        <h2>Contribution checkout</h2>
+        <div class="price">Shown before payment</div>
+        <p>DymondBank calculates the contribution principal and applicable payment/network costs for bank checkout. The member sees the total before payment.</p>
+      </article>
+    </div>
+
+    <div class="breakdown">
+      <h2>Current configured payment economics</h2>
+      <div class="breakdown-grid">
+        <div><strong>Your Susu contribution</strong><p>The contribution principal is tracked separately from payment/network charges.</p></div>
+        <% if @network_fee_cents.present? %>
+          <div><strong>Dymond network fee</strong><p><%= number_to_currency(@network_fee_cents.to_i / 100.0) %> under the server's current Susu configuration.</p></div>
+        <% end %>
+        <% if @ach_fee_rate.present? %>
+          <div>
+            <strong>ACH processor recovery</strong>
+            <p>The current configuration uses <%= number_to_percentage(@ach_fee_rate.to_d * 100, precision: 2, strip_insignificant_zeros: true) %><% if @ach_fee_cap_cents.present? %> with a configured cap of <%= number_to_currency(@ach_fee_cap_cents.to_i / 100.0) %><% end %>.</p>
+          </div>
+        <% end %>
+      </div>
+      <p class="fine-print">Actual checkout is the source of truth for a specific contribution. Features and pricing not enabled in the product are not advertised here.</p>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div><div class="eyebrow">NO SURPRISE TOTALS</div><h2>See the quote before starting bank checkout.</h2></div>
+    <%= link_to "Create a pool", new_susu_group_path, class: "btn btn-light btn-large" %>
+  </section>
+</main>

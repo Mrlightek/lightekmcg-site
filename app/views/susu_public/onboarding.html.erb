@@ -1,0 +1,23 @@
+<% content_for :title, "Start a Susu — What You'll Configure" %>
+<% content_for :description, "See the information needed to create and activate a Susu circle." %>
+
+<main>
+  <section class="page-hero">
+    <div class="eyebrow">GET STARTED</div>
+    <h1>Create the circle in a few clear steps.</h1>
+    <p>Your circle is created as a draft and only activates after membership and payout order are ready.</p>
+  </section>
+
+  <section class="section onboarding">
+    <article class="onboarding-step"><div class="step-number">1</div><div><h2>Name the circle</h2><p>Give the Susu a name so members know which circle they are joining.</p></div></article>
+    <article class="onboarding-step"><div class="step-number">2</div><div><h2>Set the contribution rules</h2><p>Choose the contribution amount, target member count, and one of the supported schedules: weekly, biweekly or monthly.</p></div></article>
+    <article class="onboarding-step"><div class="step-number">3</div><div><h2>Add members and payout positions</h2><p>Add existing Lightek users to the draft circle and confirm the order in which members are scheduled to receive funded rounds.</p></div></article>
+    <article class="onboarding-step"><div class="step-number">4</div><div><h2>Activate when the group is ready</h2><p>Activation creates the cycle, participant commitments and scheduled rounds. Contributions then open for the current round.</p></div></article>
+
+    <div class="onboarding-action">
+      <h2>Ready to create the real one?</h2>
+      <p>If you are not signed in, Lightek will ask you to authenticate before opening the Susu creation screen.</p>
+      <%= link_to "Create my Susu", new_susu_group_path, class: "btn btn-primary btn-large" %>
+    </div>
+  </section>
+</main>

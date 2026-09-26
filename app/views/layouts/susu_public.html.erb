@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for?(:title) ? yield(:title) : "Susu by Lightek" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="description" content="<%= content_for?(:description) ? yield(:description) : "Create and manage rotating savings circles with Susu by Lightek." %>">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= stylesheet_link_tag "susu_public", "data-turbo-track": "reload" %>
+  </head>
+  <body class="susu-public">
+    <header class="susu-nav">
+      <%= link_to susu_path, class: "susu-logo" do %>Susu<span>.</span><% end %>
+      <nav class="susu-nav-links" aria-label="Susu navigation">
+        <%= link_to "How it works", susu_path(anchor: "how") %>
+        <%= link_to "Features", susu_path(anchor: "features") %>
+        <%= link_to "Pricing", susu_pricing_path %>
+      </nav>
+      <div class="susu-nav-actions">
+        <%= link_to "Sign in", new_session_path, class: "btn btn-secondary" %>
+        <%= link_to "Create a pool", new_susu_group_path, class: "btn btn-primary" %>
+      </div>
+    </header>
+    <%= yield %>
+    <footer class="susu-footer">
+      <div><strong>Susu by Lightek</strong><p>Rotating savings circles with transparent contribution and round tracking.</p></div>
+      <div class="susu-footer-links">
+        <%= link_to "Home", susu_path %>
+        <%= link_to "Pricing", susu_pricing_path %>
+        <%= link_to "Sign in", new_session_path %>
+      </div>
+    </footer>
+  </body>
+</html>

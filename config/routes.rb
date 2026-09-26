@@ -42,6 +42,12 @@ get  "services", to: "pages#services"
 get  "pricing",  to: "pages#pricing"
 get  "contact",  to: "pages#contact"
 
+
+# ── Susu public product surface ───────────────────────────────────────────────
+get "susu",            to: "susu_public#home",       as: :susu
+get "susu/pricing",    to: "susu_public#pricing",    as: :susu_pricing
+get "susu/onboarding", to: "susu_public#onboarding", as: :susu_onboarding
+
 # ── Gatekeeper ──────────────────────────────────────────────────────────────
 #Gatekeeper webhook for Stripe
 #https://lightekmcg.com/gatekeeper/webhooks/stripe

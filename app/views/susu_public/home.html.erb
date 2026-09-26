@@ -1,0 +1,50 @@
+<% content_for :title, "Susu by Lightek — Rotating Savings Circles" %>
+<% content_for :description, "Create a rotating savings circle, set contribution rules and payout order, track rounds, and collect contributions through bank checkout." %>
+
+<main>
+  <section class="hero">
+    <div class="eyebrow">SUSU BY LIGHTEK</div>
+    <h1>Save together.<br><span>Take turns receiving the pool.</span></h1>
+    <p>Create a rotating savings circle with people you trust. Set the contribution amount, schedule and payout order, then track every round from one place.</p>
+    <div class="hero-actions">
+      <%= link_to "Create your pool", new_susu_group_path, class: "btn btn-primary btn-large" %>
+      <%= link_to "See how it works", susu_path(anchor: "how"), class: "btn btn-secondary btn-large" %>
+    </div>
+    <div class="truth-grid">
+      <div><strong>Weekly</strong><span>supported schedule</span></div>
+      <div><strong>Biweekly</strong><span>supported schedule</span></div>
+      <div><strong>Monthly</strong><span>supported schedule</span></div>
+    </div>
+  </section>
+
+  <section class="section" id="features">
+    <div class="section-heading">
+      <div class="eyebrow">WHAT SUSU DOES TODAY</div>
+      <h2>Built around the actual circle.</h2>
+      <p>The product follows groups, members, rounds, commitments and settled contributions.</p>
+    </div>
+    <div class="card-grid">
+      <article class="feature-card"><div class="feature-icon">◎</div><h3>Rotating payout order</h3><p>Set the member order before activation so everyone can see whose round is next.</p></article>
+      <article class="feature-card"><div class="feature-icon">↻</div><h3>Round-by-round tracking</h3><p>Susu tracks cycles, rounds, expected pot amounts and the amount actually settled.</p></article>
+      <article class="feature-card"><div class="feature-icon">$</div><h3>Bank contribution checkout</h3><p>Members can start bank-based contribution checkout through DymondBank and Stripe ACH.</p></article>
+      <article class="feature-card"><div class="feature-icon">✓</div><h3>Settlement-aware status</h3><p>A contribution is not counted complete just because checkout started. Susu waits for payment settlement state.</p></article>
+      <article class="feature-card"><div class="feature-icon">≋</div><h3>Matching preferences</h3><p>Describe the contribution amount, frequency, circle size and payout you want and see compatible requests.</p></article>
+      <article class="feature-card"><div class="feature-icon">◇</div><h3>Commitment tracking</h3><p>Activated circles create participant commitments tied to the cycle and reduce them as contributions settle.</p></article>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="how">
+    <div class="section-heading"><div class="eyebrow">HOW IT WORKS</div><h2>From draft circle to funded rounds.</h2></div>
+    <div class="steps">
+      <article class="step"><span>01</span><div><h3>Create the circle</h3><p>Name the Susu, choose a contribution amount, select weekly, biweekly or monthly timing, and set the target member count.</p></div></article>
+      <article class="step"><span>02</span><div><h3>Add members and confirm the order</h3><p>The group remains a draft until the target membership and payout positions are complete.</p></div></article>
+      <article class="step"><span>03</span><div><h3>Activate the cycle</h3><p>Activation creates the cycle, participant commitments and one scheduled round for each member.</p></div></article>
+      <article class="step"><span>04</span><div><h3>Contribute and track settlement</h3><p>Members use bank checkout. Settled contributions fund the current round and the dashboard shows progress toward the pot.</p></div></article>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div><div class="eyebrow">READY TO START?</div><h2>Create the circle first. Activate it when everyone is ready.</h2><p>Susu keeps a new group in draft while you assemble members and confirm the payout order.</p></div>
+    <%= link_to "Create a pool", new_susu_group_path, class: "btn btn-light btn-large" %>
+  </section>
+</main>

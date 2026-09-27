@@ -21,7 +21,27 @@ module Godaddy
       raise ConfigurationError, "Domain is not in GODADDY_DOMAINS" unless self.class.zones.include?(@zone)
     end
 
-    def records = request(:get, "")
+    def records
+      page = 1
+      items = []
+
+      loop do
+        response = request(:get, "?page=#{page}&pageSize=100&totalRequired=true")
+        raise ApiError, "Unexpected GoDaddy DNS response: #{response.class}" unless response.is_a?(Hash)
+
+        page_items = response.fetch("items", [])
+        raise ApiError, "Unexpected GoDaddy DNS items payload: #{page_items.class}" unless page_items.is_a?(Array)
+
+        items.concat(page_items)
+
+        total_pages = response["totalPages"].to_i
+        break if total_pages <= page || page_items.empty?
+
+        page += 1
+      end
+
+      items
+    end
     def create_record!(attrs) = request(:post, "", body: normalize(attrs), idempotent: true)
     def update_record!(record_id, attrs) = request(:put, "/#{URI.encode_www_form_component(record_id.to_s)}", body: normalize(attrs), idempotent: true)
 

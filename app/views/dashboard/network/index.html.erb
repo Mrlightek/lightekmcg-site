@@ -35,6 +35,7 @@
       <thead><tr><th align="left">Type</th><th align="left">Name</th><th align="left">Data</th><th>TTL</th><th></th></tr></thead>
       <tbody>
         <% Array(@records).each do |record| %>
+          <% next unless record.is_a?(Hash) %>
           <tr>
             <td><%= record["type"] %></td>
             <td><%= record["name"] %></td>

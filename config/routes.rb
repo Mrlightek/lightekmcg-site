@@ -203,6 +203,18 @@ resources :dashboard_compute_providers, path: "/dashboard/infrastructure/provide
   end
 end
 
+get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#index", as: :dashboard_infrastructure_catalog
+post "/dashboard/infrastructure/profiles", to: "dashboard/infrastructure_catalog#create_profile", as: :dashboard_infrastructure_profiles
+post "/dashboard/infrastructure/policies", to: "dashboard/infrastructure_catalog#create_policy", as: :dashboard_infrastructure_policies
+
+resources :dashboard_subscription_plans,
+          path: "/dashboard/subscriptions/plans",
+          controller: "dashboard/subscription_plans"
+
+patch "/dashboard/infrastructure/providers/:compute_provider_id/capabilities",
+      to: "dashboard/compute_provider_capabilities#update",
+      as: :dashboard_compute_provider_capabilities
+
 mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────

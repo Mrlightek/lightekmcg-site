@@ -4,6 +4,11 @@ class GatekeeperNode < ApplicationRecord
   has_many :gatekeeper_projects, dependent: :restrict_with_error
   has_many :gatekeeper_operations, dependent: :restrict_with_error
 
+  belongs_to :compute_provider, optional: true
+  belongs_to :provisioning_profile, optional: true
+  belongs_to :compute_policy, optional: true
+  belongs_to :owner, polymorphic: true, optional: true
+
   validates :name, presence: true, uniqueness: true
   validates :ip_address, :ssh_user, presence: true
   validates :ssh_port, numericality: { only_integer: true, greater_than: 0 }

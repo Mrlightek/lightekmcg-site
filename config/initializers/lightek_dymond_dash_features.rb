@@ -68,6 +68,26 @@ Rails.application.config.after_initialize do
     f.nav_items = [{ label: "Compute Providers", icon: "server-cog", path: "main_app.dashboard_compute_providers_path" }]
   end
 
+  DymondDash::FeatureRegistry.register do |f|
+    f.slug = :infrastructure_catalog
+    f.label = "Infrastructure Catalog"
+    f.icon = "server"
+    f.gem_source = "lightekmcg-site"
+    f.nav_section = :operations
+    f.min_plan = :starter
+    f.nav_items = [{ label: "Infrastructure Catalog", icon: "server", path: "main_app.dashboard_infrastructure_catalog_path" }]
+  end
+
+  DymondDash::FeatureRegistry.register do |f|
+    f.slug = :subscription_plan_management
+    f.label = "Subscription Plans"
+    f.icon = "credit-card"
+    f.gem_source = "lightekmcg-site"
+    f.nav_section = :operations
+    f.min_plan = :starter
+    f.nav_items = [{ label: "Subscription Plans", icon: "credit-card", path: "main_app.dashboard_subscription_plans_path" }]
+  end
+
 rescue StandardError => e
   Rails.logger.warn "[Lightek/DymondDash] Host feature registration skipped: #{e.class}: #{e.message}"
 end

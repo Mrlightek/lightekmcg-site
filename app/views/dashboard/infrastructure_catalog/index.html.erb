@@ -1,0 +1,50 @@
+<% content_for :page_title, "Infrastructure Catalog" %>
+<div style="margin-bottom:20px">
+  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Nevaeh · Gatekeeper · DymondBank</div>
+  <h2>Infrastructure Catalog</h2>
+  <p style="color:var(--dd-text-secondary)">Reusable provisioning profiles, compute policy, and managed node inventory.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
+  <div class="dd-card" style="padding:20px">
+    <h3>Provisioning Profiles</h3>
+    <% @profiles.each do |p| %>
+      <p><strong><%= p.name %></strong><br><small><%= p.purpose %> · <%= p.cpu_cores || "?" %> CPU · <%= p.memory_mb || "?" %> MB</small></p>
+    <% end %>
+
+    <h4>Create Profile</h4>
+    <%= form_with url: dashboard_infrastructure_profiles_path do %>
+      <%= text_field_tag "provisioning_profile[name]", nil, placeholder:"Name", required:true %>
+      <%= text_field_tag "provisioning_profile[slug]", nil, placeholder:"Slug", required:true %>
+      <%= text_field_tag "provisioning_profile[purpose]", nil, placeholder:"Purpose", required:true %>
+      <%= text_field_tag "provisioning_profile[os_image]", "ubuntu-24.04" %>
+      <%= number_field_tag "provisioning_profile[cpu_cores]", nil, placeholder:"CPU cores" %>
+      <%= number_field_tag "provisioning_profile[memory_mb]", nil, placeholder:"Memory MB" %>
+      <%= number_field_tag "provisioning_profile[disk_gb]", nil, placeholder:"Disk GB" %>
+      <%= text_area_tag "provisioning_profile[services]", nil, placeholder:"Services, one per line" %>
+      <%= text_area_tag "provisioning_profile[firewall_rules]", nil, placeholder:"Firewall rules, one per line" %>
+      <%= submit_tag "Create Profile", class:"dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+  </div>
+
+  <div class="dd-card" style="padding:20px">
+    <h3>Compute Policies</h3>
+    <% @policies.each do |p| %>
+      <p><strong><%= p.name %></strong><br><small>preferred=<%= p.preferred_provider&.name || "automatic" %> · fallback=<%= p.fallback_provider&.name || "none" %></small></p>
+    <% end %>
+
+    <h4>Create Policy</h4>
+    <%= form_with url: dashboard_infrastructure_policies_path do %>
+      <%= text_field_tag "compute_policy[name]", nil, placeholder:"Name", required:true %>
+      <%= text_field_tag "compute_policy[slug]", nil, placeholder:"Slug", required:true %>
+      <%= text_field_tag "compute_policy[purpose]", nil, placeholder:"Purpose", required:true %>
+      <%= select_tag "compute_policy[preferred_provider_id]", options_from_collection_for_select(ComputeProvider.order(:name), :id, :name), include_blank:"Automatic" %>
+      <%= select_tag "compute_policy[fallback_provider_id]", options_from_collection_for_select(ComputeProvider.order(:name), :id, :name), include_blank:"None" %>
+      <%= number_field_tag "compute_policy[monthly_cost_ceiling_cents]", nil, placeholder:"Monthly ceiling cents" %>
+      <%= number_field_tag "compute_policy[automatic_approval_ceiling_cents]", nil, placeholder:"Auto approval cents" %>
+      <%= text_field_tag "compute_policy[allowed_regions]", nil, placeholder:"Regions, comma-separated" %>
+      <%= text_field_tag "compute_policy[required_capabilities]", nil, placeholder:"Capabilities, comma-separated" %>
+      <%= submit_tag "Create Policy", class:"dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+  </div>
+</div>

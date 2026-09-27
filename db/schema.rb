@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_27_115528) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -78,6 +78,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
   create_table "communities", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "compute_policies", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.string "purpose", null: false
+    t.bigint "preferred_provider_id"
+    t.bigint "fallback_provider_id"
+    t.integer "monthly_cost_ceiling_cents"
+    t.integer "automatic_approval_ceiling_cents"
+    t.jsonb "allowed_regions", default: [], null: false
+    t.jsonb "required_capabilities", default: [], null: false
+    t.jsonb "rules", default: {}, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["fallback_provider_id"], name: "index_compute_policies_on_fallback_provider_id"
+    t.index ["preferred_provider_id"], name: "index_compute_policies_on_preferred_provider_id"
+    t.index ["slug"], name: "index_compute_policies_on_slug", unique: true
   end
 
   create_table "compute_providers", force: :cascade do |t|
@@ -1026,7 +1045,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
     t.datetime "last_healthcheck_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "compute_provider_id"
+    t.bigint "provisioning_profile_id"
+    t.bigint "compute_policy_id"
+    t.string "provider_resource_id"
+    t.string "owner_type"
+    t.bigint "owner_id"
+    t.string "purpose"
+    t.string "plan"
+    t.string "image"
+    t.string "public_ipv6"
+    t.string "private_ip"
+    t.integer "estimated_monthly_cost_cents"
+    t.index ["compute_policy_id"], name: "index_gatekeeper_nodes_on_compute_policy_id"
+    t.index ["compute_provider_id"], name: "index_gatekeeper_nodes_on_compute_provider_id"
     t.index ["name"], name: "index_gatekeeper_nodes_on_name", unique: true
+    t.index ["owner_type", "owner_id"], name: "index_gatekeeper_nodes_on_owner_type_and_owner_id"
+    t.index ["provider_resource_id"], name: "index_gatekeeper_nodes_on_provider_resource_id"
+    t.index ["provisioning_profile_id"], name: "index_gatekeeper_nodes_on_provisioning_profile_id"
     t.index ["status"], name: "index_gatekeeper_nodes_on_status"
   end
 
@@ -1363,6 +1399,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
     t.index ["user_id"], name: "index_profiles_on_user_id"
   end
 
+  create_table "provisioning_profiles", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.string "purpose", null: false
+    t.string "os_image", default: "ubuntu-24.04", null: false
+    t.integer "cpu_cores"
+    t.integer "memory_mb"
+    t.integer "disk_gb"
+    t.boolean "backups_enabled", default: true, null: false
+    t.boolean "monitoring_enabled", default: true, null: false
+    t.jsonb "services", default: [], null: false
+    t.jsonb "firewall_rules", default: [], null: false
+    t.jsonb "configuration", default: {}, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_provisioning_profiles_on_slug", unique: true
+  end
+
   create_table "resellers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -1409,6 +1464,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
   create_table "storylines", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "subscription_infrastructure_entitlements", force: :cascade do |t|
+    t.bigint "subscription_plan_id", null: false
+    t.bigint "provisioning_profile_id"
+    t.bigint "compute_policy_id"
+    t.integer "node_quantity", default: 0, null: false
+    t.boolean "auto_provision", default: false, null: false
+    t.jsonb "feature_entitlements", default: [], null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["compute_policy_id"], name: "idx_on_compute_policy_id_870c8d7330"
+    t.index ["provisioning_profile_id"], name: "idx_on_provisioning_profile_id_cda1cb21d7"
+    t.index ["subscription_plan_id"], name: "idx_on_subscription_plan_id_aad2877b03"
+    t.index ["subscription_plan_id"], name: "idx_subscription_infra_entitlements_plan", unique: true
   end
 
   create_table "supports", force: :cascade do |t|
@@ -1595,6 +1666,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "channels", "shows"
+  add_foreign_key "compute_policies", "compute_providers", column: "fallback_provider_id"
+  add_foreign_key "compute_policies", "compute_providers", column: "preferred_provider_id"
   add_foreign_key "departments", "system_jobs"
   add_foreign_key "dymond_bank_invoice_line_items", "dymond_bank_invoices", column: "invoice_id"
   add_foreign_key "dymond_bank_invoices", "dymond_bank_linked_accounts", column: "linked_account_id"
@@ -1629,6 +1702,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
   add_foreign_key "dymond_studio_text_overlays", "dymond_studio_timelines", column: "timeline_id"
   add_foreign_key "dymond_studio_timeline_clips", "dymond_studio_timeline_tracks", column: "track_id"
   add_foreign_key "dymond_studio_timeline_tracks", "dymond_studio_timelines", column: "timeline_id"
+  add_foreign_key "gatekeeper_nodes", "compute_policies"
+  add_foreign_key "gatekeeper_nodes", "compute_providers"
+  add_foreign_key "gatekeeper_nodes", "provisioning_profiles"
   add_foreign_key "gatekeeper_operations", "gatekeeper_nodes"
   add_foreign_key "gatekeeper_operations", "gatekeeper_projects"
   add_foreign_key "gatekeeper_projects", "gatekeeper_nodes"
@@ -1650,6 +1726,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
   add_foreign_key "profiles", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "shows", "episodes"
+  add_foreign_key "subscription_infrastructure_entitlements", "compute_policies"
+  add_foreign_key "subscription_infrastructure_entitlements", "dymond_bank_subscription_plans", column: "subscription_plan_id"
+  add_foreign_key "subscription_infrastructure_entitlements", "provisioning_profiles"
   add_foreign_key "susu_commitments", "susu_cycles"
   add_foreign_key "susu_commitments", "susu_memberships"
   add_foreign_key "susu_contributions", "susu_groups"

@@ -82,6 +82,8 @@ class User < ApplicationRecord
     return role == "super_admin" if %w[
       network_control
       compute_provider_management
+      infrastructure_catalog
+      subscription_plan_management
       vault
     ].include?(feature_slug)
 

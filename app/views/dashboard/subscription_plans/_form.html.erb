@@ -1,0 +1,19 @@
+<%= form_with model:plan, url:(plan.persisted? ? dashboard_subscription_plan_path(plan) : dashboard_subscription_plans_path) do |f| %>
+  <%= f.text_field :name, placeholder:"Plan name", required:true %>
+  <%= f.text_field :slug, placeholder:"Slug", required:true %>
+  <%= f.text_area :description, placeholder:"Description" %>
+  <%= f.number_field :price_monthly_cents, placeholder:"Monthly cents", required:true %>
+  <%= f.number_field :price_annual_cents, placeholder:"Annual cents", required:true %>
+  <%= f.text_field :currency, value:(plan.currency.presence || "usd") %>
+  <%= f.number_field :sort_order, value:(plan.sort_order || 0) %>
+  <label><%= f.check_box :active %> Active</label>
+
+  <% entitlement = SubscriptionInfrastructureEntitlement.find_or_initialize_by(subscription_plan_id:plan.id) %>
+  <h3>Infrastructure Entitlement</h3>
+  <%= select_tag "infrastructure_entitlement[provisioning_profile_id]", options_from_collection_for_select(@profiles,:id,:name,entitlement.provisioning_profile_id), include_blank:"No dedicated infrastructure" %>
+  <%= select_tag "infrastructure_entitlement[compute_policy_id]", options_from_collection_for_select(@policies,:id,:name,entitlement.compute_policy_id), include_blank:"No compute policy" %>
+  <%= number_field_tag "infrastructure_entitlement[node_quantity]", entitlement.node_quantity || 0, min:0 %>
+  <label><%= check_box_tag "infrastructure_entitlement[auto_provision]", "1", entitlement.auto_provision? %> Auto-provision when subscription activates</label>
+  <%= text_field_tag "infrastructure_entitlement[feature_entitlements]", Array(entitlement.feature_entitlements).join(", "), placeholder:"Features, comma-separated" %>
+  <%= f.submit class:"dd-topbar-btn dd-btn-primary" %>
+<% end %>

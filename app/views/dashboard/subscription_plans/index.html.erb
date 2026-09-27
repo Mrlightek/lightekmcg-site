@@ -1,0 +1,15 @@
+<% content_for :page_title, "Subscription Plans" %>
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <div><h2>Subscription Plans</h2><p>Pricing plus infrastructure/service entitlements.</p></div>
+  <%= link_to "New Plan", new_dashboard_subscription_plan_path, class:"dd-topbar-btn dd-btn-primary" %>
+</div>
+
+<% @plans.each do |plan| %>
+  <% entitlement = SubscriptionInfrastructureEntitlement.find_by(subscription_plan_id: plan.id) %>
+  <div class="dd-card" style="padding:18px;margin:12px 0">
+    <strong><%= plan.name %></strong>
+    <div><%= plan.slug %> · $<%= plan.price_monthly_cents.to_i / 100.0 %>/mo · <%= plan.active? ? "active" : "inactive" %></div>
+    <small>profile=<%= entitlement&.provisioning_profile&.slug || "none" %> · policy=<%= entitlement&.compute_policy&.slug || "none" %> · nodes=<%= entitlement&.node_quantity.to_i %> · auto=<%= entitlement&.auto_provision? || false %></small>
+    <div><%= link_to "Edit", edit_dashboard_subscription_plan_path(plan), class:"dd-topbar-btn" %></div>
+  </div>
+<% end %>

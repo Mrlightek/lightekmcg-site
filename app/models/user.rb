@@ -76,9 +76,14 @@ class User < ApplicationRecord
 
   # ── DymondDash product entitlements ────────────────────────────────────────
   def can_access_feature?(feature_slug)
+    feature_slug = feature_slug.to_s
+
+    # Network and DNS mutation is narrower than ordinary admin access.
+    return role == "super_admin" if feature_slug == "network_control"
+
     return true if employee? || admin?
 
-    feature_entitlements.active.exists?(feature_slug: feature_slug.to_s)
+    feature_entitlements.active.exists?(feature_slug: feature_slug)
   end
 
   def grant_feature!(feature_slug, source: "manual")

@@ -1,0 +1,80 @@
+<% content_for :page_title, "Network & Domains" %>
+<div style="margin-bottom:20px">
+  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Gatekeeper · Network Control</div>
+  <h2 style="font-size:22px;margin:6px 0 0">Network & Domains</h2>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Super-admin DNS and host firewall control.</p>
+</div>
+
+<div class="dd-card" style="padding:20px;margin-bottom:18px">
+  <h3>Firewall</h3>
+  <pre style="white-space:pre-wrap;font-size:12px"><%= @firewall_status %></pre>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <%= form_with url: dashboard_network_open_port_path, method: :post do %>
+      <%= number_field_tag :port, nil, min:1, max:65535, placeholder:"Port", required:true %>
+      <%= select_tag :protocol, options_for_select([["TCP","tcp"],["UDP","udp"]]) %>
+      <%= submit_tag "Open", class:"dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+    <%= form_with url: dashboard_network_close_port_path, method: :post do %>
+      <%= number_field_tag :port, nil, min:1, max:65535, placeholder:"Port", required:true %>
+      <%= select_tag :protocol, options_for_select([["TCP","tcp"],["UDP","udp"]]) %>
+      <%= submit_tag "Close", class:"dd-topbar-btn", data:{turbo_confirm:"Close this port?"} %>
+    <% end %>
+  </div>
+  <p style="font-size:12px;color:var(--dd-text-secondary)">Ports 22, 80 and 443 are protected from dashboard closure.</p>
+</div>
+
+<div class="dd-card" style="padding:20px">
+  <h3>GoDaddy DNS</h3>
+  <% if @zones.empty? %>
+    <p>Set GODADDY_PAT and GODADDY_DOMAINS.</p>
+  <% else %>
+    <%= form_with url: dashboard_network_path, method: :get do %>
+      <%= select_tag :zone, options_for_select(@zones,@zone), onchange:"this.form.submit()" %>
+    <% end %>
+    <table style="width:100%;margin-top:14px;font-size:12px">
+      <thead><tr><th align="left">Type</th><th align="left">Name</th><th align="left">Data</th><th>TTL</th><th></th></tr></thead>
+      <tbody>
+        <% Array(@records).each do |record| %>
+          <tr>
+            <td><%= record["type"] %></td>
+            <td><%= record["name"] %></td>
+            <td style="word-break:break-all"><%= record["data"] %></td>
+            <td><%= record["ttl"] %></td>
+            <td>
+              <% if record["recordId"].present? %>
+                <details>
+                  <summary style="cursor:pointer">Edit</summary>
+                  <%= form_with url: dashboard_network_dns_path, method: :put, style: "margin-top:8px;display:grid;gap:6px" do %>
+                    <%= hidden_field_tag :zone, @zone %>
+                    <%= hidden_field_tag :record_id, record["recordId"] %>
+                    <%= hidden_field_tag "dns_record[type]", record["type"] %>
+                    <%= text_field_tag "dns_record[name]", record["name"], required:true %>
+                    <%= text_field_tag "dns_record[data]", record["data"], required:true %>
+                    <%= number_field_tag "dns_record[ttl]", record["ttl"], min:600, max:86400 %>
+                    <% %w[priority weight port service protocol flag tag].each do |field| %>
+                      <%= hidden_field_tag "dns_record[#{field}]", record[field] if record[field].present? %>
+                    <% end %>
+                    <%= submit_tag "Update", class:"dd-topbar-btn dd-btn-primary" %>
+                  <% end %>
+                </details>
+                <%= button_to "Delete", dashboard_network_dns_path, method: :delete,
+                      params:{zone:@zone,record_id:record["recordId"]},
+                      data:{turbo_confirm:"Delete this DNS record?"} %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <h4 style="margin-top:20px">Create record</h4>
+    <%= form_with url: dashboard_network_dns_path, method: :post do %>
+      <%= hidden_field_tag :zone, @zone %>
+      <%= select_tag "dns_record[type]", options_for_select(Godaddy::DnsService::TYPES) %>
+      <%= text_field_tag "dns_record[name]", nil, placeholder:"Name", required:true %>
+      <%= text_field_tag "dns_record[data]", nil, placeholder:"Value", required:true %>
+      <%= number_field_tag "dns_record[ttl]", 600, min:600, max:86400 %>
+      <%= submit_tag "Create DNS record", class:"dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+  <% end %>
+</div>

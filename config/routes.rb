@@ -184,6 +184,13 @@ post "/dashboard/susu/payout-account/connect", to: "susu_payout_accounts#connect
 get "/dashboard/susu/payout-account/refresh", to: "susu_payout_accounts#refresh", as: :refresh_dashboard_susu_payout_account
 get "/dashboard/susu/payout-account", to: "susu_payout_accounts#show", as: :dashboard_susu_payout_account
 
+get "/dashboard/network", to: "dashboard/network#index", as: :dashboard_network
+post "/dashboard/network/dns", to: "dashboard/network#create_dns", as: :dashboard_network_dns
+put "/dashboard/network/dns", to: "dashboard/network#update_dns"
+delete "/dashboard/network/dns", to: "dashboard/network#destroy_dns"
+post "/dashboard/network/firewall/open", to: "dashboard/network#open_port", as: :dashboard_network_open_port
+post "/dashboard/network/firewall/close", to: "dashboard/network#close_port", as: :dashboard_network_close_port
+
 mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────

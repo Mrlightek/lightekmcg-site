@@ -58,6 +58,16 @@ Rails.application.config.after_initialize do
     f.nav_items   = [{ label: "Lightek Vault", icon: "lock", path: "main_app.dashboard_vault_path" }]
   end
 
+  DymondDash::FeatureRegistry.register do |f|
+    f.slug = :compute_provider_management
+    f.label = "Compute Providers"
+    f.icon = "server-cog"
+    f.gem_source = "lightekmcg-site"
+    f.nav_section = :operations
+    f.min_plan = :starter
+    f.nav_items = [{ label: "Compute Providers", icon: "server-cog", path: "main_app.dashboard_compute_providers_path" }]
+  end
+
 rescue StandardError => e
   Rails.logger.warn "[Lightek/DymondDash] Host feature registration skipped: #{e.class}: #{e.message}"
 end

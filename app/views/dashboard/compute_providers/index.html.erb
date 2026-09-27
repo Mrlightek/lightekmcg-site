@@ -1,0 +1,12 @@
+<% content_for :page_title, "Compute Providers" %>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+  <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Gatekeeper · Compute Fabric</div><h2>Compute Providers</h2><p>Provider-neutral infrastructure control backed by Lightek Vault.</p></div>
+  <%= link_to "Add Provider", new_dashboard_compute_provider_path, class:"dd-topbar-btn dd-btn-primary" %>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
+  <% @providers.each do |provider| %>
+    <%= link_to dashboard_compute_provider_path(provider), style:"text-decoration:none;color:inherit" do %>
+      <div class="dd-card" style="padding:18px"><div style="display:flex;justify-content:space-between"><strong><%= provider.name %></strong><span><%= provider.health_status.upcase %></span></div><div><%= provider.adapter_type %> · <%= provider.status %></div><div>Vault: <%= provider.credential_secret_slug.presence || "not configured" %></div></div>
+    <% end %>
+  <% end %>
+</div>

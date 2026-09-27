@@ -1,0 +1,10 @@
+<% content_for :page_title, @provider.name %>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px">
+  <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Compute Provider</div><h2><%= @provider.name %></h2><p><%= @provider.slug %> · <%= @provider.adapter_type %> · <%= @provider.status %></p></div>
+  <%= button_to "Run Health Check", healthcheck_dashboard_compute_provider_path(@provider), method: :post, class:"dd-topbar-btn dd-btn-primary" %>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+  <div class="dd-card" style="padding:18px"><h3>Connection</h3><p>Health: <strong><%= @provider.health_status %></strong></p><p>Last check: <%= @provider.last_healthcheck_at || "never" %></p><p>Vault: <code><%= @provider.credential_secret_slug.presence || "not configured" %></code></p></div>
+  <div class="dd-card" style="padding:18px"><h3>Adapter</h3><p>Type: <%= @provider.adapter_type %></p><p>Class: <%= @provider.adapter_class.presence || "registry/default" %></p><p>API: <%= @provider.api_base_url.presence || "adapter default" %></p></div>
+  <div class="dd-card" style="padding:18px"><h3>Onboarding</h3><p><%= @provider.metadata.to_h["onboarding_state"] || "configured" %></p><% if @provider.status != "active" %><%= button_to "Activate Provider", activate_dashboard_compute_provider_path(@provider), method: :post, class:"dd-topbar-btn dd-btn-primary" %><% else %><%= button_to "Disable Provider", disable_dashboard_compute_provider_path(@provider), method: :post, class:"dd-topbar-btn" %><% end %></div>
+</div>

@@ -195,6 +195,14 @@ get "/dashboard/vault", to: "dashboard/vault#index", as: :dashboard_vault
 post "/dashboard/vault", to: "dashboard/vault#create"
 post "/dashboard/vault/disable", to: "dashboard/vault#disable", as: :dashboard_vault_disable
 
+resources :dashboard_compute_providers, path: "/dashboard/infrastructure/providers", controller: "dashboard/compute_providers", only: %i[index show new create] do
+  member do
+    post :healthcheck
+    post :activate
+    post :disable
+  end
+end
+
 mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_27_111553) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_27_114052) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -78,6 +78,30 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_111553) do
   create_table "communities", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "compute_providers", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.string "adapter_type", default: "declarative", null: false
+    t.string "adapter_class"
+    t.string "api_base_url"
+    t.string "documentation_url"
+    t.string "openapi_url"
+    t.string "credential_secret_slug"
+    t.string "status", default: "draft", null: false
+    t.string "health_status", default: "unknown", null: false
+    t.datetime "last_healthcheck_at"
+    t.jsonb "capabilities", default: {}, null: false
+    t.jsonb "configuration", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["capabilities"], name: "index_compute_providers_on_capabilities", using: :gin
+    t.index ["configuration"], name: "index_compute_providers_on_configuration", using: :gin
+    t.index ["health_status"], name: "index_compute_providers_on_health_status"
+    t.index ["slug"], name: "index_compute_providers_on_slug", unique: true
+    t.index ["status"], name: "index_compute_providers_on_status"
   end
 
   create_table "dashboards", force: :cascade do |t|

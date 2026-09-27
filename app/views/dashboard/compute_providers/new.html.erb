@@ -1,0 +1,18 @@
+<% content_for :page_title, "Add Compute Provider" %>
+<div class="dd-card" style="padding:20px;max-width:760px">
+  <h2>Add Compute Provider</h2>
+  <p>Credentials must already exist in Lightek Vault.</p>
+  <%= form_with model:@provider, url:dashboard_compute_providers_path do |f| %>
+    <div style="display:grid;gap:12px">
+      <%= f.text_field :name, placeholder:"Provider name", required:true %>
+      <%= f.text_field :slug, placeholder:"Slug", required:true %>
+      <%= f.select :adapter_type, ComputeProvider::ADAPTER_TYPES.map { |x| [x.humanize, x] } %>
+      <%= f.text_field :adapter_class, placeholder:"Custom adapter class (custom only)" %>
+      <%= f.url_field :api_base_url, placeholder:"API base URL" %>
+      <%= f.url_field :documentation_url, placeholder:"Documentation URL" %>
+      <%= f.url_field :openapi_url, placeholder:"OpenAPI URL" %>
+      <%= f.text_field :credential_secret_slug, placeholder:"Vault secret slug" %>
+      <%= f.submit "Add Provider", class:"dd-topbar-btn dd-btn-primary" %>
+    </div>
+  <% end %>
+</div>

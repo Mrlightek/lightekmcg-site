@@ -1,0 +1,57 @@
+<% content_for :page_title, "Lightek Vault" %>
+<div style="margin-bottom:20px">
+  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Gatekeeper · Secure Control Plane</div>
+  <h2 style="font-size:22px;margin:6px 0 0">Lightek Vault</h2>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Encrypted credentials, keys, certificates and service secrets. Secret values are never redisplayed.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px">
+  <% [["Active secrets", @active_count], ["Expiring ≤30d", @expiring_count], ["Audit events", LightekVault::AuditEvent.count], ["Key version", ENV.fetch("LIGHTEK_VAULT_KEY_VERSION", "1")]].each do |label, value| %>
+    <div class="dd-card" style="padding:18px"><div style="font-size:28px;font-weight:700"><%= value %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= label %></div></div>
+  <% end %>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
+  <div class="dd-card" style="padding:20px">
+    <h3>Store Secret</h3>
+    <%= form_with url: dashboard_vault_path, method: :post do %>
+      <div style="display:grid;gap:10px">
+        <%= text_field_tag "vault_secret[name]", nil, placeholder:"Display name", required:true %>
+        <%= text_field_tag "vault_secret[slug]", nil, placeholder:"slug, e.g. ovh-production", required:true %>
+        <%= select_tag "vault_secret[secret_type]", options_for_select(LightekVault::Secret::TYPES.map { |x| [x.humanize, x] }) %>
+        <%= text_field_tag "vault_secret[provider]", nil, placeholder:"Provider, e.g. ovh" %>
+        <%= text_field_tag "vault_secret[purpose]", nil, placeholder:"Purpose, e.g. compute_management" %>
+        <%= select_tag "vault_secret[environment]", options_for_select([["Production","production"],["Development","development"],["Test","test"]], "production") %>
+        <%= password_field_tag "vault_secret[payload]", nil, placeholder:"Secret value", required:true, autocomplete:"new-password" %>
+        <%= text_field_tag "vault_secret[allowed_consumers]", nil, placeholder:"Allowed consumers, comma-separated" %>
+        <%= text_field_tag "vault_secret[allowed_purposes]", nil, placeholder:"Allowed purposes, comma-separated" %>
+        <%= submit_tag "Store encrypted secret", class:"dd-topbar-btn dd-btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="dd-card" style="padding:20px">
+    <h3>Secrets</h3>
+    <% @secrets.each do |secret| %>
+      <div style="padding:12px 0;border-bottom:1px solid var(--dd-border-color)">
+        <strong><%= secret.name %></strong>
+        <div style="font-size:12px;color:var(--dd-text-secondary)"><%= secret.secret_type.humanize %> · <%= secret.display_provider %> · <%= secret.environment %> · <%= secret.status %></div>
+        <div style="font-size:11px;color:var(--dd-text-muted)"><%= secret.slug %><% if secret.last_used_at %> · last used <%= time_ago_in_words(secret.last_used_at) %> ago<% end %></div>
+        <% if secret.status == "active" %>
+          <%= button_to "Disable", dashboard_vault_disable_path, method: :post, params:{slug:secret.slug}, class:"dd-topbar-btn", data:{turbo_confirm:"Disable this secret?"} %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="dd-card" style="padding:20px;margin-top:16px">
+  <h3>Recent Access Audit</h3>
+  <% @audit_events.each do |event| %>
+    <div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color);font-size:12px">
+      <strong><%= event.action.humanize %></strong> · <%= event.secret.name %> · <%= event.allowed? ? "allowed" : "denied" %>
+      <% if event.consumer.present? %> · <%= event.consumer %><% end %>
+      <% if event.purpose.present? %> · <%= event.purpose %><% end %>
+    </div>
+  <% end %>
+</div>

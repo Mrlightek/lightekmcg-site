@@ -191,6 +191,10 @@ delete "/dashboard/network/dns", to: "dashboard/network#destroy_dns"
 post "/dashboard/network/firewall/open", to: "dashboard/network#open_port", as: :dashboard_network_open_port
 post "/dashboard/network/firewall/close", to: "dashboard/network#close_port", as: :dashboard_network_close_port
 
+get "/dashboard/vault", to: "dashboard/vault#index", as: :dashboard_vault
+post "/dashboard/vault", to: "dashboard/vault#create"
+post "/dashboard/vault/disable", to: "dashboard/vault#disable", as: :dashboard_vault_disable
+
 mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────

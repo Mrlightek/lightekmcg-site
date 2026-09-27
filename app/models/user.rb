@@ -79,7 +79,11 @@ class User < ApplicationRecord
     feature_slug = feature_slug.to_s
 
     # Network and DNS mutation is narrower than ordinary admin access.
-    return role == "super_admin" if feature_slug == "network_control"
+    return role == "super_admin" if %w[
+      network_control
+      compute_provider_management
+      vault
+    ].include?(feature_slug)
 
     return true if employee? || admin?
 

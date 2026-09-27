@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_27_080544) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_27_111553) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1067,6 +1067,54 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_080544) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "lightek_vault_audit_events", force: :cascade do |t|
+    t.bigint "secret_id", null: false
+    t.string "action", null: false
+    t.string "consumer"
+    t.string "purpose"
+    t.string "requested_by"
+    t.string "gatekeeper_operation_id"
+    t.boolean "allowed", default: false, null: false
+    t.string "reason"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["action"], name: "index_lightek_vault_audit_events_on_action"
+    t.index ["created_at"], name: "index_lightek_vault_audit_events_on_created_at"
+    t.index ["secret_id"], name: "index_lightek_vault_audit_events_on_secret_id"
+  end
+
+  create_table "lightek_vault_secrets", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.string "secret_type", default: "credential", null: false
+    t.string "provider"
+    t.string "environment", default: "production", null: false
+    t.string "purpose"
+    t.string "status", default: "active", null: false
+    t.text "ciphertext", null: false
+    t.text "encrypted_data_key", null: false
+    t.string "payload_iv", null: false
+    t.string "payload_tag", null: false
+    t.string "key_iv", null: false
+    t.string "key_tag", null: false
+    t.integer "key_version", default: 1, null: false
+    t.jsonb "access_policy", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "last_used_at"
+    t.datetime "last_rotated_at"
+    t.datetime "expires_at"
+    t.datetime "disabled_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["access_policy"], name: "index_lightek_vault_secrets_on_access_policy", using: :gin
+    t.index ["expires_at"], name: "index_lightek_vault_secrets_on_expires_at"
+    t.index ["metadata"], name: "index_lightek_vault_secrets_on_metadata", using: :gin
+    t.index ["provider"], name: "index_lightek_vault_secrets_on_provider"
+    t.index ["slug"], name: "index_lightek_vault_secrets_on_slug", unique: true
+    t.index ["status"], name: "index_lightek_vault_secrets_on_status"
+  end
+
   create_table "marlon_blueprint_concerns", force: :cascade do |t|
     t.bigint "feature_id", null: false
     t.string "key", null: false
@@ -1560,6 +1608,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_080544) do
   add_foreign_key "gatekeeper_operations", "gatekeeper_nodes"
   add_foreign_key "gatekeeper_operations", "gatekeeper_projects"
   add_foreign_key "gatekeeper_projects", "gatekeeper_nodes"
+  add_foreign_key "lightek_vault_audit_events", "lightek_vault_secrets", column: "secret_id"
   add_foreign_key "marlon_blueprint_concerns", "marlon_features", column: "feature_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "capability_pack_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "dependency_id"

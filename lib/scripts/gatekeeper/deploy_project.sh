@@ -63,8 +63,36 @@ systemctl reload "${APACHE_SERVICE}"
 systemctl is-active --quiet "${APACHE_SERVICE}"
 
 echo "[8/8] Health"
-HTTP_CODE="$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://${APP_DOMAIN}/up")"
-[[ "$HTTP_CODE" == "200" ]] || { echo "ERROR: healthcheck HTTP ${HTTP_CODE}"; exit 1; }
+HTTP_CODE=""
+HEALTH_URL="https://${APP_DOMAIN}/up"
+HEALTH_ATTEMPTS="${GATEKEEPER_HEALTH_ATTEMPTS:-12}"
+HEALTH_SLEEP="${GATEKEEPER_HEALTH_SLEEP_SECONDS:-5}"
+HEALTH_TIMEOUT="${GATEKEEPER_HEALTH_TIMEOUT_SECONDS:-10}"
+
+for attempt in $(seq 1 "$HEALTH_ATTEMPTS"); do
+  echo "Health check attempt ${attempt}/${HEALTH_ATTEMPTS}..."
+
+  HTTP_CODE="$(
+    curl -L -sS -o /dev/null -w '%{http_code}' \
+      --max-time "$HEALTH_TIMEOUT" \
+      "$HEALTH_URL" || true
+  )"
+
+  if [[ "$HTTP_CODE" == "200" ]]; then
+    echo "Health check passed."
+    break
+  fi
+
+  echo "Health check returned '${HTTP_CODE:-no response}'."
+  if [[ "$attempt" -lt "$HEALTH_ATTEMPTS" ]]; then
+    sleep "$HEALTH_SLEEP"
+  fi
+done
+
+[[ "$HTTP_CODE" == "200" ]] || {
+  echo "ERROR: healthcheck failed after ${HEALTH_ATTEMPTS} attempts"
+  exit 1
+}
 
 SHA="$(git -C "${APP_ROOT}" rev-parse HEAD)"
 echo "GATEKEEPER_DEPLOYED_SHA=${SHA}"

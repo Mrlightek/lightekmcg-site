@@ -1,0 +1,41 @@
+<% content_for :page_title, "Provisioning Request ##{@request.id}" %>
+
+<div style="margin-bottom:20px">
+  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Gatekeeper Provisioning</div>
+  <h2>Request #<%= @request.id %></h2>
+  <p><%= @request.subscription_plan&.name %> · <%= @request.provisioning_profile&.name %></p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+  <div class="dd-card" style="padding:18px">
+    <h3>Decision</h3>
+    <p>Approval: <strong><%= @request.approval_status %></strong></p>
+    <p>Execution: <strong><%= @request.execution_status %></strong></p>
+    <p>Reason: <%= @request.approval_reason.presence || "none" %></p>
+  </div>
+
+  <div class="dd-card" style="padding:18px">
+    <h3>Infrastructure</h3>
+    <p>Provider: <%= @request.compute_provider&.name || "unresolved" %></p>
+    <p>Profile: <%= @request.provisioning_profile&.slug || "none" %></p>
+    <p>Policy: <%= @request.compute_policy&.slug || "none" %></p>
+    <p>Nodes: <%= @request.requested_node_count %></p>
+    <p>Estimate: <%= @request.estimated_monthly_cost_cents ? number_to_currency(@request.estimated_monthly_cost_cents / 100.0) : "unknown" %></p>
+  </div>
+</div>
+
+<% if @request.approval_status == "pending" %>
+  <div class="dd-card" style="padding:18px;margin-top:14px;display:flex;gap:10px">
+    <%= button_to "Approve",
+          approve_dashboard_provisioning_request_path(@request),
+          method: :post,
+          class:"dd-topbar-btn dd-btn-primary",
+          data:{turbo_confirm:"Approve this provisioning request? No provider resource is created by this pass."} %>
+
+    <%= button_to "Reject",
+          reject_dashboard_provisioning_request_path(@request),
+          method: :post,
+          class:"dd-topbar-btn",
+          data:{turbo_confirm:"Reject this provisioning request?"} %>
+  </div>
+<% end %>

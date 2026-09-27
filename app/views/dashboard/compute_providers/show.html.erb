@@ -8,3 +8,37 @@
   <div class="dd-card" style="padding:18px"><h3>Adapter</h3><p>Type: <%= @provider.adapter_type %></p><p>Class: <%= @provider.adapter_class.presence || "registry/default" %></p><p>API: <%= @provider.api_base_url.presence || "adapter default" %></p></div>
   <div class="dd-card" style="padding:18px"><h3>Onboarding</h3><p><%= @provider.metadata.to_h["onboarding_state"] || "configured" %></p><% if @provider.status != "active" %><%= button_to "Activate Provider", activate_dashboard_compute_provider_path(@provider), method: :post, class:"dd-topbar-btn dd-btn-primary" %><% else %><%= button_to "Disable Provider", disable_dashboard_compute_provider_path(@provider), method: :post, class:"dd-topbar-btn" %><% end %></div>
 </div>
+
+<div class="dd-card" style="padding:18px;margin-top:16px">
+  <h3>Read-only Capability Validation</h3>
+  <p style="font-size:12px;color:var(--dd-text-secondary)">
+    Health, regions, plans, images and node listing only. No provisioning, resizing or deletion occurs here.
+  </p>
+
+  <%= form_with url: dashboard_compute_provider_capabilities_path(@provider), method: :patch do %>
+    <% %w[regions plans images nodes provision_node reboot_node shutdown_node start_node destroy_node set_reverse_dns].each do |capability| %>
+      <label style="display:block;margin:6px 0">
+        <%= hidden_field_tag "capabilities[#{capability}]", "0" %>
+        <%= check_box_tag "capabilities[#{capability}]", "1", @provider.capability?(capability) %>
+        <%= capability.humanize %>
+      </label>
+    <% end %>
+    <%= submit_tag "Save Capability Map", class:"dd-topbar-btn" %>
+  <% end %>
+
+  <div style="margin-top:12px">
+    <%= button_to "Validate Read-only Capabilities",
+          validate_dashboard_compute_provider_path(@provider),
+          method: :post,
+          class:"dd-topbar-btn dd-btn-primary" %>
+  </div>
+
+  <% checks = @provider.metadata.to_h["validation_checks"] || {} %>
+  <% if checks.any? %>
+    <div style="margin-top:12px">
+      <% checks.each do |name, check| %>
+        <div><strong><%= name %></strong>: <%= check["passed"] ? "PASS" : "FAIL" %></div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

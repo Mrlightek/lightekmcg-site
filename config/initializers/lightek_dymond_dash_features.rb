@@ -88,6 +88,20 @@ Rails.application.config.after_initialize do
     f.nav_items = [{ label: "Subscription Plans", icon: "credit-card", path: "main_app.dashboard_subscription_plans_path" }]
   end
 
+  DymondDash::FeatureRegistry.register do |f|
+    f.slug        = :provisioning_requests
+    f.label       = "Provisioning Requests"
+    f.icon        = "server-bolt"
+    f.gem_source  = "lightekmcg-site"
+    f.nav_section = :operations
+    f.min_plan    = :starter
+    f.nav_items   = [{
+      label: "Provisioning Requests",
+      icon: "server-bolt",
+      path: "main_app.dashboard_provisioning_requests_path"
+    }]
+  end
+
 rescue StandardError => e
   Rails.logger.warn "[Lightek/DymondDash] Host feature registration skipped: #{e.class}: #{e.message}"
 end

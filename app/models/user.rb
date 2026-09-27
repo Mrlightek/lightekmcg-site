@@ -84,6 +84,7 @@ class User < ApplicationRecord
       compute_provider_management
       infrastructure_catalog
       subscription_plan_management
+      provisioning_requests
       vault
     ].include?(feature_slug)
 

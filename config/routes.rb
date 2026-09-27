@@ -215,6 +215,20 @@ patch "/dashboard/infrastructure/providers/:compute_provider_id/capabilities",
       to: "dashboard/compute_provider_capabilities#update",
       as: :dashboard_compute_provider_capabilities
 
+resources :dashboard_provisioning_requests,
+          path: "/dashboard/infrastructure/provisioning",
+          controller: "dashboard/provisioning_requests",
+          only: %i[index show create] do
+  member do
+    post :approve
+    post :reject
+  end
+end
+
+post "/dashboard/infrastructure/providers/:compute_provider_id/validate",
+     to: "dashboard/compute_provider_validations#create",
+     as: :validate_dashboard_compute_provider
+
 mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_27_115528) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_27_123735) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1418,6 +1418,41 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_115528) do
     t.index ["slug"], name: "index_provisioning_profiles_on_slug", unique: true
   end
 
+  create_table "provisioning_requests", force: :cascade do |t|
+    t.string "owner_type"
+    t.bigint "owner_id"
+    t.bigint "subscription_id"
+    t.bigint "subscription_plan_id"
+    t.bigint "subscription_infrastructure_entitlement_id"
+    t.bigint "provisioning_profile_id"
+    t.bigint "compute_policy_id"
+    t.bigint "compute_provider_id"
+    t.bigint "gatekeeper_operation_id"
+    t.integer "requested_node_count", default: 1, null: false
+    t.integer "estimated_monthly_cost_cents"
+    t.string "approval_status", default: "pending", null: false
+    t.string "execution_status", default: "draft", null: false
+    t.text "approval_reason"
+    t.string "approved_by"
+    t.datetime "approved_at"
+    t.string "error_class"
+    t.text "error_message"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approval_status"], name: "index_provisioning_requests_on_approval_status"
+    t.index ["compute_policy_id"], name: "index_provisioning_requests_on_compute_policy_id"
+    t.index ["compute_provider_id"], name: "index_provisioning_requests_on_compute_provider_id"
+    t.index ["created_at"], name: "index_provisioning_requests_on_created_at"
+    t.index ["execution_status"], name: "index_provisioning_requests_on_execution_status"
+    t.index ["gatekeeper_operation_id"], name: "index_provisioning_requests_on_gatekeeper_operation_id"
+    t.index ["owner_type", "owner_id"], name: "index_provisioning_requests_on_owner_type_and_owner_id"
+    t.index ["provisioning_profile_id"], name: "index_provisioning_requests_on_provisioning_profile_id"
+    t.index ["subscription_id"], name: "index_provisioning_requests_on_subscription_id"
+    t.index ["subscription_infrastructure_entitlement_id"], name: "idx_on_subscription_infrastructure_entitlement_id_3e947bde14"
+    t.index ["subscription_plan_id"], name: "index_provisioning_requests_on_subscription_plan_id"
+  end
+
   create_table "resellers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -1724,6 +1759,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_115528) do
   add_foreign_key "profile_visits", "profiles"
   add_foreign_key "profile_visits", "users"
   add_foreign_key "profiles", "users"
+  add_foreign_key "provisioning_requests", "compute_policies"
+  add_foreign_key "provisioning_requests", "compute_providers"
+  add_foreign_key "provisioning_requests", "dymond_bank_subscription_plans", column: "subscription_plan_id"
+  add_foreign_key "provisioning_requests", "dymond_bank_subscriptions", column: "subscription_id"
+  add_foreign_key "provisioning_requests", "gatekeeper_operations"
+  add_foreign_key "provisioning_requests", "provisioning_profiles"
+  add_foreign_key "provisioning_requests", "subscription_infrastructure_entitlements"
   add_foreign_key "sessions", "users"
   add_foreign_key "shows", "episodes"
   add_foreign_key "subscription_infrastructure_entitlements", "compute_policies"

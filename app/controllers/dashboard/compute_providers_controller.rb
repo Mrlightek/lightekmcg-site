@@ -27,6 +27,12 @@ class Dashboard::ComputeProvidersController < DymondDash::ApplicationController
   end
 
   def activate
+    unless @provider.metadata.to_h["validation_status"] == "passed"
+      redirect_to dashboard_compute_provider_path(@provider),
+                  alert: "Provider must pass read-only validation before activation."
+      return
+    end
+
     @provider.update!(status: "active")
     redirect_to dashboard_compute_provider_path(@provider), notice: "Provider activated."
   end

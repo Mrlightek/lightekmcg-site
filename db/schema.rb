@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_27_123735) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1440,11 +1440,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_123735) do
     t.jsonb "metadata", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "selected_region"
+    t.string "selected_plan"
+    t.string "selected_image"
+    t.string "node_label"
+    t.bigint "gatekeeper_node_id"
+    t.string "destroy_approval_status", default: "not_requested", null: false
+    t.string "destroy_approved_by"
+    t.datetime "destroy_approved_at"
+    t.datetime "provisioned_at"
+    t.datetime "destroyed_at"
     t.index ["approval_status"], name: "index_provisioning_requests_on_approval_status"
     t.index ["compute_policy_id"], name: "index_provisioning_requests_on_compute_policy_id"
     t.index ["compute_provider_id"], name: "index_provisioning_requests_on_compute_provider_id"
     t.index ["created_at"], name: "index_provisioning_requests_on_created_at"
+    t.index ["destroy_approval_status"], name: "index_provisioning_requests_on_destroy_approval_status"
     t.index ["execution_status"], name: "index_provisioning_requests_on_execution_status"
+    t.index ["gatekeeper_node_id"], name: "index_provisioning_requests_on_gatekeeper_node_id"
     t.index ["gatekeeper_operation_id"], name: "index_provisioning_requests_on_gatekeeper_operation_id"
     t.index ["owner_type", "owner_id"], name: "index_provisioning_requests_on_owner_type_and_owner_id"
     t.index ["provisioning_profile_id"], name: "index_provisioning_requests_on_provisioning_profile_id"
@@ -1763,6 +1775,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_123735) do
   add_foreign_key "provisioning_requests", "compute_providers"
   add_foreign_key "provisioning_requests", "dymond_bank_subscription_plans", column: "subscription_plan_id"
   add_foreign_key "provisioning_requests", "dymond_bank_subscriptions", column: "subscription_id"
+  add_foreign_key "provisioning_requests", "gatekeeper_nodes"
   add_foreign_key "provisioning_requests", "gatekeeper_operations"
   add_foreign_key "provisioning_requests", "provisioning_profiles"
   add_foreign_key "provisioning_requests", "subscription_infrastructure_entitlements"

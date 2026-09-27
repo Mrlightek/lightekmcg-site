@@ -42,3 +42,21 @@
     </div>
   <% end %>
 </div>
+<% if @provider.slug == "linode" %>
+  <div class="dd-card" style="padding:18px;margin-top:16px">
+    <h3>Billable Linode Smoke Test</h3>
+    <p style="font-size:12px;color:var(--dd-text-secondary)">
+      This only prepares a ProvisioningRequest and discovers the estimated monthly price.
+      No Linode is created until you separately approve and execute it.
+    </p>
+    <%= form_with url: dashboard_linode_smoke_test_path(@provider), method: :post do %>
+      <%= select_tag :profile_slug,
+            options_from_collection_for_select(ProvisioningProfile.active.order(:name), :slug, :name, "personal_cloud") %>
+      <%= text_field_tag :region, nil, placeholder:"Optional region, e.g. us-east" %>
+      <%= text_field_tag :image, "linode/ubuntu24.04", placeholder:"Image" %>
+      <%= submit_tag "Prepare Billable Smoke Test",
+            class:"dd-topbar-btn dd-btn-primary",
+            data:{turbo_confirm:"Prepare a billable smoke-test request? This step does NOT create a Linode."} %>
+    <% end %>
+  </div>
+<% end %>

@@ -39,3 +39,50 @@
           data:{turbo_confirm:"Reject this provisioning request?"} %>
   </div>
 <% end %>
+<div class="dd-card" style="padding:18px;margin-top:14px">
+  <h3>Provider Execution</h3>
+  <p>Region: <strong><%= @request.selected_region.presence || "not selected" %></strong></p>
+  <p>Plan: <strong><%= @request.selected_plan.presence || "not selected" %></strong></p>
+  <p>Image: <strong><%= @request.selected_image.presence || "not selected" %></strong></p>
+  <p>Label: <strong><%= @request.node_label.presence || "not selected" %></strong></p>
+
+  <% if @request.executable? && @request.gatekeeper_node.blank? %>
+    <%= button_to "EXECUTE BILLABLE PROVISION",
+          execute_dashboard_provisioning_request_path(@request),
+          method: :post,
+          class:"dd-topbar-btn dd-btn-primary",
+          data:{turbo_confirm:"This WILL create a billable #{@request.compute_provider&.name} node at the displayed estimated monthly cost. Continue?"} %>
+  <% end %>
+
+  <% if @request.gatekeeper_node.present? && @request.destroyed_at.blank? %>
+    <p>
+      Gatekeeper node #<%= @request.gatekeeper_node.id %>
+      · provider resource <%= @request.gatekeeper_node.provider_resource_id %>
+      · <%= @request.gatekeeper_node.ip_address %>
+      · status=<%= @request.gatekeeper_node.status %>
+    </p>
+
+    <%= button_to "Verify Provider State",
+          verify_dashboard_provisioning_request_path(@request),
+          method: :post,
+          class:"dd-topbar-btn" %>
+
+    <% unless @request.destroy_approved? %>
+      <%= button_to "Approve Destruction",
+            approve_destroy_dashboard_provisioning_request_path(@request),
+            method: :post,
+            class:"dd-topbar-btn",
+            data:{turbo_confirm:"Approve destruction of this billable test node? Approval alone does not delete it."} %>
+    <% else %>
+      <%= button_to "DESTROY PROVIDER NODE",
+            destroy_dashboard_provisioning_request_path(@request),
+            method: :post,
+            class:"dd-topbar-btn",
+            data:{turbo_confirm:"This WILL permanently delete provider resource #{@request.gatekeeper_node.provider_resource_id}. Continue?"} %>
+    <% end %>
+  <% end %>
+
+  <% if @request.destroyed_at.present? %>
+    <p><strong>Destroyed:</strong> <%= @request.destroyed_at %></p>
+  <% end %>
+</div>

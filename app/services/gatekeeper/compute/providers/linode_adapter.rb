@@ -11,10 +11,15 @@ module Gatekeeper
         def nodes = collection("/linode/instances")
         def node(id) = request(:get, "/linode/instances/#{id}")
 
-        def provision_node(label:, region:, plan:, image:, root_password:, **options)
+        def provision_node(label:, region:, plan:, image:, root_password: nil, authorized_keys: nil, **options)
+          auth = {}
+          auth[:root_pass] = root_password if root_password.present?
+          auth[:authorized_keys] = Array(authorized_keys) if authorized_keys.present?
+          raise ConfigurationError, "Linode provisioning requires root_password or authorized_keys" if auth.empty?
+
           request(:post, "/linode/instances", body: {
-            label: label, region: region, type: plan, image: image, root_pass: root_password
-          }.merge(options.compact))
+            label: label, region: region, type: plan, image: image
+          }.merge(auth).merge(options.compact))
         end
 
         def reboot_node(id) = request(:post, "/linode/instances/#{id}/reboot", body: {})

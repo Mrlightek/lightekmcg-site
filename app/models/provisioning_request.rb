@@ -21,6 +21,7 @@ class ProvisioningRequest < ApplicationRecord
   belongs_to :compute_policy, optional: true
   belongs_to :compute_provider, optional: true
   belongs_to :gatekeeper_operation, optional: true
+  belongs_to :gatekeeper_node, optional: true
 
   validates :approval_status, inclusion: { in: APPROVAL_STATUSES }
   validates :execution_status, inclusion: { in: EXECUTION_STATUSES }
@@ -34,6 +35,16 @@ class ProvisioningRequest < ApplicationRecord
   end
 
   def executable?
-    approved? && execution_status == "ready" && compute_provider.present?
+    approved? &&
+      execution_status == "ready" &&
+      compute_provider.present? &&
+      selected_region.present? &&
+      selected_plan.present? &&
+      selected_image.present? &&
+      node_label.present?
+  end
+
+  def destroy_approved?
+    destroy_approval_status == "approved"
   end
 end

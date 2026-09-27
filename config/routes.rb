@@ -220,14 +220,23 @@ resources :dashboard_provisioning_requests,
           controller: "dashboard/provisioning_requests",
           only: %i[index show create] do
   member do
+    post :configure
     post :approve
     post :reject
+    post :execute
+    post :verify
+    post :approve_destroy
+    post :destroy
   end
 end
 
 post "/dashboard/infrastructure/providers/:compute_provider_id/validate",
      to: "dashboard/compute_provider_validations#create",
      as: :validate_dashboard_compute_provider
+
+post "/dashboard/infrastructure/providers/:compute_provider_id/linode_smoke_test",
+     to: "dashboard/linode_smoke_tests#create",
+     as: :dashboard_linode_smoke_test
 
 mount DymondDash::Engine => "/dashboard"
 

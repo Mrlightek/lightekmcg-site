@@ -7,7 +7,7 @@
     <h1>Save together.<br><span>Take turns receiving the pool.</span></h1>
     <p>Create a rotating savings circle with people you trust. Set the contribution amount, schedule and payout order, then track every round from one place.</p>
     <div class="hero-actions">
-      <%= link_to "Create your pool", new_susu_group_path, class: "btn btn-primary btn-large" %>
+      <%= link_to "Create your pool", susu_signup_path, class: "btn btn-primary btn-large" %>
       <%= link_to "See how it works", susu_path(anchor: "how"), class: "btn btn-secondary btn-large" %>
     </div>
     <div class="truth-grid">
@@ -45,6 +45,6 @@
 
   <section class="cta">
     <div><div class="eyebrow">READY TO START?</div><h2>Create the circle first. Activate it when everyone is ready.</h2><p>Susu keeps a new group in draft while you assemble members and confirm the payout order.</p></div>
-    <%= link_to "Create a pool", new_susu_group_path, class: "btn btn-light btn-large" %>
+    <%= link_to "Create a pool", susu_signup_path, class: "btn btn-light btn-large" %>
   </section>
 </main>

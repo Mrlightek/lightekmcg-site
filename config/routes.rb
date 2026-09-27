@@ -43,6 +43,10 @@ get  "pricing",  to: "pages#pricing"
 get  "contact",  to: "pages#contact"
 
 
+get  "/susu/signup", to: "susu_registrations#new", as: :susu_signup
+post "/susu/signup", to: "susu_registrations#create"
+get  "/susu/invitations/:token/accept", to: "susu_invitations#accept", as: :accept_susu_invitation
+
 # ── Susu public product surface ───────────────────────────────────────────────
 get "susu",            to: "susu_public#home",       as: :susu
 get "susu/pricing",    to: "susu_public#pricing",    as: :susu_pricing

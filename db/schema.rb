@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_26_182319) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_27_080544) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1408,6 +1408,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_182319) do
     t.index ["organizer_id"], name: "index_susu_groups_on_organizer_id"
   end
 
+  create_table "susu_invitations", force: :cascade do |t|
+    t.bigint "susu_group_id", null: false
+    t.bigint "inviter_id", null: false
+    t.string "email_address", null: false
+    t.integer "payout_position", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "accepted_at"
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_susu_invitations_on_expires_at"
+    t.index ["inviter_id"], name: "index_susu_invitations_on_inviter_id"
+    t.index ["status"], name: "index_susu_invitations_on_status"
+    t.index ["susu_group_id", "email_address"], name: "idx_susu_invites_group_email", unique: true
+    t.index ["susu_group_id"], name: "index_susu_invitations_on_susu_group_id"
+  end
+
   create_table "susu_match_preferences", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.decimal "contribution_amount", precision: 12, scale: 2, null: false
@@ -1568,6 +1585,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_182319) do
   add_foreign_key "susu_contributions", "users"
   add_foreign_key "susu_cycles", "susu_groups"
   add_foreign_key "susu_groups", "users", column: "organizer_id"
+  add_foreign_key "susu_invitations", "susu_groups"
+  add_foreign_key "susu_invitations", "users", column: "inviter_id"
   add_foreign_key "susu_match_preferences", "users"
   add_foreign_key "susu_memberships", "susu_groups"
   add_foreign_key "susu_memberships", "users"

@@ -1,0 +1,4 @@
+<h1>You’ve been invited to a Susu</h1>
+<p><strong><%= @inviter.full_name %></strong> invited you to join <strong><%= @group.name %></strong> on Susu by Lightek.</p>
+<p>Contribution: <strong><%= number_to_currency(@group.contribution_amount) %></strong> · <%= @group.cycle_frequency.humanize %></p>
+<p><%= link_to "Accept invitation and join", @invite_url %></p>

@@ -13,8 +13,23 @@ class SusuMembershipsController < DymondDash::ApplicationController
     user = User.find_by("LOWER(email_address) = ?", email)
 
     unless user
-      redirect_to @susu_group,
-                  alert: "No Lightek account exists for #{email}. Account invitations are the next onboarding step."
+      pending_count = @susu_group.susu_invitations.pending.count
+      if @susu_group.members.count + pending_count >= @susu_group.target_member_count
+        redirect_to @susu_group, alert: "This Susu already has enough members or pending invitations."
+        return
+      end
+
+      invitation = @susu_group.susu_invitations.find_or_initialize_by(email_address: email)
+      invitation.assign_attributes(
+        inviter: current_user,
+        payout_position: @susu_group.next_payout_position + pending_count,
+        status: "pending",
+        expires_at: 14.days.from_now
+      )
+      invitation.save!
+      SusuInvitationMailer.with(invitation: invitation).invite.deliver_later
+
+      redirect_to @susu_group, notice: "Invitation sent to #{email}."
       return
     end
 

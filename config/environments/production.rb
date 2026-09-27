@@ -98,4 +98,25 @@ config.action_mailbox.ingress = :postfix
   #
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  # SUSU SMTP CONFIGURATION
+  if ENV["SMTP_ADDRESS"].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.perform_deliveries = true
+    config.action_mailer.raise_delivery_errors = true
+    config.action_mailer.smtp_settings = {
+      address: ENV.fetch("SMTP_ADDRESS"),
+      port: ENV.fetch("SMTP_PORT", "587").to_i,
+      domain: ENV.fetch("SMTP_DOMAIN", "lightekmcg.com"),
+      user_name: ENV["SMTP_USERNAME"],
+      password: ENV["SMTP_PASSWORD"],
+      authentication: ENV.fetch("SMTP_AUTHENTICATION", "plain"),
+      enable_starttls_auto: ENV.fetch("SMTP_STARTTLS", "true") == "true"
+    }
+    config.action_mailer.default_url_options = {
+      host: ENV.fetch("APP_HOST", "lightekmcg.com"),
+      protocol: ENV.fetch("APP_PROTOCOL", "https")
+    }
+  end
+
 end

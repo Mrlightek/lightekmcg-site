@@ -3,6 +3,8 @@ class SusuGroup < ApplicationRecord
   include SusuLifecycle
 
   belongs_to :organizer, class_name: "User"
+  has_many :susu_invitations, dependent: :destroy
+
 
   validates :name, presence: true
   validates :target_member_count,

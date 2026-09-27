@@ -1,0 +1,29 @@
+<% content_for :title, "Create your Susu account" %>
+<main>
+  <section class="page-hero">
+    <div class="eyebrow">SUSU ACCOUNT</div>
+    <h1><%= @invitation ? "Join #{@invitation.susu_group.name}" : "Create your Susu account" %></h1>
+    <p>This signup creates a client account with Susu access only.</p>
+  </section>
+
+  <section class="section onboarding" style="max-width:680px">
+    <% if @user.errors.any? %>
+      <div class="pricing-card" style="margin-bottom:18px"><strong><%= @user.errors.full_messages.to_sentence %></strong></div>
+    <% end %>
+
+    <%= form_with model: @user, url: susu_signup_path do |form| %>
+      <%= hidden_field_tag :invite, params[:invite] if params[:invite].present? %>
+      <div class="pricing-card">
+        <p><%= form.label :first_name %><br><%= form.text_field :first_name, required: true %></p>
+        <p><%= form.label :last_name %><br><%= form.text_field :last_name, required: true %></p>
+        <p><%= form.label :email_address, "Email" %><br><%= form.email_field :email_address, required: true %></p>
+        <p><%= form.label :phone %><br><%= form.telephone_field :phone %></p>
+        <p><%= form.label :password %><br><%= form.password_field :password, required: true %></p>
+        <p><%= form.label :password_confirmation %><br><%= form.password_field :password_confirmation, required: true %></p>
+        <%= form.submit(@invitation ? "Create account and join Susu" : "Create Susu account", class: "btn btn-primary btn-large") %>
+      </div>
+    <% end %>
+
+    <p style="margin-top:18px">Already have an account? <%= link_to "Sign in", new_session_path %>.</p>
+  </section>
+</main>

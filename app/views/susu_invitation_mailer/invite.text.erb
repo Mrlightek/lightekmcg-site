@@ -1,0 +1,8 @@
+You’ve been invited to a Susu
+
+<%= @inviter.full_name %> invited you to join <%= @group.name %> on Susu by Lightek.
+Contribution: <%= number_to_currency(@group.contribution_amount) %>
+Schedule: <%= @group.cycle_frequency.humanize %>
+
+Accept invitation:
+<%= @invite_url %>

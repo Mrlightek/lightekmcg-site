@@ -11,4 +11,3 @@ class CreateSceneObjects < ActiveRecord::Migration[8.0]
     add_index :scene_objects, %i[studio_scene_id position]
   end
 end
-

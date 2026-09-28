@@ -12,4 +12,3 @@ class CreateCreationJobs < ActiveRecord::Migration[8.0]
     add_index :creation_jobs, :status
   end
 end
-

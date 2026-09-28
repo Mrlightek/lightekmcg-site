@@ -43,4 +43,3 @@ class BuildSceneJob < ApplicationJob
     }.fetch(File.extname(filename), "application/octet-stream")
   end
 end
-

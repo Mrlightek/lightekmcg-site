@@ -14,4 +14,3 @@ class SceneObject < ApplicationRecord
     errors.add(:definition, "must be a JSON object") unless definition.is_a?(Hash)
   end
 end
-

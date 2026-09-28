@@ -11,4 +11,3 @@ class CreationJob < ApplicationRecord
 
   def pending? = status == "pending"
 end
-

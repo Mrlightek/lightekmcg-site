@@ -60,4 +60,3 @@ module Blender
     def timeout_seconds = ENV.fetch("BLENDER_TIMEOUT_SECONDS", 900).to_i
   end
 end
-

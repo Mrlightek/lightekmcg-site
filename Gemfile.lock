@@ -44,7 +44,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 033f69297a83e38a83d962278070137655688ec6
+  revision: 3cfff9e91a9845bc8df882b442c48f0e299019b8
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)

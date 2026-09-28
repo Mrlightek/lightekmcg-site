@@ -87,12 +87,6 @@ jobs:
           ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" '
             set -e
 
-            cd /var/www/lightekmcg-site
-
-            git fetch origin main
-            git checkout main
-            git pull --ff-only origin main
-
             APP_ROOT=/var/www/lightekmcg-site \
             APP_USER=lightek \
             APP_NAME=lightekmcg-site \

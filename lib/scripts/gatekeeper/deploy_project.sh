@@ -18,10 +18,19 @@ RUBY_BIN="/home/${APP_USER}/.rbenv/versions/${RUBY_VERSION}/bin"
 [[ -f "${ENV_FILE}" ]] || { echo "ERROR: missing ${ENV_FILE}"; exit 1; }
 
 echo "[1/8] Pull"
-git config --global --add safe.directory "${APP_ROOT}" >/dev/null 2>&1 || true
-git -C "${APP_ROOT}" fetch origin "${APP_BRANCH}"
-git -C "${APP_ROOT}" checkout "${APP_BRANCH}"
-git -C "${APP_ROOT}" pull --ff-only origin "${APP_BRANCH}"
+
+run_as_app_user() {
+  sudo -u "${APP_USER}" -H env -u GEM_HOME -u GEM_PATH bash -lc "
+    export RBENV_ROOT='/home/${APP_USER}/.rbenv'
+    export PATH='${RUBY_BIN}:/home/${APP_USER}/.rbenv/bin:/usr/local/bin:/usr/bin:/bin'
+    cd '${APP_ROOT}'
+    $*
+  "
+}
+
+run_as_app_user "git fetch origin '${APP_BRANCH}'"
+run_as_app_user "git checkout '${APP_BRANCH}'"
+run_as_app_user "git pull --ff-only origin '${APP_BRANCH}'"
 
 run_rails() {
   sudo -u "${APP_USER}" -H env -u GEM_HOME -u GEM_PATH bash -lc "

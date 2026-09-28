@@ -8,7 +8,14 @@ namespace :susu do
 
   task payout_readiness: :environment do
     puts "=== SUSU PAYOUT READINESS ==="
-    puts "Stripe mode:         #{ENV["STRIPE_SECRET_KEY"].to_s.start_with?("sk_live_") ? "live" : "test/non-live"}"
+    stripe_mode =
+      begin
+        DymondBank::StripeCredentials.secret_key.to_s.start_with?("sk_live_") ? "live" : "test/non-live"
+      rescue StandardError => e
+        "unavailable (#{e.class})"
+      end
+
+    puts "Stripe mode:         #{stripe_mode}"
     puts "Entitlements table:  #{ActiveRecord::Base.connection.table_exists?("user_feature_entitlements")}"
     puts "Funded rounds:       #{SusuRound.where(status: "funded").count}"
     puts "Processing rounds:   #{SusuRound.where(status: "processing").count}"

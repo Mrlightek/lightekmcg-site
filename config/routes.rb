@@ -54,10 +54,6 @@ get "susu/onboarding", to: "susu_public#onboarding", as: :susu_onboarding
 
 # ── Gatekeeper ──────────────────────────────────────────────────────────────
 #Gatekeeper webhook for Stripe
-#https://lightekmcg.com/gatekeeper/webhooks/stripe
-post "gatekeeper/webhooks/stripe",
-     to: "gatekeeper#stripe_webhook",
-     as: :gatekeeper_stripe_webhook
 
 post "/susu_groups/:id/request_payout", to: "susu_groups#request_payout", as: :request_payout_susu_group
 

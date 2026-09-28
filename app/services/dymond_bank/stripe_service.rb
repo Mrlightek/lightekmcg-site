@@ -79,15 +79,9 @@ module DymondBank
       private
 
       def configure!
-        env_name =
-          if DymondBank.respond_to?(:configuration) &&
-             DymondBank.configuration.respond_to?(:stripe_secret_key_env)
-            DymondBank.configuration.stripe_secret_key_env
-          else
-            "STRIPE_SECRET_KEY"
-          end
-        key = ENV[env_name.to_s].presence
-        raise ConfigurationError, "#{env_name} is missing" if key.blank?
+        key = DymondBank::StripeCredentials.secret_key
+        raise ConfigurationError, "Stripe secret key is missing" if key.blank?
+
         Stripe.api_key = key
       end
     end

@@ -116,3 +116,9 @@ gem "dymond_booking", git: "git@github.com:lightekmcg/dymond_booking.git"   # do
 gem "faker", "~> 3.8"
 
 gem "dwolla_v2", "~> 4.0"
+
+gem "google-apis-gmail_v1", "~> 0.53.0"
+
+gem "googleauth", "~> 1.17"
+
+gem "webrick", "~> 1.9"

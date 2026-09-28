@@ -99,8 +99,17 @@ config.action_mailbox.ingress = :postfix
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 
-  # SUSU SMTP CONFIGURATION
-  if ENV["SMTP_ADDRESS"].present?
+  # SUSU / TRANSACTIONAL MAIL DELIVERY
+  #
+  # Preferred path while Linode SMTP egress is restricted:
+  # Gmail API over HTTPS using OAuth refresh credentials.
+  #
+  # SMTP remains available as a fallback for later.
+  if ENV["GOOGLE_GMAIL_REFRESH_TOKEN"].present?
+    config.action_mailer.delivery_method = :gmail_api
+    config.action_mailer.perform_deliveries = true
+    config.action_mailer.raise_delivery_errors = true
+  elsif ENV["SMTP_ADDRESS"].present?
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.perform_deliveries = true
     config.action_mailer.raise_delivery_errors = true
@@ -113,10 +122,11 @@ config.action_mailbox.ingress = :postfix
       authentication: ENV.fetch("SMTP_AUTHENTICATION", "plain"),
       enable_starttls_auto: ENV.fetch("SMTP_STARTTLS", "true") == "true"
     }
-    config.action_mailer.default_url_options = {
-      host: ENV.fetch("APP_HOST", "lightekmcg.com"),
-      protocol: ENV.fetch("APP_PROTOCOL", "https")
-    }
   end
+
+  config.action_mailer.default_url_options = {
+    host: ENV.fetch("APP_HOST", "lightekmcg.com"),
+    protocol: ENV.fetch("APP_PROTOCOL", "https")
+  }
 
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_28_153548) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -59,6 +59,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
   create_table "architectures", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "artifacts", force: :cascade do |t|
+    t.bigint "creation_job_id"
+    t.string "kind", null: false
+    t.string "filename", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "studio_operation_id"
+    t.index ["creation_job_id"], name: "index_artifacts_on_creation_job_id"
+    t.index ["studio_operation_id"], name: "index_artifacts_on_studio_operation_id"
   end
 
   create_table "catalogs", force: :cascade do |t|
@@ -121,6 +133,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
     t.index ["health_status"], name: "index_compute_providers_on_health_status"
     t.index ["slug"], name: "index_compute_providers_on_slug", unique: true
     t.index ["status"], name: "index_compute_providers_on_status"
+  end
+
+  create_table "creation_jobs", force: :cascade do |t|
+    t.bigint "studio_scene_id", null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "manifest", default: {}, null: false
+    t.text "error_message"
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_creation_jobs_on_status"
+    t.index ["studio_scene_id"], name: "index_creation_jobs_on_studio_scene_id"
   end
 
   create_table "dashboards", force: :cascade do |t|
@@ -1382,6 +1407,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
     t.index ["user_id"], name: "index_posts_on_user_id"
   end
 
+  create_table "productions", force: :cascade do |t|
+    t.bigint "studio_project_id", null: false
+    t.string "name", null: false
+    t.string "kind", default: "general", null: false
+    t.string "status", default: "development", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_productions_on_status"
+    t.index ["studio_project_id", "name"], name: "index_productions_on_studio_project_id_and_name"
+    t.index ["studio_project_id"], name: "index_productions_on_studio_project_id"
+  end
+
   create_table "profile_visits", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "profile_id", null: false
@@ -1470,6 +1508,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "scene_objects", force: :cascade do |t|
+    t.bigint "studio_scene_id", null: false
+    t.string "name", null: false
+    t.string "object_type", null: false
+    t.integer "position", default: 0, null: false
+    t.jsonb "definition", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["studio_scene_id", "position"], name: "index_scene_objects_on_studio_scene_id_and_position"
+    t.index ["studio_scene_id"], name: "index_scene_objects_on_studio_scene_id"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "ip_address"
@@ -1511,6 +1561,99 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
   create_table "storylines", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "studio_live_operations", force: :cascade do |t|
+    t.bigint "studio_project_id", null: false
+    t.bigint "production_id"
+    t.string "platform", null: false
+    t.string "status", default: "draft", null: false
+    t.string "credential_ref"
+    t.string "show_run_id"
+    t.string "gatekeeper_operation_id"
+    t.jsonb "response_policy", default: {}, null: false
+    t.jsonb "moderation_policy", default: {}, null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "started_at"
+    t.datetime "ended_at"
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["gatekeeper_operation_id"], name: "index_studio_live_operations_on_gatekeeper_operation_id"
+    t.index ["platform"], name: "index_studio_live_operations_on_platform"
+    t.index ["production_id"], name: "index_studio_live_operations_on_production_id"
+    t.index ["status"], name: "index_studio_live_operations_on_status"
+    t.index ["studio_project_id"], name: "index_studio_live_operations_on_studio_project_id"
+  end
+
+  create_table "studio_operations", force: :cascade do |t|
+    t.bigint "studio_project_id", null: false
+    t.bigint "production_id"
+    t.bigint "studio_scene_id"
+    t.string "operation_type", null: false
+    t.string "provider", null: false
+    t.string "capability", null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "intent", default: {}, null: false
+    t.jsonb "manifest", default: {}, null: false
+    t.jsonb "cost_quote", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "gatekeeper_operation_id"
+    t.text "error_message"
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["gatekeeper_operation_id"], name: "index_studio_operations_on_gatekeeper_operation_id"
+    t.index ["operation_type"], name: "index_studio_operations_on_operation_type"
+    t.index ["production_id"], name: "index_studio_operations_on_production_id"
+    t.index ["provider"], name: "index_studio_operations_on_provider"
+    t.index ["status"], name: "index_studio_operations_on_status"
+    t.index ["studio_project_id"], name: "index_studio_operations_on_studio_project_id"
+    t.index ["studio_scene_id"], name: "index_studio_operations_on_studio_scene_id"
+  end
+
+  create_table "studio_projects", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "studio_publications", force: :cascade do |t|
+    t.bigint "studio_project_id", null: false
+    t.bigint "production_id"
+    t.bigint "artifact_id", null: false
+    t.string "platform", null: false
+    t.string "destination"
+    t.string "status", default: "draft", null: false
+    t.datetime "scheduled_at"
+    t.datetime "published_at"
+    t.string "external_id"
+    t.string "external_url"
+    t.string "gatekeeper_operation_id"
+    t.jsonb "metadata", default: {}, null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["artifact_id"], name: "index_studio_publications_on_artifact_id"
+    t.index ["platform"], name: "index_studio_publications_on_platform"
+    t.index ["production_id"], name: "index_studio_publications_on_production_id"
+    t.index ["scheduled_at"], name: "index_studio_publications_on_scheduled_at"
+    t.index ["status"], name: "index_studio_publications_on_status"
+    t.index ["studio_project_id"], name: "index_studio_publications_on_studio_project_id"
+  end
+
+  create_table "studio_scenes", force: :cascade do |t|
+    t.bigint "studio_project_id", null: false
+    t.string "name", null: false
+    t.jsonb "settings", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "production_id"
+    t.index ["production_id"], name: "index_studio_scenes_on_production_id"
+    t.index ["studio_project_id"], name: "index_studio_scenes_on_studio_project_id"
   end
 
   create_table "subscription_infrastructure_entitlements", force: :cascade do |t|
@@ -1712,9 +1855,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "artifacts", "creation_jobs"
+  add_foreign_key "artifacts", "studio_operations"
   add_foreign_key "channels", "shows"
   add_foreign_key "compute_policies", "compute_providers", column: "fallback_provider_id"
   add_foreign_key "compute_policies", "compute_providers", column: "preferred_provider_id"
+  add_foreign_key "creation_jobs", "studio_scenes"
   add_foreign_key "departments", "system_jobs"
   add_foreign_key "dymond_bank_invoice_line_items", "dymond_bank_invoices", column: "invoice_id"
   add_foreign_key "dymond_bank_invoices", "dymond_bank_linked_accounts", column: "linked_account_id"
@@ -1768,6 +1914,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
   add_foreign_key "nevaehs", "users"
   add_foreign_key "posts", "users"
+  add_foreign_key "productions", "studio_projects"
   add_foreign_key "profile_visits", "profiles"
   add_foreign_key "profile_visits", "users"
   add_foreign_key "profiles", "users"
@@ -1779,8 +1926,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_130017) do
   add_foreign_key "provisioning_requests", "gatekeeper_operations"
   add_foreign_key "provisioning_requests", "provisioning_profiles"
   add_foreign_key "provisioning_requests", "subscription_infrastructure_entitlements"
+  add_foreign_key "scene_objects", "studio_scenes"
   add_foreign_key "sessions", "users"
   add_foreign_key "shows", "episodes"
+  add_foreign_key "studio_live_operations", "productions"
+  add_foreign_key "studio_live_operations", "studio_projects"
+  add_foreign_key "studio_operations", "productions"
+  add_foreign_key "studio_operations", "studio_projects"
+  add_foreign_key "studio_operations", "studio_scenes"
+  add_foreign_key "studio_publications", "artifacts"
+  add_foreign_key "studio_publications", "productions"
+  add_foreign_key "studio_publications", "studio_projects"
+  add_foreign_key "studio_scenes", "productions"
+  add_foreign_key "studio_scenes", "studio_projects"
   add_foreign_key "subscription_infrastructure_entitlements", "compute_policies"
   add_foreign_key "subscription_infrastructure_entitlements", "dymond_bank_subscription_plans", column: "subscription_plan_id"
   add_foreign_key "subscription_infrastructure_entitlements", "provisioning_profiles"

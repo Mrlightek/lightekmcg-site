@@ -101,15 +101,14 @@ config.action_mailbox.ingress = :postfix
 
   # SUSU / TRANSACTIONAL MAIL DELIVERY
   #
-  # Preferred path while Linode SMTP egress is restricted:
-  # Gmail API over HTTPS using OAuth refresh credentials.
-  #
-  # SMTP remains available as a fallback for later.
-  if ENV["GOOGLE_GMAIL_REFRESH_TOKEN"].present?
+  # Secret material is retrieved by the delivery adapter from Lightek Vault.
+  # MAIL_DELIVERY_METHOD is configuration only; it contains no credentials.
+  case ENV.fetch("MAIL_DELIVERY_METHOD", "gmail_api")
+  when "gmail_api"
     config.action_mailer.delivery_method = :gmail_api
     config.action_mailer.perform_deliveries = true
     config.action_mailer.raise_delivery_errors = true
-  elsif ENV["SMTP_ADDRESS"].present?
+  when "smtp"
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.perform_deliveries = true
     config.action_mailer.raise_delivery_errors = true
@@ -122,6 +121,9 @@ config.action_mailbox.ingress = :postfix
       authentication: ENV.fetch("SMTP_AUTHENTICATION", "plain"),
       enable_starttls_auto: ENV.fetch("SMTP_STARTTLS", "true") == "true"
     }
+  else
+    raise ArgumentError,
+          "Unsupported MAIL_DELIVERY_METHOD: #{ENV['MAIL_DELIVERY_METHOD'].inspect}"
   end
 
   config.action_mailer.default_url_options = {

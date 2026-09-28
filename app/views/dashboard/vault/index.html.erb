@@ -22,7 +22,42 @@
         <%= text_field_tag "vault_secret[provider]", nil, placeholder:"Provider, e.g. ovh" %>
         <%= text_field_tag "vault_secret[purpose]", nil, placeholder:"Purpose, e.g. compute_management" %>
         <%= select_tag "vault_secret[environment]", options_for_select([["Production","production"],["Development","development"],["Test","test"]], "production") %>
-        <%= password_field_tag "vault_secret[payload]", nil, placeholder:"Secret value", required:true, autocomplete:"new-password" %>
+        <div style="padding:12px;border:1px solid var(--dd-border-color);border-radius:8px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
+            Secret payload
+          </div>
+
+          <p style="font-size:11px;color:var(--dd-text-secondary);margin-top:0">
+            Use the single value field for simple secrets, or define structured
+            credential fields below. Secret values are encrypted and are never
+            redisplayed.
+          </p>
+
+          <%= password_field_tag "vault_secret[payload]",
+                nil,
+                placeholder:"Single secret value (optional when using structured fields)",
+                autocomplete:"new-password",
+                style:"width:100%;margin-bottom:12px" %>
+
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dd-text-muted);margin-bottom:8px">
+            Structured fields
+          </div>
+
+          <% 6.times do |index| %>
+            <div style="display:grid;grid-template-columns:minmax(120px,.8fr) minmax(180px,1.2fr);gap:8px;margin-bottom:8px">
+              <%= text_field_tag "vault_secret[payload_keys][]",
+                    nil,
+                    placeholder:"Field name",
+                    autocomplete:"off" %>
+
+              <%= password_field_tag "vault_secret[payload_values][]",
+                    nil,
+                    placeholder:"Secret value",
+                    autocomplete:"new-password" %>
+            </div>
+          <% end %>
+        </div>
+
         <%= text_field_tag "vault_secret[allowed_consumers]", nil, placeholder:"Allowed consumers, comma-separated" %>
         <%= text_field_tag "vault_secret[allowed_purposes]", nil, placeholder:"Allowed purposes, comma-separated" %>
         <%= submit_tag "Store encrypted secret", class:"dd-topbar-btn dd-btn-primary" %>

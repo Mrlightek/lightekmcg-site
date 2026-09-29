@@ -1,6 +1,6 @@
 GIT
   remote: git@github.com:lightekmcg/dymond_bank.git
-  revision: 0726355fae3a263a714f98daeac00f0eab1b217f
+  revision: 06153f7c90583c06005c08d153cd1978e77d8b35
   specs:
     dymond_bank (0.1.0)
       activerecord (>= 7.2)

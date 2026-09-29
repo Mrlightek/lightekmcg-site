@@ -6,6 +6,11 @@ module Studio
       class QuoteMissing < StandardError; end
       class AlreadyPaid < StandardError; end
 
+      SUPPORTED_RAILS = %i[
+        stripe_ach
+        stripe_card
+      ].freeze
+
       def self.call(operation:, payer:, success_url:, cancel_url:)
         new(
           operation:,
@@ -35,9 +40,9 @@ module Studio
         rail = quote.fetch("rail", "stripe_ach").to_sym
         context = quote.fetch("context", "studio_render").to_sym
 
-        unless rail == :stripe_ach
+        unless SUPPORTED_RAILS.include?(rail)
           raise ArgumentError,
-                "Studio checkout currently supports stripe_ach only"
+                "Unsupported Studio payment rail: #{rail.inspect}"
         end
 
         DymondBank::StripeCheckoutService.create_for_payable!(
@@ -47,10 +52,11 @@ module Studio
           context: context,
           description: quote.fetch(
             "description",
-            "Studio #{operation.operation_type.humanize}"
+            "Studio Render"
           ),
           success_url: success_url,
-          cancel_url: cancel_url
+          cancel_url: cancel_url,
+          rail: rail
         )
       end
 

@@ -4,6 +4,7 @@ module Studio
   module Billing
     class Quote
       DEFAULT_RAIL = :stripe_ach
+
       CONTEXTS = {
         "build_scene" => :studio_render
       }.freeze
@@ -18,6 +19,9 @@ module Studio
       end
 
       def call
+        raise ArgumentError, "Operation is already paid" if operation.paid?
+        raise ArgumentError, "Terminal Studio operations cannot be quoted" if operation.terminal?
+
         principal_cents =
           Studio::Billing::Pricing.principal_cents_for(
             operation.operation_type

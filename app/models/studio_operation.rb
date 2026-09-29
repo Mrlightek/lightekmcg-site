@@ -11,7 +11,7 @@ class StudioOperation < ApplicationRecord
   validate :json_payloads_must_be_objects
 
   scope :recent_first, -> { order(created_at: :desc) }
-  scope :active, -> { where(status: %w[awaiting_planning awaiting_approval pending running]) }
+  scope :active, -> { where(status: %w[awaiting_planning awaiting_approval awaiting_payment pending running]) }
 
   def payment_required? = status == "awaiting_payment"
 

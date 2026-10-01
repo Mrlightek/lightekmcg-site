@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_01_124100) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_01_180043) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1501,6 +1501,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_01_124100) do
     t.index ["studio_project_id"], name: "index_productions_on_studio_project_id"
   end
 
+  create_table "profile_sections", force: :cascade do |t|
+    t.bigint "profile_id", null: false
+    t.string "key", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "settings", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["profile_id", "key"], name: "index_profile_sections_on_profile_id_and_key", unique: true
+    t.index ["profile_id", "position"], name: "index_profile_sections_on_profile_id_and_position"
+    t.index ["profile_id"], name: "index_profile_sections_on_profile_id"
+  end
+
   create_table "profile_visits", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "profile_id", null: false
@@ -1515,7 +1528,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_01_124100) do
     t.text "bio"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["user_id"], name: "index_profiles_on_user_id"
+    t.string "display_name"
+    t.string "handle", null: false
+    t.string "profile_type", default: "person", null: false
+    t.string "avatar_url"
+    t.string "cover_image_url"
+    t.index ["handle"], name: "index_profiles_on_handle", unique: true
+    t.index ["user_id"], name: "index_profiles_on_user_id", unique: true
   end
 
   create_table "provisioning_profiles", force: :cascade do |t|
@@ -1997,6 +2016,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_01_124100) do
   add_foreign_key "nevaehs", "users"
   add_foreign_key "posts", "users"
   add_foreign_key "productions", "studio_projects"
+  add_foreign_key "profile_sections", "profiles"
   add_foreign_key "profile_visits", "profiles"
   add_foreign_key "profile_visits", "users"
   add_foreign_key "profiles", "users"

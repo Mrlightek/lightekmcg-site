@@ -1,7 +1,151 @@
 class Profile < ApplicationRecord
   belongs_to :user
-  include Visitable
 
-  # Invoke your custom macro
+  include Visitable
   tracks_unique_visits
+
+  PROFILE_TYPES =
+    %w[
+      person
+      creator
+      organization
+    ].freeze
+
+  DEFAULT_SECTIONS = {
+    "person" => %w[
+      posts
+      friends
+      communities
+      events
+      about
+    ],
+
+    "creator" => %w[
+      featured
+      series
+      clips
+      playlists
+      posts
+      about
+    ],
+
+    "organization" => %w[
+      featured
+      series
+      members
+      events
+      posts
+      about
+    ]
+  }.freeze
+
+  has_many :profile_sections,
+           -> {
+             order(
+               :position,
+               :id
+             )
+           },
+           dependent: :destroy,
+           inverse_of: :profile
+
+  validates :user_id,
+            uniqueness: true
+
+  validates :profile_type,
+            inclusion: {
+              in: PROFILE_TYPES
+            }
+
+  validates :display_name,
+            length: {
+              maximum: 80
+            },
+            allow_blank: true
+
+  validates :handle,
+            presence: true,
+            uniqueness: {
+              case_sensitive: false
+            },
+            format: {
+              with: /\A[a-z0-9][a-z0-9_-]*\z/,
+              message:
+                "may only contain lowercase letters, numbers, underscores, and hyphens"
+            },
+            length: {
+              minimum: 3,
+              maximum: 40
+            }
+
+  validates :bio,
+            length: {
+              maximum: 2_000
+            },
+            allow_blank: true
+
+  before_validation :normalize_handle
+
+  after_create :seed_default_sections!
+
+  def public_display_name
+    display_name.presence ||
+      "Lightek Member"
+  end
+
+  def display_handle
+    "@#{handle}"
+  end
+
+  def default_section_keys
+    DEFAULT_SECTIONS.fetch(
+      profile_type,
+      DEFAULT_SECTIONS.fetch("person")
+    )
+  end
+
+  def ensure_default_sections!
+    return if profile_sections.exists?
+
+    seed_default_sections!
+  end
+
+  def reset_sections_to_defaults!
+    transaction do
+      profile_sections.delete_all
+      seed_default_sections!
+    end
+
+    profile_sections.reload
+  end
+
+  private
+
+  def normalize_handle
+    self.handle =
+      handle
+        .to_s
+        .strip
+        .downcase
+        .delete_prefix("@")
+  end
+
+  def seed_default_sections!
+    default_section_keys
+      .each_with_index do |key, index|
+        profile_sections
+          .find_or_create_by!(
+            key: key
+          ) do |section|
+            section.position =
+              index + 1
+
+            section.enabled =
+              true
+
+            section.settings =
+              {}
+          end
+      end
+  end
 end

@@ -59,6 +59,12 @@ class User < ApplicationRecord
            class_name: "UserFeatureEntitlement",
            dependent: :destroy
 
+    has_one :profile,
+            dependent: :destroy
+
+    after_create :create_default_lightek_profile
+
+
 
   # ── Helpers ────────────────────────────────────────────────────────────────────
   def full_name
@@ -140,4 +146,14 @@ class User < ApplicationRecord
   end
 
   has_many :sessions, dependent: :destroy
+
+    private
+
+    def create_default_lightek_profile
+      create_profile!(
+        handle: "member-#{id}",
+        profile_type: "person"
+      )
+    end
+
 end

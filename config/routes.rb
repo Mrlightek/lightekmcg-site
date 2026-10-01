@@ -115,37 +115,35 @@ namespace :employee do
   resources :timesheets, only: %i[index create]
 end
 
-# ── Video Networking System ──────────────────────────────────────────────
-get "kitchen_sink",
-    to: "kitchen_sink#index",
-    defaults: { format: :json },
-    as: :kitchen_sink
+# ── Gatekeeper — Lightek client contract ──────────────────────────────────────
+# Gatekeeper is the public experience/API contract for Roku and future clients.
+get "gatekeeper",
+  to: "gatekeeper#index",
+  defaults: { format: :json },
+  as: :gatekeeper
 
-# ── Video Networking System config feed ──────────────────────────────────────────────
-get "kitchen_config",
-    to: "kitchen_sink#platform_config",
-    defaults: { format: :json },
-    as: :kitchen_config
+get "gatekeeper/config",
+  to: "gatekeeper#platform_config",
+  defaults: { format: :json },
+  as: :gatekeeper_config
 
-# ── Video Networking System content feed ──────────────────────────────────────────────
-get "roku/content/:id",
-    to: "kitchen_sink#content",
-    defaults: { format: :json },
-    as: :roku_content
+get "gatekeeper/content/:id",
+  to: "gatekeeper#content",
+  defaults: { format: :json },
+  as: :gatekeeper_content
 
-    # ── Video Networking System Live feed ──────────────────────────────────────────────
-    get "roku/screens/live",
-    to: "kitchen_sink#live",
-    defaults: { format: :json },
-    as: :roku_live
+get "gatekeeper/screens/live",
+  to: "gatekeeper#live",
+  defaults: { format: :json },
+  as: :gatekeeper_live
 
-    # ── Video Networking System search feed ──────────────────────────────────────────────
-    get "roku/search",
-    to: "kitchen_sink#search",
-    defaults: { format: :json },
-    as: :roku_search
+get "gatekeeper/search",
+  to: "gatekeeper#search",
+  defaults: { format: :json },
+  as: :gatekeeper_search
 
-    # ── Community preview ──────────────────────────────────────────────
+
+# ── Community preview ──────────────────────────────────────────────
     
     get "preview/community", 
         to: "community_preview#index"
@@ -251,5 +249,17 @@ get "up", to: "rails/health#show", as: :rails_health_check
 get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 get "manifest"       => "rails/pwa#manifest",       as: :pwa_manifest
 
+
+
+  get "/api/nevaeh/bootstrap",
+      to: "api/nevaeh#bootstrap"
+
+
+  post "/api/nevaeh/payment_quote",
+       to: "api/nevaeh/payment_quotes#create"
+
+
+  post "/api/nevaeh/execute",
+       to: "api/nevaeh#execute"
 
 end

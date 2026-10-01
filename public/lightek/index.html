@@ -1,0 +1,1156 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Lightek</title>
+<style>
+:root{color-scheme:dark;--bg:#07070a;--s1:#0f0f14;--s2:#17171e;--ln:#ffffff14;--tx:#f5f3ee;--mu:#8e8c96;--gd:#d6a94a;--lv:#e5383b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:calc(72px + env(safe-area-inset-top,0px))}
+*,*::before,*::after{box-sizing:border-box;margin:0}[hidden]{display:none!important}
+body{background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}
+h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-spacing:-.01em}
+:focus-visible{outline:2px solid var(--gd);outline-offset:3px}
+#top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;display:flex;align-items:center;gap:28px;height:64px;padding:0 clamp(16px,3vw,40px);background:#07070acc;backdrop-filter:blur(14px);border-bottom:1px solid var(--ln)}
+.logo{font:600 15px/1 system-ui;letter-spacing:.32em;color:var(--gd)}
+#top nav{display:flex;gap:4px;flex:1}nav a{padding:8px 14px;color:var(--mu);border-bottom:2px solid transparent;font-size:14px}nav a:hover{color:var(--tx)}nav a.on{color:var(--tx);border-color:var(--gd)}
+.tools{display:flex;gap:14px;align-items:center;font-size:14px;color:var(--mu)}.tools>a:hover{color:var(--tx)}
+.btn{display:inline-block;padding:10px 20px;border:1px solid #ffffff30;background:none;border-radius:3px;font-weight:600;font-size:14px;transition:.2s}.btn:hover{border-color:var(--tx)}
+.btn.p{background:var(--gd);color:#111;border-color:var(--gd)}.btn.p:hover{filter:brightness(1.1)}.btn.on{border-color:var(--gd);color:var(--gd)}.btn.sm{padding:5px 14px;font-size:12px}
+.wrap{max-width:1360px;margin:0 auto;padding:0 clamp(16px,3vw,40px)}
+.sec{margin:72px 0}
+.ah{display:flex;justify-content:space-between;align-items:end;margin-bottom:22px;gap:20px}
+.eb{font-size:11px;letter-spacing:.22em;color:var(--gd);text-transform:uppercase;font-weight:600}
+.ah h2{font-size:clamp(24px,2.4vw,34px);line-height:1.15;margin-top:4px}.ah p{color:var(--mu);margin-top:4px;font-size:14px}
+.ah>a{color:var(--mu);font-size:13px;white-space:nowrap}.ah>a:hover{color:var(--gd)}
+.av{display:inline-block;flex:none}
+.m{display:block}.art{position:relative;aspect-ratio:16/9;border-radius:3px;overflow:hidden;background:var(--s2);transition:transform .3s,box-shadow .3s}
+.r916 .art{aspect-ratio:9/16}.r23 .art{aspect-ratio:2/3}.m:hover .art{transform:translateY(-3px);box-shadow:0 14px 30px #000a}
+.mt{padding-top:10px}.mt h3{font-size:15px;font-weight:600;line-height:1.3}.mt p{color:var(--mu);font-size:13px}
+.by{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu);margin-bottom:4px}
+.id{display:flex;flex-direction:column}.id .mt{order:-1;padding:0 0 10px}.id .by{color:var(--tx);font-weight:600;margin:0 0 6px}
+.big h3{font:400 26px/1.2 Georgia,serif}.lr{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center;margin-bottom:18px}.lr .mt{padding:0}
+.pl .art{box-shadow:6px -6px 0 -1px #ffffff14,12px -12px 0 -2px #ffffff0a}
+.live{position:absolute;left:10px;top:10px;display:inline-flex;align-items:center;gap:6px;background:var(--lv);color:#fff;font-size:11px;font-weight:700;letter-spacing:.12em;padding:3px 8px;border-radius:2px}
+.live i{width:6px;height:6px;border-radius:50%;background:#fff;animation:pl 1.6s infinite}@keyframes pl{50%{opacity:.25}}
+.live.st{position:static}.dur{position:absolute;right:8px;bottom:8px;background:#000b;font-size:12px;padding:1px 6px;border-radius:2px}
+.prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:#fff3}.prog u{display:block;height:100%;background:var(--gd)}
+.g2,.g3,.g4,.g6{display:grid;gap:28px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g6{grid-template-columns:repeat(6,1fr);gap:20px}
+.hero{position:relative;min-height:min(78vh,720px);display:flex;align-items:flex-end}.hero .bg{position:absolute;inset:0}
+.hero .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,var(--bg) 2%,#07070a00 62%),linear-gradient(90deg,#07070acc,transparent 60%)}
+.hero .wrap{position:relative;width:100%;padding-bottom:64px;display:grid;grid-template-columns:1fr 300px;gap:48px;align-items:end}
+.hi{max-width:660px}.hi .row{display:flex;gap:14px;align-items:center}.hero h1{font-size:clamp(40px,5.5vw,76px);line-height:1.02;margin:14px 0}
+.meta{color:var(--mu);font-size:14px;display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 18px}.lede{color:#d8d6dc;font-size:17px;margin-bottom:24px;max-width:540px}
+.side{border-left:1px solid var(--ln);padding-left:24px}.side .eb{display:block;margin-bottom:16px}
+.hero.tv{min-height:min(86vh,780px)}.hero.tv .wrap{grid-template-columns:1fr;padding-bottom:120px}
+.bug{position:absolute;z-index:1;top:24px;left:clamp(16px,3vw,40px);border:1px solid #fff4;padding:6px 12px;font-size:12px;letter-spacing:.2em;font-weight:700}
+.tick{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #ffffff22;background:#07070acc;backdrop-filter:blur(8px)}
+.tick div{padding:14px clamp(16px,3vw,40px);font-size:14px}.tick small{display:block;color:var(--gd);letter-spacing:.14em;font-size:11px}
+.sub{display:flex;gap:28px;padding:0 clamp(16px,3vw,40px);height:44px;align-items:center;border-bottom:1px solid var(--ln);font-size:13px;color:var(--mu);background:var(--s1);overflow-x:auto;white-space:nowrap}.sub a:hover{color:var(--gd)}
+.liveg{display:grid;grid-template-columns:2fr 1fr;gap:32px}
+.cv{display:grid;grid-template-columns:44px 1fr 96px;gap:16px;padding:18px 0;border-top:1px solid var(--ln);align-items:center}
+.cv small{color:var(--gd);font-size:11px;letter-spacing:.14em;text-transform:uppercase}.cv h3{font:400 19px/1.3 Georgia,serif;margin:2px 0}.cv p{color:var(--mu);font-size:13px}.cv:hover h3{color:var(--gd)}.th{aspect-ratio:16/10;border-radius:3px}
+.strip{display:grid;grid-auto-flow:column;grid-auto-columns:190px;gap:16px;overflow-x:auto;padding-bottom:44px;scrollbar-width:none}.strip .m:nth-child(even){transform:translateY(28px)}
+.cr{display:grid;grid-template-columns:repeat(6,1fr);gap:24px}.pe{text-align:center}.pe h3{font-size:15px;margin-top:10px}.pe p{color:var(--mu);font-size:13px;margin-bottom:10px}.pe .av{transition:.3s}.pe:hover .av{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--gd)}
+.schw{overflow-x:auto}.sch{display:grid;grid-template-columns:150px repeat(4,1fr);gap:3px;min-width:760px}.sch>div{padding:14px;background:var(--s1);min-height:72px}
+.sch .hd{background:none;min-height:0;padding:0 0 6px;color:var(--mu);font-size:12px;letter-spacing:.12em}.sch .ch{background:none;font-weight:600;border-left:2px solid var(--gd)}
+.sb small{color:var(--mu);font-size:11px;letter-spacing:.12em}.sb h3{font-size:14px;font-weight:600;margin-top:3px}.sb.now{background:var(--s2);box-shadow:inset 0 2px var(--lv)}.sb.now small{color:#ff6b6e}.sb.later{opacity:.55}
+.xs{padding:72px 0 24px}.xs h1{font-size:clamp(38px,5vw,64px);line-height:1.05;margin:10px 0 28px;max-width:800px}
+#q{width:100%;background:none;border:0;border-bottom:2px solid var(--gd);font:400 24px Georgia,serif;padding:14px 0;outline:none}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}.chips button{background:none;border:1px solid var(--ln);padding:6px 16px;border-radius:3px;color:var(--mu)}.chips button.on{border-color:var(--gd);color:var(--gd)}
+.tr{list-style:none;padding:0;display:grid;grid-template-columns:1fr 1fr;column-gap:48px}.tr a{display:grid;grid-template-columns:56px 1fr auto;align-items:baseline;padding:18px 0;border-top:1px solid var(--ln)}.tr b{color:var(--gd);font-size:13px;letter-spacing:.1em}.tr span{font-size:26px}.tr small{color:var(--mu)}.tr a:hover span{color:var(--gd)}
+.wdg{display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px}.wd{position:relative;display:block;min-height:320px}.wd .art{position:absolute;inset:0;aspect-ratio:auto}.wd .ov{position:absolute;inset:auto 0 0;padding:24px;background:linear-gradient(0deg,#000c,transparent)}.wd h2{font-size:30px;margin:4px 0}.wd p{color:#ccc;font-size:13px}
+.ct .cti{display:flex;gap:14px;align-items:center;padding-top:14px}.ct h3{font:400 20px Georgia,serif}.ct p{color:var(--mu);font-size:13px}.ct:hover h3{color:var(--gd)}
+.none{padding:80px 0;text-align:center;color:var(--mu)}
+.hero.sp{min-height:440px}.id2{display:flex;gap:32px;align-items:flex-end}.id2 .av{border:3px solid var(--bg)}.id2 h1{margin:6px 0}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--ln);font-size:13px;color:var(--mu)}.seg{display:flex;gap:2px}.seg button{background:var(--s1);border:0;padding:8px 16px;color:var(--mu)}.seg button.on{background:var(--s2);color:var(--gd)}
+.mod .sec{margin:56px 0}.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;margin-top:24px;background:var(--s2);border:1px dashed var(--gd);font-size:12px;color:var(--gd);text-transform:uppercase;letter-spacing:.12em}.ctl span{flex:1}.ctl button{background:none;border:1px solid var(--ln);color:var(--tx);padding:3px 10px;border-radius:2px}
+.fg{display:grid;grid-template-columns:1.6fr 1fr;gap:28px}.fg>div{display:grid;gap:20px;align-content:start}
+.er{display:grid;grid-template-columns:72px 1fr auto;gap:20px;align-items:center;padding:18px 0;border-top:1px solid var(--ln)}.er b{font:400 34px Georgia,serif;text-align:center;line-height:1}.er small{display:block;color:var(--gd);font:600 11px system-ui;letter-spacing:.2em}.er p{color:var(--mu);font-size:13px}
+.ab{display:grid;grid-template-columns:1.4fr 1fr;gap:56px}.ab .serif{font-size:28px;line-height:1.4}.ab dt{font-size:11px;letter-spacing:.16em;color:var(--gd);text-transform:uppercase;margin-top:14px}.ab dd{color:#ddd}
+.cu{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}.cu>div{padding:24px;background:var(--s1);border-left:2px solid var(--gd)}.cu small{color:var(--mu);font-size:11px;letter-spacing:.14em;text-transform:uppercase}.cu h3{font:400 20px Georgia,serif;margin-top:6px}
+.cl{display:grid;grid-template-columns:300px minmax(0,1fr) 360px;height:calc(100dvh - 64px - env(safe-area-inset-top,0px))}
+.cl aside{padding:28px 24px;overflow:auto;background:var(--s1)}.cc{margin:14px 0 28px}.cc h2{font-size:26px;margin-top:12px}.cc p{color:var(--mu);font-size:13px;margin:2px 0 14px}
+.cl h4{font-size:11px;letter-spacing:.2em;color:var(--mu);text-transform:uppercase;margin:24px 0 10px;font-weight:600}
+.lk{display:block;padding:12px 0;border-top:1px solid var(--ln);font-size:14px}.lk small{display:block;color:var(--gd);font-size:10px;letter-spacing:.16em;text-transform:uppercase}.lk:hover{color:var(--gd)}
+.sw{display:flex;align-items:center;justify-content:center;gap:18px;padding:18px;min-height:0}
+.stage{position:relative;height:100%;aspect-ratio:9/16;border-radius:4px;overflow:hidden;box-shadow:0 30px 80px #000}
+.ov2{position:absolute;inset:auto 0 0;padding:70px 18px 24px;background:linear-gradient(0deg,#000d,transparent)}.chip{position:absolute;top:14px;left:14px;background:#000a;padding:4px 10px;font-size:12px;border-radius:2px}
+.cap{font-size:15px;margin:10px 0 6px}.mus{font-size:12px;color:#ddd}
+.tb{position:absolute;left:0;right:0;bottom:0;height:3px;background:#fff3}.tb u{display:block;height:100%;background:var(--gd);animation:pg 12s linear infinite}@keyframes pg{from{width:0}to{width:100%}}
+.rail{display:flex;flex-direction:column;gap:14px;align-items:center}.rail small{font-size:11px;color:var(--mu);margin-top:-8px}
+.rb{width:48px;height:48px;border-radius:50%;border:1px solid #ffffff30;background:var(--s1);font-size:17px;transition:.2s}.rb:hover{border-color:var(--gd)}.rb.on{color:var(--gd);border-color:var(--gd)}
+.cm{padding:10px 0;font-size:14px;border-top:1px solid var(--ln)}.cm b{font-weight:600;margin-right:6px}
+.ci{display:flex;gap:8px;margin:12px 0}.ci input{flex:1;background:var(--s2);border:1px solid var(--ln);padding:10px 12px;border-radius:3px}
+.nx{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--ln);padding:10px 0;font-size:13px}.nx .art{aspect-ratio:9/16}.nx:hover{color:var(--gd)}
+.stp{display:flex;gap:28px;list-style:none;padding:32px 0 0;color:var(--mu);font-size:12px;letter-spacing:.12em;text-transform:uppercase}.stp .on{color:var(--gd)}.stp .dn{color:var(--tx)}
+.cw{padding-bottom:80px}.cw h1{font-size:clamp(34px,4vw,54px);margin:8px 0 32px}
+.ty{display:grid;grid-template-columns:200px 1fr 30px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--ln);padding:20px 0;align-items:baseline;transition:.25s}.ty b{font:400 24px Georgia,serif}.ty span{color:var(--mu)}.ty:hover{padding-left:12px;color:var(--gd)}
+.cg{display:grid;grid-template-columns:1fr 380px;gap:56px}
+.fld{display:block;margin-bottom:22px}.fld span{display:block;font-size:11px;letter-spacing:.16em;color:var(--mu);text-transform:uppercase;margin-bottom:6px}.fld input,.fld textarea,.fld select{width:100%;background:var(--s1);border:1px solid var(--ln);padding:12px 14px;border-radius:3px}
+.dz{display:block;border:1px dashed #ffffff40;padding:48px;text-align:center;margin-bottom:22px;cursor:pointer;color:var(--mu)}.dz:hover{border-color:var(--gd);color:var(--gd)}
+.pvc.v .art{aspect-ratio:9/16;max-height:480px}.dst{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 24px}
+.pb{height:4px;background:#fff2;margin:20px 0 10px}.pb u{display:block;height:100%;background:var(--gd);transition:width .15s}
+.msg{display:grid;grid-template-columns:320px 1fr;gap:40px;padding-top:40px;min-height:70vh}.trd{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--ln);align-items:center}.trd p{color:var(--mu);font-size:13px}.emp{display:grid;place-content:center;text-align:center;border-left:1px solid var(--ln)}.emp p{color:var(--mu)}.emp h2{font-size:32px;margin:6px 0}
+#toast{position:fixed;left:50%;bottom:32px;transform:translate(-50%,20px);background:var(--gd);color:#111;padding:10px 18px;opacity:0;transition:.3s;pointer-events:none;z-index:20;font-weight:600}#toast.on{opacity:1;transform:translate(-50%,0)}
+.fade{animation:fi .45s both}@keyframes fi{from{opacity:0;transform:translateY(8px)}}
+@media(max-width:1100px){.cl{grid-template-columns:1fr}.cl aside,.hero .side{display:none}.hero .wrap,.cg,.liveg,.fg,.tr,.wdg,.ab,.msg{grid-template-columns:1fr}.g4,.cr{grid-template-columns:repeat(3,1fr)}.g6{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){
+.hero.tv{
+  display:block;
+  min-height:auto
+}
+.hero.tv .wrap{
+  padding-bottom:48px
+}
+.hero.tv .tick{
+  position:relative;
+  left:auto;
+  right:auto;
+  bottom:auto
+}
+#top{gap:12px}#top nav{position:fixed;bottom:0;left:0;right:0;z-index:9;background:#07070aee;border-top:1px solid var(--ln);justify-content:space-around;padding:6px 0 calc(6px + env(safe-area-inset-bottom,0px))}nav a{padding:10px 6px;font-size:12px;border:0}nav a.on{color:var(--gd)}.tools .hd2{display:none}.g2,.g3,.cu,.tick{grid-template-columns:1fr}.g4,.cr,.g6{grid-template-columns:repeat(2,1fr)}#app{padding-bottom:76px}.id2{flex-direction:column;align-items:flex-start;gap:16px}.ty{grid-template-columns:1fr 24px}.ty span{display:none}.sec{margin:52px 0}.bar{flex-direction:column;align-items:flex-start}}
+
+.money-shell{
+  padding:72px 0 96px
+}
+.money-head{
+  display:grid;
+  grid-template-columns:1.4fr 1fr;
+  gap:48px;
+  align-items:end;
+  margin-bottom:48px
+}
+.money-head h1{
+  font-size:clamp(44px,6vw,78px);
+  line-height:1
+}
+.money-head p{
+  color:var(--mu);
+  max-width:520px
+}
+.money-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:2px
+}
+.money-card{
+  display:block;
+  background:var(--s1);
+  padding:30px;
+  min-height:220px;
+  border-top:2px solid transparent
+}
+.money-card:hover{
+  border-color:var(--gd)
+}
+.money-card h2{
+  font:400 28px Georgia,serif;
+  margin:8px 0
+}
+.money-card p{
+  color:var(--mu)
+}
+.money-card.primary{
+  grid-column:1/-1;
+  background:var(--s2)
+}
+.quote-form{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:12px;
+  margin-top:22px;
+  max-width:560px
+}
+.quote-form input{
+  background:var(--bg);
+  border:1px solid var(--ln);
+  padding:13px 14px
+}
+.quote-result{
+  margin-top:22px;
+  max-width:560px;
+  border-top:1px solid var(--ln)
+}
+.quote-line{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  padding:10px 0;
+  border-bottom:1px solid var(--ln)
+}
+.quote-line.total{
+  color:var(--gd);
+  font-weight:700
+}
+@media(max-width:760px){
+  .money-head,
+  .money-grid{
+    grid-template-columns:1fr
+  }
+
+  .money-card.primary{
+    grid-column:auto
+  }
+
+  .quote-form{
+    grid-template-columns:1fr
+  }
+}
+
+
+.susu-shell{
+  padding:72px 0 96px
+}
+.susu-head{
+  display:grid;
+  grid-template-columns:1.4fr 1fr;
+  gap:48px;
+  align-items:end;
+  margin-bottom:46px
+}
+.susu-head h1{
+  font-size:clamp(44px,6vw,78px);
+  line-height:1
+}
+.susu-head p{
+  color:var(--mu);
+  max-width:520px
+}
+.susu-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:24px
+}
+.susu-grid{
+  display:grid;
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+  gap:20px
+}
+.susu-card{
+  display:block;
+  background:var(--s1);
+  padding:26px;
+  min-height:220px;
+  border-top:2px solid transparent
+}
+.susu-card:hover{
+  border-color:var(--gd)
+}
+.susu-card h2{
+  font:400 25px Georgia,serif;
+  margin:8px 0
+}
+.susu-card p{
+  color:var(--mu)
+}
+.susu-card .meta{
+  margin-top:18px
+}
+.susu-empty{
+  grid-column:1/-1;
+  padding:64px 24px;
+  border:1px solid var(--ln);
+  text-align:center;
+  color:var(--mu)
+}
+.susu-detail{
+  display:grid;
+  grid-template-columns:
+    minmax(0,1.4fr)
+    minmax(280px,.6fr);
+  gap:32px
+}
+.susu-panel{
+  background:var(--s1);
+  padding:28px
+}
+.susu-panel h2{
+  font:400 30px Georgia,serif;
+  margin:6px 0 18px
+}
+.susu-row{
+  display:flex;
+  justify-content:space-between;
+  gap:24px;
+  padding:12px 0;
+  border-top:1px solid var(--ln)
+}
+.susu-row span{
+  color:var(--mu)
+}
+.susu-quote{
+  margin-top:20px
+}
+.susu-status{
+  padding:14px 0;
+  color:var(--mu)
+}
+@media(max-width:900px){
+  .susu-grid{
+    grid-template-columns:1fr 1fr
+  }
+  .susu-detail{
+    grid-template-columns:1fr
+  }
+}
+@media(max-width:760px){
+  .susu-head,
+  .susu-grid{
+    grid-template-columns:1fr
+  }
+}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<link rel="manifest" href="/lightek/manifest.webmanifest">
+<meta name="theme-color" content="#07070a">
+<meta name="application-name" content="Lightek">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lightek">
+<link rel="apple-touch-icon" href="/lightek/icons/icon.svg">
+
+</head><body>
+<header id="top"><a class="logo" href="#/home">LIGHTEK</a>
+<nav aria-label="Primary"><a href="#/home" data-r="home">Home</a><a href="#/watch" data-r="watch">Watch</a><a href="#/clips" data-r="clips">Clips</a><a href="#/explore" data-r="explore">Explore</a><a href="#/communities" data-r="communities">Communities</a></nav>
+<div class="tools"><a class="hd2" href="#/messages">Messages</a><a class="btn p sm" href="#/create">+ Create</a><a href="#/space" aria-label="My Space" data-av></a></div></header>
+<main id="app"></main><div id="toast" role="status"></div>
+<script>
+const $=s=>document.querySelector(s),J=a=>a.join(''),app=$('#app'),E=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const art=i=>{const h=[40,18,350,210,160,280,30,330][i%8];return `background:radial-gradient(120% 90% at 20% 10%,hsl(${h} 60% 38%),transparent 60%),linear-gradient(160deg,hsl(${(h+30)%360} 40% 16%),#0a0a0e)`};
+const av=(i,z=40,sq)=>`<s class="av" style="${art(i)};width:${z}px;height:${z}px;border-radius:${sq?'6px':'50%'}"></s>`;
+$('[data-av]').innerHTML=av(1,32);
+const S={t:new Set(['follow:Dre Okafor']),clip:0,edit:false,mode:'creator',f:'All',uc:{}},L={};
+const T=["The Long Table","Gold Hour","Night Signal","Island Frequencies","Crown Heights","After the Bell","Salt & Scripture","Atlas Sessions"];
+const P=[["Amara Cole","@amaracole","Documentary maker"],["Dre Okafor","@dreokafor","Music & culture"],["Mira Santos","@mirasantos","Caribbean kitchen"],["Kofi Bell","@kofibell","Sports analyst"],["Noor Hassan","@noorhassan","Poet & producer"],["Tasha Rowe","@tasharowe","Tech & society"]];
+const CM=[{id:'diaspora-kitchens',n:'Diaspora Kitchens',tag:'Food, memory and migration',m:'48K',i:2,live:1},{id:'gospel-and-soul',n:'Gospel & Soul',tag:'Sunday sound, all week',m:'112K',i:6},{id:'atl-builders',n:'ATL Builders',tag:'Independent makers of the South',m:'19K',i:3,live:1},{id:'poets-corner',n:'Poets Corner',tag:'Spoken word, open mic, ciphers',m:'34K',i:5},{id:'carnival-crew',n:'Carnival Crew',tag:'Masquerade, year-round',m:'27K',i:0,live:1},{id:'the-sideline',n:'The Sideline',tag:'Sports talk with context',m:'66K',i:4}];
+const CL=[["Grandma's pepper sauce, no measuring cups",0,0,"Island Frequencies · S2 E4","Kokoye — Pan Yard Sunrise",48200],["One take: the gospel run that shook the studio",1,1,"Gold Hour · Sessions","Choir of Ten — Higher Ground",31900],["Building a label from a spare bedroom",3,2,"Crown Heights · E7","Original score",22400],["Three lines that stopped the room",4,3,"Night Signal · Open Mic","Live recording",57100],["Masquerade, before the sun comes up",2,4,"Salt & Scripture","Soca Sunrise Mix",83600],["The call that changed the second half",3,5,"After the Bell","Studio bed",19800]];
+const CMT=[["Dre Okafor","This is the whole mood."],["Mira Santos","Sending this to my mother immediately."],["Kofi Bell","Full program drops Friday — set the reminder."]];
+const CVX=CM.slice(0,4).map((c,k)=>[c.n,["Is pepper sauce a technique or a personality?","Best live recording of the decade — go","Show your setup: independent studio edition","Open mic thread · tonight 9 PM"][k],[86,212,41,129][k]]);
+const LV='<span class="live"><i></i>LIVE</span>',STMT="A home for stories told in our own voice, on our own network.";
+const V=(n,o=0,x={})=>Array.from({length:n},(_,k)=>{k+=o;return{t:T[k%8],s:['New episode','Premiere','Behind the scenes','Full session'][k%4]+' · '+(k+2)+'h ago',by:P[k%6][0],i:k,d:(9+k*4%30)+':'+(10+k*13%50),v:(2+k*1.7).toFixed(1)+'K',...x}});
+/* primitives */
+const AH=(eb,t,c,a)=>`<header class="ah"><div><span class="eb">${eb}</span><h2>${t}</h2>${c?`<p>${c}</p>`:''}</div>${a?`<a href="${a[1]}">${a[0]} →</a>`:''}</header>`;
+const sec=(h,b,t,id)=>`<section class="sec" ${id?`id="${id}"`:''} ${t?`data-t="${t}"`:''}>${h}${b}</section>`;
+const M=o=>`<a class="m ${o.r||''} ${o.c||''}" href="${o.h||'#/watch'}" ${o.a?`data-a="${o.a}" data-i="${o.n}"`:''} data-q="${E((o.t+' '+(o.by||'')).toLowerCase())}"><div class="art" style="${art(o.i)}">${o.live?`<span class="live"><i></i>LIVE${o.v?' · '+o.v:''}</span>`:''}${o.d?`<span class="dur">${o.d}</span>`:''}${o.p!=null?`<b class="prog"><u style="width:${o.p}%"></u></b>`:''}</div><div class="mt">${o.by?`<span class="by">${av(o.i+3,o.c=='id'?32:22)}${o.by}</span>`:''}<h3>${o.t}</h3>${o.s?`<p>${o.s}</p>`:''}</div></a>`;
+const tb=(k,off,on,c='')=>{const h=S.t.has(k);return `<button class="btn ${c} ${h?'on':''}" data-a="tg" data-k="${E(k)}" aria-pressed="${h}">${h?on:off}</button>`};
+const crt=(p,k)=>`<div class="pe" data-q="${(p[0]+' '+p[2]).toLowerCase()}"><a href="#/space">${av(k,96)}<h3>${p[0]}</h3></a><p>${p[2]}</p>${tb('follow:'+p[0],'Follow','Following','sm')}</div>`;
+const ct=c=>`<a class="m ct" href="#/community/${c.id}" data-q="${(c.n+' '+c.tag).toLowerCase()}"><div class="art" style="${art(c.i)}">${c.live?LV:''}</div><div class="cti">${av(c.i+1,48,1)}<div><h3>${c.n}</h3><p>${c.tag} · ${c.m} members</p></div></div></a>`;
+const cv=(c,k)=>`<a class="cv" href="#/community/${CM[k].id}">${av(k+2,44,1)}<div><small>${c[0]}</small><h3>${c[1]}</h3><p>${c[2]} replies · active now</p></div><div class="th" style="${art(k+5)}"></div></a>`;
+const strip=()=>`<div class="strip">${CL.concat(CL).slice(0,8).map((c,k)=>M({t:c[0],by:P[c[1]][0],i:k+1,r:'r916',s:(c[5]/1000).toFixed(1)+'K likes',h:'#/clips',a:'cl',n:k%6,d:0})).join('')}</div>`;
+const cont=()=>sec(AH('Continue watching','Pick up where you left off'),`<div class="g4">${J(V(4,2).map((o,k)=>M({...o,d:0,p:[72,38,15,88][k],s:['41 min left','1h 12m left','Episode 3 · 52 min left','6 min left'][k]})))}</div>`,'','c');
+const hero=o=>`<div class="hero ${o.tick?'tv':''}"><div class="bg" style="${art(o.i)}"></div>${o.bug?`<span class="bug">${o.bug}</span>`:''}<div class="wrap"><div class="hi"><div class="row">${o.live?`<span class="live st"><i></i>LIVE · ${o.v} watching</span>`:''}<span class="eb">${o.eb}</span></div><h1>${o.t}</h1><div class="meta">${o.meta.map(x=>`<span>${x}</span>`).join('')}</div><p class="lede">${o.p}</p><a class="btn p" href="#/watch">${o.live?'Watch live':'Watch now'}</a> ${tb('rem:'+o.t,'+ Remind me','Reminder set')}</div>${o.tick?'':`<div class="side"><span class="eb">Also on air</span>${J(V(3,3,{live:1,c:'lr',d:0}).map(M))}</div>`}</div>${o.tick?`<div class="tick">${o.tick.map((x,k)=>`<div><small>${['NOW','NEXT','LATER'][k]} · ${x[0]}</small>${x[1]}</div>`).join('')}</div>`:''}</div>`;
+const idh=o=>`<div class="hero sp"><div class="bg" style="${art(o.i)}"></div><div class="wrap"><div class="id2">${av(o.i+1,o.z||120,o.sq)}<div><span class="eb">${o.eb}</span><h1>${o.t}</h1><p class="lede">${o.p}</p><div class="meta">${o.meta.map(x=>`<span>${x}</span>`).join('')}</div>${o.b}</div></div></div></div>`;
+/* section modules: shared by Community + My Space (editor-driven order) */
+const people=(eb,t,c)=>sec(AH(eb,t,c),`<div class="cr">${P.map(crt).join('')}</div>`);
+const B={
+featured:()=>sec(AH('Featured','Featured media','Pinned by the owner'),`<div class="fg">${M({...V(1,1)[0],c:'big',s:'Pinned · 41 min · 2.1M views'})}<div>${J(V(2,3).map(M))}</div></div>`),
+live:()=>sec(AH('Live / Upcoming','On air and up next'),`<div class="g3">${J(V(1,2,{live:1,d:0}).concat(V(2,5,{s:'Starts tonight · 9:00 PM'})).map(M))}</div>`),
+conversations:()=>sec(AH('Conversations','Talk around the media','Threads attached to programs and clips'),`<div class="g2">${CVX.map(cv).join('')}</div>`),
+posts:()=>sec(AH('Posts','Recent posts'),`<div class="g3">${J(V(3,1,{c:'id'}).map(M))}</div>`),
+clips:()=>sec(AH('Clips','Clips',null,['Open Clips','#/clips']),strip()),
+members:()=>people('Members','Who is here','48K members · 3.2K online'),
+friends:()=>people('Friends / Following','Friends & following'),
+events:()=>sec(AH('Events','Coming up'),`<div>${[['OCT','04','Open mic · live on LTV 3','9:00 PM'],['OCT','11','Studio walkthrough, in person','2:00 PM'],['OCT','19','Premiere watch party','8:00 PM']].map((e,k)=>`<div class="er"><b>${e[1]}<small>${e[0]}</small></b><div><h3>${e[2]}</h3><p>${e[3]} · ${(k+1)*86} going</p></div>${tb('rsvp:'+k+e[2],'RSVP','Going')}</div>`).join('')}</div>`),
+playlists:()=>sec(AH('Playlists','Playlists'),`<div class="g4">${['Late Night Mix','Sunday Service','Kitchen Table','Studio Reels'].map((t,k)=>M({t,s:(8+k*3)+' items',i:k+1,c:'pl'})).join('')}</div>`),
+series:()=>sec(AH('Series','Series'),`<div class="g4">${[0,3,4,6].map((k,j)=>M({t:T[k],s:'Season '+(j+1)+' · 8 episodes',i:k,r:'r23'})).join('')}</div>`),
+communities:()=>sec(AH('Communities','Communities',null,['All','#/communities']),`<div class="g3">${CM.slice(0,3).map(ct).join('')}</div>`),
+about:()=>sec(AH('About','About'),`<div class="ab"><p class="serif">${STMT}</p><dl><dt>Based in</dt><dd>Atlanta · Port of Spain</dd><dt>Since</dt><dd>2024</dd><dt>Making</dt><dd>Documentary, music, conversation</dd></dl></div>`),
+custom:()=>sec(AH('Custom section','Currently','Owner-defined module'),`<div class="cu"><div><small>Now listening</small><h3>Pan Yard Sunrise — Kokoye</h3></div><div><small>Reading</small><h3>Salt Roads</h3></div><div><small>Pinned note</small><h3>Booking for Carnival season is open.</h3></div></div>`)};
+const LD={'diaspora-kitchens':['featured','live','conversations','clips','events','members','playlists','about'],'gospel-and-soul':['about','live','featured','playlists','conversations','events','members'],d:['featured','conversations','clips','events','members','about'],creator:['featured','series','clips','playlists','posts','about','communities'],person:['about','posts','friends','featured','communities','events','custom'],org:['about','featured','series','events','members','communities']};
+const secs=(k,all)=>{const l=L[k];return `<div class="wrap">`+l.map((id,n)=>`<div class="mod">${S.edit?`<div class="ctl"><span>${id}</span><button data-a="mv" data-k="${k}" data-n="${n}" data-d="-1" aria-label="Move up">↑</button><button data-a="mv" data-k="${k}" data-n="${n}" data-d="1" aria-label="Move down">↓</button><button data-a="rm" data-k="${k}" data-n="${n}">Remove</button></div>`:''}${B[id]()}</div>`).join('')+(S.edit?`<div class="ctl">Add: ${all.filter(x=>!l.includes(x)).map(x=>`<button data-a="add" data-k="${k}" data-id="${x}">+ ${x}</button>`).join('')||'all sections in use'}</div>`:'')+`</div>`};
+const edbtn=()=>`<button class="btn sm ${S.edit?'on':''}" data-a="edit">${S.edit?'Done editing':'Edit layout'}</button>`;
+/* views */
+const R={
+
+susu:()=>`<div class="wrap susu-shell">
+
+  <div class="susu-head">
+    <div>
+      <span class="eb">Community Money</span>
+      <h1>Susu</h1>
+    </div>
+
+    <div>
+      <p>
+        Build circles, contribute together,
+        follow the payout order and manage
+        shared financial commitments.
+      </p>
+
+      <div class="susu-actions">
+        <button
+          class="btn p"
+          data-a="susuCreate"
+        >
+          + Start a Susu
+        </button>
+
+        <a
+          class="btn"
+          href="#/money"
+        >
+          Money
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="susu-list"
+    class="susu-grid"
+  >
+    <div class="susu-empty">
+      Loading your Susu circles…
+    </div>
+  </div>
+
+  <div
+    id="susu-detail"
+    hidden
+  ></div>
+
+</div>`,
+
+
+money:()=>`<div class="wrap money-shell">
+  <div class="money-head">
+    <div>
+      <span class="eb">Dymond</span>
+      <h1>Money</h1>
+    </div>
+
+    <p>
+      Payments, invoices, Susu and money movement
+      across Lightek.
+    </p>
+  </div>
+
+  <div class="money-grid">
+
+    <section class="money-card primary">
+      <span class="eb">Payment Quote</span>
+
+      <h2>Know the total before you pay.</h2>
+
+      <p>
+        Processor recovery and the Lightek network
+        fee are calculated before checkout.
+      </p>
+
+      <div class="quote-form">
+        <input
+          id="money-amount"
+          inputmode="decimal"
+          placeholder="Amount, e.g. 200.00"
+          aria-label="Payment amount"
+        >
+
+        <button
+          class="btn p"
+          data-a="moneyQuote"
+        >
+          Get quote
+        </button>
+      </div>
+
+      <div
+        id="money-quote-result"
+        class="quote-result"
+        hidden
+      ></div>
+    </section>
+
+    <a
+      class="money-card"
+      href="#/susu"
+    >
+      <span class="eb">Community Money</span>
+
+      <h2>Susu</h2>
+
+      <p>
+        Circles, contributions, schedules,
+        invitations and payouts.
+      </p>
+    </a>
+
+    <div class="money-card">
+      <span class="eb">Business</span>
+
+      <h2>Invoices</h2>
+
+      <p>
+        Request and collect payment for work,
+        services and subscriptions.
+      </p>
+    </div>
+
+    <div class="money-card">
+      <span class="eb">Activity</span>
+
+      <h2>Transactions</h2>
+
+      <p>
+        Payment activity and settlement history
+        across Lightek.
+      </p>
+    </div>
+
+  </div>
+</div>`,
+
+home:()=>hero({eb:'On air now',t:'The Long Table: Election Night',meta:['LTV 1','Live from Atlanta','TV-PG'],p:'Four hours, one table, and the voices that actually live in the districts being counted.',i:0,live:1,v:'48.2K'})+`<div class="wrap">`
++sec(AH('Following','From people you follow','Fresh from the channels and creators in your orbit',['Following','#/space']),`<div class="g3">${J(V(6,0,{c:'id'}).map(M))}</div>`)
++sec(AH('On air','Live right now','Broadcasts happening across Lightek'),`<div class="liveg">${M({...V(1,1,{live:1,c:'big'})[0],s:'Carnival Week · Port of Spain'})}<div>${J(V(3,3,{live:1,c:'lr',d:0}).map(M))}</div></div>`)
++sec(AH('Communities','From your communities','Media and conversation, as it happens',['All communities','#/communities']),`<div class="g2">${CVX.map(cv).join('')}</div>`)
++sec(AH('Trending','Trending clips','Short-form from across the network',['Open Clips','#/clips']),strip())
++cont()+sec(AH('Discover','Creators you should know','People and channels building on Lightek'),`<div class="cr">${P.map(crt).join('')}</div>`)+`</div>`,
+watch:()=>`<div class="sub">${[['g','Guide'],['l','Live channels'],['o','Originals'],['d','Documentaries & specials'],['c','Continue watching']].map(x=>`<a href="#/watch" data-sc="${x[0]}">${x[1]}</a>`).join('')}</div>`+hero({eb:'Featured broadcast',bug:'LTV 2',t:'Island Frequencies: Live from Port of Spain',meta:['Carnival Week','Stereo · CC','TV-PG'],p:'Steel pan, soca and the road march — broadcast live from the Savannah.',i:3,live:1,v:'62.4K',tick:[['8:00 PM','Island Frequencies Live'],['9:00 PM','Crown Heights'],['10:00 PM','After the Bell']]})+`<div class="wrap">`
++sec(AH('Guide','On now & up next','Tonight on Lightek Television'),`<div class="schw"><div class="sch"><div class="hd"></div>${['NOW · 8:00 PM','9:00 PM','10:00 PM','11:00 PM'].map(x=>`<div class="hd">${x}</div>`).join('')}${[['LTV 1',[['The Long Table: Election Night',2,1],['Gold Hour',1],['Night Signal',1]]],['LTV 2 · Culture',[['Island Frequencies Live',1,1],['Crown Heights',2],['After the Bell',1]]],['LTV 3 · Music',[['Pan Yard Sessions',3,1],['Salt & Scripture',1]]],['LTV 4 · Docs',[['Atlas Sessions: Lagos',1,1],['The Last Ferry',2],['Kingston, 1976',1]]]].map(r=>{let c=0;return `<div class="ch">${r[0]}</div>`+r[1].map(b=>{const h=`<div class="sb ${b[2]?'now':c>1?'later':''}" style="grid-column:span ${b[1]}"><small>${b[2]?'● ON NOW':(8+c)+':00 PM'}</small><h3>${b[0]}</h3></div>`;c+=b[1];return h}).join('')}).join('')}</div></div>`,'','g')
++sec(AH('Live channels','Broadcasting now'),`<div class="g4">${J(V(4,0,{live:1,d:0}).map((o,k)=>M({...o,s:'LTV '+(k+1)+' · now playing'})))}</div>`,'','l')
++sec(AH('Lightek Originals','Made here','Premium original programs'),`<div class="g6">${J(T.slice(0,6).map((t,k)=>M({t,s:'Season '+(k%3+1),i:k,r:'r23'})))}</div>`,'','o')
++sec(AH('Documentaries & specials','Long-form, on the record'),`<div class="g2">${J(V(2,5,{c:'big',d:0}).map((o,k)=>M({...o,s:['Documentary · 1h 48m','Special · 2h 05m'][k]})))}</div>`,'','d')+cont()+`</div>`,
+clips:()=>{const c=CL[S.clip],p=P[c[1]],cm=CM[c[2]],i=S.clip,l=S.t.has('like:'+i),sv=S.t.has('save:'+i),cs=CMT.concat((S.uc[i]||[]).map(x=>['You',E(x)]));
+return `<div class="cl"><aside><span class="eb">Creator network</span><div class="cc">${av(c[1],72)}<h2>${p[0]}</h2><p>${p[1]} · ${p[2]}</p>${tb('follow:'+p[0],'Follow','Following','p')}</div><h4>Continue the story</h4><a class="lk" href="#/watch"><small>Full program</small>${c[3]}</a><a class="lk" href="#/watch"><small>On air now</small>LTV 2 · Live with ${p[0]}</a><a class="lk" href="#/community/${cm.id}"><small>Community</small>${cm.n}</a><a class="lk" href="#/space"><small>Playlist</small>${p[0]}'s Essentials</a></aside>
+<div class="sw"><div class="stage" style="${art(i+1)}"><span class="chip">${cm.n}</span><div class="ov2"><span class="by" style="color:#fff">${av(c[1],32)}<b>${p[0]}</b> ${p[1]}</span><p class="cap">${c[0]}</p><span class="mus">♪ ${c[4]}</span></div><b class="tb"><u></u></b></div>
+<div class="rail"><button class="rb" data-a="cp" aria-label="Previous clip">▲</button><button class="rb ${l?'on':''}" data-a="tg" data-k="like:${i}" aria-pressed="${l}" aria-label="Like">♥</button><small>${((c[5]+(l?1:0))/1000).toFixed(1)}K</small><button class="rb" aria-label="Comments" onclick="$('#ci').focus()">✎</button><small>${cs.length}</small><button class="rb" data-a="sh" aria-label="Share">↗</button><button class="rb ${sv?'on':''}" data-a="tg" data-k="save:${i}" aria-pressed="${sv}" aria-label="Save">${sv?'★':'☆'}</button><button class="rb" data-a="cn" aria-label="Next clip">▼</button></div></div>
+<aside><h4 style="margin-top:0">Conversation</h4>${cs.map(x=>`<div class="cm"><b>${x[0]}</b>${x[1]}</div>`).join('')}<div class="ci"><input id="ci" placeholder="Add to the conversation" aria-label="Comment"><button class="btn p sm" data-a="send">Send</button></div><h4>Up next</h4>${[1,2,3,4].map(n=>{const j=(i+n)%CL.length;return `<button class="nx" data-a="cg" data-i="${j}"><div class="art" style="${art(j+1)}"></div><span>${CL[j][0]}<br><small style="color:var(--mu)">${P[CL[j][1]][0]}</small></span></button>`}).join('')}</aside></div>`},
+explore:()=>`<div class="wrap"><div class="xs"><span class="eb">Explore Lightek</span><h1>What are you curious about?</h1><input id="q" placeholder="Search people, programs, communities, topics…" aria-label="Search"><div class="chips">${['All','People','Programs','Live','Clips','Communities','Topics'].map(x=>`<button data-a="fl" data-f="${x}" class="${x==S.f?'on':''}">${x}</button>`).join('')}</div></div><div id="none" class="none" hidden>Nothing matches yet. Try a topic, a person or a program.</div>`
++sec(AH('Topics','Trending now','Culture moving across the network'),`<ol class="tr">${['Carnival 2027','Election Night','Gospel Revival','Caribbean Futures','Independent Studios','Cooking by Memory'].map((t,k)=>`<li data-q="${t.toLowerCase()}"><a href="#/explore"><b>0${k+1}</b><span class="serif">${t}</span><small>${(9-k)*3.4|0}K talking</small></a></li>`).join('')}</ol>`,'Topics')
++sec(AH('Worlds','Step into a world','Curated crossings of programs, people and places'),`<div class="wdg">${[['Carnival Season',112,14,3],['Gospel & Soul',64,9,6],['Diaspora Kitchens',48,22,2]].map(w=>`<a class="wd" href="#/explore" data-q="${w[0].toLowerCase()}"><div class="art" style="${art(w[3])}"></div><div class="ov"><span class="eb">World</span><h2>${w[0]}</h2><p>${w[1]} programs · ${w[2]} communities</p></div></a>`).join('')}</div>`,'Topics')
++sec(AH('People & creators','People to know'),`<div class="cr">${P.map(crt).join('')}</div>`,'People')
++sec(AH('Communities','Networks within the network'),`<div class="g3">${CM.slice(0,3).map(ct).join('')}</div>`,'Communities')
++sec(AH('Programs','Programming'),`<div class="g6">${T.slice(0,6).map((t,k)=>M({t,s:'Series',i:k,r:'r23'})).join('')}</div>`,'Programs')
++sec(AH('Live','On air now'),`<div class="g3">${J(V(3,0,{live:1,d:0}).map(M))}</div>`,'Live')
++sec(AH('Clips','Short-form'),strip(),'Clips')+`</div>`,
+communities:()=>`<div class="hero sp"><div class="bg" style="${art(2)}"></div><div class="wrap"><div class="hi"><span class="eb">Featured network</span><h1>Diaspora Kitchens</h1><p class="lede">Food, memory and migration — 48K people, a live kitchen, and every recipe worth arguing about.</p><a class="btn p" href="#/community/diaspora-kitchens">Enter community</a></div></div></div><div class="wrap">`
++sec(AH('Yours','Your communities'),`<div class="g3">${CM.slice(0,3).map(ct).join('')}</div>`)+sec(AH('Discover','Networks to join','Each one runs its own programming, events and conversation'),`<div class="g3">${CM.slice(3).concat(CM.slice(0,1)).map(ct).join('')}</div>`)+`</div>`,
+community:id=>{const c=CM.find(x=>x.id==id)||CM[0],k='c-'+c.id;L[k]=L[k]||[...(LD[c.id]||LD.d)];return idh({i:c.i,sq:1,eb:'Community',t:c.n,p:c.tag+'. A network within the network.',meta:[c.m+' members','3.2K online',c.live?'● Live now':'Next live: tonight 9 PM'],b:tb('join:'+c.id,'Join community','Joined','p')+' '+edbtn()})+secs(k,Object.keys(B))},
+space:()=>{const m=S.mode,k='sp-'+m;L[k]=L[k]||[...LD[m]];const d={creator:['Amara Cole','Channel','@amaracole','Documentary maker. Port of Spain to Atlanta.',['2.4M followers','148 programs','1.2K clips'],'Subscribe','Subscribed'],person:['Jordan Bell','My Space','@jordanb','Music, food, and Friday-night threads.',['312 friends','86 following','9 communities'],'Add friend','Friends'],org:['Lightek Originals','Network','@originals','The in-house studio behind the programs you keep finishing.',['184K followers','24 programs','41 members'],'Follow','Following']}[m];
+return idh({i:m=='org'?4:1,sq:m=='org',z:m=='creator'?148:120,eb:d[1],t:d[0],p:d[3],meta:[d[2]].concat(d[4]),b:tb('sub:'+m,d[5],d[6],'p')+' <a class="btn" href="#/messages">Message</a> <button class="btn" data-a="sh">Share</button>'})+`<div class="wrap"><div class="bar"><div class="seg" role="group" aria-label="Preview as">${[['creator','Creator'],['person','Person'],['org','Organization']].map(x=>`<button data-a="mode" data-v="${x[0]}" class="${m==x[0]?'on':''}">${x[1]}</button>`).join('')}</div>${edbtn()}</div></div>`+secs(k,['featured','series','clips','playlists','posts','about','friends','communities','events','members','custom'])},
+messages:()=>`<div class="wrap msg"><div><h2 class="serif">Messages</h2>${P.slice(0,4).map((p,k)=>`<a class="trd" href="#/messages">${av(k,40)}<div><h3>${p[0]}</h3><p>${['Sent a clip','Are we live at 9?','Loved the premiere','Thread: Carnival'][k]}</p></div></a>`).join('')}</div><div class="emp"><div><span class="eb">Messages</span><h2>Select a conversation</h2><p>Direct messages, community threads and watch-party chats live here.</p></div></div></div>`,
+create:()=>{let h;const st=['Choose','Create','Preview & publish'];
+if(CS.s==0)h=`<span class="eb">Create</span><h1>What are you making?</h1>`+TY.map(g=>`<div style="margin-bottom:40px"><span class="eb">${g[0]}</span>${g[1].map(t=>`<button class="ty" data-a="ct" data-v="${t[0]}"><b>${t[0]}</b><span>${t[1]}</span><i>→</i></button>`).join('')}</div>`).join('');
+else if(CS.s==1)h=`<span class="eb">${CS.type}</span><h1>Build it</h1><div class="cg"><div>${MEDIA.includes(CS.type)?`<label class="dz">${CS.file?E(CS.file)+' — ready':'Drop a file or browse'}<input type="file" id="fi" hidden></label>`:''}<label class="fld"><span>Title</span><input name="title" value="${E(CS.title)}" placeholder="Name your ${CS.type.toLowerCase()}"></label><label class="fld"><span>${CS.type=='Post'?'Say it':'Description'}</span><textarea name="desc" rows="5">${E(CS.desc)}</textarea></label>${CS.type=='Live Broadcast'?`<label class="fld"><span>Start</span><select><option>Go live now</option><option>Schedule for later</option></select></label>`:''}${CS.type=='Event'?`<label class="fld"><span>Date</span><input type="date"></label>`:''}<button class="btn" data-a="cb">Back</button> <button class="btn p" data-a="cx">Preview</button></div><div><span class="eb">Live preview</span><div id="pv" style="margin-top:12px">${pv()}</div></div></div>`;
+else h=`<span class="eb">Preview & publish</span><h1>Ready for the network</h1><div class="cg"><div>${pv()}</div><div><span class="eb">Publish to</span><div class="dst">${DS.map(d=>`<button class="btn sm ${CS.dest.has(d)?'on':''}" data-a="cd" data-v="${d}" aria-pressed="${CS.dest.has(d)}">${d}</button>`).join('')}</div><label class="fld"><span>Visibility</span><select><option>Public</option><option>Followers</option><option>Community only</option></select></label>${CS.pr?`<div class="pb"><u style="width:${Math.min(CS.pr,100)}%"></u></div><p>${CS.done?'Published (mock) to '+[...CS.dest].join(', '):'Uploading… '+Math.min(CS.pr,100)+'%'}</p>${CS.done?'<br><a class="btn p" href="#/space">View on My Space</a> <button class="btn" data-a="again">Create another</button>':''}`:`<button class="btn" data-a="cb">Back</button> <button class="btn p" data-a="pub">Publish</button>`}</div></div>`;
+return `<div class="wrap cw"><ol class="stp">${st.map((x,k)=>`<li class="${k==CS.s?'on':k<CS.s?'dn':''}">${k+1} ${x}</li>`).join('')}</ol>${h}</div>`}};
+const TY=[['Share',[['Post','Words, links and thoughts for your people'],['Photo','A single image or a set'],['Story','A 24-hour moment'],['Article','Long-form writing']]],['Produce',[['Video','Upload to your channel or a program'],['Clip','Vertical short-form'],['Series','An episodic collection of programs'],['Live Broadcast','Go on air or schedule a show']]],['Organize',[['Playlist','Curate media in order'],['Event','Gather people, online or in person'],['Community','Start a network within the network']]]];
+const MEDIA=['Photo','Video','Clip','Story','Live Broadcast'],DS=['My Space','Community: Diaspora Kitchens','Channel: Amara Cole TV','Series: Island Frequencies','Playlist: Late Night Mix'];
+const CS={s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0};
+const pv=()=>`<div class="pvc ${['Clip','Story'].includes(CS.type)?'v':''}"><div class="art" style="${art(7)}">${CS.type=='Live Broadcast'?LV:''}</div><div class="mt"><span class="by">${av(1,22)}Amara Cole · ${CS.type}</span><h3>${E(CS.title)||'Untitled '+CS.type.toLowerCase()}</h3><p>${E(CS.desc)||'Your description appears here'}</p></div></div>`;
+
+const moneyFromCents=cents=>
+  new Intl.NumberFormat(
+    "en-US",
+    {
+      style:"currency",
+      currency:"USD"
+    }
+  ).format(
+    Number(cents || 0) / 100
+  );
+
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),1800)};
+const ap=()=>{const q=($('#q')||{}).value?.toLowerCase()||'';let n=0;document.querySelectorAll('[data-t]').forEach(s=>{const on=S.f=='All'||s.dataset.t==S.f;let v=0;s.querySelectorAll('[data-q]').forEach(e=>{const h=!e.dataset.q.includes(q);e.hidden=h;if(!h)v++});s.hidden=!on||!v;if(!s.hidden)n++});$('#none').hidden=n>0};
+const AF={
+  explore:()=>{
+    $('#q').addEventListener(
+      'input',
+      ap
+    );
+    ap()
+  },
+
+  susu:()=>{
+    A.susuLoad()
+  }
+};
+const A={
+
+susuLoad:async()=>{
+  const root =
+    document.querySelector(
+      "#susu-list"
+    )
+
+  if(!root) return
+
+  root.innerHTML = `
+    <div class="susu-empty">
+      Loading your Susu circles…
+    </div>
+  `
+
+  try{
+    const response =
+      await nevaeh.execute({
+        capability:"susu.list",
+        payload:{}
+      })
+
+    const groups =
+      response.result?.groups ||
+      response.groups ||
+      []
+
+    if(!groups.length){
+      root.innerHTML = `
+        <div class="susu-empty">
+          <span class="eb">
+            No Susu circles yet
+          </span>
+
+          <h2
+            class="serif"
+            style="margin:8px 0"
+          >
+            Start one when you're ready.
+          </h2>
+
+          <p>
+            Your circles will appear here.
+          </p>
+        </div>
+      `
+      return
+    }
+
+    root.innerHTML =
+      groups.map(group=>`
+        <button
+          class="susu-card"
+          data-a="susuShow"
+          data-id="${group.id}"
+          style="
+            text-align:left;
+            border-left:0;
+            border-right:0;
+            border-bottom:0;
+            color:inherit;
+          "
+        >
+          <span class="eb">
+            ${E(group.status || "Susu")}
+          </span>
+
+          <h2>
+            ${E(group.name)}
+          </h2>
+
+          <p>
+            ${E(
+              group.member_count ??
+              group.members_count ??
+              0
+            )} members
+          </p>
+
+          <div class="meta">
+            <span>
+              ${E(
+                group.cycle_frequency ||
+                ""
+              )}
+            </span>
+
+            <span>
+              ${moneyFromCents(
+                group.contribution_cents ??
+                group.contribution_amount_cents ??
+                0
+              )} contribution
+            </span>
+          </div>
+        </button>
+      `).join("")
+  }catch(error){
+    root.innerHTML = `
+      <div class="susu-empty">
+        ${E(
+          error.message ||
+          "Unable to load Susu circles"
+        )}
+      </div>
+    `
+  }
+},
+
+susuShow:async button=>{
+  const id =
+    Number(button.dataset.id)
+
+  const list =
+    document.querySelector(
+      "#susu-list"
+    )
+
+  const detail =
+    document.querySelector(
+      "#susu-detail"
+    )
+
+  if(!id || !detail) return
+
+  list.hidden = true
+  detail.hidden = false
+
+  detail.innerHTML = `
+    <div class="susu-status">
+      Loading Susu…
+    </div>
+  `
+
+  try{
+    const response =
+      await nevaeh.execute({
+        capability:"susu.show",
+
+        subject:{
+          type:"SusuGroup",
+          id:id
+        },
+
+        payload:{}
+      })
+
+    const group =
+      response.result?.group ||
+      response.group ||
+      response.result ||
+      {}
+
+    detail.innerHTML = `
+      <div class="susu-detail">
+
+        <section class="susu-panel">
+          <span class="eb">
+            ${E(group.status || "Susu")}
+          </span>
+
+          <h2>
+            ${E(group.name || "Susu")}
+          </h2>
+
+          <div class="susu-row">
+            <span>Contribution</span>
+            <strong>
+              ${moneyFromCents(
+                group.contribution_cents ??
+                group.contribution_amount_cents ??
+                0
+              )}
+            </strong>
+          </div>
+
+          <div class="susu-row">
+            <span>Frequency</span>
+            <strong>
+              ${E(
+                group.cycle_frequency ||
+                "—"
+              )}
+            </strong>
+          </div>
+
+          <div class="susu-row">
+            <span>Members</span>
+            <strong>
+              ${E(
+                group.member_count ??
+                group.members_count ??
+                0
+              )}
+            </strong>
+          </div>
+
+          <div class="susu-row">
+            <span>Cycle</span>
+            <strong>
+              ${E(
+                group.current_cycle ??
+                "—"
+              )}
+            </strong>
+          </div>
+        </section>
+
+        <aside class="susu-panel">
+          <span class="eb">
+            Contribution
+          </span>
+
+          <h2>
+            Your payment
+          </h2>
+
+          <p style="color:var(--mu)">
+            Get the current contribution quote
+            before checkout.
+          </p>
+
+          <div
+            id="susu-quote"
+            class="susu-quote"
+          ></div>
+
+          <div
+            class="susu-actions"
+          >
+            <button
+              class="btn p"
+              data-a="susuQuote"
+              data-id="${id}"
+            >
+              Get contribution quote
+            </button>
+
+            <button
+              class="btn"
+              data-a="susuBack"
+            >
+              Back
+            </button>
+          </div>
+        </aside>
+
+      </div>
+    `
+  }catch(error){
+    detail.innerHTML = `
+      <div class="susu-empty">
+        ${E(
+          error.message ||
+          "Unable to load Susu"
+        )}
+
+        <div class="susu-actions">
+          <button
+            class="btn"
+            data-a="susuBack"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    `
+  }
+},
+
+susuBack:()=>{
+  const list =
+    document.querySelector(
+      "#susu-list"
+    )
+
+  const detail =
+    document.querySelector(
+      "#susu-detail"
+    )
+
+  if(list) list.hidden = false
+  if(detail) detail.hidden = true
+},
+
+susuQuote:async button=>{
+  const id =
+    Number(button.dataset.id)
+
+  const box =
+    document.querySelector(
+      "#susu-quote"
+    )
+
+  if(!id || !box) return
+
+  box.innerHTML =
+    "<p>Calculating…</p>"
+
+  try{
+    const response =
+      await nevaeh.execute({
+        capability:
+          "susu.contribution.quote",
+
+        subject:{
+          type:"SusuGroup",
+          id:id
+        },
+
+        payload:{}
+      })
+
+    const q =
+      response.result?.quote ||
+      response.quote ||
+      response.result ||
+      {}
+
+    box.innerHTML = `
+      <div class="quote-line">
+        <span>Contribution</span>
+
+        <strong>
+          ${moneyFromCents(
+            q.principal_cents
+          )}
+        </strong>
+      </div>
+
+      <div class="quote-line">
+        <span>
+          Lightek network fee
+        </span>
+
+        <strong>
+          ${moneyFromCents(
+            q.display_network_fee_cents ??
+            q.network_fee_cents
+          )}
+        </strong>
+      </div>
+
+      <div class="quote-line total">
+        <span>Total</span>
+
+        <strong>
+          ${moneyFromCents(
+            q.total_cents
+          )}
+        </strong>
+      </div>
+
+      <div class="susu-actions">
+        <button
+          class="btn p"
+          data-a="susuCheckout"
+          data-id="${id}"
+        >
+          Pay contribution
+        </button>
+      </div>
+    `
+  }catch(error){
+    box.innerHTML = `
+      <p>
+        ${E(
+          error.message ||
+          "Unable to calculate contribution"
+        )}
+      </p>
+    `
+  }
+},
+
+susuCheckout:async button=>{
+  const id =
+    Number(button.dataset.id)
+
+  if(!id) return
+
+  button.disabled = true
+  button.textContent =
+    "Starting checkout…"
+
+  try{
+    const response =
+      await nevaeh.execute({
+        capability:
+          "susu.contribution.checkout",
+
+        subject:{
+          type:"SusuGroup",
+          id:id
+        },
+
+        payload:{}
+      })
+
+    const url =
+      response.result?.checkout_url ||
+      response.checkout_url
+
+    if(!url){
+      throw new Error(
+        "Checkout URL was not returned"
+      )
+    }
+
+    window.location.href = url
+  }catch(error){
+    button.disabled = false
+    button.textContent =
+      "Pay contribution"
+
+    toast(
+      error.message ||
+      "Unable to start checkout"
+    )
+  }
+},
+
+susuCreate:()=>{
+  toast(
+    "Susu creation capability is next"
+  )
+},
+
+
+moneyQuote:async()=>{
+  const input =
+    document.querySelector(
+      "#money-amount"
+    )
+
+  const result =
+    document.querySelector(
+      "#money-quote-result"
+    )
+
+  const amount =
+    Number(
+      input?.value || 0
+    )
+
+  if(
+    !Number.isFinite(amount) ||
+    amount <= 0
+  ){
+    toast("Enter an amount")
+    return
+  }
+
+  result.hidden = false
+
+  result.innerHTML =
+    "<p>Calculating…</p>"
+
+  try{
+    const response =
+      await nevaeh.execute({
+        capability:
+          "payments.quote",
+
+        payload:{
+          principal_cents:
+            Math.round(
+              amount * 100
+            ),
+
+          rail:
+            "stripe_ach",
+
+          context:
+            "payment"
+        }
+      })
+
+    const q =
+      response.result || {}
+
+    const money =
+      cents =>
+        new Intl.NumberFormat(
+          "en-US",
+          {
+            style:"currency",
+            currency:"USD"
+          }
+        ).format(
+          Number(cents || 0) /
+          100
+        )
+
+    result.innerHTML = `
+      <div class="quote-line">
+        <span>Payment</span>
+        <strong>
+          ${money(
+            q.principal_cents
+          )}
+        </strong>
+      </div>
+
+      <div class="quote-line">
+        <span>
+          Processor recovery
+        </span>
+
+        <strong>
+          ${money(
+            q.processor_recovery_cents
+          )}
+        </strong>
+      </div>
+
+      <div class="quote-line">
+        <span>
+          Lightek network fee
+        </span>
+
+        <strong>
+          ${money(
+            q.display_network_fee_cents ??
+            q.network_fee_cents
+          )}
+        </strong>
+      </div>
+
+      <div class="quote-line total">
+        <span>Total</span>
+
+        <strong>
+          ${money(
+            q.total_cents
+          )}
+        </strong>
+      </div>
+    `
+  }catch(error){
+    result.innerHTML =
+      `<p>${E(
+        error.message ||
+        "Unable to calculate quote"
+      )}</p>`
+  }
+},
+tg:b=>{const k=b.dataset.k;S.t.has(k)?S.t.delete(k):S.t.add(k);render(1)},
+mv:b=>{const l=L[b.dataset.k],n=+b.dataset.n,j=n+ +b.dataset.d;if(j<0||j>=l.length)return;[l[n],l[j]]=[l[j],l[n]];render(1)},
+rm:b=>{L[b.dataset.k].splice(+b.dataset.n,1);render(1)},add:b=>{L[b.dataset.k].push(b.dataset.id);render(1)},
+edit:()=>{S.edit=!S.edit;render(1)},mode:b=>{S.mode=b.dataset.v;render(1)},
+cn:()=>{S.clip=(S.clip+1)%CL.length;render(1)},cp:()=>{S.clip=(S.clip+CL.length-1)%CL.length;render(1)},cg:b=>{S.clip=+b.dataset.i;render(1)},cl:b=>{S.clip=+b.dataset.i},
+send:()=>{const v=$('#ci').value.trim();if(!v)return;(S.uc[S.clip]=S.uc[S.clip]||[]).push(v);render(1);$('#ci').focus()},
+sh:()=>toast('Link copied (mock)'),
+fl:b=>{S.f=b.dataset.f;document.querySelectorAll('.chips button').forEach(x=>x.classList.toggle('on',x.dataset.f==S.f));ap()},
+ct:b=>{CS.type=b.dataset.v;CS.s=1;render()},cb:()=>{CS.s--;render()},cx:()=>{CS.s++;render()},
+cd:b=>{const v=b.dataset.v;CS.dest.has(v)?CS.dest.delete(v):CS.dest.add(v);render(1)},
+pub:()=>{CS.pr=1;render(1);const t=setInterval(()=>{CS.pr+=14;if(CS.pr>=100){clearInterval(t);CS.done=1}if(location.hash=='#/create')render(1)},180)},
+again:()=>{Object.assign(CS,{s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0});render()}};
+function render(keep){const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=R[r]?r:'home';app.innerHTML=R[k](a);document.querySelectorAll('#top nav a').forEach(x=>x.classList.toggle('on',x.dataset.r==(k=='community'?'communities':k)));if(AF[k])AF[k]();scrollTo(0,keep?y:0);app.classList.remove('fade');if(!keep){void app.offsetWidth;app.classList.add('fade')}}
+app.addEventListener('click',e=>{const s=e.target.closest('[data-sc]');if(s){e.preventDefault();document.getElementById(s.dataset.sc)?.scrollIntoView({behavior:'smooth'});return}const b=e.target.closest('[data-a]');if(b)A[b.dataset.a]?.(b,e)});
+app.addEventListener('input',e=>{const n=e.target.name;if(n=='title'||n=='desc'){CS[n]=e.target.value;const p=$('#pv');if(p)p.innerHTML=pv()}});
+app.addEventListener('change',e=>{if(e.target.id=='fi'){CS.file=e.target.files[0]?.name||'';render(1)}});
+app.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.id=='ci')A.send()});
+addEventListener('keydown',e=>{if(!location.hash.startsWith('#/clips')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;const k=e.key;if(k=='ArrowDown'||k=='j'){e.preventDefault();A.cn()}else if(k=='ArrowUp'||k=='k'){e.preventDefault();A.cp()}else if(k=='l')A.tg({dataset:{k:'like:'+S.clip}});else if(k=='s')A.tg({dataset:{k:'save:'+S.clip}})});
+addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)location.hash='#/home';render();
+</script>
+<script src="/lightek/nevaeh-client.js"></script>
+
+<script src="/lightek/bootstrap-adapter.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/lightek/sw.js", {
+        scope: "/lightek/"
+      })
+      .catch(error => {
+        console.error(
+          "[Lightek PWA] Service worker registration failed",
+          error
+        )
+      })
+  })
+}
+</script>
+
+</body></html>

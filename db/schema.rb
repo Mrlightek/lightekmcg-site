@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_28_153548) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_01_124100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -787,6 +787,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_28_153548) do
     t.string "subject_type"
     t.bigint "subject_id"
     t.string "kind", default: "job", null: false
+    t.string "correlation_id"
+    t.index ["correlation_id"], name: "index_dymond_dispatch_work_items_on_correlation_id"
     t.index ["enqueued_at"], name: "index_dymond_dispatch_work_items_on_enqueued_at"
     t.index ["kind", "status"], name: "idx_dispatch_work_items_kind_status"
     t.index ["kind"], name: "index_dymond_dispatch_work_items_on_kind"
@@ -1152,6 +1154,55 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_28_153548) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "lightek_pwa_navigation_items", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "label", null: false
+    t.string "surface_key"
+    t.string "href"
+    t.string "placement", default: "primary", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "requires_capability"
+    t.jsonb "configuration", default: {}, null: false
+    t.string "seed_namespace"
+    t.integer "seed_version"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_lightek_pwa_navigation_items_on_key", unique: true
+  end
+
+  create_table "lightek_pwa_surface_modules", force: :cascade do |t|
+    t.bigint "surface_id", null: false
+    t.string "key", null: false
+    t.string "module_type", null: false
+    t.string "label"
+    t.integer "position", default: 0, null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "data_source"
+    t.string "capability"
+    t.jsonb "configuration", default: {}, null: false
+    t.string "seed_namespace"
+    t.integer "seed_version"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["surface_id", "key"], name: "idx_lightek_surface_modules_unique", unique: true
+    t.index ["surface_id"], name: "index_lightek_pwa_surface_modules_on_surface_id"
+  end
+
+  create_table "lightek_pwa_surfaces", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "surface_type", null: false
+    t.string "label", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "enabled", default: true, null: false
+    t.jsonb "configuration", default: {}, null: false
+    t.string "seed_namespace"
+    t.integer "seed_version"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_lightek_pwa_surfaces_on_key", unique: true
+  end
+
   create_table "lightek_vault_audit_events", force: :cascade do |t|
     t.bigint "secret_id", null: false
     t.string "action", null: false
@@ -1390,6 +1441,36 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_28_153548) do
     t.datetime "updated_at", null: false
     t.index ["enabled"], name: "index_network_ports_on_enabled"
     t.index ["port", "protocol"], name: "index_network_ports_on_port_and_protocol", unique: true
+  end
+
+  create_table "nevaeh_capabilities", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.string "domain", null: false
+    t.text "description"
+    t.string "intent_name", null: false
+    t.string "subject_type"
+    t.string "handler", null: false
+    t.string "queue", default: "default", null: false
+    t.integer "priority", default: 5, null: false
+    t.string "gatekeeper_capability"
+    t.jsonb "intent_patterns", default: [], null: false
+    t.jsonb "expected_outcome", default: {}, null: false
+    t.jsonb "failure_policy", default: {}, null: false
+    t.jsonb "realtime", default: {}, null: false
+    t.jsonb "input_adapter", default: {}, null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.jsonb "knowledge_article_ids", default: [], null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "event_types", default: [], null: false
+    t.index ["domain"], name: "index_nevaeh_capabilities_on_domain"
+    t.index ["enabled"], name: "index_nevaeh_capabilities_on_enabled"
+    t.index ["event_types"], name: "index_nevaeh_capabilities_on_event_types", using: :gin
+    t.index ["handler"], name: "index_nevaeh_capabilities_on_handler"
+    t.index ["intent_name"], name: "index_nevaeh_capabilities_on_intent_name"
+    t.index ["slug"], name: "index_nevaeh_capabilities_on_slug", unique: true
   end
 
   create_table "nevaehs", force: :cascade do |t|
@@ -1901,6 +1982,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_28_153548) do
   add_foreign_key "gatekeeper_operations", "gatekeeper_nodes"
   add_foreign_key "gatekeeper_operations", "gatekeeper_projects"
   add_foreign_key "gatekeeper_projects", "gatekeeper_nodes"
+  add_foreign_key "lightek_pwa_surface_modules", "lightek_pwa_surfaces", column: "surface_id"
   add_foreign_key "lightek_vault_audit_events", "lightek_vault_secrets", column: "secret_id"
   add_foreign_key "marlon_blueprint_concerns", "marlon_features", column: "feature_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "capability_pack_id"

@@ -5,6 +5,13 @@ class ExecuteStudioOperationJob < ApplicationJob
     operation = StudioOperation.find(studio_operation_id)
     return if operation.terminal?
 
+    unless operation.executable?
+      Rails.logger.warn(
+        "[Studio] Skipping non-executable operation "         "id=#{operation.id} status=#{operation.status.inspect}"
+      )
+      return
+    end
+
     operation.update!(status: "running", started_at: Time.current, error_message: nil)
     Studio::Operations::Dispatcher.new(operation).call
     operation.update!(status: "completed", completed_at: Time.current)

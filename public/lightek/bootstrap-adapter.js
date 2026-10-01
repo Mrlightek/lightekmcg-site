@@ -126,7 +126,7 @@
 
     const primary =
       document.querySelector(
-        "#top nav"
+        "#primary-nav"
       )
 
     const tools =
@@ -156,7 +156,7 @@
 
     document
       .querySelectorAll(
-        "#top [data-r]"
+        "#primary-nav [data-r], #top .tools [data-r]"
       )
       .forEach(link => {
         link.classList.toggle(

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "My Space — Lightek" %></title>
+
+    <meta name="viewport"
+          content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+    <meta name="color-scheme"
+          content="dark">
+
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= stylesheet_link_tag "profiles",
+                            "data-turbo-track": "reload" %>
+
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="lightek-profile-page">
+    <header class="lightek-profile-top">
+      <a class="lightek-profile-logo"
+         href="/lightek/index.html#/home">
+        LIGHTEK
+      </a>
+
+      <nav aria-label="Profile navigation">
+        <a href="/lightek/index.html#/home">Home</a>
+        <a href="/lightek/index.html#/space">My Space</a>
+      </nav>
+
+      <a class="lightek-profile-button small"
+         href="/lightek/index.html">
+        Open Lightek
+      </a>
+    </header>
+
+    <% if notice.present? %>
+      <div class="lightek-profile-flash">
+        <%= notice %>
+      </div>
+    <% end %>
+
+    <% if alert.present? %>
+      <div class="lightek-profile-flash alert">
+        <%= alert %>
+      </div>
+    <% end %>
+
+    <%= yield %>
+  </body>
+</html>

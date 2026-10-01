@@ -1,12 +1,175 @@
-<div id="<%= dom_id profile %>">
-  <p>
-    <strong>User:</strong>
-    <%= profile.user_id %>
-  </p>
+<%
+  label =
+    {
+      "person" => "My Space",
+      "creator" => "Channel",
+      "organization" => "Network"
+    }.fetch(
+      profile.profile_type,
+      "My Space"
+    )
 
-  <p>
-    <strong>Bio:</strong>
-    <%= profile.bio %>
-  </p>
+  initials =
+    profile
+      .public_display_name
+      .split
+      .first(2)
+      .map { |part| part.first }
+      .join
+      .upcase
+      .presence ||
+      "L"
 
-</div>
+  enabled_sections =
+    profile
+      .profile_sections
+      .select(&:persisted?)
+      .select(&:enabled?)
+      .sort_by {
+        |section|
+        [
+          section.position,
+          section.id
+        ]
+      }
+%>
+
+<main id="<%= dom_id profile %>"
+      class="lightek-space">
+
+  <section class="space-hero">
+    <div class="space-cover">
+      <% if profile.cover_image_url.present? %>
+        <%= image_tag profile.cover_image_url,
+                      alt: "",
+                      class: "space-cover-image" %>
+      <% end %>
+
+      <div class="space-cover-shade"></div>
+    </div>
+
+    <div class="space-wrap space-identity">
+      <div class="space-avatar">
+        <% if profile.avatar_url.present? %>
+          <%= image_tag profile.avatar_url,
+                        alt: "",
+                        class: "space-avatar-image" %>
+        <% else %>
+          <span><%= initials %></span>
+        <% end %>
+      </div>
+
+      <div class="space-copy">
+        <span class="space-eyebrow"><%= label %></span>
+
+        <h1><%= profile.public_display_name %></h1>
+
+        <div class="space-meta">
+          <span><%= profile.display_handle %></span>
+          <span><%= profile.profile_type.titleize %></span>
+        </div>
+
+        <% if profile.bio.present? %>
+          <p class="space-lede">
+            <%= profile.bio %>
+          </p>
+        <% else %>
+          <p class="space-lede muted">
+            This member has not written a public bio yet.
+          </p>
+        <% end %>
+
+        <div class="space-actions">
+          <% if current_user == profile.user %>
+            <%= link_to "Edit profile",
+                        edit_profile_path(profile),
+                        class:
+                          "lightek-profile-button primary" %>
+          <% end %>
+
+          <a class="lightek-profile-button"
+             href="/lightek/index.html#/space">
+            Open in Lightek
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="space-wrap">
+    <div class="space-layout-bar">
+      <div>
+        <span class="space-eyebrow">Public profile</span>
+        <strong>
+          <%= pluralize(enabled_sections.length, "visible section") %>
+        </strong>
+      </div>
+
+      <% if current_user == profile.user %>
+        <%= link_to "Edit layout",
+                    edit_profile_path(profile),
+                    class:
+                      "lightek-profile-button small" %>
+      <% end %>
+    </div>
+
+    <% enabled_sections.each do |section| %>
+      <section class="space-module"
+               data-section="<%= section.key %>">
+
+        <header class="space-module-head">
+          <div>
+            <span class="space-eyebrow">
+              <%= section.key.humanize %>
+            </span>
+
+            <h2><%= section.key.humanize %></h2>
+          </div>
+        </header>
+
+        <div class="space-module-body">
+          <% case section.key %>
+          <% when "about" %>
+            <p class="space-about">
+              <%= profile.bio.presence ||
+                  "Tell the network what this space is about." %>
+            </p>
+
+          <% when "featured" %>
+            <p>Featured work will appear here.</p>
+
+          <% when "series" %>
+            <p>Published series will appear here.</p>
+
+          <% when "clips" %>
+            <p>Published clips will appear here.</p>
+
+          <% when "playlists" %>
+            <p>Public playlists will appear here.</p>
+
+          <% when "posts" %>
+            <p>Posts published to this space will appear here.</p>
+
+          <% when "friends" %>
+            <p>Public connections will appear here.</p>
+
+          <% when "communities" %>
+            <p>Community memberships will appear here.</p>
+
+          <% when "events" %>
+            <p>Public events will appear here.</p>
+
+          <% when "members" %>
+            <p>Organization members will appear here.</p>
+
+          <% when "custom" %>
+            <p>Custom profile content will appear here.</p>
+
+          <% else %>
+            <p>This section is ready for content.</p>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+  </div>
+</main>

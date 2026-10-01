@@ -1,27 +1,188 @@
-<%= form_with(model: profile) do |form| %>
+<%= form_with model: profile,
+              class: "profile-form" do |form| %>
+
   <% if profile.errors.any? %>
-    <div style="color: red">
-      <h2><%= pluralize(profile.errors.count, "error") %> prohibited this profile from being saved:</h2>
+    <section class="profile-errors">
+      <span class="space-eyebrow">
+        Check your profile
+      </span>
+
+      <h2>
+        <%= pluralize(profile.errors.count, "item") %>
+        needs attention
+      </h2>
 
       <ul>
         <% profile.errors.each do |error| %>
           <li><%= error.full_message %></li>
         <% end %>
       </ul>
-    </div>
+    </section>
   <% end %>
 
-  <div>
-    <%= form.label :user_id, style: "display: block" %>
-    <%= form.text_field :user_id %>
-  </div>
+  <section class="profile-form-section">
+    <header>
+      <span class="space-eyebrow">Identity</span>
+      <h2>How you appear on Lightek</h2>
+    </header>
 
-  <div>
-    <%= form.label :bio, style: "display: block" %>
-    <%= form.textarea :bio %>
-  </div>
+    <div class="profile-form-grid">
+      <label class="profile-field">
+        <span>Display name</span>
 
-  <div>
-    <%= form.submit %>
-  </div>
+        <%= form.text_field :display_name,
+                            maxlength: 80,
+                            placeholder:
+                              "Choose your public display name" %>
+
+        <small>
+          This does not have to match your account or legal name.
+        </small>
+      </label>
+
+      <label class="profile-field">
+        <span>Handle</span>
+
+        <div class="handle-field">
+          <b>@</b>
+
+          <%= form.text_field :handle,
+                              maxlength: 40,
+                              required: true,
+                              autocomplete: "off" %>
+        </div>
+
+        <small>
+          Lowercase letters, numbers, underscores and hyphens.
+        </small>
+      </label>
+
+      <label class="profile-field">
+        <span>Profile type</span>
+
+        <%= form.select :profile_type,
+                        Profile::PROFILE_TYPES.map {
+                          |type|
+                          [
+                            type.titleize,
+                            type
+                          ]
+                        } %>
+
+        <small>
+          Person becomes My Space, creator becomes Channel,
+          and organization becomes Network.
+        </small>
+      </label>
+
+      <label class="profile-field full">
+        <span>Bio</span>
+
+        <%= form.text_area :bio,
+                           rows: 6,
+                           maxlength: 2000,
+                           placeholder:
+                             "Tell the network what this space is about." %>
+      </label>
+    </div>
+  </section>
+
+  <section class="profile-form-section">
+    <header>
+      <span class="space-eyebrow">Artwork</span>
+      <h2>Avatar and cover</h2>
+    </header>
+
+    <div class="profile-form-grid">
+      <label class="profile-field">
+        <span>Public avatar URL</span>
+
+        <%= form.url_field :avatar_url,
+                           placeholder:
+                             "https://..." %>
+
+        <small>
+          This is separate from any private account avatar.
+        </small>
+      </label>
+
+      <label class="profile-field">
+        <span>Cover image URL</span>
+
+        <%= form.url_field :cover_image_url,
+                           placeholder:
+                             "https://..." %>
+      </label>
+    </div>
+  </section>
+
+  <section class="profile-form-section">
+    <header>
+      <span class="space-eyebrow">Layout</span>
+      <h2>Build your space</h2>
+
+      <p>
+        These are the same module concepts used by My Space
+        in the Lightek app.
+      </p>
+    </header>
+
+    <div class="profile-section-editor">
+      <%
+        sections =
+          profile
+            .profile_sections
+            .sort_by {
+              |section|
+              [
+                section.position || 999,
+                section.key
+              ]
+            }
+      %>
+
+      <%= form.fields_for :profile_sections,
+                          sections do |section_form| %>
+
+        <% section = section_form.object %>
+
+        <article class="profile-section-row">
+          <%= section_form.hidden_field :id if section.persisted? %>
+          <%= section_form.hidden_field :key %>
+
+          <div>
+            <strong><%= section.key.humanize %></strong>
+
+            <small>
+              <%= section.enabled? ? "Visible" : "Hidden" %>
+            </small>
+          </div>
+
+          <label class="section-position">
+            <span>Order</span>
+
+            <%= section_form.number_field :position,
+                                          min: 0,
+                                          step: 1 %>
+          </label>
+
+          <label class="section-toggle">
+            <%= section_form.check_box :enabled %>
+            <span>Show</span>
+          </label>
+        </article>
+      <% end %>
+    </div>
+  </section>
+
+  <footer class="profile-form-actions">
+    <%= link_to "Cancel",
+                profile_path(profile),
+                class:
+                  "lightek-profile-button" %>
+
+    <%= form.submit "Save public profile",
+                    class:
+                      "lightek-profile-button primary" %>
+  </footer>
 <% end %>

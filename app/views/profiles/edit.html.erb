@@ -1,12 +1,20 @@
-<% content_for :title, "Editing profile" %>
+<% content_for :title, "Edit My Space — Lightek" %>
 
-<h1>Editing profile</h1>
+<main class="profile-editor">
+  <div class="space-wrap">
+    <header class="profile-editor-head">
+      <span class="space-eyebrow">My Space</span>
 
-<%= render "form", profile: @profile %>
+      <h1>Shape your public identity.</h1>
 
-<br>
+      <p>
+        Your account name and private contact information stay separate.
+        Only the profile fields below are presented as your public
+        Lightek identity.
+      </p>
+    </header>
 
-<div>
-  <%= link_to "Show this profile", @profile %> |
-  <%= link_to "Back to profiles", profiles_path %>
-</div>
+    <%= render "form",
+               profile: @profile %>
+  </div>
+</main>

@@ -11,6 +11,21 @@ class Profile < ApplicationRecord
       organization
     ].freeze
 
+  AVAILABLE_SECTIONS =
+    %w[
+      featured
+      series
+      clips
+      playlists
+      posts
+      about
+      friends
+      communities
+      events
+      members
+      custom
+    ].freeze
+
   DEFAULT_SECTIONS = {
     "person" => %w[
       posts
@@ -48,6 +63,8 @@ class Profile < ApplicationRecord
            },
            dependent: :destroy,
            inverse_of: :profile
+
+  accepts_nested_attributes_for :profile_sections
 
   validates :user_id,
             uniqueness: true

@@ -1,5 +1,6 @@
 module Api
   class NevaehController < ApplicationController
+    allow_unauthenticated_access only: :bootstrap
     def bootstrap
       payload =
         LightekPwa::Bootstrap.new(
@@ -181,14 +182,21 @@ module Api
 
     private
 
-    def resolved_current_user
-      if respond_to?(
-        :current_user,
-        true
-      )
-        current_user
+      def resolved_current_user
+        if respond_to?(
+          :authenticated?,
+          true
+        )
+          authenticated?
+        end
+
+        if respond_to?(
+          :current_user,
+          true
+        )
+          current_user
+        end
       end
-    end
 
     def resolve_subject(raw)
       data =

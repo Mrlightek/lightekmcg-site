@@ -1,4 +1,13 @@
 class ProfilesController < ApplicationController
+  layout "profiles",
+         only: %i[
+           show
+           new
+           edit
+           create
+           update
+         ]
+
   before_action :set_profile,
                 only: :show
 
@@ -8,6 +17,9 @@ class ProfilesController < ApplicationController
                   update
                   destroy
                 ]
+
+  before_action :prepare_section_catalog,
+                only: :edit
 
   def index
     @profiles =
@@ -61,7 +73,7 @@ class ProfilesController < ApplicationController
         format.html {
           redirect_to @profile,
                       notice:
-                        "Profile was successfully created."
+                        "Public profile created."
         }
 
         format.json {
@@ -93,7 +105,7 @@ class ProfilesController < ApplicationController
         format.html {
           redirect_to @profile,
                       notice:
-                        "Profile was successfully updated.",
+                        "Public profile updated.",
                       status: :see_other
         }
 
@@ -103,6 +115,8 @@ class ProfilesController < ApplicationController
                  location: @profile
         }
       else
+        prepare_section_catalog
+
         format.html {
           render :edit,
                  status:
@@ -145,16 +159,52 @@ class ProfilesController < ApplicationController
     end
   end
 
+  def prepare_section_catalog
+    existing =
+      @profile
+        .profile_sections
+        .map(&:key)
+
+    next_position =
+      @profile
+        .profile_sections
+        .map(&:position)
+        .compact
+        .max
+        .to_i
+
+    Profile::AVAILABLE_SECTIONS.each do |key|
+      next if existing.include?(key)
+
+      next_position += 1
+
+      @profile
+        .profile_sections
+        .build(
+          key: key,
+          position: next_position,
+          enabled: false,
+          settings: {}
+        )
+    end
+  end
+
   def profile_params
-    params.expect(
-      profile: [
+    params
+      .require(:profile)
+      .permit(
         :display_name,
         :handle,
         :profile_type,
         :bio,
         :avatar_url,
-        :cover_image_url
-      ]
-    )
+        :cover_image_url,
+        profile_sections_attributes: [
+          :id,
+          :key,
+          :position,
+          :enabled
+        ]
+      )
   end
 end

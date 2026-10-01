@@ -1,8 +1,26 @@
 class ProfileSection < ApplicationRecord
+  KEYS =
+    %w[
+      featured
+      series
+      clips
+      playlists
+      posts
+      about
+      friends
+      communities
+      events
+      members
+      custom
+    ].freeze
+
   belongs_to :profile
 
   validates :key,
             presence: true,
+            inclusion: {
+              in: KEYS
+            },
             uniqueness: {
               scope: :profile_id
             }

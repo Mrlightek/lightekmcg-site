@@ -23,14 +23,56 @@ module LightekPwa
 
     attr_reader :user
 
-    def identity_payload
-      return nil unless user
+      def identity_payload
+        return nil unless user
 
-      {
-        id: user.id,
-        type: user.class.name
-      }
-    end
+        {
+          id: user.id,
+          type: user.class.name,
+          authenticated: true,
+          profile: profile_payload(
+            user.profile
+          )
+        }
+      end
+
+      def profile_payload(profile)
+        return nil unless profile
+
+        {
+          id: profile.id,
+          name:
+            profile.public_display_name,
+          display_name:
+            profile.display_name,
+          handle:
+            profile.handle,
+          display_handle:
+            profile.display_handle,
+          profile_type:
+            profile.profile_type,
+          bio:
+            profile.bio,
+          avatar_url:
+            profile.avatar_url,
+          cover_image_url:
+            profile.cover_image_url,
+          sections:
+            profile
+              .profile_sections
+              .ordered
+              .where(enabled: true)
+              .map do |section|
+                {
+                  key: section.key,
+                  position:
+                    section.position,
+                  settings:
+                    section.settings
+                }
+              end
+        }
+      end
 
     def navigation_payload
       LightekPwa::NavigationItem

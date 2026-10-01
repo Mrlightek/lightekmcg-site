@@ -1,5 +1,12 @@
 class StudioPublication < ApplicationRecord
-  PLATFORMS = %w[tiktok instagram facebook lightek_social lightek_streaming].freeze
+  PLATFORMS = %w[
+    tiktok
+    instagram
+    facebook
+    lightek_social
+    lightek_streaming
+    octavia
+  ].freeze
   STATUSES = %w[draft scheduled publishing published failed cancelled].freeze
 
   belongs_to :studio_project

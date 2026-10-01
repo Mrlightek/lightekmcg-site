@@ -1,5 +1,12 @@
 class StudioLiveOperation < ApplicationRecord
-  PLATFORMS = %w[tiktok instagram facebook lightek_social].freeze
+  PLATFORMS = %w[
+    lightek_social
+    lightek_streaming
+    octavia
+    tiktok
+    instagram
+    facebook
+  ].freeze
   STATUSES = %w[draft scheduled connecting live ending ended failed cancelled].freeze
 
   belongs_to :studio_project

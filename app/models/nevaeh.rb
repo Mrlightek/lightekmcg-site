@@ -1,6 +1,11 @@
 class Nevaeh < ApplicationRecord
     include NevaehConcern
 
+    # Universal Lightek orchestration front door.
+    def self.handle(**attributes)
+      NevaehOrchestration::Orchestrator.call(**attributes)
+    end
+
     #Response method, returns all Nevaeh responses, reporting, jobs, etc.
     def self response
     end

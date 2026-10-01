@@ -2,6 +2,7 @@
 
 class GatekeeperController < ApplicationController
   allow_unauthenticated_access
+  skip_forgery_protection only: :stripe_webhook
 
   API_VERSION = "1.0".freeze
   LIGHTEK_ENV = Rails.env
@@ -240,238 +241,99 @@ end
     render json: payload.merge(metadata: response_metadata)
   end
 
-def live
-  render json: {
-    schema_version: API_VERSION,
-    screen: {
-      id: "live",
-      type: "channel",
-      title: "Watch",
-      background_color: "#080808",
-      refresh_after_seconds: 60,
-      initial_focus: "watch-schedule"
-    },
-
-    details: {
-      content_id: "featured-002",
-      content_type: "live channel",
-      is_live: true,
-      title: "Lightek Television",
-      subtitle: "Live across Lightek",
-      description: "Original programming, culture, documentaries, creators, and community stories from across the Lightek network.",
-      background_image_url: roku_image_url("lightek-live.jpg"),
-      badge: "LIVE",
-      indicator: {
-        type: "status_dot",
-        color: "#FF3B30"
+  def live
+    render json: {
+      schema_version: API_VERSION,
+      screen: {
+        id: "live",
+        type: "channel",
+        title: "Lightek Live",
+        background_color: "#080808",
+        refresh_after_seconds: 60
       },
-      metadata: {
-        duration: "24/7",
-        genre: "Lightek Television"
-      },
-      actions: [
-        play_action(
-          id: "live-watch",
-          label: "Watch Live",
-          content_id: "featured-002",
-          playback_url: LIVE_PLAYBACK_URL
-        )
-      ]
-    },
-
-    rows: [
-      {
-        component_type: "content_row",
-        id: "watch-schedule",
-        title: "On Now & Up Next",
-        activity_type: "live",
-        eyebrow: "ON AIR",
-        context: "Live now and coming up on Lightek",
-        card_type: "landscape_card",
-        card_width: 300,
-        card_height: 169,
-        items: [
-          {
-            id: "live-now",
-            content_type: "live channel",
-            is_live: true,
-            title: "Lightek Live",
-            subtitle: "On Now",
-            description: "Watch the Lightek network live.",
-            image_url: roku_image_url("lightek-live.jpg"),
-            hero_image_url: roku_image_url("lightek-live.jpg"),
-            badge: "LIVE",
-            indicator: { type: "status_dot", color: "#FF3B30" },
-            action: play_action(
-              id: "live-now-watch",
-              label: "Watch Live",
-              content_id: "featured-002",
-              playback_url: LIVE_PLAYBACK_URL
-            )
-          },
-          {
-            id: "featured-001",
-            content_type: "documentary",
-            title: "Featured Documentary",
-            subtitle: "Up Next",
-            description: "Meet the builders creating durable institutions and community-owned futures.",
-            image_url: roku_image_url("featured-documentary.jpg"),
-            hero_image_url: roku_image_url("featured-documentary.jpg"),
-            badge: "NEXT",
-            action: details_action("featured-001")
-          },
-          {
-            id: "documentary-001",
-            content_type: "documentary series",
-            title: "The Resistance Economy",
-            subtitle: "Later Today",
-            description: "Ownership, labor, and community power.",
-            image_url: roku_image_url("resistance-economy-poster.jpg"),
-            hero_image_url: roku_image_url("hero-background.jpg"),
-            action: details_action("documentary-001")
-          }
+      details: {
+        content_id: "featured-002",
+        content_type: "live channel",
+        is_live: true,
+        title: "Lightek Live",
+        subtitle: "Streaming now",
+        description: "The Lightek network live—original programming, culture, documentaries, and community stories in one continuous stream.",
+        background_image_url: roku_image_url("lightek-live.jpg"),
+        badge: "LIVE",
+        indicator: {
+          type: "status_dot",
+          color: "#FF3B30"
+        },
+        metadata: {
+          duration: "24/7",
+          genre: "Live Programming"
+        },
+        actions: [
+          play_action(
+            id: "live-watch",
+            label: "Watch Live",
+            content_id: "featured-002",
+            playback_url: LIVE_PLAYBACK_URL
+          )
         ]
       },
-
-      {
-        component_type: "content_row",
-        id: "watch-live-channels",
-        title: "Live Channels",
-        activity_type: "live",
-        eyebrow: "LIVE TV",
-        context: "Channels broadcasting across the Lightek network",
-        card_type: "landscape_card",
-        card_width: 420,
-        card_height: 236,
-        items: [
-          {
-            id: "lightek-live-channel",
-            content_type: "live channel",
-            is_live: true,
-            title: "Lightek Live",
-            subtitle: "24/7 Network",
-            description: "The continuous Lightek television feed.",
-            image_url: roku_image_url("lightek-live.jpg"),
-            hero_image_url: roku_image_url("lightek-live.jpg"),
-            badge: "LIVE",
-            action: play_action(
-              id: "lightek-live-channel-watch",
-              label: "Watch Live",
-              content_id: "featured-002",
-              playback_url: LIVE_PLAYBACK_URL
-            )
-          }
-        ]
-      },
-
-      {
-        component_type: "content_row",
-        id: "watch-originals",
-        title: "Lightek Originals",
-        activity_type: "program",
-        eyebrow: "ORIGINALS",
-        context: "Stories and programs made by Lightek",
-        card_type: "landscape_card",
-        card_width: 420,
-        card_height: 236,
-        items: [
-          {
-            id: "original-featured-documentary",
-            content_type: "documentary",
-            title: "Featured Documentary",
-            subtitle: "Lightek Original",
-            description: "A creator-led original about durable institutions and community-owned futures.",
-            image_url: roku_image_url("featured-documentary.jpg"),
-            hero_image_url: roku_image_url("featured-documentary.jpg"),
-            action: details_action("featured-001")
-          },
-          {
-            id: "original-resistance-economy",
-            content_type: "documentary series",
-            title: "The Resistance Economy",
-            subtitle: "Lightek Original Series",
-            description: "A series about ownership, labor, and community power.",
-            image_url: roku_image_url("resistance-economy-poster.jpg"),
-            hero_image_url: roku_image_url("hero-background.jpg"),
-            action: details_action("documentary-001")
-          }
-        ]
-      },
-
-      {
-        component_type: "content_row",
-        id: "watch-documentaries",
-        title: "Documentaries & Specials",
-        activity_type: "program",
-        eyebrow: "FEATURED",
-        context: "Films, specials, and stories worth sitting with",
-        card_type: "landscape_card",
-        card_width: 420,
-        card_height: 236,
-        items: [
-          {
-            id: "documentary-feature",
-            content_type: "documentary",
-            title: "Featured Documentary",
-            subtitle: "Documentary",
-            description: "Meet the builders creating durable institutions and community-owned futures.",
-            image_url: roku_image_url("featured-documentary.jpg"),
-            hero_image_url: roku_image_url("featured-documentary.jpg"),
-            action: details_action("featured-001")
-          },
-          {
-            id: "resistance-feature",
-            content_type: "documentary series",
-            title: "The Resistance Economy",
-            subtitle: "Documentary Series",
-            description: "Ownership, labor, and community power.",
-            image_url: roku_image_url("resistance-economy-poster.jpg"),
-            hero_image_url: roku_image_url("hero-background.jpg"),
-            action: details_action("documentary-001")
-          }
-        ]
-      },
-
-      {
-        component_type: "content_row",
-        id: "watch-continue",
-        title: "Continue Watching",
-        activity_type: "continue",
-        eyebrow: "PICK UP",
-        context: "Resume where you left off",
-        card_type: "landscape_card",
-        card_width: 420,
-        card_height: 236,
-        items: [
-          {
-            id: "continue-featured",
-            content_type: "documentary",
-            title: "Featured Documentary",
-            subtitle: "Continue Watching",
-            description: "Continue your Lightek Original.",
-            image_url: roku_image_url("featured-documentary.jpg"),
-            hero_image_url: roku_image_url("featured-documentary.jpg"),
-            progress: 0.38,
-            action: details_action("featured-001")
-          },
-          {
-            id: "continue-resistance",
-            content_type: "documentary series",
-            title: "The Resistance Economy",
-            subtitle: "Continue Watching",
-            description: "Return to the series.",
-            image_url: roku_image_url("resistance-economy-poster.jpg"),
-            hero_image_url: roku_image_url("hero-background.jpg"),
-            progress: 0.67,
-            action: details_action("documentary-001")
-          }
-        ]
-      }
-    ],
-
-    metadata: response_metadata
-  }
-end
+      rows: [
+        {
+          component_type: "content_row",
+          id: "live-schedule",
+          title: "On Now & Up Next",
+          card_type: "landscape_card",
+          card_width: 300,
+          card_height: 169,
+          items: [
+            {
+              id: "live-now",
+              content_type: "live channel",
+              is_live: true,
+              title: "Lightek Live",
+              subtitle: "On Now",
+              description: "Watch the Lightek network live.",
+              image_url: roku_image_url("lightek-live.jpg"),
+              hero_image_url: roku_image_url("lightek-live.jpg"),
+              badge: "LIVE",
+              indicator: {
+                type: "status_dot",
+                color: "#FF3B30"
+              },
+              action: play_action(
+                id: "live-now-watch",
+                label: "Watch Live",
+                content_id: "featured-002",
+                playback_url: LIVE_PLAYBACK_URL
+              )
+            },
+            {
+              id: "featured-001",
+              content_type: "documentary",
+              title: "Featured Documentary",
+              subtitle: "Up Next",
+              description: "Meet the builders creating durable institutions and community-owned futures.",
+              image_url: roku_image_url("featured-documentary.jpg"),
+              hero_image_url: roku_image_url("featured-documentary.jpg"),
+              badge: "NEXT",
+              action: details_action("featured-001")
+            },
+            {
+              id: "documentary-001",
+              content_type: "documentary series",
+              title: "The Resistance Economy",
+              subtitle: "Later Today",
+              description: "A documentary series about ownership, labor, and community power.",
+              image_url: roku_image_url("resistance-economy-poster.jpg"),
+              hero_image_url: roku_image_url("hero-background.jpg"),
+              action: details_action("documentary-001")
+            }
+          ]
+        }
+      ],
+      metadata: response_metadata
+    }
+  end
 
   def search
     query = params[:q].to_s.strip

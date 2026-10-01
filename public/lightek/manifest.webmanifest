@@ -1,0 +1,29 @@
+{
+  "id": "/lightek/",
+  "name": "Lightek",
+  "short_name": "Lightek",
+  "description": "The Lightek platform.",
+  "start_url": "/lightek/index.html#/home",
+  "scope": "/lightek/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "background_color": "#07070a",
+  "theme_color": "#07070a",
+  "orientation": "any",
+  "categories": [
+    "entertainment",
+    "social",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/lightek/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

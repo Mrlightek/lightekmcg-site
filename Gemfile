@@ -105,7 +105,7 @@ group :test do
 end
 gem "dotenv-rails", "~> 3.2"
 
-gem "dymond_studio", git: "git@github.com:lightekmcg/dymond_studio.git"   # domain: studio
+gem "dymond_studio", git: "git@github.com:lightekmcg/dymond_studio.git", branch: "studio-ui-completion-pass"   # domain: studio
 
 gem "dymond_catalog", git: "git@github.com:lightekmcg/dymond_catalog.git"   # domain: catalog
 

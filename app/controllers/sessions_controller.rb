@@ -4,6 +4,8 @@ class SessionsController < ApplicationController
   skip_authorization_check
 
   def new
+    store_return_to
+    redirect_to after_authentication_url if authenticated?
   end
 
   def create
@@ -19,4 +21,20 @@ class SessionsController < ApplicationController
     terminate_session
     redirect_to new_session_path
   end
+
+  private
+
+  def store_return_to
+    candidate = params[:return_to].to_s
+
+    return if candidate.blank?
+    return unless candidate.start_with?("/")
+    return if candidate.start_with?("//")
+    return if candidate.include?("\\")
+    return if candidate.match?(/[\r\n]/)
+
+    session[:return_to_after_authenticating] =
+      candidate
+  end
+
 end

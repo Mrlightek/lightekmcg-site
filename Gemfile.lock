@@ -80,8 +80,8 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_studio.git
-  revision: 63b242a9edeefcbb993b6e20516766f221aca273
-  branch: studio-ui-completion-pass
+  revision: b82bec89bc593ce5e6c4cb4294f6dcdb2646903a
+  branch: main
   specs:
     dymond_studio (0.1.0)
       lightek_kernel

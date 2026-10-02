@@ -154,12 +154,86 @@ surfaces.each do |surface_data|
   end
 end
 
+# LIGHTEK MONEY SURFACE
+money =
+  LightekPwa::Surface.find_or_initialize_by(
+    key: "money"
+  )
+
+money.assign_attributes(
+  surface_type: "money",
+  label: "Money",
+  position: 60,
+  enabled: true,
+  configuration: {
+    title: "Dymond",
+    description:
+      "Payments, invoices, Susu and money movement."
+  },
+  seed_namespace: namespace,
+  seed_version: version
+)
+
+money.save!
+
+[
+  [
+    "money-overview",
+    "money_overview",
+    "Overview",
+    10
+  ],
+  [
+    "payment-quote",
+    "payment_quote",
+    "Payment Quote",
+    20
+  ],
+  [
+    "susu",
+    "susu",
+    "Susu",
+    30
+  ],
+  [
+    "invoices",
+    "invoices",
+    "Invoices",
+    40
+  ],
+  [
+    "transactions",
+    "transactions",
+    "Transactions",
+    50
+  ]
+].each do |key, type, label, position|
+  mod =
+    money.modules.find_or_initialize_by(
+      key: key
+    )
+
+  mod.assign_attributes(
+    module_type: type,
+    label: label,
+    position: position,
+    enabled: true,
+    data_source: key,
+    configuration: {},
+    seed_namespace: namespace,
+    seed_version: version
+  )
+
+  mod.save!
+end
+
 navigation = [
   ["home", "Home", "home", "#/home", "primary", 10],
   ["watch", "Watch", "watch", "#/watch", "primary", 20],
   ["clips", "Clips", "clips", "#/clips", "primary", 30],
   ["explore", "Explore", "explore", "#/explore", "primary", 40],
   ["communities", "Communities", "communities", "#/communities", "primary", 50],
+  ["money", "Money", "money", "#/money", "primary", 55],
   ["messages", "Messages", "messages", "#/messages", "tools", 60],
   ["create", "+ Create", "create", "#/create", "tools", 70],
   ["space", "My Space", "space", "#/space", "identity", 80]

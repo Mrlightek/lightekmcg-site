@@ -214,6 +214,18 @@
   }
 
   function renderNavigation() {
+    if (
+      state.navigation.length === 0 &&
+      state.surfaces.size === 0
+    ) {
+      console.warn(
+        "[Lightek] storefront configuration is empty; preserving static shell navigation"
+      )
+
+      updateActiveNavigation()
+      return
+    }
+
     const items =
       visibleNavigation()
 

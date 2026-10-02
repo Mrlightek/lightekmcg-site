@@ -627,7 +627,13 @@ return `<div class="wrap cw"><ol class="stp">${st.map((x,k)=>`<li class="${k==CS
 const TY=[['Share',[['Post','Words, links and thoughts for your people'],['Photo','A single image or a set'],['Story','A 24-hour moment'],['Article','Long-form writing']]],['Produce',[['Video','Upload to your channel or a program'],['Clip','Vertical short-form'],['Series','An episodic collection of programs'],['Live Broadcast','Go on air or schedule a show']]],['Organize',[['Playlist','Curate media in order'],['Event','Gather people, online or in person'],['Community','Start a network within the network']]]];
 const MEDIA=['Photo','Video','Clip','Story','Live Broadcast'],DS=()=>{const p=meProfile(),name=meName(),owned=p?.profile_type==='creator'?`Channel: ${name}`:p?.profile_type==='organization'?`Network: ${name}`:'My Space';return ['My Space',...(owned==='My Space'?[]:[owned]),'Community: Diaspora Kitchens','Series: Island Frequencies','Playlist: Late Night Mix']};
 const CS={s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0};
-const pv=()=>`<div class="pvc ${['Clip','Story'].includes(CS.type)?'v':''}"><div class="art" style="${art(7)}">${CS.type=='Live Broadcast'?LV:''}</div><div class="mt"><span class="by">${myAvatar(22)}${E(meName())} · ${E(CS.type)}</span><h3>${E(CS.title)||'Untitled '+CS.type.toLowerCase()}</h3><p>${E(CS.desc)||'Your description appears here'}</p></div></div>`;
+const pv=()=>{
+  const handle=meHandle();
+  const attribution=
+    `${E(meName())}${handle?` <span style="color:var(--mu)">${E(handle)}</span>`:''} · ${E(CS.type)}`;
+
+  return `<div class="pvc ${['Clip','Story'].includes(CS.type)?'v':''}"><div class="art" style="${art(7)}">${CS.type=='Live Broadcast'?LV:''}</div><div class="mt"><span class="by">${myAvatar(22)}${attribution}</span><h3>${E(CS.title)||'Untitled '+CS.type.toLowerCase()}</h3><p>${E(CS.desc)||'Your description appears here'}</p></div></div>`
+};
 
 const moneyFromCents=cents=>
   new Intl.NumberFormat(

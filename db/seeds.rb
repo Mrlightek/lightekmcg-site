@@ -17,3 +17,8 @@ if Rails.env.development?
   u.save!
   puts "Seeded super_admin #{u.email_address}"
 end
+
+# Lightek Messaging capability registry
+load Rails.root.join(
+  "db/seeds/lightek_messaging_capabilities.rb"
+)

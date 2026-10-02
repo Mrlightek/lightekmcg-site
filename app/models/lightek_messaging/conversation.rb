@@ -69,8 +69,8 @@ module LightekMessaging
             order(
               Arel.sql(
                 "COALESCE(" \
-                "last_message_at, " \
-                "created_at" \
+                "lightek_messaging_conversations.last_message_at, " \
+                "lightek_messaging_conversations.created_at" \
                 ") DESC"
               ),
               id: :desc

@@ -233,7 +233,22 @@ module Api
           "susu.contribution.quote.requested",
 
         "susu.contribution.checkout" =>
-          "susu.contribution.checkout.requested"
+          "susu.contribution.checkout.requested",
+
+        "messages.list" =>
+          "messages.list.requested",
+
+        "messages.show" =>
+          "messages.show.requested",
+
+        "messages.start" =>
+          "messages.start.requested",
+
+        "messages.send" =>
+          "messages.send.requested",
+
+        "messages.mark_read" =>
+          "messages.mark_read.requested"
       }.fetch(slug) {
         raise ArgumentError,
               "Unsupported capability: #{slug}"
@@ -252,7 +267,22 @@ module Api
           "contribution_quote",
 
         "susu.contribution.checkout" =>
-          "contribution_checkout"
+          "contribution_checkout",
+
+        "messages.list" =>
+          "list",
+
+        "messages.show" =>
+          "show",
+
+        "messages.start" =>
+          "start",
+
+        "messages.send" =>
+          "send",
+
+        "messages.mark_read" =>
+          "mark_read"
       }.fetch(slug)
     end
   end

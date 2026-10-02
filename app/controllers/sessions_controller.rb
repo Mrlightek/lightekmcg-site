@@ -3,6 +3,8 @@ class SessionsController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: :create, with: -> { redirect_to new_session_url, alert: "Try again later." }
   skip_authorization_check
 
+  layout "auth", only: :new
+
   def new
     store_return_to
     redirect_to after_authentication_url if authenticated?

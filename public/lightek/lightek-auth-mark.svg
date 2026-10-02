@@ -1,0 +1,127 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 128 128"
+  role="img"
+  aria-labelledby="title"
+>
+  <title id="title">Lightek</title>
+
+  <defs>
+    <linearGradient
+      id="gold"
+      x1="20"
+      y1="18"
+      x2="108"
+      y2="108"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop
+        offset="0"
+        stop-color="#ffe3a0"
+      />
+      <stop
+        offset=".35"
+        stop-color="#f6be55"
+      />
+      <stop
+        offset=".72"
+        stop-color="#d88b22"
+      />
+      <stop
+        offset="1"
+        stop-color="#8e4c0a"
+      />
+    </linearGradient>
+
+    <linearGradient
+      id="dark"
+      x1="18"
+      y1="12"
+      x2="104"
+      y2="115"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop
+        stop-color="#2b2822"
+      />
+      <stop
+        offset="1"
+        stop-color="#080808"
+      />
+    </linearGradient>
+
+    <filter
+      id="glow"
+      x="-40%"
+      y="-40%"
+      width="180%"
+      height="180%"
+    >
+      <feGaussianBlur
+        stdDeviation="4"
+        result="blur"
+      />
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <path
+    d="
+      M27 18
+      C27 12 34 9 39 12
+      L106 52
+      C115 57 115 71 106 76
+      L39 116
+      C34 119 27 116 27 110
+      Z
+    "
+    fill="url(#dark)"
+    stroke="url(#gold)"
+    stroke-width="3"
+  />
+
+  <path
+    d="
+      M37 27
+      V83
+      C37 95 43 101 55 101
+      H82
+    "
+    fill="none"
+    stroke="url(#gold)"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow)"
+  />
+
+  <rect
+    x="60"
+    y="59"
+    width="9"
+    height="20"
+    rx="4.5"
+    fill="url(#gold)"
+  />
+
+  <rect
+    x="75"
+    y="50"
+    width="9"
+    height="29"
+    rx="4.5"
+    fill="url(#gold)"
+  />
+
+  <rect
+    x="90"
+    y="39"
+    width="9"
+    height="40"
+    rx="4.5"
+    fill="url(#gold)"
+  />
+</svg>

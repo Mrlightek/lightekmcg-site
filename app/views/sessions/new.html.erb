@@ -1,11 +1,195 @@
-<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
-<%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
+<% content_for :title, "Sign in · Lightek" %>
 
-<%= form_with url: session_path do |form| %>
-  <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "Enter your email address", value: params[:email_address] %><br>
-  <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Enter your password", maxlength: 72 %><br>
-  <%= form.submit "Sign in" %>
-<% end %>
-<br>
+<main class="auth-shell">
+  <section
+    class="auth-story"
+    aria-label="Lightek"
+  >
+    <a
+      class="auth-brand"
+      href="/lightek/index.html#/home"
+      aria-label="Lightek home"
+    >
+      <img
+        src="/lightek/lightek-auth-mark.svg"
+        alt=""
+        width="46"
+        height="46"
+      >
 
-<%= link_to "Forgot password?", new_password_path %>
+      <span class="auth-wordmark">
+        Light<span>ek</span>
+      </span>
+    </a>
+
+    <div class="auth-story-copy">
+      <p class="auth-kicker">
+        People / Stories / Brighter Together
+      </p>
+
+      <h2>
+        More creators.<br>
+        <em>Brighter stories.</em>
+      </h2>
+
+      <p>
+        One account across the Lightek experience —
+        create, watch, connect, manage your work,
+        and move through everything you own.
+      </p>
+    </div>
+  </section>
+
+  <section class="auth-panel">
+    <div class="auth-card">
+      <p class="auth-card-kicker">
+        Lightek account
+      </p>
+
+      <h1>
+        Welcome <span>back.</span>
+      </h1>
+
+      <p class="auth-intro">
+        Sign in to continue creating and managing
+        your Lightek experience.
+      </p>
+
+      <% if flash[:alert].present? %>
+        <div
+          class="auth-flash"
+          role="alert"
+        >
+          <%= flash[:alert] %>
+        </div>
+      <% end %>
+
+      <% if flash[:notice].present? %>
+        <div
+          class="auth-flash notice"
+          role="status"
+        >
+          <%= flash[:notice] %>
+        </div>
+      <% end %>
+
+      <%= form_with(
+        url: session_path,
+        class: "auth-form"
+      ) do |form| %>
+
+        <div class="auth-field">
+          <%= form.label(
+            :email_address,
+            "Email"
+          ) %>
+
+          <div class="auth-input-wrap">
+            <svg
+              class="auth-input-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M3 6.5h18v11H3z"
+                stroke="currentColor"
+                stroke-width="1.7"
+                rx="2"
+              />
+              <path
+                d="m4 8 8 6 8-6"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+
+            <%= form.email_field(
+              :email_address,
+              class: "auth-input",
+              required: true,
+              autocomplete: "username",
+              inputmode: "email",
+              autocapitalize: "none",
+              spellcheck: false,
+              placeholder: "you@lightek.com",
+              value: params[:email_address]
+            ) %>
+          </div>
+        </div>
+
+        <div class="auth-field">
+          <%= form.label(
+            :password,
+            "Password"
+          ) %>
+
+          <div class="auth-input-wrap">
+            <svg
+              class="auth-input-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <rect
+                x="5"
+                y="10"
+                width="14"
+                height="11"
+                rx="2"
+                stroke="currentColor"
+                stroke-width="1.7"
+              />
+              <path
+                d="M8 10V7a4 4 0 0 1 8 0v3"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
+            </svg>
+
+            <%= form.password_field(
+              :password,
+              class: "auth-input",
+              required: true,
+              autocomplete: "current-password",
+              maxlength: 72,
+              placeholder: "Enter your password"
+            ) %>
+          </div>
+        </div>
+
+        <div class="auth-meta">
+          <%= link_to(
+            "Forgot password?",
+            new_password_path,
+            class: "auth-link"
+          ) %>
+        </div>
+
+        <%= form.submit(
+          "Sign in →",
+          class: "auth-submit"
+        ) %>
+      <% end %>
+
+      <div class="auth-divider">
+        New to Lightek?
+      </div>
+
+      <%= link_to(
+        "Create account",
+        sign_up_path,
+        class: "auth-secondary"
+      ) %>
+
+      <p class="auth-footnote">
+        Your Lightek account connects your identity
+        across Create, My Space, Money, Studio,
+        Communities, and the rest of the platform.
+      </p>
+    </div>
+  </section>
+</main>

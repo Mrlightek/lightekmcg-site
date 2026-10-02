@@ -324,14 +324,45 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 
 </head><body>
 <header id="top"><a class="logo" href="#/home">LIGHTEK</a>
-<div class="tools"><a class="hd2" href="#/messages">Messages</a><a class="btn p sm" href="#/create">+ Create</a><a href="#/space" aria-label="My Space" data-av></a></div></header>
+<div class="tools"><a class="hd2" href="#/messages">Messages</a><a class="btn p sm" href="/session/new?return_to=%2Flightek%2Findex.html%23%2Fcreate">+ Create</a><a class="hd2" href="/session/new?return_to=%2Flightek%2Findex.html%23%2Fspace">Sign in</a></div></header>
 <nav id="primary-nav" aria-label="Primary"><a href="#/home" data-r="home">Home</a><a href="#/watch" data-r="watch">Watch</a><a href="#/clips" data-r="clips">Clips</a><a href="#/explore" data-r="explore">Explore</a><a href="#/communities" data-r="communities">Communities</a></nav>
 <main id="app"></main><div id="toast" role="status"></div>
 <script>
 const $=s=>document.querySelector(s),J=a=>a.join(''),app=$('#app'),E=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const art=i=>{const h=[40,18,350,210,160,280,30,330][i%8];return `background:radial-gradient(120% 90% at 20% 10%,hsl(${h} 60% 38%),transparent 60%),linear-gradient(160deg,hsl(${(h+30)%360} 40% 16%),#0a0a0e)`};
 const av=(i,z=40,sq)=>`<s class="av" style="${art(i)};width:${z}px;height:${z}px;border-radius:${sq?'6px':'50%'}"></s>`;
-$('[data-av]').innerHTML=av(1,32);
+const me=()=>window.LightekIdentity||null;
+const meProfile=()=>me()?.profile||null;
+const authReady=()=>document.documentElement.getAttribute('data-lightek-bootstrap')==='ready';
+const meName=()=>meProfile()?.name||'Lightek Member';
+const meHandle=()=>meProfile()?.display_handle||'';
+const signInHref=hash=>'/session/new?return_to='+encodeURIComponent('/lightek/index.html'+hash);
+const myAvatar=(z=40,sq=false)=>{
+  const p=meProfile();
+
+  if(p?.avatar_url){
+    return `<img class="av" src="${E(p.avatar_url)}" alt="" style="width:${z}px;height:${z}px;border-radius:${sq?'6px':'50%'};object-fit:cover">`
+  }
+
+  const initials=
+    meName()
+      .trim()
+      .split(/\s+/)
+      .slice(0,2)
+      .map(part=>part.charAt(0))
+      .join('')
+      .toUpperCase()||'L';
+
+  return `<span class="av" style="${art(1)};width:${z}px;height:${z}px;border-radius:${sq?'6px':'50%'};display:inline-grid;place-items:center;color:var(--tx);font-size:${Math.max(11,Math.round(z*.28))}px;font-weight:700">${E(initials)}</span>`
+};
+const authView=(title,copy,hash)=>{
+  if(!authReady()){
+    return `<div class="wrap cw"><span class="eb">Lightek account</span><h1>Loading your account…</h1><p class="lede">Checking your Lightek session.</p></div>`
+  }
+
+  return `<div class="wrap cw"><span class="eb">Account required</span><h1>${E(title)}</h1><p class="lede">${E(copy)}</p><a class="btn p" href="${E(signInHref(hash))}">Sign in</a></div>`
+};
+
 const S={t:new Set(['follow:Dre Okafor']),clip:0,edit:false,mode:'creator',f:'All',uc:{}},L={};
 const T=["The Long Table","Gold Hour","Night Signal","Island Frequencies","Crown Heights","After the Bell","Salt & Scripture","Atlas Sessions"];
 const P=[["Amara Cole","@amaracole","Documentary maker"],["Dre Okafor","@dreokafor","Music & culture"],["Mira Santos","@mirasantos","Caribbean kitchen"],["Kofi Bell","@kofibell","Sports analyst"],["Noor Hassan","@noorhassan","Poet & producer"],["Tasha Rowe","@tasharowe","Tech & society"]];
@@ -352,7 +383,7 @@ const cv=(c,k)=>`<a class="cv" href="#/community/${CM[k].id}">${av(k+2,44,1)}<di
 const strip=()=>`<div class="strip">${CL.concat(CL).slice(0,8).map((c,k)=>M({t:c[0],by:P[c[1]][0],i:k+1,r:'r916',s:(c[5]/1000).toFixed(1)+'K likes',h:'#/clips',a:'cl',n:k%6,d:0})).join('')}</div>`;
 const cont=()=>sec(AH('Continue watching','Pick up where you left off'),`<div class="g4">${J(V(4,2).map((o,k)=>M({...o,d:0,p:[72,38,15,88][k],s:['41 min left','1h 12m left','Episode 3 · 52 min left','6 min left'][k]})))}</div>`,'','c');
 const hero=o=>`<div class="hero ${o.tick?'tv':''}"><div class="bg" style="${art(o.i)}"></div>${o.bug?`<span class="bug">${o.bug}</span>`:''}<div class="wrap"><div class="hi"><div class="row">${o.live?`<span class="live st"><i></i>LIVE · ${o.v} watching</span>`:''}<span class="eb">${o.eb}</span></div><h1>${o.t}</h1><div class="meta">${o.meta.map(x=>`<span>${x}</span>`).join('')}</div><p class="lede">${o.p}</p><a class="btn p" href="#/watch">${o.live?'Watch live':'Watch now'}</a> ${tb('rem:'+o.t,'+ Remind me','Reminder set')}</div>${o.tick?'':`<div class="side"><span class="eb">Also on air</span>${J(V(3,3,{live:1,c:'lr',d:0}).map(M))}</div>`}</div>${o.tick?`<div class="tick">${o.tick.map((x,k)=>`<div><small>${['NOW','NEXT','LATER'][k]} · ${x[0]}</small>${x[1]}</div>`).join('')}</div>`:''}</div>`;
-const idh=o=>`<div class="hero sp"><div class="bg" style="${art(o.i)}"></div><div class="wrap"><div class="id2">${av(o.i+1,o.z||120,o.sq)}<div><span class="eb">${o.eb}</span><h1>${o.t}</h1><p class="lede">${o.p}</p><div class="meta">${o.meta.map(x=>`<span>${x}</span>`).join('')}</div>${o.b}</div></div></div></div>`;
+const idh=o=>`<div class="hero sp"><div class="bg" style="${art(o.i)}">${o.cover?`<img src="${E(o.cover)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">`:''}</div><div class="wrap"><div class="id2">${o.avatar||av(o.i+1,o.z||120,o.sq)}<div><span class="eb">${o.eb}</span><h1>${o.t}</h1><p class="lede">${o.p}</p><div class="meta">${o.meta.map(x=>`<span>${x}</span>`).join('')}</div>${o.b}</div></div></div></div>`;
 /* section modules: shared by Community + My Space (editor-driven order) */
 const people=(eb,t,c)=>sec(AH(eb,t,c),`<div class="cr">${P.map(crt).join('')}</div>`);
 const B={
@@ -367,7 +398,7 @@ events:()=>sec(AH('Events','Coming up'),`<div>${[['OCT','04','Open mic · live o
 playlists:()=>sec(AH('Playlists','Playlists'),`<div class="g4">${['Late Night Mix','Sunday Service','Kitchen Table','Studio Reels'].map((t,k)=>M({t,s:(8+k*3)+' items',i:k+1,c:'pl'})).join('')}</div>`),
 series:()=>sec(AH('Series','Series'),`<div class="g4">${[0,3,4,6].map((k,j)=>M({t:T[k],s:'Season '+(j+1)+' · 8 episodes',i:k,r:'r23'})).join('')}</div>`),
 communities:()=>sec(AH('Communities','Communities',null,['All','#/communities']),`<div class="g3">${CM.slice(0,3).map(ct).join('')}</div>`),
-about:()=>sec(AH('About','About'),`<div class="ab"><p class="serif">${STMT}</p><dl><dt>Based in</dt><dd>Atlanta · Port of Spain</dd><dt>Since</dt><dd>2024</dd><dt>Making</dt><dd>Documentary, music, conversation</dd></dl></div>`),
+about:()=>{const p=location.hash.startsWith('#/space')?meProfile():null,statement=p?.bio||STMT;return sec(AH('About','About'),`<div class="ab"><p class="serif">${E(statement)}</p>${p?'':`<dl><dt>Based in</dt><dd>Atlanta · Port of Spain</dd><dt>Since</dt><dd>2024</dd><dt>Making</dt><dd>Documentary, music, conversation</dd></dl>`}</div>`)},
 custom:()=>sec(AH('Custom section','Currently','Owner-defined module'),`<div class="cu"><div><small>Now listening</small><h3>Pan Yard Sunrise — Kokoye</h3></div><div><small>Reading</small><h3>Salt Roads</h3></div><div><small>Pinned note</small><h3>Booking for Carnival season is open.</h3></div></div>`)};
 const LD={'diaspora-kitchens':['featured','live','conversations','clips','events','members','playlists','about'],'gospel-and-soul':['about','live','featured','playlists','conversations','events','members'],d:['featured','conversations','clips','events','members','about'],creator:['featured','series','clips','playlists','posts','about','communities'],person:['about','posts','friends','featured','communities','events','custom'],org:['about','featured','series','events','members','communities']};
 const secs=(k,all)=>{const l=L[k];return `<div class="wrap">`+l.map((id,n)=>`<div class="mod">${S.edit?`<div class="ctl"><span>${id}</span><button data-a="mv" data-k="${k}" data-n="${n}" data-d="-1" aria-label="Move up">↑</button><button data-a="mv" data-k="${k}" data-n="${n}" data-d="1" aria-label="Move down">↓</button><button data-a="rm" data-k="${k}" data-n="${n}">Remove</button></div>`:''}${B[id]()}</div>`).join('')+(S.edit?`<div class="ctl">Add: ${all.filter(x=>!l.includes(x)).map(x=>`<button data-a="add" data-k="${k}" data-id="${x}">+ ${x}</button>`).join('')||'all sections in use'}</div>`:'')+`</div>`};
@@ -539,18 +570,64 @@ explore:()=>`<div class="wrap"><div class="xs"><span class="eb">Explore Lightek<
 communities:()=>`<div class="hero sp"><div class="bg" style="${art(2)}"></div><div class="wrap"><div class="hi"><span class="eb">Featured network</span><h1>Diaspora Kitchens</h1><p class="lede">Food, memory and migration — 48K people, a live kitchen, and every recipe worth arguing about.</p><a class="btn p" href="#/community/diaspora-kitchens">Enter community</a></div></div></div><div class="wrap">`
 +sec(AH('Yours','Your communities'),`<div class="g3">${CM.slice(0,3).map(ct).join('')}</div>`)+sec(AH('Discover','Networks to join','Each one runs its own programming, events and conversation'),`<div class="g3">${CM.slice(3).concat(CM.slice(0,1)).map(ct).join('')}</div>`)+`</div>`,
 community:id=>{const c=CM.find(x=>x.id==id)||CM[0],k='c-'+c.id;L[k]=L[k]||[...(LD[c.id]||LD.d)];return idh({i:c.i,sq:1,eb:'Community',t:c.n,p:c.tag+'. A network within the network.',meta:[c.m+' members','3.2K online',c.live?'● Live now':'Next live: tonight 9 PM'],b:tb('join:'+c.id,'Join community','Joined','p')+' '+edbtn()})+secs(k,Object.keys(B))},
-space:()=>{const m=S.mode,k='sp-'+m;L[k]=L[k]||[...LD[m]];const d={creator:['Amara Cole','Channel','@amaracole','Documentary maker. Port of Spain to Atlanta.',['2.4M followers','148 programs','1.2K clips'],'Subscribe','Subscribed'],person:['Jordan Bell','My Space','@jordanb','Music, food, and Friday-night threads.',['312 friends','86 following','9 communities'],'Add friend','Friends'],org:['Lightek Originals','Network','@originals','The in-house studio behind the programs you keep finishing.',['184K followers','24 programs','41 members'],'Follow','Following']}[m];
-return idh({i:m=='org'?4:1,sq:m=='org',z:m=='creator'?148:120,eb:d[1],t:d[0],p:d[3],meta:[d[2]].concat(d[4]),b:tb('sub:'+m,d[5],d[6],'p')+' <a class="btn" href="#/messages">Message</a> <button class="btn" data-a="sh">Share</button>'})+`<div class="wrap"><div class="bar"><div class="seg" role="group" aria-label="Preview as">${[['creator','Creator'],['person','Person'],['org','Organization']].map(x=>`<button data-a="mode" data-v="${x[0]}" class="${m==x[0]?'on':''}">${x[1]}</button>`).join('')}</div>${edbtn()}</div></div>`+secs(k,['featured','series','clips','playlists','posts','about','friends','communities','events','members','custom'])},
+space:()=>{
+const identity=me(),p=meProfile();
+if(!identity||!p)return authView('Sign in to open My Space','Your public Lightek identity lives here.','#/space');
+
+const mode=
+  p.profile_type==='creator'
+    ?'creator'
+    :p.profile_type==='organization'
+      ?'org'
+      :'person';
+
+S.mode=mode;
+
+const k='sp-'+p.id;
+const backendSections=(p.sections||[]).map(section=>section.key).filter(key=>B[key]);
+
+L[k]=backendSections.length
+  ?backendSections
+  :[...(LD[mode]||LD.person)];
+
+const label=
+  p.profile_type==='creator'
+    ?'Channel'
+    :p.profile_type==='organization'
+      ?'Network'
+      :'My Space';
+
+const handle=
+  p.display_handle||
+  (p.handle?'@'+p.handle:'');
+
+const bio=
+  p.bio||
+  'This Lightek member has not written a public bio yet.';
+
+return idh({
+  i:mode==='org'?4:1,
+  sq:mode==='org',
+  z:mode==='creator'?148:120,
+  avatar:myAvatar(mode==='creator'?148:120,mode==='org'),
+  cover:p.cover_image_url,
+  eb:label,
+  t:E(p.name||'Lightek Member'),
+  p:E(bio),
+  meta:[E(handle),E(p.profile_type||'person')],
+  b:`<a class="btn p" href="/profiles/${E(p.id)}/edit">Edit profile</a> <a class="btn" href="#/messages">Messages</a> <button class="btn" data-a="sh">Share</button>`
+})+`<div class="wrap"><div class="bar"><div><span class="eb">Profile type</span> ${E(label)}</div><a class="btn sm" href="/profiles/${E(p.id)}/edit">Edit profile & layout</a></div></div>`+secs(k,Object.keys(B))
+},
 messages:()=>`<div class="wrap msg"><div><h2 class="serif">Messages</h2>${P.slice(0,4).map((p,k)=>`<a class="trd" href="#/messages">${av(k,40)}<div><h3>${p[0]}</h3><p>${['Sent a clip','Are we live at 9?','Loved the premiere','Thread: Carnival'][k]}</p></div></a>`).join('')}</div><div class="emp"><div><span class="eb">Messages</span><h2>Select a conversation</h2><p>Direct messages, community threads and watch-party chats live here.</p></div></div></div>`,
-create:()=>{let h;const st=['Choose','Create','Preview & publish'];
+create:()=>{if(!me()||!meProfile())return authView('Sign in to create','Create is tied to your real Lightek profile.','#/create');let h;const st=['Choose','Create','Preview & publish'];
 if(CS.s==0)h=`<span class="eb">Create</span><h1>What are you making?</h1>`+TY.map(g=>`<div style="margin-bottom:40px"><span class="eb">${g[0]}</span>${g[1].map(t=>`<button class="ty" data-a="ct" data-v="${t[0]}"><b>${t[0]}</b><span>${t[1]}</span><i>→</i></button>`).join('')}</div>`).join('');
 else if(CS.s==1)h=`<span class="eb">${CS.type}</span><h1>Build it</h1><div class="cg"><div>${MEDIA.includes(CS.type)?`<label class="dz">${CS.file?E(CS.file)+' — ready':'Drop a file or browse'}<input type="file" id="fi" hidden></label>`:''}<label class="fld"><span>Title</span><input name="title" value="${E(CS.title)}" placeholder="Name your ${CS.type.toLowerCase()}"></label><label class="fld"><span>${CS.type=='Post'?'Say it':'Description'}</span><textarea name="desc" rows="5">${E(CS.desc)}</textarea></label>${CS.type=='Live Broadcast'?`<label class="fld"><span>Start</span><select><option>Go live now</option><option>Schedule for later</option></select></label>`:''}${CS.type=='Event'?`<label class="fld"><span>Date</span><input type="date"></label>`:''}<button class="btn" data-a="cb">Back</button> <button class="btn p" data-a="cx">Preview</button></div><div><span class="eb">Live preview</span><div id="pv" style="margin-top:12px">${pv()}</div></div></div>`;
-else h=`<span class="eb">Preview & publish</span><h1>Ready for the network</h1><div class="cg"><div>${pv()}</div><div><span class="eb">Publish to</span><div class="dst">${DS.map(d=>`<button class="btn sm ${CS.dest.has(d)?'on':''}" data-a="cd" data-v="${d}" aria-pressed="${CS.dest.has(d)}">${d}</button>`).join('')}</div><label class="fld"><span>Visibility</span><select><option>Public</option><option>Followers</option><option>Community only</option></select></label>${CS.pr?`<div class="pb"><u style="width:${Math.min(CS.pr,100)}%"></u></div><p>${CS.done?'Published (mock) to '+[...CS.dest].join(', '):'Uploading… '+Math.min(CS.pr,100)+'%'}</p>${CS.done?'<br><a class="btn p" href="#/space">View on My Space</a> <button class="btn" data-a="again">Create another</button>':''}`:`<button class="btn" data-a="cb">Back</button> <button class="btn p" data-a="pub">Publish</button>`}</div></div>`;
+else h=`<span class="eb">Preview & publish</span><h1>Ready for the network</h1><div class="cg"><div>${pv()}</div><div><span class="eb">Publish to</span><div class="dst">${DS().map(d=>`<button class="btn sm ${CS.dest.has(d)?'on':''}" data-a="cd" data-v="${d}" aria-pressed="${CS.dest.has(d)}">${d}</button>`).join('')}</div><label class="fld"><span>Visibility</span><select><option>Public</option><option>Followers</option><option>Community only</option></select></label>${CS.pr?`<div class="pb"><u style="width:${Math.min(CS.pr,100)}%"></u></div><p>${CS.done?'Published (mock) to '+[...CS.dest].join(', '):'Uploading… '+Math.min(CS.pr,100)+'%'}</p>${CS.done?'<br><a class="btn p" href="#/space">View on My Space</a> <button class="btn" data-a="again">Create another</button>':''}`:`<button class="btn" data-a="cb">Back</button> <button class="btn p" data-a="pub">Publish</button>`}</div></div>`;
 return `<div class="wrap cw"><ol class="stp">${st.map((x,k)=>`<li class="${k==CS.s?'on':k<CS.s?'dn':''}">${k+1} ${x}</li>`).join('')}</ol>${h}</div>`}};
 const TY=[['Share',[['Post','Words, links and thoughts for your people'],['Photo','A single image or a set'],['Story','A 24-hour moment'],['Article','Long-form writing']]],['Produce',[['Video','Upload to your channel or a program'],['Clip','Vertical short-form'],['Series','An episodic collection of programs'],['Live Broadcast','Go on air or schedule a show']]],['Organize',[['Playlist','Curate media in order'],['Event','Gather people, online or in person'],['Community','Start a network within the network']]]];
-const MEDIA=['Photo','Video','Clip','Story','Live Broadcast'],DS=['My Space','Community: Diaspora Kitchens','Channel: Amara Cole TV','Series: Island Frequencies','Playlist: Late Night Mix'];
+const MEDIA=['Photo','Video','Clip','Story','Live Broadcast'],DS=()=>{const p=meProfile(),name=meName(),owned=p?.profile_type==='creator'?`Channel: ${name}`:p?.profile_type==='organization'?`Network: ${name}`:'My Space';return ['My Space',...(owned==='My Space'?[]:[owned]),'Community: Diaspora Kitchens','Series: Island Frequencies','Playlist: Late Night Mix']};
 const CS={s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0};
-const pv=()=>`<div class="pvc ${['Clip','Story'].includes(CS.type)?'v':''}"><div class="art" style="${art(7)}">${CS.type=='Live Broadcast'?LV:''}</div><div class="mt"><span class="by">${av(1,22)}Amara Cole · ${CS.type}</span><h3>${E(CS.title)||'Untitled '+CS.type.toLowerCase()}</h3><p>${E(CS.desc)||'Your description appears here'}</p></div></div>`;
+const pv=()=>`<div class="pvc ${['Clip','Story'].includes(CS.type)?'v':''}"><div class="art" style="${art(7)}">${CS.type=='Live Broadcast'?LV:''}</div><div class="mt"><span class="by">${myAvatar(22)}${E(meName())} · ${E(CS.type)}</span><h3>${E(CS.title)||'Untitled '+CS.type.toLowerCase()}</h3><p>${E(CS.desc)||'Your description appears here'}</p></div></div>`;
 
 const moneyFromCents=cents=>
   new Intl.NumberFormat(
@@ -1144,6 +1221,29 @@ app.addEventListener('input',e=>{const n=e.target.name;if(n=='title'||n=='desc')
 app.addEventListener('change',e=>{if(e.target.id=='fi'){CS.file=e.target.files[0]?.name||'';render(1)}});
 app.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.id=='ci')A.send()});
 addEventListener('keydown',e=>{if(!location.hash.startsWith('#/clips')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;const k=e.key;if(k=='ArrowDown'||k=='j'){e.preventDefault();A.cn()}else if(k=='ArrowUp'||k=='k'){e.preventDefault();A.cp()}else if(k=='l')A.tg({dataset:{k:'like:'+S.clip}});else if(k=='s')A.tg({dataset:{k:'save:'+S.clip}})});
+addEventListener('lightek.bootstrap.ready',event=>{
+  window.LightekIdentity=event.detail?.identity||null;
+
+  const p=meProfile();
+
+  if(p){
+    S.mode=
+      p.profile_type==='creator'
+        ?'creator'
+        :p.profile_type==='organization'
+          ?'org'
+          :'person';
+  }
+
+  const route=
+    location.hash
+      .replace(/^#\//,'')
+      .split('/')[0];
+
+  if(route==='space'||route==='create'){
+    render();
+  }
+});
 addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)location.hash='#/home';render();
 </script>
 <script src="/lightek/nevaeh-client.js"></script>

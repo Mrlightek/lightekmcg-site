@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_01_180043) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_02_141446) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1154,6 +1154,59 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_01_180043) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "lightek_messaging_conversations", force: :cascade do |t|
+    t.string "kind", default: "direct", null: false
+    t.string "title"
+    t.string "direct_key"
+    t.bigint "created_by_profile_id", null: false
+    t.datetime "last_message_at"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_profile_id"], name: "index_lightek_messaging_conversations_on_created_by_profile_id"
+    t.index ["direct_key"], name: "index_lightek_messaging_conversations_on_direct_key", unique: true, where: "(direct_key IS NOT NULL)"
+    t.index ["kind", "updated_at"], name: "index_lightek_messaging_conversations_on_kind_and_updated_at"
+    t.check_constraint "kind::text <> 'group'::text OR title IS NOT NULL AND btrim(title::text) <> ''::text", name: "lightek_messaging_conversations_group_title_check"
+    t.check_constraint "kind::text = 'direct'::text AND direct_key IS NOT NULL OR kind::text <> 'direct'::text AND direct_key IS NULL", name: "lightek_messaging_conversations_direct_key_check"
+    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying, 'group'::character varying, 'community'::character varying, 'watch_party'::character varying]::text[])", name: "lightek_messaging_conversations_kind_check"
+  end
+
+  create_table "lightek_messaging_messages", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "sender_profile_id", null: false
+    t.bigint "reply_to_message_id"
+    t.string "message_type", default: "text", null: false
+    t.text "body", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "edited_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "created_at"], name: "idx_lightek_messaging_messages_timeline"
+    t.index ["conversation_id"], name: "index_lightek_messaging_messages_on_conversation_id"
+    t.index ["reply_to_message_id"], name: "index_lightek_messaging_messages_on_reply_to_message_id"
+    t.index ["sender_profile_id"], name: "index_lightek_messaging_messages_on_sender_profile_id"
+    t.check_constraint "char_length(btrim(body)) > 0", name: "lightek_messaging_messages_body_check"
+    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying, 'system'::character varying]::text[])", name: "lightek_messaging_messages_type_check"
+  end
+
+  create_table "lightek_messaging_participants", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "profile_id", null: false
+    t.string "role", default: "member", null: false
+    t.datetime "joined_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.datetime "last_read_at"
+    t.datetime "left_at"
+    t.jsonb "settings", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "profile_id"], name: "idx_lightek_messaging_participants_unique", unique: true
+    t.index ["conversation_id"], name: "index_lightek_messaging_participants_on_conversation_id"
+    t.index ["profile_id", "left_at"], name: "idx_lightek_messaging_participants_active"
+    t.index ["profile_id"], name: "index_lightek_messaging_participants_on_profile_id"
+    t.check_constraint "left_at IS NULL OR left_at >= joined_at", name: "lightek_messaging_participants_left_at_check"
+    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
+  end
+
   create_table "lightek_pwa_navigation_items", force: :cascade do |t|
     t.string "key", null: false
     t.string "label", null: false
@@ -2001,6 +2054,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_01_180043) do
   add_foreign_key "gatekeeper_operations", "gatekeeper_nodes"
   add_foreign_key "gatekeeper_operations", "gatekeeper_projects"
   add_foreign_key "gatekeeper_projects", "gatekeeper_nodes"
+  add_foreign_key "lightek_messaging_conversations", "profiles", column: "created_by_profile_id"
+  add_foreign_key "lightek_messaging_messages", "lightek_messaging_conversations", column: "conversation_id"
+  add_foreign_key "lightek_messaging_messages", "lightek_messaging_messages", column: "reply_to_message_id"
+  add_foreign_key "lightek_messaging_messages", "profiles", column: "sender_profile_id"
+  add_foreign_key "lightek_messaging_participants", "lightek_messaging_conversations", column: "conversation_id"
+  add_foreign_key "lightek_messaging_participants", "profiles"
   add_foreign_key "lightek_pwa_surface_modules", "lightek_pwa_surfaces", column: "surface_id"
   add_foreign_key "lightek_vault_audit_events", "lightek_vault_secrets", column: "secret_id"
   add_foreign_key "marlon_blueprint_concerns", "marlon_features", column: "feature_id"

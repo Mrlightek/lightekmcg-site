@@ -1,6 +1,30 @@
 class Profile < ApplicationRecord
   belongs_to :user
 
+  has_many :lightek_messaging_participations,
+           class_name:
+             "LightekMessaging::Participant",
+           dependent: :restrict_with_error
+
+  has_many :lightek_messaging_conversations,
+           through:
+             :lightek_messaging_participations,
+           source: :conversation
+
+  has_many :created_lightek_conversations,
+           class_name:
+             "LightekMessaging::Conversation",
+           foreign_key:
+             :created_by_profile_id,
+           dependent: :restrict_with_error
+
+  has_many :sent_lightek_messages,
+           class_name:
+             "LightekMessaging::Message",
+           foreign_key:
+             :sender_profile_id,
+           dependent: :restrict_with_error
+
   include Visitable
   tracks_unique_visits
 

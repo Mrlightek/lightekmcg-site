@@ -2,6 +2,16 @@
 
 capabilities = [
   {
+    name: "Messages People",
+    slug: "messages.people",
+    intent_name: "find_message_people",
+    description:
+      "Find public Lightek profiles available for a new conversation.",
+    event_type:
+      "messages.people.requested"
+  },
+
+  {
     name: "Messages List",
     slug: "messages.list",
     intent_name: "list_messages",

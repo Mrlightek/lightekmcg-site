@@ -91,7 +91,62 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 .dz{display:block;border:1px dashed #ffffff40;padding:48px;text-align:center;margin-bottom:22px;cursor:pointer;color:var(--mu)}.dz:hover{border-color:var(--gd);color:var(--gd)}
 .pvc.v .art{aspect-ratio:9/16;max-height:480px}.dst{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 24px}
 .pb{height:4px;background:#fff2;margin:20px 0 10px}.pb u{display:block;height:100%;background:var(--gd);transition:width .15s}
-.msg{display:grid;grid-template-columns:320px 1fr;gap:40px;padding-top:40px;min-height:70vh}.trd{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--ln);align-items:center}.trd p{color:var(--mu);font-size:13px}.emp{display:grid;place-content:center;text-align:center;border-left:1px solid var(--ln)}.emp p{color:var(--mu)}.emp h2{font-size:32px;margin:6px 0}
+.msg{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:0;padding-top:40px;min-height:72vh}
+.msg-list{min-width:0;padding-right:24px;border-right:1px solid var(--ln)}
+.msg-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}
+.msg-head h2{font-size:34px}.msg-head p{color:var(--mu);font-size:12px}
+.msg-rows{border-bottom:1px solid var(--ln)}
+.trd{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;width:100%;padding:14px 10px;border:0;border-top:1px solid var(--ln);background:transparent;color:inherit;text-align:left;align-items:center;border-radius:3px}
+.trd:hover,.trd.on{background:#ffffff08}.trd.on{box-shadow:inset 2px 0 0 var(--gd)}
+.trd-copy{min-width:0}.trd-line{display:flex;align-items:center;gap:7px;min-width:0}.trd h3{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trd p{color:var(--mu);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msg-kind{flex:0 0 auto;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--gd)}
+.msg-unread{display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--gd);color:#111;font-size:10px;font-weight:800}
+.msg-panel{min-width:0;padding-left:32px;display:flex;flex-direction:column;min-height:64vh}
+.msg-panel-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:18px;border-bottom:1px solid var(--ln)}
+.msg-peer{display:flex;align-items:center;gap:12px;min-width:0}.msg-peer-copy{min-width:0}.msg-peer h2{font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.msg-peer p{color:var(--mu);font-size:12px}
+.msg-back{display:none}
+.msg-thread{flex:1;display:flex;flex-direction:column;gap:16px;padding:24px 4px 24px 0;max-height:calc(100vh - 250px);overflow-y:auto;overscroll-behavior:contain}
+.msg-bubble-row{display:flex;align-items:flex-end;gap:9px;max-width:min(78%,720px)}
+.msg-bubble-row.me{align-self:flex-end;flex-direction:row-reverse}
+.msg-bubble-wrap{min-width:0}.msg-sender{display:block;margin:0 0 4px 2px;color:var(--mu);font-size:10px}
+.msg-bubble-row.me .msg-sender{text-align:right;margin-right:2px}
+.msg-bubble{padding:11px 14px;background:var(--s2);border:1px solid var(--ln);border-radius:4px 14px 14px 14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg-bubble-row.me .msg-bubble{background:#d6a94a14;border-color:#d6a94a40;border-radius:14px 4px 14px 14px}
+.msg-time{display:block;margin-top:5px;color:var(--mu);font-size:9px}
+.msg-bubble-row.me .msg-time{text-align:right}
+.msg-composer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding-top:16px;border-top:1px solid var(--ln)}
+.msg-composer textarea{width:100%;min-height:46px;max-height:140px;resize:vertical;background:var(--s1);border:1px solid var(--ln);border-radius:4px;padding:11px 13px}
+.msg-composer textarea:focus{border-color:#d6a94a66}
+.msg-composer .btn{align-self:end;min-height:46px}
+.msg-empty{display:grid;place-content:center;min-height:54vh;text-align:center;padding:32px}.msg-empty p{max-width:420px;color:var(--mu)}.msg-empty h2{font-size:32px;margin:6px 0}
+.msg-status{padding:18px 0;color:var(--mu);font-size:13px}
+.msg-members{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px}
+.msg-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.msg-start{max-width:760px;width:100%;margin:0 auto;padding:8px 0 32px}
+.msg-start-body{padding-top:24px}
+.msg-start-copy{color:var(--mu);margin:6px 0 24px}
+.msg-people{border-bottom:1px solid var(--ln);margin-top:8px}
+.msg-person{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;padding:13px 8px;border:0;border-top:1px solid var(--ln);background:transparent;color:inherit;text-align:left;border-radius:3px}
+.msg-person:hover,.msg-person.on{background:#ffffff08}
+.msg-person.on{box-shadow:inset 2px 0 0 var(--gd)}
+.msg-person-copy{min-width:0}.msg-person h3{font-size:14px}.msg-person p{font-size:12px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msg-check{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid #ffffff30;color:transparent;font-size:11px;font-weight:800}
+.msg-person.on .msg-check{background:var(--gd);border-color:var(--gd);color:#111}
+.msg-start-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid var(--ln)}
+.msg-start-footer p{color:var(--mu);font-size:12px}
+@media(max-width:760px){
+  .msg{display:block;padding-top:20px;min-height:0}
+  .msg-list{padding-right:0;border-right:0}
+  .msg-panel{padding-left:0;min-height:0}
+  .msg.has-open .msg-list{display:none}
+  .msg:not(.has-open) .msg-panel{display:none}
+  .msg-back{display:inline-flex}
+  .msg-panel-head{position:sticky;top:calc(64px + env(safe-area-inset-top,0px));z-index:8;background:var(--bg);padding:12px 0}
+  .msg-thread{max-height:none;min-height:50vh;padding-bottom:20px}
+  .msg-bubble-row{max-width:88%}
+  .msg-composer{position:sticky;bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:8;background:var(--bg);padding:12px 0 8px}
+}
 #toast{position:fixed;left:50%;bottom:32px;transform:translate(-50%,20px);background:var(--gd);color:#111;padding:10px 18px;opacity:0;transition:.3s;pointer-events:none;z-index:20;font-weight:600}#toast.on{opacity:1;transform:translate(-50%,0)}
 .fade{animation:fi .45s both}@keyframes fi{from{opacity:0;transform:translateY(8px)}}
 @media(max-width:1100px){.cl{grid-template-columns:1fr}.cl aside,.hero .side{display:none}.hero .wrap,.cg,.liveg,.fg,.tr,.wdg,.ab,.msg{grid-template-columns:1fr}.g4,.cr{grid-template-columns:repeat(3,1fr)}.g6{grid-template-columns:repeat(3,1fr)}}
@@ -355,6 +410,28 @@ const myAvatar=(z=40,sq=false)=>{
 
   return `<span class="av" style="${art(1)};width:${z}px;height:${z}px;border-radius:${sq?'6px':'50%'};display:inline-grid;place-items:center;color:var(--tx);font-size:${Math.max(11,Math.round(z*.28))}px;font-weight:700">${E(initials)}</span>`
 };
+const profileAvatar=(profile,z=40)=>{
+  const p=profile||{};
+
+  if(p.avatar_url){
+    return `<img class="av" src="${E(p.avatar_url)}" alt="" style="width:${z}px;height:${z}px;border-radius:50%;object-fit:cover">`
+  }
+
+  const initials=
+    String(p.name||'Lightek Member')
+      .trim()
+      .split(/\s+/)
+      .slice(0,2)
+      .map(part=>part.charAt(0))
+      .join('')
+      .toUpperCase()||'L';
+
+  const seed=
+    Number(p.id||1);
+
+  return `<span class="av" style="${art(seed)};width:${z}px;height:${z}px;border-radius:50%;display:inline-grid;place-items:center;color:var(--tx);font-size:${Math.max(11,Math.round(z*.28))}px;font-weight:700">${E(initials)}</span>`
+};
+
 const authView=(title,copy,hash)=>{
   if(!authReady()){
     return `<div class="wrap cw"><span class="eb">Lightek account</span><h1>Loading your account…</h1><p class="lede">Checking your Lightek session.</p></div>`
@@ -618,7 +695,7 @@ return idh({
   b:`<a class="btn p" href="/profiles/${E(p.id)}/edit">Edit profile</a> <a class="btn" href="#/messages">Messages</a> <button class="btn" data-a="sh">Share</button>`
 })+`<div class="wrap"><div class="bar"><div><span class="eb">Profile type</span> ${E(label)}</div><a class="btn sm" href="/profiles/${E(p.id)}/edit">Edit profile & layout</a></div></div>`+secs(k,Object.keys(B))
 },
-messages:()=>`<div class="wrap msg"><div><h2 class="serif">Messages</h2>${P.slice(0,4).map((p,k)=>`<a class="trd" href="#/messages">${av(k,40)}<div><h3>${p[0]}</h3><p>${['Sent a clip','Are we live at 9?','Loved the premiere','Thread: Carnival'][k]}</p></div></a>`).join('')}</div><div class="emp"><div><span class="eb">Messages</span><h2>Select a conversation</h2><p>Direct messages, community threads and watch-party chats live here.</p></div></div></div>`,
+messages:()=>messagesView(),
 create:()=>{if(!me()||!meProfile())return authView('Sign in to create','Create is tied to your real Lightek profile.','#/create');let h;const st=['Choose','Create','Preview & publish'];
 if(CS.s==0)h=`<span class="eb">Create</span><h1>What are you making?</h1>`+TY.map(g=>`<div style="margin-bottom:40px"><span class="eb">${g[0]}</span>${g[1].map(t=>`<button class="ty" data-a="ct" data-v="${t[0]}"><b>${t[0]}</b><span>${t[1]}</span><i>→</i></button>`).join('')}</div>`).join('');
 else if(CS.s==1)h=`<span class="eb">${CS.type}</span><h1>Build it</h1><div class="cg"><div>${MEDIA.includes(CS.type)?`<label class="dz">${CS.file?E(CS.file)+' — ready':'Drop a file or browse'}<input type="file" id="fi" hidden></label>`:''}<label class="fld"><span>Title</span><input name="title" value="${E(CS.title)}" placeholder="Name your ${CS.type.toLowerCase()}"></label><label class="fld"><span>${CS.type=='Post'?'Say it':'Description'}</span><textarea name="desc" rows="5">${E(CS.desc)}</textarea></label>${CS.type=='Live Broadcast'?`<label class="fld"><span>Start</span><select><option>Go live now</option><option>Schedule for later</option></select></label>`:''}${CS.type=='Event'?`<label class="fld"><span>Date</span><input type="date"></label>`:''}<button class="btn" data-a="cb">Back</button> <button class="btn p" data-a="cx">Preview</button></div><div><span class="eb">Live preview</span><div id="pv" style="margin-top:12px">${pv()}</div></div></div>`;
@@ -627,12 +704,493 @@ return `<div class="wrap cw"><ol class="stp">${st.map((x,k)=>`<li class="${k==CS
 const TY=[['Share',[['Post','Words, links and thoughts for your people'],['Photo','A single image or a set'],['Story','A 24-hour moment'],['Article','Long-form writing']]],['Produce',[['Video','Upload to your channel or a program'],['Clip','Vertical short-form'],['Series','An episodic collection of programs'],['Live Broadcast','Go on air or schedule a show']]],['Organize',[['Playlist','Curate media in order'],['Event','Gather people, online or in person'],['Community','Start a network within the network']]]];
 const MEDIA=['Photo','Video','Clip','Story','Live Broadcast'],DS=()=>{const p=meProfile(),name=meName(),owned=p?.profile_type==='creator'?`Channel: ${name}`:p?.profile_type==='organization'?`Network: ${name}`:'My Space';return ['My Space',...(owned==='My Space'?[]:[owned]),'Community: Diaspora Kitchens','Series: Island Frequencies','Playlist: Late Night Mix']};
 const CS={s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0};
+const MS={
+  items:[],
+  selected:null,
+  detail:null,
+  openToken:0,
+  sending:false,
+  compose:null,
+  people:[],
+  query:'',
+  groupTitle:'',
+  selectedPeople:new Set(),
+  peopleToken:0
+};
 const pv=()=>{
   const handle=meHandle();
   const attribution=
     `${E(meName())}${handle?` <span style="color:var(--mu)">${E(handle)}</span>`:''} · ${E(CS.type)}`;
 
   return `<div class="pvc ${['Clip','Story'].includes(CS.type)?'v':''}"><div class="art" style="${art(7)}">${CS.type=='Live Broadcast'?LV:''}</div><div class="mt"><span class="by">${myAvatar(22)}${attribution}</span><h3>${E(CS.title)||'Untitled '+CS.type.toLowerCase()}</h3><p>${E(CS.desc)||'Your description appears here'}</p></div></div>`
+};
+
+const messageTime=value=>{
+  if(!value) return '';
+
+  const date=
+    new Date(value);
+
+  if(Number.isNaN(date.getTime())){
+    return ''
+  }
+
+  const now=
+    new Date();
+
+  const sameDay=
+    date.getFullYear()===now.getFullYear()&&
+    date.getMonth()===now.getMonth()&&
+    date.getDate()===now.getDate();
+
+  return new Intl.DateTimeFormat(
+    "en-US",
+    sameDay
+      ?{
+          hour:"numeric",
+          minute:"2-digit"
+        }
+      :{
+          month:"short",
+          day:"numeric"
+        }
+  ).format(date)
+};
+
+const messagePeer=conversation=>{
+  const myId=
+    Number(meProfile()?.id);
+
+  return (conversation.participants||[])
+    .map(entry=>entry.profile)
+    .find(profile=>Number(profile?.id)!==myId)||
+    null
+};
+
+const messageConversationMeta=conversation=>{
+  if(conversation.kind==="group"){
+    return `${Number(conversation.participant_count||0)} members`
+  }
+
+  const peer=
+    messagePeer(conversation);
+
+  return peer?.display_handle||"Direct message"
+};
+
+const messageRows=items=>{
+  if(!items.length){
+    return `
+      <div class="msg-empty" style="min-height:360px">
+        <div>
+          <span class="eb">Messages</span>
+          <h2>No conversations yet</h2>
+          <p>
+            Your direct and group conversations will appear here.
+          </p>
+
+          <div class="msg-actions" style="justify-content:center;margin-top:18px">
+            <button
+              class="btn p"
+              data-a="messageStartMode"
+              data-kind="direct"
+              type="button"
+            >New message</button>
+
+            <button
+              class="btn"
+              data-a="messageStartMode"
+              data-kind="group"
+              type="button"
+            >New group</button>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  const myId=
+    Number(meProfile()?.id);
+
+  return `
+    <div class="msg-rows">
+      ${items.map(conversation=>{
+        const last=
+          conversation.last_message;
+
+        const senderIsMe=
+          Number(last?.sender?.id)===myId;
+
+        const preview=
+          last
+            ?`${senderIsMe?"You: ":""}${last.body||""}`
+            :conversation.kind==="group"
+              ?`${conversation.participant_count||0} members`
+              :"No messages yet";
+
+        return `
+          <button
+            class="trd ${Number(MS.selected)===Number(conversation.id)?"on":""}"
+            data-a="messageShow"
+            data-id="${Number(conversation.id)}"
+            type="button"
+          >
+            ${profileAvatar(
+              conversation.kind==="direct"
+                ?messagePeer(conversation)
+                :{
+                    id:conversation.id,
+                    name:conversation.title
+                  },
+              44
+            )}
+
+            <span class="trd-copy">
+              <span class="trd-line">
+                <h3>${E(conversation.title||"Conversation")}</h3>
+                ${conversation.kind==="group"
+                  ?'<span class="msg-kind">Group</span>'
+                  :''}
+              </span>
+
+              <p>${E(preview)}</p>
+            </span>
+
+            ${Number(conversation.unread_count||0)>0
+              ?`<span class="msg-unread">${E(conversation.unread_count)}</span>`
+              :`<span style="color:var(--mu);font-size:10px">${E(messageTime(conversation.last_message_at))}</span>`}
+          </button>
+        `
+      }).join("")}
+    </div>
+  `
+};
+
+const messagePeopleRows=(profiles,mode)=>{
+  if(!profiles.length){
+    return `
+      <div class="msg-empty" style="min-height:260px">
+        <div>
+          <span class="eb">No matches</span>
+          <h2>No people found.</h2>
+          <p>
+            Try another name or handle.
+          </p>
+        </div>
+      </div>
+    `
+  }
+
+  return `
+    <div class="msg-people">
+      ${profiles.map(profile=>{
+        const selected=
+          MS.selectedPeople.has(
+            Number(profile.id)
+          );
+
+        return `
+          <button
+            class="msg-person ${selected?"on":""}"
+            data-a="${mode==="direct"?"messageStartDirect":"messageTogglePerson"}"
+            data-id="${Number(profile.id)}"
+            type="button"
+            aria-pressed="${selected}"
+          >
+            ${profileAvatar(profile,44)}
+
+            <span class="msg-person-copy">
+              <h3>${E(profile.name||"Lightek Member")}</h3>
+              <p>
+                ${E(profile.display_handle||"")}
+                ${profile.profile_type
+                  ?` · ${E(profile.profile_type)}`
+                  :""}
+              </p>
+            </span>
+
+            ${mode==="direct"
+              ?'<span style="color:var(--gd)">→</span>'
+              :`<span class="msg-check">✓</span>`}
+          </button>
+        `
+      }).join("")}
+    </div>
+  `
+};
+
+const messageStartPanel=mode=>{
+  const group=
+    mode==="group";
+
+  return `
+    <div class="msg-start">
+      <header class="msg-panel-head">
+        <div class="msg-peer">
+          <button
+            class="btn sm"
+            data-a="messageBack"
+            type="button"
+          >←</button>
+
+          <div class="msg-peer-copy">
+            <span class="eb">Messages</span>
+            <h2 class="serif">
+              ${group?"Create a group":"New message"}
+            </h2>
+          </div>
+        </div>
+      </header>
+
+      <div class="msg-start-body">
+        <p class="msg-start-copy">
+          ${group
+            ?"Name the conversation, then choose at least two people."
+            :"Choose somebody to start or reopen a direct conversation."}
+        </p>
+
+        ${group
+          ?`
+            <label class="fld">
+              <span>Group name</span>
+              <input
+                id="message-group-title"
+                value="${E(MS.groupTitle)}"
+                maxlength="120"
+                placeholder="Production Crew"
+              >
+            </label>
+          `
+          :""}
+
+        <label class="fld">
+          <span>Find people</span>
+          <input
+            id="message-people-search"
+            value="${E(MS.query)}"
+            placeholder="Search by name or @handle"
+            autocomplete="off"
+          >
+        </label>
+
+        <div id="message-people-list">
+          <div class="msg-status">
+            Loading people…
+          </div>
+        </div>
+
+        ${group
+          ?`
+            <div class="msg-start-footer">
+              <p id="message-group-count">
+                ${MS.selectedPeople.size} selected
+              </p>
+
+              <button
+                class="btn p"
+                data-a="messageCreateGroup"
+                type="button"
+              >
+                Create group
+              </button>
+            </div>
+          `
+          :""}
+      </div>
+    </div>
+  `
+};
+
+const messageEmptyPanel=()=>`
+  <div class="msg-empty">
+    <div>
+      <span class="eb">Messages</span>
+      <h2>Select a conversation</h2>
+      <p>
+        Direct messages and group conversations live here.
+      </p>
+    </div>
+  </div>
+`;
+
+const messageConversationPanel=conversation=>{
+  const myId=
+    Number(meProfile()?.id);
+
+  const peer=
+    conversation.kind==="direct"
+      ?messagePeer(conversation)
+      :null;
+
+  const headerProfile=
+    peer||{
+      id:conversation.id,
+      name:conversation.title
+    };
+
+  const messages=
+    conversation.messages||[];
+
+  const memberNames=
+    (conversation.participants||[])
+      .map(entry=>entry.profile?.name)
+      .filter(Boolean)
+      .join(", ");
+
+  return `
+    <header class="msg-panel-head">
+      <div class="msg-peer">
+        <button
+          class="btn sm msg-back"
+          data-a="messageBack"
+          type="button"
+          aria-label="Back to conversations"
+        >←</button>
+
+        ${profileAvatar(headerProfile,44)}
+
+        <div class="msg-peer-copy">
+          <span class="eb">
+            ${conversation.kind==="group"?"Group conversation":"Direct message"}
+          </span>
+
+          <h2 class="serif">
+            ${E(conversation.title||"Conversation")}
+          </h2>
+
+          <p class="msg-members">
+            ${E(
+              conversation.kind==="group"
+                ?`${conversation.participant_count||0} members · ${memberNames}`
+                :(peer?.display_handle||"Lightek member")
+            )}
+          </p>
+        </div>
+      </div>
+    </header>
+
+    <div class="msg-thread" id="message-thread">
+      ${messages.length
+        ?messages.map(message=>{
+            const mine=
+              Number(message.sender?.id)===myId;
+
+            return `
+              <div class="msg-bubble-row ${mine?"me":""}">
+                ${profileAvatar(message.sender,28)}
+
+                <div class="msg-bubble-wrap">
+                  <span class="msg-sender">
+                    ${mine?"You":E(message.sender?.name||"Lightek Member")}
+                  </span>
+
+                  <div class="msg-bubble">
+                    ${E(message.body||"")}
+                  </div>
+
+                  <span class="msg-time">
+                    ${E(messageTime(message.created_at))}
+                  </span>
+                </div>
+              </div>
+            `
+          }).join("")
+        :`
+          <div class="msg-empty">
+            <div>
+              <span class="eb">Conversation started</span>
+              <h2>Say hello.</h2>
+              <p>
+                Your first message will appear here.
+              </p>
+            </div>
+          </div>
+        `}
+    </div>
+
+    <div class="msg-composer">
+      <textarea
+        id="message-compose"
+        rows="1"
+        maxlength="10000"
+        placeholder="Message ${E(conversation.title||"conversation")}"
+        aria-label="Message"
+      ></textarea>
+
+      <button
+        class="btn p"
+        data-a="messageSend"
+        data-id="${Number(conversation.id)}"
+        type="button"
+      >
+        Send
+      </button>
+    </div>
+  `
+};
+
+const messagesView=()=>{
+  if(!me()||!meProfile()){
+    return authView(
+      "Sign in to Messages",
+      "Messages are tied to your real Lightek profile.",
+      "#/messages"
+    )
+  }
+
+  return `
+    <div class="wrap msg ${MS.selected||MS.compose?"has-open":""}" id="messages-shell">
+      <section class="msg-list">
+        <header class="msg-head">
+          <div>
+            <span class="eb">Your network</span>
+            <h2 class="serif">Messages</h2>
+            <p>Direct + group conversations</p>
+          </div>
+
+          <div class="msg-actions">
+            <button
+              class="btn p sm"
+              data-a="messageStartMode"
+              data-kind="direct"
+              type="button"
+            >New message</button>
+
+            <button
+              class="btn sm"
+              data-a="messageStartMode"
+              data-kind="group"
+              type="button"
+            >New group</button>
+          </div>
+        </header>
+
+        <div id="messages-list">
+          <div class="msg-status">
+            Loading conversations…
+          </div>
+        </div>
+      </section>
+
+      <section class="msg-panel" id="messages-detail">
+        ${messageEmptyPanel()}
+      </section>
+    </div>
+  `
+};
+
+const messageScrollBottom=()=>{
+  requestAnimationFrame(()=>{
+    const thread=
+      document.querySelector(
+        "#message-thread"
+      );
+
+    if(thread){
+      thread.scrollTop=
+        thread.scrollHeight
+    }
+  })
 };
 
 const moneyFromCents=cents=>
@@ -659,9 +1217,782 @@ const AF={
 
   susu:()=>{
     A.susuLoad()
+  },
+
+  messages:()=>{
+    A.messagesLoad()
   }
 };
 const A={
+
+messagesLoad:async()=>{
+  const list=
+    document.querySelector(
+      "#messages-list"
+    );
+
+  const detail=
+    document.querySelector(
+      "#messages-detail"
+    );
+
+  if(!list||!detail) return;
+
+  if(MS.items.length){
+    list.innerHTML=
+      messageRows(MS.items);
+  }else{
+    list.innerHTML=`
+      <div class="msg-status">
+        Loading conversations…
+      </div>
+    `;
+  }
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:"messages.list",
+        payload:{}
+      });
+
+    MS.items=
+      response.result?.conversations||
+      response.conversations||
+      [];
+
+    if(
+      MS.selected &&
+      !MS.items.some(
+        item=>
+          Number(item.id)===
+          Number(MS.selected)
+      )
+    ){
+      MS.selected=null;
+      MS.detail=null;
+    }
+
+    list.innerHTML=
+      messageRows(MS.items);
+
+    if(MS.compose){
+      detail.innerHTML=
+        messageStartPanel(
+          MS.compose
+        );
+
+      await A.messagePeopleLoad();
+    }else if(MS.selected){
+      await A.messageOpen(
+        MS.selected
+      );
+    }else{
+      detail.innerHTML=
+        messageEmptyPanel();
+    }
+  }catch(error){
+    list.innerHTML=`
+      <div class="msg-empty" style="min-height:360px">
+        <div>
+          <span class="eb">Messages unavailable</span>
+          <h2>Couldn’t load conversations.</h2>
+          <p>${E(error.message||"Please try again.")}</p>
+        </div>
+      </div>
+    `;
+  }
+},
+
+messageStartMode:button=>{
+  const mode=
+    button.dataset.kind;
+
+  if(
+    mode!=="direct"&&
+    mode!=="group"
+  ){
+    return;
+  }
+
+  MS.compose=mode;
+  MS.selected=null;
+  MS.detail=null;
+  MS.people=[];
+  MS.query="";
+  MS.groupTitle="";
+  MS.selectedPeople=
+    new Set();
+
+  ++MS.openToken;
+
+  document
+    .querySelector(
+      "#messages-shell"
+    )
+    ?.classList.add(
+      "has-open"
+    );
+
+  const list=
+    document.querySelector(
+      "#messages-list"
+    );
+
+  const detail=
+    document.querySelector(
+      "#messages-detail"
+    );
+
+  if(list){
+    list.innerHTML=
+      messageRows(
+        MS.items
+      );
+  }
+
+  if(detail){
+    detail.innerHTML=
+      messageStartPanel(
+        mode
+      );
+  }
+
+  A.messagePeopleLoad();
+
+  requestAnimationFrame(()=>{
+    document
+      .querySelector(
+        "#message-people-search"
+      )
+      ?.focus();
+  });
+},
+
+messagePeopleLoad:async()=>{
+  const list=
+    document.querySelector(
+      "#message-people-list"
+    );
+
+  if(
+    !list||
+    !MS.compose
+  ){
+    return;
+  }
+
+  const token=
+    ++MS.peopleToken;
+
+  list.innerHTML=`
+    <div class="msg-status">
+      Loading people…
+    </div>
+  `;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "messages.people",
+
+        payload:{
+          query:
+            MS.query
+        }
+      });
+
+    if(
+      token!==
+      MS.peopleToken
+    ){
+      return;
+    }
+
+    MS.people=
+      response.result?.profiles||
+      response.profiles||
+      [];
+
+    list.innerHTML=
+      messagePeopleRows(
+        MS.people,
+        MS.compose
+      );
+  }catch(error){
+    if(
+      token!==
+      MS.peopleToken
+    ){
+      return;
+    }
+
+    list.innerHTML=`
+      <div class="msg-empty" style="min-height:260px">
+        <div>
+          <span class="eb">People unavailable</span>
+          <h2>Couldn’t load profiles.</h2>
+          <p>${E(error.message||"Please try again.")}</p>
+        </div>
+      </div>
+    `;
+  }
+},
+
+messageStartDirect:async button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(!profileId){
+    return;
+  }
+
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "messages.start",
+
+        payload:{
+          kind:"direct",
+
+          participant_profile_ids:[
+            profileId
+          ]
+        }
+      });
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    if(!conversation){
+      throw new Error(
+        "Conversation response was empty"
+      );
+    }
+
+    MS.compose=null;
+    MS.selected=
+      Number(
+        conversation.id
+      );
+
+    MS.detail=
+      conversation;
+
+    await A.messagesLoad();
+  }catch(error){
+    toast(
+      error.message||
+      "Conversation could not be started"
+    );
+
+    button.disabled=false;
+  }
+},
+
+messageTogglePerson:button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(!profileId){
+    return;
+  }
+
+  if(
+    MS.selectedPeople.has(
+      profileId
+    )
+  ){
+    MS.selectedPeople.delete(
+      profileId
+    );
+  }else{
+    MS.selectedPeople.add(
+      profileId
+    );
+  }
+
+  const list=
+    document.querySelector(
+      "#message-people-list"
+    );
+
+  if(list){
+    list.innerHTML=
+      messagePeopleRows(
+        MS.people,
+        "group"
+      );
+  }
+
+  const count=
+    document.querySelector(
+      "#message-group-count"
+    );
+
+  if(count){
+    count.textContent=
+      `${MS.selectedPeople.size} selected`;
+  }
+},
+
+messageCreateGroup:async button=>{
+  const title=
+    (
+      document.querySelector(
+        "#message-group-title"
+      )?.value||
+      MS.groupTitle
+    ).trim();
+
+  const people=
+    [
+      ...MS.selectedPeople
+    ];
+
+  if(!title){
+    toast(
+      "Give the group a name"
+    );
+    return;
+  }
+
+  if(people.length<2){
+    toast(
+      "Choose at least two people"
+    );
+    return;
+  }
+
+  button.disabled=true;
+  button.textContent=
+    "Creating…";
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "messages.start",
+
+        payload:{
+          kind:"group",
+          title:title,
+          participant_profile_ids:
+            people
+        }
+      });
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    if(!conversation){
+      throw new Error(
+        "Conversation response was empty"
+      );
+    }
+
+    MS.compose=null;
+    MS.selected=
+      Number(
+        conversation.id
+      );
+
+    MS.detail=
+      conversation;
+
+    await A.messagesLoad();
+  }catch(error){
+    toast(
+      error.message||
+      "Group could not be created"
+    );
+
+    button.disabled=false;
+    button.textContent=
+      "Create group";
+  }
+},
+
+messageShow:button=>{
+  A.messageOpen(
+    Number(button.dataset.id)
+  );
+},
+
+messageOpen:async id=>{
+  const conversationId=
+    Number(id);
+
+  const detail=
+    document.querySelector(
+      "#messages-detail"
+    );
+
+  const list=
+    document.querySelector(
+      "#messages-list"
+    );
+
+  const shell=
+    document.querySelector(
+      "#messages-shell"
+    );
+
+  if(
+    !conversationId||
+    !detail
+  ) return;
+
+  MS.selected=
+    conversationId;
+
+  MS.detail=
+    null;
+
+  const token=
+    ++MS.openToken;
+
+  shell?.classList.add(
+    "has-open"
+  );
+
+  if(list){
+    list.innerHTML=
+      messageRows(MS.items);
+  }
+
+  detail.innerHTML=`
+    <div class="msg-status">
+      Loading conversation…
+    </div>
+  `;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:"messages.show",
+
+        payload:{
+          conversation_id:
+            conversationId
+        }
+      });
+
+    if(token!==MS.openToken){
+      return;
+    }
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    if(!conversation){
+      throw new Error(
+        "Conversation response was empty"
+      )
+    }
+
+    MS.detail=
+      conversation;
+
+    detail.innerHTML=
+      messageConversationPanel(
+        conversation
+      );
+
+    messageScrollBottom();
+
+    if(
+      Number(
+        conversation.unread_count||
+        0
+      )>0
+    ){
+      try{
+        await nevaeh.execute({
+          capability:
+            "messages.mark_read",
+
+          payload:{
+            conversation_id:
+              conversationId
+          }
+        });
+
+        const row=
+          MS.items.find(
+            item=>
+              Number(item.id)===
+              conversationId
+          );
+
+        if(row){
+          row.unread_count=0;
+        }
+
+        conversation.unread_count=0;
+
+        if(list){
+          list.innerHTML=
+            messageRows(
+              MS.items
+            );
+        }
+      }catch(error){
+        console.warn(
+          "[Lightek Messages] mark read failed",
+          error
+        );
+      }
+    }
+  }catch(error){
+    if(token!==MS.openToken){
+      return;
+    }
+
+    detail.innerHTML=`
+      <div class="msg-empty">
+        <div>
+          <span class="eb">Conversation unavailable</span>
+          <h2>Couldn’t open this message.</h2>
+          <p>${E(error.message||"Please try again.")}</p>
+        </div>
+      </div>
+    `;
+  }
+},
+
+messageBack:()=>{
+  MS.compose=null;
+  MS.selected=null;
+  MS.detail=null;
+  MS.people=[];
+  MS.query="";
+  MS.groupTitle="";
+  MS.selectedPeople=
+    new Set();
+
+  ++MS.openToken;
+
+  document
+    .querySelector(
+      "#messages-shell"
+    )
+    ?.classList.remove(
+      "has-open"
+    );
+
+  const list=
+    document.querySelector(
+      "#messages-list"
+    );
+
+  const detail=
+    document.querySelector(
+      "#messages-detail"
+    );
+
+  if(list){
+    list.innerHTML=
+      messageRows(
+        MS.items
+      );
+  }
+
+  if(detail){
+    detail.innerHTML=
+      messageEmptyPanel();
+  }
+},
+
+messageSend:async button=>{
+  if(MS.sending){
+    return;
+  }
+
+  const input=
+    document.querySelector(
+      "#message-compose"
+    );
+
+  const body=
+    input?.value.trim()||
+    "";
+
+  const conversationId=
+    Number(
+      button?.dataset?.id||
+      MS.selected
+    );
+
+  if(
+    !body||
+    !conversationId||
+    !input
+  ){
+    return;
+  }
+
+  const sendButton=
+    document.querySelector(
+      '[data-a="messageSend"]'
+    );
+
+  MS.sending=true;
+
+  if(sendButton){
+    sendButton.disabled=true;
+    sendButton.textContent=
+      "Sending…";
+  }
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:"messages.send",
+
+        payload:{
+          conversation_id:
+            conversationId,
+
+          body:body
+        }
+      });
+
+    const message=
+      response.result?.message||
+      response.message||
+      null;
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    input.value="";
+
+    if(
+      MS.detail &&
+      Number(MS.detail.id)===
+        conversationId &&
+      message
+    ){
+      MS.detail.messages=
+        [
+          ...(MS.detail.messages||[]),
+          message
+        ];
+
+      MS.detail.last_message=
+        message;
+
+      MS.detail.last_message_at=
+        message.created_at;
+
+      const detail=
+        document.querySelector(
+          "#messages-detail"
+        );
+
+      if(detail){
+        detail.innerHTML=
+          messageConversationPanel(
+            MS.detail
+          );
+      }
+    }
+
+    const index=
+      MS.items.findIndex(
+        item=>
+          Number(item.id)===
+          conversationId
+      );
+
+    if(index>=0){
+      const current=
+        MS.items.splice(
+          index,
+          1
+        )[0];
+
+      Object.assign(
+        current,
+        conversation||{},
+        {
+          last_message:
+            message||
+            current.last_message,
+
+          last_message_at:
+            message?.created_at||
+            conversation?.last_message_at||
+            current.last_message_at,
+
+          unread_count:
+            0
+        }
+      );
+
+      MS.items.unshift(
+        current
+      );
+    }
+
+    const list=
+      document.querySelector(
+        "#messages-list"
+      );
+
+    if(list){
+      list.innerHTML=
+        messageRows(
+          MS.items
+        );
+    }
+
+    messageScrollBottom();
+
+    requestAnimationFrame(()=>{
+      document
+        .querySelector(
+          "#message-compose"
+        )
+        ?.focus();
+    });
+  }catch(error){
+    toast(
+      error.message||
+      "Message could not be sent"
+    );
+  }finally{
+    MS.sending=false;
+
+    const currentButton=
+      document.querySelector(
+        '[data-a="messageSend"]'
+      );
+
+    if(currentButton){
+      currentButton.disabled=false;
+      currentButton.textContent=
+        "Send";
+    }
+  }
+},
 
 susuLoad:async()=>{
   const root =
@@ -1223,9 +2554,68 @@ pub:()=>{CS.pr=1;render(1);const t=setInterval(()=>{CS.pr+=14;if(CS.pr>=100){cle
 again:()=>{Object.assign(CS,{s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0});render()}};
 function render(keep){const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=R[r]?r:'home';app.innerHTML=R[k](a);document.querySelectorAll('#primary-nav a').forEach(x=>x.classList.toggle('on',x.dataset.r==(k=='community'?'communities':k)));if(AF[k])AF[k]();scrollTo(0,keep?y:0);app.classList.remove('fade');if(!keep){void app.offsetWidth;app.classList.add('fade')}}
 app.addEventListener('click',e=>{const s=e.target.closest('[data-sc]');if(s){e.preventDefault();document.getElementById(s.dataset.sc)?.scrollIntoView({behavior:'smooth'});return}const b=e.target.closest('[data-a]');if(b)A[b.dataset.a]?.(b,e)});
-app.addEventListener('input',e=>{const n=e.target.name;if(n=='title'||n=='desc'){CS[n]=e.target.value;const p=$('#pv');if(p)p.innerHTML=pv()}});
+app.addEventListener('input',e=>{
+  const n=e.target.name;
+
+  if(
+    n=='title'||
+    n=='desc'
+  ){
+    CS[n]=e.target.value;
+    const p=$('#pv');
+    if(p)p.innerHTML=pv()
+  }
+
+  if(
+    e.target.id==='message-group-title'
+  ){
+    MS.groupTitle=
+      e.target.value;
+  }
+
+  if(
+    e.target.id==='message-people-search'
+  ){
+    MS.query=
+      e.target.value;
+
+    clearTimeout(
+      MS.searchTimer
+    );
+
+    MS.searchTimer=
+      setTimeout(
+        ()=>A.messagePeopleLoad(),
+        220
+      );
+  }
+});
 app.addEventListener('change',e=>{if(e.target.id=='fi'){CS.file=e.target.files[0]?.name||'';render(1)}});
-app.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.id=='ci')A.send()});
+app.addEventListener('keydown',e=>{
+  const desktopKeyboard=
+    window.matchMedia(
+      '(hover: hover) and (pointer: fine)'
+    ).matches;
+
+  if(
+    e.key==='Enter'&&
+    e.target.id==='message-compose'&&
+    !e.shiftKey&&
+    !e.isComposing&&
+    desktopKeyboard
+  ){
+    e.preventDefault();
+    A.messageSend();
+    return
+  }
+
+  if(
+    e.key==='Enter'&&
+    e.target.id==='ci'
+  ){
+    A.send()
+  }
+});
 addEventListener('keydown',e=>{if(!location.hash.startsWith('#/clips')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;const k=e.key;if(k=='ArrowDown'||k=='j'){e.preventDefault();A.cn()}else if(k=='ArrowUp'||k=='k'){e.preventDefault();A.cp()}else if(k=='l')A.tg({dataset:{k:'like:'+S.clip}});else if(k=='s')A.tg({dataset:{k:'save:'+S.clip}})});
 addEventListener('lightek.bootstrap.ready',event=>{
   window.LightekIdentity=event.detail?.identity||null;
@@ -1246,7 +2636,11 @@ addEventListener('lightek.bootstrap.ready',event=>{
       .replace(/^#\//,'')
       .split('/')[0];
 
-  if(route==='space'||route==='create'){
+  if(
+    route==='space'||
+    route==='create'||
+    route==='messages'
+  ){
     render();
   }
 });

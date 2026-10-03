@@ -367,11 +367,80 @@ class LightekMessagingPwaWorkerTest <
     )
   end
 
+  test "people returns searchable public profiles and excludes self" do
+    @bob.profile.update!(
+      display_name:
+        "Bob Public"
+    )
+
+    result =
+      perform(
+        "people",
+        @alice,
+        {
+          "query" =>
+            "Bob Public"
+        }
+      )
+
+    profiles =
+      result.fetch(
+        "profiles"
+      )
+
+    assert_equal(
+      [
+        @bob.profile.id
+      ],
+      profiles.map do |record|
+        record.fetch(
+          "id"
+        )
+      end
+    )
+
+    profile_payload =
+      profiles.first
+
+    assert_equal(
+      %w[
+        avatar_url
+        display_handle
+        id
+        name
+        profile_type
+      ],
+      profile_payload
+        .keys
+        .sort
+    )
+
+    assert_not_includes(
+      profile_payload.values,
+      @bob.email_address
+    )
+
+    assert_not_includes(
+      profiles.map do |record|
+        record.fetch(
+          "id"
+        )
+      end,
+      @alice.profile.id
+    )
+  end
+
   test "Nevaeh controller resolves all messaging contracts" do
     controller =
       Api::NevaehController.new
 
     expected = {
+      "messages.people" =>
+        [
+          "messages.people.requested",
+          "people"
+        ],
+
       "messages.list" =>
         [
           "messages.list.requested",

@@ -22,6 +22,9 @@ module LightekMessaging
 
       def perform
         case action
+        when "people"
+          people
+
         when "list"
           list
 
@@ -104,6 +107,59 @@ module LightekMessaging
             AccessDenied,
             "You are not an active participant in this conversation"
           )
+      end
+
+      def people
+        query =
+          payload[
+            "query"
+          ]
+            .to_s
+            .strip
+
+        records =
+          Profile
+            .where
+            .not(
+              id:
+                profile.id
+            )
+
+        if query.present?
+          pattern =
+            "%" +
+            ActiveRecord::Base
+              .sanitize_sql_like(
+                query
+              ) +
+            "%"
+
+          records =
+            records.where(
+              "display_name ILIKE :pattern " \
+              "OR handle ILIKE :pattern",
+              pattern:
+                pattern
+            )
+        end
+
+        records =
+          records
+            .order(
+              :display_name,
+              :handle,
+              :id
+            )
+            .limit(30)
+
+        {
+          "profiles" =>
+            records.map do |record|
+              profile_payload(
+                record
+              )
+            end
+        }
       end
 
       def list

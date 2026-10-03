@@ -235,6 +235,9 @@ module Api
         "susu.contribution.checkout" =>
           "susu.contribution.checkout.requested",
 
+        "messages.people" =>
+          "messages.people.requested",
+
         "messages.list" =>
           "messages.list.requested",
 
@@ -268,6 +271,9 @@ module Api
 
         "susu.contribution.checkout" =>
           "contribution_checkout",
+
+        "messages.people" =>
+          "people",
 
         "messages.list" =>
           "list",

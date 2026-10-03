@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_02_162730) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_03_113559) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1256,6 +1256,144 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_02_162730) do
     t.index ["key"], name: "index_lightek_pwa_surfaces_on_key", unique: true
   end
 
+  create_table "lightek_social_blocks", force: :cascade do |t|
+    t.bigint "blocker_profile_id", null: false
+    t.bigint "blocked_profile_id", null: false
+    t.string "reason_code"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blocked_profile_id"], name: "index_lightek_social_blocks_on_blocked_profile_id"
+    t.index ["blocker_profile_id", "blocked_profile_id"], name: "idx_lightek_social_blocks_pair", unique: true
+    t.check_constraint "blocker_profile_id <> blocked_profile_id", name: "chk_lightek_social_block_not_self"
+  end
+
+  create_table "lightek_social_circle_memberships", force: :cascade do |t|
+    t.bigint "circle_id", null: false
+    t.bigint "profile_id", null: false
+    t.integer "position", default: 0, null: false
+    t.text "note"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["circle_id", "profile_id"], name: "idx_lightek_social_circle_members_pair", unique: true
+    t.index ["circle_id"], name: "index_lightek_social_circle_memberships_on_circle_id"
+    t.index ["profile_id"], name: "index_lightek_social_circle_memberships_on_profile_id"
+  end
+
+  create_table "lightek_social_circles", force: :cascade do |t|
+    t.bigint "owner_profile_id", null: false
+    t.string "name", null: false
+    t.string "name_key", null: false
+    t.integer "position", default: 0, null: false
+    t.jsonb "settings", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_profile_id", "name_key"], name: "idx_lightek_social_circles_owner_name", unique: true
+    t.index ["owner_profile_id"], name: "index_lightek_social_circles_on_owner_profile_id"
+  end
+
+  create_table "lightek_social_connection_opportunities", force: :cascade do |t|
+    t.bigint "profile_id", null: false
+    t.bigint "related_profile_id", null: false
+    t.string "kind", null: false
+    t.string "status", default: "pending", null: false
+    t.string "reason_code"
+    t.string "context_type"
+    t.bigint "context_id"
+    t.string "source_key"
+    t.datetime "detected_at", null: false
+    t.datetime "expires_at"
+    t.datetime "acted_at"
+    t.datetime "dismissed_at"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["context_type", "context_id"], name: "idx_lightek_social_opportunities_context"
+    t.index ["profile_id", "status", "detected_at"], name: "idx_lightek_social_opportunities_profile_state"
+    t.index ["related_profile_id", "status"], name: "idx_lightek_social_opportunities_related"
+    t.index ["source_key"], name: "index_lightek_social_connection_opportunities_on_source_key", unique: true, where: "(source_key IS NOT NULL)"
+    t.check_constraint "profile_id <> related_profile_id", name: "chk_lightek_social_opportunity_not_self"
+  end
+
+  create_table "lightek_social_follows", force: :cascade do |t|
+    t.bigint "follower_profile_id", null: false
+    t.bigint "followed_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["followed_profile_id"], name: "index_lightek_social_follows_on_followed_profile_id"
+    t.index ["follower_profile_id", "followed_profile_id"], name: "idx_lightek_social_follows_pair", unique: true
+    t.check_constraint "follower_profile_id <> followed_profile_id", name: "chk_lightek_social_follow_not_self"
+  end
+
+  create_table "lightek_social_friendships", force: :cascade do |t|
+    t.bigint "requester_profile_id", null: false
+    t.bigint "addressee_profile_id", null: false
+    t.string "pair_key", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "responded_at"
+    t.datetime "accepted_at"
+    t.datetime "ended_at"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["addressee_profile_id"], name: "index_lightek_social_friendships_on_addressee_profile_id"
+    t.index ["pair_key"], name: "index_lightek_social_friendships_on_pair_key", unique: true
+    t.index ["requester_profile_id"], name: "index_lightek_social_friendships_on_requester_profile_id"
+    t.index ["status"], name: "index_lightek_social_friendships_on_status"
+    t.check_constraint "requester_profile_id <> addressee_profile_id", name: "chk_lightek_social_friendship_not_self"
+  end
+
+  create_table "lightek_social_relationship_events", force: :cascade do |t|
+    t.bigint "actor_profile_id", null: false
+    t.bigint "target_profile_id", null: false
+    t.string "pair_key", null: false
+    t.string "event_type", null: false
+    t.boolean "counts_toward_strength", default: true, null: false
+    t.string "context_type"
+    t.bigint "context_id"
+    t.string "source_key"
+    t.datetime "occurred_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_profile_id", "occurred_at"], name: "idx_lightek_social_relationship_events_actor"
+    t.index ["context_type", "context_id"], name: "idx_lightek_social_relationship_events_context"
+    t.index ["pair_key", "occurred_at"], name: "idx_lightek_social_relationship_events_pair_time"
+    t.index ["source_key"], name: "index_lightek_social_relationship_events_on_source_key", unique: true, where: "(source_key IS NOT NULL)"
+    t.index ["target_profile_id", "occurred_at"], name: "idx_lightek_social_relationship_events_target"
+    t.check_constraint "actor_profile_id <> target_profile_id", name: "chk_lightek_social_relationship_event_not_self"
+  end
+
+  create_table "lightek_social_relationship_strengths", force: :cascade do |t|
+    t.bigint "profile_a_id", null: false
+    t.bigint "profile_b_id", null: false
+    t.string "pair_key", null: false
+    t.decimal "reciprocity", precision: 5, scale: 4, default: "0.0", null: false
+    t.decimal "continuity", precision: 5, scale: 4, default: "0.0", null: false
+    t.decimal "context_diversity", precision: 5, scale: 4, default: "0.0", null: false
+    t.decimal "shared_experience", precision: 5, scale: 4, default: "0.0", null: false
+    t.decimal "recency", precision: 5, scale: 4, default: "0.0", null: false
+    t.decimal "confidence", precision: 5, scale: 4, default: "0.0", null: false
+    t.integer "observed_event_count", default: 0, null: false
+    t.datetime "first_observed_at"
+    t.datetime "last_observed_at"
+    t.datetime "computed_at"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["pair_key"], name: "index_lightek_social_relationship_strengths_on_pair_key", unique: true
+    t.index ["profile_a_id"], name: "index_lightek_social_relationship_strengths_on_profile_a_id"
+    t.index ["profile_b_id"], name: "index_lightek_social_relationship_strengths_on_profile_b_id"
+    t.check_constraint "confidence >= 0::numeric AND confidence <= 1::numeric", name: "chk_lightek_social_strength_confidence"
+    t.check_constraint "context_diversity >= 0::numeric AND context_diversity <= 1::numeric", name: "chk_lightek_social_strength_context_diversity"
+    t.check_constraint "continuity >= 0::numeric AND continuity <= 1::numeric", name: "chk_lightek_social_strength_continuity"
+    t.check_constraint "profile_a_id <> profile_b_id", name: "chk_lightek_social_strength_not_self"
+    t.check_constraint "recency >= 0::numeric AND recency <= 1::numeric", name: "chk_lightek_social_strength_recency"
+    t.check_constraint "reciprocity >= 0::numeric AND reciprocity <= 1::numeric", name: "chk_lightek_social_strength_reciprocity"
+    t.check_constraint "shared_experience >= 0::numeric AND shared_experience <= 1::numeric", name: "chk_lightek_social_strength_shared_experience"
+  end
+
   create_table "lightek_vault_audit_events", force: :cascade do |t|
     t.bigint "secret_id", null: false
     t.string "action", null: false
@@ -2061,6 +2199,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_02_162730) do
   add_foreign_key "lightek_messaging_participants", "lightek_messaging_conversations", column: "conversation_id"
   add_foreign_key "lightek_messaging_participants", "profiles"
   add_foreign_key "lightek_pwa_surface_modules", "lightek_pwa_surfaces", column: "surface_id"
+  add_foreign_key "lightek_social_blocks", "profiles", column: "blocked_profile_id"
+  add_foreign_key "lightek_social_blocks", "profiles", column: "blocker_profile_id"
+  add_foreign_key "lightek_social_circle_memberships", "lightek_social_circles", column: "circle_id"
+  add_foreign_key "lightek_social_circle_memberships", "profiles"
+  add_foreign_key "lightek_social_circles", "profiles", column: "owner_profile_id"
+  add_foreign_key "lightek_social_connection_opportunities", "profiles"
+  add_foreign_key "lightek_social_connection_opportunities", "profiles", column: "related_profile_id"
+  add_foreign_key "lightek_social_follows", "profiles", column: "followed_profile_id"
+  add_foreign_key "lightek_social_follows", "profiles", column: "follower_profile_id"
+  add_foreign_key "lightek_social_friendships", "profiles", column: "addressee_profile_id"
+  add_foreign_key "lightek_social_friendships", "profiles", column: "requester_profile_id"
+  add_foreign_key "lightek_social_relationship_events", "profiles", column: "actor_profile_id"
+  add_foreign_key "lightek_social_relationship_events", "profiles", column: "target_profile_id"
+  add_foreign_key "lightek_social_relationship_strengths", "profiles", column: "profile_a_id"
+  add_foreign_key "lightek_social_relationship_strengths", "profiles", column: "profile_b_id"
   add_foreign_key "lightek_vault_audit_events", "lightek_vault_secrets", column: "secret_id"
   add_foreign_key "marlon_blueprint_concerns", "marlon_features", column: "feature_id"
   add_foreign_key "marlon_capability_pack_dependencies", "marlon_capability_packs", column: "capability_pack_id"

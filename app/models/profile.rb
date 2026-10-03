@@ -25,6 +25,90 @@ class Profile < ApplicationRecord
              :sender_profile_id,
            dependent: :restrict_with_error
 
+  has_many :lightek_social_following_edges,
+           class_name:
+             "LightekSocial::Follow",
+           foreign_key:
+             :follower_profile_id,
+           dependent:
+             :destroy
+
+  has_many :lightek_social_follower_edges,
+           class_name:
+             "LightekSocial::Follow",
+           foreign_key:
+             :followed_profile_id,
+           dependent:
+             :destroy
+
+  has_many :requested_lightek_friendships,
+           class_name:
+             "LightekSocial::Friendship",
+           foreign_key:
+             :requester_profile_id,
+           dependent:
+             :restrict_with_error
+
+  has_many :received_lightek_friendships,
+           class_name:
+             "LightekSocial::Friendship",
+           foreign_key:
+             :addressee_profile_id,
+           dependent:
+             :restrict_with_error
+
+  has_many :lightek_social_blocks_created,
+           class_name:
+             "LightekSocial::Block",
+           foreign_key:
+             :blocker_profile_id,
+           dependent:
+             :destroy
+
+  has_many :lightek_social_blocks_received,
+           class_name:
+             "LightekSocial::Block",
+           foreign_key:
+             :blocked_profile_id,
+           dependent:
+             :destroy
+
+  has_many :lightek_social_circles,
+           class_name:
+             "LightekSocial::Circle",
+           foreign_key:
+             :owner_profile_id,
+           dependent:
+             :destroy
+
+  has_many :lightek_social_circle_memberships,
+           class_name:
+             "LightekSocial::CircleMembership",
+           dependent:
+             :destroy
+
+  has_many :lightek_social_relationship_events_sent,
+           class_name:
+             "LightekSocial::RelationshipEvent",
+           foreign_key:
+             :actor_profile_id,
+           dependent:
+             :restrict_with_error
+
+  has_many :lightek_social_relationship_events_received,
+           class_name:
+             "LightekSocial::RelationshipEvent",
+           foreign_key:
+             :target_profile_id,
+           dependent:
+             :restrict_with_error
+
+  has_many :lightek_social_connection_opportunities,
+           class_name:
+             "LightekSocial::ConnectionOpportunity",
+           dependent:
+             :destroy
+
   include Visitable
   tracks_unique_visits
 

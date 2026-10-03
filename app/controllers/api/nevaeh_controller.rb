@@ -172,7 +172,8 @@ module Api
     rescue ActionController::ParameterMissing,
            ActiveRecord::RecordNotFound,
            ArgumentError,
-           Susu::Workers::Pwa::AccessDenied => error
+           Susu::Workers::Pwa::AccessDenied,
+           LightekSocial::AccessDenied => error
 
       render json: {
         status: "failed",
@@ -251,7 +252,31 @@ module Api
           "messages.send.requested",
 
         "messages.mark_read" =>
-          "messages.mark_read.requested"
+          "messages.mark_read.requested",
+
+        "social.people.recommend" =>
+          "social.people.recommend.requested",
+
+        "social.relationship.context" =>
+          "social.relationship.context.requested",
+
+        "social.connection.opportunities" =>
+          "social.connection.opportunities.requested",
+
+        "social.follow" =>
+          "social.follow.requested",
+
+        "social.friendship.request" =>
+          "social.friendship.request.requested",
+
+        "social.friendship.respond" =>
+          "social.friendship.respond.requested",
+
+        "social.friendship.end" =>
+          "social.friendship.end.requested",
+
+        "social.block" =>
+          "social.block.requested"
       }.fetch(slug) {
         raise ArgumentError,
               "Unsupported capability: #{slug}"
@@ -288,7 +313,31 @@ module Api
           "send",
 
         "messages.mark_read" =>
-          "mark_read"
+          "mark_read",
+
+        "social.people.recommend" =>
+          "people_recommend",
+
+        "social.relationship.context" =>
+          "relationship_context",
+
+        "social.connection.opportunities" =>
+          "connection_opportunities",
+
+        "social.follow" =>
+          "follow",
+
+        "social.friendship.request" =>
+          "friendship_request",
+
+        "social.friendship.respond" =>
+          "friendship_respond",
+
+        "social.friendship.end" =>
+          "friendship_end",
+
+        "social.block" =>
+          "block"
       }.fetch(slug)
     end
   end

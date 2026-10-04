@@ -130,7 +130,7 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 .msg-person{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;padding:13px 8px;border:0;border-top:1px solid var(--ln);background:transparent;color:inherit;text-align:left;border-radius:3px}
 .msg-person:hover,.msg-person.on{background:#ffffff08}
 .msg-person.on{box-shadow:inset 2px 0 0 var(--gd)}
-.msg-person-copy{min-width:0}.msg-person h3{font-size:14px}.msg-person p{font-size:12px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msg-person-copy{min-width:0}.msg-person h3{font-size:14px}.msg-person p{font-size:12px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.msg-person-reason{display:block;margin-top:3px;color:var(--gd);font-size:10px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .msg-check{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid #ffffff30;color:transparent;font-size:11px;font-weight:800}
 .msg-person.on .msg-check{background:var(--gd);border-color:var(--gd);color:#111}
 .msg-start-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid var(--ln)}
@@ -889,6 +889,15 @@ const messagePeopleRows=(profiles,mode)=>{
             Number(profile.id)
           );
 
+        const reasons=
+          Array.isArray(
+            profile.recommendation?.reasons
+          )
+            ?profile.recommendation.reasons
+              .filter(Boolean)
+              .slice(0,2)
+            :[];
+
         return `
           <button
             class="msg-person ${selected?"on":""}"
@@ -901,12 +910,21 @@ const messagePeopleRows=(profiles,mode)=>{
 
             <span class="msg-person-copy">
               <h3>${E(profile.name||"Lightek Member")}</h3>
+
               <p>
                 ${E(profile.display_handle||"")}
                 ${profile.profile_type
                   ?` · ${E(profile.profile_type)}`
                   :""}
               </p>
+
+              ${reasons.length
+                ?`
+                  <span class="msg-person-reason">
+                    ${E(reasons.join(" · "))}
+                  </span>
+                `
+                :""}
             </span>
 
             ${mode==="direct"
@@ -918,7 +936,6 @@ const messagePeopleRows=(profiles,mode)=>{
     </div>
   `
 };
-
 const messageStartPanel=mode=>{
   const group=
     mode==="group";
@@ -1395,11 +1412,14 @@ messagePeopleLoad:async()=>{
     const response=
       await nevaeh.execute({
         capability:
-          "messages.people",
+          "social.people.recommend",
 
         payload:{
           query:
-            MS.query
+            MS.query,
+
+          limit:
+            30
         }
       });
 
@@ -1410,10 +1430,25 @@ messagePeopleLoad:async()=>{
       return;
     }
 
-    MS.people=
-      response.result?.profiles||
-      response.profiles||
+    const recommendations=
+      response.result?.recommendations||
+      response.recommendations||
       [];
+
+    MS.people=
+      recommendations
+        .map(record=>({
+          ...(record?.profile||{}),
+
+          relationship:
+            record?.relationship||{},
+
+          recommendation:
+            record?.recommendation||{}
+        }))
+        .filter(profile=>
+          Number(profile.id)
+        );
 
     list.innerHTML=
       messagePeopleRows(

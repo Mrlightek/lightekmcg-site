@@ -1,10 +1,16 @@
-const CACHE = "lightek-shell-v19"
+const CACHE = "lightek-shell-v22"
 
 const SHELL = [
   "/lightek/index.html",
   "/lightek/manifest.webmanifest",
   "/lightek/nevaeh-client.js",
   "/lightek/bootstrap-adapter.js",
+  "/lightek/studio-viewport.js",
+  "/lightek/vendor/gsap/gsap.min.js",
+  "/lightek/vendor/three/three.core.js",
+  "/lightek/vendor/three/three.module.js",
+  "/lightek/vendor/three/addons/controls/OrbitControls.js",
+  "/lightek/vendor/three/addons/controls/TransformControls.js",
   "/lightek/icons/icon.svg"
 ]
 

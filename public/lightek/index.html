@@ -602,6 +602,191 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
   }
 }
 
+
+/* Lightek Studio visual 3D workspace */
+.studio-live-layout{
+  display:grid;
+  grid-template-columns:
+    minmax(190px,240px)
+    minmax(420px,1fr)
+    minmax(280px,320px);
+  gap:1px;
+  min-height:610px;
+  margin-top:16px;
+  border:1px solid var(--ln);
+  background:var(--ln);
+  overflow:hidden;
+  border-radius:5px
+}
+
+.studio-live-layout>.studio-panel{
+  border:0;
+  border-radius:0;
+  margin:0;
+  min-width:0;
+  overflow:auto
+}
+
+.studio-live-outliner{
+  background:var(--s1)
+}
+
+.studio-live-inspector{
+  background:var(--s1)
+}
+
+.studio-viewport{
+  position:relative;
+  min-width:0;
+  min-height:610px;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  background:#08090d;
+  overflow:hidden
+}
+
+.studio-viewport-toolbar{
+  min-height:45px;
+  padding:7px 9px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px solid var(--ln);
+  background:#0d0f14;
+  z-index:4
+}
+
+.studio-viewport-tools{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:wrap
+}
+
+.studio-viewport-toolbar button{
+  appearance:none;
+  border:1px solid var(--ln);
+  background:#141720;
+  color:var(--fg);
+  padding:6px 9px;
+  border-radius:3px;
+  cursor:pointer;
+  font-size:10px;
+  line-height:1;
+  letter-spacing:.05em;
+  text-transform:uppercase
+}
+
+.studio-viewport-toolbar button:hover{
+  border-color:#d6a94a88
+}
+
+.studio-viewport-toolbar button.on{
+  border-color:var(--gd);
+  color:var(--gd);
+  background:#d6a94a12
+}
+
+.studio-viewport-divider{
+  width:1px;
+  height:23px;
+  background:var(--ln);
+  margin:0 3px
+}
+
+.studio-viewport-status{
+  min-width:0;
+  color:var(--mu);
+  font-size:10px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  text-align:right
+}
+
+.studio-viewport-canvas{
+  position:relative;
+  min-height:520px;
+  min-width:0;
+  overflow:hidden;
+  outline:none;
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      #161a24 0,
+      #08090d 62%
+    )
+}
+
+.studio-viewport-canvas:focus-visible{
+  box-shadow:
+    inset 0 0 0 1px
+    var(--gd)
+}
+
+.studio-viewport-canvas canvas{
+  display:block;
+  width:100%;
+  height:100%;
+  touch-action:none
+}
+
+.studio-viewport-hint{
+  min-height:28px;
+  display:flex;
+  align-items:center;
+  padding:5px 9px;
+  border-top:1px solid var(--ln);
+  background:#0d0f14;
+  color:var(--mu);
+  font-size:9px;
+  line-height:1.35
+}
+
+.studio-live-layout-fallback{
+  grid-template-columns:1fr;
+  min-height:610px
+}
+
+.studio-live-layout-fallback
+.studio-viewport{
+  min-height:610px
+}
+
+@media(max-width:1020px){
+  .studio-live-layout{
+    grid-template-columns:1fr;
+    min-height:0
+  }
+
+  .studio-live-outliner{
+    max-height:260px
+  }
+
+  .studio-live-inspector{
+    max-height:none
+  }
+
+  .studio-viewport{
+    min-height:520px
+  }
+
+  .studio-viewport-canvas{
+    min-height:440px
+  }
+
+  .studio-viewport-toolbar{
+    align-items:flex-start;
+    flex-direction:column
+  }
+
+  .studio-viewport-status{
+    text-align:left;
+    width:100%
+  }
+}
+
 </style>
 <link rel="manifest" href="/lightek/manifest.webmanifest">
 <meta name="theme-color" content="#07070a">
@@ -3432,6 +3617,229 @@ const moneyFromCents=cents=>
 
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),1800)};
 const ap=()=>{const q=($('#q')||{}).value?.toLowerCase()||'';let n=0;document.querySelectorAll('[data-t]').forEach(s=>{const on=S.f=='All'||s.dataset.t==S.f;let v=0;s.querySelectorAll('[data-q]').forEach(e=>{const h=!e.dataset.q.includes(q);e.hidden=h;if(!h)v++});s.hidden=!on||!v;if(!s.hidden)n++});$('#none').hidden=n>0};
+
+const cloneStudioViewportValue=value=>{
+  if(value===undefined){
+    return undefined
+  }
+
+  return JSON.parse(
+    JSON.stringify(value)
+  )
+};
+
+window.LightekStudioViewportBridge={
+  snapshot:()=>{
+    const sceneId=
+      studioCurrentSceneId();
+
+    const record=
+      studioSceneRecord(
+        sceneId
+      );
+
+    if(!record?.scene){
+      return null
+    }
+
+    return {
+      sceneId:
+        Number(
+          record.scene.id
+        ),
+
+      sceneName:
+        record.scene.name,
+
+      objects:
+        cloneStudioViewportValue(
+          record.scene.objects||[]
+        ),
+
+      selectedObjectId:
+        ST.selectedObjectId===null
+          ?null
+          :Number(
+              ST.selectedObjectId
+            ),
+
+      workspaceMode:
+        ST.workspaceMode,
+
+      busy:
+        Boolean(
+          ST.busy
+        )
+    }
+  },
+
+  selectObject:id=>{
+    const next=
+      id===null||
+      id===undefined
+        ?null
+        :Number(id);
+
+    if(
+      next===
+      ST.selectedObjectId
+    ){
+      return
+    }
+
+    ST.selectedObjectId=
+      next;
+
+    render(1)
+  },
+
+  commitTransform:async(
+    objectId,
+    attributes
+  )=>{
+    const sceneId=
+      studioCurrentSceneId();
+
+    if(!sceneId){
+      throw new Error(
+        "Studio scene is unavailable"
+      )
+    }
+
+    if(ST.busy){
+      return null
+    }
+
+    ST.busy=true;
+    ST.mutationStatus="";
+
+    try{
+      const response=
+        await nevaeh.execute({
+          capability:
+            "studio.scene_object.transform",
+
+          payload:{
+            scene_id:
+              Number(sceneId),
+
+            object_id:
+              Number(objectId),
+
+            attributes
+          }
+        });
+
+      if(
+        response.status!=="completed"
+      ){
+        throw new Error(
+          `Studio mutation returned ${response.status||"unknown status"}`
+        )
+      }
+
+      const result=
+        response.result||{};
+
+      const record=
+        studioSceneRecord(
+          sceneId
+        );
+
+      const objects=
+        record?.scene?.objects;
+
+      if(Array.isArray(objects)){
+        const index=
+          objects.findIndex(
+            object=>
+              Number(object.id)===
+              Number(objectId)
+          );
+
+        if(index>=0){
+          const existing=
+            objects[index];
+
+          const returned=
+            result.object||{};
+
+          objects[index]={
+            ...existing,
+
+            id:
+              Number(
+                returned.id||
+                result.object_id||
+                existing.id
+              ),
+
+            name:
+              returned.name||
+              existing.name,
+
+            object_type:
+              returned.object_type||
+              returned.type||
+              existing.object_type,
+
+            definition:
+              returned.definition
+                ?JSON.parse(
+                    JSON.stringify(
+                      returned.definition
+                    )
+                  )
+                :{
+                    ...(existing.definition||{}),
+
+                    location:
+                      Array.isArray(
+                        attributes.location
+                      )
+                        ?[...attributes.location]
+                        :existing.definition?.location,
+
+                    rotation:
+                      Array.isArray(
+                        attributes.rotation
+                      )
+                        ?[...attributes.rotation]
+                        :existing.definition?.rotation,
+
+                    scale:
+                      Array.isArray(
+                        attributes.scale
+                      )
+                        ?[...attributes.scale]
+                        :existing.definition?.scale
+                  }
+          }
+        }
+      }
+
+      ST.selectedObjectId=
+        Number(
+          result.object_id||
+          objectId
+        );
+
+      ST.mutationStatus=
+        "Transform saved";
+
+      return result
+    }catch(error){
+      ST.mutationStatus=
+        error.message||
+        "Studio transform failed";
+
+      throw error
+    }finally{
+      ST.busy=false
+    }
+  }
+};
+
 const AF={
   explore:()=>{
     $('#q').addEventListener(
@@ -6521,6 +6929,9 @@ addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)loc
 <script src="/lightek/nevaeh-client.js"></script>
 
 <script src="/lightek/bootstrap-adapter.js"></script>
+
+<script src="/lightek/vendor/gsap/gsap.min.js"></script>
+<script type="module" src="/lightek/studio-viewport.js"></script>
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

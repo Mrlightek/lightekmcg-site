@@ -137,7 +137,17 @@ module LightekMessaging
           direct_key: direct_key
         )
 
-      return existing if existing
+      if existing
+        ReactivateDirectParticipant.call(
+          conversation:
+            existing,
+
+          profile:
+            creator_profile
+        )
+
+        return existing
+      end
 
       create_conversation(
         ids: ids,

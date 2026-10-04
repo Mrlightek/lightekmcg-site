@@ -251,6 +251,24 @@ module Api
         "messages.send" =>
           "messages.send.requested",
 
+        "messages.delete" =>
+          "messages.delete.requested",
+
+        "messages.leave" =>
+          "messages.leave.requested",
+
+        "messages.group.add_members" =>
+          "messages.group.add_members.requested",
+
+        "messages.group.remove_member" =>
+          "messages.group.remove_member.requested",
+
+        "messages.group.promote_admin" =>
+          "messages.group.promote_admin.requested",
+
+        "messages.group.demote_admin" =>
+          "messages.group.demote_admin.requested",
+
         "messages.mark_read" =>
           "messages.mark_read.requested",
 
@@ -320,6 +338,24 @@ module Api
 
         "messages.send" =>
           "send",
+
+        "messages.delete" =>
+          "delete",
+
+        "messages.leave" =>
+          "leave",
+
+        "messages.group.add_members" =>
+          "group_add_members",
+
+        "messages.group.remove_member" =>
+          "group_remove_member",
+
+        "messages.group.promote_admin" =>
+          "group_promote_admin",
+
+        "messages.group.demote_admin" =>
+          "group_demote_admin",
 
         "messages.mark_read" =>
           "mark_read",

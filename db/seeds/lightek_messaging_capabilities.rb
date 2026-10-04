@@ -52,6 +52,80 @@ capabilities = [
   },
 
   {
+    name: "Messages Delete",
+    slug: "messages.delete",
+    intent_name:
+      "delete_messages_conversation_for_me",
+    description:
+      "Remove a direct conversation from the authenticated profile without deleting shared history.",
+    event_type:
+      "messages.delete.requested"
+  },
+
+  {
+    name: "Messages Leave",
+    slug: "messages.leave",
+    intent_name:
+      "leave_messages_group",
+    description:
+      "Leave a group conversation as the authenticated profile without deleting the conversation for remaining members.",
+    event_type:
+      "messages.leave.requested"
+  },
+
+  {
+    name:
+      "Messages Group Add Members",
+    slug:
+      "messages.group.add_members",
+    intent_name:
+      "add_members_to_messages_group",
+    description:
+      "Add or re-add profiles to an existing group conversation as an authorized owner or administrator.",
+    event_type:
+      "messages.group.add_members.requested"
+  },
+
+  {
+    name:
+      "Messages Group Remove Member",
+    slug:
+      "messages.group.remove_member",
+    intent_name:
+      "remove_member_from_messages_group",
+    description:
+      "Remove an active profile from a group conversation according to group governance permissions.",
+    event_type:
+      "messages.group.remove_member.requested"
+  },
+
+  {
+    name:
+      "Messages Group Promote Admin",
+    slug:
+      "messages.group.promote_admin",
+    intent_name:
+      "promote_messages_group_admin",
+    description:
+      "Promote an active regular group member to administrator as the group owner.",
+    event_type:
+      "messages.group.promote_admin.requested"
+  },
+
+  {
+    name:
+      "Messages Group Demote Admin",
+    slug:
+      "messages.group.demote_admin",
+    intent_name:
+      "demote_messages_group_admin",
+    description:
+      "Demote an active group administrator back to regular member as the group owner.",
+    event_type:
+      "messages.group.demote_admin.requested"
+  },
+
+  {
     name: "Messages Mark Read",
     slug: "messages.mark_read",
     intent_name: "mark_messages_read",

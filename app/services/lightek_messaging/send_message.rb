@@ -55,6 +55,7 @@ module LightekMessaging
       authorize_direct_relationship!
 
       Message.transaction do
+        reactivate_direct_peer!
         message =
           Message.create!(
             conversation:
@@ -108,7 +109,6 @@ module LightekMessaging
       peer =
         conversation
           .participants
-          .active
           .includes(
             :profile
           )
@@ -129,6 +129,33 @@ module LightekMessaging
 
       raise AccessDenied,
             "Messaging is unavailable for this blocked relationship"
+    end
+
+    def reactivate_direct_peer!
+      return unless conversation.direct?
+
+      peer_member =
+        conversation
+          .participants
+          .includes(
+            :profile
+          )
+          .where
+          .not(
+            profile_id:
+              sender_profile.id
+          )
+          .first
+
+      return unless peer_member
+
+      ReactivateDirectParticipant.call(
+        conversation:
+          conversation,
+
+        profile:
+          peer_member.profile
+      )
     end
   end
 end

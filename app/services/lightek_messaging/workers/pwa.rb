@@ -37,6 +37,24 @@ module LightekMessaging
         when "send"
           send_message
 
+        when "group_add_members"
+          group_add_members
+
+        when "group_remove_member"
+          group_remove_member
+
+        when "group_promote_admin"
+          group_promote_admin
+
+        when "group_demote_admin"
+          group_demote_admin
+
+        when "delete"
+          delete_conversation
+
+        when "leave"
+          leave_group
+
         when "mark_read"
           mark_read
 
@@ -273,6 +291,246 @@ module LightekMessaging
         }
       end
 
+      def group_remove_member
+        record =
+          conversation
+
+        target =
+          Profile.find(
+            payload.fetch(
+              "profile_id"
+            )
+          )
+
+        member =
+          RemoveGroupParticipant.call(
+            conversation:
+              record,
+
+            actor_profile:
+              profile,
+
+            target_profile:
+              target
+          )
+
+        {
+          "removed_profile_id" =>
+            member.profile_id,
+
+          "left_at" =>
+            member
+              .left_at
+              .iso8601,
+
+          "conversation" =>
+            conversation_payload(
+              record.reload,
+              detailed: true
+            )
+        }
+      end
+
+      def group_promote_admin
+        record =
+          conversation
+
+        target =
+          Profile.find(
+            payload.fetch(
+              "profile_id"
+            )
+          )
+
+        member =
+          ChangeGroupParticipantRole.call(
+            conversation:
+              record,
+
+            actor_profile:
+              profile,
+
+            target_profile:
+              target,
+
+            role:
+              "admin"
+          )
+
+        {
+          "participant" =>
+            participant_payload(
+              member
+            ),
+
+          "conversation" =>
+            conversation_payload(
+              record.reload,
+              detailed: true
+            )
+        }
+      end
+
+      def group_demote_admin
+        record =
+          conversation
+
+        target =
+          Profile.find(
+            payload.fetch(
+              "profile_id"
+            )
+          )
+
+        member =
+          ChangeGroupParticipantRole.call(
+            conversation:
+              record,
+
+            actor_profile:
+              profile,
+
+            target_profile:
+              target,
+
+            role:
+              "member"
+          )
+
+        {
+          "participant" =>
+            participant_payload(
+              member
+            ),
+
+          "conversation" =>
+            conversation_payload(
+              record.reload,
+              detailed: true
+            )
+        }
+      end
+
+      def group_add_members
+        record =
+          conversation
+
+        ids =
+          Array(
+            payload.fetch(
+              "profile_ids"
+            )
+          )
+            .map(&:to_i)
+            .uniq
+
+        profiles =
+          Profile
+            .where(
+              id:
+                ids
+            )
+            .index_by(
+              &:id
+            )
+
+        unless profiles.length == ids.length
+          raise ActiveRecord::RecordNotFound,
+                "One or more profiles could not be found"
+        end
+
+        members =
+          AddGroupParticipants.call(
+            conversation:
+              record,
+
+            actor_profile:
+              profile,
+
+            target_profiles:
+              ids.map do |profile_id|
+                profiles.fetch(
+                  profile_id
+                )
+              end
+          )
+
+        {
+          "participants" =>
+            members.map do |member|
+              participant_payload(
+                member
+              )
+            end,
+
+          "conversation" =>
+            conversation_payload(
+              record.reload,
+              detailed: true
+            )
+        }
+      end
+
+      def delete_conversation
+        record =
+          conversation
+
+        member =
+          DeleteConversationForProfile.call(
+            conversation:
+              record,
+
+            profile:
+              profile
+          )
+
+        {
+          "conversation_id" =>
+            record.id,
+
+          "profile_id" =>
+            profile.id,
+
+          "deleted_for_me" =>
+            true,
+
+          "left_at" =>
+            member
+              .left_at
+              .iso8601
+        }
+      end
+
+      def leave_group
+        record =
+          conversation
+
+        member =
+          LeaveGroup.call(
+            conversation:
+              record,
+
+            profile:
+              profile
+          )
+
+        {
+          "conversation_id" =>
+            record.id,
+
+          "profile_id" =>
+            profile.id,
+
+          "left_group" =>
+            true,
+
+          "left_at" =>
+            member
+              .left_at
+              .iso8601
+        }
+      end
+
       def mark_read
         member =
           participation
@@ -309,44 +567,48 @@ module LightekMessaging
         member =
           participation(record)
 
-        participants =
+        participant_records =
           record
             .participants
-            .active
-            .includes(:profile)
-            .order(:id)
-            .map do |entry|
+            .includes(
+              :profile
+            )
+            .order(
+              :id
+            )
 
-              participant_payload(
-                entry
+        participant_records =
+          participant_records.active unless
+            record.direct?
+
+        participants =
+          participant_records.map do |entry|
+            participant_payload(
+              entry
+            )
+          end
+
+        direct_peer_member =
+          if record.direct?
+            record
+              .participants
+              .includes(
+                :profile
               )
-            end
+              .where
+              .not(
+                profile_id:
+                  profile.id
+              )
+              .first
+          end
 
         messaging_blocked =
-          if record.direct?
-            peer_profile =
-              record
-                .participants
-                .active
-                .includes(
-                  :profile
-                )
-                .map(
-                  &:profile
-                )
-                .find do |candidate|
-                  candidate.id !=
-                    profile.id
-                end
-
-            peer_profile &&
-              LightekSocial.blocked_between?(
-                profile,
-                peer_profile
-              )
-          else
-            false
-          end
+          direct_peer_member &&
+          LightekSocial.blocked_between?(
+            profile,
+            direct_peer_member.profile
+          )
 
         peer =
           if record.direct?
@@ -359,6 +621,10 @@ module LightekMessaging
         last_message =
           record
             .messages
+            .where(
+              "created_at >= ?",
+              member.joined_at
+            )
             .includes(
               :sender_profile
             )
@@ -426,8 +692,8 @@ module LightekMessaging
             end,
 
           "last_message_at" =>
-            record
-              .last_message_at
+            last_message
+              &.created_at
               &.iso8601,
 
           "created_at" =>

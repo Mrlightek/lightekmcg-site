@@ -125,6 +125,19 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 .msg-status{padding:18px 0;color:var(--mu);font-size:13px}
 .msg-members{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px}
 .msg-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.msg-group-manage{margin:0 0 18px;padding:18px 0;border-bottom:1px solid var(--ln)}
+.msg-group-manage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:14px}
+.msg-group-manage-head h3{font:400 22px Georgia,serif;margin:3px 0}
+.msg-group-manage-head p{color:var(--mu);font-size:12px}
+.msg-group-roster{border-bottom:1px solid var(--ln);margin-top:12px}
+.msg-group-member{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 4px;border-top:1px solid var(--ln)}
+.msg-group-member-copy{min-width:0}
+.msg-group-member-copy b,.msg-group-member-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msg-group-member-copy small{color:var(--mu);font-size:11px;margin-top:2px}
+.msg-group-role{display:inline-block;margin-left:6px;color:var(--gd);font-size:9px;letter-spacing:.11em;text-transform:uppercase}
+.msg-group-member-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.msg-group-add{margin-top:18px;padding:16px;background:#ffffff04;border-top:1px solid var(--ln)}
+.msg-group-add .msg-start-footer{margin-top:12px}
 .msg-start{max-width:760px;width:100%;margin:0 auto;padding:8px 0 32px}
 .msg-start-body{padding-top:24px}
 .msg-start-copy{color:var(--mu);margin:6px 0 24px}
@@ -766,7 +779,13 @@ const MS={
   query:'',
   groupTitle:'',
   selectedPeople:new Set(),
-  peopleToken:0
+  peopleToken:0,
+  groupManage:false,
+  groupManageAdd:false,
+  groupManageQuery:"",
+  groupManagePeople:[],
+  groupManageSelected:new Set(),
+  groupManageToken:0
 };
 const SS={
   profileId:null,
@@ -1088,6 +1107,333 @@ const messageEmptyPanel=()=>`
   </div>
 `;
 
+const messageGroupPeopleRows=profiles=>{
+  if(!profiles.length){
+    return `
+      <div
+        class="msg-empty"
+        style="min-height:180px"
+      >
+        <div>
+          <span class="eb">
+            No people available
+          </span>
+
+          <h2>
+            Nobody to add here.
+          </h2>
+
+          <p>
+            Try another name or handle.
+          </p>
+        </div>
+      </div>
+    `
+  }
+
+  return `
+    <div class="msg-people">
+      ${profiles.map(profile=>{
+        const selected=
+          MS.groupManageSelected.has(
+            Number(profile.id)
+          );
+
+        const reasons=
+          Array.isArray(
+            profile.recommendation?.reasons
+          )
+            ?profile.recommendation.reasons
+              .filter(Boolean)
+              .slice(0,2)
+            :[];
+
+        return `
+          <button
+            class="msg-person ${selected?"on":""}"
+            data-a="messageGroupTogglePerson"
+            data-id="${Number(profile.id)}"
+            type="button"
+            aria-pressed="${selected}"
+          >
+            ${profileAvatar(profile,44)}
+
+            <span class="msg-person-copy">
+              <h3>
+                ${E(profile.name||"Lightek Member")}
+              </h3>
+
+              <p>
+                ${E(profile.display_handle||"")}
+                ${profile.profile_type
+                  ?` · ${E(profile.profile_type)}`
+                  :""}
+              </p>
+
+              ${reasons.length
+                ?`
+                  <span class="msg-person-reason">
+                    ${E(reasons.join(" · "))}
+                  </span>
+                `
+                :""}
+            </span>
+
+            <span class="msg-check">
+              ✓
+            </span>
+          </button>
+        `
+      }).join("")}
+    </div>
+  `
+};
+
+const messageGroupManagementPanel=conversation=>{
+  const myId=
+    Number(
+      meProfile()?.id
+    );
+
+  const currentRole=
+    conversation.current_role||
+    "member";
+
+  const owner=
+    currentRole==="owner";
+
+  const manager=
+    owner||
+    currentRole==="admin";
+
+  const participants=
+    conversation.participants||
+    [];
+
+  if(!manager){
+    return ""
+  }
+
+  return `
+    <section class="msg-group-manage">
+      <div class="msg-group-manage-head">
+        <div>
+          <span class="eb">
+            Group governance
+          </span>
+
+          <h3>
+            Manage group
+          </h3>
+
+          <p>
+            You are ${E(currentRole)}.
+            ${owner
+              ?"You control administrators and membership."
+              :"You can add people and manage regular members."}
+          </p>
+        </div>
+
+        <button
+          class="btn sm ${MS.groupManageAdd?"on":""}"
+          data-a="messageGroupAddMode"
+          type="button"
+        >
+          ${MS.groupManageAdd
+            ?"Close add people"
+            :"Add people"}
+        </button>
+      </div>
+
+      ${MS.groupManageAdd
+        ?`
+          <div class="msg-group-add">
+            <label class="fld">
+              <span>
+                Find people to add or re-add
+              </span>
+
+              <input
+                id="message-group-manage-search"
+                value="${E(MS.groupManageQuery)}"
+                placeholder="Search by name or @handle"
+                autocomplete="off"
+              >
+            </label>
+
+            <div id="message-group-manage-people">
+              <div class="msg-status">
+                Loading people…
+              </div>
+            </div>
+
+            <div class="msg-start-footer">
+              <p id="message-group-manage-count">
+                ${MS.groupManageSelected.size} selected
+              </p>
+
+              <button
+                class="btn p"
+                data-a="messageGroupAddSelected"
+                type="button"
+              >
+                Add selected
+              </button>
+            </div>
+          </div>
+        `
+        :""}
+
+      <div class="msg-group-roster">
+        ${participants.map(entry=>{
+          const profile=
+            entry.profile||{};
+
+          const profileId=
+            Number(profile.id);
+
+          const role=
+            entry.role||
+            "member";
+
+          const mine=
+            profileId===myId;
+
+          const canPromote=
+            owner &&
+            !mine &&
+            role==="member";
+
+          const canDemote=
+            owner &&
+            !mine &&
+            role==="admin";
+
+          const canRemove=
+            !mine &&
+            role!=="owner" &&
+            (
+              owner ||
+              (
+                currentRole==="admin" &&
+                role==="member"
+              )
+            );
+
+          return `
+            <div class="msg-group-member">
+              ${profileAvatar(profile,40)}
+
+              <span class="msg-group-member-copy">
+                <b>
+                  ${E(profile.name||"Lightek Member")}
+                  ${mine?" · You":""}
+                </b>
+
+                <small>
+                  ${E(profile.display_handle||"")}
+                  <span class="msg-group-role">
+                    ${E(role)}
+                  </span>
+                </small>
+              </span>
+
+              <span class="msg-group-member-actions">
+                ${canPromote
+                  ?`
+                    <button
+                      class="btn sm"
+                      data-a="messageGroupPromoteAdmin"
+                      data-id="${profileId}"
+                      type="button"
+                    >
+                      Make admin
+                    </button>
+                  `
+                  :""}
+
+                ${canDemote
+                  ?`
+                    <button
+                      class="btn sm"
+                      data-a="messageGroupDemoteAdmin"
+                      data-id="${profileId}"
+                      type="button"
+                    >
+                      Demote admin
+                    </button>
+                  `
+                  :""}
+
+                ${canRemove
+                  ?`
+                    <button
+                      class="btn sm rel-block"
+                      data-a="messageGroupRemoveMember"
+                      data-id="${profileId}"
+                      data-name="${E(profile.name||"this member")}"
+                      type="button"
+                    >
+                      Remove
+                    </button>
+                  `
+                  :""}
+              </span>
+            </div>
+          `
+        }).join("")}
+      </div>
+    </section>
+  `
+};
+
+const messageApplyConversationUpdate=conversation=>{
+  if(!conversation){
+    return
+  }
+
+  MS.detail=
+    conversation;
+
+  const index=
+    MS.items.findIndex(
+      item=>
+        Number(item.id)===
+        Number(conversation.id)
+    );
+
+  if(index>=0){
+    Object.assign(
+      MS.items[index],
+      conversation
+    );
+  }
+
+  const detail=
+    document.querySelector(
+      "#messages-detail"
+    );
+
+  if(detail){
+    detail.innerHTML=
+      messageConversationPanel(
+        conversation
+      );
+  }
+
+  const list=
+    document.querySelector(
+      "#messages-list"
+    );
+
+  if(list){
+    list.innerHTML=
+      messageRows(
+        MS.items
+      );
+  }
+};
+
 const messageConversationPanel=conversation=>{
   const myId=
     Number(meProfile()?.id);
@@ -1143,19 +1489,56 @@ const messageConversationPanel=conversation=>{
         </div>
       </div>
 
-      ${
-        peer?.id
-          ?`
-            <a
-              class="btn sm"
-              href="#/space/${Number(peer.id)}"
-            >
-              View Space
-            </a>
-          `
-          :""
-      }
+      <div class="msg-actions">
+        ${
+          peer?.id
+            ?`
+              <a
+                class="btn sm"
+                href="#/space/${Number(peer.id)}"
+              >
+                View Space
+              </a>
+            `
+            :""
+        }
+
+        ${
+          conversation.kind==="group" &&
+          ["owner","admin"].includes(
+            conversation.current_role
+          )
+            ?`
+              <button
+                class="btn sm ${MS.groupManage?"on":""}"
+                data-a="messageManageGroup"
+                type="button"
+              >
+                Manage group
+              </button>
+            `
+            :""
+        }
+
+        <button
+          class="btn sm rel-block"
+          data-a="${conversation.kind==="group"?"messageLeaveGroup":"messageDeleteConversation"}"
+          data-id="${Number(conversation.id)}"
+          type="button"
+        >
+          ${conversation.kind==="group"?"Leave group":"Delete conversation"}
+        </button>
+      </div>
     </header>
+
+    ${
+      conversation.kind==="group" &&
+      MS.groupManage
+        ?messageGroupManagementPanel(
+            conversation
+          )
+        :""
+    }
 
     <div class="msg-thread" id="message-thread">
       ${messages.length
@@ -2386,6 +2769,13 @@ messageOpen:async id=>{
   MS.detail=
     null;
 
+  MS.groupManage=false;
+  MS.groupManageAdd=false;
+  MS.groupManageQuery="";
+  MS.groupManagePeople=[];
+  MS.groupManageSelected=
+    new Set();
+
   const token=
     ++MS.openToken;
 
@@ -2497,6 +2887,632 @@ messageOpen:async id=>{
         </div>
       </div>
     `;
+  }
+},
+
+messageManageGroup:()=>{
+  if(
+    !MS.detail||
+    MS.detail.kind!=="group"
+  ){
+    return;
+  }
+
+  MS.groupManage=
+    !MS.groupManage;
+
+  MS.groupManageAdd=false;
+  MS.groupManageQuery="";
+  MS.groupManagePeople=[];
+  MS.groupManageSelected=
+    new Set();
+
+  messageApplyConversationUpdate(
+    MS.detail
+  );
+},
+
+messageGroupAddMode:()=>{
+  if(
+    !MS.detail||
+    MS.detail.kind!=="group"
+  ){
+    return;
+  }
+
+  MS.groupManageAdd=
+    !MS.groupManageAdd;
+
+  MS.groupManageQuery="";
+  MS.groupManagePeople=[];
+  MS.groupManageSelected=
+    new Set();
+
+  messageApplyConversationUpdate(
+    MS.detail
+  );
+
+  if(MS.groupManageAdd){
+    A.messageGroupPeopleLoad();
+
+    requestAnimationFrame(()=>{
+      document
+        .querySelector(
+          "#message-group-manage-search"
+        )
+        ?.focus();
+    });
+  }
+},
+
+messageGroupPeopleLoad:async()=>{
+  const list=
+    document.querySelector(
+      "#message-group-manage-people"
+    );
+
+  if(
+    !list||
+    !MS.groupManage||
+    !MS.groupManageAdd||
+    MS.detail?.kind!=="group"
+  ){
+    return;
+  }
+
+  const token=
+    ++MS.groupManageToken;
+
+  list.innerHTML=`
+    <div class="msg-status">
+      Loading people…
+    </div>
+  `;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "social.people.recommend",
+
+        payload:{
+          query:
+            MS.groupManageQuery,
+
+          limit:
+            30
+        }
+      });
+
+    if(
+      token!==
+      MS.groupManageToken
+    ){
+      return;
+    }
+
+    const activeIds=
+      new Set(
+        (MS.detail.participants||[])
+          .map(entry=>
+            Number(
+              entry.profile?.id
+            )
+          )
+          .filter(Boolean)
+      );
+
+    const myId=
+      Number(
+        meProfile()?.id
+      );
+
+    const recommendations=
+      response.result?.recommendations||
+      response.recommendations||
+      [];
+
+    MS.groupManagePeople=
+      recommendations
+        .map(record=>({
+          ...(record?.profile||{}),
+
+          relationship:
+            record?.relationship||{},
+
+          recommendation:
+            record?.recommendation||{}
+        }))
+        .filter(profile=>{
+          const profileId=
+            Number(profile.id);
+
+          return (
+            profileId &&
+            profileId!==myId &&
+            !activeIds.has(
+              profileId
+            )
+          )
+        });
+
+    list.innerHTML=
+      messageGroupPeopleRows(
+        MS.groupManagePeople
+      );
+  }catch(error){
+    if(
+      token!==
+      MS.groupManageToken
+    ){
+      return;
+    }
+
+    list.innerHTML=`
+      <div
+        class="msg-empty"
+        style="min-height:180px"
+      >
+        <div>
+          <span class="eb">
+            People unavailable
+          </span>
+
+          <h2>
+            Couldn't load profiles.
+          </h2>
+
+          <p>
+            ${E(error.message||"Please try again.")}
+          </p>
+        </div>
+      </div>
+    `;
+  }
+},
+
+messageGroupTogglePerson:button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(!profileId){
+    return;
+  }
+
+  if(
+    MS.groupManageSelected.has(
+      profileId
+    )
+  ){
+    MS.groupManageSelected.delete(
+      profileId
+    );
+  }else{
+    MS.groupManageSelected.add(
+      profileId
+    );
+  }
+
+  const list=
+    document.querySelector(
+      "#message-group-manage-people"
+    );
+
+  if(list){
+    list.innerHTML=
+      messageGroupPeopleRows(
+        MS.groupManagePeople
+      );
+  }
+
+  const count=
+    document.querySelector(
+      "#message-group-manage-count"
+    );
+
+  if(count){
+    count.textContent=
+      `${MS.groupManageSelected.size} selected`;
+  }
+},
+
+messageGroupAddSelected:async button=>{
+  const conversationId=
+    Number(
+      MS.detail?.id||
+      MS.selected
+    );
+
+  const profileIds=
+    [
+      ...MS.groupManageSelected
+    ];
+
+  if(
+    !conversationId||
+    !profileIds.length
+  ){
+    toast(
+      "Choose at least one person"
+    );
+
+    return;
+  }
+
+  button.disabled=true;
+  button.textContent=
+    "Adding…";
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "messages.group.add_members",
+
+        payload:{
+          conversation_id:
+            conversationId,
+
+          profile_ids:
+            profileIds
+        }
+      });
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    if(!conversation){
+      throw new Error(
+        "Updated group was not returned"
+      );
+    }
+
+    MS.groupManageAdd=false;
+    MS.groupManageQuery="";
+    MS.groupManagePeople=[];
+    MS.groupManageSelected=
+      new Set();
+
+    messageApplyConversationUpdate(
+      conversation
+    );
+
+    toast(
+      "People added"
+    );
+  }catch(error){
+    button.disabled=false;
+    button.textContent=
+      "Add selected";
+
+    toast(
+      error.message||
+      "Could not add people"
+    );
+  }
+},
+
+messageGroupRemoveMember:async button=>{
+  const conversationId=
+    Number(
+      MS.detail?.id||
+      MS.selected
+    );
+
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !conversationId||
+    !profileId
+  ){
+    return;
+  }
+
+  const name=
+    button.dataset.name||
+    "this member";
+
+  if(
+    !window.confirm(
+      `Remove ${name} from this group? They can be explicitly re-added later.`
+    )
+  ){
+    return;
+  }
+
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "messages.group.remove_member",
+
+        payload:{
+          conversation_id:
+            conversationId,
+
+          profile_id:
+            profileId
+        }
+      });
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    if(!conversation){
+      throw new Error(
+        "Updated group was not returned"
+      );
+    }
+
+    messageApplyConversationUpdate(
+      conversation
+    );
+
+    toast(
+      "Member removed"
+    );
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not remove member"
+    );
+  }
+},
+
+messageGroupPromoteAdmin:async button=>{
+  const conversationId=
+    Number(
+      MS.detail?.id||
+      MS.selected
+    );
+
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !conversationId||
+    !profileId
+  ){
+    return;
+  }
+
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "messages.group.promote_admin",
+
+        payload:{
+          conversation_id:
+            conversationId,
+
+          profile_id:
+            profileId
+        }
+      });
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    if(!conversation){
+      throw new Error(
+        "Updated group was not returned"
+      );
+    }
+
+    messageApplyConversationUpdate(
+      conversation
+    );
+
+    toast(
+      "Member promoted to admin"
+    );
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not promote member"
+    );
+  }
+},
+
+messageGroupDemoteAdmin:async button=>{
+  const conversationId=
+    Number(
+      MS.detail?.id||
+      MS.selected
+    );
+
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !conversationId||
+    !profileId
+  ){
+    return;
+  }
+
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "messages.group.demote_admin",
+
+        payload:{
+          conversation_id:
+            conversationId,
+
+          profile_id:
+            profileId
+        }
+      });
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    if(!conversation){
+      throw new Error(
+        "Updated group was not returned"
+      );
+    }
+
+    messageApplyConversationUpdate(
+      conversation
+    );
+
+    toast(
+      "Admin returned to member"
+    );
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not demote admin"
+    );
+  }
+},
+
+messageDeleteConversation:async button=>{
+  const conversationId=
+    Number(
+      button.dataset.id||
+      MS.selected
+    );
+
+  if(!conversationId){
+    return;
+  }
+
+  if(
+    !window.confirm(
+      "Delete this conversation for you? The other person keeps their copy. If either of you messages again, a new visible thread can begin."
+    )
+  ){
+    return;
+  }
+
+  button.disabled=true;
+
+  try{
+    await nevaeh.execute({
+      capability:
+        "messages.delete",
+
+      payload:{
+        conversation_id:
+          conversationId
+      }
+    });
+
+    MS.items=
+      MS.items.filter(
+        item=>
+          Number(item.id)!==
+          conversationId
+      );
+
+    MS.selected=null;
+    MS.detail=null;
+    ++MS.openToken;
+
+    toast(
+      "Conversation deleted"
+    );
+
+    await A.messagesLoad();
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Conversation could not be deleted"
+    );
+  }
+},
+
+messageLeaveGroup:async button=>{
+  const conversationId=
+    Number(
+      button.dataset.id||
+      MS.selected
+    );
+
+  if(!conversationId){
+    return;
+  }
+
+  if(
+    !window.confirm(
+      "Leave this group? The conversation and its history will remain for the other members."
+    )
+  ){
+    return;
+  }
+
+  button.disabled=true;
+
+  try{
+    await nevaeh.execute({
+      capability:
+        "messages.leave",
+
+      payload:{
+        conversation_id:
+          conversationId
+      }
+    });
+
+    MS.items=
+      MS.items.filter(
+        item=>
+          Number(item.id)!==
+          conversationId
+      );
+
+    MS.selected=null;
+    MS.detail=null;
+    ++MS.openToken;
+
+    toast(
+      "You left the group"
+    );
+
+    await A.messagesLoad();
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not leave group"
+    );
   }
 },
 
@@ -3940,7 +4956,24 @@ app.addEventListener('input',e=>{
         220
       );
   }
+  if(
+    e.target.id==='message-group-manage-search'
+  ){
+    MS.groupManageQuery=
+      e.target.value;
+
+    clearTimeout(
+      MS.groupManageSearchTimer
+    );
+
+    MS.groupManageSearchTimer=
+      setTimeout(
+        ()=>A.messageGroupPeopleLoad(),
+        220
+      );
+  }
 });
+
 app.addEventListener('change',e=>{if(e.target.id=='fi'){CS.file=e.target.files[0]?.name||'';render(1)}});
 app.addEventListener('keydown',e=>{
   const desktopKeyboard=

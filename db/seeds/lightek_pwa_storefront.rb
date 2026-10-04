@@ -227,6 +227,29 @@ money.save!
   mod.save!
 end
 
+# LIGHTEK STUDIO SURFACE
+studio =
+  LightekPwa::Surface.find_or_initialize_by(
+    key: "studio"
+  )
+
+studio.assign_attributes(
+  surface_type: "studio",
+  label: "Studio",
+  position: 70,
+  enabled: true,
+  configuration: {
+    title: "Lightek Studio",
+    description:
+      "The creation operating system for Lightek."
+  },
+  seed_namespace: namespace,
+  seed_version: version
+)
+
+studio.save!
+
+
 navigation = [
   ["home", "Home", "home", "#/home", "primary", 10],
   ["watch", "Watch", "watch", "#/watch", "primary", 20],
@@ -234,12 +257,13 @@ navigation = [
   ["explore", "Explore", "explore", "#/explore", "primary", 40],
   ["communities", "Communities", "communities", "#/communities", "primary", 50],
   ["money", "Money", "money", "#/money", "primary", 55],
+  ["studio", "Studio", "studio", "#/studio", "primary", 57, "studio.pwa.bootstrap"],
   ["messages", "Messages", "messages", "#/messages", "tools", 60],
   ["create", "+ Create", "create", "#/create", "tools", 70],
   ["space", "My Space", "space", "#/space", "identity", 80]
 ]
 
-navigation.each do |key, label, surface_key, href, placement, position|
+navigation.each do |key, label, surface_key, href, placement, position, requires_capability|
   item =
     LightekPwa::NavigationItem.find_or_initialize_by(
       key: key
@@ -252,7 +276,8 @@ navigation.each do |key, label, surface_key, href, placement, position|
     placement: placement,
     position: position,
     enabled: true,
-    configuration: {},
+    requires_capability: requires_capability,
+  configuration: {},
     seed_namespace: namespace,
     seed_version: version
   )

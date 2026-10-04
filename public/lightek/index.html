@@ -413,6 +413,52 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 }
 
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Lightek Studio PWA foundation */
+.studio-shell{min-height:calc(100vh - 110px);padding-bottom:72px}
+.studio-hero{padding:52px 0 30px;border-bottom:1px solid var(--ln);background:linear-gradient(180deg,#17130d 0%,var(--bg) 100%)}
+.studio-hero h1{font-size:clamp(42px,7vw,82px);line-height:.9;margin:8px 0 14px}
+.studio-hero p{max-width:780px;color:var(--mu);font-size:15px}
+.studio-meta{display:flex;gap:28px;flex-wrap:wrap;margin-top:25px;color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.studio-meta b{display:block;color:inherit;font-size:22px;line-height:1.1;margin-bottom:4px}
+.studio-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.studio-projects{display:grid;gap:18px;margin-top:28px}
+.studio-project{border:1px solid var(--ln);background:var(--s1);border-radius:6px;overflow:hidden}
+.studio-project-head{padding:18px 20px;border-bottom:1px solid var(--ln);display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.studio-project-head h2{margin:4px 0;font-size:22px}
+.studio-project-head p{color:var(--mu);max-width:680px}
+.studio-project-head small{color:var(--mu)}
+.studio-productions{display:grid;gap:1px;background:var(--ln)}
+.studio-production{background:var(--bg);padding:18px 20px}
+.studio-production-head{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:13px}
+.studio-production-head h3{font-size:17px}
+.studio-production-head small{color:var(--mu)}
+.studio-scenes{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.studio-scene-card{display:block;width:100%;text-align:left;border:1px solid var(--ln);background:var(--s1);padding:14px;border-radius:4px;color:inherit}
+.studio-scene-card:hover{border-color:#d6a94a66;background:#ffffff08}
+.studio-scene-card b,.studio-scene-card small{display:block}
+.studio-scene-card small{margin-top:5px;color:var(--mu)}
+.studio-empty{padding:40px 22px;border:1px dashed var(--ln);text-align:center;color:var(--mu);margin-top:28px}
+.studio-work-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;padding:28px 0 18px;border-bottom:1px solid var(--ln)}
+.studio-work-head h1{font-size:38px;margin:4px 0}
+.studio-work-head p{color:var(--mu)}
+.studio-work-tabs{display:flex;gap:5px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--ln)}
+.studio-work-tabs span{padding:7px 10px;border:1px solid var(--ln);color:var(--mu);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.studio-work-tabs span.on{border-color:var(--gd);color:var(--gd)}
+.studio-work-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;margin-top:16px}
+.studio-panel{border:1px solid var(--ln);background:var(--s1);padding:18px;border-radius:5px}
+.studio-panel h2{font-size:15px;margin:0 0 14px}
+.studio-object-list{display:grid;gap:8px}
+.studio-object{border-top:1px solid var(--ln);padding:12px 0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+.studio-object:first-child{border-top:0}
+.studio-object small{color:var(--mu)}
+.studio-vector{font-size:10px;color:var(--mu);margin-top:4px;word-break:break-word}
+.studio-status{padding:20px;border:1px solid var(--ln);background:var(--s1);margin-top:24px}
+@media(max-width:800px){
+  .studio-work-grid{grid-template-columns:1fr}
+  .studio-project-head,.studio-production-head{align-items:flex-start;flex-direction:column}
+}
+
 </style>
 <link rel="manifest" href="/lightek/manifest.webmanifest">
 <meta name="theme-color" content="#07070a">
@@ -760,6 +806,7 @@ return idh({
 })+`<div class="wrap"><div class="bar"><div><span class="eb">Profile type</span> ${E(label)}</div><a class="btn sm" href="/profiles/${E(p.id)}/edit">Edit profile & layout</a> <a class="btn sm" href="#/space/blocked">Blocked people</a></div></div>`+secs(k,Object.keys(B))
 },
 messages:()=>messagesView(),
+studio:id=>studioView(id),
 create:()=>{if(!me()||!meProfile())return authView('Sign in to create','Create is tied to your real Lightek profile.','#/create');let h;const st=['Choose','Create','Preview & publish'];
 if(CS.s==0)h=`<span class="eb">Create</span><h1>What are you making?</h1>`+TY.map(g=>`<div style="margin-bottom:40px"><span class="eb">${g[0]}</span>${g[1].map(t=>`<button class="ty" data-a="ct" data-v="${t[0]}"><b>${t[0]}</b><span>${t[1]}</span><i>→</i></button>`).join('')}</div>`).join('');
 else if(CS.s==1)h=`<span class="eb">${CS.type}</span><h1>Build it</h1><div class="cg"><div>${MEDIA.includes(CS.type)?`<label class="dz">${CS.file?E(CS.file)+' — ready':'Drop a file or browse'}<input type="file" id="fi" hidden></label>`:''}<label class="fld"><span>Title</span><input name="title" value="${E(CS.title)}" placeholder="Name your ${CS.type.toLowerCase()}"></label><label class="fld"><span>${CS.type=='Post'?'Say it':'Description'}</span><textarea name="desc" rows="5">${E(CS.desc)}</textarea></label>${CS.type=='Live Broadcast'?`<label class="fld"><span>Start</span><select><option>Go live now</option><option>Schedule for later</option></select></label>`:''}${CS.type=='Event'?`<label class="fld"><span>Date</span><input type="date"></label>`:''}<button class="btn" data-a="cb">Back</button> <button class="btn p" data-a="cx">Preview</button></div><div><span class="eb">Live preview</span><div id="pv" style="margin-top:12px">${pv()}</div></div></div>`;
@@ -793,6 +840,14 @@ const SS={
   token:0,
   busy:false
 };
+const ST={
+  loaded:false,
+  loading:false,
+  error:"",
+  projects:[],
+  objectTypes:[]
+};
+
 
 const pv=()=>{
   const handle=meHandle();
@@ -800,6 +855,539 @@ const pv=()=>{
     `${E(meName())}${handle?` <span style="color:var(--mu)">${E(handle)}</span>`:''} · ${E(CS.type)}`;
 
   return `<div class="pvc ${['Clip','Story'].includes(CS.type)?'v':''}"><div class="art" style="${art(7)}">${CS.type=='Live Broadcast'?LV:''}</div><div class="mt"><span class="by">${myAvatar(22)}${attribution}</span><h3>${E(CS.title)||'Untitled '+CS.type.toLowerCase()}</h3><p>${E(CS.desc)||'Your description appears here'}</p></div></div>`
+};
+
+const studioProjects=()=>
+  Array.isArray(ST.projects)
+    ?ST.projects
+    :[];
+
+const studioSceneRecords=()=>{
+  const rows=[];
+
+  studioProjects().forEach(project=>{
+    (project.productions||[]).forEach(production=>{
+      (production.scenes||[]).forEach(scene=>{
+        rows.push({
+          project,
+          production,
+          scene
+        })
+      })
+    });
+
+    (project.unassigned_scenes||[]).forEach(scene=>{
+      rows.push({
+        project,
+        production:null,
+        scene
+      })
+    })
+  });
+
+  return rows
+};
+
+const studioSceneRecord=id=>
+  studioSceneRecords().find(
+    row=>
+      Number(row.scene?.id)===
+      Number(id)
+  )||null;
+
+const studioVector=(definition,key,fallback)=>{
+  const value=
+    definition?.[key];
+
+  return Array.isArray(value)&&value.length
+    ?value
+    :fallback
+};
+
+const studioObjectRows=objects=>{
+  if(!objects?.length){
+    return `
+      <div class="studio-empty" style="margin-top:0">
+        No SceneObjects in this scene yet.
+      </div>
+    `
+  }
+
+  return `
+    <div class="studio-object-list">
+      ${objects.map(object=>{
+        const definition=
+          object.definition||{};
+
+        const location=
+          studioVector(
+            definition,
+            "location",
+            [0,0,0]
+          );
+
+        const rotation=
+          studioVector(
+            definition,
+            "rotation",
+            [0,0,0]
+          );
+
+        const scale=
+          studioVector(
+            definition,
+            "scale",
+            [1,1,1]
+          );
+
+        return `
+          <div class="studio-object">
+            <div>
+              <b>${E(object.name||"SceneObject")}</b>
+              <small>${E(object.object_type||"object")}</small>
+
+              <div class="studio-vector">
+                LOC ${location.map(E).join(" · ")}
+              </div>
+
+              <div class="studio-vector">
+                ROT ${rotation.map(E).join(" · ")}
+              </div>
+
+              <div class="studio-vector">
+                SCALE ${scale.map(E).join(" · ")}
+              </div>
+            </div>
+
+            <span class="eb">
+              #${Number(object.id)}
+            </span>
+          </div>
+        `
+      }).join("")}
+    </div>
+  `
+};
+
+const studioSceneView=record=>{
+  const {
+    project,
+    production,
+    scene
+  }=record;
+
+  const fallback=
+    scene.rails_fallback_path||
+    (
+      production
+        ?`/studio/productions/${Number(production.id)}/scenes/${Number(scene.id)}`
+        :""
+    );
+
+  return `
+    <div class="studio-shell">
+      <div class="wrap">
+        <div class="studio-work-head">
+          <div>
+            <span class="eb">
+              ${E(project?.name||"Studio")}
+              ${production
+                ?` · ${E(production.name)}`
+                :""
+              }
+            </span>
+
+            <h1>${E(scene.name||"Scene")}</h1>
+
+            <p>
+              PWA scene workspace ·
+              ${Number(scene.object_count||0)} SceneObjects
+            </p>
+          </div>
+
+          <div class="studio-actions">
+            <a class="btn" href="#/studio">
+              ← Productions
+            </a>
+
+            <button
+              class="btn"
+              data-a="studioRefresh"
+              type="button"
+            >
+              Refresh
+            </button>
+
+            ${fallback
+              ?`
+                <a
+                  class="btn"
+                  href="${E(fallback)}"
+                >
+                  Rails fallback
+                </a>
+              `
+              :""
+            }
+          </div>
+        </div>
+
+        <div class="studio-work-tabs">
+          <span class="on">Scene</span>
+          <span>3D</span>
+          <span>Edit</span>
+          <span>Design</span>
+          <span>Audio</span>
+          <span>Script</span>
+          <span>Storyboard</span>
+          <span>Director</span>
+          <span>Publish</span>
+          <span>Live</span>
+        </div>
+
+        <div class="studio-work-grid">
+          <section class="studio-panel">
+            <span class="eb">Scene graph</span>
+            <h2 style="margin-top:8px">SceneObjects</h2>
+
+            ${studioObjectRows(
+              scene.objects||[]
+            )}
+          </section>
+
+          <aside class="studio-panel">
+            <span class="eb">Production context</span>
+
+            <h2 style="margin-top:8px">
+              ${E(scene.name||"Scene")}
+            </h2>
+
+            <p>
+              <b>Project</b><br>
+              ${E(project?.name||"—")}
+            </p>
+
+            <p style="margin-top:14px">
+              <b>Production</b><br>
+              ${E(production?.name||"Unassigned")}
+            </p>
+
+            <p style="margin-top:14px">
+              <b>Status</b><br>
+              ${E(production?.status||"—")}
+            </p>
+
+            <p style="margin-top:14px">
+              <b>Scene ID</b><br>
+              ${Number(scene.id)}
+            </p>
+
+            <div class="studio-status">
+              <span class="eb">Foundation live</span>
+
+              <p style="margin-top:8px">
+                This workspace is reading the real Studio domain
+                through Nevaeh.
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  `
+};
+
+const studioProjectsView=()=>{
+  const projects=
+    studioProjects();
+
+  if(!projects.length){
+    return `
+      <div class="studio-shell">
+        <div class="studio-hero">
+          <div class="wrap">
+            <span class="eb">Lightek Studio</span>
+            <h1>Studio</h1>
+
+            <p>
+              The creation operating system for the Lightek network.
+            </p>
+          </div>
+        </div>
+
+        <div class="wrap">
+          <div class="studio-empty">
+            No Studio projects exist yet.
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  return `
+    <div class="studio-shell">
+      <div class="studio-hero">
+        <div class="wrap">
+          <div style="display:flex;justify-content:space-between;gap:22px;align-items:flex-end;flex-wrap:wrap">
+            <div>
+              <span class="eb">Lightek Studio</span>
+
+              <h1>Studio</h1>
+
+              <p>
+                Productions, scenes, scripts, storyboards, editing,
+                design, 3D, audio, live production, rendering and
+                distribution through one Lightek creation system.
+              </p>
+            </div>
+
+            <button
+              class="btn"
+              data-a="studioRefresh"
+              type="button"
+            >
+              Refresh Studio
+            </button>
+          </div>
+
+          <div class="studio-meta">
+            <span>
+              <b>${Number(projects.length)}</b>
+              Projects
+            </span>
+
+            <span>
+              <b>${projects.reduce(
+                (total,project)=>
+                  total+
+                  Number(
+                    (project.productions||[]).length
+                  ),
+                0
+              )}</b>
+              Productions
+            </span>
+
+            <span>
+              <b>${studioSceneRecords().length}</b>
+              Scenes
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap">
+        <div class="studio-projects">
+          ${projects.map(project=>`
+            <section class="studio-project">
+              <div class="studio-project-head">
+                <div>
+                  <span class="eb">
+                    Project #${Number(project.id)}
+                  </span>
+
+                  <h2>
+                    ${E(project.name||"Untitled project")}
+                  </h2>
+
+                  ${project.description
+                    ?`<p>${E(project.description)}</p>`
+                    :""
+                  }
+                </div>
+
+                <small>
+                  ${Number(
+                    (project.productions||[]).length
+                  )} productions ·
+                  ${Number(
+                    (project.scenes||[]).length
+                  )} scenes
+                </small>
+              </div>
+
+              <div class="studio-productions">
+                ${(project.productions||[]).length
+                  ?project.productions.map(production=>`
+                    <div class="studio-production">
+                      <div class="studio-production-head">
+                        <div>
+                          <span class="eb">
+                            ${E(production.kind||"production")}
+                          </span>
+
+                          <h3>
+                            ${E(
+                              production.name||
+                              "Untitled production"
+                            )}
+                          </h3>
+                        </div>
+
+                        <small>
+                          ${E(
+                            production.status||
+                            "development"
+                          )} ·
+                          ${Number(
+                            (production.scenes||[]).length
+                          )} scenes
+                        </small>
+                      </div>
+
+                      ${(production.scenes||[]).length
+                        ?`
+                          <div class="studio-scenes">
+                            ${production.scenes.map(scene=>`
+                              <button
+                                class="studio-scene-card"
+                                data-a="studioOpenScene"
+                                data-id="${Number(scene.id)}"
+                                type="button"
+                              >
+                                <span class="eb">
+                                  Scene #${Number(scene.id)}
+                                </span>
+
+                                <b>
+                                  ${E(
+                                    scene.name||
+                                    "Untitled scene"
+                                  )}
+                                </b>
+
+                                <small>
+                                  ${Number(
+                                    scene.object_count||0
+                                  )} SceneObjects
+                                </small>
+                              </button>
+                            `).join("")}
+                          </div>
+                        `
+                        :`
+                          <div
+                            class="studio-empty"
+                            style="margin-top:0;padding:20px"
+                          >
+                            No scenes in this production yet.
+                          </div>
+                        `
+                      }
+                    </div>
+                  `).join("")
+                  :`
+                    <div class="studio-production">
+                      <div
+                        class="studio-empty"
+                        style="margin-top:0"
+                      >
+                        No productions in this project yet.
+                      </div>
+                    </div>
+                  `
+                }
+              </div>
+            </section>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `
+};
+
+const studioView=id=>{
+  if(!me()){
+    return authView(
+      "Sign in to Lightek Studio",
+      "Studio is tied to your authenticated Lightek account.",
+      "#/studio"
+    )
+  }
+
+  if(ST.error){
+    return `
+      <div class="wrap">
+        <div class="studio-status">
+          <span class="eb">Studio unavailable</span>
+
+          <h2 style="margin-top:8px">
+            Could not load Studio
+          </h2>
+
+          <p>${E(ST.error)}</p>
+
+          <button
+            class="btn p"
+            data-a="studioRefresh"
+            type="button"
+            style="margin-top:16px"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    `
+  }
+
+  if(!ST.loaded){
+    return `
+      <div class="wrap">
+        <div class="studio-status">
+          <span class="eb">Lightek Studio</span>
+
+          <h2 style="margin-top:8px">
+            ${ST.loading
+              ?"Loading Studio…"
+              :"Preparing Studio…"
+            }
+          </h2>
+
+          <p>
+            Nevaeh is loading the production workspace.
+          </p>
+        </div>
+      </div>
+    `
+  }
+
+  const sceneId=
+    Number(id||0);
+
+  if(sceneId){
+    const record=
+      studioSceneRecord(
+        sceneId
+      );
+
+    if(record){
+      return studioSceneView(
+        record
+      )
+    }
+
+    return `
+      <div class="wrap">
+        <div class="studio-status">
+          <span class="eb">Scene unavailable</span>
+
+          <h2 style="margin-top:8px">
+            Scene #${sceneId} was not found.
+          </h2>
+
+          <a
+            class="btn"
+            href="#/studio"
+            style="margin-top:16px"
+          >
+            Return to Studio
+          </a>
+        </div>
+      </div>
+    `
+  }
+
+  return studioProjectsView()
 };
 
 const messageTime=value=>{
@@ -2289,7 +2877,13 @@ const AF={
     A.messagesLoad()
   },
 
-  space:id=>{
+  studio:id=>{
+  if(me()){
+    A.studioLoad()
+  }
+},
+
+space:id=>{
     if(id==="blocked"){
       A.socialBlocksLoad();
       return;
@@ -2314,6 +2908,90 @@ const AF={
   }
 };
 const A={
+studioLoad:async(force=false)=>{
+  if(
+    ST.loading||
+    (
+      ST.loaded&&
+      !force
+    )||
+    (
+      ST.error&&
+      !force
+    )
+  ){
+    return
+  }
+
+  ST.loading=true;
+  ST.error="";
+
+  if(
+    location.hash.startsWith(
+      "#/studio"
+    )
+  ){
+    render(1)
+  }
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "studio.pwa.bootstrap",
+
+        payload:{}
+      });
+
+    ST.projects=
+      response.result?.projects||
+      response.projects||
+      [];
+
+    ST.objectTypes=
+      response.result?.object_types||
+      response.object_types||
+      [];
+
+    ST.loaded=true;
+  }catch(error){
+    ST.error=
+      error.message||
+      "Studio could not be loaded";
+
+    ST.loaded=false;
+  }finally{
+    ST.loading=false;
+
+    if(
+      location.hash.startsWith(
+        "#/studio"
+      )
+    ){
+      render(1)
+    }
+  }
+},
+
+studioRefresh:()=>{
+  ST.loaded=false;
+  ST.error="";
+  A.studioLoad(true)
+},
+
+studioOpenScene:button=>{
+  const id=
+    Number(
+      button.dataset.id
+    );
+
+  if(!id)return;
+
+  location.hash=
+    `#/studio/${id}`
+},
+
+
 
 messagesLoad:async()=>{
   const list=
@@ -5023,6 +5701,7 @@ addEventListener('lightek.bootstrap.ready',event=>{
   if(
     route==='space'||
     route==='create'||
+    route==='studio'||
     route==='messages'
   ){
     render();

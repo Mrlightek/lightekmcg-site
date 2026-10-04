@@ -224,6 +224,9 @@ module Api
 
     def resolve_event_type!(slug)
       {
+        "studio.pwa.bootstrap" =>
+          "studio.pwa.bootstrap.requested",
+
         "susu.list" =>
           "susu.list.requested",
 
@@ -312,6 +315,9 @@ module Api
 
     def resolve_worker_action!(slug)
       {
+        "studio.pwa.bootstrap" =>
+          "bootstrap",
+
         "susu.list" =>
           "list",
 

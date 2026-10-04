@@ -18,7 +18,15 @@ if Rails.env.development?
   puts "Seeded super_admin #{u.email_address}"
 end
 
+# Lightek PWA storefront defaults
+load Rails.root.join(
+  "db/seeds/lightek_pwa_storefront.rb"
+)
+
 # Lightek Messaging capability registry
 load Rails.root.join(
   "db/seeds/lightek_messaging_capabilities.rb"
 )
+
+# Lightek Studio PWA capability registry
+load Rails.root.join("db/seeds/studio_pwa_capabilities.rb")

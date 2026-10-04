@@ -92,6 +92,7 @@
   function routeRequiresIdentity(route) {
     return (
       route === "create" ||
+      route === "studio" ||
       route === "space"
     )
   }

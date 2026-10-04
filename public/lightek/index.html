@@ -459,6 +459,149 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
   .studio-project-head,.studio-production-head{align-items:flex-start;flex-direction:column}
 }
 
+
+/* Lightek Studio interactive 3D workspace */
+.studio-work-tabs button{
+  padding:7px 10px;
+  border:1px solid var(--ln);
+  background:transparent;
+  color:var(--mu);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em
+}
+.studio-work-tabs button.on{
+  border-color:var(--gd);
+  color:var(--gd);
+  background:#d6a94a0d
+}
+.studio-work-tabs .future{
+  opacity:.42;
+  cursor:default
+}
+.studio-object{
+  width:100%;
+  border:0;
+  border-top:1px solid var(--ln);
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  cursor:pointer
+}
+.studio-object:hover{
+  background:#ffffff06
+}
+.studio-object.on{
+  background:#d6a94a10;
+  box-shadow:inset 3px 0 0 var(--gd)
+}
+.studio-create{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;
+  gap:8px;
+  margin:0 0 18px
+}
+.studio-create input,
+.studio-create select,
+.studio-inspector input{
+  width:100%;
+  border:1px solid var(--ln);
+  border-radius:3px;
+  background:var(--bg);
+  padding:9px 10px
+}
+.studio-inspector{
+  display:grid;
+  gap:16px
+}
+.studio-inspector label{
+  display:grid;
+  gap:6px;
+  color:var(--mu);
+  font-size:11px
+}
+.studio-inspector label>span{
+  text-transform:uppercase;
+  letter-spacing:.08em
+}
+.studio-inspector .check{
+  display:flex;
+  grid-template-columns:none;
+  align-items:center;
+  gap:8px
+}
+.studio-inspector .check input{
+  width:auto
+}
+.studio-axis-group{
+  border-top:1px solid var(--ln);
+  padding-top:14px
+}
+.studio-axis-group>span{
+  display:block;
+  margin-bottom:9px;
+  color:var(--gd);
+  font-size:10px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-axis-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px
+}
+.studio-axis-grid label{
+  min-width:0
+}
+.studio-inspector-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  border-top:1px solid var(--ln);
+  padding-top:15px
+}
+.studio-danger{
+  border-color:#e5383b66;
+  color:#ff8b8d
+}
+.studio-mutation-status{
+  margin-bottom:16px;
+  padding:10px 12px;
+  border:1px solid var(--ln);
+  color:var(--mu);
+  font-size:12px
+}
+.studio-mutation-status.busy{
+  border-color:#d6a94a66;
+  color:var(--gd)
+}
+.studio-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px
+}
+.studio-summary-grid>div{
+  border:1px solid var(--ln);
+  padding:16px
+}
+.studio-summary-grid b,
+.studio-summary-grid small{
+  display:block
+}
+.studio-summary-grid small{
+  color:var(--mu);
+  margin-top:5px
+}
+@media(max-width:800px){
+  .studio-create{
+    grid-template-columns:1fr
+  }
+  .studio-axis-grid,
+  .studio-summary-grid{
+    grid-template-columns:1fr
+  }
+}
+
 </style>
 <link rel="manifest" href="/lightek/manifest.webmanifest">
 <meta name="theme-color" content="#07070a">
@@ -845,7 +988,11 @@ const ST={
   loading:false,
   error:"",
   projects:[],
-  objectTypes:[]
+  objectTypes:[],
+  selectedObjectId:null,
+  workspaceMode:"3d",
+  busy:false,
+  mutationStatus:""
 };
 
 
@@ -904,6 +1051,50 @@ const studioVector=(definition,key,fallback)=>{
     :fallback
 };
 
+const studioCurrentSceneId=()=>{
+  const parts=
+    location.hash
+      .replace(/^#\//,"")
+      .split("/");
+
+  if(parts[0]!=="studio")return 0;
+
+  return Number(
+    parts[1]||0
+  )
+};
+
+const studioSelectedObject=scene=>{
+  const objects=
+    scene?.objects||[];
+
+  let selected=
+    objects.find(
+      object=>
+        Number(object.id)===
+        Number(ST.selectedObjectId)
+    );
+
+  if(!selected&&objects.length){
+    selected=objects[0];
+    ST.selectedObjectId=
+      Number(selected.id)
+  }
+
+  return selected||null
+};
+
+const studioOverlap=object=>{
+  const definition=
+    object?.definition||{};
+
+  return Boolean(
+    definition.allow_overlap ??
+    definition.placement?.allow_overlap ??
+    false
+  )
+};
+
 const studioObjectRows=objects=>{
   if(!objects?.length){
     return `
@@ -940,11 +1131,23 @@ const studioObjectRows=objects=>{
             [1,1,1]
           );
 
+        const selected=
+          Number(ST.selectedObjectId)===
+          Number(object.id);
+
         return `
-          <div class="studio-object">
+          <button
+            class="studio-object ${selected?"on":""}"
+            data-a="studioSelectObject"
+            data-id="${Number(object.id)}"
+            type="button"
+          >
             <div>
               <b>${E(object.name||"SceneObject")}</b>
-              <small>${E(object.object_type||"object")}</small>
+
+              <small>
+                ${E(object.object_type||"object")}
+              </small>
 
               <div class="studio-vector">
                 LOC ${location.map(E).join(" · ")}
@@ -962,9 +1165,403 @@ const studioObjectRows=objects=>{
             <span class="eb">
               #${Number(object.id)}
             </span>
-          </div>
+          </button>
         `
       }).join("")}
+    </div>
+  `
+};
+
+const studioVectorFields=(object,key,label,fallback)=>{
+  const values=
+    studioVector(
+      object?.definition||{},
+      key,
+      fallback
+    );
+
+  return `
+    <div class="studio-axis-group">
+      <span>${E(label)}</span>
+
+      <div class="studio-axis-grid">
+        ${["X","Y","Z"].map((axis,index)=>`
+          <label>
+            <span>${axis}</span>
+
+            <input
+              type="number"
+              step="0.1"
+              data-studio-vector="${E(key)}"
+              data-axis="${index}"
+              value="${E(values[index]??fallback[index])}"
+              ${ST.busy?"disabled":""}
+            >
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `
+};
+
+const studioInspector=scene=>{
+  const object=
+    studioSelectedObject(
+      scene
+    );
+
+  if(!object){
+    return `
+      <div class="studio-empty" style="margin-top:0">
+        Create a SceneObject to begin editing.
+      </div>
+    `
+  }
+
+  return `
+    <div class="studio-inspector">
+      <div>
+        <span class="eb">
+          Inspector
+        </span>
+
+        <h2 style="margin-top:8px">
+          ${E(object.name||"SceneObject")}
+        </h2>
+
+        <p style="color:var(--mu)">
+          ${E(object.object_type||"object")}
+          · #${Number(object.id)}
+        </p>
+      </div>
+
+      <label>
+        <span>Name</span>
+
+        <input
+          id="studio-object-name"
+          type="text"
+          value="${E(object.name||"")}"
+          ${ST.busy?"disabled":""}
+        >
+      </label>
+
+      <label class="check">
+        <input
+          id="studio-object-overlap"
+          type="checkbox"
+          ${studioOverlap(object)?"checked":""}
+          ${ST.busy?"disabled":""}
+        >
+
+        Allow overlap
+      </label>
+
+      ${studioVectorFields(
+        object,
+        "location",
+        "Location",
+        [0,0,0]
+      )}
+
+      ${studioVectorFields(
+        object,
+        "rotation",
+        "Rotation",
+        [0,0,0]
+      )}
+
+      ${studioVectorFields(
+        object,
+        "scale",
+        "Scale",
+        [1,1,1]
+      )}
+
+      <div class="studio-inspector-actions">
+        <button
+          class="btn p"
+          data-a="studioSaveObject"
+          type="button"
+          ${ST.busy?"disabled":""}
+        >
+          Save transform
+        </button>
+
+        <button
+          class="btn"
+          data-a="studioDuplicateObject"
+          type="button"
+          ${ST.busy?"disabled":""}
+        >
+          Duplicate
+        </button>
+
+        <button
+          class="btn studio-danger"
+          data-a="studioDeleteObject"
+          type="button"
+          ${ST.busy?"disabled":""}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  `
+};
+
+const studioCreatePanel=scene=>{
+  const types=
+    ST.objectTypes?.length
+      ?ST.objectTypes
+      :[
+        "cube",
+        "sphere",
+        "cylinder",
+        "plane",
+        "camera",
+        "point_light",
+        "sun_light",
+        "area_light"
+      ];
+
+  return `
+    <div class="studio-create">
+      <select
+        id="studio-create-type"
+        ${ST.busy?"disabled":""}
+      >
+        ${types.map(type=>`
+          <option value="${E(type)}">
+            ${E(
+              type
+                .split("_")
+                .map(
+                  part=>
+                    part.charAt(0).toUpperCase()+
+                    part.slice(1)
+                )
+                .join(" ")
+            )}
+          </option>
+        `).join("")}
+      </select>
+
+      <input
+        id="studio-create-name"
+        type="text"
+        placeholder="Object name (optional)"
+        ${ST.busy?"disabled":""}
+      >
+
+      <button
+        class="btn p"
+        data-a="studioCreateObject"
+        type="button"
+        ${ST.busy?"disabled":""}
+      >
+        + Add object
+      </button>
+    </div>
+  `
+};
+
+const studioMutationStatus=()=>{
+  if(
+    !ST.busy&&
+    !ST.mutationStatus
+  ){
+    return ""
+  }
+
+  return `
+    <div class="studio-mutation-status ${ST.busy?"busy":""}">
+      ${E(
+        ST.busy
+          ?"Nevaeh is applying the Studio mutation…"
+          :ST.mutationStatus
+      )}
+    </div>
+  `
+};
+
+const studioExecuteMutation=async(
+  capability,
+  payload,
+  successMessage
+)=>{
+  if(ST.busy)return null;
+
+  ST.busy=true;
+  ST.mutationStatus="";
+
+  render(1);
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability,
+        payload
+      });
+
+    if(
+      response.status!=="completed"
+    ){
+      throw new Error(
+        `Studio mutation returned ${response.status||"unknown status"}`
+      )
+    }
+
+    const result=
+      response.result||{};
+
+    if(
+      result.object_id &&
+      result.mutation!=="destroyed"
+    ){
+      ST.selectedObjectId=
+        Number(
+          result.object_id
+        )
+    }
+
+    if(
+      result.mutation==="destroyed"
+    ){
+      ST.selectedObjectId=null
+    }
+
+    ST.mutationStatus=
+      successMessage;
+
+    ST.loaded=false;
+
+    await A.studioLoad(
+      true
+    );
+
+    return result
+  }catch(error){
+    ST.mutationStatus=
+      error.message||
+      "Studio mutation failed";
+
+    throw error
+  }finally{
+    ST.busy=false;
+
+    if(
+      location.hash.startsWith(
+        "#/studio"
+      )
+    ){
+      render(1)
+    }
+  }
+};
+
+const studioSceneSummary=record=>{
+  const {
+    project,
+    production,
+    scene
+  }=record;
+
+  return `
+    <div class="studio-work-grid">
+      <section class="studio-panel">
+        <span class="eb">
+          Scene
+        </span>
+
+        <h2 style="margin-top:8px">
+          ${E(scene.name||"Scene")}
+        </h2>
+
+        <div class="studio-summary-grid">
+          <div>
+            <b>${Number(scene.object_count||0)}</b>
+            <small>SceneObjects</small>
+          </div>
+
+          <div>
+            <b>${E(project?.name||"—")}</b>
+            <small>Project</small>
+          </div>
+
+          <div>
+            <b>${E(production?.status||"—")}</b>
+            <small>Production status</small>
+          </div>
+        </div>
+
+        <div style="margin-top:18px">
+          ${studioObjectRows(
+            scene.objects||[]
+          )}
+        </div>
+      </section>
+
+      <aside class="studio-panel">
+        <span class="eb">
+          Production context
+        </span>
+
+        <p style="margin-top:12px">
+          <b>Production</b><br>
+          ${E(production?.name||"Unassigned")}
+        </p>
+
+        <p style="margin-top:14px">
+          <b>Scene ID</b><br>
+          ${Number(scene.id)}
+        </p>
+
+        <p style="margin-top:14px">
+          The Scene tab is the structural view.
+          Open 3D to manipulate SceneObjects.
+        </p>
+      </aside>
+    </div>
+  `
+};
+
+const studio3DWorkspace=record=>{
+  const {
+    scene
+  }=record;
+
+  studioSelectedObject(
+    scene
+  );
+
+  return `
+    ${studioMutationStatus()}
+
+    ${studioCreatePanel(
+      scene
+    )}
+
+    <div class="studio-work-grid">
+      <section class="studio-panel">
+        <span class="eb">
+          Scene graph
+        </span>
+
+        <h2 style="margin-top:8px">
+          SceneObjects
+        </h2>
+
+        ${studioObjectRows(
+          scene.objects||[]
+        )}
+      </section>
+
+      <aside class="studio-panel">
+        ${studioInspector(
+          scene
+        )}
+      </aside>
     </div>
   `
 };
@@ -1014,6 +1611,7 @@ const studioSceneView=record=>{
               class="btn"
               data-a="studioRefresh"
               type="button"
+              ${ST.busy?"disabled":""}
             >
               Refresh
             </button>
@@ -1033,65 +1631,39 @@ const studioSceneView=record=>{
         </div>
 
         <div class="studio-work-tabs">
-          <span class="on">Scene</span>
-          <span>3D</span>
-          <span>Edit</span>
-          <span>Design</span>
-          <span>Audio</span>
-          <span>Script</span>
-          <span>Storyboard</span>
-          <span>Director</span>
-          <span>Publish</span>
-          <span>Live</span>
+          <button
+            class="${ST.workspaceMode==="scene"?"on":""}"
+            data-a="studioWorkspaceMode"
+            data-mode="scene"
+            type="button"
+          >
+            Scene
+          </button>
+
+          <button
+            class="${ST.workspaceMode==="3d"?"on":""}"
+            data-a="studioWorkspaceMode"
+            data-mode="3d"
+            type="button"
+          >
+            3D
+          </button>
+
+          <span class="future">Edit</span>
+          <span class="future">Design</span>
+          <span class="future">Audio</span>
+          <span class="future">Script</span>
+          <span class="future">Storyboard</span>
+          <span class="future">Director</span>
+          <span class="future">Publish</span>
+          <span class="future">Live</span>
         </div>
 
-        <div class="studio-work-grid">
-          <section class="studio-panel">
-            <span class="eb">Scene graph</span>
-            <h2 style="margin-top:8px">SceneObjects</h2>
-
-            ${studioObjectRows(
-              scene.objects||[]
-            )}
-          </section>
-
-          <aside class="studio-panel">
-            <span class="eb">Production context</span>
-
-            <h2 style="margin-top:8px">
-              ${E(scene.name||"Scene")}
-            </h2>
-
-            <p>
-              <b>Project</b><br>
-              ${E(project?.name||"—")}
-            </p>
-
-            <p style="margin-top:14px">
-              <b>Production</b><br>
-              ${E(production?.name||"Unassigned")}
-            </p>
-
-            <p style="margin-top:14px">
-              <b>Status</b><br>
-              ${E(production?.status||"—")}
-            </p>
-
-            <p style="margin-top:14px">
-              <b>Scene ID</b><br>
-              ${Number(scene.id)}
-            </p>
-
-            <div class="studio-status">
-              <span class="eb">Foundation live</span>
-
-              <p style="margin-top:8px">
-                This workspace is reading the real Studio domain
-                through Nevaeh.
-              </p>
-            </div>
-          </aside>
-        </div>
+        ${
+          ST.workspaceMode==="scene"
+            ?studioSceneSummary(record)
+            :studio3DWorkspace(record)
+        }
       </div>
     </div>
   `
@@ -2908,6 +3480,243 @@ space:id=>{
   }
 };
 const A={
+studioWorkspaceMode:button=>{
+  ST.workspaceMode=
+    button.dataset.mode||"3d";
+
+  render(1)
+},
+
+studioSelectObject:button=>{
+  ST.selectedObjectId=
+    Number(
+      button.dataset.id
+    );
+
+  render(1)
+},
+
+studioCreateObject:async()=>{
+  const sceneId=
+    studioCurrentSceneId();
+
+  const record=
+    studioSceneRecord(
+      sceneId
+    );
+
+  if(!record)return;
+
+  const type=
+    document.getElementById(
+      "studio-create-type"
+    )?.value;
+
+  if(!type)return;
+
+  const typedName=
+    document.getElementById(
+      "studio-create-name"
+    )?.value
+      ?.trim();
+
+  const label=
+    type
+      .split("_")
+      .map(
+        part=>
+          part.charAt(0).toUpperCase()+
+          part.slice(1)
+      )
+      .join(" ");
+
+  const count=
+    (
+      record.scene.objects||[]
+    ).filter(
+      object=>
+        object.object_type===type
+    ).length+1;
+
+  await studioExecuteMutation(
+    "studio.scene_object.create",
+    {
+      scene_id:
+        sceneId,
+
+      name:
+        typedName||
+        `${label} ${count}`,
+
+      object_type:
+        type,
+
+      allow_overlap:
+        false
+    },
+    `${label} created`
+  )
+},
+
+studioSaveObject:async()=>{
+  const sceneId=
+    studioCurrentSceneId();
+
+  const record=
+    studioSceneRecord(
+      sceneId
+    );
+
+  if(!record)return;
+
+  const object=
+    studioSelectedObject(
+      record.scene
+    );
+
+  if(!object)return;
+
+  const vector=name=>
+    [0,1,2].map(axis=>{
+      const input=
+        document.querySelector(
+          `[data-studio-vector="${name}"][data-axis="${axis}"]`
+        );
+
+      const value=
+        Number(
+          input?.value
+        );
+
+      return Number.isFinite(value)
+        ?value
+        :0
+    });
+
+  const name=
+    document.getElementById(
+      "studio-object-name"
+    )?.value
+      ?.trim()||
+    object.name;
+
+  const overlap=
+    Boolean(
+      document.getElementById(
+        "studio-object-overlap"
+      )?.checked
+    );
+
+  await studioExecuteMutation(
+    "studio.scene_object.transform",
+    {
+      scene_id:
+        sceneId,
+
+      object_id:
+        Number(
+          object.id
+        ),
+
+      attributes: {
+        name,
+        allow_overlap:
+          overlap,
+
+        location:
+          vector(
+            "location"
+          ),
+
+        rotation:
+          vector(
+            "rotation"
+          ),
+
+        scale:
+          vector(
+            "scale"
+          )
+      }
+    },
+    `${name} updated`
+  )
+},
+
+studioDuplicateObject:async()=>{
+  const sceneId=
+    studioCurrentSceneId();
+
+  const record=
+    studioSceneRecord(
+      sceneId
+    );
+
+  if(!record)return;
+
+  const object=
+    studioSelectedObject(
+      record.scene
+    );
+
+  if(!object)return;
+
+  await studioExecuteMutation(
+    "studio.scene_object.duplicate",
+    {
+      scene_id:
+        sceneId,
+
+      object_id:
+        Number(
+          object.id
+        )
+    },
+    `${object.name} duplicated`
+  )
+},
+
+studioDeleteObject:async()=>{
+  const sceneId=
+    studioCurrentSceneId();
+
+  const record=
+    studioSceneRecord(
+      sceneId
+    );
+
+  if(!record)return;
+
+  const object=
+    studioSelectedObject(
+      record.scene
+    );
+
+  if(!object)return;
+
+  if(
+    !window.confirm(
+      `Delete ${object.name}?`
+    )
+  ){
+    return
+  }
+
+  await studioExecuteMutation(
+    "studio.scene_object.destroy",
+    {
+      scene_id:
+        sceneId,
+
+      object_id:
+        Number(
+          object.id
+        )
+    },
+    `${object.name} deleted`
+  )
+},
+
 studioLoad:async(force=false)=>{
   if(
     ST.loading||

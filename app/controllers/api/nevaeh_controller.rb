@@ -224,6 +224,18 @@ module Api
 
     def resolve_event_type!(slug)
       {
+        "studio.scene_object.destroy" =>
+          "studio.scene_object.destroy.requested",
+
+        "studio.scene_object.duplicate" =>
+          "studio.scene_object.duplicate.requested",
+
+        "studio.scene_object.transform" =>
+          "studio.scene_object.transform.requested",
+
+        "studio.scene_object.create" =>
+          "studio.scene_object.create.requested",
+
         "studio.pwa.bootstrap" =>
           "studio.pwa.bootstrap.requested",
 
@@ -315,6 +327,18 @@ module Api
 
     def resolve_worker_action!(slug)
       {
+        "studio.scene_object.destroy" =>
+          "destroy",
+
+        "studio.scene_object.duplicate" =>
+          "duplicate",
+
+        "studio.scene_object.transform" =>
+          "transform",
+
+        "studio.scene_object.create" =>
+          "create",
+
         "studio.pwa.bootstrap" =>
           "bootstrap",
 

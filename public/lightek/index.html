@@ -116,6 +116,8 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 .msg-time{display:block;margin-top:5px;color:var(--mu);font-size:9px}
 .msg-bubble-row.me .msg-time{text-align:right}
 .msg-composer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding-top:16px;border-top:1px solid var(--ln)}
+.msg-composer-blocked{display:block;color:var(--mu)}
+.msg-composer-blocked p{margin-top:5px;font-size:12px;line-height:1.5}
 .msg-composer textarea{width:100%;min-height:46px;max-height:140px;resize:vertical;background:var(--s1);border:1px solid var(--ln);border-radius:4px;padding:11px 13px}
 .msg-composer textarea:focus{border-color:#d6a94a66}
 .msg-composer .btn{align-self:end;min-height:46px}
@@ -134,7 +136,37 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 .msg-check{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid #ffffff30;color:transparent;font-size:11px;font-weight:800}
 .msg-person.on .msg-check{background:var(--gd);border-color:var(--gd);color:#111}
 .msg-start-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid var(--ln)}
-.msg-start-footer p{color:var(--mu);font-size:12px}
+.msg-start-footer p{color:var(--mu);font-size:12px}.rel-shell{padding-top:28px;padding-bottom:80px}
+.rel-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.rel-card{background:var(--s1);padding:24px;border-top:1px solid var(--ln)}
+.rel-card.rel-wide{grid-column:1/-1}
+.rel-card h2{font:400 26px Georgia,serif;margin:6px 0 16px}
+.rel-card>p{color:var(--mu)}
+.rel-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px}
+.rel-block{border-color:#e5383b66;color:#ff8b8d}
+.rel-blocked-list{display:grid;gap:8px;margin-top:22px}
+.rel-blocked-person{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border-top:1px solid var(--ln);background:#ffffff04}
+.rel-blocked-person-copy{min-width:0}
+.rel-blocked-person-copy b,.rel-blocked-person-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rel-blocked-person-copy small{color:var(--mu);margin-top:3px}
+.rel-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.rel-tag{padding:6px 10px;border:1px solid var(--ln);border-radius:999px;color:var(--mu);font-size:12px}
+.rel-mutuals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:16px}
+.rel-mutual{display:flex;align-items:center;gap:10px;padding:10px;background:#ffffff05;border-radius:3px}
+.rel-mutual span{min-width:0}
+.rel-mutual b,.rel-mutual small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rel-mutual small{color:var(--mu);font-size:11px}
+.rel-signals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.rel-signal{padding:14px;background:#ffffff05}
+.rel-signal small{display:block;color:var(--mu);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.rel-signal strong{display:block;margin-top:4px;font:400 22px Georgia,serif}
+@media(max-width:760px){
+  .rel-grid{grid-template-columns:1fr}
+  .rel-card.rel-wide{grid-column:auto}
+  .rel-mutuals{grid-template-columns:1fr}
+  .rel-signals{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 @media(max-width:760px){
   .msg{display:block;padding-top:20px;min-height:0}
   .msg-list{padding-right:0;border-right:0}
@@ -647,8 +679,27 @@ explore:()=>`<div class="wrap"><div class="xs"><span class="eb">Explore Lightek<
 communities:()=>`<div class="hero sp"><div class="bg" style="${art(2)}"></div><div class="wrap"><div class="hi"><span class="eb">Featured network</span><h1>Diaspora Kitchens</h1><p class="lede">Food, memory and migration — 48K people, a live kitchen, and every recipe worth arguing about.</p><a class="btn p" href="#/community/diaspora-kitchens">Enter community</a></div></div></div><div class="wrap">`
 +sec(AH('Yours','Your communities'),`<div class="g3">${CM.slice(0,3).map(ct).join('')}</div>`)+sec(AH('Discover','Networks to join','Each one runs its own programming, events and conversation'),`<div class="g3">${CM.slice(3).concat(CM.slice(0,1)).map(ct).join('')}</div>`)+`</div>`,
 community:id=>{const c=CM.find(x=>x.id==id)||CM[0],k='c-'+c.id;L[k]=L[k]||[...(LD[c.id]||LD.d)];return idh({i:c.i,sq:1,eb:'Community',t:c.n,p:c.tag+'. A network within the network.',meta:[c.m+' members','3.2K online',c.live?'● Live now':'Next live: tonight 9 PM'],b:tb('join:'+c.id,'Join community','Joined','p')+' '+edbtn()})+secs(k,Object.keys(B))},
-space:()=>{
+space:id=>{
 const identity=me(),p=meProfile();
+
+if(id==="blocked"){
+  return socialBlockedView()
+}
+
+const requestedId=
+  Number(id||0);
+
+const ownId=
+  Number(p?.id||0);
+
+if(
+  requestedId &&
+  requestedId!==ownId
+){
+  return socialProfileView(
+    requestedId
+  )
+}
 if(!identity||!p)return authView('Sign in to open My Space','Your public Lightek identity lives here.','#/space');
 
 const mode=
@@ -693,7 +744,7 @@ return idh({
   p:E(bio),
   meta:[E(handle),E(p.profile_type||'person')],
   b:`<a class="btn p" href="/profiles/${E(p.id)}/edit">Edit profile</a> <a class="btn" href="#/messages">Messages</a> <button class="btn" data-a="sh">Share</button>`
-})+`<div class="wrap"><div class="bar"><div><span class="eb">Profile type</span> ${E(label)}</div><a class="btn sm" href="/profiles/${E(p.id)}/edit">Edit profile & layout</a></div></div>`+secs(k,Object.keys(B))
+})+`<div class="wrap"><div class="bar"><div><span class="eb">Profile type</span> ${E(label)}</div><a class="btn sm" href="/profiles/${E(p.id)}/edit">Edit profile & layout</a> <a class="btn sm" href="#/space/blocked">Blocked people</a></div></div>`+secs(k,Object.keys(B))
 },
 messages:()=>messagesView(),
 create:()=>{if(!me()||!meProfile())return authView('Sign in to create','Create is tied to your real Lightek profile.','#/create');let h;const st=['Choose','Create','Preview & publish'];
@@ -717,6 +768,13 @@ const MS={
   selectedPeople:new Set(),
   peopleToken:0
 };
+const SS={
+  profileId:null,
+  relationship:null,
+  token:0,
+  busy:false
+};
+
 const pv=()=>{
   const handle=meHandle();
   const attribution=
@@ -1084,6 +1142,19 @@ const messageConversationPanel=conversation=>{
           </p>
         </div>
       </div>
+
+      ${
+        peer?.id
+          ?`
+            <a
+              class="btn sm"
+              href="#/space/${Number(peer.id)}"
+            >
+              View Space
+            </a>
+          `
+          :""
+      }
     </header>
 
     <div class="msg-thread" id="message-thread">
@@ -1125,24 +1196,44 @@ const messageConversationPanel=conversation=>{
         `}
     </div>
 
-    <div class="msg-composer">
-      <textarea
-        id="message-compose"
-        rows="1"
-        maxlength="10000"
-        placeholder="Message ${E(conversation.title||"conversation")}"
-        aria-label="Message"
-      ></textarea>
+    ${
+      conversation.kind==="direct" &&
+      conversation.messaging_blocked===true
+        ?`
+          <div class="msg-composer msg-composer-blocked">
+            <div>
+              <span class="eb">
+                Messaging unavailable
+              </span>
 
-      <button
-        class="btn p"
-        data-a="messageSend"
-        data-id="${Number(conversation.id)}"
-        type="button"
-      >
-        Send
-      </button>
-    </div>
+              <p>
+                Direct messages are disabled while a block
+                exists between these profiles.
+              </p>
+            </div>
+          </div>
+        `
+        :`
+          <div class="msg-composer">
+            <textarea
+              id="message-compose"
+              rows="1"
+              maxlength="10000"
+              placeholder="Message ${E(conversation.title||"conversation")}"
+              aria-label="Message"
+            ></textarea>
+
+            <button
+              class="btn p"
+              data-a="messageSend"
+              data-id="${Number(conversation.id)}"
+              type="button"
+            >
+              Send
+            </button>
+          </div>
+        `
+    }
   `
 };
 
@@ -1196,6 +1287,581 @@ const messagesView=()=>{
   `
 };
 
+const socialRelationshipFromResponse=response=>
+  response.result?.relationship||
+  response.relationship||
+  null;
+
+const socialRelationshipActions=relationship=>{
+  const profile=
+    relationship?.profile||{};
+
+  const profileId=
+    Number(profile.id);
+
+  const friendship=
+    relationship?.friendship||null;
+
+  const buttons=[];
+
+  if(relationship?.following){
+    buttons.push(`
+      <button
+        class="btn p on"
+        data-a="socialUnfollow"
+        data-id="${profileId}"
+        type="button"
+      >
+        Unfollow
+      </button>
+    `);
+  }else{
+    buttons.push(`
+      <button
+        class="btn p"
+        data-a="socialFollow"
+        data-id="${profileId}"
+        type="button"
+      >
+        Follow
+      </button>
+    `);
+  }
+
+  if(relationship?.friend){
+    buttons.push(`
+      <button
+        class="btn on"
+        type="button"
+        disabled
+        aria-disabled="true"
+      >
+        Friends
+      </button>
+    `);
+
+    if(friendship?.id){
+      buttons.push(`
+        <button
+          class="btn sm"
+          data-a="socialFriendEnd"
+          data-friendship-id="${Number(friendship.id)}"
+          type="button"
+        >
+          End friendship
+        </button>
+      `);
+    }
+  }else if(
+    friendship?.status==="pending" &&
+    friendship?.direction==="incoming"
+  ){
+    buttons.push(`
+      <button
+        class="btn"
+        data-a="socialFriendRespond"
+        data-friendship-id="${Number(friendship.id)}"
+        data-response="accept"
+        type="button"
+      >
+        Accept friend
+      </button>
+    `);
+
+    buttons.push(`
+      <button
+        class="btn sm"
+        data-a="socialFriendRespond"
+        data-friendship-id="${Number(friendship.id)}"
+        data-response="decline"
+        type="button"
+      >
+        Decline
+      </button>
+    `);
+  }else if(
+    friendship?.status==="pending" &&
+    friendship?.direction==="outgoing"
+  ){
+    buttons.push(`
+      <button
+        class="btn on"
+        type="button"
+        disabled
+        aria-disabled="true"
+      >
+        Friend request sent
+      </button>
+    `);
+  }else{
+    buttons.push(`
+      <button
+        class="btn"
+        data-a="socialFriendRequest"
+        data-id="${profileId}"
+        type="button"
+      >
+        Add friend
+      </button>
+    `);
+  }
+
+  buttons.push(`
+    <button
+      class="btn"
+      data-a="socialMessage"
+      data-id="${profileId}"
+      type="button"
+    >
+      Message
+    </button>
+  `);
+
+  buttons.push(`
+    <button
+      class="btn rel-block"
+      data-a="socialBlock"
+      data-id="${profileId}"
+      type="button"
+    >
+      Block
+    </button>
+  `);
+
+  return `
+    <div class="rel-actions">
+      ${buttons.join("")}
+    </div>
+  `
+};
+
+const socialProfilePanel=relationship=>{
+  const profile=
+    relationship?.profile||{};
+
+  const profileId=
+    Number(profile.id);
+
+  const reasons=
+    Array.isArray(
+      relationship?.reasons
+    )
+      ?relationship.reasons.filter(Boolean)
+      :[];
+
+  const mutuals=
+    Array.isArray(
+      relationship?.mutuals
+    )
+      ?relationship.mutuals
+      :[];
+
+  const strength=
+    relationship?.strength||null;
+
+  const mutualCount=
+    Number(
+      relationship?.mutual_count||0
+    );
+
+  const degree=
+    Number(
+      relationship?.degree||0
+    );
+
+  const meta=[];
+
+  if(profile.display_handle){
+    meta.push(
+      E(profile.display_handle)
+    );
+  }
+
+  if(profile.profile_type){
+    meta.push(
+      E(
+        String(profile.profile_type)
+          .replace(/_/g," ")
+      )
+    );
+  }
+
+  if(relationship?.follows_you){
+    meta.push("Follows you");
+  }
+
+  if(mutualCount){
+    meta.push(
+      `${mutualCount} mutual ${mutualCount===1?"connection":"connections"}`
+    );
+  }
+
+  const summary=
+    reasons.length
+      ?reasons.join(" · ")
+      :"You have not built much shared context yet.";
+
+  const strengthSignals=
+    strength
+      ?[
+          [
+            "Reciprocity",
+            strength.reciprocity
+          ],
+          [
+            "Continuity",
+            strength.continuity
+          ],
+          [
+            "Context",
+            strength.context_diversity
+          ],
+          [
+            "Shared experience",
+            strength.shared_experience
+          ],
+          [
+            "Recency",
+            strength.recency
+          ],
+          [
+            "Confidence",
+            strength.confidence
+          ]
+        ]
+      :[];
+
+  return `
+    ${idh({
+      i:profileId||1,
+      z:120,
+      avatar:
+        profileAvatar(
+          profile,
+          120
+        ),
+      eb:
+        "Lightek Space",
+      t:
+        E(
+          profile.name||
+          "Lightek Member"
+        ),
+      p:
+        E(summary),
+      meta:
+        meta.length
+          ?meta
+          :["Lightek member"],
+      b:
+        socialRelationshipActions(
+          relationship
+        )
+    })}
+
+    <div class="wrap rel-shell">
+      <div class="rel-grid">
+
+        <section class="rel-card">
+          <span class="eb">
+            Relationship
+          </span>
+
+          <h2>
+            How you're connected
+          </h2>
+
+          <p>
+            Lightek keeps the dimensions separate instead
+            of flattening a human relationship into one score.
+          </p>
+
+          <div class="rel-tags">
+            ${
+              reasons.length
+                ?reasons
+                  .map(reason=>
+                    `<span class="rel-tag">${E(reason)}</span>`
+                  )
+                  .join("")
+                :`
+                  <span class="rel-tag">
+                    New connection
+                  </span>
+                `
+            }
+
+            ${
+              degree>1
+                ?`
+                  <span class="rel-tag">
+                    ${degree}-degree network path
+                  </span>
+                `
+                :""
+            }
+          </div>
+        </section>
+
+        <section class="rel-card">
+          <span class="eb">
+            Mutual network
+          </span>
+
+          <h2>
+            ${
+              mutualCount
+                ?`${mutualCount} mutual ${mutualCount===1?"connection":"connections"}`
+                :"No mutual connections yet"
+            }
+          </h2>
+
+          ${
+            mutuals.length
+              ?`
+                <div class="rel-mutuals">
+                  ${mutuals.map(mutual=>`
+                    <a
+                      class="rel-mutual"
+                      href="#/space/${Number(mutual.id)}"
+                    >
+                      ${profileAvatar(mutual,36)}
+
+                      <span>
+                        <b>
+                          ${E(mutual.name||"Lightek Member")}
+                        </b>
+
+                        <small>
+                          ${E(mutual.display_handle||"")}
+                        </small>
+                      </span>
+                    </a>
+                  `).join("")}
+                </div>
+              `
+              :`
+                <p>
+                  Your graphs do not currently overlap.
+                </p>
+              `
+          }
+        </section>
+
+        ${
+          strengthSignals.length
+            ?`
+              <section class="rel-card rel-wide">
+                <span class="eb">
+                  Relationship signals
+                </span>
+
+                <h2>
+                  What the network has observed
+                </h2>
+
+                <div class="rel-signals">
+                  ${strengthSignals.map(([label,value])=>`
+                    <div class="rel-signal">
+                      <small>
+                        ${E(label)}
+                      </small>
+
+                      <strong>
+                        ${Math.round(
+                          Math.max(
+                            0,
+                            Math.min(
+                              1,
+                              Number(value||0)
+                            )
+                          ) * 100
+                        )}%
+                      </strong>
+                    </div>
+                  `).join("")}
+                </div>
+              </section>
+            `
+            :""
+        }
+
+      </div>
+    </div>
+  `
+};
+
+const socialBlockedView=()=>{
+  if(
+    !me()||
+    !meProfile()
+  ){
+    return authView(
+      "Sign in to manage blocked people",
+      "Your relationship boundaries belong to your Lightek identity.",
+      "#/space/blocked"
+    )
+  }
+
+  return `
+    <div class="wrap cw">
+      <span class="eb">
+        My Space
+      </span>
+
+      <h1>
+        Blocked people
+      </h1>
+
+      <p class="lede">
+        People you have blocked cannot participate in your
+        relationship graph until you unblock them.
+      </p>
+
+      <div
+        id="social-blocked-root"
+        class="rel-blocked-list"
+      >
+        <div class="msg-status">
+          Loading blocked people…
+        </div>
+      </div>
+
+      <div style="margin-top:24px">
+        <a
+          class="btn"
+          href="#/space"
+        >
+          Back to My Space
+        </a>
+      </div>
+    </div>
+  `
+};
+
+const socialBlockedRows=records=>{
+  if(!records.length){
+    return `
+      <div
+        class="msg-empty"
+        style="min-height:220px"
+      >
+        <div>
+          <span class="eb">
+            No blocked people
+          </span>
+
+          <h2>
+            Your block list is empty.
+          </h2>
+
+          <p>
+            Relationship boundaries you create will appear here.
+          </p>
+        </div>
+      </div>
+    `
+  }
+
+  return records.map(record=>{
+    const profile=
+      record?.profile||{};
+
+    return `
+      <div class="rel-blocked-person">
+        ${profileAvatar(profile,44)}
+
+        <span class="rel-blocked-person-copy">
+          <b>
+            ${E(profile.name||"Lightek Member")}
+          </b>
+
+          <small>
+            ${E(profile.display_handle||"")}
+          </small>
+        </span>
+
+        <button
+          class="btn sm"
+          data-a="socialUnblock"
+          data-id="${Number(profile.id)}"
+          type="button"
+        >
+          Unblock
+        </button>
+      </div>
+    `
+  }).join("")
+};
+
+const socialProfileView=id=>{
+  const profileId=
+    Number(id);
+
+  if(
+    !me()||
+    !meProfile()
+  ){
+    return authView(
+      "Sign in to open this Space",
+      "Relationship context is tied to your real Lightek identity.",
+      `#/space/${profileId}`
+    )
+  }
+
+  if(!profileId){
+    return `
+      <div class="wrap cw">
+        <span class="eb">
+          Lightek Space
+        </span>
+
+        <h1>
+          Profile unavailable
+        </h1>
+      </div>
+    `
+  }
+
+  return `
+    <div
+      id="social-profile-root"
+      data-profile-id="${profileId}"
+    >
+      <div class="wrap cw">
+        <span class="eb">
+          Lightek Space
+        </span>
+
+        <h1>
+          Loading relationship…
+        </h1>
+
+        <p class="lede">
+          Asking Nevaeh for your relationship context.
+        </p>
+      </div>
+    </div>
+  `
+};
+
+const socialRenderRelationship=relationship=>{
+  SS.relationship=
+    relationship;
+
+  const root=
+    document.querySelector(
+      "#social-profile-root"
+    );
+
+  if(root){
+    root.innerHTML=
+      socialProfilePanel(
+        relationship
+      );
+  }
+};
+
 const messageScrollBottom=()=>{
   requestAnimationFrame(()=>{
     const thread=
@@ -1238,6 +1904,30 @@ const AF={
 
   messages:()=>{
     A.messagesLoad()
+  },
+
+  space:id=>{
+    if(id==="blocked"){
+      A.socialBlocksLoad();
+      return;
+    }
+
+    const profileId=
+      Number(id||0);
+
+    const ownId=
+      Number(
+        meProfile()?.id||0
+      );
+
+    if(
+      profileId &&
+      profileId!==ownId
+    ){
+      A.socialProfileLoad(
+        profileId
+      );
+    }
   }
 };
 const A={
@@ -2575,6 +3265,632 @@ moneyQuote:async()=>{
       )}</p>`
   }
 },
+socialBlocksLoad:async()=>{
+  const root=
+    document.querySelector(
+      "#social-blocked-root"
+    );
+
+  if(!root){
+    return;
+  }
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "social.blocks.list",
+
+        payload:{
+          limit:
+            50
+        }
+      });
+
+    const records=
+      response.result?.blocks||
+      response.blocks||
+      [];
+
+    root.innerHTML=
+      socialBlockedRows(
+        records
+      );
+  }catch(error){
+    root.innerHTML=`
+      <div
+        class="msg-empty"
+        style="min-height:220px"
+      >
+        <div>
+          <span class="eb">
+            Block list unavailable
+          </span>
+
+          <h2>
+            Couldn't load blocked people.
+          </h2>
+
+          <p>
+            ${E(error.message||"Please try again.")}
+          </p>
+        </div>
+      </div>
+    `;
+  }
+},
+
+socialUnblock:async button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !profileId||
+    SS.busy
+  ){
+    return;
+  }
+
+  SS.busy=true;
+  button.disabled=true;
+
+  try{
+    await nevaeh.execute({
+      capability:
+        "social.unblock",
+
+      payload:{
+        profile_id:
+          profileId
+      }
+    });
+
+    toast(
+      "Profile unblocked"
+    );
+
+    await A.socialBlocksLoad();
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not unblock profile"
+    );
+  }finally{
+    SS.busy=false;
+  }
+},
+
+socialProfileLoad:async id=>{
+  const profileId=
+    Number(id);
+
+  const root=
+    document.querySelector(
+      "#social-profile-root"
+    );
+
+  if(
+    !profileId||
+    !root
+  ){
+    return;
+  }
+
+  SS.profileId=
+    profileId;
+
+  const token=
+    ++SS.token;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "social.relationship.context",
+
+        payload:{
+          profile_id:
+            profileId
+        }
+      });
+
+    if(
+      token!==SS.token
+    ){
+      return;
+    }
+
+    const relationship=
+      socialRelationshipFromResponse(
+        response
+      );
+
+    if(!relationship){
+      throw new Error(
+        "Relationship response was empty"
+      );
+    }
+
+    socialRenderRelationship(
+      relationship
+    );
+  }catch(error){
+    if(
+      token!==SS.token
+    ){
+      return;
+    }
+
+    root.innerHTML=`
+      <div class="wrap cw">
+        <span class="eb">
+          Space unavailable
+        </span>
+
+        <h1>
+          Couldn't open this relationship.
+        </h1>
+
+        <p class="lede">
+          ${E(
+            error.message||
+            "Please try again."
+          )}
+        </p>
+
+        <a
+          class="btn"
+          href="#/messages"
+        >
+          Back to Messages
+        </a>
+      </div>
+    `;
+  }
+},
+
+socialFollow:async button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !profileId||
+    SS.busy
+  ){
+    return;
+  }
+
+  SS.busy=true;
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "social.follow",
+
+        payload:{
+          profile_id:
+            profileId
+        }
+      });
+
+    const relationship=
+      socialRelationshipFromResponse(
+        response
+      );
+
+    if(!relationship){
+      throw new Error(
+        "Follow response was empty"
+      );
+    }
+
+    socialRenderRelationship(
+      relationship
+    );
+
+    toast(
+      "Following"
+    );
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not follow profile"
+    );
+  }finally{
+    SS.busy=false;
+  }
+},
+
+socialUnfollow:async button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !profileId||
+    SS.busy
+  ){
+    return;
+  }
+
+  SS.busy=true;
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "social.unfollow",
+
+        payload:{
+          profile_id:
+            profileId
+        }
+      });
+
+    const relationship=
+      socialRelationshipFromResponse(
+        response
+      );
+
+    if(!relationship){
+      throw new Error(
+        "Unfollow response was empty"
+      );
+    }
+
+    socialRenderRelationship(
+      relationship
+    );
+
+    toast(
+      "Unfollowed"
+    );
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not unfollow profile"
+    );
+  }finally{
+    SS.busy=false;
+  }
+},
+
+socialFriendRequest:async button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !profileId||
+    SS.busy
+  ){
+    return;
+  }
+
+  SS.busy=true;
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "social.friendship.request",
+
+        payload:{
+          profile_id:
+            profileId
+        }
+      });
+
+    const relationship=
+      socialRelationshipFromResponse(
+        response
+      );
+
+    if(!relationship){
+      throw new Error(
+        "Friendship response was empty"
+      );
+    }
+
+    socialRenderRelationship(
+      relationship
+    );
+
+    toast(
+      relationship.friend
+        ?"You're friends"
+        :"Friend request sent"
+    );
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not send friend request"
+    );
+  }finally{
+    SS.busy=false;
+  }
+},
+
+socialFriendRespond:async button=>{
+  const friendshipId=
+    Number(
+      button.dataset.friendshipId
+    );
+
+  const action=
+    button.dataset.response;
+
+  if(
+    !friendshipId||
+    ![
+      "accept",
+      "decline"
+    ].includes(action)||
+    SS.busy
+  ){
+    return;
+  }
+
+  SS.busy=true;
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "social.friendship.respond",
+
+        payload:{
+          friendship_id:
+            friendshipId,
+
+          action:
+            action
+        }
+      });
+
+    const relationship=
+      socialRelationshipFromResponse(
+        response
+      );
+
+    if(!relationship){
+      throw new Error(
+        "Friendship response was empty"
+      );
+    }
+
+    socialRenderRelationship(
+      relationship
+    );
+
+    toast(
+      action==="accept"
+        ?"Friendship accepted"
+        :"Friend request declined"
+    );
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not update friendship"
+    );
+  }finally{
+    SS.busy=false;
+  }
+},
+
+socialFriendEnd:async button=>{
+  const friendshipId=
+    Number(
+      button.dataset.friendshipId
+    );
+
+  if(
+    !friendshipId||
+    SS.busy
+  ){
+    return;
+  }
+
+  if(
+    !window.confirm(
+      "End this friendship?"
+    )
+  ){
+    return;
+  }
+
+  SS.busy=true;
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "social.friendship.end",
+
+        payload:{
+          friendship_id:
+            friendshipId
+        }
+      });
+
+    const relationship=
+      socialRelationshipFromResponse(
+        response
+      );
+
+    if(!relationship){
+      throw new Error(
+        "Friendship response was empty"
+      );
+    }
+
+    socialRenderRelationship(
+      relationship
+    );
+
+    toast(
+      "Friendship ended"
+    );
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not end friendship"
+    );
+  }finally{
+    SS.busy=false;
+  }
+},
+
+socialMessage:async button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !profileId||
+    SS.busy
+  ){
+    return;
+  }
+
+  SS.busy=true;
+  button.disabled=true;
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability:
+          "messages.start",
+
+        payload:{
+          kind:
+            "direct",
+
+          participant_profile_ids:[
+            profileId
+          ]
+        }
+      });
+
+    const conversation=
+      response.result?.conversation||
+      response.conversation||
+      null;
+
+    if(!conversation){
+      throw new Error(
+        "Conversation response was empty"
+      );
+    }
+
+    MS.compose=null;
+
+    MS.selected=
+      Number(
+        conversation.id
+      );
+
+    MS.detail=
+      conversation;
+
+    location.hash=
+      "#/messages";
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not open conversation"
+    );
+  }finally{
+    SS.busy=false;
+  }
+},
+
+socialBlock:async button=>{
+  const profileId=
+    Number(
+      button.dataset.id
+    );
+
+  if(
+    !profileId||
+    SS.busy
+  ){
+    return;
+  }
+
+  const name=
+    SS.relationship?.profile?.name||
+    "this profile";
+
+  if(
+    !window.confirm(
+      `Block ${name}? Following, friendship and shared connection opportunities between you will be removed. You can unblock them later from My Space → Blocked people.`
+    )
+  ){
+    return;
+  }
+
+  SS.busy=true;
+  button.disabled=true;
+
+  try{
+    await nevaeh.execute({
+      capability:
+        "social.block",
+
+      payload:{
+        profile_id:
+          profileId
+      }
+    });
+
+    SS.relationship=null;
+
+    toast(
+      "Profile blocked"
+    );
+
+    location.hash=
+      "#/messages";
+  }catch(error){
+    button.disabled=false;
+
+    toast(
+      error.message||
+      "Could not block profile"
+    );
+  }finally{
+    SS.busy=false;
+  }
+},
+
 tg:b=>{const k=b.dataset.k;S.t.has(k)?S.t.delete(k):S.t.add(k);render(1)},
 mv:b=>{const l=L[b.dataset.k],n=+b.dataset.n,j=n+ +b.dataset.d;if(j<0||j>=l.length)return;[l[n],l[j]]=[l[j],l[n]];render(1)},
 rm:b=>{L[b.dataset.k].splice(+b.dataset.n,1);render(1)},add:b=>{L[b.dataset.k].push(b.dataset.id);render(1)},
@@ -2587,7 +3903,7 @@ ct:b=>{CS.type=b.dataset.v;CS.s=1;render()},cb:()=>{CS.s--;render()},cx:()=>{CS.
 cd:b=>{const v=b.dataset.v;CS.dest.has(v)?CS.dest.delete(v):CS.dest.add(v);render(1)},
 pub:()=>{CS.pr=1;render(1);const t=setInterval(()=>{CS.pr+=14;if(CS.pr>=100){clearInterval(t);CS.done=1}if(location.hash=='#/create')render(1)},180)},
 again:()=>{Object.assign(CS,{s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0});render()}};
-function render(keep){const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=R[r]?r:'home';app.innerHTML=R[k](a);document.querySelectorAll('#primary-nav a').forEach(x=>x.classList.toggle('on',x.dataset.r==(k=='community'?'communities':k)));if(AF[k])AF[k]();scrollTo(0,keep?y:0);app.classList.remove('fade');if(!keep){void app.offsetWidth;app.classList.add('fade')}}
+function render(keep){const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=R[r]?r:'home';app.innerHTML=R[k](a);document.querySelectorAll('#primary-nav a').forEach(x=>x.classList.toggle('on',x.dataset.r==(k=='community'?'communities':k)));if(AF[k])AF[k](a);scrollTo(0,keep?y:0);app.classList.remove('fade');if(!keep){void app.offsetWidth;app.classList.add('fade')}}
 app.addEventListener('click',e=>{const s=e.target.closest('[data-sc]');if(s){e.preventDefault();document.getElementById(s.dataset.sc)?.scrollIntoView({behavior:'smooth'});return}const b=e.target.closest('[data-a]');if(b)A[b.dataset.a]?.(b,e)});
 app.addEventListener('input',e=>{
   const n=e.target.name;

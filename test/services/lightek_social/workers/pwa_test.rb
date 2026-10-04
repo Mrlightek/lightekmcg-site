@@ -440,6 +440,162 @@ class LightekSocialPwaWorkerTest <
     )
   end
 
+  test "unfollow is actor scoped and refreshes relationship" do
+    LightekSocial::FollowProfile.call(
+      follower_profile:
+        @alice,
+
+      followed_profile:
+        @bob
+    )
+
+    LightekSocial::FollowProfile.call(
+      follower_profile:
+        @carol,
+
+      followed_profile:
+        @bob
+    )
+
+    result =
+      perform_as(
+        @alice,
+        "unfollow",
+        "profile_id" =>
+          @bob.id,
+
+        "follower_profile_id" =>
+          @carol.id
+      )
+
+    refute(
+      LightekSocial::Follow.exists?(
+        follower_profile_id:
+          @alice.id,
+
+        followed_profile_id:
+          @bob.id
+      )
+    )
+
+    assert(
+      LightekSocial::Follow.exists?(
+        follower_profile_id:
+          @carol.id,
+
+        followed_profile_id:
+          @bob.id
+      )
+    )
+
+    assert_equal(
+      false,
+      result
+        .fetch(
+          "relationship"
+        )
+        .fetch(
+          "following"
+        )
+    )
+  end
+
+  test "blocks list and unblock are scoped to authenticated actor" do
+    alice_block =
+      LightekSocial::BlockProfile.call(
+        blocker_profile:
+          @alice,
+
+        blocked_profile:
+          @bob,
+
+        reason_code:
+          "user_choice"
+      )
+
+    carol_block =
+      LightekSocial::BlockProfile.call(
+        blocker_profile:
+          @carol,
+
+        blocked_profile:
+          @bob,
+
+        reason_code:
+          "user_choice"
+      )
+
+    listed =
+      perform_as(
+        @alice,
+        "blocks_list"
+      )
+
+    profile_ids =
+      listed
+        .fetch(
+          "blocks"
+        )
+        .map do |record|
+          record
+            .fetch(
+              "profile"
+            )
+            .fetch(
+              "id"
+            )
+        end
+
+    assert_equal(
+      [@bob.id],
+      profile_ids
+    )
+
+    result =
+      perform_as(
+        @alice,
+        "unblock",
+        "profile_id" =>
+          @bob.id,
+
+        "blocker_profile_id" =>
+          @carol.id
+      )
+
+    refute(
+      LightekSocial::Block.exists?(
+        id:
+          alice_block.id
+      )
+    )
+
+    assert(
+      LightekSocial::Block.exists?(
+        id:
+          carol_block.id
+      )
+    )
+
+    assert_equal(
+      @bob.id,
+      result
+        .fetch(
+          "profile"
+        )
+        .fetch(
+          "id"
+        )
+    )
+
+    assert_equal(
+      false,
+      LightekSocial.blocked_between?(
+        @alice,
+        @bob
+      )
+    )
+  end
+
   private
 
   def perform_as(

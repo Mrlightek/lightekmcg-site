@@ -37,6 +37,15 @@ module LightekSocial
         when "follow"
           follow
 
+        when "unfollow"
+          unfollow
+
+        when "blocks_list"
+          blocks_list
+
+        when "unblock"
+          unblock
+
         when "friendship_request"
           friendship_request
 
@@ -201,6 +210,99 @@ module LightekSocial
           "follow" =>
             follow_payload(
               record
+            ),
+
+          "relationship" =>
+            relationship_payload(
+              target_profile
+            )
+        }
+      end
+
+      def unfollow
+        record =
+          UnfollowProfile.call(
+            follower_profile:
+              profile,
+
+            followed_profile:
+              target_profile
+          )
+
+        {
+          "unfollow" => {
+            "follow_id" =>
+              record.id,
+
+            "followed_profile_id" =>
+              target_profile.id
+          },
+
+          "relationship" =>
+            relationship_payload(
+              target_profile
+            )
+        }
+      end
+
+      def blocks_list
+        records =
+          Block
+            .where(
+              blocker_profile_id:
+                profile.id
+            )
+            .includes(
+              :blocked_profile
+            )
+            .order(
+              created_at: :desc,
+              id: :desc
+            )
+            .limit(
+              limit
+            )
+
+        {
+          "blocks" =>
+            records.map do |record|
+              {
+                "block" =>
+                  block_payload(
+                    record
+                  ),
+
+                "profile" =>
+                  profile_payload(
+                    record.blocked_profile
+                  )
+              }
+            end
+        }
+      end
+
+      def unblock
+        record =
+          UnblockProfile.call(
+            blocker_profile:
+              profile,
+
+            blocked_profile:
+              target_profile
+          )
+
+        {
+          "unblock" => {
+            "block_id" =>
+              record.id,
+
+            "blocked_profile_id" =>
+              target_profile.id
+          },
+
+          "profile" =>
+            profile_payload(
+              target_profile
             ),
 
           "relationship" =>

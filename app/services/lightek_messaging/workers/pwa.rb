@@ -322,6 +322,32 @@ module LightekMessaging
               )
             end
 
+        messaging_blocked =
+          if record.direct?
+            peer_profile =
+              record
+                .participants
+                .active
+                .includes(
+                  :profile
+                )
+                .map(
+                  &:profile
+                )
+                .find do |candidate|
+                  candidate.id !=
+                    profile.id
+                end
+
+            peer_profile &&
+              LightekSocial.blocked_between?(
+                profile,
+                peer_profile
+              )
+          else
+            false
+          end
+
         peer =
           if record.direct?
             participants.find do |entry|
@@ -381,6 +407,9 @@ module LightekMessaging
 
           "current_role" =>
             member.role,
+
+          "messaging_blocked" =>
+            !!messaging_blocked,
 
           "unread_count" =>
             unread_count(

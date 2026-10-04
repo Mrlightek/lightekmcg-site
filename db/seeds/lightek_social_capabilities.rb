@@ -55,6 +55,45 @@ capabilities = [
 
   {
     name:
+      "Social Unfollow",
+    slug:
+      "social.unfollow",
+    intent_name:
+      "unfollow_social_profile",
+    description:
+      "Stop following another Lightek profile as the authenticated profile.",
+    event_type:
+      "social.unfollow.requested"
+  },
+
+  {
+    name:
+      "Social Blocks List",
+    slug:
+      "social.blocks.list",
+    intent_name:
+      "list_social_blocks",
+    description:
+      "List profiles blocked by the authenticated Lightek profile.",
+    event_type:
+      "social.blocks.list.requested"
+  },
+
+  {
+    name:
+      "Social Unblock",
+    slug:
+      "social.unblock",
+    intent_name:
+      "unblock_social_profile",
+    description:
+      "Remove a block previously created by the authenticated Lightek profile.",
+    event_type:
+      "social.unblock.requested"
+  },
+
+  {
+    name:
       "Social Friendship Request",
     slug:
       "social.friendship.request",

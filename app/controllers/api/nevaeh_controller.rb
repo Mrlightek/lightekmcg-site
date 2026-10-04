@@ -266,6 +266,15 @@ module Api
         "social.follow" =>
           "social.follow.requested",
 
+        "social.unfollow" =>
+          "social.unfollow.requested",
+
+        "social.blocks.list" =>
+          "social.blocks.list.requested",
+
+        "social.unblock" =>
+          "social.unblock.requested",
+
         "social.friendship.request" =>
           "social.friendship.request.requested",
 
@@ -326,6 +335,15 @@ module Api
 
         "social.follow" =>
           "follow",
+
+        "social.unfollow" =>
+          "unfollow",
+
+        "social.blocks.list" =>
+          "blocks_list",
+
+        "social.unblock" =>
+          "unblock",
 
         "social.friendship.request" =>
           "friendship_request",

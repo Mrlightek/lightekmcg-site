@@ -124,6 +124,10 @@ module LightekMessaging
     end
 
     def start_direct(ids, profiles)
+      authorize_direct_relationship!(
+        profiles
+      )
+
       direct_key =
         ids.join(":")
 
@@ -159,6 +163,26 @@ module LightekMessaging
         direct_key: nil,
         title: title
       )
+    end
+
+    def authorize_direct_relationship!(profiles)
+      other =
+        profiles
+          .values
+          .find do |candidate|
+            candidate.id !=
+              creator_profile.id
+          end
+
+      return unless other
+
+      return unless LightekSocial.blocked_between?(
+        creator_profile,
+        other
+      )
+
+      raise AccessDenied,
+            "Messaging is unavailable for this blocked relationship"
     end
 
     def create_conversation(

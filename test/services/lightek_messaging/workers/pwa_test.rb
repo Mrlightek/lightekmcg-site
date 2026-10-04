@@ -491,6 +491,155 @@ class LightekMessagingPwaWorkerTest <
     end
   end
 
+  test "block prevents both profiles from sending in existing direct conversation" do
+    conversation =
+      start_direct(
+        @alice,
+        @bob
+      )
+
+    LightekSocial::BlockProfile.call(
+      blocker_profile:
+        @alice.profile,
+
+      blocked_profile:
+        @bob.profile,
+
+      reason_code:
+        "user_choice"
+    )
+
+    alice_show =
+      perform(
+        "show",
+        @alice,
+        {
+          "conversation_id" =>
+            conversation.id
+        }
+      )
+
+    assert_equal(
+      true,
+      alice_show
+        .fetch(
+          "conversation"
+        )
+        .fetch(
+          "messaging_blocked"
+        )
+    )
+
+    assert_raises(
+      LightekMessaging::AccessDenied
+    ) do
+      perform(
+        "send",
+        @alice,
+        {
+          "conversation_id" =>
+            conversation.id,
+
+          "body" =>
+            "Should not send"
+        }
+      )
+    end
+
+    assert_raises(
+      LightekMessaging::AccessDenied
+    ) do
+      perform(
+        "send",
+        @bob,
+        {
+          "conversation_id" =>
+            conversation.id,
+
+          "body" =>
+            "Should not send either"
+        }
+      )
+    end
+
+    assert_equal(
+      0,
+      conversation
+        .messages
+        .count
+    )
+  end
+
+  test "block prevents starting or reopening a direct conversation" do
+    conversation =
+      start_direct(
+        @alice,
+        @bob
+      )
+
+    LightekSocial::BlockProfile.call(
+      blocker_profile:
+        @alice.profile,
+
+      blocked_profile:
+        @bob.profile,
+
+      reason_code:
+        "user_choice"
+    )
+
+    assert_raises(
+      LightekMessaging::AccessDenied
+    ) do
+      perform(
+        "start",
+        @alice,
+        {
+          "kind" =>
+            "direct",
+
+          "participant_profile_ids" =>
+            [
+              @bob.profile.id
+            ]
+        }
+      )
+    end
+
+    assert_raises(
+      LightekMessaging::AccessDenied
+    ) do
+      perform(
+        "start",
+        @bob,
+        {
+          "kind" =>
+            "direct",
+
+          "participant_profile_ids" =>
+            [
+              @alice.profile.id
+            ]
+        }
+      )
+    end
+
+    assert_equal(
+      conversation.id,
+      LightekMessaging::Conversation
+        .find_by!(
+          direct_key:
+            [
+              @alice.profile.id,
+              @bob.profile.id
+            ]
+              .sort
+              .join(":")
+        )
+        .id
+    )
+  end
+
   private
 
   def perform(

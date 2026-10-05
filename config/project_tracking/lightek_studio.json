@@ -1,0 +1,1022 @@
+{
+  "schema_version": 1,
+  "project": {
+    "key": "lightek-studio",
+    "title": "Lightek Studio",
+    "product_law": "What should Marlon have to do to create something? Minimize that work. Backend complexity belongs to Lightek.",
+    "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
+    "current_phase": "UX Foundation II",
+    "production_floor": {
+      "commit": "09639f1",
+      "status": "green",
+      "description": "Live SceneObject Create, Duplicate and Delete lifecycle with canonical local PWA/Three.js reconciliation."
+    },
+    "tracking": {
+      "github": {
+        "repository": "Mrlightek/lightekmcg-site",
+        "owner": "Mrlightek",
+        "project_number": 6,
+        "project_url": "https://github.com/users/Mrlightek/projects/6"
+      },
+      "lightek": {
+        "model": "Marlon::Ticket",
+        "event_model": "Marlon::TicketEvent",
+        "category": "technical",
+        "identity_field": "extra_fields.project_tracking.key"
+      }
+    }
+  },
+  "items": [
+    {
+      "key": "STUDIO-001",
+      "title": "Canonical PWA Studio foundation",
+      "phase": "Foundation",
+      "area": "PWA",
+      "status": "done",
+      "priority": "P0",
+      "effort": 3,
+      "summary": "Establish Studio as a canonical authenticated PWA surface with real bootstrap data.",
+      "evidence": [
+        "759f5d1"
+      ]
+    },
+    {
+      "key": "STUDIO-002",
+      "title": "Canonical authenticated Studio navigation",
+      "phase": "Foundation",
+      "area": "PWA",
+      "status": "done",
+      "priority": "P0",
+      "effort": 2,
+      "summary": "Register Studio through the authenticated canonical storefront/navigation renderer instead of static primary navigation.",
+      "evidence": [
+        "759f5d1"
+      ]
+    },
+    {
+      "key": "STUDIO-003",
+      "title": "Studio PWA bootstrap worker and scene payload",
+      "phase": "Foundation",
+      "area": "Backend",
+      "status": "done",
+      "priority": "P0",
+      "effort": 3,
+      "summary": "Provide projects, productions, scenes and SceneObjects to the PWA through the Studio worker contract.",
+      "evidence": [
+        "759f5d1"
+      ]
+    },
+    {
+      "key": "STUDIO-004",
+      "title": "SceneObject domain and mutation worker",
+      "phase": "Foundation",
+      "area": "Backend",
+      "status": "done",
+      "priority": "P0",
+      "effort": 3,
+      "summary": "Provide canonical create, transform, duplicate and destroy operations over Studio SceneObjects.",
+      "evidence": [
+        "a3b6414"
+      ]
+    },
+    {
+      "key": "STUDIO-005",
+      "title": "Nevaeh and Gatekeeper SceneObject capability boundary",
+      "phase": "Foundation",
+      "area": "Orchestration",
+      "status": "done",
+      "priority": "P0",
+      "effort": 3,
+      "summary": "Route SceneObject mutations through Nevaeh capabilities, Gatekeeper authorization and Studio workers.",
+      "evidence": [
+        "a3b6414"
+      ]
+    },
+    {
+      "key": "STUDIO-006",
+      "title": "Visual Three.js Studio workspace",
+      "phase": "Foundation",
+      "area": "3D",
+      "status": "done",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Provide the browser-side interactive visual projection of canonical Studio scene state.",
+      "evidence": [
+        "6180a14"
+      ]
+    },
+    {
+      "key": "STUDIO-007",
+      "title": "Scene selection, Outliner and Inspector synchronization",
+      "phase": "Foundation",
+      "area": "3D",
+      "status": "done",
+      "priority": "P0",
+      "effort": 3,
+      "summary": "Allow SceneObjects to be selected from the viewport and Studio controls while keeping context synchronized.",
+      "evidence": [
+        "6180a14"
+      ]
+    },
+    {
+      "key": "STUDIO-008",
+      "title": "Smooth Move Rotate Scale manipulation",
+      "phase": "Foundation",
+      "area": "3D",
+      "status": "done",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Manipulate SceneObjects locally at interactive speed and persist canonical transforms after manipulation.",
+      "evidence": [
+        "6180a14"
+      ]
+    },
+    {
+      "key": "STUDIO-009",
+      "title": "Live Create Duplicate Delete lifecycle",
+      "phase": "Foundation",
+      "area": "3D",
+      "status": "done",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Create, duplicate and delete SceneObjects without a full Studio bootstrap or manual panel reconciliation.",
+      "evidence": [
+        "09639f1"
+      ]
+    },
+    {
+      "key": "STUDIO-010",
+      "title": "Rails Studio fallback editor baseline",
+      "phase": "Foundation",
+      "area": "Rails",
+      "status": "done",
+      "priority": "P1",
+      "effort": 3,
+      "summary": "Maintain meaningful server-rendered Studio capability while the PWA remains the primary operator surface.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-011",
+      "title": "Blender Preview and Render execution baseline",
+      "phase": "Foundation",
+      "area": "Blender",
+      "status": "done",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Prove the real Studio orchestration path can reach Blender-backed preview/render work and artifacts.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-101",
+      "title": "Intent-first Create surface",
+      "phase": "UX Foundation II",
+      "area": "Create",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Start creation from what the user intends to make: Character, Environment, Scene, Prop, Vehicle, Architecture, Effect, Material, Production or Template.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-102",
+      "title": "Studio Library shell and production taxonomy",
+      "phase": "UX Foundation II",
+      "area": "Library",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Create first-class library categories for Templates, Characters, Environments, Props, Vehicles, Architecture, Cameras, Lights, Materials, Geometry Systems, FX, Audio, Graphics, Animations and Collections.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-103",
+      "title": "Template Gallery UX",
+      "phase": "UX Foundation II",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Allow users to begin from useful production intent rather than Blender implementation details.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-104",
+      "title": "First-class Template Maker",
+      "phase": "UX Foundation II",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Turn a solved scene, fabrication setup or production arrangement into a reusable production primitive.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-105",
+      "title": "Template variables and locked configuration UX",
+      "phase": "UX Foundation II",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Separate the inputs a user swaps from the production configuration Lightek preserves.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-106",
+      "title": "Richer production workspace shell",
+      "phase": "UX Foundation II",
+      "area": "Workspace",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Design the main creation environment around Scene Graph, Viewport, Library, contextual Inspector, Nevaeh Director and production workspaces.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-107",
+      "title": "Semantic Scene Graph",
+      "phase": "UX Foundation II",
+      "area": "Workspace",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Represent Characters, Environment, Props, Cameras, Lighting, FX and other production concepts instead of centering primitive geometry.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-108",
+      "title": "Context-sensitive Inspector",
+      "phase": "UX Foundation II",
+      "area": "Workspace",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Render controls appropriate to the selected character, environment, Geometry Nodes system, camera, light, FX system, material or other capability.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-109",
+      "title": "Nevaeh Director UX",
+      "phase": "UX Foundation II",
+      "area": "Nevaeh",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Let creative direction be expressed as intent and preview the production changes Nevaeh intends to make.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-110",
+      "title": "Progressive Basic Advanced controls",
+      "phase": "UX Foundation II",
+      "area": "Workspace",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 3,
+      "summary": "Compress complexity by default while preserving expert parameters and an Open in Blender path.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-111",
+      "title": "Fixture-first Studio UI contracts",
+      "phase": "UX Foundation II",
+      "area": "Contracts",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Define fixture contracts for assets, capabilities, templates, inspector controls and creation flows before wiring backend implementations.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-112",
+      "title": "Asset detail and preview experience",
+      "phase": "UX Foundation II",
+      "area": "Library",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 3,
+      "summary": "Provide useful visual previews, metadata, variants and actions for reusable production assets.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-113",
+      "title": "Save as Asset UX",
+      "phase": "UX Foundation II",
+      "area": "Library",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 3,
+      "summary": "Let completed or generated production elements become reusable Lightek assets.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-114",
+      "title": "Save as Template UX",
+      "phase": "UX Foundation II",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Let a successful current configuration become a reusable template without reconstructing it manually.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-115",
+      "title": "Responsive Studio UX pass",
+      "phase": "UX Foundation II",
+      "area": "PWA",
+      "status": "todo",
+      "priority": "P2",
+      "effort": 4,
+      "summary": "Keep the new Studio interaction model coherent across desktop and smaller form factors.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-201",
+      "title": "Blender runtime discovery",
+      "phase": "Blender Foundation II",
+      "area": "Blender",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Discover runtime version, render engines, available systems and production capabilities.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-202",
+      "title": "Blender Asset Registry",
+      "phase": "Blender Foundation II",
+      "area": "Assets",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Create a canonical registry of reusable Blender-backed production assets and provenance.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-203",
+      "title": "Studio Capability Registry",
+      "phase": "Blender Foundation II",
+      "area": "Capabilities",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Represent what Lightek and Blender can do independently from how the UI happens to expose it.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-204",
+      "title": "Approved Blender Extension Registry",
+      "phase": "Blender Foundation II",
+      "area": "Extensions",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Track approved extensions, versions, checksums, licenses, capabilities, configuration and Gatekeeper policies.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-205",
+      "title": "Template Registry backend",
+      "phase": "Blender Foundation II",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Store reusable Lightek production and fabrication templates as canonical system objects.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-206",
+      "title": "Blend file ingestion",
+      "phase": "Blender Foundation II",
+      "area": "Blender",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Ingest real .blend assets without flattening Blender-native production state into browser-owned JSON.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-207",
+      "title": "Blender manifest extraction",
+      "phase": "Blender Foundation II",
+      "area": "Blender",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Inspect Collections, Objects, Meshes, Materials, Armatures, Actions, Cameras, Lights, Node Groups, Worlds and dependencies.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-208",
+      "title": "Browser GLB proxy generation",
+      "phase": "Blender Foundation II",
+      "area": "3D",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Generate lightweight browser representations while Blender remains the authoritative scene runtime.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-209",
+      "title": "Real Studio Asset Browser wiring",
+      "phase": "Blender Foundation II",
+      "area": "Assets",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Replace primitive-centric creation with registered production assets backed by Blender.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-210",
+      "title": "Capability-schema generated Inspector controls",
+      "phase": "Blender Foundation II",
+      "area": "Capabilities",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Generate simplified PWA controls from capability schemas rather than hand-coding every Blender operation.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-211",
+      "title": "Template to capability graph compiler",
+      "phase": "Blender Foundation II",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Resolve a chosen template into assets, capabilities, extensions, parameters and execution requirements.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-212",
+      "title": "Official Blender demo ingestion proof",
+      "phase": "Blender Foundation II",
+      "area": "Blender",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Use a serious Blender demo file to prove ingestion, manifest extraction, proxy generation and real parameter control.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-213",
+      "title": "Procedural Environment and Architecture proof",
+      "phase": "Blender Foundation II",
+      "area": "Geometry",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Expose useful Geometry Nodes environment/building parameters through an approachable Lightek template.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-214",
+      "title": "Approved extension execution pipeline",
+      "phase": "Blender Foundation II",
+      "area": "Extensions",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Allow Gatekeeper-approved extensions to contribute versioned Studio capabilities executed by Blender workers.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-215",
+      "title": "Blender asset provenance and version policy",
+      "phase": "Blender Foundation II",
+      "area": "Governance",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Track source, version, compatibility, license and provenance for Blender assets and extensions.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-221",
+      "title": "Photo to animation-ready Character",
+      "phase": "Character Fabrication",
+      "area": "Characters",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Create an approachable workflow from reference imagery to a reusable rigged character.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-222",
+      "title": "Image and video projection material workflows",
+      "phase": "Character Fabrication",
+      "area": "Materials",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Use images and video as production inputs for projection, appearance, texture and 2.5D treatments.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-223",
+      "title": "Body performance video to rig motion",
+      "phase": "Character Fabrication",
+      "area": "Animation",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Extract body performance from video and retarget it onto Studio character rigs.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-224",
+      "title": "Facial performance capture workflow",
+      "phase": "Character Fabrication",
+      "area": "Animation",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Drive reusable facial rigs from reference performance.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-225",
+      "title": "Voice and lip-sync character performance",
+      "phase": "Character Fabrication",
+      "area": "Animation",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Drive dialogue performance and lip synchronization from audio inputs.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-226",
+      "title": "Reference clothing hair and appearance preservation",
+      "phase": "Character Fabrication",
+      "area": "Characters",
+      "status": "todo",
+      "priority": "P2",
+      "effort": 5,
+      "summary": "Preserve or reconstruct important appearance details from source references.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-227",
+      "title": "Reusable Lightek character package",
+      "phase": "Character Fabrication",
+      "area": "Characters",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Package mesh, rig, materials, controls and production metadata as reusable Studio assets.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-301",
+      "title": "Complete PWA Project Production Scene management",
+      "phase": "Production Systems",
+      "area": "Core",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Finish first-class management of projects, productions and scenes in the primary PWA surface.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-302",
+      "title": "PWA Preview and Render workflow",
+      "phase": "Production Systems",
+      "area": "Rendering",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 4,
+      "summary": "Run real Blender preview/render operations and surface operation and artifact state without leaving the scene.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-303",
+      "title": "Script writing workspace",
+      "phase": "Production Systems",
+      "area": "Script",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Create production-aware scripts tied to scenes, characters, continuity and Nevaeh.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-304",
+      "title": "Storyboard and shot planning workspace",
+      "phase": "Production Systems",
+      "area": "Storyboard",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Create panels, shots, scene plans and relationships to assets and clips.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-305",
+      "title": "Timeline and editing workspace",
+      "phase": "Production Systems",
+      "area": "Edit",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Provide tracks, clips, trimming, sequencing, overlays and finished edits.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-306",
+      "title": "Design and graphics workspace",
+      "phase": "Production Systems",
+      "area": "Design",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Create graphics, text, layouts, branding and reusable visual elements.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-307",
+      "title": "Audio production workspace",
+      "phase": "Production Systems",
+      "area": "Audio",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Handle dialogue, voice, music, tracks, mixing and levels.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-308",
+      "title": "Keyframes animation and History",
+      "phase": "Production Systems",
+      "area": "Animation",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Provide animation keyframes, reusable motion, history and safe editing.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-309",
+      "title": "FX and simulation workspace",
+      "phase": "Production Systems",
+      "area": "FX",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Expose useful Blender simulation and effects capabilities through Lightek controls.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-310",
+      "title": "Materials and shader systems",
+      "phase": "Production Systems",
+      "area": "Materials",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Provide approachable material creation and parameter control backed by Blender.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-311",
+      "title": "Advanced cameras and lighting systems",
+      "phase": "Production Systems",
+      "area": "Camera Lighting",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Expose production-oriented camera, lens, lighting and rig systems instead of only primitive camera/light objects.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-312",
+      "title": "Nevaeh Director execution",
+      "phase": "Production Systems",
+      "area": "Nevaeh",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Turn approved Director intentions into real Studio capability executions.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-313",
+      "title": "Artifacts and Operations workspace",
+      "phase": "Production Systems",
+      "area": "Operations",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Expose previews, renders, generated assets, execution state, failures and history.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-314",
+      "title": "Publishing and scheduling",
+      "phase": "Production Systems",
+      "area": "Publishing",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Support immediate, scheduled, cancellable and multi-destination StudioPublication workflows.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-315",
+      "title": "Live production system",
+      "phase": "Production Systems",
+      "area": "Live",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Support live shows, switching, overlays, production control and destinations.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-316",
+      "title": "Upload transcode and asset processing",
+      "phase": "Production Systems",
+      "area": "Media",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Handle incoming production media and preparation for reusable Studio workflows.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-317",
+      "title": "Compute usage and billing awareness",
+      "phase": "Production Systems",
+      "area": "Infrastructure",
+      "status": "todo",
+      "priority": "P2",
+      "effort": 4,
+      "summary": "Expose relevant production compute requirements and usage without making infrastructure the user's creative burden.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-401",
+      "title": "Save current production as reusable template",
+      "phase": "Template System",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Turn a successful production configuration into an immediately reusable production primitive.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-402",
+      "title": "Composable and inheritable templates",
+      "phase": "Template System",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Combine production, camera, lighting, character, audio, graphics, environment and delivery templates.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-403",
+      "title": "Template versioning and distribution",
+      "phase": "Template System",
+      "area": "Templates",
+      "status": "todo",
+      "priority": "P2",
+      "effort": 4,
+      "summary": "Version, share, update and safely distribute reusable Studio templates.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-404",
+      "title": "Single-camera drama production templates",
+      "phase": "Template System",
+      "area": "Production Templates",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Seed reusable single-camera drama production grammar, coverage, camera and lighting packages.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-405",
+      "title": "Multi-camera interview comedy and panel templates",
+      "phase": "Template System",
+      "area": "Production Templates",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Seed reusable multi-camera interview, panel and comedy production systems.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-406",
+      "title": "Documentary news and reality templates",
+      "phase": "Template System",
+      "area": "Production Templates",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Seed documentary verite, news and reality production workflows.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-407",
+      "title": "Music video production templates",
+      "phase": "Template System",
+      "area": "Production Templates",
+      "status": "todo",
+      "priority": "P2",
+      "effort": 3,
+      "summary": "Seed reusable music-video visual grammar, camera, lighting and edit systems.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-408",
+      "title": "Sports and live broadcast templates",
+      "phase": "Template System",
+      "area": "Production Templates",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Seed reusable live and sports production layouts, switching and graphics systems.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-409",
+      "title": "Camera lens and lighting template packs",
+      "phase": "Template System",
+      "area": "Production Templates",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Package reusable cinematography and lighting grammars independently of complete show templates.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-410",
+      "title": "Graphics audio and delivery template packs",
+      "phase": "Template System",
+      "area": "Production Templates",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Package reusable graphics, mix, mastering and delivery configurations.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-411",
+      "title": "Character environment FX fabrication templates",
+      "phase": "Template System",
+      "area": "Fabrication Templates",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Make advanced character, environment and effects fabrication approachable through intent-driven templates.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-501",
+      "title": "Studio Everywhere creation layer",
+      "phase": "Integration",
+      "area": "Lightek",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Make Studio the reusable creation operating system behind Lightek content surfaces.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-502",
+      "title": "Studio creation inside Messages",
+      "phase": "Integration",
+      "area": "Messages",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Replace simple text-only creation boundaries with reusable Studio creation capabilities where appropriate.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-503",
+      "title": "Studio creation across Social Communities Posts and Clips",
+      "phase": "Integration",
+      "area": "Social",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Expose Studio-powered creation across Lightek social and community surfaces.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-504",
+      "title": "Studio creation across Articles Events and Live",
+      "phase": "Integration",
+      "area": "Content",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Reuse Studio creation capability for broader Lightek editorial and live content.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-505",
+      "title": "Lightek fabrication system integration",
+      "phase": "Integration",
+      "area": "Fabrication",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Connect templates, assets and capability execution to the broader Lightek fabrication model.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-601",
+      "title": "Nevaeh Studio Knowledge Base documentation pass",
+      "phase": "Documentation",
+      "area": "Nevaeh",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Document completed Studio capabilities, contracts, routes, policies and procedures for Nevaeh reasoning.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-602",
+      "title": "Gatekeeper Studio capability policies",
+      "phase": "Documentation",
+      "area": "Gatekeeper",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Formalize capability, extension, asset and production execution authorization policy.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-603",
+      "title": "Rails fallback capability parity review",
+      "phase": "Documentation",
+      "area": "Rails",
+      "status": "todo",
+      "priority": "P2",
+      "effort": 4,
+      "summary": "Review the server-rendered fallback against the final PWA capability set.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-604",
+      "title": "Extension asset licensing provenance security policy",
+      "phase": "Documentation",
+      "area": "Governance",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 4,
+      "summary": "Formalize safe extension execution and asset licensing, provenance and compatibility requirements.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-605",
+      "title": "Studio performance reliability and release hardening",
+      "phase": "Documentation",
+      "area": "Quality",
+      "status": "todo",
+      "priority": "P1",
+      "effort": 5,
+      "summary": "Harden caching, failure recovery, regression coverage, performance and production release behavior.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-606",
+      "title": "Studio API contract and operator documentation",
+      "phase": "Documentation",
+      "area": "Docs",
+      "status": "todo",
+      "priority": "P2",
+      "effort": 4,
+      "summary": "Maintain durable documentation of Studio contracts and operational behavior.",
+      "evidence": []
+    },
+    {
+      "key": "STUDIO-607",
+      "title": "GitHub Project and Lightek trouble-ticket synchronization",
+      "phase": "Documentation",
+      "area": "Continuity",
+      "status": "done",
+      "priority": "P0",
+      "effort": 3,
+      "summary": "Use one canonical Studio roadmap to drive GitHub project tracking and Lightek trouble tickets for durable project continuity.",
+      "evidence": [
+        "GitHub Project #6 synchronized with 88 roadmap items",
+        "Lightek Marlon::Ticket synchronized with 88 roadmap items",
+        "Stable STUDIO-### identity proven one-to-one across both projections",
+        "Lightek ticket sync idempotency proven: 0 created / 0 updated / 88 unchanged"
+      ]
+    }
+  ]
+}

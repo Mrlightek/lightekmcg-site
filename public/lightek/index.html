@@ -1570,6 +1570,211 @@ const studioMutationStatus=()=>{
   `
 };
 
+
+const studioMutationObject=(
+  result,
+  existing={}
+)=>{
+  const returned=
+    result?.object||{};
+
+  return {
+    ...existing,
+
+    id:
+      Number(
+        returned.id||
+        result?.object_id||
+        existing.id
+      ),
+
+    name:
+      returned.name||
+      existing.name||
+      "Scene Object",
+
+    object_type:
+      returned.object_type||
+      returned.type||
+      existing.object_type||
+      "cube",
+
+    definition:
+      returned.definition
+        ?JSON.parse(
+            JSON.stringify(
+              returned.definition
+            )
+          )
+        :JSON.parse(
+            JSON.stringify(
+              existing.definition||{}
+            )
+          )
+  }
+};
+
+const studioApplyLifecycleMutation=(
+  payload,
+  result
+)=>{
+  const record=
+    studioSceneRecord(
+      payload.scene_id
+    );
+
+  if(!record?.scene){
+    return null
+  }
+
+  const scene=
+    record.scene;
+
+  scene.objects=
+    Array.isArray(
+      scene.objects
+    )
+      ?scene.objects
+      :[];
+
+  const mutation=
+    result?.mutation;
+
+  if(
+    mutation==="created"||
+    mutation==="duplicated"
+  ){
+    const object=
+      studioMutationObject(
+        result
+      );
+
+    scene.objects=
+      scene.objects.filter(
+        existing=>
+          Number(existing.id)!==
+          Number(object.id)
+      );
+
+    scene.objects.push(
+      object
+    );
+
+    ST.selectedObjectId=
+      Number(
+        object.id
+      );
+
+    scene.object_count=
+      scene.objects.length;
+
+    return object
+  }
+
+  if(
+    mutation==="destroyed"
+  ){
+    const id=
+      Number(
+        result.object_id||
+        payload.object_id
+      );
+
+    scene.objects=
+      scene.objects.filter(
+        object=>
+          Number(object.id)!==id
+      );
+
+    if(
+      Number(
+        ST.selectedObjectId
+      )===id
+    ){
+      ST.selectedObjectId=null
+    }
+
+    scene.object_count=
+      scene.objects.length;
+
+    return null
+  }
+
+  return null
+};
+
+const studioExecuteLifecycleMutation=async(
+  capability,
+  payload,
+  successMessage
+)=>{
+  if(ST.busy){
+    return null
+  }
+
+  ST.busy=true;
+  ST.mutationStatus=
+    "Nevaeh is applying the Studio mutation…";
+
+  try{
+    const response=
+      await nevaeh.execute({
+        capability,
+        payload
+      });
+
+    if(
+      response.status!=="completed"
+    ){
+      throw new Error(
+        `Studio mutation returned ${response.status||"unknown status"}`
+      )
+    }
+
+    const result=
+      response.result||{};
+
+    studioApplyLifecycleMutation(
+      payload,
+      result
+    );
+
+    ST.mutationStatus=
+      successMessage;
+
+    return result
+  }catch(error){
+    ST.mutationStatus=
+      error.message||
+      "Studio mutation failed";
+
+    throw error
+  }finally{
+    /*
+     * This is a LOCAL PWA reconciliation only.
+     *
+     * ST.loaded stays true, so AF.studio ->
+     * studioLoad() immediately returns.
+     *
+     * No bootstrap request.
+     * No Loading Studio screen.
+     *
+     * Replacing the current 3D DOM also lets the
+     * viewport MutationObserver rebuild directly
+     * from the canonical ST scene state.
+     */
+    ST.busy=false;
+
+    if(
+      location.hash.startsWith(
+        "#/studio"
+      )
+    ){
+      render(1)
+    }
+  }
+};
+
 const studioExecuteMutation=async(
   capability,
   payload,
@@ -3946,7 +4151,7 @@ studioCreateObject:async()=>{
         object.object_type===type
     ).length+1;
 
-  await studioExecuteMutation(
+  await studioExecuteLifecycleMutation(
     "studio.scene_object.create",
     {
       scene_id:
@@ -4069,7 +4274,7 @@ studioDuplicateObject:async()=>{
 
   if(!object)return;
 
-  await studioExecuteMutation(
+  await studioExecuteLifecycleMutation(
     "studio.scene_object.duplicate",
     {
       scene_id:
@@ -4110,7 +4315,7 @@ studioDeleteObject:async()=>{
     return
   }
 
-  await studioExecuteMutation(
+  await studioExecuteLifecycleMutation(
     "studio.scene_object.destroy",
     {
       scene_id:

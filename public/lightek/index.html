@@ -920,6 +920,287 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
   }
 }
 
+/* STUDIO-102 Studio Library shell + production taxonomy */
+.studio-library-shell{
+  min-height:calc(100vh - 110px);
+  padding-bottom:80px
+}
+.studio-library-hero{
+  padding:46px 0 30px;
+  border-bottom:1px solid var(--ln);
+  background:
+    radial-gradient(circle at 86% 14%,#d6a94a12,transparent 34%),
+    radial-gradient(circle at 12% 90%,#ffffff08,transparent 38%),
+    linear-gradient(180deg,#111116 0%,var(--bg) 100%)
+}
+.studio-library-hero-row{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:28px;
+  flex-wrap:wrap
+}
+.studio-library-hero h1{
+  max-width:900px;
+  margin:8px 0 14px;
+  font-size:clamp(38px,6vw,72px);
+  line-height:.96
+}
+.studio-library-hero p{
+  max-width:720px;
+  color:var(--mu);
+  font-size:15px
+}
+.studio-library-meta{
+  display:flex;
+  gap:28px;
+  flex-wrap:wrap;
+  margin-top:25px;
+  color:var(--mu);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em
+}
+.studio-library-meta b{
+  display:block;
+  margin-bottom:4px;
+  color:var(--tx);
+  font-size:22px;
+  line-height:1
+}
+.studio-library-layout{
+  display:grid;
+  grid-template-columns:260px minmax(0,1fr);
+  gap:30px;
+  align-items:start;
+  padding-top:30px
+}
+.studio-library-sidebar{
+  position:sticky;
+  top:82px;
+  min-width:0
+}
+.studio-library-search{
+  width:100%;
+  margin-bottom:20px;
+  padding:11px 12px;
+  border:1px solid var(--ln);
+  border-radius:4px;
+  background:var(--s1);
+  color:var(--tx)
+}
+.studio-library-search:focus{
+  border-color:#d6a94a66
+}
+.studio-library-group{
+  margin-top:20px
+}
+.studio-library-group:first-of-type{
+  margin-top:0
+}
+.studio-library-group>span{
+  display:block;
+  margin:0 0 7px;
+  color:var(--mu);
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.14em;
+  text-transform:uppercase
+}
+.studio-library-category{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:12px;
+  width:100%;
+  padding:10px 9px;
+  border:0;
+  border-top:1px solid var(--ln);
+  background:transparent;
+  color:var(--mu);
+  text-align:left
+}
+.studio-library-category:hover{
+  color:var(--tx);
+  background:#ffffff05
+}
+.studio-library-category.on{
+  color:var(--gd);
+  background:#d6a94a0c;
+  box-shadow:inset 2px 0 0 var(--gd)
+}
+.studio-library-category small{
+  color:inherit;
+  opacity:.72
+}
+.studio-library-content{
+  min-width:0
+}
+.studio-library-content-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:20px;
+  min-height:64px;
+  margin-bottom:18px;
+  padding-bottom:16px;
+  border-bottom:1px solid var(--ln)
+}
+.studio-library-content-head h2{
+  margin-top:4px;
+  font-size:clamp(28px,3.5vw,42px)
+}
+.studio-library-content-head p{
+  max-width:590px;
+  color:var(--mu);
+  font-size:13px
+}
+.studio-library-summary{
+  flex:0 0 auto;
+  color:var(--mu);
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-library-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px
+}
+.studio-library-card{
+  min-width:0;
+  overflow:hidden;
+  border:1px solid var(--ln);
+  border-radius:5px;
+  background:var(--s1)
+}
+.studio-library-art{
+  position:relative;
+  aspect-ratio:16/10;
+  overflow:hidden;
+  border-bottom:1px solid var(--ln)
+}
+.studio-library-art::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(180deg,transparent 35%,#000b),
+    linear-gradient(90deg,#0002,transparent 55%)
+}
+.studio-library-art-label{
+  position:absolute;
+  z-index:1;
+  left:10px;
+  bottom:9px;
+  padding:4px 7px;
+  border:1px solid #ffffff24;
+  border-radius:2px;
+  background:#07070ab8;
+  color:#eee;
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  backdrop-filter:blur(8px)
+}
+.studio-library-card-body{
+  padding:14px
+}
+.studio-library-card h3{
+  margin:3px 0 6px;
+  font:400 19px/1.18 Georgia,serif
+}
+.studio-library-card p{
+  min-height:38px;
+  color:var(--mu);
+  font-size:11px;
+  line-height:1.45
+}
+.studio-library-card-meta{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:13px
+}
+.studio-library-card-meta span{
+  padding:4px 6px;
+  border:1px solid var(--ln);
+  border-radius:2px;
+  color:var(--mu);
+  font-size:8px;
+  letter-spacing:.06em;
+  text-transform:uppercase
+}
+.studio-library-empty{
+  padding:70px 24px;
+  border:1px dashed var(--ln);
+  text-align:center
+}
+.studio-library-empty h3{
+  margin:7px 0;
+  font:400 28px/1.1 Georgia,serif
+}
+.studio-library-empty p{
+  max-width:500px;
+  margin:0 auto;
+  color:var(--mu)
+}
+@media(max-width:1180px){
+  .studio-library-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))
+  }
+}
+@media(max-width:900px){
+  .studio-library-layout{
+    grid-template-columns:1fr
+  }
+  .studio-library-sidebar{
+    position:static
+  }
+  .studio-library-groups{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding-bottom:8px;
+    scrollbar-width:none
+  }
+  .studio-library-groups::-webkit-scrollbar{
+    display:none
+  }
+  .studio-library-group{
+    display:contents
+  }
+  .studio-library-group>span{
+    display:none
+  }
+  .studio-library-category{
+    flex:0 0 auto;
+    display:flex;
+    width:auto;
+    min-width:max-content;
+    border:1px solid var(--ln);
+    border-radius:3px;
+    padding:8px 10px
+  }
+  .studio-library-category.on{
+    box-shadow:none;
+    border-color:var(--gd)
+  }
+}
+@media(max-width:700px){
+  .studio-library-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .studio-library-content-head{
+    align-items:flex-start;
+    flex-direction:column
+  }
+}
+@media(max-width:460px){
+  .studio-library-grid{
+    grid-template-columns:1fr
+  }
+}
+
 /* Lightek Studio visual 3D workspace */
 .studio-live-layout{
   display:grid;
@@ -1499,7 +1780,9 @@ const ST={
   createStartModeKey:null,
   createName:"",
   createBrief:"",
-  createReady:false
+  createReady:false,
+  libraryCategory:"all",
+  libraryQuery:""
 };
 
 /*
@@ -1700,6 +1983,417 @@ const STUDIO_CREATE_BLUEPRINTS=[
     inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
   }
 ];
+
+
+/*
+ * STUDIO-102 fixture-first Library contract.
+ *
+ * The taxonomy is intentionally semantic and production-facing.
+ * It describes what an asset IS to a creator instead of mirroring
+ * Blender implementation/storage details.
+ *
+ * Backend registry wiring lands later. This pass defines the UX contract.
+ */
+const STUDIO_LIBRARY_CATEGORIES=[
+  {key:"templates",label:"Templates",group:"Start & reuse",description:"Repeatable ways to make complete outcomes.",order:10},
+  {key:"collections",label:"Collections",group:"Start & reuse",description:"Curated groups of assets that belong together.",order:20},
+
+  {key:"characters",label:"Characters",group:"Cast & world",description:"Reusable people, creatures and performance-ready cast.",order:30},
+  {key:"environments",label:"Environments",group:"Cast & world",description:"Worlds, rooms, landscapes and production spaces.",order:40},
+  {key:"props",label:"Props",group:"Cast & world",description:"Story objects and reusable set pieces.",order:50},
+  {key:"vehicles",label:"Vehicles",group:"Cast & world",description:"Reusable transportation and moving world assets.",order:60},
+  {key:"architecture",label:"Architecture",group:"Cast & world",description:"Buildings, interiors and designed structural spaces.",order:70},
+
+  {key:"cameras",label:"Cameras",group:"Production",description:"Camera bodies, lens packages, rigs and coverage systems.",order:80},
+  {key:"lights",label:"Lights",group:"Production",description:"Lighting instruments, rigs and repeatable lighting setups.",order:90},
+  {key:"audio",label:"Audio",group:"Production",description:"Dialogue, music, sound beds, effects and reusable mixes.",order:100},
+  {key:"graphics",label:"Graphics",group:"Production",description:"Titles, overlays, layouts and reusable visual packages.",order:110},
+
+  {key:"materials",label:"Materials",group:"Look & motion",description:"Reusable surface appearance and shading language.",order:120},
+  {key:"geometry_systems",label:"Geometry Systems",group:"Look & motion",description:"Procedural geometry and configurable fabrication systems.",order:130},
+  {key:"fx",label:"FX",group:"Look & motion",description:"Visual effects, simulations and reusable effect recipes.",order:140},
+  {key:"animations",label:"Animations",group:"Look & motion",description:"Reusable actions, performances and motion systems.",order:150}
+];
+
+const STUDIO_LIBRARY_ASSETS=[
+  {key:"tpl_single_camera_drama",name:"Single-Camera Drama",category:"templates",kind:"Production template",description:"Coverage, camera, lighting and editorial grammar for intimate scripted drama.",tags:["Drama","Camera","Lighting"],visual:1},
+  {key:"tpl_live_interview",name:"Live Interview Package",category:"templates",kind:"Production template",description:"A clean two-person live production starting point with graphics and audio structure.",tags:["Live","Interview","Graphics"],visual:5},
+  {key:"tpl_night_exterior",name:"Atlanta Night Exterior",category:"templates",kind:"Scene template",description:"A reusable night exterior starting point built around warm practicals and deep city contrast.",tags:["Exterior","Night","Scene"],visual:7},
+
+  {key:"col_void_echo_pilot",name:"Void Echo — Pilot Kit",category:"collections",kind:"Production collection",description:"Characters, environments, props, looks and sound references grouped for a pilot workflow.",tags:["Series","Pilot","Kit"],visual:6},
+  {key:"col_broadcast",name:"Late Night Broadcast Kit",category:"collections",kind:"Production collection",description:"A reusable family of cameras, graphics, lights and audio assets for a studio show.",tags:["Broadcast","Studio","Reusable"],visual:2},
+
+  {key:"char_iris",name:"Iris",category:"characters",kind:"Hero character",description:"Digital artist character package prepared for close performance and memory-world scenes.",tags:["Hero","Rigged","Performance"],visual:3},
+  {key:"char_marcus",name:"Marcus",category:"characters",kind:"Supporting character",description:"Reusable supporting-character package with production and continuity metadata.",tags:["Cast","Rigged","Continuity"],visual:0},
+
+  {key:"env_memory_chamber",name:"Echo Memory Chamber",category:"environments",kind:"Hero environment",description:"Contained neural-interface environment with controllable practical and memory-state looks.",tags:["Interior","Hero","Modular"],visual:4},
+  {key:"env_rooftop",name:"Atlanta Rooftop",category:"environments",kind:"Exterior environment",description:"Night rooftop world with skyline staging zones and reusable camera positions.",tags:["Exterior","Night","Atlanta"],visual:7},
+
+  {key:"prop_echo_interface",name:"Echo Neural Interface",category:"props",kind:"Hero prop",description:"Primary story device with reusable material, lighting and interaction states.",tags:["Hero","Interactive","Story"],visual:5},
+  {key:"prop_phone",name:"Hero Phone",category:"props",kind:"Reusable prop",description:"Screen-ready phone asset with configurable display content and close-up treatment.",tags:["Screen","Handheld","Reusable"],visual:1},
+
+  {key:"vehicle_night_sedan",name:"Night Sedan",category:"vehicles",kind:"Picture vehicle",description:"Dark production sedan with interior/exterior variants and night-lighting compatibility.",tags:["Vehicle","Night","Interior"],visual:0},
+
+  {key:"arch_glasshouse",name:"Glasshouse Residence",category:"architecture",kind:"Architecture system",description:"Modern modular residence with configurable rooms, glazing and production access.",tags:["Building","Modular","Interior"],visual:4},
+
+  {key:"cam_intimate_50",name:"Intimate 50mm Coverage",category:"cameras",kind:"Camera package",description:"A reusable close-performance camera grammar centered on 50mm coverage and restrained movement.",tags:["50mm","Drama","Coverage"],visual:6},
+
+  {key:"light_warm_practical",name:"Warm Practical Rig",category:"lights",kind:"Lighting package",description:"Warm motivated practical-light setup for dramatic interiors and controlled falloff.",tags:["Warm","Interior","Motivated"],visual:2},
+
+  {key:"mat_worn_brass",name:"Worn Brass",category:"materials",kind:"Material",description:"Aged metallic surface with controllable wear, roughness and production-safe variation.",tags:["Metal","Aged","Surface"],visual:5},
+  {key:"mat_memory_glass",name:"Memory Glass",category:"materials",kind:"Material",description:"Translucent surface language for Echo interfaces and memory-world transitions.",tags:["Glass","Echo","Translucent"],visual:3},
+
+  {key:"geo_city_block",name:"Modular City Block",category:"geometry_systems",kind:"Geometry system",description:"Configurable block generator for fast street, facade and neighborhood layouts.",tags:["Procedural","City","Modular"],visual:7},
+
+  {key:"fx_memory_fragment",name:"Memory Fragmentation",category:"fx",kind:"FX recipe",description:"Reusable distortion and fragmentation treatment for unstable memory transitions.",tags:["Memory","Distortion","Transition"],visual:6},
+
+  {key:"audio_neural_pulse",name:"Neural Pulse Bed",category:"audio",kind:"Sound bed",description:"Low-frequency tonal bed designed to support Echo activation and rising neural pressure.",tags:["Atmosphere","Echo","Loop"],visual:0},
+
+  {key:"gfx_lower_thirds",name:"Lightek Lower Third System",category:"graphics",kind:"Graphics package",description:"Reusable lower-third grammar with title, guest and live-state variations.",tags:["Titles","Broadcast","Identity"],visual:1},
+
+  {key:"anim_walk_neutral",name:"Neutral Walk Cycle",category:"animations",kind:"Animation",description:"Reusable neutral locomotion cycle designed for character retargeting and variation.",tags:["Walk","Character","Retarget"],visual:4}
+];
+
+const studioLibraryCategories=()=>
+  [...STUDIO_LIBRARY_CATEGORIES].sort(
+    (a,b)=>Number(a.order||0)-Number(b.order||0)
+  );
+
+const studioLibraryCategory=key=>
+  studioLibraryCategories().find(
+    category=>category.key===key
+  )||null;
+
+const studioLibraryCategoryCount=key=>
+  STUDIO_LIBRARY_ASSETS.filter(
+    asset=>asset.category===key
+  ).length;
+
+const studioLibraryFilteredAssets=()=>{
+  const category=
+    ST.libraryCategory||"all";
+
+  const query=
+    ST.libraryQuery
+      .trim()
+      .toLowerCase();
+
+  return STUDIO_LIBRARY_ASSETS.filter(asset=>{
+    if(
+      category!=="all"&&
+      asset.category!==category
+    ){
+      return false
+    }
+
+    if(!query){
+      return true
+    }
+
+    return [
+      asset.name,
+      asset.kind,
+      asset.description,
+      ...(asset.tags||[]),
+      studioLibraryCategory(asset.category)?.label
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(query)
+  })
+};
+
+const studioLibraryCategoryGroups=()=>{
+  const groups=[];
+
+  studioLibraryCategories().forEach(category=>{
+    let group=
+      groups.find(
+        item=>item.name===category.group
+      );
+
+    if(!group){
+      group={
+        name:category.group,
+        categories:[]
+      };
+
+      groups.push(group)
+    }
+
+    group.categories.push(category)
+  });
+
+  return groups
+};
+
+const studioLibrarySummaryText=()=>{
+  const category=
+    ST.libraryCategory==="all"
+      ?null
+      :studioLibraryCategory(
+        ST.libraryCategory
+      );
+
+  const count=
+    studioLibraryFilteredAssets().length;
+
+  return `${count} ${count===1?"asset":"assets"}${category?` · ${category.label}`:""}`
+};
+
+const studioLibraryCardsMarkup=()=>{
+  const assets=
+    studioLibraryFilteredAssets();
+
+  if(!assets.length){
+    return `
+      <div class="studio-library-empty">
+        <span class="eb">Nothing matched</span>
+
+        <h3>
+          Try another category or search.
+        </h3>
+
+        <p>
+          The Library taxonomy remains available even when a category has
+          no matching fixture in the current view.
+        </p>
+      </div>
+    `
+  }
+
+  return `
+    <div class="studio-library-grid">
+      ${assets.map(asset=>{
+        const category=
+          studioLibraryCategory(
+            asset.category
+          );
+
+        return `
+          <article class="studio-library-card">
+            <div
+              class="studio-library-art"
+              style="${art(Number(asset.visual||0))}"
+            >
+              <span class="studio-library-art-label">
+                ${E(category?.label||asset.category)}
+              </span>
+            </div>
+
+            <div class="studio-library-card-body">
+              <span class="eb">
+                ${E(asset.kind)}
+              </span>
+
+              <h3>
+                ${E(asset.name)}
+              </h3>
+
+              <p>
+                ${E(asset.description)}
+              </p>
+
+              <div class="studio-library-card-meta">
+                ${(asset.tags||[]).map(
+                  tag=>`<span>${E(tag)}</span>`
+                ).join("")}
+              </div>
+            </div>
+          </article>
+        `
+      }).join("")}
+    </div>
+  `
+};
+
+const studioLibraryRefreshResults=()=>{
+  const results=
+    document.getElementById(
+      "studio-library-results"
+    );
+
+  if(results){
+    results.innerHTML=
+      studioLibraryCardsMarkup()
+  }
+
+  const summary=
+    document.getElementById(
+      "studio-library-summary"
+    );
+
+  if(summary){
+    summary.textContent=
+      studioLibrarySummaryText()
+  }
+};
+
+const studioLibraryView=()=>{
+  const categories=
+    studioLibraryCategories();
+
+  const selectedCategory=
+    ST.libraryCategory==="all"
+      ?null
+      :studioLibraryCategory(
+        ST.libraryCategory
+      );
+
+  const groups=
+    studioLibraryCategoryGroups();
+
+  return `
+    <div class="studio-library-shell">
+      <div class="studio-library-hero">
+        <div class="wrap">
+          <div class="studio-library-hero-row">
+            <div>
+              <span class="eb">
+                Lightek Studio · Library
+              </span>
+
+              <h1>
+                Build once.<br>
+                Use everywhere.
+              </h1>
+
+              <p>
+                Your reusable production memory — organized by what an
+                asset is to the creator, not by how Blender stores it.
+              </p>
+
+              <div class="studio-library-meta">
+                <span>
+                  <b>${categories.length}</b>
+                  Categories
+                </span>
+
+                <span>
+                  <b>${STUDIO_LIBRARY_ASSETS.length}</b>
+                  Fixture assets
+                </span>
+
+                <span>
+                  <b>${groups.length}</b>
+                  Production groups
+                </span>
+              </div>
+            </div>
+
+            <div class="studio-actions">
+              <a
+                class="btn p"
+                href="#/studio/create"
+              >
+                + Create
+              </a>
+
+              <a
+                class="btn"
+                href="#/studio"
+              >
+                Studio home
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap studio-library-layout">
+        <aside class="studio-library-sidebar">
+          <label>
+            <span class="eb" style="display:block;margin-bottom:8px">
+              Find an asset
+            </span>
+
+            <input
+              class="studio-library-search"
+              type="search"
+              value="${E(ST.libraryQuery)}"
+              placeholder="Search Library"
+              data-studio-library-search="query"
+              autocomplete="off"
+            >
+          </label>
+
+          <div class="studio-library-groups">
+            <div class="studio-library-group">
+              <span>Everything</span>
+
+              <button
+                class="studio-library-category ${ST.libraryCategory==="all"?"on":""}"
+                data-a="studioLibraryCategory"
+                data-key="all"
+                type="button"
+              >
+                <b>All assets</b>
+                <small>${STUDIO_LIBRARY_ASSETS.length}</small>
+              </button>
+            </div>
+
+            ${groups.map(group=>`
+              <div class="studio-library-group">
+                <span>${E(group.name)}</span>
+
+                ${group.categories.map(category=>`
+                  <button
+                    class="studio-library-category ${ST.libraryCategory===category.key?"on":""}"
+                    data-a="studioLibraryCategory"
+                    data-key="${E(category.key)}"
+                    type="button"
+                  >
+                    <b>${E(category.label)}</b>
+                    <small>${studioLibraryCategoryCount(category.key)}</small>
+                  </button>
+                `).join("")}
+              </div>
+            `).join("")}
+          </div>
+        </aside>
+
+        <section class="studio-library-content">
+          <div class="studio-library-content-head">
+            <div>
+              <span class="eb">
+                ${selectedCategory
+                  ?E(selectedCategory.group)
+                  :"Production taxonomy"
+                }
+              </span>
+
+              <h2>
+                ${selectedCategory
+                  ?E(selectedCategory.label)
+                  :"All Library assets"
+                }
+              </h2>
+
+              <p>
+                ${selectedCategory
+                  ?E(selectedCategory.description)
+                  :"Templates, cast, worlds, production systems, looks, motion and reusable collections live in one semantic Library."
+                }
+              </p>
+            </div>
+
+            <div
+              class="studio-library-summary"
+              id="studio-library-summary"
+            >
+              ${E(studioLibrarySummaryText())}
+            </div>
+          </div>
+
+          <div id="studio-library-results">
+            ${studioLibraryCardsMarkup()}
+          </div>
+        </section>
+      </div>
+    </div>
+  `
+};
 
 const studioCreateBlueprints=()=>
   [...STUDIO_CREATE_BLUEPRINTS]
@@ -3006,14 +3700,25 @@ const studioProjectsView=()=>{
               No Studio projects exist yet.
             </p>
 
-            <button
-              class="btn p"
-              data-a="studioCreateNew"
-              type="button"
-              style="margin-top:16px"
+            <div
+              class="studio-actions"
+              style="justify-content:center;margin-top:16px"
             >
-              Create something
-            </button>
+              <button
+                class="btn p"
+                data-a="studioCreateNew"
+                type="button"
+              >
+                Create something
+              </button>
+
+              <a
+                class="btn"
+                href="#/studio/library"
+              >
+                Open Library
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -3045,6 +3750,13 @@ const studioProjectsView=()=>{
               >
                 + Create
               </button>
+
+              <a
+                class="btn"
+                href="#/studio/library"
+              >
+                Library
+              </a>
 
               <button
                 class="btn"
@@ -3259,6 +3971,10 @@ const studioView=id=>{
 
   if(id==="create"){
     return studioCreateView()
+  }
+
+  if(id==="library"){
+    return studioLibraryView()
   }
 
   const sceneId=
@@ -5041,6 +5757,14 @@ space:id=>{
   }
 };
 const A={
+studioLibraryCategory:button=>{
+  ST.libraryCategory=
+    button.dataset.key||
+    "all";
+
+  render(1)
+},
+
 studioCreateNew:()=>{
   studioResetCreateState();
   location.hash=
@@ -8086,6 +8810,16 @@ app.addEventListener('input',e=>{
 
   const studioCreateField=
     e.target.dataset?.studioCreateField;
+
+  const studioLibrarySearch=
+    e.target.dataset?.studioLibrarySearch;
+
+  if(studioLibrarySearch==="query"){
+    ST.libraryQuery=
+      e.target.value;
+
+    studioLibraryRefreshResults()
+  }
 
   if(studioCreateField==="name"){
     ST.createName=

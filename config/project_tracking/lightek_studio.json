@@ -207,11 +207,20 @@
       "title": "Studio Library shell and production taxonomy",
       "phase": "UX Foundation II",
       "area": "Library",
-      "status": "in_progress",
+      "status": "done",
       "priority": "P0",
       "effort": 5,
       "summary": "Create first-class library categories for Templates, Characters, Environments, Props, Vehicles, Architecture, Cameras, Lights, Materials, Geometry Systems, FX, Audio, Graphics, Animations and Collections.",
-      "evidence": []
+      "evidence": [
+        "Browser-approved Studio Library UX at #/studio/library",
+        "First-class semantic taxonomy established for Templates, Characters, Environments, Props, Vehicles, Architecture, Cameras, Lights, Materials, Geometry Systems, FX, Audio, Graphics, Animations and Collections",
+        "Library taxonomy grouped by creator-facing production meaning rather than Blender storage internals",
+        "Fixture asset cards cover reusable production templates, cast, worlds, production systems, looks, motion and collections",
+        "Category filtering and live Library search verified in the PWA",
+        "Studio home exposes a first-class Library entry point while Create remains intent-first",
+        "STUDIO-102 remains fixture-first with no asset-registry backend execution",
+        "PWA shell cache advanced to v26 and JavaScript/service-worker syntax checks are green"
+      ]
     },
     {
       "key": "STUDIO-103",

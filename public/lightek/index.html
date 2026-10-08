@@ -1201,6 +1201,350 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
   }
 }
 
+/* STUDIO-103 Template Gallery UX */
+.studio-template-shell{
+  min-height:calc(100vh - 110px);
+  padding-bottom:90px
+}
+.studio-template-hero{
+  padding:46px 0 34px;
+  border-bottom:1px solid var(--ln);
+  background:
+    radial-gradient(circle at 82% 12%,#d6a94a16,transparent 34%),
+    radial-gradient(circle at 15% 90%,#ffffff08,transparent 36%),
+    linear-gradient(180deg,#16120d 0%,var(--bg) 100%)
+}
+.studio-template-hero-row{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:30px;
+  flex-wrap:wrap
+}
+.studio-template-hero h1{
+  max-width:900px;
+  margin:8px 0 14px;
+  font-size:clamp(40px,6vw,76px);
+  line-height:.94
+}
+.studio-template-hero p{
+  max-width:760px;
+  color:var(--mu);
+  font-size:15px
+}
+.studio-template-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+  padding:24px 0 18px;
+  border-bottom:1px solid var(--ln)
+}
+.studio-template-filters{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap
+}
+.studio-template-filter{
+  padding:7px 10px;
+  border:1px solid var(--ln);
+  border-radius:3px;
+  background:transparent;
+  color:var(--mu);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-template-filter:hover{
+  color:var(--tx);
+  border-color:#ffffff30
+}
+.studio-template-filter.on{
+  color:var(--gd);
+  border-color:var(--gd);
+  background:#d6a94a0b
+}
+.studio-template-search{
+  width:min(320px,100%);
+  padding:10px 12px;
+  border:1px solid var(--ln);
+  border-radius:4px;
+  background:var(--s1);
+  color:var(--tx)
+}
+.studio-template-stage{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);
+  gap:18px;
+  margin-top:26px
+}
+.studio-template-feature{
+  position:relative;
+  min-height:430px;
+  overflow:hidden;
+  border:1px solid var(--ln);
+  border-radius:6px;
+  background:var(--s1)
+}
+.studio-template-feature-art{
+  position:absolute;
+  inset:0
+}
+.studio-template-feature-art::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(0deg,#07070af5 3%,#07070a9e 48%,#07070a25 78%),
+    linear-gradient(90deg,#07070ac7,transparent 68%)
+}
+.studio-template-feature-copy{
+  position:relative;
+  z-index:1;
+  display:flex;
+  min-height:430px;
+  max-width:720px;
+  flex-direction:column;
+  justify-content:flex-end;
+  padding:34px
+}
+.studio-template-feature-copy h2{
+  margin:7px 0 10px;
+  font-size:clamp(34px,4.5vw,58px);
+  line-height:.98
+}
+.studio-template-feature-copy>p{
+  max-width:620px;
+  color:#d3d0ca;
+  font-size:14px
+}
+.studio-template-feature-meta{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:18px 0
+}
+.studio-template-feature-meta span{
+  padding:5px 8px;
+  border:1px solid #ffffff28;
+  border-radius:2px;
+  background:#07070a70;
+  color:#ddd;
+  font-size:9px;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  backdrop-filter:blur(8px)
+}
+.studio-template-feature-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap
+}
+.studio-template-receipt{
+  border:1px solid #d6a94a44;
+  border-radius:6px;
+  background:
+    linear-gradient(180deg,#d6a94a0c,var(--s1));
+  padding:24px
+}
+.studio-template-receipt h3{
+  margin:6px 0 18px;
+  font:400 27px/1.1 Georgia,serif
+}
+.studio-template-receipt-section{
+  padding:14px 0;
+  border-top:1px solid var(--ln)
+}
+.studio-template-receipt-section small{
+  display:block;
+  margin-bottom:7px;
+  color:var(--mu);
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-template-receipt-section p{
+  color:#d4d1cb;
+  font-size:12px;
+  line-height:1.5
+}
+.studio-template-receipt-list{
+  display:grid;
+  gap:7px;
+  margin:0;
+  padding:0;
+  list-style:none
+}
+.studio-template-receipt-list li{
+  position:relative;
+  padding-left:14px;
+  color:#d4d1cb;
+  font-size:12px
+}
+.studio-template-receipt-list li::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:.62em;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:var(--gd)
+}
+.studio-template-gallery-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+  margin:44px 0 18px;
+  padding-bottom:14px;
+  border-bottom:1px solid var(--ln)
+}
+.studio-template-gallery-head h2{
+  margin-top:4px;
+  font-size:clamp(26px,3vw,38px)
+}
+.studio-template-gallery-head p{
+  max-width:560px;
+  color:var(--mu);
+  font-size:12px
+}
+.studio-template-gallery-count{
+  flex:0 0 auto;
+  color:var(--mu);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-template-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px
+}
+.studio-template-card{
+  appearance:none;
+  display:flex;
+  min-width:0;
+  overflow:hidden;
+  flex-direction:column;
+  padding:0;
+  border:1px solid var(--ln);
+  border-radius:5px;
+  background:var(--s1);
+  color:inherit;
+  text-align:left;
+  transition:
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease
+}
+.studio-template-card:hover{
+  transform:translateY(-2px);
+  border-color:#d6a94a66;
+  background:#ffffff08
+}
+.studio-template-card.on{
+  border-color:var(--gd);
+  box-shadow:inset 0 0 0 1px #d6a94a22
+}
+.studio-template-card-art{
+  position:relative;
+  aspect-ratio:16/9;
+  overflow:hidden;
+  border-bottom:1px solid var(--ln)
+}
+.studio-template-card-art::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(0deg,#07070ac9,transparent 62%)
+}
+.studio-template-card-label{
+  position:absolute;
+  z-index:1;
+  left:10px;
+  bottom:9px;
+  padding:4px 7px;
+  border:1px solid #ffffff22;
+  border-radius:2px;
+  background:#07070ab8;
+  color:#eee;
+  font-size:8px;
+  letter-spacing:.09em;
+  text-transform:uppercase
+}
+.studio-template-card-body{
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  padding:16px
+}
+.studio-template-card h3{
+  margin:5px 0 7px;
+  font:400 22px/1.1 Georgia,serif
+}
+.studio-template-card p{
+  color:var(--mu);
+  font-size:11px;
+  line-height:1.5
+}
+.studio-template-card-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:auto;
+  padding-top:18px;
+  color:var(--gd);
+  font-size:10px;
+  letter-spacing:.07em;
+  text-transform:uppercase
+}
+.studio-template-empty{
+  grid-column:1/-1;
+  padding:70px 24px;
+  border:1px dashed var(--ln);
+  text-align:center
+}
+.studio-template-empty h3{
+  margin:7px 0;
+  font:400 28px/1.1 Georgia,serif
+}
+.studio-template-empty p{
+  max-width:520px;
+  margin:0 auto;
+  color:var(--mu)
+}
+@media(max-width:1050px){
+  .studio-template-stage{
+    grid-template-columns:1fr
+  }
+  .studio-template-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+}
+@media(max-width:700px){
+  .studio-template-toolbar{
+    align-items:stretch;
+    flex-direction:column
+  }
+  .studio-template-search{
+    width:100%
+  }
+  .studio-template-grid{
+    grid-template-columns:1fr
+  }
+  .studio-template-feature-copy{
+    padding:24px
+  }
+  .studio-template-gallery-head{
+    align-items:flex-start;
+    flex-direction:column
+  }
+}
+
 /* Lightek Studio visual 3D workspace */
 .studio-live-layout{
   display:grid;
@@ -1782,7 +2126,10 @@ const ST={
   createBrief:"",
   createReady:false,
   libraryCategory:"all",
-  libraryQuery:""
+  libraryQuery:"",
+  templateIntent:"all",
+  templateQuery:"",
+  templateSelectedKey:"single_camera_drama"
 };
 
 /*
@@ -2054,6 +2401,563 @@ const STUDIO_LIBRARY_ASSETS=[
   {key:"anim_walk_neutral",name:"Neutral Walk Cycle",category:"animations",kind:"Animation",description:"Reusable neutral locomotion cycle designed for character retargeting and variation.",tags:["Walk","Character","Retarget"],visual:4}
 ];
 
+
+/*
+ * STUDIO-103 fixture-first Template Gallery contract.
+ *
+ * Templates are presented by production intent and useful outcomes.
+ * The gallery deliberately hides Blender implementation mechanics.
+ * Registry/execution wiring lands later.
+ */
+const STUDIO_TEMPLATE_GALLERY=[
+  {
+    key:"single_camera_drama",
+    name:"Single-Camera Drama",
+    intent:"scripted",
+    intent_label:"Scripted",
+    promise:"Performance first. Production structure already underneath it.",
+    description:"Start a dramatic episode with an established scene, camera, lighting, sound and editorial rhythm without building the production grammar from scratch.",
+    format:"30–60 min episode",
+    best_for:"Character-driven drama, thrillers and prestige narrative",
+    brings:["Story or script","Cast direction","Your world and tone"],
+    handles:["Scene production structure","Coverage baseline","Lighting and audio starting grammar","Editorial rhythm"],
+    tags:["Drama","Narrative","Performance"],
+    visual:1,
+    featured:true
+  },
+  {
+    key:"multi_camera_comedy",
+    name:"Multi-Camera Comedy",
+    intent:"scripted",
+    intent_label:"Scripted",
+    promise:"Block the comedy. Keep the room production-ready.",
+    description:"A repeatable comedy starting point built around ensemble blocking, consistent coverage and fast scene turnover.",
+    format:"22–30 min episode",
+    best_for:"Sitcoms, ensemble comedy and stage-forward scripted shows",
+    brings:["Premise","Cast chemistry","Scene direction"],
+    handles:["Multi-camera coverage baseline","Stage geography","Lighting continuity","Fast editorial assembly"],
+    tags:["Comedy","Ensemble","Multi-camera"],
+    visual:5
+  },
+  {
+    key:"documentary_profile",
+    name:"Documentary Profile",
+    intent:"documentary",
+    intent_label:"Documentary",
+    promise:"Follow the person. Let Studio hold the structure.",
+    description:"An interview-and-observation framework for building a human story from real people, places and archival material.",
+    format:"15–60 min profile",
+    best_for:"Profiles, biographies, culture pieces and short documentaries",
+    brings:["Subject","Access","Editorial point of view"],
+    handles:["Interview structure","B-roll coverage grammar","Archive placeholders","Documentary pacing baseline"],
+    tags:["Documentary","Interview","Archive"],
+    visual:3
+  },
+  {
+    key:"live_interview",
+    name:"Live Interview",
+    intent:"live",
+    intent_label:"Live",
+    promise:"Go on air without rebuilding the room every time.",
+    description:"A clean live conversation format with reusable camera, audio, guest, graphic and switching structure.",
+    format:"15–90 min live show",
+    best_for:"Interviews, panels, podcasts and live conversations",
+    brings:["Guests","Topics","Run of show"],
+    handles:["Camera layout","Audio baseline","Lower-third placements","Live switching structure"],
+    tags:["Live","Interview","Broadcast"],
+    visual:6
+  },
+  {
+    key:"music_video",
+    name:"Performance Music Video",
+    intent:"music",
+    intent_label:"Music",
+    promise:"Build around rhythm, performance and image.",
+    description:"A performance-forward visual template that starts with musical structure, hero coverage, movement and editorial beats.",
+    format:"2–6 min music video",
+    best_for:"Performance videos, artist visuals and stylized releases",
+    brings:["Track","Artist","Creative direction"],
+    handles:["Performance coverage baseline","Beat-aware shot rhythm","Lighting starting look","Editorial structure"],
+    tags:["Music","Performance","Rhythm"],
+    visual:7
+  },
+  {
+    key:"sports_live",
+    name:"Sports Live Broadcast",
+    intent:"live",
+    intent_label:"Live",
+    promise:"Cover the action. Keep score, story and replay in the same system.",
+    description:"A broadcast starting point for live competition with game coverage, presenter positions, graphics and replay structure.",
+    format:"Live event",
+    best_for:"Local sports, tournaments, exhibitions and recurring leagues",
+    brings:["Event","Teams or competitors","Editorial priorities"],
+    handles:["Coverage roles","Score graphics baseline","Replay structure","Presenter and break layout"],
+    tags:["Sports","Live","Replay"],
+    visual:2
+  },
+  {
+    key:"news_field_package",
+    name:"News Field Package",
+    intent:"news",
+    intent_label:"News",
+    promise:"Get the story assembled without rebuilding the package.",
+    description:"A fast field-story structure for reporter standups, interviews, supporting footage, graphics and delivery.",
+    format:"1–5 min package",
+    best_for:"News, PEG, local reporting and fast-turnaround field stories",
+    brings:["Story","Reporter","Footage"],
+    handles:["Package structure","Interview/B-roll rhythm","Graphic placeholders","Delivery baseline"],
+    tags:["News","Field","Fast turnaround"],
+    visual:0
+  },
+  {
+    key:"vertical_story",
+    name:"Vertical Story",
+    intent:"short_form",
+    intent_label:"Short form",
+    promise:"Mobile-first without treating short-form like an afterthought.",
+    description:"A vertical storytelling format built around immediate clarity, visual movement, captions and a tight payoff.",
+    format:"15–90 sec vertical",
+    best_for:"Clips, social stories, promos and creator-first short video",
+    brings:["Idea","Performance or media","Desired response"],
+    handles:["Vertical framing baseline","Caption-safe layout","Beat compression","Short-form delivery"],
+    tags:["Vertical","Social","Fast"],
+    visual:4
+  },
+  {
+    key:"procedural_world",
+    name:"Procedural World Builder",
+    intent:"world_building",
+    intent_label:"World building",
+    promise:"Describe the place. Keep the world reusable.",
+    description:"A world-building template for environments and architecture that can become reusable production space instead of a one-off scene.",
+    format:"Reusable environment system",
+    best_for:"Series worlds, virtual production, recurring sets and digital twins",
+    brings:["World direction","References","Story needs"],
+    handles:["Environment structure","Reusable spatial zones","Camera-ready staging","Asset reuse baseline"],
+    tags:["World","Environment","Reusable"],
+    visual:5
+  }
+];
+
+const studioTemplateIntents=()=>{
+  const seen=new Set();
+
+  return [
+    {key:"all",label:"All"},
+    ...STUDIO_TEMPLATE_GALLERY
+      .filter(template=>{
+        if(seen.has(template.intent)){
+          return false
+        }
+
+        seen.add(template.intent);
+        return true
+      })
+      .map(template=>({
+        key:template.intent,
+        label:template.intent_label
+      }))
+  ]
+};
+
+const studioTemplateByKey=key=>
+  STUDIO_TEMPLATE_GALLERY.find(
+    template=>template.key===key
+  )||null;
+
+const studioTemplateSelected=()=>{
+  const filtered=
+    studioTemplateFiltered();
+
+  return (
+    studioTemplateByKey(
+      ST.templateSelectedKey
+    )||
+    filtered[0]||
+    STUDIO_TEMPLATE_GALLERY[0]||
+    null
+  )
+};
+
+const studioTemplateFiltered=()=>{
+  const intent=
+    ST.templateIntent||"all";
+
+  const query=
+    ST.templateQuery
+      .trim()
+      .toLowerCase();
+
+  return STUDIO_TEMPLATE_GALLERY.filter(template=>{
+    if(
+      intent!=="all"&&
+      template.intent!==intent
+    ){
+      return false
+    }
+
+    if(!query){
+      return true
+    }
+
+    return [
+      template.name,
+      template.intent_label,
+      template.promise,
+      template.description,
+      template.format,
+      template.best_for,
+      ...(template.tags||[])
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(query)
+  })
+};
+
+const studioTemplateEnsureSelection=()=>{
+  const filtered=
+    studioTemplateFiltered();
+
+  if(!filtered.length){
+    return null
+  }
+
+  const current=
+    filtered.find(
+      template=>
+        template.key===
+        ST.templateSelectedKey
+    );
+
+  if(current){
+    return current
+  }
+
+  ST.templateSelectedKey=
+    filtered[0].key;
+
+  return filtered[0]
+};
+
+const studioTemplateStageMarkup=()=>{
+  const template=
+    studioTemplateEnsureSelection();
+
+  if(!template){
+    return `
+      <div class="studio-template-empty">
+        <span class="eb">No template matched</span>
+
+        <h3>
+          Try another intent or search.
+        </h3>
+
+        <p>
+          Template discovery stays centered on what you want to make.
+        </p>
+      </div>
+    `
+  }
+
+  return `
+    <div class="studio-template-stage">
+      <section class="studio-template-feature">
+        <div
+          class="studio-template-feature-art"
+          style="${art(Number(template.visual||0))}"
+        ></div>
+
+        <div class="studio-template-feature-copy">
+          <span class="eb">
+            ${E(template.intent_label)} · ${E(template.format)}
+          </span>
+
+          <h2>
+            ${E(template.name)}
+          </h2>
+
+          <p>
+            ${E(template.promise)}
+          </p>
+
+          <div class="studio-template-feature-meta">
+            ${(template.tags||[]).map(
+              tag=>`<span>${E(tag)}</span>`
+            ).join("")}
+          </div>
+
+          <div class="studio-template-feature-actions">
+            <button
+              class="btn p"
+              data-a="studioTemplateUse"
+              data-key="${E(template.key)}"
+              type="button"
+            >
+              Start with this template
+            </button>
+
+            <button
+              class="btn"
+              data-a="studioTemplateOpenLibrary"
+              type="button"
+            >
+              View templates in Library
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="studio-template-receipt">
+        <span class="eb">
+          Studio understands
+        </span>
+
+        <h3>
+          ${E(template.description)}
+        </h3>
+
+        <div class="studio-template-receipt-section">
+          <small>Best for</small>
+          <p>${E(template.best_for)}</p>
+        </div>
+
+        <div class="studio-template-receipt-section">
+          <small>You bring</small>
+
+          <ul class="studio-template-receipt-list">
+            ${(template.brings||[]).map(
+              item=>`<li>${E(item)}</li>`
+            ).join("")}
+          </ul>
+        </div>
+
+        <div class="studio-template-receipt-section">
+          <small>Studio starts underneath you with</small>
+
+          <ul class="studio-template-receipt-list">
+            ${(template.handles||[]).map(
+              item=>`<li>${E(item)}</li>`
+            ).join("")}
+          </ul>
+        </div>
+      </aside>
+    </div>
+  `
+};
+
+const studioTemplateCardsMarkup=()=>{
+  const templates=
+    studioTemplateFiltered();
+
+  if(!templates.length){
+    return `
+      <div class="studio-template-empty">
+        <span class="eb">No templates matched</span>
+
+        <h3>
+          Try another intent or search.
+        </h3>
+
+        <p>
+          Templates are organized around outcomes, not production mechanics.
+        </p>
+      </div>
+    `
+  }
+
+  return templates.map(template=>`
+    <button
+      class="studio-template-card ${ST.templateSelectedKey===template.key?"on":""}"
+      data-a="studioTemplateSelect"
+      data-key="${E(template.key)}"
+      type="button"
+    >
+      <div
+        class="studio-template-card-art"
+        style="${art(Number(template.visual||0))}"
+      >
+        <span class="studio-template-card-label">
+          ${E(template.intent_label)}
+        </span>
+      </div>
+
+      <div class="studio-template-card-body">
+        <span class="eb">
+          ${E(template.format)}
+        </span>
+
+        <h3>
+          ${E(template.name)}
+        </h3>
+
+        <p>
+          ${E(template.promise)}
+        </p>
+
+        <div class="studio-template-card-footer">
+          <span>${E((template.tags||[])[0]||"Template")}</span>
+          <span>Choose →</span>
+        </div>
+      </div>
+    </button>
+  `).join("")
+};
+
+const studioTemplateRefresh=()=>{
+  const stage=
+    document.getElementById(
+      "studio-template-stage-root"
+    );
+
+  if(stage){
+    stage.innerHTML=
+      studioTemplateStageMarkup()
+  }
+
+  const grid=
+    document.getElementById(
+      "studio-template-grid"
+    );
+
+  if(grid){
+    grid.innerHTML=
+      studioTemplateCardsMarkup()
+  }
+
+  const count=
+    document.getElementById(
+      "studio-template-count"
+    );
+
+  if(count){
+    const total=
+      studioTemplateFiltered().length;
+
+    count.textContent=
+      `${total} ${total===1?"template":"templates"}`
+  }
+};
+
+const studioTemplateGalleryView=()=>{
+  const intents=
+    studioTemplateIntents();
+
+  const templates=
+    studioTemplateFiltered();
+
+  return `
+    <div class="studio-template-shell">
+      <div class="studio-template-hero">
+        <div class="wrap">
+          <div class="studio-template-hero-row">
+            <div>
+              <span class="eb">
+                Lightek Studio · Templates
+              </span>
+
+              <h1>
+                Start with a way<br>
+                of making it.
+              </h1>
+
+              <p>
+                Choose the production intent that already fits the thing
+                you want to make. Studio keeps the machinery underneath it.
+              </p>
+            </div>
+
+            <div class="studio-actions">
+              <a
+                class="btn p"
+                href="#/studio/create"
+              >
+                + Create from scratch
+              </a>
+
+              <a
+                class="btn"
+                href="#/studio/library"
+              >
+                Library
+              </a>
+
+              <a
+                class="btn"
+                href="#/studio"
+              >
+                Studio home
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap">
+        <div class="studio-template-toolbar">
+          <div class="studio-template-filters">
+            ${intents.map(intent=>`
+              <button
+                class="studio-template-filter ${ST.templateIntent===intent.key?"on":""}"
+                data-a="studioTemplateIntent"
+                data-key="${E(intent.key)}"
+                type="button"
+              >
+                ${E(intent.label)}
+              </button>
+            `).join("")}
+          </div>
+
+          <input
+            class="studio-template-search"
+            type="search"
+            value="${E(ST.templateQuery)}"
+            placeholder="Search templates"
+            data-studio-template-search="query"
+            autocomplete="off"
+          >
+        </div>
+
+        <div id="studio-template-stage-root">
+          ${studioTemplateStageMarkup()}
+        </div>
+
+        <div class="studio-template-gallery-head">
+          <div>
+            <span class="eb">
+              Proven starting points
+            </span>
+
+            <h2>
+              Choose the outcome, not the machinery.
+            </h2>
+
+            <p>
+              Each template is a reusable production intention that Studio
+              can later resolve into the right assets, capabilities and runtime.
+            </p>
+          </div>
+
+          <div
+            class="studio-template-gallery-count"
+            id="studio-template-count"
+          >
+            ${templates.length} ${templates.length===1?"template":"templates"}
+          </div>
+        </div>
+
+        <div
+          class="studio-template-grid"
+          id="studio-template-grid"
+        >
+          ${studioTemplateCardsMarkup()}
+        </div>
+      </div>
+    </div>
+  `
+};
+
 const studioLibraryCategories=()=>
   [...STUDIO_LIBRARY_CATEGORIES].sort(
     (a,b)=>Number(a.order||0)-Number(b.order||0)
@@ -2288,6 +3192,13 @@ const studioLibraryView=()=>{
                 href="#/studio/create"
               >
                 + Create
+              </a>
+
+              <a
+                class="btn"
+                href="#/studio/templates"
+              >
+                Template Gallery
               </a>
 
               <a
@@ -3758,6 +4669,13 @@ const studioProjectsView=()=>{
                 Library
               </a>
 
+              <a
+                class="btn"
+                href="#/studio/templates"
+              >
+                Templates
+              </a>
+
               <button
                 class="btn"
                 data-a="studioRefresh"
@@ -3975,6 +4893,10 @@ const studioView=id=>{
 
   if(id==="library"){
     return studioLibraryView()
+  }
+
+  if(id==="templates"){
+    return studioTemplateGalleryView()
   }
 
   const sceneId=
@@ -5757,6 +6679,71 @@ space:id=>{
   }
 };
 const A={
+studioTemplateIntent:button=>{
+  ST.templateIntent=
+    button.dataset.key||
+    "all";
+
+  studioTemplateEnsureSelection();
+  render(1)
+},
+
+studioTemplateSelect:button=>{
+  const key=
+    button.dataset.key;
+
+  const template=
+    studioTemplateByKey(key);
+
+  if(!template){
+    return
+  }
+
+  ST.templateSelectedKey=
+    template.key;
+
+  studioTemplateRefresh();
+
+  document.getElementById(
+    "studio-template-stage-root"
+  )?.scrollIntoView({
+    behavior:"smooth",
+    block:"start"
+  })
+},
+
+studioTemplateUse:button=>{
+  const template=
+    studioTemplateByKey(
+      button.dataset.key
+    );
+
+  if(!template){
+    return
+  }
+
+  ST.createBlueprintKey=
+    "production";
+  ST.createStartModeKey=
+    "template";
+  ST.createName="";
+  ST.createBrief=
+    `Start from the ${template.name} template. ${template.promise}`;
+  ST.createReady=false;
+
+  location.hash=
+    "#/studio/create"
+},
+
+studioTemplateOpenLibrary:()=>{
+  ST.libraryCategory=
+    "templates";
+  ST.libraryQuery="";
+
+  location.hash=
+    "#/studio/library"
+},
+
 studioLibraryCategory:button=>{
   ST.libraryCategory=
     button.dataset.key||
@@ -8813,6 +9800,17 @@ app.addEventListener('input',e=>{
 
   const studioLibrarySearch=
     e.target.dataset?.studioLibrarySearch;
+
+  const studioTemplateSearch=
+    e.target.dataset?.studioTemplateSearch;
+
+  if(studioTemplateSearch==="query"){
+    ST.templateQuery=
+      e.target.value;
+
+    studioTemplateEnsureSelection();
+    studioTemplateRefresh()
+  }
 
   if(studioLibrarySearch==="query"){
     ST.libraryQuery=

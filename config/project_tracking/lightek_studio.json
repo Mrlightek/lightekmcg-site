@@ -227,11 +227,21 @@
       "title": "Template Gallery UX",
       "phase": "UX Foundation II",
       "area": "Templates",
-      "status": "in_progress",
+      "status": "done",
       "priority": "P0",
       "effort": 4,
       "summary": "Allow users to begin from useful production intent rather than Blender implementation details.",
-      "evidence": []
+      "evidence": [
+        "Browser-approved Template Gallery UX at #/studio/templates",
+        "Nine fixture-first templates present reusable production intentions instead of Blender implementation mechanics",
+        "Template Gallery covers Scripted, Documentary, Live, Music, News, Short Form and World Building intent families",
+        "Intent filters, live search and selected-template preview are functional in the PWA",
+        "Selected templates explain what the creator brings and what Studio starts underneath them with",
+        "Template selection can hand off into the existing intent-first Create flow without backend template execution",
+        "Studio Home and Studio Library expose first-class Template Gallery entry points",
+        "STUDIO-103 remains fixture-first with no template-registry fetch or Nevaeh execution in the gallery contract",
+        "PWA shell cache advanced to v27 and JavaScript/service-worker syntax checks are green"
+      ]
     },
     {
       "key": "STUDIO-104",

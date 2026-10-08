@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lightek://studio/schemas/blueprint",
+  "title": "Lightek Studio Blueprint",
+  "type": "object",
+  "required": ["schema_version", "key", "name", "actions"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "key": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": "string"},
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "capability": {"type": "string", "pattern": "^studio\\.[a-z0-9_.]+$"},
+          "intent_name": {"type": "string"},
+          "event_type": {"type": "string"},
+          "description": {"type": "string"},
+          "intent_patterns": {"type": "array"},
+          "expected_outcome": {"type": "object"},
+          "realtime": {"type": "object"},
+          "knowledge_article_ids": {"type": "array"}
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "handler": {"type": "string"},
+        "execution_handler": {"type": ["string", "null"]},
+        "queue": {"type": "string"},
+        "priority": {"type": "integer", "minimum": 0, "maximum": 10},
+        "enabled": {"type": "boolean"},
+        "provider": {"type": "string"},
+        "failure_policy": {"type": "object"}
+      }
+    },
+    "gatekeeper": {"type": "object"},
+    "pwa": {
+      "type": "object",
+      "properties": {
+        "category": {"type": "string"},
+        "label": {"type": "string"},
+        "description": {"type": "string"},
+        "icon": {"type": "string"},
+        "order": {"type": "integer"},
+        "start_modes": {"type": "array"}
+      }
+    },
+    "inputs": {"type": "object"},
+    "template": {"type": "object"},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}

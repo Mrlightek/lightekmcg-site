@@ -11,7 +11,13 @@ module Marlon
         @force = force
       end
 
-      def write(relative_path, content, blueprint_key:, artifact_type:)
+      def write(
+        relative_path,
+        content,
+        blueprint_key:,
+        artifact_type:,
+        metadata: {}
+      )
         path = @root.join(relative_path)
         FileUtils.mkdir_p(path.dirname)
 
@@ -28,7 +34,8 @@ module Marlon
             artifact_type: artifact_type,
             path: relative_path.to_s,
             checksum: checksum,
-            metadata: {},
+            metadata:
+              metadata.to_h.deep_stringify_keys,
             created_at: Time.current,
             updated_at: Time.current
           },

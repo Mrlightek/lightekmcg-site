@@ -33,3 +33,8 @@ load Rails.root.join("db/seeds/studio_pwa_capabilities.rb")
 
 # Studio SceneObject PWA capabilities
 load Rails.root.join("db/seeds/studio_scene_object_capabilities.rb")
+
+# Studio generated blueprint capabilities
+load Rails.root.join(
+  "db/seeds/studio_generated_capabilities.rb"
+)

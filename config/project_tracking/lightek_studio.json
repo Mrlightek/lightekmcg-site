@@ -7,9 +7,9 @@
     "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
     "current_phase": "UX Foundation II",
     "production_floor": {
-      "commit": "09639f1",
+      "commit": "ea8bdd1",
       "status": "green",
-      "description": "Live SceneObject Create, Duplicate and Delete lifecycle with canonical local PWA/Three.js reconciliation."
+      "description": "Studio project tracking foundation deployed green with GitHub Project #6 and Marlon::Ticket synchronization."
     },
     "tracking": {
       "github": {
@@ -165,6 +165,24 @@
       "effort": 4,
       "summary": "Prove the real Studio orchestration path can reach Blender-backed preview/render work and artifacts.",
       "evidence": []
+    },
+    {
+      "key": "STUDIO-090",
+      "title": "Studio blueprint compiler and generator foundation",
+      "phase": "Foundation",
+      "area": "Architecture",
+      "status": "done",
+      "priority": "P0",
+      "effort": 5,
+      "summary": "Build the intent-driven Studio architecture compiler and generator that materializes repeatable workers, Nevaeh capabilities, Gatekeeper contracts, PWA contracts, schemas, tests, documentation, templates, and generated-artifact provenance from canonical Studio blueprints.",
+      "evidence": [
+        "Canonical Studio blueprint compiler normalizes intent-driven architecture contracts",
+        "Generator materializes worker, Nevaeh capability seed, Gatekeeper contract, PWA contract, input schema, template, test, documentation and compiled manifest",
+        "Generated artifacts are registered through Marlon::GeneratedArtifact with checksum and source SHA-256 provenance",
+        "Generated capabilities default disabled and Studio::Blueprint::Runtime independently refuses disabled direct execution",
+        "Compiler, generator and runtime contract tests are green",
+        "Isolated end-to-end example generation verified all nine artifact contracts and generated Nevaeh seed runtime"
+      ]
     },
     {
       "key": "STUDIO-101",

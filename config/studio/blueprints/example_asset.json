@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "key": "example_asset",
+  "name": "Example Asset",
+  "description": "Example intent-first Lightek Studio blueprint.",
+  "actions": [
+    {
+      "name": "create",
+      "description": "Create the example Studio asset."
+    }
+  ],
+  "runtime": {
+    "provider": "blender",
+    "enabled": false,
+    "execution_handler": null
+  },
+  "gatekeeper": {
+    "policy": "registered_enabled_capability",
+    "subject_type": null
+  },
+  "pwa": {
+    "category": "example_asset",
+    "label": "Example Asset",
+    "description": "Create an example asset.",
+    "icon": "sparkles",
+    "order": 100,
+    "start_modes": [
+      {
+        "key": "blank",
+        "label": "Start Blank",
+        "description": "Begin from a clean Studio asset."
+      }
+    ]
+  },
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "name": {"type": "string"}
+    },
+    "required": ["name"],
+    "additionalProperties": false
+  },
+  "template": {
+    "kind": "example_asset",
+    "defaults": {}
+  },
+  "metadata": {
+    "example": true
+  }
+}

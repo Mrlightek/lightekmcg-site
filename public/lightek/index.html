@@ -1545,6 +1545,365 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
   }
 }
 
+/* STUDIO-104 First-class Template Maker */
+.studio-template-maker-shell{
+  min-height:calc(100vh - 110px);
+  padding-bottom:90px
+}
+.studio-template-maker-hero{
+  padding:46px 0 30px;
+  border-bottom:1px solid var(--ln);
+  background:
+    radial-gradient(circle at 82% 10%,#d6a94a16,transparent 34%),
+    radial-gradient(circle at 18% 92%,#ffffff08,transparent 36%),
+    linear-gradient(180deg,#15120d 0%,var(--bg) 100%)
+}
+.studio-template-maker-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:30px;
+  flex-wrap:wrap
+}
+.studio-template-maker-head h1{
+  max-width:900px;
+  margin:8px 0 14px;
+  font-size:clamp(40px,6vw,76px);
+  line-height:.94
+}
+.studio-template-maker-head p{
+  max-width:760px;
+  color:var(--mu);
+  font-size:15px
+}
+.studio-template-maker-steps{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:24px
+}
+.studio-template-maker-step{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border:1px solid var(--ln);
+  color:var(--mu);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-template-maker-step b{
+  display:grid;
+  place-items:center;
+  width:18px;
+  height:18px;
+  border:1px solid currentColor;
+  border-radius:50%;
+  font-size:9px
+}
+.studio-template-maker-step.on{
+  border-color:#d6a94a66;
+  color:var(--gd);
+  background:#d6a94a0a
+}
+.studio-template-maker-step.dn{
+  color:var(--tx)
+}
+.studio-template-maker-body{
+  padding-top:34px
+}
+.studio-template-maker-section-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:22px;
+  margin-bottom:20px;
+  flex-wrap:wrap
+}
+.studio-template-maker-section-head h2{
+  margin:5px 0 0;
+  font-size:clamp(28px,4vw,46px)
+}
+.studio-template-maker-section-head p{
+  max-width:600px;
+  color:var(--mu)
+}
+.studio-template-source-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px
+}
+.studio-template-source-card{
+  appearance:none;
+  display:flex;
+  min-height:300px;
+  overflow:hidden;
+  flex-direction:column;
+  padding:0;
+  border:1px solid var(--ln);
+  border-radius:6px;
+  background:var(--s1);
+  color:inherit;
+  text-align:left;
+  transition:
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease
+}
+.studio-template-source-card:hover{
+  transform:translateY(-2px);
+  border-color:#d6a94a66;
+  background:#ffffff08
+}
+.studio-template-source-card.on{
+  border-color:var(--gd);
+  box-shadow:inset 0 0 0 1px #d6a94a22
+}
+.studio-template-source-art{
+  position:relative;
+  aspect-ratio:16/9;
+  overflow:hidden;
+  border-bottom:1px solid var(--ln)
+}
+.studio-template-source-art::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(0deg,#07070ad8,transparent 65%)
+}
+.studio-template-source-label{
+  position:absolute;
+  z-index:1;
+  left:10px;
+  bottom:9px;
+  padding:4px 7px;
+  border:1px solid #ffffff22;
+  border-radius:2px;
+  background:#07070ab8;
+  color:#eee;
+  font-size:8px;
+  letter-spacing:.09em;
+  text-transform:uppercase
+}
+.studio-template-source-body{
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  padding:18px
+}
+.studio-template-source-card h3{
+  margin:6px 0 8px;
+  font:400 24px/1.1 Georgia,serif
+}
+.studio-template-source-card p{
+  color:var(--mu);
+  font-size:12px;
+  line-height:1.5
+}
+.studio-template-source-card small{
+  display:block;
+  margin-top:auto;
+  padding-top:22px;
+  color:var(--gd);
+  font-size:9px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-template-maker-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(300px,390px);
+  gap:28px;
+  align-items:start
+}
+.studio-template-maker-form{
+  border:1px solid var(--ln);
+  border-radius:6px;
+  background:var(--s1);
+  padding:22px
+}
+.studio-template-maker-field{
+  display:grid;
+  gap:7px;
+  margin-bottom:18px
+}
+.studio-template-maker-field span{
+  color:var(--mu);
+  font-size:10px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-template-maker-field input,
+.studio-template-maker-field textarea{
+  width:100%;
+  padding:12px 13px;
+  border:1px solid var(--ln);
+  border-radius:3px;
+  background:var(--bg);
+  color:var(--tx)
+}
+.studio-template-maker-field textarea{
+  min-height:150px;
+  resize:vertical
+}
+.studio-template-maker-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  padding-top:4px
+}
+.studio-template-maker-receipt{
+  position:sticky;
+  top:92px;
+  padding:22px;
+  border:1px solid #d6a94a44;
+  border-radius:6px;
+  background:
+    linear-gradient(180deg,#d6a94a0d,var(--s1))
+}
+.studio-template-maker-receipt h3{
+  margin:6px 0 18px;
+  font:400 25px/1.15 Georgia,serif
+}
+.studio-template-maker-fact{
+  padding:13px 0;
+  border-top:1px solid var(--ln)
+}
+.studio-template-maker-fact small,
+.studio-template-maker-fact b{
+  display:block
+}
+.studio-template-maker-fact small{
+  color:var(--mu);
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-template-maker-fact b{
+  margin-top:4px;
+  font-size:13px
+}
+.studio-template-maker-list{
+  display:grid;
+  gap:7px;
+  margin:8px 0 0;
+  padding:0;
+  list-style:none
+}
+.studio-template-maker-list li{
+  position:relative;
+  padding-left:14px;
+  color:#d4d1cb;
+  font-size:12px
+}
+.studio-template-maker-list li::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:.62em;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:var(--gd)
+}
+.studio-template-maker-ready{
+  max-width:880px;
+  margin:0 auto;
+  padding:52px 0 10px;
+  text-align:center
+}
+.studio-template-maker-ready-mark{
+  display:grid;
+  place-items:center;
+  width:70px;
+  height:70px;
+  margin:0 auto 20px;
+  border:1px solid var(--gd);
+  border-radius:50%;
+  color:var(--gd);
+  font:400 30px Georgia,serif
+}
+.studio-template-maker-ready h2{
+  margin:8px 0 16px;
+  font-size:clamp(34px,5vw,58px);
+  line-height:1
+}
+.studio-template-maker-ready>p{
+  max-width:680px;
+  margin:0 auto;
+  color:var(--mu)
+}
+.studio-template-maker-ready-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin:28px 0;
+  text-align:left
+}
+.studio-template-maker-ready-summary>div{
+  padding:16px;
+  border:1px solid var(--ln);
+  background:var(--s1)
+}
+.studio-template-maker-ready-summary small,
+.studio-template-maker-ready-summary b{
+  display:block
+}
+.studio-template-maker-ready-summary small{
+  color:var(--mu);
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-template-maker-ready-summary b{
+  margin-top:4px
+}
+.studio-template-maker-next{
+  margin:26px auto;
+  padding:18px;
+  border:1px solid #d6a94a44;
+  background:#d6a94a09;
+  text-align:left
+}
+.studio-template-maker-next small{
+  display:block;
+  color:var(--gd);
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-template-maker-next p{
+  margin-top:6px;
+  color:#d4d1cb;
+  font-size:13px
+}
+.studio-template-maker-ready-actions{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap
+}
+@media(max-width:900px){
+  .studio-template-source-grid{
+    grid-template-columns:1fr
+  }
+  .studio-template-source-card{
+    min-height:0
+  }
+  .studio-template-maker-grid{
+    grid-template-columns:1fr
+  }
+  .studio-template-maker-receipt{
+    position:static
+  }
+}
+@media(max-width:700px){
+  .studio-template-maker-ready-summary{
+    grid-template-columns:1fr
+  }
+}
+
 /* Lightek Studio visual 3D workspace */
 .studio-live-layout{
   display:grid;
@@ -2129,7 +2488,11 @@ const ST={
   libraryQuery:"",
   templateIntent:"all",
   templateQuery:"",
-  templateSelectedKey:"single_camera_drama"
+  templateSelectedKey:"single_camera_drama",
+  templateMakerSourceKey:null,
+  templateMakerName:"",
+  templateMakerPurpose:"",
+  templateMakerReady:false
 };
 
 /*
@@ -2539,6 +2902,404 @@ const STUDIO_TEMPLATE_GALLERY=[
   }
 ];
 
+
+/*
+ * STUDIO-104 fixture-first Template Maker contract.
+ *
+ * The maker starts from solved work and asks for reusable intent.
+ * STUDIO-105 will separate variable inputs from configuration that
+ * Lightek preserves. No backend template persistence happens here.
+ */
+const STUDIO_TEMPLATE_MAKER_SOURCES=[
+  {
+    key:"scene",
+    label:"Solved scene",
+    name:"Echo Memory Chamber",
+    source_type:"Scene",
+    description:"Turn a scene that already works into a reusable scene-production starting point.",
+    captured:[
+      "Scene structure and spatial relationships",
+      "Camera-ready staging context",
+      "Lighting and production setup context"
+    ],
+    default_name:"Memory Chamber Scene",
+    visual:4
+  },
+  {
+    key:"fabrication",
+    label:"Solved fabrication setup",
+    name:"Iris Hero Character",
+    source_type:"Fabrication setup",
+    description:"Capture a fabrication result you trust so Studio can use the same production logic again.",
+    captured:[
+      "Asset construction intent",
+      "Appearance and production-readiness context",
+      "Reusable fabrication relationships"
+    ],
+    default_name:"Hero Character Fabrication",
+    visual:3
+  },
+  {
+    key:"production",
+    label:"Solved production arrangement",
+    name:"Void Echo Episode Setup",
+    source_type:"Production arrangement",
+    description:"Capture a production arrangement that works as a repeatable way to begin future productions.",
+    captured:[
+      "Production structure and relationships",
+      "Scene-to-scene operating pattern",
+      "Reusable production starting context"
+    ],
+    default_name:"Void Echo Episode",
+    visual:6
+  }
+];
+
+const studioTemplateMakerSource=()=>
+  STUDIO_TEMPLATE_MAKER_SOURCES.find(
+    source=>
+      source.key===
+      ST.templateMakerSourceKey
+  )||null;
+
+const studioTemplateMakerReset=()=>{
+  ST.templateMakerSourceKey=null;
+  ST.templateMakerName="";
+  ST.templateMakerPurpose="";
+  ST.templateMakerReady=false
+};
+
+const studioTemplateMakerStep=(number,label,state)=>`
+  <span class="studio-template-maker-step ${state||""}">
+    <b>${number}</b>
+    ${E(label)}
+  </span>
+`;
+
+const studioTemplateMakerView=()=>{
+  const source=
+    studioTemplateMakerSource();
+
+  const step=
+    ST.templateMakerReady
+      ?3
+      :source
+        ?2
+        :1;
+
+  const steps=`
+    <div class="studio-template-maker-steps">
+      ${studioTemplateMakerStep(
+        1,
+        "Solved work",
+        step===1?"on":step>1?"dn":""
+      )}
+
+      ${studioTemplateMakerStep(
+        2,
+        "Reusable purpose",
+        step===2?"on":step>2?"dn":""
+      )}
+
+      ${studioTemplateMakerStep(
+        3,
+        "Template definition",
+        step===3?"on":""
+      )}
+    </div>
+  `;
+
+  let body="";
+
+  if(ST.templateMakerReady){
+    const displayName=
+      ST.templateMakerName.trim()||
+      source?.default_name||
+      "Untitled template";
+
+    body=`
+      <div class="studio-template-maker-ready">
+        <div class="studio-template-maker-ready-mark">
+          ✓
+        </div>
+
+        <span class="eb">
+          Template definition ready
+        </span>
+
+        <h2>
+          Keep the solution.<br>
+          Reuse the intent.
+        </h2>
+
+        <p>
+          Studio now has the source and reusable purpose needed to turn
+          solved work into a first-class production primitive.
+        </p>
+
+        <div class="studio-template-maker-ready-summary">
+          <div>
+            <small>Source</small>
+            <b>${E(source?.source_type||"Solved work")}</b>
+          </div>
+
+          <div>
+            <small>Template</small>
+            <b>${E(displayName)}</b>
+          </div>
+
+          <div>
+            <small>Reusable purpose</small>
+            <b>${E(ST.templateMakerPurpose.trim())}</b>
+          </div>
+        </div>
+
+        <div class="studio-template-maker-next">
+          <small>Next layer</small>
+
+          <p>
+            Studio can now separate what changes each time from what
+            Lightek should preserve. That variable-versus-locked
+            configuration layer belongs to the next Template UX pass.
+          </p>
+        </div>
+
+        <div class="studio-template-maker-ready-actions">
+          <button
+            class="btn"
+            data-a="studioTemplateMakerEdit"
+            type="button"
+          >
+            Edit definition
+          </button>
+
+          <button
+            class="btn"
+            data-a="studioTemplateMakerReset"
+            type="button"
+          >
+            Capture different work
+          </button>
+
+          <a
+            class="btn p"
+            href="#/studio/templates"
+          >
+            Return to Template Gallery
+          </a>
+        </div>
+      </div>
+    `;
+  }else if(!source){
+    body=`
+      <div class="studio-template-maker-section-head">
+        <div>
+          <span class="eb">
+            Start from solved work
+          </span>
+
+          <h2>
+            What already works?
+          </h2>
+        </div>
+
+        <p>
+          Point Studio at the thing you solved. You should not have to
+          rebuild its production logic just to make it reusable.
+        </p>
+      </div>
+
+      <div class="studio-template-source-grid">
+        ${STUDIO_TEMPLATE_MAKER_SOURCES.map(sourceItem=>`
+          <button
+            class="studio-template-source-card"
+            data-a="studioTemplateMakerChooseSource"
+            data-key="${E(sourceItem.key)}"
+            type="button"
+          >
+            <div
+              class="studio-template-source-art"
+              style="${art(Number(sourceItem.visual||0))}"
+            >
+              <span class="studio-template-source-label">
+                ${E(sourceItem.label)}
+              </span>
+            </div>
+
+            <div class="studio-template-source-body">
+              <span class="eb">
+                ${E(sourceItem.source_type)}
+              </span>
+
+              <h3>
+                ${E(sourceItem.name)}
+              </h3>
+
+              <p>
+                ${E(sourceItem.description)}
+              </p>
+
+              <small>
+                Make reusable →
+              </small>
+            </div>
+          </button>
+        `).join("")}
+      </div>
+    `;
+  }else{
+    const displayName=
+      ST.templateMakerName||
+      source.default_name||
+      "";
+
+    body=`
+      <div class="studio-template-maker-section-head">
+        <div>
+          <span class="eb">
+            ${E(source.source_type)} · ${E(source.name)}
+          </span>
+
+          <h2>
+            What should this help you make again?
+          </h2>
+        </div>
+
+        <p>
+          Describe the reusable outcome in your own words. Studio keeps
+          the implementation details underneath that intent.
+        </p>
+      </div>
+
+      <div class="studio-template-maker-grid">
+        <div class="studio-template-maker-form">
+          <label class="studio-template-maker-field">
+            <span>Template name</span>
+
+            <input
+              type="text"
+              value="${E(displayName)}"
+              placeholder="Name this reusable production primitive"
+              data-studio-template-maker-field="name"
+            >
+          </label>
+
+          <label class="studio-template-maker-field">
+            <span>What should this help you make again?</span>
+
+            <textarea
+              placeholder="Example: Give me this same intimate dramatic scene setup whenever I need two characters in a controlled interior."
+              data-studio-template-maker-field="purpose"
+            >${E(ST.templateMakerPurpose)}</textarea>
+          </label>
+
+          <div class="studio-template-maker-actions">
+            <button
+              class="btn"
+              data-a="studioTemplateMakerBack"
+              type="button"
+            >
+              ← Choose different work
+            </button>
+
+            <button
+              class="btn p"
+              data-a="studioTemplateMakerReview"
+              type="button"
+            >
+              Review template
+            </button>
+          </div>
+        </div>
+
+        <aside class="studio-template-maker-receipt">
+          <span class="eb">
+            Studio starts with
+          </span>
+
+          <h3>
+            ${E(source.name)}
+          </h3>
+
+          <div class="studio-template-maker-fact">
+            <small>Source type</small>
+            <b>${E(source.source_type)}</b>
+          </div>
+
+          <div class="studio-template-maker-fact">
+            <small>Solved context available</small>
+
+            <ul class="studio-template-maker-list">
+              ${(source.captured||[]).map(
+                item=>`<li>${E(item)}</li>`
+              ).join("")}
+            </ul>
+          </div>
+
+          <div class="studio-template-maker-fact">
+            <small>You only need to say</small>
+            <b>What this should help you make again.</b>
+          </div>
+
+          <div class="studio-template-maker-fact">
+            <small>Not required in this pass</small>
+            <b>Blender nodes, file layout, runtime wiring or implementation mechanics.</b>
+          </div>
+        </aside>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="studio-template-maker-shell">
+      <div class="studio-template-maker-hero">
+        <div class="wrap">
+          <div class="studio-template-maker-head">
+            <div>
+              <span class="eb">
+                Lightek Studio · Template Maker
+              </span>
+
+              <h1>
+                You solved it once.<br>
+                Keep the solution.
+              </h1>
+
+              <p>
+                Turn a working scene, fabrication setup or production
+                arrangement into a reusable production primitive without
+                rebuilding the machinery underneath it.
+              </p>
+
+              ${steps}
+            </div>
+
+            <div class="studio-actions">
+              <a
+                class="btn"
+                href="#/studio/templates"
+              >
+                Template Gallery
+              </a>
+
+              <a
+                class="btn"
+                href="#/studio/library"
+              >
+                Library
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap studio-template-maker-body">
+        ${body}
+      </div>
+    </div>
+  `
+};
+
 const studioTemplateIntents=()=>{
   const seen=new Set();
 
@@ -2871,9 +3632,16 @@ const studioTemplateGalleryView=()=>{
             <div class="studio-actions">
               <a
                 class="btn p"
+                href="#/studio/template-maker"
+              >
+                + Make a template
+              </a>
+
+              <a
+                class="btn"
                 href="#/studio/create"
               >
-                + Create from scratch
+                Create from scratch
               </a>
 
               <a
@@ -3199,6 +3967,13 @@ const studioLibraryView=()=>{
                 href="#/studio/templates"
               >
                 Template Gallery
+              </a>
+
+              <a
+                class="btn"
+                href="#/studio/template-maker"
+              >
+                Make Template
               </a>
 
               <a
@@ -4897,6 +5672,10 @@ const studioView=id=>{
 
   if(id==="templates"){
     return studioTemplateGalleryView()
+  }
+
+  if(id==="template-maker"){
+    return studioTemplateMakerView()
   }
 
   const sceneId=
@@ -6679,6 +7458,76 @@ space:id=>{
   }
 };
 const A={
+studioTemplateMakerChooseSource:button=>{
+  const source=
+    STUDIO_TEMPLATE_MAKER_SOURCES.find(
+      item=>
+        item.key===
+        button.dataset.key
+    );
+
+  if(!source){
+    return
+  }
+
+  ST.templateMakerSourceKey=
+    source.key;
+  ST.templateMakerName=
+    source.default_name||"";
+  ST.templateMakerPurpose="";
+  ST.templateMakerReady=false;
+
+  render(1)
+},
+
+studioTemplateMakerBack:()=>{
+  ST.templateMakerSourceKey=null;
+  ST.templateMakerName="";
+  ST.templateMakerPurpose="";
+  ST.templateMakerReady=false;
+
+  render(1)
+},
+
+studioTemplateMakerReview:()=>{
+  const source=
+    studioTemplateMakerSource();
+
+  if(!source){
+    toast(
+      "Choose solved work first"
+    );
+    return
+  }
+
+  if(
+    !ST.templateMakerPurpose.trim()
+  ){
+    toast(
+      "Tell Studio what this should help you make again"
+    );
+
+    document.querySelector(
+      '[data-studio-template-maker-field="purpose"]'
+    )?.focus();
+
+    return
+  }
+
+  ST.templateMakerReady=true;
+  render()
+},
+
+studioTemplateMakerEdit:()=>{
+  ST.templateMakerReady=false;
+  render(1)
+},
+
+studioTemplateMakerReset:()=>{
+  studioTemplateMakerReset();
+  render()
+},
+
 studioTemplateIntent:button=>{
   ST.templateIntent=
     button.dataset.key||
@@ -9803,6 +10652,19 @@ app.addEventListener('input',e=>{
 
   const studioTemplateSearch=
     e.target.dataset?.studioTemplateSearch;
+
+  const studioTemplateMakerField=
+    e.target.dataset?.studioTemplateMakerField;
+
+  if(studioTemplateMakerField==="name"){
+    ST.templateMakerName=
+      e.target.value
+  }
+
+  if(studioTemplateMakerField==="purpose"){
+    ST.templateMakerPurpose=
+      e.target.value
+  }
 
   if(studioTemplateSearch==="query"){
     ST.templateQuery=

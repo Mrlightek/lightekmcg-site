@@ -248,11 +248,21 @@
       "title": "First-class Template Maker",
       "phase": "UX Foundation II",
       "area": "Templates",
-      "status": "in_progress",
+      "status": "done",
       "priority": "P0",
       "effort": 5,
       "summary": "Turn a solved scene, fabrication setup or production arrangement into a reusable production primitive.",
-      "evidence": []
+      "evidence": [
+        "Browser-approved first-class Template Maker UX at #/studio/template-maker",
+        "Template Maker starts from solved work rather than asking the creator to configure implementation mechanics",
+        "Fixture-first solved-work sources cover Scene, Fabrication setup and Production arrangement",
+        "Creator workflow is reduced to selecting solved work, naming the reusable primitive and stating what it should help make again",
+        "Template-definition receipt preserves source context and reusable purpose without exposing Blender nodes, file layout or runtime wiring",
+        "Template Gallery and Studio Library expose first-class entry points into Template Maker",
+        "STUDIO-104 deliberately defers variable-versus-preserved configuration UX to STUDIO-105",
+        "STUDIO-104 remains fixture-first with no template persistence, fetch call or Nevaeh execution in the maker contract",
+        "PWA shell cache advanced to v28 and JavaScript/service-worker syntax checks are green"
+      ]
     },
     {
       "key": "STUDIO-105",

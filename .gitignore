@@ -36,3 +36,4 @@
 /app/controllers/*.pre-*
 
 /blender/__pycache__/
+*.py[cod]

@@ -1,0 +1,2504 @@
+{
+  "schema_version": 1,
+  "snapshot_id": "0a760d9ed24966ef6bdcef9310cc0fb7fff51bf2ab7e8e7f5757c620d1140a8f",
+  "source_head": "36d1fb6b3decc8e57278e47d2eed809db5be6ae9",
+  "source_head_time": "2026-10-08T11:15:00-04:00",
+  "self_model_version": "2026.10.08.1",
+  "identity": {
+    "name": "Nevaeh",
+    "role": "Policy-aware orchestration intelligence for the Lightek ecosystem",
+    "purpose": "Understand intent, consult durable knowledge, plan work, request Gatekeeper authorization, dispatch execution, observe outcomes, and turn unresolved conditions into durable future knowledge."
+  },
+  "state_model": {
+    "principle": "The relational database is Nevaeh's live operational source of truth. History snapshots explain how the system arrived at its present state; they do not replace live database reads.",
+    "live_sources": [
+      {
+        "table": "network_events",
+        "meaning": "Persisted network event state"
+      },
+      {
+        "table": "network_ports",
+        "meaning": "Known and enabled protocol/port state"
+      },
+      {
+        "table": "dymond_dispatch_work_items",
+        "meaning": "Queued, running, completed, and failed execution state"
+      },
+      {
+        "table": "gatekeeper_operations",
+        "meaning": "Authorized execution and enforcement state"
+      },
+      {
+        "table": "marlon_tickets",
+        "meaning": "Known unresolved, in-progress, and resolved operational unknowns"
+      },
+      {
+        "table": "nevaeh_capabilities",
+        "meaning": "What Nevaeh currently knows how to do"
+      },
+      {
+        "table": "dymond_kb_articles",
+        "meaning": "Durable procedures, references, troubleshooting, and learned knowledge"
+      }
+    ],
+    "reader": "NevaehOrchestration::RuntimeState",
+    "rule": "Current state is read from the database on demand. Git and generated history provide lineage and provenance, not runtime truth."
+  },
+  "learning_loop": {
+    "name": "Knowledge-backed operational learning",
+    "steps": [
+      "Observe an event, request, failure, or unknown condition.",
+      "Resolve the capability and consult applicable Knowledge Base material.",
+      "If the condition is known, build a plan and request Gatekeeper authorization.",
+      "Dispatch authorized work through DymondDispatch and observe the result.",
+      "If the condition is unknown or cannot be handled, create a trouble ticket rather than guessing.",
+      "A human resolves and validates the unknown condition.",
+      "The validated procedure, policy, or solution is added to durable knowledge.",
+      "Future occurrences can resolve against that knowledge and require less human intervention."
+    ],
+    "learning_principle": "Learning is provenance-backed operational memory: known procedures are reused, unknowns are surfaced, and validated resolutions become future knowledge."
+  },
+  "observability_contract": {
+    "law": "No silent transmission states.",
+    "required_progress_fields": [
+      "operation",
+      "stage",
+      "current",
+      "total",
+      "percent",
+      "elapsed",
+      "estimated_remaining",
+      "status"
+    ],
+    "distributed_work_fields": [
+      "correlation_id",
+      "work_item_id",
+      "capability",
+      "handler",
+      "queue",
+      "status",
+      "started_at",
+      "finished_at",
+      "result_or_error"
+    ],
+    "development_rule": "Long-running developer tooling streams human-visible progress separately from machine-readable summaries.",
+    "production_rule": "Long-running production work must expose durable progress through the work item and correlation chain."
+  },
+  "curated_milestones": [
+    {
+      "key": "learning-loop",
+      "title": "Unknown conditions become durable knowledge",
+      "detail": "Nevaeh consults the Knowledge Base, Gatekeeper enforces authorized execution, unresolved conditions become trouble tickets, and validated resolutions are returned to the Knowledge Base."
+    },
+    {
+      "key": "studio-contracts",
+      "title": "Intent-driven Studio contracts",
+      "detail": "Studio blueprints materialize workers, Nevaeh capabilities, Gatekeeper contracts, PWA contracts, schemas, templates, tests, documentation, and generated-artifact provenance."
+    },
+    {
+      "key": "intent-first-create",
+      "title": "Intent-first creation",
+      "detail": "The Studio Create surface begins with what the person wants to make and keeps implementation mechanics underneath Lightek."
+    },
+    {
+      "key": "visible-transmission",
+      "title": "Visible transmission state",
+      "detail": "Development and production operations should always expose stage, progress, correlation, completion, and failure state rather than appearing frozen."
+    }
+  ],
+  "repository_history": {
+    "commit_count": 146,
+    "commits": [
+      {
+        "sha": "0920db2df6224e6c165e02169a734fb8186281e7",
+        "short_sha": "0920db2",
+        "authored_at": "2026-03-27T16:54:59-04:00",
+        "subject": "Coming along nicely at start"
+      },
+      {
+        "sha": "8fe1fcd9acdef57e2f6e940a5b5ff2ea6ebe9505",
+        "short_sha": "8fe1fcd",
+        "authored_at": "2026-05-21T17:53:22-04:00",
+        "subject": "I did a lot of integration work to get this site to V2"
+      },
+      {
+        "sha": "ae86511150e7b8a59411a6481b54a8c35f886453",
+        "short_sha": "ae86511",
+        "authored_at": "2026-06-20T08:01:33-04:00",
+        "subject": "I needed to update the gem file to have dymond site added"
+      },
+      {
+        "sha": "2bed53bc17d18bb20ea685d053f13f56ffebd087",
+        "short_sha": "2bed53b",
+        "authored_at": "2026-06-20T08:25:49-04:00",
+        "subject": "I needed to add in Docker work for the docker image"
+      },
+      {
+        "sha": "e2565925c80ac9e4c3cbd61406bc99541204774c",
+        "short_sha": "e256592",
+        "authored_at": "2026-06-20T08:37:11-04:00",
+        "subject": "Made a copy and paste mistake and had dymond_dash listed twice where it should have been dymond site"
+      },
+      {
+        "sha": "c8634de2b369a409c43112cf0ecf2747ede58dcf",
+        "short_sha": "c8634de",
+        "authored_at": "2026-06-20T09:18:33-04:00",
+        "subject": "Lock dymond_site into Gemfile.lock"
+      },
+      {
+        "sha": "0f44c7a128905892bf8a1480fa711d572a43aa7e",
+        "short_sha": "0f44c7a",
+        "authored_at": "2026-06-20T10:16:08-04:00",
+        "subject": "Bump dymond_site to auto-mount + install generator"
+      },
+      {
+        "sha": "642716da5a3a2faf8294db5ae4447ea1828a3f5f",
+        "short_sha": "642716d",
+        "authored_at": "2026-06-23T10:56:00-04:00",
+        "subject": "Updated dymond site"
+      },
+      {
+        "sha": "649b75f737f74865d50ac794a7f7a5fee83f1b75",
+        "short_sha": "649b75f",
+        "authored_at": "2026-06-23T11:47:16-04:00",
+        "subject": "Updated dymond_site for themes"
+      },
+      {
+        "sha": "6bb984b660f38883bad2e7d48d5d32993ee895b3",
+        "short_sha": "6bb984b",
+        "authored_at": "2026-06-23T12:00:08-04:00",
+        "subject": "Updated dymond_site again to fix where I had placed themes"
+      },
+      {
+        "sha": "775fe349dd91f381396e1af23f737d74d54e29b0",
+        "short_sha": "775fe34",
+        "authored_at": "2026-06-23T12:15:21-04:00",
+        "subject": "Needed to add two partials to dymond_site"
+      },
+      {
+        "sha": "a24269b2879899a7aa2d5ee782de453fc8801c0d",
+        "short_sha": "a24269b",
+        "authored_at": "2026-06-23T12:36:57-04:00",
+        "subject": "Needed to update hero file in dymond_site"
+      },
+      {
+        "sha": "4e8e02806c7f690b63bf28868c04590723180e78",
+        "short_sha": "4e8e028",
+        "authored_at": "2026-06-23T13:16:57-04:00",
+        "subject": "Needed to update in dymond_site"
+      },
+      {
+        "sha": "8d1a3db3328b276357f9427f4e410421547cdef7",
+        "short_sha": "8d1a3db",
+        "authored_at": "2026-06-23T14:07:17-04:00",
+        "subject": "Updated auth"
+      },
+      {
+        "sha": "dac0d3a29119654d63e98d3df3835fd67eee5cc7",
+        "short_sha": "dac0d3a",
+        "authored_at": "2026-06-23T14:25:37-04:00",
+        "subject": "Updated User model to use email_address instead of email"
+      },
+      {
+        "sha": "0657abf8e00abef43c03c674e83f55fe73e824bd",
+        "short_sha": "0657abf",
+        "authored_at": "2026-06-23T15:11:22-04:00",
+        "subject": "Added super user to db seed"
+      },
+      {
+        "sha": "bb596f6c9caa27094a6a3b9472edf20f184a0528",
+        "short_sha": "bb596f6",
+        "authored_at": "2026-06-23T15:12:40-04:00",
+        "subject": "Updated bundle for dymond_bank changes"
+      },
+      {
+        "sha": "d40a466fcdfbf156bcf1821713676d0c057dd849",
+        "short_sha": "d40a466",
+        "authored_at": "2026-06-23T18:06:15-04:00",
+        "subject": "Updated gem with dymond_theme"
+      },
+      {
+        "sha": "ba6058ef36daf553bb55c0fdea8e9c06cfd9f1d1",
+        "short_sha": "ba6058e",
+        "authored_at": "2026-06-25T08:32:20-04:00",
+        "subject": "Update dymond_theme gem"
+      },
+      {
+        "sha": "b6048bbb57e3e5d09250dd95ded3a4be67df08d5",
+        "short_sha": "b6048bb",
+        "authored_at": "2026-06-25T15:36:25-04:00",
+        "subject": "Updated Dymond dash"
+      },
+      {
+        "sha": "dd830383399c5f35441a83ec81015b0c4ccdb3df",
+        "short_sha": "dd83038",
+        "authored_at": "2026-06-25T16:16:24-04:00",
+        "subject": "Updated Dymond Dash...added in a migration to fix db structure, I had already did the fix on the VM image, I needed it in here"
+      },
+      {
+        "sha": "43529fe686cbd567f3a554759ff7b8cf2980bde6",
+        "short_sha": "43529fe",
+        "authored_at": "2026-06-26T12:17:43-04:00",
+        "subject": "Made changes to how and when the Dash handles theme changes"
+      },
+      {
+        "sha": "df74d8a36ffe37495bac01fb89e90cbba183e4a3",
+        "short_sha": "df74d8a",
+        "authored_at": "2026-06-26T14:32:12-04:00",
+        "subject": "Updated Docker file"
+      },
+      {
+        "sha": "842b195c071fa636d9484995894323b70b4cbf3f",
+        "short_sha": "842b195",
+        "authored_at": "2026-06-26T16:49:54-04:00",
+        "subject": "Updated Docker file to put back docker1 line for whatever it does"
+      },
+      {
+        "sha": "b15d0d0181e134a254d8674bc010658494961b82",
+        "short_sha": "b15d0d0",
+        "authored_at": "2026-06-27T08:10:55-04:00",
+        "subject": "Add VM ops helper script"
+      },
+      {
+        "sha": "1375eacf6297ebbb82576c1ef3919a1777267dcb",
+        "short_sha": "1375eac",
+        "authored_at": "2026-06-27T14:28:49-04:00",
+        "subject": "Theming in the dashboard work as designed"
+      },
+      {
+        "sha": "436a26c665a4c0b8c86cb1ded329f17bfdf08b74",
+        "short_sha": "436a26c",
+        "authored_at": "2026-07-02T10:51:12-04:00",
+        "subject": "I feel like it has been awhile since I checked anything in..so here goes one lol....the additions tell exactly what happened here db migrates"
+      },
+      {
+        "sha": "72cbd4464a9e389bd49cc51580e5c439e0c5f1a5",
+        "short_sha": "72cbd44",
+        "authored_at": "2026-07-03T17:54:33-04:00",
+        "subject": "Application has themes, templates, theme switching...it is coming along nicely"
+      },
+      {
+        "sha": "61a1109322f15fa7d5e9ac71d7e47fbe9e9613db",
+        "short_sha": "61a1109",
+        "authored_at": "2026-07-14T16:01:54-04:00",
+        "subject": "Update host"
+      },
+      {
+        "sha": "088697c19b31d6118c980d0e2abfedc478565bfd",
+        "short_sha": "088697c",
+        "authored_at": "2026-07-15T11:56:35-04:00",
+        "subject": "Make sure remote is in sync with local"
+      },
+      {
+        "sha": "b1978f3d79dd5879ac8b1aa63859b7d3b933c171",
+        "short_sha": "b1978f3",
+        "authored_at": "2026-07-16T06:10:17-04:00",
+        "subject": "Closed money loop"
+      },
+      {
+        "sha": "9f382881505be07b2097980b25dad3b76d626128",
+        "short_sha": "9f38288",
+        "authored_at": "2026-07-16T14:23:05-04:00",
+        "subject": "Fixed banking with plaid now I can communicate with that API, I just need to fix storing the account or a reference to the bank account in dymond_bank so I have something to bill against"
+      },
+      {
+        "sha": "c7eb2adf3090f79d55b8877b57a8935f1df195d8",
+        "short_sha": "c7eb2ad",
+        "authored_at": "2026-07-16T14:25:48-04:00",
+        "subject": "These files were not added to last push, this is why I dislike -a vs --all"
+      },
+      {
+        "sha": "c730944f3289d623b28ccc6ac92a47901f98ba47",
+        "short_sha": "c730944",
+        "authored_at": "2026-07-20T18:36:18-04:00",
+        "subject": "Updating the main remote to match my local since I have done a lot of work since last push"
+      },
+      {
+        "sha": "e450222cea45dac195a39a604a327808b4db6e66",
+        "short_sha": "e450222",
+        "authored_at": "2026-07-22T15:37:11-04:00",
+        "subject": "Sync to remote, at the current version this is very much a solid version of a CMS, will be adding more work of course, just want to have it on record right now how well it is and how far it has come"
+      },
+      {
+        "sha": "f3422ef61663e054e535e675d9617f6d252a60f5",
+        "short_sha": "f3422ef",
+        "authored_at": "2026-07-24T08:12:35-04:00",
+        "subject": "Dymond compute and dymond studio has have major upgrades since last push, each repo has been documented also"
+      },
+      {
+        "sha": "67b093037b72184a1a4d61ede04bd4b3514861ba",
+        "short_sha": "67b0930",
+        "authored_at": "2026-07-26T12:19:00-04:00",
+        "subject": "Application now has a media endpoint for streaming services, first thing working on is for Roku"
+      },
+      {
+        "sha": "2d05f8115047786739136a51b359d41cc1cccb54",
+        "short_sha": "2d05f81",
+        "authored_at": "2026-07-26T16:24:59-04:00",
+        "subject": "Updated urls for stream in Kitchen sink"
+      },
+      {
+        "sha": "b1c635c5aadd576a1cf7a624577f3c2f6433deb8",
+        "short_sha": "b1c635c",
+        "authored_at": "2026-07-27T13:09:11-04:00",
+        "subject": "Updated rails api contract"
+      },
+      {
+        "sha": "84541e859c93c43a0f50c85908137863ae0aa754",
+        "short_sha": "84541e8",
+        "authored_at": "2026-07-27T14:02:53-04:00",
+        "subject": "Updated KitchenSink"
+      },
+      {
+        "sha": "82ba52a90adfe427ae3c511a12136fd2e616f1d8",
+        "short_sha": "82ba52a",
+        "authored_at": "2026-07-27T14:23:01-04:00",
+        "subject": "Updated API contract..Focusing Episode 1 or 2 crossfades the details hero artwork."
+      },
+      {
+        "sha": "70385ceb10cb4075912101f857787539b3e6ce83",
+        "short_sha": "70385ce",
+        "authored_at": "2026-07-27T14:54:47-04:00",
+        "subject": "Added in support for live"
+      },
+      {
+        "sha": "006cf29989ed2eacaae522963648ba3339980c5c",
+        "short_sha": "006cf29",
+        "authored_at": "2026-07-27T15:36:13-04:00",
+        "subject": "Search is being built in now"
+      },
+      {
+        "sha": "c33dac6e905f63b0098cfe7034c1108927df3072",
+        "short_sha": "c33dac6",
+        "authored_at": "2026-07-28T10:09:15-04:00",
+        "subject": "added community to the application"
+      },
+      {
+        "sha": "d2efb8c3d8f2e77c6e584be2c98f97772b3466f9",
+        "short_sha": "d2efb8c",
+        "authored_at": "2026-07-28T10:23:41-04:00",
+        "subject": "added hosts"
+      },
+      {
+        "sha": "0fbce65952a6db07bbec93812d0f2ce991998c44",
+        "short_sha": "0fbce65",
+        "authored_at": "2026-08-10T07:23:50-04:00",
+        "subject": "Updated kitchen sink, added a api controller that kitchen sink will switch to, no more application controller nonsense, added token to user for auth on the new kitchen sink"
+      },
+      {
+        "sha": "f6b3bf0971fbbdea80872408bc66e2be6f6fbdc5",
+        "short_sha": "f6b3bf0",
+        "authored_at": "2026-08-10T18:22:46-04:00",
+        "subject": "Added profile for user and profile visits with tracking"
+      },
+      {
+        "sha": "529b8d3dcd71d3965ec3a17e64d2e1bde8f96c6d",
+        "short_sha": "529b8d3",
+        "authored_at": "2026-09-01T07:08:23-04:00",
+        "subject": "Nevaeh is about to be running the whole application by being both the application and the network it runs on"
+      },
+      {
+        "sha": "59a9dfa81f00df094f117ce519a1b6b68b44ba27",
+        "short_sha": "59a9dfa",
+        "authored_at": "2026-09-01T07:35:00-04:00",
+        "subject": "Files was in an unconmittable state on last commit, just saving them now for clear test state."
+      },
+      {
+        "sha": "774547c105cb1d8efa2c6907d255b7e7a9013833",
+        "short_sha": "774547c",
+        "authored_at": "2026-09-07T10:56:23-04:00",
+        "subject": "Updated the system...episodes, departments and channels"
+      },
+      {
+        "sha": "fa65ad2782a5586e70bd715922095392fa098bc3",
+        "short_sha": "fa65ad2",
+        "authored_at": "2026-09-08T10:55:17-04:00",
+        "subject": "Let us get this on the server and see about actually having a website runninng"
+      },
+      {
+        "sha": "1a432d6980ceda162b0db37d5bed1ce957d98426",
+        "short_sha": "1a432d6",
+        "authored_at": "2026-09-08T12:25:43-04:00",
+        "subject": "Fixed issue in docker compose for traefik and how it was listed"
+      },
+      {
+        "sha": "b3c763dbfcbef514c23d36a0a9f79a72ff14ae90",
+        "short_sha": "b3c763d",
+        "authored_at": "2026-09-08T13:14:18-04:00",
+        "subject": "Updated docker compose"
+      },
+      {
+        "sha": "e950846529ad25508fdb780a7addcd4f388cdbf1",
+        "short_sha": "e950846",
+        "authored_at": "2026-09-09T08:00:58-04:00",
+        "subject": "Removed rails Master key from the docker compose"
+      },
+      {
+        "sha": "60a7e4260feaaeadacbe86f4087bd74632ed2636",
+        "short_sha": "60a7e42",
+        "authored_at": "2026-09-09T08:13:56-04:00",
+        "subject": "Added in rails env vars, so we can load in production and not development upon deployment"
+      },
+      {
+        "sha": "396c7ed1206a34e60eb1740067903f7c7a6502d3",
+        "short_sha": "396c7ed",
+        "authored_at": "2026-09-09T08:35:43-04:00",
+        "subject": "I needed to fix how I load postfix in prod"
+      },
+      {
+        "sha": "fafe70a9e3933124f05ee03ccb2f4c3fbf148239",
+        "short_sha": "fafe70a",
+        "authored_at": "2026-09-09T08:36:51-04:00",
+        "subject": "I needed to fix how I load postfix in prod in the docker compose also"
+      },
+      {
+        "sha": "af8279976298169e373039b91a884e5046c14fc2",
+        "short_sha": "af82799",
+        "authored_at": "2026-09-09T08:41:28-04:00",
+        "subject": "I needed to load up sidekiq in my prod env"
+      },
+      {
+        "sha": "931130f8b60433093f1ffd1e8e15af279b109861",
+        "short_sha": "931130f",
+        "authored_at": "2026-09-09T10:04:16-04:00",
+        "subject": "Fix production eager loading"
+      },
+      {
+        "sha": "5860b29d01a28a8e71dec74e8773abd0cc91d7f5",
+        "short_sha": "5860b29",
+        "authored_at": "2026-09-09T11:58:12-04:00",
+        "subject": "Use Redis cache instead of Solid Cache"
+      },
+      {
+        "sha": "fd06f73340f98c1fea0013e7537d7fade2320eac",
+        "short_sha": "fd06f73",
+        "authored_at": "2026-09-09T14:53:42-04:00",
+        "subject": "Update env"
+      },
+      {
+        "sha": "d58decbf146ed9faaaa493ba76ba99e3ac22e4a8",
+        "short_sha": "d58decb",
+        "authored_at": "2026-09-09T16:05:22-04:00",
+        "subject": "Configure Traefik for lightekmcg.com"
+      },
+      {
+        "sha": "ea63c0b50b45b53cbf53a8ef6db7c58edfcb3a73",
+        "short_sha": "ea63c0b",
+        "authored_at": "2026-09-09T16:26:26-04:00",
+        "subject": "Updated traefik version"
+      },
+      {
+        "sha": "c265afbf10f604bbbc4e986eee588e398a551b73",
+        "short_sha": "c265afb",
+        "authored_at": "2026-09-09T16:40:53-04:00",
+        "subject": "Updated traefik version to latest"
+      },
+      {
+        "sha": "6752d6dae92949298436417c8a07f6db1376bede",
+        "short_sha": "6752d6d",
+        "authored_at": "2026-09-14T08:41:58-04:00",
+        "subject": "Add Docker image CI pipeline"
+      },
+      {
+        "sha": "0308f07cf8a89087523df5944d766a1dd98f877a",
+        "short_sha": "0308f07",
+        "authored_at": "2026-09-23T07:38:41-04:00",
+        "subject": "We got susu in and connected to payment backend"
+      },
+      {
+        "sha": "8fd8d63cdbe8725b1e9ebc66e1c4c76ae3f88141",
+        "short_sha": "8fd8d63",
+        "authored_at": "2026-09-23T15:57:10-04:00",
+        "subject": "Susu in place"
+      },
+      {
+        "sha": "d741f9db9859bc032be5055dcda9acba620f2d03",
+        "short_sha": "d741f9d",
+        "authored_at": "2026-09-24T07:30:09-04:00",
+        "subject": "Changed docker to jobs to 1 from 4"
+      },
+      {
+        "sha": "5967b9207a0ac7758da77038b1d188fa8a5758f4",
+        "short_sha": "5967b92",
+        "authored_at": "2026-09-24T07:39:27-04:00",
+        "subject": "Removed comments out of Docker file"
+      },
+      {
+        "sha": "847413cd2f1453dd99f258da4b36ab6c89a12b12",
+        "short_sha": "847413c",
+        "authored_at": "2026-09-24T08:36:17-04:00",
+        "subject": "Added some scripts for server setup"
+      },
+      {
+        "sha": "b49b10fb4c27b71edf736827ea263487164893e5",
+        "short_sha": "b49b10f",
+        "authored_at": "2026-09-24T14:18:28-04:00",
+        "subject": "Fix bare metal Ruby bootstrap working directory"
+      },
+      {
+        "sha": "5e2c5172a32d18c2a48bcef14a86b54e30e3812e",
+        "short_sha": "5e2c517",
+        "authored_at": "2026-09-24T15:20:31-04:00",
+        "subject": "changed redis ports"
+      },
+      {
+        "sha": "ddb4df85f17bdad1fa6224e86acf59134366809d",
+        "short_sha": "ddb4df8",
+        "authored_at": "2026-09-24T15:32:15-04:00",
+        "subject": "Fix Redis host binding"
+      },
+      {
+        "sha": "92f2d671536352d9728eda71c4edfbd3d4e6db2d",
+        "short_sha": "92f2d67",
+        "authored_at": "2026-09-24T15:46:29-04:00",
+        "subject": "Added env builder script"
+      },
+      {
+        "sha": "b2b78a78f60b484758f70f551cc10d0a56195a39",
+        "short_sha": "b2b78a7",
+        "authored_at": "2026-09-24T16:08:52-04:00",
+        "subject": "bare metal db host fix"
+      },
+      {
+        "sha": "53a8e8ee963a689cfdcd747eda9a7a0119936f35",
+        "short_sha": "53a8e8e",
+        "authored_at": "2026-09-24T16:26:33-04:00",
+        "subject": "Fix Susu fresh install migration order"
+      },
+      {
+        "sha": "78f3f397e6b7a7b295c780ac619890553967474b",
+        "short_sha": "78f3f39",
+        "authored_at": "2026-09-24T19:16:45-04:00",
+        "subject": "Added Apache/Passenger env preparer"
+      },
+      {
+        "sha": "3b8354046b2e0d0beaf763a2b75c2d601747ea89",
+        "short_sha": "3b83540",
+        "authored_at": "2026-09-25T12:37:09-04:00",
+        "subject": "Meshing everything together into one unit"
+      },
+      {
+        "sha": "2def979d0a59b367b7751a27d97ce7e3db75e8b1",
+        "short_sha": "2def979",
+        "authored_at": "2026-09-25T13:59:49-04:00",
+        "subject": "Add Gatekeeper GitHub Actions CI/CD"
+      },
+      {
+        "sha": "756aa9edf95eafe82f1742b2490d7c14ba6d01e9",
+        "short_sha": "756aa9e",
+        "authored_at": "2026-09-25T15:05:05-04:00",
+        "subject": "Bootstrap production pull before Gatekeeper deploy script"
+      },
+      {
+        "sha": "9a80087964bcfb818d0ca49cb66705ac95032597",
+        "short_sha": "9a80087",
+        "authored_at": "2026-09-25T15:11:35-04:00",
+        "subject": "Disable obsolete Docker image workflow"
+      },
+      {
+        "sha": "639ab84ace3c53898cc65aacd14a72b068842eec",
+        "short_sha": "639ab84",
+        "authored_at": "2026-09-25T15:33:26-04:00",
+        "subject": "Add production permissions repair script"
+      },
+      {
+        "sha": "f1b229c3054fe73521bf6539a9db98e225855a2e",
+        "short_sha": "f1b229c",
+        "authored_at": "2026-09-25T16:39:25-04:00",
+        "subject": "Repair Gatekeeper boot-check helper"
+      },
+      {
+        "sha": "b1b7cc79d98e1db949d482e3e028429dd42100e8",
+        "short_sha": "b1b7cc7",
+        "authored_at": "2026-09-26T07:37:11-04:00",
+        "subject": "Authenticate CI to Lightek private dependencies"
+      },
+      {
+        "sha": "6b787382d65a0586ba9426009f728b9c8dd6c666",
+        "short_sha": "6b78738",
+        "authored_at": "2026-09-26T07:39:24-04:00",
+        "subject": "Clearing up the work to move forward, parking all this for later"
+      },
+      {
+        "sha": "7dc39e281b99f415be805d4e0a72a5387971624b",
+        "short_sha": "7dc39e2",
+        "authored_at": "2026-09-26T08:05:42-04:00",
+        "subject": "Register production with Gatekeeper and add Susu readiness checks"
+      },
+      {
+        "sha": "0b7aa5a20c2f42d44542de707b8c06d005d319f7",
+        "short_sha": "0b7aa5a",
+        "authored_at": "2026-09-26T09:48:04-04:00",
+        "subject": "Integrate Gatekeeper and Susu into DymondDash"
+      },
+      {
+        "sha": "8343075030876c2a473e47077262de2f61055eda",
+        "short_sha": "8343075",
+        "authored_at": "2026-09-26T11:30:22-04:00",
+        "subject": "Register Gatekeeper and Susu with DymondDash"
+      },
+      {
+        "sha": "410edb0ded369cc9679ca9496c47406b9e19ca93",
+        "short_sha": "410edb0",
+        "authored_at": "2026-09-26T11:41:17-04:00",
+        "subject": "Render Susu inside DymondDash shell"
+      },
+      {
+        "sha": "a41189fbd139413f3eec35b0f6d8d386beb8c52c",
+        "short_sha": "a41189f",
+        "authored_at": "2026-09-26T12:35:20-04:00",
+        "subject": "Fix Susu DymondDash controller contract and teach Gatekeeper"
+      },
+      {
+        "sha": "898a1f1721ca7cc311ec1d0ac32b1b5644c3854c",
+        "short_sha": "898a1f1",
+        "authored_at": "2026-09-26T14:51:19-04:00",
+        "subject": "Add public Susu product pages"
+      },
+      {
+        "sha": "bb8a966704d1d9128cbfa4b1a56b605cbe0b0392",
+        "short_sha": "bb8a966",
+        "authored_at": "2026-09-26T18:27:14-04:00",
+        "subject": "Add Susu entitlements and Stripe Connect payouts"
+      },
+      {
+        "sha": "d4aabd2843f666570fd78ed2482e20e503347b41",
+        "short_sha": "d4aabd2",
+        "authored_at": "2026-09-26T18:50:57-04:00",
+        "subject": "Add Susu customer dashboard and payout controls"
+      },
+      {
+        "sha": "47ccfa64c9e534f89bf442443efd4624604c9ff9",
+        "short_sha": "47ccfa6",
+        "authored_at": "2026-09-26T19:48:19-04:00",
+        "subject": "Teach GK dashboard constant collision"
+      },
+      {
+        "sha": "b1d361479853321d6ae9720e231eb7f0b974fa7d",
+        "short_sha": "b1d3614",
+        "authored_at": "2026-09-27T08:08:19-04:00",
+        "subject": "Add Susu signup invitations and transactional mail"
+      },
+      {
+        "sha": "69e30f5a873a75d4f906b6ef3af3de16907c730e",
+        "short_sha": "69e30f5",
+        "authored_at": "2026-09-27T09:22:17-04:00",
+        "subject": "Add super admin network and DNS control plane"
+      },
+      {
+        "sha": "8751095f3663083cd7974a40b5887901545ed3f6",
+        "short_sha": "8751095",
+        "authored_at": "2026-09-27T10:07:04-04:00",
+        "subject": "Fix GoDaddy DNS collection parsing"
+      },
+      {
+        "sha": "a1039354a9038a1493885cf5329f23d3549988ea",
+        "short_sha": "a103935",
+        "authored_at": "2026-09-27T11:19:33-04:00",
+        "subject": "Add Lightek Vault foundation"
+      },
+      {
+        "sha": "1cfad8d06a481cdf6ffb83c6dccf312317429189",
+        "short_sha": "1cfad8d",
+        "authored_at": "2026-09-27T11:48:48-04:00",
+        "subject": "COMPUTE PROVIDER FRAMEWORK INSTALLED"
+      },
+      {
+        "sha": "f6a76103803ed1a8f2b0770e95b419c5c4418802",
+        "short_sha": "f6a7610",
+        "authored_at": "2026-09-27T11:57:58-04:00",
+        "subject": "INFRASTRUCTURE CATALOG + SUBSCRIPTION CONTROL INSTALLED"
+      },
+      {
+        "sha": "aea04a184ac10db293d6e989d6ad462e7d7faf15",
+        "short_sha": "aea04a1",
+        "authored_at": "2026-09-27T12:39:18-04:00",
+        "subject": "Add provisioning orchestration and provider validation"
+      },
+      {
+        "sha": "f391352e51add50c53839b03ab09aa724f6c293d",
+        "short_sha": "f391352",
+        "authored_at": "2026-09-27T13:14:01-04:00",
+        "subject": "LINODE-BILLABLE-EXECUTION"
+      },
+      {
+        "sha": "e9ac413e75d1c781bfe6d027b37eb1e3d6666fb5",
+        "short_sha": "e9ac413",
+        "authored_at": "2026-09-28T10:28:53-04:00",
+        "subject": "Add Gmail API delivery for transactional mail"
+      },
+      {
+        "sha": "21f442cc5588a5aaacd54520ced3f1a426ccf8c0",
+        "short_sha": "21f442c",
+        "authored_at": "2026-09-28T11:07:40-04:00",
+        "subject": "Route Gmail API credentials through Lightek Vault"
+      },
+      {
+        "sha": "bea3add78dd4dd4ced3f7e6d4af0d0893dafd26c",
+        "short_sha": "bea3add",
+        "authored_at": "2026-09-28T11:27:09-04:00",
+        "subject": "Add structured credential fields to Lightek Vault UI"
+      },
+      {
+        "sha": "6d763ca7224da07c0955a3727c51298628c4ef32",
+        "short_sha": "6d763ca",
+        "authored_at": "2026-09-28T12:09:00-04:00",
+        "subject": "Updated dash because I added log out to it"
+      },
+      {
+        "sha": "312a4308796fa04ccd9a913f7bb8ecc6c054827f",
+        "short_sha": "312a430",
+        "authored_at": "2026-09-28T12:22:33-04:00",
+        "subject": "GATEKEEPER REPOSITORY OWNERSHIP FIX COMPLETE"
+      },
+      {
+        "sha": "81b1ece96d5c9e18e211088207e946123a1d8a6c",
+        "short_sha": "81b1ece",
+        "authored_at": "2026-09-28T12:44:04-04:00",
+        "subject": "Updated dymond_bank to use Vault instead of env"
+      },
+      {
+        "sha": "6280201b43d1625b4284cf171269760f5ab45988",
+        "short_sha": "6280201",
+        "authored_at": "2026-09-28T13:02:10-04:00",
+        "subject": "Route production Stripe through Lightek Vault"
+      },
+      {
+        "sha": "ef92cf7a3bb115907b65c4660f20fe4e3e9ba1a3",
+        "short_sha": "ef92cf7",
+        "authored_at": "2026-09-28T16:05:45-04:00",
+        "subject": "Install Studio v2 orchestration foundation"
+      },
+      {
+        "sha": "ee46d81f9f2bb09c32b09c1208e1998f2c05dfa0",
+        "short_sha": "ee46d81",
+        "authored_at": "2026-09-28T16:07:36-04:00",
+        "subject": "Clean Studio v2 file endings"
+      },
+      {
+        "sha": "9081a73ea7a5c5e7ca50bcbf9a201b3fdc2bb545",
+        "short_sha": "9081a73",
+        "authored_at": "2026-09-28T16:07:53-04:00",
+        "subject": "Merge Studio v2 orchestration foundation"
+      },
+      {
+        "sha": "1dafc77c36dccb1d9e4fac03d7c0c439e4336aa1",
+        "short_sha": "1dafc77",
+        "authored_at": "2026-09-28T19:50:21-04:00",
+        "subject": "Update DymondStudio projects and productions workspace"
+      },
+      {
+        "sha": "9ceab17cef2752293bf6921c087f6a305c9a69d5",
+        "short_sha": "9ceab17",
+        "authored_at": "2026-09-28T20:09:59-04:00",
+        "subject": "Add Studio paid operation billing lifecycle"
+      },
+      {
+        "sha": "223ddc05563f328f4b02dc34ea789e01d21c4c43",
+        "short_sha": "223ddc0",
+        "authored_at": "2026-09-28T20:44:05-04:00",
+        "subject": "Update Dymond Bank card payment rail"
+      },
+      {
+        "sha": "e2a9503bd191ae01751953bc1b5dff8d141deac2",
+        "short_sha": "e2a9503",
+        "authored_at": "2026-09-28T20:55:27-04:00",
+        "subject": "Add Studio paid operation billing lifecycle"
+      },
+      {
+        "sha": "517e084531871ad7327db431fb86e442a6d1f932",
+        "short_sha": "517e084",
+        "authored_at": "2026-09-28T21:45:24-04:00",
+        "subject": "Support card checkout for Studio renders"
+      },
+      {
+        "sha": "6e7ad268685b7fef8a77f73b75832ffa48fb975a",
+        "short_sha": "6e7ad26",
+        "authored_at": "2026-09-29T07:22:29-04:00",
+        "subject": "Update DymondStudio paid render flow"
+      },
+      {
+        "sha": "e8ef6cf28759619c66c750b4c5f8f1f251714a37",
+        "short_sha": "e8ef6cf",
+        "authored_at": "2026-10-01T14:52:22-04:00",
+        "subject": "WIP: preserve lightekmcg-site before main consolidation 20261001-145220"
+      },
+      {
+        "sha": "478fba2de061dfd11d50c7386ad2005011dd8840",
+        "short_sha": "478fba2",
+        "authored_at": "2026-10-01T14:52:25-04:00",
+        "subject": "Merge studio-monetization-v1 into main"
+      },
+      {
+        "sha": "8c69eb5e21d8f6f2fcac06ba037c02bf5cfb387f",
+        "short_sha": "8c69eb5",
+        "authored_at": "2026-10-01T15:31:26-04:00",
+        "subject": "Stop tracking local Gatekeeper backup and generated Blender bytecode"
+      },
+      {
+        "sha": "b0cb7111f92f07a447eb9992af4965b7bf55c1e1",
+        "short_sha": "b0cb711",
+        "authored_at": "2026-10-01T16:32:53-04:00",
+        "subject": "Move Lightek mobile navigation to bottom app bar"
+      },
+      {
+        "sha": "b5176cb9700c085e5415629500c21ee3a5eafc62",
+        "short_sha": "b5176cb",
+        "authored_at": "2026-10-01T17:33:37-04:00",
+        "subject": "Align DymondStudio dependency with main"
+      },
+      {
+        "sha": "dbe8da7809f4eab36a88016e8fc772ed3e744960",
+        "short_sha": "dbe8da7",
+        "authored_at": "2026-10-01T18:00:08-04:00",
+        "subject": "Return PWA users to requested route after sign in"
+      },
+      {
+        "sha": "826ee8be9114759a068e6a5dde59788980b0a7dc",
+        "short_sha": "826ee8b",
+        "authored_at": "2026-10-01T18:32:16-04:00",
+        "subject": "Build Lightek public profile foundation"
+      },
+      {
+        "sha": "54bfcb4f341003c693c110df71faafd70d2c3fa2",
+        "short_sha": "54bfcb4",
+        "authored_at": "2026-10-01T19:03:31-04:00",
+        "subject": "Connect Lightek profiles to PWA identity"
+      },
+      {
+        "sha": "e65b68fb2739754433cda3debb7c940cd837fbfc",
+        "short_sha": "e65b68f",
+        "authored_at": "2026-10-01T20:03:34-04:00",
+        "subject": "Connect PWA to authenticated profile identity"
+      },
+      {
+        "sha": "f6a1b749569e2ab01944ab3525a29233cd842bf1",
+        "short_sha": "f6a1b74",
+        "authored_at": "2026-10-02T07:42:15-04:00",
+        "subject": "Harden PWA storefront recovery"
+      },
+      {
+        "sha": "98e12af9bca37b2bd4286fc18610544ca97b7a59",
+        "short_sha": "98e12af",
+        "authored_at": "2026-10-02T08:25:58-04:00",
+        "subject": "Design Lightek authentication experience"
+      },
+      {
+        "sha": "a22aa5fbfae612c411327f5949fabeef9f868668",
+        "short_sha": "a22aa5f",
+        "authored_at": "2026-10-02T09:42:48-04:00",
+        "subject": "Fix active Create navigation contrast"
+      },
+      {
+        "sha": "2c9943780248ff08b0ac0d2c6252f008b076c47f",
+        "short_sha": "2c99437",
+        "authored_at": "2026-10-02T12:55:32-04:00",
+        "subject": "Show profile handle in creator attribution"
+      },
+      {
+        "sha": "ca87e62392dc1a9904e7aa1e5d892ec247238f71",
+        "short_sha": "ca87e62",
+        "authored_at": "2026-10-02T14:32:15-04:00",
+        "subject": "Add Lightek messaging domain foundation"
+      },
+      {
+        "sha": "ffe3fd4b363b5f8dc6eb30c7cd859bbd8fa4e6e1",
+        "short_sha": "ffe3fd4",
+        "authored_at": "2026-10-02T15:13:48-04:00",
+        "subject": "Wire Lightek messaging through Nevaeh"
+      },
+      {
+        "sha": "d217fe5bf6a0fb4a27ac64578dbc689b26aa3071",
+        "short_sha": "d217fe5",
+        "authored_at": "2026-10-03T07:48:38-04:00",
+        "subject": "Complete Lightek messaging experience"
+      },
+      {
+        "sha": "31d1af11125501eeb506acc69d195c403bd83fd0",
+        "short_sha": "31d1af1",
+        "authored_at": "2026-10-03T11:51:49-04:00",
+        "subject": "Build Lightek human relationship foundation"
+      },
+      {
+        "sha": "71017d7fbd969a05040d9ed337c0488c10b4e513",
+        "short_sha": "71017d7",
+        "authored_at": "2026-10-03T19:09:43-04:00",
+        "subject": "Wire Lightek Social through Nevaeh execution contract"
+      },
+      {
+        "sha": "ceca18331cef345101a0ac6060f6df89185349fa",
+        "short_sha": "ceca183",
+        "authored_at": "2026-10-03T20:53:19-04:00",
+        "subject": "Make messaging people discovery Social-aware"
+      },
+      {
+        "sha": "dc6ada846925ba1f6bfbb181c804d2d21e2d8746",
+        "short_sha": "dc6ada8",
+        "authored_at": "2026-10-04T07:32:42-04:00",
+        "subject": "Complete Lightek relationship and block lifecycle"
+      },
+      {
+        "sha": "9b65a373bfaecfe595bc47ec658572168228288c",
+        "short_sha": "9b65a37",
+        "authored_at": "2026-10-04T08:30:37-04:00",
+        "subject": "Complete Messaging lifecycle and group governance"
+      },
+      {
+        "sha": "759f5d1e21ae4dc214fd81b541d27a4b76bf951a",
+        "short_sha": "759f5d1",
+        "authored_at": "2026-10-04T11:02:25-04:00",
+        "subject": "Add canonical PWA Studio foundation"
+      },
+      {
+        "sha": "a3b641485e7765293f66a5427a9f6614728ed80b",
+        "short_sha": "a3b6414",
+        "authored_at": "2026-10-04T12:22:02-04:00",
+        "subject": "Add interactive Studio SceneObject mutations"
+      },
+      {
+        "sha": "6180a14a75f9dc34ff3cf8a4d3b3b6f767485ee1",
+        "short_sha": "6180a14",
+        "authored_at": "2026-10-04T16:05:07-04:00",
+        "subject": "Add visual 3D Studio workspace"
+      },
+      {
+        "sha": "09639f1e9e4e11140f20e117e79c4db4a0a9c8c4",
+        "short_sha": "09639f1",
+        "authored_at": "2026-10-05T06:58:54-04:00",
+        "subject": "Make Studio SceneObject lifecycle live"
+      },
+      {
+        "sha": "ea8bdd14231afa447b514bda1f8f970871f90a74",
+        "short_sha": "ea8bdd1",
+        "authored_at": "2026-10-05T10:20:37-04:00",
+        "subject": "Add Studio project tracking foundation"
+      },
+      {
+        "sha": "5e5412f68268dc1c05a16f1128d0968a0c145a27",
+        "short_sha": "5e5412f",
+        "authored_at": "2026-10-08T10:09:15-04:00",
+        "subject": "Add Studio blueprint compiler and generator"
+      },
+      {
+        "sha": "36d1fb6b3decc8e57278e47d2eed809db5be6ae9",
+        "short_sha": "36d1fb6",
+        "authored_at": "2026-10-08T11:15:00-04:00",
+        "subject": "Add intent-first Studio Create surface"
+      }
+    ]
+  },
+  "project_tracking": [
+    {
+      "source": "config/project_tracking/lightek_studio.json",
+      "project": {
+        "key": "lightek-studio",
+        "title": "Lightek Studio",
+        "current_phase": "UX Foundation II",
+        "production_floor": {
+          "commit": "5e5412f",
+          "status": "green",
+          "description": "Studio blueprint compiler and generator foundation deployed green; Foundation is 12/12 complete and UX Foundation II is active."
+        }
+      },
+      "counts": {
+        "total": 89,
+        "done": 14,
+        "in_progress": 0,
+        "blocked": 0
+      },
+      "items": [
+        {
+          "key": "STUDIO-001",
+          "title": "Canonical PWA Studio foundation",
+          "phase": "Foundation",
+          "area": "PWA",
+          "status": "done",
+          "priority": "P0",
+          "effort": 3,
+          "summary": "Establish Studio as a canonical authenticated PWA surface with real bootstrap data.",
+          "evidence": [
+            "759f5d1"
+          ]
+        },
+        {
+          "key": "STUDIO-002",
+          "title": "Canonical authenticated Studio navigation",
+          "phase": "Foundation",
+          "area": "PWA",
+          "status": "done",
+          "priority": "P0",
+          "effort": 2,
+          "summary": "Register Studio through the authenticated canonical storefront/navigation renderer instead of static primary navigation.",
+          "evidence": [
+            "759f5d1"
+          ]
+        },
+        {
+          "key": "STUDIO-003",
+          "title": "Studio PWA bootstrap worker and scene payload",
+          "phase": "Foundation",
+          "area": "Backend",
+          "status": "done",
+          "priority": "P0",
+          "effort": 3,
+          "summary": "Provide projects, productions, scenes and SceneObjects to the PWA through the Studio worker contract.",
+          "evidence": [
+            "759f5d1"
+          ]
+        },
+        {
+          "key": "STUDIO-004",
+          "title": "SceneObject domain and mutation worker",
+          "phase": "Foundation",
+          "area": "Backend",
+          "status": "done",
+          "priority": "P0",
+          "effort": 3,
+          "summary": "Provide canonical create, transform, duplicate and destroy operations over Studio SceneObjects.",
+          "evidence": [
+            "a3b6414"
+          ]
+        },
+        {
+          "key": "STUDIO-005",
+          "title": "Nevaeh and Gatekeeper SceneObject capability boundary",
+          "phase": "Foundation",
+          "area": "Orchestration",
+          "status": "done",
+          "priority": "P0",
+          "effort": 3,
+          "summary": "Route SceneObject mutations through Nevaeh capabilities, Gatekeeper authorization and Studio workers.",
+          "evidence": [
+            "a3b6414"
+          ]
+        },
+        {
+          "key": "STUDIO-006",
+          "title": "Visual Three.js Studio workspace",
+          "phase": "Foundation",
+          "area": "3D",
+          "status": "done",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Provide the browser-side interactive visual projection of canonical Studio scene state.",
+          "evidence": [
+            "6180a14"
+          ]
+        },
+        {
+          "key": "STUDIO-007",
+          "title": "Scene selection, Outliner and Inspector synchronization",
+          "phase": "Foundation",
+          "area": "3D",
+          "status": "done",
+          "priority": "P0",
+          "effort": 3,
+          "summary": "Allow SceneObjects to be selected from the viewport and Studio controls while keeping context synchronized.",
+          "evidence": [
+            "6180a14"
+          ]
+        },
+        {
+          "key": "STUDIO-008",
+          "title": "Smooth Move Rotate Scale manipulation",
+          "phase": "Foundation",
+          "area": "3D",
+          "status": "done",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Manipulate SceneObjects locally at interactive speed and persist canonical transforms after manipulation.",
+          "evidence": [
+            "6180a14"
+          ]
+        },
+        {
+          "key": "STUDIO-009",
+          "title": "Live Create Duplicate Delete lifecycle",
+          "phase": "Foundation",
+          "area": "3D",
+          "status": "done",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Create, duplicate and delete SceneObjects without a full Studio bootstrap or manual panel reconciliation.",
+          "evidence": [
+            "09639f1"
+          ]
+        },
+        {
+          "key": "STUDIO-010",
+          "title": "Rails Studio fallback editor baseline",
+          "phase": "Foundation",
+          "area": "Rails",
+          "status": "done",
+          "priority": "P1",
+          "effort": 3,
+          "summary": "Maintain meaningful server-rendered Studio capability while the PWA remains the primary operator surface.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-011",
+          "title": "Blender Preview and Render execution baseline",
+          "phase": "Foundation",
+          "area": "Blender",
+          "status": "done",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Prove the real Studio orchestration path can reach Blender-backed preview/render work and artifacts.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-090",
+          "title": "Studio blueprint compiler and generator foundation",
+          "phase": "Foundation",
+          "area": "Architecture",
+          "status": "done",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Build the intent-driven Studio architecture compiler and generator that materializes repeatable workers, Nevaeh capabilities, Gatekeeper contracts, PWA contracts, schemas, tests, documentation, templates, and generated-artifact provenance from canonical Studio blueprints.",
+          "evidence": [
+            "Canonical Studio blueprint compiler normalizes intent-driven architecture contracts",
+            "Generator materializes worker, Nevaeh capability seed, Gatekeeper contract, PWA contract, input schema, template, test, documentation and compiled manifest",
+            "Generated artifacts are registered through Marlon::GeneratedArtifact with checksum and source SHA-256 provenance",
+            "Generated capabilities default disabled and Studio::Blueprint::Runtime independently refuses disabled direct execution",
+            "Compiler, generator and runtime contract tests are green",
+            "Isolated end-to-end example generation verified all nine artifact contracts and generated Nevaeh seed runtime"
+          ]
+        },
+        {
+          "key": "STUDIO-101",
+          "title": "Intent-first Create surface",
+          "phase": "UX Foundation II",
+          "area": "Create",
+          "status": "done",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Start creation from what the user intends to make: Character, Environment, Scene, Prop, Vehicle, Architecture, Effect, Material, Production or Template.",
+          "evidence": [
+            "Browser-approved intent-first PWA Create surface at #/studio/create",
+            "Create begins with ten user-intent categories: Character, Environment, Scene, Prop, Vehicle, Architecture, Effect, Material, Production and Template",
+            "Character start modes verified: Photo, Video, Existing Asset, Generate and Blank Character",
+            "Create flow is Intent -> Starting point -> Brief -> Creation brief ready",
+            "Fixture contracts mirror Studio blueprint PWA contract shape while remaining intentionally backend-free",
+            "PWA shell cache advanced to v25 and JavaScript/service-worker syntax checks are green"
+          ]
+        },
+        {
+          "key": "STUDIO-102",
+          "title": "Studio Library shell and production taxonomy",
+          "phase": "UX Foundation II",
+          "area": "Library",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Create first-class library categories for Templates, Characters, Environments, Props, Vehicles, Architecture, Cameras, Lights, Materials, Geometry Systems, FX, Audio, Graphics, Animations and Collections.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-103",
+          "title": "Template Gallery UX",
+          "phase": "UX Foundation II",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Allow users to begin from useful production intent rather than Blender implementation details.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-104",
+          "title": "First-class Template Maker",
+          "phase": "UX Foundation II",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Turn a solved scene, fabrication setup or production arrangement into a reusable production primitive.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-105",
+          "title": "Template variables and locked configuration UX",
+          "phase": "UX Foundation II",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Separate the inputs a user swaps from the production configuration Lightek preserves.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-106",
+          "title": "Richer production workspace shell",
+          "phase": "UX Foundation II",
+          "area": "Workspace",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Design the main creation environment around Scene Graph, Viewport, Library, contextual Inspector, Nevaeh Director and production workspaces.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-107",
+          "title": "Semantic Scene Graph",
+          "phase": "UX Foundation II",
+          "area": "Workspace",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Represent Characters, Environment, Props, Cameras, Lighting, FX and other production concepts instead of centering primitive geometry.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-108",
+          "title": "Context-sensitive Inspector",
+          "phase": "UX Foundation II",
+          "area": "Workspace",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Render controls appropriate to the selected character, environment, Geometry Nodes system, camera, light, FX system, material or other capability.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-109",
+          "title": "Nevaeh Director UX",
+          "phase": "UX Foundation II",
+          "area": "Nevaeh",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Let creative direction be expressed as intent and preview the production changes Nevaeh intends to make.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-110",
+          "title": "Progressive Basic Advanced controls",
+          "phase": "UX Foundation II",
+          "area": "Workspace",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 3,
+          "summary": "Compress complexity by default while preserving expert parameters and an Open in Blender path.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-111",
+          "title": "Fixture-first Studio UI contracts",
+          "phase": "UX Foundation II",
+          "area": "Contracts",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Define fixture contracts for assets, capabilities, templates, inspector controls and creation flows before wiring backend implementations.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-112",
+          "title": "Asset detail and preview experience",
+          "phase": "UX Foundation II",
+          "area": "Library",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 3,
+          "summary": "Provide useful visual previews, metadata, variants and actions for reusable production assets.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-113",
+          "title": "Save as Asset UX",
+          "phase": "UX Foundation II",
+          "area": "Library",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 3,
+          "summary": "Let completed or generated production elements become reusable Lightek assets.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-114",
+          "title": "Save as Template UX",
+          "phase": "UX Foundation II",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Let a successful current configuration become a reusable template without reconstructing it manually.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-115",
+          "title": "Responsive Studio UX pass",
+          "phase": "UX Foundation II",
+          "area": "PWA",
+          "status": "todo",
+          "priority": "P2",
+          "effort": 4,
+          "summary": "Keep the new Studio interaction model coherent across desktop and smaller form factors.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-201",
+          "title": "Blender runtime discovery",
+          "phase": "Blender Foundation II",
+          "area": "Blender",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Discover runtime version, render engines, available systems and production capabilities.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-202",
+          "title": "Blender Asset Registry",
+          "phase": "Blender Foundation II",
+          "area": "Assets",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Create a canonical registry of reusable Blender-backed production assets and provenance.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-203",
+          "title": "Studio Capability Registry",
+          "phase": "Blender Foundation II",
+          "area": "Capabilities",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Represent what Lightek and Blender can do independently from how the UI happens to expose it.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-204",
+          "title": "Approved Blender Extension Registry",
+          "phase": "Blender Foundation II",
+          "area": "Extensions",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Track approved extensions, versions, checksums, licenses, capabilities, configuration and Gatekeeper policies.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-205",
+          "title": "Template Registry backend",
+          "phase": "Blender Foundation II",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Store reusable Lightek production and fabrication templates as canonical system objects.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-206",
+          "title": "Blend file ingestion",
+          "phase": "Blender Foundation II",
+          "area": "Blender",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Ingest real .blend assets without flattening Blender-native production state into browser-owned JSON.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-207",
+          "title": "Blender manifest extraction",
+          "phase": "Blender Foundation II",
+          "area": "Blender",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Inspect Collections, Objects, Meshes, Materials, Armatures, Actions, Cameras, Lights, Node Groups, Worlds and dependencies.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-208",
+          "title": "Browser GLB proxy generation",
+          "phase": "Blender Foundation II",
+          "area": "3D",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Generate lightweight browser representations while Blender remains the authoritative scene runtime.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-209",
+          "title": "Real Studio Asset Browser wiring",
+          "phase": "Blender Foundation II",
+          "area": "Assets",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Replace primitive-centric creation with registered production assets backed by Blender.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-210",
+          "title": "Capability-schema generated Inspector controls",
+          "phase": "Blender Foundation II",
+          "area": "Capabilities",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Generate simplified PWA controls from capability schemas rather than hand-coding every Blender operation.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-211",
+          "title": "Template to capability graph compiler",
+          "phase": "Blender Foundation II",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Resolve a chosen template into assets, capabilities, extensions, parameters and execution requirements.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-212",
+          "title": "Official Blender demo ingestion proof",
+          "phase": "Blender Foundation II",
+          "area": "Blender",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Use a serious Blender demo file to prove ingestion, manifest extraction, proxy generation and real parameter control.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-213",
+          "title": "Procedural Environment and Architecture proof",
+          "phase": "Blender Foundation II",
+          "area": "Geometry",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Expose useful Geometry Nodes environment/building parameters through an approachable Lightek template.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-214",
+          "title": "Approved extension execution pipeline",
+          "phase": "Blender Foundation II",
+          "area": "Extensions",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Allow Gatekeeper-approved extensions to contribute versioned Studio capabilities executed by Blender workers.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-215",
+          "title": "Blender asset provenance and version policy",
+          "phase": "Blender Foundation II",
+          "area": "Governance",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Track source, version, compatibility, license and provenance for Blender assets and extensions.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-221",
+          "title": "Photo to animation-ready Character",
+          "phase": "Character Fabrication",
+          "area": "Characters",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Create an approachable workflow from reference imagery to a reusable rigged character.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-222",
+          "title": "Image and video projection material workflows",
+          "phase": "Character Fabrication",
+          "area": "Materials",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Use images and video as production inputs for projection, appearance, texture and 2.5D treatments.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-223",
+          "title": "Body performance video to rig motion",
+          "phase": "Character Fabrication",
+          "area": "Animation",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Extract body performance from video and retarget it onto Studio character rigs.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-224",
+          "title": "Facial performance capture workflow",
+          "phase": "Character Fabrication",
+          "area": "Animation",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Drive reusable facial rigs from reference performance.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-225",
+          "title": "Voice and lip-sync character performance",
+          "phase": "Character Fabrication",
+          "area": "Animation",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Drive dialogue performance and lip synchronization from audio inputs.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-226",
+          "title": "Reference clothing hair and appearance preservation",
+          "phase": "Character Fabrication",
+          "area": "Characters",
+          "status": "todo",
+          "priority": "P2",
+          "effort": 5,
+          "summary": "Preserve or reconstruct important appearance details from source references.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-227",
+          "title": "Reusable Lightek character package",
+          "phase": "Character Fabrication",
+          "area": "Characters",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Package mesh, rig, materials, controls and production metadata as reusable Studio assets.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-301",
+          "title": "Complete PWA Project Production Scene management",
+          "phase": "Production Systems",
+          "area": "Core",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Finish first-class management of projects, productions and scenes in the primary PWA surface.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-302",
+          "title": "PWA Preview and Render workflow",
+          "phase": "Production Systems",
+          "area": "Rendering",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 4,
+          "summary": "Run real Blender preview/render operations and surface operation and artifact state without leaving the scene.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-303",
+          "title": "Script writing workspace",
+          "phase": "Production Systems",
+          "area": "Script",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Create production-aware scripts tied to scenes, characters, continuity and Nevaeh.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-304",
+          "title": "Storyboard and shot planning workspace",
+          "phase": "Production Systems",
+          "area": "Storyboard",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Create panels, shots, scene plans and relationships to assets and clips.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-305",
+          "title": "Timeline and editing workspace",
+          "phase": "Production Systems",
+          "area": "Edit",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Provide tracks, clips, trimming, sequencing, overlays and finished edits.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-306",
+          "title": "Design and graphics workspace",
+          "phase": "Production Systems",
+          "area": "Design",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Create graphics, text, layouts, branding and reusable visual elements.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-307",
+          "title": "Audio production workspace",
+          "phase": "Production Systems",
+          "area": "Audio",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Handle dialogue, voice, music, tracks, mixing and levels.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-308",
+          "title": "Keyframes animation and History",
+          "phase": "Production Systems",
+          "area": "Animation",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Provide animation keyframes, reusable motion, history and safe editing.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-309",
+          "title": "FX and simulation workspace",
+          "phase": "Production Systems",
+          "area": "FX",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Expose useful Blender simulation and effects capabilities through Lightek controls.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-310",
+          "title": "Materials and shader systems",
+          "phase": "Production Systems",
+          "area": "Materials",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Provide approachable material creation and parameter control backed by Blender.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-311",
+          "title": "Advanced cameras and lighting systems",
+          "phase": "Production Systems",
+          "area": "Camera Lighting",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Expose production-oriented camera, lens, lighting and rig systems instead of only primitive camera/light objects.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-312",
+          "title": "Nevaeh Director execution",
+          "phase": "Production Systems",
+          "area": "Nevaeh",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Turn approved Director intentions into real Studio capability executions.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-313",
+          "title": "Artifacts and Operations workspace",
+          "phase": "Production Systems",
+          "area": "Operations",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Expose previews, renders, generated assets, execution state, failures and history.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-314",
+          "title": "Publishing and scheduling",
+          "phase": "Production Systems",
+          "area": "Publishing",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Support immediate, scheduled, cancellable and multi-destination StudioPublication workflows.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-315",
+          "title": "Live production system",
+          "phase": "Production Systems",
+          "area": "Live",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Support live shows, switching, overlays, production control and destinations.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-316",
+          "title": "Upload transcode and asset processing",
+          "phase": "Production Systems",
+          "area": "Media",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Handle incoming production media and preparation for reusable Studio workflows.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-317",
+          "title": "Compute usage and billing awareness",
+          "phase": "Production Systems",
+          "area": "Infrastructure",
+          "status": "todo",
+          "priority": "P2",
+          "effort": 4,
+          "summary": "Expose relevant production compute requirements and usage without making infrastructure the user's creative burden.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-401",
+          "title": "Save current production as reusable template",
+          "phase": "Template System",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P0",
+          "effort": 5,
+          "summary": "Turn a successful production configuration into an immediately reusable production primitive.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-402",
+          "title": "Composable and inheritable templates",
+          "phase": "Template System",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Combine production, camera, lighting, character, audio, graphics, environment and delivery templates.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-403",
+          "title": "Template versioning and distribution",
+          "phase": "Template System",
+          "area": "Templates",
+          "status": "todo",
+          "priority": "P2",
+          "effort": 4,
+          "summary": "Version, share, update and safely distribute reusable Studio templates.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-404",
+          "title": "Single-camera drama production templates",
+          "phase": "Template System",
+          "area": "Production Templates",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Seed reusable single-camera drama production grammar, coverage, camera and lighting packages.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-405",
+          "title": "Multi-camera interview comedy and panel templates",
+          "phase": "Template System",
+          "area": "Production Templates",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Seed reusable multi-camera interview, panel and comedy production systems.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-406",
+          "title": "Documentary news and reality templates",
+          "phase": "Template System",
+          "area": "Production Templates",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Seed documentary verite, news and reality production workflows.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-407",
+          "title": "Music video production templates",
+          "phase": "Template System",
+          "area": "Production Templates",
+          "status": "todo",
+          "priority": "P2",
+          "effort": 3,
+          "summary": "Seed reusable music-video visual grammar, camera, lighting and edit systems.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-408",
+          "title": "Sports and live broadcast templates",
+          "phase": "Template System",
+          "area": "Production Templates",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Seed reusable live and sports production layouts, switching and graphics systems.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-409",
+          "title": "Camera lens and lighting template packs",
+          "phase": "Template System",
+          "area": "Production Templates",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Package reusable cinematography and lighting grammars independently of complete show templates.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-410",
+          "title": "Graphics audio and delivery template packs",
+          "phase": "Template System",
+          "area": "Production Templates",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Package reusable graphics, mix, mastering and delivery configurations.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-411",
+          "title": "Character environment FX fabrication templates",
+          "phase": "Template System",
+          "area": "Fabrication Templates",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Make advanced character, environment and effects fabrication approachable through intent-driven templates.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-501",
+          "title": "Studio Everywhere creation layer",
+          "phase": "Integration",
+          "area": "Lightek",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Make Studio the reusable creation operating system behind Lightek content surfaces.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-502",
+          "title": "Studio creation inside Messages",
+          "phase": "Integration",
+          "area": "Messages",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Replace simple text-only creation boundaries with reusable Studio creation capabilities where appropriate.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-503",
+          "title": "Studio creation across Social Communities Posts and Clips",
+          "phase": "Integration",
+          "area": "Social",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Expose Studio-powered creation across Lightek social and community surfaces.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-504",
+          "title": "Studio creation across Articles Events and Live",
+          "phase": "Integration",
+          "area": "Content",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Reuse Studio creation capability for broader Lightek editorial and live content.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-505",
+          "title": "Lightek fabrication system integration",
+          "phase": "Integration",
+          "area": "Fabrication",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Connect templates, assets and capability execution to the broader Lightek fabrication model.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-601",
+          "title": "Nevaeh Studio Knowledge Base documentation pass",
+          "phase": "Documentation",
+          "area": "Nevaeh",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Document completed Studio capabilities, contracts, routes, policies and procedures for Nevaeh reasoning.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-602",
+          "title": "Gatekeeper Studio capability policies",
+          "phase": "Documentation",
+          "area": "Gatekeeper",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Formalize capability, extension, asset and production execution authorization policy.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-603",
+          "title": "Rails fallback capability parity review",
+          "phase": "Documentation",
+          "area": "Rails",
+          "status": "todo",
+          "priority": "P2",
+          "effort": 4,
+          "summary": "Review the server-rendered fallback against the final PWA capability set.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-604",
+          "title": "Extension asset licensing provenance security policy",
+          "phase": "Documentation",
+          "area": "Governance",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 4,
+          "summary": "Formalize safe extension execution and asset licensing, provenance and compatibility requirements.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-605",
+          "title": "Studio performance reliability and release hardening",
+          "phase": "Documentation",
+          "area": "Quality",
+          "status": "todo",
+          "priority": "P1",
+          "effort": 5,
+          "summary": "Harden caching, failure recovery, regression coverage, performance and production release behavior.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-606",
+          "title": "Studio API contract and operator documentation",
+          "phase": "Documentation",
+          "area": "Docs",
+          "status": "todo",
+          "priority": "P2",
+          "effort": 4,
+          "summary": "Maintain durable documentation of Studio contracts and operational behavior.",
+          "evidence": []
+        },
+        {
+          "key": "STUDIO-607",
+          "title": "GitHub Project and Lightek trouble-ticket synchronization",
+          "phase": "Documentation",
+          "area": "Continuity",
+          "status": "done",
+          "priority": "P0",
+          "effort": 3,
+          "summary": "Use one canonical Studio roadmap to drive GitHub project tracking and Lightek trouble tickets for durable project continuity.",
+          "evidence": [
+            "GitHub Project #6 synchronized with 88 roadmap items",
+            "Lightek Marlon::Ticket synchronized with 88 roadmap items",
+            "Stable STUDIO-### identity proven one-to-one across both projections",
+            "Lightek ticket sync idempotency proven: 0 created / 0 updated / 88 unchanged"
+          ]
+        }
+      ]
+    }
+  ],
+  "capability_registry": {
+    "count": 34,
+    "capabilities": [
+      {
+        "slug": "messages.delete",
+        "name": "Messages Delete",
+        "domain": "messages",
+        "intent_name": "delete_messages_conversation_for_me",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.delete",
+        "enabled": true,
+        "event_types": [
+          "messages.delete.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.group.add_members",
+        "name": "Messages Group Add Members",
+        "domain": "messages",
+        "intent_name": "add_members_to_messages_group",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.group.add_members",
+        "enabled": true,
+        "event_types": [
+          "messages.group.add_members.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.group.demote_admin",
+        "name": "Messages Group Demote Admin",
+        "domain": "messages",
+        "intent_name": "demote_messages_group_admin",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.group.demote_admin",
+        "enabled": true,
+        "event_types": [
+          "messages.group.demote_admin.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.group.promote_admin",
+        "name": "Messages Group Promote Admin",
+        "domain": "messages",
+        "intent_name": "promote_messages_group_admin",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.group.promote_admin",
+        "enabled": true,
+        "event_types": [
+          "messages.group.promote_admin.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.group.remove_member",
+        "name": "Messages Group Remove Member",
+        "domain": "messages",
+        "intent_name": "remove_member_from_messages_group",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.group.remove_member",
+        "enabled": true,
+        "event_types": [
+          "messages.group.remove_member.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.leave",
+        "name": "Messages Leave",
+        "domain": "messages",
+        "intent_name": "leave_messages_group",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.leave",
+        "enabled": true,
+        "event_types": [
+          "messages.leave.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.list",
+        "name": "Messages List",
+        "domain": "messages",
+        "intent_name": "list_messages",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.list",
+        "enabled": true,
+        "event_types": [
+          "messages.list.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.mark_read",
+        "name": "Messages Mark Read",
+        "domain": "messages",
+        "intent_name": "mark_messages_read",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.mark_read",
+        "enabled": true,
+        "event_types": [
+          "messages.mark_read.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.people",
+        "name": "Messages People",
+        "domain": "messages",
+        "intent_name": "find_message_people",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.people",
+        "enabled": true,
+        "event_types": [
+          "messages.people.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.send",
+        "name": "Messages Send",
+        "domain": "messages",
+        "intent_name": "send_message",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.send",
+        "enabled": true,
+        "event_types": [
+          "messages.send.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.show",
+        "name": "Messages Show",
+        "domain": "messages",
+        "intent_name": "show_messages_conversation",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.show",
+        "enabled": true,
+        "event_types": [
+          "messages.show.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "messages.start",
+        "name": "Messages Start",
+        "domain": "messages",
+        "intent_name": "start_messages_conversation",
+        "handler": "LightekMessaging::Workers::Pwa",
+        "gatekeeper_capability": "messages.start",
+        "enabled": true,
+        "event_types": [
+          "messages.start.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "nevaeh.self.inspect",
+        "name": "Nevaeh Self Knowledge",
+        "domain": "nevaeh",
+        "intent_name": "inspect_nevaeh_self",
+        "handler": "NevaehOrchestration::Workers::SelfKnowledge",
+        "gatekeeper_capability": "nevaeh.self.inspect",
+        "enabled": true,
+        "event_types": [
+          "nevaeh.self.inspect.requested"
+        ],
+        "knowledge_article_ids": [
+          "nevaeh-origin-learning-model",
+          "nevaeh-development-history"
+        ]
+      },
+      {
+        "slug": "social.block",
+        "name": "Social Block",
+        "domain": "social",
+        "intent_name": "block_social_profile",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.block",
+        "enabled": true,
+        "event_types": [
+          "social.block.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.blocks.list",
+        "name": "Social Blocks List",
+        "domain": "social",
+        "intent_name": "list_social_blocks",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.blocks.list",
+        "enabled": true,
+        "event_types": [
+          "social.blocks.list.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.connection.opportunities",
+        "name": "Social Connection Opportunities",
+        "domain": "social",
+        "intent_name": "list_social_connection_opportunities",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.connection.opportunities",
+        "enabled": true,
+        "event_types": [
+          "social.connection.opportunities.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.follow",
+        "name": "Social Follow",
+        "domain": "social",
+        "intent_name": "follow_social_profile",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.follow",
+        "enabled": true,
+        "event_types": [
+          "social.follow.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.friendship.end",
+        "name": "Social Friendship End",
+        "domain": "social",
+        "intent_name": "end_social_friendship",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.friendship.end",
+        "enabled": true,
+        "event_types": [
+          "social.friendship.end.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.friendship.request",
+        "name": "Social Friendship Request",
+        "domain": "social",
+        "intent_name": "request_social_friendship",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.friendship.request",
+        "enabled": true,
+        "event_types": [
+          "social.friendship.request.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.friendship.respond",
+        "name": "Social Friendship Respond",
+        "domain": "social",
+        "intent_name": "respond_social_friendship",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.friendship.respond",
+        "enabled": true,
+        "event_types": [
+          "social.friendship.respond.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.people.recommend",
+        "name": "Social People Recommend",
+        "domain": "social",
+        "intent_name": "recommend_social_people",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.people.recommend",
+        "enabled": true,
+        "event_types": [
+          "social.people.recommend.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.relationship.context",
+        "name": "Social Relationship Context",
+        "domain": "social",
+        "intent_name": "show_social_relationship_context",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.relationship.context",
+        "enabled": true,
+        "event_types": [
+          "social.relationship.context.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.unblock",
+        "name": "Social Unblock",
+        "domain": "social",
+        "intent_name": "unblock_social_profile",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.unblock",
+        "enabled": true,
+        "event_types": [
+          "social.unblock.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "social.unfollow",
+        "name": "Social Unfollow",
+        "domain": "social",
+        "intent_name": "unfollow_social_profile",
+        "handler": "LightekSocial::Workers::Pwa",
+        "gatekeeper_capability": "social.unfollow",
+        "enabled": true,
+        "event_types": [
+          "social.unfollow.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "studio.preview",
+        "name": "Studio Preview",
+        "domain": "studio",
+        "intent_name": "preview_scene",
+        "handler": "Studio::Workers::Preview",
+        "gatekeeper_capability": "studio.preview",
+        "enabled": true,
+        "event_types": [
+          "studio.preview.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "studio.pwa.bootstrap",
+        "name": "Studio PWA Bootstrap",
+        "domain": "studio",
+        "intent_name": "bootstrap_studio_pwa",
+        "handler": "Studio::Workers::Pwa",
+        "gatekeeper_capability": "studio.pwa.bootstrap",
+        "enabled": true,
+        "event_types": [
+          "studio.pwa.bootstrap.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "studio.scene_object.create",
+        "name": "Studio SceneObject Create",
+        "domain": "studio",
+        "intent_name": "create_studio_scene_object",
+        "handler": "Studio::Workers::SceneObjectMutation",
+        "gatekeeper_capability": "studio.scene_object.create",
+        "enabled": true,
+        "event_types": [
+          "studio.scene_object.create.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "studio.scene_object.destroy",
+        "name": "Studio SceneObject Destroy",
+        "domain": "studio",
+        "intent_name": "destroy_studio_scene_object",
+        "handler": "Studio::Workers::SceneObjectMutation",
+        "gatekeeper_capability": "studio.scene_object.destroy",
+        "enabled": true,
+        "event_types": [
+          "studio.scene_object.destroy.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "studio.scene_object.duplicate",
+        "name": "Studio SceneObject Duplicate",
+        "domain": "studio",
+        "intent_name": "duplicate_studio_scene_object",
+        "handler": "Studio::Workers::SceneObjectMutation",
+        "gatekeeper_capability": "studio.scene_object.duplicate",
+        "enabled": true,
+        "event_types": [
+          "studio.scene_object.duplicate.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "studio.scene_object.transform",
+        "name": "Studio SceneObject Transform",
+        "domain": "studio",
+        "intent_name": "transform_studio_scene_object",
+        "handler": "Studio::Workers::SceneObjectMutation",
+        "gatekeeper_capability": "studio.scene_object.transform",
+        "enabled": true,
+        "event_types": [
+          "studio.scene_object.transform.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "susu.contribution.checkout",
+        "name": "Susu Contribution Checkout",
+        "domain": "susu",
+        "intent_name": "checkout_susu_contribution",
+        "handler": "Susu::Workers::Pwa",
+        "gatekeeper_capability": "susu.contribution.checkout",
+        "enabled": true,
+        "event_types": [
+          "susu.contribution.checkout.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "susu.contribution.quote",
+        "name": "Susu Contribution Quote",
+        "domain": "susu",
+        "intent_name": "quote_susu_contribution",
+        "handler": "Susu::Workers::Pwa",
+        "gatekeeper_capability": "susu.contribution.quote",
+        "enabled": true,
+        "event_types": [
+          "susu.contribution.quote.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "susu.list",
+        "name": "Susu List",
+        "domain": "susu",
+        "intent_name": "list_susu",
+        "handler": "Susu::Workers::Pwa",
+        "gatekeeper_capability": "susu.list",
+        "enabled": true,
+        "event_types": [
+          "susu.list.requested"
+        ],
+        "knowledge_article_ids": []
+      },
+      {
+        "slug": "susu.show",
+        "name": "Susu Show",
+        "domain": "susu",
+        "intent_name": "show_susu",
+        "handler": "Susu::Workers::Pwa",
+        "gatekeeper_capability": "susu.show",
+        "enabled": true,
+        "event_types": [
+          "susu.show.requested"
+        ],
+        "knowledge_article_ids": []
+      }
+    ]
+  },
+  "trouble_ticket_projection": {
+    "count": 89,
+    "by_status": {
+      "resolved": 14,
+      "open": 75
+    }
+  },
+  "snapshot_context": {
+    "working_tree_changes": [
+      " M .gitignore",
+      " M app/services/nevaeh_orchestration/orchestrator.rb",
+      " M db/seeds.rb",
+      " M script/sync_studio_project_to_github.py",
+      "?? app/services/nevaeh_orchestration/runtime_state.rb",
+      "?? app/services/nevaeh_orchestration/self_knowledge.rb",
+      "?? app/services/nevaeh_orchestration/workers/self_knowledge.rb",
+      "?? config/nevaeh/development_history.json",
+      "?? config/nevaeh/self_model.json",
+      "?? db/seeds/nevaeh_self_knowledge.rb",
+      "?? docs/nevaeh/development_history.md",
+      "?? script/sync_nevaeh_development_history.rb",
+      "?? test/services/nevaeh_orchestration/self_knowledge_test.rb"
+    ],
+    "note": "The history snapshot records committed ancestry plus the current development transmission state. A later snapshot can attach the final commit identity without rewriting older provenance."
+  }
+}

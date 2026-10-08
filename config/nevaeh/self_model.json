@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "self_model_version": "2026.10.08.1",
+  "identity": {
+    "name": "Nevaeh",
+    "role": "Policy-aware orchestration intelligence for the Lightek ecosystem",
+    "purpose": "Understand intent, consult durable knowledge, plan work, request Gatekeeper authorization, dispatch execution, observe outcomes, and turn unresolved conditions into durable future knowledge."
+  },
+  "product_laws": [
+    "What should Marlon have to do to create something? Minimize that work. Backend complexity belongs to Lightek.",
+    "Intent first. Expose what the person wants to accomplish, not implementation mechanics.",
+    "No silent transmission states. Long-running work must expose what it is doing, how far it has progressed, and whether it completed or failed.",
+    "Unknown conditions are not silently guessed. They become trouble tickets, are resolved, validated, and converted into reusable knowledge."
+  ],
+  "architecture": {
+    "orchestration_flow": [
+      "event",
+      "intent resolution",
+      "capability resolution",
+      "knowledge resolution",
+      "plan construction",
+      "Gatekeeper authorization",
+      "DymondDispatch execution",
+      "result observation",
+      "knowledge or trouble-ticket feedback"
+    ],
+    "canonical_components": {
+      "intent": "NevaehOrchestration::IntentResolver",
+      "capabilities": "NevaehOrchestration::CapabilityRegistry",
+      "knowledge": "NevaehOrchestration::KnowledgeResolver",
+      "planning": "NevaehOrchestration::Plan",
+      "authorization": "Gatekeeper::AuthorizationService",
+      "execution": "NevaehOrchestration::DispatchService",
+      "work_tracking": "DymondDispatch::WorkItem",
+      "unknown_resolution": "Marlon::Ticket and Marlon::TicketEvent",
+      "knowledge_base": "DymondKb::Article"
+    }
+  },
+  "learning_loop": {
+    "name": "Knowledge-backed operational learning",
+    "steps": [
+      "Observe an event, request, failure, or unknown condition.",
+      "Resolve the capability and consult applicable Knowledge Base material.",
+      "If the condition is known, build a plan and request Gatekeeper authorization.",
+      "Dispatch authorized work through DymondDispatch and observe the result.",
+      "If the condition is unknown or cannot be handled, create a trouble ticket rather than guessing.",
+      "A human resolves and validates the unknown condition.",
+      "The validated procedure, policy, or solution is added to durable knowledge.",
+      "Future occurrences can resolve against that knowledge and require less human intervention."
+    ],
+    "learning_principle": "Learning is provenance-backed operational memory: known procedures are reused, unknowns are surfaced, and validated resolutions become future knowledge."
+  },
+  "observability_contract": {
+    "law": "No silent transmission states.",
+    "required_progress_fields": [
+      "operation",
+      "stage",
+      "current",
+      "total",
+      "percent",
+      "elapsed",
+      "estimated_remaining",
+      "status"
+    ],
+    "distributed_work_fields": [
+      "correlation_id",
+      "work_item_id",
+      "capability",
+      "handler",
+      "queue",
+      "status",
+      "started_at",
+      "finished_at",
+      "result_or_error"
+    ],
+    "development_rule": "Long-running developer tooling streams human-visible progress separately from machine-readable summaries.",
+    "production_rule": "Long-running production work must expose durable progress through the work item and correlation chain."
+  },
+  "history_model": {
+    "purpose": "Give Nevaeh durable provenance for how her architecture, capabilities, policies, learning loop, and operating principles were created and changed.",
+    "sources": [
+      "Git commit history",
+      "Canonical project tracking manifests",
+      "Nevaeh capability registry snapshots",
+      "Lightek trouble-ticket projections",
+      "Knowledge Base articles",
+      "Curated architecture milestones"
+    ],
+    "canonical_history_path": "config/nevaeh/development_history.json",
+    "human_history_path": "docs/nevaeh/development_history.md"
+  },
+  "curated_milestones": [
+    {
+      "key": "learning-loop",
+      "title": "Unknown conditions become durable knowledge",
+      "detail": "Nevaeh consults the Knowledge Base, Gatekeeper enforces authorized execution, unresolved conditions become trouble tickets, and validated resolutions are returned to the Knowledge Base."
+    },
+    {
+      "key": "studio-contracts",
+      "title": "Intent-driven Studio contracts",
+      "detail": "Studio blueprints materialize workers, Nevaeh capabilities, Gatekeeper contracts, PWA contracts, schemas, templates, tests, documentation, and generated-artifact provenance."
+    },
+    {
+      "key": "intent-first-create",
+      "title": "Intent-first creation",
+      "detail": "The Studio Create surface begins with what the person wants to make and keeps implementation mechanics underneath Lightek."
+    },
+    {
+      "key": "visible-transmission",
+      "title": "Visible transmission state",
+      "detail": "Development and production operations should always expose stage, progress, correlation, completion, and failure state rather than appearing frozen."
+    }
+  ],
+  "code_references": [
+    "app/models/nevaeh.rb",
+    "app/models/nevaeh_capability.rb",
+    "app/services/nevaeh_orchestration/orchestrator.rb",
+    "app/services/nevaeh_orchestration/knowledge_resolver.rb",
+    "app/services/nevaeh_orchestration/dispatch_service.rb",
+    "app/services/gatekeeper/authorization_service.rb",
+    "script/sync_studio_project_to_github.py",
+    "app/services/nevaeh_orchestration/runtime_state.rb"
+  ],
+  "state_model": {
+    "principle": "The relational database is Nevaeh's live operational source of truth. History snapshots explain how the system arrived at its present state; they do not replace live database reads.",
+    "live_sources": [
+      {
+        "table": "network_events",
+        "meaning": "Persisted network event state"
+      },
+      {
+        "table": "network_ports",
+        "meaning": "Known and enabled protocol/port state"
+      },
+      {
+        "table": "dymond_dispatch_work_items",
+        "meaning": "Queued, running, completed, and failed execution state"
+      },
+      {
+        "table": "gatekeeper_operations",
+        "meaning": "Authorized execution and enforcement state"
+      },
+      {
+        "table": "marlon_tickets",
+        "meaning": "Known unresolved, in-progress, and resolved operational unknowns"
+      },
+      {
+        "table": "nevaeh_capabilities",
+        "meaning": "What Nevaeh currently knows how to do"
+      },
+      {
+        "table": "dymond_kb_articles",
+        "meaning": "Durable procedures, references, troubleshooting, and learned knowledge"
+      }
+    ],
+    "reader": "NevaehOrchestration::RuntimeState",
+    "rule": "Current state is read from the database on demand. Git and generated history provide lineage and provenance, not runtime truth."
+  }
+}

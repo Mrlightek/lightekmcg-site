@@ -38,3 +38,8 @@ load Rails.root.join("db/seeds/studio_scene_object_capabilities.rb")
 load Rails.root.join(
   "db/seeds/studio_generated_capabilities.rb"
 )
+
+# Nevaeh self-knowledge and development lineage
+load Rails.root.join(
+  "db/seeds/nevaeh_self_knowledge.rb"
+)

@@ -67,6 +67,9 @@ module NevaehOrchestration
           end
         end
 
+      self_context =
+        SelfKnowledge.runtime_context
+
       plan =
         capability.build_plan(
           subject: attributes[:subject],
@@ -75,8 +78,14 @@ module NevaehOrchestration
           parameters: intent.parameters,
           context:
             attributes[:context].to_h.merge(
-              "event_type" => event.event_type,
-              "source" => event.source
+              "event_type" =>
+                event.event_type,
+
+              "source" =>
+                event.source,
+
+              "nevaeh_self" =>
+                self_context
             ),
           correlation_id: event.correlation_id,
           resolved_knowledge_article_ids: knowledge_ids
@@ -92,8 +101,23 @@ module NevaehOrchestration
             correlation_id: event.correlation_id,
             event_type: event.event_type,
             source: event.source,
-            actor: event.actor_ref,
-            knowledge_article_ids: knowledge_ids
+            actor:
+              event.actor_ref,
+
+            knowledge_article_ids:
+              knowledge_ids,
+
+            nevaeh_self_model_version:
+              self_context[
+                "self_model_version"
+              ],
+
+            nevaeh_history_snapshot:
+              self_context
+                .dig(
+                  "development_history",
+                  "snapshot_id"
+                )
           }.compact
         )
 

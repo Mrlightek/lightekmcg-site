@@ -6,11 +6,221 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 
 MANIFEST = Path(
     "config/project_tracking/lightek_studio.json"
 )
+
+
+def format_duration(seconds):
+    seconds = max(
+        0,
+        int(seconds)
+    )
+
+    minutes, seconds = divmod(
+        seconds,
+        60
+    )
+
+    hours, minutes = divmod(
+        minutes,
+        60
+    )
+
+    if hours:
+        return (
+            f"{hours:02d}:"
+            f"{minutes:02d}:"
+            f"{seconds:02d}"
+        )
+
+    return (
+        f"{minutes:02d}:"
+        f"{seconds:02d}"
+    )
+
+
+def sync_progress(
+    current,
+    total,
+    key,
+    stage,
+    started_at,
+    *,
+    force_line=False
+):
+    total = max(
+        int(total),
+        1
+    )
+
+    current = max(
+        0,
+        min(
+            int(current),
+            total
+        )
+    )
+
+    ratio = (
+        current /
+        total
+    )
+
+    width = 28
+
+    filled = round(
+        ratio *
+        width
+    )
+
+    bar = (
+        "█" * filled +
+        "░" * (
+            width -
+            filled
+        )
+    )
+
+    elapsed = (
+        time.monotonic() -
+        started_at
+    )
+
+    if current > 0:
+        seconds_per_item = (
+            elapsed /
+            current
+        )
+
+        eta = (
+            total -
+            current
+        ) * seconds_per_item
+
+        eta_text = format_duration(
+            eta
+        )
+    else:
+        eta_text = "--:--"
+
+    label = (
+        key or
+        "starting"
+    )
+
+    line = (
+        f"GitHub sync "
+        f"[{bar}] "
+        f"{current:>2}/{total} "
+        f"{ratio * 100:5.1f}%"
+        f" | {label}"
+        f" | {stage}"
+        f" | elapsed "
+        f"{format_duration(elapsed)}"
+        f" | eta {eta_text}"
+    )
+
+    if sys.stderr.isatty():
+        sys.stderr.write(
+            "\r\033[K" +
+            line
+        )
+
+        sys.stderr.flush()
+
+        return
+
+    if (
+        force_line or
+        stage in {
+            "starting",
+            "complete"
+        }
+    ):
+        print(
+            line,
+            file=sys.stderr,
+            flush=True
+        )
+
+
+def finish_sync_progress():
+    if sys.stderr.isatty():
+        sys.stderr.write(
+            "\n"
+        )
+
+        sys.stderr.flush()
+
+
+def progress_demo():
+    total = 12
+    started_at = time.monotonic()
+
+    sync_progress(
+        0,
+        total,
+        None,
+        "starting",
+        started_at,
+        force_line=True
+    )
+
+    for sequence in range(
+        1,
+        total + 1
+    ):
+        key = (
+            f"STUDIO-DEMO-{sequence:03d}"
+        )
+
+        sync_progress(
+            sequence - 1,
+            total,
+            key,
+            "updating issue",
+            started_at
+        )
+
+        time.sleep(
+            0.04
+        )
+
+        sync_progress(
+            sequence - 1,
+            total,
+            key,
+            "updating project fields",
+            started_at
+        )
+
+        time.sleep(
+            0.04
+        )
+
+        sync_progress(
+            sequence,
+            total,
+            key,
+            "complete",
+            started_at,
+            force_line=True
+        )
+
+    finish_sync_progress()
+
+    print(
+        "Progress demo complete."
+    )
+
+
+if "--progress-demo" in sys.argv:
+    progress_demo()
+    raise SystemExit(0)
 
 
 def run(args, check=True):
@@ -738,6 +948,18 @@ print(
 created = 0
 updated = 0
 
+sync_total = len(items)
+sync_started_at = time.monotonic()
+
+sync_progress(
+    0,
+    sync_total,
+    None,
+    "starting",
+    sync_started_at,
+    force_line=True
+)
+
 for sequence, item in enumerate(
     items,
     start=1
@@ -765,8 +987,12 @@ for sequence, item in enumerate(
     )
 
     if issue is None:
-        print(
-            f"{key}: creating issue"
+        sync_progress(
+            sequence - 1,
+            sync_total,
+            key,
+            "creating issue",
+            sync_started_at
         )
 
         url = run([
@@ -802,8 +1028,12 @@ for sequence, item in enumerate(
 
         created += 1
     else:
-        print(
-            f"{key}: updating issue"
+        sync_progress(
+            sequence - 1,
+            sync_total,
+            key,
+            "updating issue",
+            sync_started_at
         )
 
         run([
@@ -862,8 +1092,12 @@ for sequence, item in enumerate(
     )
 
     if project_item is None:
-        print(
-            f"{key}: adding to project"
+        sync_progress(
+            sequence - 1,
+            sync_total,
+            key,
+            "adding to project",
+            sync_started_at
         )
 
         project_item = json_run([
@@ -886,6 +1120,14 @@ for sequence, item in enumerate(
     project_item_id = project_item[
         "id"
     ]
+
+    sync_progress(
+        sequence - 1,
+        sync_total,
+        key,
+        "updating project fields",
+        sync_started_at
+    )
 
     set_select(
         project_item_id,
@@ -919,6 +1161,17 @@ for sequence, item in enumerate(
         sequence
     )
 
+    sync_progress(
+        sequence,
+        sync_total,
+        key,
+        "complete",
+        sync_started_at,
+        force_line=True
+    )
+
+
+finish_sync_progress()
 
 print()
 print(

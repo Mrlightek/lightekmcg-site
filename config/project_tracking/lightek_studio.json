@@ -7,9 +7,9 @@
     "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
     "current_phase": "UX Foundation II",
     "production_floor": {
-      "commit": "5e5412f",
+      "commit": "2b823a2",
       "status": "green",
-      "description": "Studio blueprint compiler and generator foundation deployed green; Foundation is 12/12 complete and UX Foundation II is active."
+      "description": "Intent-first Studio Create, Nevaeh observability/lineage, and the Lightek/Nevaeh architecture README deployed green through GitHub Actions Deploy Production run 37828230287; Gatekeeper operation 51 succeeded and production health returned HTTP 200."
     },
     "tracking": {
       "github": {
@@ -207,7 +207,7 @@
       "title": "Studio Library shell and production taxonomy",
       "phase": "UX Foundation II",
       "area": "Library",
-      "status": "todo",
+      "status": "in_progress",
       "priority": "P0",
       "effort": 5,
       "summary": "Create first-class library categories for Templates, Characters, Environments, Props, Vehicles, Architecture, Cameras, Lights, Materials, Geometry Systems, FX, Audio, Graphics, Animations and Collections.",

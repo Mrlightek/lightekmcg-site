@@ -7,9 +7,9 @@
     "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
     "current_phase": "UX Foundation II",
     "production_floor": {
-      "commit": "2296f48",
+      "commit": "2171b57",
       "status": "green",
-      "description": "Studio Library shell and production taxonomy deployed green through GitHub Actions Deploy Production run 37843809207; Gatekeeper operation 52 succeeded, production health returned HTTP 200, and the deployed SHA was 2296f48eff8e8d5caafc9aab2c2c1c194ffec9c8."
+      "description": "Intent-first Studio Template Gallery deployed green through GitHub Actions Deploy Production run 37850830027; Gatekeeper operation 53 succeeded, production health returned HTTP 200, and the deployed SHA was 2171b57fd1bc77180347578bcaeeb047f4b7003b."
     },
     "tracking": {
       "github": {
@@ -248,7 +248,7 @@
       "title": "First-class Template Maker",
       "phase": "UX Foundation II",
       "area": "Templates",
-      "status": "todo",
+      "status": "in_progress",
       "priority": "P0",
       "effort": 5,
       "summary": "Turn a solved scene, fabrication setup or production arrangement into a reusable production primitive.",

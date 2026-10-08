@@ -7,9 +7,9 @@
     "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
     "current_phase": "UX Foundation II",
     "production_floor": {
-      "commit": "ea8bdd1",
+      "commit": "5e5412f",
       "status": "green",
-      "description": "Studio project tracking foundation deployed green with GitHub Project #6 and Marlon::Ticket synchronization."
+      "description": "Studio blueprint compiler and generator foundation deployed green; Foundation is 12/12 complete and UX Foundation II is active."
     },
     "tracking": {
       "github": {
@@ -189,11 +189,18 @@
       "title": "Intent-first Create surface",
       "phase": "UX Foundation II",
       "area": "Create",
-      "status": "todo",
+      "status": "done",
       "priority": "P0",
       "effort": 5,
       "summary": "Start creation from what the user intends to make: Character, Environment, Scene, Prop, Vehicle, Architecture, Effect, Material, Production or Template.",
-      "evidence": []
+      "evidence": [
+        "Browser-approved intent-first PWA Create surface at #/studio/create",
+        "Create begins with ten user-intent categories: Character, Environment, Scene, Prop, Vehicle, Architecture, Effect, Material, Production and Template",
+        "Character start modes verified: Photo, Video, Existing Asset, Generate and Blank Character",
+        "Create flow is Intent -> Starting point -> Brief -> Creation brief ready",
+        "Fixture contracts mirror Studio blueprint PWA contract shape while remaining intentionally backend-free",
+        "PWA shell cache advanced to v25 and JavaScript/service-worker syntax checks are green"
+      ]
     },
     {
       "key": "STUDIO-102",

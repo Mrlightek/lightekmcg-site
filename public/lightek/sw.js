@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v24"
+const CACHE = "lightek-shell-v25"
 
 const SHELL = [
   "/lightek/index.html",

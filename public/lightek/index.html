@@ -603,6 +603,323 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 }
 
 
+/* STUDIO-101 intent-first Create surface */
+.studio-create-shell{
+  min-height:calc(100vh - 110px);
+  padding-bottom:80px
+}
+.studio-create-hero{
+  padding:46px 0 28px;
+  border-bottom:1px solid var(--ln);
+  background:
+    radial-gradient(circle at 80% 10%,#d6a94a12,transparent 36%),
+    linear-gradient(180deg,#15120d 0%,var(--bg) 100%)
+}
+.studio-create-head{
+  display:flex;
+  justify-content:space-between;
+  gap:28px;
+  align-items:flex-end;
+  flex-wrap:wrap
+}
+.studio-create-head h1{
+  max-width:900px;
+  font-size:clamp(38px,6vw,72px);
+  line-height:.96;
+  margin:8px 0 14px
+}
+.studio-create-head p{
+  max-width:720px;
+  color:var(--mu);
+  font-size:15px
+}
+.studio-create-steps{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:24px
+}
+.studio-create-step{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border:1px solid var(--ln);
+  color:var(--mu);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-create-step b{
+  display:grid;
+  place-items:center;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  border:1px solid currentColor;
+  font-size:9px
+}
+.studio-create-step.on{
+  border-color:#d6a94a66;
+  color:var(--gd);
+  background:#d6a94a0a
+}
+.studio-create-step.dn{
+  color:var(--tx)
+}
+.studio-create-body{
+  padding-top:34px
+}
+.studio-create-section-head{
+  display:flex;
+  justify-content:space-between;
+  gap:22px;
+  align-items:flex-end;
+  margin-bottom:20px;
+  flex-wrap:wrap
+}
+.studio-create-section-head h2{
+  margin:5px 0 0;
+  font-size:clamp(28px,4vw,46px)
+}
+.studio-create-section-head p{
+  max-width:580px;
+  color:var(--mu)
+}
+.studio-intent-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px
+}
+.studio-intent-card,
+.studio-start-card{
+  appearance:none;
+  width:100%;
+  min-width:0;
+  text-align:left;
+  color:inherit;
+  background:var(--s1);
+  border:1px solid var(--ln);
+  border-radius:5px;
+  padding:18px;
+  transition:
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease
+}
+.studio-intent-card{
+  min-height:182px;
+  display:flex;
+  flex-direction:column
+}
+.studio-intent-card:hover,
+.studio-start-card:hover{
+  transform:translateY(-2px);
+  border-color:#d6a94a66;
+  background:#ffffff08
+}
+.studio-intent-card.on,
+.studio-start-card.on{
+  border-color:var(--gd);
+  background:#d6a94a10;
+  box-shadow:inset 0 0 0 1px #d6a94a22
+}
+.studio-intent-number{
+  color:var(--gd);
+  font:400 28px/1 Georgia,serif
+}
+.studio-intent-card h3,
+.studio-start-card h3{
+  margin-top:auto;
+  padding-top:24px;
+  font:400 22px/1.1 Georgia,serif
+}
+.studio-intent-card p,
+.studio-start-card p{
+  margin-top:7px;
+  color:var(--mu);
+  font-size:12px;
+  line-height:1.45
+}
+.studio-intent-arrow{
+  margin-top:18px;
+  color:var(--gd);
+  font-size:18px
+}
+.studio-start-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px
+}
+.studio-start-card{
+  min-height:170px;
+  display:flex;
+  flex-direction:column
+}
+.studio-start-card h3{
+  padding-top:18px
+}
+.studio-create-brief-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(280px,380px);
+  gap:28px;
+  align-items:start
+}
+.studio-create-form{
+  border:1px solid var(--ln);
+  background:var(--s1);
+  padding:22px;
+  border-radius:5px
+}
+.studio-create-field{
+  display:grid;
+  gap:7px;
+  margin-bottom:18px
+}
+.studio-create-field span{
+  color:var(--mu);
+  font-size:10px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-create-field input,
+.studio-create-field textarea{
+  width:100%;
+  background:var(--bg);
+  border:1px solid var(--ln);
+  border-radius:3px;
+  padding:12px 13px
+}
+.studio-create-field textarea{
+  min-height:128px;
+  resize:vertical
+}
+.studio-create-form-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  padding-top:4px
+}
+.studio-create-receipt{
+  position:sticky;
+  top:92px;
+  border:1px solid #d6a94a44;
+  background:
+    linear-gradient(180deg,#d6a94a0d,var(--s1));
+  padding:22px;
+  border-radius:5px
+}
+.studio-create-receipt h3{
+  margin:6px 0 18px;
+  font:400 25px/1.15 Georgia,serif
+}
+.studio-create-fact{
+  padding:12px 0;
+  border-top:1px solid var(--ln)
+}
+.studio-create-fact small,
+.studio-create-fact b{
+  display:block
+}
+.studio-create-fact small{
+  color:var(--mu);
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-create-fact b{
+  margin-top:3px;
+  font-size:13px
+}
+.studio-create-ready{
+  max-width:820px;
+  margin:0 auto;
+  padding:52px 0 10px;
+  text-align:center
+}
+.studio-create-ready-mark{
+  display:grid;
+  place-items:center;
+  width:70px;
+  height:70px;
+  margin:0 auto 20px;
+  border-radius:50%;
+  border:1px solid var(--gd);
+  color:var(--gd);
+  font:400 30px Georgia,serif
+}
+.studio-create-ready h2{
+  font-size:clamp(34px,5vw,58px);
+  line-height:1;
+  margin:8px 0 16px
+}
+.studio-create-ready>p{
+  max-width:650px;
+  margin:0 auto;
+  color:var(--mu)
+}
+.studio-create-ready-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin:28px 0;
+  text-align:left
+}
+.studio-create-ready-summary>div{
+  padding:16px;
+  border:1px solid var(--ln);
+  background:var(--s1)
+}
+.studio-create-ready-summary small,
+.studio-create-ready-summary b{
+  display:block
+}
+.studio-create-ready-summary small{
+  color:var(--mu);
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.1em
+}
+.studio-create-ready-summary b{
+  margin-top:4px
+}
+.studio-create-ready-actions{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap
+}
+@media(max-width:1100px){
+  .studio-intent-grid,
+  .studio-start-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))
+  }
+}
+@media(max-width:760px){
+  .studio-create-hero{
+    padding-top:32px
+  }
+  .studio-intent-grid,
+  .studio-start-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .studio-create-brief-grid{
+    grid-template-columns:1fr
+  }
+  .studio-create-receipt{
+    position:static
+  }
+  .studio-create-ready-summary{
+    grid-template-columns:1fr
+  }
+}
+@media(max-width:460px){
+  .studio-intent-grid,
+  .studio-start-grid{
+    grid-template-columns:1fr
+  }
+}
+
 /* Lightek Studio visual 3D workspace */
 .studio-live-layout{
   display:grid;
@@ -1177,7 +1494,241 @@ const ST={
   selectedObjectId:null,
   workspaceMode:"3d",
   busy:false,
-  mutationStatus:""
+  mutationStatus:"",
+  createBlueprintKey:null,
+  createStartModeKey:null,
+  createName:"",
+  createBrief:"",
+  createReady:false
+};
+
+/*
+ * STUDIO-101 fixture-first UI contracts.
+ *
+ * These mirror the Studio blueprint compiler's PWA contract shape.
+ * The fixture source is temporary; the UX contract is the point.
+ */
+const STUDIO_CREATE_BLUEPRINTS=[
+  {
+    schema_version:1,
+    key:"character",
+    name:"Character",
+    description:"Build a reusable person for scenes, performance and production.",
+    pwa:{
+      category:"character",
+      label:"Character",
+      order:10,
+      start_modes:[
+        {key:"photo",label:"Photo",description:"Start from one or more reference photos."},
+        {key:"video",label:"Video",description:"Use reference footage for appearance or performance."},
+        {key:"existing_asset",label:"Existing Asset",description:"Start from a character or model already in your library."},
+        {key:"generate",label:"Generate",description:"Describe the character and let Studio form the starting point."},
+        {key:"blank_character",label:"Blank Character",description:"Begin clean and shape the character yourself."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"environment",
+    name:"Environment",
+    description:"Create the world around the action, from rooms to landscapes.",
+    pwa:{
+      category:"environment",
+      label:"Environment",
+      order:20,
+      start_modes:[
+        {key:"reference",label:"Reference Images",description:"Use visual references to establish the place."},
+        {key:"existing_asset",label:"Existing Asset",description:"Begin from an environment already in your library."},
+        {key:"generate",label:"Generate",description:"Describe the environment you want Studio to establish."},
+        {key:"template",label:"Template",description:"Start from a reusable environment setup."},
+        {key:"blank",label:"Blank Environment",description:"Begin with an empty environment."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"scene",
+    name:"Scene",
+    description:"Create a production scene with the right starting structure.",
+    pwa:{
+      category:"scene",
+      label:"Scene",
+      order:30,
+      start_modes:[
+        {key:"production_template",label:"Production Template",description:"Use an established production setup."},
+        {key:"script_brief",label:"Script or Brief",description:"Start from what the scene needs to accomplish."},
+        {key:"existing_scene",label:"Existing Scene",description:"Duplicate or adapt a scene that already works."},
+        {key:"generate",label:"Generate",description:"Describe the scene and let Studio establish its starting structure."},
+        {key:"blank",label:"Blank Scene",description:"Begin with a clean scene."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"prop",
+    name:"Prop",
+    description:"Create a reusable object that belongs in the production world.",
+    pwa:{
+      category:"prop",
+      label:"Prop",
+      order:40,
+      start_modes:[
+        {key:"reference",label:"Photo or Reference",description:"Use images to establish shape and appearance."},
+        {key:"existing_asset",label:"Existing Asset",description:"Start from a prop already in your library."},
+        {key:"generate",label:"Generate",description:"Describe the prop and let Studio establish it."},
+        {key:"template",label:"Template",description:"Start from a reusable prop pattern."},
+        {key:"blank",label:"Blank Prop",description:"Begin with a clean prop."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"vehicle",
+    name:"Vehicle",
+    description:"Create a reusable vehicle for story, action or world building.",
+    pwa:{
+      category:"vehicle",
+      label:"Vehicle",
+      order:50,
+      start_modes:[
+        {key:"reference",label:"Photo or Reference",description:"Use visual references to establish the vehicle."},
+        {key:"existing_asset",label:"Existing Asset",description:"Start from a vehicle already in your library."},
+        {key:"generate",label:"Generate",description:"Describe the vehicle you want Studio to establish."},
+        {key:"template",label:"Template",description:"Start from a reusable vehicle setup."},
+        {key:"blank",label:"Blank Vehicle",description:"Begin with a clean vehicle."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"architecture",
+    name:"Architecture",
+    description:"Create buildings, interiors and designed spaces as production assets.",
+    pwa:{
+      category:"architecture",
+      label:"Architecture",
+      order:60,
+      start_modes:[
+        {key:"site_reference",label:"Site or Reference",description:"Start from a real place, plan or visual reference."},
+        {key:"existing_asset",label:"Existing Asset",description:"Begin from architecture already in your library."},
+        {key:"generate",label:"Generate",description:"Describe the space and let Studio establish it."},
+        {key:"template",label:"Template",description:"Start from a reusable architecture system."},
+        {key:"blank",label:"Blank Architecture",description:"Begin with a clean designed space."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"effect",
+    name:"Effect",
+    description:"Create a visual effect or simulation as a reusable production element.",
+    pwa:{
+      category:"effect",
+      label:"Effect",
+      order:70,
+      start_modes:[
+        {key:"describe",label:"Describe Effect",description:"Tell Studio what should happen on screen."},
+        {key:"existing_setup",label:"Existing Setup",description:"Start from an effect you already use."},
+        {key:"template",label:"Template",description:"Begin from a reusable effect recipe."},
+        {key:"generate",label:"Generate",description:"Let Studio establish the first effect setup."},
+        {key:"blank",label:"Blank Effect",description:"Begin with a clean effect."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"material",
+    name:"Material",
+    description:"Create the surface language for objects, characters and environments.",
+    pwa:{
+      category:"material",
+      label:"Material",
+      order:80,
+      start_modes:[
+        {key:"reference",label:"Photo or Reference",description:"Use a real material or visual reference."},
+        {key:"existing_material",label:"Existing Material",description:"Start from a material already in your library."},
+        {key:"generate",label:"Generate",description:"Describe the look and let Studio establish it."},
+        {key:"template",label:"Template",description:"Begin from a reusable material setup."},
+        {key:"blank",label:"Blank Material",description:"Start from a clean material."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"production",
+    name:"Production",
+    description:"Start a complete production around what you intend to make.",
+    pwa:{
+      category:"production",
+      label:"Production",
+      order:90,
+      start_modes:[
+        {key:"template",label:"Template",description:"Start from a proven production format."},
+        {key:"script",label:"Script",description:"Build the production around an existing script."},
+        {key:"existing_project",label:"Existing Project",description:"Continue from work already in Studio."},
+        {key:"generate_structure",label:"Generate Structure",description:"Describe the production and let Studio organize the starting structure."},
+        {key:"blank",label:"Blank Production",description:"Begin with a clean production."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  },
+  {
+    schema_version:1,
+    key:"template",
+    name:"Template",
+    description:"Capture a repeatable way of making something so Studio can do it again.",
+    pwa:{
+      category:"template",
+      label:"Template",
+      order:100,
+      start_modes:[
+        {key:"current_setup",label:"Current Setup",description:"Turn the work already in front of you into a template."},
+        {key:"existing_asset",label:"Existing Asset",description:"Build a reusable template around an existing asset."},
+        {key:"production",label:"From Production",description:"Capture a production's repeatable structure."},
+        {key:"generate",label:"Generate",description:"Describe the repeatable outcome and let Studio structure the template."},
+        {key:"blank",label:"Blank Template",description:"Start a template from scratch."}
+      ]
+    },
+    inputs:{type:"object",required:["name"],properties:{name:{type:"string"},brief:{type:"string"}}}
+  }
+];
+
+const studioCreateBlueprints=()=>
+  [...STUDIO_CREATE_BLUEPRINTS]
+    .sort(
+      (a,b)=>
+        Number(a.pwa?.order||0)-
+        Number(b.pwa?.order||0)
+    );
+
+const studioCreateBlueprint=()=>
+  studioCreateBlueprints().find(
+    blueprint=>
+      blueprint.key===
+      ST.createBlueprintKey
+  )||null;
+
+const studioCreateStartMode=blueprint=>
+  (blueprint?.pwa?.start_modes||[]).find(
+    mode=>
+      mode.key===
+      ST.createStartModeKey
+  )||null;
+
+const studioResetCreateState=()=>{
+  ST.createBlueprintKey=null;
+  ST.createStartModeKey=null;
+  ST.createName="";
+  ST.createBrief="";
+  ST.createReady=false
 };
 
 
@@ -2059,6 +2610,378 @@ const studioSceneView=record=>{
   `
 };
 
+const studioCreateStep=(number,label,state)=>`
+  <span class="studio-create-step ${state||""}">
+    <b>${number}</b>
+    ${E(label)}
+  </span>
+`;
+
+const studioCreateView=()=>{
+  const blueprint=
+    studioCreateBlueprint();
+
+  const mode=
+    studioCreateStartMode(
+      blueprint
+    );
+
+  const step=
+    ST.createReady
+      ?4
+      :mode
+        ?3
+        :blueprint
+          ?2
+          :1;
+
+  const steps=`
+    <div class="studio-create-steps">
+      ${studioCreateStep(
+        1,
+        "Intent",
+        step===1?"on":step>1?"dn":""
+      )}
+      ${studioCreateStep(
+        2,
+        "Starting point",
+        step===2?"on":step>2?"dn":""
+      )}
+      ${studioCreateStep(
+        3,
+        "Brief",
+        step===3?"on":step>3?"dn":""
+      )}
+    </div>
+  `;
+
+  let body="";
+
+  if(ST.createReady){
+    const displayName=
+      ST.createName.trim()||
+      `Untitled ${blueprint?.name||"creation"}`;
+
+    body=`
+      <div class="studio-create-ready">
+        <div class="studio-create-ready-mark">
+          ✓
+        </div>
+
+        <span class="eb">
+          Creation brief ready
+        </span>
+
+        <h2>
+          Studio understands the assignment.
+        </h2>
+
+        <p>
+          This UX pass now has enough intent to hand the work to
+          Nevaeh, Gatekeeper and the Studio runtime without asking you
+          to configure production mechanics yourself.
+        </p>
+
+        <div class="studio-create-ready-summary">
+          <div>
+            <small>Creating</small>
+            <b>${E(blueprint?.name||"Creation")}</b>
+          </div>
+
+          <div>
+            <small>Starting from</small>
+            <b>${E(mode?.label||"Selected method")}</b>
+          </div>
+
+          <div>
+            <small>Name</small>
+            <b>${E(displayName)}</b>
+          </div>
+        </div>
+
+        ${ST.createBrief.trim()
+          ?`
+            <div
+              class="studio-create-fact"
+              style="text-align:left;margin:0 auto 26px;max-width:650px"
+            >
+              <small>Your direction</small>
+              <b>${E(ST.createBrief.trim())}</b>
+            </div>
+          `
+          :""
+        }
+
+        <div class="studio-create-ready-actions">
+          <button
+            class="btn"
+            data-a="studioCreateEditBrief"
+            type="button"
+          >
+            Edit brief
+          </button>
+
+          <button
+            class="btn"
+            data-a="studioCreateReset"
+            type="button"
+          >
+            Create something else
+          </button>
+
+          <a
+            class="btn p"
+            href="#/studio"
+          >
+            Return to Studio
+          </a>
+        </div>
+      </div>
+    `;
+  }else if(!blueprint){
+    body=`
+      <div class="studio-create-section-head">
+        <div>
+          <span class="eb">
+            Intent first
+          </span>
+
+          <h2>
+            What do you want to create?
+          </h2>
+        </div>
+
+        <p>
+          Choose the outcome. Studio can decide which production tools,
+          capabilities and runtime steps belong underneath it later.
+        </p>
+      </div>
+
+      <div class="studio-intent-grid">
+        ${studioCreateBlueprints().map(
+          (item,index)=>`
+            <button
+              class="studio-intent-card"
+              data-a="studioCreateChooseIntent"
+              data-key="${E(item.key)}"
+              type="button"
+            >
+              <span class="studio-intent-number">
+                ${String(index+1).padStart(2,"0")}
+              </span>
+
+              <h3>
+                ${E(item.pwa?.label||item.name)}
+              </h3>
+
+              <p>
+                ${E(item.description||"")}
+              </p>
+
+              <span class="studio-intent-arrow">
+                →
+              </span>
+            </button>
+          `
+        ).join("")}
+      </div>
+    `;
+  }else if(!mode){
+    body=`
+      <div class="studio-create-section-head">
+        <div>
+          <span class="eb">
+            ${E(blueprint.name)}
+          </span>
+
+          <h2>
+            How do you want to start?
+          </h2>
+        </div>
+
+        <p>
+          Pick the starting point that requires the least work from you.
+          You can refine the result inside Studio afterward.
+        </p>
+      </div>
+
+      <div class="studio-start-grid">
+        ${(blueprint.pwa?.start_modes||[]).map(
+          item=>`
+            <button
+              class="studio-start-card"
+              data-a="studioCreateChooseMode"
+              data-key="${E(item.key)}"
+              type="button"
+            >
+              <span class="eb">
+                Start with
+              </span>
+
+              <h3>
+                ${E(item.label)}
+              </h3>
+
+              <p>
+                ${E(item.description||"")}
+              </p>
+
+              <span class="studio-intent-arrow">
+                →
+              </span>
+            </button>
+          `
+        ).join("")}
+      </div>
+
+      <div style="margin-top:20px">
+        <button
+          class="btn"
+          data-a="studioCreateBack"
+          type="button"
+        >
+          ← Choose another type
+        </button>
+      </div>
+    `;
+  }else{
+    const displayName=
+      ST.createName||
+      "";
+
+    body=`
+      <div class="studio-create-section-head">
+        <div>
+          <span class="eb">
+            ${E(blueprint.name)} · ${E(mode.label)}
+          </span>
+
+          <h2>
+            Give Studio the direction.
+          </h2>
+        </div>
+
+        <p>
+          Name it if you want, then describe the result in your own words.
+          The implementation details stay underneath Lightek.
+        </p>
+      </div>
+
+      <div class="studio-create-brief-grid">
+        <div class="studio-create-form">
+          <label class="studio-create-field">
+            <span>Name</span>
+
+            <input
+              type="text"
+              data-studio-create-field="name"
+              value="${E(displayName)}"
+              placeholder="Name your ${E(blueprint.name.toLowerCase())}"
+            >
+          </label>
+
+          <label class="studio-create-field">
+            <span>What do you want?</span>
+
+            <textarea
+              data-studio-create-field="brief"
+              placeholder="Describe the result, mood, purpose, references or anything Studio should understand."
+            >${E(ST.createBrief)}</textarea>
+          </label>
+
+          <div class="studio-create-form-actions">
+            <button
+              class="btn"
+              data-a="studioCreateBack"
+              type="button"
+            >
+              ← Change starting point
+            </button>
+
+            <button
+              class="btn p"
+              data-a="studioCreateReview"
+              type="button"
+            >
+              Review creation
+            </button>
+          </div>
+        </div>
+
+        <aside class="studio-create-receipt">
+          <span class="eb">
+            Studio understood
+          </span>
+
+          <h3>
+            ${E(blueprint.name)}
+          </h3>
+
+          <div class="studio-create-fact">
+            <small>Intent</small>
+            <b>${E(blueprint.name)}</b>
+          </div>
+
+          <div class="studio-create-fact">
+            <small>Starting point</small>
+            <b>${E(mode.label)}</b>
+          </div>
+
+          <div class="studio-create-fact">
+            <small>Contract</small>
+            <b>Intent → starting point → brief</b>
+          </div>
+
+          <div class="studio-create-fact">
+            <small>Next layer</small>
+            <b>Nevaeh + Gatekeeper + Studio runtime</b>
+          </div>
+        </aside>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="studio-create-shell">
+      <div class="studio-create-hero">
+        <div class="wrap">
+          <div class="studio-create-head">
+            <div>
+              <span class="eb">
+                Lightek Studio · Create
+              </span>
+
+              <h1>
+                Make the thing.<br>
+                Not the setup.
+              </h1>
+
+              <p>
+                Tell Lightek what you intend to make. Studio will own the
+                technical production path underneath that intent.
+              </p>
+
+              ${steps}
+            </div>
+
+            <a
+              class="btn"
+              href="#/studio"
+            >
+              Close Create
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap studio-create-body">
+        ${body}
+      </div>
+    </div>
+  `
+};
+
+
 const studioProjectsView=()=>{
   const projects=
     studioProjects();
@@ -2079,7 +3002,18 @@ const studioProjectsView=()=>{
 
         <div class="wrap">
           <div class="studio-empty">
-            No Studio projects exist yet.
+            <p>
+              No Studio projects exist yet.
+            </p>
+
+            <button
+              class="btn p"
+              data-a="studioCreateNew"
+              type="button"
+              style="margin-top:16px"
+            >
+              Create something
+            </button>
           </div>
         </div>
       </div>
@@ -2103,13 +3037,23 @@ const studioProjectsView=()=>{
               </p>
             </div>
 
-            <button
-              class="btn"
-              data-a="studioRefresh"
-              type="button"
-            >
-              Refresh Studio
-            </button>
+            <div class="studio-actions">
+              <button
+                class="btn p"
+                data-a="studioCreateNew"
+                type="button"
+              >
+                + Create
+              </button>
+
+              <button
+                class="btn"
+                data-a="studioRefresh"
+                type="button"
+              >
+                Refresh Studio
+              </button>
+            </div>
           </div>
 
           <div class="studio-meta">
@@ -2311,6 +3255,10 @@ const studioView=id=>{
         </div>
       </div>
     `
+  }
+
+  if(id==="create"){
+    return studioCreateView()
   }
 
   const sceneId=
@@ -4093,6 +5041,118 @@ space:id=>{
   }
 };
 const A={
+studioCreateNew:()=>{
+  studioResetCreateState();
+  location.hash=
+    "#/studio/create"
+},
+
+studioCreateChooseIntent:button=>{
+  const key=
+    button.dataset.key;
+
+  const blueprint=
+    studioCreateBlueprints().find(
+      item=>
+        item.key===key
+    );
+
+  if(!blueprint){
+    return
+  }
+
+  ST.createBlueprintKey=
+    blueprint.key;
+
+  ST.createStartModeKey=null;
+  ST.createName="";
+  ST.createBrief="";
+  ST.createReady=false;
+
+  render(1)
+},
+
+studioCreateChooseMode:button=>{
+  const blueprint=
+    studioCreateBlueprint();
+
+  if(!blueprint){
+    return
+  }
+
+  const key=
+    button.dataset.key;
+
+  const mode=
+    (blueprint.pwa?.start_modes||[]).find(
+      item=>
+        item.key===key
+    );
+
+  if(!mode){
+    return
+  }
+
+  ST.createStartModeKey=
+    mode.key;
+
+  ST.createReady=false;
+
+  render(1)
+},
+
+studioCreateBack:()=>{
+  if(ST.createStartModeKey){
+    ST.createStartModeKey=null;
+    ST.createName="";
+    ST.createBrief="";
+    ST.createReady=false;
+    render(1);
+    return
+  }
+
+  if(ST.createBlueprintKey){
+    ST.createBlueprintKey=null;
+    ST.createReady=false;
+    render(1);
+    return
+  }
+
+  location.hash=
+    "#/studio"
+},
+
+studioCreateReview:()=>{
+  const blueprint=
+    studioCreateBlueprint();
+
+  const mode=
+    studioCreateStartMode(
+      blueprint
+    );
+
+  if(
+    !blueprint||
+    !mode
+  ){
+    return
+  }
+
+  ST.createReady=true;
+
+  render(1)
+},
+
+studioCreateEditBrief:()=>{
+  ST.createReady=false;
+  render(1)
+},
+
+studioCreateReset:()=>{
+  studioResetCreateState();
+  render()
+},
+
 studioWorkspaceMode:button=>{
   ST.workspaceMode=
     button.dataset.mode||"3d";
@@ -7023,6 +8083,19 @@ function render(keep){const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=
 app.addEventListener('click',e=>{const s=e.target.closest('[data-sc]');if(s){e.preventDefault();document.getElementById(s.dataset.sc)?.scrollIntoView({behavior:'smooth'});return}const b=e.target.closest('[data-a]');if(b)A[b.dataset.a]?.(b,e)});
 app.addEventListener('input',e=>{
   const n=e.target.name;
+
+  const studioCreateField=
+    e.target.dataset?.studioCreateField;
+
+  if(studioCreateField==="name"){
+    ST.createName=
+      e.target.value;
+  }
+
+  if(studioCreateField==="brief"){
+    ST.createBrief=
+      e.target.value;
+  }
 
   if(
     n=='title'||

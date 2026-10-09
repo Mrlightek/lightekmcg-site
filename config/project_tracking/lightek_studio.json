@@ -7,9 +7,9 @@
     "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
     "current_phase": "UX Foundation II",
     "production_floor": {
-      "commit": "2171b57",
+      "commit": "86a151e",
       "status": "green",
-      "description": "Intent-first Studio Template Gallery deployed green through GitHub Actions Deploy Production run 37850830027; Gatekeeper operation 53 succeeded, production health returned HTTP 200, and the deployed SHA was 2171b57fd1bc77180347578bcaeeb047f4b7003b."
+      "description": "First-class Studio Template Maker deployed green through GitHub Actions Deploy Production run 37862556400; Gatekeeper operation 54 succeeded, production health returned HTTP 200, and the deployed SHA was 86a151eec3ac94fc536bb479766fd23a118f1892."
     },
     "tracking": {
       "github": {
@@ -269,7 +269,7 @@
       "title": "Template variables and locked configuration UX",
       "phase": "UX Foundation II",
       "area": "Templates",
-      "status": "todo",
+      "status": "in_progress",
       "priority": "P0",
       "effort": 4,
       "summary": "Separate the inputs a user swaps from the production configuration Lightek preserves.",

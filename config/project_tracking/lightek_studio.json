@@ -291,7 +291,7 @@
       "title": "Richer production workspace shell",
       "phase": "UX Foundation II",
       "area": "Workspace",
-      "status": "in_progress",
+      "status": "done",
       "priority": "P0",
       "effort": 5,
       "summary": "Design the main creation environment around Scene Graph, Viewport, Library, contextual Inspector, Nevaeh Director and production workspaces.",

@@ -7,9 +7,9 @@
     "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
     "current_phase": "UX Foundation II",
     "production_floor": {
-      "commit": "86a151e",
+      "commit": "793920e",
       "status": "green",
-      "description": "First-class Studio Template Maker deployed green through GitHub Actions Deploy Production run 37862556400; Gatekeeper operation 54 succeeded, production health returned HTTP 200, and the deployed SHA was 86a151eec3ac94fc536bb479766fd23a118f1892."
+      "description": "Studio template variables and preserved configuration UX deployed green through GitHub Actions Deploy Production run 37927422665; Gatekeeper operation 55 succeeded, production health returned HTTP 200, and the deployed SHA was 793920e9f5c64c3d93bcdec3926a0edf23e4a973."
     },
     "tracking": {
       "github": {
@@ -291,7 +291,7 @@
       "title": "Richer production workspace shell",
       "phase": "UX Foundation II",
       "area": "Workspace",
-      "status": "todo",
+      "status": "in_progress",
       "priority": "P0",
       "effort": 5,
       "summary": "Design the main creation environment around Scene Graph, Viewport, Library, contextual Inspector, Nevaeh Director and production workspaces.",

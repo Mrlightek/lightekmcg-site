@@ -7,9 +7,9 @@
     "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
     "current_phase": "UX Foundation II",
     "production_floor": {
-      "commit": "793920e",
+      "commit": "58aeed5",
       "status": "green",
-      "description": "Studio template variables and preserved configuration UX deployed green through GitHub Actions Deploy Production run 37927422665; Gatekeeper operation 55 succeeded, production health returned HTTP 200, and the deployed SHA was 793920e9f5c64c3d93bcdec3926a0edf23e4a973."
+      "description": "Studio-106 production workspace shell and ergonomics deployed through GitHub Actions Deploy Production #61 (success) for 58aeed5d8447e413ff3f69ee036ba63c375907be. Browser verified Studio homepage/create flow; populated workspace acceptance was performed locally."
     },
     "tracking": {
       "github": {
@@ -302,33 +302,39 @@
       "title": "Semantic Scene Graph",
       "phase": "UX Foundation II",
       "area": "Workspace",
-      "status": "todo",
+      "status": "done",
       "priority": "P0",
       "effort": 4,
       "summary": "Represent Characters, Environment, Props, Cameras, Lighting, FX and other production concepts instead of centering primitive geometry.",
-      "evidence": []
+      "evidence": [
+        "Semantic Scene Graph UI/UX accepted; backend semantic graph behavior deferred."
+      ]
     },
     {
       "key": "STUDIO-108",
       "title": "Context-sensitive Inspector",
       "phase": "UX Foundation II",
       "area": "Workspace",
-      "status": "todo",
+      "status": "done",
       "priority": "P0",
       "effort": 5,
       "summary": "Render controls appropriate to the selected character, environment, Geometry Nodes system, camera, light, FX system, material or other capability.",
-      "evidence": []
+      "evidence": [
+        "Contextual Inspector UI/UX accepted; backend inspector behavior deferred."
+      ]
     },
     {
       "key": "STUDIO-109",
       "title": "Nevaeh Director UX",
       "phase": "UX Foundation II",
       "area": "Nevaeh",
-      "status": "todo",
+      "status": "done",
       "priority": "P0",
       "effort": 5,
       "summary": "Let creative direction be expressed as intent and preview the production changes Nevaeh intends to make.",
-      "evidence": []
+      "evidence": [
+        "Nevaeh Director UI/UX accepted; intelligence and execution deferred."
+      ]
     },
     {
       "key": "STUDIO-110",

@@ -2262,6 +2262,33 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
   }
 }
 
+/* STUDIO-107 semantic Scene Graph: presentation only */
+.studio-semantic-graph{display:grid;gap:8px;min-width:0}
+.studio-semantic-tools{display:flex;align-items:center;justify-content:space-between;gap:7px;color:var(--mu);font-size:10px}
+.studio-semantic-tools button{color:var(--gd);border:1px solid var(--ln);background:transparent;border-radius:4px;padding:7px 8px;cursor:pointer;font:inherit}
+.studio-semantic-root{font-size:12px;font-weight:700;padding:10px 8px;border-bottom:1px solid var(--ln);overflow-wrap:anywhere}
+.studio-semantic-root small{display:block;padding:4px 0 0 16px;color:var(--mu);font-size:9px;font-weight:400}
+.studio-semantic-group{min-width:0;border:1px solid var(--ln);border-radius:5px;overflow:hidden}
+.studio-semantic-category{display:flex;width:100%;align-items:center;gap:7px;background:#ffffff05;color:inherit;border:0;cursor:pointer;text-align:left;padding:10px 9px;min-height:40px}
+.studio-semantic-category strong{min-width:0;flex:1;font-size:11px;overflow-wrap:anywhere}
+.studio-semantic-category small{color:var(--mu);font-size:9px;white-space:nowrap}
+.studio-semantic-caret{color:var(--gd)}
+.studio-semantic-children{padding:4px 3px 6px 12px;border-top:1px solid var(--ln)}
+.studio-semantic-element{display:flex;align-items:center;min-width:0;border-radius:4px}
+.studio-semantic-label,.studio-semantic-fixture{min-width:0;display:flex;align-items:center;gap:7px;flex:1;text-align:left;background:none;color:inherit;border:1px solid transparent;padding:8px 4px;min-height:42px;border-radius:4px;cursor:pointer}
+.studio-semantic-label span:last-child,.studio-semantic-fixture span:last-child{min-width:0}
+.studio-semantic-label b,.studio-semantic-fixture b{display:block;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studio-semantic-label small,.studio-semantic-fixture small{display:block;font-size:9px;color:var(--mu);margin-top:2px}
+.studio-semantic-label.on,.studio-semantic-fixture.on,.studio-semantic-element.on{background:#d6a94a14;border-color:#d6a94a44}
+.studio-semantic-fixture{width:100%;color:#bebbb5}
+.studio-semantic-fixture small{font-style:italic}
+.studio-semantic-element.is-muted{opacity:.45}
+.studio-semantic-eye{flex:0 0 30px;border:0;background:transparent;color:var(--mu);min-height:40px;cursor:pointer}
+.studio-semantic-empty,.studio-semantic-note{color:var(--mu);font-size:10px;line-height:1.45;padding:9px 6px}
+.studio-semantic-note{border-top:1px solid var(--ln)}
+.studio-semantic-category:focus-visible,.studio-semantic-label:focus-visible,.studio-semantic-fixture:focus-visible,.studio-semantic-eye:focus-visible,.studio-semantic-tools button:focus-visible{outline:2px solid var(--gd);outline-offset:1px}
+@media(max-width:600px){.studio-semantic-label,.studio-semantic-fixture,.studio-semantic-category{min-height:44px}}
+
 /* STUDIO-106 richer production workspace shell */
 .studio-production-workspace{
   margin-top:16px;
@@ -2792,6 +2819,113 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 @media(prefers-reduced-motion:reduce){
   .studio-production-workspace *{scroll-behavior:auto!important}
 }
+
+/* STUDIO UI wave 107-109: coherent creator-facing panels */
+.studio-wave-stack{display:grid;gap:10px;margin-top:14px}
+.studio-wave-section{border:1px solid var(--ln);border-radius:5px;background:#0b0d12;overflow:hidden}
+.studio-wave-section>summary{cursor:pointer;padding:12px 14px;font-size:12px;font-weight:700;list-style-position:inside}
+.studio-wave-section>div{padding:0 14px 13px;color:var(--mu);font-size:11px;line-height:1.5}
+.studio-wave-control{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
+.studio-wave-control input,.studio-wave-control select{max-width:56%;min-width:0;background:#101219;border:1px solid #383942;color:#eee;padding:8px;border-radius:4px}
+.studio-wave-preview{color:var(--mu);font-size:10px;line-height:1.5;margin-top:10px}
+.studio-wave-action{display:inline-block;border:1px solid #d6a94a66;color:var(--gd);padding:9px 11px;border-radius:4px;background:#d6a94a12;cursor:pointer;font-size:11px;margin:5px 5px 0 0}
+.studio-wave-action:focus-visible,.studio-wave-section>summary:focus-visible{outline:2px solid var(--gd);outline-offset:2px}
+.studio-wave-notice{padding:9px 12px;border:1px dashed #d6a94a55;color:var(--mu);font-size:10px;line-height:1.5;margin-top:10px}
+.studio-workspace-pane-head h3{overflow-wrap:normal;word-break:normal}
+@media(max-width:820px){.studio-wave-control{flex-wrap:wrap}.studio-wave-control input,.studio-wave-control select{max-width:100%;width:100%}}
+
+/* STUDIO-WAVE2-STORY-UI: creator-facing interfaces, no backend writes */
+.studio-wave2{min-height:540px; padding:clamp(14px,2vw,26px); background:#090a0f;color:#ece9e1;overflow:auto}
+.studio-wave2 *{box-sizing:border-box}
+.studio-wave2-top{display:flex;align-items:start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.studio-wave2 h2{font:400 clamp(26px,3vw,38px)/1.12 Georgia,serif;margin:4px 0 8px}
+.studio-wave2 p{color:var(--mu);font-size:12px;line-height:1.6;margin:0}
+.studio-wave2-caption{font-size:9px;color:var(--gd);letter-spacing:.12em;text-transform:uppercase}
+.studio-wave2-tag{font-size:10px;color:#d6a94a;border:1px solid #d6a94a66;border-radius:4px;padding:8px 10px}
+.studio-wave2-columns{display:grid;grid-template-columns:minmax(180px,.65fr) minmax(0,1.6fr);gap:12px}
+.studio-wave2-panel{border:1px solid var(--ln);border-radius:6px;background:#101116;padding:15px;min-width:0}
+.studio-wave2-panel h3{font:400 21px/1.2 Georgia,serif;margin:0 0 12px}
+.studio-wave2-list{display:grid;gap:7px}
+.studio-wave2-button,.studio-wave2-action{cursor:pointer;background:#171820;border:1px solid #35343a;color:#ede9df;border-radius:4px;padding:11px 12px;text-align:left;font-size:12px;line-height:1.35;min-height:42px}
+.studio-wave2-button:hover,.studio-wave2-action:hover{border-color:#d6a94a88}
+.studio-wave2-button.on,.studio-wave2-action.on{border-color:var(--gd);background:#d6a94a14;color:#f7d686}
+.studio-wave2-button:focus-visible,.studio-wave2-action:focus-visible,.studio-wave2 textarea:focus-visible{outline:2px solid #d6a94a;outline-offset:2px}
+.studio-wave2-button small{display:block;color:var(--mu);margin-top:4px}
+.studio-wave2-paper{border:1px solid #51483a;background:#ece5d7;color:#28231d;padding:clamp(16px,3vw,32px);border-radius:4px;min-height:330px}
+.studio-wave2-paper h3{color:#28231d}
+.studio-wave2 textarea{display:block;width:100%;min-height:210px;resize:vertical;background:#f8f3ea;border:1px solid #c7bbaa;border-radius:3px;color:#27221b;padding:13px;font:14px/1.75 Georgia,serif}
+.studio-wave2-toolbar{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+.studio-wave2-note{font-size:10px!important;color:var(--mu)!important;margin-top:12px!important}
+.studio-wave2-shots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.studio-wave2-shot{min-height:150px;display:flex;align-items:end;padding:12px;border:1px solid #383b47;border-radius:5px;background:radial-gradient(circle at 45% 30%,#333949,#10121a 70%);color:#fff;text-align:left;cursor:pointer}
+.studio-wave2-shot.on{border-color:var(--gd);box-shadow:inset 0 0 0 1px #d6a94a55}
+.studio-wave2-shot b{font-size:13px}
+.studio-wave2-shot small{display:block;color:#c4c1ba;font-size:10px;margin-top:4px}
+.studio-wave2-track{display:grid;grid-template-columns:minmax(90px,120px) minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px;border:1px solid var(--ln);border-radius:4px;margin-bottom:8px}
+.studio-wave2-trackname{font-size:12px;overflow-wrap:anywhere}
+.studio-wave2-wave{height:38px;border-radius:3px;background:repeating-linear-gradient(90deg,#d6a94a88 0 2px,transparent 2px 7px),linear-gradient(#2a2215,#17191f);mask-image:linear-gradient(0deg,transparent 0%,black 18%,black 82%,transparent 100%)}
+.studio-wave2-track.is-muted{opacity:.35}
+.studio-wave2-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.studio-wave2-metrics>div{border:1px solid var(--ln);padding:12px;background:#101116}
+.studio-wave2-metrics b{display:block;font-size:22px;color:#e4bc61}.studio-wave2-metrics small{font-size:10px;color:var(--mu)}
+.studio-wave2-check{display:flex;gap:10px;align-items:center;margin:9px 0;padding:10px;border:1px solid var(--ln);border-radius:4px;cursor:pointer;font-size:12px}
+.studio-wave2-check input{accent-color:#d6a94a;width:17px;height:17px}
+.studio-wave2-check.is-done{text-decoration:line-through;color:var(--mu)}
+.studio-production-workspace .studio-workspace-pane-head h3{overflow-wrap:normal;word-break:normal;hyphens:none}
+.studio-production-workspace .studio-workspace-inspector-shell{min-width:0}
+.studio-production-workspace .studio-workspace-rail .studio-workspace-pane-head{flex-wrap:wrap}
+@media(min-width:1280px){.studio-production-workspace-grid{grid-template-columns:minmax(260px,285px) minmax(0,1fr) minmax(290px,340px)}}
+@media(max-width:950px){.studio-wave2-columns{grid-template-columns:1fr}.studio-wave2-shots{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.studio-wave2-shots,.studio-wave2-metrics{grid-template-columns:1fr}.studio-wave2-track{grid-template-columns:1fr}.studio-wave2{padding:12px}}
+
+/* STUDIO-WAVE3-VISUAL-UI — UI/UX previews; no backend execution */
+.studio-v3{padding:clamp(14px,2vw,27px);min-height:570px;background:#090a0e;color:#eae6dc;overflow:auto}
+.studio-v3 *{box-sizing:border-box}.studio-v3 button,.studio-v3 input,.studio-v3 select{font:inherit}
+.studio-v3-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.studio-v3-kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gd)}
+.studio-v3 h2{font:400 clamp(26px,3vw,38px)/1.15 Georgia,serif;margin:5px 0 7px}
+.studio-v3 h3{font:400 23px/1.15 Georgia,serif;margin:5px 0 10px}
+.studio-v3 p{color:var(--mu);font-size:12px;line-height:1.55;margin:0 0 12px}
+.studio-v3-tag{padding:9px 11px;border:1px solid #d6a94a66;border-radius:5px;color:var(--gd);font-size:10px}
+.studio-v3-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:15px}
+.studio-v3-btn{border:1px solid #37383f;border-radius:5px;padding:10px 12px;min-height:42px;color:#e8e5de;background:#181920;cursor:pointer;font-size:12px}
+.studio-v3-btn:hover,.studio-v3-btn:focus-visible{border-color:#d6a94a;outline-offset:3px}
+.studio-v3-btn.on{border-color:var(--gd);color:#f8d88b;background:#d6a94a15}
+.studio-v3-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(235px,.8fr);gap:12px}
+.studio-v3-card{min-width:0;border:1px solid var(--ln);border-radius:6px;background:#111218;padding:16px}
+.studio-v3-preview{position:relative;min-height:305px;border:1px solid #4a4132;border-radius:5px;overflow:hidden;background:radial-gradient(circle at 49% 34%,#383b48 0%,#191d29 43%,#0a0c12 90%)}
+.studio-v3-preview:before{content:"";position:absolute;inset:11% 12%;border:1px solid #d6a94a55;pointer-events:none}
+.studio-v3-preview:after{content:"";position:absolute;top:50%;left:50%;width:1px;height:65%;transform:translate(-50%,-50%);background:#d6a94a32;pointer-events:none}
+.studio-v3-preview-content{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:20px}
+.studio-v3-preview-object{width:clamp(65px,12vw,135px);height:clamp(65px,12vw,135px);border:1px solid #d6a94a88;border-radius:15px;background:linear-gradient(135deg,#e7bc5d55,#59577555);box-shadow:24px 22px 45px #0008;transform:rotate(var(--studio-v3-rotation,0deg)) scale(var(--studio-v3-scale,1));transition:transform .25s ease,background .25s ease}
+.studio-v3-preview-caption{font-size:11px;background:#07080ac9;padding:8px;border:1px solid #55505a;max-width:85%}
+.studio-v3-row{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ln);font-size:12px}
+.studio-v3-row label{font-size:12px}.studio-v3-row output{font-size:11px;color:var(--gd)}
+.studio-v3-row input[type=range]{grid-column:1/-1;width:100%;accent-color:#d6a94a}
+.studio-v3-row select{background:#191b22;color:#fff;border:1px solid #4b4b52;padding:9px;max-width:160px;border-radius:4px}
+.studio-v3-meta{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.studio-v3-meta span{border:1px solid #383941;padding:7px 10px;font-size:10px;color:#c6c2b8}
+.studio-v3-handoff{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.studio-v3-notice{font-size:10px!important;color:#c5a96d!important;margin-top:12px!important}
+@media(max-width:950px){.studio-v3-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.studio-v3{padding:12px}.studio-v3-preview{min-height:260px}.studio-v3-btn{flex:1 1 auto}}
+
+/* STUDIO-WAVE4-DELIVERY-UI — fixture-first, local session controls */
+.studio-w4{padding:clamp(14px,2.5vw,28px);min-height:560px;overflow:auto;color:#eee9de;background:#090a0e}
+.studio-w4 *{box-sizing:border-box}.studio-w4 h2{font:400 clamp(27px,3vw,41px)/1.12 Georgia,serif;margin:8px 0}.studio-w4 h3{font:400 22px/1.2 Georgia,serif;margin:5px 0 13px}.studio-w4 p{color:#aba8af;font-size:12px;line-height:1.55}
+.studio-w4-top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:19px}.studio-w4-kicker{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#d6a94a}.studio-w4-note{border:1px solid #d6a94a66;color:#f0c76e;padding:9px 11px;border-radius:5px;font-size:10px}
+.studio-w4-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.studio-w4 button,.studio-w4 select,.studio-w4 input{font:inherit}.studio-w4-btn{min-height:42px;padding:10px 13px;border:1px solid #46444b;border-radius:5px;background:#191a21;color:#eee9de;cursor:pointer;font-size:12px}.studio-w4-btn:hover,.studio-w4-btn:focus-visible{border-color:#d6a94a;outline-offset:2px}.studio-w4-btn.on{background:#d6a94a1a;color:#f4d187;border-color:#d6a94a}
+.studio-w4-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(220px,.8fr);gap:12px}.studio-w4-panel{min-width:0;padding:16px;border:1px solid #38363d;border-radius:6px;background:#111218}.studio-w4-row{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #ffffff16;flex-wrap:wrap}.studio-w4-row:last-child{border-bottom:0}.studio-w4-row b{display:block;font-size:12px}.studio-w4-row small{display:block;color:#99949f;font-size:10px;margin-top:4px}.studio-w4-meta{font-size:10px;color:#e4c079;border:1px solid #6d5933;border-radius:3px;padding:5px 8px}.studio-w4-control{background:#1b1d24;border:1px solid #514d52;border-radius:4px;color:#fff;padding:9px;min-height:42px;max-width:100%}.studio-w4-stage{background:radial-gradient(circle at 55% 42%,#29303a,#141823 55%,#0b0c11);border:1px solid #49413b;border-radius:5px;padding:24px;min-height:225px;display:flex;justify-content:center;flex-direction:column;align-items:center;text-align:center;gap:10px}.studio-w4-stage strong{font:400 27px Georgia,serif}.studio-w4-stage span{font-size:11px;color:#d0c5af}.studio-w4-check{accent-color:#d6a94a;width:17px;height:17px;cursor:pointer}.studio-w4-checklabel{display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;min-width:180px}.studio-w4-pill{padding:7px 9px;border:1px solid #47454b;border-radius:4px;color:#dfd9d0;font-size:11px}.studio-w4-inline{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}.studio-w4-footer{color:#c6ac75!important;font-size:11px!important;margin-top:14px!important}
+@media(max-width:900px){.studio-w4-grid{grid-template-columns:1fr}}@media(max-width:520px){.studio-w4{padding:12px}.studio-w4-nav .studio-w4-btn{flex:1 1 auto}}
+
+/* STUDIO-WAVE5-PERSONALIZATION-UI — creator layouts, session only */
+.studio-production-workspace{--studio-rail-width:240px;--studio-inspector-width:300px}
+@media(min-width:1121px){.studio-production-workspace-grid{grid-template-columns:minmax(180px,var(--studio-rail-width)) minmax(350px,1fr) minmax(240px,var(--studio-inspector-width))}}
+.studio-w5{padding:clamp(14px,2.4vw,30px);min-height:530px;background:#090a0f;color:#eee9df;overflow:auto}
+.studio-w5 *{box-sizing:border-box}.studio-w5 h2{font:400 clamp(29px,3.5vw,45px)/1.1 Georgia,serif;margin:8px 0}.studio-w5 h3{font:400 22px Georgia,serif;margin:4px 0 10px}.studio-w5 p{font-size:12px;line-height:1.6;color:#aca7b0;margin:6px 0 18px}.studio-w5-kicker{font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:#d6a94a}
+.studio-w5-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:start;margin-bottom:15px}.studio-w5-tag{padding:9px 11px;border:1px solid #80683d;border-radius:4px;color:#e0bb71;font-size:11px}.studio-w5-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(250px,.85fr);gap:13px}.studio-w5-panel{min-width:0;border:1px solid #373641;background:#12131a;border-radius:7px;padding:18px}.studio-w5-btn{border:1px solid #55505a;background:#1a1b24;color:#f2eee5;border-radius:5px;min-height:42px;padding:10px 13px;cursor:pointer;font-size:12px}.studio-w5-btn:hover,.studio-w5-btn:focus-visible{border-color:#d6a94a;outline-offset:3px}.studio-w5-btn.on{border-color:#d6a94a;background:#d6a94a16;color:#f2cf89}.studio-w5-preset-list{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 18px}.studio-w5-row{padding:11px 0;border-bottom:1px solid #ffffff14;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:11px}.studio-w5-row label{font-size:12px}.studio-w5-row small{font-size:10px;color:#a7a3ae}.studio-w5-input{padding:10px;border:1px solid #55505a;border-radius:4px;background:#0a0b10;color:#fff;min-height:42px;min-width:0;max-width:100%}.studio-w5-range{width:100%;accent-color:#d6a94a;margin:8px 0 13px}.studio-w5-preview{display:grid;grid-template-columns:var(--w5-rail,24%) minmax(0,1fr) var(--w5-inspector,27%);gap:3px;min-height:220px;border:1px solid #49444a;background:#27232a;border-radius:6px;overflow:hidden}.studio-w5-preview>div{min-width:0;padding:12px 6px;background:#171923;display:flex;align-items:center;justify-content:center;text-align:center;overflow-wrap:anywhere;font-size:11px;color:#d7d0c3}.studio-w5-preview>div:nth-child(2){background:radial-gradient(circle,#313546,#0d1019);color:#e6c585}.studio-w5-preview.is-focus{grid-template-columns:1fr}.studio-w5-preview.is-focus>div:not(:nth-child(2)){display:none}.studio-w5-preview.is-no-rail{grid-template-columns:minmax(0,1fr) var(--w5-inspector,27%)}.studio-w5-preview.is-no-rail>div:first-child{display:none}.studio-w5-preview.is-no-inspector{grid-template-columns:var(--w5-rail,24%) minmax(0,1fr)}.studio-w5-preview.is-no-inspector>div:last-child{display:none}.studio-w5-preview.is-no-rail.is-no-inspector{grid-template-columns:1fr}.studio-w5-preview.is-comfortable>div{padding:22px 9px}.studio-w5-feedback{margin-top:12px;color:#e3c17e;font-size:11px}.studio-w5-actions{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}.studio-w5-mini{font-size:10px;color:#96919d}.studio-w5-custom-row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid #ffffff14}
+@media(max-width:900px){.studio-w5-grid{grid-template-columns:1fr}}
+@media(max-width:540px){.studio-w5{padding:12px}.studio-w5-preview{min-height:160px}.studio-w5-btn{flex:1 1 auto}}
 
 /* Lightek Studio visual 3D workspace */
 .studio-live-layout{
@@ -3373,6 +3507,9 @@ const ST={
   createName:"",
   createBrief:"",
   createReady:false,
+  createSaving:false,
+  createSaveError:"",
+  createSavedProjectId:null,
   libraryCategory:"all",
   libraryQuery:"",
   templateIntent:"all",
@@ -5638,7 +5775,10 @@ const studioResetCreateState=()=>{
   ST.createStartModeKey=null;
   ST.createName="";
   ST.createBrief="";
-  ST.createReady=false
+  ST.createReady=false;
+  ST.createSaving=false;
+  ST.createSaveError="";
+  ST.createSavedProjectId=null
 };
 
 
@@ -6358,7 +6498,32 @@ const STUDIO_WORKSPACE_MODES=[
   {
     key:"publish",
     label:"Publish",
-    description:"Delivery, destination and release workspace."
+    description:"Package and approve finished work for delivery."
+  },
+  {
+    key:"distribution",
+    label:"Distribution",
+    description:"Plan destination delivery across OTT, FAST, PEG and partners."
+  },
+  {
+    key:"release",
+    label:"Release",
+    description:"Coordinate premieres, calendars and launch readiness."
+  },
+  {
+    key:"workspace-designer",
+    label:"Customize",
+    description:"Build and preview your own production workspace layout."
+  },
+  {
+    key:"visual",
+    label:"Visual",
+    description:"Cameras, lighting, materials, motion, environments and visual effects."
+  },
+  {
+    key:"planning",
+    label:"Planning",
+    description:"Cast, locations, schedule and production readiness."
   },
   {
     key:"live",
@@ -6381,47 +6546,74 @@ const studioWorkspaceSelectedObject=scene=>
   )||
   null;
 
+/* STUDIO-107 semantic Scene Graph UI: all interaction is in-browser only. */
+const STUDIO_SEMANTIC_GROUPS=[
+  {key:"characters",label:"Characters",glyph:"♙",types:["character","person","human","avatar"]},
+  {key:"environment",label:"Environment",glyph:"◈",types:["environment","world","terrain","landscape","architecture","building"]},
+  {key:"props",label:"Props & Set",glyph:"⬡",types:["prop","vehicle","object","cube","mesh","sphere","plane","cylinder","geometry"]},
+  {key:"cameras",label:"Cameras",glyph:"◎",types:["camera"]},
+  {key:"lighting",label:"Lighting",glyph:"☼",types:["light","lighting"]},
+  {key:"fx",label:"FX & Atmosphere",glyph:"✧",types:["fx","effect","particle","vfx","simulation"]},
+  {key:"audio",label:"Sound & Music",glyph:"♫",types:["audio","sound","music","dialogue"]},
+  {key:"other",label:"Other Elements",glyph:"◇",types:[]}
+];
+const STUDIO_SEMANTIC_FIXTURES={
+  characters:["Lead character","Supporting cast"],
+  environment:["Primary location","Background environment"],
+  props:["Set dressing"],cameras:["Main camera"],
+  lighting:["Key lighting"],fx:["Atmosphere"],audio:["Dialogue"]
+};
+const STUDIO_GRAPH_UI={closed:new Set(),hidden:new Set(),fixtureSelection:null,preview:true};
+const studioSemanticGroup=object=>{
+  const kind=String(object.object_type||"").toLowerCase();
+  return STUDIO_SEMANTIC_GROUPS.find(g=>g.types.some(t=>kind===t||kind.startsWith(t+"_")))||
+    STUDIO_SEMANTIC_GROUPS.find(g=>g.key==="other");
+};
 const studioWorkspaceSceneGraph=scene=>{
-  const objects=
-    scene?.objects||[];
-
-  if(!objects.length){
-    return `
-      <div class="studio-workspace-empty">
-        This scene has no SceneObjects yet. The shell is ready for
-        Characters, Environment, Props, Cameras, Lighting, FX and the
-        rest of the semantic production graph.
-      </div>
-    `
-  }
-
+  const objects=Array.isArray(scene?.objects)?scene.objects:[];
+  const groups=STUDIO_SEMANTIC_GROUPS.map(group=>({
+    ...group,
+    objects:objects.filter(o=>studioSemanticGroup(o).key===group.key)
+  }));
+  const selected=STUDIO_GRAPH_UI.fixtureSelection;
   return `
-    <div class="studio-workspace-tree">
-      ${objects.slice(0,10).map(object=>{
-        const selected=
-          Number(object.id)===
-          Number(ST.selectedObjectId);
-
-        return `
-          <button
-            class="${selected?"on":""}"
-            data-a="studioSelectObject"
-            data-id="${Number(object.id)}"
-            type="button"
-          >
-            <div>
-              <b>${E(object.name||"SceneObject")}</b>
-              <small>${E(object.object_type||"object")}</small>
-            </div>
-
-            <span class="studio-workspace-tree-id">
-              #${Number(object.id)}
-            </span>
+    <div class="studio-semantic-graph" aria-label="Semantic scene hierarchy">
+      <div class="studio-semantic-tools">
+        <span>${objects.length} real elements</span>
+        <button type="button" data-a="studioGraphPreview" aria-pressed="${STUDIO_GRAPH_UI.preview}">${STUDIO_GRAPH_UI.preview?"Hide examples":"Show examples"}</button>
+      </div>
+      <div class="studio-semantic-root"><span aria-hidden="true">▾</span> ${E(scene?.name||"Scene")} <small>Scene hierarchy</small></div>
+      ${groups.map(group=>{
+        const groupKey=`${Number(scene?.id||0)}:${group.key}`;
+        const closed=STUDIO_GRAPH_UI.closed.has(groupKey);
+        const fixtures=STUDIO_GRAPH_UI.preview&&!group.objects.length?(STUDIO_SEMANTIC_FIXTURES[group.key]||[]):[];
+        if(!group.objects.length&&!fixtures.length&&group.key==="other")return "";
+        return `<section class="studio-semantic-group">
+          <button type="button" class="studio-semantic-category" data-a="studioGraphToggle" data-key="${E(groupKey)}" aria-expanded="${!closed}">
+            <span class="studio-semantic-caret" aria-hidden="true">${closed?"▸":"▾"}</span><span aria-hidden="true">${group.glyph}</span>
+            <strong>${E(group.label)}</strong><small>${group.objects.length}${fixtures.length?" · preview":""}</small>
           </button>
-        `
+          ${closed?"":`<div class="studio-semantic-children">
+            ${group.objects.map(object=>{
+              const id=Number(object.id);
+              const hidden=STUDIO_GRAPH_UI.hidden.has(id);
+              return `<div class="studio-semantic-element${Number(ST.selectedObjectId)===id?" on":""}${hidden?" is-muted":""}">
+                <button type="button" class="studio-semantic-label" data-a="studioSelectObject" data-id="${id}" aria-pressed="${Number(ST.selectedObjectId)===id}">
+                  <span aria-hidden="true">◇</span><span><b>${E(object.name||"Untitled element")}</b><small>${E(object.object_type||"element")} · #${id}</small></span>
+                </button>
+                <button type="button" class="studio-semantic-eye" data-a="studioGraphVisibility" data-id="${id}" title="${hidden?"Show":"Dim"} element in Scene Graph only" aria-label="${hidden?"Show":"Dim"} ${E(object.name||"element")}">${hidden?"◌":"◉"}</button>
+              </div>`;
+            }).join("")}
+            ${fixtures.map((name,index)=>{
+              const key=`${group.key}-${index}`;
+              return `<button type="button" class="studio-semantic-fixture${selected===key?" on":""}" data-a="studioGraphFixture" data-key="${E(key)}" aria-pressed="${selected===key}"><span aria-hidden="true">◇</span><span><b>${E(name)}</b><small>Example · not saved</small></span></button>`;
+            }).join("")}
+            ${!group.objects.length&&!fixtures.length?`<div class="studio-semantic-empty">No ${E(group.label.toLowerCase())} yet</div>`:""}
+          </div>`}
+        </section>`;
       }).join("")}
-    </div>
-  `
+      <p class="studio-semantic-note">Examples illustrate a production hierarchy only. Selection and visibility controls here do not change saved scene data.</p>
+    </div>`;
 };
 
 const studioWorkspaceLibraryShelf=()=>{
@@ -6464,132 +6656,54 @@ const studioWorkspaceLibraryShelf=()=>{
 };
 
 const studioWorkspaceInspectorShell=scene=>{
-  const selected=
-    studioWorkspaceSelectedObject(
-      scene
-    );
-
+  const selected=studioWorkspaceSelectedObject(scene);
+  const type=String(selected?.object_type||"scene").toLowerCase();
+  const label=type.includes("camera")?"Camera":type.includes("light")?"Lighting":type.includes("character")?"Character":type.includes("environment")?"Environment":type.includes("fx")?"FX":type.includes("audio")?"Audio":"Object";
   return `
     <aside class="studio-workspace-inspector-shell">
-      <div class="studio-workspace-pane-head">
-        <div>
-          <span class="eb">
-            Contextual Inspector
-          </span>
-
-          <h3>
-            Follows what you select.
-          </h3>
-        </div>
-
-        <small>
-          Shell
-        </small>
+      <div class="studio-workspace-pane-head"><div><span class="eb">Contextual Inspector</span><h3>${E(selected?.name||"Production controls")}</h3></div><small>UI preview</small></div>
+      <div class="studio-wave-notice">${selected?`Selected ${E(label)} · #${Number(selected.id)}`:"Select a real scene element to preview its editing controls."} Nothing here is saved until the dedicated backend pass.</div>
+      <div class="studio-wave-stack">
+        <details class="studio-wave-section" open><summary>Identity</summary><div>
+          <label class="studio-wave-control"><span>Display name</span><input aria-label="Preview display name" value="${E(selected?.name||scene?.name||"Scene")}" /></label>
+          <label class="studio-wave-control"><span>Production role</span><select aria-label="Preview production role"><option>${E(label)}</option><option>Featured</option><option>Supporting</option></select></label>
+        </div></details>
+        <details class="studio-wave-section" open><summary>Placement & framing</summary><div>
+          <label class="studio-wave-control"><span>Placement</span><select aria-label="Preview placement"><option>In scene</option><option>Foreground</option><option>Background</option></select></label>
+          <label class="studio-wave-control"><span>Framing</span><select aria-label="Preview framing"><option>Scene default</option><option>Wide</option><option>Close</option></select></label>
+        </div></details>
+        <details class="studio-wave-section"><summary>${E(label)} look</summary><div>
+          <label class="studio-wave-control"><span>Visual intention</span><select aria-label="Preview visual intention"><option>Production default</option><option>Cinematic</option><option>Natural</option><option>Stylized</option></select></label>
+        </div></details>
+        <details class="studio-wave-section"><summary>Behavior & continuity</summary><div>
+          <label class="studio-wave-control"><span>Continuity</span><select aria-label="Preview continuity"><option>Follow scene</option><option>Locked</option><option>Variant</option></select></label>
+        </div></details>
       </div>
-
-      ${selected
-        ?`
-          <div class="studio-workspace-selection">
-            <span class="eb">
-              Current selection
-            </span>
-
-            <h3>
-              ${E(selected.name||"SceneObject")}
-            </h3>
-
-            <p>
-              ${E(selected.object_type||"object")}
-              · #${Number(selected.id)}
-            </p>
-          </div>
-        `
-        :`
-          <div class="studio-workspace-empty">
-            Select something in the Scene Graph or 3D Viewport and its
-            relevant controls belong here.
-          </div>
-        `
-      }
-
-      <div class="studio-workspace-inspector-groups">
-        <span>
-          Identity
-          <small>context</small>
-        </span>
-
-        <span>
-          Placement
-          <small>context</small>
-        </span>
-
-        <span>
-          Look
-          <small>context</small>
-        </span>
-
-        <span>
-          Behavior
-          <small>context</small>
-        </span>
-      </div>
-
-      <div class="studio-workspace-shell-note">
-        This shell establishes where contextual control lives. The next
-        Inspector pass decides which controls appear for each production concept.
-      </div>
-    </aside>
-  `
+      <p class="studio-wave-preview">Controls are interactive design previews and do not mutate SceneObjects. Actual Scene editing remains in the existing 3D workspace.</p>
+    </aside>`
 };
 
 const studioWorkspaceDirectorShell=record=>{
-  const {
-    project,
-    production,
-    scene
-  }=record;
-
-  const selected=
-    studioWorkspaceSelectedObject(
-      scene
-    );
-
-  return `
-    <div class="studio-workspace-director">
-      <div class="studio-workspace-director-head">
-        <div>
-          <span class="eb">
-            Nevaeh Director
-          </span>
-
-          <h4>
-            Production context stays with the work.
-          </h4>
-        </div>
-
-        <span class="studio-workspace-director-state">
-          Context ready
-        </span>
-      </div>
-
-      <div class="studio-workspace-director-context">
-        <div>
-          <small>Project</small>
-          <b>${E(project?.name||"Studio")}</b>
-        </div>
-
-        <div>
-          <small>Production</small>
-          <b>${E(production?.name||"Unassigned")}</b>
-        </div>
-
-        <div>
-          <small>Selection</small>
-          <b>${E(selected?.name||scene?.name||"Scene")}</b>
-        </div>
-      </div>
+  const {project,production,scene}=record;
+  const selected=studioWorkspaceSelectedObject(scene);
+  const suggestions=[
+    {key:"continuity",title:"Continuity review",detail:"Review how this selection fits the scene's visual and narrative continuity."},
+    {key:"composition",title:"Composition pass",detail:"Consider framing, scale and staging for the selected production element."},
+    {key:"production",title:"Production readiness",detail:"Surface possible dependencies before a scene is ready for production."}
+  ];
+  const active=suggestions.find(item=>item.key===ST.studioDirectorPreview)||suggestions[0];
+  return `<div class="studio-workspace-director">
+    <div class="studio-workspace-director-head"><div><span class="eb">Nevaeh Director</span><h4>Creative direction desk</h4></div><span class="studio-workspace-director-state">Preview only</span></div>
+    <div class="studio-workspace-director-context">
+      <div><small>Project</small><b>${E(project?.name||"Studio")}</b></div>
+      <div><small>Production</small><b>${E(production?.name||"Unassigned")}</b></div>
+      <div><small>Working on</small><b>${E(selected?.name||scene?.name||"Scene")}</b></div>
     </div>
-  `
+    <div class="studio-wave-notice">Direction concepts are fixture-generated interface examples. Nevaeh has not evaluated the scene or executed anything.</div>
+    <div role="group" aria-label="Direction preview categories">${suggestions.map(item=>`<button type="button" class="studio-wave-action" data-a="studioDirectorPreview" data-key="${E(item.key)}" aria-pressed="${ST.studioDirectorPreview===item.key}">${E(item.title)}</button>`).join("")}</div>
+    <div class="studio-wave-section" style="margin-top:10px;padding:12px 14px"><b>${E(active.title)}</b><p class="studio-wave-preview">${E(active.detail)}</p><button class="studio-wave-action" data-a="studioDirectorQueuePreview" type="button">Add to local review queue</button></div>
+    ${ST.studioDirectorQueue?.length?`<div class="studio-wave-preview" role="status">Review ideas in this session: ${ST.studioDirectorQueue.map(E).join(" · ")}</div>`:""}
+  </div>`
 };
 
 const studioWorkspaceProductionStage=record=>{
@@ -6659,7 +6773,195 @@ const studioWorkspaceProductionStage=record=>{
   `
 };
 
+/* STUDIO-WAVE2-STORY-UI checklist: local only */
+document.addEventListener("change",event=>{
+ const target=event.target;
+ if(!target || !target.matches?.("[data-studio-wave2-task]"))return;
+ const i=Number(target.dataset.studioWave2Task);
+ if(!Number.isInteger(i)||i<0||i>=STUDIO_WAVE2_TASKS.length)return;
+ STUDIO_WAVE2_STATE.checks=target.checked?[...new Set([...STUDIO_WAVE2_STATE.checks,i])]:STUDIO_WAVE2_STATE.checks.filter(n=>n!==i);
+ render(1);
+});
+
+/* STUDIO-WAVE2-STORY-UI: local fixture states only; no API or storage */
+const STUDIO_WAVE2_STATE={scriptScene:0,beats:[],shot:0,muted:[],checks:[],scriptDraft:"",note:""};
+const STUDIO_WAVE2_SCRIPT_SCENES=[
+ {title:"Opening image",slug:"INT. STUDIO — NIGHT",body:"A pool of warm light cuts through the dark. The scene waits for its first decision."},
+ {title:"The turning point",slug:"EXT. CITY ROOFTOP — DUSK",body:"The city moves below. A character approaches the edge of a choice."},
+ {title:"Closing beat",slug:"INT. EDIT SUITE — MORNING",body:"The final image reflects the first, but everything has changed."}
+];
+const STUDIO_WAVE2_SHOTS=[
+ {title:"Establishing wide",detail:"24 mm · Scene geography",note:"Introduce the space and orient the audience."},
+ {title:"Character close-up",detail:"85 mm · Emotional reaction",note:"Let the decision land without dialogue."},
+ {title:"Insert detail",detail:"50 mm · Story object",note:"Show the object that changes the scene."},
+ {title:"Transition frame",detail:"35 mm · Passage to next beat",note:"Preserve the scene's visual rhythm."}
+];
+const STUDIO_WAVE2_TRACKS=["Dialogue","Ambience","Music score","Sound effects"];
+const STUDIO_WAVE2_TASKS=["Script breakdown","Cast availability","Location confirmation","Shot list review","Audio requirements","Production safety review"];
+const studioWave2Shell=(record,mode,content)=>`
+ <section class="studio-wave2" aria-label="${E(mode)} preview workspace">
+ <header class="studio-wave2-top"><div><span class="studio-wave2-caption">Studio · Story & Production · UI preview</span><h2>${E(mode)}</h2>
+ <p>${E(record?.project?.name||"Studio")} · ${E(record?.production?.name||"Unassigned production")} · ${E(record?.scene?.name||"Scene")}</p></div>
+ <span class="studio-wave2-tag">Local concepts · not saved</span></header>${content}</section>`;
+const studioWave2Stage=(record,mode)=>{
+ if(mode==="script"){
+  const chosen=STUDIO_WAVE2_SCRIPT_SCENES[STUDIO_WAVE2_STATE.scriptScene];
+  return studioWave2Shell(record,"Script",`<div class="studio-wave2-columns"><aside class="studio-wave2-panel"><h3>Scene outline</h3><div class="studio-wave2-list">${STUDIO_WAVE2_SCRIPT_SCENES.map((item,i)=>`<button class="studio-wave2-button ${i===STUDIO_WAVE2_STATE.scriptScene?"on":""}" data-a="studioWave2ChooseScript" data-index="${i}" type="button"><b>${E(item.title)}</b><small>${E(item.slug)}</small></button>`).join("")}</div><p class="studio-wave2-note">Fixture scene outline, independent of database SceneObjects.</p></aside>
+  <section class="studio-wave2-panel"><div class="studio-wave2-paper"><span class="studio-wave2-caption">Draft page</span><h3>${E(chosen.slug)}</h3><textarea id="studio-wave2-script-draft" aria-label="Script draft for this scene">${E(STUDIO_WAVE2_STATE.scriptDraft||chosen.body)}</textarea></div><div class="studio-wave2-toolbar"><button class="studio-wave2-action" data-a="studioWave2AddBeat" type="button">+ Add local beat</button><button class="studio-wave2-action" data-a="studioWave2ClearBeats" type="button">Clear beats</button></div><p class="studio-wave2-note">${STUDIO_WAVE2_STATE.beats.length} local story beats · Draft text is not persisted or sent to Nevaeh.</p>${STUDIO_WAVE2_STATE.beats.map((x,i)=>`<p class="studio-wave2-note">Beat ${i+1}: ${E(x)}</p>`).join("")}</section></div>`)
+ }
+ if(mode==="storyboard"){
+  const shot=STUDIO_WAVE2_SHOTS[STUDIO_WAVE2_STATE.shot];
+  return studioWave2Shell(record,"Storyboard",`<div class="studio-wave2-columns"><section class="studio-wave2-panel"><h3>Shot sequence</h3><div class="studio-wave2-shots">${STUDIO_WAVE2_SHOTS.map((x,i)=>`<button class="studio-wave2-shot ${i===STUDIO_WAVE2_STATE.shot?"on":""}" data-a="studioWave2ChooseShot" data-index="${i}" type="button"><span><b>${String(i+1).padStart(2,"0")} · ${E(x.title)}</b><small>${E(x.detail)}</small></span></button>`).join("")}</div></section><aside class="studio-wave2-panel"><span class="studio-wave2-caption">Selected frame</span><h3>${E(shot.title)}</h3><p>${E(shot.note)}</p><div class="studio-wave2-toolbar"><button class="studio-wave2-action" data-a="studioWave2NextShot" type="button">Next frame →</button></div><p class="studio-wave2-note">Illustrative framing cards; no renders or assets are generated.</p></aside></div>`)
+ }
+ if(mode==="audio"){
+  return studioWave2Shell(record,"Audio",`<div class="studio-wave2-panel"><h3>Scene sound desk</h3><p>Dialogue, ambience, score and effects are organized in one timeline preview.</p><div class="studio-wave2-toolbar"><span class="studio-wave2-tag">00:00 — 01:30 · mock timeline</span></div>${STUDIO_WAVE2_TRACKS.map((name,i)=>`<div class="studio-wave2-track ${STUDIO_WAVE2_STATE.muted.includes(i)?"is-muted":""}"><b class="studio-wave2-trackname">${E(name)}</b><div class="studio-wave2-wave" aria-label="Illustrative waveform"></div><button type="button" class="studio-wave2-action ${STUDIO_WAVE2_STATE.muted.includes(i)?"on":""}" data-a="studioWave2Mute" data-index="${i}" aria-pressed="${STUDIO_WAVE2_STATE.muted.includes(i)}">${STUDIO_WAVE2_STATE.muted.includes(i)?"Unmute":"Mute"}</button></div>`).join("")}<p class="studio-wave2-note">Mute is a local visual state. No audio playback, mixing, or source editing occurs.</p></div>`)
+ }
+ if(mode==="planning"){
+  const done=STUDIO_WAVE2_STATE.checks.length;
+  return studioWave2Shell(record,"Production Planning",`<div class="studio-wave2-metrics"><div><b>${STUDIO_WAVE2_TASKS.length}</b><small>Planning items</small></div><div><b>${done}</b><small>Marked ready locally</small></div><div><b>${STUDIO_WAVE2_TASKS.length-done}</b><small>Needs review</small></div></div><div class="studio-wave2-columns"><section class="studio-wave2-panel"><h3>Readiness checklist</h3>${STUDIO_WAVE2_TASKS.map((x,i)=>`<label class="studio-wave2-check ${STUDIO_WAVE2_STATE.checks.includes(i)?"is-done":""}"><input data-studio-wave2-task="${i}" type="checkbox" ${STUDIO_WAVE2_STATE.checks.includes(i)?"checked":""}><span>${E(x)}</span></label>`).join("")}</section><aside class="studio-wave2-panel"><h3>Production call sheet</h3><p><b>Scene:</b> ${E(record?.scene?.name||"Scene")}</p><p><b>Cast:</b> To be scheduled</p><p><b>Location:</b> To be confirmed</p><p><b>Schedule:</b> Draft only</p><div class="studio-wave2-toolbar"><button class="studio-wave2-action" data-a="studioWave2ResetPlan" type="button">Reset local checklist</button></div><p class="studio-wave2-note">No calendar event, booking, call sheet, or database record is created.</p></aside></div>`)
+ }
+ return null;
+};
+
+/* STUDIO-WAVE3-VISUAL-UI input wiring: local preview, no server calls */
+document.addEventListener("change",event=>{
+ const target=event.target;
+ if(!target?.matches?.("[data-studio-v3-field]"))return;
+ const key=target.dataset.studioV3Field;
+ if(!Object.prototype.hasOwnProperty.call(STUDIO_V3_STATE,key))return;
+ const numeric=["intensity","temperature","rotation","duration","strength"].includes(key);
+ STUDIO_V3_STATE[key]=numeric?Number(target.value):target.value;
+ render(1);
+});
+
+/* STUDIO-WAVE3-VISUAL-UI — session preview only, no fetch and no persistence */
+const STUDIO_V3_AREAS=[
+ {key:"camera",name:"Camera & Framing",description:"Shot composition, lens, aspect and focal intent."},
+ {key:"lighting",name:"Lighting",description:"Motivation, intensity, color temperature and mood."},
+ {key:"materials",name:"Materials",description:"Surface character and visual identity."},
+ {key:"animation",name:"Animation",description:"Motion timing, easing and performance rhythm."},
+ {key:"environment",name:"Environment",description:"Location, time of day and atmosphere."},
+ {key:"fx",name:"FX",description:"Effects language and cinematic treatment."}
+];
+const STUDIO_V3_STATE={area:"camera",lens:"50 mm",aspect:"2.39:1",intensity:65,temperature:4500,finish:"Satin",rotation:0,duration:3,location:"Soundstage",time:"Golden hour",effect:"Atmospheric haze",strength:35};
+const studioV3Select=(key,label,values)=>`<div class="studio-v3-row"><label for="studio-v3-${key}">${E(label)}</label><select id="studio-v3-${key}" data-studio-v3-field="${key}">${values.map(value=>`<option value="${E(value)}" ${STUDIO_V3_STATE[key]===value?"selected":""}>${E(value)}</option>`).join("")}</select></div>`;
+const studioV3Range=(key,label,min,max,unit="")=>`<div class="studio-v3-row"><label for="studio-v3-${key}">${E(label)}</label><output for="studio-v3-${key}">${Number(STUDIO_V3_STATE[key])}${E(unit)}</output><input id="studio-v3-${key}" type="range" min="${min}" max="${max}" value="${Number(STUDIO_V3_STATE[key])}" data-studio-v3-field="${key}" /></div>`;
+const studioV3Controls=()=>{
+ switch(STUDIO_V3_STATE.area){
+ case "camera":return studioV3Select("lens","Lens intent",["24 mm","35 mm","50 mm","85 mm"])+studioV3Select("aspect","Frame",["16:9","2.39:1","4:3","9:16"]);
+ case "lighting":return studioV3Range("intensity","Key light intent",0,100,"%")+studioV3Range("temperature","Color temperature",2500,8000," K");
+ case "materials":return studioV3Select("finish","Surface finish",["Matte","Satin","Gloss","Metallic"])+studioV3Range("strength","Texture emphasis",0,100,"%");
+ case "animation":return studioV3Range("rotation","Pose rotation",-45,45,"°")+studioV3Range("duration","Motion duration",1,12," s");
+ case "environment":return studioV3Select("location","Location concept",["Soundstage","City exterior","Interior set","Open landscape"])+studioV3Select("time","Time of day",["Dawn","Midday","Golden hour","Night"]);
+ case "fx":return studioV3Select("effect","Effect language",["Atmospheric haze","Memory bloom","Practical sparks","Clean plate"])+studioV3Range("strength","Treatment strength",0,100,"%");
+ default:return "";
+ }
+};
+const studioV3Stage=record=>{
+ const area=STUDIO_V3_AREAS.find(x=>x.key===STUDIO_V3_STATE.area)||STUDIO_V3_AREAS[0];
+ const selected=studioWorkspaceSelectedObject(record?.scene);
+ const objectName=selected?.name||record?.scene?.name||"Scene";
+ const rotation=STUDIO_V3_STATE.area==="animation"?STUDIO_V3_STATE.rotation:0;
+ return `<section class="studio-v3" aria-label="Visual production workspace">
+  <header class="studio-v3-header"><div><span class="studio-v3-kicker">Lightek Studio · Visual Production · UI preview</span><h2>Craft the image.</h2><p>${E(record?.project?.name||"Studio")} · ${E(record?.production?.name||"Production")} · ${E(objectName)}</p></div><span class="studio-v3-tag">Concept controls · not saved</span></header>
+  <nav class="studio-v3-tabs" aria-label="Visual disciplines">${STUDIO_V3_AREAS.map(x=>`<button class="studio-v3-btn ${x.key===STUDIO_V3_STATE.area?"on":""}" type="button" data-a="studioV3Area" data-key="${x.key}" aria-pressed="${x.key===STUDIO_V3_STATE.area}">${E(x.name)}</button>`).join("")}</nav>
+  <div class="studio-v3-grid"><div class="studio-v3-card"><span class="studio-v3-kicker">Look development canvas</span><h3>${E(area.name)}</h3><div class="studio-v3-preview"><div class="studio-v3-preview-content"><div class="studio-v3-preview-object" style="--studio-v3-rotation:${Number(rotation)}deg"></div><div class="studio-v3-preview-caption">${E(objectName)} · ${E(area.name)} concept</div></div></div><div class="studio-v3-meta"><span>Scene context preserved</span><span>Illustrative preview</span><span>No render started</span></div></div>
+  <aside class="studio-v3-card"><span class="studio-v3-kicker">Creative decisions</span><h3>${E(area.name)}</h3><p>${E(area.description)}</p>${studioV3Controls()}<p class="studio-v3-notice">Changes affect this local visual prototype only. No SceneObject, Blender scene, render job or production asset is modified.</p><div class="studio-v3-handoff"><button class="studio-v3-btn on" type="button" data-a="studioWorkspaceMode" data-mode="3d">Open live 3D editor →</button><button class="studio-v3-btn" type="button" data-a="studioV3Reset">Reset visual concepts</button></div></aside></div></section>`;
+};
+
+/* STUDIO-WAVE4-DELIVERY-UI: session-only input interactions */
+document.addEventListener("change",event=>{
+ const t=event.target;
+ if(t?.matches?.("[data-studio-w4-check]")){
+  const key=t.dataset.studioW4Check;
+  if(!["releaseChecks","deliveryChecks"].includes(key))return;
+  const i=Number(t.dataset.index);
+  if(!Number.isInteger(i)||i<0||i>=5)return;
+  STUDIO_W4_STATE[key]=t.checked?[...new Set([...STUDIO_W4_STATE[key],i])]:STUDIO_W4_STATE[key].filter(x=>x!==i);
+  render(1);
+ }else if(t?.matches?.("[data-studio-w4-field]")){
+  const key=t.dataset.studioW4Field;
+  if(!["releaseDate","releaseWindow"].includes(key))return;
+  STUDIO_W4_STATE[key]=t.value;render(1);
+ }
+});
+
+/* STUDIO-WAVE4-DELIVERY-UI — local previews, no network or persistence */
+const STUDIO_W4_DESTINATIONS=[{key:"ott",name:"Lightek OTT",detail:"On-demand premiere",kind:"Streaming"},{key:"octavia",name:"Octavia FAST",detail:"Linear programming window",kind:"FAST"},{key:"peg",name:"PEG Affiliate Network",detail:"Local-channel syndication",kind:"Syndication"},{key:"partners",name:"Partner Delivery",detail:"Licensed destination packet",kind:"Partners"}];
+const STUDIO_W4_CHECKS=["Picture and sound reviewed","Metadata and artwork prepared","Rights and clearances reviewed","Captions and accessibility reviewed","Destination package reviewed"];
+const STUDIO_W4_RUNDOWN=[{name:"Opening slate",time:"00:00",state:"Standby"},{name:"Main program",time:"00:30",state:"Preview"},{name:"Intermission",time:"28:00",state:"Planned"},{name:"Closing credits",time:"54:00",state:"Planned"}];
+const STUDIO_W4_STATE={destination:"ott",approved:[],livePreview:0,liveMode:"Preview",releaseWindow:"Premiere",releaseDate:"",releaseChecks:[],deliveryChecks:[],activeRundown:0};
+const studioW4Check=(type,i,label)=>`<label class="studio-w4-checklabel"><input class="studio-w4-check" type="checkbox" data-studio-w4-check="${type}" data-index="${i}" ${STUDIO_W4_STATE[type].includes(i)?"checked":""}><span>${E(label)}</span></label>`;
+const studioW4Nav=mode=>`<nav class="studio-w4-nav" aria-label="Delivery department">${[{key:"publish",label:"Publish"},{key:"live",label:"Live Control"},{key:"distribution",label:"Distribution"},{key:"release",label:"Release Operations"}].map(m=>`<button type="button" class="studio-w4-btn ${mode===m.key?"on":""}" data-a="studioWorkspaceMode" data-mode="${m.key}" aria-pressed="${mode===m.key}">${m.label}</button>`).join("")}</nav>`;
+const studioW4Publish=()=>`<div class="studio-w4-grid"><section class="studio-w4-panel"><span class="studio-w4-kicker">Delivery package</span><h3>Ready the master.</h3><div class="studio-w4-stage"><span>PICTURE LOCK · CONCEPT PREVIEW</span><strong>Production Master</strong><span>16:9 · Textless artwork · Subtitles · Audio stems</span></div><div class="studio-w4-inline"><span class="studio-w4-pill">Master preview</span><span class="studio-w4-pill">Metadata packet</span><span class="studio-w4-pill">Artwork set</span></div></section><aside class="studio-w4-panel"><span class="studio-w4-kicker">Release checks</span><h3>Before it leaves Studio</h3>${STUDIO_W4_CHECKS.map((v,i)=>`<div class="studio-w4-row">${studioW4Check("deliveryChecks",i,v)}</div>`).join("")}<p class="studio-w4-footer">${STUDIO_W4_STATE.deliveryChecks.length} of ${STUDIO_W4_CHECKS.length} locally reviewed · not submitted</p></aside></div>`;
+const studioW4Live=()=>`<div class="studio-w4-grid"><section class="studio-w4-panel"><span class="studio-w4-kicker">Live control · simulation only</span><h3>Program monitor</h3><div class="studio-w4-stage"><span>${E(STUDIO_W4_STATE.liveMode.toUpperCase())} · NO TRANSMISSION</span><strong>${E(STUDIO_W4_RUNDOWN[STUDIO_W4_STATE.activeRundown].name)}</strong><span>Rundown cue ${STUDIO_W4_STATE.activeRundown+1} of ${STUDIO_W4_RUNDOWN.length}</span></div><div class="studio-w4-inline"><button type="button" class="studio-w4-btn ${STUDIO_W4_STATE.liveMode==="Preview"?"on":""}" data-a="studioW4LiveMode" data-mode="Preview">Preview</button><button type="button" class="studio-w4-btn ${STUDIO_W4_STATE.liveMode==="Program rehearsal"?"on":""}" data-a="studioW4LiveMode" data-mode="Program rehearsal">Program rehearsal</button></div></section><aside class="studio-w4-panel"><span class="studio-w4-kicker">Show rundown</span><h3>Cue sequence</h3>${STUDIO_W4_RUNDOWN.map((v,i)=>`<div class="studio-w4-row"><div><b>${E(v.name)}</b><small>${E(v.time)} · ${E(v.state)}</small></div><button class="studio-w4-btn ${STUDIO_W4_STATE.activeRundown===i?"on":""}" type="button" data-a="studioW4Cue" data-index="${i}">Cue ${i+1}</button></div>`).join("")}<p class="studio-w4-footer">Cue selection is local only. No encoder, feed or live signal is touched.</p></aside></div>`;
+const studioW4Distribution=()=>`<div class="studio-w4-grid"><section class="studio-w4-panel"><span class="studio-w4-kicker">Network delivery planning</span><h3>Where it goes.</h3>${STUDIO_W4_DESTINATIONS.map(d=>`<div class="studio-w4-row"><div><b>${E(d.name)}</b><small>${E(d.detail)}</small></div><button type="button" class="studio-w4-btn ${STUDIO_W4_STATE.destination===d.key?"on":""}" data-a="studioW4Destination" data-key="${d.key}">${STUDIO_W4_STATE.destination===d.key?"Selected":"Inspect"}</button></div>`).join("")}</section><aside class="studio-w4-panel"><span class="studio-w4-kicker">Selected route</span><h3>${E(STUDIO_W4_DESTINATIONS.find(x=>x.key===STUDIO_W4_STATE.destination)?.name||"Destination")}</h3><div class="studio-w4-stage"><span>ROUTING PLAN · LOCAL PREVIEW</span><strong>${E(STUDIO_W4_DESTINATIONS.find(x=>x.key===STUDIO_W4_STATE.destination)?.kind||"Distribution")}</strong><span>Packaging · Rights · Scheduling · Delivery receipt</span></div><p class="studio-w4-footer">Destination selection does not publish, syndicate or transmit content.</p></aside></div>`;
+const studioW4Release=()=>`<div class="studio-w4-grid"><section class="studio-w4-panel"><span class="studio-w4-kicker">Release operations</span><h3>Plan the launch.</h3><div class="studio-w4-row"><label for="studio-w4-window">Release strategy</label><select class="studio-w4-control" id="studio-w4-window" data-studio-w4-field="releaseWindow">${["Premiere","Weekly episodes","Same-day launch","Festival window","Partner window"].map(x=>`<option ${STUDIO_W4_STATE.releaseWindow===x?"selected":""}>${E(x)}</option>`).join("")}</select></div><div class="studio-w4-row"><label for="studio-w4-date">Proposed release date</label><input class="studio-w4-control" id="studio-w4-date" data-studio-w4-field="releaseDate" type="date" value="${E(STUDIO_W4_STATE.releaseDate)}"></div><div class="studio-w4-stage"><span>RELEASE CALENDAR · CONCEPT</span><strong>${E(STUDIO_W4_STATE.releaseWindow)}</strong><span>${E(STUDIO_W4_STATE.releaseDate||"Date not selected")}</span></div></section><aside class="studio-w4-panel"><span class="studio-w4-kicker">Launch readiness</span><h3>Release desk</h3>${["Programming window selected","Marketing assets reviewed","Partner notifications planned","Premiere checklist reviewed"].map((x,i)=>`<div class="studio-w4-row">${studioW4Check("releaseChecks",i,x)}</div>`).join("")}<p class="studio-w4-footer">${STUDIO_W4_STATE.releaseChecks.length} of 4 preview checks. No calendar event or release is scheduled.</p></aside></div>`;
+const studioW4Stage=(record,mode)=>{const title={publish:"Prepare the release.",live:"Control the show.",distribution:"Reach the audience.",release:"Own the premiere."}[mode];if(!title)return null;return `<section class="studio-w4" aria-label="Delivery and broadcast workspace"><header class="studio-w4-top"><div><span class="studio-w4-kicker">Lightek Studio · Delivery & Broadcast</span><h2>${title}</h2><p>${E(record?.project?.name||"Studio")} · ${E(record?.production?.name||"Production")} · ${E(record?.scene?.name||"Scene")}</p></div><span class="studio-w4-note">Interactive UI preview · not saved</span></header>${studioW4Nav(mode)}${mode==="publish"?studioW4Publish():mode==="live"?studioW4Live():mode==="distribution"?studioW4Distribution():studioW4Release()}</section>`};
+
+/* STUDIO-WAVE5-PERSONALIZATION-UI — UI session state; never stored */
+const STUDIO_W5_BUILTINS=[
+ {name:"Production",rail:true,inspector:true,focus:false,comfortable:false,railWidth:240,inspectorWidth:300},
+ {name:"Focus",rail:false,inspector:false,focus:true,comfortable:false,railWidth:220,inspectorWidth:270},
+ {name:"Comfort",rail:true,inspector:true,focus:false,comfortable:true,railWidth:260,inspectorWidth:325},
+ {name:"Writing",rail:false,inspector:true,focus:false,comfortable:true,railWidth:220,inspectorWidth:320},
+ {name:"Direction",rail:true,inspector:true,focus:false,comfortable:false,railWidth:260,inspectorWidth:340}
+];
+const STUDIO_W5_STATE={presets:[],active:"Production",draftName:"",feedback:"Adjust your layout and save a session preset."};
+const studioW5Snapshot=()=>({rail:!!STUDIO_WORKSPACE_LAYOUT.rail,inspector:!!STUDIO_WORKSPACE_LAYOUT.inspector,focus:!!STUDIO_WORKSPACE_LAYOUT.focus,comfortable:!!STUDIO_WORKSPACE_LAYOUT.comfortable,railWidth:Math.round(Number(STUDIO_WORKSPACE_LAYOUT.railWidth)||240),inspectorWidth:Math.round(Number(STUDIO_WORKSPACE_LAYOUT.inspectorWidth)||300)});
+const studioW5Apply=(record)=>{
+ const keys=["rail","inspector","focus","comfortable","railWidth","inspectorWidth"];
+ keys.forEach(k=>{STUDIO_WORKSPACE_LAYOUT[k]=record[k]});
+ STUDIO_W5_STATE.active=record.name;
+ STUDIO_W5_STATE.feedback=`${record.name} layout preview applied. Not saved to your account.`;
+ render(1)
+};
+const studioW5Preset=name=>[...STUDIO_W5_BUILTINS,...STUDIO_W5_STATE.presets].find(p=>p.name===name);
+const studioW5Stage=record=>{
+ const layout=studioW5Snapshot();
+ const previewClass=layout.focus?"is-focus":`${!layout.rail?"is-no-rail ":""}${!layout.inspector?"is-no-inspector ":""}${layout.comfortable?"is-comfortable":""}`;
+ return `<section class="studio-w5" aria-label="Workspace personalization">
+ <header class="studio-w5-top"><div><span class="studio-w5-kicker">Lightek Studio · Workspace Designer</span><h2>Make room for your work.</h2><p>${E(record?.project?.name||"Studio")} · ${E(record?.scene?.name||"Scene")} · design your working environment</p></div><span class="studio-w5-tag">Session preview only · no account save</span></header>
+ <div class="studio-w5-grid"><section class="studio-w5-panel"><span class="studio-w5-kicker">Layout presets</span><h3>Start with a room.</h3>
+ <div class="studio-w5-preset-list">${[...STUDIO_W5_BUILTINS,...STUDIO_W5_STATE.presets].map(p=>`<button type="button" class="studio-w5-btn ${STUDIO_W5_STATE.active===p.name?"on":""}" data-a="studioW5Apply" data-name="${E(p.name)}" aria-pressed="${STUDIO_W5_STATE.active===p.name}">${E(p.name)}</button>`).join("")}</div>
+ <span class="studio-w5-kicker">Your layout</span><div class="studio-w5-row"><label>Scene Graph & Library</label><button type="button" class="studio-w5-btn ${layout.rail?"on":""}" data-a="studioW5Toggle" data-key="rail" aria-pressed="${layout.rail}">${layout.rail?"Visible":"Hidden"}</button></div>
+ <div class="studio-w5-row"><label>Contextual Inspector</label><button type="button" class="studio-w5-btn ${layout.inspector?"on":""}" data-a="studioW5Toggle" data-key="inspector" aria-pressed="${layout.inspector}">${layout.inspector?"Visible":"Hidden"}</button></div>
+ <div class="studio-w5-row"><label>Focus mode</label><button type="button" class="studio-w5-btn ${layout.focus?"on":""}" data-a="studioW5Toggle" data-key="focus" aria-pressed="${layout.focus}">${layout.focus?"On":"Off"}</button></div>
+ <div class="studio-w5-row"><label>Comfort spacing</label><button type="button" class="studio-w5-btn ${layout.comfortable?"on":""}" data-a="studioW5Toggle" data-key="comfortable" aria-pressed="${layout.comfortable}">${layout.comfortable?"On":"Off"}</button></div>
+ <div class="studio-w5-row"><label for="studio-w5-rail">Left panel width</label><small>${layout.railWidth}px</small></div><input class="studio-w5-range" id="studio-w5-rail" type="range" min="180" max="340" step="10" value="${layout.railWidth}" data-studio-w5-width="railWidth" ${layout.focus||!layout.rail?"disabled":""}>
+ <div class="studio-w5-row"><label for="studio-w5-inspector">Inspector width</label><small>${layout.inspectorWidth}px</small></div><input class="studio-w5-range" id="studio-w5-inspector" type="range" min="240" max="430" step="10" value="${layout.inspectorWidth}" data-studio-w5-width="inspectorWidth" ${layout.focus||!layout.inspector?"disabled":""}>
+ </section><aside class="studio-w5-panel"><span class="studio-w5-kicker">Layout preview</span><h3>A workspace of your own.</h3><div class="studio-w5-preview ${previewClass}" style="--w5-rail:${Math.round(layout.railWidth/10)}%;--w5-inspector:${Math.round(layout.inspectorWidth/11)}%"><div>Scene Graph<br>Library</div><div>Creative canvas<br>${E(record?.scene?.name||"Scene")}</div><div>Inspector<br>Tools</div></div>
+ <p class="studio-w5-mini">On wider screens, these dimensions also affect the actual Production workspace. Focus and Comfort use the existing shell controls.</p>
+ <label class="studio-w5-row" for="studio-w5-name">Name your preset</label><input class="studio-w5-input" id="studio-w5-name" maxlength="48" placeholder="e.g. My director desk" value="${E(STUDIO_W5_STATE.draftName)}" data-studio-w5-name="true">
+ <div class="studio-w5-actions"><button type="button" class="studio-w5-btn on" data-a="studioW5Save">Save session preset</button><button type="button" class="studio-w5-btn" data-a="studioW5Reset">Restore Production layout</button><button type="button" class="studio-w5-btn" data-a="studioWorkspaceMode" data-mode="production">Preview in Production →</button></div>
+ <div role="status" aria-live="polite" class="studio-w5-feedback">${E(STUDIO_W5_STATE.feedback)}</div>
+ ${STUDIO_W5_STATE.presets.length?`<div style="margin-top:20px"><span class="studio-w5-kicker">Your session presets</span>${STUDIO_W5_STATE.presets.map(p=>`<div class="studio-w5-custom-row"><span>${E(p.name)}</span><button type="button" class="studio-w5-btn" data-a="studioW5Remove" data-name="${E(p.name)}">Remove</button></div>`).join("")}</div>`:""}
+ </aside></div></section>`;
+};
+/* STUDIO-WAVE5-PERSONALIZATION-UI: capture text/range values locally only */
+document.addEventListener("input",event=>{
+ const target=event.target;
+ if(target?.dataset?.studioW5Name!==undefined){STUDIO_W5_STATE.draftName=target.value;return}
+ const key=target?.dataset?.studioW5Width;
+ if(!["railWidth","inspectorWidth"].includes(key))return;
+ const n=Number(target.value);
+ if(!Number.isFinite(n))return;
+ STUDIO_WORKSPACE_LAYOUT[key]=key==="railWidth"?Math.max(180,Math.min(340,n)):Math.max(240,Math.min(430,n));
+ STUDIO_W5_STATE.active="Custom (unsaved)";
+ render(1)
+});
+
 const studioWorkspaceFutureStage=(record,mode)=>{
+  if(mode==="workspace-designer")return studioW5Stage(record);
+
+  const delivery=studioW4Stage(record,mode);
+  if(delivery!==null)return delivery;
+
+  if(mode==="visual")return studioV3Stage(record);
+
+  const wave2=studioWave2Stage(record,mode);
+  if(wave2!==null)return wave2;
+
   const definition=
     studioWorkspaceModeDefinition(
       mode
@@ -6695,7 +6997,7 @@ const studioWorkspaceFutureStage=(record,mode)=>{
   `
 };
 
-const STUDIO_WORKSPACE_LAYOUT={rail:true,inspector:true,focus:false,comfortable:false};
+const STUDIO_WORKSPACE_LAYOUT={rail:true,inspector:true,focus:false,comfortable:false,railWidth:240,inspectorWidth:300};
 const studioWorkspaceLayoutToggle=key=>{
   if(key==="focus"){
     STUDIO_WORKSPACE_LAYOUT.focus=!STUDIO_WORKSPACE_LAYOUT.focus;
@@ -6721,7 +7023,7 @@ const studioProductionWorkspaceShell=(record,mode)=>{
   return `
     ${studioMutationStatus()}
 
-    <section class="studio-production-workspace${STUDIO_WORKSPACE_LAYOUT.focus?" is-focus":""}${!STUDIO_WORKSPACE_LAYOUT.rail?" is-rail-hidden":""}${!STUDIO_WORKSPACE_LAYOUT.inspector?" is-inspector-hidden":""}${STUDIO_WORKSPACE_LAYOUT.comfortable?" is-comfortable":""}">
+    <section class="studio-production-workspace${STUDIO_WORKSPACE_LAYOUT.focus?" is-focus":""}${!STUDIO_WORKSPACE_LAYOUT.rail?" is-rail-hidden":""}${!STUDIO_WORKSPACE_LAYOUT.inspector?" is-inspector-hidden":""}${STUDIO_WORKSPACE_LAYOUT.comfortable?" is-comfortable":""}" style="--studio-rail-width:${Number(STUDIO_WORKSPACE_LAYOUT.railWidth)}px;--studio-inspector-width:${Number(STUDIO_WORKSPACE_LAYOUT.inspectorWidth)}px">
       <div class="studio-production-workspace-grid">
         <aside class="studio-workspace-rail">
           <div class="studio-workspace-pane">
@@ -7069,9 +7371,8 @@ const studioCreateView=()=>{
         </h2>
 
         <p>
-          This UX pass now has enough intent to hand the work to
-          Nevaeh, Gatekeeper and the Studio runtime without asking you
-          to configure production mechanics yourself.
+          Save this brief as a Studio project. Nevaeh and Gatekeeper
+          will authorize the operation and Studio will create its first scene.
         </p>
 
         <div class="studio-create-ready-summary">
@@ -7104,6 +7405,12 @@ const studioCreateView=()=>{
           :""
         }
 
+        ${ST.createSaveError?`
+          <div class="studio-workspace-empty" role="alert" style="margin:0 auto 18px;max-width:650px">
+            ${E(ST.createSaveError)}
+          </div>
+        `:""}
+
         <div class="studio-create-ready-actions">
           <button
             class="btn"
@@ -7121,12 +7428,16 @@ const studioCreateView=()=>{
             Create something else
           </button>
 
-          <a
-            class="btn p"
-            href="#/studio"
-          >
-            Return to Studio
-          </a>
+          ${ST.createSavedProjectId?`
+            <a class="btn p" href="#/studio">View saved project</a>
+          `:`
+            <button
+              class="btn p"
+              data-a="studioCreateSaveProject"
+              type="button"
+              ${ST.createSaving?"disabled":""}
+            >${ST.createSaving?"Saving project…":"Save project"}</button>
+          `}
         </div>
       </div>
     `;
@@ -9844,6 +10155,44 @@ studioCreateReview:()=>{
   render(1)
 },
 
+studioCreateSaveProject:async()=>{
+  if(ST.createSaving||ST.createSavedProjectId)return;
+  const blueprint=studioCreateBlueprint();
+  const mode=studioCreateStartMode(blueprint);
+  if(!ST.createReady||!blueprint||!mode)return;
+  const name=ST.createName.trim()||`Untitled ${blueprint.name}`;
+  ST.createSaving=true;
+  ST.createSaveError="";
+  render(1);
+  try{
+    const response=await nevaeh.execute({
+      capability:"studio.project.create",
+      payload:{
+        name,
+        description:ST.createBrief.trim(),
+        intent_key:blueprint.key,
+        start_mode_key:mode.key
+      }
+    });
+    const result=response.result||response;
+    if(!result?.project_persisted||!Number(result?.project_id)){
+      throw new Error("Studio did not confirm project persistence");
+    }
+    ST.createSavedProjectId=Number(result.project_id);
+    ST.loaded=false;
+    await A.studioLoad(true);
+    if(!ST.projects.some(project=>Number(project.id)===ST.createSavedProjectId)){
+      throw new Error("Project saved, but the Studio list has not refreshed. Use Refresh Studio; do not save again.");
+    }
+    location.hash="#/studio";
+  }catch(error){
+    ST.createSaveError=error?.message||"Studio could not save the project";
+  }finally{
+    ST.createSaving=false;
+    render(1);
+  }
+},
+
 studioCreateEditBrief:()=>{
   ST.createReady=false;
   render(1)
@@ -9854,6 +10203,39 @@ studioCreateReset:()=>{
   render()
 },
 
+studioWave2ChooseScript:button=>{
+ const i=Number(button.dataset.index);
+ if(!Number.isInteger(i)||i<0||i>=STUDIO_WAVE2_SCRIPT_SCENES.length)return;
+ const draft=document.getElementById("studio-wave2-script-draft");
+ if(draft)STUDIO_WAVE2_STATE.scriptDraft=draft.value;
+ STUDIO_WAVE2_STATE.scriptScene=i; STUDIO_WAVE2_STATE.scriptDraft=""; STUDIO_WAVE2_STATE.beats=[];render(1)
+},
+studioWave2AddBeat:()=>{
+ const draft=document.getElementById("studio-wave2-script-draft");
+ if(draft)STUDIO_WAVE2_STATE.scriptDraft=draft.value;
+ STUDIO_WAVE2_STATE.beats.push("New story beat — preview");render(1)
+},
+studioWave2ClearBeats:()=>{STUDIO_WAVE2_STATE.beats=[];render(1)},
+studioWave2ChooseShot:button=>{const i=Number(button.dataset.index);if(!Number.isInteger(i)||i<0||i>=STUDIO_WAVE2_SHOTS.length)return;STUDIO_WAVE2_STATE.shot=i;render(1)},
+studioWave2NextShot:()=>{STUDIO_WAVE2_STATE.shot=(STUDIO_WAVE2_STATE.shot+1)%STUDIO_WAVE2_SHOTS.length;render(1)},
+studioWave2Mute:button=>{const i=Number(button.dataset.index);if(!Number.isInteger(i)||i<0||i>=STUDIO_WAVE2_TRACKS.length)return;STUDIO_WAVE2_STATE.muted=STUDIO_WAVE2_STATE.muted.includes(i)?STUDIO_WAVE2_STATE.muted.filter(n=>n!==i):[...STUDIO_WAVE2_STATE.muted,i];render(1)},
+studioWave2ResetPlan:()=>{STUDIO_WAVE2_STATE.checks=[];render(1)},
+studioV3Area:button=>{
+ const key=button.dataset.key;
+ if(!STUDIO_V3_AREAS.some(x=>x.key===key))return;
+ STUDIO_V3_STATE.area=key;render(1)
+},
+studioV3Reset:()=>{
+ Object.assign(STUDIO_V3_STATE,{lens:"50 mm",aspect:"2.39:1",intensity:65,temperature:4500,finish:"Satin",rotation:0,duration:3,location:"Soundstage",time:"Golden hour",effect:"Atmospheric haze",strength:35});render(1)
+},
+studioW4Destination:button=>{const key=button.dataset.key;if(!STUDIO_W4_DESTINATIONS.some(x=>x.key===key))return;STUDIO_W4_STATE.destination=key;render(1)},
+studioW4Cue:button=>{const i=Number(button.dataset.index);if(!Number.isInteger(i)||i<0||i>=STUDIO_W4_RUNDOWN.length)return;STUDIO_W4_STATE.activeRundown=i;render(1)},
+studioW4LiveMode:button=>{const mode=button.dataset.mode;if(!["Preview","Program rehearsal"].includes(mode))return;STUDIO_W4_STATE.liveMode=mode;render(1)},
+studioW5Apply:button=>{const preset=studioW5Preset(button.dataset.name);if(preset)studioW5Apply(preset)},
+studioW5Toggle:button=>{const key=button.dataset.key;if(!["rail","inspector","focus","comfortable"].includes(key))return;STUDIO_WORKSPACE_LAYOUT[key]=!STUDIO_WORKSPACE_LAYOUT[key];if(key!=="focus")STUDIO_WORKSPACE_LAYOUT.focus=false;STUDIO_W5_STATE.active="Custom (unsaved)";render(1)},
+studioW5Save:()=>{const name=STUDIO_W5_STATE.draftName.trim();if(!name){STUDIO_W5_STATE.feedback="Enter a name before saving a session preset.";render(1);return}if(STUDIO_W5_BUILTINS.some(p=>p.name.toLowerCase()===name.toLowerCase())){STUDIO_W5_STATE.feedback="That name belongs to a built-in preset.";render(1);return}if(STUDIO_W5_STATE.presets.some(p=>p.name.toLowerCase()===name.toLowerCase())){STUDIO_W5_STATE.feedback="That session preset already exists. Choose another name.";render(1);return}if(STUDIO_W5_STATE.presets.length>=12){STUDIO_W5_STATE.feedback="This preview supports up to 12 custom session presets.";render(1);return}STUDIO_W5_STATE.presets.push({name,...studioW5Snapshot()});STUDIO_W5_STATE.draftName="";STUDIO_W5_STATE.active=name;STUDIO_W5_STATE.feedback=`Saved ${name} for this browser session only.`;render(1)},
+studioW5Remove:button=>{const name=button.dataset.name;STUDIO_W5_STATE.presets=STUDIO_W5_STATE.presets.filter(p=>p.name!==name);if(STUDIO_W5_STATE.active===name)STUDIO_W5_STATE.active="Custom (unsaved)";STUDIO_W5_STATE.feedback=`Removed ${name} from this session.`;render(1)},
+studioW5Reset:()=>studioW5Apply(STUDIO_W5_BUILTINS[0]),
 studioLayoutToggle:button=>{
   studioWorkspaceLayoutToggle(button.dataset.panel||"")
 },
@@ -9877,6 +10259,39 @@ studioWorkspaceMode:button=>{
   render(1)
 },
 
+studioGraphToggle:button=>{
+  const key=button.dataset.key||"";
+  if(STUDIO_GRAPH_UI.closed.has(key))STUDIO_GRAPH_UI.closed.delete(key);
+  else STUDIO_GRAPH_UI.closed.add(key);
+  render(1)
+},
+studioGraphPreview:()=>{
+  STUDIO_GRAPH_UI.preview=!STUDIO_GRAPH_UI.preview;
+  STUDIO_GRAPH_UI.fixtureSelection=null;
+  render(1)
+},
+studioGraphFixture:button=>{
+  STUDIO_GRAPH_UI.fixtureSelection=button.dataset.key;
+  render(1)
+},
+studioGraphVisibility:button=>{
+  const id=Number(button.dataset.id);
+  if(!Number.isFinite(id))return;
+  if(STUDIO_GRAPH_UI.hidden.has(id))STUDIO_GRAPH_UI.hidden.delete(id);
+  else STUDIO_GRAPH_UI.hidden.add(id);
+  render(1)
+},
+studioDirectorPreview:button=>{
+  ST.studioDirectorPreview=button.dataset.key||"continuity";
+  render(1)
+},
+studioDirectorQueuePreview:()=>{
+  const names={continuity:"Continuity review",composition:"Composition pass",production:"Production readiness"};
+  ST.studioDirectorQueue=ST.studioDirectorQueue||[];
+  const name=names[ST.studioDirectorPreview||"continuity"];
+  if(name&&!ST.studioDirectorQueue.includes(name))ST.studioDirectorQueue.push(name);
+  render(1)
+},
 studioSelectObject:button=>{
   ST.selectedObjectId=
     Number(

@@ -269,11 +269,22 @@
       "title": "Template variables and locked configuration UX",
       "phase": "UX Foundation II",
       "area": "Templates",
-      "status": "in_progress",
+      "status": "done",
       "priority": "P0",
       "effort": 4,
       "summary": "Separate the inputs a user swaps from the production configuration Lightek preserves.",
-      "evidence": []
+      "evidence": [
+        "Browser-approved template variables and preserved configuration UX at #/studio/template-config",
+        "Studio proposes a default split between reusable inputs the creator changes and solved production decisions Lightek preserves",
+        "Scene, Fabrication and Production template fixtures each expose four default variable inputs and four default preserved decisions",
+        "Creator can intentionally move decisions between variable and preserved without seeing Blender, runtime or storage mechanics",
+        "Reset Studio suggestion restores the fixture default behavior contract",
+        "Future-use preview shows only the information the creator should need to provide on the next use",
+        "Preserved-production receipt makes hidden reusable knowledge visible without turning it back into repetitive creator work",
+        "Template Maker completion hands directly into template behavior configuration",
+        "STUDIO-105 remains fixture-first with no template persistence, fetch call or Nevaeh execution in the configuration contract",
+        "PWA shell cache advanced to v29 and JavaScript/service-worker syntax checks are green"
+      ]
     },
     {
       "key": "STUDIO-106",

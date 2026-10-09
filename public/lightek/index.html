@@ -1904,6 +1904,364 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
   }
 }
 
+/* STUDIO-105 Template variables + preserved configuration UX */
+.studio-template-config-shell{
+  min-height:calc(100vh - 110px);
+  padding-bottom:90px
+}
+.studio-template-config-hero{
+  padding:46px 0 30px;
+  border-bottom:1px solid var(--ln);
+  background:
+    radial-gradient(circle at 84% 12%,#d6a94a16,transparent 34%),
+    radial-gradient(circle at 15% 92%,#ffffff08,transparent 38%),
+    linear-gradient(180deg,#14110d 0%,var(--bg) 100%)
+}
+.studio-template-config-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:30px;
+  flex-wrap:wrap
+}
+.studio-template-config-head h1{
+  max-width:920px;
+  margin:8px 0 14px;
+  font-size:clamp(40px,6vw,76px);
+  line-height:.94
+}
+.studio-template-config-head p{
+  max-width:760px;
+  color:var(--mu);
+  font-size:15px
+}
+.studio-template-config-body{
+  padding-top:30px
+}
+.studio-template-config-sourcebar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-bottom:26px;
+  padding-bottom:18px;
+  border-bottom:1px solid var(--ln)
+}
+.studio-template-config-sources{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap
+}
+.studio-template-config-source{
+  padding:8px 11px;
+  border:1px solid var(--ln);
+  border-radius:3px;
+  background:transparent;
+  color:var(--mu);
+  font-size:10px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-template-config-source:hover{
+  color:var(--tx);
+  border-color:#ffffff32
+}
+.studio-template-config-source.on{
+  color:var(--gd);
+  border-color:var(--gd);
+  background:#d6a94a0b
+}
+.studio-template-config-sourcebar>p{
+  max-width:510px;
+  color:var(--mu);
+  font-size:12px
+}
+.studio-template-config-overview{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:24px;
+  align-items:end;
+  margin-bottom:22px
+}
+.studio-template-config-overview h2{
+  margin:5px 0 8px;
+  font-size:clamp(28px,4vw,46px)
+}
+.studio-template-config-overview p{
+  max-width:690px;
+  color:var(--mu)
+}
+.studio-template-config-counts{
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap
+}
+.studio-template-config-counts span{
+  color:var(--mu);
+  font-size:9px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-template-config-counts b{
+  display:block;
+  margin-bottom:4px;
+  color:var(--tx);
+  font-size:24px;
+  line-height:1
+}
+.studio-template-config-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:18px
+}
+.studio-template-config-column{
+  overflow:hidden;
+  border:1px solid var(--ln);
+  border-radius:6px;
+  background:var(--s1)
+}
+.studio-template-config-column.preserved{
+  border-color:#d6a94a33;
+  background:
+    linear-gradient(180deg,#d6a94a08,var(--s1))
+}
+.studio-template-config-column-head{
+  padding:20px;
+  border-bottom:1px solid var(--ln)
+}
+.studio-template-config-column-head h3{
+  margin:5px 0 7px;
+  font:400 27px/1.1 Georgia,serif
+}
+.studio-template-config-column-head p{
+  color:var(--mu);
+  font-size:12px;
+  line-height:1.5
+}
+.studio-template-config-list{
+  display:grid
+}
+.studio-template-config-item{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:16px;
+  align-items:start;
+  padding:17px 20px;
+  border-top:1px solid var(--ln)
+}
+.studio-template-config-list .studio-template-config-item:first-child{
+  border-top:0
+}
+.studio-template-config-item h4{
+  margin:0 0 5px;
+  font:600 13px/1.3 system-ui,sans-serif
+}
+.studio-template-config-item p{
+  color:var(--mu);
+  font-size:11px;
+  line-height:1.45
+}
+.studio-template-config-example{
+  display:block;
+  margin-top:8px;
+  color:#d5d1ca;
+  font-size:10px
+}
+.studio-template-config-mode{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  margin-bottom:6px;
+  color:var(--gd);
+  font-size:8px;
+  letter-spacing:.09em;
+  text-transform:uppercase
+}
+.studio-template-config-move{
+  padding:6px 8px;
+  border:1px solid var(--ln);
+  border-radius:3px;
+  background:transparent;
+  color:var(--mu);
+  white-space:nowrap;
+  font-size:9px
+}
+.studio-template-config-move:hover{
+  color:var(--tx);
+  border-color:#d6a94a66
+}
+.studio-template-config-empty{
+  padding:34px 20px;
+  color:var(--mu);
+  text-align:center;
+  font-size:12px
+}
+.studio-template-config-preview{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(300px,390px);
+  gap:18px;
+  margin-top:28px;
+  align-items:start
+}
+.studio-template-config-preview-main,
+.studio-template-config-preview-receipt{
+  border:1px solid var(--ln);
+  border-radius:6px;
+  background:var(--s1);
+  padding:22px
+}
+.studio-template-config-preview-main h3,
+.studio-template-config-preview-receipt h3{
+  margin:6px 0 8px;
+  font:400 25px/1.15 Georgia,serif
+}
+.studio-template-config-preview-main>p,
+.studio-template-config-preview-receipt>p{
+  color:var(--mu);
+  font-size:12px;
+  line-height:1.5
+}
+.studio-template-config-preview-fields{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:18px
+}
+.studio-template-config-preview-field{
+  padding:13px;
+  border:1px solid var(--ln);
+  background:var(--bg)
+}
+.studio-template-config-preview-field small,
+.studio-template-config-preview-field b{
+  display:block
+}
+.studio-template-config-preview-field small{
+  color:var(--mu);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase
+}
+.studio-template-config-preview-field b{
+  margin-top:5px;
+  font-size:12px
+}
+.studio-template-config-preserved-summary{
+  display:grid;
+  gap:8px;
+  margin-top:16px
+}
+.studio-template-config-preserved-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#d3d0ca;
+  font-size:11px
+}
+.studio-template-config-preserved-row span:first-child{
+  color:var(--gd)
+}
+.studio-template-config-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:24px
+}
+.studio-template-config-ready{
+  max-width:900px;
+  margin:0 auto;
+  padding:50px 0 10px;
+  text-align:center
+}
+.studio-template-config-ready-mark{
+  display:grid;
+  place-items:center;
+  width:70px;
+  height:70px;
+  margin:0 auto 20px;
+  border:1px solid var(--gd);
+  border-radius:50%;
+  color:var(--gd);
+  font:400 30px Georgia,serif
+}
+.studio-template-config-ready h2{
+  margin:8px 0 16px;
+  font-size:clamp(34px,5vw,58px);
+  line-height:1
+}
+.studio-template-config-ready>p{
+  max-width:690px;
+  margin:0 auto;
+  color:var(--mu)
+}
+.studio-template-config-ready-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin:28px 0;
+  text-align:left
+}
+.studio-template-config-ready-summary>div{
+  padding:16px;
+  border:1px solid var(--ln);
+  background:var(--s1)
+}
+.studio-template-config-ready-summary small,
+.studio-template-config-ready-summary b{
+  display:block
+}
+.studio-template-config-ready-summary small{
+  color:var(--mu);
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-template-config-ready-summary b{
+  margin-top:4px
+}
+.studio-template-config-ready-note{
+  max-width:720px;
+  margin:0 auto 26px;
+  padding:18px;
+  border:1px solid #d6a94a44;
+  background:#d6a94a09;
+  text-align:left
+}
+.studio-template-config-ready-note small{
+  display:block;
+  color:var(--gd);
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.studio-template-config-ready-note p{
+  margin-top:6px;
+  color:#d4d1cb;
+  font-size:13px
+}
+.studio-template-config-ready-actions{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap
+}
+@media(max-width:980px){
+  .studio-template-config-grid,
+  .studio-template-config-preview{
+    grid-template-columns:1fr
+  }
+}
+@media(max-width:700px){
+  .studio-template-config-overview{
+    grid-template-columns:1fr
+  }
+  .studio-template-config-preview-fields,
+  .studio-template-config-ready-summary{
+    grid-template-columns:1fr
+  }
+}
+
 /* Lightek Studio visual 3D workspace */
 .studio-live-layout{
   display:grid;
@@ -2492,7 +2850,10 @@ const ST={
   templateMakerSourceKey:null,
   templateMakerName:"",
   templateMakerPurpose:"",
-  templateMakerReady:false
+  templateMakerReady:false,
+  templateConfigSourceKey:"scene",
+  templateConfigOverrides:{},
+  templateConfigReady:false
 };
 
 /*
@@ -3059,8 +3420,8 @@ const studioTemplateMakerView=()=>{
 
           <p>
             Studio can now separate what changes each time from what
-            Lightek should preserve. That variable-versus-locked
-            configuration layer belongs to the next Template UX pass.
+            Lightek should preserve — so future uses only ask you for
+            the information that actually changes.
           </p>
         </div>
 
@@ -3081,12 +3442,13 @@ const studioTemplateMakerView=()=>{
             Capture different work
           </button>
 
-          <a
+          <button
             class="btn p"
-            href="#/studio/templates"
+            data-a="studioTemplateConfigFromMaker"
+            type="button"
           >
-            Return to Template Gallery
-          </a>
+            Define what changes →
+          </button>
         </div>
       </div>
     `;
@@ -3295,6 +3657,643 @@ const studioTemplateMakerView=()=>{
 
       <div class="wrap studio-template-maker-body">
         ${body}
+      </div>
+    </div>
+  `
+};
+
+
+/*
+ * STUDIO-105 fixture-first template behavior contract.
+ *
+ * Studio proposes the split:
+ *   variable  = the creator changes it next time
+ *   preserved = Lightek keeps the production decision intact
+ *
+ * The creator can override the proposal without seeing backend/runtime
+ * implementation details. Persistence lands later.
+ */
+const STUDIO_TEMPLATE_CONFIG_FIXTURES=[
+  {
+    key:"scene",
+    label:"Scene template",
+    name:"Memory Chamber Scene",
+    source:"Echo Memory Chamber",
+    purpose:"Reuse the intimate dramatic scene grammar while changing the story-specific material.",
+    decisions:[
+      {
+        key:"cast",
+        label:"Characters",
+        mode:"variable",
+        description:"Swap who is performing in the scene.",
+        example:"Iris + Marcus"
+      },
+      {
+        key:"story_purpose",
+        label:"Scene purpose",
+        mode:"variable",
+        description:"Tell Studio what the new scene must accomplish.",
+        example:"Iris discovers the memory is incomplete."
+      },
+      {
+        key:"dialogue",
+        label:"Script or dialogue",
+        mode:"variable",
+        description:"Bring the words and story beats for this use.",
+        example:"Scene 18 · 3 pages"
+      },
+      {
+        key:"duration",
+        label:"Target duration",
+        mode:"variable",
+        description:"Change the intended length without rebuilding the production grammar.",
+        example:"3–5 minutes"
+      },
+      {
+        key:"camera_relationship",
+        label:"Camera relationship",
+        mode:"preserved",
+        description:"Keep the intimate coverage relationship that made the original scene work.",
+        example:"Performance-first close coverage"
+      },
+      {
+        key:"lighting_intent",
+        label:"Lighting intent",
+        mode:"preserved",
+        description:"Keep the motivated warm-practical dramatic lighting language.",
+        example:"Warm practicals + controlled falloff"
+      },
+      {
+        key:"staging",
+        label:"Staging logic",
+        mode:"preserved",
+        description:"Keep the proven spatial relationship between performance and environment.",
+        example:"Contained two-person chamber staging"
+      },
+      {
+        key:"edit_rhythm",
+        label:"Editorial rhythm",
+        mode:"preserved",
+        description:"Keep the restrained pacing relationship established by the solved scene.",
+        example:"Hold performance before coverage change"
+      }
+    ]
+  },
+  {
+    key:"fabrication",
+    label:"Fabrication template",
+    name:"Hero Character Fabrication",
+    source:"Iris Hero Character",
+    purpose:"Create new hero characters while preserving the production-readiness standard.",
+    decisions:[
+      {
+        key:"identity",
+        label:"Character identity",
+        mode:"variable",
+        description:"Change who the character is.",
+        example:"Name, age, role"
+      },
+      {
+        key:"references",
+        label:"Reference media",
+        mode:"variable",
+        description:"Swap photos, footage or visual references.",
+        example:"Portraits + movement reference"
+      },
+      {
+        key:"appearance",
+        label:"Appearance direction",
+        mode:"variable",
+        description:"Describe the look that belongs to this character.",
+        example:"Hair, wardrobe, distinguishing features"
+      },
+      {
+        key:"performance_need",
+        label:"Performance need",
+        mode:"variable",
+        description:"Tell Studio how this character must perform in production.",
+        example:"Dialogue closeups + restrained movement"
+      },
+      {
+        key:"hero_quality",
+        label:"Hero quality standard",
+        mode:"preserved",
+        description:"Keep the close-performance production standard of the solved character.",
+        example:"Hero-ready closeup quality"
+      },
+      {
+        key:"performance_system",
+        label:"Performance readiness",
+        mode:"preserved",
+        description:"Keep the relationships needed for repeatable character performance.",
+        example:"Face + body performance ready"
+      },
+      {
+        key:"material_response",
+        label:"Look response",
+        mode:"preserved",
+        description:"Keep predictable production response across lighting conditions.",
+        example:"Stable skin, hair and wardrobe response"
+      },
+      {
+        key:"reuse_contract",
+        label:"Reuse contract",
+        mode:"preserved",
+        description:"Keep the character usable across scenes without rebuilding it.",
+        example:"Scene-ready reusable character package"
+      }
+    ]
+  },
+  {
+    key:"production",
+    label:"Production template",
+    name:"Void Echo Episode",
+    source:"Void Echo Episode Setup",
+    purpose:"Start a new episode with the proven production grammar while swapping episode-specific story material.",
+    decisions:[
+      {
+        key:"episode_identity",
+        label:"Episode identity",
+        mode:"variable",
+        description:"Change title, number and episode-specific identity.",
+        example:"Episode 5 · Fracture"
+      },
+      {
+        key:"story_brief",
+        label:"Story brief",
+        mode:"variable",
+        description:"Tell Studio what this episode is about.",
+        example:"The team realizes Echo is changing Iris."
+      },
+      {
+        key:"cast",
+        label:"Cast in this episode",
+        mode:"variable",
+        description:"Swap the characters needed for this installment.",
+        example:"Iris, Marcus, Dr. Vale"
+      },
+      {
+        key:"runtime",
+        label:"Runtime target",
+        mode:"variable",
+        description:"Adjust episode length while retaining the production operating pattern.",
+        example:"45–50 minutes"
+      },
+      {
+        key:"act_rhythm",
+        label:"Story rhythm",
+        mode:"preserved",
+        description:"Keep the established escalation and act cadence of the production.",
+        example:"Slow pressure → rupture → aftermath"
+      },
+      {
+        key:"coverage_grammar",
+        label:"Coverage grammar",
+        mode:"preserved",
+        description:"Keep the camera language that makes the series visually coherent.",
+        example:"Intimate performance + controlled reveals"
+      },
+      {
+        key:"sound_graphics",
+        label:"Sound + graphics language",
+        mode:"preserved",
+        description:"Keep the recognizable production package across episodes.",
+        example:"Echo sound bed + Lightek graphics system"
+      },
+      {
+        key:"delivery_shape",
+        label:"Delivery shape",
+        mode:"preserved",
+        description:"Keep the solved episode structure ready for downstream production.",
+        example:"Episode package + reusable production relationships"
+      }
+    ]
+  }
+];
+
+const studioTemplateConfigFixture=()=>
+  STUDIO_TEMPLATE_CONFIG_FIXTURES.find(
+    fixture=>
+      fixture.key===
+      ST.templateConfigSourceKey
+  )||
+  STUDIO_TEMPLATE_CONFIG_FIXTURES[0];
+
+const studioTemplateConfigOverrideKey=(fixtureKey,decisionKey)=>
+  `${fixtureKey}:${decisionKey}`;
+
+const studioTemplateConfigMode=(fixture,decision)=>{
+  const key=
+    studioTemplateConfigOverrideKey(
+      fixture.key,
+      decision.key
+    );
+
+  return (
+    ST.templateConfigOverrides[key]||
+    decision.mode
+  )
+};
+
+const studioTemplateConfigItems=mode=>{
+  const fixture=
+    studioTemplateConfigFixture();
+
+  return fixture.decisions.filter(
+    decision=>
+      studioTemplateConfigMode(
+        fixture,
+        decision
+      )===mode
+  )
+};
+
+const studioTemplateConfigCounts=()=>{
+  const variables=
+    studioTemplateConfigItems(
+      "variable"
+    ).length;
+
+  const preserved=
+    studioTemplateConfigItems(
+      "preserved"
+    ).length;
+
+  return {
+    variables,
+    preserved,
+    total:variables+preserved
+  }
+};
+
+const studioTemplateConfigColumn=(mode,title,eyebrow,description)=>{
+  const fixture=
+    studioTemplateConfigFixture();
+
+  const items=
+    studioTemplateConfigItems(mode);
+
+  const preserved=
+    mode==="preserved";
+
+  return `
+    <section class="studio-template-config-column ${preserved?"preserved":""}">
+      <div class="studio-template-config-column-head">
+        <span class="eb">
+          ${E(eyebrow)}
+        </span>
+
+        <h3>
+          ${E(title)}
+        </h3>
+
+        <p>
+          ${E(description)}
+        </p>
+      </div>
+
+      <div class="studio-template-config-list">
+        ${items.length
+          ?items.map(decision=>`
+            <div class="studio-template-config-item">
+              <div>
+                <span class="studio-template-config-mode">
+                  ${preserved?"🔒 Preserved":"↻ Variable"}
+                </span>
+
+                <h4>
+                  ${E(decision.label)}
+                </h4>
+
+                <p>
+                  ${E(decision.description)}
+                </p>
+
+                <span class="studio-template-config-example">
+                  Example · ${E(decision.example)}
+                </span>
+              </div>
+
+              <button
+                class="studio-template-config-move"
+                data-a="studioTemplateConfigToggle"
+                data-key="${E(decision.key)}"
+                type="button"
+              >
+                ${preserved?"Make variable":"Preserve"}
+              </button>
+            </div>
+          `).join("")
+          :`
+            <div class="studio-template-config-empty">
+              Nothing is in this side of the template right now.
+            </div>
+          `
+        }
+      </div>
+    </section>
+  `
+};
+
+const studioTemplateConfigPreview=()=>{
+  const variables=
+    studioTemplateConfigItems(
+      "variable"
+    );
+
+  const preserved=
+    studioTemplateConfigItems(
+      "preserved"
+    );
+
+  return `
+    <div class="studio-template-config-preview">
+      <section class="studio-template-config-preview-main">
+        <span class="eb">
+          What you see next time
+        </span>
+
+        <h3>
+          Only the things meant to change.
+        </h3>
+
+        <p>
+          Using this template should feel like giving Studio the new
+          production-specific information — not rebuilding the setup.
+        </p>
+
+        <div class="studio-template-config-preview-fields">
+          ${variables.map(decision=>`
+            <div class="studio-template-config-preview-field">
+              <small>${E(decision.label)}</small>
+              <b>${E(decision.example)}</b>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+
+      <aside class="studio-template-config-preview-receipt">
+        <span class="eb">
+          Lightek keeps working underneath
+        </span>
+
+        <h3>
+          ${preserved.length} production decisions stay intact.
+        </h3>
+
+        <p>
+          They still exist. They simply stop becoming repetitive work for
+          the creator every time the template is used.
+        </p>
+
+        <div class="studio-template-config-preserved-summary">
+          ${preserved.map(decision=>`
+            <div class="studio-template-config-preserved-row">
+              <span>🔒</span>
+              <span>${E(decision.label)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </aside>
+    </div>
+  `
+};
+
+const studioTemplateConfigView=()=>{
+  const fixture=
+    studioTemplateConfigFixture();
+
+  const counts=
+    studioTemplateConfigCounts();
+
+  if(ST.templateConfigReady){
+    return `
+      <div class="studio-template-config-shell">
+        <div class="studio-template-config-hero">
+          <div class="wrap">
+            <div class="studio-template-config-head">
+              <div>
+                <span class="eb">
+                  Lightek Studio · Template behavior
+                </span>
+
+                <h1>
+                  Change what matters.<br>
+                  Keep what worked.
+                </h1>
+              </div>
+
+              <div class="studio-actions">
+                <a
+                  class="btn"
+                  href="#/studio/templates"
+                >
+                  Template Gallery
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="wrap studio-template-config-body">
+          <div class="studio-template-config-ready">
+            <div class="studio-template-config-ready-mark">
+              ✓
+            </div>
+
+            <span class="eb">
+              Template behavior ready
+            </span>
+
+            <h2>
+              The next use gets simpler.
+            </h2>
+
+            <p>
+              Studio now knows which information belongs to each new use
+              and which production decisions should remain stable underneath it.
+            </p>
+
+            <div class="studio-template-config-ready-summary">
+              <div>
+                <small>Template</small>
+                <b>${E(fixture.name)}</b>
+              </div>
+
+              <div>
+                <small>You change</small>
+                <b>${counts.variables} inputs</b>
+              </div>
+
+              <div>
+                <small>Lightek preserves</small>
+                <b>${counts.preserved} decisions</b>
+              </div>
+            </div>
+
+            <div class="studio-template-config-ready-note">
+              <small>Product law applied</small>
+
+              <p>
+                The reusable production knowledge still exists — but the
+                creator only sees the inputs necessary to make the next thing.
+              </p>
+            </div>
+
+            <div class="studio-template-config-ready-actions">
+              <button
+                class="btn"
+                data-a="studioTemplateConfigEdit"
+                type="button"
+              >
+                Edit behavior
+              </button>
+
+              <button
+                class="btn"
+                data-a="studioTemplateConfigReset"
+                type="button"
+              >
+                Reset Studio suggestion
+              </button>
+
+              <a
+                class="btn p"
+                href="#/studio/templates"
+              >
+                Return to Template Gallery
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  return `
+    <div class="studio-template-config-shell">
+      <div class="studio-template-config-hero">
+        <div class="wrap">
+          <div class="studio-template-config-head">
+            <div>
+              <span class="eb">
+                Lightek Studio · Template behavior
+              </span>
+
+              <h1>
+                Change what matters.<br>
+                Keep what worked.
+              </h1>
+
+              <p>
+                Studio proposes the split automatically. You only change
+                it when your reusable intent says something should behave differently.
+              </p>
+            </div>
+
+            <div class="studio-actions">
+              <a
+                class="btn"
+                href="#/studio/template-maker"
+              >
+                Template Maker
+              </a>
+
+              <a
+                class="btn"
+                href="#/studio/templates"
+              >
+                Template Gallery
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wrap studio-template-config-body">
+        <div class="studio-template-config-sourcebar">
+          <div class="studio-template-config-sources">
+            ${STUDIO_TEMPLATE_CONFIG_FIXTURES.map(item=>`
+              <button
+                class="studio-template-config-source ${fixture.key===item.key?"on":""}"
+                data-a="studioTemplateConfigSource"
+                data-key="${E(item.key)}"
+                type="button"
+              >
+                ${E(item.label)}
+              </button>
+            `).join("")}
+          </div>
+
+          <p>
+            Studio begins from a sensible split based on the solved work.
+            Nothing here requires you to understand Blender or runtime internals.
+          </p>
+        </div>
+
+        <div class="studio-template-config-overview">
+          <div>
+            <span class="eb">
+              ${E(fixture.source)}
+            </span>
+
+            <h2>
+              ${E(fixture.name)}
+            </h2>
+
+            <p>
+              ${E(fixture.purpose)}
+            </p>
+          </div>
+
+          <div class="studio-template-config-counts">
+            <span>
+              <b>${counts.variables}</b>
+              You change
+            </span>
+
+            <span>
+              <b>${counts.preserved}</b>
+              Lightek preserves
+            </span>
+          </div>
+        </div>
+
+        <div class="studio-template-config-grid">
+          ${studioTemplateConfigColumn(
+            "variable",
+            "You change each time",
+            "Reusable inputs",
+            "These are the story, identity or production-specific values that should be easy to swap on the next use."
+          )}
+
+          ${studioTemplateConfigColumn(
+            "preserved",
+            "Lightek keeps this",
+            "Preserved production knowledge",
+            "These are the solved production decisions that should stay underneath the template unless you intentionally expose them."
+          )}
+        </div>
+
+        ${studioTemplateConfigPreview()}
+
+        <div class="studio-template-config-actions">
+          <button
+            class="btn"
+            data-a="studioTemplateConfigReset"
+            type="button"
+          >
+            Reset Studio suggestion
+          </button>
+
+          <button
+            class="btn p"
+            data-a="studioTemplateConfigReview"
+            type="button"
+          >
+            Review template behavior
+          </button>
+        </div>
       </div>
     </div>
   `
@@ -5678,6 +6677,10 @@ const studioView=id=>{
     return studioTemplateMakerView()
   }
 
+  if(id==="template-config"){
+    return studioTemplateConfigView()
+  }
+
   const sceneId=
     Number(id||0);
 
@@ -7458,6 +8461,131 @@ space:id=>{
   }
 };
 const A={
+studioTemplateConfigFromMaker:()=>{
+  const source=
+    studioTemplateMakerSource();
+
+  ST.templateConfigSourceKey=
+    source?.key||
+    "scene";
+
+  ST.templateConfigReady=false;
+
+  location.hash=
+    "#/studio/template-config"
+},
+
+studioTemplateConfigSource:button=>{
+  const fixture=
+    STUDIO_TEMPLATE_CONFIG_FIXTURES.find(
+      item=>
+        item.key===
+        button.dataset.key
+    );
+
+  if(!fixture){
+    return
+  }
+
+  ST.templateConfigSourceKey=
+    fixture.key;
+  ST.templateConfigReady=false;
+
+  render(1)
+},
+
+studioTemplateConfigToggle:button=>{
+  const fixture=
+    studioTemplateConfigFixture();
+
+  const decision=
+    fixture.decisions.find(
+      item=>
+        item.key===
+        button.dataset.key
+    );
+
+  if(!decision){
+    return
+  }
+
+  const key=
+    studioTemplateConfigOverrideKey(
+      fixture.key,
+      decision.key
+    );
+
+  const current=
+    studioTemplateConfigMode(
+      fixture,
+      decision
+    );
+
+  ST.templateConfigOverrides={
+    ...ST.templateConfigOverrides,
+    [key]:
+      current==="variable"
+        ?"preserved"
+        :"variable"
+  };
+
+  ST.templateConfigReady=false;
+
+  render(1)
+},
+
+studioTemplateConfigReset:()=>{
+  const fixture=
+    studioTemplateConfigFixture();
+
+  const next={
+    ...ST.templateConfigOverrides
+  };
+
+  fixture.decisions.forEach(
+    decision=>{
+      delete next[
+        studioTemplateConfigOverrideKey(
+          fixture.key,
+          decision.key
+        )
+      ]
+    }
+  );
+
+  ST.templateConfigOverrides=next;
+  ST.templateConfigReady=false;
+
+  render(1)
+},
+
+studioTemplateConfigReview:()=>{
+  const counts=
+    studioTemplateConfigCounts();
+
+  if(!counts.variables){
+    toast(
+      "Expose at least one reusable input"
+    );
+    return
+  }
+
+  if(!counts.preserved){
+    toast(
+      "Preserve at least one solved production decision"
+    );
+    return
+  }
+
+  ST.templateConfigReady=true;
+  render()
+},
+
+studioTemplateConfigEdit:()=>{
+  ST.templateConfigReady=false;
+  render(1)
+},
+
 studioTemplateMakerChooseSource:button=>{
   const source=
     STUDIO_TEMPLATE_MAKER_SOURCES.find(

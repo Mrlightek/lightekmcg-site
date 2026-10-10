@@ -55,6 +55,33 @@ module Studio
         assert_match(/duplicate capabilities/, error.message)
       end
 
+      test "preserves dynamic capability contracts and lifecycle" do
+        definition = source_definition.merge(
+          "version" => "2.1.0", "status" => "published",
+          "intent" => {"examples" => ["Create a series"], "required_inputs" => ["creative_brief"]},
+          "plan" => {"groups" => [
+            {"key" => "development", "tasks" => ["outline"]},
+            {"key" => "design", "depends_on" => ["development"], "tasks" => ["characters", "environments"]}
+          ]},
+          "execution" => {"mode" => "asynchronous", "authority" => "gatekeeper", "max_concurrency" => 3, "retries" => 2},
+          "outputs" => {"editable_scripts" => true}, "review" => {"creative_approval" => true}
+        )
+        result = Compiler.call(source: definition)
+        assert_equal "published", result.fetch("status")
+        assert_equal "2.1.0", result.fetch("version")
+        assert_equal 2, result.dig("plan", "groups").size
+        assert_equal 3, result.dig("execution", "max_concurrency")
+        assert_equal true, result.dig("outputs", "editable_scripts")
+        assert_equal ["creative_brief"], result.dig("intent", "required_inputs")
+      end
+
+      test "rejects malformed execution authority and group dependencies" do
+        definition = source_definition.merge("execution" => {"authority" => "unrestricted"})
+        assert_raises(Compiler::InvalidBlueprint) { Compiler.call(source: definition) }
+        definition = source_definition.merge("plan" => {"groups" => [{"key" => "design", "depends_on" => ["missing"], "tasks" => []}]})
+        assert_raises(Compiler::InvalidBlueprint) { Compiler.call(source: definition) }
+      end
+
       private
 
       def source_definition

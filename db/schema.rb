@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_04_111418) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_10_133000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1168,7 +1168,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_111418) do
     t.index ["kind", "updated_at"], name: "index_lightek_messaging_conversations_on_kind_and_updated_at"
     t.check_constraint "kind::text <> 'group'::text OR title IS NOT NULL AND btrim(title::text) <> ''::text", name: "lightek_messaging_conversations_group_title_check"
     t.check_constraint "kind::text = 'direct'::text AND direct_key IS NOT NULL OR kind::text <> 'direct'::text AND direct_key IS NULL", name: "lightek_messaging_conversations_direct_key_check"
-    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying, 'group'::character varying, 'community'::character varying, 'watch_party'::character varying]::text[])", name: "lightek_messaging_conversations_kind_check"
+    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying::text, 'group'::character varying::text, 'community'::character varying::text, 'watch_party'::character varying::text])", name: "lightek_messaging_conversations_kind_check"
   end
 
   create_table "lightek_messaging_messages", force: :cascade do |t|
@@ -1186,7 +1186,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_111418) do
     t.index ["reply_to_message_id"], name: "index_lightek_messaging_messages_on_reply_to_message_id"
     t.index ["sender_profile_id"], name: "index_lightek_messaging_messages_on_sender_profile_id"
     t.check_constraint "char_length(btrim(body)) > 0", name: "lightek_messaging_messages_body_check"
-    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying, 'system'::character varying]::text[])", name: "lightek_messaging_messages_type_check"
+    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying::text, 'system'::character varying::text])", name: "lightek_messaging_messages_type_check"
   end
 
   create_table "lightek_messaging_participants", force: :cascade do |t|
@@ -1204,7 +1204,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_111418) do
     t.index ["profile_id", "left_at"], name: "idx_lightek_messaging_participants_active"
     t.index ["profile_id"], name: "index_lightek_messaging_participants_on_profile_id"
     t.check_constraint "left_at IS NULL OR left_at >= joined_at", name: "lightek_messaging_participants_left_at_check"
-    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
+    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying::text, 'admin'::character varying::text, 'member'::character varying::text])", name: "lightek_messaging_participants_role_check"
   end
 
   create_table "lightek_pwa_navigation_items", force: :cascade do |t|
@@ -1662,6 +1662,53 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_111418) do
     t.index ["handler"], name: "index_nevaeh_capabilities_on_handler"
     t.index ["intent_name"], name: "index_nevaeh_capabilities_on_intent_name"
     t.index ["slug"], name: "index_nevaeh_capabilities_on_slug", unique: true
+  end
+
+  create_table "nevaeh_intelligences", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "intent_key", null: false
+    t.string "target_model"
+    t.string "operation", null: false
+    t.bigint "nevaeh_capability_id", null: false
+    t.jsonb "instructions", default: {}, null: false
+    t.string "status", default: "draft", null: false
+    t.string "execution_mode", default: "async", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["intent_key"], name: "index_nevaeh_intelligences_on_intent_key", unique: true
+    t.index ["nevaeh_capability_id"], name: "index_nevaeh_intelligences_on_nevaeh_capability_id"
+    t.index ["status"], name: "index_nevaeh_intelligences_on_status"
+  end
+
+  create_table "nevaeh_test_runs", force: :cascade do |t|
+    t.string "run_id", null: false
+    t.string "status", null: false
+    t.string "capability_slug"
+    t.bigint "nevaeh_capability_id"
+    t.bigint "marlon_ticket_id"
+    t.string "correlation_id"
+    t.string "git_sha"
+    t.string "environment"
+    t.integer "exit_status"
+    t.integer "tests_count"
+    t.integer "assertions_count"
+    t.integer "failures_count"
+    t.integer "errors_count"
+    t.integer "skips_count"
+    t.decimal "duration_seconds", precision: 12, scale: 3
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.string "output_sha256", null: false
+    t.string "report_path", null: false
+    t.string "output_path", null: false
+    t.jsonb "report", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["capability_slug", "created_at"], name: "index_nevaeh_test_runs_on_capability_slug_and_created_at"
+    t.index ["correlation_id"], name: "index_nevaeh_test_runs_on_correlation_id"
+    t.index ["marlon_ticket_id"], name: "index_nevaeh_test_runs_on_marlon_ticket_id"
+    t.index ["run_id"], name: "index_nevaeh_test_runs_on_run_id", unique: true
   end
 
   create_table "nevaehs", force: :cascade do |t|
@@ -2225,6 +2272,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_111418) do
   add_foreign_key "marlon_project_type_capability_packs", "marlon_project_types", column: "project_type_id"
   add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
+  add_foreign_key "nevaeh_intelligences", "nevaeh_capabilities"
   add_foreign_key "nevaehs", "users"
   add_foreign_key "posts", "users"
   add_foreign_key "productions", "studio_projects"

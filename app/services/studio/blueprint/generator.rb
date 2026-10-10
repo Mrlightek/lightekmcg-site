@@ -26,6 +26,11 @@ module Studio
           )
         end
 
+        # LIGHTEK-FACTORY-AUTO-REGISTRAR: only register into the running
+        # application's database, never during isolated/temp-root generation.
+        if root.expand_path == Rails.root.expand_path
+          Studio::Blueprint::Registrar.call(blueprint: blueprint)
+        end
         {"blueprint" => blueprint, "artifacts" => artifacts}
       end
 
@@ -189,11 +194,18 @@ module Studio
                 "generated" => true,
                 "surface" => "studio_pwa",
                 "studio_blueprint_key" => #{key.inspect},
-                "provider" => #{blueprint.dig("runtime", "provider").inspect}
+                "provider" => #{blueprint.dig("runtime", "provider").inspect},
+                "blueprint_version" => #{blueprint.fetch("version").inspect},
+                "blueprint_status" => #{blueprint.fetch("status").inspect},
+                "intent" => #{blueprint.fetch("intent").inspect},
+                "plan" => #{blueprint.fetch("plan").inspect},
+                "execution" => #{blueprint.fetch("execution").inspect},
+                "outputs" => #{blueprint.fetch("outputs").inspect},
+                "review" => #{blueprint.fetch("review").inspect}
               },
               knowledge_article_ids: definition.fetch("knowledge_article_ids"),
               event_types: [definition.fetch("event_type")],
-              enabled: #{blueprint.dig("runtime", "enabled").inspect}
+              enabled: #{(blueprint["status"] == "published" && blueprint.dig("runtime", "enabled") == true && blueprint.dig("runtime", "execution_handler").present?).inspect}
             )
 
             capability.save!

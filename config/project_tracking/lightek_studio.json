@@ -7,9 +7,9 @@
     "experience_law": "Intent first. UI/UX first. Templates compress complexity. The PWA is the approachable control surface. Nevaeh is the production intelligence. Gatekeeper is the capability and security boundary. Blender remains the authoritative production runtime.",
     "current_phase": "UX Foundation II",
     "production_floor": {
-      "commit": "58aeed5",
+      "commit": "4744044",
       "status": "green",
-      "description": "Studio-106 production workspace shell and ergonomics deployed through GitHub Actions Deploy Production #61 (success) for 58aeed5d8447e413ff3f69ee036ba63c375907be. Browser verified Studio homepage/create flow; populated workspace acceptance was performed locally."
+      "description": "Studio UI/UX Waves 1–5 committed as 4744044e541b200fdf073f61dfcebd6de7eb3866 and deployed successfully through GitHub Actions Deploy Production #62 (run 37981138091). Gatekeeper verification has not been independently supplied for this release."
     },
     "tracking": {
       "github": {

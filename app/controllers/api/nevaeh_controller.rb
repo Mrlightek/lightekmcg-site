@@ -236,6 +236,9 @@ module Api
         "studio.scene_object.create" =>
           "studio.scene_object.create.requested",
 
+        "studio.project.create" =>
+          "studio.project.create.requested",
+
         "studio.pwa.bootstrap" =>
           "studio.pwa.bootstrap.requested",
 
@@ -337,6 +340,9 @@ module Api
           "transform",
 
         "studio.scene_object.create" =>
+          "create",
+
+        "studio.project.create" =>
           "create",
 
         "studio.pwa.bootstrap" =>

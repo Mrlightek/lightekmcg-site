@@ -8,7 +8,9 @@ module Studio
   module Blueprint
     class Compiler
       SCHEMA_VERSION = 1
-      COMPILER_VERSION = 1
+      COMPILER_VERSION = 2
+      # LIGHTEK-CAPABILITY-V2: declared capability lifecycle and orchestration contracts
+      STATUSES = %w[draft published archived].freeze
       KEY_PATTERN = /\A[a-z][a-z0-9_]*\z/
       CAPABILITY_PATTERN = /\Astudio\.[a-z0-9_.]+\z/
 
@@ -77,9 +79,31 @@ module Studio
         pwa_source = definition.fetch("pwa", {}).to_h.deep_stringify_keys
         gatekeeper_source = definition.fetch("gatekeeper", {}).to_h.deep_stringify_keys
         template_source = definition.fetch("template", {}).to_h.deep_stringify_keys
+        intent_source = definition.fetch("intent", {}).to_h.deep_stringify_keys
+        plan_source = definition.fetch("plan", {}).to_h.deep_stringify_keys
+        execution_source = definition.fetch("execution", {}).to_h.deep_stringify_keys
+        status = definition.fetch("status", "draft").to_s
+
 
         {
           "schema_version" => SCHEMA_VERSION,
+          "version" => definition.fetch("version", "1.0.0").to_s,
+          "status" => status,
+          "intent" => {
+            "examples" => Array(intent_source["examples"]),
+            "required_inputs" => Array(intent_source["required_inputs"]),
+            "optional_inputs" => Array(intent_source["optional_inputs"])
+          }.merge(intent_source),
+          "plan" => {"groups" => Array(plan_source["groups"])}.merge(plan_source),
+          "execution" => {
+            "mode" => execution_source.fetch("mode", "asynchronous"),
+            "authority" => execution_source.fetch("authority", "gatekeeper"),
+            "queue" => execution_source.fetch("queue", runtime_source["queue"].presence || "default"),
+            "max_concurrency" => execution_source.fetch("max_concurrency", 4),
+            "retries" => execution_source.fetch("retries", 1)
+          }.merge(execution_source),
+          "outputs" => definition.fetch("outputs", {}).to_h.deep_stringify_keys,
+          "review" => definition.fetch("review", {}).to_h.deep_stringify_keys,
           "key" => key,
           "name" => name,
           "description" => description,
@@ -158,6 +182,27 @@ module Studio
       end
 
       def validate_compiled!(compiled)
+        invalid!("invalid lifecycle status") unless STATUSES.include?(compiled.fetch("status"))
+        invalid!("version must be semantic version") unless /\A\d+\.\d+\.\d+\z/.match?(compiled.fetch("version"))
+        exec_contract = compiled.fetch("execution")
+        invalid!("execution authority must be gatekeeper") unless exec_contract["authority"] == "gatekeeper"
+        invalid!("execution mode must be asynchronous or synchronous") unless %w[asynchronous synchronous].include?(exec_contract["mode"])
+        invalid!("max_concurrency must be 1..64") unless exec_contract["max_concurrency"].is_a?(Integer) && exec_contract["max_concurrency"].between?(1, 64)
+        invalid!("retries must be 0..10") unless exec_contract["retries"].is_a?(Integer) && exec_contract["retries"].between?(0, 10)
+        groups = Array(compiled.dig("plan", "groups"))
+        keys = groups.map { |group| group.to_h.deep_stringify_keys["key"].to_s }
+        invalid!("invalid task group key") unless keys.all? { |key| KEY_PATTERN.match?(key) }
+        invalid!("duplicate task group keys") unless keys.uniq.size == keys.size
+        known = keys
+        groups.each do |group|
+          group = group.to_h.deep_stringify_keys
+          invalid!("task group tasks must be an array") unless group["tasks"].is_a?(Array)
+          deps = Array(group["depends_on"])
+          invalid!("unknown task group dependency") unless deps.all? { |dep| known.include?(dep) }
+          invalid!("self-dependent task group") if deps.include?(group["key"])
+        end
+        # A group-level plan is data, not executable source. Dispatch validates
+        # active capability/handler bindings at invocation time.
         actions = compiled.fetch("actions")
         duplicate_names = duplicates(actions.map { |a| a.fetch("name") })
         duplicate_caps = duplicates(actions.map { |a| a.fetch("capability") })

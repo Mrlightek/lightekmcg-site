@@ -1,0 +1,76 @@
+#!/usr/bin/env ruby
+# LIGHTEK_NEVAEH_TEST_RECORDER_V1
+# Run: bin/nevaeh-test test/services/foo_test.rb
+# Run entire suite: bin/nevaeh-test
+require "json"
+require "securerandom"
+require "fileutils"
+require "time"
+require "open3"
+require "digest"
+root = File.expand_path("..", __dir__)
+log_root = File.join(root, "tmp", "nevaeh", "test_runs")
+FileUtils.mkdir_p(log_root)
+run_id = "#{Time.now.utc.strftime('%Y%m%dT%H%M%S')}-#{SecureRandom.hex(6)}"
+args = ARGV.dup
+args = ["test"] + args
+# Rails test arguments are always passed as arguments, not interpolated in a shell.
+command = [RbConfig.ruby, File.join(root, "bin", "rails"), *args]
+started = Time.now.utc
+output_path = File.join(log_root, "#{run_id}.log")
+report_path = File.join(log_root, "#{run_id}.json")
+exit_status = nil
+failure = nil
+begin
+  File.open(output_path, "wb") do |log|
+    Open3.popen2e(*command, chdir: root) do |stdin, combined, wait|
+      stdin.close
+      combined.each_line do |line|
+        print line
+        log.write(line)
+        log.flush
+      end
+      exit_status = wait.value.exitstatus || 1
+    end
+  end
+rescue StandardError => e
+  failure = "#{e.class}: #{e.message}"
+  exit_status = 1
+  warn failure
+  File.open(output_path, "ab") { |log| log.write("\nRUNNER_ERROR: #{failure}\n") }
+ensure
+  finished = Time.now.utc
+  contents = File.file?(output_path) ? File.read(output_path, encoding: 'UTF-8', invalid: :replace, undef: :replace) : ''
+  summaries = contents.scan(/(\d+) runs?, (\d+) assertions?, (\d+) failures?, (\d+) errors?, (\d+) skips?/)
+  counts = summaries.last
+  git_sha = begin
+    out, status = Open3.capture2("git", "rev-parse", "HEAD", chdir: root)
+    status.success? ? out.strip : nil
+  rescue StandardError
+    nil
+  end
+  record = {
+    "schema_version" => 1,
+    "run_id" => run_id,
+    "source" => "nevaeh-test",
+    "started_at" => started.iso8601(6),
+    "finished_at" => finished.iso8601(6),
+    "duration_seconds" => (finished - started).round(3),
+    "command" => ["bin/rails", *args],
+    "environment" => ENV.fetch("RAILS_ENV", "test"),
+    "git_sha" => git_sha,
+    "ticket_id" => ENV["NEVAEH_TICKET_ID"],
+    "correlation_id" => ENV["NEVAEH_CORRELATION_ID"],
+    "capability" => ENV["NEVAEH_CAPABILITY"],
+    "exit_status" => exit_status,
+    "status" => exit_status == 0 ? "passed" : "failed",
+    "counts" => counts && Hash[%w[tests assertions failures errors skips].zip(counts.map(&:to_i))],
+    "runner_error" => failure,
+    "output_path" => output_path.sub("#{root}/", ""),
+    "output_sha256" => Digest::SHA256.file(output_path).hexdigest
+  }
+  File.write(report_path, JSON.pretty_generate(record) + "\n")
+  puts "NEVAEH_TEST_REPORT: #{report_path.sub("#{root}/", "")}"
+  puts "NEVAEH_TEST_RUN_ID: #{run_id}"
+end
+exit(exit_status || 1)

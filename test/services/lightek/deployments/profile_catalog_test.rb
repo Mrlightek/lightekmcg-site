@@ -1,8 +1,8 @@
 require "test_helper"
 
 class LightekDeploymentProfileCatalogTest < ActiveSupport::TestCase
-  test "business and media profiles are safe and contain first-run defaults" do
-    %w[business media].each do |name|
+  test "all five PLP profiles are safe and contain first-run defaults" do
+    %w[business social media creator enterprise].each do |name|
       profile = Lightek::Deployments::ProfileCatalog.fetch(name)
       assert_equal name, profile["profile"]
       assert_equal "customer_isolated", profile["mode"]

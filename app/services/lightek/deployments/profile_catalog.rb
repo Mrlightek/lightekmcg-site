@@ -5,7 +5,7 @@ module Lightek
   module Deployments
     class ProfileCatalog
       ROOT = Rails.root.join("config/lightek/deployment_profiles").freeze
-      AVAILABLE = %w[business media].freeze
+      AVAILABLE = %w[business social media creator enterprise].freeze
       REQUIRED_MODULES = %w[cms contact billing community studio streaming].freeze
       REQUIRED_CLIENTS = %w[web ios tvos android_flutter roku].freeze
 
@@ -37,6 +37,9 @@ module Lightek
         pages = data.fetch("defaults").fetch("pages")
         raise ArgumentError, "default pages missing" unless pages.is_a?(Array) && pages.any? { |p| p["slug"] == "home" }
         raise ArgumentError, "duplicate page slugs" unless pages.map { |p| p.fetch("slug") }.uniq.length == pages.length
+        sections = data.fetch("defaults").fetch("sections")
+        raise ArgumentError, "invalid sections" unless sections.is_a?(Array) && sections.all? { |section| section.is_a?(Hash) && pages.any? { |page| page["slug"] == section["page"] } && section["key"].is_a?(String) && !section["key"].empty? }
+        raise ArgumentError, "duplicate section keys" unless sections.map { |section| [section["page"], section["key"]] }.uniq.length == sections.length
         true
       end
     end

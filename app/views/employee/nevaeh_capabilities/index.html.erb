@@ -1,0 +1,14 @@
+<section class="container py-4" aria-label="Nevaeh capability registry">
+  <h1>Nevaeh Capabilities</h1>
+  <p>Read-only capability configuration. Registration does not authorize execution.</p>
+  <p><%= link_to "View JSON", employee_nevaeh_capabilities_path(format: :json) %> · <%= link_to "Trusted services (JSON)", employee_nevaeh_services_path(format: :json) %></p>
+  <% if @capabilities.empty? %>
+    <p>No capability definitions have been saved.</p>
+  <% else %>
+    <ul>
+      <% @capabilities.each do |capability| %>
+        <li><%= link_to capability.fetch("key"), employee_nevaeh_capability_path(key: capability.fetch("key")) %> — <%= capability.fetch("jobs") %> jobs</li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>

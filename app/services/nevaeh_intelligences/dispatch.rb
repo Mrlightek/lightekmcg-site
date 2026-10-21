@@ -4,15 +4,16 @@ module NevaehIntelligences
   class Dispatch
     class Unavailable < StandardError; end
 
-    def self.call(intent_key:, payload: {}, actor: nil, execute: false, correlation_id: nil)
+    def self.call(intent_key:, payload: {}, actor: nil, execute: false, correlation_id: nil, ticket: nil)
       new(intent_key: intent_key, payload: payload, actor: actor,
-          execute: execute, correlation_id: correlation_id).call
+          execute: execute, correlation_id: correlation_id, ticket: ticket).call
     end
 
-    def initialize(intent_key:, payload:, actor:, execute:, correlation_id:)
+    def initialize(intent_key:, payload:, actor:, execute:, correlation_id:, ticket: nil)
       @intent_key = intent_key.to_s
       @payload = payload.to_h.deep_stringify_keys
       @actor = actor
+      @ticket = ticket
       @execute = execute
       @correlation_id = correlation_id || SecureRandom.uuid
     end
@@ -41,9 +42,13 @@ module NevaehIntelligences
       return receipt.merge('status' => 'preview', 'inputs' => @payload) unless @execute
 
       raise Unavailable, 'Authenticated actor is required for execution' unless @actor
+      if @ticket && (!@ticket.is_a?(Marlon::Ticket) || !@ticket.persisted?)
+        raise Unavailable, 'Persisted Marlon ticket required as dispatch subject'
+      end
       request = ::Nevaeh.handle(
         event_type: event_type,
         source: 'nevaeh_intelligence',
+        subject: @ticket,
         actor: @actor,
         payload: @payload,
         capability_hint: capability.slug,

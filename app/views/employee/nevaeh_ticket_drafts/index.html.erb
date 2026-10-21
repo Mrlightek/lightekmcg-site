@@ -1,0 +1,28 @@
+<section style="padding: 1.5rem; max-width: 1080px; margin: auto;">
+  <h1>Nevaeh Ticket Drafts</h1>
+  <p>Review-only ticket / capability pairing. Acceptance criteria are unverified. Generated drafts cannot execute or deploy.</p>
+  <div style="border:1px solid #7775; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+    <h2>Preview a ticket-linked capability</h2>
+    <%= form_with url: employee_nevaeh_ticket_drafts_path, method: :get, local: true do |f| %>
+      <div style="margin-bottom: .75rem;">
+        <%= f.label :ticket_id, 'Persisted Nevaeh ticket ID' %>
+        <%= f.number_field :ticket_id, value: @ticket_id, min: 1, required: true, style: 'display:block; width:100%; padding:.5rem;' %>
+      </div>
+      <div style="margin-bottom: .75rem;">
+        <%= f.label :key, 'Saved capability identifier' %>
+        <%= f.text_field :key, value: @capability_key, required: true, style: 'display:block; width:100%; padding:.5rem;' %>
+      </div>
+      <%= f.submit 'Preview ticket draft' %>
+    <% end %>
+  </div>
+  <% if @preview %>
+    <div style="border:1px solid #7775; border-radius: 12px; padding: 1rem;">
+      <h2>Review-only preview</h2>
+      <p>Ticket: <%= @preview.fetch('tracking_key') %> | Capability: <%= @preview.fetch('capability_key') %></p>
+      <p>Acceptance verified: NO | Gatekeeper approved: NO | Executable: NO</p>
+      <pre style="overflow:auto; max-height:400px;"><%= JSON.pretty_generate(@preview) %></pre>
+      <%= button_to 'Generate isolated inert draft', employee_nevaeh_ticket_drafts_create_path, method: :post, params: { ticket_id: @ticket_id, key: @capability_key }, data: { turbo_confirm: 'Generate inert draft outside the repository?' } %>
+    </div>
+  <% end %>
+  <p style="margin-top:1rem;">Use an existing validated ticket and a disabled YAML capability. Generate requires explicit local opt-in and admin authorization.</p>
+</section>

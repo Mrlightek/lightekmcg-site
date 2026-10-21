@@ -1,0 +1,33 @@
+<section class="nv-draft" aria-label="Nevaeh draft generator">
+  <style>
+    .nv-draft{max-width:1120px;margin:auto;padding:clamp(16px,3vw,36px);color:#e8edf4}
+    .nv-draft .panel{background:#171e28;border:1px solid #344051;border-radius:12px;padding:22px;margin:18px 0}
+    .nv-draft a{color:#35d4e8}.nv-draft label{display:block;margin:12px 0 6px}
+    .nv-draft select,.nv-draft button{padding:10px;border-radius:7px}
+    .nv-draft select{background:#0e1420;color:#fff;border:1px solid #556273;min-width:250px}
+    .nv-draft button{background:#2acbdd;border:0;color:#071923;font-weight:700;cursor:pointer}
+    .nv-draft pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1019;padding:16px;border-radius:8px}
+  </style>
+  <p><%= link_to '← Nevaeh Overview', employee_nevaeh_overview_path %></p>
+  <h1>Isolated Draft Generator</h1>
+  <p>Generated artifacts are inert, disabled and require independent testing and Gatekeeper review. Drafts cannot execute or promote code.</p>
+  <div class="panel">
+    <h2>Preview generation plan</h2>
+    <%= form_with url: employee_nevaeh_generator_path, method: :get do |f| %>
+      <%= f.label :key, 'Saved capability' %>
+      <%= f.select :key, @definitions.map { |row| [row.fetch('key'),row.fetch('key')] }, { include_blank: 'Choose capability', selected: params[:key] } %>
+      <%= f.submit 'Preview only' %>
+    <% end %>
+    <% if @plan %><pre><%= JSON.pretty_generate(@plan) %></pre><% end %>
+  </div>
+  <% if @plan %>
+  <div class="panel">
+    <h2>Generate inert files</h2>
+    <p>Creates a new random directory under the local system temporary directory. No application files are changed.</p>
+    <%= form_with url: employee_nevaeh_generator_create_path, method: :post do |f| %>
+      <%= f.hidden_field :key, value: params[:key] %>
+      <%= f.submit 'Generate isolated draft' %>
+    <% end %>
+  </div>
+  <% end %>
+</section>

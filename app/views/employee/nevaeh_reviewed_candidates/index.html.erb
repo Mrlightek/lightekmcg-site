@@ -1,0 +1,20 @@
+<section style="padding:1.5rem;max-width:1050px;margin:auto">
+  <h1>Nevaeh Reviewed Candidates</h1>
+  <p>Reviewed template: <code>nevaeh.metadata.normalize</code>. Test-only or explicitly opted-in local development; no deployment or approval.</p>
+  <div style="border:1px solid #7775;border-radius:12px;padding:1.25rem">
+    <h2>Preview candidate</h2>
+    <%= form_with url: employee_nevaeh_reviewed_candidates_path, method: :get, local: true do |f| %>
+      <p><%= f.label :ticket_id, 'Validated persisted ticket ID' %><%= f.number_field :ticket_id, min: 1, required: true, value: @ticket_id, style: 'display:block;padding:.5rem;width:100%' %></p>
+      <p><%= f.label :key, 'Disabled YAML capability' %><%= f.select :key, @capabilities.map { |x| [x.fetch('key'), x.fetch('key')] }, { include_blank: 'Choose capability', selected: @key }, { required: true, style: 'display:block;padding:.5rem;width:100%' } %></p>
+      <%= f.submit 'Preview reviewed candidate' %>
+    <% end %>
+  </div>
+  <% if @preview %>
+    <div style="border:1px solid #7775;border-radius:12px;padding:1.25rem;margin-top:1rem">
+      <h2>Review-only result</h2>
+      <pre style="white-space:pre-wrap;overflow-wrap:anywhere"><%= JSON.pretty_generate(@preview) %></pre>
+      <%= button_to 'Generate and verify isolated candidate', employee_nevaeh_reviewed_candidates_create_path, method: :post, params: { ticket_id: @ticket_id, key: @key }, data: { turbo_confirm: 'Generate a reviewed static candidate and run its isolated Active Job test?' } %>
+    </div>
+  <% end %>
+  <p>Ticket acceptance and Gatekeeper approval are NOT verified. Files are never installed into the app.</p>
+</section>

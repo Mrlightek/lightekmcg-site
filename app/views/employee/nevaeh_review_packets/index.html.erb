@@ -1,0 +1,26 @@
+<section style="padding:1.5rem;max-width:1050px;margin:auto">
+  <h1>Nevaeh Acceptance Review Packets</h1>
+  <p>Read-only review proposals. No decision recorded, acceptance granted, ticket closed, or Gatekeeper action authorized.</p>
+  <div style="border:1px solid #7775;border-radius:12px;padding:1.25rem">
+    <%= form_with url: employee_nevaeh_review_packets_path, method: :get, local: true do |f| %>
+      <p><%= f.label :destination, 'Existing reviewed candidate directory' %>
+      <%= f.text_field :destination, value: @destination, placeholder: '/tmp/nevaeh-reviewed-...', required: true, style: 'display:block;padding:.5rem;width:100%' %></p>
+      <%= f.submit 'Prepare read-only review packet' %>
+    <% end %>
+  </div>
+  <% if @packet %>
+    <div style="border:1px solid #7775;border-radius:12px;padding:1.25rem;margin-top:1rem">
+      <h2>Ticket <%= @packet['tracking_key'] %> — review requested</h2>
+      <p>Capability: <%= @packet['capability_key'] %> | Artifact integrity: <%= @packet['artifact_integrity_verified'] ? 'verified' : 'failed' %></p>
+      <p>Mapped pending review: <%= @packet['mapped_pending_review_count'] %>; unverified criteria: <%= @packet['unverified_criteria_count'] %>.</p>
+      <% @packet.fetch('criteria').each do |criterion| %>
+        <article style="border-top:1px solid #7775;padding:.75rem 0">
+          <strong><%= criterion.fetch('criterion_index') %>. <%= criterion.fetch('criterion') %></strong>
+          <p>Status: <%= criterion.fetch('status') %></p>
+        </article>
+      <% end %>
+      <p><strong>Packet fingerprint:</strong> <code><%= @packet['fingerprint'] %></code></p>
+      <p>Independent acceptance: NOT VERIFIED. Gatekeeper approval and deployment: NOT AUTHORIZED.</p>
+    </div>
+  <% end %>
+</section>

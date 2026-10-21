@@ -1,0 +1,40 @@
+<% evidence = NevaehIntelligences::TicketEvidence.new(ticket) %>
+<% if evidence.present? %>
+  <% order = evidence.work_order %>
+  <% state = evidence.state %>
+  <section class="dd-card" aria-label="Nevaeh work order and execution" style="margin-bottom:16px;">
+    <div class="dd-card-title">Nevaeh · Work Order &amp; Execution</div>
+    <p style="font-size:13px;">This view reports saved evidence. Execution requires explicit authorization.</p>
+    <% if order.present? %>
+      <h3 style="font-size:15px;">Assignment</h3>
+      <p><strong>Objective:</strong> <%= order['objective'].presence || 'Not specified' %></p>
+      <p><strong>Work type:</strong> <%= order['work_type'].to_s.upcase %> · <strong>Capability:</strong> <%= order['intent_key'] %></p>
+      <% if order['inputs'].present? %>
+        <details><summary>Inputs</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;"><%= JSON.pretty_generate(order['inputs']) %></pre></details>
+      <% end %>
+      <% if order['acceptance_criteria'].present? %>
+        <strong>Acceptance criteria</strong>
+        <ul><% order['acceptance_criteria'].each do |criterion| %><li><%= criterion %></li><% end %></ul>
+      <% end %>
+      <p><strong>Policy:</strong> <%= order.dig('execution_policy', 'environment') %> / <%= order.dig('execution_policy', 'approval') %></p>
+    <% end %>
+    <% if order.present? && state['work_item_id'].blank? && ticket.status != 'resolved' && can?(:execute_nevaeh, ticket) %>
+      <p style="font-size:12px;">Execution requires employee authorization, an enabled capability, and matching environment. Production execution is blocked pending trusted approval.</p>
+      <%= button_to "Execute Work Order", execute_nevaeh_employee_ticket_path(ticket), method: :post, class: "dd-topbar-btn dd-btn-primary", data: { turbo_confirm: "Execute this Work Order through Nevaeh and Gatekeeper?" } %>
+    <% end %>
+    <h3 style="font-size:15px;">Execution</h3>
+    <p><strong>Ticket execution:</strong> <%= state['execution_status'].presence || 'not dispatched' %></p>
+    <p><strong>Work-item status:</strong> <%= evidence.work_item_status %></p>
+    <% if state['work_item_id'].present? %><p><strong>Work item:</strong> <%= state['work_item_id'] %></p><% end %>
+    <% if state['correlation_id'].present? %><p style="overflow-wrap:anywhere;"><strong>Correlation:</strong> <%= state['correlation_id'] %></p><% end %>
+    <% if state['error'].present? %><p role="alert"><strong>Execution error:</strong> <%= state['error'] %></p><% end %>
+    <% if evidence.verification.present? %>
+      <h3 style="font-size:15px;">Verification evidence</h3>
+      <pre style="white-space:pre-wrap;overflow-wrap:anywhere;"><%= JSON.pretty_generate(evidence.verification) %></pre>
+    <% end %>
+    <% if evidence.dispatch_receipt.present? %>
+      <details><summary>Dispatch receipt</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;"><%= JSON.pretty_generate(evidence.dispatch_receipt) %></pre></details>
+    <% end %>
+    <p style="font-size:12px;">Execution attempts, errors, and resolution events are preserved in the ticket timeline below.</p>
+  </section>
+<% end %>

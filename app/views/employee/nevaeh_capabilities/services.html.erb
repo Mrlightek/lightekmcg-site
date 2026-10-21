@@ -1,0 +1,25 @@
+<section class="container py-4" aria-label="Nevaeh trusted services">
+  <p><%= link_to "Capabilities", employee_nevaeh_capabilities_path %> · <%= link_to "Services JSON", employee_nevaeh_services_path(format: :json) %></p>
+  <h1>Nevaeh Trusted Services</h1>
+  <p class="text-muted">Read-only service catalog. Registration and file presence do not grant execution permission.</p>
+  <% if @services.empty? %>
+    <p>No trusted services have been registered.</p>
+  <% else %>
+    <div class="table-responsive">
+      <table class="table" aria-label="Registered services">
+        <thead><tr><th scope="col">Service</th><th scope="col">File</th><th scope="col">State</th><th scope="col">Review</th><th scope="col">Executable</th></tr></thead>
+        <tbody>
+          <% @services.each do |service| %>
+            <tr>
+              <td><code><%= service.fetch("service") %></code></td>
+              <td><code><%= service.fetch("path") %></code></td>
+              <td><%= service.fetch("state") %></td>
+              <td><%= service.fetch("review") %></td>
+              <td><%= service.fetch("executable") ? "Yes" : "No" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

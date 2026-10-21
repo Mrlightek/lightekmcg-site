@@ -1,0 +1,54 @@
+<section class="nv-config" aria-label="Nevaeh capability configuration">
+  <style>
+    .nv-config{max-width:1120px;margin:0 auto;padding:clamp(16px,3vw,36px);color:#e5eaf0}
+    .nv-config h1{font-size:2rem}.nv-config h2{font-size:1.1rem}.nv-config p{color:#aab5c3}
+    .nv-config .nv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+    .nv-config .nv-card{border:1px solid #334252;border-radius:12px;padding:22px;background:#171e28}
+    .nv-config label{display:block;font-weight:600;margin:12px 0 6px}
+    .nv-config input,.nv-config select{display:block;width:100%;padding:10px;border:1px solid #516276;border-radius:7px;background:#0c111b;color:#fff}
+    .nv-config button{margin-top:18px;padding:11px 18px;border:0;border-radius:7px;background:#22c9db;color:#07141a;font-weight:700;cursor:pointer}
+    .nv-config a{color:#32d7e8}.nv-config code{overflow-wrap:anywhere}.nv-config .nv-note{padding:12px 16px;border-left:3px solid #22c9db;background:#172333;margin:14px 0}
+  </style>
+  <p><%= link_to "← Nevaeh Overview", employee_nevaeh_overview_path %></p>
+  <h1>Capability Configuration</h1>
+  <p>Admin-only YAML drafts. All created capabilities remain disabled. Saving configuration never executes a job.</p>
+  <div class="nv-note">Gatekeeper authorization is still required for any future execution. Production configuration writing is disabled.</div>
+  <div class="nv-grid">
+    <div class="nv-card">
+      <h2>Create capability draft</h2>
+      <%= form_with url: employee_nevaeh_configuration_create_path, method: :post do |f| %>
+        <%= f.label :key, "Capability key" %>
+        <%= f.text_field :key, placeholder: "studio.asset.ingest", required: true %>
+        <%= f.submit "Create disabled draft" %>
+      <% end %>
+    </div>
+    <div class="nv-card">
+      <h2>Add a job</h2>
+      <% if @definitions.empty? %>
+        <p>Create a disabled capability draft before adding jobs.</p>
+      <% else %>
+        <% @definitions.each do |item| %>
+          <h3><%= item.fetch('key') %></h3>
+          <%= form_with url: employee_nevaeh_configuration_job_path(key: item.fetch('key')), method: :post do |f| %>
+            <%= f.label :job_id, "Job ID" %>
+            <%= f.text_field :job_id, placeholder: "validate_upload", required: true %>
+            <%= f.label :service, "Service identifier" %>
+            <%= f.text_field :service, placeholder: "studio.asset.validate", required: true %>
+            <%= f.label :after, "Depends on job IDs (comma-separated)" %>
+            <%= f.text_field :after, placeholder: "validate_upload" %>
+            <%= f.submit "Save disabled job" %>
+          <% end %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+  <div class="nv-card" style="margin-top:18px">
+    <h2>Saved capability definitions</h2>
+    <% if @definitions.empty? %><p>No saved YAML drafts yet.</p><% else %>
+      <ul><% @definitions.each do |item| %>
+        <li><%= link_to item.fetch('key'), employee_nevaeh_capability_path(key: item.fetch('key')) %> — <%= item.fetch('jobs') %> jobs</li>
+      <% end %></ul>
+    <% end %>
+    <p><%= link_to "JSON configuration inventory", employee_nevaeh_configuration_path(format: :json) %></p>
+  </div>
+</section>

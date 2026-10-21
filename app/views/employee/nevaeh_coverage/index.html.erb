@@ -1,0 +1,27 @@
+<section style="padding:1.5rem;max-width:1050px;margin:auto">
+  <h1>Nevaeh Criterion Coverage</h1>
+  <p>Read-only coverage proposals. Evidence links are not independent acceptance, Gatekeeper approval, or production authorization.</p>
+  <div style="border:1px solid #7775;border-radius:12px;padding:1.25rem">
+    <%= form_with url: employee_nevaeh_coverage_path, method: :get, local: true do |f| %>
+      <p><%= f.label :destination, 'Existing isolated reviewed bundle directory' %>
+      <%= f.text_field :destination, value: @destination, placeholder: '/tmp/nevaeh-reviewed-...', required: true, style: 'display:block;padding:.5rem;width:100%' %></p>
+      <%= f.submit 'Audit criterion coverage' %>
+    <% end %>
+  </div>
+  <% if @report %>
+    <div style="border:1px solid #7775;border-radius:12px;padding:1.25rem;margin-top:1rem">
+      <h2>Ticket <%= @report['tracking_key'] %> — coverage review</h2>
+      <p><strong><%= @report['mapped_criteria_count'] %></strong> mapped with test evidence; <strong>0</strong> independently accepted.</p>
+      <% @report.fetch('acceptance_criteria').each do |criterion| %>
+        <article style="border-top:1px solid #7775;padding:.75rem 0">
+          <strong><%= criterion.fetch('criterion_index') %>. <%= criterion.fetch('criterion') %></strong>
+          <p>Status: <%= criterion.fetch('status') %></p>
+          <% criterion.fetch('evidence_links').each do |link| %>
+            <p><%= link.fetch('evidence_type') %>: <%= link.fetch('evidence_result') %></p>
+          <% end %>
+        </article>
+      <% end %>
+      <p>Acceptance remains UNVERIFIED. Approval and deployment are NOT GRANTED.</p>
+    </div>
+  <% end %>
+</section>

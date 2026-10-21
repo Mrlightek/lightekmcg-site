@@ -1,0 +1,18 @@
+<section style="padding:1.5rem;max-width:1050px;margin:auto">
+  <h1>Nevaeh Acceptance Evidence</h1>
+  <p>Read-only report. Passing service or Active Job tests does not establish ticket acceptance or Gatekeeper approval.</p>
+  <div style="border:1px solid #7775;border-radius:12px;padding:1.25rem">
+    <%= form_with url: employee_nevaeh_acceptance_evidence_path, method: :get, local: true do |f| %>
+      <p><%= f.label :destination, 'Existing isolated reviewed bundle directory' %>
+      <%= f.text_field :destination, value: @destination, placeholder: '/tmp/nevaeh-reviewed-...', required: true, style: 'display:block;padding:.5rem;width:100%' %></p>
+      <%= f.submit 'Audit evidence' %>
+    <% end %>
+  </div>
+  <% if @report %>
+    <div style="border:1px solid #7775;border-radius:12px;padding:1.25rem;margin-top:1rem">
+      <h2>Evidence report — <%= @report.fetch('status') %></h2>
+      <p>Ticket acceptance: <strong>UNVERIFIED</strong>. Gatekeeper approval: <strong>NOT GRANTED</strong>.</p>
+      <pre style="white-space:pre-wrap;overflow-wrap:anywhere"><%= JSON.pretty_generate(@report) %></pre>
+    </div>
+  <% end %>
+</section>

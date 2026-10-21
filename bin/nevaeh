@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# No Rails boot, network access, mutation, or dispatch at the CLI foundation stage.
+require_relative "../app/services/nevaeh_intelligences/cli_v7a"
+if ARGV.first == "review-packet"
+  require_relative "../app/services/nevaeh_intelligences/review_packet_command_v7a"
+  exit NevaehIntelligences::ReviewPacketCommandV7a.run(ARGV.drop(1))
+end
+if ARGV.first == "coverage-report"
+  require_relative "../app/services/nevaeh_intelligences/coverage_command_v7a"
+  exit NevaehIntelligences::CoverageCommandV7a.run(ARGV.drop(1))
+end
+if ARGV.first == "acceptance-evidence"
+  require_relative "../app/services/nevaeh_intelligences/acceptance_evidence_command_v7a"
+  exit NevaehIntelligences::AcceptanceEvidenceCommandV7a.run(ARGV.drop(1))
+end
+if ARGV.first == "reviewed-candidate"
+  require_relative "../app/services/nevaeh_intelligences/reviewed_candidate_command_v7a"
+  exit NevaehIntelligences::ReviewedCandidateCommandV7a.run(ARGV.drop(1))
+end
+if ARGV.first == "ticket-draft"
+  require_relative "../app/services/nevaeh_intelligences/ticket_draft_command_v7a"
+  exit NevaehIntelligences::TicketDraftCommandV7a.run(ARGV.drop(1))
+end
+if ARGV.first == "draft"
+  require_relative "../app/services/nevaeh_intelligences/generator_command_v7a"
+  exit NevaehIntelligences::GeneratorCommandV7a.run(ARGV.drop(1))
+end
+exit NevaehIntelligences::CliV7a.run(ARGV)

@@ -1,4 +1,31 @@
 Rails.application.routes.draw do
+  get "/api/studio/capabilities", to: "api/studio/capabilities#index", as: :api_studio_capabilities
+  get "/employee/nevaeh/review_packets", to: "employee/nevaeh_review_packets#index", as: :employee_nevaeh_review_packets
+  get "/employee/nevaeh/coverage", to: "employee/nevaeh_coverage#index", as: :employee_nevaeh_coverage
+  get "/employee/nevaeh/acceptance_evidence", to: "employee/nevaeh_acceptance_evidence#index", as: :employee_nevaeh_acceptance_evidence
+  get "/employee/nevaeh/reviewed_candidates", to: "employee/nevaeh_reviewed_candidates#index", as: :employee_nevaeh_reviewed_candidates
+  post "/employee/nevaeh/reviewed_candidates", to: "employee/nevaeh_reviewed_candidates#create", as: :employee_nevaeh_reviewed_candidates_create
+  get "/employee/nevaeh/ticket_drafts", to: "employee/nevaeh_ticket_drafts#index", as: :employee_nevaeh_ticket_drafts
+  post "/employee/nevaeh/ticket_drafts", to: "employee/nevaeh_ticket_drafts#create", as: :employee_nevaeh_ticket_drafts_create
+
+  # 7A.8L: local draft generator, no promotion or execution.
+  get "/employee/nevaeh/generator", to: "employee/nevaeh_generator#index", as: :employee_nevaeh_generator
+  post "/employee/nevaeh/generator", to: "employee/nevaeh_generator#create", as: :employee_nevaeh_generator_create
+
+# 7A.8J: configuration drafts only; admin authorization and CSRF required.
+get "/employee/nevaeh/config", to: "employee/nevaeh_configuration#index", as: :employee_nevaeh_configuration
+post "/employee/nevaeh/config", to: "employee/nevaeh_configuration#create", as: :employee_nevaeh_configuration_create
+post "/employee/nevaeh/config/:key/jobs", to: "employee/nevaeh_configuration#add_job", as: :employee_nevaeh_configuration_job, constraints: { key: /[a-z][a-z0-9._]*/ }
+
+  # 7A.8I - read-only Nevaeh overview; existing employee auth applies.
+  get "/employee/nevaeh", to: "employee/nevaeh_overview#index", as: :employee_nevaeh_overview
+
+# Phase 7A.8E: read-only capability console; no write or execution routes.
+get "/employee/nevaeh/capabilities", to: "employee/nevaeh_capabilities#index", as: :employee_nevaeh_capabilities
+get "/employee/nevaeh/services", to: "employee/nevaeh_capabilities#services", as: :employee_nevaeh_services
+# Capability keys contain dots; explicitly constrain the key to permit dotted identifiers.
+get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show", as: :employee_nevaeh_capability, constraints: { key: /[a-z0-9][a-z0-9._-]*/ }
+
   resources :departments
   resources :system_jobs
   resources :job_items
@@ -107,7 +134,7 @@ end
 namespace :employee do
     resources :users, only: %i[index new create edit update destroy]
     resources :tickets, only: %i[index show new create] do
-      member { patch :reply; patch :resolve }
+      member { patch :reply; patch :resolve; post :execute_nevaeh }
     end
   root "dashboard#index"
   resources :clients,   only: %i[index show]

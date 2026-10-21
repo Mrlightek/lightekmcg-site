@@ -1,0 +1,12 @@
+<section class="container py-4" aria-label="Nevaeh capability details">
+  <p><%= link_to "Capabilities", employee_nevaeh_capabilities_path %></p>
+  <h1><%= @key %></h1>
+  <p>Read-only capability configuration and reconciliation. Execution disabled.</p>
+  <p><%= link_to "View JSON", employee_nevaeh_capability_path(key: @key, format: :json) %></p>
+  <h2>Jobs</h2>
+  <ul>
+    <% @detail.fetch("reconciliation").fetch("jobs").each do |job| %>
+      <li><strong><%= job.fetch("id") %></strong> — <%= job.fetch("service") %> — <%= job.fetch("state") %> — <%= job.fetch("action") %></li>
+    <% end %>
+  </ul>
+</section>

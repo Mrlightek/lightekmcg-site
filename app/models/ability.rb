@@ -15,6 +15,9 @@ class Ability
 
     elsif user.role == "employee"
       can :read,   :all
+      # Employees may submit and reply to tickets, not resolve or execute work.
+      can :create, Marlon::Ticket
+      can :reply, Marlon::Ticket
       can :manage, :portal        # manage client-facing stuff
       can :manage, :projects
       can :manage, :deliverables

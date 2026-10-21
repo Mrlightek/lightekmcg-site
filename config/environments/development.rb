@@ -18,7 +18,7 @@ config.assume_ssl = false
   # Enable server timing.
   config.server_timing = true
   # config/environments/development.rb
-  config.active_job.queue_adapter = :async
+  config.active_job.queue_adapter = :sidekiq
 
   config.hosts << "community.lightekmcg.com"
 

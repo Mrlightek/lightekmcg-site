@@ -1,0 +1,33 @@
+<section class="nv-console" aria-label="Nevaeh operating system overview">
+  <style>
+    .nv-console{max-width:1250px;margin:0 auto;padding:clamp(18px,3vw,38px);color:#e6eaf2}
+    .nv-console a{color:#33d5ed;text-decoration:none}.nv-console a:hover{text-decoration:underline}
+    .nv-console .nv-muted{color:#a7afc0}.nv-console .nv-eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.73rem;color:#47cddd;font-weight:700}
+    .nv-console h1{font-size:clamp(1.6rem,3vw,2.3rem);margin:8px 0 6px}.nv-console h2{font-size:1.1rem;margin:0 0 12px}
+    .nv-console .nv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px;margin:22px 0}
+    .nv-console .nv-card{border:1px solid #303b49;border-radius:12px;background:#151b25;padding:20px;min-width:0}
+    .nv-console .nv-stat{font-size:2rem;font-weight:800;line-height:1.25;margin-top:8px}
+    .nv-console .nv-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:22px}
+    .nv-console .nv-actions a{display:block;padding:16px;border:1px solid #374353;background:#171e28;border-radius:10px;font-weight:700}
+    .nv-console .nv-note{border-left:3px solid #33d5ed;padding:12px 16px;background:#151e29;margin:20px 0;border-radius:0 8px 8px 0}
+    .nv-console code{overflow-wrap:anywhere;color:#dcf8ff}
+  </style>
+  <div class="nv-eyebrow">Lightek / Nevaeh</div>
+  <h1>Capability Operations</h1>
+  <p class="nv-muted">One read-only overview for configuration, trusted services, jobs, tickets, and documentation.</p>
+  <div class="nv-grid" aria-label="Capability summary">
+    <div class="nv-card"><div class="nv-muted">YAML capabilities</div><div class="nv-stat"><%= @capabilities.size %></div></div>
+    <div class="nv-card"><div class="nv-muted">Registered services</div><div class="nv-stat"><%= @registered_services %></div></div>
+    <div class="nv-card"><div class="nv-muted">Present service files</div><div class="nv-stat"><%= @present_services %></div></div>
+    <div class="nv-card"><div class="nv-muted">Executable catalog entries</div><div class="nv-stat"><%= @executable_services %></div></div>
+  </div>
+  <div class="nv-note"><strong>Execution remains disabled in this console.</strong> YAML registration and file presence are not Gatekeeper authorization.</div>
+  <h2>Explore Nevaeh</h2>
+  <div class="nv-actions" aria-label="Nevaeh navigation">
+    <%= link_to "Capabilities / Configuration →", employee_nevaeh_capabilities_path %>
+    <%= link_to "Trusted Services →", employee_nevaeh_services_path %>
+    <%= link_to "Tickets & Work Orders →", employee_tickets_path %>
+    <%= link_to "JSON system summary →", employee_nevaeh_overview_path(format: :json) %>
+  </div>
+  <p class="nv-muted" style="margin-top:24px">Job execution and knowledge documentation workspaces are planned; links will be added when verified routes exist.</p>
+</section>

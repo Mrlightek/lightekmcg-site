@@ -1,0 +1,33 @@
+schema_version: 1
+profile: media
+product: lightek-site
+mode: customer_isolated
+defaults:
+  site_name: "My Media Network"
+  tagline: "Your stories. Your network."
+  locale: en
+  timezone: UTC
+  pages:
+    - { slug: home, title: Home, published: true }
+    - { slug: about, title: About, published: false }
+    - { slug: contact, title: Contact, published: false }
+  sections:
+    - { page: home, key: hero, title: Welcome, body: "Configure your media destination." }
+modules:
+  cms: true
+  contact: true
+  billing: false
+  community: false
+  studio: false
+  streaming: false
+clients:
+  web: true
+  ios: false
+  tvos: false
+  android_flutter: false
+  roku: false
+security:
+  customer_data_isolated: true
+  inherit_corporate_knowledge: false
+  inherit_platform_secrets: false
+  admin_invite_required: true

@@ -155,6 +155,16 @@ module LightekDesign
         end
         record
       end
+      def destroy!(record:, user:, expected_revision:)
+        record.with_lock do
+          raise ActiveRecord::RecordNotFound unless Permissions.owns?(record, user)
+          check_revision!(record, expected_revision)
+          raise ArgumentError, "This workspace is directly assigned to a website and cannot be deleted." if DymondSite::Site.exists?(active_template_id: record.id)
+          # Releases, site copies and uploaded assets have their own records.
+          record.destroy!
+        end
+        StudioContext.reset
+      end
       def check_revision!(record, expected)
         raise Conflict, "This design changed in another tab. Reload before saving so those changes are preserved." unless Integer(expected.to_s, 10) == revision(record)
       rescue ArgumentError

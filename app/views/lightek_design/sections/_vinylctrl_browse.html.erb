@@ -1,0 +1,117 @@
+<div class="lt-design-vinylctrl" data-design-section="vinylctrl_browse">
+<section class="search-preview section" id="browse">
+<div class="container">
+<div class="search-preview__header">
+<div>
+<div class="section-label reveal"><%= LightekDesign::Catalog.value(section, "text_2", "Talent Marketplace") %></div>
+<h2 class="section-title reveal d1"><%= LightekDesign::Catalog.value(section, "text_3", "Browse") %><br/><em><%= LightekDesign::Catalog.value(section, "text_4", "talent.") %></em></h2>
+</div>
+<p class="reveal d2" style="max-width:340px;font-size:0.95rem;font-weight:300;color:var(--text-secondary);line-height:1.75;align-self:flex-end;"><%= LightekDesign::Catalog.value(section, "text_5", "Every DJ, artist, and performer in one searchable directory. Verified, reviewed, and ready to book.") %></p>
+</div>
+
+<div class="search-bar reveal">
+<input class="search-bar__input" placeholder="Search DJs by name, genre, city..." type="text"/>
+<div class="search-bar__filter"><%= LightekDesign::Catalog.value(section, "text_6", "Genre ▾") %></div>
+<div class="search-bar__filter"><%= LightekDesign::Catalog.value(section, "text_7", "Location ▾") %></div>
+<div class="search-bar__filter"><%= LightekDesign::Catalog.value(section, "text_8", "Rate ▾") %></div>
+<button class="search-bar__btn"><%= LightekDesign::Catalog.value(section, "text_9", "Search") %></button>
+</div>
+
+<div class="genre-tags reveal">
+<span class="genre-tag active"><%= LightekDesign::Catalog.value(section, "text_10", "All") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_11", "Hip-Hop") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_12", "House") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_13", "Afrobeats") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_14", "R&B / Soul") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_15", "Reggaeton") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_16", "Trap") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_17", "EDM") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_18", "Top 40") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_19", "Latin") %></span>
+<span class="genre-tag"><%= LightekDesign::Catalog.value(section, "text_20", "Dancehall") %></span>
+</div>
+
+<div class="dj-grid reveal">
+<div class="dj-card">
+<div class="dj-card__image">
+<div class="dj-card__image-bg dj-img-1" style="height:220px;display:flex;align-items:center;justify-content:center;font-size:3rem;"><%= LightekDesign::Catalog.value(section, "text_21", "🎧") %></div>
+<div class="dj-card__image-overlay"></div>
+<div class="dj-card__available"><%= LightekDesign::Catalog.value(section, "text_22", "Available") %></div>
+<div class="dj-card__overlay"><div class="dj-card__overlay-btn"><%= LightekDesign::Catalog.value(section, "text_23", "View Profile") %></div></div>
+</div>
+<div class="dj-card__body">
+<div class="dj-card__name"><%= LightekDesign::Catalog.value(section, "text_24", "DJ Pressure") %></div>
+<div class="dj-card__meta">
+<span class="dj-card__genre"><%= LightekDesign::Catalog.value(section, "text_25", "Hip-Hop · Trap") %></span>
+<span class="dj-card__location"><%= LightekDesign::Catalog.value(section, "text_26", "📍 Atlanta, GA") %></span>
+</div>
+<div class="dj-card__footer">
+<div class="dj-card__rate"><%= LightekDesign::Catalog.value(section, "text_27", "$400") %><span><%= LightekDesign::Catalog.value(section, "text_28", "/hr") %></span></div>
+<div class="dj-card__rating"><%= LightekDesign::Catalog.value(section, "text_29", "⭐ 4.9 (42)") %></div>
+</div>
+</div>
+</div>
+<div class="dj-card">
+<div class="dj-card__image">
+<div class="dj-card__image-bg dj-img-2" style="height:220px;display:flex;align-items:center;justify-content:center;font-size:3rem;"><%= LightekDesign::Catalog.value(section, "text_30", "🎵") %></div>
+<div class="dj-card__image-overlay"></div>
+<div class="dj-card__available"><%= LightekDesign::Catalog.value(section, "text_31", "Available") %></div>
+<div class="dj-card__overlay"><div class="dj-card__overlay-btn"><%= LightekDesign::Catalog.value(section, "text_32", "View Profile") %></div></div>
+</div>
+<div class="dj-card__body">
+<div class="dj-card__name"><%= LightekDesign::Catalog.value(section, "text_33", "Selekta Irie") %></div>
+<div class="dj-card__meta">
+<span class="dj-card__genre"><%= LightekDesign::Catalog.value(section, "text_34", "Afrobeats · Dancehall") %></span>
+<span class="dj-card__location"><%= LightekDesign::Catalog.value(section, "text_35", "📍 Miami, FL") %></span>
+</div>
+<div class="dj-card__footer">
+<div class="dj-card__rate"><%= LightekDesign::Catalog.value(section, "text_36", "$350") %><span><%= LightekDesign::Catalog.value(section, "text_37", "/hr") %></span></div>
+<div class="dj-card__rating"><%= LightekDesign::Catalog.value(section, "text_38", "⭐ 4.8 (67)") %></div>
+</div>
+</div>
+</div>
+<div class="dj-card">
+<div class="dj-card__image">
+<div class="dj-card__image-bg dj-img-3" style="height:220px;display:flex;align-items:center;justify-content:center;font-size:3rem;"><%= LightekDesign::Catalog.value(section, "text_39", "🎛️") %></div>
+<div class="dj-card__image-overlay"></div>
+<div class="dj-card__available dj-card__available--busy"><%= LightekDesign::Catalog.value(section, "text_40", "Booked") %></div>
+<div class="dj-card__overlay"><div class="dj-card__overlay-btn"><%= LightekDesign::Catalog.value(section, "text_41", "View Profile") %></div></div>
+</div>
+<div class="dj-card__body">
+<div class="dj-card__name"><%= LightekDesign::Catalog.value(section, "text_42", "Nova Sound") %></div>
+<div class="dj-card__meta">
+<span class="dj-card__genre"><%= LightekDesign::Catalog.value(section, "text_43", "House · EDM") %></span>
+<span class="dj-card__location"><%= LightekDesign::Catalog.value(section, "text_44", "📍 New York, NY") %></span>
+</div>
+<div class="dj-card__footer">
+<div class="dj-card__rate"><%= LightekDesign::Catalog.value(section, "text_45", "$600") %><span><%= LightekDesign::Catalog.value(section, "text_46", "/hr") %></span></div>
+<div class="dj-card__rating"><%= LightekDesign::Catalog.value(section, "text_47", "⭐ 5.0 (28)") %></div>
+</div>
+</div>
+</div>
+<div class="dj-card">
+<div class="dj-card__image">
+<div class="dj-card__image-bg dj-img-4" style="height:220px;display:flex;align-items:center;justify-content:center;font-size:3rem;"><%= LightekDesign::Catalog.value(section, "text_48", "🎚️") %></div>
+<div class="dj-card__image-overlay"></div>
+<div class="dj-card__available"><%= LightekDesign::Catalog.value(section, "text_49", "Available") %></div>
+<div class="dj-card__overlay"><div class="dj-card__overlay-btn"><%= LightekDesign::Catalog.value(section, "text_50", "View Profile") %></div></div>
+</div>
+<div class="dj-card__body">
+<div class="dj-card__name"><%= LightekDesign::Catalog.value(section, "text_51", "Lady Frequencies") %></div>
+<div class="dj-card__meta">
+<span class="dj-card__genre"><%= LightekDesign::Catalog.value(section, "text_52", "R&B · Top 40") %></span>
+<span class="dj-card__location"><%= LightekDesign::Catalog.value(section, "text_53", "📍 Houston, TX") %></span>
+</div>
+<div class="dj-card__footer">
+<div class="dj-card__rate"><%= LightekDesign::Catalog.value(section, "text_54", "$300") %><span><%= LightekDesign::Catalog.value(section, "text_55", "/hr") %></span></div>
+<div class="dj-card__rating"><%= LightekDesign::Catalog.value(section, "text_56", "⭐ 4.7 (91)") %></div>
+</div>
+</div>
+</div>
+</div>
+<div class="reveal" style="text-align:center;margin-top:2rem;">
+<a class="btn btn--outline btn--lg" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_1", "#waitlist"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_57", "Join to Access Full Directory") %><span class="btn__arr"><%= LightekDesign::Catalog.value(section, "text_58", "→") %></span></a>
+</div>
+</div>
+</section>
+</div>

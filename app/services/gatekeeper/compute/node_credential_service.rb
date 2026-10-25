@@ -18,7 +18,7 @@ module Gatekeeper
           environment: Rails.env,
           purpose: "node_bootstrap",
           access_policy: {
-            "consumers" => ["Gatekeeper::Compute::ProvisioningExecutionService"],
+            "consumers" => ["Gatekeeper::Compute::ProvisioningExecutionService", "Gatekeeper::WebsiteDeployment"],
             "purposes" => ["provision_node", "node_bootstrap"]
           },
           metadata: {

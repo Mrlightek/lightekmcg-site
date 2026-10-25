@@ -1,0 +1,13 @@
+<li class="lt-nav-item">
+<% if item.children? %>
+  <details class="lt-nav-branch">
+    <summary class="nav__link"><%= item.label %></summary>
+    <ul class="lt-nav-panel">
+      <li class="lt-nav-item"><%= link_to "View #{item.label}", LightekDesign::Catalog.safe_url(item.href), class: "nav__link" %></li>
+      <%= render partial: "lightek_design/navigation_item", collection: item.children, as: :item %>
+    </ul>
+  </details>
+<% else %>
+  <%= link_to item.label, LightekDesign::Catalog.safe_url(item.href), class: "nav__link" %>
+<% end %>
+</li>

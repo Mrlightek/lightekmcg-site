@@ -1,0 +1,13 @@
+{
+  "website_deployment": {
+    "command": "bin/lightek-deploy",
+    "service": "Gatekeeper::WebsiteDeployment",
+    "configuration": "GatekeeperNode.metadata.website_deployments or ProvisioningRequest.metadata.website_deployments",
+    "credential_service": "LightekVault::Service.checkout!",
+    "consumer": "Gatekeeper::WebsiteDeployment",
+    "existing_node_action": "run",
+    "new_instance_action": "provision",
+    "read_only_action": "preview",
+    "acceptance": ["public_https_verified", "owner_login_verified", "website sections present"]
+  }
+}

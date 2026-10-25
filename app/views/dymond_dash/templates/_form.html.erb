@@ -1,0 +1,36 @@
+<%= form_with model: template, url: url, method: method do |f| %>
+  <% if template.errors.any? %>
+    <div class="dd-card" style="border-color:var(--dd-danger);margin-bottom:16px;">
+      <%= template.errors.full_messages.to_sentence %>
+    </div>
+  <% end %>
+  <div class="dd-card" style="display:grid;gap:18px;max-width:640px;">
+    <div>
+      <label style="display:block;font-size:12px;color:var(--dd-text-secondary);margin-bottom:4px;">Name</label>
+      <%= text_field_tag "template[name]", template.name, style: LightekUi::SchemaFormHelper::INP %>
+    </div>
+    <div>
+      <label style="display:block;font-size:12px;color:var(--dd-text-secondary);margin-bottom:4px;">Description</label>
+      <%= text_field_tag "template[description]", template.description, style: LightekUi::SchemaFormHelper::INP %>
+    </div>
+    <% template_schema.each do |group_label, fields| %>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--dd-text-primary);margin-bottom:10px;border-bottom:1px solid var(--dd-border);padding-bottom:6px;">
+          <%= group_label %>
+        </div>
+        <% fields.each do |field| %>
+          <% if %w[font_sans font_heading font_mono].include?(field[:name].to_s) %>
+            <%= render "lightek_design/font_picker", template: template, field: field %>
+          <% else %>
+            <%= ds_field(field, "template", template_field_value(template, field)) %>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+    <div style="display:flex;gap:10px;">
+      <%= f.submit submit_label, style: "background:var(--dd-accent);color:#fff;padding:9px 18px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;" %>
+      <%= link_to "Cancel", dymond_dash.templates_path, style: "padding:9px 18px;color:var(--dd-text-secondary);text-decoration:none;font-size:13px;" %>
+    </div>
+  </div>
+  <%= render "dymond_dash/media/picker" %>
+<% end %>

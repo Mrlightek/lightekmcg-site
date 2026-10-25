@@ -1,0 +1,3 @@
+<% @design.fetch("sections").each do |entry| %>
+  <%= render "lightek_design/sections/#{entry.fetch('kind')}", section: entry.fetch("data") %>
+<% end %>

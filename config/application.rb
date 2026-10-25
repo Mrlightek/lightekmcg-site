@@ -1,4 +1,5 @@
 require_relative "boot"
+require_relative "../lib/lightek/dashboard_boot_sync"
 
 require "rails/all"
 

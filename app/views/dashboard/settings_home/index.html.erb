@@ -1,0 +1,50 @@
+<% content_for :page_title, "Settings" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+<h1>Settings</h1>
+<p class="intro">Choose what you want to change. Each group explains what its settings control.</p>
+<div class="grid">
+<%
+  groups = [
+    ["Website", "Your public website’s name and presentation.", [
+      ["Website name", "Change the name visitors see on your website.", dashboard_website_settings_path, false],
+      ["Website designs & fonts", "Preview client layouts, import editable starter pages and choose fonts visually.", dashboard_website_designs_path, false],
+      ["Pages & content", "Edit pages, sections and published content.", [:dymond_dash, :pages_path], true],
+      ["Website navigation", "Change the links in your website menu.", [:dymond_dash, :navigation_index_path], true],
+      ["Website appearance", "Choose the public website theme.", [:dymond_dash, :site_appearance_index_path], true]]],
+    ["Dashboard & branding", "The name, appearance and regional preferences of your control panel.", [
+      ["Dashboard identity & preferences", "Dashboard name, logo, support email, language and time zone.", dashboard_platform_settings_path, true],
+      ["Dashboard appearance", "Choose the dashboard theme.", [:dymond_dash, :appearance_path], true]]],
+    ["Products & pricing", "The services customers can buy and how they are priced.", [
+      ["Products", "Manage products, checkout offers and delivery options.", [:main_app, :dashboard_marketplace_path], true],
+      ["Subscription plans", "Manage monthly and annual plan prices.", [:main_app, :dashboard_subscription_plans_path], true]]],
+    ["People & access", "Manage the people who use your system.", [
+      ["Users", "Manage user profiles and access roles.", [:main_app, :employee_users_path], true]]],
+    ["Connections & infrastructure", "Advanced settings for connected services and hosting.", [
+      ["Service connections", "Manage existing product delivery connections.", [:main_app, :dashboard_marketplace_connections_path], true],
+      ["Network & domains", "Manage domain records and network access.", [:main_app, :dashboard_network_path], true],
+      ["Compute providers", "Configure connected hosting providers.", [:main_app, :dashboard_compute_providers_path], true],
+      ["Credential vault", "Manage credentials used by authorized services.", [:main_app, :dashboard_vault_path], true]]]
+  ]
+%>
+<% groups.each do |title, description, entries| %>
+  <% links = entries.filter_map do |label, detail, target, privileged|
+    next if privileged && current_user.role != "super_admin"
+    # The engine’s legacy website editors target its first site. Only expose
+    # those shortcuts when the installation has a single site.
+    next if title == "Website" && privileged && DymondSite::Site.count != 1
+    path = if target.is_a?(Array)
+      proxy = target.first == :main_app ? main_app : dymond_dash
+      proxy.public_send(target.last) if proxy.respond_to?(target.last)
+    else
+      target
+    end
+    [label, detail, path] if path
+  end %>
+  <% next if links.empty? %>
+  <section class="card"><h2><%= title %></h2><p><%= description %></p>
+  <% links.each do |label, detail, path| %>
+    <%= link_to path, class: "setting-link" do %><strong><%= label %></strong><small><%= detail %></small><% end %>
+  <% end %></section>
+<% end %>
+</div></main>

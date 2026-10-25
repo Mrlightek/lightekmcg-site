@@ -1,0 +1,3482 @@
+{
+  "vinylctrl": {
+    "name": "VinylCTRL",
+    "description": "Electric underground · nightlife and creative businesses",
+    "fonts": {
+      "font_sans": "Barlow",
+      "font_heading": "Barlow Condensed",
+      "font_mono": "DM Mono"
+    },
+    "tokens": {
+      "color_bg": "#080808",
+      "color_text": "#FFFFFF",
+      "color_primary": "#C8FF00",
+      "color_text_muted": "#999999"
+    },
+    "navigation": {
+      "fields": [
+        {
+          "name": "link_1",
+          "type": "string",
+          "label": "Link: How It Works"
+        },
+        {
+          "name": "link_2",
+          "type": "string",
+          "label": "Link: Features"
+        },
+        {
+          "name": "link_3",
+          "type": "string",
+          "label": "Link: Browse DJs"
+        },
+        {
+          "name": "link_4",
+          "type": "string",
+          "label": "Link: Join Waitlist"
+        },
+        {
+          "name": "link_5",
+          "type": "string",
+          "label": "Link: Log In"
+        },
+        {
+          "name": "link_6",
+          "type": "string",
+          "label": "Link: Join Now"
+        },
+        {
+          "name": "text_7",
+          "type": "string",
+          "label": "Vinyl"
+        },
+        {
+          "name": "text_8",
+          "type": "string",
+          "label": "CTRL"
+        },
+        {
+          "name": "text_9",
+          "type": "string",
+          "label": "How It Works"
+        },
+        {
+          "name": "text_10",
+          "type": "string",
+          "label": "Features"
+        },
+        {
+          "name": "text_11",
+          "type": "string",
+          "label": "Browse DJs"
+        },
+        {
+          "name": "text_12",
+          "type": "string",
+          "label": "Join Waitlist"
+        },
+        {
+          "name": "text_13",
+          "type": "string",
+          "label": "Log In"
+        },
+        {
+          "name": "text_14",
+          "type": "string",
+          "label": "Join Now"
+        }
+      ],
+      "data": {
+        "link_1": "#how",
+        "link_2": "#features",
+        "link_3": "#browse",
+        "link_4": "#waitlist",
+        "link_5": "/session/new",
+        "link_6": "#waitlist",
+        "text_7": "Vinyl",
+        "text_8": "CTRL",
+        "text_9": "How It Works",
+        "text_10": "Features",
+        "text_11": "Browse DJs",
+        "text_12": "Join Waitlist",
+        "text_13": "Log In",
+        "text_14": "Join Now"
+      }
+    },
+    "footer": {
+      "fields": [
+        {
+          "name": "link_1",
+          "type": "string",
+          "label": "Link: 📸"
+        },
+        {
+          "name": "link_2",
+          "type": "string",
+          "label": "Link: 💼"
+        },
+        {
+          "name": "link_3",
+          "type": "string",
+          "label": "Link: 🎵"
+        },
+        {
+          "name": "link_4",
+          "type": "string",
+          "label": "Link: How It Works"
+        },
+        {
+          "name": "link_5",
+          "type": "string",
+          "label": "Link: Features"
+        },
+        {
+          "name": "link_6",
+          "type": "string",
+          "label": "Link: Browse DJs"
+        },
+        {
+          "name": "link_7",
+          "type": "string",
+          "label": "Link: Join Waitlist"
+        },
+        {
+          "name": "link_8",
+          "type": "string",
+          "label": "Link: DJs"
+        },
+        {
+          "name": "link_9",
+          "type": "string",
+          "label": "Link: Artists"
+        },
+        {
+          "name": "link_10",
+          "type": "string",
+          "label": "Link: Venues"
+        },
+        {
+          "name": "link_11",
+          "type": "string",
+          "label": "Link: Event Organizers"
+        },
+        {
+          "name": "link_12",
+          "type": "string",
+          "label": "Link: About"
+        },
+        {
+          "name": "link_13",
+          "type": "string",
+          "label": "Link: Contact"
+        },
+        {
+          "name": "link_14",
+          "type": "string",
+          "label": "Link: Privacy Policy"
+        },
+        {
+          "name": "link_15",
+          "type": "string",
+          "label": "Link: Terms of Service"
+        },
+        {
+          "name": "text_16",
+          "type": "string",
+          "label": "Vinyl"
+        },
+        {
+          "name": "text_17",
+          "type": "string",
+          "label": "CTRL"
+        },
+        {
+          "name": "text_18",
+          "type": "string",
+          "label": "Streamlined gig-matchmaking and booking for the nightlife and hos"
+        },
+        {
+          "name": "text_19",
+          "type": "string",
+          "label": "📸"
+        },
+        {
+          "name": "text_20",
+          "type": "string",
+          "label": "💼"
+        },
+        {
+          "name": "text_21",
+          "type": "string",
+          "label": "🎵"
+        },
+        {
+          "name": "text_22",
+          "type": "string",
+          "label": "Platform"
+        },
+        {
+          "name": "text_23",
+          "type": "string",
+          "label": "How It Works"
+        },
+        {
+          "name": "text_24",
+          "type": "string",
+          "label": "Features"
+        },
+        {
+          "name": "text_25",
+          "type": "string",
+          "label": "Browse DJs"
+        },
+        {
+          "name": "text_26",
+          "type": "string",
+          "label": "Join Waitlist"
+        },
+        {
+          "name": "text_27",
+          "type": "string",
+          "label": "For"
+        },
+        {
+          "name": "text_28",
+          "type": "string",
+          "label": "DJs"
+        },
+        {
+          "name": "text_29",
+          "type": "string",
+          "label": "Artists"
+        },
+        {
+          "name": "text_30",
+          "type": "string",
+          "label": "Venues"
+        },
+        {
+          "name": "text_31",
+          "type": "string",
+          "label": "Event Organizers"
+        },
+        {
+          "name": "text_32",
+          "type": "string",
+          "label": "Company"
+        },
+        {
+          "name": "text_33",
+          "type": "string",
+          "label": "About"
+        },
+        {
+          "name": "text_34",
+          "type": "string",
+          "label": "Contact"
+        },
+        {
+          "name": "text_35",
+          "type": "string",
+          "label": "Privacy Policy"
+        },
+        {
+          "name": "text_36",
+          "type": "string",
+          "label": "Terms of Service"
+        },
+        {
+          "name": "text_37",
+          "type": "string",
+          "label": "© 2025 VinylCTRL. All rights reserved."
+        },
+        {
+          "name": "text_38",
+          "type": "string",
+          "label": "Built for creatives, by creatives. 🎵"
+        }
+      ],
+      "data": {
+        "link_1": "https://www.instagram.com/vinylctrl.app",
+        "link_2": "https://www.linkedin.com/company/vinylctrl/",
+        "link_3": "http://www.tiktok.com/vinylctrl.app",
+        "link_4": "#",
+        "link_5": "#",
+        "link_6": "#",
+        "link_7": "#",
+        "link_8": "#",
+        "link_9": "#",
+        "link_10": "#",
+        "link_11": "#",
+        "link_12": "#",
+        "link_13": "#",
+        "link_14": "#",
+        "link_15": "#",
+        "text_16": "Vinyl",
+        "text_17": "CTRL",
+        "text_18": "Streamlined gig-matchmaking and booking for the nightlife and hospitality industry.",
+        "text_19": "📸",
+        "text_20": "💼",
+        "text_21": "🎵",
+        "text_22": "Platform",
+        "text_23": "How It Works",
+        "text_24": "Features",
+        "text_25": "Browse DJs",
+        "text_26": "Join Waitlist",
+        "text_27": "For",
+        "text_28": "DJs",
+        "text_29": "Artists",
+        "text_30": "Venues",
+        "text_31": "Event Organizers",
+        "text_32": "Company",
+        "text_33": "About",
+        "text_34": "Contact",
+        "text_35": "Privacy Policy",
+        "text_36": "Terms of Service",
+        "text_37": "© 2025 VinylCTRL. All rights reserved.",
+        "text_38": "Built for creatives, by creatives. 🎵"
+      }
+    },
+    "sections": [
+      {
+        "kind": "vinylctrl_home",
+        "title": "Home",
+        "fields": [
+          {
+            "name": "link_1",
+            "type": "string",
+            "label": "Link: Join the Waitlist →"
+          },
+          {
+            "name": "link_2",
+            "type": "string",
+            "label": "Link: How It Works"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "DJs"
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Venues"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "Event Organizers"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "Independent Artists"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "Gig Matching"
+          },
+          {
+            "name": "text_12",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "Contract Management"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_15",
+            "type": "string",
+            "label": "Booking Platform"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "DJs"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "Venues"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "Event Organizers"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_23",
+            "type": "string",
+            "label": "Independent Artists"
+          },
+          {
+            "name": "text_24",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_25",
+            "type": "string",
+            "label": "Gig Matching"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_27",
+            "type": "string",
+            "label": "Contract Management"
+          },
+          {
+            "name": "text_28",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_29",
+            "type": "string",
+            "label": "Booking Platform"
+          },
+          {
+            "name": "text_30",
+            "type": "string",
+            "label": "✦"
+          },
+          {
+            "name": "text_31",
+            "type": "string",
+            "label": "Take"
+          },
+          {
+            "name": "text_32",
+            "type": "string",
+            "label": "CTRL"
+          },
+          {
+            "name": "text_33",
+            "type": "string",
+            "label": "of your gig."
+          },
+          {
+            "name": "text_34",
+            "type": "string",
+            "label": "VinylCTRL"
+          },
+          {
+            "name": "text_35",
+            "type": "text",
+            "label": "is the platform built for the nightlife and hospitality industry."
+          },
+          {
+            "name": "text_36",
+            "type": "string",
+            "label": "Join the Waitlist"
+          },
+          {
+            "name": "text_37",
+            "type": "string",
+            "label": "→"
+          },
+          {
+            "name": "text_38",
+            "type": "string",
+            "label": "How It Works"
+          },
+          {
+            "name": "text_39",
+            "type": "string",
+            "label": "4"
+          },
+          {
+            "name": "text_40",
+            "type": "string",
+            "label": "User Types"
+          },
+          {
+            "name": "text_41",
+            "type": "string",
+            "label": "∞"
+          },
+          {
+            "name": "text_42",
+            "type": "string",
+            "label": "Gig Potential"
+          },
+          {
+            "name": "text_43",
+            "type": "string",
+            "label": "DJs"
+          },
+          {
+            "name": "text_44",
+            "type": "string",
+            "label": "Independent Artists"
+          },
+          {
+            "name": "text_45",
+            "type": "string",
+            "label": "Venues"
+          },
+          {
+            "name": "text_46",
+            "type": "string",
+            "label": "Event Organizers"
+          },
+          {
+            "name": "text_47",
+            "type": "string",
+            "label": "Nightlife Industry"
+          }
+        ],
+        "data": {
+          "link_1": "#waitlist",
+          "link_2": "#how",
+          "text_3": "DJs",
+          "text_4": "✦",
+          "text_5": "Venues",
+          "text_6": "✦",
+          "text_7": "Event Organizers",
+          "text_8": "✦",
+          "text_9": "Independent Artists",
+          "text_10": "✦",
+          "text_11": "Gig Matching",
+          "text_12": "✦",
+          "text_13": "Contract Management",
+          "text_14": "✦",
+          "text_15": "Booking Platform",
+          "text_16": "✦",
+          "text_17": "DJs",
+          "text_18": "✦",
+          "text_19": "Venues",
+          "text_20": "✦",
+          "text_21": "Event Organizers",
+          "text_22": "✦",
+          "text_23": "Independent Artists",
+          "text_24": "✦",
+          "text_25": "Gig Matching",
+          "text_26": "✦",
+          "text_27": "Contract Management",
+          "text_28": "✦",
+          "text_29": "Booking Platform",
+          "text_30": "✦",
+          "text_31": "Take",
+          "text_32": "CTRL",
+          "text_33": "of your gig.",
+          "text_34": "VinylCTRL",
+          "text_35": "is the platform built for the nightlife and hospitality industry. Streamlined gig-matching, bookings, promotion, and contracts — in one place.",
+          "text_36": "Join the Waitlist",
+          "text_37": "→",
+          "text_38": "How It Works",
+          "text_39": "4",
+          "text_40": "User Types",
+          "text_41": "∞",
+          "text_42": "Gig Potential",
+          "text_43": "DJs",
+          "text_44": "Independent Artists",
+          "text_45": "Venues",
+          "text_46": "Event Organizers",
+          "text_47": "Nightlife Industry"
+        }
+      },
+      {
+        "kind": "vinylctrl_how",
+        "title": "How",
+        "fields": [
+          {
+            "name": "text_1",
+            "type": "string",
+            "label": "Process"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "How"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "it works."
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "01"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Create Your Profile"
+          },
+          {
+            "name": "text_6",
+            "type": "text",
+            "label": "Sign up as a DJ, artist, venue, or event organizer. Build your pr"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "02"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "Get Matched"
+          },
+          {
+            "name": "text_9",
+            "type": "text",
+            "label": "Our matchmaking engine connects the right talent to the right gig"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "03"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "Book & Confirm"
+          },
+          {
+            "name": "text_12",
+            "type": "text",
+            "label": "Send and receive booking requests. Negotiate terms, confirm avail"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "04"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "Contracts & Invoices"
+          },
+          {
+            "name": "text_15",
+            "type": "text",
+            "label": "Auto-generate professional contracts and invoices. Get paid, stay"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "Streamlined. Automated. In control."
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "From match to paid — all on VinylCTRL."
+          }
+        ],
+        "data": {
+          "text_1": "Process",
+          "text_2": "How",
+          "text_3": "it works.",
+          "text_4": "01",
+          "text_5": "Create Your Profile",
+          "text_6": "Sign up as a DJ, artist, venue, or event organizer. Build your profile, set your rates, and showcase your work. Your profile is your brand.",
+          "text_7": "02",
+          "text_8": "Get Matched",
+          "text_9": "Our matchmaking engine connects the right talent to the right gig. Search by genre, availability, location, and budget — or let us do it for you.",
+          "text_10": "03",
+          "text_11": "Book & Confirm",
+          "text_12": "Send and receive booking requests. Negotiate terms, confirm availability, and lock it in — all through the platform. No back-and-forth emails.",
+          "text_13": "04",
+          "text_14": "Contracts & Invoices",
+          "text_15": "Auto-generate professional contracts and invoices. Get paid, stay organized, and keep your business running clean.",
+          "text_16": "Streamlined. Automated. In control.",
+          "text_17": "From match to paid — all on VinylCTRL."
+        }
+      },
+      {
+        "kind": "vinylctrl_roles",
+        "title": "Roles",
+        "fields": [
+          {
+            "name": "text_1",
+            "type": "string",
+            "label": "Built For"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "Who takes"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "the stage."
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "01 / DJ"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "🎧"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "DJs"
+          },
+          {
+            "name": "text_7",
+            "type": "text",
+            "label": "Build your profile, set your rates, and get matched to the gigs y"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "Smart gig matchmaking"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "Calendar management"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "Auto-generated contracts"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "Invoice & payment tracking"
+          },
+          {
+            "name": "text_12",
+            "type": "string",
+            "label": "02 / ARTIST"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "🎤"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "Artists"
+          },
+          {
+            "name": "text_15",
+            "type": "text",
+            "label": "Promote your talent, find performance opportunities, and grow you"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "Talent profile & portfolio"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "Event performance booking"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "Auto-marketing features"
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "Collaboration network"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "03 / VENUE"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "🏟️"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "Venues"
+          },
+          {
+            "name": "text_23",
+            "type": "text",
+            "label": "Find the right talent for every night. Browse verified DJs and ar"
+          },
+          {
+            "name": "text_24",
+            "type": "string",
+            "label": "Talent discovery & search"
+          },
+          {
+            "name": "text_25",
+            "type": "string",
+            "label": "Event calendar management"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "Verified profiles only"
+          },
+          {
+            "name": "text_27",
+            "type": "string",
+            "label": "Centralized communication"
+          },
+          {
+            "name": "text_28",
+            "type": "string",
+            "label": "04 / ORGANIZER"
+          },
+          {
+            "name": "text_29",
+            "type": "string",
+            "label": "📋"
+          },
+          {
+            "name": "text_30",
+            "type": "string",
+            "label": "Event Organizers"
+          },
+          {
+            "name": "text_31",
+            "type": "text",
+            "label": "Plan and execute events at scale. Source talent, coordinate logis"
+          },
+          {
+            "name": "text_32",
+            "type": "string",
+            "label": "Multi-event management"
+          },
+          {
+            "name": "text_33",
+            "type": "string",
+            "label": "Talent sourcing at scale"
+          },
+          {
+            "name": "text_34",
+            "type": "string",
+            "label": "Event promotion tools"
+          },
+          {
+            "name": "text_35",
+            "type": "string",
+            "label": "Budget & invoice tracking"
+          }
+        ],
+        "data": {
+          "text_1": "Built For",
+          "text_2": "Who takes",
+          "text_3": "the stage.",
+          "text_4": "01 / DJ",
+          "text_5": "🎧",
+          "text_6": "DJs",
+          "text_7": "Build your profile, set your rates, and get matched to the gigs you actually want. Manage bookings, contracts, and payments without the chaos.",
+          "text_8": "Smart gig matchmaking",
+          "text_9": "Calendar management",
+          "text_10": "Auto-generated contracts",
+          "text_11": "Invoice & payment tracking",
+          "text_12": "02 / ARTIST",
+          "text_13": "🎤",
+          "text_14": "Artists",
+          "text_15": "Promote your talent, find performance opportunities, and grow your audience. VinylCTRL gives independent artists a professional platform to compete.",
+          "text_16": "Talent profile & portfolio",
+          "text_17": "Event performance booking",
+          "text_18": "Auto-marketing features",
+          "text_19": "Collaboration network",
+          "text_20": "03 / VENUE",
+          "text_21": "🏟️",
+          "text_22": "Venues",
+          "text_23": "Find the right talent for every night. Browse verified DJs and artists, manage bookings, and keep your entertainment calendar filled and organized.",
+          "text_24": "Talent discovery & search",
+          "text_25": "Event calendar management",
+          "text_26": "Verified profiles only",
+          "text_27": "Centralized communication",
+          "text_28": "04 / ORGANIZER",
+          "text_29": "📋",
+          "text_30": "Event Organizers",
+          "text_31": "Plan and execute events at scale. Source talent, coordinate logistics, manage multiple bookings, and promote events — without spreadsheets.",
+          "text_32": "Multi-event management",
+          "text_33": "Talent sourcing at scale",
+          "text_34": "Event promotion tools",
+          "text_35": "Budget & invoice tracking"
+        }
+      },
+      {
+        "kind": "vinylctrl_features",
+        "title": "Features",
+        "fields": [
+          {
+            "name": "text_1",
+            "type": "string",
+            "label": "Platform Features"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "Everything"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "in one place."
+          },
+          {
+            "name": "text_4",
+            "type": "text",
+            "label": "No more juggling emails, DMs, spreadsheets, and invoices. VinylCT"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "01 — Booking Management"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "📅"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "Booking & Calendar Management"
+          },
+          {
+            "name": "text_8",
+            "type": "text",
+            "label": "Effortlessly manage all your bookings in one centralized platform"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "02 — Matchmaking"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "🎯"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "Smart Gig Matchmaking"
+          },
+          {
+            "name": "text_12",
+            "type": "text",
+            "label": "Create your profile and get connected to the right gigs. Filter b"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "03 — Marketing"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "📢"
+          },
+          {
+            "name": "text_15",
+            "type": "string",
+            "label": "Auto-Marketing Features"
+          },
+          {
+            "name": "text_16",
+            "type": "text",
+            "label": "Auto-generated marketing assets to boost your event and talent vi"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "04 — Contracts"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "📄"
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "Contract & Invoice Management"
+          },
+          {
+            "name": "text_20",
+            "type": "text",
+            "label": "Generate professional contracts and invoices automatically. Prote"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "05 — Communication"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "💬"
+          },
+          {
+            "name": "text_23",
+            "type": "string",
+            "label": "In-App Messaging"
+          },
+          {
+            "name": "text_24",
+            "type": "text",
+            "label": "All booking communication stays on platform. No lost DMs, no miss"
+          },
+          {
+            "name": "text_25",
+            "type": "string",
+            "label": "06 — Analytics"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "📊"
+          },
+          {
+            "name": "text_27",
+            "type": "string",
+            "label": "Business Analytics"
+          },
+          {
+            "name": "text_28",
+            "type": "text",
+            "label": "Track your earnings, gig history, and growth over time. Make smar"
+          }
+        ],
+        "data": {
+          "text_1": "Platform Features",
+          "text_2": "Everything",
+          "text_3": "in one place.",
+          "text_4": "No more juggling emails, DMs, spreadsheets, and invoices. VinylCTRL handles the business so you can focus on the music.",
+          "text_5": "01 — Booking Management",
+          "text_6": "📅",
+          "text_7": "Booking & Calendar Management",
+          "text_8": "Effortlessly manage all your bookings in one centralized platform. Avoid double-bookings, track upcoming gigs, and stay organized across every event.",
+          "text_9": "02 — Matchmaking",
+          "text_10": "🎯",
+          "text_11": "Smart Gig Matchmaking",
+          "text_12": "Create your profile and get connected to the right gigs. Filter by genre, location, budget, and availability.",
+          "text_13": "03 — Marketing",
+          "text_14": "📢",
+          "text_15": "Auto-Marketing Features",
+          "text_16": "Auto-generated marketing assets to boost your event and talent visibility. Promote without a marketing team.",
+          "text_17": "04 — Contracts",
+          "text_18": "📄",
+          "text_19": "Contract & Invoice Management",
+          "text_20": "Generate professional contracts and invoices automatically. Protect yourself legally and get paid properly.",
+          "text_21": "05 — Communication",
+          "text_22": "💬",
+          "text_23": "In-App Messaging",
+          "text_24": "All booking communication stays on platform. No lost DMs, no missed emails. Every conversation tracked and searchable.",
+          "text_25": "06 — Analytics",
+          "text_26": "📊",
+          "text_27": "Business Analytics",
+          "text_28": "Track your earnings, gig history, and growth over time. Make smarter decisions with real data behind your hustle."
+        }
+      },
+      {
+        "kind": "vinylctrl_browse",
+        "title": "Browse",
+        "fields": [
+          {
+            "name": "link_1",
+            "type": "string",
+            "label": "Link: Join to Access Full Directory →"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "Talent Marketplace"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "Browse"
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "talent."
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Every DJ, artist, and performer in one searchable directory. Veri"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "Genre ▾"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "Location ▾"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "Rate ▾"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "Search"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "All"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "Hip-Hop"
+          },
+          {
+            "name": "text_12",
+            "type": "string",
+            "label": "House"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "Afrobeats"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "R&B / Soul"
+          },
+          {
+            "name": "text_15",
+            "type": "string",
+            "label": "Reggaeton"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "Trap"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "EDM"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "Top 40"
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "Latin"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "Dancehall"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "🎧"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "Available"
+          },
+          {
+            "name": "text_23",
+            "type": "string",
+            "label": "View Profile"
+          },
+          {
+            "name": "text_24",
+            "type": "string",
+            "label": "DJ Pressure"
+          },
+          {
+            "name": "text_25",
+            "type": "string",
+            "label": "Hip-Hop · Trap"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "📍 Atlanta, GA"
+          },
+          {
+            "name": "text_27",
+            "type": "string",
+            "label": "$400"
+          },
+          {
+            "name": "text_28",
+            "type": "string",
+            "label": "/hr"
+          },
+          {
+            "name": "text_29",
+            "type": "string",
+            "label": "⭐ 4.9 (42)"
+          },
+          {
+            "name": "text_30",
+            "type": "string",
+            "label": "🎵"
+          },
+          {
+            "name": "text_31",
+            "type": "string",
+            "label": "Available"
+          },
+          {
+            "name": "text_32",
+            "type": "string",
+            "label": "View Profile"
+          },
+          {
+            "name": "text_33",
+            "type": "string",
+            "label": "Selekta Irie"
+          },
+          {
+            "name": "text_34",
+            "type": "string",
+            "label": "Afrobeats · Dancehall"
+          },
+          {
+            "name": "text_35",
+            "type": "string",
+            "label": "📍 Miami, FL"
+          },
+          {
+            "name": "text_36",
+            "type": "string",
+            "label": "$350"
+          },
+          {
+            "name": "text_37",
+            "type": "string",
+            "label": "/hr"
+          },
+          {
+            "name": "text_38",
+            "type": "string",
+            "label": "⭐ 4.8 (67)"
+          },
+          {
+            "name": "text_39",
+            "type": "string",
+            "label": "🎛️"
+          },
+          {
+            "name": "text_40",
+            "type": "string",
+            "label": "Booked"
+          },
+          {
+            "name": "text_41",
+            "type": "string",
+            "label": "View Profile"
+          },
+          {
+            "name": "text_42",
+            "type": "string",
+            "label": "Nova Sound"
+          },
+          {
+            "name": "text_43",
+            "type": "string",
+            "label": "House · EDM"
+          },
+          {
+            "name": "text_44",
+            "type": "string",
+            "label": "📍 New York, NY"
+          },
+          {
+            "name": "text_45",
+            "type": "string",
+            "label": "$600"
+          },
+          {
+            "name": "text_46",
+            "type": "string",
+            "label": "/hr"
+          },
+          {
+            "name": "text_47",
+            "type": "string",
+            "label": "⭐ 5.0 (28)"
+          },
+          {
+            "name": "text_48",
+            "type": "string",
+            "label": "🎚️"
+          },
+          {
+            "name": "text_49",
+            "type": "string",
+            "label": "Available"
+          },
+          {
+            "name": "text_50",
+            "type": "string",
+            "label": "View Profile"
+          },
+          {
+            "name": "text_51",
+            "type": "string",
+            "label": "Lady Frequencies"
+          },
+          {
+            "name": "text_52",
+            "type": "string",
+            "label": "R&B · Top 40"
+          },
+          {
+            "name": "text_53",
+            "type": "string",
+            "label": "📍 Houston, TX"
+          },
+          {
+            "name": "text_54",
+            "type": "string",
+            "label": "$300"
+          },
+          {
+            "name": "text_55",
+            "type": "string",
+            "label": "/hr"
+          },
+          {
+            "name": "text_56",
+            "type": "string",
+            "label": "⭐ 4.7 (91)"
+          },
+          {
+            "name": "text_57",
+            "type": "string",
+            "label": "Join to Access Full Directory"
+          },
+          {
+            "name": "text_58",
+            "type": "string",
+            "label": "→"
+          }
+        ],
+        "data": {
+          "link_1": "#waitlist",
+          "text_2": "Talent Marketplace",
+          "text_3": "Browse",
+          "text_4": "talent.",
+          "text_5": "Every DJ, artist, and performer in one searchable directory. Verified, reviewed, and ready to book.",
+          "text_6": "Genre ▾",
+          "text_7": "Location ▾",
+          "text_8": "Rate ▾",
+          "text_9": "Search",
+          "text_10": "All",
+          "text_11": "Hip-Hop",
+          "text_12": "House",
+          "text_13": "Afrobeats",
+          "text_14": "R&B / Soul",
+          "text_15": "Reggaeton",
+          "text_16": "Trap",
+          "text_17": "EDM",
+          "text_18": "Top 40",
+          "text_19": "Latin",
+          "text_20": "Dancehall",
+          "text_21": "🎧",
+          "text_22": "Available",
+          "text_23": "View Profile",
+          "text_24": "DJ Pressure",
+          "text_25": "Hip-Hop · Trap",
+          "text_26": "📍 Atlanta, GA",
+          "text_27": "$400",
+          "text_28": "/hr",
+          "text_29": "⭐ 4.9 (42)",
+          "text_30": "🎵",
+          "text_31": "Available",
+          "text_32": "View Profile",
+          "text_33": "Selekta Irie",
+          "text_34": "Afrobeats · Dancehall",
+          "text_35": "📍 Miami, FL",
+          "text_36": "$350",
+          "text_37": "/hr",
+          "text_38": "⭐ 4.8 (67)",
+          "text_39": "🎛️",
+          "text_40": "Booked",
+          "text_41": "View Profile",
+          "text_42": "Nova Sound",
+          "text_43": "House · EDM",
+          "text_44": "📍 New York, NY",
+          "text_45": "$600",
+          "text_46": "/hr",
+          "text_47": "⭐ 5.0 (28)",
+          "text_48": "🎚️",
+          "text_49": "Available",
+          "text_50": "View Profile",
+          "text_51": "Lady Frequencies",
+          "text_52": "R&B · Top 40",
+          "text_53": "📍 Houston, TX",
+          "text_54": "$300",
+          "text_55": "/hr",
+          "text_56": "⭐ 4.7 (91)",
+          "text_57": "Join to Access Full Directory",
+          "text_58": "→"
+        }
+      },
+      {
+        "kind": "vinylctrl_quotes",
+        "title": "Quotes",
+        "fields": [
+          {
+            "name": "text_1",
+            "type": "string",
+            "label": "From The Community"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "Real talk,"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "real results."
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "\""
+          },
+          {
+            "name": "text_5",
+            "type": "text",
+            "label": "VinylCTRL changed how I run my business. I used to miss gigs beca"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "DJ"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "DJ Marcus Webb"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "DJ · Chicago, IL"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "\""
+          },
+          {
+            "name": "text_10",
+            "type": "text",
+            "label": "Finding reliable DJ talent used to take days of back-and-forth. N"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "VN"
+          },
+          {
+            "name": "text_12",
+            "type": "string",
+            "label": "Maya Torres"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "Venue Manager · Miami, FL"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "\""
+          },
+          {
+            "name": "text_15",
+            "type": "text",
+            "label": "As an independent artist I always felt invisible. VinylCTRL gave "
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "KA"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "Kezia Amara"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "Artist · Atlanta, GA"
+          }
+        ],
+        "data": {
+          "text_1": "From The Community",
+          "text_2": "Real talk,",
+          "text_3": "real results.",
+          "text_4": "\"",
+          "text_5": "VinylCTRL changed how I run my business. I used to miss gigs because of scheduling conflicts. Now my whole calendar is automated. I'm booking more and stressing less.",
+          "text_6": "DJ",
+          "text_7": "DJ Marcus Webb",
+          "text_8": "DJ · Chicago, IL",
+          "text_9": "\"",
+          "text_10": "Finding reliable DJ talent used to take days of back-and-forth. Now I post a gig, get matched in minutes, and the contract is handled automatically. This is exactly what venues needed.",
+          "text_11": "VN",
+          "text_12": "Maya Torres",
+          "text_13": "Venue Manager · Miami, FL",
+          "text_14": "\"",
+          "text_15": "As an independent artist I always felt invisible. VinylCTRL gave me the same professional tools the big names have. My bookings have tripled and I finally feel like I'm running a real business.",
+          "text_16": "KA",
+          "text_17": "Kezia Amara",
+          "text_18": "Artist · Atlanta, GA"
+        }
+      },
+      {
+        "kind": "vinylctrl_waitlist",
+        "title": "Waitlist",
+        "fields": [
+          {
+            "name": "link_1",
+            "type": "string",
+            "label": "Link: 📸"
+          },
+          {
+            "name": "link_2",
+            "type": "string",
+            "label": "Link: 💼"
+          },
+          {
+            "name": "link_3",
+            "type": "string",
+            "label": "Link: 🎵"
+          },
+          {
+            "name": "link_4",
+            "type": "string",
+            "label": "Link: How It Works"
+          },
+          {
+            "name": "link_5",
+            "type": "string",
+            "label": "Link: Features"
+          },
+          {
+            "name": "link_6",
+            "type": "string",
+            "label": "Link: Browse DJs"
+          },
+          {
+            "name": "link_7",
+            "type": "string",
+            "label": "Link: Join Waitlist"
+          },
+          {
+            "name": "link_8",
+            "type": "string",
+            "label": "Link: DJs"
+          },
+          {
+            "name": "link_9",
+            "type": "string",
+            "label": "Link: Artists"
+          },
+          {
+            "name": "link_10",
+            "type": "string",
+            "label": "Link: Venues"
+          },
+          {
+            "name": "link_11",
+            "type": "string",
+            "label": "Link: Event Organizers"
+          },
+          {
+            "name": "link_12",
+            "type": "string",
+            "label": "Link: About"
+          },
+          {
+            "name": "link_13",
+            "type": "string",
+            "label": "Link: Contact"
+          },
+          {
+            "name": "link_14",
+            "type": "string",
+            "label": "Link: Privacy Policy"
+          },
+          {
+            "name": "link_15",
+            "type": "string",
+            "label": "Link: Terms of Service"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "Limited Early Access"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "Join the"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "Waitlist."
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "Get Early Access →"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "No spam. No credit card. Just early access to the platform built "
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "Vinyl"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "CTRL"
+          },
+          {
+            "name": "text_23",
+            "type": "string",
+            "label": "Streamlined gig-matchmaking and booking for the nightlife and hos"
+          },
+          {
+            "name": "text_24",
+            "type": "string",
+            "label": "📸"
+          },
+          {
+            "name": "text_25",
+            "type": "string",
+            "label": "💼"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "🎵"
+          },
+          {
+            "name": "text_27",
+            "type": "string",
+            "label": "Platform"
+          },
+          {
+            "name": "text_28",
+            "type": "string",
+            "label": "How It Works"
+          },
+          {
+            "name": "text_29",
+            "type": "string",
+            "label": "Features"
+          },
+          {
+            "name": "text_30",
+            "type": "string",
+            "label": "Browse DJs"
+          },
+          {
+            "name": "text_31",
+            "type": "string",
+            "label": "Join Waitlist"
+          },
+          {
+            "name": "text_32",
+            "type": "string",
+            "label": "For"
+          },
+          {
+            "name": "text_33",
+            "type": "string",
+            "label": "DJs"
+          },
+          {
+            "name": "text_34",
+            "type": "string",
+            "label": "Artists"
+          },
+          {
+            "name": "text_35",
+            "type": "string",
+            "label": "Venues"
+          },
+          {
+            "name": "text_36",
+            "type": "string",
+            "label": "Event Organizers"
+          },
+          {
+            "name": "text_37",
+            "type": "string",
+            "label": "Company"
+          },
+          {
+            "name": "text_38",
+            "type": "string",
+            "label": "About"
+          },
+          {
+            "name": "text_39",
+            "type": "string",
+            "label": "Contact"
+          },
+          {
+            "name": "text_40",
+            "type": "string",
+            "label": "Privacy Policy"
+          },
+          {
+            "name": "text_41",
+            "type": "string",
+            "label": "Terms of Service"
+          },
+          {
+            "name": "text_42",
+            "type": "string",
+            "label": "© 2025 VinylCTRL. All rights reserved."
+          },
+          {
+            "name": "text_43",
+            "type": "string",
+            "label": "Built for creatives, by creatives. 🎵"
+          }
+        ],
+        "data": {
+          "link_1": "https://www.instagram.com/vinylctrl.app",
+          "link_2": "https://www.linkedin.com/company/vinylctrl/",
+          "link_3": "http://www.tiktok.com/vinylctrl.app",
+          "link_4": "#",
+          "link_5": "#",
+          "link_6": "#",
+          "link_7": "#",
+          "link_8": "#",
+          "link_9": "#",
+          "link_10": "#",
+          "link_11": "#",
+          "link_12": "#",
+          "link_13": "#",
+          "link_14": "#",
+          "link_15": "#",
+          "text_16": "Limited Early Access",
+          "text_17": "Join the",
+          "text_18": "Waitlist.",
+          "text_19": "Get Early Access →",
+          "text_20": "No spam. No credit card. Just early access to the platform built for the culture.",
+          "text_21": "Vinyl",
+          "text_22": "CTRL",
+          "text_23": "Streamlined gig-matchmaking and booking for the nightlife and hospitality industry.",
+          "text_24": "📸",
+          "text_25": "💼",
+          "text_26": "🎵",
+          "text_27": "Platform",
+          "text_28": "How It Works",
+          "text_29": "Features",
+          "text_30": "Browse DJs",
+          "text_31": "Join Waitlist",
+          "text_32": "For",
+          "text_33": "DJs",
+          "text_34": "Artists",
+          "text_35": "Venues",
+          "text_36": "Event Organizers",
+          "text_37": "Company",
+          "text_38": "About",
+          "text_39": "Contact",
+          "text_40": "Privacy Policy",
+          "text_41": "Terms of Service",
+          "text_42": "© 2025 VinylCTRL. All rights reserved.",
+          "text_43": "Built for creatives, by creatives. 🎵"
+        }
+      }
+    ]
+  },
+  "ybnc": {
+    "name": "YBNC",
+    "description": "Movement editorial · community and nonprofit organizations",
+    "fonts": {
+      "font_sans": "Source Serif 4",
+      "font_heading": "Syne",
+      "font_mono": "DM Mono"
+    },
+    "tokens": {
+      "color_bg": "#0A0A0A",
+      "color_text": "#F5F0E8",
+      "color_primary": "#B91C1C",
+      "color_text_muted": "#9A9488"
+    },
+    "navigation": {
+      "fields": [
+        {
+          "name": "link_1",
+          "type": "string",
+          "label": "Link: YBNC Young Black Nameless Coalition"
+        },
+        {
+          "name": "link_2",
+          "type": "string",
+          "label": "Link: Mission"
+        },
+        {
+          "name": "link_3",
+          "type": "string",
+          "label": "Link: Focus Areas"
+        },
+        {
+          "name": "link_4",
+          "type": "string",
+          "label": "Link: Ashley"
+        },
+        {
+          "name": "link_5",
+          "type": "string",
+          "label": "Link: Events"
+        },
+        {
+          "name": "link_6",
+          "type": "string",
+          "label": "Link: Get Involved"
+        },
+        {
+          "name": "link_7",
+          "type": "string",
+          "label": "Link: Join the Coalition"
+        },
+        {
+          "name": "text_8",
+          "type": "string",
+          "label": "YBNC"
+        },
+        {
+          "name": "text_9",
+          "type": "string",
+          "label": "Young Black Nameless Coalition"
+        },
+        {
+          "name": "text_10",
+          "type": "string",
+          "label": "Mission"
+        },
+        {
+          "name": "text_11",
+          "type": "string",
+          "label": "Focus Areas"
+        },
+        {
+          "name": "text_12",
+          "type": "string",
+          "label": "Ashley"
+        },
+        {
+          "name": "text_13",
+          "type": "string",
+          "label": "Events"
+        },
+        {
+          "name": "text_14",
+          "type": "string",
+          "label": "Get Involved"
+        },
+        {
+          "name": "text_15",
+          "type": "string",
+          "label": "Join the Coalition"
+        }
+      ],
+      "data": {
+        "link_1": "#home",
+        "link_2": "#mission",
+        "link_3": "#focus",
+        "link_4": "#about",
+        "link_5": "#events",
+        "link_6": "#involved",
+        "link_7": "#involved",
+        "text_8": "YBNC",
+        "text_9": "Young Black Nameless Coalition",
+        "text_10": "Mission",
+        "text_11": "Focus Areas",
+        "text_12": "Ashley",
+        "text_13": "Events",
+        "text_14": "Get Involved",
+        "text_15": "Join the Coalition"
+      }
+    },
+    "footer": {
+      "fields": [
+        {
+          "name": "link_1",
+          "type": "string",
+          "label": "Link: 📸"
+        },
+        {
+          "name": "link_2",
+          "type": "string",
+          "label": "Link: 💼"
+        },
+        {
+          "name": "link_3",
+          "type": "string",
+          "label": "Link: 🎥"
+        },
+        {
+          "name": "link_4",
+          "type": "string",
+          "label": "Link: Our Mission"
+        },
+        {
+          "name": "link_5",
+          "type": "string",
+          "label": "Link: Focus Areas"
+        },
+        {
+          "name": "link_6",
+          "type": "string",
+          "label": "Link: About Ashley"
+        },
+        {
+          "name": "link_7",
+          "type": "string",
+          "label": "Link: Events"
+        },
+        {
+          "name": "link_8",
+          "type": "string",
+          "label": "Link: Get Involved"
+        },
+        {
+          "name": "link_9",
+          "type": "string",
+          "label": "Link: Join the Coalition"
+        },
+        {
+          "name": "link_10",
+          "type": "string",
+          "label": "Link: Donate"
+        },
+        {
+          "name": "link_11",
+          "type": "string",
+          "label": "Link: Volunteer"
+        },
+        {
+          "name": "link_12",
+          "type": "string",
+          "label": "Link: Newsletter"
+        },
+        {
+          "name": "link_13",
+          "type": "string",
+          "label": "Link: Partnerships"
+        },
+        {
+          "name": "link_14",
+          "type": "string",
+          "label": "Link: @aestheticsconash"
+        },
+        {
+          "name": "link_15",
+          "type": "string",
+          "label": "Link: Join Now →"
+        },
+        {
+          "name": "text_16",
+          "type": "string",
+          "label": "YBNC"
+        },
+        {
+          "name": "text_17",
+          "type": "string",
+          "label": "Young Black Nameless Coalition"
+        },
+        {
+          "name": "text_18",
+          "type": "string",
+          "label": "\"Named by the unnamed. Built for the unseen. Fighting for the lib"
+        },
+        {
+          "name": "text_19",
+          "type": "string",
+          "label": "📸"
+        },
+        {
+          "name": "text_20",
+          "type": "string",
+          "label": "💼"
+        },
+        {
+          "name": "text_21",
+          "type": "string",
+          "label": "🎥"
+        },
+        {
+          "name": "text_22",
+          "type": "string",
+          "label": "Organization"
+        },
+        {
+          "name": "text_23",
+          "type": "string",
+          "label": "Our Mission"
+        },
+        {
+          "name": "text_24",
+          "type": "string",
+          "label": "Focus Areas"
+        },
+        {
+          "name": "text_25",
+          "type": "string",
+          "label": "About Ashley"
+        },
+        {
+          "name": "text_26",
+          "type": "string",
+          "label": "Events"
+        },
+        {
+          "name": "text_27",
+          "type": "string",
+          "label": "Get Involved"
+        },
+        {
+          "name": "text_28",
+          "type": "string",
+          "label": "Take Action"
+        },
+        {
+          "name": "text_29",
+          "type": "string",
+          "label": "Join the Coalition"
+        },
+        {
+          "name": "text_30",
+          "type": "string",
+          "label": "Donate"
+        },
+        {
+          "name": "text_31",
+          "type": "string",
+          "label": "Volunteer"
+        },
+        {
+          "name": "text_32",
+          "type": "string",
+          "label": "Newsletter"
+        },
+        {
+          "name": "text_33",
+          "type": "string",
+          "label": "Partnerships"
+        },
+        {
+          "name": "text_34",
+          "type": "string",
+          "label": "Contact"
+        },
+        {
+          "name": "text_35",
+          "type": "string",
+          "label": "@aestheticsconash"
+        },
+        {
+          "name": "text_36",
+          "type": "string",
+          "label": "Vallejo, CA 94589"
+        },
+        {
+          "name": "text_37",
+          "type": "string",
+          "label": "Join Now →"
+        },
+        {
+          "name": "text_38",
+          "type": "string",
+          "label": "© 2025 Young Black Nameless Coalition, Inc. · Vallejo, California"
+        },
+        {
+          "name": "text_39",
+          "type": "string",
+          "label": "Founded by Ashley Dorelus · All power to the people · ✊🏾"
+        }
+      ],
+      "data": {
+        "link_1": "https://www.instagram.com/aestheticsconash/",
+        "link_2": "https://www.linkedin.com/in/young-black-nameless-coalition-7571ab303",
+        "link_3": "https://www.instagram.com/reels/CzT9_pXpOER/",
+        "link_4": "#mission",
+        "link_5": "#focus",
+        "link_6": "#about",
+        "link_7": "#events",
+        "link_8": "#involved",
+        "link_9": "#involved",
+        "link_10": "#involved",
+        "link_11": "#involved",
+        "link_12": "#newsletter",
+        "link_13": "#involved",
+        "link_14": "https://www.instagram.com/aestheticsconash/",
+        "link_15": "#involved",
+        "text_16": "YBNC",
+        "text_17": "Young Black Nameless Coalition",
+        "text_18": "\"Named by the unnamed. Built for the unseen. Fighting for the liberation of all Black people.\"",
+        "text_19": "📸",
+        "text_20": "💼",
+        "text_21": "🎥",
+        "text_22": "Organization",
+        "text_23": "Our Mission",
+        "text_24": "Focus Areas",
+        "text_25": "About Ashley",
+        "text_26": "Events",
+        "text_27": "Get Involved",
+        "text_28": "Take Action",
+        "text_29": "Join the Coalition",
+        "text_30": "Donate",
+        "text_31": "Volunteer",
+        "text_32": "Newsletter",
+        "text_33": "Partnerships",
+        "text_34": "Contact",
+        "text_35": "@aestheticsconash",
+        "text_36": "Vallejo, CA 94589",
+        "text_37": "Join Now →",
+        "text_38": "© 2025 Young Black Nameless Coalition, Inc. · Vallejo, California",
+        "text_39": "Founded by Ashley Dorelus · All power to the people · ✊🏾"
+      }
+    },
+    "sections": [
+      {
+        "kind": "ybnc_home",
+        "title": "Home",
+        "fields": [
+          {
+            "name": "link_1",
+            "type": "string",
+            "label": "Link: Join the Coalition →"
+          },
+          {
+            "name": "link_2",
+            "type": "string",
+            "label": "Link: Our Mission"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "Vallejo, California · Est. 2020 · Black Liberation"
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "The"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Movement"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "Has a"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "Name."
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "Young Black Nameless Coalition"
+          },
+          {
+            "name": "text_9",
+            "type": "text",
+            "label": "— empowering young Black individuals, dismantling systemic barrie"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "Join the Coalition"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "→"
+          },
+          {
+            "name": "text_12",
+            "type": "string",
+            "label": "Our Mission"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "Founded by"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "Ashley Dorelus"
+          },
+          {
+            "name": "text_15",
+            "type": "string",
+            "label": "· Documentary Filmmaker · Social Justice Advocate · Community Her"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "🇭🇹 Vallejo, CA · Active since"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "May 29, 2020"
+          }
+        ],
+        "data": {
+          "link_1": "#involved",
+          "link_2": "#mission",
+          "text_3": "Vallejo, California · Est. 2020 · Black Liberation",
+          "text_4": "The",
+          "text_5": "Movement",
+          "text_6": "Has a",
+          "text_7": "Name.",
+          "text_8": "Young Black Nameless Coalition",
+          "text_9": "— empowering young Black individuals, dismantling systemic barriers, and amplifying Black voices. Community-driven. Unapologetic. Built for liberation.",
+          "text_10": "Join the Coalition",
+          "text_11": "→",
+          "text_12": "Our Mission",
+          "text_13": "Founded by",
+          "text_14": "Ashley Dorelus",
+          "text_15": "· Documentary Filmmaker · Social Justice Advocate · Community Hero Award Recipient",
+          "text_16": "🇭🇹 Vallejo, CA · Active since",
+          "text_17": "May 29, 2020"
+        }
+      },
+      {
+        "kind": "ybnc_mission",
+        "title": "Mission",
+        "fields": [
+          {
+            "name": "text_1",
+            "type": "string",
+            "label": "01"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "Our Mission"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "YBNC · VALLEJO, CA · BLACK LIBERATION"
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "Mission Statement"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Fostering unity and empowerment —"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "helping Black individuals thrive"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "and contribute to a more equitable society."
+          },
+          {
+            "name": "text_8",
+            "type": "text",
+            "label": "The Young Black Nameless Coalition was born from a simple, radica"
+          },
+          {
+            "name": "text_9",
+            "type": "text",
+            "label": "We center the experiences of young Black individuals in every dec"
+          },
+          {
+            "name": "text_10",
+            "type": "text",
+            "label": "\"We will be here every day and every night until we see some just"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "— Ashley Dorelus, Founder · YBNC"
+          }
+        ],
+        "data": {
+          "text_1": "01",
+          "text_2": "Our Mission",
+          "text_3": "YBNC · VALLEJO, CA · BLACK LIBERATION",
+          "text_4": "Mission Statement",
+          "text_5": "Fostering unity and empowerment —",
+          "text_6": "helping Black individuals thrive",
+          "text_7": "and contribute to a more equitable society.",
+          "text_8": "The Young Black Nameless Coalition was born from a simple, radical idea: that the people historically erased from power deserve a platform built in their name. We organize, advocate, document, and amplify — because representation without action is just performance.",
+          "text_9": "We center the experiences of young Black individuals in every decision we make. From street-level advocacy to policy change, from community care to political organizing — YBNC exists at the intersection of where movement-building actually happens.",
+          "text_10": "\"We will be here every day and every night until we see some justice. The support in the comments is not the same as tangible support in the form of showing up.\"",
+          "text_11": "— Ashley Dorelus, Founder · YBNC"
+        }
+      },
+      {
+        "kind": "ybnc_focus",
+        "title": "Focus",
+        "fields": [
+          {
+            "name": "text_1",
+            "type": "string",
+            "label": "Focus Areas"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "What We"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "Fight For."
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "01 · Political Advocacy"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "🗳️"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "Political Advocacy & Voting Rights"
+          },
+          {
+            "name": "text_7",
+            "type": "text",
+            "label": "Engaging in civic action, voter registration drives, policy advoc"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "02 · Community Action"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "✊"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "Community Organizing & Action"
+          },
+          {
+            "name": "text_11",
+            "type": "text",
+            "label": "Grassroots organizing, mutual aid, community events, and building"
+          },
+          {
+            "name": "text_12",
+            "type": "string",
+            "label": "03 · Liberation"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "✨"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "Black Liberation & Freedom"
+          },
+          {
+            "name": "text_15",
+            "type": "text",
+            "label": "Centering Black liberation as the foundational goal. Everything w"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "04 · Empowerment"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "🌱"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "Youth Empowerment & Development"
+          },
+          {
+            "name": "text_19",
+            "type": "text",
+            "label": "Investing in young Black leaders through mentorship, resources, l"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "05 · Documentation"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "🎥"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "Documentary & Media Justice"
+          },
+          {
+            "name": "text_23",
+            "type": "text",
+            "label": "On-the-ground documentation of social injustice. Telling the corr"
+          },
+          {
+            "name": "text_24",
+            "type": "string",
+            "label": "06 · Systemic Change"
+          },
+          {
+            "name": "text_25",
+            "type": "string",
+            "label": "⚖️"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "Dismantling Systemic Barriers"
+          },
+          {
+            "name": "text_27",
+            "type": "text",
+            "label": "Challenging structural racism in policy, criminal justice, educat"
+          }
+        ],
+        "data": {
+          "text_1": "Focus Areas",
+          "text_2": "What We",
+          "text_3": "Fight For.",
+          "text_4": "01 · Political Advocacy",
+          "text_5": "🗳️",
+          "text_6": "Political Advocacy & Voting Rights",
+          "text_7": "Engaging in civic action, voter registration drives, policy advocacy, and holding elected officials accountable to Black communities.",
+          "text_8": "02 · Community Action",
+          "text_9": "✊",
+          "text_10": "Community Organizing & Action",
+          "text_11": "Grassroots organizing, mutual aid, community events, and building solidarity networks that create lasting change from the ground up.",
+          "text_12": "03 · Liberation",
+          "text_13": "✨",
+          "text_14": "Black Liberation & Freedom",
+          "text_15": "Centering Black liberation as the foundational goal. Everything we do serves the larger arc of dismantling oppression.",
+          "text_16": "04 · Empowerment",
+          "text_17": "🌱",
+          "text_18": "Youth Empowerment & Development",
+          "text_19": "Investing in young Black leaders through mentorship, resources, leadership training, and creating pathways to opportunity.",
+          "text_20": "05 · Documentation",
+          "text_21": "🎥",
+          "text_22": "Documentary & Media Justice",
+          "text_23": "On-the-ground documentation of social injustice. Telling the correct narrative across 20+ states and dozens of cities — frontline media as resistance.",
+          "text_24": "06 · Systemic Change",
+          "text_25": "⚖️",
+          "text_26": "Dismantling Systemic Barriers",
+          "text_27": "Challenging structural racism in policy, criminal justice, education, and economics — because individual uplift without systemic change is incomplete."
+        }
+      },
+      {
+        "kind": "ybnc_about",
+        "title": "About",
+        "fields": [
+          {
+            "name": "link_1",
+            "type": "string",
+            "label": "Link: 📸 @aestheticsconash"
+          },
+          {
+            "name": "link_2",
+            "type": "string",
+            "label": "Link: Support the Work →"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "✊🏾"
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "🏆"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Recipient"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "Community Hero Award · Ashley Dorelus"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "Meet the Founder"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "Ashley"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "\"Aesthetics\""
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "Dorelus"
+          },
+          {
+            "name": "text_11",
+            "type": "text",
+            "label": "Ashley Dorelus is a documentary filmmaker, social justice advocat"
+          },
+          {
+            "name": "text_12",
+            "type": "text",
+            "label": "From Oakland to Minneapolis, Philadelphia to Atlanta — Ashley's l"
+          },
+          {
+            "name": "text_13",
+            "type": "text",
+            "label": "A 🇭🇹 Haitian-American, Ashley received a Community Hero Award for"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "Documentary Filmmaker"
+          },
+          {
+            "name": "text_15",
+            "type": "string",
+            "label": "Community Organizer"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "Social Justice Advocate"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "Frontline Journalist"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "Haitian-American"
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "Community Hero Awardee"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "Pro-Black Liberation"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "📸 @aestheticsconash"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "Support the Work →"
+          }
+        ],
+        "data": {
+          "link_1": "https://www.instagram.com/aestheticsconash/",
+          "link_2": "#involved",
+          "text_3": "✊🏾",
+          "text_4": "🏆",
+          "text_5": "Recipient",
+          "text_6": "Community Hero Award · Ashley Dorelus",
+          "text_7": "Meet the Founder",
+          "text_8": "Ashley",
+          "text_9": "\"Aesthetics\"",
+          "text_10": "Dorelus",
+          "text_11": "Ashley Dorelus is a documentary filmmaker, social justice advocate, and community organizer based in Vallejo, California. She has been on the frontlines since May 29, 2020 — traveling to over 20 states and dozens of cities to document the uprising at the intersection of two pandemics: COVID-19 and the ongoing genocide of Black people at the hands of police.",
+          "text_12": "From Oakland to Minneapolis, Philadelphia to Atlanta — Ashley's lens captured what mainstream media refused to show. Her work, shared widely after Amanda Seals amplified her documentation of the Daunte Wright shooting, helped galvanize national attention to frontline journalism by community members.",
+          "text_13": "A 🇭🇹 Haitian-American, Ashley received a Community Hero Award for her work and founded YBNC as a vehicle for turning documentation into organized, sustained action. She believes community-driven change begins with showing up.",
+          "text_14": "Documentary Filmmaker",
+          "text_15": "Community Organizer",
+          "text_16": "Social Justice Advocate",
+          "text_17": "Frontline Journalist",
+          "text_18": "Haitian-American",
+          "text_19": "Community Hero Awardee",
+          "text_20": "Pro-Black Liberation",
+          "text_21": "📸 @aestheticsconash",
+          "text_22": "Support the Work →"
+        }
+      },
+      {
+        "kind": "ybnc_impact",
+        "title": "Impact",
+        "fields": [
+          {
+            "name": "text_1",
+            "type": "string",
+            "label": "20+"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "States Documented"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "Frontline coverage of the uprising across America"
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "2020"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Year Founded"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "Active since the uprising began on May 29"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "19K+"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "Community Followers"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "And growing — building power through platform"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "∞"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "Commitment to Justice"
+          },
+          {
+            "name": "text_12",
+            "type": "string",
+            "label": "Until we see systemic change, we don't stop"
+          }
+        ],
+        "data": {
+          "text_1": "20+",
+          "text_2": "States Documented",
+          "text_3": "Frontline coverage of the uprising across America",
+          "text_4": "2020",
+          "text_5": "Year Founded",
+          "text_6": "Active since the uprising began on May 29",
+          "text_7": "19K+",
+          "text_8": "Community Followers",
+          "text_9": "And growing — building power through platform",
+          "text_10": "∞",
+          "text_11": "Commitment to Justice",
+          "text_12": "Until we see systemic change, we don't stop"
+        }
+      },
+      {
+        "kind": "ybnc_events",
+        "title": "Events",
+        "fields": [
+          {
+            "name": "link_1",
+            "type": "string",
+            "label": "Link: View All Events →"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "On the Ground"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "Upcoming"
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "Actions & Events."
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "View All Events →"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "19"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "Apr"
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "Community Town Hall — Vallejo"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "6:00 PM · Vallejo City Hall"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "Open to all"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "Advocacy"
+          },
+          {
+            "name": "text_12",
+            "type": "string",
+            "label": "26"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "Apr"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "Youth Empowerment Workshop"
+          },
+          {
+            "name": "text_15",
+            "type": "string",
+            "label": "2:00 PM · TBD · Vallejo"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "Ages 16–25"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "Community"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "03"
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "May"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "Know Your Rights — Community Training"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "4:00 PM · Online & In-Person"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "Free · RSVP required"
+          },
+          {
+            "name": "text_23",
+            "type": "string",
+            "label": "Education"
+          },
+          {
+            "name": "text_24",
+            "type": "string",
+            "label": "17"
+          },
+          {
+            "name": "text_25",
+            "type": "string",
+            "label": "May"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "Documentary Screening — The Uprising"
+          },
+          {
+            "name": "text_27",
+            "type": "string",
+            "label": "7:00 PM · Vallejo"
+          },
+          {
+            "name": "text_28",
+            "type": "string",
+            "label": "Free · Community Discussion to follow"
+          },
+          {
+            "name": "text_29",
+            "type": "string",
+            "label": "Community"
+          },
+          {
+            "name": "text_30",
+            "type": "string",
+            "label": "29"
+          },
+          {
+            "name": "text_31",
+            "type": "string",
+            "label": "May"
+          },
+          {
+            "name": "text_32",
+            "type": "string",
+            "label": "5th Anniversary — Day of Action & Commemoration"
+          },
+          {
+            "name": "text_33",
+            "type": "string",
+            "label": "All Day · Multiple Locations"
+          },
+          {
+            "name": "text_34",
+            "type": "string",
+            "label": "5 Years since the uprising began ·"
+          },
+          {
+            "name": "text_35",
+            "type": "string",
+            "label": "Mark your calendar"
+          },
+          {
+            "name": "text_36",
+            "type": "string",
+            "label": "Advocacy"
+          }
+        ],
+        "data": {
+          "link_1": "#",
+          "text_2": "On the Ground",
+          "text_3": "Upcoming",
+          "text_4": "Actions & Events.",
+          "text_5": "View All Events →",
+          "text_6": "19",
+          "text_7": "Apr",
+          "text_8": "Community Town Hall — Vallejo",
+          "text_9": "6:00 PM · Vallejo City Hall",
+          "text_10": "Open to all",
+          "text_11": "Advocacy",
+          "text_12": "26",
+          "text_13": "Apr",
+          "text_14": "Youth Empowerment Workshop",
+          "text_15": "2:00 PM · TBD · Vallejo",
+          "text_16": "Ages 16–25",
+          "text_17": "Community",
+          "text_18": "03",
+          "text_19": "May",
+          "text_20": "Know Your Rights — Community Training",
+          "text_21": "4:00 PM · Online & In-Person",
+          "text_22": "Free · RSVP required",
+          "text_23": "Education",
+          "text_24": "17",
+          "text_25": "May",
+          "text_26": "Documentary Screening — The Uprising",
+          "text_27": "7:00 PM · Vallejo",
+          "text_28": "Free · Community Discussion to follow",
+          "text_29": "Community",
+          "text_30": "29",
+          "text_31": "May",
+          "text_32": "5th Anniversary — Day of Action & Commemoration",
+          "text_33": "All Day · Multiple Locations",
+          "text_34": "5 Years since the uprising began ·",
+          "text_35": "Mark your calendar",
+          "text_36": "Advocacy"
+        }
+      },
+      {
+        "kind": "ybnc_involved",
+        "title": "Involved",
+        "fields": [
+          {
+            "name": "link_1",
+            "type": "string",
+            "label": "Link: Become a Member →"
+          },
+          {
+            "name": "link_2",
+            "type": "string",
+            "label": "Link: Donate Now →"
+          },
+          {
+            "name": "link_3",
+            "type": "string",
+            "label": "Link: Get Involved →"
+          },
+          {
+            "name": "link_4",
+            "type": "string",
+            "label": "Link: Get In Touch →"
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Take Action"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "How You"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "Show Up."
+          },
+          {
+            "name": "text_8",
+            "type": "string",
+            "label": "The comments section is not the same as showing up. Here's how to"
+          },
+          {
+            "name": "text_9",
+            "type": "string",
+            "label": "01 / Join"
+          },
+          {
+            "name": "text_10",
+            "type": "string",
+            "label": "✊"
+          },
+          {
+            "name": "text_11",
+            "type": "string",
+            "label": "Join the Coalition"
+          },
+          {
+            "name": "text_12",
+            "type": "text",
+            "label": "Become a member of YBNC. Show up to meetings, events, and actions"
+          },
+          {
+            "name": "text_13",
+            "type": "string",
+            "label": "Become a Member →"
+          },
+          {
+            "name": "text_14",
+            "type": "string",
+            "label": "02 / Donate"
+          },
+          {
+            "name": "text_15",
+            "type": "string",
+            "label": "💛"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "Fund the Work"
+          },
+          {
+            "name": "text_17",
+            "type": "text",
+            "label": "Tangible support — financial contributions, sponsorships, and par"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "Donate Now →"
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "03 / Volunteer"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "🌱"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "Volunteer Your Skills"
+          },
+          {
+            "name": "text_22",
+            "type": "text",
+            "label": "Legal support, graphic design, event organizing, social media, ou"
+          },
+          {
+            "name": "text_23",
+            "type": "string",
+            "label": "Get Involved →"
+          },
+          {
+            "name": "text_24",
+            "type": "string",
+            "label": "Partnerships & Collaborations"
+          },
+          {
+            "name": "text_25",
+            "type": "text",
+            "label": "Organizations, media outlets, lawyers, funders, and community gro"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "Get In Touch →"
+          }
+        ],
+        "data": {
+          "link_1": "#newsletter",
+          "link_2": "#",
+          "link_3": "#newsletter",
+          "link_4": "#newsletter",
+          "text_5": "Take Action",
+          "text_6": "How You",
+          "text_7": "Show Up.",
+          "text_8": "The comments section is not the same as showing up. Here's how to make it tangible.",
+          "text_9": "01 / Join",
+          "text_10": "✊",
+          "text_11": "Join the Coalition",
+          "text_12": "Become a member of YBNC. Show up to meetings, events, and actions. Be part of the organizing infrastructure that makes sustained change possible.",
+          "text_13": "Become a Member →",
+          "text_14": "02 / Donate",
+          "text_15": "💛",
+          "text_16": "Fund the Work",
+          "text_17": "Tangible support — financial contributions, sponsorships, and partnerships — fuel everything. Frontline documentation, events, resources, advocacy all require investment.",
+          "text_18": "Donate Now →",
+          "text_19": "03 / Volunteer",
+          "text_20": "🌱",
+          "text_21": "Volunteer Your Skills",
+          "text_22": "Legal support, graphic design, event organizing, social media, outreach, translation, journalism — bring what you have and put it in service of the community.",
+          "text_23": "Get Involved →",
+          "text_24": "Partnerships & Collaborations",
+          "text_25": "Organizations, media outlets, lawyers, funders, and community groups — reach out to discuss how we can build together. Coalition work requires coalition.",
+          "text_26": "Get In Touch →"
+        }
+      },
+      {
+        "kind": "ybnc_newsletter",
+        "title": "Newsletter",
+        "fields": [
+          {
+            "name": "text_1",
+            "type": "string",
+            "label": "Stay Connected"
+          },
+          {
+            "name": "text_2",
+            "type": "string",
+            "label": "Be Part"
+          },
+          {
+            "name": "text_3",
+            "type": "string",
+            "label": "of the"
+          },
+          {
+            "name": "text_4",
+            "type": "string",
+            "label": "Fight."
+          },
+          {
+            "name": "text_5",
+            "type": "string",
+            "label": "Get updates on actions, events, and how to plug in. No spam — jus"
+          },
+          {
+            "name": "text_6",
+            "type": "string",
+            "label": "Join YBNC →"
+          },
+          {
+            "name": "text_7",
+            "type": "string",
+            "label": "Your information will never be sold or shared. This is a communit"
+          }
+        ],
+        "data": {
+          "text_1": "Stay Connected",
+          "text_2": "Be Part",
+          "text_3": "of the",
+          "text_4": "Fight.",
+          "text_5": "Get updates on actions, events, and how to plug in. No spam — just the movement news that matters.",
+          "text_6": "Join YBNC →",
+          "text_7": "Your information will never be sold or shared. This is a community, not a product."
+        }
+      },
+      {
+        "kind": "ybnc_footer",
+        "title": "Footer",
+        "fields": [
+          {
+            "name": "link_1",
+            "type": "string",
+            "label": "Link: 📸"
+          },
+          {
+            "name": "link_2",
+            "type": "string",
+            "label": "Link: 💼"
+          },
+          {
+            "name": "link_3",
+            "type": "string",
+            "label": "Link: 🎥"
+          },
+          {
+            "name": "link_4",
+            "type": "string",
+            "label": "Link: Our Mission"
+          },
+          {
+            "name": "link_5",
+            "type": "string",
+            "label": "Link: Focus Areas"
+          },
+          {
+            "name": "link_6",
+            "type": "string",
+            "label": "Link: About Ashley"
+          },
+          {
+            "name": "link_7",
+            "type": "string",
+            "label": "Link: Events"
+          },
+          {
+            "name": "link_8",
+            "type": "string",
+            "label": "Link: Get Involved"
+          },
+          {
+            "name": "link_9",
+            "type": "string",
+            "label": "Link: Join the Coalition"
+          },
+          {
+            "name": "link_10",
+            "type": "string",
+            "label": "Link: Donate"
+          },
+          {
+            "name": "link_11",
+            "type": "string",
+            "label": "Link: Volunteer"
+          },
+          {
+            "name": "link_12",
+            "type": "string",
+            "label": "Link: Newsletter"
+          },
+          {
+            "name": "link_13",
+            "type": "string",
+            "label": "Link: Partnerships"
+          },
+          {
+            "name": "link_14",
+            "type": "string",
+            "label": "Link: @aestheticsconash"
+          },
+          {
+            "name": "link_15",
+            "type": "string",
+            "label": "Link: Join Now →"
+          },
+          {
+            "name": "text_16",
+            "type": "string",
+            "label": "YBNC"
+          },
+          {
+            "name": "text_17",
+            "type": "string",
+            "label": "Young Black Nameless Coalition"
+          },
+          {
+            "name": "text_18",
+            "type": "string",
+            "label": "\"Named by the unnamed. Built for the unseen. Fighting for the lib"
+          },
+          {
+            "name": "text_19",
+            "type": "string",
+            "label": "📸"
+          },
+          {
+            "name": "text_20",
+            "type": "string",
+            "label": "💼"
+          },
+          {
+            "name": "text_21",
+            "type": "string",
+            "label": "🎥"
+          },
+          {
+            "name": "text_22",
+            "type": "string",
+            "label": "Organization"
+          },
+          {
+            "name": "text_23",
+            "type": "string",
+            "label": "Our Mission"
+          },
+          {
+            "name": "text_24",
+            "type": "string",
+            "label": "Focus Areas"
+          },
+          {
+            "name": "text_25",
+            "type": "string",
+            "label": "About Ashley"
+          },
+          {
+            "name": "text_26",
+            "type": "string",
+            "label": "Events"
+          },
+          {
+            "name": "text_27",
+            "type": "string",
+            "label": "Get Involved"
+          },
+          {
+            "name": "text_28",
+            "type": "string",
+            "label": "Take Action"
+          },
+          {
+            "name": "text_29",
+            "type": "string",
+            "label": "Join the Coalition"
+          },
+          {
+            "name": "text_30",
+            "type": "string",
+            "label": "Donate"
+          },
+          {
+            "name": "text_31",
+            "type": "string",
+            "label": "Volunteer"
+          },
+          {
+            "name": "text_32",
+            "type": "string",
+            "label": "Newsletter"
+          },
+          {
+            "name": "text_33",
+            "type": "string",
+            "label": "Partnerships"
+          },
+          {
+            "name": "text_34",
+            "type": "string",
+            "label": "Contact"
+          },
+          {
+            "name": "text_35",
+            "type": "string",
+            "label": "@aestheticsconash"
+          },
+          {
+            "name": "text_36",
+            "type": "string",
+            "label": "Vallejo, CA 94589"
+          },
+          {
+            "name": "text_37",
+            "type": "string",
+            "label": "Join Now →"
+          },
+          {
+            "name": "text_38",
+            "type": "string",
+            "label": "© 2025 Young Black Nameless Coalition, Inc. · Vallejo, California"
+          },
+          {
+            "name": "text_39",
+            "type": "string",
+            "label": "Founded by Ashley Dorelus · All power to the people · ✊🏾"
+          }
+        ],
+        "data": {
+          "link_1": "https://www.instagram.com/aestheticsconash/",
+          "link_2": "https://www.linkedin.com/in/young-black-nameless-coalition-7571ab303",
+          "link_3": "https://www.instagram.com/reels/CzT9_pXpOER/",
+          "link_4": "#mission",
+          "link_5": "#focus",
+          "link_6": "#about",
+          "link_7": "#events",
+          "link_8": "#involved",
+          "link_9": "#involved",
+          "link_10": "#involved",
+          "link_11": "#involved",
+          "link_12": "#newsletter",
+          "link_13": "#involved",
+          "link_14": "https://www.instagram.com/aestheticsconash/",
+          "link_15": "#involved",
+          "text_16": "YBNC",
+          "text_17": "Young Black Nameless Coalition",
+          "text_18": "\"Named by the unnamed. Built for the unseen. Fighting for the liberation of all Black people.\"",
+          "text_19": "📸",
+          "text_20": "💼",
+          "text_21": "🎥",
+          "text_22": "Organization",
+          "text_23": "Our Mission",
+          "text_24": "Focus Areas",
+          "text_25": "About Ashley",
+          "text_26": "Events",
+          "text_27": "Get Involved",
+          "text_28": "Take Action",
+          "text_29": "Join the Coalition",
+          "text_30": "Donate",
+          "text_31": "Volunteer",
+          "text_32": "Newsletter",
+          "text_33": "Partnerships",
+          "text_34": "Contact",
+          "text_35": "@aestheticsconash",
+          "text_36": "Vallejo, CA 94589",
+          "text_37": "Join Now →",
+          "text_38": "© 2025 Young Black Nameless Coalition, Inc. · Vallejo, California",
+          "text_39": "Founded by Ashley Dorelus · All power to the people · ✊🏾"
+        }
+      }
+    ]
+  }
+}

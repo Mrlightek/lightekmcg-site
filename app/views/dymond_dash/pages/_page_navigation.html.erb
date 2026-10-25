@@ -1,0 +1,66 @@
+<%# Dymond Dash page-scoped navigation editor; V2 presentation polish. %>
+<% menu = @site.nav_menu %>
+<% existing = menu ? menu.nav_items.where(page_id: @page.id).order(:position).to_a : [] %>
+<style>
+  .dd-page-nav {box-sizing:border-box;width:100%;max-width:850px;margin:24px 0 0;color:var(--dd-text-primary);font-family:inherit}
+  .dd-page-nav * {box-sizing:border-box}
+  .dd-page-nav__card {background:var(--dd-sidebar-bg);border:1px solid var(--dd-border);border-radius:12px;padding:22px}
+  .dd-page-nav__heading {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  .dd-page-nav__title {font-size:18px;line-height:1.3;font-weight:700;margin:0;color:var(--dd-text-primary)}
+  .dd-page-nav__desc {font-size:13px;line-height:1.5;color:var(--dd-text-secondary);margin:0 0 18px}
+  .dd-page-nav__chip {display:inline-block;font-size:11px;font-weight:650;border:1px solid var(--dd-border);border-radius:999px;padding:4px 9px;color:var(--dd-text-secondary);white-space:nowrap}
+  .dd-page-nav__linked {border:1px solid var(--dd-border);border-radius:9px;padding:12px 14px;background:var(--dd-card-bg);margin-bottom:16px}
+  .dd-page-nav__linked-title {font-size:13px;font-weight:650;color:var(--dd-text-primary)}
+  .dd-page-nav__linked-list {margin:8px 0 0;padding-left:18px;color:var(--dd-text-secondary);font-size:13px}
+  .dd-page-nav__linked-list li {padding:2px 0}
+  .dd-page-nav__field {margin-bottom:14px}
+  .dd-page-nav__field label {display:block;font-size:12px;font-weight:650;color:var(--dd-text-secondary);margin-bottom:6px}
+  .dd-page-nav__input,.dd-page-nav__select {display:block;width:100%;min-height:40px;padding:9px 11px;background:var(--dd-card-bg)!important;color:var(--dd-text-primary)!important;border:1px solid var(--dd-border)!important;border-radius:8px!important;font:inherit;font-size:13px!important;box-shadow:none!important}
+  .dd-page-nav__input:focus,.dd-page-nav__select:focus {border-color:var(--dd-accent)!important;outline:2px solid var(--dd-accent);outline-offset:1px}
+  .dd-page-nav__actions {display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:18px}
+  .dd-page-nav__submit {appearance:none;background:var(--dd-accent)!important;color:var(--dd-button-text)!important;border:0!important;border-radius:9px!important;padding:10px 17px!important;font-size:13px!important;font-weight:750!important;min-height:40px;cursor:pointer}
+  .dd-page-nav__submit:hover {background:var(--dd-accent-hover)!important}
+  .dd-page-nav__note {font-size:12px;line-height:1.4;color:var(--dd-text-secondary)}
+  .dd-page-nav__empty {font-size:13px;color:var(--dd-text-secondary);margin:0}
+  @media(max-width:620px){.dd-page-nav__card{padding:16px}.dd-page-nav__actions{align-items:stretch;flex-direction:column}.dd-page-nav__submit{width:100%}}
+</style>
+<section class="dd-page-nav" aria-labelledby="dd-page-nav-heading">
+  <div class="dd-page-nav__card">
+    <div class="dd-page-nav__heading">
+      <h2 class="dd-page-nav__title" id="dd-page-nav-heading">Navigation</h2>
+      <% unless @page.published? %><span class="dd-page-nav__chip">Draft page</span><% end %>
+    </div>
+    <p class="dd-page-nav__desc">Choose where this page appears in the site menu, without leaving the editor.</p>
+    <% if menu.nil? %>
+      <p class="dd-page-nav__empty">This site has no navigation menu yet. Create one from the Navigation screen first.</p>
+    <% else %>
+      <div class="dd-page-nav__linked" aria-live="polite">
+        <% if existing.any? %>
+          <div class="dd-page-nav__linked-title">Linked in navigation</div>
+          <ul class="dd-page-nav__linked-list">
+            <% existing.each do |item| %>
+              <li><%= item.label %><% if item.parent_id %> <span class="dd-page-nav__note">(nested)</span><% else %> <span class="dd-page-nav__note">(top level)</span><% end %></li>
+            <% end %>
+          </ul>
+        <% else %>
+          <div class="dd-page-nav__linked-title">Not currently in navigation</div>
+          <span class="dd-page-nav__note">Add an entry below when you want this page in the menu.</span>
+        <% end %>
+      </div>
+      <%= form_with url: dymond_dash.add_to_navigation_page_path(@page), method: :post, local: true do |form| %>
+        <div class="dd-page-nav__field">
+          <%= form.label :label, "Menu label" %>
+          <%= form.text_field :label, value: @page.title, required: true, maxlength: 120, class: "dd-page-nav__input" %>
+        </div>
+        <div class="dd-page-nav__field">
+          <%= form.label :parent_id, "Place under" %>
+          <%= form.select :parent_id, options_for_select([["Top-level navigation", ""]] + menu.nav_items.order(:position).map { |item| [item.label, item.id] }), {}, class: "dd-page-nav__select" %>
+        </div>
+        <div class="dd-page-nav__actions">
+          <%= form.submit "Add to navigation", class: "dd-page-nav__submit" %>
+          <span class="dd-page-nav__note">Adding a link will not publish this page.</span>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+</section>

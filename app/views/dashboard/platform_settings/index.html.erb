@@ -1,0 +1,14 @@
+<% content_for :page_title, "Dashboard Settings" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings"><%= link_to "← Settings", dashboard_settings_home_path %>
+<h1>Dashboard Settings</h1><p class="intro">Identity, regional preferences and media settings for this control panel.</p>
+<% if @app_config.errors.any? %><div class="errors" role="alert"><%= @app_config.errors.full_messages.join(". ") %></div><% end %>
+<%= form_with model: @app_config, url: dashboard_platform_settings_path, method: :patch do %>
+<% settings_schema.each do |label, fields| %>
+<section class="card" style="margin-bottom:18px"><h2><%= label %></h2><div class="field-grid">
+<% fields.each do |field| %><div><%= ds_field(field, "app_config", settings_field_value(@app_config, field)) %></div><% end %>
+</div></section><% end %>
+<%= submit_tag "Save dashboard settings" %><% end %>
+<% @panels.each do |panel| %>
+<% if panel.respond_to?(:render_in) %><section class="card"><%= panel.render_in(self) %></section><% end %>
+<% end %></main>

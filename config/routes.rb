@@ -281,6 +281,24 @@ post "/dashboard/infrastructure/providers/:compute_provider_id/linode_smoke_test
 
 get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboard_bank
 
+  # BEGIN LIGHTEK ORGANIZED SETTINGS
+  get "/dashboard/settings", to: "dashboard/settings_home#index", as: :dashboard_settings_home
+  get "/dashboard/settings/general", to: "dashboard/platform_settings#index", as: :dashboard_platform_settings
+  patch "/dashboard/settings/general", to: "dashboard/platform_settings#update"
+  patch "/dashboard/settings", to: "dashboard/platform_settings#update"
+  get "/dashboard/website/settings", to: "dashboard/website_settings#show", as: :dashboard_website_settings
+  patch "/dashboard/website/settings", to: "dashboard/website_settings#update"
+  # END LIGHTEK ORGANIZED SETTINGS
+
+# BEGIN LIGHTEK WEBSITE DESIGNS
+  get "/dashboard/website/designs", to: "dashboard/website_designs#index", as: :dashboard_website_designs
+  get "/dashboard/website/designs/preview", to: "dashboard/website_designs#preview", as: :preview_dashboard_website_designs
+  post "/dashboard/website/designs/apply", to: "dashboard/website_designs#apply", as: :apply_dashboard_website_designs
+  post "/dashboard/website/designs/import", to: "dashboard/website_designs#import", as: :import_dashboard_website_designs
+  patch "/dashboard/website/designs/fonts", to: "dashboard/website_designs#update_fonts", as: :fonts_dashboard_website_designs
+# END LIGHTEK WEBSITE DESIGNS
+
+
 mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────

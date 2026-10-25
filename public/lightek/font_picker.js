@@ -1,0 +1,33 @@
+(()=>{
+ if(window.LightekFontPicker?.visual){window.LightekFontPicker.start();return;}
+ const wired=new WeakSet(),loaded=new Map();let catalogPromise;
+ const system=new Set(['system-ui','sans-serif','serif','monospace','cursive','fantasy','arial','helvetica','georgia','verdana','times new roman','courier new','inherit','initial']);
+ const aliases={'playwrite argentina guides':'Playwrite AR Guides','playwrite argentina':'Playwrite AR'};
+ function family(value){const first=value.split(',')[0].trim().replace(/^['"]|['"]$/g,'');return /^[a-zA-Z][a-zA-Z0-9 +\-]{0,99}$/.test(first)?aliases[first.toLowerCase()]||first:null;}
+ function catalog(){return catalogPromise||=(fetch('/lightek/font_catalog.json',{credentials:'same-origin'}).then(r=>{if(!r.ok)throw Error('catalog');return r.json();}).catch(e=>{catalogPromise=null;throw e;}));}
+ function load(name,weight){
+  const key=name+':'+(weight||'default');if(loaded.has(key))return loaded.get(key);
+  const promise=new Promise((resolve,reject)=>{const link=document.createElement('link');link.rel='stylesheet';const url=new URL('https://fonts.googleapis.com/css2');url.searchParams.set('family',name+(weight?':wght@'+weight:''));url.searchParams.set('display','swap');link.href=url.href;link.dataset.lightekFont=name;link.onload=()=>{clearTimeout(timer);resolve();};link.onerror=()=>{clearTimeout(timer);loaded.delete(key);link.remove();reject(Error('font'));};const timer=setTimeout(()=>{loaded.delete(key);link.remove();reject(Error('timeout'));},15000);document.head.append(link);});loaded.set(key,promise);return promise;
+ }
+ function el(tag,attrs={},text){const node=document.createElement(tag);Object.assign(node,attrs);if(text!==undefined)node.textContent=text;return node;}
+ function start(){document.querySelectorAll('[data-lightek-font-picker]').forEach(widget=>{
+  if(wired.has(widget))return;wired.add(widget);
+  const input=widget.querySelector('[data-font-input]'),preview=widget.querySelector('[data-font-preview]'),status=widget.querySelector('[data-font-status]');let timer,revision=0;
+  async function update(){const version=++revision,name=family(input.value);if(!input.value.trim()){preview.style.fontFamily='inherit';status.textContent='Using the design default.';return;}if(!name){status.textContent='Choose a font or enter a family name.';return;}preview.style.fontFamily=JSON.stringify(name)+',sans-serif';if(system.has(name.toLowerCase())){status.textContent='Using a system font.';return;}status.textContent='Loading '+name+'…';try{await load(name);const faces=await document.fonts.load('24px '+JSON.stringify(name));if(version===revision)status.textContent=faces.length?'Previewing '+name+'.':'Font unavailable. Check the family name.';}catch{if(version===revision)status.textContent='Preview could not load. You can still choose or save a font.';}}
+  input.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(update,450);});input.addEventListener('change',()=>{clearTimeout(timer);update();});update();
+  const open=el('button',{type:'button',className:'lt-font-browse'},'Browse fonts visually');input.after(open);
+  const dialog=el('dialog',{className:'lt-font-dialog'}),heading=el('h2',{},'Choose a font'),close=el('button',{type:'button'},'Close');
+  const uid=input.id+'-visual';heading.id=uid;dialog.setAttribute('aria-labelledby',uid);
+  const search=el('input',{type:'search',placeholder:'Search 1,950 font families',className:'lt-font-search'});search.setAttribute('aria-label','Search font families');
+  const category=el('select',{});category.setAttribute('aria-label','Font style');
+  [['','All styles'],['Sans Serif','Sans serif'],['Serif','Serif'],['Display','Display'],['Handwriting','Handwriting / script'],['Monospace','Monospace']].forEach(([value,label])=>category.append(el('option',{value},label)));
+  const count=el('p',{});count.setAttribute('role','status');const grid=el('div',{className:'lt-font-grid'}),previous=el('button',{type:'button'},'Previous'),next=el('button',{type:'button'},'Next');let page=0,fonts=[],renderRevision=0;
+  function draw(){const version=++renderRevision,q=search.value.trim().toLowerCase(),found=fonts.filter(f=>(!category.value||f.category===category.value)&&(f.family.toLowerCase().includes(q)||(q.includes('argentina')&&f.family.startsWith('Playwrite AR'))));page=Math.min(page,Math.max(0,Math.ceil(found.length/12)-1));grid.replaceChildren();count.textContent=found.length+' families · page '+(page+1)+' of '+Math.max(1,Math.ceil(found.length/12));previous.disabled=page===0;next.disabled=(page+1)*12>=found.length;found.slice(page*12,page*12+12).forEach(font=>{
+   const card=el('button',{type:'button',className:'lt-font-card'}),label=el('strong',{},font.family),sample=el('span',{className:'lt-font-sample'},'The next chapter. Aa 0123'),state=el('small',{},'Loading preview…');card.append(label,sample,state);sample.style.fontFamily=JSON.stringify(font.family)+',sans-serif';card.setAttribute('aria-label','Choose '+font.family);card.setAttribute('aria-pressed',String(family(input.value)===font.family));card.addEventListener('click',()=>{input.value=font.family;input.dispatchEvent(new Event('change',{bubbles:true}));dialog.close();});grid.append(card);const weight=(font.weights||[]).includes(400)?400:(font.weights||[])[0];load(font.family,weight).then(()=>document.fonts.load((weight||400)+' 24px '+JSON.stringify(font.family))).then(faces=>{if(version===renderRevision)state.textContent=faces.length?font.category:'Preview unavailable';}).catch(()=>{if(version===renderRevision)state.textContent='Preview unavailable';});
+  });}
+  dialog.append(heading,close,search,category,count,grid,previous,next);widget.append(dialog);
+  open.addEventListener('click',async()=>{dialog.showModal();search.focus();count.textContent='Loading font catalog…';try{fonts=await catalog();draw();}catch{count.textContent='The font catalog could not load. Close and try again, or enter a family name.';}});close.addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>open.focus());search.addEventListener('input',()=>{page=0;draw();});category.addEventListener('change',()=>{page=0;draw();});previous.addEventListener('click',()=>{page--;draw();});next.addEventListener('click',()=>{page++;draw();});
+ });}
+ if(!document.querySelector('[data-lightek-font-styles]')){const link=el('link',{rel:'stylesheet',href:'/lightek/font_picker.css'});link.dataset.lightekFontStyles='1';document.head.append(link);}
+ window.LightekFontPicker={start,visual:true};document.addEventListener('turbo:load',start);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();

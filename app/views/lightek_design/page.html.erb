@@ -1,0 +1,9 @@
+<% @page.sections.order(:position, :id).each do |record| %>
+  <% if LightekDesign::Catalog.section_definition(record.kind) %>
+    <%= render "lightek_design/sections/#{record.kind}", section: record.presenter %>
+  <% else %>
+    <div class="lt-design-<%= LightekDesign::Catalog.design_for(@site) %>">
+    <%= render "dymond_site/themes/default/sections/#{record.template_partial}", section: record.presenter %>
+    </div>
+  <% end %>
+<% end %>

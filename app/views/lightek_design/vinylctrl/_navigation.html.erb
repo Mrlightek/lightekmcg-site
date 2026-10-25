@@ -1,0 +1,17 @@
+<nav class="nav" id="nav">
+<div class="nav__logo"><%= LightekDesign::Catalog.value(section, "text_7", "Vinyl") %><span class="nav__logo-ctrl"><%= LightekDesign::Catalog.value(section, "text_8", "CTRL") %></span>
+</div>
+<div class="nav__links" id="vinylctrl-navigation">
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_1", "#how"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_9", "How It Works") %></a>
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_2", "#features"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_10", "Features") %></a>
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_3", "#browse"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_11", "Browse DJs") %></a>
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_4", "#waitlist"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_12", "Join Waitlist") %></a>
+</div>
+<div class="nav__actions">
+<a class="nav__login" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_5", "/session/new"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_13", "Log In") %></a>
+<a class="btn btn--lime btn--sm" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_6", "#waitlist"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_14", "Join Now") %></a>
+</div>
+<button aria-controls="vinylctrl-navigation" aria-expanded="false" aria-label="Open navigation" class="nav__ham" data-design-menu="true" type="button">
+<span></span><span></span><span></span>
+</button>
+</nav>

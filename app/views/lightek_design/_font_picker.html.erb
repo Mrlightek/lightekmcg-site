@@ -1,0 +1,19 @@
+<% current = template_field_value(template, field).to_s %>
+<% role = {"font_sans" => "Body font", "font_heading" => "Heading font", "font_mono" => "Monospace font"}.fetch(field[:name].to_s) %>
+<% list_id = "lightek-fonts-#{field[:name]}" %>
+<div data-lightek-font-picker style="margin-bottom:18px;min-width:0">
+  <%= label_tag "template_#{field[:name]}", role, style: "display:block;font-weight:600;margin-bottom:6px" %>
+  <%= text_field_tag "template[#{field[:name]}]", current, id: "template_#{field[:name]}", list: list_id,
+    autocomplete: "off", maxlength: 300, placeholder: "Search or enter a Google font name", data: { font_input: true },
+    aria: { describedby: "#{list_id}-help" }, style: "width:100%;padding:10px;color:var(--dd-text-primary);background:var(--dd-card-bg);border:1px solid var(--dd-border);border-radius:8px" %>
+  <datalist id="<%= list_id %>">
+    <% ["system-ui, sans-serif", "Georgia, serif", "monospace", *LightekDesign::Fonts.families].each do |family| %><option value="<%= family %>"></option><% end %>
+  </datalist>
+  <small id="<%= list_id %>-help" style="display:block;color:var(--dd-text-secondary);margin-top:6px">Choose a suggestion or enter any family from <a href="https://fonts.google.com/" target="_blank" rel="noopener noreferrer">Google Fonts</a>. Leave blank to use the design’s default.</small>
+  <p data-font-preview contenteditable="true" role="textbox" aria-label="<%= role %> preview text" style="margin:12px 0 4px;padding:16px;border:1px solid var(--dd-border);border-radius:8px;font-size:24px;line-height:1.5;overflow-wrap:anywhere">The next chapter starts here. Aa Bb Cc 0123456789</p>
+  <small data-font-status role="status" style="color:var(--dd-text-secondary)"></small>
+</div>
+<% unless content_for?(:lightek_font_picker_script) %>
+<% content_for :lightek_font_picker_script, "included" %>
+<%= javascript_include_tag "/lightek/font_picker.js", defer: true, "data-turbo-track": "reload" %>
+<% end %>

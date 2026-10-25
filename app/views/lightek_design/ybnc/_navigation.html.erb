@@ -1,0 +1,17 @@
+<nav aria-label="Main navigation" class="nav" id="nav" role="navigation">
+<a class="nav__brand" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_1", "#home"), image: false) %>">
+<span class="nav__brand-abbr"><%= LightekDesign::Catalog.value(section, "text_8", "YBNC") %></span>
+<span class="nav__brand-full"><%= LightekDesign::Catalog.value(section, "text_9", "Young Black Nameless Coalition") %></span>
+</a>
+<div class="nav__links" id="ybnc-navigation">
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_2", "#mission"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_10", "Mission") %></a>
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_3", "#focus"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_11", "Focus Areas") %></a>
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_4", "#about"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_12", "Ashley") %></a>
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_5", "#events"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_13", "Events") %></a>
+<a class="nav__link" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_6", "#involved"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_14", "Get Involved") %></a>
+<a class="nav__cta" href="<%= LightekDesign::Catalog.safe_url(LightekDesign::Catalog.value(section, "link_7", "#involved"), image: false) %>"><%= LightekDesign::Catalog.value(section, "text_15", "Join the Coalition") %></a>
+</div>
+<button aria-controls="ybnc-navigation" aria-expanded="false" aria-label="Open navigation" class="nav__ham" data-design-menu="true" type="button">
+<span></span><span></span><span></span>
+</button>
+</nav>

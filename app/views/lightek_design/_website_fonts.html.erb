@@ -1,0 +1,17 @@
+<%
+  font_tokens = (@page.theme || @site.theme).tokens.to_h.merge(@site.active_template&.tokens.to_h || {})
+  body_font = LightekDesign::Fonts.css_stack(font_tokens["font_sans"])
+  heading_font = LightekDesign::Fonts.css_stack(font_tokens["font_heading"])
+  mono_font = LightekDesign::Fonts.css_stack(font_tokens["font_mono"], fallback: "monospace")
+  fonts_url = LightekDesign::Fonts.stylesheet(font_tokens.values_at("font_sans", "font_heading", "font_mono"))
+%>
+<% if fonts_url %>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<%= stylesheet_link_tag fonts_url, "data-lightek-website-fonts": true %>
+<% end %>
+<style id="lightek-website-typography">
+<% if body_font %>body {font-family:<%= body_font.html_safe %>;}<% end %>
+<% if heading_font %>h1,h2,h3,h4,h5,h6 {font-family:<%= heading_font.html_safe %>;}<% end %>
+<% if mono_font %>pre,code,kbd,samp {font-family:<%= mono_font.html_safe %>;}<% end %>
+</style>

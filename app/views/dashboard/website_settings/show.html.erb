@@ -1,0 +1,26 @@
+<% content_for :page_title, "Website Settings" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings"><%= link_to "← Settings", dashboard_settings_home_path %>
+<h1>Website Settings</h1><p class="intro">Change your website’s display name.</p>
+<% if @sites.many? %>
+<%= form_with url: dashboard_website_settings_path, method: :get do %>
+<%= label_tag :site_id, "Website" %>
+<%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :host, @site&.id), prompt: "Choose a website" %>
+<%= submit_tag "Open website settings" %>
+<% end %>
+<% end %>
+<% if @site %>
+<section class="card">
+<h2><%= @site.host %></h2>
+<% if @errors.present? %><div class="errors" role="alert"><%= @errors.join(". ") %></div><% end %>
+<%= form_with scope: :website, url: dashboard_website_settings_path(site_id: @site.id), method: :patch do |f| %>
+<%= f.label :name, "Website name" %>
+<%= f.text_field :name, value: @site.name, required: true, autocomplete: "organization", aria: { describedby: "website-name-help" } %>
+<small id="website-name-help">Used wherever your website displays its name. Matching hero labels update with it; custom hero labels keep their wording.</small>
+<%= f.submit "Save website name" %>
+<% end %>
+<p><small>Website address: <%= @site.host %></small></p>
+</section>
+<% elsif @sites.empty? %><p>No website is assigned to this account.</p>
+<% else %><p>Choose a website above to edit its settings.</p><% end %>
+</main>

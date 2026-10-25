@@ -1,0 +1,52 @@
+<%
+  active_theme = DymondDash::AppConfig.current&.theme
+  defaults = DymondTheme::Scopes.defaults("admin")
+  accent = active_theme ? active_theme.token("accent") : defaults.fetch("accent")
+  hover = active_theme ? active_theme.token("accent_hover") : defaults.fetch("accent_hover")
+  background = active_theme ? active_theme.token("card_bg") : defaults.fetch("card_bg")
+%>
+<style id="lightek-dashboard-theme-forms">
+:root {
+  --dd-input-bg: var(--dd-card-bg);
+  --dd-input-text: var(--dd-text-primary);
+  --dd-input-border: var(--dd-border);
+  --dd-button-text: <%= LightekDashboard::FormPalette.foreground(accent) %>;
+  --dd-button-hover-text: <%= LightekDashboard::FormPalette.foreground(hover) %>;
+  --dd-form-scheme: <%= LightekDashboard::FormPalette.scheme(background) %>;
+}
+.dd-content form {min-width:0}
+.dd-content :is(input:not([type]),input[type=text],input[type=email],input[type=password],input[type=search],input[type=url],input[type=tel],input[type=number],input[type=date],input[type=datetime-local],input[type=time],input[type=month],input[type=week],select,textarea,trix-editor) {
+  box-sizing:border-box; max-width:100%; min-width:0; width:100%;
+  background:var(--dd-input-bg)!important; color:var(--dd-input-text)!important;
+  border:1px solid var(--dd-input-border)!important; border-radius:var(--dd-radius,8px);
+  padding:10px 12px; font:inherit; line-height:1.5; color-scheme:var(--dd-form-scheme);
+}
+.dd-content :is(select,textarea,trix-editor) {min-height:42px}
+.dd-content textarea {resize:vertical}
+.dd-content select option,.dd-content select optgroup {background:var(--dd-input-bg);color:var(--dd-input-text)}
+.dd-content :is(input,textarea)::placeholder {color:var(--dd-text-secondary);opacity:1}
+.dd-content :is(input,select,textarea,trix-editor):focus-visible {
+  outline:2px solid var(--dd-accent)!important;outline-offset:2px;border-color:var(--dd-accent)!important;
+}
+.dd-content :is(input,select,textarea)[aria-invalid=true],
+.dd-content .field_with_errors :is(input,select,textarea) {border-color:var(--dd-danger)!important}
+.dd-content .field_with_errors {display:contents}
+.dd-content :is(input,select,textarea):disabled {opacity:.65;cursor:not-allowed}
+.dd-content input[readonly],.dd-content textarea[readonly] {color:var(--dd-text-secondary)!important}
+.dd-content input:is([type=checkbox],[type=radio]) {accent-color:var(--dd-accent);flex-shrink:0}
+.dd-content :is(input[type=submit],.dd-btn-primary,.dd-page-nav__submit,a[style*="background:var(--dd-accent)"],a[style*="background: var(--dd-accent)"],button[style*="background:var(--dd-accent)"],button[style*="background: var(--dd-accent)"]) {
+  background:var(--dd-accent)!important;color:var(--dd-button-text)!important;
+  border-color:var(--dd-accent)!important;
+}
+.dd-content :is(input[type=submit],.dd-btn-primary,.dd-page-nav__submit,a[style*="background:var(--dd-accent)"],a[style*="background: var(--dd-accent)"],button[style*="background:var(--dd-accent)"],button[style*="background: var(--dd-accent)"]):hover {
+  background:var(--dd-accent-hover,var(--dd-accent))!important;color:var(--dd-button-hover-text)!important;
+}
+.dd-content :is(button,input[type=submit],a):focus-visible {outline:2px solid var(--dd-accent);outline-offset:3px}
+.dd-content input[type=file] {max-width:100%;color:var(--dd-text-primary);font:inherit}
+.dd-content input[type=file]::file-selector-button {
+  background:var(--dd-sidebar-bg);color:var(--dd-text-primary);border:1px solid var(--dd-border);
+  border-radius:var(--dd-radius,8px);padding:8px 12px;margin-right:12px;cursor:pointer;
+}
+.dd-content trix-toolbar .trix-button {color:var(--dd-text-primary);background:var(--dd-sidebar-bg);border-color:var(--dd-border)}
+/* Theme swatches, media previews and color/range inputs retain their own values. */
+</style>

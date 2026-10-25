@@ -1,0 +1,38 @@
+<% content_for :page_title, "Website designs" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings"><h1>Website designs & fonts</h1>
+<p class="intro">Choose a website, preview a design, then apply its appearance or add an editable starter page.</p>
+<%= form_with url: dashboard_website_designs_path, method: :get, local: true do %>
+  <%= label_tag :site_id, "Website" %>
+  <%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site&.id), include_blank: "Choose a website", required: true %>
+  <%= submit_tag "Choose website" %>
+<% end %>
+<% if @site %>
+<p>Editing <strong><%= @site.name %></strong> · <%= @site.host %></p>
+<div class="grid">
+<% LightekDesign::Catalog.designs.each do |key, design| %>
+<section class="card">
+  <%= image_tag "/lightek/designs/#{key}-preview.png", alt: "#{design.fetch('name')} website design", style: "width:100%;height:240px;object-fit:cover;object-position:top;border-radius:8px", loading: "lazy" %>
+  <h2><%= design.fetch("name") %><%= " · Active" if LightekDesign::Catalog.design_for(@site) == key %></h2>
+  <p><%= design.fetch("description") %></p>
+  <p><%= design.fetch("sections").length %> editable sections · <%= design.fetch("fonts").values.join(" / ") %></p>
+  <%= link_to "Preview design", preview_dashboard_website_designs_path(site_id: @site.id, design: key), target: "_blank", rel: "noopener" %>
+  <%= button_to "Apply design", apply_dashboard_website_designs_path(site_id: @site.id, design: key), method: :post %>
+  <%= button_to "Import starter page", import_dashboard_website_designs_path(site_id: @site.id, design: key), method: :post %>
+  <p><small>Applying changes appearance. Importing creates a draft; it does not replace your homepage. Re-importing preserves your edits.</small></p>
+</section>
+<% end %>
+</div>
+<% if LightekDesign::Catalog.active?(@site) %>
+<section class="card" style="margin-top:24px"><h2>Typography for <%= @site.name %></h2>
+<%= form_with url: fonts_dashboard_website_designs_path(site_id: @site.id), method: :patch, local: true do %>
+  <% LightekDesign::WebsiteDesigns::FONT_KEYS.each do |key| %>
+    <%= render "lightek_design/font_picker", template: @site.active_template, field: {name: key} %>
+  <% end %>
+  <%= submit_tag "Save website fonts" %>
+<% end %></section>
+<% end %>
+<% if current_user.role.to_s == "super_admin" || DymondSite::Site.count == 1 %>
+  <p><%= link_to "Open Pages & Sections", dymond_dash.pages_path(site_id: @site.id) %></p>
+<% end %>
+<% end %></main>

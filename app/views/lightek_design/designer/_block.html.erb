@@ -1,0 +1,28 @@
+<div class="ld-inner ld-block-<%= block %>">
+<% if block == "image" %>
+  <% if data["image_url"].present? %><%= image_tag LightekDesign::Catalog.safe_url(data["image_url"], image: true), alt: data["image_alt"].to_s, class: "ld-image", loading: "lazy" %><% else %><div class="ld-image-placeholder">Choose an image</div><% end %>
+  <% if data["body"].present? %><p class="ld-body"><%= data["body"] %></p><% end %>
+<% else %>
+  <div class="ld-copy">
+    <% if data["eyebrow"].present? %><p class="ld-eyebrow"><%= data["eyebrow"] %></p><% end %>
+    <% if data["heading"].present? %><% if block == "hero" %><h1 class="ld-heading"><%= data["heading"] %></h1><% else %><h2 class="ld-heading"><%= data["heading"] %></h2><% end %><% end %>
+    <% if data["body"].present? %><p class="ld-body"><%= data["body"] %></p><% end %>
+    <% if data["cta_label"].present? %><%= link_to data["cta_label"], LightekDesign::Catalog.safe_url(data["cta_url"]), class: "ld-button" %><% end %>
+  </div>
+  <% if %w[hero split].include?(block) && data["image_url"].present? %><%= image_tag LightekDesign::Catalog.safe_url(data["image_url"], image: true), alt: data["image_alt"].to_s, class: "ld-image", loading: "lazy" %><% end %>
+  <% if %w[cards stats].include?(block) %>
+  <div class="ld-grid">
+  <% Array(data["items"]).each do |item| %>
+    <article class="ld-card">
+    <% if block == "stats" %><strong class="ld-stat"><%= item["value"] %></strong><p><%= item["label"] %></p>
+    <% else %>
+      <% if item["image_url"].present? %><%= image_tag LightekDesign::Catalog.safe_url(item["image_url"], image: true), alt: "", class: "ld-image", loading: "lazy" %><% end %>
+      <h3><%= item["title"] %></h3><p class="ld-body"><%= item["body"] %></p>
+      <% if item["url"].present? %><%= link_to "Learn more", LightekDesign::Catalog.safe_url(item["url"]), class: "ld-card-link" %><% end %>
+    <% end %>
+    </article>
+  <% end %>
+  </div>
+  <% end %>
+<% end %>
+</div>

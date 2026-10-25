@@ -1,5 +1,8 @@
 <% @page.sections.order(:position, :id).each do |record| %>
-  <% if LightekDesign::Catalog.section_definition(record.kind) %>
+  <% entry = LightekDesign::Catalog.section_definition(record.kind) %>
+  <% if entry && entry["designer"] %>
+    <%= studio_render_section(entry, record.data) %>
+  <% elsif entry %>
     <%= render "lightek_design/sections/#{record.kind}", section: record.presenter %>
   <% else %>
     <div class="lt-design-<%= LightekDesign::Catalog.design_for(@site) %>">

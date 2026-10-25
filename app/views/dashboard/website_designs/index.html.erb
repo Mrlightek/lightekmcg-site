@@ -1,6 +1,7 @@
 <% content_for :page_title, "Website designs" %>
 <%= render "dashboard/settings_home/style" %>
 <main class="lt-settings"><h1>Website designs & fonts</h1>
+<p><%= link_to "Open Design Studio →", dashboard_design_studio_index_path %></p>
 <p class="intro">Choose a website, preview a design, then apply its appearance or add an editable starter page.</p>
 <%= form_with url: dashboard_website_designs_path, method: :get, local: true do %>
   <%= label_tag :site_id, "Website" %>
@@ -10,9 +11,13 @@
 <% if @site %>
 <p>Editing <strong><%= @site.name %></strong> · <%= @site.host %></p>
 <div class="grid">
-<% LightekDesign::Catalog.designs.each do |key, design| %>
+<% LightekDesign::Catalog.selectable_designs(user: current_user, active: LightekDesign::Catalog.design_for(@site)).each do |key, design| %>
 <section class="card">
+  <% if design["designer"] %>
+    <div style="padding:24px;min-height:180px;border-radius:8px;background:<%= design.dig('tokens','color_bg') %>;color:<%= design.dig('tokens','color_text') %>"><strong style="display:block;font-size:54px;color:<%= design.dig('tokens','color_primary') %>">Aa</strong><%= design["name"] %> · version <%= design["version"] %></div>
+  <% else %>
   <%= image_tag "/lightek/designs/#{key}-preview.png", alt: "#{design.fetch('name')} website design", style: "width:100%;height:240px;object-fit:cover;object-position:top;border-radius:8px", loading: "lazy" %>
+  <% end %>
   <h2><%= design.fetch("name") %><%= " · Active" if LightekDesign::Catalog.design_for(@site) == key %></h2>
   <p><%= design.fetch("description") %></p>
   <p><%= design.fetch("sections").length %> editable sections · <%= design.fetch("fonts").values.join(" / ") %></p>

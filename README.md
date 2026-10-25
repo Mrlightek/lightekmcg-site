@@ -158,3 +158,5 @@ These roadmap documents distinguish intended features from verified, deployed be
 - [Revenue activation and live production roadmap](docs/roadmap/revenue-and-live-production.md) — website/domain/app commercialization and social LIVE production priorities.
 
 These roadmap documents distinguish intended features from verified, deployed behavior. They do not change authorization or activate provisioning.
+
+Design Studio: see [docs/lightek_design_studio.md](docs/lightek_design_studio.md).

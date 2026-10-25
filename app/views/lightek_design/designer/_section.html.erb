@@ -1,0 +1,8 @@
+<% style = entry.fetch("style", {}) %>
+<section <%= tag.attributes(id: entry["anchor"]) if entry["anchor"].present? %> class="ld-section <%= 'ld-source' if entry['render_kind'].present? %> <%= 'ld-has-background' if style['background'].present? && style['background'] != 'transparent' %> <%= 'ld-has-color' if style['color'].present? && style['color'] != 'inherit' %>" style="<%= studio_section_style(entry) %>" data-studio-section="<%= entry['kind'] %>">
+<% if entry["block"].present? %>
+  <%= render "lightek_design/designer/block", block: entry["block"], data: section_data %>
+<% else %>
+  <%= render studio_original_partial(entry), section: LightekDesign::StudioCatalog.presenter(entry, section_data) %>
+<% end %>
+</section>

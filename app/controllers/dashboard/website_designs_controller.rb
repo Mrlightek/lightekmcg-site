@@ -3,6 +3,7 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   before_action :set_design_site
   before_action :set_design, only: %i[preview apply import]
   helper DymondDash::TemplateSchemaHelper
+  helper LightekDesign::StudioHelper
 
   def index; end
 
@@ -48,6 +49,6 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   end
 
   def set_design
-    @design = LightekDesign::Catalog.designs.fetch(params[:design].to_s) { raise ActiveRecord::RecordNotFound }
+    @design = LightekDesign::Catalog.selectable_designs(user: current_user, active: LightekDesign::Catalog.design_for(@site)).fetch(params[:design].to_s) { raise ActiveRecord::RecordNotFound }
   end
 end

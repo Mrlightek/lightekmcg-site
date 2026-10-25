@@ -298,6 +298,16 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
   patch "/dashboard/website/designs/fonts", to: "dashboard/website_designs#update_fonts", as: :fonts_dashboard_website_designs
 # END LIGHTEK WEBSITE DESIGNS
 
+# BEGIN LIGHTEK DESIGN STUDIO
+  get "/dashboard/design-studio", to: "dashboard/design_studio#index", as: :dashboard_design_studio_index
+  post "/dashboard/design-studio", to: "dashboard/design_studio#create", as: :create_dashboard_design_studio
+  get "/dashboard/design-studio/:id/edit", to: "dashboard/design_studio#edit", as: :edit_dashboard_design_studio
+  patch "/dashboard/design-studio/:id", to: "dashboard/design_studio#update", as: :dashboard_design_studio
+  post "/dashboard/design-studio/:id/preview", to: "dashboard/design_studio#preview", as: :preview_dashboard_design_studio
+  post "/dashboard/design-studio/:id/publish", to: "dashboard/design_studio#publish", as: :publish_dashboard_design_studio
+  post "/dashboard/design-studio/:id/upload", to: "dashboard/design_studio#upload", as: :upload_dashboard_design_studio
+# END LIGHTEK DESIGN STUDIO
+
 
 mount DymondDash::Engine => "/dashboard"
 

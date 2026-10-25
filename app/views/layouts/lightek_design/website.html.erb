@@ -1,6 +1,8 @@
 <%
   design_key = @design_key || LightekDesign::Catalog.design_for(@site)
-  definition = LightekDesign::Catalog.fetch(design_key)
+  definition = @studio_preview_definition || LightekDesign::Catalog.fetch(design_key)
+  base_style = definition["base_design"] || design_key
+  navigation_style = base_style == "plain" ? "vinylctrl" : base_style
   tokens = definition.fetch("tokens").merge(definition.fetch("fonts"))
   tokens.merge!(@site.active_template.tokens) unless @preview
   stacks = %w[font_sans font_heading font_mono].each_with_object({}) do |key, result|
@@ -15,8 +17,9 @@
 <% if @preview %><meta name="robots" content="noindex,nofollow"><% end %>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <% if google_url %><%= stylesheet_link_tag google_url %><% end %>
-<% LightekDesign::Catalog.designs.each_key do |key| %><%= stylesheet_link_tag "/lightek/designs/#{key}.css" %><% end %>
+<% %w[vinylctrl ybnc].each do |key| %><%= stylesheet_link_tag "/lightek/designs/#{key}.css" %><% end %>
 <%= stylesheet_link_tag "/lightek/designs/shared.css" %>
+<%= stylesheet_link_tag "/lightek/designer/website.css" %>
 <% unless @preview %><%= theme_styles(@page.theme || @site.theme) %><% end %>
 <style id="lightek-website-typography">
 :root {--lt-body:<%= stacks["font_sans"].html_safe %>;--lt-heading:<%= stacks["font_heading"].html_safe %>;--lt-mono:<%= stacks["font_mono"].html_safe %>;}
@@ -27,22 +30,26 @@
 body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-text);}
 </style>
 <%= javascript_include_tag "/lightek/designs/website.js", defer: true %>
-</head><body class="lt-website-<%= design_key %>" data-lightek-website>
+</head><body class="lt-website-<%= base_style %>" data-lightek-website>
 <a class="lt-skip" href="#main-content">Skip to content</a>
-<% if @preview %><aside class="lt-preview-banner">Design preview · <%= link_to "Back to website designs", dashboard_website_designs_path(site_id: @site.id) %></aside><% end %>
-<header class="lt-design-<%= design_key %>">
+<% if @preview && !@studio_preview_definition %><aside class="lt-preview-banner">Design preview · <%= link_to "Back to website designs", dashboard_website_designs_path(site_id: @site.id) %></aside><% end %>
+<header class="lt-design-<%= navigation_style %>">
 <% if !@preview && @site.nav_menu && @site.nav_menu.roots.any? %>
-  <%= render "lightek_design/site_navigation", design_key: design_key %>
+  <%= render "lightek_design/site_navigation", design_key: navigation_style %>
+<% elsif definition["designer"] %>
+  <%= render "lightek_design/designer/navigation", definition: definition %>
 <% else %>
   <%= render "lightek_design/#{design_key}/navigation", section: definition.fetch("navigation").fetch("data") %>
 <% end %>
 </header>
 <main id="main-content"><%= yield %></main>
-<% unless @preview || @page.sections.any? { |section| %w[vinylctrl_waitlist ybnc_footer].include?(section.kind) } %>
-  <div class="lt-design-<%= design_key %>">
+<% unless @preview || @page.sections.any? { |section| %w[vinylctrl_waitlist ybnc_footer].include?(section.kind) || LightekDesign::Catalog.section_definition(section.kind)&.fetch("chrome_footer", false) } %>
+  <div class="lt-design-<%= navigation_style %>">
   <% if @site.footer %>
     <%= render "dymond_site/themes/default/chrome/chrome_styles" %>
     <%= render "dymond_site/themes/default/chrome/footer", site: @site, footer: @site.footer %>
+  <% elsif definition["designer"] %>
+    <footer class="ld-default-footer">© <%= Time.current.year %> <%= @site.name %></footer>
   <% else %>
     <%= render "lightek_design/#{design_key}/footer", section: definition.fetch("footer").fetch("data") %>
   <% end %>

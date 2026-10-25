@@ -1,0 +1,6 @@
+<% @design.fetch("sections").each do |entry| %>
+<%= studio_render_section(entry, entry.fetch("data")) %>
+<% end %>
+<script>
+ document.querySelectorAll('[data-studio-section]').forEach(section=>section.addEventListener('click',event=>{event.preventDefault();window.parent.postMessage({type:'lightek-studio-select',kind:section.dataset.studioSection},'*');}));
+</script>

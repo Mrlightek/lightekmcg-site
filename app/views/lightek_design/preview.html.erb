@@ -1,3 +1,7 @@
 <% @design.fetch("sections").each do |entry| %>
-  <%= render "lightek_design/sections/#{entry.fetch('kind')}", section: entry.fetch("data") %>
+  <% if entry["designer"] %>
+    <%= studio_render_section(entry, entry.fetch("data")) %>
+  <% else %>
+    <%= render "lightek_design/sections/#{entry.fetch('kind')}", section: entry.fetch("data") %>
+  <% end %>
 <% end %>

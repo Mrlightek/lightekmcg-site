@@ -1,0 +1,22 @@
+<% content_for :page_title, "Design Studio" %>
+<%= stylesheet_link_tag "/lightek/designer/editor.css" %>
+<%= javascript_include_tag "/lightek/designer/editor.js", defer: true %>
+<main class="lds-editor" data-design-studio>
+<header class="lds-toolbar"><div><%= link_to "← Design Studio", dashboard_design_studio_index_path %><h1 data-design-name><%= @document["name"] %></h1></div><div class="lds-actions"><span role="status" data-studio-status>Saved draft</span><button type="button" class="lds-button" data-save-design>Save draft</button><button type="button" class="lds-button lds-primary" data-publish-design>Add to design library</button></div></header>
+<div class="lds-error" role="alert" data-studio-error hidden></div>
+<div class="lds-workspace">
+<aside class="lds-outline"><h2>Sections</h2><p class="lds-muted">Drag to reorder, or use the arrow buttons.</p><div data-section-list></div>
+<label for="lds-add-section">Add a section</label><select id="lds-add-section" data-add-kind></select><button type="button" class="lds-button" data-add-section>Add section</button>
+<details class="lds-global"><summary>Design settings</summary><div data-global-fields></div>
+<details><summary>Typography</summary>
+<% %w[font_sans font_heading font_mono].each do |key| %><%= render "lightek_design/font_picker", template: @studio_template, field: {name: key} %><% end %>
+</details></details>
+<p class="lds-muted">A library version is reusable. Applying it to a website and publishing its pages remain separate actions.</p>
+<a href="<%= dashboard_website_designs_path %>" data-library-link>Open website design library →</a>
+</aside>
+<section class="lds-canvas-panel" aria-label="Design preview"><div class="lds-preview-tools"><div class="lds-segmented"><button type="button" data-preview-width="100%" aria-pressed="true">Desktop</button><button type="button" data-preview-width="768px" aria-pressed="false">Tablet</button><button type="button" data-preview-width="390px" aria-pressed="false">Mobile</button></div><button type="button" data-refresh-preview>Refresh preview</button><span class="lds-muted" data-preview-status></span></div>
+<div class="lds-canvas-scroll"><iframe title="Live website design preview" sandbox="allow-scripts" data-preview-frame></iframe></div></section>
+<aside class="lds-inspector"><h2 data-inspector-heading>Section settings</h2><div data-section-style></div><label class="lds-field-filter">Find a content field<input type="search" placeholder="Search text, labels or links" data-field-search></label><div data-content-fields></div></aside>
+</div>
+<script type="application/json" data-studio-payload><%= raw json_escape(@studio_payload.to_json) %></script>
+</main>

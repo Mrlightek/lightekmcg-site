@@ -1,0 +1,22 @@
+<% content_for :page_title, "Design Studio" %>
+<%= stylesheet_link_tag "/lightek/designer/editor.css" %>
+<main class="lds-home">
+<header class="lds-home-header"><div><span class="lds-kicker">Lightek · Website tools</span><h1>Design Studio</h1><p>Build a design once. Customize it for every client.</p></div><%= link_to "Website design library", dashboard_website_designs_path, class: "lds-button" %></header>
+<section class="lds-start"><h2>Start a design</h2>
+<%= form_with url: dashboard_design_studio_index_path, method: :post, local: true do %>
+  <label>Design name<%= text_field_tag :name, "New design", maxlength: 120, required: true %></label>
+  <label>Starting point<%= select_tag :source, options_for_select([["Blank canvas", ""]] + @sources.map { |key, definition| [definition["name"], key] }) %></label>
+  <%= submit_tag "Open designer", class: "lds-button lds-primary" %>
+<% end %></section>
+<h2>Your design workspaces</h2>
+<div class="lds-document-grid">
+<% @documents.each do |record| %><% meta = LightekDesign::StudioDocument.metadata(record); draft = meta.fetch("draft") %>
+<article class="lds-document-card"><div class="lds-mini-art" style="background:<%= draft.dig('tokens','color_bg') %>;color:<%= draft.dig('tokens','color_text') %>"><span style="color:<%= draft.dig('tokens','color_primary') %>">Aa</span><strong><%= draft['name'] %></strong></div><div class="lds-card-copy"><h3><%= draft["name"] %></h3><p><%= draft["sections"].size %> sections · <%= meta.fetch("releases", []).length %> library versions</p><p><%= draft["description"] %></p><%= link_to "Continue designing", edit_dashboard_design_studio_path(record), class: "lds-button" %></div></article>
+<% end %>
+<% if @documents.empty? %><p class="lds-empty">Start blank or clone an existing design. Saving a draft leaves client websites unchanged.</p><% end %>
+</div>
+<nav aria-label="Workspace pages" style="margin-top:24px;display:flex;gap:12px">
+<% if @page_number > 1 %><%= link_to "Previous", dashboard_design_studio_index_path(page: @page_number - 1), class: "lds-button" %><% end %>
+<% if @documents.size == 24 %><%= link_to "Next", dashboard_design_studio_index_path(page: @page_number + 1), class: "lds-button" %><% end %>
+</nav>
+</main>

@@ -2,7 +2,7 @@
 class Dashboard::DesignStudioController < Dashboard::SettingsHomeController
   helper LightekDesign::StudioHelper
   helper DymondDash::TemplateSchemaHelper
-  before_action :set_document, only: %i[edit update preview publish upload]
+  before_action :set_document, only: %i[edit update preview publish upload destroy]
   rescue_from LightekDesign::StudioDocument::Conflict, with: :conflict
   rescue_from ArgumentError, with: :invalid_document
 
@@ -28,6 +28,14 @@ class Dashboard::DesignStudioController < Dashboard::SettingsHomeController
   def update
     LightekDesign::StudioDocument.update!(record: @record, document: document_payload, expected_revision: params[:revision])
     render json: saved_payload
+  end
+  def destroy
+    LightekDesign::StudioDocument.destroy!(record: @record, user: current_user, expected_revision: params[:revision])
+    if request.format.json?
+      render json: {redirect_url: dashboard_design_studio_index_path}
+    else
+      redirect_to dashboard_design_studio_index_path, notice: "Workspace deleted. Library versions and client websites are preserved.", status: :see_other
+    end
   end
   def preview
     document = LightekDesign::StudioDocument.normalize(document_payload)
@@ -76,7 +84,11 @@ class Dashboard::DesignStudioController < Dashboard::SettingsHomeController
     {document: LightekDesign::StudioDocument.draft(@record), revision: LightekDesign::StudioDocument.revision(@record)}
   end
   def conflict(error)
-    render json: {error: error.message}, status: :conflict
+    if action_name == "destroy" && !request.format.json?
+      redirect_to dashboard_design_studio_index_path, alert: error.message, status: :see_other
+    else
+      render json: {error: error.message}, status: :conflict
+    end
   end
   def invalid_document(error)
     if request.format.json? || %w[update preview publish upload].include?(action_name)

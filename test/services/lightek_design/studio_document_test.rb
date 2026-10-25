@@ -11,6 +11,43 @@ class LightekDesignStudioDocumentTest < ActiveSupport::TestCase
   setup { LightekDesign::StudioContext.reset }
   teardown { LightekDesign::StudioContext.reset }
 
+  test "deleting a workspace preserves its releases client pages and template snapshot" do
+    record = workspace
+    release = publish(record)
+    site = DymondSite::Site.create!(name: "Delete isolation", host: "delete-#{SecureRandom.hex(6)}.example.test")
+    page = LightekDesign::WebsiteDesigns.import!(site: site, design: release.key)
+    LightekDesign::WebsiteDesigns.apply!(site: site, design: release.key)
+    snapshot = site.reload.active_template.settings.deep_dup
+    sections = page.sections.map { |section| section.attributes }
+    LightekDesign::StudioDocument.destroy!(record: record, user: actor, expected_revision: 2)
+    refute DymondSite::SiteTemplate.exists?(record.id)
+    assert DymondSite::SiteTemplate.exists?(release.id)
+    assert_equal snapshot, site.reload.active_template.settings
+    assert_equal sections, page.reload.sections.map { |section| section.attributes }
+    assert_equal "Client design", LightekDesign::Catalog.fetch(release.key)["name"]
+  end
+  test "deletion rejects another owner and stale revisions while super admin can delete" do
+    record = workspace
+    assert_raises(ActiveRecord::RecordNotFound) do
+      LightekDesign::StudioDocument.destroy!(record: record, user: actor(8202), expected_revision: 1)
+    end
+    LightekDesign::StudioDocument.update!(record: record, document: document(record).merge("name" => "New work"), expected_revision: 1)
+    assert_raises(LightekDesign::StudioDocument::Conflict) do
+      LightekDesign::StudioDocument.destroy!(record: record, user: actor, expected_revision: 1)
+    end
+    assert_equal "New work", document(record.reload)["name"]
+    LightekDesign::StudioDocument.destroy!(record: record, user: actor(8303, "super_admin"), expected_revision: 2)
+    refute DymondSite::SiteTemplate.exists?(record.id)
+  end
+  test "a directly assigned workspace cannot be deleted" do
+    record = workspace
+    DymondSite::Site.create!(name: "Direct assignment", host: "direct-#{SecureRandom.hex(6)}.example.test", active_template_id: record.id)
+    assert_raises(ArgumentError) do
+      LightekDesign::StudioDocument.destroy!(record: record, user: actor, expected_revision: 1)
+    end
+    assert DymondSite::SiteTemplate.exists?(record.id)
+  end
+
   test "blank designs are saved as owned drafts without changing websites" do
     record = workspace
     assert_equal 4, document(record)["sections"].length

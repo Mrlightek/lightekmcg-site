@@ -303,6 +303,7 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
   post "/dashboard/design-studio", to: "dashboard/design_studio#create", as: :create_dashboard_design_studio
   get "/dashboard/design-studio/:id/edit", to: "dashboard/design_studio#edit", as: :edit_dashboard_design_studio
   patch "/dashboard/design-studio/:id", to: "dashboard/design_studio#update", as: :dashboard_design_studio
+  delete "/dashboard/design-studio/:id", to: "dashboard/design_studio#destroy", as: :delete_dashboard_design_studio
   post "/dashboard/design-studio/:id/preview", to: "dashboard/design_studio#preview", as: :preview_dashboard_design_studio
   post "/dashboard/design-studio/:id/publish", to: "dashboard/design_studio#publish", as: :publish_dashboard_design_studio
   post "/dashboard/design-studio/:id/upload", to: "dashboard/design_studio#upload", as: :upload_dashboard_design_studio

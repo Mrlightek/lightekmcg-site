@@ -10,6 +10,36 @@ class LightekDesignStudioTest < ActionDispatch::IntegrationTest
   def workspace(user)
     LightekDesign::StudioDocument.create!(user: user, name: "Client project")
   end
+  test "workspace cards offer confirmed deletion and the owner can delete" do
+    user = actor; record = workspace(user); login(user)
+    get "/dashboard/design-studio"
+    assert_response :success
+    assert_select "form[action='#{delete_dashboard_design_studio_path(record)}'][data-turbo-confirm]" do
+      assert_select "input[name='_method'][value='delete']"
+      assert_select "input[type='submit'][value='Delete workspace'], button", count: 1
+    end
+    delete "/dashboard/design-studio/#{record.id}", params: {revision: 1}
+    assert_response :see_other
+    refute DymondSite::SiteTemplate.exists?(record.id)
+    follow_redirect!
+    assert_response :success
+  end
+  test "delete requires sign in ownership and a current revision" do
+    user = actor; record = workspace(user)
+    delete "/dashboard/design-studio/#{record.id}", params: {revision: 1}
+    assert_response :redirect
+    login(actor)
+    delete "/dashboard/design-studio/#{record.id}", params: {revision: 1}, as: :json
+    assert_response :not_found
+    assert DymondSite::SiteTemplate.exists?(record.id)
+    login(user)
+    delete "/dashboard/design-studio/#{record.id}", params: {revision: 0}, as: :json
+    assert_response :conflict
+    assert DymondSite::SiteTemplate.exists?(record.id)
+    delete "/dashboard/design-studio/#{record.id}", params: {revision: 1}, as: :json
+    assert_response :success
+    assert_equal dashboard_design_studio_index_path, response.parsed_body["redirect_url"]
+  end
   test "anonymous designers must sign in and clients cannot author designs" do
     get "/dashboard/design-studio"
     assert_response :redirect
@@ -26,6 +56,7 @@ class LightekDesignStudioTest < ActionDispatch::IntegrationTest
     assert_select "[data-design-studio]"
     assert_select "iframe[sandbox='allow-scripts']"
     assert_select "[data-save-design]", text: "Save draft"
+    assert_select "[data-delete-design]", text: "Delete workspace"
     assert_select "[data-publish-design]", text: "Add to design library"
     assert_select "[data-lightek-font-picker]", count: 3
   end

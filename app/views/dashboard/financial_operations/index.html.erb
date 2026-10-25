@@ -1,0 +1,67 @@
+<% content_for :title, "Dymond Bank · Financial Operations" %>
+<style>
+  .bank-ops {color:var(--bs-body-color, inherit);max-width:1400px;margin:0 auto;padding:24px 18px 48px;font-family:inherit}
+  .bank-ops .eyebrow {letter-spacing:.13em;font-size:.72rem;font-weight:800;text-transform:uppercase;color:#a58bde}
+  .bank-ops h1 {font-weight:800;font-size:clamp(1.7rem,3vw,2.55rem);margin:.2rem 0 .45rem}
+  .bank-ops p {opacity:.7;margin:0}
+  .bank-ops .top {display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between;align-items:center;margin-bottom:24px}
+  .bank-ops .button {display:inline-block;background:#6e46bc;color:#fff!important;border-radius:9px;padding:11px 16px;text-decoration:none;font-weight:700;font-size:.88rem}
+  .bank-ops .button.outline {background:transparent;border:1px solid #9c88bd;color:inherit!important}
+  .bank-ops .actions {display:flex;flex-wrap:wrap;gap:9px}
+  .bank-ops .stats {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;margin-bottom:24px}
+  .bank-ops .panel {border:1px solid #8a829c4f;border-radius:15px;padding:19px;background:color-mix(in srgb,currentColor 3%,transparent)}
+  .bank-ops .stat-label {font-size:.78rem;opacity:.72;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+  .bank-ops .stat-value {font-size:2.05rem;font-weight:800;margin-top:9px;font-variant-numeric:tabular-nums}
+  .bank-ops .cols {display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,1fr);gap:15px}
+  .bank-ops .panel-head {display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px}
+  .bank-ops .panel-head h2 {font-size:1.16rem;margin:0;font-weight:800}
+  .bank-ops table {width:100%;border-collapse:collapse;font-size:.88rem}
+  .bank-ops td,.bank-ops th {padding:12px 8px;text-align:left;border-bottom:1px solid #8a829c35;vertical-align:middle}
+  .bank-ops th {opacity:.6;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em}
+  .bank-ops .pill {display:inline-block;background:#9677ca28;border:1px solid #a188d84d;border-radius:999px;padding:4px 9px;font-size:.74rem}
+  .bank-ops a {color:#ae8deb}
+  .bank-ops .muted {opacity:.62;font-size:.85rem}
+  .bank-ops .stack {display:grid;gap:12px}
+  .bank-ops .service {border:1px solid #8a829c35;border-radius:10px;padding:12px}
+  .bank-ops .service strong {display:block;margin-bottom:3px}
+  .bank-ops .service small {opacity:.7}
+  @media(max-width:850px){.bank-ops .cols {grid-template-columns:1fr}.bank-ops .table-scroll{overflow-x:auto}}
+</style>
+<main class="bank-ops">
+  <header class="top">
+    <div><div class="eyebrow">Lightek / Dymond Bank / Control Plane</div><h1>Financial Operations</h1><p>One place to manage plans, subscriptions, Susu and paid-service fulfillment.</p></div>
+    <div class="actions">
+      <%= link_to "Manage plans", dashboard_subscription_plans_path, class: "button" %>
+      <%= link_to "All subscriptions", dashboard_subscriptions_path, class: "button outline" %>
+    </div>
+  </header>
+  <div class="stats">
+    <section class="panel"><div class="stat-label">Customer subscriptions</div><div class="stat-value"><%= @subscription_total %></div><span class="muted">All Bank subscription records</span></section>
+    <section class="panel"><div class="stat-label">Subscription plans</div><div class="stat-value"><%= DymondBank::SubscriptionPlan.count %></div><span class="muted">Available plans, including inactive</span></section>
+    <section class="panel"><div class="stat-label">Provisioning requests</div><div class="stat-value"><%= @provisioning_total || "—" %></div><span class="muted">Gatekeeper request records</span></section>
+    <section class="panel"><div class="stat-label">Susu groups</div><div class="stat-value"><%= @susu_total || "—" %></div><span class="muted">Part of Dymond Bank services</span></section>
+  </div>
+  <div class="cols">
+    <section class="panel">
+      <div class="panel-head"><h2>Recent subscriptions</h2><%= link_to "View all →", dashboard_subscriptions_path %></div>
+      <div class="table-scroll"><table><thead><tr><th>ID</th><th>Customer</th><th>Plan</th><th>Bank status</th><th>Created</th><th></th></tr></thead><tbody>
+        <% @recent_subscriptions.each do |subscription| %>
+          <tr><td>#<%= subscription.id %></td><td><%= subscription.respond_to?(:subscriber) ? (subscription.subscriber&.try(:email_address) || subscription.subscriber&.try(:name) || "Customer ##{subscription.try(:subscriber_id)}") : "—" %></td><td><%= subscription.respond_to?(:subscription_plan) ? (subscription.subscription_plan&.try(:name) || "—") : "—" %></td><td><span class="pill"><%= subscription.try(:status).presence || "Unspecified" %></span></td><td><%= subscription.created_at&.strftime("%b %-d, %Y") %></td><td><%= link_to "Inspect", dashboard_subscription_path(subscription) %></td></tr>
+        <% end %>
+        <% if @recent_subscriptions.empty? %><tr><td colspan="6" class="muted">No subscriptions yet. Create a plan and connect customer checkout to begin.</td></tr><% end %>
+      </tbody></table></div>
+    </section>
+    <aside class="stack">
+      <section class="panel"><div class="panel-head"><h2>Bank services</h2></div><div class="stack">
+        <div class="service"><strong>Subscriptions</strong><small>Plans, customers, renewals and cancellations</small></div>
+        <div class="service"><strong>Susu</strong><small>Community savings, groups and contributions</small><div><%= link_to "Susu operations →", dashboard_susu_path %></div></div>
+        <div class="service"><strong>Invoices & payments</strong><small>Managed through the mounted Dymond Bank engine</small><div><%= link_to "Bank billing →", "/billing" %></div></div>
+      </div></section>
+      <section class="panel"><div class="panel-head"><h2>Fulfillment</h2><%= link_to "Queue →", dashboard_provisioning_requests_path %></div>
+        <% @recent_provisioning.each do |request| %><div class="service"><strong>Request #<%= request.id %></strong><small><%= request.try(:execution_status).presence || "Pending" %></small><div><%= link_to "Inspect request →", dashboard_provisioning_request_path(request) %></div></div><% end %>
+        <% if @recent_provisioning.empty? %><p class="muted">No provisioning requests yet.</p><% end %>
+      </section>
+    </aside>
+  </div>
+  <p class="muted" style="margin-top:17px">Financial amounts intentionally remain in Dymond Bank. This view does not estimate revenue from plan pricing or fabricate a ledger balance.</p>
+</main>

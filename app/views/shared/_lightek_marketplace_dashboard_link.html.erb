@@ -1,0 +1,5 @@
+<% if current_user&.role == "super_admin" %>
+<nav aria-label="Commerce administration" style="display:flex;gap:1rem;align-items:center;margin:0 0 1.25rem;flex-wrap:wrap">
+<%= link_to "◈ Marketplace", main_app.dashboard_marketplace_path %><%= link_to "View storefront ↗", main_app.marketplace_path %><%= link_to "Bank", "/dashboard/bank" %>
+</nav>
+<% end %>

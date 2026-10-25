@@ -1,0 +1,8 @@
+<h1>Bank · Subscriptions</h1>
+<p>Administrative view of Dymond Bank customer subscriptions. Lifecycle mutations will use the verified Bank service contract.</p>
+<p><%= link_to "Manage plans", dashboard_subscription_plans_path %></p>
+<table><thead><tr><th>ID</th><th>Record</th><th>Details</th></tr></thead><tbody>
+<% @subscriptions.each do |subscription| %>
+<tr><td><%= subscription.id %></td><td><%= subscription.attributes.except("created_at", "updated_at").map { |k,v| "#{k}: #{v}" }.join(" · ") %></td><td><%= link_to "Inspect", dashboard_subscription_path(subscription) %></td></tr>
+<% end %>
+</tbody></table>

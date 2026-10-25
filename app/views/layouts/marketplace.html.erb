@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title><%= content_for(:title) || "Marketplace · Lightek" %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <%= csrf_meta_tags %><%= csp_meta_tag %>
+  <%= stylesheet_link_tag :app, "lightek_marketplace", "data-turbo-track": "reload" %>
+  <%= javascript_importmap_tags %>
+</head>
+<body class="lightek-marketplace-body"><div id="lm-marketplace">
+  <a class="lm-skip" href="#lm-main-content">Skip to content</a>
+  <header class="lm-top"><%= link_to main_app.marketplace_path, class: "lm-wordmark", aria: {label: "Lightek Marketplace"} do %><span aria-hidden="true"></span>LIGHTEK<% end %>
+    <nav aria-label="Main navigation"><%= link_to "Marketplace", main_app.marketplace_path, class: "lm-textbutton active" %><% if (path = marketplace_optional_page_path(:about)) %><%= link_to "Our ecosystem", path, class: "lm-textbutton" %><% end %><%= link_to "My account ↗", "/portal", class: "lm-action secondary small" %></nav>
+  </header>
+  <main id="lm-main-content" class="lm-content"><%= yield %><footer class="lm-foot"><span>LIGHTEK MEDIA & COMMUNICATIONS GROUP</span><span>BUILD. CREATE. CONNECT.</span></footer></main>
+</div></body></html>

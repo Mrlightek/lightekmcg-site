@@ -144,3 +144,17 @@ When a new capability is built, update its executable contract and tests first, 
 ---
 
 **Lightek is the ecosystem. Nevaeh is the intelligence. Gatekeeper is the boundary. DymondDispatch is the execution plane. Studio is the factory. The database records reality.**
+
+## Dymond V8 control-plane and commercial roadmap (2026-10-23)
+
+- [Unified Dymond service-provider control plane](docs/architecture/dymond-control-plane-v8.md) — established system boundaries, roles, subscription lifecycle, current verification limits.
+- [Revenue activation and live production roadmap](docs/roadmap/revenue-and-live-production.md) — website/domain/app commercialization and social LIVE production priorities.
+
+These roadmap documents distinguish intended features from verified, deployed behavior. They do not change authorization or activate provisioning.
+
+## Dymond V8 control-plane and commercial roadmap (2026-10-23)
+
+- [Unified Dymond service-provider control plane](docs/architecture/dymond-control-plane-v8.md) — established system boundaries, roles, subscription lifecycle, current verification limits.
+- [Revenue activation and live production roadmap](docs/roadmap/revenue-and-live-production.md) — website/domain/app commercialization and social LIVE production priorities.
+
+These roadmap documents distinguish intended features from verified, deployed behavior. They do not change authorization or activate provisioning.

@@ -1,0 +1,9 @@
+<% if @listing.errors.any? %><div role="alert"><h2>Review this listing</h2><ul><% @listing.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div><% end %>
+<%= form_with model: @listing, scope: :marketplace_listing, url: (@listing.persisted? ? main_app.dashboard_marketplace_listing_path(@listing) : main_app.dashboard_marketplace_listings_path), method: (@listing.persisted? ? :patch : :post) do |f| %>
+<p><%= f.label :title %><br><%= f.text_field :title, required: true, maxlength: 160 %></p>
+<p><%= f.label :summary %><br><%= f.text_area :summary, rows: 4, maxlength: 1200 %></p>
+<p><%= f.label :category %><br><%= f.select :category, DymondCatalog::MarketplaceListing::CATEGORIES.map { |key, label| [label, key] } %></p>
+<p><%= f.label :offer_id, "Bank offer" %><br><%= f.collection_select :offer_id, @offers, :id, :name, {prompt: "Choose an existing offer"}, {required: true} %></p>
+<p><%= f.label :position, "Display order" %><br><%= f.number_field :position, min: 0, required: true %></p>
+<p><%= f.check_box :published %> <%= f.label :published, "Publish in Marketplace" %></p><p>Only listings attached to active Bank offers can be published.</p>
+<%= f.submit "Save listing" %> <%= link_to "Back to Marketplace", main_app.dashboard_marketplace_path %><% end %>

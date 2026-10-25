@@ -1,4 +1,15 @@
 Rails.application.routes.draw do
+  # BEGIN LIGHTEK MARKETPLACE V8.7
+  get "/marketplace", to: "marketplace#index", as: :marketplace
+  get "/marketplace/:id", to: "marketplace#show", as: :marketplace_listing, constraints: { id: /[0-9]+/ }
+  get "/dashboard/marketplace", to: "dashboard/marketplace#index", as: :dashboard_marketplace
+  resources :dashboard_marketplace_listings, path: "/dashboard/marketplace/listings",
+    controller: "dashboard/marketplace", only: %i[new create edit update], constraints: { id: /[0-9]+/ }
+  get "/catalogs", to: redirect("/marketplace", status: 302), constraints: ->(request) { request.format.html? }
+  get "/dashboard/marketplace/listings/:id/preview", to: "dashboard/marketplace#preview", as: :preview_dashboard_marketplace_listing, constraints: { id: /[0-9]+/ }
+  resources :dashboard_marketplace_groups, path: "/dashboard/marketplace/groups", controller: "dashboard/marketplace_groups", except: %i[show destroy]
+  resources :dashboard_marketplace_connections, path: "/dashboard/marketplace/connections", controller: "dashboard/marketplace_connections", except: %i[show destroy]
+  # END LIGHTEK MARKETPLACE V8.7
   get "/api/studio/capabilities", to: "api/studio/capabilities#index", as: :api_studio_capabilities
   get "/employee/nevaeh/review_packets", to: "employee/nevaeh_review_packets#index", as: :employee_nevaeh_review_packets
   get "/employee/nevaeh/coverage", to: "employee/nevaeh_coverage#index", as: :employee_nevaeh_coverage
@@ -228,6 +239,15 @@ get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#i
 post "/dashboard/infrastructure/profiles", to: "dashboard/infrastructure_catalog#create_profile", as: :dashboard_infrastructure_profiles
 post "/dashboard/infrastructure/policies", to: "dashboard/infrastructure_catalog#create_policy", as: :dashboard_infrastructure_policies
 
+# V8.6D: customer subscription administration (read-only contract discovery).
+resources :dashboard_subscriptions,
+          path: "/dashboard/subscriptions",
+          controller: "dashboard/subscriptions",
+          only: %i[index show],
+          constraints: { id: /[0-9]+/ }
+# V8_6E_ADMIN_CANCEL: Bank lifecycle cancellation
+post "/dashboard/subscriptions/:id/cancel", to: "dashboard/subscriptions#cancel", as: :cancel_dashboard_subscription, constraints: { id: /[0-9]+/ }
+
 resources :dashboard_subscription_plans,
           path: "/dashboard/subscriptions/plans",
           controller: "dashboard/subscription_plans"
@@ -258,6 +278,8 @@ post "/dashboard/infrastructure/providers/:compute_provider_id/validate",
 post "/dashboard/infrastructure/providers/:compute_provider_id/linode_smoke_test",
      to: "dashboard/linode_smoke_tests#create",
      as: :dashboard_linode_smoke_test
+
+get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboard_bank
 
 mount DymondDash::Engine => "/dashboard"
 

@@ -32,7 +32,7 @@ module Employee
       authorize! :manage, Marlon::Ticket
     end
     def local_only!
-      head :forbidden unless Rails.env.development? || Rails.env.test?
+      head :forbidden unless current_user&.role == "super_admin" || Rails.env.development? || Rails.env.test?
     end
   end
 end

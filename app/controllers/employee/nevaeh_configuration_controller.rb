@@ -41,7 +41,7 @@ module Employee
     end
 
     def require_local_configuration!
-      head :forbidden if Rails.env.production?
+      head :forbidden if Rails.env.production? && !(action_name == "index" && current_user&.role == "super_admin")
     end
   end
 end

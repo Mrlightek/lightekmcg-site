@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_12_180000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_24_233000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -578,6 +578,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_12_180000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["resource_type"], name: "index_dymond_booking_resources_on_resource_type"
+  end
+
+  create_table "dymond_catalog_marketplace_listings", force: :cascade do |t|
+    t.bigint "offer_id", null: false
+    t.string "title", null: false
+    t.text "summary"
+    t.string "category", null: false
+    t.boolean "published", default: false, null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "configuration", default: {}, null: false
+    t.index ["offer_id"], name: "index_dymond_catalog_marketplace_listings_on_offer_id", unique: true
+    t.index ["published", "category", "position"], name: "idx_marketplace_merchandising"
   end
 
   create_table "dymond_catalog_products", force: :cascade do |t|
@@ -1154,6 +1168,29 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_12_180000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "lightek_marketplace_customer_services", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description", null: false
+    t.string "feature_key", null: false
+    t.string "customer_path", null: false
+    t.boolean "active", default: false, null: false
+    t.bigint "reviewed_by_id"
+    t.datetime "reviewed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "lightek_marketplace_product_groups", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.integer "position", default: 0, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "idx_marketplace_group_key", unique: true
+  end
+
   create_table "lightek_messaging_conversations", force: :cascade do |t|
     t.string "kind", default: "direct", null: false
     t.string "title"
@@ -1168,7 +1205,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_12_180000) do
     t.index ["kind", "updated_at"], name: "index_lightek_messaging_conversations_on_kind_and_updated_at"
     t.check_constraint "kind::text <> 'group'::text OR title IS NOT NULL AND btrim(title::text) <> ''::text", name: "lightek_messaging_conversations_group_title_check"
     t.check_constraint "kind::text = 'direct'::text AND direct_key IS NOT NULL OR kind::text <> 'direct'::text AND direct_key IS NULL", name: "lightek_messaging_conversations_direct_key_check"
-    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying, 'group'::character varying, 'community'::character varying, 'watch_party'::character varying]::text[])", name: "lightek_messaging_conversations_kind_check"
+    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying::text, 'group'::character varying::text, 'community'::character varying::text, 'watch_party'::character varying::text])", name: "lightek_messaging_conversations_kind_check"
   end
 
   create_table "lightek_messaging_messages", force: :cascade do |t|
@@ -1186,7 +1223,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_12_180000) do
     t.index ["reply_to_message_id"], name: "index_lightek_messaging_messages_on_reply_to_message_id"
     t.index ["sender_profile_id"], name: "index_lightek_messaging_messages_on_sender_profile_id"
     t.check_constraint "char_length(btrim(body)) > 0", name: "lightek_messaging_messages_body_check"
-    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying, 'system'::character varying]::text[])", name: "lightek_messaging_messages_type_check"
+    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying::text, 'system'::character varying::text])", name: "lightek_messaging_messages_type_check"
   end
 
   create_table "lightek_messaging_participants", force: :cascade do |t|
@@ -1204,7 +1241,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_12_180000) do
     t.index ["profile_id", "left_at"], name: "idx_lightek_messaging_participants_active"
     t.index ["profile_id"], name: "index_lightek_messaging_participants_on_profile_id"
     t.check_constraint "left_at IS NULL OR left_at >= joined_at", name: "lightek_messaging_participants_left_at_check"
-    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
+    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying::text, 'admin'::character varying::text, 'member'::character varying::text])", name: "lightek_messaging_participants_role_check"
   end
 
   create_table "lightek_pwa_navigation_items", force: :cascade do |t|
@@ -2231,6 +2268,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_12_180000) do
   add_foreign_key "dymond_bank_transactions", "dymond_bank_invoices", column: "invoice_id"
   add_foreign_key "dymond_booking_bookings", "dymond_booking_resources", column: "resource_id"
   add_foreign_key "dymond_booking_event_rsvps", "dymond_booking_events", column: "event_id"
+  add_foreign_key "dymond_catalog_marketplace_listings", "dymond_bank_offers", column: "offer_id"
   add_foreign_key "dymond_dash_app_configs", "dymond_theme_themes", column: "theme_id"
   add_foreign_key "dymond_dash_installed_gems", "dymond_dash_ecosystem_gems", column: "ecosystem_gem_id"
   add_foreign_key "dymond_dash_nav_items", "dymond_dash_nav_sections", column: "section_id"

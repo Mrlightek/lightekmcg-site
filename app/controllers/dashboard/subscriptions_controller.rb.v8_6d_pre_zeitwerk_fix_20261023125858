@@ -1,0 +1,24 @@
+# frozen_string_literal: true
+# V8.6D: read-only administrative subscription registry.
+# Money-changing operations belong to Dymond Bank lifecycle services, not this controller.
+module Dashboard
+  class SubscriptionsController < DymondDash::ApplicationController
+    layout "dymond_dash/layouts/dymond_dash"
+    before_action :require_super_admin!
+
+    def index
+      @subscriptions = DymondBank::Subscription.order(id: :desc).limit(100)
+    end
+
+    def show
+      @subscription = DymondBank::Subscription.find(params[:id])
+    end
+
+    private
+
+    def require_super_admin!
+      return if current_user&.role == "super_admin"
+      head :forbidden
+    end
+  end
+end

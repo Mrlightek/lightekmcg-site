@@ -5,6 +5,40 @@ module Gatekeeper
       class UnsupportedProvider < StandardError; end
       class ProviderResponseError < StandardError; end
 
+      # V8.4: pure planning entry point for website service orchestration.
+      # Does not allocate compute, buy a domain, update DNS, or issue certificates.
+      # An account may receive a Lightek subdomain without buying a domain.
+      def self.website_plan_v8(account_key:, base_domain: "lightekmcg.com", custom_domain: nil, include_apps: false)
+        account = account_key.to_s.strip.downcase
+        base = base_domain.to_s.strip.downcase
+        raise ArgumentError, "invalid account key" unless account.match?(/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/)
+        raise ArgumentError, "invalid base domain" unless base.match?(/\A[a-z0-9-]+(?:\.[a-z0-9-]+)+\z/)
+        domain = custom_domain.to_s.strip.downcase
+        raise ArgumentError, "invalid custom domain" if domain.present? && !domain.match?(/\A[a-z0-9-]+(?:\.[a-z0-9-]+)+\z/)
+
+        hostname = domain.presence || "#{account}.#{base}"
+        {
+          "account_key" => account,
+          "hostname" => hostname,
+          "default_subdomain" => "#{account}.#{base}",
+          "domain_purchase_required" => false,
+          "custom_domain_attached" => domain.present?,
+          "site_engine" => "DymondSite::Site",
+          "dns_service" => "Godaddy::DnsService",
+          "requires_webserver_tls_activation" => true,
+          "thin_clients" => include_apps ? %w[android ios roku apple_tv] : [],
+          "status" => "planned"
+        }
+      end
+
+      # V8.5: real website DB provisioning; no external DNS or Apache mutations.
+      def self.provision_website_v8!(subscription:, account_key:, site_name:, base_domain: "lightekmcg.com")
+        WebsiteProvisioningV8.call(
+          subscription: subscription, account_key: account_key,
+          site_name: site_name, base_domain: base_domain
+        )
+      end
+
       def self.call(request:, requested_by:)
         new(request:, requested_by:).call
       end

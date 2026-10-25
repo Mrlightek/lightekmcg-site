@@ -27,7 +27,7 @@ class SusuMatchPreferencesController < DymondDash::ApplicationController
 
   def show
     @preference = SusuMatchPreference.find(params[:id])
-    return head :forbidden unless @preference.user_id == current_user.id
+    return head :forbidden unless @preference.user_id == current_user.id || current_user&.role == "super_admin"
 
     @suggestions = Susu::MatchingService.suggestions_for(@preference)
     @enough_for_circle = Susu::MatchingService.enough_for_circle?(@preference)
@@ -35,7 +35,7 @@ class SusuMatchPreferencesController < DymondDash::ApplicationController
 
   def destroy
     @preference = SusuMatchPreference.find(params[:id])
-    return head :forbidden unless @preference.user_id == current_user.id
+    return head :forbidden unless @preference.user_id == current_user.id || current_user&.role == "super_admin"
 
     @preference.update!(status: "closed")
     redirect_to susu_match_preferences_path, notice: "Matching request closed."

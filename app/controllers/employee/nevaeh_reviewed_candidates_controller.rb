@@ -37,7 +37,8 @@ module Employee
       authorize! :manage, Marlon::Ticket
     end
     def local_only!
-      head :forbidden unless NevaehIntelligences::TicketDraftAccessV7a.allowed?
+      # V8_6A_READ_GATE: authenticated super admins may inspect; local opt-in still gates other users.
+      head :forbidden unless (action_name == "index" && current_user&.role == "super_admin") || NevaehIntelligences::TicketDraftAccessV7a.allowed?
     end
     def allowed_error?(e)
       [ArgumentError, ActiveRecord::RecordNotFound, ActionController::ParameterMissing,

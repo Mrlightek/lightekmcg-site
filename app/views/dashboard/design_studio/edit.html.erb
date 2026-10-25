@@ -2,7 +2,7 @@
 <%= stylesheet_link_tag "/lightek/designer/editor.css" %>
 <%= javascript_include_tag "/lightek/designer/editor.js", defer: true %>
 <main class="lds-editor" data-design-studio>
-<header class="lds-toolbar"><div><%= link_to "← Design Studio", dashboard_design_studio_index_path %><h1 data-design-name><%= @document["name"] %></h1></div><div class="lds-actions"><span role="status" data-studio-status>Saved draft</span><button type="button" class="lds-button" data-save-design>Save draft</button><button type="button" class="lds-button lds-primary" data-publish-design>Add to design library</button></div></header>
+<header class="lds-toolbar"><div><%= link_to "← Design Studio", dashboard_design_studio_index_path %><h1 data-design-name><%= @document["name"] %></h1></div><div class="lds-actions"><button type="button" class="lds-button" data-delete-design>Delete workspace</button><span role="status" data-studio-status>Saved draft</span><button type="button" class="lds-button" data-save-design>Save draft</button><button type="button" class="lds-button lds-primary" data-publish-design>Add to design library</button></div></header>
 <div class="lds-error" role="alert" data-studio-error hidden></div>
 <div class="lds-workspace">
 <aside class="lds-outline"><h2>Sections</h2><p class="lds-muted">Drag to reorder, or use the arrow buttons.</p><div data-section-list></div>

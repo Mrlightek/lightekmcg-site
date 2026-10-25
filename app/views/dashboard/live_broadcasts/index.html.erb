@@ -1,0 +1,38 @@
+<% content_for :page_title, "Live Studio" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css" %>
+<%= javascript_include_tag "/lightek/live/studio.js", defer: true %>
+<main class="ll-studio" data-live-studio data-create-url="<%= dashboard_live_sessions_path %>">
+  <header class="ll-header"><div><span class="ll-eyebrow">LIGHTEK / STUDIO</span><h1>Your work. On air.</h1><p>Build, share and broadcast from Lightek.</p></div><span class="ll-badge" data-state>Preview only</span></header>
+  <div class="ll-grid">
+    <section class="ll-monitor" aria-label="Broadcast preview">
+      <div class="ll-monitor-top"><span>PROGRAM PREVIEW</span><span>720p · 24 fps</span></div>
+      <div class="ll-screen"><video autoplay muted playsinline data-preview></video><div class="ll-placeholder" data-placeholder><span>◉</span><h2>Start with your screen</h2><p>Choose a window or screen to preview. Nothing is sent until you start a session.</p></div></div>
+      <div class="ll-monitor-bottom"><span data-source-status>No screen selected</span><span data-clock>00:00</span></div>
+      <div class="ll-controls"><button type="button" data-share>Choose screen</button><button type="button" data-mic aria-pressed="false">Enable microphone</button><button type="button" data-hold aria-pressed="false">Holding screen</button><button type="button" data-release>Release capture</button></div>
+      <div class="ll-meter"><label>Microphone level <meter min="0" max="1" value="0" data-meter></meter></label><span data-mic-status>Microphone off</span></div>
+      <p class="ll-note">The preview is muted to prevent feedback. Holding screen hides the shared window and mutes the microphone. Ending screen sharing also activates holding screen.</p>
+    </section>
+    <aside class="ll-panel"><h2>Broadcast</h2>
+      <label>Session title<input type="text" value="Building Lightek · Live" maxlength="120" data-title></label>
+      <label>Destination<select data-destination><option value="test">Private test recording · 2 minutes max</option><option value="tiktok" <%= "disabled" unless @tiktok_ready %>>TikTok LIVE<%= " · connection needed" unless @tiktok_ready %></option></select></label>
+      <div class="ll-checks"><p><span class="<%= @encoder_ready ? 'll-good' : 'll-wait' %>">●</span> Server encoder: <%= @encoder_ready ? "ready" : "installation needed" %></p><p><span class="<%= @tiktok_ready ? 'll-good' : 'll-wait' %>">●</span> TikTok: <%= @tiktok_ready ? "destination stored; access not yet verified" : "not connected" %></p></div>
+      <button type="button" class="ll-primary" data-start <%= "disabled" unless @encoder_ready %>>Start private test</button>
+      <button type="button" class="ll-stop" data-stop disabled>Stop session</button>
+      <p role="status" aria-live="polite" data-status>Choose a screen to begin.</p><p role="alert" data-error hidden></p><a data-download hidden>Download test recording</a>
+      <p class="ll-note">A private test stays on your server. “Sending” means the server encoder is producing output; confirm visibility in TikTok separately.</p>
+    </aside>
+  </div>
+  <% if current_user.role.to_s == "super_admin" %>
+    <details class="ll-config"><summary>Connect my TikTok destination</summary><p>Enter the server URL and stream key provided by your authorized TikTok streaming setup. These are stored in Lightek Vault and are never returned to the preview.</p>
+      <%= form_with url: dashboard_live_destination_path, method: :post, local: true, data: {turbo: false} do %>
+        <label>Server URL<%= url_field_tag :server_url, nil, required: true, placeholder: "rtmps://…", autocomplete: "off" %></label>
+        <label>Stream key<%= password_field_tag :stream_key, nil, required: true, autocomplete: "new-password" %></label>
+        <%= submit_tag "Save in Vault" %>
+      <% end %>
+    </details>
+  <% end %>
+  <section class="ll-recent"><h2>Recent sessions</h2><p class="ll-note">Private test recordings are retained for 24 hours when the cleanup task runs.</p>
+    <% if @recent.empty? %><p>No sessions yet. Your first test will appear here.</p><% end %>
+    <% @recent.each do |operation| %><article><div><strong><%= operation.metadata["title"] %></strong><small><%= operation.metadata["destination"] == "test" ? "Private test" : "TikTok" %> · <%= operation.created_at.strftime("%b %d, %H:%M %Z") %></small></div><span><%= operation.status == "live" ? "Sending" : operation.status.humanize %></span><% if operation.metadata["destination"] == "test" && operation.status == "ended" && Studio::Live::Encoder.recording_path(operation.id).file? %><%= link_to "Download", dashboard_live_recording_path(operation), data: {turbo: false} %><% end %></article><% end %>
+  </section>
+</main>

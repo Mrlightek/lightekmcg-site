@@ -35,6 +35,8 @@ Client pages, publication flags, website names, navigation records and template 
 
 ## Install and verify
 
+Workspace cards and the editor offer **Delete workspace** with confirmation. Deletion removes only the draft workspace record; released library versions, client website copies, pages and uploaded assets remain available. Owners can delete their workspaces and super admins can delete any workspace. The current revision is required, so a stale browser cannot delete newer saved changes. A workspace directly assigned as a site's active template is protected from deletion.
+
 ```bash
 cd ~/Desktop/Development/lightekmcg-site
 bash ~/Downloads/lightek_design_studio_install.sh

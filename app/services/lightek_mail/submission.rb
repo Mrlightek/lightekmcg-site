@@ -10,6 +10,7 @@ module LightekMail
     end
     def self.create!(account:, attributes:, draft: false, idempotency_key: nil, uploads: [])
       attrs = attributes.to_h.stringify_keys
+      raise ArgumentError, "Cc and Bcc are not supported by this relay." if attrs["cc"].present? || attrs["bcc"].present?
       recipients = addresses(attrs["to"])
       subject = attrs["subject"].to_s
       raise ArgumentError, "The sender must match this mailbox." if attrs["from"].present? && attrs["from"].to_s.downcase != account.address
@@ -31,31 +32,28 @@ module LightekMail
       if idempotency_key
         raise ArgumentError, "Use an Idempotency-Key of 8–100 letters, digits, underscores or hyphens." unless idempotency_key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
       end
-      result = account.with_lock do
-        existing = account.messages.find_by(idempotency_key: idempotency_key) if idempotency_key
-        next existing if existing
-        raise Unavailable, "Mailbox storage is full." if account.messages.sum(:bytesize) + size > account.storage_limit
-        message = account.messages.create!(direction: "outbound", state: "draft", from_address: account.address, to_addresses: recipients, subject: subject,
-          text_body: text, html_body: html, bytesize: size, message_id: "#{SecureRandom.uuid}@#{account.domain.name}", in_reply_to: attrs["in_reply_to"].to_s.slice(0, 250).delete("\r\n"), idempotency_key: idempotency_key)
-        uploads.each { |upload| message.attachments.attach(upload) }
-        reserve!(account, message) unless draft
-        message
+      result = SendingPolicy.synchronize do |policy|
+        account.with_lock do
+          existing = account.messages.find_by(idempotency_key: idempotency_key) if idempotency_key
+          next existing if existing
+          raise Unavailable, "Mailbox storage is full." if account.messages.sum(:bytesize) + size > account.storage_limit
+          message = account.messages.create!(direction: "outbound", state: "draft", from_address: account.address, to_addresses: recipients, subject: subject,
+            text_body: text, html_body: html, bytesize: size, message_id: "#{SecureRandom.uuid}@#{account.domain.name}", in_reply_to: attrs["in_reply_to"].to_s.slice(0, 250).delete("\r\n"), idempotency_key: idempotency_key)
+          uploads.each { |upload| message.attachments.attach(upload) }
+          SendingLimits.reserve!(policy, account, message) unless draft
+          message
+        end
       end
       DeliverJob.perform_later(result.id) if result.state == "queued"
       result
     end
-    def self.reserve!(account, message)
-      raise Unavailable, "Mailbox sending is paused or its domain is not verified." unless account.sending_ready?
-      count = account.send_day == Date.current ? account.send_count : 0
-      raise Unavailable, "Mailbox daily sending limit reached." if count >= account.daily_limit
-      account.update!(send_day: Date.current, send_count: count + 1)
-      message.update!(state: "queued")
-    end
     def self.send_draft!(account, message)
-      account.with_lock do
-        message.reload
-        raise Unavailable, "Only an unsent draft can be sent." unless message.account_id == account.id && message.state == "draft"
-        reserve!(account, message)
+      SendingPolicy.synchronize do |policy|
+        account.with_lock do
+          message.reload
+          raise Unavailable, "Only an unsent draft can be sent." unless message.account_id == account.id && message.state == "draft"
+          SendingLimits.reserve!(policy, account, message)
+        end
       end
       DeliverJob.perform_later(message.id)
     end

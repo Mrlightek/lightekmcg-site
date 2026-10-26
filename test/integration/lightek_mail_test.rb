@@ -1,5 +1,6 @@
 require "test_helper"
 class LightekMailTest < ActionDispatch::IntegrationTest
+  setup { LightekMail::SendingPolicy.create_or_find_by!(id: 1).update!(sending_enabled: true) }
   def actor(role = "super_admin")
     user = User.create!(first_name:"Mail",last_name:"User",role:role,email_address:"entitled-#{SecureRandom.hex(6)}@example.test",password:"Mail-test-2026-password!")
     user.grant_feature!("mail") if role == "client" && user.respond_to?(:grant_feature!)
@@ -60,7 +61,7 @@ class LightekMailTest < ActionDispatch::IntegrationTest
     patch "/dashboard/mail/accounts/#{account.id}",params:{enabled:"1",daily_limit:5000,storage_limit:999999999999,auto_reply_enabled:"0"}
     assert_response :redirect
     refute account.reload.enabled?
-    assert_equal 200,account.daily_limit
+    assert_equal 100,account.daily_limit
     assert_equal 1_073_741_824,account.storage_limit
   end
   test "original email downloads and permanent deletion require mailbox ownership" do

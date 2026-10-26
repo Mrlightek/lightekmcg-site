@@ -13,11 +13,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check private dependency credentials
+        shell: bash
+        env:
+          LIGHTEK_APP_ID: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          LIGHTEK_APP_KEY: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$LIGHTEK_APP_ID" || -z "$LIGHTEK_APP_KEY" ]]; then
+            echo "::error::Native application checks require LIGHTEK_CI_APP_ID (secret or variable) and LIGHTEK_CI_APP_PRIVATE_KEY (secret). Install the CI GitHub App with Contents:read on the lightekmcg dependency repositories and grant this repository access to those Actions credentials."
+            exit 1
+          fi
+
       - name: Create Lightek private dependency token
         id: lightek_private_repos
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ secrets.LIGHTEK_CI_APP_ID }}
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
           owner: lightekmcg
 
@@ -47,11 +58,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check private dependency credentials
+        shell: bash
+        env:
+          LIGHTEK_APP_ID: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          LIGHTEK_APP_KEY: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$LIGHTEK_APP_ID" || -z "$LIGHTEK_APP_KEY" ]]; then
+            echo "::error::Native application checks require LIGHTEK_CI_APP_ID (secret or variable) and LIGHTEK_CI_APP_PRIVATE_KEY (secret). Install the CI GitHub App with Contents:read on the lightekmcg dependency repositories and grant this repository access to those Actions credentials."
+            exit 1
+          fi
+
       - name: Create Lightek private dependency token
         id: lightek_private_repos
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ secrets.LIGHTEK_CI_APP_ID }}
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
           owner: lightekmcg
 
@@ -80,11 +102,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check private dependency credentials
+        shell: bash
+        env:
+          LIGHTEK_APP_ID: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          LIGHTEK_APP_KEY: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$LIGHTEK_APP_ID" || -z "$LIGHTEK_APP_KEY" ]]; then
+            echo "::error::Native application checks require LIGHTEK_CI_APP_ID (secret or variable) and LIGHTEK_CI_APP_PRIVATE_KEY (secret). Install the CI GitHub App with Contents:read on the lightekmcg dependency repositories and grant this repository access to those Actions credentials."
+            exit 1
+          fi
+
       - name: Create Lightek private dependency token
         id: lightek_private_repos
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ secrets.LIGHTEK_CI_APP_ID }}
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
           owner: lightekmcg
 
@@ -109,6 +142,24 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    env:
+      DB_HOST: 127.0.0.1
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: lightek_ci_test
+      REDIS_URL: redis://127.0.0.1:6379/0
+      PARALLEL_WORKERS: 1
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: lightek_ci_test
+          POSTGRES_DB: lightekmcg_site_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     # services:
     #  redis:
@@ -123,11 +174,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check private dependency credentials
+        shell: bash
+        env:
+          LIGHTEK_APP_ID: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          LIGHTEK_APP_KEY: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$LIGHTEK_APP_ID" || -z "$LIGHTEK_APP_KEY" ]]; then
+            echo "::error::Native application checks require LIGHTEK_CI_APP_ID (secret or variable) and LIGHTEK_CI_APP_PRIVATE_KEY (secret). Install the CI GitHub App with Contents:read on the lightekmcg dependency repositories and grant this repository access to those Actions credentials."
+            exit 1
+          fi
+
       - name: Create Lightek private dependency token
         id: lightek_private_repos
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ secrets.LIGHTEK_CI_APP_ID }}
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
           owner: lightekmcg
 
@@ -160,3 +222,39 @@ jobs:
           name: screenshots
           path: ${{ github.workspace }}/tmp/screenshots
           if-no-files-found: ignore
+
+  mail_protocol_controls:
+    name: Mail protocol controls (standalone Rails fixture, PostgreSQL)
+    runs-on: ubuntu-24.04
+    env:
+      LIGHTEK_MAIL_FIXTURE_DATABASE_URL: postgresql://postgres:lightek_mail_test@127.0.0.1:5432/lightek_mail_protocol_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: lightek_mail_test
+          POSTGRES_DB: lightek_mail_protocol_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3.6"
+          bundler-cache: false
+      - name: Install standalone public test dependencies
+        run: |
+          gem install rails -v 8.0.4 --no-document
+          gem install minitest -v '~> 5.25' --no-document
+          gem install uri -v 0.13.3 --no-document
+          gem install pg --no-document
+      - name: Run real mail classes against PostgreSQL (not native host login)
+        run: ruby test/support/lightek_mail_fixture.rb
+      - name: Verify server helpers and fresh private bootstrap
+        run: |
+          python3 -m unittest discover -s test/operations -p 'lightek_mail*_test.py'
+          sudo python3 lib/scripts/lightek_mail_server.py install
+          sudo rspamadm configtest
+          sudo postfix check
+          test "$(sudo postconf -h inet_interfaces)" = loopback-only
+          test "$(sudo postconf -h defer_transports)" = smtp

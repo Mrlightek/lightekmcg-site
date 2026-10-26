@@ -33,6 +33,10 @@ def main():
     if "LIGHTEK_MAIL_INGRESS_TOKEN" in content and not values:
         raise SystemExit("Existing ingress token uses a custom format; preserve it and prepare the pipe credential manually.")
     token = values[-1] if values else secrets.token_hex(32)
+    feedback_values = re.findall(r"^(?:export )?LIGHTEK_MAIL_FEEDBACK_TOKEN=([a-f0-9]{64})$", content, re.M)
+    if "LIGHTEK_MAIL_FEEDBACK_TOKEN" in content and not feedback_values:
+        raise SystemExit("Existing feedback token uses a custom format; preserve it and prepare credentials manually.")
+    feedback_token = feedback_values[-1] if feedback_values else secrets.token_hex(32)
     config = Path(args.config_file)
     if config.is_symlink():
         raise SystemExit("Refusing a symlink at the ingress credential path.")
@@ -40,14 +44,18 @@ def main():
         current = json.loads(config.read_text())
         if current != {"url": args.url, "token": token}:
             raise SystemExit("An existing pipe credential differs; no changes made.")
-    if not values:
+    if not values or not feedback_values:
         backup_dir = Path(args.backup_directory) / str(time.time_ns())
         backup_dir.mkdir(parents=True, mode=0o700)
         backup = backup_dir / env.name
         shutil.copy2(env, backup)
         backup.chmod(0o600)
         with env.open("a") as file:
-            file.write("\n# Lightek Mail authenticated SMTP-to-HTTPS ingress\nLIGHTEK_MAIL_INGRESS_TOKEN=" + token + "\n")
+            file.write("\n# Lightek Mail authenticated operational endpoints\n")
+            if not values:
+                file.write("LIGHTEK_MAIL_INGRESS_TOKEN=" + token + "\n")
+            if not feedback_values:
+                file.write("LIGHTEK_MAIL_FEEDBACK_TOKEN=" + feedback_token + "\n")
     config.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(config, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(descriptor, "w") as file:

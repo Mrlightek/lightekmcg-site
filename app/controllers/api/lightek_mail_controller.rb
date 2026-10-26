@@ -7,6 +7,7 @@ class Api::LightekMailController < ActionController::API
     account = authenticated_account
     return head :unauthorized unless account
     key = request.headers["Idempotency-Key"].to_s
+    raise ArgumentError, "Cc and Bcc are not supported." if params[:cc].present? || params[:bcc].present?
     raise ArgumentError, "Supply an Idempotency-Key for safe request retries." if key.blank?
     message = LightekMail::Submission.create!(account: account, idempotency_key: key,
       attributes: params.permit(:from, :to, :subject, :text, :html, :template_id, to: [], variables: {}).to_h)
@@ -30,6 +31,14 @@ class Api::LightekMailController < ActionController::API
     head :accepted
   rescue JSON::ParserError
     head :unprocessable_entity
+  end
+  def feedback
+    secret = ENV["LIGHTEK_MAIL_FEEDBACK_TOKEN"].to_s
+    return head :service_unavailable if secret.bytesize < 32
+    supplied = request.headers["X-Lightek-Mail-Feedback"].to_s
+    return head :unauthorized unless ActiveSupport::SecurityUtils.secure_compare(Digest::SHA256.hexdigest(secret), Digest::SHA256.hexdigest(supplied))
+    LightekMail::Feedback.record!(message_id: params.require(:message_id), kind: params.require(:kind), event_key: params.require(:event_key))
+    head :accepted
   end
   private
   def secure_transport

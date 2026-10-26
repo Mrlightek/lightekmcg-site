@@ -1,5 +1,7 @@
 # Lightek Mail: central delivery, webmail and email templates
 
+See [sending-controls.md](sending-controls.md) for the current recipient-based rolling limits, required outbound scans, default global stop, abuse feedback, fresh-server installer and pre-merge verification. Those controls supersede the original submission-count defaults described below.
+
 ## Deployment boundary
 
 This change supplies the Rails mail product and authenticated HTTP submission/ingress. It does not claim that the live VPS already has a working mail transfer agent, DKIM signer, spam filter, correct DNS or working external delivery. It does not install or replace an existing mail daemon. Inspect the central server first with `bash lib/scripts/audit_lightek_mail.sh`; use that output to integrate with the actual Postfix/other MTA configuration. Existing Gmail delivery stays selected unless the operator changes `MAIL_DELIVERY_METHOD`.

@@ -1,4 +1,4 @@
-Rails.application.config.filter_parameters += [:"x-lightek-mail-ingress", :mail_token, :token_digest, :text, :html, :document, :attachments, :variables]
+Rails.application.config.filter_parameters += [:"x-lightek-mail-ingress", :"x-lightek-mail-feedback", :mail_token, :token_digest, :text, :html, :document, :attachments, :variables]
 Rails.application.config.to_prepare do
   ActionMailer::Base.add_delivery_method(:lightek_https, LightekMail::HttpsDelivery)
 end

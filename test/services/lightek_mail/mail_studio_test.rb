@@ -1,6 +1,7 @@
 require "test_helper"
 require "socket"
 class LightekMailStudioTest < ActiveSupport::TestCase
+  setup { LightekMail::SendingPolicy.create_or_find_by!(id: 1).update!(sending_enabled: true) }
   def actor(role = "super_admin")
     User.create!(first_name: "Mail", last_name: "Operator", role: role, email_address: "entitled-#{SecureRandom.hex(5)}@example.test", password: "Mail-test-2026-password!")
   end
@@ -88,7 +89,9 @@ class LightekMailStudioTest < ActiveSupport::TestCase
       end
       client.close
     end
-    with_mail_stub(LightekMail::Transport,:settings,-> {settings}) { LightekMail::DeliverJob.perform_now(message.id) }
+    with_mail_stub(LightekMail::SpamScanner,:check!,->(*) { true }) do
+      with_mail_stub(LightekMail::Transport,:settings,-> {settings}) { LightekMail::DeliverJob.perform_now(message.id) }
+    end
     receiver.join(4)
     assert_equal "sent", message.reload.state
     assert message.submitted_at
@@ -105,7 +108,12 @@ class LightekMailStudioTest < ActiveSupport::TestCase
   end
   test "ambiguous SMTP failure is not automatically retried" do
     message = LightekMail::Submission.create!(account:mailbox,attributes:message_attributes)
-    with_mail_stub(LightekMail::MessageMailer,:outbound,->(*) {raise IOError,"fixture failure"}) { LightekMail::DeliverJob.perform_now(message.id) }
+    delivery = Object.new
+    delivery.define_singleton_method(:message) { Mail.new }
+    delivery.define_singleton_method(:deliver_now) { raise IOError, "fixture failure" }
+    with_mail_stub(LightekMail::SpamScanner,:check!,->(*) { true }) do
+      with_mail_stub(LightekMail::MessageMailer,:outbound,->(*) { delivery }) { LightekMail::DeliverJob.perform_now(message.id) }
+    end
     assert_equal "uncertain", message.reload.state
     refute_includes message.error_message, "fixture failure"
     with_mail_stub(LightekMail::MessageMailer,:outbound,->(*) {raise "duplicate send"}) { LightekMail::DeliverJob.perform_now(message.id) }

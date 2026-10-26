@@ -42,6 +42,7 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     attributes = {auto_reply_enabled: params[:auto_reply_enabled] == "1", auto_template_id: params[:auto_template_id].presence}
     if current_user.role == "super_admin"
       attributes.merge!(enabled: params[:enabled] == "1", daily_limit: params[:daily_limit], storage_limit: params[:storage_limit])
+      attributes.merge!(params.permit(:minute_limit, :hour_limit).to_h)
     end
     @account.update!(attributes)
     redirect_to dashboard_mail_path(account_id: @account.id), notice: "Mailbox settings saved."

@@ -335,6 +335,7 @@ end
 post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
 get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
+post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 
 get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
 post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions

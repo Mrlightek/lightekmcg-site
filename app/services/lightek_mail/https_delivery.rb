@@ -6,6 +6,9 @@ module LightekMail
   class HttpsDelivery
     def initialize(settings = {}) = @settings = settings
     def deliver!(mail)
+      if mail.cc.to_a.any? || mail.bcc.to_a.any? || mail.from.to_a.size != 1 || Array(mail.smtp_envelope_to).map(&:downcase).sort != mail.to.to_a.map(&:downcase).sort
+        raise ArgumentError, "The HTTPS relay supports one From and To recipients only; Cc, Bcc and custom SMTP envelopes are not supported."
+      end
       uri = URI.parse(@settings.fetch(:url) { ENV.fetch("LIGHTEK_MAIL_RELAY_URL", "https://lightekmcg.com/api/lightek-mail/messages") })
       raise ArgumentError, "Use an HTTPS relay endpoint." unless uri.scheme == "https" && uri.userinfo.nil? && uri.fragment.nil?
       token = @settings[:token].presence || LightekVault::Service.checkout!(slug: ENV.fetch("LIGHTEK_MAIL_RELAY_VAULT_SLUG", "lightek-mail-relay"), consumer: self.class.name, purpose: "mail_submission", requested_by: "action-mailer").fetch("token")

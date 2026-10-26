@@ -37,7 +37,7 @@ module LightekMail
       encoded.each do |file|
         raise ArgumentError, "Invalid attachment." unless file.is_a?(Hash) && file.keys.map(&:to_s).sort == %w[content_type data filename]
         filename = File.basename(file.fetch("filename", file[:filename]).to_s)
-        raise ArgumentError, "Invalid attachment filename." unless filename.present? && filename.bytesize <= 180 && !filename.match?(/[\\r\\n]/)
+        raise ArgumentError, "Invalid attachment filename." unless filename.present? && filename.bytesize <= 180 && !filename.match?(/[\r\n]/)
         data = file.fetch("data", file[:data]).to_s
         raise ArgumentError, "Invalid attachment encoding." if data.bytesize > 14 * 1024 * 1024
         bytes = Base64.strict_decode64(data)
@@ -54,14 +54,14 @@ module LightekMail
         account.with_lock do
           existing = account.messages.find_by(idempotency_key: idempotency_key) if idempotency_key
           if existing
-            matching = existing.from_address == account.address && existing.to_addresses.sort == recipients.sort &&
+            matching = existing.from_address == account.address && existing.to_addresses == to &&
               existing.cc_addresses == cc && existing.bcc_addresses == bcc && existing.subject == subject &&
               existing.text_body.to_s == text && existing.html_body.to_s == html && existing.bytesize == size &&
-              existing.attachments.size == uploads.size && existing.attachments.to_a.zip(uploads).all? do |stored, upload|
+              existing.attachments.size == uploads.size && existing.attachments.to_a.zip(uploads).all? { |stored, upload|
                 supplied_name = upload.is_a?(Hash) ? upload.fetch(:filename).to_s : upload.original_filename.to_s
                 supplied_bytes = upload.is_a?(Hash) ? upload.fetch(:io).string : upload.tempfile.read.tap { upload.tempfile.rewind }
                 stored.filename.to_s == supplied_name && Digest::SHA256.hexdigest(stored.download) == Digest::SHA256.hexdigest(supplied_bytes)
-              end
+              }
             raise ArgumentError, "Idempotency-Key already used for different content." unless matching
             next existing
           end

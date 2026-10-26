@@ -9,7 +9,7 @@ DOMAIN="${LIGHTEK_MAIL_DKIM_DOMAIN:-lightekmcg.com}"
 if [[ "${1:-}" != "--install" ]]; then
   echo "Usage: sudo LIGHTEK_MAIL_HOST=mail.lightekmcg.com LIGHTEK_MAIL_DKIM_DOMAIN=lightekmcg.com bash lib/scripts/setup_lightek_mail_node.sh --install"
   echo "Read-only audit and private configuration preview:"
-  python3 lib/scripts/audit_lightek_mail.sh 2>/dev/null || bash lib/scripts/audit_lightek_mail.sh
+  bash lib/scripts/audit_lightek_mail.sh
   python3 lib/scripts/lightek_mail_server.py plan --hostname "$HOST" --output "$(mktemp -d)"
   exit 0
 fi

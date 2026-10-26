@@ -7,10 +7,9 @@ class Api::LightekMailController < ActionController::API
     account = authenticated_account
     return head :unauthorized unless account
     key = request.headers["Idempotency-Key"].to_s
-    raise ArgumentError, "Cc and Bcc are not supported." if params[:cc].present? || params[:bcc].present?
     raise ArgumentError, "Supply an Idempotency-Key for safe request retries." if key.blank?
     message = LightekMail::Submission.create!(account: account, idempotency_key: key,
-      attributes: params.permit(:from, :to, :subject, :text, :html, :template_id, to: [], variables: {}).to_h)
+      attributes: params.permit(:from, :to, :subject, :text, :html, :template_id, to: [], cc: [], bcc: [], attachments: [:filename, :content_type, :data], variables: {}).to_h)
     render json: {id: message.id, status: message.state, status_url: "/api/lightek-mail/messages/#{message.id}"}, status: :accepted
   end
   def show
@@ -26,7 +25,7 @@ class Api::LightekMailController < ActionController::API
     return head :unauthorized unless ActiveSupport::SecurityUtils.secure_compare(Digest::SHA256.hexdigest(secret), Digest::SHA256.hexdigest(supplied))
     recipients = JSON.parse(request.headers["X-Lightek-Mail-Recipients"].to_s)
     raise ArgumentError, "Use an envelope recipient array." unless recipients.is_a?(Array)
-    raw = request.body.read(LightekMail::Submission::MAX_BYTES + 1)
+    raw = request.body.read(14 * 1024 * 1024 + 1)
     LightekMail::Inbound.accept!(raw: raw, recipients: recipients)
     head :accepted
   rescue JSON::ParserError
@@ -44,7 +43,7 @@ class Api::LightekMailController < ActionController::API
   def secure_transport
     response.set_header("Cache-Control", "private, no-store")
     return head :upgrade_required if Rails.env.production? && !request.ssl?
-    head :payload_too_large if request.content_length.to_i > LightekMail::Submission::MAX_BYTES
+    head :payload_too_large if request.content_length.to_i > 14 * 1024 * 1024
   end
   def authenticated_account
     token = request.authorization.to_s.match(/\ABearer (lm_[a-f0-9]{64})\z/)&.captures&.first

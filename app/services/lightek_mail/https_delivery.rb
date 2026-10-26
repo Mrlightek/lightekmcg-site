@@ -11,7 +11,9 @@ module LightekMail
       token = @settings[:token].presence || LightekVault::Service.checkout!(slug: ENV.fetch("LIGHTEK_MAIL_RELAY_VAULT_SLUG", "lightek-mail-relay"), consumer: self.class.name, purpose: "mail_submission", requested_by: "action-mailer").fetch("token")
       raise ArgumentError, "HTTPS relay attachments are not supported; use Mail Studio for attachments." if mail.attachments.any?
       mail.message_id ||= "#{SecureRandom.uuid}@lightek-client"
-      body = {from: mail.from&.first, to: mail.to, subject: mail.subject, text: (mail.text_part || (mail.html_part ? nil : mail))&.decoded.to_s, html: mail.html_part&.decoded.to_s}
+      text_part = mail.text_part || (!mail.multipart? && mail.mime_type != "text/html" ? mail : nil)
+      html_part = mail.html_part || (!mail.multipart? && mail.mime_type == "text/html" ? mail : nil)
+      body = {from: mail.from&.first, to: mail.to, subject: mail.subject, text: text_part&.decoded.to_s, html: html_part&.decoded.to_s}
       request = Net::HTTP::Post.new(uri)
       request["Authorization"] = "Bearer #{token}"
       request["Idempotency-Key"] = Digest::SHA256.hexdigest(mail.message_id)

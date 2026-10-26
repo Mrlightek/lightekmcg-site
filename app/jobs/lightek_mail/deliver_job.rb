@@ -1,6 +1,7 @@
 module LightekMail
   class DeliverJob < ApplicationJob
     queue_as :default
+    self.enqueue_after_transaction_commit = true
     # No automatic SMTP retries: a disconnect after DATA may already mean accepted.
     def perform(id)
       message = Message.find(id)

@@ -150,4 +150,19 @@ class LightekMailStudioTest < ActiveSupport::TestCase
     end
     assert_equal 1, account.messages.where(direction:"outbound").count
   end
+  test "inbound acceptance persists HTML-only mail and fails before acknowledging a full mailbox" do
+    account = mailbox
+    mail = Mail.new(from:"sender@example.test",to:account.address,subject:"HTML only",content_type:"text/html; charset=UTF-8",body:"<p>Already in your inbox</p>")
+    LightekMail::Inbound.accept!(raw:mail.encoded,recipients:[account.address])
+    assert_equal 1,account.messages.count
+    assert_includes account.messages.first.text_body,"Already in your inbox"
+    assert_includes account.messages.first.html_body,"<p>"
+    account.update!(storage_limit:1)
+    mail.subject="Second message"
+    before = ActionMailbox::InboundEmail.count
+    assert_raises(LightekMail::Submission::Unavailable) { LightekMail::Inbound.accept!(raw:mail.encoded,recipients:[account.address]) }
+    assert_equal before,ActionMailbox::InboundEmail.count
+    assert_equal 1,account.messages.count
+  end
+
 end

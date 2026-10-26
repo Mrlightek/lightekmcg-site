@@ -1,14 +1,39 @@
 <section class="mx-auto max-w-3xl p-6">
-  <p class="text-sm uppercase tracking-wide">Lightek Business · Payments</p>
-  <h1>Payout settings</h1>
-  <p>Manage where your business receives earnings from eligible orders. Lightek coordinates payments through Dymond Bank and our payment partner.</p>
+  <h1>Business payouts</h1>
+  <p>Set up and manage your business payout account inside Lightek.</p>
   <% if current_user.stripe_connect_ready? %>
-    <h2>Payout account connected</h2>
-    <p>Your account is verified and payouts are enabled.</p>
+    <p>Your payout account is enabled.</p>
   <% else %>
-    <h2><%= current_user.stripe_connect_account_id.present? ? "Finish payout verification" : "Set up business payouts" %></h2>
-    <p>Complete the secure verification process without managing a separate payments dashboard. You'll return here when finished.</p>
-    <%= button_to "Continue payout setup", connect_dashboard_business_payouts_path, method: :post %>
+    <p>Complete your business verification and payout details securely below.</p>
   <% end %>
-  <p class="text-sm">Payout setup does not authorize Lightek to transfer funds until an eligible, reconciled payment is available. Transaction fees and network fees are accounted for by the existing Dymond Bank payment flow.</p>
+  <% if @publishable_key.present? %>
+    <div id="lightek-connect-onboarding" data-session-url="<%= session_dashboard_business_payouts_path %>" data-publishable-key="<%= @publishable_key %>"></div>
+    <p id="lightek-connect-error" role="alert"></p>
+    <script type="module">
+      import { loadConnectAndInitialize } from "https://connect-js.stripe.com/v1.0/connect.js";
+      const root = document.getElementById("lightek-connect-onboarding");
+      const error = document.getElementById("lightek-connect-error");
+      if (root) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+        const connect = loadConnectAndInitialize({
+          publishableKey: root.dataset.publishableKey,
+          fetchClientSecret: async () => {
+            const response = await fetch(root.dataset.sessionUrl, {
+              method: "POST", credentials: "same-origin",
+              headers: { "X-CSRF-Token": csrf || "", "Accept": "application/json" }
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.client_secret) throw new Error(payload.error || "Payout verification unavailable.");
+            return payload.client_secret;
+          }
+        });
+        const onboarding = connect.create("account-onboarding");
+        onboarding.setOnExit(() => { window.location.reload(); });
+        root.appendChild(onboarding);
+        connect.onLoadError?.((failure) => { error.textContent = "Unable to load payout verification."; });
+      }
+    </script>
+  <% else %>
+    <p>Payout setup is not configured. Contact Lightek support.</p>
+  <% end %>
 </section>

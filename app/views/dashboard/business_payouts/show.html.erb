@@ -1,0 +1,14 @@
+<section class="mx-auto max-w-3xl p-6">
+  <p class="text-sm uppercase tracking-wide">Lightek Business · Payments</p>
+  <h1>Payout settings</h1>
+  <p>Manage where your business receives earnings from eligible orders. Lightek coordinates payments through Dymond Bank and our payment partner.</p>
+  <% if current_user.stripe_connect_ready? %>
+    <h2>Payout account connected</h2>
+    <p>Your account is verified and payouts are enabled.</p>
+  <% else %>
+    <h2><%= current_user.stripe_connect_account_id.present? ? "Finish payout verification" : "Set up business payouts" %></h2>
+    <p>Complete the secure verification process without managing a separate payments dashboard. You'll return here when finished.</p>
+    <%= button_to "Continue payout setup", connect_dashboard_business_payouts_path, method: :post %>
+  <% end %>
+  <p class="text-sm">Payout setup does not authorize Lightek to transfer funds until an eligible, reconciled payment is available. Transaction fees and network fees are accounted for by the existing Dymond Bank payment flow.</p>
+</section>

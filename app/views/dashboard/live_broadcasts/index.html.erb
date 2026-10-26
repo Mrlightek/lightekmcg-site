@@ -1,16 +1,17 @@
 <% content_for :page_title, "Live Studio" %>
-<%= stylesheet_link_tag "/lightek/live/studio.css" %>
-<%= javascript_include_tag "/lightek/live/studio.js", defer: true %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=2" %>
+<%= javascript_include_tag "/lightek/live/studio.js?v=2", defer: true %>
 <main class="ll-studio" data-live-studio data-create-url="<%= dashboard_live_sessions_path %>">
   <header class="ll-header"><div><span class="ll-eyebrow">LIGHTEK / STUDIO</span><h1>Your work. On air.</h1><p>Build, share and broadcast from Lightek.</p></div><span class="ll-badge" data-state>Preview only</span></header>
   <div class="ll-grid">
     <section class="ll-monitor" aria-label="Broadcast preview">
       <div class="ll-monitor-top"><span>PROGRAM PREVIEW</span><span>720p · 24 fps</span></div>
-      <div class="ll-screen"><video autoplay muted playsinline data-preview></video><div class="ll-placeholder" data-placeholder><span>◉</span><h2>Start with your screen</h2><p>Choose a window or screen to preview. Nothing is sent until you start a session.</p></div></div>
-      <div class="ll-monitor-bottom"><span data-source-status>No screen selected</span><span data-clock>00:00</span></div>
+      <div class="ll-screen"><video autoplay muted playsinline data-preview></video><div class="ll-placeholder" data-placeholder><span>◉</span><h2>Choose your camera or screen</h2><p>Preview your Mac camera, a shared window, or both. Nothing is sent until you start a session.</p></div></div>
+      <div class="ll-monitor-bottom"><span data-source-status>No video source selected</span><span data-clock>00:00</span></div>
       <div class="ll-controls"><button type="button" data-share>Choose screen</button><button type="button" data-mic aria-pressed="false">Enable microphone</button><button type="button" data-hold aria-pressed="false">Holding screen</button><button type="button" data-release>Release capture</button></div>
+      <div class="ll-inputs"><button type="button" data-camera aria-pressed="false">Enable camera</button><label>Camera<select data-camera-device><option value="">System default camera</option></select></label><label>Broadcast view<select data-layout><option value="screen">Screen only</option><option value="camera">Camera only</option><option value="combined">Screen + camera</option></select></label></div>
       <div class="ll-meter"><label>Microphone level <meter min="0" max="1" value="0" data-meter></meter></label><span data-mic-status>Microphone off</span></div>
-      <p class="ll-note">The preview is muted to prevent feedback. Holding screen hides the shared window and mutes the microphone. Ending screen sharing also activates holding screen.</p>
+      <p class="ll-note">The preview is muted to prevent feedback. Holding screen hides both screen and camera and mutes the microphone. Ending an active video source also activates holding screen.</p>
     </section>
     <aside class="ll-panel"><h2>Broadcast</h2>
       <label>Session title<input type="text" value="Building Lightek · Live" maxlength="120" data-title></label>

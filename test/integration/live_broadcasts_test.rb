@@ -22,6 +22,9 @@ class LiveBroadcastsTest < ActionDispatch::IntegrationTest
     assert_select "[data-live-studio] video[data-preview][muted]"
     assert_select "[data-destination] option[value='tiktok'][disabled]"
     assert_select "[data-share]", text: "Choose screen"
+    assert_select "[data-camera]", text: "Enable camera"
+    assert_select "[data-layout] option[value='camera']", text: "Camera only"
+    assert_select "[data-layout] option[value='combined']", text: "Screen + camera"
     assert_select "input[name='stream_key']", count: 0
     assert_equal "private, no-store", response.headers["Cache-Control"]
   end

@@ -8,7 +8,7 @@ module LightekMail
     def self.reserve!(policy, account, message)
       raise Submission::Unavailable, "Server sending is paused by the mail administrator." unless policy.sending_enabled?
       raise Submission::Unavailable, "Mailbox sending is paused, suspended or unverified." unless account.sending_ready?
-      count = message.to_addresses.uniq.size
+      count = (message.to_addresses + message.cc_addresses + message.bcc_addresses).uniq.size
       check!(account, count, timestamp: :reserved_at)
       now = Time.current
       SendReservation.create!(account: account, user_id: account.user_id, message_id: message.id, recipient_count: count, reserved_at: now)

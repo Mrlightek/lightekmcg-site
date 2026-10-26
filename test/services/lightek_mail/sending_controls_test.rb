@@ -95,6 +95,8 @@ class LightekMailSendingControlsTest < ActiveSupport::TestCase
     rendered = LightekMail::MessageMailer.outbound(message).message
     assert_equal ["copy@example.test"], rendered.cc
     assert_equal ["blind@example.test"], rendered.bcc
+    refute_match(/^Bcc:/i, rendered.encoded)
+    assert_includes rendered.attachments["note.txt"].body.decoded, "Attached"
     mail = Mail.new(from: account.address, to: "to@example.test", cc: "copy@example.test", bcc: "blind@example.test", subject: "Update", body: "Hello")
     mail.attachments["note.txt"] = "Attached"
     requests = []
@@ -112,6 +114,17 @@ class LightekMailSendingControlsTest < ActiveSupport::TestCase
     assert_equal "Attached", Base64.strict_decode64(body.fetch("attachments").first.fetch("data"))
     mail.smtp_envelope_to = ["elsewhere@example.test"]
     assert_raises(ArgumentError) { LightekMail::HttpsDelivery.new(token: "fixture-only").deliver!(mail) }
+  end
+
+  test "conflicting idempotency requests do not change the accepted message" do
+    account = mailbox
+    attributes = {to: ["first@example.test"], subject: "Original", text: "First body"}
+    original = LightekMail::Submission.create!(account: account, attributes: attributes, idempotency_key: "mail_replay_123")
+    assert_equal original.id, LightekMail::Submission.create!(account: account, attributes: attributes, idempotency_key: "mail_replay_123").id
+    assert_raises(ArgumentError) do
+      LightekMail::Submission.create!(account: account, attributes: attributes.merge(text: "Changed body"), idempotency_key: "mail_replay_123")
+    end
+    assert_equal 1, LightekMail::SendReservation.where(message_id: original.id).count
   end
 
   test "scanner outages and rejected spam never reach SMTP and spam suspends new sibling accounts" do

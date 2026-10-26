@@ -21,6 +21,7 @@ class LiveBroadcastsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "[data-live-studio] video[data-preview][muted]"
     assert_select "[data-destination] option[value='tiktok'][disabled]"
+    assert_select "[data-destination] option[value='restream'][disabled]"
     assert_select "[data-share]", text: "Choose screen"
     assert_select "[data-camera]", text: "Enable camera"
     assert_select "[data-layout] option[value='camera']", text: "Camera only"
@@ -46,4 +47,17 @@ class LiveBroadcastsTest < ActionDispatch::IntegrationTest
     refute response.parsed_body.key?("stream_key")
     refute response.parsed_body.key?("server_url")
   end
+  test "super admin can see separate empty credential forms and Restream setup" do
+    login(actor("super_admin"))
+    with_live_stub(Studio::Live::Encoder, :available?, true) do
+      with_live_stub(Studio::Live::Destination, :configured?, false) { get "/dashboard/live" }
+    end
+    assert_response :success
+    assert_select "input[name='provider'][value='restream']"
+    assert_select "input[name='provider'][value='tiktok']"
+    assert_select "input[name='stream_key'][value]", count: 0
+    assert_select "a[href='https://app.restream.io/']"
+    assert_equal "private, no-store", response.headers["Cache-Control"]
+  end
+
 end

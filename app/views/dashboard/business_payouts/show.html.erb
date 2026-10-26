@@ -30,7 +30,7 @@
         const onboarding = connect.create("account-onboarding");
         onboarding.setOnExit(() => { window.location.reload(); });
         root.appendChild(onboarding);
-        connect.onLoadError?.((failure) => { error.textContent = "Unable to load payout verification."; });
+        onboarding.setOnLoadError?.(() => { error.textContent = "Unable to load payout verification."; });
       }
     </script>
   <% else %>

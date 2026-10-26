@@ -108,6 +108,10 @@ config.action_mailbox.ingress = :postfix
     config.action_mailer.delivery_method = :gmail_api
     config.action_mailer.perform_deliveries = true
     config.action_mailer.raise_delivery_errors = true
+  when "lightek_https"
+    config.action_mailer.delivery_method = :lightek_https
+    config.action_mailer.perform_deliveries = true
+    config.action_mailer.raise_delivery_errors = true
   when "smtp"
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.perform_deliveries = true

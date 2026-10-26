@@ -311,6 +311,32 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
 
 
 # Browser-based live production. Uses the existing authenticated /cable endpoint.
+scope "/dashboard/mail", controller: "dashboard/mail_studio" do
+  get "/", action: :index, as: :dashboard_mail
+  post "/domains", action: :create_domain, as: :dashboard_mail_domains
+  post "/domains/:id/verify", action: :verify_domain, as: :verify_dashboard_mail_domain
+  post "/accounts", action: :create_account, as: :dashboard_mail_accounts
+  patch "/accounts/:account_id", action: :configure_account, as: :dashboard_mail_account
+  post "/accounts/:account_id/token", action: :token, as: :dashboard_mail_token
+  get "/accounts/:account_id/compose", action: :compose, as: :compose_dashboard_mail
+  post "/accounts/:account_id/messages", action: :create_message, as: :dashboard_mail_messages
+  get "/accounts/:account_id/messages/:id", action: :show_message, as: :dashboard_mail_message
+  post "/accounts/:account_id/messages/:id/send", action: :send_draft, as: :send_dashboard_mail_message
+  patch "/accounts/:account_id/messages/:id/flag", action: :flag_message, as: :flag_dashboard_mail_message
+  delete "/accounts/:account_id/messages/:id", action: :purge_message, as: :purge_dashboard_mail_message
+  get "/accounts/:account_id/messages/:id/attachments/:attachment_id", action: :attachment, as: :dashboard_mail_attachment
+  get "/accounts/:account_id/templates/new", action: :edit_template, as: :new_dashboard_mail_template
+  get "/accounts/:account_id/templates/:id/export", action: :export_template, as: :export_dashboard_mail_template
+  get "/accounts/:account_id/templates/:id/edit", action: :edit_template, as: :edit_dashboard_mail_template
+  post "/accounts/:account_id/templates", action: :save_template, as: :dashboard_mail_templates
+  patch "/accounts/:account_id/templates/:id", action: :save_template, as: :dashboard_mail_template
+  post "/accounts/:account_id/templates/preview", action: :preview_template, as: :preview_dashboard_mail_template
+end
+post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
+get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
+post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
+post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
+
 get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
 post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
 post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination

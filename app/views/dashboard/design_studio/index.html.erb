@@ -8,6 +8,7 @@
   <label>Starting point<%= select_tag :source, options_for_select([["Blank canvas", ""]] + @sources.map { |key, definition| [definition["name"], key] }) %></label>
   <%= submit_tag "Open designer", class: "lds-button lds-primary" %>
 <% end %></section>
+<section class="lds-start"><h2>Email template designer</h2><p>Build branded HTML and plain-text email templates, preview them and use them for messages or automatic replies.</p><%= link_to "Open email templates", dashboard_mail_path, class: "lds-button" %></section>
 <h2>Your design workspaces</h2>
 <div class="lds-document-grid">
 <% @documents.each do |record| %><% meta = LightekDesign::StudioDocument.metadata(record); draft = meta.fetch("draft") %>

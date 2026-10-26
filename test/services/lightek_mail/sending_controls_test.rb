@@ -185,4 +185,18 @@ class LightekMailSendingControlsTest < ActiveSupport::TestCase
     assert_equal %w[a@example.test b@example.test], JSON.parse(requests.first.body).fetch("to")
     assert_equal requests.first["Idempotency-Key"], requests.last["Idempotency-Key"]
   end
+
+  test "an automatic reply rejected by quota cannot leave a partial draft inside inbound intake" do
+    account = mailbox
+    account.update!(minute_limit: 1)
+    send_message(account)
+    template = account.templates.create!(name: "Away", subject: "Away", document: {body: "Thanks {{name}}"})
+    account.update!(auto_reply_enabled: true, auto_template: template)
+    mail = Mail.new(from: "sender@example.test", to: account.address, subject: "Hello", body: "Hello")
+    mail.return_path = "sender@example.test"
+    LightekMail::Inbound.accept!(raw: mail.encoded, recipients: [account.address])
+    assert_equal 1, account.messages.where(direction: "inbound").count
+    assert_equal 1, account.messages.where(direction: "outbound").count
+    assert_equal 0, account.messages.where(state: "draft").count
+  end
 end

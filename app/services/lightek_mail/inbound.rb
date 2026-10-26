@@ -29,6 +29,11 @@ module LightekMail
       part.decoded.to_s.dup.force_encoding("UTF-8").scrub
     end
     def self.process!(inbound)
+      # Intake may already be inside a transaction. Take the shared sending lock
+      # before any mailbox row lock, including when auto replies reserve a send.
+      SendingPolicy.synchronize { process_locked!(inbound) }
+    end
+    def self.process_locked!(inbound)
       envelope = Envelope.find_by!(inbound_email_id: inbound.id)
       mail = inbound.mail
       raw = inbound.raw_email.download

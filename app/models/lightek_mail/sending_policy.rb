@@ -4,7 +4,7 @@ module LightekMail
 
     def self.synchronize
       policy = create_or_find_by!(id: 1)
-      policy.with_lock { yield policy }
+      policy.with_lock(requires_new: true) { yield policy }
     end
   end
 end

@@ -6,6 +6,7 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
   rescue_from Studio::Live::Destination::Unavailable, Studio::Live::Encoder::Failure, Studio::Live::Sessions::Busy, ArgumentError, with: :invalid
   def index
     @encoder_ready = Studio::Live::Encoder.available?
+    @restream_ready = Studio::Live::Destination.configured?(current_user, provider: "restream")
     @tiktok_ready = Studio::Live::Destination.configured?(current_user)
     @recent = Studio::Live::Sessions.for_user(current_user).order(id: :desc).limit(8)
   end
@@ -14,8 +15,9 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     render json: {id: operation.id, ticket: Studio::Live::Sessions.ticket(operation, current_user), cable_path: "/cable"}, status: :created
   end
   def destination
-    Studio::Live::Destination.save!(user: current_user, server_url: params[:server_url], stream_key: params[:stream_key])
-    redirect_to dashboard_live_path, notice: "TikTok streaming destination stored in Vault. This does not start a broadcast.", status: :see_other
+    provider = params[:provider].presence || "tiktok"
+    Studio::Live::Destination.save!(user: current_user, server_url: params[:server_url], stream_key: params[:stream_key], provider: provider)
+    redirect_to dashboard_live_path, notice: "#{Studio::Live::Destination.provider!(provider)[:label]} streaming destination stored in Vault. This does not start a broadcast.", status: :see_other
   end
   def recording
     operation = Studio::Live::Sessions.find!(params[:id], current_user)

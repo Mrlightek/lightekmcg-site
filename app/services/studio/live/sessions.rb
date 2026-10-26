@@ -15,8 +15,10 @@ module Studio
       end
       def self.create!(user:, destination:, title:)
         ::Gatekeeper::StudioLivePolicy.authorize!(user: user)
-        raise ArgumentError, "Choose a supported destination." unless %w[test tiktok].include?(destination)
-        raise Destination::Unavailable, "Configure your TikTok streaming destination first." if destination == "tiktok" && !Destination.configured?(user)
+        raise ArgumentError, "Choose a supported destination." unless %w[test tiktok restream].include?(destination)
+        if destination != "test" && !Destination.configured?(user, provider: destination)
+          raise Destination::Unavailable, "Configure your #{Destination.provider!(destination)[:label]} streaming destination first."
+        end
         raise Encoder::Failure, "FFmpeg is not installed on the application server." unless Encoder.available?
         title = title.to_s.strip
         raise ArgumentError, "Enter a broadcast title of 1–120 characters." unless title.length.between?(1, 120)
@@ -27,7 +29,7 @@ module Studio
           raise Busy, "End your current broadcast session before starting another." if for_user(user).where(status: %w[draft connecting live]).exists?
           raise Busy, "The broadcaster is at capacity. Try again after another session ends." if scope.where(status: %w[draft connecting live]).count >= 2
           project = StudioProject.create!(name: title, description: "Lightek browser broadcast")
-          StudioLiveOperation.create!(studio_project: project, platform: destination == "tiktok" ? "tiktok" : "lightek_streaming", status: "draft", credential_ref: destination == "tiktok" ? Destination.slug(user) : nil,
+          StudioLiveOperation.create!(studio_project: project, platform: destination == "test" ? "lightek_streaming" : "tiktok", status: "draft", credential_ref: destination == "test" ? nil : Destination.slug(user, provider: destination),
             metadata: {"broadcaster" => "browser_v1", "owner_id" => user.id, "destination" => destination, "title" => title})
         end
       end

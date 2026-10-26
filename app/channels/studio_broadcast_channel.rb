@@ -20,7 +20,7 @@ class StudioBroadcastChannel < ApplicationCable::Channel
     end
     Rails.logger.info("[StudioLive] encoder starting operation=#{@operation.id} user=#{current_user.id}")
     test = @operation.metadata["destination"] == "test"
-    output = test ? Studio::Live::Encoder.recording_path(@operation.id) : Studio::Live::Destination.output!(current_user)
+    output = test ? Studio::Live::Encoder.recording_path(@operation.id) : Studio::Live::Destination.output!(current_user, provider: @operation.metadata.fetch("destination"))
     @encoder = Studio::Live::Encoder.new(output: output, test: test, on_event: method(:encoder_event)).start!
     transmit({event: "ready"})
   rescue StandardError => error

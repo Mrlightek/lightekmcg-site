@@ -1,6 +1,6 @@
 <% content_for :page_title, "Live Studio" %>
 <%= stylesheet_link_tag "/lightek/live/studio.css?v=2" %>
-<%= javascript_include_tag "/lightek/live/studio.js?v=3", defer: true %>
+<%= javascript_include_tag "/lightek/live/studio.js?v=4", defer: true %>
 <main class="ll-studio" data-live-studio data-create-url="<%= dashboard_live_sessions_path %>">
   <header class="ll-header"><div><span class="ll-eyebrow">LIGHTEK / STUDIO</span><h1>Your work. On air.</h1><p>Build, share and broadcast from Lightek.</p></div><span class="ll-badge" data-state>Preview only</span></header>
   <div class="ll-grid">
@@ -15,25 +15,36 @@
     </section>
     <aside class="ll-panel"><h2>Broadcast</h2>
       <label>Session title<input type="text" value="Building Lightek · Live" maxlength="120" data-title></label>
-      <label>Destination<select data-destination><option value="test">Private test recording · 2 minutes max</option><option value="tiktok" <%= "disabled" unless @tiktok_ready %>>TikTok LIVE<%= " · connection needed" unless @tiktok_ready %></option></select></label>
-      <div class="ll-checks"><p><span class="<%= @encoder_ready ? 'll-good' : 'll-wait' %>">●</span> Server encoder: <%= @encoder_ready ? "ready" : "installation needed" %></p><p><span class="<%= @tiktok_ready ? 'll-good' : 'll-wait' %>">●</span> TikTok: <%= @tiktok_ready ? "destination stored; access not yet verified" : "not connected" %></p></div>
+      <label>Destination<select data-destination><option value="test">Private test recording · 2 minutes max</option><option value="restream" <%= "disabled" unless @restream_ready %>>TikTok LIVE via Restream<%= " · connection needed" unless @restream_ready %></option><option value="tiktok" <%= "disabled" unless @tiktok_ready %>>TikTok LIVE<%= " · connection needed" unless @tiktok_ready %></option></select></label>
+      <div class="ll-checks"><p><span class="<%= @encoder_ready ? 'll-good' : 'll-wait' %>">●</span> Server encoder: <%= @encoder_ready ? "ready" : "installation needed" %></p><p><span class="<%= @restream_ready ? 'll-good' : 'll-wait' %>">●</span> Restream: <%= @restream_ready ? "destination stored; verify TikTok channel in Restream" : "not connected" %></p><p><span class="<%= @tiktok_ready ? 'll-good' : 'll-wait' %>">●</span> TikTok direct: <%= @tiktok_ready ? "destination stored; access not yet verified" : "not connected" %></p></div>
       <button type="button" class="ll-primary" data-start <%= "disabled" unless @encoder_ready %>>Start private test</button>
       <button type="button" class="ll-stop" data-stop disabled>Stop session</button>
       <p role="status" aria-live="polite" data-status>Choose a screen to begin.</p><p role="alert" data-error hidden></p><a data-download hidden>Download test recording</a>
-      <p class="ll-note">A private test stays on your server. “Sending” means the server encoder is producing output; confirm visibility in TikTok separately.</p>
+      <p class="ll-note">A private test stays on your server. “Sending” means the server encoder is producing output; confirm visibility in TikTok separately. Restream sends to the channels enabled in your Restream stream.</p>
     </aside>
   </div>
   <% if current_user.role.to_s == "super_admin" %>
-    <details class="ll-config"><summary>Connect my TikTok destination</summary><p>Enter the server URL and stream key provided by your authorized TikTok streaming setup. These are stored in Lightek Vault and are never returned to the preview.</p>
+    <details class="ll-config" open><summary>Connect TikTok through Restream</summary>
+      <ol><li><a href="https://app.restream.io/" target="_blank" rel="noopener noreferrer">Open Restream</a>. Go to Channels → Add New → TikTok Live and authorize your TikTok account. If access is denied, complete Restream’s application before broadcasting.</li><li>Create New Stream → Encoder | RTMP. Enable your TikTok channel and disable any channels you do not intend to broadcast to.</li><li>Choose RTMPS when available. Copy Restream’s server URL and stream key into the fields below.</li><li>Save, select “TikTok LIVE via Restream” above, and start from Lightek. Check the Restream preview and confirm the broadcast on TikTok.</li></ol>
+      <p>These are Restream’s streaming details, not TikTok’s developer API credentials. Saving them does not authorize TikTok or start a broadcast. TikTok approval is still required. Restream currently documents a 50% gaming-content requirement for TikTok access; check eligibility for your build streams before purchasing a plan.</p>
       <%= form_with url: dashboard_live_destination_path, method: :post, local: true, data: {turbo: false} do %>
-        <label>Server URL<%= url_field_tag :server_url, nil, required: true, placeholder: "rtmps://…", autocomplete: "off" %></label>
-        <label>Stream key<%= password_field_tag :stream_key, nil, required: true, autocomplete: "new-password" %></label>
-        <%= submit_tag "Save in Vault" %>
+        <%= hidden_field_tag :provider, "restream" %>
+        <label>Restream server URL<%= url_field_tag :server_url, nil, required: true, id: "restream_server_url", placeholder: "rtmps://…restream.io/…", autocomplete: "off" %></label>
+        <label>Restream stream key<%= password_field_tag :stream_key, nil, id: "restream_stream_key", required: true, autocomplete: "new-password" %></label>
+        <%= submit_tag "Save Restream destination in Vault" %>
+      <% end %>
+    </details>
+    <details class="ll-config"><summary>Connect TikTok directly with a TikTok stream key</summary><p>If TikTok supplies a server URL and stream key for your account, you can use them directly. Both destinations are stored separately in Lightek Vault and never returned to the preview.</p>
+      <%= form_with url: dashboard_live_destination_path, method: :post, local: true, data: {turbo: false} do %>
+        <%= hidden_field_tag :provider, "tiktok" %>
+        <label>TikTok server URL<%= url_field_tag :server_url, nil, required: true, placeholder: "rtmps://…", autocomplete: "off" %></label>
+        <label>TikTok stream key<%= password_field_tag :stream_key, nil, required: true, autocomplete: "new-password" %></label>
+        <%= submit_tag "Save TikTok destination in Vault" %>
       <% end %>
     </details>
   <% end %>
   <section class="ll-recent"><h2>Recent sessions</h2><p class="ll-note">Private test recordings are retained for 24 hours when the cleanup task runs.</p>
     <% if @recent.empty? %><p>No sessions yet. Your first test will appear here.</p><% end %>
-    <% @recent.each do |operation| %><article><div><strong><%= operation.metadata["title"] %></strong><small><%= operation.metadata["destination"] == "test" ? "Private test" : "TikTok" %> · <%= operation.created_at.strftime("%b %d, %H:%M %Z") %></small></div><span><%= operation.status == "live" ? "Sending" : operation.status.humanize %></span><% if operation.metadata["destination"] == "test" && operation.status == "ended" && Studio::Live::Encoder.recording_path(operation.id).file? %><%= link_to "Download", dashboard_live_recording_path(operation), data: {turbo: false} %><% end %></article><% end %>
+    <% @recent.each do |operation| %><article><div><strong><%= operation.metadata["title"] %></strong><small><%= {"test" => "Private test", "restream" => "TikTok via Restream", "tiktok" => "TikTok"}.fetch(operation.metadata["destination"], "Broadcast") %> · <%= operation.created_at.strftime("%b %d, %H:%M %Z") %></small></div><span><%= operation.status == "live" ? "Sending" : operation.status.humanize %></span><% if operation.metadata["destination"] == "test" && operation.status == "ended" && Studio::Live::Encoder.recording_path(operation.id).file? %><%= link_to "Download", dashboard_live_recording_path(operation), data: {turbo: false} %><% end %></article><% end %>
   </section>
 </main>

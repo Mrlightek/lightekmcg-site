@@ -8,7 +8,7 @@ const html = `<main data-live-studio data-create-url="/sessions">
 <video muted data-preview></video><div data-placeholder></div><span data-state></span><p data-status></p><p data-error hidden></p>
 <button data-start>Start</button><button data-stop>Stop</button><button data-camera>Camera</button><button data-share>Screen</button><button data-mic>Mic</button><button data-hold>Hold</button><button data-release>Release</button>
 <select data-camera-device><option value="">Default</option></select><select data-layout><option value="camera">Camera</option><option value="screen">Screen</option></select>
-<select data-destination><option value="test">Test</option></select><input data-title value="Test"><a data-download hidden>Download</a><span data-source-status></span><span data-mic-status></span><meter data-meter></meter><span data-clock></span></main>`;
+<select data-destination><option value="test">Test</option><option value="restream">TikTok via Restream</option></select><input data-title value="Test"><a data-download hidden>Download</a><span data-source-status></span><span data-mic-status></span><meter data-meter></meter><span data-clock></span></main>`;
 (async () => {
  const browser = await chromium.launch({headless:true, ...(process.env.CHROME_PATH ? {executablePath:process.env.CHROME_PATH}:{}), args:['--no-sandbox','--no-zygote','--single-process','--disable-gpu','--autoplay-policy=no-user-gesture-required']});
  const context=await browser.newContext();
@@ -33,15 +33,16 @@ const html = `<main data-live-studio data-create-url="/sessions">
     deliver(packet){this.dispatchEvent(new MessageEvent('message',{data:JSON.stringify(packet)}));}
     send(raw){const msg=JSON.parse(raw);if(msg.command==='subscribe')return setTimeout(()=>this.deliver({type:'confirm_subscription'}),0);const data=JSON.parse(msg.data);
      if(data.action==='start')return setTimeout(()=>this.deliver({message:{event:'ready'}}),0);
-     if(data.action==='chunk'){const bytes=Uint8Array.from(atob(data.live_chunk),c=>c.charCodeAt(0));window.received.push({sequence:data.sequence,size:bytes.length,valid:bytes.every((v,i)=>v===(window.received.reduce((n,x)=>n+x.size,0)+i)%251)});if(mode!=='noack')setTimeout(()=>this.deliver({message:{event:'ack',sequence:data.sequence}}),40);}
-     if(data.action==='stop'){window.stopCount++;this.deliver({message:{event:'ended',download_url:'/recording'}});}
+     if(data.action==='chunk'){const bytes=Uint8Array.from(atob(data.live_chunk),c=>c.charCodeAt(0));window.received.push({sequence:data.sequence,size:bytes.length,valid:bytes.every((v,i)=>v===(window.received.reduce((n,x)=>n+x.size,0)+i)%251)});if(mode==='relay')this.deliver({message:{event:'sending'}});if(mode!=='noack')setTimeout(()=>this.deliver({message:{event:'ack',sequence:data.sequence}}),40);}
+     if(data.action==='stop'){window.stopCount++;setTimeout(()=>this.deliver({message:{event:'ended',download_url:mode==='relay'?null:'/recording'}}),0);}
     }
     close(){this.readyState=3;}
    }
    window.WebSocket=Socket;
   },mode);
-  await page.route('https://capture.test/**',route=>{const p=new URL(route.request().url()).pathname;return route.fulfill({contentType:p==='/studio.js'?'application/javascript':p==='/sessions'?'application/json':'text/html',body:p==='/studio.js'?fs.readFileSync(scriptPath):p==='/sessions'?JSON.stringify({ticket:'fixture',cable_path:'/cable'}):html+'<script src="/studio.js"></script>'});});
-  await page.goto('https://capture.test/');await page.locator('[data-camera]').click();await page.locator('[data-start]').click();await page.waitForFunction(()=>window.rec?.state==='recording');return page;
+  page.on('dialog',dialog=>mode==='cancel'?dialog.dismiss():dialog.accept());
+  await page.route('https://capture.test/**',route=>{const p=new URL(route.request().url()).pathname;if(p==='/sessions')assert.equal(route.request().postDataJSON().destination,mode==='relay'?'restream':'test');return route.fulfill({contentType:p==='/studio.js'?'application/javascript':p==='/sessions'?'application/json':'text/html',body:p==='/studio.js'?fs.readFileSync(scriptPath):p==='/sessions'?JSON.stringify({ticket:'fixture',cable_path:'/cable'}):html+'<script src="/studio.js"></script>'});});
+  await page.goto('https://capture.test/');await page.locator('[data-camera]').click();if(['relay','cancel'].includes(mode))await page.locator('[data-destination]').selectOption('restream');await page.locator('[data-start]').click();if(mode==='cancel')return page;await page.waitForFunction(()=>window.rec?.state==='recording');return page;
  }
  let page=await fixture('burst');await page.evaluate(()=>{rec.emit(1500000);document.querySelector('[data-stop]').click();});
  await page.locator('[data-download]').waitFor({state:'visible',timeout:5000});
@@ -49,6 +50,8 @@ const html = `<main data-live-studio data-create-url="/sessions">
  assert.equal(result.error,'');assert.equal(result.stopCount,1);assert.equal(result.received.reduce((n,x)=>n+x.size,0),1500111);assert(result.received.length>1);result.received.forEach((x,i)=>{assert.equal(x.sequence,i);assert(x.size<=262144);assert(x.valid,'WebM bytes changed or reordered');});await page.close();
  page=await fixture('noack');await page.evaluate(()=>rec.emit(100));await page.locator('[data-error]').filter({hasText:'did not acknowledge'}).waitFor({timeout:15000});assert.equal(await page.locator('[data-start]').isDisabled(),false);await page.close();
  page=await fixture('overflow');await page.evaluate(()=>rec.emit(4194305));await page.locator('[data-error]').filter({hasText:'4 MB waiting'}).waitFor();assert.equal(await page.evaluate(()=>received.length),0);await page.close();
- console.log('STUDIO_CAPTURE_TRANSPORT_PASS large_burst byte_order bounded_chunks stop_drain missing_ack bounded_memory');
+ page=await fixture('relay');assert.equal(await page.locator('[data-start]').textContent(),'Broadcast via Restream');await page.evaluate(()=>rec.emit(100));await page.locator('[data-state]').filter({hasText:'Sending to Restream'}).waitFor();assert.match(await page.locator('[data-status]').textContent(),/does not confirm TikTok is live/);await page.locator('[data-stop]').click();await page.locator('[data-status]').filter({hasText:'Session ended.'}).waitFor();assert(await page.locator('[data-download]').isHidden());await page.close();
+ page=await fixture('cancel');assert.equal(await page.evaluate(()=>window.rec),undefined);assert.equal(await page.locator('[data-start]').isDisabled(),false);await page.close();
+ console.log('STUDIO_CAPTURE_TRANSPORT_PASS large_burst byte_order bounded_chunks stop_drain missing_ack bounded_memory relay_status relay_confirm_cancel');
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

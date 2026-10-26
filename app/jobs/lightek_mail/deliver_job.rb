@@ -55,7 +55,8 @@ module LightekMail
       message.update!(state: "failed", error_message: "Outbound spam check blocked this message; administrator review required.")
       Feedback.record!(message_id: message.id, kind: "spam", event_key: "outbound_spam_#{message.id}")
     rescue SpamScanner::Unavailable
-      message.update!(state: "failed", error_message: "Spam scanner unavailable. No SMTP submission attempted; contact the administrator.")
+      message.update!(state: "queued", error_message: "Spam scanner unavailable; delivery deferred safely.")
+      self.class.set(wait: 5.minutes).perform_later(id)
     rescue SendingLimits::Throttled
       message.update!(state: "queued", error_message: "Waiting for an SMTP recipient sending allowance.")
       self.class.set(wait: 61.seconds).perform_later(id)

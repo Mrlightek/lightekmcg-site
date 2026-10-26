@@ -4,7 +4,8 @@ module LightekMail
     def self.accept!(raw:, recipients:)
       raise ArgumentError, "Inbound message is too large." if raw.bytesize > Submission::MAX_BYTES
       recipients = Submission.addresses(recipients).sort
-      raise ArgumentError, "No provisioned recipient." unless Account.joins(:domain).where(address: recipients, enabled: true).where.not(lightek_mail_domains: {verified_at: nil}).exists?
+      provisioned = Account.joins(:domain).where(address: recipients, enabled: true).where.not(lightek_mail_domains: {verified_at: nil}).pluck(:address)
+      raise ArgumentError, "Unknown or unprovisioned envelope recipient." unless (recipients - provisioned).empty?
       checksum = OpenSSL::Digest::SHA1.hexdigest(raw)
       inbound = ActionMailbox::InboundEmail.transaction do
         if ActionMailbox::InboundEmail.connection.adapter_name == "PostgreSQL"

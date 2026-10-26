@@ -51,18 +51,22 @@ function boot(){
  async function pump(){
   if(pending||!active)return;
   if(!queue.length){if(stopping){send('stop');status.textContent='Finishing server output…';}return;}
-  pending={blob:queue.shift(),sequence:sequence++};queuedBytes-=pending.blob.size;
+  // Recorder timeslices are hints: Firefox can return several seconds in one Blob.
+  // Split bytes without dropping/re-encoding WebM headers or cluster boundaries.
+  const head=queue[0],blob=head.slice(0,262144);
+  if(blob.size===head.size)queue.shift();else queue[0]=head.slice(blob.size);
+  pending={blob,sequence:sequence++};queuedBytes-=blob.size;
   const entry=pending;
-  try{const bytes=new Uint8Array(await entry.blob.arrayBuffer());if(!active||pending!==entry)return;let raw='';for(let i=0;i<bytes.length;i+=32768)raw+=String.fromCharCode(...bytes.subarray(i,i+32768));send('chunk',{sequence:entry.sequence,live_chunk:btoa(raw)});}catch(e){fail(e.message);}
+  try{const bytes=new Uint8Array(await entry.blob.arrayBuffer());if(!active||pending!==entry)return;let raw='';for(let i=0;i<bytes.length;i+=32768)raw+=String.fromCharCode(...bytes.subarray(i,i+32768));send('chunk',{sequence:entry.sequence,live_chunk:btoa(raw)});entry.timer=setTimeout(()=>{if(active&&pending===entry)fail('The server did not acknowledge capture within 10 seconds. Check the broadcaster service log before starting another test.');},10000);}catch(e){fail(e.message);}
  }
- function finish(text){active=false;stopping=false;clearTimeout(connectTimer);clearInterval(clockTimer);if(recorder?.state!=='inactive')recorder?.stop();queue=[];pending=null;queuedBytes=0;ws?.close();badge.textContent='Preview only';badge.dataset.active='false';status.textContent=text;controls();}
+ function finish(text){active=false;stopping=false;clearTimeout(connectTimer);clearTimeout(pending?.timer);clearInterval(clockTimer);if(recorder?.state!=='inactive')recorder?.stop();queue=[];pending=null;queuedBytes=0;ws?.close();badge.textContent='Preview only';badge.dataset.active='false';status.textContent=text;controls();}
  function fail(text){message(text);finish('Session stopped. Preview stays local.');}
  function startRecorder(){
   if(!active||stopping)return;
   clearTimeout(connectTimer);const mime=['video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/webm'].find(type=>MediaRecorder.isTypeSupported(type));
   if(!mime)return fail('This browser cannot encode WebM screen capture. Use Firefox or Chrome.');
   recorder=new MediaRecorder(program,{mimeType:mime,videoBitsPerSecond:1400000,audioBitsPerSecond:96000});
-  recorder.addEventListener('dataavailable',event=>{if(!event.data.size||!active)return;if(event.data.size>1048576||queuedBytes+event.data.size+(pending?.blob.size||0)>4194304)return fail('The connection cannot keep up with capture. Session stopped; start a new test.');queue.push(event.data);queuedBytes+=event.data.size;pump();});
+  recorder.addEventListener('dataavailable',event=>{if(!event.data.size||!active)return;if(queuedBytes+event.data.size+(pending?.blob.size||0)>4194304)return fail('Capture has more than 4 MB waiting for server acknowledgement. Session stopped to keep memory bounded. Check upload speed and the broadcaster service log.');queue.push(event.data);queuedBytes+=event.data.size;pump();});
   recorder.addEventListener('stop',()=>{if(active)pump();});recorder.addEventListener('error',()=>fail('The browser recorder stopped unexpectedly.'));
   recorder.start(500);started=Date.now();clockTimer=setInterval(()=>{const elapsed=Math.floor((Date.now()-started)/1000);q('[data-clock]').textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(elapsed%60).padStart(2,'0');},1000);
   status.textContent='Connected. Waiting for encoded output…';
@@ -80,7 +84,7 @@ function boot(){
    ws.addEventListener('open',()=>{transportPhase='socket open';status.textContent='Socket open. Waiting for server welcome…';});
    ws.addEventListener('message',event=>{try{const packet=JSON.parse(event.data);if(packet.type==='welcome'){transportPhase='welcomed';return ws.send(JSON.stringify({command:'subscribe',identifier}));}if(packet.type==='disconnect')return fail('Server closed the connection: '+String(packet.reason||'unknown reason')+'.');if(packet.type==='reject_subscription')return fail('Broadcast subscription was rejected. Reload and start a new session.');if(packet.type==='confirm_subscription'){transportPhase='subscribed';return send('start');}if(!packet.message)return;const data=packet.message;
     if(data.event==='ready')startRecorder();
-    else if(data.event==='ack'){if(pending?.sequence!==data.sequence)return fail('Capture acknowledgement changed. Start a new session.');pending=null;pump();}
+    else if(data.event==='ack'){if(pending?.sequence!==data.sequence)return fail('Capture acknowledgement changed. Start a new session.');clearTimeout(pending.timer);pending=null;pump();}
     else if(data.event==='sending'){badge.textContent=destination==='test'?'Private recording':'Sending to TikTok';badge.dataset.active='true';status.textContent=destination==='test'?'Recording on the server. Stop to download and review.':'Sending to TikTok. Confirm your broadcast in TikTok.';}
     else if(data.event==='ended'){finish('Session ended.');if(data.download_url){q('[data-download]').href=data.download_url;q('[data-download]').hidden=false;}}
     else if(data.event==='failed')fail(data.error||'The server encoder stopped.');

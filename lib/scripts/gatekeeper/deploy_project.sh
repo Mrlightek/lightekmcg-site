@@ -66,6 +66,13 @@ echo "[6/8] Sidekiq"
 systemctl restart "${SIDEKIQ_SERVICE}"
 systemctl is-active --quiet "${SIDEKIQ_SERVICE}"
 
+echo "[cable] Refresh installed standalone WebSocket backend"
+if systemctl cat "${APP_NAME}-cable.service" >/dev/null 2>&1; then
+  systemctl restart "${APP_NAME}-cable.service"
+  systemctl is-active --quiet "${APP_NAME}-cable.service"
+  python3 "${APP_ROOT}/lib/scripts/lightek_cable_setup.py" --probe-backend
+fi
+
 echo "[7/8] Apache"
 apache2ctl configtest
 systemctl reload "${APACHE_SERVICE}"

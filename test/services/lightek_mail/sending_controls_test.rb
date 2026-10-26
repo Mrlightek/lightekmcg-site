@@ -81,19 +81,37 @@ class LightekMailSendingControlsTest < ActiveSupport::TestCase
     refute LightekMail::SendingPolicy.find(1).sending_enabled?
   end
 
-  test "Cc Bcc and custom envelope recipients are rejected before any network request" do
-    adapter = LightekMail::HttpsDelivery.new(token: "fixture-only")
-    [:cc, :bcc].each do |field|
-      mail = Mail.new(from: "sender@example.test", to: "a@example.test", subject: "Update", body: "Hello")
-      mail.public_send("#{field}=", "hidden@example.test")
-      assert_raises(ArgumentError) { adapter.deliver!(mail) }
-      assert_raises(ArgumentError) do
-        LightekMail::Submission.create!(account: mailbox, attributes: {to: "a@example.test", field => "hidden@example.test", subject: "Update", text: "Hello"})
-      end
+  test "Cc Bcc and attachments are supported with full recipient accounting" do
+    account = mailbox
+    message = LightekMail::Submission.create!(account: account, attributes: {
+      to: ["to@example.test"], cc: ["copy@example.test"], bcc: ["blind@example.test"],
+      subject: "Update", text: "Hello",
+      attachments: [{"filename" => "note.txt", "content_type" => "text/plain", "data" => Base64.strict_encode64("Attached")}]
+    })
+    assert_equal ["copy@example.test"], message.cc_addresses
+    assert_equal ["blind@example.test"], message.bcc_addresses
+    assert_equal 3, LightekMail::SendReservation.find_by!(message_id: message.id).recipient_count
+    assert_equal "Attached", message.attachments.first.download
+    rendered = LightekMail::MessageMailer.outbound(message).message
+    assert_equal ["copy@example.test"], rendered.cc
+    assert_equal ["blind@example.test"], rendered.bcc
+    mail = Mail.new(from: account.address, to: "to@example.test", cc: "copy@example.test", bcc: "blind@example.test", subject: "Update", body: "Hello")
+    mail.attachments["note.txt"] = "Attached"
+    requests = []
+    session = Object.new
+    session.define_singleton_method(:request) do |request|
+      requests << request
+      Struct.new(:code, :body).new("202", '{"id":123,"status":"queued"}')
     end
-    mail = Mail.new(from: "sender@example.test", to: "a@example.test", body: "Hello")
+    Net::HTTP.stub(:start, ->(*args, **options, &block) { block.call(session) }) do
+      LightekMail::HttpsDelivery.new(token: "fixture-only").deliver!(mail)
+    end
+    body = JSON.parse(requests.first.body)
+    assert_equal ["copy@example.test"], body.fetch("cc")
+    assert_equal ["blind@example.test"], body.fetch("bcc")
+    assert_equal "Attached", Base64.strict_decode64(body.fetch("attachments").first.fetch("data"))
     mail.smtp_envelope_to = ["elsewhere@example.test"]
-    assert_raises(ArgumentError) { adapter.deliver!(mail) }
+    assert_raises(ArgumentError) { LightekMail::HttpsDelivery.new(token: "fixture-only").deliver!(mail) }
   end
 
   test "scanner outages and rejected spam never reach SMTP and spam suspends new sibling accounts" do
@@ -104,7 +122,7 @@ class LightekMailSendingControlsTest < ActiveSupport::TestCase
       LightekMail::SpamScanner.stub(:check!, ->(*) { raise LightekMail::SpamScanner::Unavailable }) { LightekMail::DeliverJob.perform_now(outage.id) }
       LightekMail::SpamScanner.stub(:check!, ->(*) { raise LightekMail::SpamScanner::Rejected }) { LightekMail::DeliverJob.perform_now(spam.id) }
     end
-    assert_equal "failed", outage.reload.state
+    assert_equal "queued", outage.reload.state
     assert_equal "failed", spam.reload.state
     assert account.reload.suspended?
     new_mailbox = mailbox(account.user)

@@ -10,7 +10,7 @@
     <div id="lightek-connect-onboarding" data-session-url="<%= session_dashboard_business_payouts_path %>" data-publishable-key="<%= @publishable_key %>"></div>
     <p id="lightek-connect-error" role="alert"></p>
     <script type="module">
-      import { loadConnectAndInitialize } from "https://connect-js.stripe.com/v1.0/connect.js";
+      import { loadConnectAndInitialize } from "https://cdn.jsdelivr.net/npm/@stripe/connect-js/+esm";
       const root = document.getElementById("lightek-connect-onboarding");
       const error = document.getElementById("lightek-connect-error");
       if (root) {

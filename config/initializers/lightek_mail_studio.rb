@@ -11,6 +11,6 @@ Rails.application.config.after_initialize do
     feature.gem_source = "lightek_mail"
     feature.nav_section = :platform
     feature.min_plan = :starter
-    feature.nav_items = [{label: "Mail", icon: "mail", path: "/dashboard/mail"}]
+    feature.nav_items = [{label: "Mail", icon: "mail", path: "main_app.dashboard_mail_path"}]
   end
 end

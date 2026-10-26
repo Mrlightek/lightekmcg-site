@@ -55,4 +55,30 @@ class StudioBroadcastChannelTest < ActionCable::Channel::TestCase
     assert_equal ["Zml4dHVyZQ==", 0], encoder.received
     assert encoder.stopped
   end
+  test "Restream channel checks out the relay provider at encoder start" do
+    user = actor
+    operation = with_live_stub(Studio::Live::Destination, :configured?, true) do
+      with_live_stub(Studio::Live::Encoder, :available?, true) { Studio::Live::Sessions.create!(user: user, title: "Relay test", destination: "restream") }
+    end
+    stub_connection current_user: user
+    subscribe ticket: Studio::Live::Sessions.ticket(operation, user)
+    original = Studio::Live::Destination.method(:output!)
+    requested = nil
+    Studio::Live::Destination.define_singleton_method(:output!) { |operator, provider:| requested = [operator.id, provider]; "rtmp://live.restream.io/live/fixture-key" }
+    encoder = Object.new
+    def encoder.start! = self
+    def encoder.stop!(**_) = nil
+    constructor = Studio::Live::Encoder.method(:new)
+    encoded = nil
+    Studio::Live::Encoder.define_singleton_method(:new) { |**args| encoded = args; encoder }
+    perform :start
+    assert_equal [user.id, "restream"], requested
+    assert_equal "rtmp://live.restream.io/live/fixture-key", encoded[:output]
+    assert_equal false, encoded[:test]
+    assert_equal "ready", transmissions.last["event"]
+  ensure
+    Studio::Live::Destination.define_singleton_method(:output!, original) if original
+    Studio::Live::Encoder.define_singleton_method(:new, constructor) if constructor
+  end
+
 end

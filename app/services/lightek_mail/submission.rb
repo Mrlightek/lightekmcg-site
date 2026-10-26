@@ -56,7 +56,12 @@ module LightekMail
           if existing
             matching = existing.from_address == account.address && existing.to_addresses.sort == recipients.sort &&
               existing.cc_addresses == cc && existing.bcc_addresses == bcc && existing.subject == subject &&
-              existing.text_body.to_s == text && existing.html_body.to_s == html && existing.bytesize == size
+              existing.text_body.to_s == text && existing.html_body.to_s == html && existing.bytesize == size &&
+              existing.attachments.size == uploads.size && existing.attachments.to_a.zip(uploads).all? do |stored, upload|
+                supplied_name = upload.is_a?(Hash) ? upload.fetch(:filename).to_s : upload.original_filename.to_s
+                supplied_bytes = upload.is_a?(Hash) ? upload.fetch(:io).string : upload.tempfile.read.tap { upload.tempfile.rewind }
+                stored.filename.to_s == supplied_name && Digest::SHA256.hexdigest(stored.download) == Digest::SHA256.hexdigest(supplied_bytes)
+              end
             raise ArgumentError, "Idempotency-Key already used for different content." unless matching
             next existing
           end

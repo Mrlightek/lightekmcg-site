@@ -310,6 +310,12 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
 # END LIGHTEK DESIGN STUDIO
 
 
+# Browser-based live production. Uses the existing authenticated /cable endpoint.
+get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
+post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
+post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination
+get "/dashboard/live/:id/recording", to: "dashboard/live_broadcasts#recording", as: :dashboard_live_recording, constraints: {id: /[0-9]+/}
+
 mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────

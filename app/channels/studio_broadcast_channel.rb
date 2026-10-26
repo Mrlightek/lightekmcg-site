@@ -3,7 +3,12 @@ class StudioBroadcastChannel < ApplicationCable::Channel
   def subscribed
     @operation = Studio::Live::Sessions.from_ticket!(params[:ticket], current_user)
     @last_heartbeat = Time.current
+    Rails.logger.info("[StudioLive] subscribed operation=#{@operation.id} user=#{current_user.id}")
   rescue ::Gatekeeper::StudioLivePolicy::Denied, ActiveRecord::RecordNotFound
+    Rails.logger.info("[StudioLive] subscription rejected")
+    reject
+  rescue StandardError => error
+    Rails.logger.error("[StudioLive] subscription failed class=#{error.class.name}")
     reject
   end
   def start(_data = {})
@@ -13,6 +18,7 @@ class StudioBroadcastChannel < ApplicationCable::Channel
       @operation.update!(status: "connecting")
       @claimed = true
     end
+    Rails.logger.info("[StudioLive] encoder starting operation=#{@operation.id} user=#{current_user.id}")
     test = @operation.metadata["destination"] == "test"
     output = test ? Studio::Live::Encoder.recording_path(@operation.id) : Studio::Live::Destination.output!(current_user)
     @encoder = Studio::Live::Encoder.new(output: output, test: test, on_event: method(:encoder_event)).start!

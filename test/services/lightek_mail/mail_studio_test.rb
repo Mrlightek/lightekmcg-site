@@ -142,6 +142,10 @@ class LightekMailStudioTest < ActiveSupport::TestCase
     mail.return_path="sender@example.test"
     2.times { LightekMail::AutoResponder.call(account,inbound,mail) }
     assert_equal 1, account.messages.where(direction:"outbound").count
+    reply = LightekMail::MessageMailer.outbound(account.messages.where(direction:"outbound").first,auto_reply:true).message
+    assert_equal "auto-replied",reply["Auto-Submitted"].value
+    assert_equal "All",reply["X-Auto-Response-Suppress"].value
+    assert_equal account.address,Mail::SmtpEnvelope.new(reply).from
     %w[Auto-Submitted List-Id Precedence].each_with_index do |header,index|
       altered=Mail.new(from:"sender#{index}@example.test",to:account.address,body:"Hello")
       altered.return_path="sender#{index}@example.test"

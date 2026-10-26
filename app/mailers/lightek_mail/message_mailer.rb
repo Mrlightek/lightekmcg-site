@@ -11,7 +11,6 @@ module LightekMail
         format.text { render plain: record.text_body.to_s }
         format.html { render html: record.html_body.to_s.html_safe } if record.html_body.present?
       end
-      message.smtp_envelope_from = "" if auto_reply
       message.perform_deliveries = true
       message.raise_delivery_errors = true
     end

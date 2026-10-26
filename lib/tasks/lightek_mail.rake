@@ -2,7 +2,7 @@ require "socket"
 namespace :lightek_mail do
   desc "Grant Mail access to an existing user (run as the application operator)"
   task :grant_access, [:user_id] => :environment do |_task, args|
-    user = User.find(args.fetch(:user_id))
+    user = User.find(args[:user_id].presence || abort("Supply an existing user ID."))
     user.grant_feature!("mail")
     puts "LIGHTEK_MAIL_ACCESS_GRANTED user_id=#{user.id}"
   end

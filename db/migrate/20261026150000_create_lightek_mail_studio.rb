@@ -41,6 +41,8 @@ class CreateLightekMailStudio < ActiveRecord::Migration[8.0]
       t.string :state, null: false
       t.string :from_address, null: false
       t.json :to_addresses, null: false, default: []
+      t.json :cc_addresses, null: false, default: []
+      t.json :bcc_addresses, null: false, default: []
       t.string :subject, null: false, default: ""
       t.text :text_body
       t.text :html_body

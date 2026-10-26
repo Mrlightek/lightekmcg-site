@@ -20,7 +20,7 @@ module LightekBusiness
         http.request(request)
       end
       body = JSON.parse(response.body)
-      raise Unavailable, "Stripe did not create an account session." unless response.is_a?(Net::HTTPSuccess) && body["client_secret"].to_s.start_with?("accs_")
+      raise Unavailable, "Stripe did not create an account session." unless response.is_a?(Net::HTTPSuccess) && body["client_secret"].is_a?(String) && body["client_secret"].length >= 20
       body.fetch("client_secret")
     rescue JSON::ParserError, IOError, SystemCallError, SocketError, Timeout::Error
       raise Unavailable, "Stripe account session could not be created."

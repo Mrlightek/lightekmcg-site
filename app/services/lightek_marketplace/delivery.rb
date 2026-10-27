@@ -13,6 +13,11 @@ module LightekMarketplace
         config = purchase.offer.meta.to_h.fetch("lightek_marketplace")
         customer = purchase.customer
         raise NotReady, "Customer is required" unless customer&.persisted?
+        if config["blueprint_key"].present?
+          blueprint = ServiceBlueprints.find(config["blueprint_key"])
+          raise NotReady, "Unknown service blueprint" unless blueprint
+          raise NotReady, "Blueprint delivery mismatch" unless blueprint.delivery == config.fetch("delivery")
+        end
         receipt = {"method" => config.fetch("delivery"), "recorded_at" => Time.current.iso8601,
           "welcome" => config["welcome"]}
         case config.fetch("delivery")
@@ -47,6 +52,18 @@ module LightekMarketplace
             entitlement.save!
             receipt.merge!("entitlement_id" => entitlement.id, "stage" => "access_granted", "owned_grant" => true)
           end
+        when "compute"
+          subscription = purchase.subscription
+          unless subscription && subscription.subscriber == customer && subscription.active? && !subscription.trial_expired?
+            raise NotReady, "Active customer subscription required for compute delivery"
+          end
+          request = Gatekeeper::Compute::ProvisioningRequestBuilder.call(
+            subscription: subscription, requested_by: "marketplace-purchase-#{purchase.id}"
+          )
+          receipt.merge!("provisioning_request_id" => request.id,
+            "stage" => "provisioning_request_created",
+            "execution_status" => request.execution_status,
+            "activation_required" => true)
         when "manual"
           ticket = Marlon::Ticket.create!(title: "Deliver #{purchase.offer.name}",
             description: ["Marketplace order ##{purchase.id}", config["description"], config["welcome"]].compact.join("\n\n"),
@@ -59,7 +76,7 @@ module LightekMarketplace
           raise NotReady, "Unknown delivery method"
         end
         purchase.update!(provision_spec: spec.merge("marketplace_delivery" => receipt))
-        if %w[manual website].include?(config["delivery"])
+        if %w[manual website compute].include?(config["delivery"])
           purchase.mark_provisioning!(work_item_id: purchase.work_item_id)
         else
           purchase.mark_provisioned!

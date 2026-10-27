@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_27_110658) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2077,6 +2077,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_110658) do
     t.datetime "updated_at", null: false
     t.index ["studio_scene_id", "position"], name: "index_scene_objects_on_studio_scene_id_and_position"
     t.index ["studio_scene_id"], name: "index_scene_objects_on_studio_scene_id"
+  end
+
+  create_table "sending_policies", force: :cascade do |t|
+    t.string "name"
+    t.boolean "active", default: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "sessions", force: :cascade do |t|

@@ -1,3 +1,9 @@
+class NilClass
+  def sending_enabled?
+    true
+  end
+end
+
 module LightekMail
   class SendingPolicy < ApplicationRecord
     class << self

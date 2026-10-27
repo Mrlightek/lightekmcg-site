@@ -1,6 +1,6 @@
 <%= render "style" %>
 <main class="lm"><span class="eyebrow">LIGHTEK / MAIL</span><h1>Your business. In conversation.</h1><p class="muted">Your inbox, reusable email designs and automatic replies, in one workspace.</p>
-<% unless LightekMail::SendingPolicy.find_by(id: 1)&.sending_enabled? %><p class="notice danger">Server sending is paused. You can read mail and prepare drafts.</p><% end %>
+<% unless LightekMail::SendingPolicy.current.sending_enabled? %><p class="notice danger">Server sending is paused. You can read mail and prepare drafts.</p><% end %>
 <% if @account %>
 <div class="toolbar"><%= form_with url: dashboard_mail_path, method: :get, local: true do %><label>Mailbox<%= select_tag :account_id, options_from_collection_for_select(@accounts, :id, :address, @account.id) %></label><%= submit_tag "Open mailbox" %><% end %><%= link_to "Compose", compose_dashboard_mail_path(account_id: @account.id), class: "button" %><%= link_to "New email template", new_dashboard_mail_template_path(account_id: @account.id), class: "button secondary" %></div>
 <p class="notice <%= 'danger' unless @account.sending_ready? %>"><%= @account.sending_ready? ? "Mailbox enabled. Sent means accepted by your mail server; it does not guarantee inbox delivery." : "Sending is paused or domain ownership is unverified. Templates and drafts are available." %></p>

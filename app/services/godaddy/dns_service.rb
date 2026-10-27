@@ -17,7 +17,6 @@ module Godaddy
 
     def initialize(zone:)
       @zone = zone.to_s.downcase
-      raise ConfigurationError, "GODADDY_PAT is missing" if token.blank?
       raise ConfigurationError, "Domain is not in GODADDY_DOMAINS" unless self.class.zones.include?(@zone)
     end
 
@@ -54,7 +53,29 @@ module Godaddy
 
     attr_reader :zone
 
-    def token = ENV["GODADDY_PAT"].presence
+    # Vault is authoritative whenever a GoDaddy secret exists. During migration,
+    # the legacy environment token remains available only if no secret is stored.
+    # Never fall back on an expired, disabled, or access-denied Vault secret.
+    def token
+      return @token if defined?(@token)
+
+      slug = ENV.fetch("GODADDY_VAULT_SLUG", "godaddy-dns")
+      if LightekVault::Secret.exists?(slug: slug)
+        payload = LightekVault::Service.checkout!(
+          slug: slug,
+          consumer: self.class.name,
+          purpose: "dns_management",
+          requested_by: "network-control"
+        )
+        @token = payload.fetch("token").to_s.presence
+      else
+        @token = ENV["GODADDY_PAT"].presence
+      end
+      raise ConfigurationError, "GoDaddy DNS credential is not configured" if @token.blank?
+      @token
+    rescue LightekVault::Service::AccessDenied
+      raise ConfigurationError, "GoDaddy DNS credential access denied by Vault"
+    end
 
     def normalize(attributes)
       attrs = attributes.to_h.stringify_keys
@@ -88,7 +109,7 @@ module Godaddy
       req.body = body.to_json if body
 
       res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 30) { |http| http.request(req) }
-      raise ApiError, "GoDaddy HTTP #{res.code}: #{res.body}" unless res.code.to_i.between?(200,299)
+      raise ApiError, "GoDaddy HTTP #{res.code}" unless res.code.to_i.between?(200,299)
       return nil if res.body.to_s.blank?
       JSON.parse(res.body)
     end

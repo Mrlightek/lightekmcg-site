@@ -14,6 +14,18 @@
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
   <div class="dd-card" style="padding:20px">
     <h3>Store Secret</h3>
+
+    <details style="margin:10px 0 14px;font-size:12px;color:var(--dd-text-secondary)">
+      <summary style="cursor:pointer;color:var(--dd-accent)">How do I store a credential?</summary>
+      <p style="margin-top:8px">The <strong>slug</strong> is the lookup name used by the service. A <strong>single secret value</strong> is stored with the field name <code>value</code>. For services that require named fields, use <strong>Structured fields</strong>: the left box is the key (such as <code>token</code>), and the right box is the private value.</p>
+      <p style="margin-top:6px"><strong>Allowed consumers</strong> are service class names permitted to read the secret. <strong>Allowed purposes</strong> are the uses they can request. Reusing a slug replaces and reactivates the existing secret when the form is submitted.</p>
+    </details>
+    <label for="vault-template" style="display:block;font-size:12px;margin-bottom:6px">Credential template (optional)</label>
+    <select id="vault-template" style="width:100%;margin-bottom:8px">
+      <option value="">Custom credential</option>
+      <option value="godaddy">GoDaddy DNS — Personal Access Token</option>
+    </select>
+    <p id="vault-template-note" role="status" style="font-size:11px;color:var(--dd-text-secondary);margin-bottom:12px">Select a template to fill suggested field names and access policies. It will never fill, reveal, or save a secret value automatically.</p>
     <%= form_with url: dashboard_vault_path, method: :post do %>
       <div style="display:grid;gap:10px">
         <%= text_field_tag "vault_secret[name]", nil, placeholder:"Display name", required:true %>
@@ -43,6 +55,7 @@
             Structured fields
           </div>
 
+          <p style="font-size:11px;color:var(--dd-text-secondary);margin:0 0 8px">Example: for GoDaddy, type <code>token</code> in the left field and paste the new PAT into the right field. Leave the single secret value field empty.</p>
           <% 6.times do |index| %>
             <div style="display:grid;grid-template-columns:minmax(120px,.8fr) minmax(180px,1.2fr);gap:8px;margin-bottom:8px">
               <%= text_field_tag "vault_secret[payload_keys][]",
@@ -79,6 +92,41 @@
     <% end %>
   </div>
 </div>
+
+
+<script>
+(function() {
+  function setupVaultHelp() {
+    const selector = document.getElementById("vault-template");
+    if (!selector || selector.dataset.ready) return;
+    selector.dataset.ready = "true";
+    selector.addEventListener("change", function() {
+      if (selector.value !== "godaddy") return;
+      const form = document.querySelector('form[action$="/dashboard/vault"]');
+      if (!form) return;
+      const suggested = {
+        name: "GoDaddy DNS",
+        slug: "godaddy-dns",
+        provider: "godaddy",
+        purpose: "dns_management",
+        allowed_consumers: "Godaddy::DnsService",
+        allowed_purposes: "dns_management"
+      };
+      Object.entries(suggested).forEach(function(entry) {
+        const input = form.elements["vault_secret[" + entry[0] + "]"];
+        if (input && !input.value.trim()) input.value = entry[1];
+      });
+      const keys = form.querySelectorAll('input[name="vault_secret[payload_keys][]"]');
+      if (keys.length && !keys[0].value.trim()) keys[0].value = "token";
+      const note = document.getElementById("vault-template-note");
+      if (note) note.textContent = "GoDaddy fields suggested. Paste the PAT next to token under Structured fields; leave Single secret value empty. Review everything before saving.";
+    });
+  }
+  document.addEventListener("turbo:load", setupVaultHelp);
+  document.addEventListener("DOMContentLoaded", setupVaultHelp);
+  setupVaultHelp();
+})();
+</script>
 
 <div class="dd-card" style="padding:20px;margin-top:16px">
   <h3>Recent Access Audit</h3>

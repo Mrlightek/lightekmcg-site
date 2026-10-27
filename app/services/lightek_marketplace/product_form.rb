@@ -17,6 +17,7 @@ module LightekMarketplace
     attribute :setup_fee, :string, default: "0.00"
     attribute :trial_days, :integer, default: 0
     attribute :delivery, :string, default: "manual"
+    attribute :blueprint_key, :string
     attribute :feature_key, :string
     attribute :welcome, :string
     attribute :position, :integer, default: 0
@@ -26,7 +27,8 @@ module LightekMarketplace
     validates :description, presence: true, length: {maximum: 1200}
     validates :category, inclusion: {in: ->(_) { DymondCatalog::MarketplaceListing.category_labels.keys }}
     validates :billing, inclusion: {in: %w[monthly annual both once free]}
-    validates :delivery, inclusion: {in: %w[manual website access]}
+    validates :delivery, inclusion: {in: %w[manual website access compute]}
+    validate :blueprint_matches_delivery
     validates :position, numericality: {only_integer: true, greater_than_or_equal_to: 0}
     validates :trial_days, inclusion: {in: [0, 7, 14, 30]}
     validates :welcome, length: {maximum: 1200}
@@ -49,7 +51,7 @@ module LightekMarketplace
           annual_price: saved["annual_price"] || ((plan&.price_annual_cents.to_i) / 100.0).to_s,
           service_id: saved["service_id"],
           setup_fee: saved["setup_fee"] || "0.00", trial_days: saved["trial_days"] || 0,
-          delivery: saved["delivery"] || "manual", feature_key: saved["feature_key"], welcome: saved["welcome"]
+          delivery: saved["delivery"] || "manual", blueprint_key: saved["blueprint_key"], feature_key: saved["feature_key"], welcome: saved["welcome"]
         }
       else
         defaults = {category: LightekMarketplace::ProductGroup.available.first&.key || "cloud"}
@@ -61,6 +63,7 @@ module LightekMarketplace
         defaults[:annual_price] = incoming[:price] if chosen_billing == "annual" && !incoming.key?(:annual_price)
       end
       super(defaults.merge(incoming))
+      self.blueprint_key = ServiceBlueprints.for_delivery(delivery)&.key if blueprint_key.blank?
     end
 
     def self.features
@@ -127,7 +130,7 @@ module LightekMarketplace
     def price_for(interval) = (interval == "annual" ? annual_price : monthly_price).presence || price
     def navigation_valid?(step)
       valid?
-      relevant = [[:name, :description, :category, :position], [:price, :monthly_price, :annual_price, :billing, :setup_fee, :trial_days], [:delivery, :service_id, :welcome]][step] || []
+      relevant = [[:name, :description, :category, :position], [:price, :monthly_price, :annual_price, :billing, :setup_fee, :trial_days], [:delivery, :blueprint_key, :service_id, :welcome]][step] || []
       errors.attribute_names.each { |key| errors.delete(key) unless relevant.include?(key) }
       errors.empty?
     end
@@ -152,7 +155,15 @@ module LightekMarketplace
     def valid_trial
       errors.add(:trial_days, "requires a monthly or annual subscription") if trial_days.to_i.positive? && !recurring?
     end
+    def blueprint_matches_delivery
+      blueprint = ServiceBlueprints.find(blueprint_key)
+      errors.add(:blueprint_key, "choose a supported service blueprint") unless blueprint
+      errors.add(:delivery, "does not match the selected blueprint") if blueprint && blueprint.delivery != delivery
+    end
     def delivery_ready
+      if %w[website compute].include?(delivery)
+        errors.add(:delivery, "requires a monthly or annual subscription") unless recurring?
+      end
       if delivery == "website"
         errors.add(:delivery, "requires a monthly or annual subscription") unless recurring?
         unless defined?(Gatekeeper::Compute::ProvisioningExecutionService) &&

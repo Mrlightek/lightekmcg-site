@@ -7,12 +7,12 @@ module LightekMail
       end
 
       def current
-        first || new
+        first || new(active: true)
       end
     end
 
     def sending_enabled?
-      respond_to?(:active) ? active? : true
+      respond_to?(:active?) ? active? : true
     end
   end
 end

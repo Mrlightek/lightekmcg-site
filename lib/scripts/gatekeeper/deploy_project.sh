@@ -63,6 +63,11 @@ echo "[5/8] Zeitwerk / boot validation"
 run_rails "bundle exec rails zeitwerk:check"
 
 echo "[6/8] Sidekiq"
+if [[ -f "${APP_ROOT}/lib/scripts/gatekeeper/${SIDEKIQ_SERVICE}.service" ]]; then
+  cp "${APP_ROOT}/lib/scripts/gatekeeper/${SIDEKIQ_SERVICE}.service" "/etc/systemd/system/${SIDEKIQ_SERVICE}.service"
+  systemctl daemon-reload
+  systemctl enable "${SIDEKIQ_SERVICE}"
+fi
 systemctl restart "${SIDEKIQ_SERVICE}"
 systemctl is-active --quiet "${SIDEKIQ_SERVICE}"
 

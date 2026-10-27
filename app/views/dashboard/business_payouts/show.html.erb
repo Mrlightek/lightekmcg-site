@@ -1,0 +1,39 @@
+<section class="mx-auto max-w-3xl p-6">
+  <h1>Business payouts</h1>
+  <p>Set up and manage your business payout account inside Lightek.</p>
+  <% if current_user.stripe_connect_ready? %>
+    <p>Your payout account is enabled.</p>
+  <% else %>
+    <p>Complete your business verification and payout details securely below.</p>
+  <% end %>
+  <% if @publishable_key.present? %>
+    <div id="lightek-connect-onboarding" data-session-url="<%= session_dashboard_business_payouts_path %>" data-publishable-key="<%= @publishable_key %>"></div>
+    <p id="lightek-connect-error" role="alert"></p>
+    <script type="module">
+      import { loadConnectAndInitialize } from "https://cdn.jsdelivr.net/npm/@stripe/connect-js/+esm";
+      const root = document.getElementById("lightek-connect-onboarding");
+      const error = document.getElementById("lightek-connect-error");
+      if (root) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+        const connect = loadConnectAndInitialize({
+          publishableKey: root.dataset.publishableKey,
+          fetchClientSecret: async () => {
+            const response = await fetch(root.dataset.sessionUrl, {
+              method: "POST", credentials: "same-origin",
+              headers: { "X-CSRF-Token": csrf || "", "Accept": "application/json" }
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.client_secret) throw new Error(payload.error || "Payout verification unavailable.");
+            return payload.client_secret;
+          }
+        });
+        const onboarding = connect.create("account-onboarding");
+        onboarding.setOnExit(() => { window.location.reload(); });
+        root.appendChild(onboarding);
+        onboarding.setOnLoadError?.(() => { error.textContent = "Unable to load payout verification."; });
+      }
+    </script>
+  <% else %>
+    <p>Payout setup is not configured. Contact Lightek support.</p>
+  <% end %>
+</section>

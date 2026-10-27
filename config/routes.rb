@@ -1,4 +1,8 @@
 Rails.application.routes.draw do
+  # Lightek Business: customer-facing Stripe Connect onboarding via Dymond Bank.
+  get "/dashboard/business/payments/payouts", to: "dashboard/business_payouts#show", as: :dashboard_business_payouts
+  post "/dashboard/business/payments/payouts/session", to: "dashboard/business_payouts#session", as: :session_dashboard_business_payouts
+  get "/dashboard/business/payments/payouts/refresh", to: "dashboard/business_payouts#refresh", as: :refresh_dashboard_business_payouts
   # BEGIN LIGHTEK MARKETPLACE V8.7
   get "/marketplace", to: "marketplace#index", as: :marketplace
   get "/marketplace/:id", to: "marketplace#show", as: :marketplace_listing, constraints: { id: /[0-9]+/ }

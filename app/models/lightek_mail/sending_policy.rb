@@ -9,6 +9,10 @@ module LightekMail
       def current
         first || new(active: true)
       end
+
+      def sending_enabled?
+        current.sending_enabled?
+      end
     end
 
     def sending_enabled?

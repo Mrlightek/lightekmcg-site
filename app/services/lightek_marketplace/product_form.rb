@@ -63,7 +63,8 @@ module LightekMarketplace
         defaults[:annual_price] = incoming[:price] if chosen_billing == "annual" && !incoming.key?(:annual_price)
       end
       super(defaults.merge(incoming))
-      self.blueprint_key = ServiceBlueprints.for_delivery(delivery)&.key if blueprint_key.blank?
+      selected_blueprint = ServiceBlueprints.find(blueprint_key)
+      self.blueprint_key = ServiceBlueprints.for_delivery(delivery)&.key if selected_blueprint.nil? || selected_blueprint.delivery != delivery
     end
 
     def self.features

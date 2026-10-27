@@ -1,5 +1,16 @@
 require "digest"
 class Api::LightekMailController < ActionController::API
+  skip_before_action :authenticate_account!, only: [:auth, :inbound]
+
+  def authenticate_smtp
+    verify_ingress_secret!
+    account = LightekMail::Account.find_by(email: params[:email])
+    if account && account.sending_ready? && ActiveSupport::SecurityUtils.secure_compare(account.token_digest, params[:token_digest])
+      render json: { authenticated: true }, status: :ok
+    else
+      render json: { authenticated: false }, status: :unauthorized
+    end
+  end
   before_action :secure_transport
   rescue_from ArgumentError, ActiveRecord::RecordInvalid, LightekMail::Submission::Unavailable, with: :invalid
   rescue_from ActiveRecord::RecordNotFound, with: :not_found

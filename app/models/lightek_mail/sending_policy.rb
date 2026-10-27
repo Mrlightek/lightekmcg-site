@@ -10,5 +10,9 @@ module LightekMail
         first || new
       end
     end
+
+    def sending_enabled?
+      respond_to?(:active) ? active? : true
+    end
   end
 end

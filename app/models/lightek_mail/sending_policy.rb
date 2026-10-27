@@ -1,5 +1,12 @@
 module LightekMail
-  class SendingPolicy < ApplicationRecord
+  class SendingPolicy
+    class << self
+      def synchronize(&block)
+        @mutex ||= Mutex.new
+        @mutex.synchronize(&block)
+      end
+    end
+ < ApplicationRecord
     self.table_name = "lightek_mail_sending_policies"
 
     def self.current

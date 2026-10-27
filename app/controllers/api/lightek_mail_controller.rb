@@ -1,6 +1,6 @@
 require "digest"
 class Api::LightekMailController < ActionController::API
-  skip_before_action :authenticate_account!, only: [:auth, :inbound]
+  # skipped auth check handled in endpoint
 
   def authenticate_smtp
     verify_ingress_secret!

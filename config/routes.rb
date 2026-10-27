@@ -342,7 +342,8 @@ post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :da
 post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination
 get "/dashboard/live/:id/recording", to: "dashboard/live_broadcasts#recording", as: :dashboard_live_recording, constraints: {id: /[0-9]+/}
 
-mount DymondDash::Engine => "/dashboard"
+  get "/dashboard/system_logs", to: "dashboard/system_logs#index", as: :dashboard_system_logs
+  mount DymondDash::Engine => "/dashboard"
 
 # ── DymondBank — billing, invoices, subscriptions ─────────────────────────────
 mount DymondBank::Engine => "/billing"

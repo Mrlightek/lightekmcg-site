@@ -1,15 +1,61 @@
 <div class="p-6 max-w-7xl mx-auto">
-  <div class="flex items-center justify-between mb-4">
+  <div class="flex justify-between items-center mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-white">System Error & Activity Logs</h1>
-      <p class="text-sm text-gray-400">Real-time log tail for debugging 500 errors and platform activity.</p>
+      <h1 class="text-2xl font-bold text-white">System Logs & Observability</h1>
+      <p class="text-sm text-gray-400 mt-1">Real-time infrastructure and application telemetry</p>
     </div>
-    <button onclick="window.location.reload();" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg shadow transition">
-      Refresh Logs
-    </button>
+    <span class="text-xs bg-emerald-900/50 text-emerald-400 border border-emerald-700 px-3 py-1 rounded-full font-medium">Live Feed Active</span>
   </div>
 
-  <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 shadow-2xl font-mono text-xs text-green-400 overflow-x-auto h-[600px] leading-relaxed">
-    <pre><code><%= @logs %></code></pre>
+  <!-- Filters form -->
+  <form method="get" class="bg-gray-900 p-4 rounded-lg shadow-sm border border-gray-800 mb-6 flex flex-wrap gap-4 items-center">
+    <input type="text" name="q" value="<%= params[:q] %>" placeholder="Search message or correlation ID..." class="bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-1.5 text-sm flex-1 min-w-[250px] focus:outline-none focus:border-indigo-500" />
+    <select name="severity" class="bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500">
+      <option value="">All Severities</option>
+      <% %w[debug info warn error critical].each do |sev| %>
+        <option value="<%= sev %>" <%= "selected" if params[:severity] == sev %>><%= sev.upcase %></option>
+      <% end %>
+    </select>
+    <button type="submit" class="bg-indigo-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-500">Filter Logs</button>
+  </form>
+
+  <!-- Logs Table -->
+  <div class="bg-gray-900 rounded-lg shadow-sm border border-gray-800 overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-800 text-sm">
+      <thead class="bg-gray-950 text-gray-400 uppercase text-xs font-semibold">
+        <tr>
+          <th class="px-4 py-3 text-left">Time</th>
+          <th class="px-4 py-3 text-left">Severity</th>
+          <th class="px-4 py-3 text-left">Source / Service</th>
+          <th class="px-4 py-3 text-left">Message</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        <% if @logs.any? %>
+          <% @logs.each do |log| %>
+            <tr class="hover:bg-gray-800/50">
+              <td class="px-4 py-3 text-gray-400 whitespace-nowrap text-xs"><%= log.timestamp&.strftime("%Y-%m-%d %H:%M:%S") %></td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="px-2 py-0.5 text-xs font-bold rounded 
+                  <%= case log.severity 
+                      when 'critical' then 'bg-red-950 text-red-300 border border-red-800'
+                      when 'error' then 'bg-red-900/50 text-red-400 border border-red-700'
+                      when 'warn' then 'bg-yellow-950 text-yellow-300 border border-yellow-800'
+                      else 'bg-gray-800 text-gray-300'
+                      end %>">
+                  <%= log.severity.upcase %>
+                </span>
+              </td>
+              <td class="px-4 py-3 text-gray-300 whitespace-nowrap text-xs"><%= log.source %> / <span class="font-semibold text-white"><%= log.service %></span></td>
+              <td class="px-4 py-3 text-gray-200 font-mono text-xs truncate max-w-lg"><%= log.message %></td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr>
+            <td colspan="4" class="px-4 py-8 text-center text-gray-500 text-sm">No system logs recorded yet.</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
   </div>
 </div>

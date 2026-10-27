@@ -1,19 +1,17 @@
-class Dashboard::SystemLogsController < ApplicationController
-  before_action :authenticate_user!
-
+class Dashboard::SystemLogsController < DymondDash::ApplicationController
   def index
-    log_paths = [
-      Rails.root.join("log", "#{Rails.env}.log"),
-      "/var/log/lightekmcg-site.log",
-      "/var/www/lightekmcg-site/shared/log/production.log"
-    ]
-
-    existing_log = log_paths.find { |path| File.exist?(path) }
-
-    if existing_log
-      @logs = `tail -n 300 #{existing_log}`.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
-    else
-      @logs = "No log file found at expected paths."
+    @logs = DymondDash::SystemLog.order(timestamp: :desc)
+    @logs = @logs.where(severity: params[:severity]) if params[:severity].present?
+    
+    if params[:q].present?
+      term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%"
+      @logs = @logs.where("message ILIKE ? OR correlation_id ILIKE ?", term, term)
     end
+
+    @logs = @logs.limit(100)
+  end
+
+  def show
+    @log = DymondDash::SystemLog.find(params[:id])
   end
 end

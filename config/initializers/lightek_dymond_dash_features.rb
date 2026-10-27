@@ -102,6 +102,23 @@ Rails.application.config.after_initialize do
     }]
   end
 
+
+  DymondDash::FeatureRegistry.register do |f|
+    f.slug        = :system_logs
+    f.label       = "System Logs"
+    f.icon        = "file-text"
+    f.gem_source  = "lightekmcg-site"
+    f.nav_section = :operations
+    f.min_plan    = :starter
+    f.nav_items   = [
+      {
+        label: "System Logs",
+        icon: "file-text",
+        path: "main_app.dashboard_system_logs_path"
+      }
+    ]
+  end
+
 rescue StandardError => e
   Rails.logger.warn "[Lightek/DymondDash] Host feature registration skipped: #{e.class}: #{e.message}"
 end

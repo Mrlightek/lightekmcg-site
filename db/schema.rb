@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_24_233000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_27_110658) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -780,6 +780,34 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_24_233000) do
     t.index ["plan_slug", "feature_slug"], name: "index_dymond_dash_plan_features_on_plan_slug_and_feature_slug", unique: true
   end
 
+  create_table "dymond_dash_system_logs", force: :cascade do |t|
+    t.string "environment", null: false
+    t.string "node_instance"
+    t.string "source", null: false
+    t.string "service", null: false
+    t.string "severity", null: false
+    t.string "event_type", null: false
+    t.text "message", null: false
+    t.string "correlation_id"
+    t.bigint "tenant_id"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "timestamp", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["correlation_id"], name: "index_dymond_dash_system_logs_on_correlation_id"
+    t.index ["environment"], name: "index_dymond_dash_system_logs_on_environment"
+    t.index ["event_type"], name: "index_dymond_dash_system_logs_on_event_type"
+    t.index ["metadata"], name: "index_dymond_dash_system_logs_on_metadata", using: :gin
+    t.index ["node_instance"], name: "index_dymond_dash_system_logs_on_node_instance"
+    t.index ["service"], name: "index_dymond_dash_system_logs_on_service"
+    t.index ["severity", "timestamp"], name: "index_dymond_dash_system_logs_on_severity_and_timestamp"
+    t.index ["severity"], name: "index_dymond_dash_system_logs_on_severity"
+    t.index ["source", "timestamp"], name: "index_dymond_dash_system_logs_on_source_and_timestamp"
+    t.index ["source"], name: "index_dymond_dash_system_logs_on_source"
+    t.index ["tenant_id"], name: "index_dymond_dash_system_logs_on_tenant_id"
+    t.index ["timestamp"], name: "index_dymond_dash_system_logs_on_timestamp"
+  end
+
   create_table "dymond_dispatch_work_items", force: :cascade do |t|
     t.string "handler", null: false
     t.jsonb "args", default: []
@@ -1168,6 +1196,145 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_24_233000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "lightek_mail_accounts", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "domain_id", null: false
+    t.string "address", null: false
+    t.string "display_name", null: false
+    t.boolean "enabled", default: false, null: false
+    t.integer "daily_limit", default: 100, null: false
+    t.date "send_day"
+    t.integer "send_count", default: 0, null: false
+    t.bigint "storage_limit", default: 1073741824, null: false
+    t.string "token_digest"
+    t.string "token_hint"
+    t.boolean "auto_reply_enabled", default: false, null: false
+    t.bigint "auto_template_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "minute_limit", default: 5, null: false
+    t.integer "hour_limit", default: 25, null: false
+    t.datetime "suspended_at"
+    t.string "suspension_reason"
+    t.index ["address"], name: "index_lightek_mail_accounts_on_address", unique: true
+    t.index ["domain_id"], name: "index_lightek_mail_accounts_on_domain_id"
+    t.index ["token_digest"], name: "index_lightek_mail_accounts_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_lightek_mail_accounts_on_user_id"
+  end
+
+  create_table "lightek_mail_auto_replies", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "sender", null: false
+    t.date "day", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "sender", "day"], name: "idx_mail_auto_once", unique: true
+    t.index ["account_id"], name: "index_lightek_mail_auto_replies_on_account_id"
+  end
+
+  create_table "lightek_mail_customer_suspensions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "reason", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_lightek_mail_customer_suspensions_on_user_id", unique: true
+  end
+
+  create_table "lightek_mail_domains", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.string "verification_token", null: false
+    t.datetime "verified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_lightek_mail_domains_on_name", unique: true
+    t.index ["user_id"], name: "index_lightek_mail_domains_on_user_id"
+  end
+
+  create_table "lightek_mail_envelopes", force: :cascade do |t|
+    t.bigint "inbound_email_id", null: false
+    t.json "recipients", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["inbound_email_id"], name: "index_lightek_mail_envelopes_on_inbound_email_id", unique: true
+  end
+
+  create_table "lightek_mail_feedback_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "message_id", null: false
+    t.string "event_key", null: false
+    t.string "kind", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "created_at"], name: "idx_mail_recent_feedback"
+    t.index ["account_id"], name: "index_lightek_mail_feedback_events_on_account_id"
+    t.index ["event_key"], name: "index_lightek_mail_feedback_events_on_event_key", unique: true
+  end
+
+  create_table "lightek_mail_messages", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "direction", null: false
+    t.string "state", null: false
+    t.string "from_address", null: false
+    t.json "to_addresses", default: [], null: false
+    t.json "cc_addresses", default: [], null: false
+    t.json "bcc_addresses", default: [], null: false
+    t.string "subject", default: "", null: false
+    t.text "text_body"
+    t.text "html_body"
+    t.string "message_id", null: false
+    t.string "in_reply_to"
+    t.string "idempotency_key"
+    t.string "error_message"
+    t.boolean "starred", default: false, null: false
+    t.boolean "archived", default: false, null: false
+    t.boolean "trashed", default: false, null: false
+    t.datetime "read_at"
+    t.datetime "submitted_at"
+    t.bigint "bytesize", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "created_at"], name: "idx_mail_recent"
+    t.index ["account_id", "idempotency_key"], name: "idx_mail_idempotency", unique: true
+    t.index ["account_id"], name: "index_lightek_mail_messages_on_account_id"
+  end
+
+  create_table "lightek_mail_send_reservations", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "message_id", null: false
+    t.integer "recipient_count", null: false
+    t.datetime "reserved_at", null: false
+    t.datetime "dispatched_at"
+    t.index ["account_id", "reserved_at"], name: "idx_mail_account_reservations"
+    t.index ["account_id"], name: "index_lightek_mail_send_reservations_on_account_id"
+    t.index ["dispatched_at"], name: "index_lightek_mail_send_reservations_on_dispatched_at"
+    t.index ["message_id"], name: "index_lightek_mail_send_reservations_on_message_id", unique: true
+    t.index ["reserved_at"], name: "index_lightek_mail_send_reservations_on_reserved_at"
+    t.index ["user_id", "reserved_at"], name: "idx_mail_customer_reservations"
+    t.index ["user_id"], name: "index_lightek_mail_send_reservations_on_user_id"
+    t.check_constraint "recipient_count > 0 AND recipient_count <= 20", name: "mail_recipient_count_range"
+  end
+
+  create_table "lightek_mail_sending_policies", force: :cascade do |t|
+    t.boolean "sending_enabled", default: false, null: false
+    t.string "stop_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.check_constraint "id = 1", name: "mail_single_sending_policy"
+  end
+
+  create_table "lightek_mail_templates", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.string "subject", null: false
+    t.json "document", default: {}, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_lightek_mail_templates_on_account_id"
+  end
+
   create_table "lightek_marketplace_customer_services", force: :cascade do |t|
     t.string "name", null: false
     t.text "description", null: false
@@ -1205,7 +1372,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_24_233000) do
     t.index ["kind", "updated_at"], name: "index_lightek_messaging_conversations_on_kind_and_updated_at"
     t.check_constraint "kind::text <> 'group'::text OR title IS NOT NULL AND btrim(title::text) <> ''::text", name: "lightek_messaging_conversations_group_title_check"
     t.check_constraint "kind::text = 'direct'::text AND direct_key IS NOT NULL OR kind::text <> 'direct'::text AND direct_key IS NULL", name: "lightek_messaging_conversations_direct_key_check"
-    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying::text, 'group'::character varying::text, 'community'::character varying::text, 'watch_party'::character varying::text])", name: "lightek_messaging_conversations_kind_check"
+    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying, 'group'::character varying, 'community'::character varying, 'watch_party'::character varying]::text[])", name: "lightek_messaging_conversations_kind_check"
   end
 
   create_table "lightek_messaging_messages", force: :cascade do |t|
@@ -1223,7 +1390,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_24_233000) do
     t.index ["reply_to_message_id"], name: "index_lightek_messaging_messages_on_reply_to_message_id"
     t.index ["sender_profile_id"], name: "index_lightek_messaging_messages_on_sender_profile_id"
     t.check_constraint "char_length(btrim(body)) > 0", name: "lightek_messaging_messages_body_check"
-    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying::text, 'system'::character varying::text])", name: "lightek_messaging_messages_type_check"
+    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying, 'system'::character varying]::text[])", name: "lightek_messaging_messages_type_check"
   end
 
   create_table "lightek_messaging_participants", force: :cascade do |t|
@@ -1241,7 +1408,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_24_233000) do
     t.index ["profile_id", "left_at"], name: "idx_lightek_messaging_participants_active"
     t.index ["profile_id"], name: "index_lightek_messaging_participants_on_profile_id"
     t.check_constraint "left_at IS NULL OR left_at >= joined_at", name: "lightek_messaging_participants_left_at_check"
-    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying::text, 'admin'::character varying::text, 'member'::character varying::text])", name: "lightek_messaging_participants_role_check"
+    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
   end
 
   create_table "lightek_pwa_navigation_items", force: :cascade do |t|
@@ -2294,6 +2461,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_24_233000) do
   add_foreign_key "gatekeeper_operations", "gatekeeper_nodes"
   add_foreign_key "gatekeeper_operations", "gatekeeper_projects"
   add_foreign_key "gatekeeper_projects", "gatekeeper_nodes"
+  add_foreign_key "lightek_mail_accounts", "lightek_mail_domains", column: "domain_id"
+  add_foreign_key "lightek_mail_accounts", "lightek_mail_templates", column: "auto_template_id"
+  add_foreign_key "lightek_mail_accounts", "users"
+  add_foreign_key "lightek_mail_auto_replies", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_customer_suspensions", "users"
+  add_foreign_key "lightek_mail_domains", "users"
+  add_foreign_key "lightek_mail_envelopes", "action_mailbox_inbound_emails", column: "inbound_email_id", on_delete: :cascade
+  add_foreign_key "lightek_mail_feedback_events", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_messages", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_send_reservations", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_send_reservations", "users"
+  add_foreign_key "lightek_mail_templates", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_messaging_conversations", "profiles", column: "created_by_profile_id"
   add_foreign_key "lightek_messaging_messages", "lightek_messaging_conversations", column: "conversation_id"
   add_foreign_key "lightek_messaging_messages", "lightek_messaging_messages", column: "reply_to_message_id"

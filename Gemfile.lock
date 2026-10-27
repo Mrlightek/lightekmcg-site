@@ -44,7 +44,7 @@ GIT
 
 GIT
   remote: git@github.com:lightekmcg/dymond_dash.git
-  revision: 4a41314e8766d6b363dff5d46d5b0e19c8bd8b2a
+  revision: ecce46e10104bfc6bfca9eb27d3ece4d56ee755e
   specs:
     dymond_dash (0.1.0)
       actionview (>= 7.2)
@@ -272,7 +272,7 @@ GEM
       railties (>= 6.1.0)
     faker (3.8.0)
       i18n (>= 1.8.11, < 2)
-    faraday (2.15.0)
+    faraday (2.15.1)
       faraday-net_http (>= 2.0, < 3.6)
       json
       logger

@@ -48,7 +48,7 @@ RUBY
 # A marked line is the only accepted output; ignore dotenv diagnostic output.
 awk '
   /^LIGHTEK_RECIPIENT / {
-    address = substr($0, 18)
+    address = substr($0, 19)
     if (address !~ /^[a-z0-9][a-z0-9._+\-]*@[a-z0-9.-]+$/) {
       print "Invalid mailbox address from Rails" > "/dev/stderr"
       exit 2

@@ -10,6 +10,13 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes script, "dest.rstrip('/')!=expected"
   end
 
+  test "private mail server uses the existing installer only with explicit opt in" do
+    script = Rails.root.join("script/lightek/website_deploy.sh").read
+    assert_includes script, "LIGHTEK_INSTALL_PRIVATE_MAIL_NODE"
+    assert_includes script, "lib/scripts/setup_lightek_mail_node.sh"
+    assert_includes script, "LIGHTEK_MAIL_PRIVATE_NODE_READY"
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

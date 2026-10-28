@@ -4,7 +4,7 @@ module LightekMarketing
     self.table_name = "lightek_marketing_social_posts"
     belongs_to :campaign, class_name: "LightekMarketing::Campaign"
     belongs_to :connection, class_name: "LightekMarketing::SocialConnection"
-    validates :status, inclusion: {in: %w[pending published failed]}
+    validates :status, inclusion: {in: %w[pending published failed needs_review]}
     validates :connection_id, uniqueness: {scope: :campaign_id}
     validate :same_site
     def same_site

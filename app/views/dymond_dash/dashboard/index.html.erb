@@ -1,3 +1,23 @@
+<% commerce_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:id).limit(20) %>
+<% if commerce_sites.any? %>
+  <section class="dd-card" style="padding:20px;margin-bottom:20px" aria-label="Business and marketing tools">
+    <h2 style="margin:0 0 6px">Business &amp; Marketing</h2>
+    <p style="color:var(--dd-text-secondary)">Run storefronts, products, customer orders, campaigns and editable industry designs from your dashboard.</p>
+    <% commerce_sites.each do |site| %>
+      <div style="border-top:1px solid var(--dd-border);padding:12px 0">
+        <strong><%= site.name %></strong>
+        <nav aria-label="<%= site.name %> business tools" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px">
+          <%= link_to "Products & Shop", main_app.dashboard_commerce_products_path(site_id: site.id) %>
+          <%= link_to "Orders & Refunds", main_app.dashboard_commerce_orders_path(site_id: site.id) %>
+          <%= link_to "Marketing Campaigns", main_app.dashboard_marketing_campaigns_path(site_id: site.id) %>
+          <%= link_to "Website Designs", main_app.dashboard_website_designs_path(site_id: site.id) %>
+          <%= link_to "Pages & Sections", dymond_dash.pages_path(site_id: site.id) %>
+          <%= link_to "Public Shop", main_app.commerce_shop_path(site_id: site.id) %>
+        </nav>
+      </div>
+    <% end %>
+  </section>
+<% end %>
 <% content_for :page_title, "Dashboard" %>
 
 <% if current_user.client? || current_user.contractor? %>

@@ -7,7 +7,7 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes script, "'/dashboard/commerce/orders?site_id='"
     assert_includes script, "'/dashboard/settings'"
     assert_includes script, "h['full_application_dashboard_verified']=True"
-    assert_includes script, "dest.rstrip('/')!=path"
+    assert_includes script, "dest.rstrip('/')!=expected"
   end
 
   test "Gatekeeper requires full application acceptance before returning success" do

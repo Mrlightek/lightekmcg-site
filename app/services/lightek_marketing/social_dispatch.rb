@@ -12,7 +12,13 @@ module LightekMarketing
         campaign = post.campaign
         raise Unavailable, "Campaign is not ready" unless campaign.status == "ready" && campaign.channel == "social"
         raise Unavailable, "Connection unavailable" unless connection.enabled? && connection.site_id == campaign.site_id
-        if %w[facebook instagram tiktok].include?(connection.provider)
+        if connection.provider == "tiktok"
+          raise Unavailable, "Already submitted" if post.submission_status == "submitted"
+          publish_id = TiktokVideoUpload.submit!(connection: connection, campaign: campaign)
+          post.update!(remote_id: publish_id, submission_status: "submitted")
+          return post
+        end
+        if %w[facebook instagram].include?(connection.provider)
           remote = SocialProviders.publish!(connection: connection, campaign: campaign)
           post.update!(status: "published", remote_id: remote.to_s.slice(0, 255), published_at: Time.current)
           return post

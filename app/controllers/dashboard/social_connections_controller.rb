@@ -23,6 +23,13 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     connection.update!(enabled: false, disabled_at: Time.current)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Social connection disabled and Vault credentials revoked."
   end
+  def retry_publication
+    post = LightekMarketing::SocialPost.joins(:campaign).where(lightek_marketing_campaigns: {site_id: @site.id}).find(params.require(:post_id))
+    LightekMarketing::SocialPublicationOperations.retry!(post: post)
+    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Publication retried; current provider status recorded."
+  rescue LightekMarketing::SocialPublicationOperations::Invalid, LightekMarketing::SocialDispatch::Unavailable, LightekMarketing::SocialProviders::Error, LightekMarketing::TiktokVideoUpload::Invalid => e
+    redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
+  end
   def refresh_submission
     post = LightekMarketing::SocialPost.joins(:campaign).where(lightek_marketing_campaigns: {site_id: @site.id}).find(params.require(:post_id))
     LightekMarketing::TiktokSubmissionLifecycle.refresh!(post: post)
@@ -45,6 +52,7 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     LightekMarketing::SocialDispatch.call!(post: post)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: (connection.provider == "tiktok" ? "Video submitted to TikTok inbox; publication is not yet confirmed." : "Social publication confirmed.")
   rescue LightekMarketing::SocialDispatch::Unavailable, LightekMarketing::MetaConnectionHealth::Unavailable, LightekMarketing::SocialProviders::Error, LightekMarketing::TiktokVideoUpload::Invalid, LightekVault::Service::AccessDenied => e
+    post&.update(status: "failed", error: e.message.to_s.slice(0, 1000)) if post&.persisted? && post.remote_id.blank?
     redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
   end
   private

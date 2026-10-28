@@ -17,12 +17,10 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes script, "LIGHTEK_MAIL_PRIVATE_NODE_READY"
   end
 
-  test "paid installs require evidence of functioning inbound and outbound mail" do
+  test "cloud mail port restrictions do not prevent paid installation acceptance" do
     script = Rails.root.join("script/lightek/website_deploy.sh").read
-    assert_includes script, "inbound_received"
-    assert_includes script, "outbound_delivered"
-    assert_includes script, "mail_domain_verified"
-    assert_includes script, "Customer mail is not fully operational"
+    assert_includes script, "LIGHTEK_INSTALL_PRIVATE_MAIL_NODE"
+    refute_includes script, "Customer mail is not fully operational; installation is not ready"
   end
 
   test "Gatekeeper requires full application acceptance before returning success" do

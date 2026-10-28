@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeController
   before_action :set_site
-  before_action :set_campaign, only: %i[edit update destroy send_email send_audience]
+  before_action :set_campaign, only: %i[edit update destroy send_email send_audience schedule]
   def index
     @campaigns = LightekMarketing::Campaign.where(site: @site).order(updated_at: :desc)
   end
@@ -17,6 +17,14 @@ class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeControlle
   def update
     return redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Campaign updated." if @campaign.update(campaign_params)
     render :edit, status: :unprocessable_entity
+  end
+  def schedule
+    raise ArgumentError, "Only ready email campaigns can be scheduled" unless @campaign.channel == "email" && @campaign.status == "ready"
+    raise ArgumentError, "Choose a future start time" unless @campaign.starts_at&.future?
+    LightekMarketing::ScheduledCampaignJob.set(wait_until: @campaign.starts_at).perform_later(@campaign.id)
+    redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Email audience campaign scheduled."
+  rescue ArgumentError => e
+    redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), alert: e.message
   end
   def send_audience
     LightekMarketing::AudienceDispatch.call!(campaign: @campaign)

@@ -4,6 +4,14 @@ Rails.application.routes.draw do
   post "/dashboard/marketing/campaigns/:id/send_audience", to: "dashboard/marketing_campaigns#send_audience", as: :send_dashboard_marketing_audience
   resources :dashboard_agency_memberships, path: "/dashboard/agency/memberships", controller: "dashboard/agency_memberships", only: %i[index create destroy]
   resources :dashboard_marketing_contacts, path: "/dashboard/marketing/contacts", controller: "dashboard/marketing_contacts", only: %i[index create]
+  post "/marketing/subscribe", to: "marketing_subscriptions#create", as: :marketing_subscribe
+  get "/marketing/confirm", to: "marketing_subscriptions#confirm", as: :confirm_marketing_subscription
+  get "/marketing/unsubscribe", to: "marketing_subscriptions#unsubscribe", as: :unsubscribe_marketing_subscription
+  get "/dashboard/agency/social", to: "dashboard/social_connections#index", as: :dashboard_social_connections
+  post "/dashboard/agency/social", to: "dashboard/social_connections#create"
+  post "/dashboard/agency/social/publish", to: "dashboard/social_connections#publish", as: :publish_dashboard_social_connection
+  get "/dashboard/agency/reports", to: "dashboard/agency_reports#index", as: :dashboard_agency_reports
+  post "/dashboard/marketing/campaigns/:id/schedule", to: "dashboard/marketing_campaigns#schedule", as: :schedule_dashboard_marketing_campaign
   get "/dashboard/business", to: "dashboard/business_hub#index", as: :dashboard_business_hub
   post "/dashboard/commerce/shop_page", to: "dashboard/commerce_products#create_shop_page", as: :dashboard_commerce_shop_page
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]

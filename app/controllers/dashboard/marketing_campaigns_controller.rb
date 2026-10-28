@@ -36,7 +36,7 @@ class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeControlle
   end
   private
   def set_site
-    @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
+    @site = LightekAgency::Access.sites_for(current_user).find(params.require(:site_id))
   end
   def set_campaign
     @campaign = LightekMarketing::Campaign.where(site: @site).find(params[:id])

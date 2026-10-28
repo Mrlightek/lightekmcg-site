@@ -111,6 +111,8 @@ module Gatekeeper
           node = Gatekeeper::Compute::ProvisioningExecutionService.call(request:, requested_by: actor.email_address)
         end
       end
+      # Bind the deployment to the recovered/allocated node before boot polling.
+      # A retry must reuse its node and registered deployment configuration.
       register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role"))
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 600
       loop do

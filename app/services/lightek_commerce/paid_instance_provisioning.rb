@@ -80,7 +80,11 @@ module LightekCommerce
       order.update!(provisioning_state: "deploying", provisioning_error: nil)
       Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
-      InstanceReadyMailer.ready(order.id).deliver_later
+      begin
+        InstanceReadyMailer.ready(order.id).deliver_later
+      rescue StandardError => e
+        Rails.logger.error("[Commerce] installation ready but invitation enqueue failed order=#{order.id} #{e.class}")
+      end
       order
     rescue StandardError => e
       order.update_columns(provisioning_state: "failed",

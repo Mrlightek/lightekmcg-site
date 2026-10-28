@@ -6,9 +6,11 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     @campaigns = LightekMarketing::Campaign.where(site: @site, channel: "social", status: "ready")
   end
   def create
-    LightekMarketing::SocialConnection.create!(site: @site, provider: "webhook",
-      account_label: params.require(:account_label), publish_endpoint: "https://gateway.local.invalid",
-      credential_key: "operator_gateway", enabled: true)
+    raise CanCan::AccessDenied unless LightekSettings::WebsiteIdentity.sites_for(current_user).exists?(id: @site.id)
+    LightekMarketing::SocialVault.store!(site: @site, provider: params.require(:provider), account: params.require(:account_label), credentials: params.require(:credentials).permit(:page_id, :instagram_user_id, :access_token).to_h, actor: current_user)
+    LightekMarketing::SocialConnection.create!(site: @site, provider: params.require(:provider),
+      account_label: params.require(:account_label), publish_endpoint: "https://graph.facebook.com",
+      credential_key: LightekMarketing::SocialVault.slug(site_id: @site.id, provider: params.require(:provider), account: params.require(:account_label)), enabled: true)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Gateway publishing destination recorded."
   rescue ActiveRecord::RecordInvalid => e
     redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message

@@ -1,3 +1,4 @@
+require "digest"
 # frozen_string_literal: true
 module LightekMarketing
   module SocialVault

@@ -30,6 +30,7 @@ module LightekCommerce
         raise Rejected, "Mismatched line items" unless subtotal == order.subtotal_cents
         raise Rejected, "Mismatched totals" unless subtotal + tax + shipping == total && total >= subtotal
         order.update!(status: "paid", paid_at: Time.current, tax_cents: tax, shipping_cents: shipping, total_cents: total)
+        OrderConfirmationJob.perform_later(order.id)
       end
       order
     end

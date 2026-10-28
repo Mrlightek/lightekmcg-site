@@ -26,20 +26,20 @@ class CommerceController < ApplicationController
   end
   def checkout
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: params.require(:customer_email), quantities: cart)
-    checkout = LightekCommerce::StripeCheckout.start!(order: order, success_url: commerce_shop_url(site_id: @site.id, order_id: order.id), cancel_url: commerce_shop_url(site_id: @site.id))
+    checkout = LightekCommerce::StripeCheckout.start!(order: order,
+      success_url: commerce_shop_url(site_id: @site.id, order_id: order.id),
+      cancel_url: commerce_shop_url(site_id: @site.id))
     session.delete(cart_key)
     redirect_to checkout.url, allow_other_host: true
   rescue LightekCommerce::OrderPlacement::Invalid, LightekCommerce::StripeCheckout::Unavailable, ActiveRecord::RecordInvalid => e
+    # A session was never handed to the customer; release the reserved stock.
+    LightekCommerce::OrderPlacement.cancel!(order) if order&.persisted? && order.reload.payment_reference.blank? && order.status == "pending_payment"
     redirect_to commerce_shop_path(site_id: @site.id), alert: e.message
   end
   private
   def set_site
     @site = DymondSite::Site.find(params.require(:site_id))
   end
-  def cart_key
-    "lightek_commerce_cart_#{@site.id}"
-  end
-  def cart
-    @cart ||= session[cart_key].to_h
-  end
+  def cart_key = "lightek_commerce_cart_#{@site.id}"
+  def cart = @cart ||= session[cart_key].to_h
 end

@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  resources :dashboard_marketing_campaigns, path: "/dashboard/marketing/campaigns", controller: "dashboard/marketing_campaigns", except: %i[show]
   post "/dashboard/commerce/shop_page", to: "dashboard/commerce_products#create_shop_page", as: :dashboard_commerce_shop_page
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
   post "/commerce/stripe/webhook", to: "commerce_stripe_webhooks#create", as: :commerce_stripe_webhook

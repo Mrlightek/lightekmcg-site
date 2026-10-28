@@ -2,19 +2,36 @@
 module LightekCommerce
   class Refunds
     class Invalid < StandardError; end
+
     def self.full!(order:)
+      amount = order.total_cents - order.refunded_cents
+      issue!(order: order, amount_cents: amount)
+    end
+
+    def self.issue!(order:, amount_cents:)
+      amount_cents = Integer(amount_cents)
       order.with_lock do
-        raise Invalid, "Only paid orders can be refunded" unless order.status == "paid"
-        raise Invalid, "No Stripe checkout reference" unless order.payment_provider == "stripe" && order.payment_reference.present?
-        Stripe.api_key = DymondBank::StripeCredentials.secret_key
+        raise Invalid, "Order is not refundable" unless %w[paid partially_refunded].include?(order.status)
+        raise Invalid, "Invalid refund amount" unless amount_cents.positive? && amount_cents <= order.total_cents - order.refunded_cents
+        raise Invalid, "Stripe checkout missing" unless order.payment_provider == "stripe" && order.payment_reference.present?
+        key = DymondBank::StripeCredentials.secret_key
+        raise Invalid, "Stripe is not configured" if key.blank?
+        Stripe.api_key = key
         session = Stripe::Checkout::Session.retrieve(order.payment_reference)
-        raise Invalid, "Payment intent unavailable" if session.payment_intent.blank?
-        refund = Stripe::Refund.create({payment_intent: session.payment_intent, reason: "requested_by_customer"},
-          {idempotency_key: "lightek-commerce-order-#{order.id}-refund"})
-        raise Invalid, "Refund is not confirmed" unless refund.status == "succeeded"
-        order.update!(status: "refunded")
-        refund
+        raise Invalid, "Payment intent missing" if session.payment_intent.blank?
+        nonce = SecureRandom.uuid
+        record = order.refunds.create!(amount_cents: amount_cents, idempotency_key: "commerce-refund-#{order.id}-#{nonce}")
+        response = Stripe::Refund.create({payment_intent: session.payment_intent, amount: amount_cents,
+          reason: "requested_by_customer"}, {idempotency_key: record.idempotency_key})
+        record.update!(processor_ref: response.id, status: response.status == "succeeded" ? "succeeded" : "pending")
+        if record.status == "succeeded"
+          refunded = order.refunded_cents + amount_cents
+          order.update!(refunded_cents: refunded, status: refunded == order.total_cents ? "refunded" : "partially_refunded")
+        end
+        record
       end
+    rescue ArgumentError, TypeError
+      raise Invalid, "Invalid refund amount"
     end
   end
 end

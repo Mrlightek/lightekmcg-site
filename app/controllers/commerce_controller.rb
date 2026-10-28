@@ -11,9 +11,16 @@ class CommerceController < ApplicationController
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])
     quantity = Integer(params.fetch(:quantity, 1))
     raise ArgumentError unless quantity.between?(1, 100)
-    current = cart.fetch(product.id.to_s, 0).to_i
+    variant_id = params[:variant_id].presence
+    if variant_id
+      variant = product.variants.where(active: true).find(variant_id)
+    elsif product.variants.where(active: true).exists?
+      raise ArgumentError, "Select a product option"
+    end
+    key = variant_id ? "#{product.id}:#{variant.id}" : product.id.to_s
+    current = cart.fetch(key, 0).to_i
     raise ArgumentError if current + quantity > 100
-    cart[product.id.to_s] = current + quantity
+    cart[key] = current + quantity
     session[cart_key] = cart
     redirect_to commerce_shop_path(site_id: @site.id), notice: "Added to cart."
   rescue ArgumentError, TypeError

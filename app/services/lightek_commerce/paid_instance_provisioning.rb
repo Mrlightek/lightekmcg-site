@@ -49,6 +49,8 @@ module LightekCommerce
 
       if request.gatekeeper_node.nil?
         unless request.executable?
+          raise NotReady, "Only failed or awaiting-approval requests can be reauthorized" unless
+            %w[failed awaiting_approval awaiting_cost awaiting_provider draft ready].include?(request.execution_status)
           request.update!(
             selected_region: ENV.fetch("LIGHTEK_AUTO_VPS_REGION"),
             selected_plan: ENV.fetch("LIGHTEK_AUTO_VPS_PLAN"),

@@ -20,12 +20,14 @@ class Dashboard::CommerceProductsController < Dashboard::SettingsHomeController
     @product = LightekCommerce::Product.new(site: @site)
   end
   def create
+    authorize_instance_product!
     @product = LightekCommerce::Product.new(product_params.except(:remove_photo_ids).merge(site: @site))
     return redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product created." if @product.save
     render :new, status: :unprocessable_entity
   end
   def edit; end
   def update
+    authorize_instance_product!
     if @product.update(product_params.except(:remove_photo_ids))
       Array(product_params[:remove_photo_ids]).reject(&:blank?).each do |id|
         attachment = @product.photos_attachments.find_by(id: id)
@@ -40,6 +42,11 @@ class Dashboard::CommerceProductsController < Dashboard::SettingsHomeController
     redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Product removed."
   end
   private
+  def authorize_instance_product!
+    requested_type = params.fetch(:product, {})[:product_type].to_s
+    is_installation = requested_type == "lightek_instance" || @product&.product_type == "lightek_instance"
+    raise CanCan::AccessDenied if is_installation && current_user.role != "super_admin"
+  end
   def set_site
     sites = LightekSettings::WebsiteIdentity.sites_for(current_user)
     @site = sites.find(params.require(:site_id))
@@ -48,6 +55,6 @@ class Dashboard::CommerceProductsController < Dashboard::SettingsHomeController
     @product = LightekCommerce::Product.where(site: @site).find(params[:id])
   end
   def product_params
-    params.require(:product).permit(:name, :slug, :description, :price_cents, :inventory_quantity, :published, :position, :image_url, :sku, :product_type, :short_description, :compare_at_cents, :featured, photos: [], remove_photo_ids: [])
+    params.require(:product).permit(:name, :slug, :description, :price_cents, :inventory_quantity, :published, :position, :image_url, :sku, :product_type, :short_description, :compare_at_cents, :featured, :subscription_plan_id, photos: [], remove_photo_ids: [])
   end
 end

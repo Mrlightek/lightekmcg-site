@@ -24,10 +24,7 @@ module LightekCommerce
         response = Stripe::Refund.create({payment_intent: session.payment_intent, amount: amount_cents,
           reason: "requested_by_customer"}, {idempotency_key: record.idempotency_key})
         record.update!(processor_ref: response.id, status: response.status == "succeeded" ? "succeeded" : "pending")
-        if record.status == "succeeded"
-          refunded = order.refunded_cents + amount_cents
-          order.update!(refunded_cents: refunded, status: refunded == order.total_cents ? "refunded" : "partially_refunded")
-        end
+        RefundSettlement.call(processor_ref: record.processor_ref, status: response.status) if record.processor_ref.present?
         record
       end
     rescue ArgumentError, TypeError

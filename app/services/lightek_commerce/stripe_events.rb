@@ -30,7 +30,7 @@ module LightekCommerce
         if %w[paid fulfilled partially_refunded refunded].include?(order.status)
           # Stripe retries also recover a lost provisioning enqueue after settlement.
           # The provisioning job's order-bound advisory lock prevents duplicate allocation.
-          if order.paid_at? && !order.provisioned_at? &&
+          if %w[paid fulfilled].include?(order.status) && order.paid_at? && !order.provisioned_at? &&
               order.items.any? { |item| item.product.product_type == "lightek_instance" }
             PaidInstanceProvisioningJob.perform_later(order.id)
           end

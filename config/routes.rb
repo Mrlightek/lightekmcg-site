@@ -7,6 +7,7 @@ Rails.application.routes.draw do
   post "/marketing/subscribe", to: "marketing_subscriptions#create", as: :marketing_subscribe
   get "/marketing/confirm", to: "marketing_subscriptions#confirm", as: :confirm_marketing_subscription
   get "/marketing/unsubscribe", to: "marketing_subscriptions#unsubscribe", as: :unsubscribe_marketing_subscription
+  post "/dashboard/agency/social/disable", to: "dashboard/social_connections#disable", as: :disable_dashboard_social_connection
   get "/dashboard/agency/social", to: "dashboard/social_connections#index", as: :dashboard_social_connections
   post "/dashboard/agency/social", to: "dashboard/social_connections#create"
   post "/dashboard/agency/social/publish", to: "dashboard/social_connections#publish", as: :publish_dashboard_social_connection

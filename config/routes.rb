@@ -29,6 +29,8 @@ Rails.application.routes.draw do
   post "/dashboard/commerce/orders/:order_id/fulfill", to: "dashboard/commerce_fulfillments#create", as: :dashboard_commerce_fulfill
   post "/dashboard/commerce/products/:product_id/variants", to: "dashboard/commerce_variants#create", as: :dashboard_commerce_variants
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_variants#destroy", as: :dashboard_commerce_variant
+  get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
+  post "/dashboard/commerce/payouts/:order_id", to: "dashboard/commerce_payouts#create", as: :dashboard_commerce_payout
   get "/commerce/shop", to: "commerce#index", as: :commerce_shop
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
   delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove

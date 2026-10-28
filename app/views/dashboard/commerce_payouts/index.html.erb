@@ -1,0 +1,26 @@
+<main class="lt-settings">
+<h1>Commerce · Merchant payouts</h1>
+<p><%= @site.name %> · Transfer earnings from Lightek's Stripe balance into your connected Stripe account.</p>
+<p>Funds reach your bank according to your Stripe Connect payout schedule. Merchant transfers are separate from bank payouts.</p>
+<% if current_user.stripe_connect_ready? %>
+  <p><strong>Stripe Connect:</strong> Ready</p>
+<% else %>
+  <p><strong>Stripe Connect:</strong> Setup required. <%= link_to "Set up your payout account", dashboard_susu_payout_account_path %></p>
+<% end %>
+<p><%= link_to "Orders", dashboard_commerce_orders_path(site_id: @site.id) %></p>
+<table><thead><tr><th>Order</th><th>Gross</th><th>Processor reserve</th><th>Platform fee</th><th>Transfer</th><th>Status</th></tr></thead><tbody>
+<% @orders.each do |order| %>
+<% quote = LightekCommerce::MerchantPayouts.fee_quote(order) %>
+<tr><td>#<%= order.id %></td><td><%= number_to_currency(quote[:gross_cents] / 100.0) %></td>
+<td><%= number_to_currency(quote[:processor_reserve_cents] / 100.0) %></td>
+<td><%= number_to_currency(quote[:platform_fee_cents] / 100.0) %></td>
+<td><%= number_to_currency(quote[:net_cents] / 100.0) %></td>
+<td><% if order.merchant_transfer_ref.present? %>Transferred: <%= order.merchant_transfer_ref %>
+<% elsif order.refunded_cents.to_i > 0 %>Refund requires reconciliation
+<% elsif order.refunds.any? { |refund| refund.status == "pending" } %>Refund pending
+<% elsif current_user.stripe_connect_ready? %>
+<%= button_to "Request merchant transfer", dashboard_commerce_payout_path(site_id: @site.id, order_id: order.id), method: :post, form: { data: { turbo_confirm: "Transfer this order's net earnings?" } } %>
+<% else %>Connect payout account first<% end %>
+<% if order.merchant_transfer_error.present? %><p><%= order.merchant_transfer_error %></p><% end %>
+</td></tr>
+<% end %></tbody></table></main>

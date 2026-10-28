@@ -26,9 +26,10 @@ class CommerceController < ApplicationController
   end
   def checkout
     order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: params.require(:customer_email), quantities: cart)
+    checkout = LightekCommerce::StripeCheckout.start!(order: order, success_url: commerce_shop_url(site_id: @site.id, order_id: order.id), cancel_url: commerce_shop_url(site_id: @site.id))
     session.delete(cart_key)
-    redirect_to commerce_shop_path(site_id: @site.id), notice: "Order ##{order.id} reserved. Payment is not yet available; your order is pending payment."
-  rescue LightekCommerce::OrderPlacement::Invalid, ActiveRecord::RecordInvalid => e
+    redirect_to checkout.url, allow_other_host: true
+  rescue LightekCommerce::OrderPlacement::Invalid, LightekCommerce::StripeCheckout::Unavailable, ActiveRecord::RecordInvalid => e
     redirect_to commerce_shop_path(site_id: @site.id), alert: e.message
   end
   private

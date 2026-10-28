@@ -57,6 +57,13 @@ module LightekMarketplace
           unless subscription && subscription.subscriber == customer && subscription.active? && !subscription.trial_expired?
             raise NotReady, "Active customer subscription required for compute delivery"
           end
+          target = DeploymentPolicy.target_for(purchase)
+          raise NotReady, "Compute products require a dedicated VPS" unless target == "dedicated_vps"
+          existing_node = DeploymentPolicy.existing_node_for(customer)
+          if existing_node
+            receipt.merge!("gatekeeper_node_id" => existing_node.id,
+              "stage" => "existing_customer_node", "activation_required" => true)
+          else
           request = Gatekeeper::Compute::ProvisioningRequestBuilder.call(
             subscription: subscription, requested_by: "marketplace-purchase-#{purchase.id}"
           )
@@ -64,6 +71,7 @@ module LightekMarketplace
             "stage" => "provisioning_request_created",
             "execution_status" => request.execution_status,
             "activation_required" => true)
+          end
         when "manual"
           ticket = Marlon::Ticket.create!(title: "Deliver #{purchase.offer.name}",
             description: ["Marketplace order ##{purchase.id}", config["description"], config["welcome"]].compact.join("\n\n"),

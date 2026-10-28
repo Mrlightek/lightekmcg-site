@@ -29,8 +29,8 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     post = LightekMarketing::SocialPost.find_or_create_by!(campaign: campaign, connection: connection)
     raise LightekMarketing::SocialDispatch::Unavailable, "Already published" if post.status == "published"
     LightekMarketing::SocialDispatch.call!(post: post)
-    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Social publication confirmed."
-  rescue LightekMarketing::SocialDispatch::Unavailable, LightekMarketing::SocialProviders::Error, LightekVault::Service::AccessDenied => e
+    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: (connection.provider == "tiktok" ? "Video submitted to TikTok inbox; publication is not yet confirmed." : "Social publication confirmed.")
+  rescue LightekMarketing::SocialDispatch::Unavailable, LightekMarketing::SocialProviders::Error, LightekMarketing::TiktokVideoUpload::Invalid, LightekVault::Service::AccessDenied => e
     redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
   end
   private

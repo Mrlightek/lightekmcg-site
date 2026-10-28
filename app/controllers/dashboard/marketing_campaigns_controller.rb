@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeController
   before_action :set_site
-  before_action :set_campaign, only: %i[edit update destroy send_email send_audience]
+  before_action :set_campaign, only: %i[edit update destroy send_email send_audience schedule]
   def index
     @campaigns = LightekMarketing::Campaign.where(site: @site).order(updated_at: :desc)
   end

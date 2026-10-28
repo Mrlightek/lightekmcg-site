@@ -19,7 +19,14 @@ module Gatekeeper
 
       def call
         subscriber = subscription.subscriber
-        resolution = SubscriptionResolver.call(subscriber: subscriber)
+        # Resolve the exact purchased subscription, not the subscriber's most recent
+        # unrelated subscription (which may have a different entitlement).
+        entitlement = SubscriptionInfrastructureEntitlement.find_by(subscription_plan_id: subscription.plan_id)
+        resolution = entitlement && SubscriptionResolver::Resolution.new(
+          subscription, subscription.plan, entitlement,
+          entitlement.provisioning_profile, entitlement.compute_policy,
+          entitlement.node_quantity.to_i, entitlement.auto_provision? || false
+        )
 
         unless resolution&.entitlement
           raise NoInfrastructureEntitlement,

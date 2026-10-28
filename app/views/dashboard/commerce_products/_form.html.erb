@@ -9,7 +9,7 @@
 <div class="lcp-field"><%= f.label :slug, "URL slug" %><%= f.text_field :slug, required: true %></div>
 <div class="lcp-field"><%= f.label :short_description, "Storefront headline" %><%= f.text_area :short_description, rows: 2, maxlength: 300 %></div>
 <div class="lcp-field"><%= f.label :description, "Full description" %><%= f.text_area :description, rows: 7 %></div>
-<div class="lcp-field"><%= f.label :image_url, "Product photo HTTPS URL" %><%= f.url_field :image_url %></div>
+<div class="lcp-field"><%= f.label :photos, "Upload product photos (up to 8)" %><%= f.file_field :photos, multiple: true, accept: "image/jpeg,image/png,image/webp" %></div><% if @product.persisted? && @product.photos.attached? %><div style="display:flex;flex-wrap:wrap;gap:12px"><% @product.photos.each do |photo| %><label><%= image_tag photo.variant(resize_to_limit: [130,130]), alt: @product.name %><br><%= check_box_tag "product[remove_photo_ids][]", photo.id %> Remove</label><% end %></div><% end %><div class="lcp-field"><%= f.label :image_url, "Optional externally hosted photo HTTPS URL" %><%= f.url_field :image_url %></div>
 </section><section class="lcp-panel"><h2>Pricing</h2>
 <div class="lcp-field"><%= f.label :price_cents, "Price (cents; 2500 = $25)" %><%= f.number_field :price_cents, min: 0, required: true %></div>
 <div class="lcp-field"><%= f.label :compare_at_cents, "Compare-at price (cents)" %><%= f.number_field :compare_at_cents, min: 0 %></div></section></div>

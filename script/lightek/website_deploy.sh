@@ -227,6 +227,15 @@ def verify_public(c):
     request('/session',data)
     final,body,status=request('/dashboard/pages')
     if status!=200 or urllib.parse.urlparse(final).path.startswith('/session'):raise DeployError('Owner cannot open website management after sign-in')
+    # Website acceptance alone is not sufficient for a paid full-application
+    # installation. Probe other mounted Lightek dashboards using the same
+    # authenticated session and reject redirects to sign-in.
+    for path in ('/dashboard/business','/dashboard/marketplace','/dashboard/settings'):
+        final,body,status=request(path)
+        dest=urllib.parse.urlparse(final).path
+        if status!=200 or dest.startswith(('/session','/sign_in','/passwords')):
+            raise DeployError('Full Lightek dashboard acceptance failed: '+path)
+    h['full_application_dashboard_verified']=True
     return h
 
 @contextlib.contextmanager

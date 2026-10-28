@@ -1,3 +1,4 @@
+<div class="dd-card" style="padding:18px;margin-bottom:16px"><strong>LIGHTEK BUSINESS</strong><p style="color:var(--dd-text-secondary)">Your commerce, marketing, storefront and operational command center.</p><%= link_to "Open Business Command Center", main_app.dashboard_business_hub_path, style: "display:inline-block;padding:10px 16px;background:var(--dd-accent);color:#fff;border-radius:8px;text-decoration:none" %></div>
 <% commerce_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:id).limit(20) %>
 <% if commerce_sites.any? %>
   <section class="dd-card" style="padding:20px;margin-bottom:20px" aria-label="Business and marketing tools">

@@ -18,6 +18,12 @@ class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeControlle
     return redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Campaign updated." if @campaign.update(campaign_params)
     render :edit, status: :unprocessable_entity
   end
+  def send_audience
+    LightekMarketing::AudienceDispatch.call!(campaign: @campaign)
+    redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Subscribed audience queued in Lightek Mail."
+  rescue ArgumentError => e
+    redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), alert: e.message
+  end
   def send_email
     LightekMarketing::EmailDelivery.call!(campaign: @campaign, actor: current_user)
     redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Campaign handed to Lightek Mail."

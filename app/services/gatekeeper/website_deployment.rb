@@ -103,13 +103,10 @@ module Gatekeeper
           credential&.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? }
         end
       end
-      node = nil
-      request.with_lock do
-        node = request.gatekeeper_node
-        if node.nil?
-          raise Invalid, "Request is not approved and ready; no instance was created" unless request.executable?
-          node = Gatekeeper::Compute::ProvisioningExecutionService.call(request:, requested_by: actor.email_address)
-        end
+      node = request.reload.gatekeeper_node
+      if node.nil?
+        raise Invalid, "Request is not approved and ready; no instance was created" unless request.executable?
+        node = Gatekeeper::Compute::ProvisioningExecutionService.call(request:, requested_by: actor.email_address)
       end
       # Bind the deployment to the recovered/allocated node before boot polling.
       # A retry must reuse its node and registered deployment configuration.

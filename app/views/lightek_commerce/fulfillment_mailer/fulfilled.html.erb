@@ -1,0 +1,1 @@
+<h1>Order fulfilled</h1><p>Your order <strong>#<%= @order.id %></strong> has been fulfilled.</p><% if @order.fulfillment_reference.present? %><p>Reference: <%= @order.fulfillment_reference %></p><% end %><% if @order.fulfillment_note.present? %><p><%= @order.fulfillment_note %></p><% end %>

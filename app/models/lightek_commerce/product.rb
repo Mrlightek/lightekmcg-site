@@ -20,7 +20,11 @@ module LightekCommerce
     validates :slug, uniqueness: {scope: :site_id}
     validates :currency, inclusion: {in: %w[usd]}
     validates :price_cents, :inventory_quantity, numericality: {only_integer: true, greater_than_or_equal_to: 0}
-    validates :product_type, inclusion: {in: %w[physical digital]}
+    validate :instance_plan_required
+    def instance_plan_required
+      errors.add(:subscription_plan_id, "required for a Lightek instance") if product_type == "lightek_instance" && subscription_plan_id.blank?
+    end
+    validates :product_type, inclusion: {in: %w[physical digital lightek_instance]}
     validates :image_url, format: {with: /\Ahttps:\/\//}, allow_blank: true
     validates :short_description, length: {maximum: 300}
     validates :sku, uniqueness: {scope: :site_id}, allow_blank: true

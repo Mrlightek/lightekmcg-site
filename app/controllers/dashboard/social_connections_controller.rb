@@ -23,6 +23,13 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     connection.update!(enabled: false, disabled_at: Time.current)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Social connection disabled and Vault credentials revoked."
   end
+  def refresh_submission
+    post = LightekMarketing::SocialPost.joins(:campaign).where(lightek_marketing_campaigns: {site_id: @site.id}).find(params.require(:post_id))
+    LightekMarketing::TiktokSubmissionLifecycle.refresh!(post: post)
+    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "TikTok submission status refreshed."
+  rescue LightekMarketing::TiktokVideoUpload::Invalid, ArgumentError => e
+    redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
+  end
   def test_connection
     connection = LightekMarketing::SocialConnection.where(site: @site).find(params.require(:connection_id))
     LightekMarketing::MetaConnectionHealth.check!(connection: connection)

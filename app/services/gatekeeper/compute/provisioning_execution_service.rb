@@ -89,11 +89,7 @@ module Gatekeeper
             operation_id: operation.id
           )
 
-          candidates = Array(adapter.nodes).select do |candidate|
-            candidate["label"] == request.node_label &&
-              Array(candidate["tags"]).include?("provisioning-request-#{request.id}")
-          end
-          raise ProviderResponseError, "Multiple provider nodes match provisioning request #{request.id}" if candidates.size > 1
+          candidates = self.class.matching_provider_nodes(adapter.nodes, request)
           provider_node = if candidates.one?
             adapter.node(candidates.first.fetch("id"))
           else
@@ -160,6 +156,15 @@ module Gatekeeper
           credential.root_password.clear if credential&.root_password.respond_to?(:clear)
           payload&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
         end
+      end
+
+      def self.matching_provider_nodes(nodes, request)
+        candidates = Array(nodes).select do |candidate|
+          candidate["label"] == request.node_label &&
+            Array(candidate["tags"]).include?("provisioning-request-#{request.id}")
+        end
+        raise ProviderResponseError, "Multiple provider nodes match provisioning request #{request.id}" if candidates.size > 1
+        candidates
       end
 
       private

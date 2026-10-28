@@ -52,7 +52,7 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     LightekMarketing::SocialDispatch.call!(post: post)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: (connection.provider == "tiktok" ? "Video submitted to TikTok inbox; publication is not yet confirmed." : "Social publication confirmed.")
   rescue LightekMarketing::SocialDispatch::Unavailable, LightekMarketing::MetaConnectionHealth::Unavailable, LightekMarketing::SocialProviders::Error, LightekMarketing::TiktokVideoUpload::Invalid, LightekVault::Service::AccessDenied => e
-    post&.update(status: "failed", error: e.message.to_s.slice(0, 1000)) if post&.persisted? && post.remote_id.blank?
+    post&.update(status: "needs_review", error: e.message.to_s.slice(0, 1000)) if post&.persisted? && post.remote_id.blank?
     redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
   end
   private

@@ -26,14 +26,15 @@ module LightekCommerce
       }, {idempotency_key: "lightek-commerce-order-#{order.id}-checkout"})
       order.update!(payment_provider: "stripe", payment_reference: session.id)
       session
+    rescue ::Stripe::StripeError => e
+      raise Unavailable, e.message
+    end
+
     def self.shipping_options
       ids = ENV.fetch("LIGHTEK_COMMERCE_STRIPE_SHIPPING_RATE_IDS", "").split(",").map(&:strip).reject(&:blank?)
       raise Unavailable, "Configure shipping rates before accepting orders" if ids.empty?
       ids.map { |id| {shipping_rate: id} }
     end
 
-    rescue ::Stripe::StripeError => e
-      raise Unavailable, e.message
-    end
   end
 end

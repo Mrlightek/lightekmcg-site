@@ -18,15 +18,17 @@ module LightekCommerce
       raise Rejected, "Mismatched currency" unless session.currency.to_s.downcase == order.currency
 
       if event.type == "checkout.session.expired"
-        # Never release inventory for a paid order. Reconciliation also checks
-        # Stripe directly before canceling overdue reservations.
-        OrderPlacement.cancel!(order) if order.status == "pending_payment"
+        raise Rejected, "Expiration not confirmed" unless session.status == "expired"
+        return order if order.status != "pending_payment"
+        # Protect stock during asynchronous payment or out-of-order event delivery.
+        raise Rejected, "Payment state uncertain on expiry" if session.payment_status == "paid"
+        OrderPlacement.cancel!(order)
         return order
       end
       return order unless session.mode == "payment" && session.payment_status == "paid"
       order.with_lock do
-        return order if %w[paid fulfilled refunded].include?(order.status)
-        raise Rejected, "Order is no longer payable" unless order.status == "pending_payment"
+        return order if %w[paid fulfilled partially_refunded refunded].include?(order.status)
+        raise Rejected, "Paid checkout for canceled order requires manual recovery" unless order.status == "pending_payment"
         subtotal = session.amount_subtotal.to_i
         tax = session.total_details.amount_tax.to_i
         shipping = session.total_details.amount_shipping.to_i

@@ -15,7 +15,8 @@ module LightekMarketing
         if connection.provider == "tiktok"
           raise Unavailable, "Already submitted" if post.submission_status == "submitted"
           publish_id = TiktokVideoUpload.submit!(connection: connection, campaign: campaign)
-          post.update!(remote_id: publish_id, submission_status: "submitted")
+          post.update!(remote_id: publish_id, submission_status: "PROCESSING_UPLOAD")
+          TiktokSubmissionPollJob.set(wait: 2.minutes).perform_later(post.id)
           return post
         end
         if %w[facebook instagram].include?(connection.provider)

@@ -1,0 +1,54 @@
+name: Commerce Release Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'app/controllers/commerce*'
+      - 'app/controllers/dashboard/commerce*'
+      - 'app/services/lightek_commerce/**'
+      - 'app/jobs/lightek_commerce/**'
+      - 'app/models/lightek_commerce/**'
+      - 'test/services/lightek_commerce/**'
+      - '.github/workflows/commerce-release-acceptance.yml'
+  workflow_dispatch:
+
+jobs:
+  commerce_acceptance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/lightek_test
+      LIGHTEK_APP_ID: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+      LIGHTEK_APP_KEY: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create private dependency token
+        uses: actions/create-github-app-token@v2
+        id: dependencies
+        with:
+          app-id: ${{ env.LIGHTEK_APP_ID }}
+          private-key: ${{ env.LIGHTEK_APP_KEY }}
+          owner: lightekmcg
+      - name: Configure private dependency access
+        env:
+          TOKEN: ${{ steps.dependencies.outputs.token }}
+        run: |
+          git config --global --add url."https://x-access-token:${TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - name: Prepare Commerce test database
+        run: bin/rails db:prepare
+      - name: Run complete Commerce service regression suite
+        run: bin/rails test test/services/lightek_commerce
+      - name: Verify Commerce route and merchant access tests
+        run: bin/rails test test/controllers/dashboard/commerce_products_controller_test.rb

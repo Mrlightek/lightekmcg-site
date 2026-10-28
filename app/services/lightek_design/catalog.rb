@@ -12,7 +12,7 @@ module LightekDesign
     def fetch(key) = designs.fetch(key.to_s)
     def design_for(site) = site&.active_template&.settings.to_h.fetch("lightek_design", nil)
     def active?(site) = designs.key?(design_for(site))
-    def section_definitions = designs.values.flat_map { |design| design.fetch("sections") }
+    def section_definitions = designs.values.flat_map { |design| design.fetch("sections") } + CommerceSections.definitions
     def section_definition(kind) = section_definitions.find { |entry| entry.fetch("kind") == kind.to_s }
 
     def value(presenter, key, default)

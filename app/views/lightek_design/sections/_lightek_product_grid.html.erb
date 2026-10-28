@@ -1,0 +1,16 @@
+<section class="lt-commerce-products" aria-label="Products">
+  <h2><%= LightekDesign::Catalog.value(section, "heading", "Shop the collection") %></h2>
+  <p><%= LightekDesign::Catalog.value(section, "intro", "Explore what we have to offer.") %></p>
+  <% products = LightekCommerce::Product.visible.where(site_id: @site.id).limit(24) %>
+  <div class="lt-commerce-grid">
+    <% products.each do |product| %>
+      <article class="lt-commerce-product">
+        <h3><%= product.name %></h3>
+        <p><%= product.description %></p>
+        <strong><%= number_to_currency(product.price_cents / 100.0, unit: "$") %></strong>
+        <% if product.inventory_quantity == 0 %><span>Out of stock</span><% end %>
+      </article>
+    <% end %>
+  </div>
+  <% if products.empty? %><p>Products are coming soon.</p><% end %>
+</section>

@@ -15,7 +15,7 @@
 <div class="lcp-field"><%= f.label :compare_at_cents, "Compare-at price (cents)" %><%= f.number_field :compare_at_cents, min: 0 %></div></section></div>
 <aside><section class="lcp-panel"><h2>Publication & inventory</h2>
 <div class="lcp-field"><%= f.label :product_type %><%= f.select :product_type, [["Physical product", "physical"], ["Digital product / service", "digital"], ["Managed Lightek installation", "lightek_instance"]] %></div>
-<div class="lcp-field"><%= f.label :subscription_plan_id %><%= f.number_field :subscription_plan_id, min: 1 %></div><div class="lcp-field"><%= f.label :sku, "SKU" %><%= f.text_field :sku %></div>
+<div class="lcp-field"><%= f.label :subscription_plan_id %><%= f.collection_select :subscription_plan_id, DymondBank::SubscriptionPlan.order(:name), :id, :name, include_blank: "Select installation plan" %></div><div class="lcp-field"><%= f.label :sku, "SKU" %><%= f.text_field :sku %></div>
 <div class="lcp-field"><%= f.label :inventory_quantity %><%= f.number_field :inventory_quantity, min: 0, required: true %></div>
 <div class="lcp-field"><%= f.label :position %><%= f.number_field :position, min: 0 %></div>
 <div class="lcp-field"><label><%= f.check_box :featured %> Featured product</label></div>

@@ -19,6 +19,7 @@ module LightekMarketing
           return post
         end
         if %w[facebook instagram].include?(connection.provider)
+          MetaConnectionHealth.check!(connection: connection)
           remote = SocialProviders.publish!(connection: connection, campaign: campaign)
           post.update!(status: "published", remote_id: remote.to_s.slice(0, 255), published_at: Time.current)
           return post

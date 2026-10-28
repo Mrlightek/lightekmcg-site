@@ -23,6 +23,13 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     connection.update!(enabled: false, disabled_at: Time.current)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Social connection disabled and Vault credentials revoked."
   end
+  def test_connection
+    connection = LightekMarketing::SocialConnection.where(site: @site).find(params.require(:connection_id))
+    LightekMarketing::MetaConnectionHealth.check!(connection: connection)
+    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Provider verified connection is active."
+  rescue LightekMarketing::MetaConnectionHealth::Unavailable => e
+    redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
+  end
   def publish
     connection = LightekMarketing::SocialConnection.where(site: @site).find(params.require(:connection_id))
     campaign = LightekMarketing::Campaign.where(site: @site, channel: "social", status: "ready").find(params.require(:campaign_id))
@@ -30,7 +37,7 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     raise LightekMarketing::SocialDispatch::Unavailable, "Already published" if post.status == "published"
     LightekMarketing::SocialDispatch.call!(post: post)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: (connection.provider == "tiktok" ? "Video submitted to TikTok inbox; publication is not yet confirmed." : "Social publication confirmed.")
-  rescue LightekMarketing::SocialDispatch::Unavailable, LightekMarketing::SocialProviders::Error, LightekMarketing::TiktokVideoUpload::Invalid, LightekVault::Service::AccessDenied => e
+  rescue LightekMarketing::SocialDispatch::Unavailable, LightekMarketing::MetaConnectionHealth::Unavailable, LightekMarketing::SocialProviders::Error, LightekMarketing::TiktokVideoUpload::Invalid, LightekVault::Service::AccessDenied => e
     redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
   end
   private

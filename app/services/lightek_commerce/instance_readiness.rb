@@ -22,6 +22,11 @@ module LightekCommerce
       raise Unavailable, "VPS setup is incomplete: #{missing.join(', ')}" if missing.any?
       raise Unavailable, "VPS cost estimate must be positive" unless
         ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS").match?(/\A[1-9]\d*\z/)
+      entitlement = SubscriptionInfrastructureEntitlement.find_by(subscription_plan_id: item.product.subscription_plan_id)
+      raise Unavailable, "Installation plan has no infrastructure entitlement" unless entitlement
+      policy = entitlement.compute_policy
+      raise Unavailable, "Automatic VPS approval is not configured" unless policy&.active? && !policy.approval_required_for?(ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS").to_i)
+      raise Unavailable, "VPS monthly estimate exceeds policy" if policy.monthly_cost_ceiling_cents.present? && ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS").to_i > policy.monthly_cost_ceiling_cents
       raise Unavailable, "Super admin operator missing" unless User.exists?(role: "super_admin")
       raise Unavailable, "No healthy Linode provider available" unless
         ComputeProvider.where(slug: "linode", status: "active", health_status: "healthy").exists?

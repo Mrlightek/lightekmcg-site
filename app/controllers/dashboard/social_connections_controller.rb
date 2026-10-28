@@ -11,17 +11,18 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     LightekMarketing::SocialConnection.create!(site: @site, provider: params.require(:provider),
       account_label: params.require(:account_label), publish_endpoint: "https://graph.facebook.com",
       credential_key: LightekMarketing::SocialVault.slug(site_id: @site.id, provider: params.require(:provider), account: params.require(:account_label)), enabled: true)
-    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Gateway publishing destination recorded."
-  rescue ActiveRecord::RecordInvalid => e
+    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Provider credentials saved in Vault."
+  rescue ActiveRecord::RecordInvalid, ArgumentError, KeyError => e
     redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
   end
   def publish
     connection = LightekMarketing::SocialConnection.where(site: @site).find(params.require(:connection_id))
     campaign = LightekMarketing::Campaign.where(site: @site, channel: "social", status: "ready").find(params.require(:campaign_id))
     post = LightekMarketing::SocialPost.find_or_create_by!(campaign: campaign, connection: connection)
+    raise LightekMarketing::SocialDispatch::Unavailable, "Already published" if post.status == "published"
     LightekMarketing::SocialDispatch.call!(post: post)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Social publication confirmed."
-  rescue LightekMarketing::SocialDispatch::Unavailable => e
+  rescue LightekMarketing::SocialDispatch::Unavailable, LightekMarketing::SocialProviders::Error, LightekVault::Service::AccessDenied => e
     redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
   end
   private

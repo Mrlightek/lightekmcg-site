@@ -230,10 +230,13 @@ def verify_public(c):
     # Website acceptance alone is not sufficient for a paid full-application
     # installation. Probe other mounted Lightek dashboards using the same
     # authenticated session and reject redirects to sign-in.
-    for path in ('/dashboard/business','/dashboard/marketplace','/dashboard/settings'):
+    checks=('/dashboard/business','/dashboard/settings',
+            '/dashboard/commerce/orders?site_id='+str(h['site_id']))
+    for path in checks:
         final,body,status=request(path)
         dest=urllib.parse.urlparse(final).path
-        if status!=200 or dest.rstrip('/')!=path:
+        expected=urllib.parse.urlparse(path).path
+        if status!=200 or dest.rstrip('/')!=expected:
             raise DeployError('Full Lightek dashboard acceptance failed: '+path)
     h['full_application_dashboard_verified']=True
     return h

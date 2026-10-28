@@ -9,6 +9,7 @@ module LightekMarketing
     validates :channel, inclusion: {in: CHANNELS}
     validates :status, inclusion: {in: STATUSES}
     validates :cta_url, format: {with: /\Ahttps?:\/\//i}, allow_blank: true
+    validates :media_url, length: {maximum: 1200}, format: {with: /\Ahttps:\/\//}, allow_blank: true
     validate :dates_in_order
     private
     def dates_in_order

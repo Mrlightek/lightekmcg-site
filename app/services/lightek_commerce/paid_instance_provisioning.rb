@@ -92,6 +92,24 @@ module LightekCommerce
       Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
       # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+      # Cloud providers may restrict SMTP on newly provisioned accounts.
+      # File an idempotent provider support request, but never make the
+      # customer's paid application activation contingent on port approval.
+      begin
+        node = request.reload.gatekeeper_node
+        metadata = request.metadata.to_h
+        unless metadata["mail_port_ticket_attempted"]
+          request.update!(metadata: metadata.merge("mail_port_ticket_attempted" => true))
+          ticket = request.compute_provider.adapter(requested_by: actor.email_address).create_support_ticket(
+            summary: "Enable mail ports on Lightek customer instance #{node.provider_resource_id}",
+            description: "Please review and remove inbound/outbound SMTP mail port restrictions for Linode #{node.provider_resource_id} (#{node.ip_address}). Lightek Mail requires TCP 25 inbound and outbound, TCP 465/587 authenticated submission, and TCP 993 IMAPS for customer access. Mail server authorization, abuse limits, SPF, DKIM, DMARC and TLS are configured separately. Please confirm when restrictions are lifted.",
+            linode_id: node.provider_resource_id
+          )
+          request.update!(metadata: request.metadata.to_h.merge("mail_port_ticket_id" => ticket["id"], "mail_port_ticket_status" => "submitted"))
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Commerce] Linode mail-port support request failed order=#{order.id} #{e.class}: #{e.message}")
+      end
       begin
         InstanceReadyMailer.ready(order.id).deliver_later
       rescue StandardError => e

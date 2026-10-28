@@ -61,13 +61,15 @@ module LightekCommerce
       slug = "commerce-client-website-#{order.id}"
       # Secrets are managed through Lightek Vault. No generated plaintext password is
       # saved to the order or to GitHub, and separate onboarding is required to sign in.
-      LightekVault::Service.store!(
-        name: "Commerce client installation #{order.id}", slug: slug,
-        payload: {"owner_password" => SecureRandom.urlsafe_base64(36)},
-        provider: "lightek", purpose: "website_deploy",
-        access_policy: {"consumers" => [Gatekeeper::WebsiteDeployment::CONSUMER],
-                        "purposes" => ["website_deploy"]},
-        requested_by: actor.email_address) unless request.metadata.to_h["website_deployments"]&.key?(domain)
+      unless request.metadata.to_h.fetch("website_deployments", {}).key?(domain)
+        LightekVault::Service.store!(
+          name: "Commerce client installation #{order.id}", slug: slug,
+          payload: {"owner_password" => SecureRandom.urlsafe_base64(36)},
+          provider: "lightek", purpose: "website_deploy",
+          access_policy: {"consumers" => [Gatekeeper::WebsiteDeployment::CONSUMER],
+                          "purposes" => ["website_deploy"]},
+          requested_by: actor.email_address)
+      end
 
       config = Gatekeeper::WebsiteDeployment.configuration(owner: customer, domain: domain,
         site_name: "#{customer.first_name}'s Lightek", headline: "Welcome to Lightek",
@@ -79,6 +81,7 @@ module LightekCommerce
 
       order.update!(provisioning_state: "deploying", provisioning_error: nil)
       Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
+      # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
       begin
         InstanceReadyMailer.ready(order.id).deliver_later
@@ -87,8 +90,10 @@ module LightekCommerce
       end
       order
     rescue StandardError => e
-      order.update_columns(provisioning_state: "failed",
-        provisioning_error: "#{e.class}: #{e.message}".slice(0, 1000)) if order&.persisted?
+      if order&.persisted? && !order.reload.provisioned_at?
+        order.update_columns(provisioning_state: "failed",
+          provisioning_error: "#{e.class}: #{e.message}".slice(0, 1000))
+      end
       raise
     end
   end

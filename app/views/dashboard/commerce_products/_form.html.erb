@@ -1,1 +1,23 @@
-<main class="lt-settings"><h1><%= @product.persisted? ? "Edit product" : "Add product" %></h1><% if @product.errors.any? %><div role="alert"><%= @product.errors.full_messages.to_sentence %></div><% end %><%= form_with model: @product, scope: :product, url: (@product.persisted? ? dashboard_commerce_product_path(@product, site_id: @site.id) : dashboard_commerce_products_path(site_id: @site.id)) do |f| %><p><%= f.label :name %><%= f.text_field :name, required: true %></p><p><%= f.label :slug %><%= f.text_field :slug, required: true %></p><p><%= f.label :description %><%= f.text_area :description %></p><p><%= f.label :price_cents, "Price (cents)" %><%= f.number_field :price_cents, min: 0, required: true %></p><p><%= f.label :inventory_quantity %><%= f.number_field :inventory_quantity, min: 0, required: true %></p><p><%= f.label :position %><%= f.number_field :position, min: 0 %></p><p><%= f.label :published %><%= f.check_box :published %></p><%= f.submit "Save product" %><% end %><p><%= link_to "Back to products", dashboard_commerce_products_path(site_id: @site.id) %></p></main>
+<% content_for :page_title, @product.persisted? ? "Edit Product" : "Create Product" %>
+<style>.lcp{max-width:1100px;margin:auto;padding:26px}.lcp-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px}.lcp-panel{padding:22px;border:1px solid var(--dd-border,#555);background:var(--dd-bg-elevated,#21232d);border-radius:14px;margin:15px 0}.lcp-field{display:grid;gap:7px;margin:14px 0}.lcp-field input,.lcp-field textarea,.lcp-field select{padding:12px;width:100%;box-sizing:border-box;border-radius:8px;background:var(--dd-bg,#16171e);border:1px solid var(--dd-border,#555);color:var(--dd-text-primary,#fff)}.lcp-submit{background:var(--dd-accent,#6759d9);color:white;padding:13px 20px;border:0;border-radius:8px}@media(max-width:800px){.lcp-grid{grid-template-columns:1fr}}</style>
+<main class="lcp"><p>COMMERCE / PRODUCT CATALOG</p><h1><%= @product.persisted? ? "Edit product" : "Create a product" %></h1><p><%= link_to "← Back to products", dashboard_commerce_products_path(site_id: @site.id) %></p>
+<% if @product.errors.any? %><div role="alert"><%= @product.errors.full_messages.to_sentence %></div><% end %>
+<%= form_with model: @product, scope: :product, url: (@product.persisted? ? dashboard_commerce_product_path(@product, site_id: @site.id) : dashboard_commerce_products_path(site_id: @site.id)) do |f| %>
+<div class="lcp-grid"><div>
+<section class="lcp-panel"><h2>Product story</h2>
+<div class="lcp-field"><%= f.label :name %><%= f.text_field :name, required: true, maxlength: 160 %></div>
+<div class="lcp-field"><%= f.label :slug, "URL slug" %><%= f.text_field :slug, required: true %></div>
+<div class="lcp-field"><%= f.label :short_description, "Storefront headline" %><%= f.text_area :short_description, rows: 2, maxlength: 300 %></div>
+<div class="lcp-field"><%= f.label :description, "Full description" %><%= f.text_area :description, rows: 7 %></div>
+<div class="lcp-field"><%= f.label :image_url, "Product photo HTTPS URL" %><%= f.url_field :image_url %></div>
+</section><section class="lcp-panel"><h2>Pricing</h2>
+<div class="lcp-field"><%= f.label :price_cents, "Price (cents; 2500 = $25)" %><%= f.number_field :price_cents, min: 0, required: true %></div>
+<div class="lcp-field"><%= f.label :compare_at_cents, "Compare-at price (cents)" %><%= f.number_field :compare_at_cents, min: 0 %></div></section></div>
+<aside><section class="lcp-panel"><h2>Publication & inventory</h2>
+<div class="lcp-field"><%= f.label :product_type %><%= f.select :product_type, [["Physical product", "physical"], ["Digital product / service", "digital"]] %></div>
+<div class="lcp-field"><%= f.label :sku, "SKU" %><%= f.text_field :sku %></div>
+<div class="lcp-field"><%= f.label :inventory_quantity %><%= f.number_field :inventory_quantity, min: 0, required: true %></div>
+<div class="lcp-field"><%= f.label :position %><%= f.number_field :position, min: 0 %></div>
+<div class="lcp-field"><label><%= f.check_box :featured %> Featured product</label></div>
+<div class="lcp-field"><label><%= f.check_box :published %> Publish to storefront</label></div>
+<%= f.submit(@product.persisted? ? "Save changes" : "Create product", class: "lcp-submit") %></section></aside></div><% end %></main>

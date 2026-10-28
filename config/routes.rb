@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  post "/dashboard/commerce/shop_page", to: "dashboard/commerce_products#create_shop_page", as: :dashboard_commerce_shop_page
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
   # BEGIN LIGHTEK MARKETPLACE V8.7
   get "/marketplace", to: "marketplace#index", as: :marketplace

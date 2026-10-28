@@ -359,6 +359,13 @@ def main():
                     command='if '+check+'; then echo LIGHTEK_MAIL_PRIVATE_NODE_READY; else sudo LIGHTEK_MAIL_HOST='+shlex.quote('mail.'+c['domain'])+' LIGHTEK_MAIL_DKIM_DOMAIN='+shlex.quote(c['domain'])+' bash '+shlex.quote(mail_script)+' --install; fi'
                     run(ssh+[command])
                 health=verify_public(c)
+                # Commercial dedicated instances are not deliverable until a
+                # real send+receive probe is reported by their mail operations.
+                if c.get('_headless'):
+                    required=('inbound_received','outbound_delivered','mail_domain_verified')
+                    status=health.get('mail_operational',{})
+                    if not isinstance(status,dict) or not all(status.get(key) is True for key in required):
+                        raise DeployError('Customer mail is not fully operational; installation is not ready')
                 if not c.get('_headless'):
                     config_result=run(ssh+['printf "%s" "${USER:-root}"'],capture_output=True,text=True)
                     user=c['ssh'].split('@')[0] if '@' in c['ssh'] else config_result.stdout.strip()

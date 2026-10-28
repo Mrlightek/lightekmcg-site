@@ -4,3 +4,13 @@
 <div class="lm-products"><% @listings.each do |listing| %><article class="lm-product"><%= render "marketplace/art", category: listing.category %><div class="lm-productbody"><span class="lm-tag"><%= DymondCatalog::MarketplaceListing.category_labels.fetch(listing.category) %></span><% if listing.plan_badge.present? %><span class="lm-tag"><%= listing.plan_badge %></span><% end %><h3><%= listing.marketing_headline.presence || listing.title %></h3><p><%= listing.marketing_subheadline.presence || listing.summary %></p><% if listing.best_for.present? %><p class="lm-small"><strong>Best for:</strong> <%= listing.best_for %></p><% end %><ul class="lm-feature-list"><% Array(listing.marketing_features).first(6).each do |feature| %><li><%= feature %></li><% end %></ul><div class="lm-productfooter"><span class="lm-price"><%= marketplace_rate(listing) %></span><%= link_to "Explore ↗", main_app.marketplace_listing_path(listing), class: "lm-action secondary small" %></div></div></article><% end %>
 <% if @listings.empty? %><div class="lm-empty"><h3>Your next move starts here.</h3><p>Services in this category will appear here as they become available.</p><% if (path = marketplace_optional_page_path(:contact)) %><%= link_to "Talk to Lightek ↗", path, class: "lm-action secondary" %><% end %></div><% end %></div>
 <% if (path = marketplace_optional_page_path(:contact)) %><div class="lm-banner"><div><p class="lm-eyebrow">LIGHTEK PRIVATE LABEL PARTNERS</p><h2>Your brand. Powered by Lightek.</h2><p>An independent platform, built around your business.</p></div><%= link_to "Explore private label ↗", path, class: "lm-action secondary" %></div><% end %>
+
+<% comparison_listings = @listings.select { |listing| Array(listing.marketing_features).any? } %>
+<% if comparison_listings.length > 1 %>
+  <section class="lm-comparison" aria-label="Compare service plans">
+    <div class="lm-sectionhead"><div><p class="lm-eyebrow">CHOOSE YOUR PLATFORM</p><h2>Compare what's included.</h2></div></div>
+    <div class="lm-comparison-scroll"><table><thead><tr><th scope="col">Included feature</th><% comparison_listings.each do |listing| %><th scope="col"><%= listing.title %></th><% end %></tr></thead>
+    <tbody><% comparison_listings.flat_map { |listing| Array(listing.marketing_features) }.uniq.each do |feature| %><tr><th scope="row"><%= feature %></th><% comparison_listings.each do |listing| %><td><%= Array(listing.marketing_features).include?(feature) ? "Included" : "—" %></td><% end %></tr><% end %></tbody></table></div>
+    <p class="lm-muted lm-small">Features are shown as configured for each published plan. Refer to plan details for terms and activation information.</p>
+  </section>
+<% end %>

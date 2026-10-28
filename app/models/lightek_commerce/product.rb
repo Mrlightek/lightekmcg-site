@@ -4,6 +4,7 @@ module LightekCommerce
   # Every installation retains its own database and sites; ownership is scoped per site.
   class Product < ApplicationRecord
     self.table_name = "lightek_commerce_products"
+    has_many :variants, class_name: "LightekCommerce::ProductVariant", dependent: :restrict_with_error
     has_many_attached :photos
     validate :photo_constraints
     def photo_constraints

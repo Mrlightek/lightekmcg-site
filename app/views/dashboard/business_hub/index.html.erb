@@ -1,6 +1,7 @@
 <% content_for :page_title, "Business Command Center" %>
 <style>
 .lbh{max-width:1320px;margin:auto;padding:24px}.lbh-top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}.lbh-kicker{text-transform:uppercase;letter-spacing:.16em;color:var(--dd-text-muted);font-size:12px}.lbh h1{font-size:clamp(28px,4vw,44px);margin:6px 0}.lbh-sub{color:var(--dd-text-secondary)}.lbh-selector{background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));color:var(--dd-text-primary);padding:10px;border:1px solid var(--dd-border);border-radius:10px}.lbh-actions{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0}.lbh-button{display:inline-block;background:var(--dd-accent,#665cf1);color:white!important;padding:11px 16px;border-radius:10px;text-decoration:none;font-weight:650}.lbh-button.alt{background:transparent;border:1px solid var(--dd-border);color:var(--dd-text-primary)!important}.lbh-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}.lbh-metric{padding:18px;background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));border:1px solid var(--dd-border);border-radius:14px}.lbh-value{font-size:30px;font-weight:700;margin:8px 0}.lbh-panel{background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));border:1px solid var(--dd-border);border-radius:14px;padding:20px;min-width:0}.lbh-panelhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}.lbh-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:16px;margin:18px 0}.lbh-table{width:100%;border-collapse:collapse;font-size:14px}.lbh-table td,.lbh-table th{padding:11px 8px;border-bottom:1px solid var(--dd-border);text-align:left}.lbh-scroll{overflow-x:auto}.lbh-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.lbh-tile{padding:18px;border:1px solid var(--dd-border);border-radius:12px}.lbh-tile p{color:var(--dd-text-secondary);font-size:13px}.lbh-tile form{margin-top:12px}.lbh-tile input[type=submit]{padding:9px 12px;border-radius:8px;cursor:pointer}
+.lbh-chart{height:240px;display:flex;align-items:end;gap:7px;padding-top:22px;margin-top:12px;border-bottom:1px solid var(--dd-border)}.lbh-chart-col{height:100%;flex:1;display:flex;align-items:center;justify-content:end;flex-direction:column;min-width:0}.lbh-chart-col small{font-size:10px;color:var(--dd-text-muted);margin:7px 0}.lbh-chart-value{font-size:9px;white-space:nowrap;color:var(--dd-text-secondary);min-height:14px}.lbh-bar{width:100%;max-width:44px;min-height:3px;border-radius:6px 6px 0 0;background:linear-gradient(0deg,var(--dd-accent),#7c8cff)}.lbh-progress-label{display:flex;justify-content:space-between;margin:15px 0 5px}.lbh-progress{height:10px;border-radius:20px;background:var(--dd-border);overflow:hidden}.lbh-progress span{display:block;height:100%;background:var(--dd-accent);border-radius:20px}.lbh-insights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}.lbh-insights>div{border:1px solid var(--dd-border);border-radius:10px;padding:14px}.lbh-insights strong{display:block;font-size:25px}.lbh-insights small{color:var(--dd-text-secondary)}
 </style>
 <main class="lbh">
   <div class="lbh-top">
@@ -26,6 +27,37 @@
       <% [["Net recorded sales", number_to_currency((@metrics[:gross_sales_cents] - @metrics[:refunded_cents]) / 100.0)], ["Orders", @metrics[:orders]], ["Awaiting payment", @metrics[:pending_orders]], ["Published products", @metrics[:published_products]], ["Low stock (5 or fewer)", @metrics[:low_stock_products]], ["Ready campaigns", @metrics[:ready_campaigns]], ["Campaigns submitted", @metrics[:sent_campaigns]]].each do |label, value| %>
         <div class="lbh-metric"><span class="lbh-sub"><%= label %></span><div class="lbh-value"><%= value %></div></div>
       <% end %>
+    </section>
+    <section class="lbh-columns" aria-label="Agency performance charts">
+      <div class="lbh-panel">
+        <div class="lbh-panelhead"><h2>Sales performance</h2><span class="lbh-sub">Last 14 days · net recorded sales</span></div>
+        <% max_sales = [@sales_series.map { |point| point[:total_cents] }.max.to_i, 1].max %>
+        <div class="lbh-chart" role="img" aria-label="Fourteen-day net sales bar chart">
+          <% @sales_series.each do |point| %>
+            <div class="lbh-chart-col" title="<%= point[:date] %>: <%= number_to_currency(point[:total_cents] / 100.0) %>">
+              <span class="lbh-chart-value"><%= number_to_currency(point[:total_cents] / 100.0) if point[:total_cents].positive? %></span>
+              <div class="lbh-bar" style="height:<%= [((point[:total_cents].to_f / max_sales) * 100).round, 2].max %>%"></div>
+              <small><%= point[:date].split.last %></small>
+            </div>
+          <% end %>
+        </div>
+        <p class="lbh-sub">Based on recorded paid orders; not bank-settled revenue.</p>
+      </div>
+      <div class="lbh-panel">
+        <div class="lbh-panelhead"><h2>Campaign distribution</h2><span class="lbh-sub">All campaigns</span></div>
+        <% max_campaigns = [@campaign_channels.values.max.to_i, 1].max %>
+        <% %w[email social landing_page].each do |channel| %>
+          <% count = @campaign_channels.fetch(channel, 0) %>
+          <div class="lbh-progress-label"><span><%= channel.humanize %></span><strong><%= count %></strong></div>
+          <div class="lbh-progress"><span style="width:<%= count.to_f / max_campaigns * 100 %>%"></span></div>
+        <% end %>
+        <div class="lbh-insights">
+          <div><strong><%= @audience_count %></strong><small>Subscribed contacts</small></div>
+          <div><strong><%= @delegated_team %></strong><small>Agency team members</small></div>
+          <div><strong><%= @delivery_statuses.fetch("queued", 0) %></strong><small>Mail messages queued</small></div>
+          <div><strong><%= @delivery_statuses.fetch("failed", 0) %></strong><small>Delivery errors</small></div>
+        </div>
+      </div>
     </section>
     <div class="lbh-columns">
       <section class="lbh-panel"><div class="lbh-panelhead"><h2>Recent orders</h2><%= link_to "All orders", dashboard_commerce_orders_path(site_id: @site.id) %></div>

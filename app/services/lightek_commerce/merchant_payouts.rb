@@ -8,6 +8,7 @@ module LightekCommerce
 
     def self.fee_quote(order)
       gross = order.total_cents.to_i
+      merchandise = order.respond_to?(:subtotal_cents) ? order.subtotal_cents.to_i : gross
       processor_bps = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FEE_BPS", "300"))
       processor_fixed = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FIXED_CENTS", "30"))
       platform_bps = Integer(ENV.fetch("LIGHTEK_COMMERCE_PLATFORM_FEE_BPS", "0"))
@@ -15,11 +16,12 @@ module LightekCommerce
       processor_reserve = (gross * processor_bps + 9999) / 10_000 + processor_fixed
       platform_fee = (gross * platform_bps + 9999) / 10_000
       {gross_cents: gross, processor_reserve_cents: processor_reserve,
-        platform_fee_cents: platform_fee, net_cents: [gross - processor_reserve - platform_fee, 0].max}
+        platform_fee_cents: platform_fee, net_cents: [merchandise - processor_reserve - platform_fee, 0].max}
     end
 
     def self.request!(order:, merchant:)
       order.with_lock do
+        raise Invalid, "Platform Stripe balance has not been reconciled for transfers" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
         raise Invalid, "Order does not belong to your store" unless
           LightekSettings::WebsiteIdentity.sites_for(merchant).exists?(id: order.site_id)
         return order if order.merchant_transfer_ref.present?

@@ -8,6 +8,8 @@ Rails.application.routes.draw do
   get "/marketing/confirm", to: "marketing_subscriptions#confirm", as: :confirm_marketing_subscription
   get "/marketing/unsubscribe", to: "marketing_subscriptions#unsubscribe", as: :unsubscribe_marketing_subscription
   post "/dashboard/agency/social/disable", to: "dashboard/social_connections#disable", as: :disable_dashboard_social_connection
+  get "/dashboard/agency/social/meta/connect", to: "dashboard/meta_connections#start", as: :start_dashboard_meta_connection
+  get "/dashboard/agency/social/meta/callback", to: "dashboard/meta_connections#callback", as: :callback_dashboard_meta_connection
   get "/dashboard/agency/social/tiktok/connect", to: "dashboard/tiktok_connections#start", as: :start_dashboard_tiktok_connection
   get "/dashboard/agency/social/tiktok/callback", to: "dashboard/tiktok_connections#callback", as: :callback_dashboard_tiktok_connection
   get "/dashboard/agency/social", to: "dashboard/social_connections#index", as: :dashboard_social_connections

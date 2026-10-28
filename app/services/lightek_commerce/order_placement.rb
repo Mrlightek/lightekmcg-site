@@ -22,6 +22,9 @@ module LightekCommerce
           product_id, variant_id = key.split(":").map(&:to_i)
           product = products.find { |record| record.id == product_id }
           qty = raw_quantity.to_i
+          if product.product_type == "lightek_instance"
+            raise Invalid, "Installation products must be purchased separately, quantity one" unless qty == 1 && requested.size == 1 && variant_id.nil?
+          end
           if variant_id
             variant = ProductVariant.where(product: product, active: true).lock.find(variant_id)
             raise Invalid, "Insufficient inventory for #{product.name} / #{variant.name}" if variant.inventory_quantity < qty

@@ -6,6 +6,14 @@ module LightekMarketplace
   class ProductForm
     include ActiveModel::Model
     include ActiveModel::Attributes
+    attribute :marketing_headline, :string
+    attribute :marketing_subheadline, :string
+    attribute :best_for, :string
+    attribute :plan_badge, :string
+    attribute :cta_label, :string
+    attribute :fulfillment_summary, :string
+    attribute :marketing_features_text, :string
+    attribute :marketing_faq_text, :string
     attribute :name, :string
     attribute :description, :string
     attribute :category, :string, default: "cloud"
@@ -32,6 +40,12 @@ module LightekMarketplace
     validates :position, numericality: {only_integer: true, greater_than_or_equal_to: 0}
     validates :trial_days, inclusion: {in: [0, 7, 14, 30]}
     validates :welcome, length: {maximum: 1200}
+    validates :marketing_headline, length: {maximum: 180}
+    validates :marketing_subheadline, :fulfillment_summary, length: {maximum: 1500}
+    validates :best_for, length: {maximum: 160}
+    validates :plan_badge, length: {maximum: 50}
+    validates :cta_label, length: {maximum: 60}
+    validate :valid_marketing_content
     validate :valid_amounts
     validate :delivery_ready
     validate :valid_trial
@@ -43,6 +57,12 @@ module LightekMarketplace
         offer = @listing.offer
         plan = offer.subscription_plan
         defaults = {
+          marketing_headline: @listing.marketing_headline,
+          marketing_subheadline: @listing.marketing_subheadline,
+          best_for: @listing.best_for, plan_badge: @listing.plan_badge,
+          cta_label: @listing.cta_label, fulfillment_summary: @listing.fulfillment_summary,
+          marketing_features_text: Array(@listing.marketing_features).join("\n"),
+          marketing_faq_text: Array(@listing.marketing_faq).map { |row| "#{row['question']} | #{row['answer']}" }.join("\n"),
           name: @listing.title, description: @listing.summary, category: @listing.category,
           position: @listing.position, revision: saved.fetch("revision", 0),
           billing: saved["billing"] || (plan ? "monthly" : "once"),
@@ -110,7 +130,11 @@ module LightekMarketplace
         verify_checkout!(offer, amount: amount, setup: setup)
         offer.save!
         previous = @listing.offer if @listing.persisted?
-        @listing.assign_attributes(title: name, summary: description, category: category,
+        @listing.assign_attributes(marketing_headline: marketing_headline,
+          marketing_subheadline: marketing_subheadline, best_for: best_for, plan_badge: plan_badge,
+          cta_label: cta_label, fulfillment_summary: fulfillment_summary,
+          marketing_features: marketing_features, marketing_faq: marketing_faq,
+          title: name, summary: description, category: category,
           position: position, offer: offer, published: publish, configuration: config)
         @listing.save!
         if previous && [88, 89].include?(previous.meta.to_h.dig("lightek_marketplace", "version"))
@@ -131,7 +155,7 @@ module LightekMarketplace
     def price_for(interval) = (interval == "annual" ? annual_price : monthly_price).presence || price
     def navigation_valid?(step)
       valid?
-      relevant = [[:name, :description, :category, :position], [:price, :monthly_price, :annual_price, :billing, :setup_fee, :trial_days], [:delivery, :blueprint_key, :service_id, :welcome]][step] || []
+      relevant = [[:name, :description, :category, :position, :marketing_headline, :marketing_subheadline, :best_for, :plan_badge, :cta_label, :fulfillment_summary, :marketing_features_text, :marketing_faq_text], [:price, :monthly_price, :annual_price, :billing, :setup_fee, :trial_days], [:delivery, :blueprint_key, :service_id, :welcome]][step] || []
       errors.attribute_names.each { |key| errors.delete(key) unless relevant.include?(key) }
       errors.empty?
     end
@@ -142,7 +166,23 @@ module LightekMarketplace
       (BigDecimal(text) * 100).to_i
     end
 
+    def marketing_features
+      marketing_features_text.to_s.lines.map(&:strip).reject(&:blank?)
+    end
+
+    def marketing_faq
+      marketing_faq_text.to_s.lines.map(&:strip).reject(&:blank?).map do |line|
+        question, answer = line.split("|", 2).map(&:strip)
+        {"question" => question, "answer" => answer}
+      end
+    end
+
     private
+    def valid_marketing_content
+      errors.add(:marketing_features_text, "use up to 12 features, max 160 characters each") if marketing_features.size > 12 || marketing_features.any? { |value| value.length > 160 }
+      errors.add(:marketing_faq_text, "use up to 10 question | answer rows, max 500 characters each") if marketing_faq.size > 10 || marketing_faq.any? { |row| row["question"].blank? || row["answer"].blank? || row.values.any? { |v| v.length > 500 } }
+    end
+
     def valid_amounts
       if recurring?
         intervals.each { |iv| cents(price_for(iv)) }

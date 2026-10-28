@@ -233,7 +233,7 @@ def verify_public(c):
     for path in ('/dashboard/business','/dashboard/marketplace','/dashboard/settings'):
         final,body,status=request(path)
         dest=urllib.parse.urlparse(final).path
-        if status!=200 or dest.startswith(('/session','/sign_in','/passwords')):
+        if status!=200 or dest.rstrip('/')!=path:
             raise DeployError('Full Lightek dashboard acceptance failed: '+path)
     h['full_application_dashboard_verified']=True
     return h

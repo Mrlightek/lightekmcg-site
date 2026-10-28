@@ -17,7 +17,7 @@
     <nav class="lbh-actions" aria-label="Business operations">
       <%= link_to "New Product", new_dashboard_commerce_product_path(site_id: @site.id), class: "lbh-button" %>
       <%= link_to "Orders & Refunds", dashboard_commerce_orders_path(site_id: @site.id), class: "lbh-button alt" %>
-      <%= link_to "Agency Access", dashboard_agency_memberships_path(site_id: @site.id), class: "lbh-button alt" %><%= link_to "Marketing Audience", dashboard_marketing_contacts_path(site_id: @site.id), class: "lbh-button alt" %><%= link_to "Marketing Campaigns", dashboard_marketing_campaigns_path(site_id: @site.id), class: "lbh-button alt" %>
+      <%= link_to "Agency Portfolio", dashboard_agency_reports_path, class: "lbh-button alt" %><%= link_to "Agency Access", dashboard_agency_memberships_path(site_id: @site.id), class: "lbh-button alt" %><%= link_to "Marketing Audience", dashboard_marketing_contacts_path(site_id: @site.id), class: "lbh-button alt" %><%= link_to "Marketing Campaigns", dashboard_marketing_campaigns_path(site_id: @site.id), class: "lbh-button alt" %>
       <%= link_to "Pages & Sections", dymond_dash.pages_path(site_id: @site.id), class: "lbh-button alt" %>
       <%= link_to "Website Designs", dashboard_website_designs_path(site_id: @site.id), class: "lbh-button alt" %>
       <%= link_to "Email Studio", dashboard_mail_path, class: "lbh-button alt" %>

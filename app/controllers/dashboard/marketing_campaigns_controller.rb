@@ -18,6 +18,14 @@ class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeControlle
     return redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Campaign updated." if @campaign.update(campaign_params)
     render :edit, status: :unprocessable_entity
   end
+  def schedule
+    raise ArgumentError, "Only ready email campaigns can be scheduled" unless @campaign.channel == "email" && @campaign.status == "ready"
+    raise ArgumentError, "Choose a future start time" unless @campaign.starts_at&.future?
+    LightekMarketing::ScheduledCampaignJob.set(wait_until: @campaign.starts_at).perform_later(@campaign.id)
+    redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Email audience campaign scheduled."
+  rescue ArgumentError => e
+    redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), alert: e.message
+  end
   def send_audience
     LightekMarketing::AudienceDispatch.call!(campaign: @campaign)
     redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Subscribed audience queued in Lightek Mail."

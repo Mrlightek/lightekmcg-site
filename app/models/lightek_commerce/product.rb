@@ -10,6 +10,10 @@ module LightekCommerce
     validates :slug, uniqueness: {scope: :site_id}
     validates :currency, inclusion: {in: %w[usd]}
     validates :price_cents, :inventory_quantity, numericality: {only_integer: true, greater_than_or_equal_to: 0}
+    validates :product_type, inclusion: {in: %w[physical digital]}
+    validates :image_url, format: {with: /\Ahttps:\/\//}, allow_blank: true
+    validates :short_description, length: {maximum: 300}
+    validates :sku, uniqueness: {scope: :site_id}, allow_blank: true
     scope :visible, -> { where(published: true).order(:position, :id) }
   end
 end

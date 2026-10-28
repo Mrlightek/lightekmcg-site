@@ -42,6 +42,6 @@ class Dashboard::CommerceProductsController < Dashboard::SettingsHomeController
     @product = LightekCommerce::Product.where(site: @site).find(params[:id])
   end
   def product_params
-    params.require(:product).permit(:name, :slug, :description, :price_cents, :inventory_quantity, :published, :position)
+    params.require(:product).permit(:name, :slug, :description, :price_cents, :inventory_quantity, :published, :position, :image_url, :sku, :product_type, :short_description, :compare_at_cents, :featured)
   end
 end

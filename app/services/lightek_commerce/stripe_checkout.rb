@@ -17,8 +17,7 @@ module LightekCommerce
             product_data: {name: item.name}}, quantity: item.quantity}
         },
         automatic_tax: {enabled: true},
-        shipping_address_collection: {allowed_countries: ["US"]},
-        shipping_options: shipping_options,
+        **shipping_parameters(order),
         billing_address_collection: "required",
         success_url: success_url,
         cancel_url: cancel_url,
@@ -28,6 +27,11 @@ module LightekCommerce
       session
     rescue ::Stripe::StripeError => e
       raise Unavailable, e.message
+    end
+
+    def self.shipping_parameters(order)
+      return {} if order.items.all? { |item| item.product.product_type == "digital" }
+      {shipping_address_collection: {allowed_countries: ["US"]}, shipping_options: shipping_options}
     end
 
     def self.shipping_options

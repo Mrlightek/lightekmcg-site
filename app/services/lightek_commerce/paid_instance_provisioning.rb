@@ -42,6 +42,9 @@ module LightekCommerce
         end
       end
       raise NotReady, "Provisioning ownership mismatch" unless request.owner == customer
+      raise NotReady, "Provisioning subscription differs from the purchased plan" unless
+        request.subscription&.subscriber == customer &&
+        request.subscription.plan_id == product.subscription_plan_id
       raise NotReady, "Cloud provider configuration missing" unless request.compute_provider
 
       if request.gatekeeper_node.nil?

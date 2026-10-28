@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 class Dashboard::BusinessHubController < Dashboard::SettingsHomeController
   def index
-    @sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name, :id)
+    @sites = LightekAgency::Access.sites_for(current_user).order(:name, :id)
     @site = params[:site_id].present? ? @sites.find(params[:site_id]) : @sites.first
     return unless @site
 
@@ -23,6 +23,14 @@ class Dashboard::BusinessHubController < Dashboard::SettingsHomeController
     }
     @recent_orders = orders.includes(:items).order(created_at: :desc).limit(8)
     @recent_campaigns = campaigns.order(updated_at: :desc).limit(8)
+    @sales_series = (13.days.ago.to_date..Date.current).map do |date|
+      day_orders = orders.where(paid_at: date.all_day).where(status: %w[paid fulfilled partially_refunded refunded])
+      {date: date.strftime("%b %-d"), total_cents: day_orders.sum(:total_cents) - day_orders.sum(:refunded_cents)}
+    end
+    @campaign_channels = campaigns.group(:channel).count
+    @delivery_statuses = LightekMarketing::Delivery.joins(:campaign).where(lightek_marketing_campaigns: {site_id: @site.id}).group(:status).count
+    @audience_count = LightekMarketing::Contact.subscribed.where(site: @site).count
+    @delegated_team = LightekAgency::SiteMembership.where(site: @site).count
     @industry_starters = LightekCommerce::IndustryStarters::INDUSTRIES
   end
 end

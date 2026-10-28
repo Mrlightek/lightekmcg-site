@@ -170,7 +170,11 @@
 
     <%# Topbar %>
     <div class="dd-topbar">
-      <div class="dd-topbar-title"><%= content_for?(:page_title) ? yield(:page_title) : dymond_app_name %></div>
+      <div class="dd-topbar-title" style="display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap">
+        <%= link_to dymond_dash.root_path, class: "dd-topbar-btn dd-btn-ghost", aria: {label: "Dashboard home"} do %><i class="ti ti-home"></i> Home<% end %>
+        <%= link_to "Business", main_app.dashboard_business_hub_path, class: "dd-topbar-btn dd-btn-ghost" %>
+        <span><%= content_for?(:page_title) ? yield(:page_title) : dymond_app_name %></span>
+      </div>
       <div class="dd-topbar-right">
   <% unread = DymondDash::Notification.for_recipient(current_user).unread.recent %>
   <details class="dd-notif">

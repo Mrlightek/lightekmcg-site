@@ -19,10 +19,14 @@ module LightekCommerce
 
       customer = User.find_by(email_address: order.customer_email)
       unless customer
-        customer = User.create!(email_address: order.customer_email,
-          first_name: order.customer_email.split("@").first.to_s.first(40),
-          last_name: "Customer", role: "client",
-          password: SecureRandom.urlsafe_base64(36), password_confirmation: nil)
+        begin
+          customer = User.create!(email_address: order.customer_email,
+            first_name: order.customer_email.split("@").first.to_s.first(40),
+            last_name: "Customer", role: "client",
+            password: SecureRandom.urlsafe_base64(36))
+        rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+          customer = User.find_by!(email_address: order.customer_email)
+        end
       end
 
       request = nil

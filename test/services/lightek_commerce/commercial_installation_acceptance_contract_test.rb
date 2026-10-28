@@ -4,7 +4,7 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
   test "installer verifies complete authenticated Lightek dashboard surface" do
     script = Rails.root.join("script/lightek/website_deploy.sh").read
     assert_includes script, "'/dashboard/business'"
-    assert_includes script, "'/dashboard/marketplace'"
+    assert_includes script, "'/dashboard/commerce/orders?site_id='"
     assert_includes script, "'/dashboard/settings'"
     assert_includes script, "h['full_application_dashboard_verified']=True"
     assert_includes script, "dest.rstrip('/')!=path"

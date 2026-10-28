@@ -5,6 +5,11 @@ class Dashboard::CommerceProductsController < Dashboard::SettingsHomeController
   def index
     @products = LightekCommerce::Product.where(site: @site).order(:position, :id)
   end
+  def create_shop_page
+    page = LightekCommerce::StarterPage.create!(site: @site)
+    redirect_to dashboard_commerce_products_path(site_id: @site.id),
+      notice: "Draft shop page #{page.title} created in Pages & Sections."
+  end
   def new
     @product = LightekCommerce::Product.new(site: @site)
   end

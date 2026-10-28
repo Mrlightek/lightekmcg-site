@@ -78,6 +78,6 @@ class Dashboard::MarketplaceController < DymondDash::ApplicationController
   end
   def product_params
     params.require(:marketplace_product).permit(:name, :description, :category, :billing,
-      :price, :monthly_price, :annual_price, :setup_fee, :trial_days, :delivery, :blueprint_key, :service_id, :welcome, :position, :revision)
+      :price, :monthly_price, :annual_price, :setup_fee, :trial_days, :marketing_headline, :marketing_subheadline, :best_for, :plan_badge, :cta_label, :fulfillment_summary, :marketing_features_text, :marketing_faq_text, :delivery, :blueprint_key, :service_id, :welcome, :position, :revision)
   end
 end

@@ -1,6 +1,11 @@
 Rails.application.routes.draw do
   post "/dashboard/commerce/shop_page", to: "dashboard/commerce_products#create_shop_page", as: :dashboard_commerce_shop_page
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
+  get "/commerce/shop", to: "commerce#index", as: :commerce_shop
+  post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
+  delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove
+  post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
+  get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
   # BEGIN LIGHTEK MARKETPLACE V8.7
   get "/marketplace", to: "marketplace#index", as: :marketplace
   get "/marketplace/:id", to: "marketplace#show", as: :marketplace_listing, constraints: { id: /[0-9]+/ }

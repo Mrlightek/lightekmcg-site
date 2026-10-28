@@ -23,7 +23,7 @@ module LightekCommerce
         record = order.refunds.create!(amount_cents: amount_cents, idempotency_key: "commerce-refund-#{order.id}-#{nonce}")
         response = Stripe::Refund.create({payment_intent: session.payment_intent, amount: amount_cents,
           reason: "requested_by_customer"}, {idempotency_key: record.idempotency_key})
-        record.update!(processor_ref: response.id, status: response.status == "succeeded" ? "succeeded" : "pending")
+        record.update!(processor_ref: response.id, status: "pending")
         RefundSettlement.call(processor_ref: record.processor_ref, status: response.status) if record.processor_ref.present?
         record
       end

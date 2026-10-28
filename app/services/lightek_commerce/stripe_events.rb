@@ -37,6 +37,7 @@ module LightekCommerce
         raise Rejected, "Mismatched totals" unless subtotal + tax + shipping == total && total >= subtotal
         order.update!(status: "paid", paid_at: Time.current, tax_cents: tax, shipping_cents: shipping, total_cents: total)
         OrderConfirmationJob.perform_later(order.id)
+        PaidInstanceProvisioningJob.perform_later(order.id) if order.items.any? { |item| item.product.product_type == "lightek_instance" }
       end
       order
     end

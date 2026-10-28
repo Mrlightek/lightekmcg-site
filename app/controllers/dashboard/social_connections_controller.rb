@@ -3,6 +3,7 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
   before_action :set_site
   def index
     @connections = LightekMarketing::SocialConnection.where(site: @site).order(:id)
+    @posts = LightekMarketing::SocialPost.joins(:campaign).where(lightek_marketing_campaigns: {site_id: @site.id}).includes(:campaign, :connection).order(created_at: :desc).limit(30)
     @campaigns = LightekMarketing::Campaign.where(site: @site, channel: "social", status: "ready")
   end
   def create
@@ -14,6 +15,13 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Provider credentials saved in Vault."
   rescue ActiveRecord::RecordInvalid, ArgumentError, KeyError => e
     redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
+  end
+  def disable
+    raise CanCan::AccessDenied unless LightekSettings::WebsiteIdentity.sites_for(current_user).exists?(id: @site.id)
+    connection = LightekMarketing::SocialConnection.where(site: @site).find(params.require(:connection_id))
+    LightekVault::Service.disable!(slug: connection.credential_key, requested_by: current_user.email_address)
+    connection.update!(enabled: false, disabled_at: Time.current)
+    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Social connection disabled and Vault credentials revoked."
   end
   def publish
     connection = LightekMarketing::SocialConnection.where(site: @site).find(params.require(:connection_id))

@@ -1,0 +1,48 @@
+<% content_for :page_title, "Business Command Center" %>
+<style>
+.lbh{max-width:1320px;margin:auto;padding:24px}.lbh-top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}.lbh-kicker{text-transform:uppercase;letter-spacing:.16em;color:var(--dd-text-muted);font-size:12px}.lbh h1{font-size:clamp(28px,4vw,44px);margin:6px 0}.lbh-sub{color:var(--dd-text-secondary)}.lbh-selector{background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));color:var(--dd-text-primary);padding:10px;border:1px solid var(--dd-border);border-radius:10px}.lbh-actions{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0}.lbh-button{display:inline-block;background:var(--dd-accent,#665cf1);color:white!important;padding:11px 16px;border-radius:10px;text-decoration:none;font-weight:650}.lbh-button.alt{background:transparent;border:1px solid var(--dd-border);color:var(--dd-text-primary)!important}.lbh-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}.lbh-metric{padding:18px;background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));border:1px solid var(--dd-border);border-radius:14px}.lbh-value{font-size:30px;font-weight:700;margin:8px 0}.lbh-panel{background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));border:1px solid var(--dd-border);border-radius:14px;padding:20px;min-width:0}.lbh-panelhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}.lbh-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:16px;margin:18px 0}.lbh-table{width:100%;border-collapse:collapse;font-size:14px}.lbh-table td,.lbh-table th{padding:11px 8px;border-bottom:1px solid var(--dd-border);text-align:left}.lbh-scroll{overflow-x:auto}.lbh-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.lbh-tile{padding:18px;border:1px solid var(--dd-border);border-radius:12px}.lbh-tile p{color:var(--dd-text-secondary);font-size:13px}.lbh-tile form{margin-top:12px}.lbh-tile input[type=submit]{padding:9px 12px;border-radius:8px;cursor:pointer}
+</style>
+<main class="lbh">
+  <div class="lbh-top">
+    <div><div class="lbh-kicker">LIGHTEK / OPERATIONS</div><h1>Business Command Center</h1><p class="lbh-sub">Commerce, marketing, content and business operations in one workspace.</p></div>
+    <%= form_with url: dashboard_business_hub_path, method: :get do %>
+      <%= label_tag :site_id, "Working website" %>
+      <%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site&.id), onchange: "this.form.requestSubmit()", class: "lbh-selector" %>
+      <%= submit_tag "Switch" %>
+    <% end %>
+  </div>
+  <% if @site %>
+    <p class="lbh-sub"><strong><%= @site.name %></strong> · <%= @site.host %></p>
+    <nav class="lbh-actions" aria-label="Business operations">
+      <%= link_to "New Product", new_dashboard_commerce_product_path(site_id: @site.id), class: "lbh-button" %>
+      <%= link_to "Orders & Refunds", dashboard_commerce_orders_path(site_id: @site.id), class: "lbh-button alt" %>
+      <%= link_to "Marketing Campaigns", dashboard_marketing_campaigns_path(site_id: @site.id), class: "lbh-button alt" %>
+      <%= link_to "Pages & Sections", dymond_dash.pages_path(site_id: @site.id), class: "lbh-button alt" %>
+      <%= link_to "Website Designs", dashboard_website_designs_path(site_id: @site.id), class: "lbh-button alt" %>
+      <%= link_to "Email Studio", dashboard_mail_path, class: "lbh-button alt" %>
+      <%= link_to "View Shop", commerce_shop_path(site_id: @site.id), class: "lbh-button alt" %>
+    </nav>
+    <section class="lbh-metrics" aria-label="Business metrics">
+      <% [["Net recorded sales", number_to_currency((@metrics[:gross_sales_cents] - @metrics[:refunded_cents]) / 100.0)], ["Orders", @metrics[:orders]], ["Awaiting payment", @metrics[:pending_orders]], ["Published products", @metrics[:published_products]], ["Low stock (5 or fewer)", @metrics[:low_stock_products]], ["Ready campaigns", @metrics[:ready_campaigns]], ["Campaigns submitted", @metrics[:sent_campaigns]]].each do |label, value| %>
+        <div class="lbh-metric"><span class="lbh-sub"><%= label %></span><div class="lbh-value"><%= value %></div></div>
+      <% end %>
+    </section>
+    <div class="lbh-columns">
+      <section class="lbh-panel"><div class="lbh-panelhead"><h2>Recent orders</h2><%= link_to "All orders", dashboard_commerce_orders_path(site_id: @site.id) %></div>
+        <div class="lbh-scroll"><table class="lbh-table"><thead><tr><th>Order</th><th>Status</th><th>Total</th></tr></thead><tbody>
+        <% @recent_orders.each do |order| %><tr><td>#<%= order.id %></td><td><%= order.status.humanize %></td><td><%= number_to_currency(order.total_cents / 100.0) %></td></tr><% end %>
+        </tbody></table></div><% if @recent_orders.empty? %><p class="lbh-sub">No orders yet. Publish your first product and storefront.</p><% end %>
+      </section>
+      <section class="lbh-panel"><div class="lbh-panelhead"><h2>Marketing pipeline</h2><%= link_to "New campaign", new_dashboard_marketing_campaign_path(site_id: @site.id) %></div>
+        <div class="lbh-scroll"><table class="lbh-table"><thead><tr><th>Campaign</th><th>Channel</th><th>Status</th></tr></thead><tbody>
+        <% @recent_campaigns.each do |campaign| %><tr><td><%= link_to campaign.name, edit_dashboard_marketing_campaign_path(campaign, site_id: @site.id) %></td><td><%= campaign.channel.humanize %></td><td><%= campaign.status.humanize %></td></tr><% end %>
+        </tbody></table></div><% if @recent_campaigns.empty? %><p class="lbh-sub">No campaigns yet. Create a campaign to begin.</p><% end %>
+      </section>
+    </div>
+    <section class="lbh-panel"><div class="lbh-panelhead"><div><h2>Industry starter designs</h2><p class="lbh-sub">Start with an editable industry Shop page built with existing Pages & Sections.</p></div><%= link_to "Open Design Studio", dashboard_website_designs_path(site_id: @site.id) %></div>
+      <div class="lbh-gallery"><% @industry_starters.each do |key, definition| %><article class="lbh-tile"><strong><%= definition[:name] %></strong><p><%= definition[:intro] %></p><%= button_to "Use design", dashboard_commerce_industry_path(site_id: @site.id, industry: key), method: :post %></article><% end %></div>
+    </section>
+  <% else %>
+    <div class="lbh-panel"><h2>No website selected</h2><p>Choose or create a Dymond Site website to manage your business.</p><%= link_to "Website Designs", dashboard_website_designs_path, class: "lbh-button" %></div>
+  <% end %>
+</main>

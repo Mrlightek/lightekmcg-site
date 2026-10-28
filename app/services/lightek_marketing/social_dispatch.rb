@@ -8,6 +8,9 @@ module LightekMarketing
     class Unavailable < StandardError; end
     def self.call!(post:)
       post.with_lock do
+        raise Unavailable, "Provider outcome requires reconciliation" if post.status == "needs_review"
+        raise Unavailable, "Publication already completed" if post.status == "published"
+        raise Unavailable, "Existing provider reference requires reconciliation" if post.remote_id.present?
         connection = post.connection
         campaign = post.campaign
         raise Unavailable, "Campaign is not ready" unless campaign.status == "ready" && campaign.channel == "social"

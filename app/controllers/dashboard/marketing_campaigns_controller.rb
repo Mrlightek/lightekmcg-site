@@ -50,6 +50,6 @@ class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeControlle
     @campaign = LightekMarketing::Campaign.where(site: @site).find(params[:id])
   end
   def campaign_params
-    params.require(:campaign).permit(:name, :channel, :status, :headline, :message, :cta_label, :cta_url, :starts_at, :ends_at, :mail_account_id, :recipient_email)
+    params.require(:campaign).permit(:name, :channel, :status, :headline, :message, :cta_label, :cta_url, :starts_at, :ends_at, :mail_account_id, :recipient_email, :media_url)
   end
 end

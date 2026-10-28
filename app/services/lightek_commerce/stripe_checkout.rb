@@ -4,6 +4,11 @@ module LightekCommerce
     class Unavailable < StandardError; end
     def self.start!(order:, success_url:, cancel_url:)
       raise Unavailable, "Order is not payable" unless order.status == "pending_payment"
+      begin
+        InstanceReadiness.check!(order: order)
+      rescue InstanceReadiness::Unavailable => e
+        raise Unavailable, e.message
+      end
       key = DymondBank::StripeCredentials.secret_key
       raise Unavailable, "Stripe is not configured" if key.blank?
       Stripe.api_key = key

@@ -158,6 +158,7 @@ module Gatekeeper
           raise
         ensure
           credential.root_password.clear if credential&.root_password.respond_to?(:clear)
+          payload&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
         end
       end
 

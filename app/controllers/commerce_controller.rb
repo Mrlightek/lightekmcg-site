@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 class CommerceController < ApplicationController
-  allow_unauthenticated_access only: %i[index add remove checkout]
+  allow_unauthenticated_access only: %i[index add remove]
   skip_authorization_check
   before_action :set_site
   def index

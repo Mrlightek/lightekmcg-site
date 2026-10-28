@@ -4,6 +4,10 @@ module LightekCommerce
     class Rejected < StandardError; end
 
     def self.process!(event)
+      if %w[charge.refund.updated refund.updated].include?(event.type)
+        refund = event.data.object
+        return RefundSettlement.call(processor_ref: refund.id, status: refund.status)
+      end
       return unless %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.expired].include?(event.type)
       session = event.data.object
       order_id = session.metadata.to_h["lightek_commerce_order_id"].to_s

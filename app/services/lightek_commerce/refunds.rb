@@ -23,8 +23,9 @@ module LightekCommerce
         record = order.refunds.create!(amount_cents: amount_cents, idempotency_key: "commerce-refund-#{order.id}-#{nonce}")
         response = Stripe::Refund.create({payment_intent: session.payment_intent, amount: amount_cents,
           reason: "requested_by_customer"}, {idempotency_key: record.idempotency_key})
-        record.update!(processor_ref: response.id, status: response.status == "succeeded" ? "succeeded" : "pending")
-        if record.status == "succeeded"
+        record.update!(processor_ref: response.id, status: "pending")
+        if response.status == "succeeded"
+          record.update!(status: "succeeded")
           refunded = order.refunded_cents + amount_cents
           order.update!(refunded_cents: refunded, status: refunded == order.total_cents ? "refunded" : "partially_refunded")
         end

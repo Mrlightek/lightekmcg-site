@@ -9,3 +9,10 @@ body.lightek-marketplace-body{margin:0;background:#101016}#lm-marketplace a{text
 #lm-marketplace .lm-check{display:flex;align-items:flex-start;gap:10px;margin:24px 0}#lm-marketplace .lm-check input{width:auto;flex:0 0 auto;margin:5px 0}#lm-marketplace details{margin:22px 0;padding:16px;border:1px solid var(--lm-line);border-radius:6px}#lm-marketplace summary{margin-bottom:12px}#lm-marketplace .lm-price{overflow-wrap:anywhere}#lm-marketplace .lm-formpanel[hidden]{display:none!important}
 
 #lm-marketplace .lm-rate-option{display:block}
+
+/* Marketing features are content, not decorative badges. */
+.lm-feature-list{padding-left:1.3rem;margin:1rem 0;display:grid;gap:.55rem;line-height:1.5}
+.lm-feature-list li::marker{color:var(--dd-accent,#a783ff)}
+.lm-faq{border-bottom:1px solid rgba(145,145,145,.25);padding:1rem 0}
+.lm-faq summary{cursor:pointer;font-weight:650}
+.lm-faq p{line-height:1.65;margin:.7rem 0 0}

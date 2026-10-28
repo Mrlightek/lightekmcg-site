@@ -18,6 +18,7 @@ module LightekMarketing
       uri = URI.parse(url)
       raise Invalid, "Provide a public HTTPS video URL" unless uri.is_a?(URI::HTTPS) && uri.host.present? && uri.userinfo.nil? && uri.fragment.nil?
       raise Invalid, "Video must be hosted under an operator-verified TikTok domain" unless verified_host?(uri.host)
+      TiktokTokenRefreshJob.perform_now(connection.id) if SocialVault.checkout!(connection: connection)["refresh_token"].present?
       credentials = SocialVault.checkout!(connection: connection)
       token = credentials.fetch("access_token")
       response = request!(ENDPOINT, token, {source_info: {source: "PULL_FROM_URL", video_url: url}})

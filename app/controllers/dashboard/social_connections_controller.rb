@@ -23,6 +23,13 @@ class Dashboard::SocialConnectionsController < Dashboard::SettingsHomeController
     connection.update!(enabled: false, disabled_at: Time.current)
     redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Social connection disabled and Vault credentials revoked."
   end
+  def test_connection
+    connection = LightekMarketing::SocialConnection.where(site: @site).find(params.require(:connection_id))
+    LightekMarketing::MetaConnectionHealth.check!(connection: connection)
+    redirect_to dashboard_social_connections_path(site_id: @site.id), notice: "Provider verified connection is active."
+  rescue LightekMarketing::MetaConnectionHealth::Unavailable => e
+    redirect_to dashboard_social_connections_path(site_id: @site.id), alert: e.message
+  end
   def publish
     connection = LightekMarketing::SocialConnection.where(site: @site).find(params.require(:connection_id))
     campaign = LightekMarketing::Campaign.where(site: @site, channel: "social", status: "ready").find(params.require(:campaign_id))

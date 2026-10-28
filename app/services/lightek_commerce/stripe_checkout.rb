@@ -17,6 +17,8 @@ module LightekCommerce
             product_data: {name: item.name}}, quantity: item.quantity}
         },
         automatic_tax: {enabled: true},
+        shipping_address_collection: {allowed_countries: ["US"]},
+        shipping_options: shipping_options,
         billing_address_collection: "required",
         success_url: success_url,
         cancel_url: cancel_url,
@@ -24,6 +26,12 @@ module LightekCommerce
       }, {idempotency_key: "lightek-commerce-order-#{order.id}-checkout"})
       order.update!(payment_provider: "stripe", payment_reference: session.id)
       session
+    def self.shipping_options
+      ids = ENV.fetch("LIGHTEK_COMMERCE_STRIPE_SHIPPING_RATE_IDS", "").split(",").map(&:strip).reject(&:blank?)
+      raise Unavailable, "Configure shipping rates before accepting orders" if ids.empty?
+      ids.map { |id| {shipping_rate: id} }
+    end
+
     rescue ::Stripe::StripeError => e
       raise Unavailable, e.message
     end

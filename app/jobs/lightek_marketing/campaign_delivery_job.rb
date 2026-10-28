@@ -10,9 +10,12 @@ module LightekMarketing
       return unless campaign.status == "ready" && campaign.channel == "email"
       account = LightekMail::Account.find(campaign.mail_account_id)
       return unless account.sending_ready? && account.user_id == campaign.site.tenant_id
+      unsubscribe_url = Rails.application.routes.url_helpers.unsubscribe_marketing_subscription_url(
+        token: contact.signed_id(purpose: :marketing_unsubscribe),
+        host: ENV.fetch("LIGHTEK_PUBLIC_HOST", "lightekmcg.com"), protocol: "https")
       message = LightekMail::Submission.create!(account: account,
         attributes: {"to" => contact.email, "subject" => campaign.headline,
-          "text" => [campaign.message, campaign.cta_url].compact.join("\n\n")},
+          "text" => [campaign.message, campaign.cta_url, "Unsubscribe: #{unsubscribe_url}"].compact.join("\n\n")},
         idempotency_key: "campaign_#{campaign.id}_contact_#{contact.id}")
       delivery.update!(status: "queued", mail_message: message)
     rescue LightekMail::Submission::Unavailable, ArgumentError => e

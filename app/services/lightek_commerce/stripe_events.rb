@@ -27,7 +27,15 @@ module LightekCommerce
       end
       return order unless session.mode == "payment" && session.payment_status == "paid"
       order.with_lock do
-        return order if %w[paid fulfilled partially_refunded refunded].include?(order.status)
+        if %w[paid fulfilled partially_refunded refunded].include?(order.status)
+          # Stripe retries also recover a lost provisioning enqueue after settlement.
+          # The provisioning job's order-bound advisory lock prevents duplicate allocation.
+          if order.paid_at? && !order.provisioned_at? &&
+              order.items.any? { |item| item.product.product_type == "lightek_instance" }
+            PaidInstanceProvisioningJob.perform_later(order.id)
+          end
+          return order
+        end
         raise Rejected, "Paid checkout for canceled order requires manual recovery" unless order.status == "pending_payment"
         subtotal = session.amount_subtotal.to_i
         tax = session.total_details.amount_tax.to_i

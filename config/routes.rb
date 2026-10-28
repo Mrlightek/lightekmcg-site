@@ -26,6 +26,7 @@ Rails.application.routes.draw do
   post "/commerce/stripe/webhook", to: "commerce_stripe_webhooks#create", as: :commerce_stripe_webhook
   post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_refunds#create", as: :dashboard_commerce_refund
   post "/dashboard/commerce/industry", to: "dashboard/commerce_products#install_industry", as: :dashboard_commerce_industry
+  post "/dashboard/commerce/orders/:order_id/fulfill", to: "dashboard/commerce_fulfillments#create", as: :dashboard_commerce_fulfill
   get "/commerce/shop", to: "commerce#index", as: :commerce_shop
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
   delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove

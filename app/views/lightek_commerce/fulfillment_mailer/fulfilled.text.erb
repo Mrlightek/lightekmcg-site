@@ -1,0 +1,6 @@
+Your order #<%= @order.id %> has been fulfilled.
+
+<% if @order.fulfillment_reference.present? %>Fulfillment reference: <%= @order.fulfillment_reference %>
+<% end %><% if @order.fulfillment_note.present? %>Details: <%= @order.fulfillment_note %>
+<% end %>
+Thank you for shopping with us.

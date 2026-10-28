@@ -8,7 +8,7 @@ module LightekCommerce
     def self.call(site:, customer_email:, quantities:)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
-      requested = quantities.to_h.transform_keys { |key| Integer(key, 10) }
+      requested = quantities.to_h.transform_keys { |key| Integer(key.to_s, 10) }
       requested.each_value { |qty| raise Invalid, "Invalid quantity" unless qty.to_s.match?(/\A[1-9]\d*\z/) && qty.to_i <= 100 }
       Order.transaction do
         products = Product.where(site: site, id: requested.keys).order(:id).lock.to_a
@@ -26,6 +26,7 @@ module LightekCommerce
         end
         # No guessed tax or shipping: add those only through a configured quote provider.
         order.update!(subtotal_cents: subtotal, total_cents: subtotal)
+        ReservationExpiryJob.set(wait: 30.minutes).perform_later(order.id)
         order
       end
     rescue ArgumentError, TypeError

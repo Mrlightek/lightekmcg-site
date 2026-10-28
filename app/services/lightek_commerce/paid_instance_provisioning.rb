@@ -80,6 +80,7 @@ module LightekCommerce
       order.update!(provisioning_state: "deploying", provisioning_error: nil)
       Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+      InstanceReadyMailer.ready(order.id).deliver_later
       order
     rescue StandardError => e
       order.update_columns(provisioning_state: "failed",

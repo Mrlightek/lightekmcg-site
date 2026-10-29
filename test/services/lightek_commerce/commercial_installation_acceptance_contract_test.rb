@@ -45,6 +45,16 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes installer, "systemctl is-active --quiet dovecot"
   end
 
+  test "virtual mailboxes use private hashed credentials and persistent Maildir" do
+    config = Rails.root.join("lib/scripts/lightek_mail_server.py").read
+    mailbox = Rails.root.join("lib/scripts/lightek_mailbox.py").read
+    assert_includes config, "driver = passwd-file"
+    assert_includes config, "maildir:/var/vmail/%d/%n/Maildir"
+    assert_includes mailbox, '["doveadm", "pw", "-s", "SHA512-CRYPT"'
+    assert_includes mailbox, 'os.replace(tmp, USERS)'
+    assert_includes mailbox, '"Maildir"'
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

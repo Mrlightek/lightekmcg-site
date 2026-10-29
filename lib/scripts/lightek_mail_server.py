@@ -43,9 +43,18 @@ milter_protocol = 6
 milter_default_action = tempfail
 smtpd_milters = inet:127.0.0.1:11332
 non_smtpd_milters = inet:127.0.0.1:11332
+# Virtual recipients are explicitly enumerated, so unknown recipients are refused.
+virtual_mailbox_domains = hash:/etc/postfix/lightek_domains
+virtual_mailbox_maps = hash:/etc/postfix/lightek_recipients
+virtual_transport = lmtp:unix:private/dovecot-lmtp
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+smtpd_tls_auth_only = yes
+smtpd_recipient_restrictions = reject_unauth_destination, reject_unlisted_recipient
 """,
         "dovecot/conf.d/99-lightek.conf": """# Private mailbox service, accessible locally until TLS and external routing are approved.
-protocols = imap
+protocols = imap lmtp
 listen = 127.0.0.1
 ssl = required
 disable_plaintext_auth = yes
@@ -59,6 +68,13 @@ userdb {
   driver = static
   args = uid=vmail gid=vmail home=/var/vmail/%d/%n
 }
+service lmtp {
+  unix_listener /var/spool/postfix/private/dovecot-lmtp {
+    mode = 0600
+    user = postfix
+    group = postfix
+  }
+}
 service auth {
   unix_listener /var/spool/postfix/private/auth {
     mode = 0660
@@ -67,6 +83,8 @@ service auth {
   }
 }
 """,
+        "postfix/lightek_domains": "# Authorized virtual domains only; populated by mailbox provisioning.\\n",
+        "postfix/lightek_recipients": "# Authorized mailboxes only; populated by mailbox provisioning.\\n",
         "postfix/lightek_senders": "# No senders enabled during bootstrap. Exact mailbox allowlist required.\n",
         "postfix/lightek_local_clients": "127.0.0.1/32 lightek_sender\n",
         "rspamd/local.d/worker-normal.inc": 'bind_socket = "127.0.0.1:11333";\ncount = 2;\n',
@@ -198,7 +216,8 @@ def install(name):
         redis_config = Path("/etc/redis/lightek-mail.conf")
         os.chown(redis_config, 0, redis.pw_gid)
         redis_config.chmod(0o640)
-        run("postmap", "/etc/postfix/lightek_senders")
+        for mapping in ("lightek_senders", "lightek_domains", "lightek_recipients"):
+            run("postmap", "/etc/postfix/" + mapping)
         run("postfix", "check")
         run("rspamadm", "configtest")
         run("systemctl", "daemon-reload")

@@ -66,6 +66,13 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes provisioner, '["postmap", str(path)]'
   end
 
+  test "inbound SMTP is not an authenticated submission relay" do
+    config = Rails.root.join("lib/scripts/lightek_mail_server.py").read
+    assert_includes config, "smtpd_sasl_auth_enable = no"
+    assert_includes config, "postfix/lightek_logins"
+    assert_includes config, "virtual_transport = lmtp:unix:private/dovecot-lmtp"
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

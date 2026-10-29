@@ -261,8 +261,13 @@ def dkim(domain):
     os.chown(directory, 0, owner.pw_gid)
     key = directory / f"{domain}.mail.key"
     public = directory / f"{domain}.mail.txt"
+    if key.is_symlink() or public.is_symlink():
+        raise ValueError("Refusing symlink DKIM material")
+    if key.exists() and public.exists():
+        print("LIGHTEK_MAIL_DKIM_ALREADY_PRESENT")
+        return
     if key.exists() or public.exists():
-        raise ValueError("Existing DKIM material found; preserving it")
+        raise ValueError("Incomplete DKIM material found; refusing to overwrite it")
     old_umask = os.umask(0o077)
     try:
         result = run("rspamadm", "dkim_keygen", "-s", "mail", "-b", "2048", "-d", domain, "-k", str(key), capture_output=True, text=True)

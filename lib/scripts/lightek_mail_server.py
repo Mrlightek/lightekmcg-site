@@ -198,6 +198,8 @@ def install(name):
     release = dict(line.split("=", 1) for line in Path("/etc/os-release").read_text().splitlines() if "=" in line)
     if release.get("ID", "").strip('"') != "ubuntu" or release.get("VERSION_ID", "").strip('"') != "24.04":
         raise ValueError("This installer targets Ubuntu 24.04 only")
+    if Path("/etc/lightek/mail-bootstrap-complete").exists():
+        raise ValueError("Mail bootstrap already completed; use --mailbox-only instead")
     if shutil.which("postconf") or shutil.which("rspamadm") or Path("/etc/postfix/main.cf").exists() or Path("/etc/rspamd/local.d").exists():
         raise ValueError("Existing mail configuration found; refusing to overwrite it. Use the audit and integrate it separately")
     state = run("ss", "-H", "-lnt", "( sport = :25 or sport = :465 or sport = :587 or sport = :993 or sport = :16379 or sport = :11332 or sport = :11333 )", capture_output=True, text=True)

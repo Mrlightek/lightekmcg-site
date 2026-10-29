@@ -216,7 +216,7 @@ def install(name):
         claim.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         fd = os.open(claim, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
         with os.fdopen(fd, "w") as handle:
-            handle.write(f"host={name}\\n")
+            handle.write(f"host={name}\n")
     run("debconf-set-selections", input=f"postfix postfix/mailname string {name}\npostfix postfix/main_mailer_type select Local only\n", text=True)
     env = dict(os.environ, DEBIAN_FRONTEND="noninteractive")
     run("apt-get", "update", env=env)

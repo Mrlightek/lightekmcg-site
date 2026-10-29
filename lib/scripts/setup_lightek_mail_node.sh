@@ -68,7 +68,7 @@ fi
 install -d -m 0700 /etc/lightek
 MARKER_TEMP="$(mktemp /etc/lightek/.mail-bootstrap-complete.XXXXXXXX)"
 chmod 0600 "$MARKER_TEMP"
-printf 'host=%s\\ndomain=%s\\n' "$HOST" "$DOMAIN" > "$MARKER_TEMP"
+printf 'host=%s\ndomain=%s\n' "$HOST" "$DOMAIN" > "$MARKER_TEMP"
 mv -f -- "$MARKER_TEMP" /etc/lightek/mail-bootstrap-complete
 echo "LIGHTEK_MAIL_PRIVATE_NODE_READY"
 echo "Outgoing mail remains HELD by design. To activate customer mail, configure recipient ingress, verified DNS/TLS/sender maps, test delivery and explicitly resume sending."

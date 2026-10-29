@@ -72,4 +72,4 @@ jobs:
       - name: Prepare test database
         run: bin/rails db:test:prepare
       - name: Paid provisioning and commercial installation contract
-        run: bin/rails test test/jobs/lightek_commerce/paid_instance_provisioning_job_test.rb test/services/lightek_commerce/commercial_installation_acceptance_contract_test.rb
+        run: bin/rails test test/jobs/lightek_commerce/paid_instance_provisioning_job_test.rb test/services/lightek_commerce/commercial_installation_acceptance_contract_test.rb test/services/gatekeeper/compute/paid_instance_allocation_reconciliation_test.rb

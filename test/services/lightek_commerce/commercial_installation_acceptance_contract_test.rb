@@ -36,6 +36,15 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes script, "GoDaddy is optional."
   end
 
+  test "mail bootstrap includes private IMAP service" do
+    server = Rails.root.join("lib/scripts/lightek_mail_server.py").read
+    installer = Rails.root.join("lib/scripts/setup_lightek_mail_node.sh").read
+    assert_includes server, "dovecot-imapd"
+    assert_includes server, "dovecot/conf.d/99-lightek.conf"
+    assert_includes server, 'listen = 127.0.0.1'
+    assert_includes installer, "systemctl is-active --quiet dovecot"
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

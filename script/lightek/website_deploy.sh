@@ -353,6 +353,8 @@ def main():
                 # The existing Lightek Mail installer is private/held by design.
                 # Explicitly opt in only on a dedicated Ubuntu 24.04 customer VPS.
                 # SMTP delivery is not enabled by this step.
+                mail_setup_status='not_requested'
+                mail_registration_status='not_requested'
                 if c.get('_headless') or os.environ.get('LIGHTEK_INSTALL_PRIVATE_MAIL_NODE')=='true':
                     mail_script='/opt/lightek-sites/'+c['domain']+'/releases/'+c['release']+'/lib/scripts/setup_lightek_mail_node.sh'
                     check='systemctl is-active --quiet postfix && systemctl is-active --quiet dovecot && systemctl is-active --quiet rspamd && systemctl is-active --quiet lightek-mail-redis'
@@ -360,8 +362,10 @@ def main():
                     try:
                         run(ssh+[command])
                         mailbox_node_ready=True
+                        mail_setup_status='configured'
                     except subprocess.CalledProcessError:
                         mailbox_node_ready=False
+                        mail_setup_status='pending'
                         print('LIGHTEK_MAIL_SETUP_PENDING: customer website installation continues',flush=True)
                     # Register mailbox in the customer's own Rails database.
                     # Sending stays disabled until DNS, provider ports, and mail
@@ -373,10 +377,14 @@ def main():
                          '-e','LIGHTEK_INITIAL_MAIL_OWNER='+c['owner_email'],
                          '-e','LIGHTEK_INITIAL_MAIL_ADDRESS=admin@'+c['domain'],
                          'web','bin/rails','runner','script/lightek_mail_account_bootstrap.rb']
+                    if not mailbox_node_ready:
+                        mail_registration_status='pending'
                     if mailbox_node_ready:
                         try:
                             run(ssh+['sudo '+shlex.join(cmd)])
+                            mail_registration_status='registered'
                         except subprocess.CalledProcessError:
+                            mail_registration_status='pending'
                             print('LIGHTEK_MAIL_REGISTRATION_PENDING: customer website installation continues',flush=True)
                 health=verify_public(c)
                 # Mail egress/ingress restrictions are controlled by the VPS
@@ -388,7 +396,7 @@ def main():
                     result=rails_code(root,stage,REGISTER_CODE,dict(domain=c['domain'],ssh_host=c['ssh'].split('@')[-1],ssh_user=user,port=c['port'],release=c['release']))
                     print('\n'.join(x for x in result.splitlines() if x.startswith('GATEKEEPER_NODE_REGISTERED=')))
                 receipt=root/'tmp/website_deploy'/('receipt-'+c['release']+'.json');receipt.parent.mkdir(parents=True,exist_ok=True)
-                receipt.write_text(json.dumps(dict(package_sha256=hashlib.sha256(package.read_bytes()).hexdigest(),url='https://'+c['domain'],release=c['release'],public_https_verified=True,owner_login_verified=True,health=health,verified_at=datetime.datetime.now(datetime.timezone.utc).isoformat()),indent=2))
+                receipt.write_text(json.dumps(dict(package_sha256=hashlib.sha256(package.read_bytes()).hexdigest(),url='https://'+c['domain'],release=c['release'],public_https_verified=True,owner_login_verified=True,health=health,mail_setup_status=mail_setup_status,mail_registration_status=mail_registration_status,verified_at=datetime.datetime.now(datetime.timezone.utc).isoformat()),indent=2))
                 print('WEBSITE_DEPLOYMENT_PASS=https://'+c['domain'])
                 print('Owner management: https://'+c['domain']+'/dashboard/pages')
                 print('Receipt: '+str(receipt))

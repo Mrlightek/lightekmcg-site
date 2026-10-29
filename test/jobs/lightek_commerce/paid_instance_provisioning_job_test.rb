@@ -33,7 +33,7 @@ class PaidInstanceProvisioningJobTest < ActiveSupport::TestCase
     instance_item = Struct.new(:product).new(Struct.new(:product_type).new("lightek_instance"))
     order = Struct.new(:paid_at?, :status, :items, :provisioned_at?).new(true, "paid", [instance_item], true)
     ActiveRecord::Base.stub(:connection, connection) do
-      Order.stub(:find, order) do
+      LightekCommerce::Order.stub(:find, order) do
         LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(**) { flunk "duplicate provisioning" }) do
           LightekCommerce::PaidInstanceProvisioningJob.new.perform(123)
         end
@@ -50,7 +50,7 @@ class PaidInstanceProvisioningJobTest < ActiveSupport::TestCase
     calls = 0
     expected_order = order
     ActiveRecord::Base.stub(:connection, connection) do
-      Order.stub(:find, order) do
+      LightekCommerce::Order.stub(:find, order) do
         LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(order:) {
           calls += 1
           assert_same expected_order, order
@@ -69,7 +69,7 @@ class PaidInstanceProvisioningJobTest < ActiveSupport::TestCase
     instance_item = Struct.new(:product).new(Struct.new(:product_type).new("lightek_instance"))
     order = Struct.new(:paid_at?, :status, :items, :provisioned_at?).new(true, "paid", [instance_item], false)
     ActiveRecord::Base.stub(:connection, connection) do
-      Order.stub(:find, order) do
+      LightekCommerce::Order.stub(:find, order) do
         LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(**) { raise "provider unavailable" }) do
           error = assert_raises(RuntimeError) do
             LightekCommerce::PaidInstanceProvisioningJob.new.perform(123)
@@ -86,7 +86,7 @@ class PaidInstanceProvisioningJobTest < ActiveSupport::TestCase
     connection = FakeConnection.new(true)
     order = Struct.new(:paid_at?, :status).new(false, "pending")
     ActiveRecord::Base.stub(:connection, connection) do
-      Order.stub(:find, order) do
+      LightekCommerce::Order.stub(:find, order) do
         LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(**) { flunk "unpaid provisioning" }) do
           LightekCommerce::PaidInstanceProvisioningJob.new.perform(123)
         end

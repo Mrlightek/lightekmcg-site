@@ -25,5 +25,18 @@ systemctl is-active --quiet postfix
 systemctl is-active --quiet rspamd
 systemctl is-active --quiet dovecot
 systemctl is-active --quiet lightek-mail-redis
+# Bootstrap a private mailbox on dedicated customer installations.
+# The one-time credential remains root-only on the VPS, never in deployment logs.
+if [[ -n "${LIGHTEK_MAIL_INITIAL_ADDRESS:-}" ]]; then
+  SECRET_DIR=/etc/lightek
+  SECRET_FILE="$SECRET_DIR/mail-initial-password"
+  install -d -m 0700 "$SECRET_DIR"
+  if [[ ! -e "$SECRET_FILE" ]]; then
+    umask 077
+    openssl rand -hex 32 > "$SECRET_FILE"
+    chmod 0600 "$SECRET_FILE"
+  fi
+  python3 lib/scripts/lightek_mailbox.py --address "$LIGHTEK_MAIL_INITIAL_ADDRESS" --password-file "$SECRET_FILE"
+fi
 echo "LIGHTEK_MAIL_PRIVATE_NODE_READY"
 echo "Outgoing mail remains HELD by design. To activate customer mail, configure recipient ingress, verified DNS/TLS/sender maps, test delivery and explicitly resume sending."

@@ -358,6 +358,17 @@ def main():
                     check='systemctl is-active --quiet postfix && systemctl is-active --quiet dovecot && systemctl is-active --quiet rspamd && systemctl is-active --quiet lightek-mail-redis'
                     command='if '+check+'; then sudo LIGHTEK_MAIL_INITIAL_ADDRESS='+shlex.quote('admin@'+c['domain'])+' bash '+shlex.quote(mail_script)+' --mailbox-only; else sudo LIGHTEK_MAIL_INITIAL_ADDRESS=+shlex.quote('admin@'+c['domain'])+' LIGHTEK_MAIL_HOST='+shlex.quote('mail.'+c['domain'])+' LIGHTEK_MAIL_DKIM_DOMAIN='+shlex.quote(c['domain'])+' bash '+shlex.quote(mail_script)+' --install; fi'
                     run(ssh+[command])
+                    # Register mailbox in the customer's own Rails database.
+                    # Sending stays disabled until DNS, provider ports, and mail
+                    # transport have been verified independently.
+                    deploy_root='/opt/lightek-sites/'+c['domain']
+                    project='lt_'+hashlib.sha256(c['domain'].encode()).hexdigest()[:16]
+                    cmd=['docker','compose','--env-file',deploy_root+'/.env','-p',project,
+                         '-f',deploy_root+'/compose.yml','run','--rm','-T',
+                         '-e','LIGHTEK_INITIAL_MAIL_OWNER='+c['owner_email'],
+                         '-e','LIGHTEK_INITIAL_MAIL_ADDRESS=admin@'+c['domain'],
+                         'web','bin/rails','runner','script/lightek_mail_account_bootstrap.rb']
+                    run(ssh+['sudo '+shlex.join(cmd)])
                 health=verify_public(c)
                 # Mail egress/ingress restrictions are controlled by the VPS
                 # provider. A configured instance may activate while external

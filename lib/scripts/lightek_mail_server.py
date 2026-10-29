@@ -178,8 +178,15 @@ WantedBy=multi-user.target
     }
 
 
-def write_plan(directory, name):
+def write_plan(directory, name, *, preserve_mailboxes=False):
     plan = configuration(name)
+    # Retain mailbox authorization maps across an interrupted bootstrap retry.
+    # Replacing these files would silently remove already provisioned recipients.
+    if preserve_mailboxes:
+        for relative in ("postfix/lightek_logins", "postfix/lightek_domains",
+                         "postfix/lightek_recipients", "postfix/lightek_senders"):
+            if (directory / relative).exists():
+                plan.pop(relative)
     # Validate every destination before writing any configuration file.
     for relative in plan:
         target = directory / relative
@@ -212,7 +219,8 @@ def install(name):
     claim = Path("/etc/lightek/mail-bootstrap-in-progress")
     if claim.is_symlink():
         raise ValueError("Refusing symlink bootstrap claim")
-    if claim.exists():
+    resuming = claim.exists()
+    if resuming:
         if not claim.is_file() or claim.read_text().strip() != f"host={name}":
             raise ValueError("Bootstrap claim belongs to a different host or is invalid")
         print("LIGHTEK_MAIL_RESUMING_OWN_BOOTSTRAP")
@@ -232,7 +240,7 @@ def install(name):
     run("apt-get", "install", "-y", "--no-install-recommends", "postfix", "dovecot-core", "dovecot-imapd", "rspamd", "redis-server", "dnsutils", "openssl", env=env)
     run("systemctl", "stop", "postfix", "rspamd")
     try:
-        write_plan(Path("/etc"), name)
+        write_plan(Path("/etc"), name, preserve_mailboxes=resuming)
         if not shutil.which("useradd"):
             raise ValueError("Missing useradd")
         try:

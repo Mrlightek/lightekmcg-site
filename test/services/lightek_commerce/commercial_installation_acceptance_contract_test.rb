@@ -83,6 +83,11 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes mailbox, 'Path("/etc/postfix/lightek_logins")'
   end
 
+  test "paid deployment provides initial mailbox address" do
+    installer = Rails.root.join("script/lightek/website_deploy.sh").read
+    assert_includes installer, "LIGHTEK_MAIL_INITIAL_ADDRESS"
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

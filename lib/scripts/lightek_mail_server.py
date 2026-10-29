@@ -49,7 +49,23 @@ protocols = imap
 listen = 127.0.0.1
 ssl = required
 disable_plaintext_auth = yes
-mail_location = maildir:~/Maildir
+mail_location = maildir:/var/vmail/%d/%n/Maildir
+first_valid_uid = 5000
+passdb {
+  driver = passwd-file
+  args = scheme=SHA512-CRYPT username_format=%u /etc/dovecot/lightek-users
+}
+userdb {
+  driver = static
+  args = uid=vmail gid=vmail home=/var/vmail/%d/%n
+}
+service auth {
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0660
+    user = postfix
+    group = postfix
+  }
+}
 """,
         "postfix/lightek_senders": "# No senders enabled during bootstrap. Exact mailbox allowlist required.\n",
         "postfix/lightek_local_clients": "127.0.0.1/32 lightek_sender\n",
@@ -160,6 +176,21 @@ def install(name):
     run("systemctl", "stop", "postfix", "rspamd")
     try:
         write_plan(Path("/etc"), name)
+        if not shutil.which("useradd"):
+            raise ValueError("Missing useradd")
+        try:
+            pwd.getpwnam("vmail")
+        except KeyError:
+            run("useradd", "--system", "--uid", "5000", "--home-dir", "/var/vmail", "--shell", "/usr/sbin/nologin", "vmail")
+        mailbox_owner = pwd.getpwnam("vmail")
+        mailroot = Path("/var/vmail")
+        mailroot.mkdir(parents=True, exist_ok=True, mode=0o750)
+        os.chown(mailroot, mailbox_owner.pw_uid, mailbox_owner.pw_gid)
+        credentials = Path("/etc/dovecot/lightek-users")
+        if not credentials.exists():
+            fd = os.open(credentials, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            os.close(fd)
+        credentials.chmod(0o600)
         redis = pwd.getpwnam("redis")
         redis_dir = Path("/var/lib/redis/lightek-mail")
         redis_dir.mkdir(mode=0o700, parents=True, exist_ok=True)

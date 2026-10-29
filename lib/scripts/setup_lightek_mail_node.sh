@@ -33,7 +33,18 @@ if [[ "$EUID" -ne 0 ]]; then echo "Run as root on a dedicated fresh Ubuntu 24.04
 if [[ ! -f /etc/os-release ]] || ! grep -q '^VERSION_ID="24.04"' /etc/os-release || ! grep -q '^ID=ubuntu' /etc/os-release; then
   echo "This script requires Ubuntu 24.04." >&2; exit 1
 fi
-python3 lib/scripts/lightek_mail_server.py install --hostname "$HOST"
+# A completed private bootstrap can be resumed without replacing configuration.
+# The marker is written only after the services and mailbox checks succeed.
+if [[ -f /etc/lightek/mail-bootstrap-complete ]]; then
+  systemctl is-active --quiet postfix
+  systemctl is-active --quiet dovecot
+  systemctl is-active --quiet rspamd
+  systemctl is-active --quiet lightek-mail-redis
+  grep -Fxq "host=$HOST" /etc/lightek/mail-bootstrap-complete
+  grep -Fxq "domain=$DOMAIN" /etc/lightek/mail-bootstrap-complete
+else
+  python3 lib/scripts/lightek_mail_server.py install --hostname "$HOST"
+fi
 python3 lib/scripts/lightek_mail_server.py dkim --domain "$DOMAIN"
 postfix check
 rspamadm configtest
@@ -54,5 +65,10 @@ if [[ -n "${LIGHTEK_MAIL_INITIAL_ADDRESS:-}" ]]; then
   fi
   python3 lib/scripts/lightek_mailbox.py --address "$LIGHTEK_MAIL_INITIAL_ADDRESS" --password-file "$SECRET_FILE"
 fi
+install -d -m 0700 /etc/lightek
+MARKER_TEMP="$(mktemp /etc/lightek/.mail-bootstrap-complete.XXXXXXXX)"
+chmod 0600 "$MARKER_TEMP"
+printf 'host=%s\\ndomain=%s\\n' "$HOST" "$DOMAIN" > "$MARKER_TEMP"
+mv -f -- "$MARKER_TEMP" /etc/lightek/mail-bootstrap-complete
 echo "LIGHTEK_MAIL_PRIVATE_NODE_READY"
 echo "Outgoing mail remains HELD by design. To activate customer mail, configure recipient ingress, verified DNS/TLS/sender maps, test delivery and explicitly resume sending."

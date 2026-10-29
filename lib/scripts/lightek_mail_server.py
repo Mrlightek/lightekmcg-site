@@ -226,8 +226,11 @@ def install(name):
         raise ValueError("Refusing symlink bootstrap claim")
     resuming = claim.exists()
     if resuming:
-        if not claim.is_file() or claim.read_text().strip() != f"host={name}":
-            raise ValueError("Bootstrap claim belongs to a different host or is invalid")
+        claim_stat = claim.stat()
+        if (not claim.is_file() or claim_stat.st_uid != 0 or
+                claim_stat.st_mode & 0o077 or
+                claim.read_text().strip() != f"host={name}"):
+            raise ValueError("Bootstrap claim ownership, permissions or hostname is invalid")
         print("LIGHTEK_MAIL_RESUMING_OWN_BOOTSTRAP")
     else:
         if shutil.which("postconf") or shutil.which("rspamadm") or Path("/etc/postfix/main.cf").exists() or Path("/etc/rspamd/local.d").exists():

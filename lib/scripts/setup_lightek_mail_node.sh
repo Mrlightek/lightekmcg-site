@@ -23,6 +23,7 @@ postfix check
 rspamadm configtest
 systemctl is-active --quiet postfix
 systemctl is-active --quiet rspamd
+systemctl is-active --quiet dovecot
 systemctl is-active --quiet lightek-mail-redis
 echo "LIGHTEK_MAIL_PRIVATE_NODE_READY"
 echo "Outgoing mail remains HELD by design. To activate customer mail, configure recipient ingress, verified DNS/TLS/sender maps, test delivery and explicitly resume sending."

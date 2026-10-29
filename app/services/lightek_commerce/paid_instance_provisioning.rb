@@ -92,6 +92,15 @@ module LightekCommerce
       Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
       # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+      # Pending mail work is independent of customer activation and can be retried.
+      begin
+        receipt = request.reload.gatekeeper_node&.metadata.to_h.fetch("website_deployment", {})
+        if receipt["mail_setup_status"] == "pending" || receipt["mail_registration_status"] == "pending"
+          LightekCommerce::PendingMailRecoveryJob.perform_later(request.id)
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Commerce] mail recovery enqueue failed order=#{order.id} #{e.class}: #{e.message}")
+      end
       # Cloud providers may restrict SMTP on newly provisioned accounts.
       # File an idempotent provider support request, but never make the
       # customer's paid application activation contingent on port approval.

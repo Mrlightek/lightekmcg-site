@@ -61,7 +61,7 @@ def main():
         current = path.read_text().splitlines()
         if not any(line.split()[:1] == [key] for line in current if line.strip() and not line.lstrip().startswith("#")):
             with path.open("a") as handle:
-                handle.write(key + " " + value + "\\n")
+                handle.write(key + " " + value + "\n")
         subprocess.run(["postmap", str(path)], check=True)
     subprocess.run(["postfix", "reload"], check=True)
     print("LIGHTEK_MAILBOX_CONFIGURED=" + address)

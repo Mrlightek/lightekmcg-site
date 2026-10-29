@@ -37,6 +37,29 @@ class MailBootstrapContractTest(unittest.TestCase):
             self.assertIn("ssl = required", dovecot)
             self.assertFalse((root / "postfix/master.cf").exists())
 
+    def test_plan_refuses_symlink_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            outside = root / "outside"
+            outside.mkdir()
+            (root / "postfix").symlink_to(outside, target_is_directory=True)
+            with self.assertRaises(ValueError):
+                mail.write_plan(root, "mail.customer.example")
+            self.assertEqual(list(outside.iterdir()), [])
+
+    def test_plan_preflight_prevents_partial_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            victim = root / "victim"
+            victim.write_text("unchanged")
+            target = root / "rspamd/local.d/ratelimit.conf"
+            target.parent.mkdir(parents=True)
+            target.symlink_to(victim)
+            with self.assertRaises(ValueError):
+                mail.write_plan(root, "mail.customer.example")
+            self.assertFalse((root / "postfix/main.cf").exists())
+            self.assertEqual(victim.read_text(), "unchanged")
+
     def test_plan_refuses_symlink_target(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

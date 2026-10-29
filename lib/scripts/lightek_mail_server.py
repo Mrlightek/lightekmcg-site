@@ -200,11 +200,23 @@ def install(name):
         raise ValueError("This installer targets Ubuntu 24.04 only")
     if Path("/etc/lightek/mail-bootstrap-complete").exists():
         raise ValueError("Mail bootstrap already completed; use --mailbox-only instead")
-    if shutil.which("postconf") or shutil.which("rspamadm") or Path("/etc/postfix/main.cf").exists() or Path("/etc/rspamd/local.d").exists():
-        raise ValueError("Existing mail configuration found; refusing to overwrite it. Use the audit and integrate it separately")
-    state = run("ss", "-H", "-lnt", "( sport = :25 or sport = :465 or sport = :587 or sport = :993 or sport = :16379 or sport = :11332 or sport = :11333 )", capture_output=True, text=True)
-    if state.stdout.strip():
-        raise ValueError("A required mail/Redis/scanner port is already in use")
+    claim = Path("/etc/lightek/mail-bootstrap-in-progress")
+    if claim.is_symlink():
+        raise ValueError("Refusing symlink bootstrap claim")
+    if claim.exists():
+        if not claim.is_file() or claim.read_text().strip() != f"host={name}":
+            raise ValueError("Bootstrap claim belongs to a different host or is invalid")
+        print("LIGHTEK_MAIL_RESUMING_OWN_BOOTSTRAP")
+    else:
+        if shutil.which("postconf") or shutil.which("rspamadm") or Path("/etc/postfix/main.cf").exists() or Path("/etc/rspamd/local.d").exists():
+            raise ValueError("Existing mail configuration found; refusing to overwrite it. Use the audit and integrate it separately")
+        state = run("ss", "-H", "-lnt", "( sport = :25 or sport = :465 or sport = :587 or sport = :993 or sport = :16379 or sport = :11332 or sport = :11333 )", capture_output=True, text=True)
+        if state.stdout.strip():
+            raise ValueError("A required mail/Redis/scanner port is already in use")
+        claim.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        fd = os.open(claim, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w") as handle:
+            handle.write(f"host={name}\\n")
     run("debconf-set-selections", input=f"postfix postfix/mailname string {name}\npostfix postfix/main_mailer_type select Local only\n", text=True)
     env = dict(os.environ, DEBIAN_FRONTEND="noninteractive")
     run("apt-get", "update", env=env)

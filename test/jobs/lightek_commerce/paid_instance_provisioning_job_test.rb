@@ -63,6 +63,24 @@ class PaidInstanceProvisioningJobTest < ActiveSupport::TestCase
     assert_includes connection.queries.last, "pg_advisory_unlock"
   end
 
+  test "provisioning failure releases lock and propagates error for retry" do
+    connection = FakeConnection.new(true)
+    instance_item = Struct.new(:product).new(Struct.new(:product_type).new("lightek_instance"))
+    order = Struct.new(:paid_at?, :status, :items, :provisioned_at?).new(true, "paid", [instance_item], false)
+    ActiveRecord::Base.stub(:connection, connection) do
+      Order.stub(:find, order) do
+        LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(**) { raise "provider unavailable" }) do
+          error = assert_raises(RuntimeError) do
+            LightekCommerce::PaidInstanceProvisioningJob.new.perform(123)
+          end
+          assert_equal "provider unavailable", error.message
+        end
+      end
+    end
+    assert_equal 2, connection.queries.size
+    assert_includes connection.queries.last, "pg_advisory_unlock"
+  end
+
   test "unpaid order is ignored and lock is released" do
     connection = FakeConnection.new(true)
     order = Struct.new(:paid_at?, :status).new(false, "pending")

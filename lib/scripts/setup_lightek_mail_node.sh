@@ -6,6 +6,22 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 HOST="${LIGHTEK_MAIL_HOST:-mail.lightekmcg.com}"
 DOMAIN="${LIGHTEK_MAIL_DKIM_DOMAIN:-lightekmcg.com}"
+if [[ "${1:-}" == "--mailbox-only" ]]; then
+  [[ "$EUID" -eq 0 ]] || exit 1
+  [[ -n "${LIGHTEK_MAIL_INITIAL_ADDRESS:-}" ]] || exit 1
+  systemctl is-active --quiet postfix
+  systemctl is-active --quiet dovecot
+  install -d -m 0700 /etc/lightek
+  SECRET_FILE=/etc/lightek/mail-initial-password
+  if [[ ! -e "$SECRET_FILE" ]]; then
+    umask 077
+    openssl rand -hex 32 > "$SECRET_FILE"
+    chmod 0600 "$SECRET_FILE"
+  fi
+  python3 lib/scripts/lightek_mailbox.py --address "$LIGHTEK_MAIL_INITIAL_ADDRESS" --password-file "$SECRET_FILE"
+  echo LIGHTEK_MAILBOX_READY
+  exit 0
+fi
 if [[ "${1:-}" != "--install" ]]; then
   echo "Usage: sudo LIGHTEK_MAIL_HOST=mail.lightekmcg.com LIGHTEK_MAIL_DKIM_DOMAIN=lightekmcg.com bash lib/scripts/setup_lightek_mail_node.sh --install"
   echo "Read-only audit and private configuration preview:"

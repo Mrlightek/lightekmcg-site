@@ -3,7 +3,7 @@
 #   RAILS_ENV=production bin/rails runner script/lightek/paid_instance_acceptance_audit.rb
 require "json"
 
-scope = Order.where(status: %w[paid fulfilled]).where.not(paid_at: nil).order(id: :desc)
+scope = LightekCommerce::Order.where(status: %w[paid fulfilled]).where.not(paid_at: nil).order(id: :desc)
 order_id = ENV["LIGHTEK_ACCEPTANCE_ORDER_ID"].to_s
 scope = scope.where(id: Integer(order_id)) unless order_id.empty?
 orders = scope.limit(25).to_a.select do |order|

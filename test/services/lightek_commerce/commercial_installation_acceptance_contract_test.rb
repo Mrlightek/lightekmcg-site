@@ -55,6 +55,17 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes mailbox, '"Maildir"'
   end
 
+  test "Postfix accepts provisioned virtual mailboxes through Dovecot LMTP" do
+    config = Rails.root.join("lib/scripts/lightek_mail_server.py").read
+    provisioner = Rails.root.join("lib/scripts/lightek_mailbox.py").read
+    assert_includes config, "virtual_mailbox_domains = hash:/etc/postfix/lightek_domains"
+    assert_includes config, "virtual_mailbox_maps = hash:/etc/postfix/lightek_recipients"
+    assert_includes config, "virtual_transport = lmtp:unix:private/dovecot-lmtp"
+    assert_includes config, "smtpd_sasl_type = dovecot"
+    assert_includes provisioner, "postfix/lightek_recipients"
+    assert_includes provisioner, '["postmap", str(path)]'
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

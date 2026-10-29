@@ -44,6 +44,13 @@ milter_default_action = tempfail
 smtpd_milters = inet:127.0.0.1:11332
 non_smtpd_milters = inet:127.0.0.1:11332
 """,
+        "dovecot/conf.d/99-lightek.conf": """# Private mailbox service, accessible locally until TLS and external routing are approved.
+protocols = imap
+listen = 127.0.0.1
+ssl = required
+disable_plaintext_auth = yes
+mail_location = maildir:~/Maildir
+""",
         "postfix/lightek_senders": "# No senders enabled during bootstrap. Exact mailbox allowlist required.\n",
         "postfix/lightek_local_clients": "127.0.0.1/32 lightek_sender\n",
         "rspamd/local.d/worker-normal.inc": 'bind_socket = "127.0.0.1:11333";\ncount = 2;\n',
@@ -149,7 +156,7 @@ def install(name):
     run("debconf-set-selections", input=f"postfix postfix/mailname string {name}\npostfix postfix/main_mailer_type select Local only\n", text=True)
     env = dict(os.environ, DEBIAN_FRONTEND="noninteractive")
     run("apt-get", "update", env=env)
-    run("apt-get", "install", "-y", "--no-install-recommends", "postfix", "rspamd", "redis-server", "dnsutils", "openssl", env=env)
+    run("apt-get", "install", "-y", "--no-install-recommends", "postfix", "dovecot-core", "dovecot-imapd", "rspamd", "redis-server", "dnsutils", "openssl", env=env)
     run("systemctl", "stop", "postfix", "rspamd")
     try:
         write_plan(Path("/etc"), name)
@@ -171,7 +178,9 @@ def install(name):
         subprocess.run(["systemctl", "stop", "postfix"], check=False)
         raise
     print("LIGHTEK_MAIL_PRIVATE_BOOTSTRAP_COMPLETE")
-    print("SMTP listens on loopback; no senders are allowed; internet SMTP transport is deferred.")
+    run("dovecot", "-n", capture_output=True, text=True)
+    run("systemctl", "enable", "--now", "dovecot")
+    print("SMTP and IMAP are private; no senders are allowed; internet SMTP transport is deferred.")
     print("Do not enable customer sending yet. Complete routing, DKIM/DNS, TLS and end-to-end verification first.")
 
 

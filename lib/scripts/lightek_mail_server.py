@@ -185,7 +185,12 @@ def write_plan(directory, name, *, preserve_mailboxes=False):
     if preserve_mailboxes:
         for relative in ("postfix/lightek_logins", "postfix/lightek_domains",
                          "postfix/lightek_recipients", "postfix/lightek_senders"):
-            if (directory / relative).exists():
+            existing = directory / relative
+            if existing.is_symlink() or any(parent.is_symlink() for parent in existing.parents if parent != directory and directory in parent.parents):
+                raise ValueError("Refusing symlink mailbox authorization map")
+            if existing.exists():
+                if not existing.is_file():
+                    raise ValueError("Mailbox authorization map is not a regular file")
                 plan.pop(relative)
     # Validate every destination before writing any configuration file.
     for relative in plan:

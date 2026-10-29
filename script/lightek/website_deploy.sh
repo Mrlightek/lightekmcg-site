@@ -190,8 +190,8 @@ def dns_setup(root,stage,c):
     if not line:raise DeployError('DNS integration returned no result')
     status=json.loads(line.split('=',1)[1])
     if status['status']=='not_configured':
-        if c.get('_headless'):raise DeployError('DNS needs configuration: publish '+c['domain']+' at '+ip+' or configure the existing GoDaddy service, then retry.')
-        print('GoDaddy credentials/zone are not configured locally. Set '+c['domain']+' to '+ip+' in DNS, then press Enter.')
+        if c.get('_headless'):raise DeployError('Website DNS is not published: create an A/AAAA record for '+c['domain']+' pointing to '+ip+' at the domain\'s authoritative DNS provider, then retry. GoDaddy is optional.')
+        print('No managed DNS credentials for this zone. Set '+c['domain']+' to '+ip+' at its authoritative DNS provider, then press Enter.')
         input()
     else:print('DNS: '+status['status'])
     # Check every currently published address; an old AAAA can break ACME even

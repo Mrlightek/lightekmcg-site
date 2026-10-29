@@ -98,7 +98,7 @@ smtps inet n - y - - smtpd
   -o smtpd_sender_login_maps=hash:/etc/postfix/lightek_logins
   -o smtpd_sender_restrictions=reject_sender_login_mismatch
 """,
-        "postfix/lightek_logins": "# Authorized SMTP login-to-sender mappings; empty until mailbox provisioning.\\n",
+        "postfix/lightek_logins": "# Authorized SMTP login-to-sender mappings; empty until mailbox provisioning.\n",
         "postfix/lightek_domains": "# Authorized virtual domains only; populated by mailbox provisioning.\n",
         "postfix/lightek_recipients": "# Authorized mailboxes only; populated by mailbox provisioning.\n",
         "postfix/lightek_senders": "# No senders enabled during bootstrap. Exact mailbox allowlist required.\n",

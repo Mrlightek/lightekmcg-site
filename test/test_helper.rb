@@ -1,7 +1,11 @@
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
-require "minitest/mock"
+begin
+  require "minitest/mock"
+rescue LoadError
+  require_relative "support/provisioning_stub"
+end
 
 module ActiveSupport
   class TestCase

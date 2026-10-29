@@ -49,10 +49,11 @@ virtual_mailbox_maps = hash:/etc/postfix/lightek_recipients
 virtual_transport = lmtp:unix:private/dovecot-lmtp
 smtpd_sasl_type = dovecot
 smtpd_sasl_path = private/auth
-smtpd_sasl_auth_enable = yes
+smtpd_sasl_auth_enable = no
 smtpd_tls_auth_only = yes
 smtpd_recipient_restrictions = reject_unauth_destination, reject_unlisted_recipient
 """,
+        "postfix/master.cf.d/README": "# Submission services are staged separately; do not expose until a trusted TLS certificate is installed.\\n",
         "dovecot/conf.d/99-lightek.conf": """# Private mailbox service, accessible locally until TLS and external routing are approved.
 protocols = imap lmtp
 listen = 127.0.0.1
@@ -83,6 +84,7 @@ service auth {
   }
 }
 """,
+        "postfix/lightek_logins": "# Authorized SMTP login-to-sender mappings; empty until mailbox provisioning.\\n",
         "postfix/lightek_domains": "# Authorized virtual domains only; populated by mailbox provisioning.\n",
         "postfix/lightek_recipients": "# Authorized mailboxes only; populated by mailbox provisioning.\n",
         "postfix/lightek_senders": "# No senders enabled during bootstrap. Exact mailbox allowlist required.\n",
@@ -216,7 +218,7 @@ def install(name):
         redis_config = Path("/etc/redis/lightek-mail.conf")
         os.chown(redis_config, 0, redis.pw_gid)
         redis_config.chmod(0o640)
-        for mapping in ("lightek_senders", "lightek_domains", "lightek_recipients"):
+        for mapping in ("lightek_senders", "lightek_logins", "lightek_domains", "lightek_recipients"):
             run("postmap", "/etc/postfix/" + mapping)
         run("postfix", "check")
         run("rspamadm", "configtest")

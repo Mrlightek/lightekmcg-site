@@ -243,9 +243,10 @@ def install(name):
     except Exception:
         subprocess.run(["systemctl", "stop", "postfix"], check=False)
         raise
-    print("LIGHTEK_MAIL_PRIVATE_BOOTSTRAP_COMPLETE")
     run("dovecot", "-n", capture_output=True, text=True)
     run("systemctl", "enable", "--now", "dovecot")
+    run("systemctl", "is-active", "--quiet", "dovecot")
+    print("LIGHTEK_MAIL_PRIVATE_BOOTSTRAP_COMPLETE")
     print("SMTP and IMAP are private; no senders are allowed; internet SMTP transport is deferred.")
     print("Do not enable customer sending yet. Complete routing, DKIM/DNS, TLS and end-to-end verification first.")
 

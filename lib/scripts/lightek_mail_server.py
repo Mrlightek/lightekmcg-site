@@ -84,6 +84,20 @@ service auth {
   }
 }
 """,
+        "postfix/lightek_submission.cf": """# Activate only after trusted TLS certificate configuration.
+submission inet n - y - - smtpd
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_sender_login_maps=hash:/etc/postfix/lightek_logins
+  -o smtpd_sender_restrictions=reject_sender_login_mismatch
+smtps inet n - y - - smtpd
+  -o smtpd_tls_wrappermode=yes
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_sender_login_maps=hash:/etc/postfix/lightek_logins
+  -o smtpd_sender_restrictions=reject_sender_login_mismatch
+""",
         "postfix/lightek_logins": "# Authorized SMTP login-to-sender mappings; empty until mailbox provisioning.\\n",
         "postfix/lightek_domains": "# Authorized virtual domains only; populated by mailbox provisioning.\n",
         "postfix/lightek_recipients": "# Authorized mailboxes only; populated by mailbox provisioning.\n",

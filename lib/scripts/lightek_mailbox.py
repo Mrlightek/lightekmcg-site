@@ -56,6 +56,7 @@ def main():
     mappings = (
         (Path("/etc/postfix/lightek_domains"), domain, "OK"),
         (Path("/etc/postfix/lightek_recipients"), address, "OK"),
+        (Path("/etc/postfix/lightek_logins"), address, address),
     )
     for path, key, value in mappings:
         current = path.read_text().splitlines()

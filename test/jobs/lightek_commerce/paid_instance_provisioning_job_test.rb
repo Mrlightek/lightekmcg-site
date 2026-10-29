@@ -48,11 +48,12 @@ class PaidInstanceProvisioningJobTest < ActiveSupport::TestCase
     instance_item = Struct.new(:product).new(Struct.new(:product_type).new("lightek_instance"))
     order = Struct.new(:paid_at?, :status, :items, :provisioned_at?).new(true, "paid", [instance_item], false)
     calls = 0
+    expected_order = order
     ActiveRecord::Base.stub(:connection, connection) do
       Order.stub(:find, order) do
-        LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(order: supplied_order) {
+        LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(order:) {
           calls += 1
-          assert_same order, supplied_order
+          assert_same expected_order, order
         }) do
           LightekCommerce::PaidInstanceProvisioningJob.new.perform(123)
         end

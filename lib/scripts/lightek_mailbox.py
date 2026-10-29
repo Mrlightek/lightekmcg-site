@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Create or rotate a local Lightek virtual mailbox, without printing its secret."""
 import argparse
-import crypt
 import os
 from pathlib import Path
 import pwd
 import re
-import secrets
 import subprocess
 import sys
 import tempfile

@@ -12,8 +12,8 @@ module LightekCommerce
       return unless %w[pending].include?(receipt["mail_setup_status"]) ||
                     %w[pending].include?(receipt["mail_registration_status"])
 
-      # A retryable failure must be visible to the queue rather than silently
-      # acknowledged. Keep the paid installation marked ready independently.
+      # Preserve the existing customer VPS and fail visibly until the scoped
+      # remote recovery executor is installed. No website redeployment occurs.
       raise "Mail recovery requires an isolated Gatekeeper SSH operation for node #{node.id}"
     end
   end

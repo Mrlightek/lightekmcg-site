@@ -14,7 +14,9 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     script = Rails.root.join("script/lightek/website_deploy.sh").read
     assert_includes script, "c.get('_headless') or os.environ.get('LIGHTEK_INSTALL_PRIVATE_MAIL_NODE')=='true'"
     assert_includes script, "lib/scripts/setup_lightek_mail_node.sh"
-    assert_includes script, "LIGHTEK_MAIL_PRIVATE_NODE_READY"
+    assert_includes script, "LIGHTEK_MAIL_SETUP_PENDING: customer website installation continues"
+    assert_includes script, "mail_setup_status=\u0027configured\u0027"
+    assert_includes script, "mail_setup_status=\u0027pending\u0027"
   end
 
   test "cloud mail port restrictions do not prevent paid installation acceptance" do

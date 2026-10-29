@@ -83,8 +83,8 @@ service auth {
   }
 }
 """,
-        "postfix/lightek_domains": "# Authorized virtual domains only; populated by mailbox provisioning.\\n",
-        "postfix/lightek_recipients": "# Authorized mailboxes only; populated by mailbox provisioning.\\n",
+        "postfix/lightek_domains": "# Authorized virtual domains only; populated by mailbox provisioning.\n",
+        "postfix/lightek_recipients": "# Authorized mailboxes only; populated by mailbox provisioning.\n",
         "postfix/lightek_senders": "# No senders enabled during bootstrap. Exact mailbox allowlist required.\n",
         "postfix/lightek_local_clients": "127.0.0.1/32 lightek_sender\n",
         "rspamd/local.d/worker-normal.inc": 'bind_socket = "127.0.0.1:11333";\ncount = 2;\n',

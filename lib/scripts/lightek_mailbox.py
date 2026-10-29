@@ -52,6 +52,18 @@ def main():
     for directory in (ROOT / domain, ROOT / domain / local, destination, *(destination / x for x in ("cur", "new", "tmp"))):
         os.chown(directory, owner.pw_uid, owner.pw_gid)
         os.chmod(directory, 0o700)
+    # Publish only explicitly provisioned recipients into Postfix maps.
+    mappings = (
+        (Path("/etc/postfix/lightek_domains"), domain, "OK"),
+        (Path("/etc/postfix/lightek_recipients"), address, "OK"),
+    )
+    for path, key, value in mappings:
+        current = path.read_text().splitlines()
+        if not any(line.split()[:1] == [key] for line in current if line.strip() and not line.lstrip().startswith("#")):
+            with path.open("a") as handle:
+                handle.write(key + " " + value + "\\n")
+        subprocess.run(["postmap", str(path)], check=True)
+    subprocess.run(["postfix", "reload"], check=True)
     print("LIGHTEK_MAILBOX_CONFIGURED=" + address)
 
 if __name__ == "__main__":

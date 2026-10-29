@@ -179,10 +179,19 @@ WantedBy=multi-user.target
 
 
 def write_plan(directory, name):
-    for relative, content in configuration(name).items():
+    plan = configuration(name)
+    # Validate every destination before writing any configuration file.
+    for relative in plan:
         target = directory / relative
         if target.is_symlink():
             raise ValueError("Refusing a symlink configuration target")
+        parent = target.parent
+        while parent != directory and parent != parent.parent:
+            if parent.is_symlink():
+                raise ValueError("Refusing a symlink configuration directory")
+            parent = parent.parent
+    for relative, content in plan.items():
+        target = directory / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
 

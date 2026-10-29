@@ -28,7 +28,9 @@ def main():
     password = secret_path.read_text().strip()
     if len(password) < 20:
         raise ValueError("Mailbox password must contain at least 20 characters")
-    hashed = subprocess.run(["doveadm", "pw", "-s", "SHA512-CRYPT", "-p", password], check=True, capture_output=True, text=True).stdout.strip()
+    # Supply the secret over stdin; never expose it in the process argument list.
+    digest = subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=password + "\n", check=True, capture_output=True, text=True).stdout.strip()
+    hashed = "{SHA512-CRYPT}" + digest
     rows = USERS.read_text().splitlines()
     row = address + ":" + hashed
     rows = [existing for existing in rows if not existing.startswith(address + ":")]

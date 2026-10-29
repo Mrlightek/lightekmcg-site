@@ -30,6 +30,12 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes source, "mail_port_ticket_status"
   end
 
+  test "external authoritative DNS is supported without a GoDaddy account" do
+    script = Rails.root.join("script/lightek/website_deploy.sh").read
+    assert_includes script, "authoritative DNS provider"
+    assert_includes script, "GoDaddy is optional."
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

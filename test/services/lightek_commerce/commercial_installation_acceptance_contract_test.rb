@@ -50,7 +50,7 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     mailbox = Rails.root.join("lib/scripts/lightek_mailbox.py").read
     assert_includes config, "driver = passwd-file"
     assert_includes config, "maildir:/var/vmail/%d/%n/Maildir"
-    assert_includes mailbox, '["doveadm", "pw", "-s", "SHA512-CRYPT"'
+    assert_includes mailbox, '["openssl", "passwd", "-6", "-stdin"]'
     assert_includes mailbox, 'os.replace(tmp, USERS)'
     assert_includes mailbox, '"Maildir"'
   end

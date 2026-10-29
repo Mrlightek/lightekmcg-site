@@ -73,6 +73,16 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes config, "virtual_transport = lmtp:unix:private/dovecot-lmtp"
   end
 
+  test "SMTP submission is staged with TLS and mailbox sender restrictions" do
+    source = Rails.root.join("lib/scripts/lightek_mail_server.py").read
+    mailbox = Rails.root.join("lib/scripts/lightek_mailbox.py").read
+    assert_includes source, "postfix/lightek_submission.cf"
+    assert_includes source, "smtpd_tls_security_level=encrypt"
+    assert_includes source, "smtpd_tls_wrappermode=yes"
+    assert_includes source, "reject_sender_login_mismatch"
+    assert_includes mailbox, 'Path("/etc/postfix/lightek_logins")'
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

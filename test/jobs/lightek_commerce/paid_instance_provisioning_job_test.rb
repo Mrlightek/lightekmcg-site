@@ -30,7 +30,8 @@ class PaidInstanceProvisioningJobTest < ActiveSupport::TestCase
 
   test "completed order returns without provisioning again and unlocks" do
     connection = FakeConnection.new(true)
-    order = Struct.new(:paid_at?, :status, :items, :provisioned_at?).new(true, "paid", [], true)
+    instance_item = Struct.new(:product).new(Struct.new(:product_type).new("lightek_instance"))
+    order = Struct.new(:paid_at?, :status, :items, :provisioned_at?).new(true, "paid", [instance_item], true)
     ActiveRecord::Base.stub(:connection, connection) do
       Order.stub(:find, order) do
         LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(**) { flunk "duplicate provisioning" }) do
@@ -38,6 +39,26 @@ class PaidInstanceProvisioningJobTest < ActiveSupport::TestCase
         end
       end
     end
+    assert_equal 2, connection.queries.size
+    assert_includes connection.queries.last, "pg_advisory_unlock"
+  end
+
+  test "paid unprovisioned instance invokes provisioning once and unlocks" do
+    connection = FakeConnection.new(true)
+    instance_item = Struct.new(:product).new(Struct.new(:product_type).new("lightek_instance"))
+    order = Struct.new(:paid_at?, :status, :items, :provisioned_at?).new(true, "paid", [instance_item], false)
+    calls = 0
+    ActiveRecord::Base.stub(:connection, connection) do
+      Order.stub(:find, order) do
+        LightekCommerce::PaidInstanceProvisioning.stub(:call!, ->(order: supplied_order) {
+          calls += 1
+          assert_same order, supplied_order
+        }) do
+          LightekCommerce::PaidInstanceProvisioningJob.new.perform(123)
+        end
+      end
+    end
+    assert_equal 1, calls
     assert_equal 2, connection.queries.size
     assert_includes connection.queries.last, "pg_advisory_unlock"
   end

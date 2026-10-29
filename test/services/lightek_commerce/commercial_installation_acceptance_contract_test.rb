@@ -103,6 +103,15 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes source, "account.enabled = false if account.new_record?"
   end
 
+  test "nonblocking mail outcomes survive in the Gatekeeper deployment receipt" do
+    deploy = Rails.root.join("script/lightek/website_deploy.sh").read
+    gatekeeper = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
+    assert_includes deploy, "mail_setup_status=mail_setup_status"
+    assert_includes deploy, "mail_registration_status=mail_registration_status"
+    assert_includes deploy, "mail_setup_status='pending'"
+    assert_includes gatekeeper, '"website_deployment" => receipt'
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

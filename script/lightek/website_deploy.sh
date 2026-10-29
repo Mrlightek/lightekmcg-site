@@ -355,7 +355,7 @@ def main():
                 # SMTP delivery is not enabled by this step.
                 if c.get('_headless') or os.environ.get('LIGHTEK_INSTALL_PRIVATE_MAIL_NODE')=='true':
                     mail_script='/opt/lightek-sites/'+c['domain']+'/releases/'+c['release']+'/lib/scripts/setup_lightek_mail_node.sh'
-                    check='systemctl is-active --quiet postfix && systemctl is-active --quiet rspamd && systemctl is-active --quiet lightek-mail-redis'
+                    check='systemctl is-active --quiet postfix && systemctl is-active --quiet dovecot && systemctl is-active --quiet rspamd && systemctl is-active --quiet lightek-mail-redis'
                     command='if '+check+'; then echo LIGHTEK_MAIL_PRIVATE_NODE_READY; else sudo LIGHTEK_MAIL_HOST='+shlex.quote('mail.'+c['domain'])+' LIGHTEK_MAIL_DKIM_DOMAIN='+shlex.quote(c['domain'])+' bash '+shlex.quote(mail_script)+' --install; fi'
                     run(ssh+[command])
                 health=verify_public(c)

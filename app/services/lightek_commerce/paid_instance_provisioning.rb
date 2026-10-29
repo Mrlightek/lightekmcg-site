@@ -107,14 +107,14 @@ module LightekCommerce
       begin
         node = request.reload.gatekeeper_node
         metadata = request.metadata.to_h
-        unless metadata["mail_port_ticket_attempted"]
-          request.update!(metadata: metadata.merge("mail_port_ticket_attempted" => true))
+        unless metadata["mail_port_ticket_id"].present?
           ticket = request.compute_provider.adapter(requested_by: actor.email_address).create_support_ticket(
             summary: "Enable mail ports on Lightek customer instance #{node.provider_resource_id}",
             description: "Please review and remove inbound/outbound SMTP mail port restrictions for Linode #{node.provider_resource_id} (#{node.ip_address}). Lightek Mail requires TCP 25 inbound and outbound, TCP 465/587 authenticated submission, and TCP 993 IMAPS for customer access. Mail server authorization, abuse limits, SPF, DKIM, DMARC and TLS are configured separately. Please confirm when restrictions are lifted.",
             linode_id: node.provider_resource_id
           )
-          request.update!(metadata: request.metadata.to_h.merge("mail_port_ticket_id" => ticket["id"], "mail_port_ticket_status" => "submitted"))
+          raise "Mail port support ticket response missing ID" if ticket["id"].blank?
+          request.update!(metadata: request.metadata.to_h.merge("mail_port_ticket_attempted" => true, "mail_port_ticket_id" => ticket["id"], "mail_port_ticket_status" => "submitted"))
         end
       rescue StandardError => e
         Rails.logger.error("[Commerce] Linode mail-port support request failed order=#{order.id} #{e.class}: #{e.message}")

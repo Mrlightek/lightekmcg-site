@@ -42,10 +42,10 @@ class MailBootstrapContractTest(unittest.TestCase):
             root = Path(directory)
             mail.write_plan(root, "mail.customer.example")
             recipients = root / "postfix/lightek_recipients"
-            recipients.write_text("owner@customer.example owner@customer.example\\n")
+            original = "owner@customer.example owner@customer.example\\n"
+            recipients.write_text(original)
             mail.write_plan(root, "mail.customer.example", preserve_mailboxes=True)
-            self.assertEqual(recipients.read_text(), "owner@customer.example\\n".replace(
-                "owner@customer.example\\n", "owner@customer.example owner@customer.example\\n"))
+            self.assertEqual(recipients.read_text(), original)
 
     def test_plan_refuses_symlink_directory(self):
         with tempfile.TemporaryDirectory() as directory:

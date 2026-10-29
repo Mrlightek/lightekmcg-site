@@ -357,7 +357,12 @@ def main():
                     mail_script='/opt/lightek-sites/'+c['domain']+'/releases/'+c['release']+'/lib/scripts/setup_lightek_mail_node.sh'
                     check='systemctl is-active --quiet postfix && systemctl is-active --quiet dovecot && systemctl is-active --quiet rspamd && systemctl is-active --quiet lightek-mail-redis'
                     command='if '+check+'; then sudo LIGHTEK_MAIL_INITIAL_ADDRESS='+shlex.quote('admin@'+c['domain'])+' bash '+shlex.quote(mail_script)+' --mailbox-only; else sudo LIGHTEK_MAIL_INITIAL_ADDRESS='+shlex.quote('admin@'+c['domain'])+' LIGHTEK_MAIL_HOST='+shlex.quote('mail.'+c['domain'])+' LIGHTEK_MAIL_DKIM_DOMAIN='+shlex.quote(c['domain'])+' bash '+shlex.quote(mail_script)+' --install; fi'
-                    run(ssh+[command])
+                    try:
+                        run(ssh+[command])
+                        mailbox_node_ready=True
+                    except subprocess.CalledProcessError:
+                        mailbox_node_ready=False
+                        print('LIGHTEK_MAIL_SETUP_PENDING: customer website installation continues',flush=True)
                     # Register mailbox in the customer's own Rails database.
                     # Sending stays disabled until DNS, provider ports, and mail
                     # transport have been verified independently.
@@ -368,7 +373,11 @@ def main():
                          '-e','LIGHTEK_INITIAL_MAIL_OWNER='+c['owner_email'],
                          '-e','LIGHTEK_INITIAL_MAIL_ADDRESS=admin@'+c['domain'],
                          'web','bin/rails','runner','script/lightek_mail_account_bootstrap.rb']
-                    run(ssh+['sudo '+shlex.join(cmd)])
+                    if mailbox_node_ready:
+                        try:
+                            run(ssh+['sudo '+shlex.join(cmd)])
+                        except subprocess.CalledProcessError:
+                            print('LIGHTEK_MAIL_REGISTRATION_PENDING: customer website installation continues',flush=True)
                 health=verify_public(c)
                 # Mail egress/ingress restrictions are controlled by the VPS
                 # provider. A configured instance may activate while external

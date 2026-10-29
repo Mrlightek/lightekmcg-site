@@ -71,10 +71,11 @@ module LightekCommerce
         mailbox = "LIGHTEK_MAIL_INITIAL_ADDRESS=#{Shellwords.escape(address)} bash #{Shellwords.escape(script)} --mailbox-only"
         check = "systemctl is-active --quiet postfix && systemctl is-active --quiet dovecot && systemctl is-active --quiet rspamd && systemctl is-active --quiet lightek-mail-redis"
         compose_project = "lt_#{Digest::SHA256.hexdigest(domain)[0, 16]}"
+        owner_email = config["owner_email"].presence || User.find(config.fetch("owner_id")).email_address
         register = [
           "docker", "compose", "--env-file", "#{root}/.env", "-p", compose_project,
           "-f", "#{root}/compose.yml", "run", "--rm", "-T",
-          "-e", "LIGHTEK_INITIAL_MAIL_OWNER=#{config.fetch("owner_email")}",
+          "-e", "LIGHTEK_INITIAL_MAIL_OWNER=#{owner_email}",
           "-e", "LIGHTEK_INITIAL_MAIL_ADDRESS=#{address}",
           "web", "bin/rails", "runner", "script/lightek_mail_account_bootstrap.rb"
         ].shelljoin

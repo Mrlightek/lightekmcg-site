@@ -92,6 +92,7 @@ module LightekCommerce
       Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
       # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+      # Record post-activation work separately; never reset the paid installation.
       # Pending mail work is independent of customer activation and can be retried.
       begin
         receipt = request.reload.gatekeeper_node&.metadata.to_h.fetch("website_deployment", {})

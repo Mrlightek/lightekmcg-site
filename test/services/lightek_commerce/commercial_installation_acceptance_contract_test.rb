@@ -88,6 +88,21 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes installer, "LIGHTEK_MAIL_INITIAL_ADDRESS"
   end
 
+  test "existing mail nodes retry mailbox provisioning without reinstalling services" do
+    installer = Rails.root.join("lib/scripts/setup_lightek_mail_node.sh").read
+    deploy = Rails.root.join("script/lightek/website_deploy.sh").read
+    assert_includes installer, "--mailbox-only"
+    assert_includes deploy, "--mailbox-only"
+    assert_includes deploy, "lightek_mail_account_bootstrap.rb"
+  end
+
+  test "initial Rails mailbox registration is owner-bound and sending-disabled" do
+    source = Rails.root.join("script/lightek_mail_account_bootstrap.rb").read
+    assert_includes source, "User.find_by!"
+    assert_includes source, "Mailbox domain belongs to another user"
+    assert_includes source, "account.enabled = false if account.new_record?"
+  end
+
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
     assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'

@@ -1,0 +1,75 @@
+name: Paid Provisioning Release Gate
+
+on:
+  push:
+    branches:
+      - fix/paid-instance-provisioning-recovery-20261028
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mail_bootstrap:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python mail bootstrap regression tests
+        run: python3 -m unittest discover -s test/scripts -p 'test_lightek_mail_bootstrap.py' -v
+      - name: Shell syntax
+        run: bash -n lib/scripts/setup_lightek_mail_node.sh
+      - name: Python syntax
+        run: python3 -m py_compile lib/scripts/lightek_mail_server.py lib/scripts/lightek_mailbox.py
+
+  paid_provisioning:
+    runs-on: ubuntu-24.04
+    env:
+      RAILS_ENV: test
+      DB_HOST: 127.0.0.1
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: lightek_ci_test
+      REDIS_URL: redis://127.0.0.1:6379/0
+      PARALLEL_WORKERS: 1
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: lightek_ci_test
+          POSTGRES_DB: lightekmcg_site_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check private dependency credentials
+        env:
+          LIGHTEK_APP_ID: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          LIGHTEK_APP_KEY: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$LIGHTEK_APP_ID" || -z "$LIGHTEK_APP_KEY" ]]; then
+            echo "::error::Missing private dependency GitHub App credentials"
+            exit 1
+          fi
+      - uses: actions/create-github-app-token@v2
+        id: private_repos
+        with:
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+          owner: lightekmcg
+      - name: Authenticate private gem repositories
+        env:
+          LIGHTEK_GITHUB_TOKEN: ${{ steps.private_repos.outputs.token }}
+        run: |
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - name: Prepare test database
+        run: bin/rails db:test:prepare
+      - name: Paid provisioning and commercial installation contract
+        run: bin/rails test test/jobs/lightek_commerce/paid_instance_provisioning_job_test.rb test/services/lightek_commerce/commercial_installation_acceptance_contract_test.rb

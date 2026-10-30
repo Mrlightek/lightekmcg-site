@@ -15,6 +15,24 @@ class LightekCommerceStripeWebhookRoutingTest < ActiveSupport::TestCase
     assert_equal [stripe_event], calls
   end
 
+  test "async paid Commerce checkout dispatches to Commerce" do
+    stripe_event = event("checkout.session.async_payment_succeeded", { "lightek_commerce_order_id" => "42" })
+    received = []
+    LightekCommerce::StripeEvents.stub(:process!, ->(value) { received << value }) do
+      DymondBank::StripeWebhookService.process!(stripe_event)
+    end
+    assert_equal [stripe_event], received
+  end
+
+  test "expired Commerce checkout dispatches to Commerce" do
+    stripe_event = event("checkout.session.expired", { "lightek_commerce_order_id" => "42" })
+    received = []
+    LightekCommerce::StripeEvents.stub(:process!, ->(value) { received << value }) do
+      DymondBank::StripeWebhookService.process!(stripe_event)
+    end
+    assert_equal [stripe_event], received
+  end
+
   test "unrelated checkout stays with Dymond Bank" do
     stripe_event = event("checkout.session.completed", {})
     LightekCommerce::StripeEvents.stub(:process!, ->(*) { flunk "Commerce called for SUSU event" }) do

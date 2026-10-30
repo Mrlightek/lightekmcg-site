@@ -199,6 +199,7 @@ end
 
 # ── Gatekeeper — Lightek client contract ──────────────────────────────────────
 # Gatekeeper is the public experience/API contract for Roku and future clients.
+post "gatekeeper/device", to: "gatekeeper#device_api", as: :gatekeeper_device
 get "gatekeeper",
   to: "gatekeeper#index",
   defaults: { format: :json },

@@ -17,6 +17,8 @@ module LightekCommerce
       actor = User.find_by(role: "super_admin") || raise(NotReady, "No Lightek super admin operator configured")
       raise NotReady, "Paid order required" unless order.paid_at? && %w[paid fulfilled].include?(order.status)
 
+      vps = required_vps_configuration!
+
       customer = User.find_by(email_address: order.customer_email)
       unless customer
         begin
@@ -41,7 +43,7 @@ module LightekCommerce
             current_period_start: Time.current, current_period_end: 1.month.from_now)
           request = Gatekeeper::Compute::ProvisioningRequestBuilder.call(
             subscription: subscription, requested_by: actor.email_address,
-            estimated_monthly_cost_cents: Integer(ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS")))
+            estimated_monthly_cost_cents: vps.fetch(:monthly_cost_cents))
           order.update!(provisioning_request_id: request.id, provisioning_state: "requested")
         end
       end
@@ -56,9 +58,9 @@ module LightekCommerce
           raise NotReady, "Only failed or awaiting-approval requests can be reauthorized" unless
             %w[failed awaiting_approval awaiting_cost awaiting_provider draft ready].include?(request.execution_status)
           request.update!(
-            selected_region: ENV.fetch("LIGHTEK_AUTO_VPS_REGION"),
-            selected_plan: ENV.fetch("LIGHTEK_AUTO_VPS_PLAN"),
-            selected_image: ENV.fetch("LIGHTEK_AUTO_VPS_IMAGE"),
+            selected_region: vps.fetch(:region),
+            selected_plan: vps.fetch(:plan),
+            selected_image: vps.fetch(:image),
             node_label: "lightek-client-#{order.id}",
             execution_status: "awaiting_approval")
           Gatekeeper::Compute::ApprovalService.call(request: request, requested_by: actor.email_address)
@@ -132,6 +134,29 @@ module LightekCommerce
           provisioning_error: "#{e.class}: #{e.message}".slice(0, 1000))
       end
       raise
+    end
+
+    def self.required_vps_configuration!
+      names = %w[
+        LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS
+        LIGHTEK_AUTO_VPS_REGION
+        LIGHTEK_AUTO_VPS_PLAN
+        LIGHTEK_AUTO_VPS_IMAGE
+      ]
+      missing = names.select { |name| ENV[name].to_s.strip.empty? }
+      raise NotReady, "Missing paid VPS configuration: #{missing.join(', ')}" if missing.any?
+
+      cents = Integer(ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS"), 10)
+      raise NotReady, "LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS must be positive" unless cents.positive?
+
+      {
+        monthly_cost_cents: cents,
+        region: ENV.fetch("LIGHTEK_AUTO_VPS_REGION").strip,
+        plan: ENV.fetch("LIGHTEK_AUTO_VPS_PLAN").strip,
+        image: ENV.fetch("LIGHTEK_AUTO_VPS_IMAGE").strip
+      }
+    rescue ArgumentError
+      raise NotReady, "LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS must be a positive integer"
     end
   end
 end

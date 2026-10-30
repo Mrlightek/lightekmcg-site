@@ -38,7 +38,7 @@ module LightekCommerce
   end
 end
 
-load File.expand_path("../../config/initializers/lightek_commerce_stripe_routing.rb", __dir__ + "/../..")
+load File.expand_path("../../config/initializers/lightek_commerce_stripe_routing.rb", __dir__)
 
 class StripeWebhookRoutingStandaloneTest < Minitest::Test
   Event = Struct.new(:type, :data)
@@ -78,7 +78,7 @@ class StripeWebhookRoutingStandaloneTest < Minitest::Test
   end
 
   def test_prepare_is_idempotent
-    load File.expand_path("../../config/initializers/lightek_commerce_stripe_routing.rb", __dir__ + "/../..")
+    load File.expand_path("../../config/initializers/lightek_commerce_stripe_routing.rb", __dir__)
     assert_equal 1, DymondBank::StripeWebhookService.singleton_class.ancestors.count { |ancestor| ancestor == LightekCommerceStripeRouting }
   end
 end

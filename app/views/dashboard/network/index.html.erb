@@ -15,14 +15,23 @@
     <%= text_field_tag :cron, nil, placeholder: "*/5 * * * *", required: true %>
     <%= submit_tag "Create schedule", class: "dd-topbar-btn dd-btn-primary" %>
   <% end %>
-  <table style="width:100%"><thead><tr><th align="left">Name</th><th align="left">Class</th><th align="left">Cron</th><th align="left">Actions</th></tr></thead>
+  <table style="width:100%"><thead><tr><th align="left">Name</th><th align="left">Class</th><th align="left">Cron</th><th align="left">Status</th><th align="left">Actions</th></tr></thead>
   <tbody>
     <% @cron_jobs.each do |job| %>
-      <tr><td><%= job.name %></td><td><%= job.klass %></td><td><%= job.cron %></td>
-      <td><%= button_to "Delete", dashboard_network_cron_jobs_path(name: job.name), method: :delete,
+      <tr><td><%= job.name %></td><td><%= job.klass %></td><td><%= job.cron %></td><td><%= job.status %></td>
+      <td><%= button_to(job.status == "enabled" ? "Disable" : "Enable", dashboard_network_toggle_cron_job_path(name: job.name), method: :post, class: "dd-topbar-btn") %>
+      <details><summary>Edit schedule</summary>
+        <%= form_with url: dashboard_network_cron_jobs_path, method: :patch do %>
+          <%= hidden_field_tag :name, job.name %>
+          <%= select_tag :job_class, options_for_select(Gatekeeper::CronManagement::ALLOWED_JOBS, job.klass) %>
+          <%= text_field_tag :cron, job.cron, required: true %>
+          <%= submit_tag "Save schedule", class: "dd-topbar-btn" %>
+        <% end %>
+      </details>
+      <%= button_to "Delete", dashboard_network_cron_jobs_path(name: job.name), method: :delete,
         class: "dd-topbar-btn", data: { turbo_confirm: "Delete this schedule?" } %></td></tr>
     <% end %>
-    <% if @cron_jobs.empty? %><tr><td colspan="4">No dashboard-managed schedules.</td></tr><% end %>
+    <% if @cron_jobs.empty? %><tr><td colspan="5">No dashboard-managed schedules.</td></tr><% end %>
   </tbody></table>
 </section>
 

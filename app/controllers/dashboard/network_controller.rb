@@ -7,14 +7,24 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
   def index
     @cron_jobs = Gatekeeper::CronManagement.list
     @devices = NetworkManagedDevice.order(updated_at: :desc).limit(100)
-    @zones = Godaddy::DnsService.zones
-    @zone = params[:zone].presence || @zones.first
-    @records = @zone.present? ? Godaddy::DnsService.new(zone: @zone).records : []
-    @firewall_status = Gatekeeper::FirewallService.new.status
     @dns_checks = {}
     @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
     @managed_nodes = GatekeeperNode.where.not(compute_provider_id: nil).order(created_at: :desc).limit(30)
     @recent_network_operations = GatekeeperOperation.where(capability: %w[provision_compute_node deploy_website dns_create dns_update dns_delete]).order(created_at: :desc).limit(20)
+    begin
+      @zones = Godaddy::DnsService.zones
+      @zone = params[:zone].presence || @zones.first
+      @records = @zone.present? ? Godaddy::DnsService.new(zone: @zone).records : []
+    rescue StandardError => e
+      @zones = []
+      @records = []
+      flash.now[:alert] = "DNS provider unavailable: #{e.message}"
+    end
+    begin
+      @firewall_status = Gatekeeper::FirewallService.new.status
+    rescue StandardError => e
+      @firewall_status = "Unavailable: #{e.message}"
+    end
   rescue StandardError => e
     @cron_jobs ||= []
     @records ||= []

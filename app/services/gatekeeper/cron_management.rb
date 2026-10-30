@@ -26,11 +26,28 @@ module Gatekeeper
       job
     end
 
-    def self.destroy!(name:)
+    def self.update!(name:, cron:, job_class:)
+      job = managed_job!(name)
+      raise ArgumentError, "Job class not permitted" unless ALLOWED_JOBS.include?(job_class)
+      raise ArgumentError, "Invalid cron expression" unless Fugit::Cron.parse(cron.to_s)
+      replacement = Sidekiq::Cron::Job.new(name: job.name, cron: cron, class: job_class, queue: "default")
+      raise ArgumentError, replacement.errors.join(", ") unless replacement.save
+      replacement
+    end
+
+    def self.toggle!(name:)
+      job = managed_job!(name)
+      job.status == "enabled" ? job.disable! : job.enable!
+      Sidekiq::Cron::Job.find(job.name)
+    end
+
+    def self.managed_job!(name)
       raise ArgumentError, "Not a dashboard-managed job" unless name.to_s.start_with?(PREFIX)
-      job = Sidekiq::Cron::Job.find(name)
-      raise ActiveRecord::RecordNotFound, "Cron job not found" unless job
-      job.destroy
+      Sidekiq::Cron::Job.find(name) || raise(ArgumentError, "Cron job not found")
+    end
+
+    def self.destroy!(name:)
+      managed_job!(name).destroy
     end
   end
 end

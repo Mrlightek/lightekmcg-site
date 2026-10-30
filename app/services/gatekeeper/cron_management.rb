@@ -10,7 +10,7 @@ module Gatekeeper
     PREFIX = "dashboard_".freeze
 
     def self.list
-      Sidekiq::Cron::Job.all.select { |job| job.name.start_with?(PREFIX) }
+      Sidekiq::Cron::Job.all.select { |job| dashboard_name?(job.name) }
     end
 
     def self.create!(name:, job_class:, cron:)
@@ -51,8 +51,12 @@ module Gatekeeper
     end
 
     def self.managed_job!(name)
-      raise ArgumentError, "Not a dashboard-managed job" unless name.to_s.start_with?(PREFIX)
+      raise ArgumentError, "Not a dashboard-managed job" unless dashboard_name?(name)
       Sidekiq::Cron::Job.find(name) || raise(ArgumentError, "Cron job not found")
+    end
+
+    def self.dashboard_name?(name)
+      name.to_s.match?(/\Adashboard_[a-z][a-z0-9_-]{2,60}\z/)
     end
 
     def self.destroy!(name:)

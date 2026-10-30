@@ -28,7 +28,7 @@
     <% end %>
   </details>
   <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
-    <thead><tr><th align="left">Device</th><th align="left">Type</th><th align="left">Identifier</th><th align="left">Network</th><th align="left">Management</th><th align="left">Status</th><th align="left">Actions</th></tr></thead>
+    <thead><tr><th align="left">Device</th><th align="left">Type</th><th align="left">Identifier</th><th align="left">Network</th><th align="left">Management</th><th align="left">Status</th><th align="left">Last seen</th><th align="left">Actions</th></tr></thead>
     <tbody>
       <% @devices.each do |device| %>
         <tr>
@@ -36,6 +36,7 @@
           <td><%= device.hostname.presence || device.ip_address.presence || "Not configured" %></td>
           <td><%= device.management_protocol.presence || "Unmanaged" %></td>
           <td><%= device.status.humanize %></td>
+          <td><%= device.last_seen_at ? time_ago_in_words(device.last_seen_at) + " ago" : "Never" %></td>
           <td><details><summary style="cursor:pointer">Edit</summary>
             <%= form_with url: dashboard_network_device_path(id: device.id), method: :patch, style: "display:grid;gap:6px" do %>
               <%= text_field_tag "device[name]", device.name, required: true %>
@@ -51,7 +52,7 @@
           </td>
         </tr>
       <% end %>
-      <% if @devices.empty? %><tr><td colspan="7">No devices registered.</td></tr><% end %>
+      <% if @devices.empty? %><tr><td colspan="8">No devices registered.</td></tr><% end %>
     </tbody>
   </table></div>
 </section>

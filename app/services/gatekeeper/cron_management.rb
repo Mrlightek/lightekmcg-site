@@ -26,6 +26,12 @@ module Gatekeeper
       job
     end
 
+    def self.run_now!(name:)
+      job = managed_job!(name)
+      raise ArgumentError, "Job class not permitted" unless ALLOWED_JOBS.include?(job.klass)
+      job.enqueue!
+    end
+
     def self.update!(name:, cron:, job_class:)
       job = managed_job!(name)
       raise ArgumentError, "Job class not permitted" unless ALLOWED_JOBS.include?(job_class)

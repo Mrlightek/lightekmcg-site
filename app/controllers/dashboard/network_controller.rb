@@ -20,6 +20,22 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     flash.now[:alert] = e.message
   end
 
+  def retry_provisioning
+    request_record = ProvisioningRequest.find(params.require(:id))
+    order = LightekCommerce::Order.find_by(provisioning_request_id: request_record.id)
+    raise ActiveRecord::RecordNotFound, "No paid order for provisioning request" unless order
+    raise ActiveRecord::RecordNotFound, "Order is not paid" unless order.paid_at?
+    raise ActiveRecord::RecordNotFound, "Installation already complete" if order.provisioned_at?
+
+    # Reuse the existing order and webhook-confirmed payment. No new checkout.
+    LightekCommerce::PaidInstanceProvisioningJob.perform_later(order.id)
+    audit!("provisioning_recovery_queued", { request_id: request_record.id, order_id: order.id }, { queued: true })
+    redirect_to dashboard_network_path, notice: "Existing paid installation queued for recovery."
+  rescue StandardError => e
+    audit_failure!("provisioning_recovery_queued", e)
+    redirect_to dashboard_network_path, alert: e.message
+  end
+
   def create_dns
     record = Godaddy::DnsService.new(zone: params.require(:zone)).create_record!(dns_params)
     audit!("dns_create", dns_params.merge(zone: params[:zone]), record)

@@ -5,6 +5,55 @@
   <p style="color:var(--dd-text-secondary);font-size:13px">Super-admin DNS and host firewall control.</p>
 </div>
 
+
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Customer infrastructure">
+  <h3>Customer infrastructure</h3>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Paid provisioning requests, cloud allocation, deployment state, and DNS targets. Changes are made through audited Gatekeeper workflows.</p>
+  <div style="overflow-x:auto">
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead><tr><th align="left">Request</th><th align="left">Customer</th><th align="left">Provider</th><th align="left">State</th><th align="left">Node / IP</th><th align="left">Recovery</th></tr></thead>
+      <tbody>
+        <% @provisioning_requests.each do |request| %>
+          <% node = request.gatekeeper_node %>
+          <tr>
+            <td>#<%= request.id %></td>
+            <td><%= request.owner.respond_to?(:email_address) ? request.owner.email_address : request.owner_type %></td>
+            <td><%= request.compute_provider&.name || "Unassigned" %></td>
+            <td><%= request.execution_status.to_s.humanize %></td>
+            <td><%= node ? "#{node.name} / #{node.ip_address}" : "Not allocated" %></td>
+            <td><%= Array(request.metadata.to_h["retired_provider_nodes"]).any? ? "Replacement history: #{Array(request.metadata.to_h["retired_provider_nodes"]).size}" : "—" %></td>
+          </tr>
+        <% end %>
+        <% if @provisioning_requests.empty? %><tr><td colspan="6">No provisioning requests yet.</td></tr><% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Managed cloud nodes">
+  <h3>Managed cloud nodes</h3>
+  <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
+    <thead><tr><th align="left">Node</th><th align="left">Provider resource</th><th align="left">Public IP</th><th align="left">Status</th></tr></thead>
+    <tbody>
+      <% @managed_nodes.each do |node| %>
+        <tr><td><%= node.name %></td><td><%= node.provider_resource_id %></td><td><%= node.ip_address %></td><td><%= node.status.humanize %></td></tr>
+      <% end %>
+      <% if @managed_nodes.empty? %><tr><td colspan="4">No managed cloud nodes.</td></tr><% end %>
+    </tbody>
+  </table></div>
+</section>
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Recent network operations">
+  <h3>Recent network operations</h3>
+  <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
+    <thead><tr><th align="left">When</th><th align="left">Operation</th><th align="left">Result</th></tr></thead>
+    <tbody>
+      <% @recent_network_operations.each do |operation| %>
+        <tr><td><%= operation.created_at&.strftime("%Y-%m-%d %H:%M UTC") %></td><td><%= operation.capability.humanize %></td><td><%= operation.status.humanize %></td></tr>
+      <% end %>
+      <% if @recent_network_operations.empty? %><tr><td colspan="3">No recent operations.</td></tr><% end %>
+    </tbody>
+  </table></div>
+</section>
+
 <div class="dd-card" style="padding:20px;margin-bottom:18px">
   <h3>Firewall</h3>
   <pre style="white-space:pre-wrap;font-size:12px"><%= @firewall_status %></pre>

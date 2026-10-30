@@ -125,6 +125,7 @@ module Gatekeeper
         raise Invalid, "Instance is still starting; rerun uses the same node" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
         sleep 10
       end
+      Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)
       run!(actor:, node:, domain:)
     end
 

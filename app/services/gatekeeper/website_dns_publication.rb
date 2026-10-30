@@ -32,8 +32,8 @@ module Gatekeeper
         dns.create_record!("name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
       elsif existing.one? && existing.first["data"].to_s == ipv4.to_s
         # The only existing A record already points to this instance.
-      elsif existing.one? && existing.first["id"].present?
-        dns.update_record!(existing.first.fetch("id"), "name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
+      elsif existing.one? && (existing.first["recordId"].presence || existing.first["id"].presence).present?
+        dns.update_record!(existing.first["recordId"].presence || existing.first.fetch("id"), "name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
       else
         # A matching record among several conflicting A records is NOT success.
         # Leaving old instance IPs published would route customers incorrectly.

@@ -31,6 +31,7 @@ Rails.application.routes.draw do
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_variants#destroy", as: :dashboard_commerce_variant
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
   post "/dashboard/commerce/payouts/:order_id", to: "dashboard/commerce_payouts#create", as: :dashboard_commerce_payout
+  post "/dashboard/network/devices/:id/rotate_token", to: "dashboard/network#rotate_device_token", as: :dashboard_network_rotate_device_token
   post "/dashboard/network/devices", to: "dashboard/network#create_device", as: :dashboard_network_devices
   patch "/dashboard/network/devices/:id", to: "dashboard/network#update_device", as: :dashboard_network_device
   post "/dashboard/network/nodes/:id/verify", to: "dashboard/network#verify_node", as: :dashboard_network_verify_node

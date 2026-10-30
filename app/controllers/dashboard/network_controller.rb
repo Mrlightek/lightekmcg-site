@@ -56,6 +56,16 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     redirect_to dashboard_network_path, alert: e.message
   end
 
+  def run_cron_job
+    name = params.require(:name)
+    Gatekeeper::CronManagement.run_now!(name: name)
+    audit!("cron_job_run", { name: name }, { enqueued: true })
+    redirect_to dashboard_network_path, notice: "Scheduled job enqueued."
+  rescue StandardError => e
+    audit_failure!("cron_job_run", e)
+    redirect_to dashboard_network_path, alert: e.message
+  end
+
   def delete_cron_job
     name = params.require(:name)
     Gatekeeper::CronManagement.destroy!(name: name)

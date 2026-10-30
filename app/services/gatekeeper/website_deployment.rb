@@ -108,6 +108,13 @@ module Gatekeeper
         raise Invalid, "Request is not approved and ready; no instance was created" unless request.executable?
         node = Gatekeeper::Compute::ProvisioningExecutionService.call(request:, requested_by: actor.email_address)
       end
+      # A provider resource can be deleted externally while the request still
+      # references its former Gatekeeper node. Never SSH to the stale IP.
+      begin
+        Gatekeeper::Compute::NodeVerificationService.call(request:, requested_by: actor.email_address)
+      rescue StandardError => e
+        raise Invalid, "Provider node verification failed; reconcile the allocation before retrying (#{e.class})"
+      end
       # Bind the deployment to the recovered/allocated node before boot polling.
       # A retry must reuse its node and registered deployment configuration.
       register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role"))

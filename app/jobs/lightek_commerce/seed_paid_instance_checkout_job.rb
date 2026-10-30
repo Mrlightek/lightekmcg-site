@@ -7,12 +7,23 @@ module LightekCommerce
   class SeedPaidInstanceCheckoutJob < ApplicationJob
     queue_as :default
 
-    def perform(order_id)
+    def perform(order_id = nil)
       unless Rails.env.test? || (Rails.env.development? && ENV["LIGHTEK_ALLOW_SEEDED_PAYMENT"] == "1")
         raise ArgumentError, "Seeded payment acceptance is restricted to test or explicitly enabled development"
       end
 
-      order = Order.find(order_id)
+      order = if order_id.present?
+        Order.find(order_id)
+      else
+        Order.where(status: "pending_payment")
+          .where("payment_reference LIKE ?", "cs\\_test\\_%")
+          .where("subtotal_cents > 0")
+          .order(:id)
+          .detect do |candidate|
+            candidate.items.any? { |item| item.product.product_type == "lightek_instance" }
+          end
+      end
+      raise ArgumentError, "No pending Stripe test instance order exists; create a test checkout first" unless order
       raise ArgumentError, "Order must be pending payment" unless order.status == "pending_payment"
       raise ArgumentError, "Order must contain an instance product" unless order.items.any? { |item| item.product.product_type == "lightek_instance" }
       raise ArgumentError, "Order must have a Stripe test checkout reference" unless order.payment_reference.to_s.start_with?("cs_test_")
@@ -28,6 +39,7 @@ module LightekCommerce
         )
       event = Struct.new(:type, :data).new("checkout.session.completed", Struct.new(:object).new(session))
 
+      Rails.logger.info("[Commerce] Seeded acceptance payment for test order #{order.id}")
       # Exercise the same routing entrypoint used by the signed webhook after
       # Stripe signature verification; no external payment is represented.
       DymondBank::StripeWebhookService.process!(event)

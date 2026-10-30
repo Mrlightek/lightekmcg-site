@@ -46,11 +46,13 @@ class GatekeeperController < ApplicationController
 
     case action
     when "device_enroll"
+      return render json: { error: "Device is suspended" }, status: :forbidden if device.status == "maintenance"
       device.update!(enrolled_at: Time.current, last_seen_at: Time.current,
         last_heartbeat_ip: request.remote_ip, status: "active")
       render json: { ok: true, device_id: device.id, status: device.status }
     when "device_heartbeat"
       return render json: { error: "Enrollment required" }, status: :forbidden unless device.enrolled_at?
+      return render json: { error: "Device is not active" }, status: :forbidden unless device.status == "active"
       device.update!(last_seen_at: Time.current, last_heartbeat_ip: request.remote_ip,
         status: "active")
       render json: { ok: true, device_id: device.id, status: device.status,

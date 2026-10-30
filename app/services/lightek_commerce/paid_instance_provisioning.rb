@@ -97,7 +97,15 @@ module LightekCommerce
       end
 
       order.update!(provisioning_state: "deploying", provisioning_error: nil)
-      Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
+      deployment = Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
+      node = request.reload.gatekeeper_node || raise(NotReady, "Paid installation has no allocated server")
+      receipt = node.metadata.to_h.fetch("website_deployment", {})
+      unless deployment[:verified] == true && deployment[:url] == "https://#{domain}" &&
+          receipt["url"] == deployment[:url] && receipt["public_https_verified"] == true &&
+          receipt["owner_login_verified"] == true &&
+          receipt.dig("health", "full_application_dashboard_verified") == true
+        raise NotReady, "Paid installation missing verified HTTPS, owner login or application dashboard receipt"
+      end
       # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
       # Record post-activation work separately; never reset the paid installation.

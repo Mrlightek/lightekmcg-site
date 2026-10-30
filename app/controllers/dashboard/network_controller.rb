@@ -5,8 +5,13 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
   before_action :require_super_admin!
 
   def index
-    @cron_jobs = Gatekeeper::CronManagement.list
     @devices = NetworkManagedDevice.order(updated_at: :desc).limit(100)
+    begin
+      @cron_jobs = Gatekeeper::CronManagement.list
+    rescue StandardError => e
+      @cron_jobs = []
+      flash.now[:alert] = "Sidekiq schedules unavailable: #{e.message}"
+    end
     @dns_checks = {}
     @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
     @managed_nodes = GatekeeperNode.where.not(compute_provider_id: nil).order(created_at: :desc).limit(30)

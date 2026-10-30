@@ -1,3 +1,5 @@
+require "resolv"
+require "ipaddr"
 class Dashboard::NetworkController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   before_action :require_super_admin!
@@ -7,6 +9,7 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     @zone = params[:zone].presence || @zones.first
     @records = @zone.present? ? Godaddy::DnsService.new(zone: @zone).records : []
     @firewall_status = Gatekeeper::FirewallService.new.status
+    @dns_checks = {}
     @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
     @managed_nodes = GatekeeperNode.where.not(compute_provider_id: nil).order(created_at: :desc).limit(30)
     @recent_network_operations = GatekeeperOperation.where(capability: %w[provision_compute_node deploy_website dns_create dns_update dns_delete]).order(created_at: :desc).limit(20)
@@ -34,6 +37,22 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
   rescue StandardError => e
     audit_failure!("provisioning_recovery_queued", e)
     redirect_to dashboard_network_path, alert: e.message
+  end
+
+  def verify_dns
+    hostname = params.require(:hostname).to_s.downcase.strip
+    raise ArgumentError, "Invalid hostname" unless hostname.match?(/\\A[a-z0-9-]+(?:\\.[a-z0-9-]+)+\\z/)
+    addresses = Resolv.getaddresses(hostname).select { |address| IPAddr.new(address).ipv4? }
+    expected = params[:expected_ipv4].to_s.strip
+    matched = expected.present? && addresses.include?(expected)
+    audit!("dns_verify", { hostname: hostname, expected_ipv4: expected },
+      { addresses: addresses, matched: matched })
+    message = "DNS #{hostname}: #{addresses.presence&.join(', ') || 'no IPv4 records'}"
+    message += " (#{matched ? 'matches' : 'does not match'} expected #{expected})" if expected.present?
+    redirect_to dashboard_network_path(zone: params[:zone]), notice: message
+  rescue StandardError => e
+    audit_failure!("dns_verify", e)
+    redirect_to dashboard_network_path(zone: params[:zone]), alert: e.message
   end
 
   def create_dns

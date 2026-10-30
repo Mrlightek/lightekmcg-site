@@ -29,6 +29,7 @@ class GatekeeperCronManagementTest < ActiveSupport::TestCase
     existing.expect(:name, "dashboard_test_schedule")
     existing.expect(:name, "dashboard_test_schedule")
     existing.expect(:status, "disabled")
+    existing.expect(:klass, "GatekeeperDeviceHeartbeatSweepJob")
     replacement = Minitest::Mock.new
     replacement.expect(:save, true)
     replacement.expect(:disable!, true)
@@ -44,6 +45,17 @@ class GatekeeperCronManagementTest < ActiveSupport::TestCase
 
     existing.verify
     replacement.verify
+  end
+
+  test "update rejects existing unapproved job classes" do
+    unexpected = Struct.new(:klass).new("Kernel")
+    Sidekiq::Cron::Job.stub(:find, unexpected) do
+      assert_raises(ArgumentError) do
+        Gatekeeper::CronManagement.update!(
+          name: "dashboard_unapproved", cron: "*/5 * * * *",
+          job_class: "GatekeeperDeviceHeartbeatSweepJob")
+      end
+    end
   end
 
   test "run now refuses a job class outside the approved registry" do

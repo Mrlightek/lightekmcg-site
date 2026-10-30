@@ -6,6 +6,26 @@
 </div>
 
 
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Scheduled jobs">
+  <h3>Scheduled jobs</h3>
+  <p>Manage allowlisted Sidekiq cron tasks. New schedules are stored in Redis.</p>
+  <%= form_with url: dashboard_network_cron_jobs_path, method: :post, style: "display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px" do %>
+    <%= text_field_tag :name, nil, placeholder: "Job name", required: true %>
+    <%= select_tag :job_class, options_for_select(Gatekeeper::CronManagement::ALLOWED_JOBS) %>
+    <%= text_field_tag :cron, nil, placeholder: "*/5 * * * *", required: true %>
+    <%= submit_tag "Create schedule", class: "dd-topbar-btn dd-btn-primary" %>
+  <% end %>
+  <table style="width:100%"><thead><tr><th align="left">Name</th><th align="left">Class</th><th align="left">Cron</th><th align="left">Actions</th></tr></thead>
+  <tbody>
+    <% @cron_jobs.each do |job| %>
+      <tr><td><%= job.name %></td><td><%= job.klass %></td><td><%= job.cron %></td>
+      <td><%= button_to "Delete", dashboard_network_cron_jobs_path(name: job.name), method: :delete,
+        class: "dd-topbar-btn", data: { turbo_confirm: "Delete this schedule?" } %></td></tr>
+    <% end %>
+    <% if @cron_jobs.empty? %><tr><td colspan="4">No dashboard-managed schedules.</td></tr><% end %>
+  </tbody></table>
+</section>
+
 <section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Device management">
   <h3>Device management</h3>
   <p style="color:var(--dd-text-secondary);font-size:13px">Register and organize phones, tablets, routers, network equipment, and IoT endpoints. Remote commands require a separately enrolled Gatekeeper device agent.</p>

@@ -6,6 +6,13 @@
 </div>
 
 
+<% if @dashboard_warnings.present? %>
+  <section class="dd-card" style="padding:16px;margin-bottom:18px" aria-label="Service availability warnings">
+    <h3>Service availability</h3>
+    <ul><% @dashboard_warnings.each do |warning| %><li><%= warning %></li><% end %></ul>
+  </section>
+<% end %>
+
 <section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Scheduled jobs">
   <h3>Scheduled jobs</h3>
   <p>Manage allowlisted Sidekiq cron tasks. New schedules are stored in Redis.</p>

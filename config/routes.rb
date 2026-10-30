@@ -32,6 +32,8 @@ Rails.application.routes.draw do
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
   post "/dashboard/commerce/payouts/:order_id", to: "dashboard/commerce_payouts#create", as: :dashboard_commerce_payout
   post "/dashboard/network/cron_jobs", to: "dashboard/network#create_cron_job", as: :dashboard_network_cron_jobs
+  patch "/dashboard/network/cron_jobs", to: "dashboard/network#update_cron_job"
+  post "/dashboard/network/cron_jobs/toggle", to: "dashboard/network#toggle_cron_job", as: :dashboard_network_toggle_cron_job
   delete "/dashboard/network/cron_jobs", to: "dashboard/network#delete_cron_job"
   post "/dashboard/network/devices/:id/rotate_token", to: "dashboard/network#rotate_device_token", as: :dashboard_network_rotate_device_token
   post "/dashboard/network/devices", to: "dashboard/network#create_device", as: :dashboard_network_devices

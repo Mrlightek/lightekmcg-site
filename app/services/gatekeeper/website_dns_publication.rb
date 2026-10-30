@@ -28,13 +28,15 @@ module Gatekeeper
       existing = dns.records.select do |record|
         record["name"].to_s.downcase == name && record["type"].to_s.upcase == "A"
       end
-      if existing.any? { |record| record["data"].to_s == ipv4.to_s }
-        # Already published. Do not create a duplicate.
-      elsif existing.empty?
+      if existing.empty?
         dns.create_record!("name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
+      elsif existing.one? && existing.first["data"].to_s == ipv4.to_s
+        # The only existing A record already points to this instance.
       elsif existing.one? && existing.first["id"].present?
         dns.update_record!(existing.first.fetch("id"), "name" => name, "type" => "A", "data" => ipv4.to_s, "ttl" => 600)
       else
+        # A matching record among several conflicting A records is NOT success.
+        # Leaving old instance IPs published would route customers incorrectly.
         raise Conflict, "Multiple or unidentifiable A records exist for #{host}"
       end
 

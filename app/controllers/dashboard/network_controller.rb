@@ -5,13 +5,13 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
   before_action :require_super_admin!
 
   def index
+    @cron_jobs = Gatekeeper::CronManagement.list
+    @devices = NetworkManagedDevice.order(updated_at: :desc).limit(100)
     @zones = Godaddy::DnsService.zones
     @zone = params[:zone].presence || @zones.first
     @records = @zone.present? ? Godaddy::DnsService.new(zone: @zone).records : []
     @firewall_status = Gatekeeper::FirewallService.new.status
     @dns_checks = {}
-    @cron_jobs = Gatekeeper::CronManagement.list
-    @devices = NetworkManagedDevice.order(updated_at: :desc).limit(100)
     @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
     @managed_nodes = GatekeeperNode.where.not(compute_provider_id: nil).order(created_at: :desc).limit(30)
     @recent_network_operations = GatekeeperOperation.where(capability: %w[provision_compute_node deploy_website dns_create dns_update dns_delete]).order(created_at: :desc).limit(20)

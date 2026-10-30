@@ -45,6 +45,7 @@ module Gatekeeper
 
     def self.toggle!(name:)
       job = managed_job!(name)
+      raise ArgumentError, "Job class not permitted" unless ALLOWED_JOBS.include?(job.klass)
       job.status == "enabled" ? job.disable! : job.enable!
       Sidekiq::Cron::Job.find(job.name)
     end
@@ -55,7 +56,9 @@ module Gatekeeper
     end
 
     def self.destroy!(name:)
-      managed_job!(name).destroy
+      job = managed_job!(name)
+      raise ArgumentError, "Job class not permitted" unless ALLOWED_JOBS.include?(job.klass)
+      job.destroy
     end
   end
 end

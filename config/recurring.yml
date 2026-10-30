@@ -20,6 +20,3 @@ production:
   susu_cycle_advance:
     class: SusuCycleAdvanceJob
     schedule: "every Sunday at midnight"
-  gatekeeper_device_heartbeat_sweep:
-    class: GatekeeperDeviceHeartbeatSweepJob
-    schedule: every minute

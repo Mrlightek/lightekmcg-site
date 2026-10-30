@@ -9,6 +9,13 @@
 <section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Device management">
   <h3>Device management</h3>
   <p style="color:var(--dd-text-secondary);font-size:13px">Register and organize phones, tablets, routers, network equipment, and IoT endpoints. Remote commands require a separately enrolled Gatekeeper device agent.</p>
+  <% if flash[:device_enrollment_token].present? %>
+    <div role="status" style="padding:12px;margin-bottom:12px;border:1px solid var(--dd-border)">
+      <strong>One-time device enrollment token</strong>
+      <p style="font-size:12px">Copy this secret to the device agent. It is not stored in plaintext.</p>
+      <code style="word-break:break-all"><%= flash[:device_enrollment_token] %></code>
+    </div>
+  <% end %>
   <details style="margin-bottom:16px"><summary style="cursor:pointer">Register device</summary>
     <%= form_with url: dashboard_network_devices_path, method: :post, style: "display:flex;flex-wrap:wrap;gap:10px;margin-top:12px" do %>
       <%= text_field_tag "device[name]", nil, placeholder: "Device name", required: true %>
@@ -37,7 +44,11 @@
               <%= select_tag "device[status]", options_for_select(NetworkManagedDevice::STATUSES.map { |status| [status.humanize, status] }, device.status) %>
               <%= submit_tag "Save device", class: "dd-topbar-btn" %>
             <% end %>
-          </details></td>
+          </details>
+          <%= button_to "Rotate enrollment token", dashboard_network_rotate_device_token_path(id: device.id),
+            method: :post, class: "dd-topbar-btn",
+            data: { turbo_confirm: "Rotate the enrollment token for #{device.name}? The previous token will stop working." } %>
+          </td>
         </tr>
       <% end %>
       <% if @devices.empty? %><tr><td colspan="7">No devices registered.</td></tr><% end %>

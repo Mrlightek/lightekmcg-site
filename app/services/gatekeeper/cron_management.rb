@@ -36,6 +36,7 @@ module Gatekeeper
       job = managed_job!(name)
       raise ArgumentError, "Job class not permitted" unless ALLOWED_JOBS.include?(job_class)
       raise ArgumentError, "Invalid cron expression" unless Fugit::Cron.parse(cron.to_s)
+      raise ArgumentError, "Current job class not permitted" unless ALLOWED_JOBS.include?(job.klass)
       replacement = Sidekiq::Cron::Job.new(name: job.name, cron: cron, class: job_class, queue: "default")
       raise ArgumentError, replacement.errors.join(", ") unless replacement.save
       replacement.disable! if job.status == "disabled"

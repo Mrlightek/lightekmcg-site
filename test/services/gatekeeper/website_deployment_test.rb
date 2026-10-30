@@ -123,9 +123,11 @@ class GatekeeperWebsiteDeploymentTest < ActiveSupport::TestCase
     Gatekeeper::WebsiteDeployment.register!(actor: admin, record: request, config: configuration(owner: admin))
     with_stub(Gatekeeper::Compute::ProvisioningExecutionService, :call, ->(**) { flunk "retry allocated a duplicate" }) do
       with_stub(Gatekeeper::Compute::NodeVerificationService, :call, ->(**) { {provider_status: "running"} }) do
-        with_stub(Gatekeeper::WebsiteDeployment, :run!, ->(actor:, node:, domain:) { {node_id: node.id, domain:} }) do
-          result = Gatekeeper::WebsiteDeployment.provision_and_run!(actor: admin, request:, domain: "demo.example.test")
-          assert_equal node.id, result[:node_id]
+        with_stub(Gatekeeper::WebsiteDnsPublication, :call!, ->(**) { {"verified" => true} }) do
+          with_stub(Gatekeeper::WebsiteDeployment, :run!, ->(actor:, node:, domain:) { {node_id: node.id, domain:} }) do
+            result = Gatekeeper::WebsiteDeployment.provision_and_run!(actor: admin, request:, domain: "demo.example.test")
+            assert_equal node.id, result[:node_id]
+          end
         end
       end
     end

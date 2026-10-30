@@ -67,7 +67,7 @@ module LightekCommerce
             selected_region: vps.fetch(:region),
             selected_plan: vps.fetch(:plan),
             selected_image: vps.fetch(:image),
-            node_label: "lightek-client-#{order.id}",
+            node_label: "lightek-client-#{order.id}-r#{Array(request.metadata.to_h["retired_provider_nodes"]).size + 1}",
             execution_status: "awaiting_approval")
           Gatekeeper::Compute::ApprovalService.call(request: request, requested_by: actor.email_address)
         end

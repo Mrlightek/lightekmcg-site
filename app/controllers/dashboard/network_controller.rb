@@ -7,8 +7,15 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     @zone = params[:zone].presence || @zones.first
     @records = @zone.present? ? Godaddy::DnsService.new(zone: @zone).records : []
     @firewall_status = Gatekeeper::FirewallService.new.status
+    @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
+    @managed_nodes = GatekeeperNode.where.not(compute_provider_id: nil).order(created_at: :desc).limit(30)
+    @recent_network_operations = GatekeeperOperation.where(capability: %w[provision_compute_node deploy_website dns_create dns_update dns_delete]).order(created_at: :desc).limit(20)
   rescue StandardError => e
     @records ||= []
+    @zones ||= []
+    @provisioning_requests ||= ProvisioningRequest.none
+    @managed_nodes ||= GatekeeperNode.none
+    @recent_network_operations ||= GatekeeperOperation.none
     @firewall_status ||= "Unavailable: #{e.message}"
     flash.now[:alert] = e.message
   end

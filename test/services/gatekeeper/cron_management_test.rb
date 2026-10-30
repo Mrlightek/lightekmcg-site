@@ -46,6 +46,33 @@ class GatekeeperCronManagementTest < ActiveSupport::TestCase
     replacement.verify
   end
 
+  test "run now refuses a job class outside the approved registry" do
+    unexpected = Struct.new(:klass).new("Kernel")
+    Sidekiq::Cron::Job.stub(:find, unexpected) do
+      assert_raises(ArgumentError) do
+        Gatekeeper::CronManagement.run_now!(name: "dashboard_unapproved")
+      end
+    end
+  end
+
+  test "run now rejects non-dashboard jobs" do
+    assert_raises(ArgumentError) do
+      Gatekeeper::CronManagement.run_now!(name: "susu_cycle_advance")
+    end
+  end
+
+  test "delete rejects non-dashboard jobs" do
+    assert_raises(ArgumentError) do
+      Gatekeeper::CronManagement.destroy!(name: "susu_cycle_advance")
+    end
+  end
+
+  test "toggle rejects non-dashboard jobs" do
+    assert_raises(ArgumentError) do
+      Gatekeeper::CronManagement.toggle!(name: "susu_cycle_advance")
+    end
+  end
+
   test "rejects invalid job names" do
     assert_raises(ArgumentError) do
       Gatekeeper::CronManagement.create!(

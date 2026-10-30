@@ -103,6 +103,14 @@ class GatekeeperCronManagementTest < ActiveSupport::TestCase
     end
   end
 
+  test "dashboard schedule names must match canonical format" do
+    assert Gatekeeper::CronManagement.dashboard_name?("dashboard_valid_job")
+    refute Gatekeeper::CronManagement.dashboard_name?("dashboard_")
+    refute Gatekeeper::CronManagement.dashboard_name?("dashboard_../system")
+    refute Gatekeeper::CronManagement.dashboard_name?("dashboard_legacy job")
+    refute Gatekeeper::CronManagement.dashboard_name?("susu_cycle_advance")
+  end
+
   test "rejects invalid job names" do
     assert_raises(ArgumentError) do
       Gatekeeper::CronManagement.create!(

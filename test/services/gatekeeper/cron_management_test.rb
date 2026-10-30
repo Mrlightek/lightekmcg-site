@@ -24,6 +24,27 @@ class GatekeeperCronManagementTest < ActiveSupport::TestCase
     end
   end
 
+  test "updating a disabled schedule preserves its paused state" do
+    existing = Minitest::Mock.new
+    existing.expect(:name, "dashboard_test_schedule")
+    existing.expect(:status, "disabled")
+    replacement = Minitest::Mock.new
+    replacement.expect(:save, true)
+    replacement.expect(:disable!, true)
+
+    Sidekiq::Cron::Job.stub(:find, ->(_name) { existing }) do
+      Sidekiq::Cron::Job.stub(:new, replacement) do
+        Gatekeeper::CronManagement.update!(
+          name: "dashboard_test_schedule",
+          cron: "*/10 * * * *",
+          job_class: "GatekeeperDeviceHeartbeatSweepJob")
+      end
+    end
+
+    existing.verify
+    replacement.verify
+  end
+
   test "rejects invalid job names" do
     assert_raises(ArgumentError) do
       Gatekeeper::CronManagement.create!(

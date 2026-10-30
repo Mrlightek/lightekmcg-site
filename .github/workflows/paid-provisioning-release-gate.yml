@@ -20,6 +20,8 @@ jobs:
         run: bash -n lib/scripts/setup_lightek_mail_node.sh
       - name: Python syntax
         run: python3 -m py_compile lib/scripts/lightek_mail_server.py lib/scripts/lightek_mailbox.py
+      - name: Standalone Stripe webhook routing regressions (no private gems)
+        run: ruby test/scripts/stripe_webhook_routing_standalone.rb
       - name: Ruby syntax for shared Stripe dispatch and acceptance tests
         run: |
           ruby -c config/initializers/lightek_commerce_stripe_routing.rb

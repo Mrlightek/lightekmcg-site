@@ -28,7 +28,7 @@ module Gatekeeper
           history = Array(old["retired_provider_nodes"])
           history << { "node_id" => node.id, "resource_id" => node.provider_resource_id,
                        "ip" => node.ip_address, "confirmed_absent_at" => Time.current.iso8601 }
-          node.update!(status: "offline", metadata: node.metadata.to_h.merge("provider_status" => "deleted"))
+          node.update!(status: "decommissioned", metadata: node.metadata.to_h.merge("provider_status" => "deleted"))
           request.update!(gatekeeper_node: nil, execution_status: "awaiting_approval",
                           provisioned_at: nil,
                           metadata: old.except("provider_resource_id", "allocation_attempted",

@@ -45,7 +45,7 @@ class LightekCommerceStripeWebhookRoutingTest < ActiveSupport::TestCase
   test "SUSU paid checkout retains existing Dymond Bank settlement" do
     stripe_event = event("checkout.session.completed", {})
     stripe_event.data.object.define_singleton_method(:payment_status) { "paid" }
-    transaction = Object.new
+    transaction = Struct.new(:invoice).new(nil)
     settled = []
     LightekCommerce::StripeEvents.stub(:process!, ->(*) { flunk "Commerce intercepted SUSU payment" }) do
       DymondBank::StripeWebhookService.stub(:transaction_for, transaction) do

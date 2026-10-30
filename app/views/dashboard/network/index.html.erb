@@ -11,7 +11,7 @@
   <p style="color:var(--dd-text-secondary);font-size:13px">Paid provisioning requests, cloud allocation, deployment state, and DNS targets. Changes are made through audited Gatekeeper workflows.</p>
   <div style="overflow-x:auto">
     <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <thead><tr><th align="left">Request</th><th align="left">Customer</th><th align="left">Provider</th><th align="left">State</th><th align="left">Node / IP</th><th align="left">Recovery</th></tr></thead>
+      <thead><tr><th align="left">Request</th><th align="left">Customer</th><th align="left">Provider</th><th align="left">State</th><th align="left">Node / IP</th><th align="left">Recovery</th><th align="left">Action</th></tr></thead>
       <tbody>
         <% @provisioning_requests.each do |request| %>
           <% node = request.gatekeeper_node %>
@@ -22,9 +22,21 @@
             <td><%= request.execution_status.to_s.humanize %></td>
             <td><%= node ? "#{node.name} / #{node.ip_address}" : "Not allocated" %></td>
             <td><%= Array(request.metadata.to_h["retired_provider_nodes"]).any? ? "Replacement history: #{Array(request.metadata.to_h["retired_provider_nodes"]).size}" : "—" %></td>
+            <td>
+              <% order = LightekCommerce::Order.find_by(provisioning_request_id: request.id) %>
+              <% if order && order.paid_at? && !order.provisioned_at? %>
+                <%= button_to "Resume paid installation", dashboard_network_retry_provisioning_path(id: request.id), method: :post,
+                  class: "dd-topbar-btn dd-btn-primary",
+                  data: { turbo_confirm: "Queue recovery for paid order ##{order.id}? This can allocate a billable VPS if the previous node was confirmed deleted." } %>
+              <% elsif order&.provisioned_at? %>
+                Complete
+              <% else %>
+                No paid installation
+              <% end %>
+            </td>
           </tr>
         <% end %>
-        <% if @provisioning_requests.empty? %><tr><td colspan="6">No provisioning requests yet.</td></tr><% end %>
+        <% if @provisioning_requests.empty? %><tr><td colspan="7">No provisioning requests yet.</td></tr><% end %>
       </tbody>
     </table>
   </div>

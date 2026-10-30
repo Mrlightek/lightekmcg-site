@@ -10,17 +10,38 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     @records = @zone.present? ? Godaddy::DnsService.new(zone: @zone).records : []
     @firewall_status = Gatekeeper::FirewallService.new.status
     @dns_checks = {}
+    @devices = NetworkManagedDevice.order(updated_at: :desc).limit(100)
     @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
     @managed_nodes = GatekeeperNode.where.not(compute_provider_id: nil).order(created_at: :desc).limit(30)
     @recent_network_operations = GatekeeperOperation.where(capability: %w[provision_compute_node deploy_website dns_create dns_update dns_delete]).order(created_at: :desc).limit(20)
   rescue StandardError => e
     @records ||= []
+    @devices ||= NetworkManagedDevice.none
     @zones ||= []
     @provisioning_requests ||= ProvisioningRequest.none
     @managed_nodes ||= GatekeeperNode.none
     @recent_network_operations ||= GatekeeperOperation.none
     @firewall_status ||= "Unavailable: #{e.message}"
     flash.now[:alert] = e.message
+  end
+
+  def create_device
+    device = NetworkManagedDevice.create!(device_params)
+    audit!("device_register", { device_id: device.id, identifier: device.identifier }, { status: device.status })
+    redirect_to dashboard_network_path, notice: "Device registered."
+  rescue StandardError => e
+    audit_failure!("device_register", e)
+    redirect_to dashboard_network_path, alert: e.message
+  end
+
+  def update_device
+    device = NetworkManagedDevice.find(params.require(:id))
+    device.update!(device_params)
+    audit!("device_update", { device_id: device.id }, { status: device.status })
+    redirect_to dashboard_network_path, notice: "Device updated."
+  rescue StandardError => e
+    audit_failure!("device_update", e)
+    redirect_to dashboard_network_path, alert: e.message
   end
 
   def retry_provisioning
@@ -119,6 +140,11 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
   def require_super_admin!
     return if current_user&.role == "super_admin"
     redirect_to dymond_dash.dashboard_path, alert: "Super administrator access is required."
+  end
+
+  def device_params
+    params.require(:device).permit(:name, :identifier, :device_type, :status,
+      :management_protocol, :hostname, :ip_address, :manufacturer, :model, :os_version, :notes)
   end
 
   def dns_params

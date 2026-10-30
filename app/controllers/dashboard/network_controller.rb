@@ -38,6 +38,24 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     redirect_to dashboard_network_path, alert: e.message
   end
 
+  def update_cron_job
+    job = Gatekeeper::CronManagement.update!(
+      name: params.require(:name), cron: params.require(:cron),
+      job_class: params.require(:job_class))
+    audit!("cron_job_update", { name: job.name, cron: job.cron }, { updated: true })
+    redirect_to dashboard_network_path, notice: "Schedule updated."
+  rescue StandardError => e
+    redirect_to dashboard_network_path, alert: e.message
+  end
+
+  def toggle_cron_job
+    job = Gatekeeper::CronManagement.toggle!(name: params.require(:name))
+    audit!("cron_job_toggle", { name: job.name }, { status: job.status })
+    redirect_to dashboard_network_path, notice: "Schedule #{job.status}."
+  rescue StandardError => e
+    redirect_to dashboard_network_path, alert: e.message
+  end
+
   def delete_cron_job
     name = params.require(:name)
     Gatekeeper::CronManagement.destroy!(name: name)

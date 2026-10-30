@@ -85,6 +85,24 @@ class GatekeeperCronManagementTest < ActiveSupport::TestCase
     end
   end
 
+  test "toggle refuses existing unapproved job classes" do
+    unexpected = Struct.new(:klass).new("Kernel")
+    Sidekiq::Cron::Job.stub(:find, unexpected) do
+      assert_raises(ArgumentError) do
+        Gatekeeper::CronManagement.toggle!(name: "dashboard_unapproved")
+      end
+    end
+  end
+
+  test "delete refuses existing unapproved job classes" do
+    unexpected = Struct.new(:klass).new("Kernel")
+    Sidekiq::Cron::Job.stub(:find, unexpected) do
+      assert_raises(ArgumentError) do
+        Gatekeeper::CronManagement.destroy!(name: "dashboard_unapproved")
+      end
+    end
+  end
+
   test "rejects invalid job names" do
     assert_raises(ArgumentError) do
       Gatekeeper::CronManagement.create!(

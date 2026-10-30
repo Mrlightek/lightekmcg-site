@@ -19,7 +19,8 @@
   <tbody>
     <% @cron_jobs.each do |job| %>
       <tr><td><%= job.name %></td><td><%= job.klass %></td><td><%= job.cron %></td><td><%= job.status %></td>
-      <td><%= button_to(job.status == "enabled" ? "Disable" : "Enable", dashboard_network_toggle_cron_job_path(name: job.name), method: :post, class: "dd-topbar-btn") %>
+      <td><%= button_to "Run now", dashboard_network_run_cron_job_path(name: job.name), method: :post, class: "dd-topbar-btn" %>
+      <%= button_to(job.status == "enabled" ? "Disable" : "Enable", dashboard_network_toggle_cron_job_path(name: job.name), method: :post, class: "dd-topbar-btn") %>
       <details><summary>Edit schedule</summary>
         <%= form_with url: dashboard_network_cron_jobs_path, method: :patch do %>
           <%= hidden_field_tag :name, job.name %>

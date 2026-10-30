@@ -10,11 +10,13 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     @records = @zone.present? ? Godaddy::DnsService.new(zone: @zone).records : []
     @firewall_status = Gatekeeper::FirewallService.new.status
     @dns_checks = {}
+    @cron_jobs = Gatekeeper::CronManagement.list
     @devices = NetworkManagedDevice.order(updated_at: :desc).limit(100)
     @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
     @managed_nodes = GatekeeperNode.where.not(compute_provider_id: nil).order(created_at: :desc).limit(30)
     @recent_network_operations = GatekeeperOperation.where(capability: %w[provision_compute_node deploy_website dns_create dns_update dns_delete]).order(created_at: :desc).limit(20)
   rescue StandardError => e
+    @cron_jobs ||= []
     @records ||= []
     @devices ||= NetworkManagedDevice.none
     @zones ||= []
@@ -23,6 +25,26 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     @recent_network_operations ||= GatekeeperOperation.none
     @firewall_status ||= "Unavailable: #{e.message}"
     flash.now[:alert] = e.message
+  end
+
+  def create_cron_job
+    job = Gatekeeper::CronManagement.create!(
+      name: params.require(:name),
+      job_class: params.require(:job_class),
+      cron: params.require(:cron))
+    audit!("cron_job_create", { name: job.name, cron: job.cron, job_class: job.klass }, { created: true })
+    redirect_to dashboard_network_path, notice: "Scheduled job created."
+  rescue StandardError => e
+    redirect_to dashboard_network_path, alert: e.message
+  end
+
+  def delete_cron_job
+    name = params.require(:name)
+    Gatekeeper::CronManagement.destroy!(name: name)
+    audit!("cron_job_delete", { name: name }, { deleted: true })
+    redirect_to dashboard_network_path, notice: "Scheduled job deleted."
+  rescue StandardError => e
+    redirect_to dashboard_network_path, alert: e.message
   end
 
   def create_device

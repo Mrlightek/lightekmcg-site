@@ -27,6 +27,7 @@ class GatekeeperCronManagementTest < ActiveSupport::TestCase
   test "updating a disabled schedule preserves its paused state" do
     existing = Minitest::Mock.new
     existing.expect(:name, "dashboard_test_schedule")
+    existing.expect(:name, "dashboard_test_schedule")
     existing.expect(:status, "disabled")
     replacement = Minitest::Mock.new
     replacement.expect(:save, true)

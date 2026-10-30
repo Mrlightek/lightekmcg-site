@@ -5,12 +5,13 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
   before_action :require_super_admin!
 
   def index
+    @dashboard_warnings = []
     @devices = NetworkManagedDevice.order(updated_at: :desc).limit(100)
     begin
       @cron_jobs = Gatekeeper::CronManagement.list
     rescue StandardError => e
       @cron_jobs = []
-      flash.now[:alert] = "Sidekiq schedules unavailable: #{e.message}"
+      @dashboard_warnings << "Sidekiq schedules unavailable: #{e.message}"
     end
     @dns_checks = {}
     @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
@@ -23,14 +24,16 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     rescue StandardError => e
       @zones = []
       @records = []
-      flash.now[:alert] = "DNS provider unavailable: #{e.message}"
+      @dashboard_warnings << "DNS provider unavailable: #{e.message}"
     end
     begin
       @firewall_status = Gatekeeper::FirewallService.new.status
     rescue StandardError => e
       @firewall_status = "Unavailable: #{e.message}"
+      @dashboard_warnings << "Firewall status unavailable: #{e.message}"
     end
   rescue StandardError => e
+    @dashboard_warnings ||= []
     @cron_jobs ||= []
     @records ||= []
     @devices ||= NetworkManagedDevice.none

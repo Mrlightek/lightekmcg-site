@@ -38,6 +38,17 @@ class GatekeeperDeviceApiTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "offline enrolled device recovers on authenticated heartbeat" do
+    send_action("device_enroll")
+    assert_response :success
+    @device.update!(status: "offline", last_seen_at: 10.minutes.ago)
+
+    send_action("device_heartbeat")
+    assert_response :success
+    assert_equal "active", @device.reload.status
+    assert_operator @device.last_seen_at, :>, 1.minute.ago
+  end
+
   test "maintenance status prevents heartbeat" do
     send_action("device_enroll")
     @device.update!(status: "maintenance")

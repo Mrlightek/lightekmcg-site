@@ -53,6 +53,12 @@ module LightekCommerce
         request.subscription.plan_id == product.subscription_plan_id
       raise NotReady, "Cloud provider configuration missing" unless request.compute_provider
 
+      # Reconcile a provider-confirmed external deletion before deciding whether
+      # the original paid request needs a replacement allocation.
+      Gatekeeper::Compute::DeletedNodeReconciliation.call!(
+        request: request, requested_by: actor.email_address
+      ) if request.gatekeeper_node.present?
+
       if request.gatekeeper_node.nil?
         unless request.executable?
           raise NotReady, "Only failed or awaiting-approval requests can be reauthorized" unless

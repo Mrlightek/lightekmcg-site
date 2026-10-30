@@ -66,6 +66,17 @@
   </table></div>
 </section>
 
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="DNS verification">
+  <h3>DNS verification</h3>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Check public IPv4 resolution against the expected cloud instance without changing DNS records.</p>
+  <%= form_with url: dashboard_network_verify_dns_path, method: :post, style: "display:flex;gap:10px;flex-wrap:wrap;align-items:end" do %>
+    <%= hidden_field_tag :zone, @zone %>
+    <div><%= label_tag :hostname, "Hostname" %><%= text_field_tag :hostname, nil, placeholder: "client-1.lightekmcg.com", required: true %></div>
+    <div><%= label_tag :expected_ipv4, "Expected IPv4" %><%= text_field_tag :expected_ipv4, nil, placeholder: "Instance IP (optional)" %></div>
+    <%= submit_tag "Verify DNS", class: "dd-topbar-btn dd-btn-primary" %>
+  <% end %>
+</section>
+
 <div class="dd-card" style="padding:20px;margin-bottom:18px">
   <h3>Firewall</h3>
   <pre style="white-space:pre-wrap;font-size:12px"><%= @firewall_status %></pre>

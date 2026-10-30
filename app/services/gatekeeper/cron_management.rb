@@ -38,7 +38,8 @@ module Gatekeeper
       raise ArgumentError, "Invalid cron expression" unless Fugit::Cron.parse(cron.to_s)
       replacement = Sidekiq::Cron::Job.new(name: job.name, cron: cron, class: job_class, queue: "default")
       raise ArgumentError, replacement.errors.join(", ") unless replacement.save
-      replacement
+      replacement.disable! if job.status == "disabled"
+      Sidekiq::Cron::Job.find(job.name)
     end
 
     def self.toggle!(name:)

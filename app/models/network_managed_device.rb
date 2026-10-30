@@ -12,6 +12,22 @@ class NetworkManagedDevice < ApplicationRecord
   validates :device_type, inclusion: { in: DEVICE_TYPES }
   validates :status, inclusion: { in: STATUSES }
   validates :management_protocol, inclusion: { in: PROTOCOLS }, allow_blank: true
+  HEARTBEAT_TIMEOUT = 5.minutes
+
+  scope :stale_heartbeats, -> { where(status: "active").where("last_seen_at < ?", HEARTBEAT_TIMEOUT.ago) }
+
+  def heartbeat_stale?
+    status == "active" && last_seen_at.present? && last_seen_at < HEARTBEAT_TIMEOUT.ago
+  end
+
+  def mark_offline_if_stale!
+    with_lock do
+      return false unless heartbeat_stale?
+      update!(status: "offline")
+      true
+    end
+  end
+
   def rotate_enrollment_token!
     token = SecureRandom.hex(32)
     update!(enrollment_token_digest: Digest::SHA256.hexdigest(token), enrolled_at: nil,

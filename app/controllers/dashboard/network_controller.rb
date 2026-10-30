@@ -34,6 +34,18 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     redirect_to dashboard_network_path, alert: e.message
   end
 
+  def rotate_device_token
+    device = NetworkManagedDevice.find(params.require(:id))
+    token = device.rotate_enrollment_token!
+    audit!("device_enrollment_token_rotate", { device_id: device.id }, { rotated: true })
+    # Display the one-time secret only to the authenticated super admin.
+    flash[:device_enrollment_token] = token
+    redirect_to dashboard_network_path, notice: "Enrollment token rotated for #{device.name}. Copy it now; it will not be displayed again."
+  rescue StandardError => e
+    audit_failure!("device_enrollment_token_rotate", e)
+    redirect_to dashboard_network_path, alert: e.message
+  end
+
   def update_device
     device = NetworkManagedDevice.find(params.require(:id))
     device.update!(device_params)

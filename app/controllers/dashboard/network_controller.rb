@@ -39,6 +39,19 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     redirect_to dashboard_network_path, alert: e.message
   end
 
+  def verify_node
+    node = GatekeeperNode.find(params.require(:id))
+    raise ActiveRecord::RecordNotFound, "Unmanaged node" unless node.compute_provider_id.present?
+    request_record = ProvisioningRequest.find_by!(gatekeeper_node_id: node.id)
+    result = Gatekeeper::Compute::NodeVerificationService.call(
+      request: request_record, requested_by: current_user.email_address)
+    audit!("compute_node_verify", { node_id: node.id, request_id: request_record.id }, result)
+    redirect_to dashboard_network_path, notice: "Verified #{node.name}: #{result.fetch(:provider_status)} (#{result.fetch(:ipv4)})"
+  rescue StandardError => e
+    audit_failure!("compute_node_verify", e)
+    redirect_to dashboard_network_path, alert: "Node verification failed: #{e.message}"
+  end
+
   def verify_dns
     hostname = params.require(:hostname).to_s.downcase.strip
     raise ArgumentError, "Invalid hostname" unless hostname.match?(/\\A[a-z0-9-]+(?:\\.[a-z0-9-]+)+\\z/)

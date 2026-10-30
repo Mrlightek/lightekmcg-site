@@ -44,12 +44,12 @@
 <section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Managed cloud nodes">
   <h3>Managed cloud nodes</h3>
   <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
-    <thead><tr><th align="left">Node</th><th align="left">Provider resource</th><th align="left">Public IP</th><th align="left">Status</th></tr></thead>
+    <thead><tr><th align="left">Node</th><th align="left">Provider resource</th><th align="left">Public IP</th><th align="left">Status</th><th align="left">Action</th></tr></thead>
     <tbody>
       <% @managed_nodes.each do |node| %>
-        <tr><td><%= node.name %></td><td><%= node.provider_resource_id %></td><td><%= node.ip_address %></td><td><%= node.status.humanize %></td></tr>
+        <tr><td><%= node.name %></td><td><%= node.provider_resource_id %></td><td><%= node.ip_address %></td><td><%= node.status.humanize %></td><td><%= button_to "Verify server", dashboard_network_verify_node_path(id: node.id), method: :post, class: "dd-topbar-btn" %></td></tr>
       <% end %>
-      <% if @managed_nodes.empty? %><tr><td colspan="4">No managed cloud nodes.</td></tr><% end %>
+      <% if @managed_nodes.empty? %><tr><td colspan="5">No managed cloud nodes.</td></tr><% end %>
     </tbody>
   </table></div>
 </section>

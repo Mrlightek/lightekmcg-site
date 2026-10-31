@@ -144,8 +144,13 @@ jobs:
               export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
               export RAILS_ENV=production
               cd /var/www/lightekmcg-site
+              bin/rails runner script/lightek/paid_instance_recovery_context.rb
+              set +e
               LIGHTEK_REBUILD_PAID_ORDER_ID=1 bin/rails runner script/lightek/rebuild_paid_instance.rb
+              recovery_status=$?
               LIGHTEK_ACCEPTANCE_ORDER_ID=1 bin/rails runner script/lightek/paid_instance_acceptance_audit.rb
+              acceptance_status=$?
+              [[ "$recovery_status" == 0 && "$acceptance_status" == 0 ]]
             '
           LIGHTEK_RECOVERY
 

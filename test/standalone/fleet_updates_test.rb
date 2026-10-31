@@ -485,3 +485,4 @@ class FleetUpdatesTest < Minitest::Test
 end
 
 require_relative "fleet_hosting_test"
+require_relative "fleet_transport_test"

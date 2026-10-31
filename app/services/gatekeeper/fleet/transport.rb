@@ -43,10 +43,10 @@ module Gatekeeper
         raise Rollouts::Invalid, "Managed updates require a remote root SSH target" if node.local? || node.ssh_user != "root"
         credentials = []
         checkout = lambda do |slug, purpose, consumer = WebsiteDeployment::CONSUMER|
-          payload = LightekVault::Service.checkout!(slug: slug, consumer: consumer, purpose: purpose,
+          secret_payload = LightekVault::Service.checkout!(slug: slug, consumer: consumer, purpose: purpose,
             requested_by: requested_by, gatekeeper_operation_id: operation_id)
-          credentials << payload
-          payload
+          credentials << secret_payload
+          secret_payload
         end
         options = {port: node.ssh_port, non_interactive: true, verify_host_key: :accept_new,
           timeout: 20, keepalive: true, keepalive_interval: 20}

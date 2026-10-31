@@ -92,6 +92,7 @@ begin
     branded_page = target.call(path)
     branded_fields = Nokogiri::HTML(branded_page.body)
     raise "Account screen branding mismatch" unless branded_page.code == "200" && branded_fields.at_css('.auth-wordmark')&.text&.strip == brand
+    raise "Platform placeholder remains" if path == "/session/new" && branded_fields.at_css('input[name="email_address"]')&.[]("placeholder") != "you@example.com"
   end
   result[:authentication_branding] = true
   result[:native_password_setup_form] = true

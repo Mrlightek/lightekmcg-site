@@ -21,6 +21,7 @@ class AuthenticationBrandingTest < ActionDispatch::IntegrationTest
     assert_equal "same-origin", response.headers["Referrer-Policy"]
     assert_select "title", "Sign in · Moonlight Studio"
     assert_select ".auth-wordmark", "Moonlight Studio"
+    assert_select "input[name=email_address][placeholder='you@example.com']"
     assert_select ".auth-story-copy h2", text: /Your creative home/
     assert_includes response.body, "--auth-gold:#267a65"
     refute_includes response.body, "lightek-auth-mark.svg"

@@ -18,6 +18,7 @@ class AuthenticationBrandingTest < ActionDispatch::IntegrationTest
     host! @site.host
     get new_session_path
     assert_response :success
+    assert_equal "same-origin", response.headers["Referrer-Policy"]
     assert_select "title", "Sign in · Moonlight Studio"
     assert_select ".auth-wordmark", "Moonlight Studio"
     assert_select ".auth-story-copy h2", text: /Your creative home/

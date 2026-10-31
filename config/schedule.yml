@@ -18,3 +18,7 @@ susu_cycle_advance:
   cron: "0 0 * * 0" # Every Sunday at midnight
   class: "SusuCycleAdvanceJob"
   queue: default
+gatekeeper_device_heartbeat_sweep:
+  cron: "*/1 * * * *"
+  class: "GatekeeperDeviceHeartbeatSweepJob"
+  queue: default

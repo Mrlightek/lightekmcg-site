@@ -1,0 +1,31 @@
+<% content_for :page_title, "Account branding" %>
+<%= render "dashboard/settings_home/style" %>
+<main class="lt-settings">
+  <p><%= link_to "← Website designs", dashboard_website_designs_path(site_id: @site.id) %></p>
+  <h1>Account branding</h1><p class="intro">Make sign-in, registration and password recovery feel like <strong><%= @site.name %></strong>.</p>
+  <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <p>Website: <strong><%= @site.name %></strong> · <%= @site.host %>. Your business name comes from <%= link_to "Website settings", dashboard_website_settings_path(site_id: @site.id) %>. Logo, colors and fonts below are shared with your website design.</p>
+  <%= form_with url: dashboard_authentication_branding_path(site_id: @site.id), method: :patch, multipart: true, local: true, data: {turbo: false} do %>
+    <section class="card"><h2>Welcome & identity</h2>
+      <% {"eyebrow" => "Intro label", "headline" => "Welcome headline", "description" => "Welcome message"}.each do |key, label| %>
+        <p><%= label_tag "branding_#{key}", label %><br><%= text_field_tag "branding[#{key}]", @branding.text(key), maxlength: key == "description" ? 400 : 120, style: "width:100%;max-width:650px" %></p>
+      <% end %>
+      <p><%= label_tag :logo, "Business logo" %><br><%= file_field_tag :logo, accept: "image/png,image/jpeg,image/gif,image/webp" %></p>
+      <% if @branding.logo_url %><%= image_tag @branding.logo_url, alt: "Current business logo", style: "max-width:160px;max-height:80px" %><p><%= check_box_tag "branding[remove_logo]", "1" %> <%= label_tag :branding_remove_logo, "Remove website logo" %></p><% end %>
+      <p><%= label_tag :background, "Welcome panel background" %><br><%= file_field_tag :background, accept: "image/png,image/jpeg,image/gif,image/webp" %></p>
+      <% if @branding.background_url %><p><%= check_box_tag "branding[remove_background]", "1" %> <%= label_tag :branding_remove_background, "Remove welcome background image" %></p><% end %>
+      <p>PNG, JPEG, GIF or WebP, up to 10 MB. Leave welcome text blank to use the defaults.</p>
+    </section>
+    <section class="card" style="margin-top:24px"><h2>Website colors & fonts</h2>
+      <% {"color_bg" => "Background", "color_text" => "Text", "color_primary" => "Accent", "color_text_muted" => "Secondary text"}.each do |key, label| %>
+        <p><%= label_tag "branding_#{key}", label %> <%= color_field_tag "branding[#{key}]", @branding.color(key) %></p>
+      <% end %>
+      <% {"font_sans" => "Body font", "font_heading" => "Heading font"}.each do |key, label| %>
+        <%= render "lightek_design/font_picker", template: (@site.active_template || DymondSite::SiteTemplate.new(settings: {})), field: {name: key}, param_root: "branding" %>
+      <% end %>
+      <%= submit_tag "Save account branding" %>
+    </section>
+  <% end %>
+  <p><%= link_to "Preview sign-in ↗", "https://#{@site.host}/session/new", target: "_blank", rel: "noopener" %> · <%= link_to "Preview password recovery ↗", "https://#{@site.host}/passwords/new", target: "_blank", rel: "noopener" %></p>
+</main>

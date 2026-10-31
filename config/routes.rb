@@ -1,4 +1,10 @@
 Rails.application.routes.draw do
+  resources :installations, path: "/my/installations", only: %i[index show create] do
+    post :access, on: :member
+    post :retry_installation, on: :member, path: "resume"
+  end
+  get "/dashboard/installations", to: "dashboard/installations#index", as: :dashboard_installations
+  post "/dashboard/installations/:id/resume", to: "dashboard/installations#retry_installation", as: :resume_dashboard_installation
   post "/dashboard/marketing/campaigns/:id/send_email", to: "dashboard/marketing_campaigns#send_email", as: :send_dashboard_marketing_campaign
   resources :dashboard_marketing_campaigns, path: "/dashboard/marketing/campaigns", controller: "dashboard/marketing_campaigns", except: %i[show]
   post "/dashboard/marketing/campaigns/:id/send_audience", to: "dashboard/marketing_campaigns#send_audience", as: :send_dashboard_marketing_audience
@@ -31,6 +37,17 @@ Rails.application.routes.draw do
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_variants#destroy", as: :dashboard_commerce_variant
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
   post "/dashboard/commerce/payouts/:order_id", to: "dashboard/commerce_payouts#create", as: :dashboard_commerce_payout
+  post "/dashboard/network/cron_jobs", to: "dashboard/network#create_cron_job", as: :dashboard_network_cron_jobs
+  patch "/dashboard/network/cron_jobs", to: "dashboard/network#update_cron_job"
+  post "/dashboard/network/cron_jobs/run", to: "dashboard/network#run_cron_job", as: :dashboard_network_run_cron_job
+  post "/dashboard/network/cron_jobs/toggle", to: "dashboard/network#toggle_cron_job", as: :dashboard_network_toggle_cron_job
+  delete "/dashboard/network/cron_jobs", to: "dashboard/network#delete_cron_job"
+  post "/dashboard/network/devices/:id/rotate_token", to: "dashboard/network#rotate_device_token", as: :dashboard_network_rotate_device_token
+  post "/dashboard/network/devices", to: "dashboard/network#create_device", as: :dashboard_network_devices
+  patch "/dashboard/network/devices/:id", to: "dashboard/network#update_device", as: :dashboard_network_device
+  post "/dashboard/network/nodes/:id/verify", to: "dashboard/network#verify_node", as: :dashboard_network_verify_node
+  post "/dashboard/network/dns/verify", to: "dashboard/network#verify_dns", as: :dashboard_network_verify_dns
+  post "/dashboard/network/provisioning/:id/retry", to: "dashboard/network#retry_provisioning", as: :dashboard_network_retry_provisioning
   post "/dashboard/commerce/orders/:order_id/retry_provisioning", to: "dashboard/commerce_orders#retry_provisioning", as: :dashboard_commerce_retry_provisioning
   get "/commerce/shop", to: "commerce#index", as: :commerce_shop
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
@@ -200,6 +217,7 @@ end
 
 # ── Gatekeeper — Lightek client contract ──────────────────────────────────────
 # Gatekeeper is the public experience/API contract for Roku and future clients.
+post "gatekeeper/device", to: "gatekeeper#device_api", as: :gatekeeper_device
 get "gatekeeper",
   to: "gatekeeper#index",
   defaults: { format: :json },

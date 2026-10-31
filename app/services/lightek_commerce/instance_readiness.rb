@@ -28,8 +28,13 @@ module LightekCommerce
       raise Unavailable, "Automatic VPS approval is not configured" unless policy&.active? && !policy.approval_required_for?(ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS").to_i)
       raise Unavailable, "VPS monthly estimate exceeds policy" if policy.monthly_cost_ceiling_cents.present? && ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS").to_i > policy.monthly_cost_ceiling_cents
       raise Unavailable, "Super admin operator missing" unless User.exists?(role: "super_admin")
-      raise Unavailable, "No healthy Linode provider available" unless
-        ComputeProvider.where(slug: "linode", status: "active", health_status: "healthy").exists?
+      begin
+        provider = Gatekeeper::Compute::ProviderSelector.call(policy: policy)
+      rescue Gatekeeper::Compute::ProviderSelector::NoEligibleProvider
+        raise Unavailable, "No eligible compute provider available for installation plan"
+      end
+      raise Unavailable, "Automatic installation requires a healthy Linode provider" unless
+        provider.slug == "linode" && provider.health_status == "healthy"
       true
     end
   end

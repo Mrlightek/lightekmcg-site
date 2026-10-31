@@ -1,6 +1,7 @@
 # Exercise the real transport boundary, including Vault credential selection and
 # SSH stdin. These doubles never connect to a server or read production secrets.
 require_relative "fleet_updates_test" unless defined?(FleetUpdatesTest)
+require Rails.root.join("app/services/gatekeeper/website_owner_access").to_s
 require Rails.root.join("app/services/gatekeeper/website_deployment").to_s
 begin
   require "net/ssh"

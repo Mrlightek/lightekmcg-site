@@ -4,6 +4,7 @@ class SessionsController < ApplicationController
   skip_authorization_check
 
   layout "auth", only: :new
+  before_action :private_sign_in_page, only: :new
 
   def new
     store_return_to
@@ -25,6 +26,11 @@ class SessionsController < ApplicationController
   end
 
   private
+
+  def private_sign_in_page
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Referrer-Policy"] = "same-origin"
+  end
 
   def store_return_to
     candidate = params[:return_to].to_s

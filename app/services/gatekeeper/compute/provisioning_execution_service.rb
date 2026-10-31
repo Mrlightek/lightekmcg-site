@@ -65,10 +65,23 @@ module Gatekeeper
 
         request.update!(gatekeeper_operation: operation, execution_status: "provisioning")
 
-        credential = NodeCredentialService.create!(
-          label: request.node_label,
-          requested_by: requested_by
-        )
+        # Persist the bootstrap credential before the external allocation call so
+        # timeouts can be reconciled with the original root password intact.
+        secret_slug = request.metadata.to_h["node_credential_secret_slug"]
+        if secret_slug.present?
+          payload = LightekVault::Service.checkout!(
+            slug: secret_slug, consumer: self.class.name, purpose: "provision_node",
+            requested_by: requested_by, gatekeeper_operation_id: operation.id
+          )
+          credential = NodeCredentialService::Result.new(secret_slug, payload.fetch("root_password"))
+        else
+          credential = NodeCredentialService.create!(
+            label: request.node_label, requested_by: requested_by
+          )
+          request.update!(metadata: request.metadata.to_h.merge(
+            "node_credential_secret_slug" => credential.secret_slug
+          ))
+        end
 
         begin
           adapter = request.compute_provider.adapter(
@@ -76,20 +89,34 @@ module Gatekeeper
             operation_id: operation.id
           )
 
-          provider_node = adapter.provision_node(
-            label: request.node_label,
-            region: request.selected_region,
-            plan: request.selected_plan,
-            image: request.selected_image,
-            root_password: credential.root_password,
-            tags: [
-              "lightek-managed",
-              "gatekeeper",
-              "provisioning-request-#{request.id}"
-            ]
-          )
+          candidates = self.class.matching_provider_nodes(adapter.nodes, request)
+          provider_node = if candidates.one?
+            adapter.node(candidates.first.fetch("id"))
+          else
+            # A previous unknown provider result must not authorize another
+            # billable allocation merely because a listing is incomplete.
+            if request.metadata.to_h["allocation_attempted"]
+              raise ProviderResponseError, "Uncertain Linode allocation; reconcile provider resource before retrying"
+            end
+            request.update!(metadata: request.metadata.to_h.merge("allocation_attempted" => true))
+            adapter.provision_node(
+              label: request.node_label,
+              region: request.selected_region,
+              plan: request.selected_plan,
+              image: request.selected_image,
+              root_password: credential.root_password,
+              tags: [
+                "lightek-managed",
+                "gatekeeper",
+                "provisioning-request-#{request.id}"
+              ]
+            )
+          end
 
-          node = create_gatekeeper_node!(provider_node, credential.secret_slug)
+          node = GatekeeperNode.find_by(compute_provider: request.compute_provider,
+            provider_resource_id: provider_node.fetch("id").to_s) ||
+            create_gatekeeper_node!(provider_node, credential.secret_slug)
+          raise ProviderResponseError, "Reconciled node belongs to a different customer" unless node.owner == request.owner
 
           operation.update!(
             status: "succeeded",
@@ -127,7 +154,17 @@ module Gatekeeper
           raise
         ensure
           credential.root_password.clear if credential&.root_password.respond_to?(:clear)
+          payload&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
         end
+      end
+
+      def self.matching_provider_nodes(nodes, request)
+        candidates = Array(nodes).select do |candidate|
+          candidate["label"] == request.node_label &&
+            Array(candidate["tags"]).include?("provisioning-request-#{request.id}")
+        end
+        raise ProviderResponseError, "Multiple provider nodes match provisioning request #{request.id}" if candidates.size > 1
+        candidates
       end
 
       private

@@ -1,0 +1,49 @@
+name: Nevaeh overview acceptance
+
+on:
+  push:
+    branches: [feat/nevaeh-historical-backlog-20261031]
+    paths:
+      - 'app/services/nevaeh_intelligences/yaml_capability_registry_v7a.rb'
+      - 'app/controllers/employee/nevaeh_overview_controller.rb'
+      - 'app/views/employee/nevaeh_overview/**'
+      - 'config/nevaeh/capabilities/**'
+      - 'script/nevaeh_verify_overview.rb'
+      - '.github/workflows/nevaeh-overview-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nevaeh-overview-acceptance
+  cancel-in-progress: false
+
+jobs:
+  installed_overview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify overview queries and rendering in the installed application
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SSH_KEY" && -n "$SSH_HOST" ]] || { echo '::error::Existing production SSH secrets are unavailable'; exit 1; }
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_deploy
+          chmod 600 ~/.ssh/lightek_deploy
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          CANDIDATE_ROOT="/var/tmp/lightek-nevaeh-overview-${GITHUB_SHA}"
+          git archive HEAD | ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "umask 022; mkdir -p '$CANDIDATE_ROOT'; tar -xf - -C '$CANDIDATE_ROOT'"
+          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc 'set -e; set -a; source /etc/lightek/lightekmcg-site.env; set +a; export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin; export RAILS_ENV=production; cd /var/www/lightekmcg-site; bundle exec rails runner $CANDIDATE_ROOT/script/nevaeh_verify_overview.rb'"

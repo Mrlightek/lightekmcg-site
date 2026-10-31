@@ -271,3 +271,4 @@ jobs:
           bundler-cache: false
       - run: gem install minitest -v '~> 5.25' --no-document
       - run: ruby test/standalone/nevaeh_structured_worker_boot_test.rb
+      - run: ruby test/standalone/nevaeh_empty_registry_test.rb

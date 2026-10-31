@@ -127,6 +127,11 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   resources :catalogs
   resources :homes
   
+# Commercial portfolio (isolated from existing CMS and public routes)
+get "/commercial", to: "commercial#index", as: :commercial
+get "/commercial/enterprise", to: "commercial#enterprise", as: :commercial_enterprise
+get "/commercial/media", to: "commercial#media", as: :commercial_media
+
 # ── Public site ──────────────────────────────────────────────────────────────
 get "/", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
 get "/site/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }

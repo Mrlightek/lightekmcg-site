@@ -1,11 +1,14 @@
 class Dashboard::ServerInstancesController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
+  helper InfrastructureDashboardHelper
   protect_from_forgery with: :exception
   before_action :set_node, except: :index
   rescue_from Gatekeeper::Hosting::Access::Denied, ActiveRecord::RecordInvalid, with: :invalid_action
 
   def index
-    @nodes = Gatekeeper::Hosting::Access.nodes(current_user).includes(:compute_provider).order(:name).page(params[:page]).per(50)
+    scope = Gatekeeper::Hosting::Access.nodes(current_user)
+    @node_counts = scope.group(:status).count
+    @nodes = scope.includes(:compute_provider).order(:name).page(params[:page]).per(50)
   end
 
   def show

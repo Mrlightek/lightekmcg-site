@@ -20,6 +20,8 @@ module Marlon
     before_validation :assign_number, on: :create
     before_validation :apply_category_defaults, on: :create
 
+    after_create_commit :enqueue_nevaeh_backlog
+
     scope :open_first, -> { order(Arel.sql("CASE status WHEN 'open' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END"), :created_at) }
     scope :for_related, ->(record) { where(related: record) }
 
@@ -37,6 +39,15 @@ module Marlon
     end
 
     private
+
+    def enqueue_nevaeh_backlog
+      return if status == "resolved"
+      return unless NevaehIntelligences::TicketBacklog.enabled?
+      NevaehIntelligences::ProcessBacklogJob.perform_later(ticket_id: id)
+    rescue StandardError => error
+      # The recurring DB sweep recovers tickets committed during Redis outages.
+      Rails.logger.error("Nevaeh intake enqueue failed ticket_id=#{id}: #{error.class}: #{error.message}")
+    end
 
     def assign_number
       self.number ||= "LT-#{SecureRandom.random_number(9000) + 1000}"

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Employee
   class TicketsController < Employee::ApplicationController
-    before_action :set_ticket, only: %i[show reply resolve execute_nevaeh]
+    before_action :set_ticket, only: %i[show reply resolve execute_nevaeh resume_nevaeh]
 
     def index
       authorize! :read, Marlon::Ticket
@@ -55,6 +55,14 @@ module Employee
            NevaehIntelligences::TicketExecution::InvalidTicket,
            NevaehIntelligences::Dispatch::Unavailable => error
       redirect_to employee_ticket_path(@ticket), alert: "Nevaeh execution blocked: #{error.message}"
+    end
+
+    def resume_nevaeh
+      authorize! :execute_nevaeh, @ticket
+      NevaehIntelligences::TicketBacklog.resume!(ticket: @ticket)
+      redirect_to employee_ticket_path(@ticket), notice: "Nevaeh processing queued; existing reservations and approvals are preserved."
+    rescue NevaehIntelligences::WorkOrder::Invalid => error
+      redirect_to employee_ticket_path(@ticket), alert: error.message
     end
 
     def reply

@@ -63,6 +63,42 @@ module NevaehIntelligences
       raise Rejected, "invalid Work Order fields"
     end
 
+    # Native historical tickets need an inspectable plan even when they did not
+    # originate in GitHub. This is planning data, never an execution permission.
+    def from_native_ticket(ticket:, knowledge_article_ids:, capability_snapshot:)
+      raise Rejected, "persisted Marlon ticket required" unless ticket.is_a?(Marlon::Ticket) && ticket.persisted?
+      fields = ticket.extra_fields.to_h.deep_stringify_keys
+      order = fields["nevaeh_work_order"]
+      order = WorkOrder.validate!(order) if order
+      requirement = order&.fetch("intent_key") || fields["required_capability"]
+      criteria = order&.fetch("acceptance_criteria") || fields["acceptance_criteria"] || []
+      raise Rejected, "invalid acceptance criteria" unless criteria.is_a?(Array) && criteria.all? { |v| v.is_a?(String) && v.present? }
+      steps = [
+        {"id" => "inspect", "kind" => "analysis", "task" => "Inspect repository implementation and ticket dependencies"},
+        {"id" => "knowledge", "kind" => "analysis", "task" => "Review linked KB procedures and capability contracts"},
+        {"id" => "implement", "kind" => "controlled_development", "task" => "Execute the saved work order through Gatekeeper or escalate missing executor"},
+        {"id" => "verify", "kind" => "verification", "task" => "Verify each acceptance criterion against persisted implementation evidence"},
+        {"id" => "learn", "kind" => "review", "task" => "Record verified procedure in the existing Knowledge Base"},
+        {"id" => "close", "kind" => "review", "task" => "Resolve only after acceptance and Knowledge Base persistence succeed"}
+      ]
+      plan = {
+        "schema_version" => VERSION, "status" => "planning_only", "ticket_id" => ticket.id,
+        "source" => "marlon_ticket", "objective" => order&.fetch("objective") || ticket.description.presence || ticket.title,
+        "required_capability" => requirement, "acceptance_criteria" => criteria,
+        "knowledge_article_ids" => knowledge_article_ids,
+        "capability_resolution" => "unverified_requires_repository_and_registry_inspection",
+        "dependencies" => fields.fetch("depends_on_ticket_ids", []), "steps" => steps,
+        "gatekeeper" => {"authorization_required" => true, "production_execution_allowed" => false,
+          "human_release_approval_required" => true}, "execution_enabled" => false
+      }
+      # Reuse STUDIO-203's exact-match bridge; registry presence is not proof.
+      if requirement.to_s.match?(/\A[a-z][a-z0-9_.-]*\z/)
+        plan = StudioCapabilityPlanResolutionV7a.attach(plan: plan, capability_snapshot: capability_snapshot).dup
+      end
+      plan["fingerprint"] = Digest::SHA256.hexdigest(JSON.generate(plan))
+      deep_freeze(plan)
+    end
+
     def deep_freeze(value)
       case value
       when Hash then value.each { |k, v| deep_freeze(k); deep_freeze(v) }

@@ -1,3 +1,20 @@
+<% backlog = ticket.extra_fields.to_h.deep_stringify_keys.fetch('nevaeh_backlog', {}) %>
+<% if backlog.present? %>
+  <section class="dd-card" aria-label="Nevaeh backlog processing" style="margin-bottom:16px">
+    <div class="dd-card-title">Nevaeh · Backlog processing</div>
+    <p><strong>Status:</strong> <%= backlog['status'].to_s.humanize %></p>
+    <% if backlog['blockers'].present? %>
+      <ul><% Array(backlog['blockers']).each do |blocker| %><li><%= blocker %></li><% end %></ul>
+    <% end %>
+    <p><strong>KB articles:</strong> <%= Array(backlog['knowledge_article_ids']).join(', ').presence || 'No matching procedure recorded' %></p>
+    <% if backlog['engineering_plan'].present? %>
+      <details><summary>Engineering plan and acceptance requirements</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><%= JSON.pretty_generate(backlog['engineering_plan']) %></pre></details>
+    <% end %>
+    <% if ticket.status != 'resolved' && can?(:execute_nevaeh, ticket) %>
+      <%= button_to "Resume Nevaeh processing", resume_nevaeh_employee_ticket_path(ticket), method: :post, class: "dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+  </section>
+<% end %>
 <% evidence = NevaehIntelligences::TicketEvidence.new(ticket) %>
 <% if evidence.present? %>
   <% order = evidence.work_order %>

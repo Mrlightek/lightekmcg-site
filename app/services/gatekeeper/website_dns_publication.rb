@@ -12,19 +12,20 @@ module Gatekeeper
     class Conflict < StandardError; end
     class NotPropagated < StandardError; end
 
-    def self.call!(hostname:, ipv4:)
+    def self.call!(hostname:, ipv4:, dns_env: {})
       host = hostname.to_s.downcase.strip
       address = IPAddr.new(ipv4.to_s)
       raise ArgumentError, "Expected public IPv4" unless address.ipv4? && !address.private? && !address.loopback? && !address.link_local?
 
-      zones = Godaddy::DnsService.zones.sort_by { |zone| -zone.length }
+      configured = dns_env.fetch("GODADDY_DOMAINS", ENV.fetch("GODADDY_DOMAINS", ""))
+      zones = configured.split(",").map { |value| value.strip.downcase }.reject(&:blank?).sort_by { |zone| -zone.length }
       zone = zones.find { |candidate| host.end_with?(".#{candidate}") }
       raise NotConfigured, "No managed authoritative DNS zone for #{host}" unless zone
 
       name = host.delete_suffix(".#{zone}")
       raise ArgumentError, "Invalid DNS record name" unless name.match?(/\A[a-z0-9-]+(?:\.[a-z0-9-]+)*\z/)
 
-      dns = Godaddy::DnsService.new(zone: zone)
+      dns = Godaddy::DnsService.new(zone: zone, domains: configured, token: dns_env["GODADDY_PAT"])
       existing = dns.records.select do |record|
         record["name"].to_s.downcase == name && record["type"].to_s.upcase == "A"
       end

@@ -46,8 +46,8 @@ begin
     Sidekiq::ProcessSet.new.any? { |process| process["pid"].to_i == worker_pid && process.queues.include?(queue_name) }
   end
   Process.kill("TSTP", worker_pid)
-  wait_for.call("worker quiet") do
-    Sidekiq::ProcessSet.new.any? { |process| process["pid"].to_i == worker_pid && process["quiet"] == true }
+  wait_for.call("worker quiet acknowledgement") do
+    File.read(log.path).include?("Received TSTP, no longer accepting new work")
   end
   job = NevaehIntelligences::ProcessBacklogJob.set(queue: queue_name).perform_later(ticket_id: ticket.id)
   wait_for.call("durable queued delivery") { queue.size == 1 }

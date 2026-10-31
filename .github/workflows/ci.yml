@@ -253,6 +253,7 @@ jobs:
       - name: Verify server helpers and fresh private bootstrap
         run: |
           python3 -m unittest discover -s test/operations -p 'lightek_mail*_test.py'
+          python3 -m unittest discover -s test/operations -p 'passenger_restart_test.py'
           sudo python3 lib/scripts/lightek_mail_server.py install
           sudo rspamadm configtest
           sudo postfix check

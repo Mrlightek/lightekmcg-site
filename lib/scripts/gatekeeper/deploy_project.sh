@@ -88,7 +88,12 @@ echo "[7/8] Apache"
 apache2ctl configtest
 systemctl reload "${APACHE_SERVICE}"
 systemctl is-active --quiet "${APACHE_SERVICE}"
-passenger-config restart-app "${APP_ROOT}" --ignore-app-not-running
+# Apache reload can retire Passenger's control socket while this CLI connects.
+# Fall back to Passenger's restart marker; the health gate below still has to pass.
+if ! passenger-config restart-app "${APP_ROOT}" --ignore-app-not-running; then
+  echo "Passenger control command failed; requesting application restart through tmp/restart.txt"
+  run_as_app_user "mkdir -p tmp && touch tmp/restart.txt"
+fi
 
 echo "[8/8] Health"
 HTTP_CODE=""

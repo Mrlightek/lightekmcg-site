@@ -31,10 +31,10 @@ fi
 for script in lightek_mail_ingress.py fetch_lightek_mail_routes.py lightek_mail_route_maps.py sync_lightek_mail_recipients.sh; do
   [[ -f "$SOURCE_DIR/$script" ]]
 done
-[[ -f /etc/lightek/mail-ingress.json ]]
+[[ -f /etc/lightek/mail-ingress.json ]] || { echo "Missing /etc/lightek/mail-ingress.json; prepare the matching ingress credential first." >&2; exit 1; }
 # This installer is scoped to Lightek's existing virtual mailbox setup.
-[[ "$(postconf -h virtual_mailbox_maps)" == hash:/etc/postfix/lightek_recipients ]]
-[[ "$(postconf -h virtual_mailbox_domains)" == hash:/etc/postfix/lightek_domains ]]
+[[ "$(postconf -h virtual_mailbox_maps)" == hash:/etc/postfix/lightek_recipients ]] || { echo "Unsupported virtual_mailbox_maps; expected hash:/etc/postfix/lightek_recipients. Existing routing was not changed." >&2; exit 1; }
+[[ "$(postconf -h virtual_mailbox_domains)" == hash:/etc/postfix/lightek_domains ]] || { echo "Unsupported virtual_mailbox_domains; expected hash:/etc/postfix/lightek_domains. Existing routing was not changed." >&2; exit 1; }
 # A mail-only VM needs no Rails user/database. Its pipe runs without login access.
 if ! id lightek >/dev/null 2>&1; then
   [[ "$REMOTE_ROUTES" == 1 ]] || { echo 'Application user lightek is missing' >&2; exit 1; }

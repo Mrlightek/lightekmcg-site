@@ -2,8 +2,168 @@
 <div style="margin-bottom:20px">
   <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Gatekeeper · Network Control</div>
   <h2 style="font-size:22px;margin:6px 0 0">Network & Domains</h2>
-  <p style="color:var(--dd-text-secondary);font-size:13px">Super-admin DNS and host firewall control.</p>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Super-admin management for domains, cloud servers, firewall rules, and connected devices.</p>
 </div>
+
+
+<% if @dashboard_warnings.present? %>
+  <section class="dd-card" style="padding:16px;margin-bottom:18px" aria-label="Service availability warnings">
+    <h3>Service availability</h3>
+    <ul><% @dashboard_warnings.each do |warning| %><li><%= warning %></li><% end %></ul>
+  </section>
+<% end %>
+
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Scheduled jobs">
+  <h3>Scheduled jobs</h3>
+  <p>Manage allowlisted Sidekiq cron tasks. New schedules are stored in Redis.</p>
+  <%= form_with url: dashboard_network_cron_jobs_path, method: :post, style: "display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px" do %>
+    <%= text_field_tag :name, nil, placeholder: "Job name", required: true %>
+    <%= select_tag :job_class, options_for_select(Gatekeeper::CronManagement::ALLOWED_JOBS) %>
+    <%= text_field_tag :cron, nil, placeholder: "*/5 * * * *", required: true %>
+    <%= submit_tag "Create schedule", class: "dd-topbar-btn dd-btn-primary" %>
+  <% end %>
+  <table style="width:100%"><thead><tr><th align="left">Name</th><th align="left">Class</th><th align="left">Cron</th><th align="left">Status</th><th align="left">Actions</th></tr></thead>
+  <tbody>
+    <% @cron_jobs.each do |job| %>
+      <tr><td><%= job.name %></td><td><%= job.klass %></td><td><%= job.cron %></td><td><%= job.status %></td>
+      <td><%= button_to "Run now", dashboard_network_run_cron_job_path(name: job.name), method: :post, class: "dd-topbar-btn" %>
+      <%= button_to(job.status == "enabled" ? "Disable" : "Enable", dashboard_network_toggle_cron_job_path(name: job.name), method: :post, class: "dd-topbar-btn") %>
+      <details><summary>Edit schedule</summary>
+        <%= form_with url: dashboard_network_cron_jobs_path, method: :patch do %>
+          <%= hidden_field_tag :name, job.name %>
+          <%= select_tag :job_class, options_for_select(Gatekeeper::CronManagement::ALLOWED_JOBS, job.klass) %>
+          <%= text_field_tag :cron, job.cron, required: true %>
+          <%= submit_tag "Save schedule", class: "dd-topbar-btn" %>
+        <% end %>
+      </details>
+      <%= button_to "Delete", dashboard_network_cron_jobs_path(name: job.name), method: :delete,
+        class: "dd-topbar-btn", data: { turbo_confirm: "Delete this schedule?" } %></td></tr>
+    <% end %>
+    <% if @cron_jobs.empty? %><tr><td colspan="5">No dashboard-managed schedules.</td></tr><% end %>
+  </tbody></table>
+</section>
+
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Device management">
+  <h3>Device management</h3>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Register and organize phones, tablets, routers, network equipment, and IoT endpoints. Remote commands require a separately enrolled Gatekeeper device agent.</p>
+  <% if flash[:device_enrollment_token].present? %>
+    <div role="status" style="padding:12px;margin-bottom:12px;border:1px solid var(--dd-border)">
+      <strong>One-time device enrollment token</strong>
+      <p style="font-size:12px">Copy this secret to the device agent. It is not stored in plaintext.</p>
+      <code style="word-break:break-all"><%= flash[:device_enrollment_token] %></code>
+    </div>
+  <% end %>
+  <details style="margin-bottom:16px"><summary style="cursor:pointer">Register device</summary>
+    <%= form_with url: dashboard_network_devices_path, method: :post, style: "display:flex;flex-wrap:wrap;gap:10px;margin-top:12px" do %>
+      <%= text_field_tag "device[name]", nil, placeholder: "Device name", required: true %>
+      <%= text_field_tag "device[identifier]", nil, placeholder: "Asset ID / serial", required: true %>
+      <%= select_tag "device[device_type]", options_for_select(NetworkManagedDevice::DEVICE_TYPES.map { |type| [type.humanize, type] }) %>
+      <%= select_tag "device[management_protocol]", options_for_select([["Unmanaged", ""]] + NetworkManagedDevice::PROTOCOLS.map { |type| [type.upcase, type] }) %>
+      <%= text_field_tag "device[hostname]", nil, placeholder: "Hostname" %>
+      <%= text_field_tag "device[ip_address]", nil, placeholder: "IP address" %>
+      <%= submit_tag "Register device", class: "dd-topbar-btn dd-btn-primary" %>
+    <% end %>
+  </details>
+  <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
+    <thead><tr><th align="left">Device</th><th align="left">Type</th><th align="left">Identifier</th><th align="left">Network</th><th align="left">Management</th><th align="left">Status</th><th align="left">Last seen</th><th align="left">Actions</th></tr></thead>
+    <tbody>
+      <% @devices.each do |device| %>
+        <tr>
+          <td><%= device.name %></td><td><%= device.device_type.humanize %></td><td><%= device.identifier %></td>
+          <td><%= device.hostname.presence || device.ip_address.presence || "Not configured" %></td>
+          <td><%= device.management_protocol.presence || "Unmanaged" %></td>
+          <td><%= device.status.humanize %></td>
+          <td><%= device.last_seen_at ? time_ago_in_words(device.last_seen_at) + " ago" : "Never" %></td>
+          <td><details><summary style="cursor:pointer">Edit</summary>
+            <%= form_with url: dashboard_network_device_path(id: device.id), method: :patch, style: "display:grid;gap:6px" do %>
+              <%= text_field_tag "device[name]", device.name, required: true %>
+              <%= text_field_tag "device[hostname]", device.hostname, placeholder: "Hostname" %>
+              <%= text_field_tag "device[ip_address]", device.ip_address, placeholder: "IP address" %>
+              <%= select_tag "device[status]", options_for_select(NetworkManagedDevice::STATUSES.map { |status| [status.humanize, status] }, device.status) %>
+              <%= submit_tag "Save device", class: "dd-topbar-btn" %>
+            <% end %>
+          </details>
+          <%= button_to "Rotate enrollment token", dashboard_network_rotate_device_token_path(id: device.id),
+            method: :post, class: "dd-topbar-btn",
+            data: { turbo_confirm: "Rotate the enrollment token for #{device.name}? The previous token will stop working." } %>
+          </td>
+        </tr>
+      <% end %>
+      <% if @devices.empty? %><tr><td colspan="8">No devices registered.</td></tr><% end %>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Customer infrastructure">
+  <h3>Customer infrastructure</h3>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Paid provisioning requests, cloud allocation, deployment state, and DNS targets. Changes are made through audited Gatekeeper workflows.</p>
+  <div style="overflow-x:auto">
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead><tr><th align="left">Request</th><th align="left">Customer</th><th align="left">Provider</th><th align="left">State</th><th align="left">Node / IP</th><th align="left">Recovery</th><th align="left">Action</th></tr></thead>
+      <tbody>
+        <% @provisioning_requests.each do |request| %>
+          <% node = request.gatekeeper_node %>
+          <tr>
+            <td>#<%= request.id %></td>
+            <td><%= request.owner.respond_to?(:email_address) ? request.owner.email_address : request.owner_type %></td>
+            <td><%= request.compute_provider&.name || "Unassigned" %></td>
+            <td><%= request.execution_status.to_s.humanize %></td>
+            <td><%= node ? "#{node.name} / #{node.ip_address}" : "Not allocated" %></td>
+            <td><%= Array(request.metadata.to_h["retired_provider_nodes"]).any? ? "Replacement history: #{Array(request.metadata.to_h["retired_provider_nodes"]).size}" : "—" %></td>
+            <td>
+              <% order = LightekCommerce::Order.find_by(provisioning_request_id: request.id) %>
+              <% if order && order.paid_at? && !order.provisioned_at? %>
+                <%= button_to "Resume paid installation", dashboard_network_retry_provisioning_path(id: request.id), method: :post,
+                  class: "dd-topbar-btn dd-btn-primary",
+                  data: { turbo_confirm: "Queue recovery for paid order ##{order.id}? This can allocate a billable VPS if the previous node was confirmed deleted." } %>
+              <% elsif order&.provisioned_at? %>
+                Complete
+              <% else %>
+                No paid installation
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+        <% if @provisioning_requests.empty? %><tr><td colspan="7">No provisioning requests yet.</td></tr><% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Managed cloud nodes">
+  <h3>Managed cloud nodes</h3>
+  <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
+    <thead><tr><th align="left">Node</th><th align="left">Provider resource</th><th align="left">Public IP</th><th align="left">Status</th><th align="left">Action</th></tr></thead>
+    <tbody>
+      <% @managed_nodes.each do |node| %>
+        <tr><td><%= node.name %></td><td><%= node.provider_resource_id %></td><td><%= node.ip_address %></td><td><%= node.status.humanize %></td><td><%= button_to "Verify server", dashboard_network_verify_node_path(id: node.id), method: :post, class: "dd-topbar-btn" %></td></tr>
+      <% end %>
+      <% if @managed_nodes.empty? %><tr><td colspan="5">No managed cloud nodes.</td></tr><% end %>
+    </tbody>
+  </table></div>
+</section>
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="Recent network operations">
+  <h3>Recent network operations</h3>
+  <div style="overflow-x:auto"><table style="width:100%;font-size:12px">
+    <thead><tr><th align="left">When</th><th align="left">Operation</th><th align="left">Result</th></tr></thead>
+    <tbody>
+      <% @recent_network_operations.each do |operation| %>
+        <tr><td><%= operation.created_at&.strftime("%Y-%m-%d %H:%M UTC") %></td><td><%= operation.capability.humanize %></td><td><%= operation.status.humanize %></td></tr>
+      <% end %>
+      <% if @recent_network_operations.empty? %><tr><td colspan="3">No recent operations.</td></tr><% end %>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="dd-card" style="padding:20px;margin-bottom:18px" aria-label="DNS verification">
+  <h3>DNS verification</h3>
+  <p style="color:var(--dd-text-secondary);font-size:13px">Check public IPv4 resolution against the expected cloud instance without changing DNS records.</p>
+  <%= form_with url: dashboard_network_verify_dns_path, method: :post, style: "display:flex;gap:10px;flex-wrap:wrap;align-items:end" do %>
+    <%= hidden_field_tag :zone, @zone %>
+    <div><%= label_tag :hostname, "Hostname" %><%= text_field_tag :hostname, nil, placeholder: "client-1.lightekmcg.com", required: true %></div>
+    <div><%= label_tag :expected_ipv4, "Expected IPv4" %><%= text_field_tag :expected_ipv4, nil, placeholder: "Instance IP (optional)" %></div>
+    <%= submit_tag "Verify DNS", class: "dd-topbar-btn dd-btn-primary" %>
+  <% end %>
+</section>
 
 <div class="dd-card" style="padding:20px;margin-bottom:18px">
   <h3>Firewall</h3>

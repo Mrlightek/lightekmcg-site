@@ -43,7 +43,64 @@ milter_protocol = 6
 milter_default_action = tempfail
 smtpd_milters = inet:127.0.0.1:11332
 non_smtpd_milters = inet:127.0.0.1:11332
+# Virtual recipients are explicitly enumerated, so unknown recipients are refused.
+virtual_mailbox_domains = hash:/etc/postfix/lightek_domains
+virtual_mailbox_maps = hash:/etc/postfix/lightek_recipients
+virtual_transport = lmtp:unix:private/dovecot-lmtp
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = no
+smtpd_tls_auth_only = yes
+smtpd_recipient_restrictions = reject_unauth_destination, reject_unlisted_recipient
 """,
+        "postfix/master.cf.d/README": "# Submission services are staged separately; do not expose until a trusted TLS certificate is installed.\\n",
+        "dovecot/conf.d/99-lightek.conf": """# Private mailbox service, accessible locally until TLS and external routing are approved.
+protocols = imap lmtp
+listen = 127.0.0.1
+ssl = required
+disable_plaintext_auth = yes
+mail_location = maildir:/var/vmail/%d/%n/Maildir
+first_valid_uid = 5000
+passdb {
+  driver = passwd-file
+  args = scheme=SHA512-CRYPT username_format=%u /etc/dovecot/lightek-users
+}
+userdb {
+  driver = static
+  args = uid=vmail gid=vmail home=/var/vmail/%d/%n
+}
+service lmtp {
+  unix_listener /var/spool/postfix/private/dovecot-lmtp {
+    mode = 0600
+    user = postfix
+    group = postfix
+  }
+}
+service auth {
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0660
+    user = postfix
+    group = postfix
+  }
+}
+""",
+        "postfix/lightek_submission.cf": """# Activate only after trusted TLS certificate configuration.
+submission inet n - y - - smtpd
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_sender_login_maps=hash:/etc/postfix/lightek_logins
+  -o smtpd_sender_restrictions=reject_sender_login_mismatch
+smtps inet n - y - - smtpd
+  -o smtpd_tls_wrappermode=yes
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_sender_login_maps=hash:/etc/postfix/lightek_logins
+  -o smtpd_sender_restrictions=reject_sender_login_mismatch
+""",
+        "postfix/lightek_logins": "# Authorized SMTP login-to-sender mappings; empty until mailbox provisioning.\n",
+        "postfix/lightek_domains": "# Authorized virtual domains only; populated by mailbox provisioning.\n",
+        "postfix/lightek_recipients": "# Authorized mailboxes only; populated by mailbox provisioning.\n",
         "postfix/lightek_senders": "# No senders enabled during bootstrap. Exact mailbox allowlist required.\n",
         "postfix/lightek_local_clients": "127.0.0.1/32 lightek_sender\n",
         "rspamd/local.d/worker-normal.inc": 'bind_socket = "127.0.0.1:11333";\ncount = 2;\n',
@@ -121,11 +178,32 @@ WantedBy=multi-user.target
     }
 
 
-def write_plan(directory, name):
-    for relative, content in configuration(name).items():
+def write_plan(directory, name, *, preserve_mailboxes=False):
+    plan = configuration(name)
+    # Retain mailbox authorization maps across an interrupted bootstrap retry.
+    # Replacing these files would silently remove already provisioned recipients.
+    if preserve_mailboxes:
+        for relative in ("postfix/lightek_logins", "postfix/lightek_domains",
+                         "postfix/lightek_recipients", "postfix/lightek_senders"):
+            existing = directory / relative
+            if existing.is_symlink() or any(parent.is_symlink() for parent in existing.parents if parent != directory and directory in parent.parents):
+                raise ValueError("Refusing symlink mailbox authorization map")
+            if existing.exists():
+                if not existing.is_file():
+                    raise ValueError("Mailbox authorization map is not a regular file")
+                plan.pop(relative)
+    # Validate every destination before writing any configuration file.
+    for relative in plan:
         target = directory / relative
         if target.is_symlink():
             raise ValueError("Refusing a symlink configuration target")
+        parent = target.parent
+        while parent != directory and parent != parent.parent:
+            if parent.is_symlink():
+                raise ValueError("Refusing a symlink configuration directory")
+            parent = parent.parent
+    for relative, content in plan.items():
+        target = directory / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
 
@@ -141,18 +219,51 @@ def install(name):
     release = dict(line.split("=", 1) for line in Path("/etc/os-release").read_text().splitlines() if "=" in line)
     if release.get("ID", "").strip('"') != "ubuntu" or release.get("VERSION_ID", "").strip('"') != "24.04":
         raise ValueError("This installer targets Ubuntu 24.04 only")
-    if shutil.which("postconf") or shutil.which("rspamadm") or Path("/etc/postfix/main.cf").exists() or Path("/etc/rspamd/local.d").exists():
-        raise ValueError("Existing mail configuration found; refusing to overwrite it. Use the audit and integrate it separately")
-    state = run("ss", "-H", "-lnt", "( sport = :25 or sport = :465 or sport = :587 or sport = :993 or sport = :16379 or sport = :11332 or sport = :11333 )", capture_output=True, text=True)
-    if state.stdout.strip():
-        raise ValueError("A required mail/Redis/scanner port is already in use")
+    if Path("/etc/lightek/mail-bootstrap-complete").exists():
+        raise ValueError("Mail bootstrap already completed; use --mailbox-only instead")
+    claim = Path("/etc/lightek/mail-bootstrap-in-progress")
+    if claim.is_symlink():
+        raise ValueError("Refusing symlink bootstrap claim")
+    resuming = claim.exists()
+    if resuming:
+        claim_stat = claim.stat()
+        if (not claim.is_file() or claim_stat.st_uid != 0 or
+                claim_stat.st_mode & 0o077 or
+                claim.read_text().strip() != f"host={name}"):
+            raise ValueError("Bootstrap claim ownership, permissions or hostname is invalid")
+        print("LIGHTEK_MAIL_RESUMING_OWN_BOOTSTRAP")
+    else:
+        if shutil.which("postconf") or shutil.which("rspamadm") or Path("/etc/postfix/main.cf").exists() or Path("/etc/rspamd/local.d").exists():
+            raise ValueError("Existing mail configuration found; refusing to overwrite it. Use the audit and integrate it separately")
+        state = run("ss", "-H", "-lnt", "( sport = :25 or sport = :465 or sport = :587 or sport = :993 or sport = :16379 or sport = :11332 or sport = :11333 )", capture_output=True, text=True)
+        if state.stdout.strip():
+            raise ValueError("A required mail/Redis/scanner port is already in use")
+        claim.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        fd = os.open(claim, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w") as handle:
+            handle.write(f"host={name}\n")
     run("debconf-set-selections", input=f"postfix postfix/mailname string {name}\npostfix postfix/main_mailer_type select Local only\n", text=True)
     env = dict(os.environ, DEBIAN_FRONTEND="noninteractive")
     run("apt-get", "update", env=env)
-    run("apt-get", "install", "-y", "--no-install-recommends", "postfix", "rspamd", "redis-server", "dnsutils", "openssl", env=env)
+    run("apt-get", "install", "-y", "--no-install-recommends", "postfix", "dovecot-core", "dovecot-imapd", "rspamd", "redis-server", "dnsutils", "openssl", env=env)
     run("systemctl", "stop", "postfix", "rspamd")
     try:
-        write_plan(Path("/etc"), name)
+        write_plan(Path("/etc"), name, preserve_mailboxes=resuming)
+        if not shutil.which("useradd"):
+            raise ValueError("Missing useradd")
+        try:
+            pwd.getpwnam("vmail")
+        except KeyError:
+            run("useradd", "--system", "--uid", "5000", "--home-dir", "/var/vmail", "--shell", "/usr/sbin/nologin", "vmail")
+        mailbox_owner = pwd.getpwnam("vmail")
+        mailroot = Path("/var/vmail")
+        mailroot.mkdir(parents=True, exist_ok=True, mode=0o750)
+        os.chown(mailroot, mailbox_owner.pw_uid, mailbox_owner.pw_gid)
+        credentials = Path("/etc/dovecot/lightek-users")
+        if not credentials.exists():
+            fd = os.open(credentials, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            os.close(fd)
+        credentials.chmod(0o600)
         redis = pwd.getpwnam("redis")
         redis_dir = Path("/var/lib/redis/lightek-mail")
         redis_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -160,7 +271,8 @@ def install(name):
         redis_config = Path("/etc/redis/lightek-mail.conf")
         os.chown(redis_config, 0, redis.pw_gid)
         redis_config.chmod(0o640)
-        run("postmap", "/etc/postfix/lightek_senders")
+        for mapping in ("lightek_senders", "lightek_logins", "lightek_domains", "lightek_recipients"):
+            run("postmap", "/etc/postfix/" + mapping)
         run("postfix", "check")
         run("rspamadm", "configtest")
         run("systemctl", "daemon-reload")
@@ -170,8 +282,11 @@ def install(name):
     except Exception:
         subprocess.run(["systemctl", "stop", "postfix"], check=False)
         raise
+    run("dovecot", "-n", capture_output=True, text=True)
+    run("systemctl", "enable", "--now", "dovecot")
+    run("systemctl", "is-active", "--quiet", "dovecot")
     print("LIGHTEK_MAIL_PRIVATE_BOOTSTRAP_COMPLETE")
-    print("SMTP listens on loopback; no senders are allowed; internet SMTP transport is deferred.")
+    print("SMTP and IMAP are private; no senders are allowed; internet SMTP transport is deferred.")
     print("Do not enable customer sending yet. Complete routing, DKIM/DNS, TLS and end-to-end verification first.")
 
 
@@ -185,8 +300,13 @@ def dkim(domain):
     os.chown(directory, 0, owner.pw_gid)
     key = directory / f"{domain}.mail.key"
     public = directory / f"{domain}.mail.txt"
+    if key.is_symlink() or public.is_symlink():
+        raise ValueError("Refusing symlink DKIM material")
+    if key.exists() and public.exists():
+        print("LIGHTEK_MAIL_DKIM_ALREADY_PRESENT")
+        return
     if key.exists() or public.exists():
-        raise ValueError("Existing DKIM material found; preserving it")
+        raise ValueError("Incomplete DKIM material found; refusing to overwrite it")
     old_umask = os.umask(0o077)
     try:
         result = run("rspamadm", "dkim_keygen", "-s", "mail", "-b", "2048", "-d", domain, "-k", str(key), capture_output=True, text=True)

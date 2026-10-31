@@ -11,6 +11,12 @@ module Gatekeeper
         def nodes = collection("/linode/instances")
         def node(id) = request(:get, "/linode/instances/#{id}")
 
+        def create_support_ticket(summary:, description:, linode_id:)
+          request(:post, "/support/tickets", body: {
+            summary: summary, description: description, linode_id: Integer(linode_id)
+          })
+        end
+
         def provision_node(label:, region:, plan:, image:, root_password: nil, authorized_keys: nil, **options)
           auth = {}
           auth[:root_pass] = root_password if root_password.present?

@@ -28,7 +28,7 @@ env:
   APP_ROOT: /var/www/lightekmcg-site
   APP_USER: lightek
   APP_DOMAIN: lightekmcg.com
-  APP_BRANCH: main
+  APP_BRANCH: ${{ github.ref_name }}
   RUBY_VERSION: 3.3.6
   APACHE_SERVICE: apache2
   SIDEKIQ_SERVICE: lightekmcg-site-sidekiq
@@ -37,9 +37,15 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify DNS recovery regressions before release
+        run: |
+          ruby test/scripts/paid_dns_recovery_standalone.rb
+          python3 -m unittest discover -s test/scripts -p 'test_paid_instance_verification.py' -v
+          python3 -m unittest discover -s test/scripts -p 'test_manual_instance_config.py' -v
 
       - name: Configure SSH
         env:
@@ -83,27 +89,81 @@ jobs:
         run: |
           set -euo pipefail
           PORT="${SSH_PORT:-22}"
+          case "$APP_BRANCH" in
+            main|fix/paid-instance-provisioning-recovery-20261028) ;;
+            *) echo 'Ref is not authorized for production deployment'; exit 1 ;;
+          esac
 
-          ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" '
+          ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$APP_BRANCH'" <<'LIGHTEK_DEPLOY' | tee deploy-output.txt
             set -e
+            # Restore the repository's documented production ownership model.
+            bash /var/www/lightekmcg-site/lib/scripts/repair_lightek_production_permissions.sh
+            if [[ "$1" == fix/paid-instance-provisioning-recovery-20261028 ]]; then
+              # Preserve interrupted checkout and manual source changes locally.
+              # Ignored runtime data/environment files remain in place.
+              sudo -u lightek -H git -C /var/www/lightekmcg-site \
+                -c user.name='Lightek Release' -c user.email='deploy@lightekmcg.com' \
+                stash push --include-untracked -m paid-order-1-pre-release-recovery
+            fi
 
             APP_ROOT=/var/www/lightekmcg-site \
             APP_USER=lightek \
             APP_NAME=lightekmcg-site \
             APP_DOMAIN=lightekmcg.com \
-            APP_BRANCH=main \
+            APP_BRANCH="$1" \
             RUBY_VERSION=3.3.6 \
             APACHE_SERVICE=apache2 \
             SIDEKIQ_SERVICE=lightekmcg-site-sidekiq \
             ENV_FILE=/etc/lightek/lightekmcg-site.env \
             bash /var/www/lightekmcg-site/lib/scripts/gatekeeper/deploy_project.sh
-          ' | tee deploy-output.txt
+          LIGHTEK_DEPLOY
 
           DEPLOYED_SHA="$(grep '^GATEKEEPER_DEPLOYED_SHA=' deploy-output.txt | tail -1 | cut -d= -f2-)"
           HTTP_STATUS="$(grep '^GATEKEEPER_HTTP_STATUS=' deploy-output.txt | tail -1 | cut -d= -f2-)"
 
           echo "deployed_sha=$DEPLOYED_SHA" >> "$GITHUB_OUTPUT"
           echo "http_status=$HTTP_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Create manual paid acceptance order and run live production acceptance
+        if: github.ref_name == 'fix/paid-instance-provisioning-recovery-20261028'
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          DEPLOYED_SHA: ${{ steps.deploy.outputs.deployed_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOYED_SHA" == "$GITHUB_SHA" ]] || { echo 'Deployment revision differs from tested commit'; exit 1; }
+          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'bash -s' <<'LIGHTEK_RECOVERY'
+            set -euo pipefail
+            run_application() {
+              sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc '
+                set -euo pipefail
+                set -a
+                source /etc/lightek/lightekmcg-site.env
+                set +a
+                export RBENV_ROOT=/home/lightek/.rbenv
+                export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+                export RAILS_ENV=production
+                cd /var/www/lightekmcg-site
+                "$@"
+              ' lightek-runtime "$@"
+            }
+            run_application env LIGHTEK_CREATE_MANUAL_PAID_ORDER=1 bin/rails runner script/lightek/prepare_manual_instance_catalog.rb
+            settings_result=$(python3 /var/www/lightekmcg-site/script/lightek/persist_manual_instance_config.py)
+            echo "$settings_result"
+            if [[ "$settings_result" == VPS_DEPLOYMENT_SETTINGS_PERSISTED ]]; then
+              systemctl restart lightekmcg-site-sidekiq
+              systemctl is-active --quiet lightekmcg-site-sidekiq
+            fi
+            set +e
+            run_application env LIGHTEK_CREATE_MANUAL_PAID_ORDER=1 bin/rails runner script/lightek/create_manual_paid_instance_order.rb
+            recovery_status=$?
+            order_id=$(cat /var/www/lightekmcg-site/tmp/manual_paid_instance_order_id 2>/dev/null || echo 1)
+            run_application env LIGHTEK_ACCEPTANCE_ORDER_ID="$order_id" bin/rails runner script/lightek/paid_instance_acceptance_audit.rb
+            acceptance_status=$?
+            [[ "$recovery_status" == 0 && "$acceptance_status" == 0 ]]
+          LIGHTEK_RECOVERY
 
       - name: Notify Gatekeeper succeeded
         if: success()

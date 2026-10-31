@@ -76,14 +76,6 @@ module Gatekeeper
       new(actor:, node:, domain:).run!
     end
 
-    def self.dns_environment(payload)
-      values = payload.fetch("dns_env", {})
-      raise Invalid, "Invalid DNS credential environment" unless values.is_a?(Hash) &&
-        (values.keys - %w[GODADDY_PAT GODADDY_DOMAINS]).empty? &&
-        values.values.all? { |v| v.is_a?(String) && !v.include?("\0") }
-      values
-    end
-
     # Allocation is permitted only through the existing approved request service.
     # A returned node remains bound to the request if deployment later fails.
     def self.provision_and_run!(actor:, request:, domain:)
@@ -98,27 +90,41 @@ module Gatekeeper
           credential = LightekVault::Service.checkout!(slug: config.fetch("credential_slug"),
             consumer: CONSUMER, purpose: "website_deploy", requested_by: actor.email_address)
           raise Invalid, "Owner credential must have at least 8 characters" unless credential["owner_password"].is_a?(String) && credential["owner_password"].size >= 8
-          dns_environment(credential)
+          # Execute in the control-plane runtime that owns the Network
+          # Controllers Vault configuration, before any billable allocation.
+          Gatekeeper::WebsiteDnsPublication.preflight!(hostname: domain)
         ensure
           credential&.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? }
         end
       end
-      node = nil
-      request.with_lock do
-        node = request.gatekeeper_node
-        if node.nil?
-          raise Invalid, "Request is not approved and ready; no instance was created" unless request.executable?
-          node = Gatekeeper::Compute::ProvisioningExecutionService.call(request:, requested_by: actor.email_address)
-        end
+      node = request.reload.gatekeeper_node
+      if node.nil?
+        raise Invalid, "Request is not approved and ready; no instance was created" unless request.executable?
+        node = Gatekeeper::Compute::ProvisioningExecutionService.call(request:, requested_by: actor.email_address)
       end
+      # A provider resource can be deleted externally while the request still
+      # references its former Gatekeeper node. Never SSH to the stale IP.
+      begin
+        Gatekeeper::Compute::NodeVerificationService.call(request:, requested_by: actor.email_address)
+      rescue StandardError => e
+        raise Invalid, "Provider node verification failed; reconcile the allocation before retrying (#{e.class})"
+      end
+      # Bind the deployment to the recovered/allocated node before boot polling.
+      # A retry must reuse its node and registered deployment configuration.
       register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role"))
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 600
       loop do
         result = Gatekeeper::Compute::NodeVerificationService.call(request:, requested_by: actor.email_address)
-        break if result[:provider_status] == "running"
-        raise Invalid, "Instance is still starting; rerun uses the same node" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
-        sleep 10
+        status = result[:provider_status].to_s
+        break if status == "running"
+        raise Invalid, "Linode entered terminal status #{status}; clean installation cannot continue" if %w[deleted deleting failed error].include?(status)
+        remaining = (deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)).ceil
+        raise Invalid, "Linode did not reach running within 600 seconds (last status: #{status})" if remaining <= 0
+        puts "Waiting for Linode #{node.provider_resource_id}: status=#{status}, timeout_in=#{remaining}s"
+        $stdout.flush
+        sleep [10, remaining].min
       end
+      Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)
       run!(actor:, node:, domain:)
     end
 
@@ -142,12 +148,12 @@ module Gatekeeper
         capability: "deploy_website", requested_by: @actor.email_address,
         parameters: {domain: @domain, owner_id: config.fetch("owner_id"), owner_role: config.fetch("owner_role")},
         status: "running", started_at: Time.current)
+      @deployment_stage = "vault_checkout"
       secrets = LightekVault::Service.checkout!(slug: config.fetch("credential_slug"),
         consumer: CONSUMER, purpose: "website_deploy", requested_by: @actor.email_address,
         gatekeeper_operation_id: operation.id)
       password = secrets.fetch("owner_password")
       raise Invalid, "Owner credential must have at least 8 characters" unless password.is_a?(String) && password.size >= 8
-      dns_env = self.class.dns_environment(secrets)
       root_secret = nil
       unless secrets["ssh_password"].present? || secrets["ssh_private_key"].present? || @node.ssh_key_path.present?
         slug = @node.metadata.to_h.fetch("node_credential_secret_slug") { raise Invalid, "No SSH credential is configured" }
@@ -155,6 +161,7 @@ module Gatekeeper
           requested_by: @actor.email_address, gatekeeper_operation_id: operation.id)
       end
       ssh_password = secrets["ssh_password"] || root_secret&.fetch("root_password")
+      @deployment_stage = "ssh_port_wait"
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 180
       loop do
         begin
@@ -180,6 +187,7 @@ module Gatekeeper
         options[:key_data] = [secrets["ssh_private_key"]] if secrets["ssh_private_key"].present?
         options[:keys] = [@node.ssh_key_path] if @node.ssh_key_path.present?
         options[:auth_methods] = %w[publickey password keyboard-interactive]
+        @deployment_stage = "ssh_authentication"
         Net::SSH.start(@node.ip_address, @node.ssh_user, **options) do |ssh|
           installed = false
           begin
@@ -189,7 +197,8 @@ module Gatekeeper
             input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email")
             input.merge!("owner_password" => password, "ssh" => "root@#{@node.ip_address}",
               "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key)
-            receipt = run_packager(input, dns_env:)
+            @deployment_stage = "remote_installer"
+            receipt = run_packager(input)
           ensure
             if installed
               cleanup = "from pathlib import Path; p=Path.home()/'.ssh/authorized_keys'; lines=p.read_text().splitlines(); p.write_text(''.join(s+'\\n' for s in lines if s.strip()!=#{public_key.inspect}))"
@@ -202,6 +211,7 @@ module Gatekeeper
           end
         end
       end
+      @deployment_stage = "receipt_persistence"
       operation.update!(status: "succeeded", exit_status: 0, completed_at: Time.current, result: receipt)
       @node.with_lock do
         @node.update!(metadata: @node.metadata.to_h.merge("website_deployment" => receipt), status: "healthy")
@@ -209,7 +219,9 @@ module Gatekeeper
       {operation_id: operation.id, url: receipt.fetch("url"), verified: true}
     rescue StandardError => error
       if operation
-        safe_error = Invalid.new("Website deployment failed (#{error.class.name}); inspect the deployment terminal and retry the same node")
+        stage = @deployment_stage || "initialization"
+        Rails.logger.error("[Lightek deployment] operation=#{operation.id} stage=#{stage} exception=#{error.class.name}")
+        safe_error = Invalid.new("Website deployment failed at #{stage} (#{error.class.name}); inspect the deployment terminal and retry the same node")
         operation.update!(status: "failed", exit_status: 1, completed_at: Time.current,
           error_class: error.class.name, error_message: safe_error.message)
         begin
@@ -220,15 +232,15 @@ module Gatekeeper
           Rails.logger.warn("[Lightek deployment] ticket creation failed: #{ticket_error.class.name}")
         end
       end
-      raise Invalid, "Website deployment failed (#{error.class.name}); operation #{operation&.id || 'not created'}"
+      raise Invalid, "Website deployment failed at #{@deployment_stage || 'initialization'} (#{error.class.name}); operation #{operation&.id || 'not created'}"
     ensure
       [secrets, root_secret].compact.each { |payload| payload.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? } }
     end
 
-    def run_packager(config, dns_env: {})
+    def run_packager(config)
       receipt_path = nil
       passed = false
-      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}.merge(dns_env), "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, thread|
+      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, thread|
         stdin.write(JSON.generate(config)); stdin.close
         output.each_line do |line|
           # Config/passwords are sent on stdin, never interpolated into commands.
@@ -243,7 +255,8 @@ module Gatekeeper
       raise Invalid, "Invalid deployment receipt path" unless path.parent == expected
       receipt = JSON.parse(path.read)
       raise Invalid, "Acceptance receipt is incomplete" unless receipt["url"] == "https://#{@domain}" &&
-        receipt["public_https_verified"] == true && receipt["owner_login_verified"] == true
+        receipt["public_https_verified"] == true && receipt["owner_login_verified"] == true &&
+        receipt.dig("health", "full_application_dashboard_verified") == true
       receipt
     end
   end

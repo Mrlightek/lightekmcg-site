@@ -51,14 +51,14 @@ jobs:
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile
         run: bundle install
+      - name: Install media runtimes
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
       - name: Database and API integration tests
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile
         run: |
           bundle exec ruby test/standalone/pwa_http_checks.rb
           bundle exec ruby test/standalone/migration_version_checks.rb
-      - name: Install media runtimes
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
       - name: Actual media ingestion, editing, live and Blender checks
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile

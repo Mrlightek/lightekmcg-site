@@ -111,3 +111,58 @@ Authoritative references:
 - https://techdocs.akamai.com/cloud-computing/docs/send-email
 - https://www.postfix.org/SMTPD_ACCESS_README.html
 - https://www.rfc-editor.org/rfc/rfc3834
+
+## Activate webmail receiving on the central mail host
+
+After deploying the receiving-workspace change, run on the host that has both
+Postfix and the production application:
+
+```bash
+cd /var/www/lightekmcg-site
+sudo bash lib/scripts/activate_lightek_mail_receiving.sh --apply --listen-public
+```
+
+If SMTP already listens on the required public interface, omit `--listen-public`.
+The script checks both invalid-token rejection and real-token validation without
+creating messages. It requires the previously prepared ingress credential to
+match the environment loaded by Rails. Run `prepare_lightek_mail_ingress.py` and
+reload the app if that prerequisite is missing. On a separate mail VM, copy the
+pipe and its private credential there and configure its SMTP maps against the
+central application's authoritative mailbox export; this installer deliberately
+requires the app and Postfix together and will stop if they are separated.
+
+Activation backs up main.cf/master.cf, keeps existing transport maps, and puts an
+exact-address map ahead of them. It leaves the default Dovecot transport intact
+for other recipients, while new enabled Lightek deliveries go into webmail.
+Existing Dovecot messages are retained and are not imported by this change.
+A systemd timer synchronizes verified enabled recipients, domain entries and
+exact inbox transports each minute. A newly created mailbox still needs to be
+enabled and its domain verified. The sync refuses an empty export and preserves
+existing domains; removing the last mailbox requires an intentional map cleanup.
+
+This does not update DNS or firewall rules. Each hosted domain needs an MX record
+pointing to `mail.lightekmcg.com` (or the configured mail hostname); the mail
+hostname needs the server's public A record, and cloud/host firewalls must allow
+inbound TCP 25. If migrating from an existing mail provider, preserve its mail
+before changing MX. The dashboard's **Check receiving DNS** reports MX routing;
+it does not claim an end-to-end SMTP test.
+
+Verify with one external message addressed to an enabled mailbox. Confirm it
+appears under **Inbox**, including attachments, then inspect `postqueue -p` and
+`journalctl -u postfix --since '10 minutes ago'` if missing. HTTP/auth/network or
+storage failures keep the message queued for retry. Receiving does not require
+enabling global outbound sending.
+
+### Local regression harness
+
+`ruby test/support/lightek_mail_workspace_fixture.rb` runs the mail protocol and
+workspace controller/view regressions with Rails 8.0.4 and SQLite. It uses a
+fixture session and dashboard base controller; it does not validate native login,
+private DymondDash engine integration, PostgreSQL locking or the live VPS.
+Run `bash lib/scripts/verify_lightek_mail.sh` in the configured native application
+for the host regression gate. No migrations are added by the receiving/UI change.
+The sending policy model again uses the existing
+`lightek_mail_sending_policies` singleton and database lock. Existing stored
+sending settings are retained; the global `NilClass#sending_enabled?` workaround
+is removed. If outgoing mail is paused in the persisted policy, use the existing
+Mail administrator controls / `lightek_mail:resume` after checking that setting.

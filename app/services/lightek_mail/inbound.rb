@@ -53,7 +53,7 @@ module LightekMail
         saved = account.with_lock do
           next if account.messages.exists?(idempotency_key: key)
           raise Submission::Unavailable, "Mailbox storage is full." if account.messages.sum(:bytesize) + storage_size > account.storage_limit
-          message = account.messages.create!(direction: "inbound", state: "inbox", from_address: mail.from&.first.to_s.slice(0, 254), to_addresses: Array(mail.to),
+          message = account.messages.create!(direction: "inbound", state: "inbox", from_address: mail.from&.first.to_s.slice(0, 254), to_addresses: Array(mail.to), cc_addresses: Array(mail.cc),
             subject: mail.subject.to_s.delete("\r\n").slice(0, 200), text_body: text,
             html_body: html, message_id: mail.message_id.presence || SecureRandom.uuid,
             in_reply_to: mail.in_reply_to.to_s.slice(0, 250), idempotency_key: key, bytesize: storage_size)

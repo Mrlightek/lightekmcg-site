@@ -76,7 +76,7 @@ end
 # Test files require this helper; don't boot config/environment.rb from the host.
 File.write(File.join(fixture_root, "test_helper.rb"), "require 'rails/test_help'\nrequire 'minitest/mock'\n")
 $LOAD_PATH.unshift(fixture_root)
-%w[mail_studio_test sending_controls_test spam_scanner_test reservation_concurrency_test].each { |name| require "#{source_root}/test/services/lightek_mail/#{name}" }
+%w[mail_studio_test receiving_status_test sending_controls_test spam_scanner_test reservation_concurrency_test].each { |name| require "#{source_root}/test/services/lightek_mail/#{name}" }
 require "#{source_root}/test/integration/lightek_mail_controls_test"
 
 Minitest.after_run { FileUtils.remove_entry(fixture_root) }

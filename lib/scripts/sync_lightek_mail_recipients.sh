@@ -66,7 +66,17 @@ if [[ "$count" -lt 1 ]]; then
 fi
 postmap "hash:$work/lightek_recipients"
 
-if cmp -s "$work/lightek_recipients" "$MAP"; then
+# Keep existing authorized domains, including independently provisioned mailboxes.
+# Rebuild exact recipient transports only once the receiving installer opts in.
+python3 "$APP_DIR/lib/scripts/lightek_mail_route_maps.py" --recipients "$work/lightek_recipients" --domains /etc/postfix/lightek_domains --output "$work"
+postmap "hash:$work/lightek_domains"
+if [[ -f /etc/postfix/lightek_transports ]]; then
+  postmap "hash:$work/lightek_transports"
+else
+  rm "$work/lightek_transports"
+fi
+
+if cmp -s "$work/lightek_recipients" "$MAP" && cmp -s "$work/lightek_domains" /etc/postfix/lightek_domains && { [[ ! -f "$work/lightek_transports" ]] || cmp -s "$work/lightek_transports" /etc/postfix/lightek_transports; }; then
   echo "LIGHTEK_MAIL_RECIPIENTS_UNCHANGED count=$count"
   exit 0
 fi
@@ -80,6 +90,13 @@ chmod 700 "$backup"
 # Update hash DB first, then source map. No services are restarted.
 install -o root -g root -m 0644 "$work/lightek_recipients.db" "$MAP.db"
 install -o root -g root -m 0644 "$work/lightek_recipients" "$MAP"
+for name in lightek_domains lightek_transports; do
+  [[ -f "$work/$name" ]] || continue
+  [[ ! -f "/etc/postfix/$name" ]] || cp -a "/etc/postfix/$name" "$backup/"
+  [[ ! -f "/etc/postfix/$name.db" ]] || cp -a "/etc/postfix/$name.db" "$backup/"
+  install -o root -g root -m 0644 "$work/$name.db" "/etc/postfix/$name.db"
+  install -o root -g root -m 0644 "$work/$name" "/etc/postfix/$name"
+done
 postfix check
 echo "LIGHTEK_MAIL_RECIPIENTS_SYNCED count=$count backup=$backup"
-echo "No DNS, SMTP listener, sender, or relay settings were changed."
+echo "Recipient, domain and enabled inbox route maps synchronized; no DNS, sender or relay settings changed."

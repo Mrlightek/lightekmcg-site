@@ -24,3 +24,5 @@ end
 require "#{source}/test/integration/lightek_mail_test"
 
 require "#{source}/test/integration/lightek_mail_conversations_test"
+
+require "#{source}/test/integration/lightek_mail_desk_test"

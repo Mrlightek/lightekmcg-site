@@ -1,3 +1,6 @@
+require "zlib"
+require "base64"
+
 class Dashboard::MailStudioController < DymondDash::ApplicationController
   protect_from_forgery with: :exception
   before_action :mail_access
@@ -34,12 +37,12 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     @messages = @messages.where(archived: true) if @folder == "archived"
     @messages = @messages.where(state: @folder) if %w[sent draft].include?(@folder)
     @messages = @messages.where(state: %w[queued submitting failed uncertain]) if @folder == "outbox"
-    term = params[:q].to_s.slice(0, 120)
-    if term.present?
-      pattern = "%#{ActiveRecord::Base.sanitize_sql_like(term)}%"
-      @messages = @messages.where("LOWER(subject) LIKE ? OR LOWER(from_address) LIKE ? OR LOWER(text_body) LIKE ?", *[pattern.downcase] * 3)
-    end
-    @messages = @messages.order(created_at: :desc).limit(100).with_attached_attachments()
+    @messages = LightekMail::Search.apply(@messages, params[:q])
+    @result_count = @messages.count
+    @page = params[:page].to_i.clamp(1, [(@result_count / 40.0).ceil, 1].max)
+    @messages = @messages.order(created_at: :desc, id: :desc).offset((@page - 1) * 40).limit(40).with_attached_attachments
+    @settings = params[:view] == "settings"
+
   end
 
   def check_receiving
@@ -91,6 +94,7 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     @reply_content = LightekMail::MessageContent.new(@reply) if @reply
     @include_original = @reply.present? && @draft.nil?
     @initial_html = @draft&.html_body
+    render layout: false if params[:workspace] == "1"
   end
 
   def create_message
@@ -103,7 +107,7 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     message = LightekMail::Submission.create!(account: @account, idempotency_key: params[:idempotency_key].presence || "web_#{SecureRandom.hex(24)}", attributes: attributes, draft: params[:commit_action] == "draft",
       uploads: LightekMail::ComposeMessage.uploads(account: @account, original: @reply, mode: @compose_mode,
         include_attachments: params[:include_attachments] == "1", uploads: params[:attachments]))
-    redirect_to dashboard_mail_message_path(id: message.id, account_id: @account.id)
+    redirect_to dashboard_mail_message_path(id: message.id, account_id: @account.id, workspace: params[:workspace].presence, composed: params[:workspace] == "1" ? params[:commit_action] : nil)
   end
 
   def show_message
@@ -112,6 +116,7 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     @content = LightekMail::MessageContent.new(@message)
     @images_enabled = params[:images] == "1"
     @message.update!(read_at: Time.current) if @message.direction == "inbound" && !@message.read_at
+    render layout: false if params[:workspace] == "1"
   end
 
   def send_draft
@@ -126,10 +131,46 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     attrs = params[:flag] == "unread" ? {read_at: nil} : {params[:flag] => params[:value] == "1"}
     message.update!(attrs)
     if params[:return_to] == "message" && params[:flag] == "starred"
-      redirect_to dashboard_mail_message_path(account_id: @account.id, id: message.id)
+      redirect_to dashboard_mail_message_path(account_id: @account.id, id: message.id, workspace: params[:workspace].presence)
     else
       redirect_to dashboard_mail_path(account_id: @account.id)
     end
+  end
+
+  def bulk_messages
+    ids = Array(params[:message_ids]).map(&:to_s).reject(&:blank?).uniq
+    raise ArgumentError, "Select between 1 and 100 messages." unless ids.size.between?(1, 100)
+    changes = {"archive" => {archived: true}, "inbox" => {archived: false, trashed: false}, "trash" => {trashed: true},
+      "read" => {read_at: Time.current}, "unread" => {read_at: nil}, "star" => {starred: true}, "unstar" => {starred: false}}.fetch(params[:operation].to_s) { raise ArgumentError, "Choose a message action." }
+    previous = []
+    @account.with_lock do
+      records = @account.messages.where(id: ids).lock.to_a
+      raise ActiveRecord::RecordNotFound unless records.size == ids.size
+      records.each do |record|
+        previous << {id: record.id, before: record.attributes.slice(*changes.keys.map(&:to_s))}
+        record.update!(changes)
+      end
+    end
+    payload = Base64.strict_encode64(Zlib::Deflate.deflate({account: @account.id, changes: changes, records: previous}.to_json))
+    token = Rails.application.message_verifier("mail-undo").generate(payload, expires_in: 10.minutes)
+    flash[:mail_undo] = token
+    redirect_to dashboard_mail_path(account_id: @account.id, folder: params[:folder], q: params[:q]), notice: "Updated #{ids.size} #{ids.size == 1 ? 'message' : 'messages'}."
+  end
+
+  def undo_messages
+    payload = Rails.application.message_verifier("mail-undo").verified(params[:undo_token].to_s)
+    payload = JSON.parse(Zlib::Inflate.inflate(Base64.strict_decode64(payload))).deep_symbolize_keys if payload
+    raise ArgumentError, "This undo has expired. Your messages are unchanged." unless payload && payload[:account] == @account.id
+    @account.with_lock do
+      payload[:records].each do |entry|
+        record = @account.messages.find(entry[:id])
+        expected = payload[:changes].stringify_keys
+        # Do not overwrite a later action taken in another tab.
+        raise ArgumentError, "A message changed since that action. Undo was not applied." unless expected.all? { |key, value| record.public_send(key).to_s == record.class.type_for_attribute(key).cast(value).to_s }
+      end
+      payload[:records].each { |entry| @account.messages.find(entry[:id]).update!(entry[:before]) }
+    end
+    redirect_to dashboard_mail_path(account_id: @account.id, folder: params[:folder], q: params[:q]), notice: "Action undone."
   end
 
   def purge_message
@@ -146,6 +187,11 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     message = @account.messages.find(params[:id])
     file = params[:attachment_id] == "source" ? message.source : message.attachments.find(params[:attachment_id])
     raise ActiveRecord::RecordNotFound unless file.respond_to?(:attached?) ? file.attached? : file.present?
+    if params[:preview] == "1" && %w[image/png image/jpeg image/gif image/webp application/pdf text/plain].include?(file.content_type)
+      response.set_header("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'")
+      response.set_header("X-Content-Type-Options", "nosniff")
+      return send_data file.download, type: file.content_type, disposition: "inline", filename: file.filename.to_s
+    end
     send_data file.download, type: "application/octet-stream", disposition: "attachment", filename: params[:attachment_id] == "source" ? "message.eml" : file.filename.to_s
   end
 
@@ -211,8 +257,9 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
       @initial_html = LightekMail::TemplateRenderer.clean_html(params[:html]) if params[:rich_text_enabled] == "1"
       @draft = @account.messages.new(subject: params[:subject], text_body: params[:text], in_reply_to: params[:in_reply_to],
         to_addresses: params[:to].to_s.split(",").map(&:strip), cc_addresses: params[:cc].to_s.split(",").map(&:strip), bcc_addresses: params[:bcc].to_s.split(",").map(&:strip))
-      flash.now[:alert] = "#{text} Your message is preserved below. Select attachments again before retrying."
-      render :compose, status: :unprocessable_entity
+      @compose_error = "#{text} Your message is preserved below. Select attachments again before retrying."
+      flash.now[:alert] = @compose_error
+      render :compose, status: :unprocessable_entity, layout: params[:workspace] == "1" ? false : nil
     elsif request.format.json?
       render json: {error: text}, status: :unprocessable_entity
     else

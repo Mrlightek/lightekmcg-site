@@ -191,6 +191,11 @@
       resizePending = false;
     });
   });
+  document.addEventListener("turbo:before-cache", () => {
+    document
+      .querySelectorAll("[data-mail-mounted]")
+      .forEach((node) => delete node.dataset.mailMounted);
+  });
   document.addEventListener("DOMContentLoaded", mount);
   document.addEventListener("turbo:load", mount);
   mount();

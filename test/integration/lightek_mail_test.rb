@@ -46,7 +46,7 @@ class LightekMailTest < ActionDispatch::IntegrationTest
     login(account.user)
     get "/dashboard/mail",params:{account_id:account.id}
     assert_response :success
-    assert_select "h1",text:"Mail"
+    assert_select "h1",text:"Inbox"
     get "/dashboard/mail",params:{account_id:other.id}
     assert_response :not_found
     post "/dashboard/mail/accounts/#{account.id}/templates/preview",params:{document:{heading:"Hi {{name}}",body:"Test preview"}},as: :json

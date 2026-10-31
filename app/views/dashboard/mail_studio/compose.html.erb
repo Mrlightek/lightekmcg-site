@@ -1,13 +1,15 @@
 <%= render "style" %>
-<main class="lm lm-compose <%= 'has-original' if @reply %>">
+<main data-mail-compose-page="1" class="lm lm-compose <%= 'has-original' if @reply %>">
   <%= link_to "← Back to inbox", dashboard_mail_path(account_id: @account.id), class: "back-link" %>
   <header class="mail-header">
     <div><span class="eyebrow">LIGHTEK / MAIL</span><h1><%= @reply ? (@compose_mode == 'forward' ? 'Forward message' : 'Reply to conversation') : 'New message' %></h1><p class="muted">From <strong><%= @account.display_name %></strong> · <%= @account.address %></p></div>
     <span class="composer-label">✦ Formatted email</span>
   </header>
+  <% if @compose_error %><p class="notice danger" role="alert" data-mail-compose-error><%= @compose_error %></p><% end %>
   <div class="compose-layout">
     <section class="panel compose-panel">
       <%= form_with url: dashboard_mail_messages_path(account_id: @account.id), method: :post, local: true, multipart: true, data: {turbo: false, mail_compose: true} do %>
+        <%= hidden_field_tag :workspace, params[:workspace] %>
         <%= hidden_field_tag :idempotency_key, @idempotency_key %>
         <%= hidden_field_tag :rich_text_enabled, "0", data: {mail_rich_enabled: true} %>
         <%= hidden_field_tag :reply_id, @reply&.id %>

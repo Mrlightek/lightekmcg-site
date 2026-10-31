@@ -1,5 +1,5 @@
 <%= render 'style' %>
-<main class="lm lm-reader">
+<main class="lm lm-reader" data-mail-message-id="<%= @message.id %>" data-mail-composed="<%= params[:composed] %>">
   <%= link_to '← Back to inbox', dashboard_mail_path(account_id: @account.id), class: 'back-link' %>
   <header class="mail-header conversation-heading"><div><span class="eyebrow">LIGHTEK / CONVERSATION</span><h1><%= @message.subject.presence || '(no subject)' %></h1><p class="muted"><%= @account.address %> · <%= pluralize(@conversation.size, 'message') %></p></div>
     <div class="reader-actions"><%= link_to 'Reply ↗', compose_dashboard_mail_path(account_id: @account.id, reply_id: @message.id), class: 'button' unless @message.state == 'draft' %><%= link_to 'Reply all', compose_dashboard_mail_path(account_id: @account.id, reply_id: @message.id, mode: 'reply_all'), class: 'button secondary' unless @message.state == 'draft' %><%= link_to 'Forward', compose_dashboard_mail_path(account_id: @account.id, reply_id: @message.id, mode: 'forward'), class: 'button secondary' unless @message.state == 'draft' %></div>
@@ -24,7 +24,7 @@
         <% else %>
           <div class="plain-email"><%= simple_format(truncate(item.text_body.to_s, length: 1600)) %><%= link_to 'Open this message ↗', dashboard_mail_message_path(account_id: @account.id, id: item.id), class: 'inline-message-link' %></div>
         <% end %>
-        <% if item.attachments.any? %><div class="mail-attachments"><span class="eyebrow">ATTACHMENTS</span><div><% item.attachments.each do |file| %><%= link_to dashboard_mail_attachment_path(account_id: @account.id, id: item.id, attachment_id: file.id), class: 'attachment-card' do %><span aria-hidden="true">↧</span><span><strong><%= file.filename %></strong><small><%= number_to_human_size(file.byte_size) %></small></span><% end %><% end %></div></div><% end %>
+        <% if item.attachments.any? %><div class="mail-attachments"><span class="eyebrow">ATTACHMENTS</span><div><% item.attachments.each do |file| %><%= link_to dashboard_mail_attachment_path(account_id: @account.id, id: item.id, attachment_id: file.id), class: 'attachment-card' do %><span aria-hidden="true">↧</span><span><strong><%= file.filename %></strong><small><%= number_to_human_size(file.byte_size) %></small></span><% end %><% if %w[image/png image/jpeg image/gif image/webp application/pdf text/plain].include?(file.content_type) %><%= link_to "Preview #{file.filename}", dashboard_mail_attachment_path(account_id: @account.id, id: item.id, attachment_id: file.id, preview: '1'), class: 'attachment-preview', data: {mail_preview: true} %><% end %><% end %></div></div><% end %>
         <footer class="message-card-footer"><%= link_to 'Download original email', dashboard_mail_attachment_path(account_id: @account.id, id: item.id, attachment_id: 'source') if item.source.attached? %><%= link_to 'Reply to this message ↗', compose_dashboard_mail_path(account_id: @account.id, reply_id: item.id) unless item.state == 'draft' %></footer>
         <% if selected %><details class="plain-text-version"><summary>Plain-text version</summary><pre><%= item.text_body %></pre></details><% end %>
       </details>

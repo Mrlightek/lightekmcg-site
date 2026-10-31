@@ -65,7 +65,7 @@ This proves pending-job restart/replay behavior, not an abrupt in-flight media
 mutation crash or every possible external operation's idempotency.
 
 Local controlled persistence integration:
-`ruby test/standalone/nevaeh_backlog_test.rb` — 27 tests, 147 assertions, zero
+`ruby test/standalone/nevaeh_backlog_test.rb` — 33 tests, 183 assertions, zero
 failures/errors. It uses SQLite/ActiveRecord/ActiveJob and explicit minimal host
 adapters; native acceptance above uses the real installed stack.
 
@@ -75,8 +75,10 @@ local container. Native host verification did boot with the installed engines.
 
 ## Release limits
 
-- General ticket-to-repository implementation/promotion remains unfinished; the
-  existing reviewed code generators still produce isolated candidates.
+- Structured tickets now execute registered CMS/Studio actions and commit one
+  reviewed engineering template; see `structured_ticket_execution.md`. Arbitrary
+  ticket-to-code implementation and automatic production promotion remain outside
+  the verified executor set.
 - Production dispatch retains the existing Gatekeeper/worker restrictions. No
   generic production executor or approval bypass was introduced.
 - The media registry has no verified ticket executors for the historical handlers;
@@ -89,3 +91,31 @@ local container. Native host verification did boot with the installed engines.
 
 The branch is not claimed to satisfy full production acceptance. No incomplete
 completion PR has been opened, and no merge to main was performed.
+
+
+## Historical ticket outcomes
+
+The identifiers below are actual database ticket IDs. They are not substituted
+examples. Original failed operations remain intact.
+
+| Ticket IDs | Outcome | Actual evidence or blocker |
+| --- | --- | --- |
+| 17 (LT-6968), 18 (LT-7367), 19 (LT-8004) | Verified resolved | Installed application loads the repaired mail callback, Dashboard namespace and mail policy; HTTPS 200, active Sidekiq and individual KB procedures were recorded before closure |
+| 2 (LT-3277) | Documented obsolete | Intentional NonexistentHandler/test_failure work item 14 |
+| 13 (LT-6581) | Documented obsolete | The same GitHub workflow subsequently succeeded |
+| 16 (LT-9572), 24 (LT-2110) | Documented duplicate | Canonical tickets 15 and 23, respectively |
+| 1 | Escalated | Bank authorization requires investigation and the actual bank integration's authorization |
+| 3 | Escalated | Requested behavior and acceptance requirements are missing |
+| 4 | Escalated | Trim stream-lifetime fix exists, but the original render has not passed acceptance and has no registered ticket executor |
+| 5, 6 | Escalated | Blender executable is absent; historical timeline/scene rendering is not verified |
+| 7, 8, 9, 10, 11 | Escalated | Invoice 12 remains open/unpaid; failed provider attempts require ledger/provider reconciliation before any replay |
+| 12, 14, 15, 20, 21, 22, 23, 25, 26 | Escalated | Original deployment or downstream paid-release acceptance failure needs its own target-revision and failed-step verification; generic health does not satisfy it |
+
+Ticket 26 was created by a later real deployment failure and was discovered by the
+next sweep. It received an incident work order, KB lookup and recorded blocker.
+
+
+Controlled lifecycle ticket 27 (LT-6220) was verified resolved with actual page,
+section, Studio, code and KB outputs. Ticket 28 (LT-6962) is the original failed
+work-item escalation twin, linked to the same item 62 and reservation; it is
+reconciled against canonical ticket 27 after that ticket's verified closure.

@@ -171,7 +171,7 @@ end
    services/nevaeh_intelligences/reviewed_implementation_template_v7a
    services/nevaeh_intelligences/structured_ticket services/nevaeh_intelligences/structured_actions
    services/nevaeh_intelligences/structured_repository services/nevaeh_intelligences/structured_execution
-   services/nevaeh_intelligences/structured_ticket_worker].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
+   services/nevaeh_intelligences/structured_ticket_worker services/nevaeh_orchestration/escalation].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
 Minitest.after_run do
@@ -594,6 +594,19 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal 1, site.pages.count
     assert_equal 1, page.sections.count
     assert_equal 1, row.events.where(action: "nevaeh_structured_verified_and_resolved").count
+  end
+
+  def test_structured_failure_escalation_updates_original_ticket_without_a_twin
+    row, actor, site = structured_case
+    item = DymondDispatch::WorkItem.create!(kind: "ticket.structured.execute", subject_type: "Marlon::Ticket", subject_id: row.id, status: "failed")
+    plan = Struct.new(:capability).new("ticket.structured.execute")
+    decision = Struct.new(:reason).new("Known execution failed; review the originating ticket")
+    before = Marlon::Ticket.count
+    outcome = NevaehOrchestration::Escalation.call(plan: plan, outcome: nil, decision: decision, work_item: item)
+    assert_equal row.id, outcome.id
+    assert_equal before, Marlon::Ticket.count
+    assert_equal 1, row.events.where(action: "nevaeh_structured_outcome_review").count
+    assert_equal "open", row.reload.status
   end
 
   def test_structured_plan_uses_existing_pipeline_and_actual_kb

@@ -107,10 +107,32 @@ log = Tempfile.new(["nevaeh-structured-worker-", ".log"])
   item_id = ticket.extra_fields.dig("nevaeh", "work_item_id")
   DymondDispatch::PerformWorkItemJob.perform_now(item_id)
   raise "Duplicate delivery repeated section execution" unless ticket.events.where(action: "nevaeh_section_verified").count == 4 && ticket.events.where(action: "nevaeh_structured_verified_and_resolved").count == 1
+  # A historical default-queue dispatch created an escalation twin before the
+  # candidate worker hook was installed. Reconcile that exact source item only.
+  Marlon::Ticket.where(related_type: "DymondDispatch::WorkItem", related_id: item_id).where.not(id: ticket.id).find_each do |duplicate|
+    source = duplicate.extra_fields.to_h.deep_stringify_keys
+    next unless source["source"] == "nevaeh" && source["capability"] == NevaehIntelligences::StructuredTicket::CAPABILITY && source["correlation_id"] == ticket.extra_fields.dig("nevaeh", "reservation_id")
+    NevaehIntelligences::TicketBacklog.document_disposition!(ticket: duplicate, actor: actor,
+      outcome: "documented_duplicate", canonical_ticket: ticket,
+      reason: "This escalation records the same work item #{item_id} and reservation as ticket #{ticket.id}. The original ticket has now independently verified all four action outputs and saved KB article #{ticket.extra_fields.dig('nevaeh', 'knowledge_article_id')} before resolution. Preserve this failure history and track the verified result on the canonical ticket.")
+  end
+  # Check the real installed cron library produces an ActiveJob payload for the
+  # candidate sweep. The probe queue has no consumer and is removed afterward.
+  cron_queue = "#{queue_name}_cron_probe"
+  begin
+    entry = YAML.load_file(File.join(File.expand_path("..", __dir__), "config/schedule.yml")).fetch("nevaeh_historical_backlog")
+    raise "Backlog cron must use ActiveJob" unless entry["active_job"] == true
+    cron = Sidekiq::Cron::Job.new(entry.merge("name" => cron_queue, "queue" => cron_queue))
+    cron.enqueue!
+    queued = Sidekiq::Queue.new(cron_queue).first
+    raise "Cron did not enqueue the actual intake job" unless queued && queued.args.first["job_class"] == "NevaehIntelligences::ProcessBacklogJob"
+  ensure
+    Sidekiq::Queue.new(cron_queue).clear
+  end
   ticket.log!(action: "nevaeh_native_structured_acceptance_passed", detail: JSON.generate("actions_verified" => 4,
-    "form_rendered" => true, "approval_denial_verified" => true, "duplicate_delivery_suppressed" => true, "repository_commit" => steps.dig("service", "output", "commit_sha"), "pushed" => true, "deployed" => false))
+    "form_rendered" => true, "approval_denial_verified" => true, "duplicate_delivery_suppressed" => true, "cron_active_job_verified" => true, "repository_commit" => steps.dig("service", "output", "commit_sha"), "pushed" => true, "deployed" => false))
   puts "NEVAEH_STRUCTURED_ACCEPTANCE=#{JSON.generate(actions_verified: 4, actual_ticket_resolved: true,
-    page_and_section_persisted: true, studio_hierarchy_persisted: true, code_committed_and_pushed: true, kb_saved: true, form_rendered: true, approval_denial_verified: true, duplicate_delivery_suppressed: true)}"
+    page_and_section_persisted: true, studio_hierarchy_persisted: true, code_committed_and_pushed: true, kb_saved: true, form_rendered: true, approval_denial_verified: true, duplicate_delivery_suppressed: true, cron_active_job_verified: true)}"
 rescue StandardError => error
   ticket.log!(action: "nevaeh_native_structured_acceptance_failed", detail: JSON.generate("error_class" => error.class.name,
     "error" => error.message, "private_worker_log_tail" => (log && File.file?(log.path) ? File.read(log.path).last(10000) : nil))) if ticket

@@ -6,6 +6,8 @@ on:
     paths:
       - 'app/services/nevaeh_intelligences/**'
       - 'app/jobs/nevaeh_intelligences/**'
+      - 'config/schedule.yml'
+      - 'config/initializers/nevaeh_structured_worker.rb'
       - 'script/nevaeh_backlog_worker_boot.rb'
       - 'script/nevaeh_verify_queue_restart.rb'
       - 'script/nevaeh_verify_structured_ticket.rb'

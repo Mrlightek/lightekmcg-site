@@ -23,8 +23,9 @@
               <div data-section-kind="<%= definition['kind'] %>" <%= 'hidden' unless active_kind %>>
                 <% definition.fetch('fields').each do |content_field| %>
                   <% name = content_field.fetch('name'); content = value.is_a?(Hash) ? value[name] : nil %>
+                  <% default = definition.fetch('data', {})[name].to_s; default = '' if default.bytesize > 1000 %>
                   <label style="display:block;margin:8px 0"><%= content_field.fetch('label') %>
-                    <%= text_area_tag "structured_ticket[sections][#{index}][inputs][data][#{name}]", content || definition.fetch('data', {})[name], class: 'fg-input', rows: content_field['type'] == 'text' ? 3 : 1, disabled: key != selected || !active_kind %>
+                    <%= text_area_tag "structured_ticket[sections][#{index}][inputs][data][#{name}]", content || default, class: 'fg-input', rows: content_field['type'] == 'text' ? 3 : 1, disabled: key != selected || !active_kind %>
                   </label>
                 <% end %>
               </div>

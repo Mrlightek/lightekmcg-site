@@ -13,3 +13,4 @@ nevaeh_historical_backlog:
   cron: "*/5 * * * *"
   class: "NevaehIntelligences::ProcessBacklogJob"
   queue: default
+  active_job: true

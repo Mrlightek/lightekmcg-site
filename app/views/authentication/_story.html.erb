@@ -1,0 +1,9 @@
+<% brand = authentication_branding %>
+<section class="auth-story" aria-label="<%= brand.name %>">
+  <%= render "authentication/brand" %>
+  <div class="auth-story-copy">
+    <p class="auth-kicker"><%= brand.text("eyebrow") || (brand.platform? ? "People / Stories / Brighter Together" : "Welcome to #{brand.name}") %></p>
+    <h2><% if brand.text("headline") %><%= brand.text("headline") %><% else %>Your space.<br><em>Your next chapter.</em><% end %></h2>
+    <p><%= brand.text("description") || "Create, connect and make yourself at home. Everything you need, in one place." %></p>
+  </div>
+</section>

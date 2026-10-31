@@ -12,12 +12,21 @@ module Godaddy
     TYPES = %w[A AAAA CAA CNAME MX NS SRV TXT].freeze
 
     def self.zones
-      ENV.fetch("GODADDY_DOMAINS", "").split(",").map(&:strip).reject(&:blank?)
+      ENV.fetch("GODADDY_DOMAINS", "").split(",").map { |value| value.strip.downcase }.reject(&:blank?).uniq
     end
 
-    def initialize(zone:)
+    def initialize(zone:, domains: nil, token: nil)
       @zone = zone.to_s.downcase
-      raise ConfigurationError, "Domain is not in GODADDY_DOMAINS" unless self.class.zones.include?(@zone)
+      @configured_domains = domains.nil? ? self.class.zones : domains.to_s.split(",").map { |value| value.strip.downcase }.reject(&:blank?)
+      @explicit_token = token.presence
+      raise ConfigurationError, "Domain is not in managed DNS zones" unless @configured_domains.include?(@zone)
+    end
+
+    # Fail before allocating a billable instance when DNS cannot authenticate.
+    # The same provider and credential resolution is used during publication.
+    def verify_access!
+      records
+      true
     end
 
     def records
@@ -58,6 +67,8 @@ module Godaddy
     # Never fall back on an expired, disabled, or access-denied Vault secret.
     def token
       return @token if defined?(@token)
+
+      return @token = @explicit_token if @explicit_token.present?
 
       slug = ENV.fetch("GODADDY_VAULT_SLUG", "godaddy-dns")
       if LightekVault::Secret.exists?(slug: slug)

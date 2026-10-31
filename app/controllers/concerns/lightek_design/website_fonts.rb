@@ -11,7 +11,9 @@ module LightekDesign
       body = response.body
       return unless body.include?("</head>") && !body.include?('id="lightek-website-typography"')
       typography = render_to_string(partial: "lightek_design/website_fonts", layout: false)
-      response.body = body.sub("</head>", typography + "</head>")
+      # A rendered partial is a SafeBuffer: concatenating a plain closing tag
+      # escapes it into visible text. A block inserts literal markup instead.
+      response.body = body.sub("</head>") { "#{typography}</head>" }
       response.delete_header("Content-Length")
     end
   end

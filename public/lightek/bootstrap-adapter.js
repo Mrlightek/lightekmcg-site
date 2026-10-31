@@ -223,6 +223,10 @@
         "[Lightek] storefront configuration is empty; preserving static shell navigation"
       )
 
+      const tools = document.querySelector("#top .tools")
+      if (currentIdentity() && tools && !tools.querySelector("[data-installations-link]")) {
+        tools.insertAdjacentHTML("beforeend", '<a class="hd2" data-installations-link href="/my/installations">My Applications</a>')
+      }
       updateActiveNavigation()
       return
     }
@@ -248,6 +252,7 @@
     if (tools) {
       tools.innerHTML =
         toolMarkup(items) +
+        (currentIdentity() ? '<a class="hd2" data-installations-link href="/my/installations">My Applications</a>' : '') +
         identityMarkup(items)
     }
 

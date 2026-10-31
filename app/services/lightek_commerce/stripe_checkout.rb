@@ -4,6 +4,7 @@ module LightekCommerce
     class Unavailable < StandardError; end
     def self.start!(order:, success_url:, cancel_url:)
       raise Unavailable, "Order is not payable" unless order.status == "pending_payment"
+      return resume!(order: order) if order.payment_reference.present?
       begin
         InstanceReadiness.check!(order: order)
       rescue InstanceReadiness::Unavailable => e
@@ -32,6 +33,19 @@ module LightekCommerce
       session
     rescue ::Stripe::StripeError => e
       raise Unavailable, e.message
+    end
+
+    def self.resume!(order:)
+      raise Unavailable, "Order is not payable" unless order.status == "pending_payment" && order.payment_provider == "stripe"
+      Stripe.api_key = DymondBank::StripeCredentials.secret_key
+      session = Stripe::Checkout::Session.retrieve(order.payment_reference)
+      metadata = session.metadata.to_h
+      raise Unavailable, "Checkout does not match this order" unless session.id == order.payment_reference &&
+        metadata["lightek_commerce_order_id"].to_s == order.id.to_s && metadata["lightek_site_id"].to_s == order.site_id.to_s
+      raise Unavailable, "Checkout has completed or expired; wait for payment confirmation" unless session.status == "open" && session.url.present?
+      session
+    rescue ::Stripe::StripeError
+      raise Unavailable, "Existing checkout is temporarily unavailable"
     end
 
     def self.shipping_parameters(order)

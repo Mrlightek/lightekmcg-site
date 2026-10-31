@@ -52,7 +52,7 @@ jobs:
           BUNDLE_GEMFILE: test/standalone/Gemfile
         run: bundle install
       - name: Install media runtimes
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
       - name: Database and API integration tests
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile
@@ -126,7 +126,7 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: true
       - name: Install actual media runtimes
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
       - name: Prepare database and check application loading
         run: bin/rails db:test:prepare zeitwerk:check
       - name: Native Studio, live, social and messaging checks

@@ -81,6 +81,33 @@ module NevaehIntelligences
       order
     end
 
+    def plan!(ticket:)
+      raise Invalid, "Knowledge Base unavailable" unless defined?(DymondKb::Article) && DymondKb::Article.table_exists?
+      ticket.with_lock do
+        fields = ticket.extra_fields.to_h.deep_stringify_keys
+        order = WorkOrder.read!(ticket: ticket)
+        Array(fields["depends_on_ticket_ids"]).each do |id|
+          dependency = id.is_a?(Integer) && id != ticket.id && Marlon::Ticket.find_by(id: id)
+          raise Invalid, "Dependency ticket #{id} lacks verified resolution" unless dependency && dependency.status == "resolved" && dependency.extra_fields.to_h.dig("nevaeh", "execution_status") == "verified"
+        end
+        articles = ([CAPABILITY] + order.fetch("inputs").fetch("sections").map { |step| step.fetch("action") }).uniq.flat_map do |key|
+          NevaehOrchestration::KnowledgeResolver.for(capability: key, additional_article_ids: fields.fetch("knowledge_article_ids", []))
+        end.uniq(&:id)
+        capabilities = NevaehCapability.order(:id).map do |record|
+          {"slug" => record.slug, "enabled" => record.enabled?, "handler" => record.handler,
+            "gatekeeper_capability" => record.gatekeeper_capability, "updated_at" => record.updated_at&.iso8601(6)}
+        end
+        plan = GithubDevelopmentPlanV7a.from_native_ticket(ticket: ticket, knowledge_article_ids: articles.map(&:id),
+          capability_snapshot: capabilities, required_capability: CAPABILITY,
+          source_evidence: {"registered_actions" => order.fetch("inputs").fetch("sections").map { |step| step.slice("id", "action", "depends_on") }})
+        state = fields.fetch("nevaeh_backlog", {})
+        state.merge!("status" => "executing", "required_capability" => CAPABILITY, "engineering_plan" => plan,
+          "knowledge_article_ids" => articles.map(&:id), "blockers" => [], "updated_at" => Time.current.iso8601)
+        fields["nevaeh_backlog"] = state
+        ticket.update!(extra_fields: fields)
+      end
+    end
+
     def registered!
       record = NevaehCapability.find_or_initialize_by(slug: CAPABILITY)
       if record.new_record?

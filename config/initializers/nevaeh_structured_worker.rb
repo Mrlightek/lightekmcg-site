@@ -26,7 +26,7 @@ module NevaehStructuredWorker
   end
 end
 
-Rails.application.config.to_prepare do
+install_nevaeh_structured_worker = -> do
   worker = DymondDispatch::PerformWorkItemJob
   unless worker.ancestors.include?(NevaehStructuredWorker)
     worker.before_enqueue do |job|
@@ -40,3 +40,6 @@ Rails.application.config.to_prepare do
     worker.prepend(NevaehStructuredWorker)
   end
 end
+
+install_nevaeh_structured_worker.call
+Rails.application.config.to_prepare(&install_nevaeh_structured_worker)

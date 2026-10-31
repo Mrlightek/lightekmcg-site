@@ -31,4 +31,3 @@ end
 end
 
 load File.join(root, "config/initializers/nevaeh_structured_worker.rb")
-Rails.application.reloader.prepare!

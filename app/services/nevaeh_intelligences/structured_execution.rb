@@ -26,6 +26,7 @@ module NevaehIntelligences
 
     def dispatch!(ticket:, actor:, explicit: false)
       StructuredTicket.registered!
+      StructuredTicket.plan!(ticket: ticket)
       reservation = nil
       ticket.with_lock do
         raise StructuredTicket::Invalid, "Resolved ticket" if ticket.status == "resolved"
@@ -122,6 +123,7 @@ module NevaehIntelligences
 
     def resume!(ticket:, actor:, explicit: false)
       raise StructuredTicket::Invalid, "Ticket execution permission required" unless actor&.persisted? && Ability.new(actor).can?(:execute_nevaeh, ticket)
+      StructuredTicket.plan!(ticket: ticket)
       item = nil
       ticket.with_lock do
         fields = ticket.extra_fields.to_h.deep_stringify_keys
@@ -173,6 +175,11 @@ module NevaehIntelligences
           resume!(ticket: ticket, actor: User.find(state.fetch("actor_id")))
           return "pending"
         rescue StructuredTicket::Invalid
+          ticket.with_lock do
+            data = ticket.extra_fields.to_h.deep_stringify_keys
+            data["nevaeh_backlog"] = data.fetch("nevaeh_backlog", {}).merge("status" => "escalated", "blockers" => [item.error.to_s.presence || "Structured execution failed; retry limit reached"])
+            ticket.update!(extra_fields: data)
+          end
           return "failed"
         end
       end

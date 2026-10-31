@@ -596,6 +596,17 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal 1, row.events.where(action: "nevaeh_structured_verified_and_resolved").count
   end
 
+  def test_structured_plan_uses_existing_pipeline_and_actual_kb
+    row, actor, site = structured_case
+    article = DymondKb::Article.create!(title: "Structured procedure", metadata: {capability: "ticket.structured.execute"})
+    NevaehIntelligences::StructuredTicket.plan!(ticket: row)
+    state = row.reload.extra_fields.fetch("nevaeh_backlog")
+    assert_includes state.fetch("knowledge_article_ids"), article.id
+    assert_equal row.id, state.fetch("engineering_plan").fetch("ticket_id")
+    assert_equal "ticket.structured.execute", state.fetch("required_capability")
+    assert_equal 0, DymondSite::Page.count
+  end
+
   def test_structured_sections_require_real_approval_and_revision_integrity
     row, actor, site = structured_case(automatic: false)
     assert_raises(Gatekeeper::AuthorizationDenied) { NevaehIntelligences::StructuredExecution.execute!(ticket: row, reservation: "controlled-reservation") }

@@ -86,6 +86,9 @@ module Employee
 
     def resolve
       authorize! :resolve, @ticket
+      if @ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute" && @ticket.extra_fields.to_h.dig("nevaeh", "execution_status") != "verified"
+        return redirect_to employee_ticket_path(@ticket), alert: "Nevaeh acceptance must pass before this work order can be resolved."
+      end
       @ticket.resolve!(actor: current_user)
       redirect_to employee_ticket_path(@ticket), notice: "Ticket resolved."
     end

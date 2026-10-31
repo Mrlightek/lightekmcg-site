@@ -58,6 +58,8 @@ jobs:
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile
         run: bundle install
+      - name: Install media runtimes
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
       - name: Database and API integration tests
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile
@@ -65,8 +67,6 @@ jobs:
           bundle exec ruby test/standalone/pwa_http_checks.rb
           bundle exec ruby test/standalone/migration_version_checks.rb
           PWA_ADMIN_CAPTURE_DIR=/tmp/lightek-pwa-dashboard bundle exec ruby test/standalone/pwa_administration_checks.rb
-      - name: Install media runtimes
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
       - name: Actual media ingestion, editing, live and Blender checks
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile
@@ -136,7 +136,7 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: true
       - name: Install actual media runtimes
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
       - name: Prepare database and check application loading
         run: bin/rails db:test:prepare zeitwerk:check
       - name: Native Studio, live, social and messaging checks

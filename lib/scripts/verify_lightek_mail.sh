@@ -7,6 +7,6 @@ export PARALLEL_WORKERS=1
 bundle check
 bin/rails db:test:prepare
 bin/rails zeitwerk:check
-bin/rails test test/services/lightek_mail/mail_studio_test.rb test/services/lightek_mail/receiving_status_test.rb test/services/lightek_mail/policy_upgrade_test.rb test/services/lightek_mail/sending_controls_test.rb test/services/lightek_mail/spam_scanner_test.rb test/services/lightek_mail/reservation_concurrency_test.rb test/integration/lightek_mail_test.rb test/integration/lightek_mail_controls_test.rb
+bin/rails test test/services/lightek_mail/mail_studio_test.rb test/services/lightek_mail/conversation_test.rb test/services/lightek_mail/receiving_status_test.rb test/services/lightek_mail/policy_upgrade_test.rb test/services/lightek_mail/sending_controls_test.rb test/services/lightek_mail/spam_scanner_test.rb test/services/lightek_mail/reservation_concurrency_test.rb test/integration/lightek_mail_test.rb test/integration/lightek_mail_controls_test.rb test/integration/lightek_mail_conversations_test.rb test/integration/lightek_mail_desk_test.rb
 python3 -m unittest discover -s test/operations -p 'lightek_mail*_test.py'
 printf 'LIGHTEK_MAIL_HOST_VERIFICATION_PASSED\n'

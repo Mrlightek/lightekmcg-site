@@ -161,11 +161,13 @@ module LightekCommerce
       order.with_lock do
         raise NotReady, "Installation is not ready for notification" unless order.paid_at? &&
           %w[paid fulfilled].include?(order.status) && order.provisioning_state == "ready" && order.provisioned_at?
-        DymondDash::Notification.find_or_create_by!(recipient: customer, subject: order,
+        notification = DymondDash::Notification.find_or_create_by!(recipient: customer, subject: order,
           category: "system", title: "Your Lightek installation is ready") do |notification|
           notification.body = "Your Lightek application is ready. Open your application to access its dashboard."
-          notification.url = "https://#{domain}"
+          notification.url = "/my/installations/#{order.id}"
         end
+        notification.update!(url: "/my/installations/#{order.id}") unless notification.url == "/my/installations/#{order.id}"
+        notification
       end
     end
 

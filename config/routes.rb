@@ -1,4 +1,10 @@
 Rails.application.routes.draw do
+  resources :installations, path: "/my/installations", only: %i[index show create] do
+    post :access, on: :member
+    post :retry_installation, on: :member, path: "resume"
+  end
+  get "/dashboard/installations", to: "dashboard/installations#index", as: :dashboard_installations
+  post "/dashboard/installations/:id/resume", to: "dashboard/installations#retry_installation", as: :resume_dashboard_installation
   post "/dashboard/marketing/campaigns/:id/send_email", to: "dashboard/marketing_campaigns#send_email", as: :send_dashboard_marketing_campaign
   resources :dashboard_marketing_campaigns, path: "/dashboard/marketing/campaigns", controller: "dashboard/marketing_campaigns", except: %i[show]
   post "/dashboard/marketing/campaigns/:id/send_audience", to: "dashboard/marketing_campaigns#send_audience", as: :send_dashboard_marketing_audience

@@ -14,8 +14,10 @@ end
 
 require_relative "../../app/services/godaddy/dns_service"
 require_relative "../../app/services/gatekeeper/website_dns_publication"
+require_relative "../../app/services/gatekeeper/website_owner_access"
 require_relative "../../app/services/gatekeeper/website_deployment"
 require_relative "../../app/services/lightek_commerce/paid_instance_provisioning"
+require_relative "../../app/services/lightek_commerce/installations"
 
 module DymondDash
   class Notification
@@ -241,7 +243,7 @@ class PaidDnsRecoveryStandaloneTest < Minitest::Test
     end
   end
   def test_ready_notice_is_idempotent_and_does_not_require_email_delivery
-    order = Struct.new(:status, :provisioning_state, :paid_at?, :provisioned_at?).new("paid", "ready", true, true)
+    order = Struct.new(:id, :status, :provisioning_state, :paid_at?, :provisioned_at?).new(1, "paid", "ready", true, true)
     locks = 0
     order.define_singleton_method(:with_lock) { |&block| locks += 1; block.call }
     records = {}
@@ -257,7 +259,7 @@ class PaidDnsRecoveryStandaloneTest < Minitest::Test
     end
     assert_equal 2, locks
     assert_equal 1, records.size
-    assert_equal "https://client-1.example.test", records.values.first.url
+    assert_equal "/my/installations/1", records.values.first.url
   end
 
   def test_incomplete_installation_cannot_publish_ready_notice
@@ -266,6 +268,29 @@ class PaidDnsRecoveryStandaloneTest < Minitest::Test
     assert_raises(LightekCommerce::PaidInstanceProvisioning::NotReady) do
       LightekCommerce::PaidInstanceProvisioning.publish_ready_notification!(order: order, customer: @owner, domain: "client-1.example.test")
     end
+  end
+
+  def test_buyer_access_is_explicit_and_merchant_admin_is_not_a_buyer
+    account = Struct.new(:email_address, :role, :persisted?).new("owner@example.test", "client", true)
+    order = Struct.new(:customer_email).new("owner@example.test")
+    assert LightekCommerce::Installations.can_manage_access?(account, order)
+    account.email_address = "someone-else@example.test"
+    account.role = "admin"
+    refute LightekCommerce::Installations.can_manage_access?(account, order)
+    account.role = "super_admin"
+    assert LightekCommerce::Installations.can_manage_access?(account, order)
+  end
+
+  def test_unauthorized_password_setup_never_reads_vault_or_provider
+    account = Struct.new(:email_address, :role, :persisted?).new("other@example.test", "client", true)
+    order = Struct.new(:customer_email).new("owner@example.test")
+    checked_out = false
+    LightekVault::Service.stub(:checkout!, ->(**) { checked_out = true }) do
+      assert_raises(Gatekeeper::WebsiteDeployment::Invalid) do
+        Gatekeeper::WebsiteDeployment.owner_password_setup_url!(actor: account, order: order)
+      end
+    end
+    refute checked_out
   end
 
 end

@@ -185,3 +185,57 @@ jobs:
           print(json.dumps(dict(ready_notification_observed_in_worker=bool(job_ids),ready_notification_delivery_accepted=accepted)))
           LIGHTEK_NOTIFICATION_PYTHON
           LIGHTEK_STATUS_REMOTE
+
+  installation_ui_predeploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Test portal in an isolated checkout and dedicated test database
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_ui_tests
+          chmod 600 ~/.ssh/lightek_ui_tests
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_ui_tests -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$GITHUB_SHA'" <<'LIGHTEK_STAGED_TESTS'
+          set -euo pipefail
+          sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -s -- "$1" <<'LIGHTEK_APP_TESTS'
+          set -euo pipefail
+          set -a
+          source /etc/lightek/lightekmcg-site.env
+          set +a
+          export RBENV_ROOT=/home/lightek/.rbenv
+          export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+          application_root=/var/www/lightekmcg-site
+          test_root=$(mktemp -d /tmp/lightek-installation-ui-tests.XXXXXXXX)
+          cleanup() { git -C "$application_root" worktree remove --force "$test_root" >/dev/null; }
+          git -C "$application_root" fetch origin fix/paid-instance-provisioning-recovery-20261028
+          git -C "$application_root" worktree add --detach "$test_root" "$1"
+          trap cleanup EXIT
+          if [[ -f "$application_root/.bundle/config" ]]; then
+            mkdir -p "$test_root/.bundle"
+            cp "$application_root/.bundle/config" "$test_root/.bundle/config"
+            chmod 600 "$test_root/.bundle/config"
+          fi
+          bundle_base=$(cd "$application_root" && bundle exec ruby -e 'puts Bundler.settings[:path].to_s')
+          if [[ -n "$bundle_base" ]]; then
+            [[ "$bundle_base" == /* ]] || bundle_base="$application_root/$bundle_base"
+            export BUNDLE_PATH="$bundle_base"
+          fi
+          cd "$test_root"
+          export BUNDLE_GEMFILE="$test_root/Gemfile"
+          export RAILS_ENV=test
+          export PARALLEL_WORKERS=1
+          unset DATABASE_URL
+          bin/rails runner 'abort "Unsafe test database" unless Rails.env.test? && ActiveRecord::Base.connection_db_config.database == "lightekmcg_site_test"'
+          bin/rails db:migrate
+          bin/rails assets:precompile
+          bin/rails test test/controllers/installations_flow_test.rb
+          LIGHTEK_APP_TESTS
+          LIGHTEK_STAGED_TESTS

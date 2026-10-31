@@ -9,6 +9,7 @@ require "socket"
 module Gatekeeper
   # Uses existing node/request records, Vault policy and operation receipts.
   class WebsiteDeployment
+    extend WebsiteOwnerAccess
     CONSUMER = name.freeze
     class Invalid < StandardError; end
 

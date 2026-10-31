@@ -32,9 +32,11 @@ class CommerceController < ApplicationController
     redirect_to commerce_shop_path(site_id: @site.id), notice: "Cart updated."
   end
   def checkout
-    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: params.require(:customer_email), quantities: cart)
+    instance_cart = LightekCommerce::Product.where(site: @site, id: cart.keys.map { |key| key.split(":").first }, product_type: "lightek_instance").exists?
+    email = instance_cart ? current_user.email_address : params.require(:customer_email)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: cart)
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
-      success_url: commerce_shop_url(site_id: @site.id, order_id: order.id),
+      success_url: instance_cart ? installation_url(order) : commerce_shop_url(site_id: @site.id, order_id: order.id),
       cancel_url: commerce_shop_url(site_id: @site.id))
     session.delete(cart_key)
     redirect_to checkout.url, allow_other_host: true

@@ -30,10 +30,7 @@ class Api::LightekMailController < ActionController::API
     render json: {id: message.id, status: message.state, accepted_by_smtp_at: message.submitted_at, error: message.error_message}
   end
   def inbound
-    secret = ENV["LIGHTEK_MAIL_INGRESS_TOKEN"].to_s
-    return head :service_unavailable if secret.bytesize < 32
-    supplied = request.headers["X-Lightek-Mail-Ingress"].to_s
-    return head :unauthorized unless ActiveSupport::SecurityUtils.secure_compare(Digest::SHA256.hexdigest(secret), Digest::SHA256.hexdigest(supplied))
+    return unless ingress_authenticated?
     recipients = JSON.parse(request.headers["X-Lightek-Mail-Recipients"].to_s)
     raise ArgumentError, "Use an envelope recipient array." unless recipients.is_a?(Array)
     raw = request.body.read(14 * 1024 * 1024 + 1)
@@ -41,6 +38,12 @@ class Api::LightekMailController < ActionController::API
     head :accepted
   rescue JSON::ParserError
     head :unprocessable_entity
+  end
+  def routes
+    return unless ingress_authenticated?
+    addresses = LightekMail::Account.joins(:domain).where(enabled: true)
+      .where.not(lightek_mail_domains: {verified_at: nil}).order(:address).pluck(:address)
+    render json: {recipients: addresses}
   end
   def feedback
     secret = ENV["LIGHTEK_MAIL_FEEDBACK_TOKEN"].to_s
@@ -51,6 +54,17 @@ class Api::LightekMailController < ActionController::API
     head :accepted
   end
   private
+  def ingress_authenticated?
+    secret = ENV["LIGHTEK_MAIL_INGRESS_TOKEN"].to_s
+    if secret.bytesize < 32
+      head :service_unavailable
+      return false
+    end
+    supplied = request.headers["X-Lightek-Mail-Ingress"].to_s
+    valid = ActiveSupport::SecurityUtils.secure_compare(Digest::SHA256.hexdigest(secret), Digest::SHA256.hexdigest(supplied))
+    head :unauthorized unless valid
+    valid
+  end
   def secure_transport
     response.set_header("Cache-Control", "private, no-store")
     return head :upgrade_required if Rails.env.production? && !request.ssl?

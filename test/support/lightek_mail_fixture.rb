@@ -68,6 +68,8 @@ require "#{source_root}/db/migrate/20261026150000_create_lightek_mail_studio"
 require "#{source_root}/db/migrate/20261026200000_add_lightek_mail_sending_controls"
 [CreateActiveStorageTables, CreateActionMailboxTables, CreateLightekMailStudio, AddLightekMailSendingControls].each { |migration| migration.new.migrate(:up) }
 app.routes.draw do
+  get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
+  post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
   post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
   get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
   post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
@@ -76,7 +78,7 @@ end
 # Test files require this helper; don't boot config/environment.rb from the host.
 File.write(File.join(fixture_root, "test_helper.rb"), "require 'rails/test_help'\nrequire 'minitest/mock'\n")
 $LOAD_PATH.unshift(fixture_root)
-%w[mail_studio_test receiving_status_test sending_controls_test spam_scanner_test reservation_concurrency_test].each { |name| require "#{source_root}/test/services/lightek_mail/#{name}" }
+%w[mail_studio_test receiving_status_test sending_controls_test policy_upgrade_test spam_scanner_test reservation_concurrency_test].each { |name| require "#{source_root}/test/services/lightek_mail/#{name}" }
 require "#{source_root}/test/integration/lightek_mail_controls_test"
 
 Minitest.after_run { FileUtils.remove_entry(fixture_root) }

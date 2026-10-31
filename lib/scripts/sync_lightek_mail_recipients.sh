@@ -5,6 +5,7 @@ set -euo pipefail
 
 APP_DIR="${LIGHTEK_APP_DIR:-/var/www/lightekmcg-site}"
 ENV_FILE="${LIGHTEK_ENV_FILE:-/etc/lightek/lightekmcg-site.env}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MAP="/etc/postfix/lightek_recipients"
 RUBY_BIN="/home/lightek/.rbenv/versions/3.3.6/bin"
 LOCK="/run/lock/lightek-mail-recipient-sync.lock"
@@ -13,9 +14,11 @@ if [[ "$(id -u)" != 0 ]]; then
   echo "Run as root on the central mail host" >&2
   exit 1
 fi
-for file in "$ENV_FILE" "$APP_DIR/config/environment.rb"; do
-  [[ -f "$file" ]] || { echo "Missing: $file" >&2; exit 1; }
-done
+if [[ "${LIGHTEK_MAIL_REMOTE_ROUTES:-0}" != 1 ]]; then
+  for file in "$ENV_FILE" "$APP_DIR/config/environment.rb"; do
+    [[ -f "$file" ]] || { echo "Missing: $file" >&2; exit 1; }
+  done
+fi
 command -v postmap >/dev/null
 command -v postconf >/dev/null
 [[ "$(postconf -h virtual_mailbox_maps)" == "hash:$MAP" ]] || {
@@ -27,6 +30,9 @@ flock -n 9 || { echo "Recipient sync already running" >&2; exit 1; }
 work="$(mktemp -d /etc/postfix/.lightek-recipient-sync.XXXXXXXX)"
 trap 'rm -rf "$work"' EXIT
 
+if [[ "${LIGHTEK_MAIL_REMOTE_ROUTES:-0}" == 1 ]]; then
+  python3 "$SCRIPT_DIR/fetch_lightek_mail_routes.py" --config "${LIGHTEK_MAIL_INGRESS_CONFIG:-/etc/lightek/mail-ingress.json}" > "$work/runner.out"
+else
 # Query the authoritative Rails database as the app user. Never print credentials.
 sudo -u lightek -H bash -c '
   set -e
@@ -44,6 +50,7 @@ LightekMail::Account.joins(:domain)
     puts "LIGHTEK_RECIPIENT #{address}"
   end
 RUBY
+fi
 
 # A marked line is the only accepted output; ignore dotenv diagnostic output.
 awk '
@@ -68,7 +75,7 @@ postmap "hash:$work/lightek_recipients"
 
 # Keep existing authorized domains, including independently provisioned mailboxes.
 # Rebuild exact recipient transports only once the receiving installer opts in.
-python3 "$APP_DIR/lib/scripts/lightek_mail_route_maps.py" --recipients "$work/lightek_recipients" --domains /etc/postfix/lightek_domains --output "$work"
+python3 "$SCRIPT_DIR/lightek_mail_route_maps.py" --recipients "$work/lightek_recipients" --domains /etc/postfix/lightek_domains --output "$work"
 postmap "hash:$work/lightek_domains"
 if [[ -f /etc/postfix/lightek_transports ]]; then
   postmap "hash:$work/lightek_transports"

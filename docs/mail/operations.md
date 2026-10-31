@@ -126,10 +126,8 @@ If SMTP already listens on the required public interface, omit `--listen-public`
 The script checks both invalid-token rejection and real-token validation without
 creating messages. It requires the previously prepared ingress credential to
 match the environment loaded by Rails. Run `prepare_lightek_mail_ingress.py` and
-reload the app if that prerequisite is missing. On a separate mail VM, copy the
-pipe and its private credential there and configure its SMTP maps against the
-central application's authoritative mailbox export; this installer deliberately
-requires the app and Postfix together and will stop if they are separated.
+reload the app if that prerequisite is missing. On a separate mail VM, use the same installer with `--remote` as described below.
+It does not require Rails, Ruby or database credentials on that VM.
 
 Activation backs up main.cf/master.cf, keeps existing transport maps, and puts an
 exact-address map ahead of them. It leaves the default Dovecot transport intact
@@ -160,9 +158,52 @@ workspace controller/view regressions with Rails 8.0.4 and SQLite. It uses a
 fixture session and dashboard base controller; it does not validate native login,
 private DymondDash engine integration, PostgreSQL locking or the live VPS.
 Run `bash lib/scripts/verify_lightek_mail.sh` in the configured native application
-for the host regression gate. No migrations are added by the receiving/UI change.
+for the host regression gate. The data migration `20261031190000` reconciles the legacy mail sending state during the normal deploy; it adds no tables or columns.
 The sending policy model again uses the existing
 `lightek_mail_sending_policies` singleton and database lock. Existing stored
 sending settings are retained; the global `NilClass#sending_enabled?` workaround
 is removed. If outgoing mail is paused in the persisted policy, use the existing
 Mail administrator controls / `lightek_mail:resume` after checking that setting.
+
+## Separate mail VM activation
+
+Deploy the application first so the authenticated `GET /api/lightek-mail/routes`
+endpoint is available. Copy the existing ingress JSON credential privately from
+the application host to `/etc/lightek/mail-ingress.json` on the mail VM, mode
+0600 owned by root. Do not generate a different token on the mail VM: its value
+must match `LIGHTEK_MAIL_INGRESS_TOKEN` loaded by the central Rails application.
+The JSON contains only `url` (the central HTTPS inbound endpoint) and `token`.
+
+On the mail VM, update this repository checkout and run:
+
+```bash
+bash lib/scripts/activate_lightek_mail_receiving.sh --apply --remote --listen-public
+```
+
+Run as root. This installs the pipe/helpers under `/usr/local/lib/lightek-mail`,
+creates an unprivileged `lightek` service account if needed, and places the pipe
+credential at `/var/lib/lightek-mail/ingress.json` with mode 0600 in a directory
+traversable only by root and the service group. The rest of `/etc/lightek`
+remains private. The original source JSON stays in place for future rotations.
+The installer checks the actual central ingress credential before changing mail
+routes. It does not enable outbound sending or change DNS/firewall rules.
+
+The timer fetches the receiving-eligible address allowlist over authenticated
+HTTPS each minute. It refuses redirects, malformed or oversized exports and
+empty results; failures leave existing SMTP maps intact. The remote VM never
+needs the Rails environment file, database connection or a mailbox sending key.
+The route-export endpoint accepts the ingress service credential only and sets
+`Cache-Control: private, no-store`. A mailbox API key cannot enumerate routes.
+
+### Preserving outgoing mail during this upgrade
+
+The normal production deploy runs `db:migrate`. Reconciliation preserves an
+already-enabled canonical policy and any canonical stop with a recorded reason.
+Otherwise it copies the legacy `sending_policies.active` row, including a legacy
+pause. If that table has no row, a previously SMTP-accepted outbound mail record
+preserves the old model's working enabled default. A fresh installation with no
+prior sending remains paused. The migration is idempotent and rollback never
+changes operational mail settings. Customer suspensions and quotas are retained.
+
+This handles the known code/data upgrade cases; it is not a substitute for
+inspecting the actual production settings and testing receipt after activation.

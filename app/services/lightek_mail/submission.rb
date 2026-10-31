@@ -7,7 +7,7 @@ module LightekMail
     class Unavailable < StandardError; end
     MAX_BYTES = 10 * 1024 * 1024
     def self.addresses(value)
-      list = Array(value.is_a?(String) ? value.split(",") : value).map(&:to_s)
+      list = Array(value.is_a?(String) ? value.split(",").map(&:strip) : value).map(&:to_s)
       raise ArgumentError, "Use 1–20 plain recipient addresses." unless list.length.between?(1, 20) && list.all? { |a| a.bytesize <= 254 && a.match?(/\A[^\s<>@,;]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,63}\z/) }
       list.map(&:downcase).uniq
     end

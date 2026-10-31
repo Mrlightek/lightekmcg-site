@@ -17,12 +17,18 @@ module LightekCommerce
       actor = User.find_by(role: "super_admin") || raise(NotReady, "No Lightek super admin operator configured")
       raise NotReady, "Paid order required" unless order.paid_at? && %w[paid fulfilled].include?(order.status)
 
+      vps = required_vps_configuration!
+
       customer = User.find_by(email_address: order.customer_email)
       unless customer
-        customer = User.create!(email_address: order.customer_email,
-          first_name: order.customer_email.split("@").first.to_s.first(40),
-          last_name: "Customer", role: "client",
-          password: SecureRandom.urlsafe_base64(36), password_confirmation: nil)
+        begin
+          customer = User.create!(email_address: order.customer_email,
+            first_name: order.customer_email.split("@").first.to_s.first(40),
+            last_name: "Customer", role: "client",
+            password: SecureRandom.urlsafe_base64(36))
+        rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+          customer = User.find_by!(email_address: order.customer_email)
+        end
       end
 
       request = nil
@@ -37,20 +43,31 @@ module LightekCommerce
             current_period_start: Time.current, current_period_end: 1.month.from_now)
           request = Gatekeeper::Compute::ProvisioningRequestBuilder.call(
             subscription: subscription, requested_by: actor.email_address,
-            estimated_monthly_cost_cents: Integer(ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS")))
+            estimated_monthly_cost_cents: vps.fetch(:monthly_cost_cents))
           order.update!(provisioning_request_id: request.id, provisioning_state: "requested")
         end
       end
       raise NotReady, "Provisioning ownership mismatch" unless request.owner == customer
+      raise NotReady, "Provisioning subscription differs from the purchased plan" unless
+        request.subscription&.subscriber == customer &&
+        request.subscription.plan_id == product.subscription_plan_id
       raise NotReady, "Cloud provider configuration missing" unless request.compute_provider
+
+      # Reconcile a provider-confirmed external deletion before deciding whether
+      # the original paid request needs a replacement allocation.
+      Gatekeeper::Compute::DeletedNodeReconciliation.call!(
+        request: request, requested_by: actor.email_address
+      ) if request.gatekeeper_node.present?
 
       if request.gatekeeper_node.nil?
         unless request.executable?
+          raise NotReady, "Only failed or awaiting-approval requests can be reauthorized" unless
+            %w[failed awaiting_approval awaiting_cost awaiting_provider draft ready].include?(request.execution_status)
           request.update!(
-            selected_region: ENV.fetch("LIGHTEK_AUTO_VPS_REGION"),
-            selected_plan: ENV.fetch("LIGHTEK_AUTO_VPS_PLAN"),
-            selected_image: ENV.fetch("LIGHTEK_AUTO_VPS_IMAGE"),
-            node_label: "lightek-client-#{order.id}",
+            selected_region: vps.fetch(:region),
+            selected_plan: vps.fetch(:plan),
+            selected_image: vps.fetch(:image),
+            node_label: "lightek-client-#{order.id}-r#{Array(request.metadata.to_h["retired_provider_nodes"]).size + 1}",
             execution_status: "awaiting_approval")
           Gatekeeper::Compute::ApprovalService.call(request: request, requested_by: actor.email_address)
         end
@@ -61,13 +78,15 @@ module LightekCommerce
       slug = "commerce-client-website-#{order.id}"
       # Secrets are managed through Lightek Vault. No generated plaintext password is
       # saved to the order or to GitHub, and separate onboarding is required to sign in.
-      LightekVault::Service.store!(
-        name: "Commerce client installation #{order.id}", slug: slug,
-        payload: {"owner_password" => SecureRandom.urlsafe_base64(36)},
-        provider: "lightek", purpose: "website_deploy",
-        access_policy: {"consumers" => [Gatekeeper::WebsiteDeployment::CONSUMER],
-                        "purposes" => ["website_deploy"]},
-        requested_by: actor.email_address) unless request.metadata.to_h["website_deployments"]&.key?(domain)
+      unless request.metadata.to_h.fetch("website_deployments", {}).key?(domain)
+        LightekVault::Service.store!(
+          name: "Commerce client installation #{order.id}", slug: slug,
+          payload: {"owner_password" => SecureRandom.urlsafe_base64(36)},
+          provider: "lightek", purpose: "website_deploy",
+          access_policy: {"consumers" => [Gatekeeper::WebsiteDeployment::CONSUMER],
+                          "purposes" => ["website_deploy"]},
+          requested_by: actor.email_address)
+      end
 
       config = Gatekeeper::WebsiteDeployment.configuration(owner: customer, domain: domain,
         site_name: "#{customer.first_name}'s Lightek", headline: "Welcome to Lightek",
@@ -78,8 +97,50 @@ module LightekCommerce
       end
 
       order.update!(provisioning_state: "deploying", provisioning_error: nil)
-      Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
+      deployment = Gatekeeper::WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain)
+      node = request.reload.gatekeeper_node || raise(NotReady, "Paid installation has no allocated server")
+      receipt = node.metadata.to_h.fetch("website_deployment", {})
+      unless deployment[:verified] == true && deployment[:url] == "https://#{domain}" &&
+          receipt["url"] == deployment[:url] && receipt["public_https_verified"] == true &&
+          receipt["owner_login_verified"] == true &&
+          receipt.dig("health", "full_application_dashboard_verified") == true
+        raise NotReady, "Paid installation missing verified HTTPS, owner login or application dashboard receipt"
+      end
+      # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+      begin
+        publish_ready_notification!(order: order, customer: customer, domain: domain)
+      rescue StandardError => error
+        Rails.logger.error("[Commerce] ready dashboard notification failed order=#{order.id} #{error.class}")
+      end
+      # Record post-activation work separately; never reset the paid installation.
+      # Pending mail work is independent of customer activation and can be retried.
+      begin
+        receipt = request.reload.gatekeeper_node&.metadata.to_h.fetch("website_deployment", {})
+        if receipt["mail_setup_status"] == "pending" || receipt["mail_registration_status"] == "pending"
+          LightekCommerce::PendingMailRecoveryJob.perform_later(request.id)
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Commerce] mail recovery enqueue failed order=#{order.id} #{e.class}: #{e.message}")
+      end
+      # Cloud providers may restrict SMTP on newly provisioned accounts.
+      # File an idempotent provider support request, but never make the
+      # customer's paid application activation contingent on port approval.
+      begin
+        node = request.reload.gatekeeper_node
+        metadata = request.metadata.to_h
+        unless metadata["mail_port_ticket_id"].present?
+          ticket = request.compute_provider.adapter(requested_by: actor.email_address).create_support_ticket(
+            summary: "Enable mail ports on Lightek customer instance #{node.provider_resource_id}",
+            description: "Please review and remove inbound/outbound SMTP mail port restrictions for Linode #{node.provider_resource_id} (#{node.ip_address}). Lightek Mail requires TCP 25 inbound and outbound, TCP 465/587 authenticated submission, and TCP 993 IMAPS for customer access. Mail server authorization, abuse limits, SPF, DKIM, DMARC and TLS are configured separately. Please confirm when restrictions are lifted.",
+            linode_id: node.provider_resource_id
+          )
+          raise "Mail port support ticket response missing ID" if ticket["id"].blank?
+          request.update!(metadata: request.metadata.to_h.merge("mail_port_ticket_attempted" => true, "mail_port_ticket_id" => ticket["id"], "mail_port_ticket_status" => "submitted"))
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Commerce] Linode mail-port support request failed order=#{order.id} #{e.class}: #{e.message}")
+      end
       begin
         InstanceReadyMailer.ready(order.id).deliver_later
       rescue StandardError => e
@@ -87,9 +148,50 @@ module LightekCommerce
       end
       order
     rescue StandardError => e
-      order.update_columns(provisioning_state: "failed",
-        provisioning_error: "#{e.class}: #{e.message}".slice(0, 1000)) if order&.persisted?
+      if order&.persisted? && !order.reload.provisioned_at?
+        order.update_columns(provisioning_state: "failed",
+          provisioning_error: "#{e.class}: #{e.message}".slice(0, 1000))
+      end
       raise
+    end
+
+    # Dashboard delivery is independent of SMTP/OAuth availability. The order
+    # lock makes repeated activation/recovery publish only one ready notice.
+    def self.publish_ready_notification!(order:, customer:, domain:)
+      order.with_lock do
+        raise NotReady, "Installation is not ready for notification" unless order.paid_at? &&
+          %w[paid fulfilled].include?(order.status) && order.provisioning_state == "ready" && order.provisioned_at?
+        notification = DymondDash::Notification.find_or_create_by!(recipient: customer, subject: order,
+          category: "system", title: "Your Lightek installation is ready") do |notification|
+          notification.body = "Your Lightek application is ready. Open your application to access its dashboard."
+          notification.url = "/my/installations/#{order.id}"
+        end
+        notification.update!(url: "/my/installations/#{order.id}") unless notification.url == "/my/installations/#{order.id}"
+        notification
+      end
+    end
+
+    def self.required_vps_configuration!
+      names = %w[
+        LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS
+        LIGHTEK_AUTO_VPS_REGION
+        LIGHTEK_AUTO_VPS_PLAN
+        LIGHTEK_AUTO_VPS_IMAGE
+      ]
+      missing = names.select { |name| ENV[name].to_s.strip.empty? }
+      raise NotReady, "Missing paid VPS configuration: #{missing.join(', ')}" if missing.any?
+
+      cents = Integer(ENV.fetch("LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS"), 10)
+      raise NotReady, "LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS must be positive" unless cents.positive?
+
+      {
+        monthly_cost_cents: cents,
+        region: ENV.fetch("LIGHTEK_AUTO_VPS_REGION").strip,
+        plan: ENV.fetch("LIGHTEK_AUTO_VPS_PLAN").strip,
+        image: ENV.fetch("LIGHTEK_AUTO_VPS_IMAGE").strip
+      }
+    rescue ArgumentError
+      raise NotReady, "LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS must be a positive integer"
     end
   end
 end

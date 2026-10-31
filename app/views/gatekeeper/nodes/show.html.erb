@@ -1,4 +1,5 @@
 <h1><%= @node.name %></h1>
+<p><%= link_to "Manage applications or delete this server", main_app.dashboard_server_path(@node) %></p>
 <p><%= @node.display_host %> · <%= @node.status %></p>
 <p><%= link_to "Edit", edit_gatekeeper_node_path(@node) %> · <%= link_to "Add Project", new_gatekeeper_project_path(gatekeeper_node_id: @node.id) %></p>
 <h2>Projects</h2>

@@ -23,4 +23,16 @@ class PaidInstanceProvisioningContractTest < ActiveSupport::TestCase
       end
     end
   end
+
+  test "lock contention raises retryable error instead of dropping paid provisioning" do
+    connection = Object.new
+    def connection.select_value(_sql)
+      false
+    end
+    ActiveRecord::Base.stub(:connection, connection) do
+      assert_raises(LightekCommerce::PaidInstanceProvisioning::NotReady) do
+        LightekCommerce::PaidInstanceProvisioningJob.new.perform(123)
+      end
+    end
+  end
 end

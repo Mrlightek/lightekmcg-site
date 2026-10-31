@@ -80,27 +80,13 @@ class Dashboard::ProvisioningRequestsController < DymondDash::ApplicationControl
   end
 
   def approve_destroy
-    @request.update!(
-      destroy_approval_status: "approved",
-      destroy_approved_by: current_user.email_address,
-      destroy_approved_at: Time.current
-    )
-
-    redirect_to dashboard_provisioning_request_path(@request),
-                notice: "Destruction approved. The node has NOT been destroyed yet."
+    redirect_to main_app.dashboard_server_path(@request.gatekeeper_node), status: :see_other,
+      notice: "Review applications and confirm server deletion in Servers & Applications."
   end
 
   def destroy
-    Gatekeeper::Compute::DeprovisioningService.call(
-      request: @request,
-      requested_by: current_user.email_address
-    )
-
-    redirect_to dashboard_provisioning_request_path(@request),
-                notice: "Provider node destroyed and Gatekeeper node decommissioned."
-  rescue StandardError => e
-    redirect_to dashboard_provisioning_request_path(@request),
-                alert: "Destroy failed: #{e.message}"
+    redirect_to main_app.dashboard_server_path(@request.gatekeeper_node), status: :see_other,
+      notice: "Review applications and confirm server deletion in Servers & Applications."
   end
 
   def approve

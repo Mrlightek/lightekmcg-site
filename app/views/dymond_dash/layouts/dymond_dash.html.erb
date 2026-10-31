@@ -173,6 +173,8 @@
       <div class="dd-topbar-title" style="display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap">
         <%= link_to dymond_dash.root_path, class: "dd-topbar-btn dd-btn-ghost", aria: {label: "Dashboard home"} do %><i class="ti ti-home"></i> Home<% end %>
         <%= link_to "Business", main_app.dashboard_business_hub_path, class: "dd-topbar-btn dd-btn-ghost" %>
+        <%= link_to "My Applications", main_app.installations_path, class: "dd-topbar-btn dd-btn-ghost" %>
+        <% if current_user&.role.in?(%w[admin super_admin]) %><%= link_to "Installations", main_app.dashboard_installations_path, class: "dd-topbar-btn dd-btn-ghost" %><% end %>
         <span><%= content_for?(:page_title) ? yield(:page_title) : dymond_app_name %></span>
       </div>
       <div class="dd-topbar-right">

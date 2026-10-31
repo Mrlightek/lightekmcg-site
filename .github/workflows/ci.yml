@@ -249,12 +249,26 @@ jobs:
           gem install uri -v 0.13.3 --no-document
           gem install pg --no-document
       - name: Run real mail classes against PostgreSQL (not native host login)
-        run: ruby test/support/lightek_mail_fixture.rb
+        run: ruby test/support/lightek_mail_workspace_fixture.rb
       - name: Verify server helpers and fresh private bootstrap
         run: |
           python3 -m unittest discover -s test/operations -p 'lightek_mail*_test.py'
+          python3 -m unittest discover -s test/operations -p 'passenger_restart_test.py'
           sudo python3 lib/scripts/lightek_mail_server.py install
           sudo rspamadm configtest
           sudo postfix check
           test "$(sudo postconf -h inet_interfaces)" = loopback-only
           test "$(sudo postconf -h defer_transports)" = smtp
+
+  nevaeh_initializer_boot:
+    name: Nevaeh initializer cold boot and reload
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3.6"
+          bundler-cache: false
+      - run: gem install minitest -v '~> 5.25' --no-document
+      - run: ruby test/standalone/nevaeh_structured_worker_boot_test.rb
+      - run: ruby test/standalone/nevaeh_empty_registry_test.rb

@@ -1,0 +1,36 @@
+<% content_for :page_title, "Customer rollout ##{@rollout.id}" %>
+<%= link_to "← Customer Updates", dashboard_fleet_updates_path %>
+<h1>Rollout #<%= @rollout.id %> · <%= @rollout.gatekeeper_release.version %></h1>
+<p><%= @rollout.gatekeeper_release.adapter %> · <%= @rollout.gatekeeper_release.component %> · <%= @rollout.gatekeeper_release.repository %></p>
+<p><strong><%= @rollout.status.humanize %></strong> · <%= @rollout.gatekeeper_release.channel %> · Canary: <%= @rollout.canary_size %> · Batch: <%= @rollout.batch_size %> · <%= @rollout.auto_promote? ? "Automatic promotion" : "Operator promotes canary" %></p>
+<p><%= @rollout.message %></p>
+<p><%= @rollout.gatekeeper_release.notes %></p>
+<p>Scheduled: <%= @rollout.scheduled_at&.utc&.strftime("%b %d, %Y %H:%M UTC") || "On start" %></p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin:24px 0">
+  <% actions = case @rollout.status
+     when "draft" then [["start", "Start this rollout"], ["cancel", "Cancel"]]
+     when "running" then [["pause", "Pause"], ["cancel", "Cancel"]]
+     when "canary_ready" then [["resume", "Promote to remaining customers"], ["cancel", "Cancel"]]
+     when "paused" then [["resume", "Resume"], ["retry", "Retry failed and continue"], ["cancel", "Cancel"]]
+     else []
+     end %>
+  <% actions.each do |operation, label| %><%= button_to label, control_dashboard_fleet_update_path(@rollout), params: {operation: operation}, class: "dd-btn dd-btn-primary" %><% end %>
+  <%= link_to "Refresh status", dashboard_fleet_update_path(@rollout), class: "dd-btn dd-btn-secondary" %>
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap"><% @counts.each do |status, count| %><div class="dd-card" style="padding:20px"><strong><%= count %></strong> <%= status.humanize %></div><% end %></div>
+<div class="dd-card" style="padding:24px;margin-top:24px;overflow-x:auto">
+  <table style="width:100%;text-align:left"><thead><tr><th>Installation</th><th>Group</th><th>Status</th><th>Previous version</th><th>Attempts</th><th>Evidence</th></tr></thead><tbody>
+    <% @targets.each do |target| %><tr>
+      <td><%= target.gatekeeper_installation.domain %></td><td><%= target.canary? ? "Canary" : "Fleet" %></td><td><%= target.status.humanize %></td>
+      <td><%= target.previous_version %></td><td><%= target.attempts %></td><td>
+      <% if target.gatekeeper_operation_id %>Operation #<%= target.gatekeeper_operation_id %><% end %>
+      <% if target.receipt["database_backup"] %><br>Backup: <code><%= target.receipt["database_backup"] %></code><% end %>
+      <% if target.error_message %><br><%= target.error_message %><% end %>
+      <% if target.receipt.key?("code_restored") %><br>Previous code restored: <%= target.receipt["code_restored"] ? "Yes" : "Needs attention" %><% end %>
+      <% if target.receipt["migration_started"] && !target.receipt["code_restored"] %><br>Schema changes began; manual recovery required.<% end %>
+      <% if target.receipt["verified_at"] %><br>Version and public HTTPS verified<% end %>
+      </td></tr><% end %>
+  </tbody></table>
+  <%= paginate @targets %>
+</div>
+<p>Pause and cancel prevent new work; already running updates finish. Retry preserves successful installations. To restore an older application release, cancel any active rollout and create a rollout using the earlier release after checking database compatibility.</p>

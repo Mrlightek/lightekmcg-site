@@ -1,9 +1,10 @@
+<% param_root = local_assigns.fetch(:param_root, "template") %>
 <% current = template_field_value(template, field).to_s %>
 <% role = {"font_sans" => "Body font", "font_heading" => "Heading font", "font_mono" => "Monospace font"}.fetch(field[:name].to_s) %>
 <% list_id = "lightek-fonts-#{field[:name]}" %>
 <div data-lightek-font-picker style="margin-bottom:18px;min-width:0">
-  <%= label_tag "template_#{field[:name]}", role, style: "display:block;font-weight:600;margin-bottom:6px" %>
-  <%= text_field_tag "template[#{field[:name]}]", current, id: "template_#{field[:name]}", list: list_id,
+  <%= label_tag "#{param_root}_#{field[:name]}", role, style: "display:block;font-weight:600;margin-bottom:6px" %>
+  <%= text_field_tag "#{param_root}[#{field[:name]}]", current, id: "#{param_root}_#{field[:name]}", list: list_id,
     autocomplete: "off", maxlength: 300, placeholder: "Search or enter a Google font name", data: { font_input: true },
     aria: { describedby: "#{list_id}-help" }, style: "width:100%;padding:10px;color:var(--dd-text-primary);background:var(--dd-card-bg);border:1px solid var(--dd-border);border-radius:8px" %>
   <datalist id="<%= list_id %>">

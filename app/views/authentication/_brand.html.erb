@@ -1,0 +1,7 @@
+<% brand = authentication_branding %>
+<a class="auth-brand" href="/" aria-label="<%= brand.name %> home">
+  <% if brand.logo_url %><%= image_tag brand.logo_url, alt: "", width: 46, height: 46 %>
+  <% elsif brand.platform? %><img src="/lightek/lightek-auth-mark.svg" alt="" width="46" height="46">
+  <% else %><span class="auth-monogram" aria-hidden="true"><%= brand.name.first.upcase %></span><% end %>
+  <span class="auth-wordmark"><%= brand.name %></span>
+</a>

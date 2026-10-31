@@ -12,7 +12,11 @@ module LightekCommerce
       connection = ActiveRecord::Base.connection
       lock_key = (8_155_000_000 + Integer(order_id))
       locked = connection.select_value("SELECT pg_try_advisory_lock(#{lock_key})")
-      return unless locked == true || locked == "t"
+      # Never acknowledge a contended job as successfully completed. Doing so
+      # loses recovery if the worker holding the lock fails mid-deployment.
+      unless locked == true || locked == "t"
+        raise PaidInstanceProvisioning::NotReady, "Provisioning already in progress for order #{order_id}"
+      end
       begin
         order = Order.find(order_id)
         return unless order.paid_at? && %w[paid fulfilled].include?(order.status)

@@ -4,6 +4,15 @@ module NevaehIntelligences
   class TicketExecution
     class InvalidTicket < StandardError; end
     PROOF_CAPABILITY = "studio.project.create"
+    AUTOMATIC_ACCEPTANCE_CRITERIA = [
+      "Project and production persisted",
+      "Studio project, production, and default scene persist with the requested project name"
+    ].freeze
+
+    def self.backlog_acceptance_supported?(order)
+      criteria = order.to_h["acceptance_criteria"]
+      criteria.is_a?(Array) && criteria.any? && criteria.all? { |criterion| AUTOMATIC_ACCEPTANCE_CRITERIA.include?(criterion) }
+    end
 
     # Reserve the ticket under a database row lock BEFORE contacting the queue.
     # The reservation is committed first, preventing concurrent enqueue requests.
@@ -76,6 +85,46 @@ module NevaehIntelligences
       receipt
     end
 
+    # Existing deployed fixes can satisfy historical incidents without rerunning
+    # an obsolete deployment. Verification comes from the installed-app CI runner;
+    # the original failed operation remains unchanged for audit.
+    def self.resolve_existing_deployment!(ticket:, actor:, operation:, verification:, cause:, remediation:)
+      raise InvalidTicket, "Authorized resolution operator required" unless actor.is_a?(User) && actor.persisted? && Ability.new(actor).can?(:resolve, ticket)
+      raise InvalidTicket, "Original failed deployment required" unless operation.is_a?(GatekeeperOperation) && operation.persisted? && operation.capability == "deploy_project" && operation.status == "failed"
+      proof = verification.to_h.deep_stringify_keys
+      unless proof["eager_load_passed"] == true && proof["https_health_status"] == 200 &&
+          proof["sidekiq_service_active"] == true && proof["installed_revision"].to_s.match?(/\A[0-9a-f]{40}\z/) &&
+          proof["component_verified"] == true && proof["original_github_run_id"].to_s == operation.result.to_h["github_run_id"].to_s &&
+          proof["original_github_run_id"].present?
+        raise InvalidTicket, "Installed implementation acceptance evidence is incomplete"
+      end
+      ticket.with_lock do
+        fields = ticket.extra_fields.to_h.deep_stringify_keys
+        state = fields.fetch("nevaeh", {})
+        return "resolved" if ticket.status == "resolved" && state["execution_status"] == "verified"
+        raise InvalidTicket, "Ticket already executing" if state["execution_status"].present? || state["work_item_id"].present?
+        raise InvalidTicket, "Original incident mismatch" unless fields.dig("gatekeeper", "operation_id").to_s == operation.id.to_s
+        order = WorkOrder.read!(ticket: ticket)
+        raise InvalidTicket, "Original work order mismatch" unless order["work_type"] == "fix" && order.dig("inputs", "operation_id").to_s == operation.id.to_s
+        article = ::Gatekeeper::LessonService.record!(
+          key: "nevaeh-deployment-ticket-#{ticket.id}-verified", title: "Verified deployment recovery: #{cause}",
+          capability: "deploy_project", symptom: ticket.description.to_s, cause: cause,
+          remediation: remediation, verification: JSON.generate(proof),
+          metadata: {"source_ticket_id" => ticket.id, "source_operation_id" => operation.id,
+            "nevaeh_capability" => "deploy_project", "auto_executable" => false})
+        state.merge!("execution_status" => "verified", "intent_key" => order["intent_key"],
+          "verification_mode" => "existing_deployed_implementation", "verification" => proof,
+          "work_order_sha256" => TicketApproval.fingerprint(order), "knowledge_article_id" => article.id)
+        fields["nevaeh"] = state
+        fields["nevaeh_backlog"] = fields.fetch("nevaeh_backlog", {}).merge(
+          "status" => "verified_resolved", "blockers" => [], "implementation_verified" => true,
+          "updated_at" => Time.current.iso8601)
+        ticket.update!(status: "resolved", resolved_at: Time.current, extra_fields: fields)
+        ticket.log!(action: "nevaeh_existing_implementation_verified", detail: JSON.generate(proof), actor: actor)
+        "resolved"
+      end
+    end
+
     def self.reconcile!(ticket:)
       ticket.with_lock do
         data = ticket.extra_fields.to_h.deep_stringify_keys
@@ -98,6 +147,13 @@ module NevaehIntelligences
           verified = result["mutation"] == "created" && project && production && scene &&
             project.name == state["expected_project_name"] &&
             result.values_at("project_persisted", "production_persisted", "scene_persisted").all? { |v| v == true }
+          if data["nevaeh_backlog"].present?
+            order = WorkOrder.validate!(data.fetch("nevaeh_work_order"))
+            verified &&= backlog_acceptance_supported?(order) &&
+              state["work_order_sha256"] == TicketApproval.fingerprint(order) &&
+              state["inputs_sha256"] == TicketApproval.fingerprint(order.fetch("inputs")) &&
+              item.subject_type == "Marlon::Ticket" && item.subject_id == ticket.id
+          end
           unless verified
             state["execution_status"] = "verification_failed"
             state["verification"] = {"work_item_status" => status, "result" => result}
@@ -110,6 +166,17 @@ module NevaehIntelligences
           state["verification"] = {"project_id" => project.id, "production_id" => production.id,
             "scene_id" => scene.id, "work_item_id" => item.id,
             "correlation_id" => item.correlation_id, "verified_at" => Time.current.iso8601}
+          if data["nevaeh_backlog"].present?
+            article = ::Gatekeeper::LessonService.record!(
+              key: "nevaeh-ticket-#{ticket.id}-verified", title: "Verified solution: #{ticket.title}",
+              capability: PROOF_CAPABILITY, symptom: ticket.description.presence || ticket.title,
+              cause: "Ticket requested Studio project creation through the registered capability",
+              remediation: "Use the existing #{PROOF_CAPABILITY} work order through Nevaeh and Gatekeeper",
+              verification: JSON.generate(state.fetch("verification")),
+              metadata: {"source_ticket_id" => ticket.id, "nevaeh_capability" => PROOF_CAPABILITY,
+                "work_order_sha256" => state["work_order_sha256"], "auto_executable" => false})
+            state["knowledge_article_id"] = article.id
+          end
           data["nevaeh"] = state
           ticket.update!(status: "resolved", resolved_at: Time.current, extra_fields: data)
           ticket.log!(action: "nevaeh_verified_and_resolved", detail: state["verification"].to_json)

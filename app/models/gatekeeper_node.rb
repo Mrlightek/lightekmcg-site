@@ -1,5 +1,5 @@
 class GatekeeperNode < ApplicationRecord
-  STATUSES = %w[unknown provisioning healthy degraded unreachable failed decommissioned].freeze
+  STATUSES = %w[unknown provisioning healthy degraded unreachable failed deleting delete_failed decommissioned].freeze
 
   has_many :gatekeeper_projects, dependent: :restrict_with_error
   has_many :gatekeeper_operations, dependent: :restrict_with_error

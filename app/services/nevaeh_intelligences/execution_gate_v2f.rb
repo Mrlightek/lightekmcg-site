@@ -12,6 +12,10 @@ module NevaehIntelligences
     end
 
     def self.require_allowed!(item)
+      if item.kind.to_s == "ticket.structured.execute"
+        StructuredExecution.authorize_item!(item)
+        return true
+      end
       return true unless guarded?(item)
       raise Denied, "Production execution disabled" if Rails.env.production?
       raise Denied, "Original ticket subject missing" unless item.subject_type == "Marlon::Ticket" && item.subject_id.present?

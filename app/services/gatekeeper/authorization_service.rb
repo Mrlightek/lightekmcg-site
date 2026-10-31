@@ -37,6 +37,15 @@ module Gatekeeper
         )
       end
 
+      if capability_name == "ticket.structured.execute"
+        begin
+          NevaehIntelligences::StructuredExecution.authorize!(ticket: subject, context: context)
+          return allow(policy: "structured_ticket_revision_bound", reason: "Authorized operator, saved structured revision, environment and execution reservation verified")
+        rescue NevaehIntelligences::WorkOrder::Invalid, ActiveRecord::RecordNotFound => error
+          return deny(error.message)
+        end
+      end
+
       # Dedicated Gatekeeper policy; Nevaeh retains capability ownership.
       # This scope may authorize an audit entry only, never dispatch or retry.
       if context["authorization_scope"] == "nevaeh_recovery_audit_v2f"

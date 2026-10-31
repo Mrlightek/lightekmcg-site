@@ -18,6 +18,16 @@ Rails.application.config.after_initialize do
   end
 
   DymondDash::FeatureRegistry.register do |f|
+    f.slug = :application_installations
+    f.label = "Application installations"
+    f.icon = "apps"
+    f.gem_source = "lightekmcg-site"
+    f.nav_section = :operations
+    f.min_plan = :starter
+    f.nav_items = [{label: "Application installations", icon: "apps", path: "main_app.dashboard_installations_path"}]
+  end
+
+  DymondDash::FeatureRegistry.register do |f|
     f.slug        = :gatekeeper_infrastructure
     f.label       = "Infrastructure"
     f.icon        = "server"

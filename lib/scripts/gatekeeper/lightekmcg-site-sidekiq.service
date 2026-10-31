@@ -8,6 +8,7 @@ User=lightek
 WorkingDirectory=/var/www/lightekmcg-site
 ExecStart=/home/lightek/.rbenv/shims/bundle exec sidekiq -q default -q studio -q mailers
 Environment=RAILS_ENV=production
+EnvironmentFile=/etc/lightek/lightekmcg-site.env
 Environment=REDIS_URL=redis://127.0.0.1:6379/0
 Restart=always
 TimeoutSec=15

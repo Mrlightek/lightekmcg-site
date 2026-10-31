@@ -1,4 +1,10 @@
 Rails.application.routes.draw do
+  resources :installations, path: "/my/installations", only: %i[index show create] do
+    post :access, on: :member
+    post :retry_installation, on: :member, path: "resume"
+  end
+  get "/dashboard/installations", to: "dashboard/installations#index", as: :dashboard_installations
+  post "/dashboard/installations/:id/resume", to: "dashboard/installations#retry_installation", as: :resume_dashboard_installation
   post "/dashboard/marketing/campaigns/:id/send_email", to: "dashboard/marketing_campaigns#send_email", as: :send_dashboard_marketing_campaign
   resources :dashboard_marketing_campaigns, path: "/dashboard/marketing/campaigns", controller: "dashboard/marketing_campaigns", except: %i[show]
   post "/dashboard/marketing/campaigns/:id/send_audience", to: "dashboard/marketing_campaigns#send_audience", as: :send_dashboard_marketing_audience
@@ -31,6 +37,17 @@ Rails.application.routes.draw do
   delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_variants#destroy", as: :dashboard_commerce_variant
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_payouts#index", as: :dashboard_commerce_payouts
   post "/dashboard/commerce/payouts/:order_id", to: "dashboard/commerce_payouts#create", as: :dashboard_commerce_payout
+  post "/dashboard/network/cron_jobs", to: "dashboard/network#create_cron_job", as: :dashboard_network_cron_jobs
+  patch "/dashboard/network/cron_jobs", to: "dashboard/network#update_cron_job"
+  post "/dashboard/network/cron_jobs/run", to: "dashboard/network#run_cron_job", as: :dashboard_network_run_cron_job
+  post "/dashboard/network/cron_jobs/toggle", to: "dashboard/network#toggle_cron_job", as: :dashboard_network_toggle_cron_job
+  delete "/dashboard/network/cron_jobs", to: "dashboard/network#delete_cron_job"
+  post "/dashboard/network/devices/:id/rotate_token", to: "dashboard/network#rotate_device_token", as: :dashboard_network_rotate_device_token
+  post "/dashboard/network/devices", to: "dashboard/network#create_device", as: :dashboard_network_devices
+  patch "/dashboard/network/devices/:id", to: "dashboard/network#update_device", as: :dashboard_network_device
+  post "/dashboard/network/nodes/:id/verify", to: "dashboard/network#verify_node", as: :dashboard_network_verify_node
+  post "/dashboard/network/dns/verify", to: "dashboard/network#verify_dns", as: :dashboard_network_verify_dns
+  post "/dashboard/network/provisioning/:id/retry", to: "dashboard/network#retry_provisioning", as: :dashboard_network_retry_provisioning
   post "/dashboard/commerce/orders/:order_id/retry_provisioning", to: "dashboard/commerce_orders#retry_provisioning", as: :dashboard_commerce_retry_provisioning
   get "/commerce/shop", to: "commerce#index", as: :commerce_shop
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
@@ -111,6 +128,10 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   resources :homes
   
 # ── Public site ──────────────────────────────────────────────────────────────
+get "/", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
+get "/site/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
+get "/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.page_match?(request) }
+get "/__lightek/site-health", to: "gatekeeper/hosted_sites#health"
 root "pages#home"
 
 get  "about",    to: "pages#about"
@@ -138,6 +159,7 @@ resources :susu_match_preferences, only: %i[index new create show destroy]
 
 # ── Gatekeeper Infrastructure Control ────────────────────────────────────────
 namespace :gatekeeper do
+  post "callbacks/fleet_release", to: "fleet_releases#create", as: :fleet_release_callback
   post "callbacks/github_deployment", to: "callbacks#github_deployment", as: :github_deployment_callback
   get "infrastructure", to: "infrastructure#index", as: :infrastructure
   resources :nodes
@@ -149,6 +171,8 @@ namespace :gatekeeper do
     end
   end
 end
+
+get "/__lightek/release", to: "gatekeeper/fleet_health#show", as: :gatekeeper_fleet_health
 
 # ── Susu ───────────────────────────────────────────────────────
 resources :susu_groups do
@@ -183,7 +207,7 @@ end
 namespace :employee do
     resources :users, only: %i[index new create edit update destroy]
     resources :tickets, only: %i[index show new create] do
-      member { patch :reply; patch :resolve; post :execute_nevaeh }
+      member { patch :reply; patch :resolve; post :execute_nevaeh; post :resume_nevaeh; get :edit_nevaeh; post :revise_nevaeh }
     end
   root "dashboard#index"
   resources :clients,   only: %i[index show]
@@ -193,6 +217,7 @@ end
 
 # ── Gatekeeper — Lightek client contract ──────────────────────────────────────
 # Gatekeeper is the public experience/API contract for Roku and future clients.
+post "gatekeeper/device", to: "gatekeeper#device_api", as: :gatekeeper_device
 get "gatekeeper",
   to: "gatekeeper#index",
   defaults: { format: :json },
@@ -274,6 +299,21 @@ resources :dashboard_compute_providers, path: "/dashboard/infrastructure/provide
 end
 
 get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#index", as: :dashboard_infrastructure_catalog
+resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard/server_instances", only: %i[index show destroy] do
+  member do
+    post :create_application
+    post :retry_application
+  end
+end
+resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", controller: "dashboard/fleet_updates", only: %i[index show create] do
+  collection do
+    post :sync
+    post :release
+    patch :installation
+    post :register_installation
+  end
+  member { post :control }
+end
 post "/dashboard/infrastructure/profiles", to: "dashboard/infrastructure_catalog#create_profile", as: :dashboard_infrastructure_profiles
 post "/dashboard/infrastructure/policies", to: "dashboard/infrastructure_catalog#create_policy", as: :dashboard_infrastructure_policies
 
@@ -355,6 +395,7 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
   post "/domains/:id/verify", action: :verify_domain, as: :verify_dashboard_mail_domain
   post "/accounts", action: :create_account, as: :dashboard_mail_accounts
   patch "/accounts/:account_id", action: :configure_account, as: :dashboard_mail_account
+  post "/accounts/:account_id/receiving-check", action: :check_receiving, as: :check_receiving_dashboard_mail
   post "/accounts/:account_id/token", action: :token, as: :dashboard_mail_token
   get "/accounts/:account_id/compose", action: :compose, as: :compose_dashboard_mail
   post "/accounts/:account_id/messages", action: :create_message, as: :dashboard_mail_messages
@@ -372,6 +413,7 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
 end
 post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
 get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
+get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 

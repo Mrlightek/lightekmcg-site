@@ -128,14 +128,6 @@ module Gatekeeper
 
         #{verification}
 
-        ## Operational Lesson
-
-        A presentation shell is also a controller contract. When a host application renders a DymondDash layout from a non-DymondDash controller, the controller must inherit from DymondDash::ApplicationController (or otherwise implement the complete contract expected by the layout). Do not copy individual helper methods as a workaround.
-
-        ## Production Diagnostics
-
-        For the Lightek Apache/Passenger deployment, Rails/Passenger request exceptions are available in:
-        /var/log/apache2/lightekmcg-site-error.log
       TEXT
     end
 
@@ -144,15 +136,7 @@ module Gatekeeper
         "source" => "gatekeeper",
         "lesson_key" => key,
         "gatekeeper_capability" => capability,
-        "incident_class" => "controller_shell_contract_mismatch",
-        "failure_signature" => "NameError: undefined local variable or method `account_plan'",
-        "component" => "dymond_dash",
-        "affected_feature" => "susu",
-        "auto_executable" => false,
-        "verification_capability" => "verify_dymond_dash_controller_contract",
-        "production_log_path" => "/var/log/apache2/lightekmcg-site-error.log",
-        "known_remediation" => "inherit DymondDash::ApplicationController when rendering the DymondDash shell",
-        "learned_from_human_intervention" => true
+        "auto_executable" => false
       }.merge(metadata.stringify_keys)
     end
 

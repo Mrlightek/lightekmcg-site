@@ -4,7 +4,28 @@ susu_cycle_reminders:
   class: "SusuCycleReminderJob"
   queue: default
 
+gatekeeper_fleet_recovery:
+  cron: "* * * * *"
+  class: "Gatekeeper::Fleet::SweepJob"
+  queue: default
+
+gatekeeper_hosting_recovery:
+  cron: "* * * * *"
+  class: "Gatekeeper::Hosting::RecoveryJob"
+  queue: default
+
 susu_cycle_advance:
   cron: "0 0 * * 0" # Every Sunday at midnight
   class: "SusuCycleAdvanceJob"
+  queue: default
+
+nevaeh_historical_backlog:
+  cron: "*/5 * * * *"
+  class: "NevaehIntelligences::ProcessBacklogJob"
+  queue: default
+  active_job: true
+
+gatekeeper_device_heartbeat_sweep:
+  cron: "*/1 * * * *"
+  class: "GatekeeperDeviceHeartbeatSweepJob"
   queue: default

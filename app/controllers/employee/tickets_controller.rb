@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Employee
   class TicketsController < Employee::ApplicationController
-    before_action :set_ticket, only: %i[show reply resolve execute_nevaeh]
+    before_action :set_ticket, only: %i[show reply resolve execute_nevaeh resume_nevaeh edit_nevaeh revise_nevaeh]
 
     def index
       authorize! :read, Marlon::Ticket
@@ -15,6 +15,7 @@ module Employee
     end
 
     def new
+      @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
       authorize! :create, Marlon::Ticket
       @ticket = Marlon::Ticket.new(category: Marlon::TicketCategories.ids.first, priority: "medium", urgency: 5)
     end
@@ -23,12 +24,19 @@ module Employee
       authorize! :create, Marlon::Ticket
       @ticket = Marlon::Ticket.new(ticket_params)
       @ticket.submitted_by = current_user
+      @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
       @work_order_values = work_order_params.to_h
+      @structured_values = structured_ticket_params.to_h
 
       begin
         Marlon::Ticket.transaction do
           @ticket.save!
-          if @work_order_values["enabled"] == "1"
+          if @structured_values["enabled"] == "1"
+            raise NevaehIntelligences::WorkOrder::Invalid, "Choose structured sections or an advanced work order" if @work_order_values["enabled"] == "1"
+            authorize! :execute_nevaeh, @ticket
+            NevaehIntelligences::StructuredTicket.attach!(ticket: @ticket, actor: current_user,
+              sections: @structured_values.fetch("sections", {}), automatic: @structured_values["automatic"] == "1")
+          elsif @work_order_values["enabled"] == "1"
             NevaehIntelligences::WorkOrder.attach!(
               ticket: @ticket,
               attributes: build_work_order(@work_order_values)
@@ -50,11 +58,44 @@ module Employee
     def execute_nevaeh
       authorize! :execute_nevaeh, @ticket
       receipt = NevaehIntelligences::WorkOrder.dispatch!(ticket: @ticket, actor: current_user)
-      redirect_to employee_ticket_path(@ticket), notice: "Nevaeh dispatched work item #{receipt.fetch('work_item_id')}."
+      redirect_to employee_ticket_path(@ticket), notice: receipt.is_a?(Hash) ? "Nevaeh dispatched work item #{receipt.fetch('work_item_id')}." : "Nevaeh status: #{receipt}"
     rescue NevaehIntelligences::WorkOrder::Invalid,
            NevaehIntelligences::TicketExecution::InvalidTicket,
            NevaehIntelligences::Dispatch::Unavailable => error
       redirect_to employee_ticket_path(@ticket), alert: "Nevaeh execution blocked: #{error.message}"
+    end
+
+    def resume_nevaeh
+      authorize! :execute_nevaeh, @ticket
+      if @ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute"
+        NevaehIntelligences::StructuredExecution.resume!(ticket: @ticket, actor: current_user, explicit: true)
+      else
+        NevaehIntelligences::TicketBacklog.resume!(ticket: @ticket)
+      end
+      redirect_to employee_ticket_path(@ticket), notice: "Nevaeh processing queued; existing reservations and approvals are preserved."
+    rescue NevaehIntelligences::WorkOrder::Invalid => error
+      redirect_to employee_ticket_path(@ticket), alert: error.message
+    end
+
+    def edit_nevaeh
+      authorize! :execute_nevaeh, @ticket
+      order = NevaehIntelligences::WorkOrder.read!(ticket: @ticket)
+      raise NevaehIntelligences::WorkOrder::Invalid, "Structured ticket required" unless order["intent_key"] == "ticket.structured.execute"
+      @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
+      @structured_values = {"enabled" => "1", "sections" => order.fetch("inputs").fetch("sections").each_with_index.to_h { |step, index| [index.to_s, step] }}
+    end
+
+    def revise_nevaeh
+      authorize! :execute_nevaeh, @ticket
+      values = structured_ticket_params.to_h
+      NevaehIntelligences::StructuredTicket.revise!(ticket: @ticket, actor: current_user,
+        sections: values.fetch("sections", {}), automatic: values["automatic"] == "1")
+      redirect_to employee_ticket_path(@ticket), notice: "Revision saved. Verified sections were preserved."
+    rescue NevaehIntelligences::WorkOrder::Invalid => error
+      @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
+      @structured_values = values
+      @ticket.errors.add(:base, error.message)
+      render :edit_nevaeh, status: :unprocessable_entity
     end
 
     def reply
@@ -66,6 +107,9 @@ module Employee
 
     def resolve
       authorize! :resolve, @ticket
+      if @ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute" && @ticket.extra_fields.to_h.dig("nevaeh", "execution_status") != "verified"
+        return redirect_to employee_ticket_path(@ticket), alert: "Nevaeh acceptance must pass before this work order can be resolved."
+      end
       @ticket.resolve!(actor: current_user)
       redirect_to employee_ticket_path(@ticket), notice: "Ticket resolved."
     end
@@ -75,6 +119,10 @@ module Employee
     def set_ticket
       @ticket = Marlon::Ticket.find(params[:id])
       authorize! :read, @ticket
+    end
+
+    def structured_ticket_params
+      params.fetch(:structured_ticket, ActionController::Parameters.new).permit(:enabled, :automatic, sections: {})
     end
 
     def work_order_params

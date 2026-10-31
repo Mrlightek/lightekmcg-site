@@ -2,6 +2,7 @@ require "digest"
 module LightekMail
   class Inbound
     def self.accept!(raw:, recipients:)
+      raise ArgumentError, "Supply a nonempty raw email." unless raw.is_a?(String) && !raw.empty?
       raise ArgumentError, "Inbound message is too large." if raw.bytesize > Submission::MAX_BYTES
       recipients = Submission.addresses(recipients).sort
       provisioned = Account.joins(:domain).where(address: recipients, enabled: true).where.not(lightek_mail_domains: {verified_at: nil}).pluck(:address)
@@ -53,7 +54,7 @@ module LightekMail
         saved = account.with_lock do
           next if account.messages.exists?(idempotency_key: key)
           raise Submission::Unavailable, "Mailbox storage is full." if account.messages.sum(:bytesize) + storage_size > account.storage_limit
-          message = account.messages.create!(direction: "inbound", state: "inbox", from_address: mail.from&.first.to_s.slice(0, 254), to_addresses: Array(mail.to),
+          message = account.messages.create!(direction: "inbound", state: "inbox", from_address: mail.from&.first.to_s.slice(0, 254), to_addresses: Array(mail.to), cc_addresses: Array(mail.cc),
             subject: mail.subject.to_s.delete("\r\n").slice(0, 200), text_body: text,
             html_body: html, message_id: mail.message_id.presence || SecureRandom.uuid,
             in_reply_to: mail.in_reply_to.to_s.slice(0, 250), idempotency_key: key, bytesize: storage_size)

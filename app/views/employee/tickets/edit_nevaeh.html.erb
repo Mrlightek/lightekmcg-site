@@ -1,0 +1,10 @@
+<% content_for :page_title, "Revise Nevaeh ticket" %>
+<div class="dd-card" style="max-width:900px">
+  <h2><%= @ticket.number %> · Revise action sections</h2>
+  <p>Keep verified sections unchanged. Correct the remaining work and authorize its new revision.</p>
+  <% if @ticket.errors.any? %><p role="alert"><%= @ticket.errors.full_messages.join(', ') %></p><% end %>
+  <%= form_with url: revise_nevaeh_employee_ticket_path(@ticket), method: :post do %>
+    <%= render 'structured_form' %>
+    <%= submit_tag 'Save revision', class: 'dd-topbar-btn dd-btn-primary' %>
+  <% end %>
+</div>

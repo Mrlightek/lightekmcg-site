@@ -22,7 +22,11 @@ class InstallationUiHttp
     req["Cookie"] = @cookies.map { |key, value| "#{key}=#{value}" }.join("; ")
     req["User-Agent"] = "Mozilla/5.0 LightekInstallationAcceptance"
     req["Accept"] = "text/html,application/json"
-    req.set_form_data(data) if data
+    if data
+      req["Origin"] = @origin.to_s
+      req["Referer"] = "#{@origin}/my/installations"
+      req.set_form_data(data)
+    end
     response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 45) { |http| http.request(req) }
     response.get_fields("set-cookie").to_a.each do |line|
       key, value = line.split(";", 2).first.split("=", 2)
@@ -35,7 +39,7 @@ end
 sessions = []
 fixture = nil
 result = {customer_list: false, customer_status: false, dashboard_controls: false,
-  native_password_setup_form: false, cross_account_access_denied: false, public_site: false, pwa_entry: false}
+  native_password_setup_form: false, browser_form_csrf: false, cross_account_access_denied: false, public_site: false, pwa_entry: false}
 begin
   order = LightekCommerce::Order.find(Integer(ENV.fetch("LIGHTEK_ACCEPTANCE_ORDER_ID", "1")))
   raise "Existing READY installation required" unless LightekCommerce::Installations.ready?(order)
@@ -64,11 +68,14 @@ begin
   stage = "customer_setup_page"
   page = client.call("/my/installations/#{order.id}")
   raise "Setup page failed" unless page.code == "200" && page.body.include?("Set or reset my password")
-  csrf = Nokogiri::HTML(page.body).at_css('meta[name="csrf-token"]')&.[]("content")
+  raise "Browser form referrer policy blocks same-origin CSRF" unless page["referrer-policy"] == "same-origin"
+  form = Nokogiri::HTML(page.body).at_css("form[action='/my/installations/#{order.id}/access']")
+  csrf = form&.at_css('input[name="authenticity_token"]')&.[]("value")
   raise "Setup page has no CSRF protection" unless csrf.present?
   stage = "password_handoff"
   access = client.call("/my/installations/#{order.id}/access", data: {authenticity_token: csrf})
   raise "Password setup did not redirect" unless access.code == "303"
+  result[:browser_form_csrf] = true
   destination = URI(access["location"])
   domain = LightekCommerce::Installations.hostname(order)
   raise "Password setup destination mismatch" unless destination.scheme == "https" && destination.host == domain && destination.path.match?(%r{\A/passwords/[^/]+/edit\z})

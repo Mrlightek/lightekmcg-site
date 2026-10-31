@@ -79,9 +79,43 @@ class InstallationsFlowTest < ActionDispatch::IntegrationTest
       assert_response :see_other
       assert_equal "https://client-#{@order.id}.example.test/passwords/native-token/edit", response.location
       assert_includes response.headers["Cache-Control"], "no-store"
-      assert_equal "no-referrer", response.headers["Referrer-Policy"]
+      assert_equal "same-origin", response.headers["Referrer-Policy"]
       assert Rails.application.env_config.fetch("action_dispatch.redirect_filter").any? { |filter| filter === response.location }
     end
+  end
+
+  test "browser password button submits its rendered token with same-origin CSRF protection" do
+    sign_in(@buyer)
+    previous = InstallationsController.allow_forgery_protection
+    InstallationsController.allow_forgery_protection = true
+    get installation_path(@order)
+    assert_response :success
+    assert_equal "same-origin", response.headers["Referrer-Policy"]
+    form = Nokogiri::HTML(response.body).at_css("form[action='#{access_installation_path(@order)}']")
+    token = form.at_css('input[name="authenticity_token"]')["value"]
+    assert token.present?
+    Gatekeeper::WebsiteDeployment.stub(:owner_password_setup_url!, ->(**) { "https://client.example.test/passwords/native-token/edit" }) do
+      post form["action"], params: {authenticity_token: token}, headers: {"HTTP_ORIGIN" => "http://www.example.com"}
+      assert_response :see_other
+    end
+  ensure
+    InstallationsController.allow_forgery_protection = previous
+  end
+
+  test "null and foreign origins remain rejected by the password handoff" do
+    sign_in(@buyer)
+    previous = InstallationsController.allow_forgery_protection
+    InstallationsController.allow_forgery_protection = true
+    get installation_path(@order)
+    token = Nokogiri::HTML(response.body).at_css('meta[name="csrf-token"]')["content"]
+    Gatekeeper::WebsiteDeployment.stub(:owner_password_setup_url!, ->(**) { flunk "Foreign origin reached Gatekeeper" }) do
+      ["null", "https://untrusted.example"].each do |origin|
+        post access_installation_path(@order), params: {authenticity_token: token}, headers: {"HTTP_ORIGIN" => origin}
+        assert_response :unprocessable_entity
+      end
+    end
+  ensure
+    InstallationsController.allow_forgery_protection = previous
   end
 
   test "failed paid installation resumes the same order without checkout" do

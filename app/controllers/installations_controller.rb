@@ -58,6 +58,8 @@ class InstallationsController < ApplicationController
 
   def private_response
     response.headers["Cache-Control"] = "no-store, private"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    # Preserve same-origin form Origin headers for Rails CSRF validation.
+    # Suppress referrers when handing off to the separate customer hostname.
+    response.headers["Referrer-Policy"] = "same-origin"
   end
 end

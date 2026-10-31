@@ -123,7 +123,7 @@ log = Tempfile.new(["nevaeh-structured-worker-", ".log"])
     entry = YAML.load_file(File.join(File.expand_path("..", __dir__), "config/schedule.yml")).fetch("nevaeh_historical_backlog")
     raise "Backlog cron must use ActiveJob" unless entry["active_job"] == true
     cron = Sidekiq::Cron::Job.new(entry.merge("name" => cron_queue, "queue" => cron_queue))
-    cron.enqueue!
+    cron.enque!
     queued = Sidekiq::Queue.new(cron_queue).first
     raise "Cron did not enqueue the actual intake job" unless queued && queued.args.first["job_class"] == "NevaehIntelligences::ProcessBacklogJob"
   ensure

@@ -98,6 +98,10 @@ begin
   result[:native_password_setup_form] = true
   home = target.call("/")
   result[:public_site] = home.code == "200"
+  homepage = Nokogiri::HTML(home.body)
+  raise "Homepage contains a visible closing head tag" if homepage.at_css("body")&.text.to_s.include?("</head>")
+  raise "Homepage typography is outside its head" unless homepage.at_css('head style#lightek-website-typography')
+  result[:homepage_markup] = true
   result[:pwa_entry] = client.call("/lightek/bootstrap-adapter.js").body.include?("/my/installations")
   stage = "operator_dashboard"
   operator = User.find_by!(role: "super_admin")

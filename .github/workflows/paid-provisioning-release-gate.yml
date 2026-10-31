@@ -239,6 +239,6 @@ jobs:
           bin/rails runner 'abort "Unsafe test database" unless Rails.env.test? && ActiveRecord::Base.connection_db_config.database == "lightekmcg_site_test"'
           bin/rails db:migrate
           bin/rails assets:precompile
-          bin/rails test test/controllers/installations_flow_test.rb test/controllers/authentication_branding_test.rb
+          bin/rails test test/controllers/installations_flow_test.rb test/controllers/authentication_branding_test.rb test/controllers/website_fonts_markup_test.rb
           LIGHTEK_APP_TESTS
           LIGHTEK_STAGED_TESTS

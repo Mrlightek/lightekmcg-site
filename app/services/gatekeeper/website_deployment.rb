@@ -121,9 +121,14 @@ module Gatekeeper
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 600
       loop do
         result = Gatekeeper::Compute::NodeVerificationService.call(request:, requested_by: actor.email_address)
-        break if result[:provider_status] == "running"
-        raise Invalid, "Instance is still starting; rerun uses the same node" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
-        sleep 10
+        status = result[:provider_status].to_s
+        break if status == "running"
+        raise Invalid, "Linode entered terminal status #{status}; clean installation cannot continue" if %w[deleted deleting failed error].include?(status)
+        remaining = (deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)).ceil
+        raise Invalid, "Linode did not reach running within 600 seconds (last status: #{status})" if remaining <= 0
+        puts "Waiting for Linode #{node.provider_resource_id}: status=#{status}, timeout_in=#{remaining}s"
+        $stdout.flush
+        sleep [10, remaining].min
       end
       Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)
       run!(actor:, node:, domain:)

@@ -41,6 +41,7 @@ ActiveRecord::Schema.define do
   end
   create_table :dymond_dispatch_work_items do |t|
     t.string :kind
+    t.string :handler
     t.string :status
     t.string :correlation_id
     t.string :subject_type
@@ -372,6 +373,34 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal 14, state.dig("engineering_plan", "source_evidence", "operation_id")
     assert_equal "open", related.reload.status, "related operations are not automatically duplicates"
     assert_equal "open", row.status
+  end
+
+  def test_real_incident_reference_builds_native_recovery_order_without_dispatch
+    item = DymondDispatch::WorkItem.create!(kind: "job", handler: "DymondCompute::TrimHandler", status: "failed", error: "IOError: closed stream")
+    row = ticket(title: "WorkItem failed — job (##{item.id})", description: "Original trim failed with a closed stream")
+    assert_equal "escalated", NevaehIntelligences::TicketBacklog.process!(ticket: row)
+    order = NevaehIntelligences::WorkOrder.read!(ticket: row)
+    assert_equal "fix", order.fetch("work_type")
+    assert_equal item.id, order.dig("inputs", "original_work_item_id")
+    assert_equal "DymondCompute::TrimHandler", order.dig("inputs", "handler")
+    assert order.fetch("acceptance_criteria").any? { |criterion| criterion.include?("trim artifact") }
+    assert_equal false, order.dig("execution_policy", "execution_enabled")
+    assert_equal "failed", item.reload.status
+    assert_equal "open", row.status
+    NevaehIntelligences::TicketBacklog.process!(ticket: row)
+    assert_equal 1, row.events.where(action: "nevaeh_work_order_registered").count
+  end
+
+  def test_repeated_analysis_preserves_native_diagnostics_without_duplicating_events
+    row = ticket
+    NevaehIntelligences::TicketBacklog.process!(ticket: row)
+    fields = row.reload.extra_fields
+    fields.fetch("nevaeh_backlog")["source_diagnostics"] = {"operation_id" => 14, "evidence" => "retained"}
+    row.update!(extra_fields: fields)
+    before = row.events.count
+    NevaehIntelligences::TicketBacklog.process!(ticket: row)
+    assert_equal "retained", backlog(row).dig("source_diagnostics", "evidence")
+    assert_equal before, row.events.count
   end
 
 end

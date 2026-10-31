@@ -112,6 +112,13 @@ module NevaehIntelligences
         WorkOrder.attach!(ticket: ticket, attributes: attributes)
         fields.replace(ticket.extra_fields.to_h.deep_stringify_keys)
       end
+      unless fields.key?("nevaeh_work_order")
+        incident = incident_work_order(fields)
+        if incident
+          WorkOrder.attach!(ticket: ticket, attributes: incident)
+          fields.replace(ticket.extra_fields.to_h.deep_stringify_keys)
+        end
+      end
       order = fields["nevaeh_work_order"]
       order = WorkOrder.validate!(order) if order
       source = fields.fetch("gatekeeper", {}).to_h
@@ -119,6 +126,15 @@ module NevaehIntelligences
       capabilities = NevaehCapability.order(:id).map do |record|
         {"slug" => record.slug, "enabled" => record.enabled?, "handler" => record.handler,
           "gatekeeper_capability" => record.gatekeeper_capability, "updated_at" => record.updated_at&.iso8601(6)}
+      end
+      # Gatekeeper's native infrastructure registry predates Nevaeh's DB rows.
+      # Include its real registrations as discovery metadata, never as approval.
+      if defined?(::Gatekeeper::CapabilityRegistry)
+        ::Gatekeeper::CapabilityRegistry::REGISTRY.each do |name, handler|
+          next if capabilities.any? { |record| record["slug"] == name }
+          capabilities << {"slug" => name, "enabled" => true, "handler" => handler,
+            "registration_source" => "gatekeeper_native_registry"}
+        end
       end
       aliases = capabilities.select { |record| record["gatekeeper_capability"] == key }
       key = aliases.first.fetch("slug") if aliases.one? && !capabilities.any? { |record| record["slug"] == key }
@@ -178,11 +194,50 @@ module NevaehIntelligences
         "knowledge" => articles.map { |a| [a.id, a.updated_at&.iso8601(6)] },
         "blockers" => blockers})
       {"status" => blockers.empty? ? "ready" : "escalated", "blockers" => blockers,
-        "classification" => order&.fetch("work_type") || (source["operation_id"].present? ? "operational_execution" : "investigation"),
+        "classification" => source["operation_id"].present? ? "operational_execution" : (order&.fetch("work_type") || "investigation"),
         "related_ticket_ids" => related_ids,
         "analysis_sha256" => input_digest, "engineering_plan" => plan,
         "knowledge_article_ids" => articles.map(&:id), "required_capability" => key,
         "implementation_verified" => false}
+    end
+
+    def incident_work_order(fields)
+      source = fields.fetch("gatekeeper", {}).to_h
+      if source["operation_id"].present? && source["capability"].present?
+        inputs = source.slice("operation_id", "capability", "node_id", "project_id")
+        key = source.fetch("capability")
+        criteria = [
+          "Identify the exact failed operation step and target revision from its persisted receipt",
+          "Verify the requested target or explicitly document that a later verified deployment supersedes it",
+          "Preserve application boot, HTTPS health and worker readiness evidence before resolution"
+        ]
+      elsif (match = /\AWorkItem failed.*\(#(\d+)\)\z/.match(ticket.title))
+        item = DymondDispatch::WorkItem.find_by(id: match[1])
+        return unless item
+        inputs = {"original_work_item_id" => item.id, "handler" => item.handler}
+        registration = NevaehCapability.find_by(handler: item.handler)
+        key = registration&.slug || item.kind.to_s
+        return if key.blank?
+        criteria = case item.handler
+        when "DymondCompute::TrimHandler"
+          ["Verify the original source asset and trim interval", "Produce and validate the requested persisted trim artifact without closed-stream errors"]
+        when "DymondCompute::TimelineRenderHandler"
+          ["Verify the executing FFmpeg binary supports every filter used by the original timeline", "Render and inspect the requested timeline artifact including its text overlays"]
+        when "DymondCompute::BlenderRenderHandler"
+          ["Verify original scene, renderer exit status and expected output path", "Render and validate the requested output artifact before registering success"]
+        when "DymondBank::AchChargeHandler"
+          ["Reconcile the original invoice ledger against provider transfer history", "Verify the current authorized processor configuration", "Establish safe idempotent disposition of the original attempt before any financial replay"]
+        else
+          ["Inspect the original WorkItem arguments and its registered handler contract", "Verify the original requested outcome using persisted acceptance evidence"]
+        end
+      else
+        return
+      end
+      WorkOrder.template(work_type: "fix", intent_key: key).merge(
+        "objective" => ticket.description.presence || ticket.title,
+        "inputs" => inputs, "acceptance_criteria" => criteria,
+        "execution_policy" => {"environment" => Rails.env.to_s, "approval" => "gatekeeper",
+          "execution_enabled" => false, "requires_human_release_approval" => true})
     end
 
     def save_analysis!(fields, analysis)

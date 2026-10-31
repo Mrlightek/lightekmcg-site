@@ -106,7 +106,7 @@ jobs:
           echo "http_status=$HTTP_STATUS" >> "$GITHUB_OUTPUT"
 
       - name: Notify Gatekeeper succeeded
-        if: success()
+        if: ${{ always() && steps.deploy.outcome == 'success' }}
         continue-on-error: true
         env:
           CALLBACK_URL: ${{ vars.GATEKEEPER_CALLBACK_URL }}
@@ -125,7 +125,7 @@ jobs:
           curl --fail-with-body -sS -X POST "$CALLBACK_URL" -H "Authorization: Bearer $CALLBACK_TOKEN" -H "Content-Type: application/json" --data @callback.json
 
       - name: Notify Gatekeeper failed
-        if: failure()
+        if: ${{ failure() && steps.deploy.outcome != 'success' }}
         continue-on-error: true
         env:
           CALLBACK_URL: ${{ vars.GATEKEEPER_CALLBACK_URL }}

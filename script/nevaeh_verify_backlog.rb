@@ -22,6 +22,26 @@ ENV.delete("NEVAEH_BACKLOG_ACTOR_ID")
 end
 load File.join(root, "app/services/nevaeh_intelligences/ticket_backlog.rb")
 
+require "net/http"
+require "open3"
+Rails.application.eager_load!
+http = Net::HTTP.start("lightekmcg.com", 443, use_ssl: true, open_timeout: 10, read_timeout: 30) do |connection|
+  connection.get("/up")
+end
+revision, _revision_error, revision_status = Open3.capture3("git", "rev-parse", "HEAD", chdir: Rails.root.to_s)
+working_tree, _tree_error, tree_status = Open3.capture3("git", "status", "--porcelain", chdir: Rails.root.to_s)
+_runtime_output, _runtime_error, worker_status = Open3.capture3("systemctl", "is-active", "--quiet", "lightekmcg-site-sidekiq")
+runtime_evidence = {
+  "verified_at" => Time.current.iso8601, "eager_load_passed" => true,
+  "https_health_status" => http.code.to_i, "sidekiq_service_active" => worker_status.success?,
+  "installed_revision" => revision_status.success? ? revision.strip : nil,
+  "tracked_worktree_clean" => tree_status.success? && working_tree.lines.none? { |line| !line.start_with?("??") },
+  "git_objects_writable" => File.writable?(Rails.root.join(".git/objects")),
+  "lockfile_writable" => File.writable?(Rails.root.join("Gemfile.lock")),
+  "mail_controller_loaded" => !!defined?(Api::LightekMailController),
+  "system_logs_controller_loaded" => !!defined?(Dashboard::SystemLogsController),
+  "mail_sending_policy_loaded" => !!defined?(LightekMail::SendingPolicy)
+}
 counts = Hash.new(0)
 errors = 0
 Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
@@ -40,7 +60,7 @@ Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
     raise "Planning unexpectedly resolved ticket" if ticket.status == "resolved"
     raise "Missing engineering plan" unless state["engineering_plan"].is_a?(Hash)
     raise "Escalation omitted blockers" unless state["blockers"].is_a?(Array) && state["blockers"].any?
-    diagnostic = {}
+    diagnostic = {"runtime_verification" => runtime_evidence}
     native_fields = ticket.extra_fields.to_h.deep_stringify_keys
     source = native_fields.fetch("gatekeeper", {})
     if source["operation_id"].present?
@@ -62,7 +82,22 @@ Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
         diagnostic["work_item"] = {"id" => item.id, "status" => item.status,
           "handler" => item.handler, "error" => item.error.to_s.last(3000)}
         media_handlers = %w[DymondCompute::TrimHandler DymondCompute::TimelineRenderHandler DymondCompute::BlenderRenderHandler]
+        if item.handler == "DymondBank::AchChargeHandler" && ticket.related_type == "DymondBank::Invoice"
+          invoice = ticket.related
+          diagnostic["invoice_inspection"] = {"record_exists" => !!invoice}
+          if invoice
+            diagnostic["invoice_inspection"]["state"] = invoice.attributes.slice("id", "status", "payment_status", "paid_at", "processor", "payment_processor")
+            diagnostic["invoice_inspection"]["associations"] = invoice.class.reflect_on_all_associations.map(&:name)
+          end
+        end
         if media_handlers.include?(item.handler)
+          binary = DymondCompute.configuration.blender_path.to_s
+          binary_exists = if binary.include?(File::SEPARATOR)
+            File.executable?(binary)
+          else
+            ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? { |directory| File.executable?(File.join(directory, binary)) }
+          end
+          diagnostic["blender_binary_available"] = binary_exists
           diagnostic["media_arguments"] = item.args
           diagnostic["registered_media_capabilities"] = NevaehCapability.where(handler: item.handler)
             .map { |capability| {"slug" => capability.slug, "enabled" => capability.enabled?, "subject_type" => capability.subject_type} }
@@ -71,6 +106,19 @@ Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
             "DymondCompute::TimelineRenderHandler" => ["DymondCompute::Transcoding::TimelineRenderer", :render],
             "DymondCompute::BlenderRenderHandler" => ["DymondCompute::Transcoding::BlenderRenderer", :render]
           }.fetch(item.handler)
+          if item.handler == "DymondCompute::BlenderRenderHandler"
+            builder = "DymondCompute::Transcoding::BlenderCommand".constantize.method(:build)
+            builder_path, = builder.source_location
+            diagnostic["command_builder_source"] = File.read(builder_path).byteslice(0, 14000) if builder_path && File.file?(builder_path)
+            scene = DymondStudio::BlenderScene.find_by(id: Array(item.args).first)
+            diagnostic["original_input"] = {"record_exists" => !!scene, "source_attached" => !!scene&.asset&.file&.attached?}
+          elsif item.handler == "DymondCompute::TrimHandler"
+            asset = DymondCompute::Asset.find_by(id: Array(item.args).first)
+            diagnostic["original_input"] = {"record_exists" => !!asset, "source_attached" => !!asset&.file&.attached?}
+          elsif item.handler == "DymondCompute::TimelineRenderHandler"
+            timeline = DymondStudio::Timeline.find_by(id: Array(item.args).first)
+            diagnostic["original_input"] = {"record_exists" => !!timeline}
+          end
           renderer = implementation.first.constantize.method(implementation.last)
           renderer_path, renderer_line = renderer.source_location
           if renderer_path && File.file?(renderer_path)

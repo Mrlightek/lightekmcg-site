@@ -108,6 +108,11 @@ module LightekCommerce
       end
       # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+      begin
+        publish_ready_notification!(order: order, customer: customer, domain: domain)
+      rescue StandardError => error
+        Rails.logger.error("[Commerce] ready dashboard notification failed order=#{order.id} #{error.class}")
+      end
       # Record post-activation work separately; never reset the paid installation.
       # Pending mail work is independent of customer activation and can be retried.
       begin
@@ -148,6 +153,20 @@ module LightekCommerce
           provisioning_error: "#{e.class}: #{e.message}".slice(0, 1000))
       end
       raise
+    end
+
+    # Dashboard delivery is independent of SMTP/OAuth availability. The order
+    # lock makes repeated activation/recovery publish only one ready notice.
+    def self.publish_ready_notification!(order:, customer:, domain:)
+      order.with_lock do
+        raise NotReady, "Installation is not ready for notification" unless order.paid_at? &&
+          %w[paid fulfilled].include?(order.status) && order.provisioning_state == "ready" && order.provisioned_at?
+        DymondDash::Notification.find_or_create_by!(recipient: customer, subject: order,
+          category: "system", title: "Your Lightek installation is ready") do |notification|
+          notification.body = "Your Lightek application is ready. Open your application to access its dashboard."
+          notification.url = "https://#{domain}"
+        end
+      end
     end
 
     def self.required_vps_configuration!

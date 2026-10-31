@@ -15,6 +15,13 @@ end
 require_relative "../../app/services/godaddy/dns_service"
 require_relative "../../app/services/gatekeeper/website_dns_publication"
 require_relative "../../app/services/gatekeeper/website_deployment"
+require_relative "../../app/services/lightek_commerce/paid_instance_provisioning"
+
+module DymondDash
+  class Notification
+    def self.find_or_create_by!(**) = raise("Unexpected notification publication")
+  end
+end
 
 class User
   def self.find(*) = raise("Unexpected database access")
@@ -233,4 +240,32 @@ class PaidDnsRecoveryStandaloneTest < Minitest::Test
       assert_includes error.message, "production application runtime"
     end
   end
+  def test_ready_notice_is_idempotent_and_does_not_require_email_delivery
+    order = Struct.new(:status, :provisioning_state, :paid_at?, :provisioned_at?).new("paid", "ready", true, true)
+    locks = 0
+    order.define_singleton_method(:with_lock) { |&block| locks += 1; block.call }
+    records = {}
+    factory = ->(**attributes, &block) do
+      records[attributes] ||= begin
+        notification = Struct.new(:body, :url).new
+        block.call(notification)
+        notification
+      end
+    end
+    DymondDash::Notification.stub(:find_or_create_by!, factory) do
+      2.times { LightekCommerce::PaidInstanceProvisioning.publish_ready_notification!(order: order, customer: @owner, domain: "client-1.example.test") }
+    end
+    assert_equal 2, locks
+    assert_equal 1, records.size
+    assert_equal "https://client-1.example.test", records.values.first.url
+  end
+
+  def test_incomplete_installation_cannot_publish_ready_notice
+    order = Struct.new(:status, :provisioning_state, :paid_at?, :provisioned_at?).new("paid", "deploying", true, false)
+    order.define_singleton_method(:with_lock) { |&block| block.call }
+    assert_raises(LightekCommerce::PaidInstanceProvisioning::NotReady) do
+      LightekCommerce::PaidInstanceProvisioning.publish_ready_notification!(order: order, customer: @owner, domain: "client-1.example.test")
+    end
+  end
+
 end

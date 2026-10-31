@@ -39,4 +39,8 @@ puts "MANUAL_ACCEPTANCE_ORDER_PAID order=#{order.id} stripe_charge_created=false
 LightekCommerce::PaidInstanceProvisioningJob.perform_now(order.id)
 order.reload
 raise "Installation is not ready" unless order.provisioning_state == "ready" && order.provisioned_at?
+domain = "client-#{order.id}.#{ENV.fetch('LIGHTEK_AUTO_CLIENT_BASE_DOMAIN', 'lightekmcg.com')}"
+notification = LightekCommerce::PaidInstanceProvisioning.publish_ready_notification!(order: order, customer: actor, domain: domain)
+raise "Ready notification was not persisted" unless notification.persisted?
+puts "READY_DASHBOARD_NOTIFICATION_PUBLISHED order=#{order.id} notification=#{notification.id}"
 puts "MANUAL_ACCEPTANCE_INSTALLATION_READY order=#{order.id}"

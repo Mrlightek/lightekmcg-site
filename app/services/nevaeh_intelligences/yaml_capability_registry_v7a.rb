@@ -91,7 +91,14 @@ module NevaehIntelligences
     end
 
     def list(root:)
-      Dir.glob(File.join(directory(root), "*.yml")).sort.map do |location|
+      # Empty directories are absent from fresh Git checkouts. A read-only list
+      # has no configured entries in that case; it must not create directories.
+      # Existing paths still pass the normal containment and symlink checks.
+      base = File.realpath(root)
+      candidate = File.join(base, "config", "nevaeh", "capabilities")
+      return [] unless File.exist?(candidate) || File.symlink?(candidate)
+
+      Dir.glob(File.join(directory(base), "*.yml")).sort.map do |location|
         key = File.basename(location, ".yml")
         assert_key!(key)
         { "key" => key, "valid" => true, "jobs" => read(root: root, key: key).dig("capability", "jobs").length }

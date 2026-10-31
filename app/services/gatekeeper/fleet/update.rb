@@ -17,16 +17,18 @@ module Gatekeeper
             previous_version: installation.current_version, previous_image: installation.current_image)
         end
         installation = target.gatekeeper_installation
-        raise Rollouts::Invalid, "Installation is no longer eligible" unless installation.eligible?
+        raise Rollouts::Invalid, "Installation no longer accepts this release" unless installation.accepts_release?(rollout.gatekeeper_release)
         receipt = Transport.call!(target)
         release = rollout.gatekeeper_release
         raise Rollouts::Invalid, "Remote version verification failed" unless receipt["status"] == "succeeded" &&
-          receipt["domain"] == installation.domain && receipt["source_sha"] == release.source_sha && receipt["image"] == release.image
+          receipt["domain"] == installation.domain && receipt["source_sha"] == release.source_sha && receipt["image"] == release.image &&
+          receipt["adapter"] == release.adapter && receipt["component"] == release.component
         rollout.with_lock do
           # A stale worker must not overwrite a later attempt's result.
           target.reload
           return unless target.status == "running" && target.gatekeeper_operation_id == operation.id
           installation.update!(current_version: release.source_sha, current_image: release.image, last_verified_at: Time.current)
+          installation.gatekeeper_project&.update!(deployed_sha: release.source_sha, status: "healthy", last_deployed_at: Time.current, last_healthcheck_at: Time.current)
           operation.update!(status: "succeeded", exit_status: 0, result: receipt, completed_at: Time.current)
           target.update!(status: "succeeded", receipt: receipt, completed_at: Time.current, error_message: nil)
         end

@@ -31,6 +31,7 @@ ActiveRecord::Schema.define do
     t.string :name; t.string :hostname; t.string :ip_address; t.string :ssh_user
     t.integer :ssh_port, default: 22; t.string :ssh_key_path; t.string :status, default: "healthy"
     t.json :metadata, default: {}; t.timestamps
+    t.string :owner_type; t.integer :owner_id
   end
   create_table(:gatekeeper_operations) do |t|
     t.references :gatekeeper_node; t.references :gatekeeper_project
@@ -39,12 +40,26 @@ ActiveRecord::Schema.define do
     t.integer :exit_status; t.string :error_class; t.string :error_message
     t.datetime :started_at; t.datetime :completed_at; t.timestamps
   end
-  create_table(:gatekeeper_projects) { |t| t.string :name; t.string :deployed_sha }
+  create_table(:users) { |t| t.string :email_address }
+  create_table(:gatekeeper_projects) do |t|
+    t.string :name; t.string :deployed_sha; t.references :gatekeeper_node
+    t.string :domain; t.string :repository; t.string :app_root; t.string :app_user
+    t.string :ruby_version, default: "3.3.6"; t.json :metadata, default: {}
+    t.string :status; t.datetime :last_deployed_at; t.datetime :last_healthcheck_at
+  end
 end
-class GatekeeperProject < ApplicationRecord; end
+class User < ApplicationRecord; end
+class GatekeeperProject < ApplicationRecord
+  def sidekiq_service = "#{name}-sidekiq"
+  def health_url = "https://#{domain}/up"
+end
 source = File.read(Rails.root.join("db/migrate/20261031210000_create_gatekeeper_fleet_updates.rb"))
 eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING, "fleet_migration")
 CreateGatekeeperFleetUpdates.new.migrate(:up)
+source = File.read(Rails.root.join("db/migrate/20261031220000_add_native_fleet_adapters.rb"))
+eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING, "native_fleet_migration")
+AddNativeFleetAdapters.new.migrate(:up)
+require Rails.root.join("app/services/gatekeeper/fleet/adapters").to_s
 %w[gatekeeper_node gatekeeper_operation gatekeeper_installation gatekeeper_release gatekeeper_rollout gatekeeper_update_target].each do |file|
   require Rails.root.join("app/models", file).to_s
 end
@@ -60,9 +75,11 @@ end
 class FleetUpdatesTest < Minitest::Test
   include ActiveSupport::Testing::TimeHelpers
   def setup
-    GatekeeperUpdateTarget.delete_all; GatekeeperRollout.delete_all; GatekeeperRelease.delete_all
+    GatekeeperUpdateTarget.delete_all; GatekeeperRollout.delete_all
+    GatekeeperInstallation.update_all(pinned_release_id: nil)
+    GatekeeperRelease.delete_all
     GatekeeperInstallation.delete_all; GatekeeperOperation.delete_all; GatekeeperNode.delete_all
-    GatekeeperProject.delete_all
+    GatekeeperProject.delete_all; User.delete_all
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
     @release = release
     @old_auto = ENV.delete("LIGHTEK_FLEET_AUTO_ROLLOUT")
@@ -76,6 +93,7 @@ class FleetUpdatesTest < Minitest::Test
 
   def release(version = SecureRandom.hex(4), **options)
     GatekeeperRelease.create!({version: version, source_sha: "a" * 40,
+      adapter: "docker_compose",
       image: "ghcr.io/mrlightek/lightekmcg-site/customer@sha256:#{'b' * 64}",
       created_by: "operator"}.merge(options))
   end
@@ -83,6 +101,7 @@ class FleetUpdatesTest < Minitest::Test
   def installation(index = SecureRandom.hex(4), **options)
     node = GatekeeperNode.create!(name: "node-#{index}", ip_address: "203.0.113.10", ssh_user: "root")
     GatekeeperInstallation.create!({domain: "client-#{index}.example.com", gatekeeper_node: node,
+      adapter: "docker_compose",
       current_version: "previous", current_image: "previous-image"}.merge(options))
   end
 
@@ -95,6 +114,7 @@ class FleetUpdatesTest < Minitest::Test
     record = target.gatekeeper_rollout.gatekeeper_release
     {"status" => "succeeded", "domain" => target.gatekeeper_installation.domain,
       "source_sha" => record.source_sha, "image" => record.image, "database_backup" => "/safe/backup.sql"}
+      .merge("adapter" => record.adapter, "component" => record.component)
   end
 
   def dispatch(record)
@@ -117,7 +137,7 @@ class FleetUpdatesTest < Minitest::Test
   end
 
   def callback_payload(version = SecureRandom.hex(4))
-    {"version" => version, "source_sha" => "a" * 40, "image" => @release.image, "notes" => "Test release"}
+    {"version" => version, "source_sha" => "a" * 40, "image" => @release.image, "adapter" => "docker_compose", "notes" => "Test release"}
   end
 
   def test_callback_replay_is_idempotent_and_cannot_replace_a_digest
@@ -326,5 +346,104 @@ class FleetUpdatesTest < Minitest::Test
     item.gatekeeper_node.update!(status: "decommissioned")
     assert_raises(Gatekeeper::Fleet::Rollouts::Invalid) { Gatekeeper::Fleet::Rollouts.start!(record) }
     assert_equal "draft", record.reload.status
+  end
+
+  def native_profile
+    {"app_root" => "/var/www/customer", "app_user" => "lightek", "env_file" => "/etc/lightek/customer.env",
+      "ruby_bin" => "/home/lightek/.rbenv/versions/3.3.6/bin", "worker_mode" => "systemd", "worker_service" => "customer-sidekiq",
+      "health_url" => "https://customer.example.com/up", "revision_url" => "https://customer.example.com/__lightek/release"}
+  end
+
+  def test_native_release_does_not_require_application_image_and_dispatches_host_adapter
+    native = release(adapter: "native_rails", image: nil)
+    item = installation(adapter: "native_rails", domain: "customer.example.com", deployment_config: native_profile)
+    assert item.accepts_release?(native)
+    payload = Gatekeeper::Fleet::Adapters.payload(item, native)
+    assert_equal "native_rails", payload[:adapter]
+    assert_equal "/var/www/customer", payload[:deployment]["app_root"]
+    assert_equal "update_native_installation.py", Gatekeeper::Fleet::Adapters.script(item.adapter)
+    record = Gatekeeper::Fleet::Rollouts.create!(release: native, installations: [item], requested_by: "operator")
+    Gatekeeper::Fleet::Rollouts.start!(record); dispatch(record); run_targets(record)
+    assert_equal "succeeded", record.gatekeeper_update_targets.first.status
+    assert_nil item.reload.current_image
+  end
+
+  def test_custom_pin_blocks_manual_and_automatic_general_releases
+    custom = release
+    customer = installation(automatic_updates: true, pinned_release: custom)
+    assert customer.accepts_release?(custom)
+    refute customer.accepts_release?(@release)
+    assert_raises(Gatekeeper::Fleet::Rollouts::Invalid) do
+      Gatekeeper::Fleet::Rollouts.create!(release: @release, installations: [customer], requested_by: "operator")
+    end
+    ENV["LIGHTEK_FLEET_AUTO_ROLLOUT"] = "true"
+    GatekeeperProject.create!(name: "lightekmcg-site", deployed_sha: "a" * 40)
+    latest = Gatekeeper::Fleet::Releases.register!(callback_payload)
+    assert_empty latest.gatekeeper_rollouts
+  end
+
+  def test_adapter_component_and_repository_are_independent_release_boundaries
+    item = installation
+    [release(adapter: "native_rails", image: nil), release(component: "cdn"),
+      release(repository: "https://github.com/example/custom.git")].each do |wrong|
+      refute item.accepts_release?(wrong)
+    end
+    item.update!(repository: "git@github.com:Mrlightek/lightekmcg-site.git")
+    assert item.accepts_release?(@release)
+    item.pinned_release = release(component: "cdn")
+    refute item.valid?
+  end
+
+  def test_native_project_inventory_uses_passenger_checkout_and_preserves_saved_profile
+    node = installation.gatekeeper_node
+    account = User.create!(email_address: "customer@example.com")
+    node.update!(owner_type: "User", owner_id: account.id)
+    project = GatekeeperProject.create!(name: "customer", gatekeeper_node_id: node.id, domain: "native.example.com",
+      app_root: "/var/www/native", app_user: "lightek", repository: Gatekeeper::Fleet::Adapters::MAIN_REPOSITORY,
+      deployed_sha: "a" * 40, metadata: {})
+    Gatekeeper::Fleet::Inventory.sync_node!(node)
+    item = GatekeeperInstallation.find_by!(domain: project.domain)
+    assert_equal "native_rails", item.adapter
+    assert_equal "/var/www/native", item.deployment_config["app_root"]
+    assert_equal account.id, item.account_id
+    item.update!(deployment_config: item.deployment_config.merge("worker_mode" => "none"))
+    Gatekeeper::Fleet::Inventory.sync_node!(node)
+    assert_equal "none", item.reload.deployment_config["worker_mode"]
+  end
+
+  def test_specialized_services_can_share_hostname_without_sharing_release_component
+    a = installation(domain: "service.example.com")
+    b = installation(domain: "service.example.com", adapter: "systemd_service", component: "realtime",
+      deployment_config: {"app_root" => "/opt/realtime", "app_user" => "lightek", "service_name" => "realtime",
+        "health_url" => "https://service.example.com/health", "verify_hook" => "/opt/realtime/bin/verify"})
+    refute_equal a.id, b.id
+    record = release(adapter: "systemd_service", image: nil, component: "realtime")
+    assert b.accepts_release?(record)
+    refute a.accepts_release?(record)
+  end
+
+  def test_deployment_profiles_reject_shell_injection_unknown_fields_and_embedded_secrets
+    [native_profile.merge("worker_service" => "sidekiq; reboot"), native_profile.merge("app_root" => "/var/www/../etc"),
+      native_profile.merge("health_url" => "https://user:password@customer.example.com/up"),
+      native_profile.merge("command" => "rm -rf /"), native_profile.merge("app_user" => "user\nroot")].each do |config|
+      assert_raises(ArgumentError) { Gatekeeper::Fleet::Adapters.validate!("native_rails", config) }
+    end
+    unknown = installation(adapter: "native_rails", deployment_config: {})
+    refute unknown.eligible?
+  end
+
+  def test_specialized_component_on_production_node_does_not_require_updating_main_app
+    item = installation(component: "cdn")
+    item.gatekeeper_node.update!(metadata: {"role" => "production", "local_node" => true})
+    assert item.eligible?
+    item.component = "lightek_app"
+    refute item.eligible?
+  end
+
+  def test_cdn_replicas_can_share_public_hostname_and_component_on_different_nodes
+    a = installation(domain: "cdn.example.com", component: "cdn")
+    b = installation(domain: "cdn.example.com", component: "cdn")
+    refute_equal a.gatekeeper_node_id, b.gatekeeper_node_id
+    assert_equal 2, GatekeeperInstallation.where(domain: "cdn.example.com", component: "cdn").count
   end
 end

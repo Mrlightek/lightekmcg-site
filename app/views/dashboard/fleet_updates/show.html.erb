@@ -1,6 +1,7 @@
 <% content_for :page_title, "Customer rollout ##{@rollout.id}" %>
 <%= link_to "← Customer Updates", dashboard_fleet_updates_path %>
 <h1>Rollout #<%= @rollout.id %> · <%= @rollout.gatekeeper_release.version %></h1>
+<p><%= @rollout.gatekeeper_release.adapter %> · <%= @rollout.gatekeeper_release.component %> · <%= @rollout.gatekeeper_release.repository %></p>
 <p><strong><%= @rollout.status.humanize %></strong> · <%= @rollout.gatekeeper_release.channel %> · Canary: <%= @rollout.canary_size %> · Batch: <%= @rollout.batch_size %> · <%= @rollout.auto_promote? ? "Automatic promotion" : "Operator promotes canary" %></p>
 <p><%= @rollout.message %></p>
 <p><%= @rollout.gatekeeper_release.notes %></p>

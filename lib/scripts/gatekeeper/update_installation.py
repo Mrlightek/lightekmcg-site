@@ -52,6 +52,7 @@ class Updater:
         self.env_path = self.root / ".env"
         self.override = self.root / "fleet-image.json"
         self.receipt = {"domain": config["domain"], "source_sha": config["source_sha"],
+                        "adapter": "docker_compose", "component": config.get("component", "lightek_app"),
                         "image": config["image"], "target_id": config["target_id"], "attempt": config["attempt"]}
         self.docker_env = dict(os.environ)
 

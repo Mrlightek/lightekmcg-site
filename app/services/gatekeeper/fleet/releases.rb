@@ -5,13 +5,17 @@ module Gatekeeper
         payload = attributes.stringify_keys
         payload["created_by"] = "github_release_pipeline"
         payload["channel"] ||= "stable"
+        payload["adapter"] ||= "native_rails"
+        payload["component"] ||= "lightek_app"
+        payload["repository"] ||= Adapters::MAIN_REPOSITORY
+        payload["image"] = nil if payload["image"].blank?
         payload["backward_compatible"] = !!ActiveModel::Type::Boolean.new.cast(payload.fetch("backward_compatible", false))
         release = find_or_register!(payload)
         raise Rollouts::Invalid, "Release version already identifies another artifact" unless release.attributes.slice(*payload.keys) == payload
         if automatic? && current_source?(release)
           release.with_lock do
             unless release.gatekeeper_rollouts.exists?
-              installations = GatekeeperInstallation.where(enabled: true, automatic_updates: true, channel: release.channel).includes(:gatekeeper_node).select(&:eligible?)
+              installations = GatekeeperInstallation.where(enabled: true, automatic_updates: true, channel: release.channel).includes(:gatekeeper_node).select { |installation| installation.accepts_release?(release) }
               unless installations.empty?
                 Rollouts.create!(release: release, installations: installations,
                   requested_by: "github_release_pipeline", canary_size: 1, batch_size: 10,
@@ -36,7 +40,10 @@ module Gatekeeper
       end
 
       def self.current_source?(release)
-        GatekeeperProject.find_by(name: "lightekmcg-site")&.deployed_sha == release.source_sha
+        # Other service repositories can register releases, but never inherit the
+        # main application's automatic fan-out policy.
+        release.component == "lightek_app" && Adapters.repository_key(release.repository) == Adapters.repository_key(Adapters::MAIN_REPOSITORY) &&
+          GatekeeperProject.find_by(name: "lightekmcg-site")&.deployed_sha == release.source_sha
       end
 
       def self.start_pending!(rollout)

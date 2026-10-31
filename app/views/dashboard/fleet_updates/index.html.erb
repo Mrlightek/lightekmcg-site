@@ -9,8 +9,9 @@
   <p>Choose a release and installations below. The next screen previews the complete target list before starting.</p>
   <%= form_with url: dashboard_fleet_updates_path do |f| %>
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
-      <label>Release <%= f.select :release_id, @releases.map { |r| ["#{r.version} · #{r.channel} · #{r.source_sha.first(8)}", r.id] }, {include_blank: "Select a release"}, required: true %></label>
-      <label>Targets <%= f.select :selection, [["Selected installations below", "selected"], ["All eligible installations on release channel", "all"]] %></label>
+      <label>Release <%= f.select :release_id, @releases.map { |r| ["#{r.version} · #{r.adapter} · #{r.component} · #{r.channel}", r.id] }, {include_blank: "Select a release"}, required: true %></label>
+      <label>Targets <%= f.select :selection, [["Selected installations below", "selected"], ["All matching installations", "all"], ["One account's matching installations", "account"]] %></label>
+      <label>Account <%= f.select :account_id, @accounts.map { |account| [account.email_address, account.id] }, include_blank: "Select an account" %></label>
       <label>Canary servers <%= f.number_field :canary_size, value: 1, min: 1, max: 50, required: true %></label>
       <label>Servers per batch <%= f.number_field :batch_size, value: 10, min: 1, max: 50, required: true %></label>
       <label>Start at (UTC, optional) <%= f.datetime_local_field :scheduled_at %></label>
@@ -19,11 +20,12 @@
     <div style="overflow-x:auto"><table style="width:100%;text-align:left"><thead><tr><th>Select</th><th>Customer installation</th><th>Server</th><th>Installed version</th><th>Channel</th><th>Auto updates</th><th>State</th></tr></thead><tbody>
       <% @installations.each do |installation| %>
         <tr><td><%= check_box_tag "installation_ids[]", installation.id, false, disabled: !installation.eligible?, aria: {label: "Select #{installation.domain}"} %></td>
-        <td><%= installation.domain %></td><td><%= installation.gatekeeper_node.name %></td>
+        <td><%= installation.domain %><br><small><%= installation.adapter %> · <%= installation.component %><% if installation.pinned_release_id %> · Custom release pinned<% end %></small></td><td><%= installation.gatekeeper_node.name %></td>
         <td><%= installation.current_version.presence || "Awaiting first version report" %></td><td><%= installation.channel %></td>
         <td><%= installation.automatic_updates? ? "Enabled" : "Manual" %></td><td><%= installation.eligible? ? "Available" : "Disabled / unavailable" %></td></tr>
       <% end %>
     </tbody></table></div>
+    <%= paginate @installations %>
     <% if @installations.empty? %><p>Sync registered installations to discover customer deployments.</p><% end %>
     <div style="margin-top:20px"><%= f.submit "Preview rollout", class: "dd-btn dd-btn-primary" %></div>
   <% end %>
@@ -33,24 +35,47 @@
   <% if @rollouts.empty? %><p>No customer rollouts yet.</p><% end %>
 </div>
 <details class="dd-card" style="padding:24px;margin-bottom:24px"><summary>Installation update policies</summary>
-  <p>Opt installations into release-pipeline automation, choose their channel, or disable updates.</p>
+  <p>Each installation uses its own server adapter and component. A pinned customer release is excluded from other releases, including broad manual rollouts.</p>
   <% @installations.each do |installation| %>
     <%= form_with url: installation_dashboard_fleet_updates_path(installation_id: installation.id), method: :patch, scope: :installation do |f| %>
       <p><strong><%= installation.domain %></strong>
       <%= f.select :channel, %w[stable beta], selected: installation.channel %>
       <label><%= f.check_box :enabled, checked: installation.enabled? %> Updates enabled</label>
       <label><%= f.check_box :automatic_updates, checked: installation.automatic_updates? %> Automatic releases</label>
-      <%= f.submit "Save policy", class: "dd-btn dd-btn-secondary" %></p>
+      <label>Account ID <%= f.number_field :account_id, value: installation.account_id, min: 1 %> <%= installation.account&.email_address %></label></p>
+      <% releases = @releases.to_a; releases |= [installation.pinned_release].compact %>
+      <p><label>Assigned release <%= f.select :pinned_release_id, releases.select { |release| release.adapter == installation.adapter && release.component == installation.component && Gatekeeper::Fleet::Adapters.repository_key(release.repository) == Gatekeeper::Fleet::Adapters.repository_key(installation.repository) }.map { |release| [release.version, release.id] }, {include_blank: "Follow channel (no pin)", selected: installation.pinned_release_id} %></label></p>
+      <p><label>Adapter <%= f.select :adapter, Gatekeeper::Fleet::Adapters::NAMES, selected: installation.adapter %></label>
+      <label>Component <%= f.text_field :component, value: installation.component, required: true %></label></p>
+      <p><label>Repository <%= f.text_field :repository, value: installation.repository, required: true, style: "width:100%" %></label></p>
+      <p><label>Deployment profile (JSON) <%= f.text_area :deployment_config, value: JSON.pretty_generate(installation.deployment_config), rows: 10, style: "width:100%;font-family:monospace" %></label></p>
+      <%= f.submit "Save installation", class: "dd-btn dd-btn-secondary" %>
     <% end %>
   <% end %>
 </details>
+<details class="dd-card" style="padding:24px;margin-bottom:24px"><summary>Register a Rails, CDN or specialized service installation</summary>
+  <p>Sync discovers existing Gatekeeper projects. Register other services here using the actual repository, server paths and health probes. Profile examples are in docs/customer_fleet_updates.md.</p>
+  <%= form_with url: register_installation_dashboard_fleet_updates_path, scope: :installation do |f| %>
+    <p><label>Hostname <%= f.text_field :domain, required: true %></label>
+    <label>Server <%= f.select :gatekeeper_node_id, @nodes.map { |node| [node.name, node.id] }, {}, required: true %></label></p>
+    <p><label>Account <%= f.select :account_id, @accounts.map { |account| [account.email_address, account.id] }, include_blank: "Unassigned" %></label></p>
+    <p><label>Adapter <%= f.select :adapter, Gatekeeper::Fleet::Adapters::NAMES %></label>
+    <label>Component <%= f.text_field :component, value: "lightek_app", required: true %></label></p>
+    <p><label>Repository <%= f.text_field :repository, value: Gatekeeper::Fleet::Adapters::MAIN_REPOSITORY, required: true, style: "width:100%" %></label></p>
+    <p><label>Deployment profile (JSON) <%= f.text_area :deployment_config, value: "{}", rows: 10, style: "width:100%;font-family:monospace" %></label></p>
+    <%= f.submit "Register installation", class: "dd-btn dd-btn-secondary" %>
+  <% end %>
+</details>
 <details class="dd-card" style="padding:24px"><summary>Release registry and manual registration</summary>
-  <p>Successful production deployments publish a customer image through the release workflow. Images are pinned by digest; release records cannot be edited.</p>
-  <% @releases.each do |release| %><p><strong><%= release.version %></strong> · <%= release.channel %> · <%= release.backward_compatible? ? "Compatible with previous schema" : "Manual recovery after schema changes" %><br><code style="overflow-wrap:anywhere"><%= release.image %></code><br><%= release.notes %></p><% end %>
+  <p>Native Rails releases identify a Git commit installed on the server. CDN and other services have separate components and repositories. Only explicitly containerized installations use images.</p>
+  <% @releases.each do |release| %><p><strong><%= release.version %></strong> · <%= release.adapter %> · <%= release.component %> · <%= release.channel %> · <%= release.backward_compatible? ? "Compatible with previous schema" : "Manual recovery after schema changes" %><br><code><%= release.source_sha %></code><% if release.image.present? %><br><code style="overflow-wrap:anywhere"><%= release.image %></code><% end %><br><%= release.notes %></p><% end %>
   <%= form_with url: release_dashboard_fleet_updates_path, scope: :release do |f| %>
     <p><label>Version <%= f.text_field :version, required: true, maxlength: 100 %></label></p>
     <p><label>Source commit (40 characters) <%= f.text_field :source_sha, required: true, pattern: "[a-f0-9]{40}" %></label></p>
-    <p><label>GHCR image with @sha256 digest <%= f.text_field :image, required: true, style: "width:100%" %></label></p>
+    <p><label>Adapter <%= f.select :adapter, Gatekeeper::Fleet::Adapters::NAMES %></label>
+    <label>Component <%= f.text_field :component, value: "lightek_app", required: true %></label></p>
+    <p><label>Repository <%= f.text_field :repository, value: Gatekeeper::Fleet::Adapters::MAIN_REPOSITORY, required: true, style: "width:100%" %></label></p>
+    <p><label>GHCR image digest (Docker adapter only) <%= f.text_field :image, style: "width:100%" %></label></p>
     <p><label>Channel <%= f.select :channel, %w[stable beta] %></label></p>
     <p><label>Release notes <%= f.text_area :notes %></label></p>
     <p><label><%= f.check_box :backward_compatible %> Previous application code can run against this release's migrated database</label></p>

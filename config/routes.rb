@@ -151,6 +151,8 @@ namespace :gatekeeper do
   end
 end
 
+get "/__lightek/release", to: "gatekeeper/fleet_health#show", as: :gatekeeper_fleet_health
+
 # ── Susu ───────────────────────────────────────────────────────
 resources :susu_groups do
   member do
@@ -280,6 +282,7 @@ resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", c
     post :sync
     post :release
     patch :installation
+    post :register_installation
   end
   member { post :control }
 end

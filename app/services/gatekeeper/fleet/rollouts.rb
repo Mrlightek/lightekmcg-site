@@ -12,8 +12,8 @@ module Gatekeeper
         raise Invalid, "Select at least one installation" if ids.empty?
         GatekeeperRollout.transaction do
           rollout = GatekeeperRollout.create!(gatekeeper_release: release, requested_by: requested_by, **options)
-          GatekeeperInstallation.where(id: ids).order(:id).each_with_index do |installation, index|
-            raise Invalid, "Installation #{installation.domain} is unavailable or on another channel" unless installation.eligible? && installation.channel == release.channel
+          GatekeeperInstallation.where(id: ids).includes(:gatekeeper_node).order(:id).each_with_index do |installation, index|
+            raise Invalid, "Installation #{installation.domain} is unavailable, pinned, or does not match this release" unless installation.accepts_release?(release)
             rollout.gatekeeper_update_targets.create!(gatekeeper_installation: installation,
               canary: index < rollout.canary_size, previous_version: installation.current_version,
               previous_image: installation.current_image)
@@ -30,7 +30,7 @@ module Gatekeeper
           targets = rollout.gatekeeper_update_targets.includes(gatekeeper_installation: :gatekeeper_node)
           targets.each do |target|
             installation = target.gatekeeper_installation
-            raise Invalid, "Installation #{installation.domain} is unavailable" unless installation.eligible? && installation.channel == rollout.gatekeeper_release.channel
+            raise Invalid, "Installation #{installation.domain} no longer accepts this release" unless installation.accepts_release?(rollout.gatekeeper_release)
             target.update!(status: "reserved")
           end
           rollout.update!(status: "running", message: nil)

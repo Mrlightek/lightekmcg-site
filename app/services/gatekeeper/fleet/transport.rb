@@ -9,7 +9,7 @@ module Gatekeeper
         attr_reader :receipt
         def initialize(receipt)
           @receipt = receipt.slice("domain", "source_sha", "image", "target_id", "attempt", "previous_version",
-            "database_backup", "status", "migration_started", "code_restored", "error_class")
+            "database_backup", "status", "migration_started", "code_restored", "error_class", "adapter", "component", "repository", "log_path")
           super("Remote update failed")
         end
       end
@@ -42,8 +42,9 @@ module Gatekeeper
           end
         end
         payload = {domain: installation.domain, source_sha: release.source_sha, image: release.image,
-          backward_compatible: release.backward_compatible?, target_id: target.id, attempt: target.attempts}
-        if ENV["LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"].present?
+          backward_compatible: release.backward_compatible?, target_id: target.id, attempt: target.attempts,
+          expected_previous_sha: installation.current_version}.merge(Adapters.payload(installation, release))
+        if installation.adapter == "docker_compose" && ENV["LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"].present?
           registry = checkout.call(ENV.fetch("LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"), "fleet_registry", name)
           payload[:registry] = registry.slice("username", "password")
         end
@@ -51,7 +52,7 @@ module Gatekeeper
         # Full bounded execution; remote 'timeout' also survives a worker disconnect.
         Timeout.timeout(1900) do
           Net::SSH.start(node.ip_address, node.ssh_user, **options) do |ssh|
-            script = Rails.root.join("lib/scripts/gatekeeper/update_installation.py").read
+            script = Rails.root.join("lib/scripts/gatekeeper", Adapters.script(installation.adapter)).read
             command = "timeout --signal=TERM --kill-after=30s 1800s python3 -c #{Shellwords.escape(script)}"
             stdout = +""
             exit_status = nil

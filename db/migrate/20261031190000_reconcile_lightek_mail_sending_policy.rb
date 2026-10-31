@@ -8,7 +8,7 @@ class ReconcileLightekMailSendingPolicy < ActiveRecord::Migration[8.0]
       next if policy.sending_enabled? || policy.stop_reason.present?
       legacy = connection.select_one("SELECT active FROM sending_policies ORDER BY id LIMIT 1") if table_exists?(:sending_policies)
       if legacy
-        enabled = ActiveModel::Type::Boolean.new.cast(legacy.fetch("active"))
+        enabled = ActiveModel::Type::Boolean.new.cast(legacy.fetch("active")) == true
         policy.update!(sending_enabled: enabled, stop_reason: enabled ? nil : "Preserved legacy mail sending pause")
       elsif table_exists?(:lightek_mail_messages) && connection.select_value("SELECT 1 FROM lightek_mail_messages WHERE direction = 'outbound' AND state = 'sent' LIMIT 1")
         # The old model defaulted to enabled when its legacy table had no row.

@@ -26,6 +26,18 @@ class LightekMailPolicyUpgradeTest < ActiveSupport::TestCase
     assert_equal 1, LightekMail::SendingPolicy.count
   end
 
+  test "missing canonical row is created using the enabled legacy state" do
+    LightekMail::SendingPolicy.delete_all
+    @legacy.create!(active: true)
+    assert upgrade.sending_enabled?
+    assert_equal 1, LightekMail::SendingPolicy.count
+  end
+
+  test "a nullable legacy setting preserves its disabled predicate" do
+    @legacy.create!(active: nil)
+    refute upgrade.sending_enabled?
+  end
+
   test "explicit canonical stop wins over enabled legacy configuration" do
     @legacy.create!(active: true)
     @policy.update!(stop_reason: "Operator stop")

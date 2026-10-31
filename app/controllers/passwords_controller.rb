@@ -1,4 +1,7 @@
 class PasswordsController < ApplicationController
+  layout "auth", only: %i[new edit]
+  before_action :private_password_page, only: %i[new edit]
+
   allow_unauthenticated_access
   before_action :set_user_by_token, only: %i[ edit update ]
 
@@ -25,6 +28,11 @@ class PasswordsController < ApplicationController
   end
 
   private
+    def private_password_page
+      response.headers["Cache-Control"] = "no-store, private"
+      response.headers["Referrer-Policy"] = "same-origin"
+    end
+
     def set_user_by_token
       @user = User.find_by_password_reset_token!(params[:token])
     rescue ActiveSupport::MessageVerifier::InvalidSignature

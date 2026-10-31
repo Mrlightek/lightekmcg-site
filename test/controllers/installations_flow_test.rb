@@ -165,6 +165,11 @@ class InstallationsFlowTest < ActionDispatch::IntegrationTest
     token = @buyer.generate_token_for(:password_reset)
     get edit_password_path(token)
     assert_response :success
+    assert_select 'body[data-auth-layout="lightek"]'
+    assert_select 'label[for="password"]', "New password"
+    assert_select 'label[for="password_confirmation"]', "Confirm new password"
+    assert_includes response.headers["Cache-Control"], "no-store"
+    assert_equal "same-origin", response.headers["Referrer-Policy"]
     put password_path(token), params: {password: "chosen-installation-password", password_confirmation: "chosen-installation-password"}
     assert_redirected_to new_session_path
     assert @buyer.reload.authenticate("chosen-installation-password")

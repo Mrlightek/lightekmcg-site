@@ -85,6 +85,7 @@ begin
   setup = target.call(destination.request_uri)
   fields = Nokogiri::HTML(setup.body)
   raise "Native password setup is unavailable" unless setup.code == "200" && fields.at_css('input[name="password"]') && fields.at_css('input[name="password_confirmation"]')
+  raise "Password setup is missing its customer design" unless fields.at_css('body[data-auth-layout="lightek"]') && fields.at_css('label[for="password_confirmation"]') && setup.body.include?("Save password &amp; continue")
   result[:native_password_setup_form] = true
   home = target.call("/")
   result[:public_site] = home.code == "200"

@@ -95,9 +95,8 @@ jobs:
 
           ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$APP_BRANCH'" <<'LIGHTEK_DEPLOY' | tee deploy-output.txt
             set -e
-            # Manual root maintenance previously left remote refs unwritable by
-            # the established application/deployment user. Preserve all refs.
-            chown -R lightek:lightek /var/www/lightekmcg-site/.git
+            # Restore the repository's documented production ownership model.
+            bash /var/www/lightekmcg-site/lib/scripts/repair_lightek_production_permissions.sh
 
             APP_ROOT=/var/www/lightekmcg-site \
             APP_USER=lightek \

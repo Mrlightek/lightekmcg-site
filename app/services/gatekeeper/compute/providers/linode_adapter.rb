@@ -35,6 +35,9 @@ module Gatekeeper
         def destroy_node(id)
           request(:delete, "/linode/instances/#{id}")
           true
+        rescue HttpSupport::RequestError => error
+          raise unless error.status == 404
+          true
         end
 
         def set_reverse_dns(ip:, hostname:)

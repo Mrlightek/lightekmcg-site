@@ -65,7 +65,7 @@ class Dashboard::SubscriptionPlansController < DymondDash::ApplicationController
   end
 
   def sync_entitlement!(plan)
-    raw = params.fetch(:infrastructure_entitlement, {}).permit(:provisioning_profile_id,:compute_policy_id,:node_quantity,:auto_provision,:feature_entitlements).to_h
+    raw = params.fetch(:infrastructure_entitlement, {}).permit(:provisioning_profile_id,:compute_policy_id,:node_quantity,:auto_provision,:feature_entitlements,:max_sites).to_h
     features = raw.delete("feature_entitlements").to_s.split(",").map(&:strip).reject(&:blank?)
     entitlement = SubscriptionInfrastructureEntitlement.find_or_initialize_by(subscription_plan_id: plan.id)
     entitlement.assign_attributes(raw.merge("feature_entitlements" => features))

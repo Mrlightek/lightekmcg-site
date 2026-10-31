@@ -13,6 +13,7 @@
   <%= select_tag "infrastructure_entitlement[provisioning_profile_id]", options_from_collection_for_select(@profiles,:id,:name,entitlement.provisioning_profile_id), include_blank:"No dedicated infrastructure" %>
   <%= select_tag "infrastructure_entitlement[compute_policy_id]", options_from_collection_for_select(@policies,:id,:name,entitlement.compute_policy_id), include_blank:"No compute policy" %>
   <%= number_field_tag "infrastructure_entitlement[node_quantity]", entitlement.node_quantity || 0, min:0 %>
+  <label>Maximum websites/applications per account <%= number_field_tag "infrastructure_entitlement[max_sites]", entitlement.max_sites || 1, min: 0 %></label>
   <label><%= check_box_tag "infrastructure_entitlement[auto_provision]", "1", entitlement.auto_provision? %> Auto-provision when subscription activates</label>
   <%= text_field_tag "infrastructure_entitlement[feature_entitlements]", Array(entitlement.feature_entitlements).join(", "), placeholder:"Features, comma-separated" %>
   <%= f.submit class:"dd-topbar-btn dd-btn-primary" %>

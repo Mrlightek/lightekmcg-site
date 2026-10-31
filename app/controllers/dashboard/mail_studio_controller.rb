@@ -8,9 +8,21 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
   def index
     @accounts = LightekMail::Access.accounts(current_user).includes(:domain).order(:address)
     @domains = LightekMail::Access.domains(current_user).order(:name)
-    @account = params[:account_id].present? ? @accounts.find_by(id: params[:account_id]) : @accounts.first
+    @account = params[:account_id].present? ? @accounts.find(params[:account_id]) : @accounts.first
     @folder = params[:folder].to_s.in?(%w[inbox sent draft outbox all trash]) ? params[:folder] : "inbox"
     return unless @account
+    visible = @account.messages.where(trashed: false)
+    @folder_counts = {
+      "inbox" => visible.where(direction: "inbound", archived: false).count,
+      "sent" => visible.where(state: "sent").count,
+      "draft" => visible.where(state: "draft").count,
+      "outbox" => visible.where(state: %w[queued submitting failed uncertain]).count,
+      "all" => visible.count,
+      "trash" => @account.messages.where(trashed: true).count
+    }
+    @unread_count = visible.where(direction: "inbound", archived: false, read_at: nil).count
+    @storage_used = @account.messages.sum(:bytesize)
+    @last_received_at = @account.messages.where(direction: "inbound").maximum(:created_at)
     @templates = @account.templates.order(:name)
     @messages = @account.messages.where(trashed: @folder == "trash")
     @messages = @messages.where(direction: "inbound", archived: false) if @folder == "inbox"
@@ -22,6 +34,12 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
       @messages = @messages.where("LOWER(subject) LIKE ? OR LOWER(from_address) LIKE ? OR LOWER(text_body) LIKE ?", *[pattern.downcase] * 3)
     end
     @messages = @messages.order(created_at: :desc).limit(100)
+  end
+
+  def check_receiving
+    result = LightekMail::ReceivingStatus.check(@account)
+    flash[result.fetch(:ok) ? :notice : :alert] = result.fetch(:message)
+    redirect_to dashboard_mail_path(account_id: @account.id)
   end
 
   def create_domain
@@ -59,13 +77,14 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
   end
 
   def compose
+    @idempotency_key = "web_#{SecureRandom.hex(24)}"
     @templates = @account.templates.order(:name)
     @reply = @account.messages.find_by(id: params[:reply_id]) if params[:reply_id].present?
     @draft = @account.messages.where(state: "draft").find_by(id: params[:draft_id]) if params[:draft_id].present?
   end
 
   def create_message
-    message = LightekMail::Submission.create!(account: @account, attributes: params.permit(:to, :from, :subject, :text, :html, :template_id, :in_reply_to, variables: {}).to_h, draft: params[:commit_action] == "draft", uploads: params[:attachments])
+    message = LightekMail::Submission.create!(account: @account, idempotency_key: params[:idempotency_key].presence || "web_#{SecureRandom.hex(24)}", attributes: params.permit(:to, :cc, :bcc, :from, :subject, :text, :html, :template_id, :in_reply_to, variables: {}).to_h, draft: params[:commit_action] == "draft", uploads: params[:attachments])
     redirect_to dashboard_mail_message_path(id: message.id, account_id: @account.id)
   end
 
@@ -144,7 +163,7 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
 
   def set_account
     acc_id = params[:account_id].presence || params[:id]
-    @account = LightekMail::Access.accounts(current_user).find_by(id: acc_id) || LightekMail::Access.accounts(current_user).first
+    @account = LightekMail::Access.accounts(current_user).find(acc_id)
   end
 
   def denied(error) = render(plain: error.message, status: :forbidden)
@@ -152,7 +171,14 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
   def invalid(error)
     text = error.is_a?(ActiveRecord::RecordInvalid) ? error.record.errors.full_messages.join(", ") : error.message
     text = "This template changed in another tab. Reload before saving." if error.is_a?(ActiveRecord::StaleObjectError)
-    if request.format.json?
+    if action_name == "create_message" && @account && !request.format.json?
+      @templates = @account.templates.order(:name)
+      @idempotency_key = params[:idempotency_key].presence || "web_#{SecureRandom.hex(24)}"
+      @draft = @account.messages.new(subject: params[:subject], text_body: params[:text], in_reply_to: params[:in_reply_to],
+        to_addresses: params[:to].to_s.split(",").map(&:strip), cc_addresses: params[:cc].to_s.split(",").map(&:strip), bcc_addresses: params[:bcc].to_s.split(",").map(&:strip))
+      flash.now[:alert] = "#{text} Your message is preserved below. Select attachments again before retrying."
+      render :compose, status: :unprocessable_entity
+    elsif request.format.json?
       render json: {error: text}, status: :unprocessable_entity
     else
       redirect_to dashboard_mail_path(account_id: @account&.id), alert: text, status: :see_other

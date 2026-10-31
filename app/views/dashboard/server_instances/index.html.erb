@@ -1,0 +1,16 @@
+<% content_for :page_title, "Servers & Applications" %>
+<%= render "dashboard/infrastructure/styles" %>
+<div class="infra">
+  <header class="infra-hero"><div><span class="infra-eyebrow">Infrastructure / Instances</span><h1>Servers & applications</h1><p>Your hosting workspace. Manage instances, launch additional websites and keep track of server states.</p></div><div class="infra-actions"><%= link_to "Browse hosting services ↗", main_app.marketplace_path, class: "infra-button infra-button-primary" %></div></header>
+  <section class="infra-stats" aria-label="Server summary">
+    <% [["Total instances", @node_counts.values.sum, "All servers you can manage", "server"], ["Healthy", @node_counts.fetch("healthy", 0), "Latest recorded state", "circle-check"], ["Need attention", @node_counts.values_at("failed", "unreachable", "degraded", "delete_failed").compact.sum, "Review these instances", "alert-triangle"], ["In progress", @node_counts.values_at("provisioning", "deleting").compact.sum, "Provisioning or deleting", "loader"]].each do |label, value, caption, icon| %>
+      <div class="infra-stat"><div class="infra-stat-label"><span><%= label %></span><i class="ti ti-<%= icon %>" aria-hidden="true"></i></div><strong><%= value %></strong><small><%= caption %></small></div>
+    <% end %>
+  </section>
+  <section class="infra-panel"><div class="infra-panel-header"><div><h2>Instance inventory</h2><p>Select a server to manage applications, runtimes and deletion.</p></div><span class="infra-badge"><%= @nodes.total_count %> instances</span></div>
+    <% if @nodes.any? %><div class="infra-table-wrap" tabindex="0" role="region" aria-label="Scrollable table"><table class="infra-table"><thead><tr><th scope="col">Server / hostname</th><th scope="col">Provider</th><th scope="col">State</th><th scope="col">Manage</th></tr></thead><tbody>
+      <% @nodes.each do |node| %><tr><td><strong><%= link_to node.name, dashboard_server_path(node) %></strong><small><%= node.display_host %></small></td><td><%= node.compute_provider&.name || node.provider %></td><td><%= infrastructure_status_badge(node.status) %></td><td><%= link_to "Manage →", dashboard_server_path(node), class: "infra-button" %></td></tr><% end %>
+    </tbody></table></div><div class="infra-pagination"><%= paginate @nodes %></div>
+    <% else %><div class="infra-empty"><i class="ti ti-server" aria-hidden="true"></i>No server instances are assigned to your account.<br>Browse hosting services to get started.</div><% end %>
+  </section>
+</div>

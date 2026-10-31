@@ -1,0 +1,53 @@
+<% content_for :page_title, @node.name %>
+<%= render "dashboard/infrastructure/styles" %>
+<div class="infra">
+  <%= link_to "← Servers & applications", dashboard_servers_path, class: "infra-back" %>
+  <header class="infra-hero"><div><span class="infra-eyebrow">Infrastructure / Server workspace</span><h1><%= @node.name %></h1><p><%= @node.display_host %> · <%= @node.compute_provider&.name || @node.provider %></p></div><%= infrastructure_status_badge(@node.status) %></header>
+  <section class="infra-stats" aria-label="Instance summary">
+    <% [["Application runtimes", @projects.size, "Registered on this server", "apps"], ["Website applications", @applications.size, "Visible to your account", "world"], ["Managed services", @installations.size, "Registered service installations", "settings"], ["Account site allowance", @limit.infinite? ? "Unlimited" : "#{@usage} / #{@limit}", @limit.infinite? ? "Super admin access" : "Sites in use across your account", "chart-donut"]].each do |label, value, caption, icon| %>
+      <div class="infra-stat"><div class="infra-stat-label"><span><%= label %></span><i class="ti ti-<%= icon %>" aria-hidden="true"></i></div><strong><%= value %></strong><small><%= caption %></small></div>
+    <% end %>
+  </section>
+  <section class="infra-panel"><div class="infra-panel-header"><div><h2>Applications on this instance</h2><p>Individual domains, content and designs on a shared native Rails runtime.</p></div><% unless @projects.empty? || %w[deleting delete_failed decommissioned].include?(@node.status) %><a href="#new-server-application" class="infra-button">+ Add application</a><% end %></div>
+    <% if @applications.any? %><div class="infra-table-wrap" tabindex="0" role="region" aria-label="Scrollable table"><table class="infra-table"><thead><tr><th scope="col">Application</th><th scope="col">State</th><th scope="col">Actions</th></tr></thead><tbody>
+      <% @applications.each do |app| %><tr><td><strong><%= app.name %></strong><small><%= app.domain %></small><% if app.error_message.present? %><small><%= app.error_message %></small><% end %></td><td><%= infrastructure_status_badge(app.status) %></td><td><div class="infra-actions">
+        <% if app.status == "ready" %><%= link_to "Open ↗", "https://#{app.domain}", target: "_blank", rel: "noopener", class: "infra-button" %><%= link_to "Manage website", "https://#{app.domain}/dashboard/pages", target: "_blank", rel: "noopener", class: "infra-button" %><% end %>
+        <% if app.status == "failed" %><%= button_to "Retry setup", retry_application_dashboard_server_path(@node), params: {application_id: app.id}, class: "infra-button" %><% end %>
+      </div></td></tr><% end %>
+    </tbody></table></div><% else %><div class="infra-empty"><i class="ti ti-world-plus" aria-hidden="true"></i>No additional websites yet.<br>Add an application below to give it its own hostname, content and design.</div><% end %>
+  </section>
+  <div class="infra-two">
+    <section class="infra-panel"><div class="infra-panel-header"><div><h2>Installed runtimes</h2><p>Code and database shared by their hosted websites</p></div><% if Gatekeeper::Hosting::Access.super_admin?(current_user) %><%= link_to "+ Register runtime", main_app.new_gatekeeper_project_path(gatekeeper_node_id: @node.id) %><% end %></div>
+      <% @projects.each do |project| %><div class="infra-list-row"><div><strong><%= project.name %></strong><small><%= project.domain %></small></div><%= infrastructure_status_badge(project.status) %></div><% end %>
+      <% if @projects.empty? %><div class="infra-empty">Register an existing runtime before adding applications.</div><% end %>
+    </section>
+    <section class="infra-panel"><div class="infra-panel-header"><div><h2>Managed services</h2><p>Components registered for fleet updates</p></div></div>
+      <% @installations.each do |installation| %><div class="infra-list-row"><div><strong><%= installation.component %></strong><small><%= installation.domain %></small></div><span class="infra-badge"><%= installation.adapter %></span></div><% end %>
+      <% if @installations.empty? %><div class="infra-empty">No additional service registrations.</div><% end %>
+    </section>
+  </div>
+  <% unless @projects.empty? || %w[deleting delete_failed decommissioned].include?(@node.status) %>
+    <section class="infra-panel" id="new-server-application"><div class="infra-panel-header"><div><span class="infra-eyebrow">Grow on this instance</span><h2 style="margin-top:8px">Add an application</h2><p>A new website on an existing runtime. No additional server is allocated.</p></div></div>
+      <%= form_with url: create_application_dashboard_server_path(@node), scope: :application, skip_default_ids: false, class: "infra-form" do |f| %>
+        <div class="infra-fields">
+          <div class="infra-field"><%= f.label :name, "Application name" %><%= f.text_field :name, required: true, maxlength: 120, placeholder: "My storefront" %><small>A recognizable name for this website.</small></div>
+          <div class="infra-field"><%= f.label :domain, "Hostname" %><%= f.text_field :domain, required: true, placeholder: "shop.example.com", autocapitalize: "none", spellcheck: false, aria: {describedby: "application-domain-help"} %><small id="application-domain-help">Use a hostname without https:// or a path.</small></div>
+          <div class="infra-field"><%= f.label :gatekeeper_project_id, "Existing runtime" %><%= f.select :gatekeeper_project_id, @projects.map { |project| [project.name, project.id] }, {}, required: true %><small>The Rails installation that will serve this website.</small></div>
+          <% if @owners %><div class="infra-field"><%= f.label :owner_id, "Application owner" %><%= f.select :owner_id, @owners.map { |owner| [owner.email_address, owner.id] }, selected: current_user.id %><small>The account that owns and manages the website.</small></div><% end %>
+        </div>
+        <div class="infra-note"><i class="ti ti-info-circle" aria-hidden="true"></i> DNS must point to this instance. Connected DNS zones are configured automatically when available. Websites on this runtime share software releases.</div>
+        <div class="infra-form-footer"><p>Setup runs in the background. Its status will appear in the application list.</p><%= f.submit "Create application →", class: "infra-button infra-button-primary" %></div>
+      <% end %>
+    </section>
+  <% end %>
+  <% if @request&.metadata.to_h["delete_error"].present? %><div class="infra-note" role="alert"><%= @request.metadata["delete_error"] %></div><% end %>
+  <% unless %w[deleting decommissioned].include?(@node.status) %>
+    <details class="infra-panel infra-delete"><summary>Delete this server instance</summary>
+      <p>This permanently deletes the provider instance, its local data and every hosted application. The server record and operation history remain for audit. Account subscriptions are managed separately.</p>
+      <%= form_with url: dashboard_server_path(@node), method: :delete, skip_default_ids: false, class: "infra-form" do |f| %>
+        <div class="infra-field"><%= f.label :confirmation, "Type #{@node.name} to confirm" %><%= f.text_field :confirmation, required: true, autocomplete: "off", spellcheck: false, aria: {describedby: "server-delete-help"} %><small id="server-delete-help">The name must match exactly. This action permanently removes the cloud instance.</small></div>
+        <div class="infra-form-footer"><p>Review the applications above before continuing.</p><%= f.submit "Permanently delete server", class: "infra-button infra-button-danger" %></div>
+      <% end %>
+    </details>
+  <% end %>
+</div>

@@ -128,6 +128,10 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   resources :homes
   
 # ── Public site ──────────────────────────────────────────────────────────────
+get "/", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
+get "/site/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
+get "/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.page_match?(request) }
+get "/__lightek/site-health", to: "gatekeeper/hosted_sites#health"
 root "pages#home"
 
 get  "about",    to: "pages#about"
@@ -155,6 +159,7 @@ resources :susu_match_preferences, only: %i[index new create show destroy]
 
 # ── Gatekeeper Infrastructure Control ────────────────────────────────────────
 namespace :gatekeeper do
+  post "callbacks/fleet_release", to: "fleet_releases#create", as: :fleet_release_callback
   post "callbacks/github_deployment", to: "callbacks#github_deployment", as: :github_deployment_callback
   get "infrastructure", to: "infrastructure#index", as: :infrastructure
   resources :nodes
@@ -166,6 +171,8 @@ namespace :gatekeeper do
     end
   end
 end
+
+get "/__lightek/release", to: "gatekeeper/fleet_health#show", as: :gatekeeper_fleet_health
 
 # ── Susu ───────────────────────────────────────────────────────
 resources :susu_groups do
@@ -292,6 +299,21 @@ resources :dashboard_compute_providers, path: "/dashboard/infrastructure/provide
 end
 
 get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#index", as: :dashboard_infrastructure_catalog
+resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard/server_instances", only: %i[index show destroy] do
+  member do
+    post :create_application
+    post :retry_application
+  end
+end
+resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", controller: "dashboard/fleet_updates", only: %i[index show create] do
+  collection do
+    post :sync
+    post :release
+    patch :installation
+    post :register_installation
+  end
+  member { post :control }
+end
 post "/dashboard/infrastructure/profiles", to: "dashboard/infrastructure_catalog#create_profile", as: :dashboard_infrastructure_profiles
 post "/dashboard/infrastructure/policies", to: "dashboard/infrastructure_catalog#create_policy", as: :dashboard_infrastructure_policies
 
@@ -373,6 +395,7 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
   post "/domains/:id/verify", action: :verify_domain, as: :verify_dashboard_mail_domain
   post "/accounts", action: :create_account, as: :dashboard_mail_accounts
   patch "/accounts/:account_id", action: :configure_account, as: :dashboard_mail_account
+  post "/accounts/:account_id/receiving-check", action: :check_receiving, as: :check_receiving_dashboard_mail
   post "/accounts/:account_id/token", action: :token, as: :dashboard_mail_token
   get "/accounts/:account_id/compose", action: :compose, as: :compose_dashboard_mail
   post "/accounts/:account_id/messages", action: :create_message, as: :dashboard_mail_messages
@@ -390,6 +413,7 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
 end
 post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
 get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
+get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 

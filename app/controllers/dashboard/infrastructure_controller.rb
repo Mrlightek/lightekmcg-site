@@ -1,5 +1,6 @@
 class Dashboard::InfrastructureController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
+  helper InfrastructureDashboardHelper
 
   def index
     @nodes = GatekeeperNode.includes(:gatekeeper_projects).order(:name)

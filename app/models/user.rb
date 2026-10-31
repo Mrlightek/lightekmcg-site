@@ -83,6 +83,7 @@ class User < ApplicationRecord
   # ── DymondDash product entitlements ────────────────────────────────────────
   def can_access_feature?(feature_slug)
     feature_slug = feature_slug.to_s
+    return role == "super_admin" || GatekeeperNode.where(owner: self).exists? if feature_slug == "server_instances"
 
     # Network and DNS mutation is narrower than ordinary admin access.
     return role == "super_admin" if %w[

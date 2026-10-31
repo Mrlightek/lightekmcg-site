@@ -13,6 +13,7 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title><%= @page.title %> · <%= @site.name %></title>
+<% if !@preview && @site.respond_to?(:manifest) && @site.manifest.to_h["hosted_application_key"].present? %><meta name="lightek-application-key" content="<%= @site.manifest["hosted_application_key"] %>"><% end %>
 <%= csrf_meta_tags %>
 <% if @preview %><meta name="robots" content="noindex,nofollow"><% end %>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

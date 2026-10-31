@@ -5,7 +5,7 @@
   <h1>Account branding</h1><p class="intro">Make sign-in, registration and password recovery feel like <strong><%= @site.name %></strong>.</p>
   <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
   <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
-  <p>Website: <strong><%= @site.name %></strong> · <%= @site.host %>. Your business name comes from Website settings. Logo, colors and fonts below are shared with your website design.</p>
+  <p>Website: <strong><%= @site.name %></strong> · <%= @site.host %>. Your business name comes from <%= link_to "Website settings", dashboard_website_settings_path(site_id: @site.id) %>. Logo, colors and fonts below are shared with your website design.</p>
   <%= form_with url: dashboard_authentication_branding_path(site_id: @site.id), method: :patch, multipart: true, local: true, data: {turbo: false} do %>
     <section class="card"><h2>Welcome & identity</h2>
       <% {"eyebrow" => "Intro label", "headline" => "Welcome headline", "description" => "Welcome message"}.each do |key, label| %>

@@ -123,7 +123,7 @@ jobs:
           echo "deployed_sha=$DEPLOYED_SHA" >> "$GITHUB_OUTPUT"
           echo "http_status=$HTTP_STATUS" >> "$GITHUB_OUTPUT"
 
-      - name: Recover existing paid order 1 and run live production acceptance
+      - name: Create manual paid acceptance order and run live production acceptance
         if: github.ref_name == 'fix/paid-instance-provisioning-recovery-20261028'
         env:
           SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
@@ -146,9 +146,9 @@ jobs:
               cd /var/www/lightekmcg-site
               bin/rails runner script/lightek/paid_instance_recovery_context.rb
               set +e
-              LIGHTEK_REBUILD_PAID_ORDER_ID=1 bin/rails runner script/lightek/rebuild_paid_instance.rb
+              LIGHTEK_CREATE_MANUAL_PAID_ORDER=1 bin/rails runner script/lightek/create_manual_paid_instance_order.rb
               recovery_status=$?
-              LIGHTEK_ACCEPTANCE_ORDER_ID=1 bin/rails runner script/lightek/paid_instance_acceptance_audit.rb
+              LIGHTEK_ACCEPTANCE_ORDER_ID="$(cat tmp/manual_paid_instance_order_id 2>/dev/null || echo 1)" bin/rails runner script/lightek/paid_instance_acceptance_audit.rb
               acceptance_status=$?
               [[ "$recovery_status" == 0 && "$acceptance_status" == 0 ]]
             '

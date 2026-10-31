@@ -2,7 +2,7 @@ name: Deploy Production
 
 on:
   push:
-    branches: [main, fix/paid-instance-provisioning-recovery-20261028]
+    branches: [main]
   workflow_dispatch:
     inputs:
       project_id:
@@ -150,7 +150,12 @@ jobs:
               ' lightek-runtime "$@"
             }
             run_application env LIGHTEK_CREATE_MANUAL_PAID_ORDER=1 bin/rails runner script/lightek/prepare_manual_instance_catalog.rb
-            python3 /var/www/lightekmcg-site/script/lightek/persist_manual_instance_config.py
+            settings_result=$(python3 /var/www/lightekmcg-site/script/lightek/persist_manual_instance_config.py)
+            echo "$settings_result"
+            if [[ "$settings_result" == VPS_DEPLOYMENT_SETTINGS_PERSISTED ]]; then
+              systemctl restart lightekmcg-site-sidekiq
+              systemctl is-active --quiet lightekmcg-site-sidekiq
+            fi
             set +e
             run_application env LIGHTEK_CREATE_MANUAL_PAID_ORDER=1 bin/rails runner script/lightek/create_manual_paid_instance_order.rb
             recovery_status=$?

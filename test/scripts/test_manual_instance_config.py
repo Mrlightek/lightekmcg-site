@@ -23,8 +23,8 @@ class ConfigTest(unittest.TestCase):
                           LIGHTEK_AUTO_VPS_PLAN='g6-standard-1', LIGHTEK_AUTO_VPS_IMAGE='linode/ubuntu24.04')
             source.write_text(json.dumps(values))
             with contextlib.redirect_stdout(io.StringIO()):
-                module.persist(source, target)
-                module.persist(source, target)
+                self.assertTrue(module.persist(source, target))
+                self.assertFalse(module.persist(source, target))
             self.assertIn('EXISTING_SETTING=keep\n', target.read_text())
             self.assertEqual(1, target.read_text().count('LIGHTEK_AUTO_VPS_PLAN='))
             self.assertEqual(0o640, target.stat().st_mode & 0o777)

@@ -20,16 +20,21 @@ def persist(source, target):
     lines = [line for line in target.read_text().splitlines()
              if not re.match(r'^\s*(?:export\s+)?(?:' + '|'.join(sorted(allowed)) + r')\s*=', line)]
     lines += [key + '=' + shlex.quote(value) for key, value in sorted(values.items())]
+    rendered = '\n'.join(lines) + '\n'
+    if rendered == target.read_text():
+        print('VPS_DEPLOYMENT_SETTINGS_UNCHANGED')
+        return False
     fd, name = tempfile.mkstemp(dir=target.parent, prefix='.paid-instance-env-')
     try:
         os.fchmod(fd, info.st_mode & 0o777)
         os.fchown(fd, info.st_uid, info.st_gid)
         with os.fdopen(fd, 'w') as stream:
-            stream.write('\n'.join(lines) + '\n')
+            stream.write(rendered)
         os.replace(name, target)
     finally:
         pathlib.Path(name).unlink(missing_ok=True)
     print('VPS_DEPLOYMENT_SETTINGS_PERSISTED')
+    return True
 
 
 if __name__ == "__main__":

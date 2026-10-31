@@ -82,3 +82,63 @@ jobs:
         run: bin/rails db:test:prepare
       - name: Paid provisioning and commercial installation contract
         run: bin/rails test test/jobs/lightek_commerce/paid_instance_provisioning_job_test.rb test/services/lightek_commerce/commercial_installation_acceptance_contract_test.rb test/services/gatekeeper/compute/paid_instance_allocation_reconciliation_test.rb test/services/gatekeeper/compute/deleted_node_reconciliation_test.rb test/services/gatekeeper/website_deployment_test.rb test/services/gatekeeper/website_dns_publication_test.rb test/services/gatekeeper/website_dns_conflict_test.rb test/services/godaddy/dns_service_test.rb test/services/lightek_commerce/stripe_events_test.rb test/services/lightek_commerce/stripe_webhook_routing_test.rb
+
+  production_acceptance_status:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Read current manual-order installation status
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_status
+          chmod 600 ~/.ssh/lightek_status
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_status -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'bash -s' <<'LIGHTEK_STATUS_REMOTE'
+            set -euo pipefail
+            sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc '
+              set -euo pipefail
+              set -a
+              source /etc/lightek/lightekmcg-site.env
+              set +a
+              export RBENV_ROOT=/home/lightek/.rbenv
+              export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+              export RAILS_ENV=production
+              cd /var/www/lightekmcg-site
+              bin/rails runner -
+            ' <<'LIGHTEK_STATUS_RUBY'
+          require "json"
+          order = LightekCommerce::Order.find_by(payment_provider: "manual_acceptance", payment_reference: "manual_acceptance:paid-vps-20261031")
+          request = ProvisioningRequest.find_by(id: order.provisioning_request_id) if order&.provisioning_request_id
+          node = request&.gatekeeper_node
+          operation = GatekeeperOperation.where(capability: "deploy_website", gatekeeper_node: node).order(:id).last if node
+          puts JSON.pretty_generate(order: order&.attributes&.slice("id", "status", "paid_at", "provisioning_state", "provisioned_at"),
+            request: request&.attributes&.slice("id", "execution_status", "gatekeeper_node_id"),
+            node: node&.attributes&.slice("id", "provider_resource_id", "ip_address", "status"),
+            operation: operation&.attributes&.slice("id", "status", "error_class", "started_at", "completed_at"))
+          if node
+            payload = nil
+            begin
+              require "net/ssh"
+              actor = User.find_by!(role: "super_admin")
+              payload = LightekVault::Service.checkout!(slug: node.metadata.fetch("node_credential_secret_slug"),
+                consumer: Gatekeeper::WebsiteDeployment::CONSUMER, purpose: "node_bootstrap", requested_by: actor.email_address)
+              Net::SSH.start(node.ip_address, "root", password: payload.fetch("root_password"),
+                non_interactive: true, verify_host_key: :accept_new, timeout: 15) do |ssh|
+                puts "REMOTE_INSTALLER_PROCESSES"
+                puts ssh.exec!("ps -eo comm,etime,%cpu,rss --sort=-%cpu | head -12; df -Pm / | tail -1")
+              end
+            rescue StandardError => error
+              puts "REMOTE_STATUS_ERROR=#{error.class.name}"
+            ensure
+              payload&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
+            end
+          end
+          LIGHTEK_STATUS_RUBY
+          LIGHTEK_STATUS_REMOTE

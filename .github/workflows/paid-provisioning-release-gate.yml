@@ -187,6 +187,9 @@ jobs:
           LIGHTEK_STATUS_REMOTE
 
   installation_ui_predeploy:
+    concurrency:
+      group: installation-ui-dedicated-test-database
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

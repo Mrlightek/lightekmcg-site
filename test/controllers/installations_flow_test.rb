@@ -8,7 +8,7 @@ class InstallationsFlowTest < ActionDispatch::IntegrationTest
 
   setup do
     ActiveJob::Base.queue_adapter = :test
-    ApplicationJob.queue_adapter = :test
+    ApplicationJob.queue_adapter = ActiveJob::Base.queue_adapter
     @buyer = create_user("client")
     @other = create_user("client")
     @operator = create_user("super_admin")
@@ -80,23 +80,29 @@ class InstallationsFlowTest < ActionDispatch::IntegrationTest
       assert_equal "https://client-#{@order.id}.example.test/passwords/native-token/edit", response.location
       assert_includes response.headers["Cache-Control"], "no-store"
       assert_equal "no-referrer", response.headers["Referrer-Policy"]
+      assert Rails.application.env_config.fetch("action_dispatch.redirect_filter").any? { |filter| filter === response.location }
     end
   end
 
   test "failed paid installation resumes the same order without checkout" do
     @order.update!(provisioned_at: nil, provisioning_state: "failed")
     sign_in(@buyer)
-    assert_enqueued_with(job: LightekCommerce::PaidInstanceProvisioningJob, args: [@order.id]) do
+    # Observe dispatch at the queue boundary: this test's outer DB transaction
+    # intentionally never commits, while Rails defers actual enqueue to commit.
+    dispatched = []
+    LightekCommerce::PaidInstanceProvisioningJob.stub(:perform_later, ->(id) { dispatched << id }) do
       post retry_installation_installation_path(@order)
     end
     assert_redirected_to installation_path(@order)
+    assert_equal [@order.id], dispatched
+    assert_equal "queued", @order.reload.provisioning_state
     assert_equal 1, LightekCommerce::Order.where(customer_email: @buyer.email_address).count
   end
 
   test "unpaid installation cannot start provisioning" do
     @order.update!(status: "pending_payment", paid_at: nil, provisioned_at: nil, provisioning_state: nil)
     sign_in(@buyer)
-    assert_no_enqueued_jobs(only: LightekCommerce::PaidInstanceProvisioningJob) do
+    LightekCommerce::PaidInstanceProvisioningJob.stub(:perform_later, ->(*) { flunk "Unpaid order reached the queue" }) do
       post retry_installation_installation_path(@order)
     end
     assert_redirected_to installations_path

@@ -55,3 +55,17 @@
     <p style="font-size:12px;">Execution attempts, errors, and resolution events are preserved in the ticket timeline below.</p>
   </section>
 <% end %>
+<% workflow = ticket.extra_fields.to_h.fetch('nevaeh_structured', {}) %>
+<% if workflow.present? %>
+<section class="dd-card" aria-label="Structured ticket sections" style="margin-bottom:16px">
+  <div class="dd-card-title">Action sections · Verified outputs</div>
+  <% ticket.extra_fields.dig('nevaeh_work_order', 'inputs', 'sections').to_a.each do |step| %>
+    <% receipt = workflow.fetch('steps', {})[step['id']] %>
+    <details style="padding:12px 0;border-bottom:1px solid var(--dd-border)">
+      <summary><strong><%= step['id'] %></strong> · <%= NevaehIntelligences::StructuredTicket::ACTIONS.dig(step['action'], 'label') %> · <%= receipt ? receipt['status'] : 'pending' %></summary>
+      <p>Dependencies: <%= step['depends_on'].presence&.join(', ') || 'None' %></p>
+      <pre style="white-space:pre-wrap;overflow-wrap:anywhere"><%= JSON.pretty_generate(receipt || step['inputs']) %></pre>
+    </details>
+  <% end %>
+</section>
+<% end %>

@@ -1,0 +1,102 @@
+# frozen_string_literal: true
+
+module NevaehIntelligences
+  module StructuredTicket
+    class Invalid < WorkOrder::Invalid; end
+    CAPABILITY = "ticket.structured.execute"
+    HANDLER = "NevaehIntelligences::StructuredTicketWorker"
+    ACTIONS = {
+      "site.page.create" => {"label" => "Create website page", "fields" => %w[site_id title slug], "outputs" => %w[site_id page_id]},
+      "site.section.add" => {"label" => "Add page section", "fields" => %w[site_id page_id kind data], "outputs" => %w[site_id page_id section_id]},
+      "studio.project.create" => {"label" => "Create Studio project", "fields" => %w[name description], "outputs" => %w[project_id production_id default_scene_id]},
+      "engineering.service.generate" => {"label" => "Implement reviewed metadata normalization service", "fields" => [], "outputs" => %w[path sha256 commit_sha branch]}
+    }.freeze
+    REF = /\A@([a-z][a-z0-9_]{0,39})\.([a-z][a-z0-9_]*)\z/
+    module_function
+
+    def compile(raw)
+      rows = raw.is_a?(Hash) ? raw.values : raw
+      raise Invalid, "Add between 1 and 20 action sections" unless rows.is_a?(Array) && rows.length.between?(1, 20)
+      seen = {}
+      rows.map do |entry|
+        raise Invalid, "Invalid action section" unless entry.is_a?(Hash)
+        row = entry.deep_stringify_keys
+        raise Invalid, "Unknown section fields" if (row.keys - %w[id action inputs depends_on]).any?
+        id = row.fetch("id", "").to_s
+        raise Invalid, "Section IDs must be unique lowercase names" unless id.match?(/\A[a-z][a-z0-9_]{0,39}\z/) && !seen.key?(id)
+        action = row.fetch("action", "")
+        definition = ACTIONS[action] || raise(Invalid, "Unsupported action: #{action}")
+        inputs = row.fetch("inputs", {})
+        raise Invalid, "Section inputs must be an object" unless inputs.is_a?(Hash)
+        inputs = inputs.deep_stringify_keys.reject { |_key, value| value == "" }
+        raise Invalid, "Unknown inputs for #{action}" if (inputs.keys - definition.fetch("fields")).any?
+        required = definition.fetch("fields") - %w[description]
+        raise Invalid, "Missing inputs for #{action}: #{(required - inputs.keys).join(', ')}" if (required - inputs.keys).any?
+        deps = row.fetch("depends_on", [])
+        deps = deps.split(",").map(&:strip).reject(&:empty?) if deps.is_a?(String)
+        raise Invalid, "Dependencies must be earlier section IDs" unless deps.is_a?(Array) && deps.all? { |dep| seen.key?(dep) }
+        inputs.each do |key, value|
+          if key.end_with?("_id")
+            match = value.is_a?(String) && REF.match(value)
+            if match
+              previous = seen[match[1]] || raise(Invalid, "Reference must target an earlier section")
+              raise Invalid, "Unknown referenced output" unless ACTIONS.fetch(previous).fetch("outputs").include?(match[2])
+              deps |= [match[1]]
+            else
+              raise Invalid, "#{key} must be a positive ID or @section.output reference" unless value.to_s.match?(/\A[1-9][0-9]*\z/)
+              inputs[key] = value.to_i
+            end
+          elsif key == "data"
+            value = JSON.parse(value) if value.is_a?(String)
+            raise Invalid, "Section data must be a bounded object" unless value.is_a?(Hash) && value.size <= 40 && JSON.generate(value).bytesize <= 16000
+            inputs[key] = value.deep_stringify_keys
+          else
+            raise Invalid, "#{key} must be text" unless value.is_a?(String) && value.bytesize.between?(1, 4000)
+          end
+        end
+        raise Invalid, "Use a URL slug such as about-us" if action == "site.page.create" && !inputs["slug"].to_s.match?(/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/)
+        seen[id] = action
+        {"id" => id, "action" => action, "inputs" => inputs, "depends_on" => deps.uniq}
+      end
+    rescue JSON::ParserError
+      raise Invalid, "Section data must be valid JSON"
+    end
+
+    def attach!(ticket:, actor:, sections:, automatic: false)
+      raise Invalid, "Ticket execution permission required" unless actor&.persisted? && Ability.new(actor).can?(:execute_nevaeh, ticket)
+      compiled = compile(sections)
+      order = WorkOrder.template(work_type: "build", intent_key: CAPABILITY).merge(
+        "objective" => ticket.title, "inputs" => {"sections" => compiled},
+        "acceptance_criteria" => compiled.map { |step| "#{step['id']}: #{ACTIONS.fetch(step['action']).fetch('label')} output matches the saved inputs and passes its registered verifier" },
+        "execution_policy" => {"environment" => Rails.env.to_s, "approval" => "gatekeeper"})
+      ticket.with_lock do
+        WorkOrder.attach!(ticket: ticket, attributes: order)
+        fields = ticket.extra_fields.to_h.deep_stringify_keys
+        fields["nevaeh_structured"] = {"version" => 1, "automatic" => automatic == true,
+          "authorized_actor_id" => actor.id, "authorized_revision" => automatic ? TicketApproval.fingerprint(order) : nil,
+          "steps" => {}}
+        ticket.update!(extra_fields: fields)
+        ticket.log!(action: "nevaeh_structured_ticket_saved", actor: actor, detail: {"sections" => compiled.map { |s| s.slice('id', 'action') }, "automatic" => automatic}.to_json)
+      end
+      order
+    end
+
+    def registered!
+      record = NevaehCapability.find_or_initialize_by(slug: CAPABILITY)
+      if record.new_record?
+        record.assign_attributes(name: "Structured ticket execution", domain: "support", intent_name: "execute_structured_ticket",
+          handler: HANDLER, queue: ENV.fetch("NEVAEH_STRUCTURED_QUEUE", "default"), priority: 5,
+          subject_type: "Marlon::Ticket", gatekeeper_capability: CAPABILITY,
+          event_types: ["ticket.structured.requested"], enabled: true, expected_outcome: {"verified" => true})
+        record.save!
+      end
+      intelligence = NevaehIntelligence.find_or_initialize_by(intent_key: CAPABILITY)
+      if intelligence.new_record?
+        intelligence.assign_attributes(name: "Complete structured ticket", nevaeh_capability: record, target_model: "Marlon::Ticket",
+          operation: "execute", status: "published", execution_mode: "async", instructions: {"action" => "execute"})
+        intelligence.save!
+      end
+      record
+    end
+  end
+end

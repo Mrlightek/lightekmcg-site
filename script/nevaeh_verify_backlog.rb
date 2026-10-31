@@ -48,6 +48,10 @@ Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
   begin
     # Existing production enforcement must stay in force. Any receipt already
     # requiring execution/recovery is held for its installed recovery workflow.
+    if ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute"
+      counts["handled_by_structured_acceptance"] += 1
+      next
+    end
     execution = ticket.extra_fields.to_h.deep_stringify_keys.fetch("nevaeh", {})
     if execution["execution_status"].present? || execution["work_item_id"].present?
       counts["held_existing_execution"] += 1

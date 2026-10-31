@@ -22,6 +22,11 @@ module NevaehIntelligences
     def process!
       return "disabled" unless self.class.enabled?
       return "resolved" if ticket.reload.status == "resolved"
+      if ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute"
+        state = ticket.extra_fields.to_h.fetch("nevaeh", {})
+        return StructuredExecution.reconcile!(ticket: ticket) if state["reservation_id"].present?
+        return StructuredExecution.dispatch!(ticket: ticket, actor: User.find_by(id: ticket.extra_fields.to_h.dig("nevaeh_structured", "authorized_actor_id")))
+      end
       fields = ticket.extra_fields.to_h.deep_stringify_keys
       prior = fields.fetch("nevaeh_backlog", {})
       if prior.fetch("failure_count", 0) >= MAX_FAILURES && prior["failure_inputs_sha256"] == failure_fingerprint(fields)
@@ -57,6 +62,10 @@ module NevaehIntelligences
     rescue WorkOrder::Invalid, TicketExecution::InvalidTicket, Dispatch::Unavailable => error
       # A racing worker may already own the operation. Never release or retry its
       # reservation merely because another worker observed it.
+      if ticket.reload.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute"
+        record_state!("escalated", ["#{error.class}: #{error.message}"])
+        return "escalated"
+      end
       return reconcile! if ticket.reload.extra_fields.to_h.deep_stringify_keys.dig("nevaeh", "execution_status").present?
       record_state!("escalated", ["#{error.class}: #{error.message}"])
       "escalated"

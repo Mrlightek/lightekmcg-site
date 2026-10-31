@@ -1,0 +1,34 @@
+<% values ||= {} %>
+<% selected = values['action'] || 'site.page.create' %>
+<section data-step style="padding:16px;border:1px solid var(--dd-border);border-radius:10px;margin:12px 0">
+  <div style="display:flex;gap:12px;align-items:center">
+    <label>Section ID <%= text_field_tag "structured_ticket[sections][#{index}][id]", values['id'] || "step_#{index}", class: 'fg-input', required: false %></label>
+    <button type="button" data-action="structured-ticket#remove" class="dd-topbar-btn">Remove section</button>
+  </div>
+  <label>Action
+    <%= select_tag "structured_ticket[sections][#{index}][action]", options_for_select(NevaehIntelligences::StructuredTicket::ACTIONS.map { |key, definition| [definition['label'], key] }, selected), class: 'fg-input', data: { action_select: true, action: 'change->structured-ticket#change' } %>
+  </label>
+  <% NevaehIntelligences::StructuredTicket::ACTIONS.each do |key, definition| %>
+    <div data-action-fields="<%= key %>" <%= 'hidden' unless key == selected %>>
+      <% definition['fields'].each do |field| %>
+        <% value = values.fetch('inputs', {})[field] %>
+        <% value = JSON.pretty_generate(value) if value.is_a?(Hash) %>
+        <label style="display:block;margin:10px 0"><%= field.humanize %>
+          <% if field == 'site_id' %>
+            <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(Array(@structured_sites).map { |site| [site.name, site.id] }, value), prompt: 'Choose a website', class: 'fg-input', disabled: key != selected %>
+          <% elsif field == 'kind' %>
+            <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(LightekDesign::Catalog.section_definitions.map { |definition| [definition['kind'].humanize, definition['kind']] }.uniq, value), prompt: 'Choose a section type', class: 'fg-input', disabled: key != selected %>
+          <% elsif field == 'data' %>
+            <%= text_area_tag "structured_ticket[sections][#{index}][inputs][#{field}]", value || '{"heading":"Welcome","intro":"About our work"}', class: 'fg-input', rows: 4, disabled: key != selected %>
+          <% else %>
+            <%= text_field_tag "structured_ticket[sections][#{index}][inputs][#{field}]", value, class: 'fg-input', disabled: key != selected, placeholder: field == 'page_id' ? '@page.page_id or an existing page ID' : nil %>
+          <% end %>
+        </label>
+      <% end %>
+      <p style="font-size:12px">Verified outputs: <code><%= definition['outputs'].join(', ') %></code></p>
+    </div>
+  <% end %>
+  <label>Depends on section IDs (comma separated)
+    <%= text_field_tag "structured_ticket[sections][#{index}][depends_on]", Array(values['depends_on']).join(', '), class: 'fg-input' %>
+  </label>
+</section>

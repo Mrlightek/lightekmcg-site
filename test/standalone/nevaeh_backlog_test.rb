@@ -33,10 +33,39 @@ ActiveRecord::Schema.define do
     t.text :detail
     t.timestamps
   end
+  create_table :dymond_sites do |t|
+    t.string :name
+    t.string :tenant_type
+    t.integer :tenant_id
+  end
+  create_table :dymond_pages do |t|
+    t.integer :site_id
+    t.string :title
+    t.string :slug
+    t.boolean :published, default: false
+    t.integer :position
+  end
+  create_table :dymond_sections do |t|
+    t.integer :page_id
+    t.string :kind
+    t.integer :position
+    t.json :data
+  end
+  create_table :nevaeh_intelligences do |t|
+    %i[name intent_key operation status execution_mode target_model].each { |c| t.string c }
+    t.integer :nevaeh_capability_id
+    t.json :instructions
+  end
   create_table :nevaeh_capabilities do |t|
     %i[name slug domain intent_name handler queue gatekeeper_capability].each { |c| t.string c }
     t.integer :priority
     t.boolean :enabled
+    t.string :subject_type
+    t.json :event_types
+    t.json :expected_outcome, default: {}
+    t.json :failure_policy, default: {}
+    t.json :realtime, default: {}
+    t.json :knowledge_article_ids, default: []
     t.timestamps
   end
   create_table :gatekeeper_operations do |t|
@@ -47,6 +76,8 @@ ActiveRecord::Schema.define do
   create_table :dymond_dispatch_work_items do |t|
     t.string :kind
     t.string :handler
+    t.string :queue
+    t.integer :attempts, default: 0
     t.string :status
     t.string :correlation_id
     t.string :subject_type
@@ -81,6 +112,7 @@ module Rails
   def self.env=(value)
     @env = ActiveSupport::StringInquirer.new(value)
   end
+  def self.root = Pathname.new(ROOT)
   def self.logger = (@logger ||= Logger.new(File::NULL))
 end
 module DymondKb
@@ -88,6 +120,20 @@ module DymondKb
     self.table_name = "dymond_kb_articles"
     scope :ordered, -> { order(:id) }
     def self.search(query) = where("title LIKE ?", "%#{sanitize_sql_like(query)}%")
+  end
+end
+module DymondSite
+  class Site < ApplicationRecord
+    self.table_name = "dymond_sites"
+    belongs_to :tenant, polymorphic: true, optional: true
+    has_many :pages, class_name: "DymondSite::Page", foreign_key: :site_id
+  end
+  class Page < ApplicationRecord
+    self.table_name = "dymond_pages"
+    has_many :sections, class_name: "DymondSite::Section", foreign_key: :page_id
+  end
+  class Section < ApplicationRecord
+    self.table_name = "dymond_sections"
   end
 end
 module DymondDispatch
@@ -119,6 +165,13 @@ end
    jobs/nevaeh_intelligences/process_backlog_job services/gatekeeper/lesson_service].each do |file|
   require File.join(ROOT, "app", "#{file}.rb")
 end
+%w[models/nevaeh_intelligence services/gatekeeper services/gatekeeper/authorization_decision
+   services/gatekeeper/authorization_service services/lightek_settings/website_identity
+   services/lightek_design/commerce_sections services/lightek_design/catalog
+   services/nevaeh_intelligences/reviewed_implementation_template_v7a
+   services/nevaeh_intelligences/structured_ticket services/nevaeh_intelligences/structured_actions
+   services/nevaeh_intelligences/structured_repository services/nevaeh_intelligences/structured_execution
+   services/nevaeh_intelligences/structured_ticket_worker].each { |file| require File.join(ROOT, "app", "#{file}.rb") }
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
 Minitest.after_run do
@@ -131,7 +184,7 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     Rails.env = "test"
     ENV["NEVAEH_BACKLOG_ENABLED"] = "1"
     ENV.delete("NEVAEH_BACKLOG_ACTOR_ID")
-    [Marlon::TicketEvent, Marlon::Ticket, NevaehCapability, DymondKb::Article, DymondDispatch::WorkItem, GatekeeperOperation, StudioScene, Production, StudioProject, User].each(&:delete_all)
+    [Marlon::TicketEvent, Marlon::Ticket, NevaehIntelligence, DymondSite::Section, DymondSite::Page, DymondSite::Site, NevaehCapability, DymondKb::Article, DymondDispatch::WorkItem, GatekeeperOperation, StudioScene, Production, StudioProject, User].each(&:delete_all)
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
   end
 
@@ -508,6 +561,76 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     end
     assert_equal "open", row.reload.status
     assert_equal "retained", row.extra_fields.dig("nevaeh", "reservation_id")
+  end
+
+  def structured_case(automatic: true)
+    actor = User.create!(role: "super_admin")
+    site = DymondSite::Site.create!(name: "Controlled structured site", tenant: actor)
+    row = ticket(submitted_by: actor)
+    sections = [
+      {"id" => "page", "action" => "site.page.create", "inputs" => {"site_id" => site.id, "title" => "Structured output", "slug" => "structured-output"}},
+      {"id" => "content", "action" => "site.section.add", "inputs" => {"site_id" => site.id, "page_id" => "@page.page_id", "kind" => "lightek_product_grid", "data" => {"heading" => "Verified", "intro" => "Real section output"}}}
+    ]
+    NevaehIntelligences::StructuredTicket.attach!(ticket: row, actor: actor, sections: sections, automatic: automatic)
+    NevaehIntelligences::StructuredTicket.registered!
+    order = NevaehIntelligences::WorkOrder.read!(ticket: row)
+    fields = row.extra_fields
+    fields["nevaeh"] = {"actor_id" => actor.id, "reservation_id" => "controlled-reservation", "work_order_sha256" => NevaehIntelligences::TicketApproval.fingerprint(order), "intent_key" => "ticket.structured.execute", "execution_status" => "dispatch_reserved"}
+    row.update!(extra_fields: fields)
+    [row, actor, site]
+  end
+
+  def test_structured_sections_create_real_page_and_section_then_kb_and_ticket_closure
+    row, actor, site = structured_case
+    assert_equal({"verified" => true, "ticket_id" => row.id}, NevaehIntelligences::StructuredExecution.execute!(ticket: row, reservation: "controlled-reservation"))
+    page = site.pages.first
+    assert_equal "Structured output", page.title
+    assert_equal false, page.published?
+    assert_equal "Verified", page.sections.first.data.fetch("heading")
+    assert_equal "resolved", row.reload.status
+    assert_equal "verified", row.extra_fields.dig("nevaeh", "execution_status")
+    assert_equal 1, DymondKb::Article.count
+    NevaehIntelligences::StructuredExecution.execute!(ticket: row, reservation: "controlled-reservation")
+    assert_equal 1, site.pages.count
+    assert_equal 1, page.sections.count
+    assert_equal 1, row.events.where(action: "nevaeh_structured_verified_and_resolved").count
+  end
+
+  def test_structured_sections_require_real_approval_and_revision_integrity
+    row, actor, site = structured_case(automatic: false)
+    assert_raises(Gatekeeper::AuthorizationDenied) { NevaehIntelligences::StructuredExecution.execute!(ticket: row, reservation: "controlled-reservation") }
+    assert_equal 0, site.pages.count
+    row, actor, site = structured_case
+    fields = row.extra_fields
+    fields["nevaeh_work_order"]["inputs"]["sections"][0]["inputs"]["title"] = "Tampered"
+    row.update!(extra_fields: fields)
+    assert_raises(Gatekeeper::AuthorizationDenied) { NevaehIntelligences::StructuredExecution.execute!(ticket: row, reservation: "controlled-reservation") }
+    assert_equal 0, site.pages.count
+  end
+
+  def test_structured_schema_rejects_unknown_actions_future_references_and_code_instructions
+    compiler = NevaehIntelligences::StructuredTicket
+    assert_raises(compiler::Invalid) { compiler.compile([{id: "shell", action: "shell.execute", inputs: {command: "anything"}}]) }
+    assert_raises(compiler::Invalid) { compiler.compile([{id: "content", action: "site.section.add", inputs: {site_id: 1, page_id: "@future.page_id", kind: "x", data: {}}}]) }
+    assert_raises(compiler::Invalid) { compiler.compile([{id: "code", action: "engineering.service.generate", inputs: {source: "arbitrary Ruby"}}]) }
+  end
+
+  def test_structured_step_progress_survives_later_failure_without_duplicate_creation
+    row, actor, site = structured_case
+    # A missing catalog kind is a real execution failure after the page step.
+    fields = row.extra_fields
+    fields["nevaeh_work_order"]["inputs"]["sections"][1]["inputs"]["kind"] = "unknown-section"
+    fp = NevaehIntelligences::TicketApproval.fingerprint(fields["nevaeh_work_order"])
+    fields["nevaeh_structured"]["authorized_revision"] = fp
+    fields["nevaeh"]["work_order_sha256"] = fp
+    row.update!(extra_fields: fields)
+    2.times do
+      assert_raises(NevaehIntelligences::StructuredTicket::Invalid) { NevaehIntelligences::StructuredExecution.execute!(ticket: row, reservation: "controlled-reservation") }
+    end
+    assert_equal 1, site.pages.count
+    assert_equal "verified", row.reload.extra_fields.dig("nevaeh_structured", "steps", "page", "status")
+    assert_equal "open", row.status
+    assert_equal 0, DymondKb::Article.count
   end
 
 end

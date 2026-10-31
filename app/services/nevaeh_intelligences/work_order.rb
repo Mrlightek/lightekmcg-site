@@ -47,6 +47,9 @@ module NevaehIntelligences
 
     def self.dispatch!(ticket:, actor:)
       order = read!(ticket: ticket)
+      if order["intent_key"] == "ticket.structured.execute"
+        return StructuredExecution.dispatch!(ticket: ticket, actor: actor, explicit: true)
+      end
       raise Invalid, "Authenticated actor required" unless actor&.persisted?
       environment = order.dig("execution_policy", "environment")
       raise Invalid, "Work order environment must match Rails environment" unless environment == Rails.env
@@ -71,6 +74,11 @@ module NevaehIntelligences
       raise Invalid, "execution_policy must be an object" unless policy.is_a?(Hash)
       raise Invalid, "Invalid execution environment" unless %w[development test staging production].include?(policy["environment"])
       raise Invalid, "Invalid approval rule" unless %w[gatekeeper approved].include?(policy["approval"])
+      if order["intent_key"] == "ticket.structured.execute"
+        raise Invalid, "Structured work order accepts only action sections" unless order["inputs"].keys == ["sections"]
+        compiled = StructuredTicket.compile(order["inputs"]["sections"])
+        raise Invalid, "Structured sections must use the compiled contract" unless compiled == order["inputs"]["sections"]
+      end
       if order["intent_key"] == PROOF_INTENT && order["work_type"] == "create"
         raise Invalid, "Studio project name is required" if order.dig("inputs", "name").to_s.strip.empty?
       end

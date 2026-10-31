@@ -15,9 +15,11 @@ module Godaddy
       ENV.fetch("GODADDY_DOMAINS", "").split(",").map(&:strip).reject(&:blank?)
     end
 
-    def initialize(zone:)
+    def initialize(zone:, domains: nil, token: nil)
       @zone = zone.to_s.downcase
-      raise ConfigurationError, "Domain is not in GODADDY_DOMAINS" unless self.class.zones.include?(@zone)
+      @configured_domains = domains.nil? ? self.class.zones : domains.to_s.split(",").map { |value| value.strip.downcase }.reject(&:blank?)
+      @explicit_token = token.presence
+      raise ConfigurationError, "Domain is not in managed DNS zones" unless @configured_domains.include?(@zone)
     end
 
     def records
@@ -58,6 +60,8 @@ module Godaddy
     # Never fall back on an expired, disabled, or access-denied Vault secret.
     def token
       return @token if defined?(@token)
+
+      return @token = @explicit_token if @explicit_token.present?
 
       slug = ENV.fetch("GODADDY_VAULT_SLUG", "godaddy-dns")
       if LightekVault::Secret.exists?(slug: slug)

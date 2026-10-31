@@ -70,10 +70,49 @@ class GatekeeperWebsiteDeploymentTest < ActiveSupport::TestCase
     end
   end
 
-  test "DNS credentials cannot override deployment or database environment" do
-    assert_equal({"GODADDY_PAT" => "test-token"}, Gatekeeper::WebsiteDeployment.dns_environment({"dns_env" => {"GODADDY_PAT" => "test-token"}}))
-    assert_raises(Gatekeeper::WebsiteDeployment::Invalid) do
-      Gatekeeper::WebsiteDeployment.dns_environment({"dns_env" => {"DATABASE_URL" => "postgres://other"}})
+  test "DNS access failure prevents an otherwise executable allocation" do
+    admin = actor
+    request = ProvisioningRequest.create!(owner: admin, approval_status: "approved", execution_status: "ready", requested_node_count: 1)
+    Gatekeeper::WebsiteDeployment.register!(actor: admin, record: request, config: configuration(owner: admin))
+    with_stub(request, :executable?, -> { true }) do
+      with_stub(LightekVault::Service, :checkout!, ->(**) { {"owner_password" => String.new("test-password-123")} }) do
+        with_stub(Gatekeeper::WebsiteDnsPublication, :preflight!, ->(hostname:) {
+          assert_equal "demo.example.test", hostname
+          raise Godaddy::DnsService::ConfigurationError, "DNS access denied"
+        }) do
+          with_stub(Gatekeeper::Compute::ProvisioningExecutionService, :call, ->(**) { flunk "DNS failure allocated a server" }) do
+            assert_raises(Godaddy::DnsService::ConfigurationError) do
+              Gatekeeper::WebsiteDeployment.provision_and_run!(actor: admin, request:, domain: "demo.example.test")
+            end
+          end
+        end
+      end
+    end
+    assert_nil request.reload.gatekeeper_node_id
+  end
+
+  test "owner-only credential reaches allocation after authoritative DNS preflight" do
+    admin = actor
+    request = ProvisioningRequest.create!(owner: admin, approval_status: "approved", execution_status: "ready", requested_node_count: 1)
+    Gatekeeper::WebsiteDeployment.register!(actor: admin, record: request, config: configuration(owner: admin))
+    preflight_passed = false
+    stopped = Class.new(StandardError)
+    with_stub(request, :executable?, -> { true }) do
+      with_stub(LightekVault::Service, :checkout!, ->(**) { {"owner_password" => String.new("test-password-123")} }) do
+        with_stub(Gatekeeper::WebsiteDnsPublication, :preflight!, ->(hostname:) {
+          assert_equal "demo.example.test", hostname
+          preflight_passed = true
+        }) do
+          with_stub(Gatekeeper::Compute::ProvisioningExecutionService, :call, ->(**) {
+            assert preflight_passed
+            raise stopped
+          }) do
+            assert_raises(stopped) do
+              Gatekeeper::WebsiteDeployment.provision_and_run!(actor: admin, request:, domain: "demo.example.test")
+            end
+          end
+        end
+      end
     end
   end
 

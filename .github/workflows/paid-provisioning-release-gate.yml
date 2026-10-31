@@ -22,6 +22,8 @@ jobs:
         run: python3 -m py_compile lib/scripts/lightek_mail_server.py lib/scripts/lightek_mailbox.py
       - name: Standalone Stripe webhook routing regressions (no private gems)
         run: ruby test/scripts/stripe_webhook_routing_standalone.rb
+      - name: DNS preflight and recovery regressions (no private gems)
+        run: ruby test/scripts/paid_dns_recovery_standalone.rb
       - name: Ruby syntax for shared Stripe dispatch and acceptance tests
         run: |
           ruby -c config/initializers/lightek_commerce_stripe_routing.rb
@@ -79,4 +81,4 @@ jobs:
       - name: Prepare test database
         run: bin/rails db:test:prepare
       - name: Paid provisioning and commercial installation contract
-        run: bin/rails test test/jobs/lightek_commerce/paid_instance_provisioning_job_test.rb test/services/lightek_commerce/commercial_installation_acceptance_contract_test.rb test/services/gatekeeper/compute/paid_instance_allocation_reconciliation_test.rb test/services/lightek_commerce/stripe_events_test.rb test/services/lightek_commerce/stripe_webhook_routing_test.rb
+        run: bin/rails test test/jobs/lightek_commerce/paid_instance_provisioning_job_test.rb test/services/lightek_commerce/commercial_installation_acceptance_contract_test.rb test/services/gatekeeper/compute/paid_instance_allocation_reconciliation_test.rb test/services/gatekeeper/compute/deleted_node_reconciliation_test.rb test/services/gatekeeper/website_deployment_test.rb test/services/gatekeeper/website_dns_publication_test.rb test/services/gatekeeper/website_dns_conflict_test.rb test/services/godaddy/dns_service_test.rb test/services/lightek_commerce/stripe_events_test.rb test/services/lightek_commerce/stripe_webhook_routing_test.rb

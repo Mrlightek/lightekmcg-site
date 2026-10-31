@@ -12,7 +12,7 @@ module Godaddy
     TYPES = %w[A AAAA CAA CNAME MX NS SRV TXT].freeze
 
     def self.zones
-      ENV.fetch("GODADDY_DOMAINS", "").split(",").map(&:strip).reject(&:blank?)
+      ENV.fetch("GODADDY_DOMAINS", "").split(",").map { |value| value.strip.downcase }.reject(&:blank?).uniq
     end
 
     def initialize(zone:, domains: nil, token: nil)

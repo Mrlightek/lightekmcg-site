@@ -76,14 +76,6 @@ module Gatekeeper
       new(actor:, node:, domain:).run!
     end
 
-    def self.dns_environment(payload)
-      values = payload.fetch("dns_env", {})
-      raise Invalid, "Invalid DNS credential environment" unless values.is_a?(Hash) &&
-        (values.keys - %w[GODADDY_PAT GODADDY_DOMAINS]).empty? &&
-        values.values.all? { |v| v.is_a?(String) && !v.include?("\0") }
-      values
-    end
-
     # Allocation is permitted only through the existing approved request service.
     # A returned node remains bound to the request if deployment later fails.
     def self.provision_and_run!(actor:, request:, domain:)
@@ -98,17 +90,9 @@ module Gatekeeper
           credential = LightekVault::Service.checkout!(slug: config.fetch("credential_slug"),
             consumer: CONSUMER, purpose: "website_deploy", requested_by: actor.email_address)
           raise Invalid, "Owner credential must have at least 8 characters" unless credential["owner_password"].is_a?(String) && credential["owner_password"].size >= 8
-          dns_values = dns_environment(credential)
-          # Validate DNS access before spending money on a new compute node.
-          host = domain.to_s.downcase.strip
-          base = ENV.fetch("LIGHTEK_AUTO_CLIENT_BASE_DOMAIN", "lightekmcg.com").strip.downcase
-          configured = dns_values["GODADDY_DOMAINS"].presence || ENV["GODADDY_DOMAINS"].to_s
-          zones = configured.split(",").map { |value| value.strip.downcase }.reject(&:blank?)
-          zones << base if host.end_with?(".#{base}")
-          zone = zones.uniq.sort_by { |candidate| -candidate.length }.find { |candidate| host.end_with?(".#{candidate}") }
-          raise Invalid, "No managed DNS zone for #{host}; refusing to allocate a server" unless zone
-          Godaddy::DnsService.new(zone: zone, domains: zones.join(","),
-            token: dns_values["GODADDY_PAT"]).verify_access!
+          # Execute in the control-plane runtime that owns the Network
+          # Controllers Vault configuration, before any billable allocation.
+          Gatekeeper::WebsiteDnsPublication.preflight!(hostname: domain)
         ensure
           credential&.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? }
         end
@@ -140,17 +124,7 @@ module Gatekeeper
         $stdout.flush
         sleep [10, remaining].min
       end
-      # DNS credentials can be scoped to the deployment Vault secret rather than
-      # the local Mac process environment. Never mutate process-global ENV.
-      dns_secret = nil
-      begin
-        dns_secret = LightekVault::Service.checkout!(slug: config.fetch("credential_slug"),
-          consumer: CONSUMER, purpose: "website_deploy", requested_by: actor.email_address)
-        Gatekeeper::WebsiteDnsPublication.call!(hostname: domain,
-          ipv4: node.reload.ip_address, dns_env: dns_environment(dns_secret))
-      ensure
-        dns_secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
-      end
+      Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)
       run!(actor:, node:, domain:)
     end
 
@@ -180,7 +154,6 @@ module Gatekeeper
         gatekeeper_operation_id: operation.id)
       password = secrets.fetch("owner_password")
       raise Invalid, "Owner credential must have at least 8 characters" unless password.is_a?(String) && password.size >= 8
-      dns_env = self.class.dns_environment(secrets)
       root_secret = nil
       unless secrets["ssh_password"].present? || secrets["ssh_private_key"].present? || @node.ssh_key_path.present?
         slug = @node.metadata.to_h.fetch("node_credential_secret_slug") { raise Invalid, "No SSH credential is configured" }
@@ -225,7 +198,7 @@ module Gatekeeper
             input.merge!("owner_password" => password, "ssh" => "root@#{@node.ip_address}",
               "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key)
             @deployment_stage = "remote_installer"
-            receipt = run_packager(input, dns_env:)
+            receipt = run_packager(input)
           ensure
             if installed
               cleanup = "from pathlib import Path; p=Path.home()/'.ssh/authorized_keys'; lines=p.read_text().splitlines(); p.write_text(''.join(s+'\\n' for s in lines if s.strip()!=#{public_key.inspect}))"
@@ -264,10 +237,10 @@ module Gatekeeper
       [secrets, root_secret].compact.each { |payload| payload.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? } }
     end
 
-    def run_packager(config, dns_env: {})
+    def run_packager(config)
       receipt_path = nil
       passed = false
-      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}.merge(dns_env), "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, thread|
+      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, thread|
         stdin.write(JSON.generate(config)); stdin.close
         output.each_line do |line|
           # Config/passwords are sent on stdin, never interpolated into commands.

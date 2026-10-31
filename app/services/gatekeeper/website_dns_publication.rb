@@ -12,7 +12,26 @@ module Gatekeeper
     class Conflict < StandardError; end
     class NotPropagated < StandardError; end
 
-    def self.call!(hostname:, ipv4:, dns_env: {})
+    # Both pre-allocation checks and publication resolve the Network Controllers
+    # service here. Website-owner credentials never configure DNS management.
+    def self.service_for!(hostname:)
+      host = hostname.to_s.downcase.strip
+      zones = Godaddy::DnsService.zones.map(&:downcase).uniq.sort_by { |zone| -zone.length }
+      zone = zones.find { |candidate| host.end_with?(".#{candidate}") }
+      raise NotConfigured, "No managed authoritative DNS zone for #{host}" unless zone
+
+      name = host.delete_suffix(".#{zone}")
+      raise ArgumentError, "Invalid DNS record name" unless name.match?(/\A[a-z0-9-]+(?:\.[a-z0-9-]+)*\z/)
+
+      [Godaddy::DnsService.new(zone: zone), name]
+    end
+
+    def self.preflight!(hostname:)
+      dns, = service_for!(hostname:)
+      dns.verify_access!
+    end
+
+    def self.call!(hostname:, ipv4:)
       host = hostname.to_s.downcase.strip
       address = IPAddr.new(ipv4.to_s)
       raise ArgumentError, "Expected public IPv4" unless address.ipv4? && !address.private? && !address.loopback? && !address.link_local?
@@ -21,14 +40,7 @@ module Gatekeeper
       # The domain is owned by the platform; it is not a customer-purchased domain.
       # Use the same managed zones as Dashboard > Network > Controllers.
       # The provisioning secret is for the website owner, not DNS administration.
-      zones = Godaddy::DnsService.zones.map(&:downcase).uniq.sort_by { |zone| -zone.length }
-      zone = zones.find { |candidate| host.end_with?(".#{candidate}") }
-      raise NotConfigured, "No managed authoritative DNS zone for #{host}" unless zone
-
-      name = host.delete_suffix(".#{zone}")
-      raise ArgumentError, "Invalid DNS record name" unless name.match?(/\A[a-z0-9-]+(?:\.[a-z0-9-]+)*\z/)
-
-      dns = Godaddy::DnsService.new(zone: zone)
+      dns, name = service_for!(hostname: host)
       existing = dns.records.select do |record|
         record["name"].to_s.downcase == name && record["type"].to_s.upcase == "A"
       end

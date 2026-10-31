@@ -17,6 +17,31 @@ class GatekeeperWebsiteDnsPublicationTest < ActiveSupport::TestCase
     end
   end
 
+  test "preflight uses the same Network Controllers service without credential overrides" do
+    verified = false
+    fake = Object.new
+    fake.define_singleton_method(:verify_access!) { verified = true }
+    stub_method(Godaddy::DnsService, :zones, -> { ["example.test", "clients.example.test"] }) do
+      stub_method(Godaddy::DnsService, :new, ->(**options) {
+        assert_equal({zone: "clients.example.test"}, options)
+        fake
+      }) do
+        Gatekeeper::WebsiteDnsPublication.preflight!(hostname: "demo.clients.example.test")
+      end
+    end
+    assert verified
+  end
+
+  test "preflight never invents a platform zone when Network Controllers has none" do
+    stub_method(Godaddy::DnsService, :zones, -> { [] }) do
+      stub_method(Godaddy::DnsService, :new, ->(**) { flunk "unmanaged DNS service created" }) do
+        assert_raises(Gatekeeper::WebsiteDnsPublication::NotConfigured) do
+          Gatekeeper::WebsiteDnsPublication.preflight!(hostname: "client-1.lightekmcg.com")
+        end
+      end
+    end
+  end
+
   test "refuses to publish to an unmanaged DNS zone" do
     stub_method(Godaddy::DnsService, :zones, -> { [] }) do
       assert_raises(Gatekeeper::WebsiteDnsPublication::NotConfigured) do

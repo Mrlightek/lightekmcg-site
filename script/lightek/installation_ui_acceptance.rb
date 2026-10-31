@@ -86,6 +86,14 @@ begin
   fields = Nokogiri::HTML(setup.body)
   raise "Native password setup is unavailable" unless setup.code == "200" && fields.at_css('input[name="password"]') && fields.at_css('input[name="password_confirmation"]')
   raise "Password setup is missing its customer design" unless fields.at_css('body[data-auth-layout="lightek"]') && fields.at_css('label[for="password_confirmation"]') && setup.body.include?("Save password &amp; continue")
+  brand = fields.at_css('.auth-wordmark')&.text&.strip
+  raise "Installation branding is unavailable" unless brand.present? && fields.at_css('body[data-auth-site]')&.[]("data-auth-site").present?
+  ["/session/new", "/passwords/new", "/sign_up"].each do |path|
+    branded_page = target.call(path)
+    branded_fields = Nokogiri::HTML(branded_page.body)
+    raise "Account screen branding mismatch" unless branded_page.code == "200" && branded_fields.at_css('.auth-wordmark')&.text&.strip == brand
+  end
+  result[:authentication_branding] = true
   result[:native_password_setup_form] = true
   home = target.call("/")
   result[:public_site] = home.code == "200"
@@ -96,6 +104,10 @@ begin
   if operator
     dashboard = operator_client.call("/dashboard/installations")
     result[:dashboard_controls] = dashboard.code == "200" && dashboard.body.include?("Account setup &amp; access")
+    source_site = DymondSite::Site.find_by!(host: URI(origin).host)
+    branding_dashboard = operator_client.call("/dashboard/website/account-branding?site_id=#{source_site.id}")
+    raise "Account branding dashboard unavailable" unless branding_dashboard.code == "200" && branding_dashboard.body.include?("Save account branding")
+    result[:branding_dashboard] = true
   end
   stage = "client_access_isolation"
   fixture = User.create!(email_address: "installation-ui-#{SecureRandom.hex(10)}@example.invalid",

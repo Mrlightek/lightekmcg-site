@@ -1,19 +1,9 @@
-<% content_for :title, "Reset your password · Lightek" %>
+<% content_for :title, "Reset your password · #{authentication_branding.name}" %>
 <main class="auth-shell">
-  <section class="auth-story" aria-label="Lightek">
-    <a class="auth-brand" href="/" aria-label="Lightek home">
-      <img src="/lightek/lightek-auth-mark.svg" alt="" width="46" height="46">
-      <span class="auth-wordmark">Light<span>ek</span></span>
-    </a>
-    <div class="auth-story-copy">
-      <p class="auth-kicker">Your space is waiting.</p>
-      <h2>Pick up<br><em>where you left off.</em></h2>
-      <p>Your stories, your community, your work. Let's get you back to it.</p>
-    </div>
-  </section>
+  <%= render "authentication/story" %>
   <section class="auth-panel" aria-labelledby="password-title">
     <div class="auth-card">
-      <p class="auth-card-kicker">Lightek account recovery</p>
+      <p class="auth-card-kicker"><%= authentication_branding.name %> account recovery</p>
       <h1 id="password-title">Find your<br><span>way back.</span></h1>
       <p class="auth-intro">Enter your account email and we'll send you a link to choose a new password.</p>
       <% if flash[:alert].present? %><div class="auth-flash" role="alert"><%= flash[:alert] %></div><% end %>
@@ -26,7 +16,7 @@
       <% end %>
       <div class="auth-divider">Remember your password?</div>
       <%= link_to "Back to sign in", new_session_path, class: "auth-secondary" %>
-      <p class="auth-footnote">Setting up a new application? You can also open password setup from your installation page on Lightek.</p>
+      <p class="auth-footnote">Setting up a new application? You can also open password setup from your installation page on your service provider’s website.</p>
     </div>
   </section>
 </main>

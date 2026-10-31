@@ -1,16 +1,6 @@
-<% content_for :title, "Set your password · Lightek" %>
+<% content_for :title, "Set your password · #{authentication_branding.name}" %>
 <main class="auth-shell">
-  <section class="auth-story" aria-label="Lightek">
-    <a class="auth-brand" href="/" aria-label="Lightek home">
-      <img src="/lightek/lightek-auth-mark.svg" alt="" width="46" height="46">
-      <span class="auth-wordmark">Light<span>ek</span></span>
-    </a>
-    <div class="auth-story-copy">
-      <p class="auth-kicker">Your space. Your next chapter.</p>
-      <h2>A fresh start.<br><em>All yours.</em></h2>
-      <p>Your application is ready. Choose a password and make yourself at home.</p>
-    </div>
-  </section>
+  <%= render "authentication/story" %>
   <section class="auth-panel" aria-labelledby="password-title">
     <div class="auth-card">
       <p class="auth-card-kicker">Secure account access</p>

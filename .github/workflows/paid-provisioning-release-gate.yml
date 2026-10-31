@@ -143,6 +143,16 @@ jobs:
               puts "WORKER_ENV_CHECK=#{error.class.name}"
             end
           end
+          if order
+            require "sidekiq/api"
+            jobs = [Sidekiq::Queue.new("mailers"), Sidekiq::RetrySet.new, Sidekiq::DeadSet.new].flat_map(&:to_a)
+            mail_jobs = jobs.select do |job|
+              arguments = job.item.dig("args", 0, "arguments")
+              arguments.is_a?(Array) && arguments.first == "LightekCommerce::InstanceReadyMailer" && arguments.last.to_h["args"] == [order.id]
+            end
+            puts JSON.generate(ready_notification_pending_jobs: mail_jobs.size,
+              ready_notification_error_classes: mail_jobs.filter_map { |job| job.item["error_class"] }.uniq)
+          end
           if node
             payload = nil
             begin
@@ -162,4 +172,16 @@ jobs:
             end
           end
           LIGHTEK_STATUS_RUBY
+          python3 - <<'LIGHTEK_NOTIFICATION_PYTHON'
+          import json,re,subprocess
+          result=subprocess.run(['journalctl','-u','lightekmcg-site-sidekiq','--since','2026-10-31 00:00:00 UTC','--no-pager','-o','cat'],text=True,capture_output=True)
+          lines=result.stdout.splitlines()
+          job_ids=set()
+          for line in lines:
+              if 'InstanceReadyMailer' in line:
+                  job_ids.update(re.findall(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',line))
+          matched=[line for line in lines if any(job in line for job in job_ids)]
+          accepted=any('sent gmail_message_id=' in line or 'Delivered mail' in line for line in matched)
+          print(json.dumps(dict(ready_notification_observed_in_worker=bool(job_ids),ready_notification_delivery_accepted=accepted)))
+          LIGHTEK_NOTIFICATION_PYTHON
           LIGHTEK_STATUS_REMOTE

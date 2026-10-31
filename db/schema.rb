@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_31_151000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_31_213017) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -88,6 +88,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_31_151000) do
   end
 
   create_table "communities", force: :cascade do |t|
+    t.string "moderation_state", default: "active", null: false
+    t.index ["site_id", "moderation_state"], name: "index_communities_on_site_id_and_moderation_state"
     t.string "audience", default: "everyone", null: false
     t.string "request_key"
     t.index ["owner_profile_id", "request_key"], name: "idx_community_request_unique", unique: true
@@ -1446,6 +1448,49 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_31_151000) do
     t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
   end
 
+  create_table "lightek_pwa_applications", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name"
+    t.string "short_name"
+    t.text "description"
+    t.string "theme_color", default: "#c9a34b", null: false
+    t.string "background_color", default: "#07070a", null: false
+    t.string "status", default: "published", null: false
+    t.string "start_surface", default: "home", null: false
+    t.string "support_email"
+    t.text "welcome_message"
+    t.jsonb "settings", default: {}, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_lightek_pwa_applications_on_site_id", unique: true
+  end
+
+  create_table "lightek_pwa_memberships", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "profile_id", null: false
+    t.string "role", default: "member", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_lightek_pwa_memberships_on_site_id"
+    t.index ["profile_id"], name: "index_lightek_pwa_memberships_on_profile_id"
+    t.index ["site_id", "profile_id"], name: "idx_pwa_site_profile", unique: true
+  end
+
+  create_table "lightek_pwa_admin_events", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "action", null: false
+    t.string "record_type"
+    t.bigint "record_id"
+    t.jsonb "details", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_lightek_pwa_admin_events_on_site_id"
+    t.index ["actor_id"], name: "index_lightek_pwa_admin_events_on_actor_id"
+  end
+
   create_table "lightek_pwa_navigation_items", force: :cascade do |t|
     t.string "key", null: false
     t.string "label", null: false
@@ -1987,6 +2032,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_31_151000) do
   end
 
   create_table "posts", force: :cascade do |t|
+    t.string "moderation_state", default: "published", null: false
+    t.index ["site_id", "moderation_state"], name: "index_posts_on_site_id_and_moderation_state"
     t.string "audience", default: "everyone", null: false
     t.string "distribution", default: "lightek_social", null: false
     t.index ["site_id", "distribution"], name: "index_posts_on_site_id_and_distribution"
@@ -2518,6 +2565,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_31_151000) do
   add_foreign_key "studio_assets", "users", column: "owner_id"
   add_foreign_key "studio_assets", "dymond_site_sites", column: "site_id"
   add_foreign_key "studio_assets", "studio_projects"
+  add_foreign_key "lightek_pwa_applications", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_pwa_memberships", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_pwa_memberships", "profiles"
+  add_foreign_key "lightek_pwa_admin_events", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_pwa_admin_events", "users", column: "actor_id"
   add_foreign_key "communities", "profiles", column: "owner_profile_id"
   add_foreign_key "communities", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_community_memberships", "communities"

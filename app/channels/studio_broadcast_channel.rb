@@ -44,11 +44,16 @@ class StudioBroadcastChannel < ApplicationCable::Channel
   end
   def heartbeat(_data = {})
     return unless @operation && Time.current - @last_heartbeat >= 5
+    if @operation.reload.status == "ending"
+      @encoder&.stop!
+      return
+    end
     ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user.reload, operation: @operation)
+    LightekPwa::Policy.new(user: current_user, site: @operation.studio_project.site).authorize!("watch") if @operation.metadata["destination"] == "lightek"
     Studio::Live::Sessions.authorize_content!(@operation,current_user)
     Studio::Live::Sessions.scope.where(id: @operation.id, status: %w[draft connecting live]).update_all(updated_at: Time.current)
     @last_heartbeat = Time.current
-  rescue ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, ActiveRecord::RecordNotFound => error
+  rescue ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, LightekPwa::Policy::Denied, ActiveRecord::RecordNotFound => error
     fail_session(error)
   end
   def unsubscribed

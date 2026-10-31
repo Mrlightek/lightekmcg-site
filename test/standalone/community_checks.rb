@@ -32,9 +32,9 @@ ActiveRecord::Schema.define do
   create_table(:dymond_bank_accounts) { |t| t.string :accountable_type; t.integer :accountable_id; t.string :display_name; t.string :status; t.string :currency; t.integer :balance_cents; t.integer :available_cents }
   create_table(:dymond_bank_invoices) { |t| t.string :billable_type; t.integer :billable_id; t.string :number; t.string :status; t.string :currency; t.integer :total_cents; t.integer :amount_paid_cents; t.integer :amount_remaining_cents; t.date :due_date }
   create_table(:dymond_bank_transactions) { |t| t.integer :account_id; t.integer :invoice_id; t.string :payable_type; t.integer :payable_id; t.string :transaction_type; t.string :status; t.string :currency; t.integer :amount_cents; t.integer :fee_cents; t.timestamps }
-  create_table(:users) { |t| t.string :role }
+  create_table(:users) { |t| t.string :role; t.string :email_address }
   create_table(:profiles) { |t| t.references :user; t.string :display_name; t.string :handle; t.text :bio; t.string :avatar_url; t.string :profile_type, default: "person" }
-  create_table(:dymond_site_sites) { |t| t.string :name; t.string :host }
+  create_table(:dymond_site_sites) { |t| t.string :name; t.string :host; t.string :tenant_type; t.integer :tenant_id }
   create_table(:communities) { |t| t.timestamps }
   create_table(:posts) { |t| t.references :user; t.text :content; t.timestamps }
   create_table(:studio_projects) { |t| t.string :name; t.text :description; t.timestamps }
@@ -73,6 +73,7 @@ end
 module DymondSite
   class Site < ApplicationRecord
     self.table_name = "dymond_site_sites"
+    belongs_to :tenant, polymorphic: true, optional: true
   end
 end
 module DymondBank
@@ -110,9 +111,16 @@ require File.join(ROOT, "db/migrate/20261031140002_integrate_profile_top_people_
 IntegrateProfileTopPeopleAndAudiences.new.migrate(:up)
 require File.join(ROOT,"db/migrate/20261031150000_create_studio_asset_library")
 CreateStudioAssetLibrary.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261031213017_add_lightek_pwa_administration")
+AddLightekPwaAdministration.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261001124100_create_lightek_pwa_storefront")
+CreateLightekPwaStorefront.new.migrate(:up)
 class CreationJob < ApplicationRecord; end
 class ApplicationJob < ActiveJob::Base; end
-%w[app/models/studio_project app/models/production app/models/studio_scene app/models/scene_object
+%w[app/models/lightek_pwa/application app/models/lightek_pwa/membership app/models/lightek_pwa/admin_event
+   app/models/lightek_pwa/surface app/models/lightek_pwa/surface_module app/models/lightek_pwa/navigation_item
+   app/services/lightek_pwa/policy app/services/lightek_pwa/configuration app/services/lightek_pwa/administration
+   app/models/studio_project app/models/production app/models/studio_scene app/models/scene_object
    app/models/studio_operation app/models/artifact app/models/studio_publication app/models/studio_live_operation
    app/services/studio/publishers/base app/services/studio/publishers/lightek_social
    app/services/studio/director/pwa_intent app/jobs/studio_publication_dispatch_job

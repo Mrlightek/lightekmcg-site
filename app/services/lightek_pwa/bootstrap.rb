@@ -6,12 +6,12 @@ module LightekPwa
     end
 
     def call
+      if @site && user&.profile
+        Membership.find_or_create_by!(site_id: @site.id, profile_id: user.profile.id)
+      end
       {
         schema_version: "1.0",
-        application: {
-          id: "lightek",
-          name: "Lightek"
-        },
+        application: @site ? configuration.app.bootstrap_payload.merge(access_suspended: configuration_policy.membership&.status == "suspended", administration: {role: configuration_policy.role, super_admin: configuration_policy.super_admin?, can_manage: configuration_policy.manage?}) : {id: "lightek", name: "Lightek"},
         identity: identity_payload,
         navigation: navigation_payload,
         surfaces: surface_payload,
@@ -79,7 +79,11 @@ module LightekPwa
         }
       end
 
+    def configuration_policy = @configuration_policy ||= Policy.new(user: user, site: @site)
+    def configuration = @configuration ||= Configuration.new(@site)
+
     def navigation_payload
+      return configuration.navigation if @site
       LightekPwa::NavigationItem
         .enabled
         .ordered
@@ -87,6 +91,7 @@ module LightekPwa
     end
 
     def surface_payload
+      return configuration.surfaces if @site
       LightekPwa::Surface
         .enabled
         .ordered
@@ -124,6 +129,9 @@ module LightekPwa
       ]
       links << { label: "Storefront", href: "/commerce/shop?site_id=#{@site.id}" } if @site
       if user
+        if @site && LightekPwa::Policy.new(user: user, site: @site).manage?
+          links << {label: "PWA Administration", href: "/dashboard/pwa?site_id=#{@site.id}"}
+        end
         links += [
           { label: "Saved", href: "#/saved" },
           { label: "Money & Susu", href: "#/money" }

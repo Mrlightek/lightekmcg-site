@@ -29,7 +29,7 @@ module Blender
       prepare_output_directory
       write_manifest
 
-      stdout = Studio::MediaProcess.run!(command, timeout: timeout_seconds)
+      stdout = Studio::MediaProcess.run!(command, timeout: timeout_seconds, cancel_if: -> { execution_record.respond_to?(:status) && execution_record.reload.status == "cancelled" })
       write_log(stdout, "")
 
       result_payload = read_result_payload!

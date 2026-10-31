@@ -4,7 +4,7 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
   before_action { ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user) }
   protect_from_forgery with: :exception
   before_action :private_response
-  rescue_from ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, with: :denied
+  rescue_from ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, LightekPwa::Policy::Denied, with: :denied
   rescue_from Studio::Live::Destination::Unavailable, Studio::Live::Encoder::Failure, Studio::Live::Sessions::Busy, ArgumentError, with: :invalid
   def index
     @encoder_ready = Studio::Live::Encoder.available?

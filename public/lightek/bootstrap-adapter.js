@@ -50,8 +50,8 @@
       .map(
         item => `
           <a
-            href="${item.href}"
-            data-r="${item.surface_id}"
+            href="${escapeHtml(item.href)}"
+            data-r="${escapeHtml(item.surface_id)}"
           >${escapeHtml(item.label)}</a>
         `
       )

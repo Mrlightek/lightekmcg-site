@@ -56,6 +56,7 @@ module Studio
       attr_reader :studio_operation_id, :correlation_id
 
       def prepare_operation_for_execution!(operation)
+        raise "Studio operation was cancelled" if operation.status == "cancelled"
         metadata =
           operation.metadata.to_h.deep_dup
 
@@ -81,7 +82,7 @@ module Studio
           error_message: nil
         }
 
-        if operation.status.in?(%w[failed cancelled])
+        if operation.status == "failed"
           attributes[:status] = "pending"
           attributes[:completed_at] = nil
         end

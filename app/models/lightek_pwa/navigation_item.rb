@@ -20,6 +20,7 @@ module LightekPwa
       {
         id: id,
         key: key,
+        enabled: enabled,
         label: label,
         surface_id: surface_key,
         href: href,

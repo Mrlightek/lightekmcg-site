@@ -167,4 +167,12 @@ class StudioMediaIntegrationTest < LightekCommunityIntegrationTest
     assert_match(/Media processing failed/,asset.error_message)
   end
 
+  def test_administrator_cancellation_stops_an_actual_media_process
+    started=Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    assert_raises(Studio::MediaProcess::Cancelled) do
+      Studio::MediaProcess.run!([RbConfig.ruby,"-e","sleep 10"],timeout:20,cancel_if:-> { Process.clock_gettime(Process::CLOCK_MONOTONIC)-started > 0.2 })
+    end
+    assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC)-started,:<,3
+  end
+
 end

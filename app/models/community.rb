@@ -24,6 +24,8 @@ class Community < ApplicationRecord
 
   validates :audience, inclusion: { in: %w[everyone women men] }
 
+  validates :moderation_state, inclusion: {in: %w[active suspended]}
+
   private
 
   def valid_cover

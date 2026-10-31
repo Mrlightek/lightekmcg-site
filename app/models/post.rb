@@ -19,6 +19,8 @@ class Post < ApplicationRecord
 
   validates :audience, inclusion: { in: %w[everyone women men] }
 
+  validates :moderation_state, inclusion: {in: %w[published hidden]}
+
   private
 
   def has_content

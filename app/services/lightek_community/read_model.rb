@@ -40,6 +40,14 @@ module LightekCommunity
         end
         records = search(records, %w[title content], params["query"])
         result = feed(records, params)
+        if %w[feed watch clips].include?(view.to_s)
+          setting = LightekPwa::Application.find_by(site_id: @access.site_id)&.settings || {}
+          surface_key = view.to_s == "feed" ? "home" : view.to_s
+          pinned = setting.fetch("surfaces", {}).fetch(surface_key, {}).fetch("modules", {}).values.flat_map { |mod| Array(mod["post_ids"]) }.uniq.first(100)
+          result[:featured_posts] = @access.posts.where(id: pinned, parent_id: nil).order(id: :desc).map { |post| @presenter.post(post) }
+          result[:communities] = @access.communities.order(:name).limit(8).map { |community| @presenter.community(community) }
+          result[:people] = Profile.where(id: LightekPwa::Membership.where(site_id: @access.site_id, status: "active").select(:profile_id)).where.not(id: @access.blocked_profile_ids).limit(12).map { |person| @presenter.profile(person) }
+        end
         if view.to_s == "explore"
           people = Profile.where.not(id: @access.blocked_profile_ids)
           result[:people] = search(people, %w[display_name handle bio], params["query"]).limit(30).map { |p| @presenter.profile(p) }

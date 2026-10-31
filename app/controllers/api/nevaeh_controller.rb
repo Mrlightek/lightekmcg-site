@@ -3,11 +3,15 @@ module Api
     allow_unauthenticated_access only: :bootstrap
     protect_from_forgery with: :exception
     before_action { response.set_header("Cache-Control", "private, no-store") }
+    rescue_from LightekPwa::Policy::Denied do |error|
+      render json: {status: "failed", error: error.message}, status: :forbidden
+    end
+
     def bootstrap
       payload =
         LightekPwa::Bootstrap.new(
           user: resolved_current_user,
-          site: DymondSite::Site.find_by(host: request.host.downcase)
+          site: LightekPwa::SiteContext.resolve(request.host)
         ).call
 
       payload =
@@ -57,9 +61,10 @@ module Api
         )
 
       payload["user_id"] = actor.id
-      if capability.start_with?("community.", "studio.")
+      if capability.start_with?("community.", "studio.", "social.", "messaging.", "messages.", "susu.", "money.")
         payload["site_id"] = LightekPwa::SiteContext.resolve(request.host).id
         payload["origin"] = request.base_url
+        LightekPwa::Policy.new(user: actor, site: LightekPwa::SiteContext.resolve(request.host)).authorize_capability!(capability)
       end
 
       if capability ==
@@ -199,7 +204,9 @@ module Api
       owner_id = arguments["user_id"]
       raise ActiveRecord::RecordNotFound unless current_user && owner_id.to_s == current_user.id.to_s
       if arguments["site_id"].present?
-        raise ActiveRecord::RecordNotFound unless LightekPwa::SiteContext.resolve(request.host).id.to_s == arguments["site_id"].to_s
+        receipt_site = LightekPwa::SiteContext.resolve(request.host)
+        raise ActiveRecord::RecordNotFound unless receipt_site.id.to_s == arguments["site_id"].to_s
+        LightekPwa::Policy.new(user: current_user, site: receipt_site).authorize!
       end
       render json: {
         status: work_item.done? ? "completed" : work_item.status,

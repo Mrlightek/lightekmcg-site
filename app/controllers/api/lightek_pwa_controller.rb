@@ -1,13 +1,21 @@
 # frozen_string_literal: true
 module Api
   class LightekPwaController < ApplicationController
-    allow_unauthenticated_access only: %i[show media cover live_playlist live_segment ott_catalog]
+    allow_unauthenticated_access only: %i[show media cover live_playlist live_segment ott_catalog manifest]
     before_action :resolve_context
     rescue_from ActiveRecord::RecordNotFound do
       render json: { error: "Content not found" }, status: :not_found
     end
     protect_from_forgery with: :exception
     before_action { response.set_header("Cache-Control", "private, no-store") }
+
+    rescue_from LightekPwa::Policy::Denied do |error|
+      render json: {error: error.message}, status: :forbidden
+    end
+
+    def manifest
+      render json: LightekPwa::Configuration.new(@site).manifest, content_type: "application/manifest+json"
+    end
 
     def show
       render json: LightekCommunity::ReadModel.new(user: current_user, site_id: @site.id)
@@ -145,6 +153,14 @@ module Api
     def resolve_context
       authenticated?
       @site = LightekPwa::SiteContext.resolve(request.host)
+      surface = case action_name
+      when "manifest" then nil
+      when "asset_file" then "studio"
+      when "upload" then params[:purpose] == "studio_asset" ? "studio" : "create"
+      when "ott_catalog", "live_playlist", "live_segment" then "watch"
+      when "show" then {"feed" => "home", "saved" => "home", "profile" => "space", "community" => "communities", "post" => "home", "media" => "watch"}.fetch(params.fetch(:view, "feed"), params[:view])
+      end
+      LightekPwa::Policy.new(user: current_user, site: @site).authorize!(surface) unless action_name == "manifest"
     rescue ActiveRecord::RecordNotFound
       render json: { error: "Lightek site not found" }, status: :not_found
     end

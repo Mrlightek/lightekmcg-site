@@ -51,7 +51,7 @@ module LightekMessaging
     end
 
     def call
-      LightekCommunity::ConversationAccess.authorize!(conversation, sender_profile)
+      LightekCommunity::ConversationAccess.authorize!(conversation, sender_profile, write: true)
       authorize_sender!
       authorize_direct_relationship!
 

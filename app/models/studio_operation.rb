@@ -25,7 +25,11 @@ class StudioOperation < ApplicationRecord
   end
 
   def payment_succeeded!(transaction)
+    enqueue = false
     with_lock do
+      payment = metadata.to_h.fetch("payment", {})
+      return self if payment["transaction_id"].to_s == transaction.id.to_s && payment["status"] == "succeeded" && %w[pending running completed cancelled].include?(status)
+      cancelled = status == "cancelled"
       current_metadata = metadata.to_h.deep_dup
 
       payment_metadata =
@@ -34,15 +38,17 @@ class StudioOperation < ApplicationRecord
           "status" => "succeeded",
           "paid_at" => Time.current.iso8601
         )
+      payment_metadata["requires_review"] = true if cancelled
 
       update!(
-        status: "pending",
+        status: cancelled ? "cancelled" : "pending",
         metadata: current_metadata.merge("payment" => payment_metadata),
-        error_message: nil
+        error_message: cancelled ? "Payment received for a cancelled operation; review it in billing." : nil
       )
+      enqueue = !cancelled
     end
 
-    ExecuteStudioOperationJob.perform_later(id)
+    ExecuteStudioOperationJob.perform_later(id) if enqueue
 
     self
   end
@@ -59,7 +65,7 @@ class StudioOperation < ApplicationRecord
         )
 
       update!(
-        status: "awaiting_payment",
+        status: status == "cancelled" ? "cancelled" : "awaiting_payment",
         metadata: current_metadata.merge("payment" => payment_metadata),
         error_message: message.to_s.presence
       )

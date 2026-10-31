@@ -3,7 +3,7 @@ class CommunitiesController < ApplicationController
   protect_from_forgery with: :exception
   before_action { response.set_header("Cache-Control", "private, no-store") }
   before_action :set_community, only: %i[show edit update destroy]
-  rescue_from LightekCommunity::AccessDenied do |error|
+  rescue_from LightekCommunity::AccessDenied, LightekPwa::Policy::Denied do |error|
     render json: { error: error.message }, status: :forbidden
   end
   rescue_from ArgumentError, ActiveRecord::RecordInvalid do |error|
@@ -57,7 +57,9 @@ class CommunitiesController < ApplicationController
   private
 
   def access
-    @access ||= LightekCommunity::Access.new(user: current_user, site_id: LightekPwa::SiteContext.resolve(request.host).id)
+    site = LightekPwa::SiteContext.resolve(request.host)
+    LightekPwa::Policy.new(user: current_user, site: site).authorize!("communities")
+    @access ||= LightekCommunity::Access.new(user: current_user, site_id: site.id)
   end
   def presenter = LightekCommunity::Presenter.new(access)
   def set_community = @community = access.communities.find(params.expect(:id))

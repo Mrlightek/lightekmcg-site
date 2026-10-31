@@ -73,8 +73,29 @@
   function posts(data) {
     return `<div class="pwa-feed">${data?.posts?.map(p => postCard(p)).join('') || empty('Nothing published here yet.')}</div>${data?.next_before ? button('Load more', 'pwaMore', `data-before="${Number(data.next_before)}"`) : ''}`;
   }
+  function configuredFeed(data, fallback) {
+    const surface = window.LightekStorefront?.surface(route()[0]);
+    if (!surface?.configuration?.layout_configured || !data) return fallback;
+    return surface.modules.map(mod => {
+      let body = '';
+      if (['creator_grid','world_grid'].includes(mod.type)) body = `<div class="pwa-members">${(data.people||[]).map(profileLink).join('')||empty('No people to show yet.')}</div>`;
+      else if (mod.type === 'community_grid') body = `<div class="g3">${(data.communities||[]).map(communityCard).join('')||empty('No communities to show yet.')}</div>`;
+      else {
+        let items = data.posts||[];
+        const ids = mod.configuration?.post_ids || [];
+        if(ids.length){const pool=[...items,...(data.featured_posts||[])];items=ids.map(id=>pool.find(post=>post.id===Number(id))).filter(Boolean);}
+        if (mod.type === 'live_grid') items = items.filter(p=>p.kind==='live');
+        else if (['clip_strip','clip_player'].includes(mod.type)) items = items.filter(p=>['clip','story'].includes(p.kind));
+        else if (mod.type === 'schedule') items = items.filter(p=>p.kind==='event');
+        else if (mod.type === 'continue_watching') items = [];
+        else if (mod.type === 'hero') items = items.slice(0,1);
+        body = posts({posts:items});
+      }
+      return `<section class="sec" data-pwa-module="${esc(mod.key)}"><h2>${esc(mod.label)}</h2>${body}</section>`;
+    }).join('') || empty('No sections are currently enabled.');
+  }
   function page(title, subtitle, body, actions = '') {
-    return `<div class="wrap pwa-page" data-pwa-view="${esc(route()[0])}"><header class="ah"><div><span class="eb">Lightek</span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><div class="pwa-post-actions">${actions}${button('Refresh', 'pwaRefresh')}</div></header>${body}</div>`;
+    return `<div class="wrap pwa-page" data-pwa-view="${esc(route()[0])}"><header class="ah"><div><span class="eb">${esc(window.LightekStorefront?.state.bootstrap?.application?.name || "Lightek")}</span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><div class="pwa-post-actions">${actions}${button('Refresh', 'pwaRefresh')}</div></header>${body}</div>`;
   }
   function topPeoplePanel(data, own) {
     const people = own && topDraft ? topDraft.people : data.top_people || [];
@@ -97,7 +118,7 @@
     ['clips', 'clips', 'Clips', 'Short stories and moments from your people.'],
     ['saved', 'saved', 'Saved', 'Posts and media you saved for later.']
   ]) {
-    R[r] = () => page(title, subtitle, (r === 'home' ? serviceLinks() : '') + (status(view) || posts(state(view)?.data)), `<a class="btn p sm" href="#/create">Create</a>`);
+    R[r] = () => page(title, subtitle, (r === 'home' ? serviceLinks() : '') + (status(view) || configuredFeed(state(view)?.data, posts(state(view)?.data))), `<a class="btn p sm" href="#/create">Create</a>`);
     AF[r] = () => load(view);
   }
   const currency = (cents, code) => new Intl.NumberFormat(undefined, {style:'currency',currency:String(code || 'usd').toUpperCase()}).format(Number(cents || 0) / 100);
@@ -111,7 +132,7 @@
   // Susu already has a complete Rails creation flow. Keep the same backend
   // workflow reachable while the PWA manages quotes and contributions.
   A.susuCreate = () => location.assign('/susu_groups/new');
-  R.communities = () => page('Communities', 'Networks within the network.', status('communities') || `<h2>Your communities</h2><div class="g3">${state('communities').data.communities.filter(c => c.joined).map(communityCard).join('') || empty('Join a community to find it here.')}</div><h2>Discover</h2><div class="g3">${state('communities').data.communities.filter(c => !c.joined).map(communityCard).join('') || empty('No other communities yet.')}</div>`, `<a class="btn p sm" href="#/create/community">Create community</a>`);
+  R.communities = () => page('Communities', 'Networks within the network.', status('communities') || `<section data-pwa-module="your-communities"><h2>Your communities</h2><div class="g3">${state('communities').data.communities.filter(c => c.joined).map(communityCard).join('') || empty('Join a community to find it here.')}</div></section><section data-pwa-module="discover-communities"><h2>Discover</h2><div class="g3">${state('communities').data.communities.filter(c => !c.joined).map(communityCard).join('') || empty('No other communities yet.')}</div></section>`, `<a class="btn p sm" href="#/create/community">Create community</a>`);
   AF.communities = () => load('communities');
   R.community = slug => {
     const pending = status('community', slug);
@@ -136,7 +157,7 @@
   AF.community = slug => load('community', slug);
   R.post = id => page('Conversation', 'Talk around the media.', status('post', id) || postCard(state('post', id).data.post, true) + posts(state('post', id).data));
   AF.post = id => load('post', id);
-  R.explore = () => page('Explore', 'Find people, communities and stories.', `<form data-pwa-form="search"><label class="fld"><span>Search Lightek</span><input name="query" value="${esc(query)}" placeholder="People, communities, programs…" maxlength="200"></label><button class="btn">Search</button></form>` + (status('explore') || `<h2>People</h2><div class="pwa-members">${state('explore').data.people.map(profileLink).join('') || empty('No matching people.')}</div><h2>Communities</h2><div class="g3">${state('explore').data.communities.map(communityCard).join('')}</div><h2>Stories & media</h2>${posts(state('explore').data)}`));
+  R.explore = () => page('Explore', 'Find people, communities and stories.', `<form data-pwa-form="search"><label class="fld"><span>Search Lightek</span><input name="query" value="${esc(query)}" placeholder="People, communities, programs…" maxlength="200"></label><button class="btn">Search</button></form>` + (status('explore') || `<section data-pwa-module="people"><h2>People</h2><div class="pwa-members">${state('explore').data.people.map(profileLink).join('') || empty('No matching people.')}</div></section><section data-pwa-module="communities"><h2>Communities</h2><div class="g3">${state('explore').data.communities.map(communityCard).join('')}</div></section><section data-pwa-module="programs"><h2>Stories & media</h2>${posts(state('explore').data)}</section>`));
   AF.explore = () => load('explore');
 
   // Preserve the existing identity/relationship controls; replace every sample
@@ -217,7 +238,7 @@
   A.pwaTopRemove = b => {topDraft.people.splice(Number(b.dataset.index),1);render(1);};
   A.pwaTopPick = b => {const person=JSON.parse(b.dataset.person);if(topDraft.people.some(p=>p.id===person.id))return;if(topDraft.people.length>=topDraft.limit){toast('Remove a person or switch to Top 8 first.');return;}topDraft.people.push(person);render(1);};
   A.pwaTopSave = () => run(()=>write('community.top.people.save',{limit:topDraft.limit,profile_ids:topDraft.people.map(p=>p.id)},async()=>{topDraft=null;await refresh();}));
-  A.pwaRefresh = () => run(refresh);
+  A.pwaRefresh = () => run(async()=>{await window.LightekStorefront?.boot();await refresh();});
   A.pwaMembership = b => run(() => write(`community.${b.dataset.joined === 'true' ? 'leave' : 'join'}`, { slug: b.dataset.slug }, refresh));
   A.pwaEngage = b => run(() => write('community.engage', { post_id: Number(b.dataset.id), kind: b.dataset.kind, active: b.dataset.active === 'true' }, refresh));
   A.pwaDelete = b => run(async () => {

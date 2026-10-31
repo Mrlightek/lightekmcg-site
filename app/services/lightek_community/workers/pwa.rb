@@ -15,6 +15,7 @@ module LightekCommunity
       end
 
       def perform
+        LightekPwa::Policy.new(user: @user, site: DymondSite::Site.find(@access.site_id)).authorize_capability!("community." + @action.delete_prefix("community_").tr("_", ".")) if @access.site_id
         raise ArgumentError, "Unsupported community action" unless ACTIONS.include?(@action)
         public_send(@action)
       end

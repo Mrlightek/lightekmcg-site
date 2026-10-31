@@ -34,6 +34,7 @@ DymondSite::Site.transaction do
     menu.nav_items.create!(page: page, label: "Home", position: 0)
     site.update!(manifest: site.manifest.to_h.merge("hosted_application_key" => c.fetch("application_key")))
   end
+  LightekPwa::Application.find_or_create_by!(site: site) { |pwa| pwa.name = site.name }
   puts "LIGHTEK_SITE=" + JSON.generate({site_id: site.id, application_key: c.fetch("application_key"), domain: site.host})
 end
 '''

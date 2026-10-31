@@ -28,7 +28,7 @@ module Studio
             mapped=command.map{|argument|argument.start_with?(root) ? argument.sub(root,"/work") : argument}
             command=Studio::MediaProcess.container(mapped,root:root,image:ENV.fetch("STUDIO_MEDIA_WORKER_IMAGE"))
           end
-          Studio::MediaProcess.run!(command,timeout:900)
+          Studio::MediaProcess.run!(command,timeout:900,cancel_if: -> { @operation.reload.status == "cancelled" })
           raise "Media export did not produce an artifact" unless File.size?(output)
           artifact=@operation.artifacts.create!(kind:timeline["output"]=="audio" ? "audio" : "video",filename:"master.#{extension}")
           artifact.file.attach(io:File.open(output),filename:artifact.filename,content_type:extension=="wav" ? "audio/wav" : "video/mp4")

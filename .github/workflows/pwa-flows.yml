@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - 'feature/lightek-pwa-completion-*'
+      - 'feature/pwa-dashboard-administration-*'
   pull_request:
     paths:
       - 'public/lightek/**'
@@ -13,6 +14,12 @@ on:
       - 'app/controllers/posts_controller.rb'
       - 'app/controllers/communities_controller.rb'
       - 'app/controllers/dashboard/live_broadcasts_controller.rb'
+      - 'app/controllers/dashboard/pwa_controller.rb'
+      - 'app/models/lightek_pwa/**'
+      - 'app/models/concerns/lightek_pwa_site.rb'
+      - 'app/views/dashboard/pwa/**'
+      - 'config/initializers/lightek_pwa_site.rb'
+      - 'test/integration/pwa_administration_test.rb'
       - 'app/services/gatekeeper/studio_live_policy.rb'
       - 'blender/**'
       - 'docker/studio-media/**'
@@ -59,6 +66,7 @@ jobs:
         run: |
           bundle exec ruby test/standalone/pwa_http_checks.rb
           bundle exec ruby test/standalone/migration_version_checks.rb
+          PWA_ADMIN_CAPTURE_DIR=/tmp/lightek-pwa-dashboard bundle exec ruby test/standalone/pwa_administration_checks.rb
       - name: Actual media ingestion, editing, live and Blender checks
         env:
           BUNDLE_GEMFILE: test/standalone/Gemfile
@@ -76,7 +84,9 @@ jobs:
       - name: Browser user journeys
         env:
           NODE_PATH: /tmp/lightek-pwa-browser/node_modules
-        run: node test/javascript/community-browser.cjs
+        run: |
+          node test/javascript/community-browser.cjs
+          node test/javascript/pwa-admin-browser.cjs
 
   native-host:
     name: Native Rails with PostgreSQL and Redis
@@ -130,4 +140,4 @@ jobs:
       - name: Prepare database and check application loading
         run: bin/rails db:test:prepare zeitwerk:check
       - name: Native Studio, live, social and messaging checks
-        run: bin/rails test test/services/studio test/services/lightek_social test/services/lightek_messaging test/integration/live_broadcasts_test.rb test/channels/studio_broadcast_channel_test.rb
+        run: bin/rails test test/services/studio test/services/lightek_social test/services/lightek_messaging test/integration/live_broadcasts_test.rb test/integration/pwa_administration_test.rb test/channels/studio_broadcast_channel_test.rb

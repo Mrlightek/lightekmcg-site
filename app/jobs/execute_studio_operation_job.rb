@@ -9,13 +9,19 @@ class ExecuteStudioOperationJob < ApplicationJob
       operation.update!(status: "running", started_at: Time.current, error_message: nil)
     end
     Studio::Operations::Dispatcher.new(operation).call
-    operation.update!(status: "completed", completed_at: Time.current)
+    operation.with_lock do
+      operation.update!(status: "completed", completed_at: Time.current) unless operation.status == "cancelled"
+    end
+  rescue Studio::MediaProcess::Cancelled => error
+    operation&.update(status: "cancelled", completed_at: Time.current, error_message: error.message)
   rescue StandardError => error
-    operation&.update(
-      status: "failed",
-      completed_at: Time.current,
-      error_message: error.message.to_s.first(2_000)
-    )
-    raise
+    cancelled = false
+    if operation
+      operation.with_lock do
+        cancelled = operation.status == "cancelled"
+        operation.update!(status: "failed", completed_at: Time.current, error_message: error.message.to_s.first(2_000)) unless cancelled
+      end
+    end
+    raise unless cancelled
   end
 end

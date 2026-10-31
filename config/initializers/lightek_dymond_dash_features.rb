@@ -8,6 +8,16 @@ Rails.application.config.after_initialize do
   next unless defined?(DymondDash::FeatureRegistry)
 
   DymondDash::FeatureRegistry.register do |f|
+    f.slug = :pwa_administration
+    f.label = "PWA Administration"
+    f.icon = "device-mobile"
+    f.gem_source = "lightekmcg-site"
+    f.nav_section = :services
+    f.min_plan = :starter
+    f.nav_items = [{label: "PWA Administration", icon: "device-mobile", path: "main_app.dashboard_pwa_path"}]
+  end
+
+  DymondDash::FeatureRegistry.register do |f|
     f.slug = :live
     f.label = "Live Studio"
     f.icon = "broadcast"

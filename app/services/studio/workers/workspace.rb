@@ -10,6 +10,7 @@ module Studio
         @access = Studio::PwaAccess.new(@payload)
       end
       def perform
+        LightekPwa::Policy.new(user: @access.user, site: DymondSite::Site.find(@access.site_id)).authorize!("studio") if @access.site_id
         raise ArgumentError, "Unsupported Studio workspace action" unless ACTIONS.include?(@action)
         public_send(@action)
       end

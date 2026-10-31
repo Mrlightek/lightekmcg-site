@@ -41,6 +41,7 @@ module Gatekeeper
             host: hostname,
             tenant: @subscription.subscriber
           )
+          LightekPwa::Application.find_or_create_by!(site: site) { |pwa| pwa.name = site.name }
           site.create_nav_menu! unless site.nav_menu
           site
         end

@@ -38,6 +38,8 @@ class Ability
       can :read,   :portal
     end
 
+    can :read, :dashboard if user.persisted? && LightekPwa::Policy.sites_for(user).exists?
+
     # Any authenticated user can create or view active Susus
     can :read, SusuGroup, status: "active"
     can :create, SusuGroup

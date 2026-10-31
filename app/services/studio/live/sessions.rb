@@ -22,6 +22,7 @@ module Studio
       end
       def self.create!(user:, destination:, title:, site: nil, community_slug: nil, audience: "everyone")
         ::Gatekeeper::StudioLivePolicy.authorize!(user: user)
+        LightekPwa::Policy.new(user: user, site: site).authorize!("watch") if destination == "lightek" && site
         raise ArgumentError, "Choose a supported destination." unless %w[test tiktok restream lightek].include?(destination)
         if !%w[test lightek].include?(destination) && !Destination.configured?(user, provider: destination)
           raise Destination::Unavailable, "Configure your #{Destination.provider!(destination)[:label]} streaming destination first."

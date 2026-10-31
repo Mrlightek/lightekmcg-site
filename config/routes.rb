@@ -1,4 +1,11 @@
 Rails.application.routes.draw do
+  get "/dashboard/pwa", to: "dashboard/pwa#show", as: :dashboard_pwa
+  patch "/dashboard/pwa", to: "dashboard/pwa#update"
+  patch "/dashboard/pwa/records/:kind/:id", to: "dashboard/pwa#moderate", as: :dashboard_pwa_record
+  post "/dashboard/pwa/communities/:id/members", to: "dashboard/pwa#community_invite", as: :dashboard_pwa_community_members
+  post "/dashboard/pwa/people", to: "dashboard/pwa#invite", as: :dashboard_pwa_people
+  get "/dashboard/pwa/media/:kind/:id", to: "dashboard/pwa#media", as: :dashboard_pwa_media
+  get "/api/lightek/pwa/manifest", to: "api/lightek_pwa#manifest"
   resources :installations, path: "/my/installations", only: %i[index show create] do
     post :access, on: :member
     post :retry_installation, on: :member, path: "resume"

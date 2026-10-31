@@ -19,6 +19,7 @@ module LightekCommunity
 
     def communities
       base = Community.where(site_id: site_id).where.not(slug: nil).where.not(owner_profile_id: blocked_profile_ids)
+      base = base.where(moderation_state: "active") unless super_admin?
       base = Audience.visible(base, profile: profile, super_admin: super_admin?)
       return base if super_admin?
       allowed = base.where(visibility: "public")
@@ -31,6 +32,7 @@ module LightekCommunity
 
     def posts
       base = Post.unexpired.where(site_id: site_id)
+      base = base.where(moderation_state: "published") unless super_admin?
       blocked_users = Profile.where(id: blocked_profile_ids).select(:user_id)
       base = base.where.not(user_id: blocked_users)
       base = Audience.visible(base, profile: profile, super_admin: super_admin?)
@@ -41,7 +43,7 @@ module LightekCommunity
       base = base.where(parent_id: nil)
       visible = base.where(visibility: "public")
       unless profile
-        return visible.or(Audience.visible(Post.unexpired.where(site_id: site_id, parent_id: visible.select(:id)).where.not(user_id: blocked_users), profile: profile))
+        return visible.or(Audience.visible(Post.unexpired.where(site_id: site_id, moderation_state: "published", parent_id: visible.select(:id)).where.not(user_id: blocked_users), profile: profile))
       end
       following = LightekSocial::Follow.where(follower_profile_id: profile.id).select(:followed_profile_id)
       following_users = Profile.where(id: following).select(:user_id)
@@ -49,7 +51,7 @@ module LightekCommunity
       visible = visible.or(base.where(user_id: user.id))
         .or(base.where(visibility: "followers", user_id: following_users))
         .or(base.where(visibility: "community", community_id: member_communities))
-      visible.or(Audience.visible(Post.unexpired.where(site_id: site_id, parent_id: visible.select(:id)).where.not(user_id: blocked_users), profile: profile))
+      visible.or(Audience.visible(Post.unexpired.where(site_id: site_id, moderation_state: "published", parent_id: visible.select(:id)).where.not(user_id: blocked_users), profile: profile))
     end
 
     def require_profile!

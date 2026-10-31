@@ -17,6 +17,7 @@ const project = {id:1,name:'Lightek Production',description:'Pilot',productions:
 const featured={id:2,name:'Alicia',display_handle:'@alicia',profile_type:'person'};
 let topPeople=[],topLimit=8,gender='unspecified';
 const asset={id:1,name:'Camera take',kind:'video',status:'ready',metadata:{duration:2,has_audio:true},proxy_url:'/test-take.mp4'};
+let application=null,disabledSurfaces=[];
 const errors=[], writes=[];
 const server=http.createServer((req,res)=>{
   const file=path.join(root,new URL(req.url,'http://local').pathname);
@@ -30,7 +31,7 @@ const server=http.createServer((req,res)=>{
   await context.route('**/api/**',async route=>{
     const url=new URL(route.request().url());
     let body={};
-    if(url.pathname.endsWith('/bootstrap')) body={identity,csrf_token:'token',surfaces:['home','watch','clips','explore','communities','space','create','messages','studio'].map(key=>({key})),navigation:['home','watch','clips','explore','communities'].map((key,i)=>({key,label:key,surface_id:key,href:`#/${key}`,placement:'primary'})),capabilities:[],services:[{label:'Marketplace',href:'/marketplace'}]};
+    if(url.pathname.endsWith('/bootstrap')) body={application,identity,csrf_token:'token',surfaces:['home','watch','clips','explore','communities','space','create','messages','studio'].filter(key=>!disabledSurfaces.includes(key)).map(key=>({key})),navigation:['home','watch','clips','explore','communities'].filter(key=>!disabledSurfaces.includes(key)).map((key,i)=>({key,label:key,surface_id:key,href:`#/${key}`,placement:'primary'})),capabilities:[],services:[{label:'Marketplace',href:'/marketplace'}]};
     else if(url.pathname.endsWith('/pwa')) {
       const view=url.searchParams.get('view');
       if(view==='communities')body={communities};
@@ -124,6 +125,18 @@ const server=http.createServer((req,res)=>{
   await page.goto(`http://127.0.0.1:${server.address().port}/lightek/index.html#/studio/library`);
   await page.getByRole('heading',{name:'Asset Library',exact:true}).waitFor();
   await page.getByRole('heading',{name:'Camera take',exact:true}).waitFor();
+  application={name:'Dymondcutz',short_name:'Dymond',status:'published',theme_color:'#dd7722',background_color:'#161121',start_surface:'home',administration:{super_admin:false,can_manage:true}};
+  disabledSurfaces=['clips'];
+  await page.goto(`http://127.0.0.1:${server.address().port}/lightek/index.html#/home`);
+  await page.reload();
+  await page.waitForFunction(()=>document.title==='Dymondcutz');
+  assert.equal(await page.locator('#top .logo').textContent(),'Dymondcutz');
+  assert.equal(await page.locator('#primary-nav [data-r="clips"]').count(),0);
+  assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--gd')),'#dd7722');
+  application.status='maintenance';
+  await page.reload();
+  await page.getByRole('heading',{name:'Dymondcutz is under maintenance',exact:true}).waitFor();
+  await page.getByRole('link',{name:'Open PWA Administration',exact:true}).waitFor();
   assert.deepEqual(errors,[]);
   console.log('PWA browser: feed, post publish, reactions, community settings, mobile layout, Top 5, private audience preferences, Studio save/reload, timeline keyframes, and asset library passed.');
   await browser.close();server.close();

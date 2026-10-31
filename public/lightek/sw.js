@@ -1,10 +1,11 @@
-const CACHE = "lightek-shell-v45"
+const CACHE = "lightek-shell-v46"
 
 const SHELL = [
   "/lightek/index.html",
   "/lightek/manifest.webmanifest",
   "/lightek/nevaeh-client.js",
   "/lightek/bootstrap-adapter.js",
+  "/lightek/application-settings.js",
   "/lightek/community-app.js",
   "/lightek/studio-app.js",
   "/lightek/studio-media.js",

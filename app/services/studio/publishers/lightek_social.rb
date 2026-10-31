@@ -6,14 +6,16 @@ module Studio
         metadata = publication.metadata.to_h
         project = publication.studio_project
         user = User.find(metadata.fetch("user_id"))
-        unless user.role.to_s == "super_admin" || project.owner_id == user.id
-          raise ::LightekCommunity::AccessDenied, "Publication does not belong to this creator"
+        workspace = Studio::PwaAccess.new("user_id" => user.id, "site_id" => project.site_id)
+        unless workspace.projects.exists?(id: project.id)
+          raise ::LightekCommunity::AccessDenied, "Publication does not belong to this creator or application"
         end
         unless publication.artifact.studio_operation&.studio_project_id == project.id
           raise ::LightekCommunity::AccessDenied, "Artifact is outside this project"
         end
         raise ArgumentError, "Publication artifact is not attached" unless publication.artifact.file.attached?
         site_id = project.site_id || metadata["site_id"]
+        ::LightekPwa::Policy.new(user: user, site: DymondSite::Site.find(site_id)).authorize!("create") if site_id
         access = ::LightekCommunity::Access.new(user: user, site_id: site_id)
         community = metadata["community_slug"].present? ? access.community!(metadata["community_slug"]) : nil
         access.participate!(community) if community

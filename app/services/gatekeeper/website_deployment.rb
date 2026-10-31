@@ -149,6 +149,7 @@ module Gatekeeper
         capability: "deploy_website", requested_by: @actor.email_address,
         parameters: {domain: @domain, owner_id: config.fetch("owner_id"), owner_role: config.fetch("owner_role")},
         status: "running", started_at: Time.current)
+      @deployment_stage = "vault_checkout"
       secrets = LightekVault::Service.checkout!(slug: config.fetch("credential_slug"),
         consumer: CONSUMER, purpose: "website_deploy", requested_by: @actor.email_address,
         gatekeeper_operation_id: operation.id)
@@ -162,6 +163,7 @@ module Gatekeeper
           requested_by: @actor.email_address, gatekeeper_operation_id: operation.id)
       end
       ssh_password = secrets["ssh_password"] || root_secret&.fetch("root_password")
+      @deployment_stage = "ssh_port_wait"
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 180
       loop do
         begin
@@ -187,6 +189,7 @@ module Gatekeeper
         options[:key_data] = [secrets["ssh_private_key"]] if secrets["ssh_private_key"].present?
         options[:keys] = [@node.ssh_key_path] if @node.ssh_key_path.present?
         options[:auth_methods] = %w[publickey password keyboard-interactive]
+        @deployment_stage = "ssh_authentication"
         Net::SSH.start(@node.ip_address, @node.ssh_user, **options) do |ssh|
           installed = false
           begin
@@ -196,6 +199,7 @@ module Gatekeeper
             input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email")
             input.merge!("owner_password" => password, "ssh" => "root@#{@node.ip_address}",
               "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key)
+            @deployment_stage = "remote_installer"
             receipt = run_packager(input, dns_env:)
           ensure
             if installed
@@ -209,6 +213,7 @@ module Gatekeeper
           end
         end
       end
+      @deployment_stage = "receipt_persistence"
       operation.update!(status: "succeeded", exit_status: 0, completed_at: Time.current, result: receipt)
       @node.with_lock do
         @node.update!(metadata: @node.metadata.to_h.merge("website_deployment" => receipt), status: "healthy")
@@ -216,7 +221,9 @@ module Gatekeeper
       {operation_id: operation.id, url: receipt.fetch("url"), verified: true}
     rescue StandardError => error
       if operation
-        safe_error = Invalid.new("Website deployment failed (#{error.class.name}); inspect the deployment terminal and retry the same node")
+        stage = @deployment_stage || "initialization"
+        Rails.logger.error("[Lightek deployment] operation=#{operation.id} stage=#{stage} exception=#{error.class.name}")
+        safe_error = Invalid.new("Website deployment failed at #{stage} (#{error.class.name}); inspect the deployment terminal and retry the same node")
         operation.update!(status: "failed", exit_status: 1, completed_at: Time.current,
           error_class: error.class.name, error_message: safe_error.message)
         begin
@@ -227,7 +234,7 @@ module Gatekeeper
           Rails.logger.warn("[Lightek deployment] ticket creation failed: #{ticket_error.class.name}")
         end
       end
-      raise Invalid, "Website deployment failed (#{error.class.name}); operation #{operation&.id || 'not created'}"
+      raise Invalid, "Website deployment failed at #{@deployment_stage || 'initialization'} (#{error.class.name}); operation #{operation&.id || 'not created'}"
     ensure
       [secrets, root_secret].compact.each { |payload| payload.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? } }
     end

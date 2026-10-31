@@ -76,6 +76,33 @@ module NevaehIntelligences
       end
     end
 
+    def self.document_disposition!(ticket:, actor:, outcome:, reason:, canonical_ticket: nil)
+      unless actor.is_a?(User) && actor.persisted? && Ability.new(actor).can?(:resolve, ticket)
+        raise WorkOrder::Invalid, "Authorized resolution operator required"
+      end
+      raise WorkOrder::Invalid, "Invalid documented disposition" unless %w[documented_obsolete documented_duplicate].include?(outcome)
+      raise WorkOrder::Invalid, "Documented reason required" if reason.to_s.strip.length < 50
+      if outcome == "documented_duplicate" && (!canonical_ticket&.persisted? || canonical_ticket.id == ticket.id)
+        raise WorkOrder::Invalid, "Distinct canonical ticket required"
+      end
+      ticket.with_lock do
+        fields = ticket.extra_fields.to_h.deep_stringify_keys
+        state = fields.fetch("nevaeh", {})
+        backlog = fields.fetch("nevaeh_backlog", {})
+        return outcome if ticket.status == "resolved" && backlog["status"] == outcome
+        if state["execution_status"].present? || state["work_item_id"].present?
+          raise WorkOrder::Invalid, "Existing execution must be reconciled before disposition"
+        end
+        disposition = {"outcome" => outcome, "reason" => reason, "actor_id" => actor.id,
+          "canonical_ticket_id" => canonical_ticket&.id, "documented_at" => Time.current.iso8601}
+        fields["nevaeh_backlog"] = backlog.merge("status" => outcome, "blockers" => [],
+          "disposition" => disposition, "implementation_verified" => false)
+        ticket.update!(status: "resolved", resolved_at: Time.current, extra_fields: fields)
+        ticket.log!(action: "nevaeh_#{outcome}", detail: disposition.to_json, actor: actor)
+      end
+      outcome
+    end
+
     def self.failure_fingerprint(fields)
       TicketApproval.fingerprint({"fields" => fields.except("nevaeh_backlog")})
     end
@@ -157,6 +184,10 @@ module NevaehIntelligences
       end
       if articles.empty? && ticket.title.present?
         articles = DymondKb::Article.search(ticket.title.to_s.first(240)).ordered.limit(5).to_a
+        if articles.empty?
+          topic = ticket.title.to_s.scan(/[[:alpha:]]+/).select { |word| word.length >= 4 }.first(2).join(" ")
+          articles = DymondKb::Article.search(topic).ordered.limit(5).to_a if topic.split.length == 2
+        end
       end
       plan = GithubDevelopmentPlanV7a.from_native_ticket(ticket: ticket,
         knowledge_article_ids: articles.map(&:id), capability_snapshot: capabilities,

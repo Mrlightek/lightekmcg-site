@@ -175,6 +175,27 @@ Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
           operation: original, verification: proof, cause: incident.fetch("cause"), remediation: incident.fetch("remediation"))
       end
     end
+    if source["operation_id"].present? && ticket.status != "resolved"
+      original = GatekeeperOperation.find_by(id: source["operation_id"])
+      run_id = original&.result.to_h["github_run_id"].to_s
+      dispositions = {
+        "36436334079" => {"outcome" => "documented_obsolete", "canonical_operation" => nil,
+          "reason" => "Historical failed attempt was superseded by a successful rerun of the same GitHub workflow run 36436334079. GitHub job 108980216173 is completed/success. Preserve the original failed GatekeeperOperation as attempt history; this is an obsolete failed-attempt escalation, not a new production repair."},
+        "40234039223" => {"outcome" => "documented_duplicate", "canonical_operation" => 60,
+          "reason" => "Both GitHub deployment jobs 121297960409 and 121297899216 failed at the same repository object-write permission boundary on October 25. Consolidate the shared Git ownership investigation under the ticket for GatekeeperOperation 60; retain both distinct failed operation receipts. No deployment was replayed."},
+        "41158468767" => {"outcome" => "documented_duplicate", "canonical_operation" => 137,
+          "reason" => "Both GitHub jobs 124410417754 and 124409541256 completed deployment with HTTPS 200, then failed the paid-installation acceptance command because LightekCommerce::Order id 1 did not exist. Consolidate that same post-deployment acceptance investigation under the ticket for GatekeeperOperation 137; retain both operation histories. This does not declare paid installation verified."}
+      }
+      disposition = dispositions[run_id]
+      if disposition
+        actor = ticket.events.where.not(actor_id: nil).order(created_at: :desc).first&.actor
+        canonical = if disposition["canonical_operation"]
+          Marlon::Ticket.find_by(related_type: "GatekeeperOperation", related_id: disposition["canonical_operation"])
+        end
+        outcome = NevaehIntelligences::TicketBacklog.document_disposition!(ticket: ticket, actor: actor,
+          outcome: disposition.fetch("outcome"), reason: disposition.fetch("reason"), canonical_ticket: canonical)
+      end
+    end
     counts[outcome] += 1
   rescue StandardError => error
     NevaehIntelligences::TicketBacklog.record_failure!(ticket: ticket, error: error)

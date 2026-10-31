@@ -105,7 +105,7 @@ module NevaehOrchestration
   class KnowledgeResolver
     def self.for(capability:, additional_article_ids: [])
       DymondKb::Article.all.select do |a|
-        a.metadata.to_h.values_at("capability", "nevaeh_capability").include?(capability) ||
+        (!capability.to_s.empty? && a.metadata.to_h.values_at("capability", "nevaeh_capability").include?(capability)) ||
           additional_article_ids.map(&:to_s).include?(a.article_id.to_s)
       end.first(5)
     end
@@ -472,6 +472,42 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal "escalated", replay.perform_now
     assert_equal events, row.events.count
     assert_equal 1, row.events.where(action: "nevaeh_backlog_job_completed").count
+  end
+
+  def test_native_prose_ticket_finds_existing_bank_procedure_without_granting_activation
+    article = DymondKb::Article.create!(title: "Bank Module Authorization Stuck", metadata: {})
+    row = ticket(title: "Bank module auth pending", description: "Authorization stuck on existing instance")
+    assert_equal "escalated", NevaehIntelligences::TicketBacklog.process!(ticket: row)
+    assert_equal [article.id], backlog(row).fetch("knowledge_article_ids")
+    assert_equal "open", row.status
+    assert_equal false, backlog(row).dig("engineering_plan", "execution_enabled")
+  end
+
+  def test_documented_duplicate_closes_only_duplicate_and_keeps_canonical_work_open
+    operator = User.create!(role: "super_admin")
+    original = ticket
+    duplicate = ticket
+    reason = "Both incident receipts show the same repository write-permission failure; original ticket retains the investigation."
+    2.times do
+      assert_equal "documented_duplicate", NevaehIntelligences::TicketBacklog.document_disposition!(
+        ticket: duplicate, actor: operator, outcome: "documented_duplicate", reason: reason, canonical_ticket: original)
+    end
+    assert_equal "resolved", duplicate.reload.status
+    assert_equal "open", original.reload.status
+    assert_equal original.id, backlog(duplicate).dig("disposition", "canonical_ticket_id")
+    assert_equal false, backlog(duplicate).fetch("implementation_verified")
+    assert_equal 1, duplicate.events.where(action: "nevaeh_documented_duplicate").count
+  end
+
+  def test_disposition_cannot_bypass_an_execution_reservation
+    operator = User.create!(role: "super_admin")
+    row = ticket(extra_fields: {"nevaeh" => {"execution_status" => "dispatch_uncertain", "reservation_id" => "retained"}})
+    assert_raises(NevaehIntelligences::WorkOrder::Invalid) do
+      NevaehIntelligences::TicketBacklog.document_disposition!(ticket: row, actor: operator,
+        outcome: "documented_obsolete", reason: "A sufficiently detailed historical explanation cannot override an uncertain operation receipt.")
+    end
+    assert_equal "open", row.reload.status
+    assert_equal "retained", row.extra_fields.dig("nevaeh", "reservation_id")
   end
 
 end

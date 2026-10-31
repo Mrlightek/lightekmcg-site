@@ -111,6 +111,10 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   resources :homes
   
 # ── Public site ──────────────────────────────────────────────────────────────
+get "/", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
+get "/site/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
+get "/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.page_match?(request) }
+get "/__lightek/site-health", to: "gatekeeper/hosted_sites#health"
 root "pages#home"
 
 get  "about",    to: "pages#about"
@@ -277,6 +281,12 @@ resources :dashboard_compute_providers, path: "/dashboard/infrastructure/provide
 end
 
 get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#index", as: :dashboard_infrastructure_catalog
+resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard/server_instances", only: %i[index show destroy] do
+  member do
+    post :create_application
+    post :retry_application
+  end
+end
 resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", controller: "dashboard/fleet_updates", only: %i[index show create] do
   collection do
     post :sync

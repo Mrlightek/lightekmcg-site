@@ -7,7 +7,7 @@ module Gatekeeper
       end
 
       def self.sync_node!(node)
-        return if node.local? || node.status == "decommissioned"
+        return if node.local? || %w[decommissioned deleting delete_failed].include?(node.status)
         metadata = node.metadata.to_h
         node.gatekeeper_projects.find_each do |project|
           profile = project.metadata.to_h.fetch("fleet_deployment", {})

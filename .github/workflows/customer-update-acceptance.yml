@@ -5,6 +5,14 @@ on:
       - 'app/models/gatekeeper*'
       - 'app/services/gatekeeper/**'
       - 'app/jobs/gatekeeper/fleet/**'
+      - 'app/jobs/gatekeeper/hosting/**'
+      - 'app/controllers/dashboard/server_instances_controller.rb'
+      - 'app/controllers/gatekeeper/hosted_sites_controller.rb'
+      - 'app/views/dashboard/server_instances/**'
+      - 'app/models/subscription_infrastructure_entitlement.rb'
+      - 'db/migrate/*server_application*'
+      - 'lib/scripts/gatekeeper/create_hosted_site.py'
+      - 'lib/scripts/gatekeeper/deploy_project.sh'
       - 'app/controllers/dashboard/fleet_updates_controller.rb'
       - 'app/controllers/gatekeeper/fleet_releases_controller.rb'
       - 'app/views/dashboard/fleet_updates/**'
@@ -39,3 +47,7 @@ jobs:
           find app/services/gatekeeper/fleet app/jobs/gatekeeper/fleet -name '*.rb' -exec ruby -c {} \;
           ruby -c app/controllers/dashboard/fleet_updates_controller.rb
           ruby -c app/controllers/gatekeeper/fleet_releases_controller.rb
+          ruby -c app/controllers/dashboard/server_instances_controller.rb
+          ruby -c app/controllers/gatekeeper/hosted_sites_controller.rb
+          find app/services/gatekeeper/hosting app/jobs/gatekeeper/hosting -name '*.rb' -exec ruby -c {} \;
+          bash -n lib/scripts/gatekeeper/deploy_project.sh

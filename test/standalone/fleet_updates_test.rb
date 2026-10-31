@@ -32,6 +32,7 @@ ActiveRecord::Schema.define do
     t.integer :ssh_port, default: 22; t.string :ssh_key_path; t.string :status, default: "healthy"
     t.json :metadata, default: {}; t.timestamps
     t.string :owner_type; t.integer :owner_id
+    t.references :compute_provider; t.string :provider_resource_id
   end
   create_table(:gatekeeper_operations) do |t|
     t.references :gatekeeper_node; t.references :gatekeeper_project
@@ -40,7 +41,21 @@ ActiveRecord::Schema.define do
     t.integer :exit_status; t.string :error_class; t.string :error_message
     t.datetime :started_at; t.datetime :completed_at; t.timestamps
   end
-  create_table(:users) { |t| t.string :email_address }
+  create_table(:users) { |t| t.string :email_address; t.string :role, default: "client" }
+  create_table(:compute_providers) { |t| t.string :name; t.string :slug }
+  create_table(:subscription_infrastructure_entitlements) do |t|
+    t.integer :subscription_plan_id; t.integer :node_quantity, default: 1
+  end
+  create_table(:dymond_bank_subscriptions) do |t|
+    t.references :subscriber, polymorphic: true; t.integer :plan_id; t.string :status
+    t.datetime :current_period_start; t.datetime :current_period_end; t.datetime :trial_ends_at
+  end
+  create_table(:provisioning_requests) do |t|
+    t.references :owner, polymorphic: true; t.references :gatekeeper_node; t.references :compute_provider
+    t.string :approval_status; t.string :execution_status; t.integer :requested_node_count
+    t.string :destroy_approval_status; t.string :destroy_approved_by; t.datetime :destroy_approved_at
+    t.datetime :destroyed_at; t.json :metadata, default: {}
+  end
   create_table(:gatekeeper_projects) do |t|
     t.string :name; t.string :deployed_sha; t.references :gatekeeper_node
     t.string :domain; t.string :repository; t.string :app_root; t.string :app_user
@@ -49,6 +64,22 @@ ActiveRecord::Schema.define do
   end
 end
 class User < ApplicationRecord; end
+class ComputeProvider < ApplicationRecord
+  class_attribute :test_adapter
+  def adapter(**) = self.class.test_adapter
+end
+class ProvisioningRequest < ApplicationRecord
+  belongs_to :owner, polymorphic: true, optional: true
+  belongs_to :gatekeeper_node
+  belongs_to :compute_provider
+end
+class SubscriptionInfrastructureEntitlement < ApplicationRecord; end
+module DymondBank
+  class Subscription < ApplicationRecord
+    self.table_name = "dymond_bank_subscriptions"
+    belongs_to :subscriber, polymorphic: true
+  end
+end
 class GatekeeperProject < ApplicationRecord
   def sidekiq_service = "#{name}-sidekiq"
   def health_url = "https://#{domain}/up"
@@ -59,6 +90,9 @@ CreateGatekeeperFleetUpdates.new.migrate(:up)
 source = File.read(Rails.root.join("db/migrate/20261031220000_add_native_fleet_adapters.rb"))
 eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING, "native_fleet_migration")
 AddNativeFleetAdapters.new.migrate(:up)
+source = File.read(Rails.root.join("db/migrate/20261031230000_add_server_application_management.rb"))
+eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING, "hosting_migration")
+AddServerApplicationManagement.new.migrate(:up)
 require Rails.root.join("app/services/gatekeeper/fleet/adapters").to_s
 %w[gatekeeper_node gatekeeper_operation gatekeeper_installation gatekeeper_release gatekeeper_rollout gatekeeper_update_target].each do |file|
   require Rails.root.join("app/models", file).to_s
@@ -76,10 +110,12 @@ class FleetUpdatesTest < Minitest::Test
   include ActiveSupport::Testing::TimeHelpers
   def setup
     GatekeeperUpdateTarget.delete_all; GatekeeperRollout.delete_all
+    GatekeeperHostedApplication.delete_all if defined?(GatekeeperHostedApplication)
+    ProvisioningRequest.delete_all; DymondBank::Subscription.delete_all; SubscriptionInfrastructureEntitlement.delete_all
     GatekeeperInstallation.update_all(pinned_release_id: nil)
     GatekeeperRelease.delete_all
     GatekeeperInstallation.delete_all; GatekeeperOperation.delete_all; GatekeeperNode.delete_all
-    GatekeeperProject.delete_all; User.delete_all
+    GatekeeperProject.delete_all; User.delete_all; ComputeProvider.delete_all
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
     @release = release
     @old_auto = ENV.delete("LIGHTEK_FLEET_AUTO_ROLLOUT")
@@ -447,3 +483,5 @@ class FleetUpdatesTest < Minitest::Test
     assert_equal 2, GatekeeperInstallation.where(domain: "cdn.example.com", component: "cdn").count
   end
 end
+
+require_relative "fleet_hosting_test"

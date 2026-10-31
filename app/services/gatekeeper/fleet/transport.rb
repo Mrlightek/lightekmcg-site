@@ -1,6 +1,7 @@
 require "json"
 require "timeout"
 require "shellwords"
+require "open3"
 
 module Gatekeeper
   module Fleet
@@ -19,11 +20,31 @@ module Gatekeeper
         installation = target.gatekeeper_installation
         node = installation.gatekeeper_node
         release = target.gatekeeper_rollout.gatekeeper_release
+        payload = {domain: installation.domain, source_sha: release.source_sha, image: release.image,
+          backward_compatible: release.backward_compatible?, target_id: target.id, attempt: target.attempts,
+          expected_previous_sha: installation.current_version}.merge(Adapters.payload(installation, release))
+        run!(node: node, domain: installation.domain, requested_by: target.gatekeeper_rollout.requested_by,
+          operation_id: target.gatekeeper_operation_id, payload: payload, script_name: Adapters.script(installation.adapter),
+          registry: installation.adapter == "docker_compose")
+      end
+
+      def self.run!(node:, domain:, requested_by:, operation_id:, payload:, script_name:, registry: false)
+        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py].include?(script_name)
+        script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
+        if node.local?
+          stdout, _, status = Timeout.timeout(1900) do
+            Open3.capture3("sudo", "-n", "timeout", "--signal=TERM", "--kill-after=30s", "1800s", "python3", script_path.to_s,
+              stdin_data: JSON.generate(payload))
+          end
+          receipt = JSON.parse(stdout)
+          raise RemoteFailure.new(receipt) unless status.success?
+          return receipt
+        end
         raise Rollouts::Invalid, "Managed updates require a remote root SSH target" if node.local? || node.ssh_user != "root"
         credentials = []
         checkout = lambda do |slug, purpose, consumer = WebsiteDeployment::CONSUMER|
           payload = LightekVault::Service.checkout!(slug: slug, consumer: consumer, purpose: purpose,
-            requested_by: target.gatekeeper_rollout.requested_by, gatekeeper_operation_id: target.gatekeeper_operation_id)
+            requested_by: requested_by, gatekeeper_operation_id: operation_id)
           credentials << payload
           payload
         end
@@ -32,7 +53,7 @@ module Gatekeeper
         if node.ssh_key_path.present?
           options[:keys] = [node.ssh_key_path]
         else
-          config = node.metadata.to_h.fetch("website_deployments", {}).fetch(installation.domain, {})
+          config = node.metadata.to_h.fetch("website_deployments", {}).fetch(domain, {})
           secret = checkout.call(config["credential_slug"], "website_deploy") if config["credential_slug"].present?
           options[:key_data] = [secret["ssh_private_key"]] if secret && secret["ssh_private_key"].present?
           options[:password] = secret["ssh_password"] if secret && secret["ssh_password"].present?
@@ -41,10 +62,7 @@ module Gatekeeper
             options[:password] = root.fetch("root_password")
           end
         end
-        payload = {domain: installation.domain, source_sha: release.source_sha, image: release.image,
-          backward_compatible: release.backward_compatible?, target_id: target.id, attempt: target.attempts,
-          expected_previous_sha: installation.current_version}.merge(Adapters.payload(installation, release))
-        if installation.adapter == "docker_compose" && ENV["LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"].present?
+        if registry && ENV["LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"].present?
           registry = checkout.call(ENV.fetch("LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"), "fleet_registry", name)
           payload[:registry] = registry.slice("username", "password")
         end
@@ -52,7 +70,7 @@ module Gatekeeper
         # Full bounded execution; remote 'timeout' also survives a worker disconnect.
         Timeout.timeout(1900) do
           Net::SSH.start(node.ip_address, node.ssh_user, **options) do |ssh|
-            script = Rails.root.join("lib/scripts/gatekeeper", Adapters.script(installation.adapter)).read
+            script = script_path.read
             command = "timeout --signal=TERM --kill-after=30s 1800s python3 -c #{Shellwords.escape(script)}"
             stdout = +""
             exit_status = nil

@@ -202,3 +202,77 @@ Tests exercise actual fleet persistence/coordinator/jobs, release boundaries and
 pins, a 1,000-customer snapshot, real temporary Git fetch/checkouts, and native/CDN/
 service success and recovery paths. Rails commands, Passenger, Docker, systemd and
 network health are simulated in isolated tests. They do not claim live deployment.
+
+## Servers & Applications
+
+The customer and super-admin management page is `/dashboard/servers`, linked from
+Dashboard navigation and Infrastructure Control. Customers see only nodes whose
+polymorphic owner is their account; super admins see all nodes. Legacy Gatekeeper
+node/project configuration remains super-admin-only. The old node Remove action
+and provisioning destruction buttons lead to the server review page instead of
+removing registry records or bypassing confirmation.
+
+Open a server to see its registered application runtimes, managed services and
+additional hosted websites. **Create application on this server** uses a selected
+existing native Rails/Passenger runtime and creates a Dymond Site application with
+its own hostname, ownership, pages, design and navigation. This creates no new
+cloud instance. Websites on one runtime share its code/database; separately
+deployed Rails applications use separately registered runtimes and can have their
+own fleet releases/pins. The existing runtime must be registered as a
+`GatekeeperProject`; super admins have a Register existing runtime link. Its native
+profile uses the same checkout/environment/Ruby defaults and overrides as fleet
+updates. The site's owner account must already exist inside that runtime; setup
+never promotes accounts or resets their passwords.
+
+The account's maximum site allowance is configured in Subscription Plans →
+Infrastructure Entitlement → Maximum websites/applications per account. The highest
+allowance from a currently effective active/trial subscription applies. Existing
+runtime hostnames, locally owned Dymond Sites and queued/failed/ready hosted sites
+consume the allowance without double-counting the same hostname. Queued and
+failed setup records retain their slot to prevent concurrent/repeated requests
+from bypassing the limit. Super admins bypass site allowance checks and can choose
+another owner; customers cannot choose a foreign account or server. A failed setup
+can be retried with the same hostname/application identity.
+
+Setup checks existing DNS, uses an already-connected GoDaddy zone when necessary,
+and refuses conflicting records. For external DNS, point the hostname to the
+chosen instance before retrying. The remote setup invokes the existing Dymond Site
+and design services, adds only that application's Apache vhost and ACME webroot,
+issues a hostname certificate, validates Apache before reload, then verifies the
+public site's application key, remote site ID and rendered homepage over HTTPS. Existing vhosts,
+server dependencies, storage and owner credentials are retained. The remote
+command shares the checkout lock with native updates. It requires installed
+Apache/Passenger, Certbot, Ruby and the updated application code including the
+hosted-site routes. Logs live under `/var/lib/lightek/hosted-sites/APPLICATION_KEY`.
+Unknown/unowned site identities cannot be claimed by a retry. The default starter
+design can be changed through the existing website design/editor interface.
+
+### Deleting a server
+
+Open a server and expand **Delete this server instance**. Review its applications
+and services, then type its exact registered server name. This is a provider
+resource deletion, not a registry unlink. It permanently removes the instance and
+its local data; audit records remain. Account subscriptions are managed separately.
+No live provider resources are deleted by installing this PR.
+
+The endpoint checks ownership again, prevents customer deletion of a known shared
+server, rejects running deployments/application setup, captures the exact provider,
+resource ID and owner binding, and queues an approved deletion job. Super admins
+can manage any instance; customers can delete only their own non-shared instances.
+Queued rollout targets for that node are canceled without canceling updates on
+other customers' nodes. A deletion worker rechecks authorization and the captured
+binding before using the configured provider adapter's `destroy_node` operation.
+Linode 404 responses are idempotent for deletion retries; other failures remain
+visible as `delete_failed` and can be retried through the same review flow.
+
+After provider success, the node is retained as `decommissioned`, hosted
+applications are marked deleted, and fleet update registrations are disabled.
+Neither another account's server nor a resource whose binding changed after
+confirmation is deleted. Unsupported/misconfigured provider adapters fail rather
+than merely unlinking the server. The existing provisioning service now supports
+configured provider deletion adapters instead of hardcoding Linode.
+
+`Gatekeeper::Hosting::RecoveryJob` runs every minute to recover lost setup/deletion
+enqueues and mark abandoned application setup operations failed after an hour.
+Provider/API actions, ACME issuance, Passenger rendering and real customer DNS
+remain unverified by the isolated suite; the tests simulate those boundaries.

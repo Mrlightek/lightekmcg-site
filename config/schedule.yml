@@ -9,6 +9,11 @@ gatekeeper_fleet_recovery:
   class: "Gatekeeper::Fleet::SweepJob"
   queue: default
 
+gatekeeper_hosting_recovery:
+  cron: "* * * * *"
+  class: "Gatekeeper::Hosting::RecoveryJob"
+  queue: default
+
 susu_cycle_advance:
   cron: "0 0 * * 0" # Every Sunday at midnight
   class: "SusuCycleAdvanceJob"

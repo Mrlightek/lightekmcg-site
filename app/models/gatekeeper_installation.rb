@@ -37,6 +37,6 @@ class GatekeeperInstallation < ApplicationRecord
   def eligible?
     node = gatekeeper_node
     central_app = component == "lightek_app" && (node.metadata.to_h["role"] == "production" || node.metadata.to_h["local_node"])
-    enabled? && configured? && !node.local? && node.status != "decommissioned" && !central_app
+    enabled? && configured? && !node.local? && !%w[decommissioned deleting delete_failed].include?(node.status) && !central_app
   end
 end

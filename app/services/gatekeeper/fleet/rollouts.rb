@@ -74,7 +74,8 @@ module Gatekeeper
           if targets.where(status: "failed").exists?
             rollout.update!(status: "paused", message: "An update failed. Inspect its operation and retry.")
           elsif !targets.where(status: "reserved").exists?
-            rollout.update!(status: "completed", message: "Every selected installation passed version and health checks.")
+            message = targets.where(status: "canceled").exists? ? "Rollout completed; canceled targets were skipped." : "Every selected installation passed version and health checks."
+            rollout.update!(status: "completed", message: message)
           elsif !rollout.promoted? && targets.where(canary: true, status: "reserved").none?
             if rollout.auto_promote?
               rollout.update!(promoted: true)

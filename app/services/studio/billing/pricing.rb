@@ -6,11 +6,13 @@ module Studio
       class ConfigurationError < StandardError; end
 
       DEVELOPMENT_DEFAULTS = {
-        "build_scene" => 500
+        "build_scene" => 500,
+        "edit_media" => 500
       }.freeze
 
       ENV_KEYS = {
-        "build_scene" => "STUDIO_BUILD_SCENE_PRICE_CENTS"
+        "build_scene" => "STUDIO_BUILD_SCENE_PRICE_CENTS",
+        "edit_media" => "STUDIO_MEDIA_EDIT_PRICE_CENTS"
       }.freeze
 
       def self.principal_cents_for(operation_type)

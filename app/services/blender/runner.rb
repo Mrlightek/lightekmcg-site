@@ -20,27 +20,17 @@ module Blender
       "preview" => "preview.png"
     }.freeze
 
-    def initialize(execution_record)
+    def initialize(execution_record, asset_paths: {})
       @execution_record = execution_record
+      @asset_paths = asset_paths
     end
 
     def call
       prepare_output_directory
       write_manifest
 
-      stdout = stderr = nil
-      status = nil
-
-      Timeout.timeout(timeout_seconds) do
-        stdout, stderr, status = Open3.capture3(*command)
-      end
-
-      write_log(stdout, stderr)
-
-      unless status.success?
-        raise ExecutionError,
-              "Studio Render Engine exited #{status.exitstatus}: #{stderr}"
-      end
+      stdout = Studio::MediaProcess.run!(command, timeout: timeout_seconds)
+      write_log(stdout, "")
 
       result_payload = read_result_payload!
 
@@ -55,12 +45,15 @@ module Blender
       Result.new(
         output_directory: output_directory,
         stdout: stdout,
-        stderr: stderr,
+        stderr: "",
         generated_outputs: generated_outputs
       )
     rescue Timeout::Error
       raise ExecutionError,
             "Studio Render Engine exceeded the #{timeout_seconds}-second limit"
+    rescue RuntimeError => error
+      write_log(stdout, error.message)
+      raise ExecutionError, error.message
     end
 
     private
@@ -72,10 +65,12 @@ module Blender
     end
 
     def write_manifest
-      File.write(
-        manifest_path,
-        JSON.pretty_generate(execution_record.manifest)
-      )
+      manifest=execution_record.manifest.deep_dup
+      Array(manifest.dig("scene","objects")).each do |object|
+        next unless object["type"]=="imported_asset"
+        object["definition"]["asset_path"]=@asset_paths.fetch(object.fetch("definition").fetch("asset_id").to_i)
+      end
+      File.write(manifest_path,JSON.pretty_generate(manifest))
     end
 
     def write_log(stdout, stderr)
@@ -90,6 +85,7 @@ module Blender
         render_engine_binary,
         "--background",
         "--factory-startup",
+        "--disable-autoexec", "--python-exit-code", "1",
         "--python",
         Rails.root.join("blender/runner.py").to_s,
         "--",

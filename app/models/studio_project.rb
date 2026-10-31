@@ -1,4 +1,6 @@
 class StudioProject < ApplicationRecord
+  belongs_to :owner, class_name: "User", optional: true
+  belongs_to :site, class_name: "DymondSite::Site", optional: true
   has_many :productions, dependent: :destroy
   has_many :studio_scenes, dependent: :destroy
   has_many :creation_jobs, through: :studio_scenes

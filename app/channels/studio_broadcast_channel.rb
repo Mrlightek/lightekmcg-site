@@ -13,6 +13,7 @@ class StudioBroadcastChannel < ApplicationCable::Channel
   end
   def start(_data = {})
     ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user.reload, operation: @operation)
+    Studio::Live::Sessions.authorize_content!(@operation,current_user)
     @operation.with_lock do
       raise Studio::Live::Encoder::Failure, "This session was already started. Start a new session." unless @operation.status == "draft"
       @operation.update!(status: "connecting")
@@ -20,8 +21,9 @@ class StudioBroadcastChannel < ApplicationCable::Channel
     end
     Rails.logger.info("[StudioLive] encoder starting operation=#{@operation.id} user=#{current_user.id}")
     test = @operation.metadata["destination"] == "test"
-    output = test ? Studio::Live::Encoder.recording_path(@operation.id) : Studio::Live::Destination.output!(current_user, provider: @operation.metadata.fetch("destination"))
-    @encoder = Studio::Live::Encoder.new(output: output, test: test, on_event: method(:encoder_event)).start!
+    hls = @operation.metadata["destination"] == "lightek"
+    output = hls ? Studio::Live::Encoder.hls_path(@operation.id) : test ? Studio::Live::Encoder.recording_path(@operation.id) : Studio::Live::Destination.output!(current_user, provider: @operation.metadata.fetch("destination"))
+    @encoder = Studio::Live::Encoder.new(output: output, test: test, hls: hls, on_event: method(:encoder_event)).start!
     transmit({event: "ready"})
   rescue StandardError => error
     fail_session(error)
@@ -43,9 +45,10 @@ class StudioBroadcastChannel < ApplicationCable::Channel
   def heartbeat(_data = {})
     return unless @operation && Time.current - @last_heartbeat >= 5
     ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user.reload, operation: @operation)
+    Studio::Live::Sessions.authorize_content!(@operation,current_user)
     Studio::Live::Sessions.scope.where(id: @operation.id, status: %w[draft connecting live]).update_all(updated_at: Time.current)
     @last_heartbeat = Time.current
-  rescue ::Gatekeeper::StudioLivePolicy::Denied => error
+  rescue ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, ActiveRecord::RecordNotFound => error
     fail_session(error)
   end
   def unsubscribed

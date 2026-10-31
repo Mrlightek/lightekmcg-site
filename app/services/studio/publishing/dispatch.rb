@@ -7,7 +7,7 @@ module Studio
 
       def call
         Studio::Gatekeeper::Client.authorize!(
-          capability: "studio.publish.#{publication.platform}",
+          capability: %w[lightek_social lightek_streaming octavia].include?(publication.platform) ? "studio.workspace.artifact.publish" : "studio.publish.#{publication.platform}",
           subject: publication,
           context: {
             project_id: publication.studio_project_id,

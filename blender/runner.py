@@ -110,10 +110,10 @@ def apply_transform(obj, definition):
         [0.0, 0.0, 0.0],
     )
 
-    obj.rotation_euler = vector3(
+    obj.rotation_euler = [math.radians(value) for value in vector3(
         definition.get("rotation"),
         [0.0, 0.0, 0.0],
-    )
+    )]
 
     if hasattr(obj, "scale"):
         obj.scale = vector3(
@@ -234,6 +234,21 @@ def create_manifest_object(item):
         raise RuntimeError(
             f"Definition for {name!r} must be an object"
         )
+
+    if object_type == "imported_asset":
+        path = definition.get("asset_path")
+        if not path or not os.path.isfile(path):
+            raise RuntimeError("Imported asset proxy is unavailable")
+        existing = set(bpy.context.scene.objects)
+        bpy.ops.import_scene.gltf(filepath=path)
+        imported = set(bpy.context.scene.objects) - existing
+        root = bpy.data.objects.new(name, None)
+        bpy.context.scene.collection.objects.link(root)
+        for child in imported:
+            if child.parent not in imported:
+                child.parent = root
+        apply_transform(root, definition)
+        return root
 
     if object_type in {
         "cube",
@@ -396,6 +411,11 @@ def configure_render(settings):
             f"Requested render engine {requested_engine!r} "
             "is unavailable; using Blender default"
         )
+
+    if scene.render.engine == "CYCLES":
+        scene.cycles.device = "CPU"
+        scene.cycles.samples = max(1, min(256, int(settings.get("samples", 32))))
+        scene.cycles.use_denoising = False
 
     scene.render.resolution_x = int(
         settings.get("resolution_x", 1280)

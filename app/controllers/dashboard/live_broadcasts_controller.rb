@@ -1,17 +1,21 @@
 # frozen_string_literal: true
 class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
+  skip_before_action :require_settings_operator!
+  before_action { ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user) }
   protect_from_forgery with: :exception
   before_action :private_response
-  rescue_from ::Gatekeeper::StudioLivePolicy::Denied, with: :denied
+  rescue_from ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, with: :denied
   rescue_from Studio::Live::Destination::Unavailable, Studio::Live::Encoder::Failure, Studio::Live::Sessions::Busy, ArgumentError, with: :invalid
   def index
     @encoder_ready = Studio::Live::Encoder.available?
     @restream_ready = Studio::Live::Destination.configured?(current_user, provider: "restream")
     @tiktok_ready = Studio::Live::Destination.configured?(current_user)
+    access=LightekCommunity::Access.new(user:current_user,site_id:LightekPwa::SiteContext.resolve(request.host).id)
+    @communities=access.communities.select{|community|access.super_admin? || community.member?(current_user.profile)}
     @recent = Studio::Live::Sessions.for_user(current_user).order(id: :desc).limit(8)
   end
   def create
-    operation = Studio::Live::Sessions.create!(user: current_user, title: params[:title], destination: params[:destination])
+    operation = Studio::Live::Sessions.create!(user: current_user, title: params[:title], destination: params[:destination], site: LightekPwa::SiteContext.resolve(request.host), community_slug:params[:community_slug], audience:params.fetch(:audience,"everyone"))
     render json: {id: operation.id, ticket: Studio::Live::Sessions.ticket(operation, current_user), cable_path: "/cable"}, status: :created
   end
   def destination

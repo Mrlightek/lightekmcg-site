@@ -49,9 +49,7 @@ module Studio
       end
 
       def scene
-        @scene ||= StudioScene.find(
-          payload.fetch("scene_id")
-        )
+        @scene ||= Studio::PwaAccess.new(payload).scene!(payload.fetch("scene_id"))
       end
 
       def scene_object

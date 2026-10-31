@@ -2,7 +2,8 @@ module Studio
   module Providers
     class Registry
       PROVIDERS = {
-        "blender" => "Studio::Providers::BlenderProvider"
+        "blender" => "Studio::Providers::BlenderProvider",
+        "ffmpeg" => "Studio::Providers::FfmpegProvider"
       }.freeze
 
       def self.fetch(name)

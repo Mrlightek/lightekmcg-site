@@ -207,3 +207,49 @@ changes operational mail settings. Customer suspensions and quotas are retained.
 
 This handles the known code/data upgrade cases; it is not a substitute for
 inspecting the actual production settings and testing receipt after activation.
+
+### Conversation and HTML workspace
+
+Reply and Reply all show the original message beside the composer on desktop,
+with a collapsible original above the composer on mobile. The original is quoted
+by default; the sender can omit it. Replies carry In-Reply-To and References
+headers, and the reader groups up to 30 linked messages within the same mailbox.
+Forwarding can optionally include the original attachments. Bcc recipients are
+never copied into a reply or quoted header.
+
+The composer supports rich formatting and a plain-text fallback. Outgoing mail
+includes both HTML and text. Received HTML is sanitized and displayed in a
+sandboxed frame; external images remain blocked until the reader explicitly
+loads them for that message. No schema migration or mail-server configuration
+change is required for this workspace update.
+
+The isolated workspace fixture covers reply composition, drafts, mailbox
+isolation, conversation history, forwarding, HTML sanitization and image opt-in.
+Desktop and mobile browser checks use synthetic mail with that fixture; they do
+not replace production authentication or SMTP delivery checks.
+
+### Mail workspace navigation
+
+The mail workspace separates the folder rail, message list, and reading pane.
+Compose opens in a dock that can be minimized or expanded; folder changes,
+searches, pagination and mailbox navigation retain the open composer. A reply's
+From address stays visible when the active inbox changes. Save draft persists a
+message on the server; closing or leaving an unsaved composer requires a warning.
+
+Search supports quoted phrases and combinable `from:`, `to:`, `subject:`,
+`is:unread`, `is:starred`, `has:attachment`, `after:YYYY-MM-DD` and
+`before:YYYY-MM-DD` operators. Results paginate in groups of 40, within the
+selected mailbox and folder. A fresh search searches All mail by default.
+
+Select messages to archive, trash, move to inbox, star, or change read status.
+Undo is available immediately afterward for ten minutes; it refuses to overwrite
+a later change to the affected fields. All selected IDs must belong to the same
+accessible mailbox or the entire action is rejected. Permanent deletion remains a
+separate action in Trash. Supported image, PDF and text attachments can be
+previewed in a sandbox; other file types download normally.
+
+Outside text fields, `C` composes, `/` focuses search, `J`/`K` move between
+messages, `R` replies, `X` selects the active message, and `?` opens shortcut help.
+On smaller screens, the reader replaces the list and a Messages button returns
+to it. Templates, auto replies, domain management, API keys and mailbox controls
+are in Settings. No database migrations or SMTP changes are required.

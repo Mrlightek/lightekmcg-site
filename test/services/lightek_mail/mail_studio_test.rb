@@ -25,7 +25,8 @@ class LightekMailStudioTest < ActiveSupport::TestCase
     assert_includes result[:html], "https://example.test/"
     custom = LightekMail::TemplateRenderer.render({html: '<script>alert(1)</script><img src="https://tracker.test"><a href="javascript:alert(1)">Hello</a>', text: "Custom text"})
     refute_includes custom[:html], "<script"
-    refute_includes custom[:html], "<img"
+    assert_includes custom[:html], "<img"
+    refute_includes LightekMail::MessageContent.document(custom[:html]), "tracker.test"
     refute_includes custom[:html], "javascript:"
     assert_equal "Custom text", custom[:text]
     assert_raises(ArgumentError) { LightekMail::TemplateRenderer.render({button_url:"javascript:evil"}) }
@@ -138,7 +139,7 @@ class LightekMailStudioTest < ActiveSupport::TestCase
     assert_equal "Attached content", record.attachments.first.download
     assert record.source.attached?
     assert_includes record.text_body, "Hello from outside"
-    refute_includes record.html_body, "tracker.test"
+    refute_includes LightekMail::MessageContent.document(record.html_body), "tracker.test"
     assert_equal inbound.id, LightekMail::Inbound.accept!(raw:mail.encoded,recipients:[account.address]).id
   end
   test "auto replies are rate limited and skip automated list and bounce mail" do

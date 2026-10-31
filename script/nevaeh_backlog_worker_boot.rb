@@ -8,6 +8,7 @@ ENV["NEVAEH_BACKLOG_ENABLED"] = "1"
 {
   "NevaehIntelligences::GithubDevelopmentPlanV7a" => "app/services/nevaeh_intelligences/github_development_plan_v7a.rb",
   "NevaehIntelligences::TicketExecution" => "app/services/nevaeh_intelligences/ticket_execution.rb",
+  "LightekMail::SendingPolicy" => "app/models/lightek_mail/sending_policy.rb",
   "Gatekeeper::LessonService" => "app/services/gatekeeper/lesson_service.rb"
 }.each do |constant, path|
   constant.constantize

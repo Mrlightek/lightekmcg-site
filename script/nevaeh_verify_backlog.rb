@@ -15,6 +15,7 @@ ENV.delete("NEVAEH_BACKLOG_ACTOR_ID")
 {
   "NevaehIntelligences::GithubDevelopmentPlanV7a" => "app/services/nevaeh_intelligences/github_development_plan_v7a.rb",
   "NevaehIntelligences::TicketExecution" => "app/services/nevaeh_intelligences/ticket_execution.rb",
+  "LightekMail::SendingPolicy" => "app/models/lightek_mail/sending_policy.rb",
   "Gatekeeper::LessonService" => "app/services/gatekeeper/lesson_service.rb"
 }.each do |constant, path|
   constant.constantize # Let the installed app's loader initialize its own constant first.

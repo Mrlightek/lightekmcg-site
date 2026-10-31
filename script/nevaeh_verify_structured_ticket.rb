@@ -129,6 +129,13 @@ log = Tempfile.new(["nevaeh-structured-worker-", ".log"])
   ensure
     Sidekiq::Queue.new(cron_queue).clear
   end
+  Gatekeeper::LessonService.record!(key: "nevaeh-mail-policy-locking-regression",
+    title: "Restore persisted mail sending policy locking and stop controls",
+    capability: "lightek_mail.sending_policy", symptom: "Mail protocol regressions select sending_policies or receive a nil policy during synchronized submission",
+    cause: "The namespaced model lost its explicit table and a process-local mutex stopped yielding the persisted policy",
+    remediation: "Use lightek_mail_sending_policies and create_or_find_by!(id: 1).with_lock(requires_new: true), yielding the policy to quota and stop checks. Keep missing policy disabled and remove the global NilClass permission fallback.",
+    verification: "Actual mail classes passed the dedicated PostgreSQL regression step in GitHub Actions run 41211759260 after source commit 047d3d08bbd1fb6b7efb63fe5c68a97c4ff9db0a. This verifies controlled mail policy behavior, not production deployment.",
+    metadata: {"source_ticket_id" => 19, "verification_scope" => "controlled_postgresql_fixture", "implementation_deployed" => false, "auto_executable" => false})
   ticket.log!(action: "nevaeh_native_structured_acceptance_passed", detail: JSON.generate("actions_verified" => 4,
     "form_rendered" => true, "approval_denial_verified" => true, "duplicate_delivery_suppressed" => true, "cron_active_job_verified" => true, "repository_commit" => steps.dig("service", "output", "commit_sha"), "pushed" => true, "deployed" => false))
   puts "NEVAEH_STRUCTURED_ACCEPTANCE=#{JSON.generate(actions_verified: 4, actual_ticket_resolved: true,

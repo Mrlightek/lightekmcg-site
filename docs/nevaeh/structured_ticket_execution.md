@@ -108,3 +108,19 @@ redelivered the completed work item without repeating section execution. This
 used real Rails/Sidekiq, private Studio/CMS engines, the actual ticket/KB database
 and GitHub branch writes. The feature remains on the engineering branch pending
 release; the live application checkout was not replaced by this verification.
+
+
+## Release regression and outstanding CI configuration
+
+After integrating current main, native acceptance run `41211533810` passed with
+both recurring jobs preserved. Broader PR CI exposed a mail policy that selected
+`sending_policies` and yielded no policy from a process-local mutex. The correction
+restores `lightek_mail_sending_policies`, the persisted cross-process row lock,
+yielding the actual policy, and honoring the global sending stop. The controlled
+PostgreSQL mail regression step passed in CI run `41211759260`.
+
+Full application CI remains blocked before Ruby setup by missing
+`LIGHTEK_CI_APP_ID` and `LIGHTEK_CI_APP_PRIVATE_KEY` credentials for private engine
+reads. Native installed-stack acceptance is separate evidence and does not make
+those skipped security, lint and full-suite checks pass. The PR remains unmerged
+and general production acceptance is not claimed.

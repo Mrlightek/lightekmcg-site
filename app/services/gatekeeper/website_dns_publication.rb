@@ -19,18 +19,16 @@ module Gatekeeper
 
       # Paid Lightek subdomains are created automatically under the platform zone.
       # The domain is owned by the platform; it is not a customer-purchased domain.
-      base = ENV.fetch("LIGHTEK_AUTO_CLIENT_BASE_DOMAIN", "lightekmcg.com").strip.downcase
-      configured = dns_env["GODADDY_DOMAINS"].presence || ENV["GODADDY_DOMAINS"].to_s
-      managed = configured.split(",").map { |value| value.strip.downcase }.reject(&:blank?)
-      managed << base if host.end_with?(".#{base}")
-      zones = managed.uniq.sort_by { |zone| -zone.length }
+      # Use the same managed zones as Dashboard > Network > Controllers.
+      # The provisioning secret is for the website owner, not DNS administration.
+      zones = Godaddy::DnsService.zones.map(&:downcase).uniq.sort_by { |zone| -zone.length }
       zone = zones.find { |candidate| host.end_with?(".#{candidate}") }
       raise NotConfigured, "No managed authoritative DNS zone for #{host}" unless zone
 
       name = host.delete_suffix(".#{zone}")
       raise ArgumentError, "Invalid DNS record name" unless name.match?(/\A[a-z0-9-]+(?:\.[a-z0-9-]+)*\z/)
 
-      dns = Godaddy::DnsService.new(zone: zone, domains: zones.join(","), token: dns_env["GODADDY_PAT"])
+      dns = Godaddy::DnsService.new(zone: zone)
       existing = dns.records.select do |record|
         record["name"].to_s.downcase == name && record["type"].to_s.upcase == "A"
       end

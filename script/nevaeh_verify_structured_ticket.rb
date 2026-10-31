@@ -18,6 +18,10 @@ capability = NevaehCapability.find_by(slug: NevaehIntelligences::StructuredTicke
 raise "Preserve existing operator-controlled registration" if capability && capability.metadata.to_h["acceptance_only"] != true
 capability ||= NevaehIntelligences::StructuredTicket.registered!
 capability.update!(enabled: true, queue: queue_name, metadata: capability.metadata.to_h.merge("acceptance_only" => true))
+ticket = nil
+worker = nil
+log = nil
+begin
 actor = Marlon::Ticket.find(3).events.where.not(actor_id: nil).order(created_at: :desc).first.actor
 raise "Acceptance operator lacks authority" unless Ability.new(actor).can?(:execute_nevaeh, Marlon::Ticket)
 website = LightekSettings::WebsiteIdentity.sites_for(actor).order(:id).first!
@@ -52,8 +56,6 @@ unless ticket
   end
 end
 log = Tempfile.new(["nevaeh-structured-worker-", ".log"])
-worker = nil
-begin
   if ticket.status != "resolved"
     state = ticket.extra_fields.to_h.fetch("nevaeh", {})
     if state["reservation_id"].present?
@@ -92,5 +94,6 @@ ensure
     Process.waitpid(worker) rescue nil
   end
   capability.update!(enabled: false, queue: "default") if capability
-  log.close
+  log&.close
+  FileUtils.remove_entry(workspace) if workspace && File.directory?(workspace)
 end

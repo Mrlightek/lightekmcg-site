@@ -10,7 +10,7 @@ module NevaehIntelligences
       ticket = Marlon::Ticket.find(ticket_id)
       if ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute"
         outcome = StructuredExecution.reconcile!(ticket: ticket)
-        self.class.set(wait: 10.seconds).perform_later(ticket_id, attempt + 1) if outcome == "pending" && attempt < 29
+        self.class.set(wait: 10.seconds, queue: queue_name).perform_later(ticket_id, attempt + 1) if outcome == "pending" && attempt < 29
         return outcome
       end
       # Missing receipts require inspection: never infer linkage or retry.

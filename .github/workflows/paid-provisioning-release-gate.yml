@@ -122,6 +122,27 @@ jobs:
             request: request&.attributes&.slice("id", "execution_status", "gatekeeper_node_id"),
             node: node&.attributes&.slice("id", "provider_resource_id", "ip_address", "status"),
             operation: operation&.attributes&.slice("id", "status", "error_class", "started_at", "completed_at"))
+          if order && request
+            puts JSON.generate(manual_acceptance_order_count: LightekCommerce::Order.where(payment_provider: "manual_acceptance", payment_reference: order.payment_reference).count,
+              matching_subscription_count: DymondBank::Subscription.where(subscriber: request.owner, plan_id: request.subscription_plan_id).count)
+            path = Rails.root.join("log/production.log")
+            if path.file?
+              text = File.open(path, "rb") { |file| file.seek([file.size - 8 * 1024 * 1024, 0].max); file.read }
+              lines = text.lines
+              queued = lines.select { |line| line.include?("Enqueued") && line.include?("InstanceReadyMailer") && line.include?("[#{order.id}]") }
+              job_ids = queued.filter_map { |line| line[/Job ID: ([0-9a-f-]+)/, 1] }.uniq
+              accepted = job_ids.any? { |id| lines.any? { |line| line.include?(id) && (line.include?("sent gmail_message_id=") || line.include?("Delivered mail")) } }
+              puts JSON.generate(ready_notification_queued: job_ids.any?, ready_notification_delivery_accepted: accepted)
+            end
+            begin
+              pid = IO.popen(["systemctl", "show", "-p", "MainPID", "--value", "lightekmcg-site-sidekiq"], &:read).strip.to_i
+              values = File.binread("/proc/#{pid}/environ").split("\0").map { |item| item.split("=", 2) }.to_h
+              names = %w[LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS LIGHTEK_AUTO_VPS_REGION LIGHTEK_AUTO_VPS_PLAN LIGHTEK_AUTO_VPS_IMAGE]
+              puts JSON.generate(worker_vps_settings_loaded: names.all? { |name| values[name].present? && values[name] == ENV[name] })
+            rescue StandardError => error
+              puts "WORKER_ENV_CHECK=#{error.class.name}"
+            end
+          end
           if node
             payload = nil
             begin

@@ -2,7 +2,7 @@ name: Deploy Production
 
 on:
   push:
-    branches: [main, fix/paid-instance-provisioning-recovery-20261028]
+    branches: [main]
   workflow_dispatch:
     inputs:
       project_id:

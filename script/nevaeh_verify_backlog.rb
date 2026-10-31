@@ -154,6 +154,27 @@ Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
         end
       end
     end
+    historical_boot_incidents = {
+      "40505481628" => {"component" => "mail_controller_loaded", "cause" => "Mail API skipped a nonexistent authentication callback",
+        "remediation" => "Keep the API endpoint authentication contract explicit; do not skip callbacks that the controller does not define. Verify installed Rails eager loading, HTTPS health and worker readiness."},
+      "40517519802" => {"component" => "system_logs_controller_loaded", "cause" => "Dashboard class was reopened using module syntax",
+        "remediation" => "Use the qualified Dashboard::SystemLogsController declaration with the existing DymondDash controller contract. Verify installed Rails eager loading, HTTPS health and worker readiness."},
+      "40542424744" => {"component" => "mail_sending_policy_loaded", "cause" => "Mail sending policy contained a Ruby syntax error",
+        "remediation" => "Use the installed syntactically valid LightekMail::SendingPolicy definition. Verify eager loading of the actual application, HTTPS health and worker readiness before closing the incident."}
+    }
+    if source["operation_id"].present?
+      original = GatekeeperOperation.find_by(id: source["operation_id"])
+      run_id = original&.result.to_h["github_run_id"].to_s
+      incident = historical_boot_incidents[run_id]
+      if incident && runtime_evidence[incident.fetch("component")] == true
+        actor = ticket.events.where.not(actor_id: nil).order(created_at: :desc).first&.actor
+        proof = runtime_evidence.merge("component_verified" => true, "component" => incident.fetch("component"),
+          "original_github_run_id" => run_id, "verification_mode" => "existing_deployed_implementation",
+          "historical_revision_superseded" => true)
+        outcome = NevaehIntelligences::TicketExecution.resolve_existing_deployment!(ticket: ticket, actor: actor,
+          operation: original, verification: proof, cause: incident.fetch("cause"), remediation: incident.fetch("remediation"))
+      end
+    end
     counts[outcome] += 1
   rescue StandardError => error
     NevaehIntelligences::TicketBacklog.record_failure!(ticket: ticket, error: error)

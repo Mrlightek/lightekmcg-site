@@ -85,6 +85,46 @@ module NevaehIntelligences
       receipt
     end
 
+    # Existing deployed fixes can satisfy historical incidents without rerunning
+    # an obsolete deployment. Verification comes from the installed-app CI runner;
+    # the original failed operation remains unchanged for audit.
+    def self.resolve_existing_deployment!(ticket:, actor:, operation:, verification:, cause:, remediation:)
+      raise InvalidTicket, "Authorized resolution operator required" unless actor.is_a?(User) && actor.persisted? && Ability.new(actor).can?(:resolve, ticket)
+      raise InvalidTicket, "Original failed deployment required" unless operation.is_a?(GatekeeperOperation) && operation.persisted? && operation.capability == "deploy_project" && operation.status == "failed"
+      proof = verification.to_h.deep_stringify_keys
+      unless proof["eager_load_passed"] == true && proof["https_health_status"] == 200 &&
+          proof["sidekiq_service_active"] == true && proof["installed_revision"].to_s.match?(/\A[0-9a-f]{40}\z/) &&
+          proof["component_verified"] == true && proof["original_github_run_id"].to_s == operation.result.to_h["github_run_id"].to_s &&
+          proof["original_github_run_id"].present?
+        raise InvalidTicket, "Installed implementation acceptance evidence is incomplete"
+      end
+      ticket.with_lock do
+        fields = ticket.extra_fields.to_h.deep_stringify_keys
+        state = fields.fetch("nevaeh", {})
+        return "resolved" if ticket.status == "resolved" && state["execution_status"] == "verified"
+        raise InvalidTicket, "Ticket already executing" if state["execution_status"].present? || state["work_item_id"].present?
+        raise InvalidTicket, "Original incident mismatch" unless fields.dig("gatekeeper", "operation_id").to_s == operation.id.to_s
+        order = WorkOrder.read!(ticket: ticket)
+        raise InvalidTicket, "Original work order mismatch" unless order["work_type"] == "fix" && order.dig("inputs", "operation_id").to_s == operation.id.to_s
+        article = ::Gatekeeper::LessonService.record!(
+          key: "nevaeh-deployment-ticket-#{ticket.id}-verified", title: "Verified deployment recovery: #{cause}",
+          capability: "deploy_project", symptom: ticket.description.to_s, cause: cause,
+          remediation: remediation, verification: JSON.generate(proof),
+          metadata: {"source_ticket_id" => ticket.id, "source_operation_id" => operation.id,
+            "nevaeh_capability" => "deploy_project", "auto_executable" => false})
+        state.merge!("execution_status" => "verified", "intent_key" => order["intent_key"],
+          "verification_mode" => "existing_deployed_implementation", "verification" => proof,
+          "work_order_sha256" => TicketApproval.fingerprint(order), "knowledge_article_id" => article.id)
+        fields["nevaeh"] = state
+        fields["nevaeh_backlog"] = fields.fetch("nevaeh_backlog", {}).merge(
+          "status" => "verified_resolved", "blockers" => [], "implementation_verified" => true,
+          "updated_at" => Time.current.iso8601)
+        ticket.update!(status: "resolved", resolved_at: Time.current, extra_fields: fields)
+        ticket.log!(action: "nevaeh_existing_implementation_verified", detail: JSON.generate(proof), actor: actor)
+        "resolved"
+      end
+    end
+
     def self.reconcile!(ticket:)
       ticket.with_lock do
         data = ticket.extra_fields.to_h.deep_stringify_keys

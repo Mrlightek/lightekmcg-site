@@ -39,6 +39,11 @@ ActiveRecord::Schema.define do
     t.boolean :enabled
     t.timestamps
   end
+  create_table :gatekeeper_operations do |t|
+    t.string :capability
+    t.string :status
+    t.json :result
+  end
   create_table :dymond_dispatch_work_items do |t|
     t.string :kind
     t.string :handler
@@ -90,6 +95,7 @@ module DymondDispatch
     self.table_name = "dymond_dispatch_work_items"
   end
 end
+class GatekeeperOperation < ApplicationRecord; end
 class StudioProject < ApplicationRecord; end
 class Production < ApplicationRecord; end
 class StudioScene < ApplicationRecord; end
@@ -125,7 +131,7 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     Rails.env = "test"
     ENV["NEVAEH_BACKLOG_ENABLED"] = "1"
     ENV.delete("NEVAEH_BACKLOG_ACTOR_ID")
-    [Marlon::TicketEvent, Marlon::Ticket, NevaehCapability, DymondKb::Article, DymondDispatch::WorkItem, StudioScene, Production, StudioProject, User].each(&:delete_all)
+    [Marlon::TicketEvent, Marlon::Ticket, NevaehCapability, DymondKb::Article, DymondDispatch::WorkItem, GatekeeperOperation, StudioScene, Production, StudioProject, User].each(&:delete_all)
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
   end
 
@@ -401,6 +407,71 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     NevaehIntelligences::TicketBacklog.process!(ticket: row)
     assert_equal "retained", backlog(row).dig("source_diagnostics", "evidence")
     assert_equal before, row.events.count
+  end
+
+  def existing_deployment_case
+    operator = User.create!(role: "super_admin")
+    operation = GatekeeperOperation.create!(capability: "deploy_project", status: "failed", result: {"github_run_id" => "controlled-run"})
+    row = ticket(description: "Historical application boot failure", extra_fields: {"gatekeeper" => {
+      "operation_id" => operation.id, "capability" => "deploy_project", "node_id" => 1, "project_id" => 1}})
+    NevaehIntelligences::TicketBacklog.process!(ticket: row)
+    proof = {"eager_load_passed" => true, "https_health_status" => 200, "sidekiq_service_active" => true,
+      "installed_revision" => "a" * 40, "component_verified" => true, "original_github_run_id" => "controlled-run"}
+    [row, operator, operation, proof]
+  end
+
+  def test_existing_implementation_acceptance_closes_once_and_preserves_original_failure
+    row, operator, operation, proof = existing_deployment_case
+    2.times do
+      assert_equal "resolved", NevaehIntelligences::TicketExecution.resolve_existing_deployment!(
+        ticket: row, actor: operator, operation: operation, verification: proof,
+        cause: "Previously invalid class declaration", remediation: "Use the qualified class declaration")
+    end
+    assert_equal "resolved", row.reload.status
+    assert_equal "verified_resolved", backlog(row).fetch("status")
+    assert_equal "existing_deployed_implementation", row.extra_fields.dig("nevaeh", "verification_mode")
+    assert_equal "failed", operation.reload.status
+    assert_equal 1, DymondKb::Article.count
+    assert_equal 1, row.events.where(action: "nevaeh_existing_implementation_verified").count
+  end
+
+  def test_existing_implementation_refuses_missing_health_and_wrong_run_evidence
+    row, operator, operation, proof = existing_deployment_case
+    [proof.merge("https_health_status" => 503), proof.merge("original_github_run_id" => "wrong-run")].each do |bad|
+      assert_raises(NevaehIntelligences::TicketExecution::InvalidTicket) do
+        NevaehIntelligences::TicketExecution.resolve_existing_deployment!(ticket: row, actor: operator,
+          operation: operation, verification: bad, cause: "Existing fix", remediation: "Verified source")
+      end
+    end
+    assert_equal "open", row.reload.status
+    assert_nil row.resolved_at
+    assert_equal 0, DymondKb::Article.count
+  end
+
+  def test_existing_implementation_requires_authorized_operator
+    row, operator, operation, proof = existing_deployment_case
+    operator.update!(role: "client")
+    assert_raises(NevaehIntelligences::TicketExecution::InvalidTicket) do
+      NevaehIntelligences::TicketExecution.resolve_existing_deployment!(ticket: row, actor: operator,
+        operation: operation, verification: proof, cause: "Existing fix", remediation: "Verified source")
+    end
+    assert_equal "open", row.reload.status
+    assert_equal 0, DymondKb::Article.count
+  end
+
+  def test_completed_job_receipt_survives_serialization_and_suppresses_redelivery
+    row = ticket
+    job = NevaehIntelligences::ProcessBacklogJob.new(ticket_id: row.id)
+    serialized = job.serialize
+    assert_equal "escalated", job.perform_now
+    receipt = backlog(row).fetch("job_receipts").fetch(job.job_id)
+    assert_equal "completed", receipt.fetch("state")
+    assert_equal "escalated", receipt.fetch("outcome")
+    events = row.events.count
+    replay = NevaehIntelligences::ProcessBacklogJob.deserialize(serialized)
+    assert_equal "escalated", replay.perform_now
+    assert_equal events, row.events.count
+    assert_equal 1, row.events.where(action: "nevaeh_backlog_job_completed").count
   end
 
 end

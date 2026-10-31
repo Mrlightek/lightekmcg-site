@@ -5,6 +5,9 @@ on:
     branches: [feat/nevaeh-historical-backlog-20261031]
     paths:
       - 'app/services/nevaeh_intelligences/**'
+      - 'app/jobs/nevaeh_intelligences/**'
+      - 'script/nevaeh_backlog_worker_boot.rb'
+      - 'script/nevaeh_verify_queue_restart.rb'
       - 'app/services/gatekeeper/lesson_service.rb'
       - 'script/nevaeh_verify_backlog.rb'
       - '.github/workflows/nevaeh-backlog-acceptance.yml'
@@ -51,3 +54,14 @@ jobs:
             "umask 022; mkdir -p '$CANDIDATE_ROOT'; tar -xf - -C '$CANDIDATE_ROOT'"
           ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
             "sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc 'set -e; set -a; source /etc/lightek/lightekmcg-site.env; set +a; export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin; export RAILS_ENV=production; cd /var/www/lightekmcg-site; bundle exec rails runner $CANDIDATE_ROOT/script/nevaeh_verify_backlog.rb'"
+      - name: Verify durable Sidekiq delivery across worker restart
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          CANDIDATE_ROOT="/var/tmp/lightek-nevaeh-${GITHUB_SHA}"
+          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc 'set -e; set -a; source /etc/lightek/lightekmcg-site.env; set +a; export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin; export RAILS_ENV=production; cd /var/www/lightekmcg-site; bundle exec rails runner $CANDIDATE_ROOT/script/nevaeh_verify_queue_restart.rb'"

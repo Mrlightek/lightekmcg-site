@@ -1,7 +1,8 @@
 module LightekPwa
   class Bootstrap
-    def initialize(user: nil)
+    def initialize(user: nil, site: nil)
       @user = user
+      @site = site
     end
 
     def call
@@ -15,7 +16,9 @@ module LightekPwa
         navigation: navigation_payload,
         surfaces: surface_payload,
         capabilities: capability_payload,
-        subscriptions: subscription_payload
+        subscriptions: subscription_payload,
+        services: service_payload,
+        site: @site && { id: @site.id, name: @site.name, host: @site.host }
       }
     end
 
@@ -49,6 +52,8 @@ module LightekPwa
             profile.handle,
           display_handle:
             profile.display_handle,
+          community_gender: profile.community_gender,
+          top_people_limit: profile.top_people_limit,
           profile_type:
             profile.profile_type,
           bio:
@@ -108,6 +113,28 @@ module LightekPwa
                 nil
           }
         end
+    end
+
+    def service_payload
+      links = [
+        { label: "Studio", href: "#/studio" },
+        { label: "Communities", href: "#/communities" },
+        { label: "Messages", href: "#/messages" },
+        { label: "Marketplace", href: "/marketplace" }
+      ]
+      links << { label: "Storefront", href: "/commerce/shop?site_id=#{@site.id}" } if @site
+      if user
+        links += [
+          { label: "Saved", href: "#/saved" },
+          { label: "Money & Susu", href: "#/money" }
+        ]
+        links << { label: "Mail", href: "/dashboard/mail" } if user.can_access_feature?("mail")
+        links << { label: "Live broadcast", href: "/dashboard/live" } if user.can_access_feature?("live")
+        if user.role.to_s.in?(%w[admin super_admin]) || (@site && @site.tenant == user)
+          links << { label: "Business workspace", href: "/dashboard" }
+        end
+      end
+      links
     end
 
     def subscription_payload

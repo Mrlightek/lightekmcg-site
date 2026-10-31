@@ -1,3 +1,5 @@
+require "tmpdir"
+
 module Studio
   module Providers
     class BlenderProvider
@@ -18,9 +20,24 @@ module Studio
           raise ArgumentError, "Blender provider does not support #{operation.operation_type.inspect} yet"
         end
 
-        result = Blender::Runner.new(operation).call
-        attach_outputs(result.output_directory)
-        result
+        Dir.mktmpdir("lightek-scene-assets-") do |root|
+          ids=Array(operation.manifest.dig("scene","objects")).select{|object|object["type"]=="imported_asset"}.map{|object|object.dig("definition","asset_id").to_i}.uniq
+          paths={}
+          if ids.any?
+            actor_id=operation.intent["user_id"] || operation.studio_project.owner_id
+            access=Studio::PwaAccess.new("user_id"=>actor_id,"site_id"=>operation.studio_project.site_id)
+            ids.each do |id|
+              asset=StudioAsset.for_actor(access).where(status:"ready").find(id)
+              raise ArgumentError,"Asset proxy is not ready" unless asset.proxy.attached?
+              path=File.join(root,"#{id}.glb")
+              File.open(path,"wb"){|file|asset.proxy.blob.download{|chunk|file.write(chunk)}}
+              paths[id]=path
+            end
+          end
+          result = Blender::Runner.new(operation,asset_paths:paths).call
+          attach_outputs(result.output_directory)
+          result
+        end
       end
 
       private

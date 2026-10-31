@@ -49,7 +49,7 @@ module Studio
         production = nil
         scene = nil
         StudioProject.transaction do
-          project = StudioProject.create!(name: name, description: description)
+          project = StudioProject.create!(name: name, description: description, owner_id: @payload["user_id"], site_id: @payload["site_id"])
           production = Production.create!(
             studio_project: project,
             name: name,

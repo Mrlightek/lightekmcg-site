@@ -48,9 +48,7 @@ module Studio
 
       def bootstrap
         projects =
-          Array(
-            studio.projects
-          )
+          Studio::PwaAccess.new(payload).projects.order(:id).to_a
 
         project_payloads =
           projects.map do |project|
@@ -111,6 +109,7 @@ module Studio
 
           "name" =>
             project.name,
+          "is_template" => project.is_template,
 
           "description" =>
             project.respond_to?(:description) ?
@@ -222,6 +221,7 @@ module Studio
 
           "settings" =>
             scene.settings.to_h,
+          "lock_version" => scene.lock_version,
 
           "object_count" =>
             objects.length,

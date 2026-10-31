@@ -43,3 +43,7 @@ load Rails.root.join(
 load Rails.root.join(
   "db/seeds/nevaeh_self_knowledge.rb"
 )
+
+# Client-facing community and persisted Studio authoring workflows.
+load Rails.root.join("db/seeds/lightek_community_capabilities.rb")
+load Rails.root.join("db/seeds/lightek_studio_workspace_capabilities.rb")

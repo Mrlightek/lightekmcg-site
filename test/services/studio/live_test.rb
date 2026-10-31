@@ -58,8 +58,8 @@ class StudioLiveTest < ActiveSupport::TestCase
     assert_raises(Studio::Live::Destination::Unavailable) { Studio::Live::Destination.validate!(server, "") }
     assert_raises(Studio::Live::Destination::Unavailable) { Studio::Live::Destination.validate!(server, "bad\nkey") }
   end
-  test "only super admin may configure a destination" do
-    assert_raises(::Gatekeeper::StudioLivePolicy::Denied) { Studio::Live::Destination.save!(user: actor, server_url: "", stream_key: "") }
+  test "unentitled clients cannot configure a destination" do
+    assert_raises(::Gatekeeper::StudioLivePolicy::Denied) { Studio::Live::Destination.save!(user: actor("client"), server_url: "", stream_key: "") }
   end
   test "no configured destination prevents a TikTok reservation" do
     with_live_stub(Studio::Live::Destination, :configured?, false) do

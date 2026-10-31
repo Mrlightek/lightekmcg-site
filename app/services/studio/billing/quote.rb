@@ -6,7 +6,8 @@ module Studio
       DEFAULT_RAIL = :stripe_ach
 
       CONTEXTS = {
-        "build_scene" => :studio_render
+        "build_scene" => :studio_render,
+        "edit_media" => :studio_render
       }.freeze
 
       def self.call(operation:, rail: DEFAULT_RAIL)

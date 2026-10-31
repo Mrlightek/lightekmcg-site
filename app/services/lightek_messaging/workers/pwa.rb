@@ -101,12 +101,9 @@ module LightekMessaging
       end
 
       def conversation
-        @conversation ||=
-          accessible_conversations.find(
-            payload.fetch(
-              "conversation_id"
-            )
-          )
+        @conversation ||= accessible_conversations.find(payload.fetch("conversation_id"))
+        LightekCommunity::ConversationAccess.authorize!(@conversation, profile)
+        @conversation
 
       rescue ActiveRecord::RecordNotFound
         raise AccessDenied,
@@ -188,7 +185,7 @@ module LightekMessaging
 
         {
           "conversations" =>
-            records.map do |record|
+            records.select { |record| LightekCommunity::ConversationAccess.allowed?(record, profile) }.map do |record|
               conversation_payload(
                 record
               )

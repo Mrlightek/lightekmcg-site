@@ -4,8 +4,10 @@ require "test_helper"
 
 class StudioPwaWorkerTest < ActiveSupport::TestCase
   setup do
+        @user = User.create!(first_name: "Studio", last_name: "Creator", email_address: "studio-#{SecureRandom.hex(6)}@example.com", password: "studio-test-password", role: "client")
     @project =
       StudioProject.create!(
+            owner: @user,
         name:
           "PWA Studio Project"
       )
@@ -77,7 +79,7 @@ class StudioPwaWorkerTest < ActiveSupport::TestCase
   test "bootstrap returns real project production scene and object hierarchy" do
     result =
       Studio::Workers::Pwa.perform(
-        "bootstrap"
+        "bootstrap", { user_id: @user.id }
       )
 
     project =

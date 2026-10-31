@@ -1,70 +1,74 @@
+# Existing routes use the same site, audience and membership boundary as the PWA.
 class CommunitiesController < ApplicationController
-  before_action :set_community, only: %i[ show edit update destroy ]
+  protect_from_forgery with: :exception
+  before_action { response.set_header("Cache-Control", "private, no-store") }
+  before_action :set_community, only: %i[show edit update destroy]
+  rescue_from LightekCommunity::AccessDenied do |error|
+    render json: { error: error.message }, status: :forbidden
+  end
+  rescue_from ArgumentError, ActiveRecord::RecordInvalid do |error|
+    render json: { error: error.message }, status: :unprocessable_entity
+  end
 
-  # GET /communities or /communities.json
   def index
-    @communities = Community.all
+    respond_to do |format|
+      format.html { redirect_to "/lightek/index.html#/communities" }
+      format.json { render json: access.communities.order(:name).limit(100).map { |community| presenter.community(community) } }
+    end
   end
 
-  # GET /communities/1 or /communities/1.json
   def show
+    respond_to do |format|
+      format.html { redirect_to "/lightek/index.html#/community/#{@community.slug}" }
+      format.json { render json: presenter.community(@community) }
+    end
   end
 
-  # GET /communities/new
   def new
-    @community = Community.new
+    redirect_to "/lightek/index.html#/communities"
   end
 
-  # GET /communities/1/edit
   def edit
+    access.manage!(@community)
+    redirect_to "/lightek/index.html#/community/#{@community.slug}"
   end
 
-  # POST /communities or /communities.json
   def create
-    @community = Community.new(community_params)
-
-    respond_to do |format|
-      if @community.save
-        format.html { redirect_to @community, notice: "Community was successfully created." }
-        format.json { render :show, status: :created, location: @community }
-      else
-        format.html { render :new, status: :unprocessable_content }
-        format.json { render json: @community.errors, status: :unprocessable_content }
-      end
-    end
+    result = perform("community_create", community_params.merge("request_key" => SecureRandom.uuid))
+    render_result(result, :created)
   end
 
-  # PATCH/PUT /communities/1 or /communities/1.json
   def update
-    respond_to do |format|
-      if @community.update(community_params)
-        format.html { redirect_to @community, notice: "Community was successfully updated.", status: :see_other }
-        format.json { render :show, status: :ok, location: @community }
-      else
-        format.html { render :edit, status: :unprocessable_content }
-        format.json { render json: @community.errors, status: :unprocessable_content }
-      end
-    end
+    result = perform("community_update", community_params.merge("slug" => @community.slug))
+    render_result(result, :ok)
   end
 
-  # DELETE /communities/1 or /communities/1.json
   def destroy
+    access.manage!(@community)
+    # Community deletion is an owner action; delegated managers may edit members.
+    raise LightekCommunity::AccessDenied, "Only the owner can delete this community" unless access.super_admin? || @community.owner_profile_id == current_user.profile&.id
     @community.destroy!
-
     respond_to do |format|
-      format.html { redirect_to communities_path, notice: "Community was successfully destroyed.", status: :see_other }
+      format.html { redirect_to "/lightek/index.html#/communities", status: :see_other }
       format.json { head :no_content }
     end
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
-    def set_community
-      @community = Community.find(params.expect(:id))
-    end
 
-    # Only allow a list of trusted parameters through.
-    def community_params
-      params.fetch(:community, {})
+  def access
+    @access ||= LightekCommunity::Access.new(user: current_user, site_id: LightekPwa::SiteContext.resolve(request.host).id)
+  end
+  def presenter = LightekCommunity::Presenter.new(access)
+  def set_community = @community = access.communities.find(params.expect(:id))
+  def community_params = params.require(:community).permit(:name, :description, :visibility, :audience, sections: []).to_h
+  def perform(action, payload)
+    LightekCommunity::Workers::Pwa.perform(action, payload.merge("user_id" => current_user.id, "site_id" => access.site_id))
+  end
+  def render_result(result, status)
+    respond_to do |format|
+      format.html { redirect_to "/lightek/index.html#/community/#{result.fetch(:community).fetch(:slug)}", status: :see_other }
+      format.json { render json: result.fetch(:community), status: status }
     end
+  end
 end

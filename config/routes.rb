@@ -442,6 +442,16 @@ get "manifest"       => "rails/pwa#manifest",       as: :pwa_manifest
 
 
 
+  get "/api/lightek/ott/catalog", to: "api/lightek_pwa#ott_catalog"
+  get "/api/lightek/pwa/live/:post_id/index.m3u8", to: "api/lightek_pwa#live_playlist"
+  get "/api/lightek/pwa/live/:post_id/segments/:name", to: "api/lightek_pwa#live_segment", constraints: { name: /segment-\d+\.ts/ }, format: false
+  get "/api/lightek/pwa/assets/:id/:flavor", to: "api/lightek_pwa#asset_file"
+  get "/api/lightek/pwa/posts/:post_id/media/:attachment_id", to: "api/lightek_pwa#media"
+  get "/api/lightek/pwa/communities/:slug/cover", to: "api/lightek_pwa#cover"
+  get "/api/lightek/pwa", to: "api/lightek_pwa#show"
+  post "/api/lightek/pwa/uploads", to: "api/lightek_pwa#upload"
+  get "/api/nevaeh/executions/:id", to: "api/nevaeh#execution"
+
   get "/api/nevaeh/bootstrap",
       to: "api/nevaeh#bootstrap"
 

@@ -3118,8 +3118,9 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lightek">
-<link rel="apple-touch-icon" href="/lightek/icons/icon.svg">
+<link rel="apple-touch-icon" href="/lightek/icons/icon-180.png">
 
+<link rel="stylesheet" href="/lightek/community-app.css">
 </head><body>
 <header id="top"><a class="logo" href="#/home">LIGHTEK</a>
 <div class="tools"><a class="hd2" href="#/messages">Messages</a><a class="btn p sm" href="/session/new?return_to=%2Flightek%2Findex.html%23%2Fcreate">+ Create</a><a class="hd2" href="/session/new?return_to=%2Flightek%2Findex.html%23%2Fspace">Sign in</a></div></header>
@@ -6563,9 +6564,9 @@ const STUDIO_SEMANTIC_FIXTURES={
   props:["Set dressing"],cameras:["Main camera"],
   lighting:["Key lighting"],fx:["Atmosphere"],audio:["Dialogue"]
 };
-const STUDIO_GRAPH_UI={closed:new Set(),hidden:new Set(),fixtureSelection:null,preview:true};
+const STUDIO_GRAPH_UI={closed:new Set(),hidden:new Set(),fixtureSelection:null,preview:false};
 const studioSemanticGroup=object=>{
-  const kind=String(object.object_type||"").toLowerCase();
+  const kind=String(object.definition?.category||object.object_type||"").toLowerCase();
   return STUDIO_SEMANTIC_GROUPS.find(g=>g.types.some(t=>kind===t||kind.startsWith(t+"_")))||
     STUDIO_SEMANTIC_GROUPS.find(g=>g.key==="other");
 };
@@ -6656,6 +6657,7 @@ const studioWorkspaceLibraryShelf=()=>{
 };
 
 const studioWorkspaceInspectorShell=scene=>{
+  if(window.LightekStudioApp)return window.LightekStudioApp.inspector(scene);
   const selected=studioWorkspaceSelectedObject(scene);
   const type=String(selected?.object_type||"scene").toLowerCase();
   const label=type.includes("camera")?"Camera":type.includes("light")?"Lighting":type.includes("character")?"Character":type.includes("environment")?"Environment":type.includes("fx")?"FX":type.includes("audio")?"Audio":"Object";
@@ -6684,6 +6686,7 @@ const studioWorkspaceInspectorShell=scene=>{
 };
 
 const studioWorkspaceDirectorShell=record=>{
+  if(window.LightekStudioApp)return window.LightekStudioApp.director(record);
   const {project,production,scene}=record;
   const selected=studioWorkspaceSelectedObject(scene);
   const suggestions=[
@@ -6913,7 +6916,7 @@ const studioW5Apply=(record)=>{
  const keys=["rail","inspector","focus","comfortable","railWidth","inspectorWidth"];
  keys.forEach(k=>{STUDIO_WORKSPACE_LAYOUT[k]=record[k]});
  STUDIO_W5_STATE.active=record.name;
- STUDIO_W5_STATE.feedback=`${record.name} layout preview applied. Not saved to your account.`;
+ STUDIO_W5_STATE.feedback=`${record.name} layout applied. Save workspace to keep it.`;
  render(1)
 };
 const studioW5Preset=name=>[...STUDIO_W5_BUILTINS,...STUDIO_W5_STATE.presets].find(p=>p.name===name);
@@ -6921,7 +6924,7 @@ const studioW5Stage=record=>{
  const layout=studioW5Snapshot();
  const previewClass=layout.focus?"is-focus":`${!layout.rail?"is-no-rail ":""}${!layout.inspector?"is-no-inspector ":""}${layout.comfortable?"is-comfortable":""}`;
  return `<section class="studio-w5" aria-label="Workspace personalization">
- <header class="studio-w5-top"><div><span class="studio-w5-kicker">Lightek Studio · Workspace Designer</span><h2>Make room for your work.</h2><p>${E(record?.project?.name||"Studio")} · ${E(record?.scene?.name||"Scene")} · design your working environment</p></div><span class="studio-w5-tag">Session preview only · no account save</span></header>
+ <header class="studio-w5-top"><div><span class="studio-w5-kicker">Lightek Studio · Workspace Designer</span><h2>Make room for your work.</h2><p>${E(record?.project?.name||"Studio")} · ${E(record?.scene?.name||"Scene")} · design your working environment</p></div><span class="studio-w5-tag">Workspace preferences · use Save workspace</span></header>
  <div class="studio-w5-grid"><section class="studio-w5-panel"><span class="studio-w5-kicker">Layout presets</span><h3>Start with a room.</h3>
  <div class="studio-w5-preset-list">${[...STUDIO_W5_BUILTINS,...STUDIO_W5_STATE.presets].map(p=>`<button type="button" class="studio-w5-btn ${STUDIO_W5_STATE.active===p.name?"on":""}" data-a="studioW5Apply" data-name="${E(p.name)}" aria-pressed="${STUDIO_W5_STATE.active===p.name}">${E(p.name)}</button>`).join("")}</div>
  <span class="studio-w5-kicker">Your layout</span><div class="studio-w5-row"><label>Scene Graph & Library</label><button type="button" class="studio-w5-btn ${layout.rail?"on":""}" data-a="studioW5Toggle" data-key="rail" aria-pressed="${layout.rail}">${layout.rail?"Visible":"Hidden"}</button></div>
@@ -6952,12 +6955,16 @@ document.addEventListener("input",event=>{
 });
 
 const studioWorkspaceFutureStage=(record,mode)=>{
+  if(window.LightekStudioApp){
+    const live=window.LightekStudioApp.story(record,mode)||window.LightekStudioApp.delivery(record,mode);
+    if(live)return live;
+  }
   if(mode==="workspace-designer")return studioW5Stage(record);
 
   const delivery=studioW4Stage(record,mode);
   if(delivery!==null)return delivery;
 
-  if(mode==="visual")return studioV3Stage(record);
+  if(mode==="visual")return window.LightekStudioApp?window.LightekStudioApp.visual(record):studioV3Stage(record);
 
   const wave2=studioWave2Stage(record,mode);
   if(wave2!==null)return wave2;
@@ -7219,6 +7226,7 @@ const studio3DWorkspace=record=>{
 };
 
 const studioSceneView=record=>{
+  window.LightekStudioApp?.prepare(record);
   const {
     project,
     production,
@@ -7276,6 +7284,7 @@ const studioSceneView=record=>{
           </div>
         </div>
 
+        ${window.LightekStudioApp?.tools(record)||""}
         <div class="studio-work-tabs">
           ${STUDIO_WORKSPACE_MODES.map(item=>`
             <button
@@ -8715,7 +8724,7 @@ const messageConversationPanel=conversation=>{
 
         <div class="msg-peer-copy">
           <span class="eb">
-            ${conversation.kind==="group"?"Group conversation":"Direct message"}
+            ${E({group:"Group conversation",community:"Community conversation",watch_party:"Watch party",direct:"Direct message"}[conversation.kind]||"Conversation")}
           </span>
 
           <h2 class="serif">
@@ -8765,11 +8774,11 @@ const messageConversationPanel=conversation=>{
 
         <button
           class="btn sm rel-block"
-          data-a="${conversation.kind==="group"?"messageLeaveGroup":"messageDeleteConversation"}"
+          data-a="${conversation.kind!=="direct"?"messageLeaveGroup":"messageDeleteConversation"}"
           data-id="${Number(conversation.id)}"
           type="button"
         >
-          ${conversation.kind==="group"?"Leave group":"Delete conversation"}
+          ${conversation.kind!=="direct"?"Leave conversation":"Delete conversation"}
         </button>
       </div>
     </header>
@@ -10234,8 +10243,8 @@ studioW4Cue:button=>{const i=Number(button.dataset.index);if(!Number.isInteger(i
 studioW4LiveMode:button=>{const mode=button.dataset.mode;if(!["Preview","Program rehearsal"].includes(mode))return;STUDIO_W4_STATE.liveMode=mode;render(1)},
 studioW5Apply:button=>{const preset=studioW5Preset(button.dataset.name);if(preset)studioW5Apply(preset)},
 studioW5Toggle:button=>{const key=button.dataset.key;if(!["rail","inspector","focus","comfortable"].includes(key))return;STUDIO_WORKSPACE_LAYOUT[key]=!STUDIO_WORKSPACE_LAYOUT[key];if(key!=="focus")STUDIO_WORKSPACE_LAYOUT.focus=false;STUDIO_W5_STATE.active="Custom (unsaved)";render(1)},
-studioW5Save:()=>{const name=STUDIO_W5_STATE.draftName.trim();if(!name){STUDIO_W5_STATE.feedback="Enter a name before saving a session preset.";render(1);return}if(STUDIO_W5_BUILTINS.some(p=>p.name.toLowerCase()===name.toLowerCase())){STUDIO_W5_STATE.feedback="That name belongs to a built-in preset.";render(1);return}if(STUDIO_W5_STATE.presets.some(p=>p.name.toLowerCase()===name.toLowerCase())){STUDIO_W5_STATE.feedback="That session preset already exists. Choose another name.";render(1);return}if(STUDIO_W5_STATE.presets.length>=12){STUDIO_W5_STATE.feedback="This preview supports up to 12 custom session presets.";render(1);return}STUDIO_W5_STATE.presets.push({name,...studioW5Snapshot()});STUDIO_W5_STATE.draftName="";STUDIO_W5_STATE.active=name;STUDIO_W5_STATE.feedback=`Saved ${name} for this browser session only.`;render(1)},
-studioW5Remove:button=>{const name=button.dataset.name;STUDIO_W5_STATE.presets=STUDIO_W5_STATE.presets.filter(p=>p.name!==name);if(STUDIO_W5_STATE.active===name)STUDIO_W5_STATE.active="Custom (unsaved)";STUDIO_W5_STATE.feedback=`Removed ${name} from this session.`;render(1)},
+studioW5Save:()=>{const name=STUDIO_W5_STATE.draftName.trim();if(!name){STUDIO_W5_STATE.feedback="Enter a name before saving a session preset.";render(1);return}if(STUDIO_W5_BUILTINS.some(p=>p.name.toLowerCase()===name.toLowerCase())){STUDIO_W5_STATE.feedback="That name belongs to a built-in preset.";render(1);return}if(STUDIO_W5_STATE.presets.some(p=>p.name.toLowerCase()===name.toLowerCase())){STUDIO_W5_STATE.feedback="That session preset already exists. Choose another name.";render(1);return}if(STUDIO_W5_STATE.presets.length>=12){STUDIO_W5_STATE.feedback="This preview supports up to 12 custom session presets.";render(1);return}STUDIO_W5_STATE.presets.push({name,...studioW5Snapshot()});STUDIO_W5_STATE.draftName="";STUDIO_W5_STATE.active=name;STUDIO_W5_STATE.feedback=`Preset ${name} added. Save workspace to keep it.`;render(1)},
+studioW5Remove:button=>{const name=button.dataset.name;STUDIO_W5_STATE.presets=STUDIO_W5_STATE.presets.filter(p=>p.name!==name);if(STUDIO_W5_STATE.active===name)STUDIO_W5_STATE.active="Custom (unsaved)";STUDIO_W5_STATE.feedback=`Removed ${name} from this workspace. Save to keep the change.`;render(1)},
 studioW5Reset:()=>studioW5Apply(STUDIO_W5_BUILTINS[0]),
 studioLayoutToggle:button=>{
   studioWorkspaceLayoutToggle(button.dataset.panel||"")
@@ -13212,7 +13221,7 @@ ct:b=>{CS.type=b.dataset.v;CS.s=1;render()},cb:()=>{CS.s--;render()},cx:()=>{CS.
 cd:b=>{const v=b.dataset.v;CS.dest.has(v)?CS.dest.delete(v):CS.dest.add(v);render(1)},
 pub:()=>{CS.pr=1;render(1);const t=setInterval(()=>{CS.pr+=14;if(CS.pr>=100){clearInterval(t);CS.done=1}if(location.hash=='#/create')render(1)},180)},
 again:()=>{Object.assign(CS,{s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0});render()}};
-function render(keep){const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=R[r]?r:'home';app.innerHTML=R[k](a);document.querySelectorAll('#primary-nav a').forEach(x=>x.classList.toggle('on',x.dataset.r==(k=='community'?'communities':k)));if(AF[k])AF[k](a);scrollTo(0,keep?y:0);app.classList.remove('fade');if(!keep){void app.offsetWidth;app.classList.add('fade')}}
+function render(keep){if(!window.LightekLiveReady){app.innerHTML='<div class="wrap pwa-page"><h1>Lightek</h1><p role="status">Loading your network…</p></div>';return}const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=R[r]?r:'home';app.innerHTML=R[k](a);document.querySelectorAll('#primary-nav a').forEach(x=>x.classList.toggle('on',x.dataset.r==(k=='community'?'communities':k)));if(AF[k])AF[k](a);scrollTo(0,keep?y:0);app.classList.remove('fade');if(!keep){void app.offsetWidth;app.classList.add('fade')}}
 app.addEventListener('click',e=>{const s=e.target.closest('[data-sc]');if(s){e.preventDefault();document.getElementById(s.dataset.sc)?.scrollIntoView({behavior:'smooth'});return}const b=e.target.closest('[data-a]');if(b)A[b.dataset.a]?.(b,e)});
 app.addEventListener('input',e=>{
   const n=e.target.name;
@@ -13340,7 +13349,7 @@ app.addEventListener('keydown',e=>{
     A.send()
   }
 });
-addEventListener('keydown',e=>{if(!location.hash.startsWith('#/clips')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;const k=e.key;if(k=='ArrowDown'||k=='j'){e.preventDefault();A.cn()}else if(k=='ArrowUp'||k=='k'){e.preventDefault();A.cp()}else if(k=='l')A.tg({dataset:{k:'like:'+S.clip}});else if(k=='s')A.tg({dataset:{k:'save:'+S.clip}})});
+addEventListener('keydown',e=>{if(window.LightekLiveReady)return;if(!location.hash.startsWith('#/clips')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;const k=e.key;if(k=='ArrowDown'||k=='j'){e.preventDefault();A.cn()}else if(k=='ArrowUp'||k=='k'){e.preventDefault();A.cp()}else if(k=='l')A.tg({dataset:{k:'like:'+S.clip}});else if(k=='s')A.tg({dataset:{k:'save:'+S.clip}})});
 addEventListener('lightek.bootstrap.ready',event=>{
   window.LightekIdentity=event.detail?.identity||null;
 
@@ -13373,6 +13382,11 @@ addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)loc
 </script>
 <script src="/lightek/nevaeh-client.js"></script>
 
+<script src="/lightek/vendor/hls/hls.light.min.js"></script>
+<script src="/lightek/community-app.js"></script>
+<script src="/lightek/studio-app.js"></script>
+<script src="/lightek/studio-media.js"></script>
+<script type="module" src="/lightek/asset-preview.js"></script>
 <script src="/lightek/bootstrap-adapter.js"></script>
 
 <script src="/lightek/vendor/gsap/gsap.min.js"></script>

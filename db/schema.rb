@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_31_151000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -88,6 +88,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
   end
 
   create_table "communities", force: :cascade do |t|
+    t.string "audience", default: "everyone", null: false
+    t.string "request_key"
+    t.index ["owner_profile_id", "request_key"], name: "idx_community_request_unique", unique: true
+    t.bigint "owner_profile_id"
+    t.bigint "site_id"
+    t.string "name"
+    t.string "slug"
+    t.text "description"
+    t.string "visibility", default: "public", null: false
+    t.jsonb "sections", default: ["featured", "live", "conversations", "clips", "events", "members", "playlists", "about"], null: false
+    t.index ["owner_profile_id"], name: "index_communities_on_owner_profile_id"
+    t.index ["site_id"], name: "index_communities_on_site_id"
+    t.index ["slug"], name: "index_communities_on_slug", unique: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -1196,6 +1209,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "lightek_community_memberships", force: :cascade do |t|
+    t.bigint "community_id", null: false
+    t.bigint "profile_id", null: false
+    t.string "role", default: "member", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["community_id"], name: "index_lightek_community_memberships_on_community_id"
+    t.index ["profile_id"], name: "index_lightek_community_memberships_on_profile_id"
+    t.index ["community_id", "profile_id"], name: "idx_community_member_unique", unique: true
+  end
+
+  create_table "lightek_community_engagements", force: :cascade do |t|
+    t.bigint "post_id", null: false
+    t.bigint "profile_id", null: false
+    t.string "kind", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["post_id"], name: "index_lightek_community_engagements_on_post_id"
+    t.index ["profile_id"], name: "index_lightek_community_engagements_on_profile_id"
+    t.index ["post_id", "profile_id", "kind"], name: "idx_community_engagement_unique", unique: true
+  end
+
   create_table "lightek_mail_accounts", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "domain_id", null: false
@@ -1458,6 +1493,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_lightek_pwa_surfaces_on_key", unique: true
+  end
+
+  create_table "lightek_social_top_people", force: :cascade do |t|
+    t.bigint "profile_id", null: false
+    t.bigint "person_id", null: false
+    t.integer "position", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["profile_id"], name: "index_lightek_social_top_people_on_profile_id"
+    t.index ["person_id"], name: "index_lightek_social_top_people_on_person_id"
+    t.index ["profile_id", "person_id"], name: "idx_top_people_person", unique: true
+    t.index ["profile_id", "position"], name: "idx_top_people_position", unique: true
   end
 
   create_table "lightek_social_blocks", force: :cascade do |t|
@@ -1940,6 +1987,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
   end
 
   create_table "posts", force: :cascade do |t|
+    t.string "audience", default: "everyone", null: false
+    t.string "distribution", default: "lightek_social", null: false
+    t.index ["site_id", "distribution"], name: "index_posts_on_site_id_and_distribution"
+    t.bigint "community_id"
+    t.bigint "site_id"
+    t.bigint "parent_id"
+    t.string "title"
+    t.string "kind", default: "post", null: false
+    t.string "visibility", default: "public", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "expires_at"
+    t.string "request_key"
+    t.index ["community_id"], name: "index_posts_on_community_id"
+    t.index ["parent_id"], name: "index_posts_on_parent_id"
+    t.index ["site_id"], name: "index_posts_on_site_id"
+    t.index ["site_id", "community_id", "created_at"], name: "index_posts_on_site_id_and_community_id_and_created_at"
+    t.index ["user_id", "request_key"], name: "index_posts_on_user_id_and_request_key", unique: true
     t.bigint "user_id", null: false
     t.text "content"
     t.datetime "created_at", null: false
@@ -1983,6 +2047,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
   end
 
   create_table "profiles", force: :cascade do |t|
+    t.string "community_gender", default: "unspecified", null: false
+    t.integer "top_people_limit", default: 8, null: false
     t.bigint "user_id", null: false
     t.text "bio"
     t.datetime "created_at", null: false
@@ -2129,6 +2195,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "studio_assets", force: :cascade do |t|
+    t.bigint "owner_id", null: false
+    t.bigint "site_id"
+    t.bigint "studio_project_id"
+    t.string "name", null: false
+    t.string "kind", null: false
+    t.string "status", default: "uploaded", null: false
+    t.string "request_key", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_id"], name: "index_studio_assets_on_owner_id"
+    t.index ["site_id"], name: "index_studio_assets_on_site_id"
+    t.index ["studio_project_id"], name: "index_studio_assets_on_studio_project_id"
+    t.index ["owner_id", "request_key"], name: "index_studio_assets_on_owner_id_and_request_key", unique: true
+  end
+
   create_table "studio_live_operations", force: :cascade do |t|
     t.bigint "studio_project_id", null: false
     t.bigint "production_id"
@@ -2181,6 +2265,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
   end
 
   create_table "studio_projects", force: :cascade do |t|
+    t.bigint "owner_id"
+    t.bigint "site_id"
+    t.boolean "is_template", default: false, null: false
+    t.string "request_key"
+    t.index ["owner_id"], name: "index_studio_projects_on_owner_id"
+    t.index ["site_id"], name: "index_studio_projects_on_site_id"
+    t.index ["owner_id", "request_key"], name: "index_studio_projects_on_owner_id_and_request_key", unique: true
     t.string "name", null: false
     t.text "description"
     t.datetime "created_at", null: false
@@ -2188,6 +2279,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
   end
 
   create_table "studio_publications", force: :cascade do |t|
+    t.string "request_key"
+    t.index ["studio_project_id", "request_key"], name: "idx_studio_publication_request_unique", unique: true
     t.bigint "studio_project_id", null: false
     t.bigint "production_id"
     t.bigint "artifact_id", null: false
@@ -2212,6 +2305,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
   end
 
   create_table "studio_scenes", force: :cascade do |t|
+    t.integer "lock_version", default: 0, null: false
     t.bigint "studio_project_id", null: false
     t.string "name", null: false
     t.jsonb "settings", default: {}, null: false
@@ -2419,6 +2513,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_174119) do
     t.index ["stripe_connect_account_id"], name: "index_users_on_stripe_connect_account_id", unique: true
   end
 
+  add_foreign_key "lightek_social_top_people", "profiles"
+  add_foreign_key "lightek_social_top_people", "profiles", column: "person_id"
+  add_foreign_key "studio_assets", "users", column: "owner_id"
+  add_foreign_key "studio_assets", "dymond_site_sites", column: "site_id"
+  add_foreign_key "studio_assets", "studio_projects"
+  add_foreign_key "communities", "profiles", column: "owner_profile_id"
+  add_foreign_key "communities", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_community_memberships", "communities"
+  add_foreign_key "lightek_community_memberships", "profiles"
+  add_foreign_key "lightek_community_engagements", "posts"
+  add_foreign_key "lightek_community_engagements", "profiles"
+  add_foreign_key "posts", "communities"
+  add_foreign_key "posts", "dymond_site_sites", column: "site_id"
+  add_foreign_key "posts", "posts", column: "parent_id"
+  add_foreign_key "studio_projects", "users", column: "owner_id"
+  add_foreign_key "studio_projects", "dymond_site_sites", column: "site_id"
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "artifacts", "creation_jobs"

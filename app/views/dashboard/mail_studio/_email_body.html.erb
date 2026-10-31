@@ -1,0 +1,7 @@
+<% content = local_assigns[:content] || LightekMail::MessageContent.new(message) %>
+<% images = local_assigns.fetch(:images, false) %>
+<% if content.html.present? %>
+  <iframe class="email-canvas" title="Email from <%= message.from_address %>" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" srcdoc="<%= LightekMail::MessageContent.document(content.html, images: images) %>" data-mail-frame></iframe>
+<% else %>
+  <div class="plain-email"><%= simple_format(message.text_body.to_s) %></div>
+<% end %>

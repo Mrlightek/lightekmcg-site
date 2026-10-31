@@ -27,7 +27,9 @@ module LightekMail
       end
     end
     def self.clean_html(html)
-      Rails::HTML5::SafeListSanitizer.new.sanitize(html.to_s, tags: %w[p br strong em b i u h1 h2 h3 ul ol li a blockquote table tbody tr td th div span hr], attributes: %w[href title colspan rowspan cellpadding cellspacing border])
+      fragment = Nokogiri::HTML.fragment(html.to_s)
+      fragment.css("script,style,iframe,object,embed,form,input,button,svg,meta,link").remove
+      Rails::HTML5::SafeListSanitizer.new.sanitize(fragment.to_html, tags: %w[p br strong em b i u s h1 h2 h3 h4 ul ol li a blockquote table thead tbody tfoot tr td th colgroup col caption div span hr img center font], attributes: %w[href title colspan rowspan cellpadding cellspacing border style width height align valign bgcolor color face size role alt src])
     end
     def self.render(document, values = {})
       d = normalize(document)

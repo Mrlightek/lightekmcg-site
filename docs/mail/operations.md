@@ -207,3 +207,23 @@ changes operational mail settings. Customer suspensions and quotas are retained.
 
 This handles the known code/data upgrade cases; it is not a substitute for
 inspecting the actual production settings and testing receipt after activation.
+
+### Conversation and HTML workspace
+
+Reply and Reply all show the original message beside the composer on desktop,
+with a collapsible original above the composer on mobile. The original is quoted
+by default; the sender can omit it. Replies carry In-Reply-To and References
+headers, and the reader groups up to 30 linked messages within the same mailbox.
+Forwarding can optionally include the original attachments. Bcc recipients are
+never copied into a reply or quoted header.
+
+The composer supports rich formatting and a plain-text fallback. Outgoing mail
+includes both HTML and text. Received HTML is sanitized and displayed in a
+sandboxed frame; external images remain blocked until the reader explicitly
+loads them for that message. No schema migration or mail-server configuration
+change is required for this workspace update.
+
+The isolated workspace fixture covers reply composition, drafts, mailbox
+isolation, conversation history, forwarding, HTML sanitization and image opt-in.
+Desktop and mobile browser checks use synthetic mail with that fixture; they do
+not replace production authentication or SMTP delivery checks.

@@ -9,11 +9,14 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     @accounts = LightekMail::Access.accounts(current_user).includes(:domain).order(:address)
     @domains = LightekMail::Access.domains(current_user).order(:name)
     @account = params[:account_id].present? ? @accounts.find(params[:account_id]) : @accounts.first
-    @folder = params[:folder].to_s.in?(%w[inbox sent draft outbox all trash]) ? params[:folder] : "inbox"
+    @folder = params[:folder].to_s.in?(%w[inbox unread starred sent draft outbox archived all trash]) ? params[:folder] : "inbox"
     return unless @account
     visible = @account.messages.where(trashed: false)
     @folder_counts = {
       "inbox" => visible.where(direction: "inbound", archived: false).count,
+      "unread" => visible.where(direction: "inbound", archived: false, read_at: nil).count,
+      "starred" => visible.where(starred: true).count,
+      "archived" => visible.where(archived: true).count,
       "sent" => visible.where(state: "sent").count,
       "draft" => visible.where(state: "draft").count,
       "outbox" => visible.where(state: %w[queued submitting failed uncertain]).count,
@@ -26,6 +29,9 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     @templates = @account.templates.order(:name)
     @messages = @account.messages.where(trashed: @folder == "trash")
     @messages = @messages.where(direction: "inbound", archived: false) if @folder == "inbox"
+    @messages = @messages.where(direction: "inbound", archived: false, read_at: nil) if @folder == "unread"
+    @messages = @messages.where(starred: true) if @folder == "starred"
+    @messages = @messages.where(archived: true) if @folder == "archived"
     @messages = @messages.where(state: @folder) if %w[sent draft].include?(@folder)
     @messages = @messages.where(state: %w[queued submitting failed uncertain]) if @folder == "outbox"
     term = params[:q].to_s.slice(0, 120)
@@ -33,7 +39,7 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
       pattern = "%#{ActiveRecord::Base.sanitize_sql_like(term)}%"
       @messages = @messages.where("LOWER(subject) LIKE ? OR LOWER(from_address) LIKE ? OR LOWER(text_body) LIKE ?", *[pattern.downcase] * 3)
     end
-    @messages = @messages.order(created_at: :desc).limit(100)
+    @messages = @messages.order(created_at: :desc).limit(100).with_attached_attachments()
   end
 
   def check_receiving
@@ -79,17 +85,32 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
   def compose
     @idempotency_key = "web_#{SecureRandom.hex(24)}"
     @templates = @account.templates.order(:name)
-    @reply = @account.messages.find_by(id: params[:reply_id]) if params[:reply_id].present?
-    @draft = @account.messages.where(state: "draft").find_by(id: params[:draft_id]) if params[:draft_id].present?
+    @draft = @account.messages.where(state: "draft").find(params[:draft_id]) if params[:draft_id].present?
+    prepare_reply
+    @reply ||= LightekMail::Conversation.parent(@account, @draft) if @draft
+    @reply_content = LightekMail::MessageContent.new(@reply) if @reply
+    @include_original = @reply.present? && @draft.nil?
+    @initial_html = @draft&.html_body
   end
 
   def create_message
-    message = LightekMail::Submission.create!(account: @account, idempotency_key: params[:idempotency_key].presence || "web_#{SecureRandom.hex(24)}", attributes: params.permit(:to, :cc, :bcc, :from, :subject, :text, :html, :template_id, :in_reply_to, variables: {}).to_h, draft: params[:commit_action] == "draft", uploads: params[:attachments])
+    prepare_reply
+    supplied = params.permit(:to, :cc, :bcc, :from, :subject, :text, :html, :template_id, :in_reply_to, variables: {}).to_h
+    supplied["html"] = "" unless params[:rich_text_enabled] == "1"
+    attributes = LightekMail::ComposeMessage.attributes(account: @account,
+      attributes: supplied,
+      original: @reply, mode: @compose_mode, include_original: params[:include_original] == "1")
+    message = LightekMail::Submission.create!(account: @account, idempotency_key: params[:idempotency_key].presence || "web_#{SecureRandom.hex(24)}", attributes: attributes, draft: params[:commit_action] == "draft",
+      uploads: LightekMail::ComposeMessage.uploads(account: @account, original: @reply, mode: @compose_mode,
+        include_attachments: params[:include_attachments] == "1", uploads: params[:attachments]))
     redirect_to dashboard_mail_message_path(id: message.id, account_id: @account.id)
   end
 
   def show_message
     @message = @account.messages.find(params[:id])
+    @conversation = LightekMail::Conversation.messages(@account, @message)
+    @content = LightekMail::MessageContent.new(@message)
+    @images_enabled = params[:images] == "1"
     @message.update!(read_at: Time.current) if @message.direction == "inbound" && !@message.read_at
   end
 
@@ -104,7 +125,11 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     raise ArgumentError, "Choose archive, trash, star or unread." unless params[:flag].to_s.in?(%w[archived trashed starred unread])
     attrs = params[:flag] == "unread" ? {read_at: nil} : {params[:flag] => params[:value] == "1"}
     message.update!(attrs)
-    redirect_to dashboard_mail_path(account_id: @account.id)
+    if params[:return_to] == "message" && params[:flag] == "starred"
+      redirect_to dashboard_mail_message_path(account_id: @account.id, id: message.id)
+    else
+      redirect_to dashboard_mail_path(account_id: @account.id)
+    end
   end
 
   def purge_message
@@ -155,6 +180,12 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     LightekMail::Access.authorize!(current_user)
   end
 
+  def prepare_reply
+    @compose_mode = params[:mode].to_s.in?(LightekMail::ComposeMessage::MODES) ? params[:mode].to_s : "reply"
+    @reply = @account.messages.find(params[:reply_id]) if params[:reply_id].present?
+    @reply_recipients = LightekMail::ComposeMessage.recipients(@account, @reply, @compose_mode) if @reply
+  end
+
   def template_document
     data = params[:document]
     raise ArgumentError, "Supply an email template document." unless data.is_a?(ActionController::Parameters)
@@ -174,6 +205,10 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     if action_name == "create_message" && @account && !request.format.json?
       @templates = @account.templates.order(:name)
       @idempotency_key = params[:idempotency_key].presence || "web_#{SecureRandom.hex(24)}"
+      prepare_reply
+      @reply_content = LightekMail::MessageContent.new(@reply) if @reply
+      @include_original = params[:include_original] == "1"
+      @initial_html = LightekMail::TemplateRenderer.clean_html(params[:html]) if params[:rich_text_enabled] == "1"
       @draft = @account.messages.new(subject: params[:subject], text_body: params[:text], in_reply_to: params[:in_reply_to],
         to_addresses: params[:to].to_s.split(",").map(&:strip), cc_addresses: params[:cc].to_s.split(",").map(&:strip), bcc_addresses: params[:bcc].to_s.split(",").map(&:strip))
       flash.now[:alert] = "#{text} Your message is preserved below. Select attachments again before retrying."

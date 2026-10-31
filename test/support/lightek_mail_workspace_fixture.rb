@@ -22,3 +22,5 @@ Rails.application.routes.draw do
   instance_eval('scope "/dashboard/mail", controller: "dashboard/mail_studio" do' + routes)
 end
 require "#{source}/test/integration/lightek_mail_test"
+
+require "#{source}/test/integration/lightek_mail_conversations_test"

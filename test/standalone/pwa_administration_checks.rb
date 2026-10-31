@@ -344,4 +344,46 @@ class PwaAdministrationTest < PwaHttpIntegrationTest
     assert_equal "cancelled", operation.reload.status
   end
 
+  def render_sidebar(user, path: "/dashboard/pwa")
+    routes = Object.new
+    def routes.method_missing(name, *args)
+      name == :dashboard_pwa_path ? "/dashboard/pwa" : "/#{name.to_s.delete_suffix('_path')}"
+    end
+    def routes.respond_to_missing?(*args) = true
+    view = ActionView::Base.with_empty_template_cache.with_view_paths([File.join(ROOT, "app/views")])
+    user.define_singleton_method(:employee?) { false }
+    view.define_singleton_method(:current_user) { user }
+    view.define_singleton_method(:main_app) { routes }
+    view.define_singleton_method(:dymond_dash) { routes }
+    view.define_singleton_method(:request) { Struct.new(:path).new(path) }
+    view.render(partial: "dymond_dash/shared/sidebar")
+  end
+
+  def test_actual_custom_sidebar_exposes_pwa_to_owner_and_super_admin
+    [@alice, @bob].each do |owner|
+      html = Nokogiri::HTML.fragment(render_sidebar(owner))
+      link = html.at_css('a[href="/dashboard/pwa"]')
+      assert link, "Tenant owners must find their PWA from the actual sidebar"
+      assert_includes link.text, "PWA Administration"
+      assert_equal "page", link["aria-current"]
+    end
+    @carol.update!(role: "super_admin")
+    assert Nokogiri::HTML.fragment(render_sidebar(@carol)).at_css('a[href="/dashboard/pwa"]')
+    @site.update!(tenant: nil)
+    @other_site.update!(tenant: nil)
+    assert LightekPwa::Policy.administration_available_for?(@carol), "Super admin needs the link even before any site exists"
+    assert_nil Nokogiri::HTML.fragment(render_sidebar(@alice)).at_css('a[href="/dashboard/pwa"]')
+  end
+
+  def test_sidebar_observes_delegated_administration_and_suspension
+    refute LightekPwa::Policy.administration_available_for?(@carol)
+    agency = LightekAgency::SiteMembership.create!(site: @site, user: @carol, granted_by: @alice, role: "designer")
+    assert Nokogiri::HTML.fragment(render_sidebar(@carol, path: "/dashboard/other")).at_css('a[href="/dashboard/pwa"]:not([aria-current])')
+    membership = LightekPwa::Membership.create!(site: @site, profile: @carol.profile, role: "editor", status: "suspended")
+    assert_nil Nokogiri::HTML.fragment(render_sidebar(@carol)).at_css('a[href="/dashboard/pwa"]')
+    membership.update!(status: "active")
+    assert LightekPwa::Policy.administration_available_for?(@carol)
+    refute LightekPwa::Policy.administration_available_for?(nil)
+  end
+
 end

@@ -22,6 +22,11 @@ module LightekPwa
       scope = scope.where(account_id: user.id) unless user.role.to_s == "super_admin"
       scope.order(id: :desc).limit(50)
     end
+    def self.administration_available_for?(user)
+      return false unless user
+      return true if user.role.to_s == "super_admin"
+      sites_for(user).any? { |site| new(user: user, site: site).manage? } || remote_installations_for(user).any?
+    end
     def super_admin? = @user&.role.to_s == "super_admin"
     def owner? = super_admin? || (@user && @site && @site.tenant == @user)
     def membership = @user&.profile && Membership.find_by(site_id: @site&.id, profile_id: @user.profile.id)

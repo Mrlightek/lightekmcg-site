@@ -96,10 +96,15 @@
           }
         )
 
-      const data =
-        await this.parseResponse(
-          response
-        )
+      let data = await this.parseResponse(response)
+      if (response.status === 202 && data.work_item_id) {
+        data = await this.waitForExecution(data)
+      }
+      if (data.status === "failed") {
+        const error = new Error(data.error || "Lightek operation failed")
+        error.data = data
+        throw error
+      }
 
       this.emit(
         "nevaeh.execute",
@@ -110,6 +115,26 @@
       )
 
       return data
+    }
+
+    async waitForExecution(receipt, options = {}) {
+      const deadline = Date.now() + (options.timeoutMs || 120000)
+      while (Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, options.intervalMs || 650))
+        const response = await fetch(`${this.baseUrl}/executions/${encodeURIComponent(receipt.work_item_id)}`, {
+          credentials: "same-origin", headers: { Accept: "application/json" }, signal: options.signal
+        })
+        const data = await this.parseResponse(response)
+        if (data.status === "failed") {
+          const error = new Error(data.error || "Lightek operation failed")
+          error.data = data
+          throw error
+        }
+        if (data.status === "completed") return { ...receipt, ...data }
+      }
+      const error = new Error("This operation is still running. Refresh to check its result.")
+      error.workItemId = receipt.work_item_id
+      throw error
     }
 
     subscribe(options) {

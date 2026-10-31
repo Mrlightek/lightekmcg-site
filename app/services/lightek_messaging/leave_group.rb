@@ -22,9 +22,9 @@ module LightekMessaging
     end
 
     def call
-      unless conversation.group?
+      unless conversation.kind.in?(%w[group community watch_party])
         raise ArgumentError,
-              "Only group conversations can be left"
+              "Only group, community or watch-party conversations can be left"
       end
 
       Participant.transaction do

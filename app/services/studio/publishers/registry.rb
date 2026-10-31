@@ -6,7 +6,8 @@ module Studio
         "instagram" => "Studio::Publishers::Instagram",
         "facebook" => "Studio::Publishers::Facebook",
         "lightek_social" => "Studio::Publishers::LightekSocial",
-        "lightek_streaming" => "Studio::Publishers::LightekStreaming"
+        "lightek_streaming" => "Studio::Publishers::LightekStreaming",
+        "octavia" => "Studio::Publishers::LightekStreaming"
       }.freeze
 
       def self.fetch(platform)

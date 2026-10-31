@@ -1,5 +1,9 @@
 class Profile < ApplicationRecord
   belongs_to :user
+  has_many :top_people, -> { order(:position) }, class_name: "LightekSocial::TopPerson", dependent: :destroy
+  has_many :featured_top_people, class_name: "LightekSocial::TopPerson", foreign_key: :person_id, dependent: :destroy
+  validates :community_gender, inclusion: { in: %w[unspecified woman man] }
+  validates :top_people_limit, inclusion: { in: [5, 8] }
 
   has_many :lightek_messaging_participations,
            class_name:

@@ -1,10 +1,13 @@
 module Api
   class NevaehController < ApplicationController
     allow_unauthenticated_access only: :bootstrap
+    protect_from_forgery with: :exception
+    before_action { response.set_header("Cache-Control", "private, no-store") }
     def bootstrap
       payload =
         LightekPwa::Bootstrap.new(
-          user: resolved_current_user
+          user: resolved_current_user,
+          site: DymondSite::Site.find_by(host: request.host.downcase)
         ).call
 
       payload =
@@ -53,8 +56,11 @@ module Api
           capability
         )
 
-      payload["user_id"] =
-        actor.id
+      payload["user_id"] = actor.id
+      if capability.start_with?("community.", "studio.")
+        payload["site_id"] = LightekPwa::SiteContext.resolve(request.host).id
+        payload["origin"] = request.base_url
+      end
 
       if capability ==
          "susu.contribution.checkout"
@@ -173,7 +179,9 @@ module Api
            ActiveRecord::RecordNotFound,
            ArgumentError,
            Susu::Workers::Pwa::AccessDenied,
-           LightekSocial::AccessDenied => error
+           LightekSocial::AccessDenied,
+           LightekCommunity::AccessDenied,
+           ActiveRecord::RecordInvalid => error
 
       render json: {
         status: "failed",
@@ -181,7 +189,45 @@ module Api
       }, status: :unprocessable_entity
     end
 
+    # Read only the receipt belonging to the authenticated actor. Polling must
+    # never execute or retry the job; Dispatch remains the execution owner.
+    def execution
+      authenticated?
+      work_item = DymondDispatch::WorkItem.find(params[:id])
+      arguments = Array(work_item.args)[1]
+      raise ActiveRecord::RecordNotFound unless arguments.is_a?(Hash)
+      owner_id = arguments["user_id"]
+      raise ActiveRecord::RecordNotFound unless current_user && owner_id.to_s == current_user.id.to_s
+      if arguments["site_id"].present?
+        raise ActiveRecord::RecordNotFound unless LightekPwa::SiteContext.resolve(request.host).id.to_s == arguments["site_id"].to_s
+      end
+      render json: {
+        status: work_item.done? ? "completed" : work_item.status,
+        work_item_id: work_item.id, result: work_item.done? ? authorized_receipt_result(work_item.result, arguments) : nil,
+        error: work_item.failed? ? work_item.error : nil
+      }, status: work_item.finished? ? :ok : :accepted
+    end
+
     private
+
+    def authorized_receipt_result(result, arguments)
+      return result unless result.is_a?(Hash) && arguments["site_id"].present?
+      data = result.deep_stringify_keys
+      access = LightekCommunity::Access.new(user: current_user, site_id: arguments["site_id"])
+      presenter = LightekCommunity::Presenter.new(access)
+      if data["post"].is_a?(Hash) && data["post"]["id"]
+        data["post"] = presenter.post(access.posts.find(data["post"]["id"]))
+      end
+      if data["community"].is_a?(Hash) && data["community"]["slug"]
+        data["community"] = presenter.community(access.community!(data["community"]["slug"]))
+      end
+      data
+    end
+
+    def require_authentication
+      return if authenticated?
+      render json: { error: "Authentication required" }, status: :unauthorized
+    end
 
       def resolved_current_user
         if respond_to?(
@@ -222,7 +268,18 @@ module Api
       end
     end
 
+    def community_action(slug)
+      LightekCommunity::Workers::Pwa::ACTIONS.find do |action|
+        slug == "community.#{action.delete_prefix('community_').tr('_', '.')}"
+      end
+    end
+
+    def workspace_action(slug)
+      ::Studio::Workers::Workspace::ACTIONS.find { |action| slug == "studio.workspace.#{action.tr('_', '.')}" }
+    end
+
     def resolve_event_type!(slug)
+      return "#{slug}.requested" if community_action(slug) || workspace_action(slug)
       {
         "studio.scene_object.destroy" =>
           "studio.scene_object.destroy.requested",
@@ -329,6 +386,8 @@ module Api
     end
 
     def resolve_worker_action!(slug)
+      action = community_action(slug) || workspace_action(slug)
+      return action if action
       {
         "studio.scene_object.destroy" =>
           "destroy",

@@ -6,8 +6,10 @@ module Studio
   module Workers
     class SceneObjectMutationTest < ActiveSupport::TestCase
       setup do
+        @user = User.create!(first_name: "Studio", last_name: "Creator", email_address: "studio-#{SecureRandom.hex(6)}@example.com", password: "studio-test-password", role: "client")
         @project =
           StudioProject.create!(
+            owner: @user,
             name:
               "PWA SceneObject Test"
           )
@@ -48,6 +50,7 @@ module Studio
           SceneObjectMutation.perform(
             "create",
             {
+              user_id: @user.id,
               scene_id:
                 @scene.id,
 
@@ -85,6 +88,7 @@ module Studio
           SceneObjectMutation.perform(
             "transform",
             {
+              user_id: @user.id,
               scene_id:
                 @scene.id,
 
@@ -170,6 +174,7 @@ module Studio
           SceneObjectMutation.perform(
             "duplicate",
             {
+              user_id: @user.id,
               scene_id:
                 @scene.id,
 
@@ -206,6 +211,7 @@ module Studio
           SceneObjectMutation.perform(
             "destroy",
             {
+              user_id: @user.id,
               scene_id:
                 @scene.id,
 

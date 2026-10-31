@@ -17,6 +17,7 @@
   }
 
   function surfaceForRoute(route) {
+    if (route === "post" || route === "saved") return "home"
     if (route === "community") {
       return "communities"
     }
@@ -91,9 +92,8 @@
 
   function routeRequiresIdentity(route) {
     return (
-      route === "create" ||
-      route === "studio" ||
-      route === "space"
+      ["create", "studio", "messages", "money", "susu", "saved"].includes(route) ||
+      (route === "space" && !/^#\/space\/\d+$/.test(window.location.hash))
     )
   }
 

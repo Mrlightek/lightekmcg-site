@@ -3,9 +3,12 @@
 require "test_helper"
 
 class StudioProjectCreationWorkerTest < ActiveSupport::TestCase
+  setup do
+    @user = User.create!(first_name: "Studio", last_name: "Creator", email_address: "studio-#{SecureRandom.hex(6)}@example.com", password: "studio-test-password", role: "client")
+  end
   test "creates a persisted project, default scene, and bootstrap-visible record" do
     result = Studio::Workers::ProjectCreation.perform("create", {
-      name: "Creator Project", description: "A film concept",
+      user_id: @user.id, name: "Creator Project", description: "A film concept",
       intent_key: "production", start_mode_key: "blank"
     })
     assert result.fetch("project_persisted")
@@ -21,7 +24,7 @@ class StudioProjectCreationWorkerTest < ActiveSupport::TestCase
     assert_equal result.fetch("default_scene_id"), scene.id
     assert_equal "production", production.metadata.fetch("creation_intent")
     assert_equal "blank", production.metadata.fetch("start_mode")
-    snapshot = Studio::Workers::Pwa.perform("bootstrap")
+    snapshot = Studio::Workers::Pwa.perform("bootstrap", user_id: @user.id)
     row = snapshot.fetch("projects").find { |entry| entry.fetch("id") == project.id }
     assert row
     assert_empty row.fetch("unassigned_scenes")

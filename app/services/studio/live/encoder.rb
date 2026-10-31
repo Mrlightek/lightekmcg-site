@@ -18,20 +18,31 @@ module Studio
         raise ArgumentError, "Invalid session" unless id.to_s.match?(/\A\d+\z/)
         Rails.root.join("tmp", "studio_live", "#{id}.mp4")
       end
-      def initialize(output:, test:, on_event:)
-        @output, @test, @on_event = output.to_s, test, on_event
+      def self.hls_directory(id)
+        raise ArgumentError,"Invalid live session" unless id.to_s.match?(/\A\d+\z/)
+        Rails.root.join("tmp","studio_live_hls",id.to_s)
+      end
+      def self.hls_path(id) = hls_directory(id).join("index.m3u8")
+      def initialize(output:, test:, on_event:, hls: false)
+        @output, @test, @on_event, @hls = output.to_s, test, on_event, hls
         @mutex = Mutex.new
         @sequence = 0
         @started = @last_input = monotonic
       end
       def start!
-        FileUtils.mkdir_p(File.dirname(@output), mode: 0o700) if @test
+        FileUtils.mkdir_p(File.dirname(@output), mode: 0o700) if @test || @hls
         args = [ENV.fetch("LIGHTEK_FFMPEG", "ffmpeg"), "-hide_banner", "-loglevel", "error", "-nostats", "-nostdin", "-y",
           "-protocol_whitelist", "pipe", "-fflags", "+genpts", "-probesize", "1000000", "-analyzeduration", "1000000", "-f", "webm", "-i", "pipe:0",
           "-map", "0:v:0", "-map", "0:a:0", "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
           "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-threads", "2", "-r", "24", "-g", "48", "-b:v", "1800k", "-maxrate", "1800k", "-bufsize", "3600k",
           "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-progress", "pipe:1"]
-        args += @test ? ["-movflags", "+faststart", "-f", "mp4", @output] : ["-rw_timeout", "5000000", "-f", "flv", @output]
+        args += if @hls
+          ["-f","hls","-hls_time","2","-hls_list_size","8","-hls_flags","delete_segments+independent_segments","-hls_segment_filename",File.join(File.dirname(@output),"segment-%06d.ts"),@output]
+        elsif @test
+          ["-movflags", "+faststart", "-f", "mp4", @output]
+        else
+          ["-rw_timeout", "5000000", "-f", "flv", @output]
+        end
         # Never send FFmpeg stderr (which can include the stream key) to application logs.
         @input, @progress, @waiter = Open3.popen2(*args, err: File::NULL, pgroup: true)
         @reader = Thread.new { read_progress }

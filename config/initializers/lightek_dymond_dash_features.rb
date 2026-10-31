@@ -8,6 +8,16 @@ Rails.application.config.after_initialize do
   next unless defined?(DymondDash::FeatureRegistry)
 
   DymondDash::FeatureRegistry.register do |f|
+    f.slug = :live
+    f.label = "Live Studio"
+    f.icon = "broadcast"
+    f.gem_source = "lightekmcg-site"
+    f.nav_section = :services
+    f.min_plan = :starter
+    f.nav_items = [{ label: "Live Studio", icon: "broadcast", path: "main_app.dashboard_live_path" }]
+  end
+
+  DymondDash::FeatureRegistry.register do |f|
     f.slug        = :gatekeeper_infrastructure
     f.label       = "Infrastructure"
     f.icon        = "server"

@@ -1,4 +1,5 @@
 import * as THREE from "./vendor/three/three.module.js";
+import { GLTFLoader } from "./vendor/three/addons/loaders/GLTFLoader.js";
 import {
   OrbitControls
 } from "./vendor/three/addons/controls/OrbitControls.js";
@@ -322,6 +323,10 @@ const meshObject = object => {
 
   const material =
     materialFor(type);
+  const rgba = object.definition?.material?.color;
+  if (Array.isArray(rgba) && rgba.length >= 3 && rgba.slice(0,3).every(Number.isFinite)) {
+    material.color.setRGB(rgba[0],rgba[1],rgba[2]);
+  }
 
   let geometry;
 
@@ -406,6 +411,12 @@ const buildObject = object => {
   let root;
 
   switch (type) {
+    case "imported_asset": {
+      root = markRoot(new THREE.Group(),object);
+      const url=String(object.definition?.asset_proxy_url||'');
+      if(/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url))new GLTFLoader().setWithCredentials(true).load(url,gltf=>{root.add(gltf.scene);},undefined,()=>{});
+      break;
+    }
     case "camera":
       root =
         cameraObject(object);

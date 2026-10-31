@@ -75,9 +75,9 @@ class StudioLiveDestinationTest < ActiveSupport::TestCase
       end
     end
   end
-  test "ordinary admin cannot configure Restream and unavailable credentials fail closed" do
+  test "unentitled client cannot configure Restream and unavailable credentials fail closed" do
     destination = Studio::Live::Destination
-    assert_raises(::Gatekeeper::StudioLivePolicy::Denied) { destination.save!(user: actor("admin"), server_url: "rtmp://live.restream.io/live", stream_key: "fixture-key", provider: "restream") }
+    assert_raises(::Gatekeeper::StudioLivePolicy::Denied) { destination.save!(user: actor("client"), server_url: "rtmp://live.restream.io/live", stream_key: "fixture-key", provider: "restream") }
     vault_method(:checkout!, ->(**_) { raise LightekVault::Service::AccessDenied }) do
       error = assert_raises(destination::Unavailable) { destination.output!(actor, provider: "restream") }
       refute_includes error.message, "fixture-key"

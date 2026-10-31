@@ -1,6 +1,10 @@
 require "test_helper"
 require_relative "../support/studio_live_test_support"
 class LiveBroadcastsTest < ActionDispatch::IntegrationTest
+  setup do
+    host! "lightek-live.test"
+    DymondSite::Site.find_or_create_by!(host:"lightek-live.test") { |site| site.name="Lightek Live Test" }
+  end
   def actor(role = "admin")
     User.create!(first_name: "Live", last_name: "Operator", role: role, email_address: "http-live-#{SecureRandom.hex(6)}@example.test", password: "Live-test-password-2026!")
   end
@@ -12,6 +16,16 @@ class LiveBroadcastsTest < ActionDispatch::IntegrationTest
     get "/dashboard/live"
     assert_response :redirect
     login(actor("client")); get "/dashboard/live"; assert_response :forbidden
+  end
+  test "entitled client can open and configure their own live workspace" do
+    user = actor("client")
+    user.grant_feature!("live")
+    login(user)
+    with_live_stub(Studio::Live::Encoder, :available?, true) do
+      with_live_stub(Studio::Live::Destination, :configured?, false) { get "/dashboard/live" }
+    end
+    assert_response :success
+    assert_select "input[name='stream_key']", count: 2
   end
   test "workspace exposes preview test and disabled unconfigured TikTok" do
     login(actor)
@@ -26,7 +40,7 @@ class LiveBroadcastsTest < ActionDispatch::IntegrationTest
     assert_select "[data-camera]", text: "Enable camera"
     assert_select "[data-layout] option[value='camera']", text: "Camera only"
     assert_select "[data-layout] option[value='combined']", text: "Screen + camera"
-    assert_select "input[name='stream_key']", count: 0
+    assert_select "input[name='stream_key']", count: 2
     assert_equal "private, no-store", response.headers["Cache-Control"]
   end
   test "private recording download enforces owner and complete state" do

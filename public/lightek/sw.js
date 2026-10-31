@@ -1,17 +1,29 @@
-const CACHE = "lightek-shell-v42"
+const CACHE = "lightek-shell-v44"
 
 const SHELL = [
   "/lightek/index.html",
   "/lightek/manifest.webmanifest",
   "/lightek/nevaeh-client.js",
   "/lightek/bootstrap-adapter.js",
+  "/lightek/community-app.js",
+  "/lightek/studio-app.js",
+  "/lightek/studio-media.js",
+  "/lightek/asset-preview.js",
+  "/lightek/vendor/hls/hls.light.min.js",
+  "/lightek/vendor/three/addons/loaders/GLTFLoader.js",
+  "/lightek/vendor/three/addons/utils/BufferGeometryUtils.js",
+  "/lightek/vendor/three/addons/utils/SkeletonUtils.js",
+  "/lightek/community-app.css",
   "/lightek/studio-viewport.js",
   "/lightek/vendor/gsap/gsap.min.js",
   "/lightek/vendor/three/three.core.js",
   "/lightek/vendor/three/three.module.js",
   "/lightek/vendor/three/addons/controls/OrbitControls.js",
   "/lightek/vendor/three/addons/controls/TransformControls.js",
-  "/lightek/icons/icon.svg"
+  "/lightek/icons/icon.svg",
+  "/lightek/icons/icon-180.png",
+  "/lightek/icons/icon-192.png",
+  "/lightek/icons/icon-512.png"
 ]
 
 self.addEventListener("install", event => {
@@ -53,6 +65,7 @@ self.addEventListener("fetch", event => {
     event.respondWith(
       fetch(event.request)
         .then(response => {
+          if (!response.ok) return response
           const copy = response.clone()
 
           caches
@@ -82,7 +95,8 @@ self.addEventListener("fetch", event => {
         cached ||
         fetch(event.request)
           .then(response => {
-            const copy = response.clone()
+            if (!response.ok) return response
+          const copy = response.clone()
 
             caches
               .open(CACHE)

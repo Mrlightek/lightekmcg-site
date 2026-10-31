@@ -43,6 +43,7 @@ jobs:
 
       - name: Verify DNS recovery regressions before release
         run: |
+          python3 test/operations/deploy_checkout_test.py
           ruby test/scripts/paid_dns_recovery_standalone.rb
           python3 -m unittest discover -s test/scripts -p 'test_paid_instance_verification.py' -v
           python3 -m unittest discover -s test/scripts -p 'test_manual_instance_config.py' -v
@@ -93,6 +94,11 @@ jobs:
             main|fix/paid-instance-provisioning-recovery-20261028) ;;
             *) echo 'Ref is not authorized for production deployment'; exit 1 ;;
           esac
+
+          # Bootstrap from this release: the server may still have the older deploy script.
+          ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "bash /var/www/lightekmcg-site/lib/scripts/repair_lightek_production_permissions.sh && sudo -u lightek -H bash -s -- /var/www/lightekmcg-site" \
+            < lib/scripts/gatekeeper/prepare_checkout.sh
 
           ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$APP_BRANCH'" <<'LIGHTEK_DEPLOY' | tee deploy-output.txt
             set -e

@@ -34,6 +34,8 @@ run_as_app_user() {
   "
 }
 
+run_as_app_user "bash lib/scripts/gatekeeper/prepare_checkout.sh '${APP_ROOT}'"
+
 run_as_app_user "git fetch origin '${APP_BRANCH}'"
 run_as_app_user "git checkout '${APP_BRANCH}'"
 run_as_app_user "git pull --ff-only origin '${APP_BRANCH}'"

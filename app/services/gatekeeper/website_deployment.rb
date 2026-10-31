@@ -98,7 +98,17 @@ module Gatekeeper
           credential = LightekVault::Service.checkout!(slug: config.fetch("credential_slug"),
             consumer: CONSUMER, purpose: "website_deploy", requested_by: actor.email_address)
           raise Invalid, "Owner credential must have at least 8 characters" unless credential["owner_password"].is_a?(String) && credential["owner_password"].size >= 8
-          dns_environment(credential)
+          dns_values = dns_environment(credential)
+          # Validate DNS access before spending money on a new compute node.
+          host = domain.to_s.downcase.strip
+          base = ENV.fetch("LIGHTEK_AUTO_CLIENT_BASE_DOMAIN", "lightekmcg.com").strip.downcase
+          configured = dns_values["GODADDY_DOMAINS"].presence || ENV["GODADDY_DOMAINS"].to_s
+          zones = configured.split(",").map { |value| value.strip.downcase }.reject(&:blank?)
+          zones << base if host.end_with?(".#{base}")
+          zone = zones.uniq.sort_by { |candidate| -candidate.length }.find { |candidate| host.end_with?(".#{candidate}") }
+          raise Invalid, "No managed DNS zone for #{host}; refusing to allocate a server" unless zone
+          Godaddy::DnsService.new(zone: zone, domains: zones.join(","),
+            token: dns_values["GODADDY_PAT"]).verify_access!
         ensure
           credential&.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? }
         end

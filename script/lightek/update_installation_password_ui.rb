@@ -74,8 +74,31 @@ remote = <<~'PYTHON'
       compose.write_text(original)
       dc('up','-d','--no-deps','web')
       raise
+  dashboard_check = r'''
+  require "rack/mock"
+  require "action_dispatch/testing/integration"
+  site = DymondSite::Site.find_by!(host: ENV.fetch("APP_HOST"))
+  owner = site.tenant
+  raise "Site administrator missing" unless owner.is_a?(User) && %w[admin super_admin].include?(owner.role)
+  row = owner.sessions.create!(user_agent: "Lightek branding acceptance", ip_address: "127.0.0.1")
+  begin
+    env = Rails.application.env_config.merge(Rack::MockRequest.env_for("https://#{site.host}/"))
+    jar = ActionDispatch::Cookies::CookieJar.build(ActionDispatch::Request.new(env), {})
+    jar.signed[:session_id] = row.id
+    browser = ActionDispatch::Integration::Session.new(Rails.application)
+    browser.host! site.host
+    browser.https!
+    browser.get "/dashboard/website/account-branding", params: {site_id: site.id}, headers: {"Cookie" => jar.to_header}
+    raise "Customer branding dashboard unavailable" unless browser.response.status == 200 && browser.response.body.include?("Save account branding")
+    puts "LIGHTEK_BRANDING_DASHBOARD_OK"
+  ensure
+    row.destroy!
+  end
+  '''
+  checked = dc('exec','-T','web','bin/rails','runner',dashboard_check)
+  assert 'LIGHTEK_BRANDING_DASHBOARD_OK' in checked
   (root/'auth-ui-revision').write_text(revision+'\n')
-  print('LIGHTEK_PASSWORD_UI_UPDATED='+json.dumps({'revision':revision,'password_page_verified':True}))
+  print('LIGHTEK_PASSWORD_UI_UPDATED='+json.dumps({'revision':revision,'password_page_verified':True,'branding_dashboard_verified':True}))
 PYTHON
 operation = GatekeeperOperation.create!(gatekeeper_node: node, capability: "website_password_ui_update", requested_by: actor.email_address,
   parameters: {order_id: order.id, revision: revision, files: paths}, status: "running", started_at: Time.current)
@@ -99,7 +122,7 @@ begin
     Timeout.timeout(180) { ssh.loop }
   end
   raise "Presentation release failed" unless status == 0 && output.include?("LIGHTEK_PASSWORD_UI_UPDATED=")
-  operation.update!(status: "succeeded", completed_at: Time.current, exit_status: 0, result: {revision: revision, password_page_verified: true})
+  operation.update!(status: "succeeded", completed_at: Time.current, exit_status: 0, result: {revision: revision, password_page_verified: true, branding_dashboard_verified: true})
   puts JSON.generate(password_ui_updated: true, revision: revision, order_id: order.id)
 rescue StandardError => error
   operation.update!(status: "failed", completed_at: Time.current, error_class: error.class.name, error_message: "Password UI update failed; review target health")

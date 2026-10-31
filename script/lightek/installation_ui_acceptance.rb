@@ -104,7 +104,7 @@ begin
   if operator
     dashboard = operator_client.call("/dashboard/installations")
     result[:dashboard_controls] = dashboard.code == "200" && dashboard.body.include?("Account setup &amp; access")
-    source_site = DymondSite::Site.find_by!(host: URI(origin).host)
+    source_site = order.site
     branding_dashboard = operator_client.call("/dashboard/website/account-branding?site_id=#{source_site.id}")
     raise "Account branding dashboard unavailable" unless branding_dashboard.code == "200" && branding_dashboard.body.include?("Save account branding")
     result[:branding_dashboard] = true

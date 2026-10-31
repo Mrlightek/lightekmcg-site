@@ -259,3 +259,15 @@ jobs:
           sudo postfix check
           test "$(sudo postconf -h inet_interfaces)" = loopback-only
           test "$(sudo postconf -h defer_transports)" = smtp
+
+  nevaeh_initializer_boot:
+    name: Nevaeh initializer cold boot and reload
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3.6"
+          bundler-cache: false
+      - run: gem install minitest -v '~> 5.25' --no-document
+      - run: ruby test/standalone/nevaeh_structured_worker_boot_test.rb

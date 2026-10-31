@@ -26,7 +26,7 @@ module NevaehStructuredWorker
   end
 end
 
-install_nevaeh_structured_worker = -> do
+def NevaehStructuredWorker.install!
   worker = DymondDispatch::PerformWorkItemJob
   unless worker.ancestors.include?(NevaehStructuredWorker)
     worker.before_enqueue do |job|
@@ -41,5 +41,6 @@ install_nevaeh_structured_worker = -> do
   end
 end
 
-install_nevaeh_structured_worker.call
-Rails.application.config.to_prepare(&install_nevaeh_structured_worker)
+# Engine job autoloading is ready during preparation, not while application
+# initializers are first evaluated (including rails db:migrate).
+Rails.application.config.to_prepare { NevaehStructuredWorker.install! }

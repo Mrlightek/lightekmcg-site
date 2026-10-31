@@ -32,3 +32,6 @@ end
 end
 
 load File.join(root, "config/initializers/nevaeh_structured_worker.rb")
+# This harness loads candidate hooks after Rails has already prepared. Normal
+# application boot installs them through the initializer's to_prepare callback.
+NevaehStructuredWorker.install!

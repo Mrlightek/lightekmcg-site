@@ -104,9 +104,9 @@ class CompleteLightekCommunity
   end
 end
 CompleteLightekCommunity.new.migrate(:up)
-require File.join(ROOT, "db/migrate/20261031130000_persist_lightek_studio_workspaces")
+require File.join(ROOT, "db/migrate/20261031130002_persist_lightek_studio_workspaces")
 PersistLightekStudioWorkspaces.new.migrate(:up)
-require File.join(ROOT, "db/migrate/20261031140000_integrate_profile_top_people_and_audiences")
+require File.join(ROOT, "db/migrate/20261031140002_integrate_profile_top_people_and_audiences")
 IntegrateProfileTopPeopleAndAudiences.new.migrate(:up)
 require File.join(ROOT,"db/migrate/20261031150000_create_studio_asset_library")
 CreateStudioAssetLibrary.new.migrate(:up)

@@ -81,6 +81,38 @@ module NevaehIntelligences
       order
     end
 
+    def revise!(ticket:, actor:, sections:, automatic: false)
+      raise Invalid, "Ticket execution permission required" unless actor&.persisted? && Ability.new(actor).can?(:execute_nevaeh, ticket)
+      compiled = compile(sections)
+      ticket.with_lock do
+        raise Invalid, "Resolved ticket cannot be revised" if ticket.status == "resolved"
+        fields = ticket.extra_fields.to_h.deep_stringify_keys
+        previous = WorkOrder.read!(ticket: ticket)
+        raise Invalid, "Structured ticket required" unless previous["intent_key"] == CAPABILITY
+        state = fields.fetch("nevaeh", {})
+        if state["reservation_id"].present?
+          items = DymondDispatch::WorkItem.where(subject_type: "Marlon::Ticket", subject_id: ticket.id, kind: CAPABILITY, correlation_id: state["reservation_id"]).to_a
+          raise Invalid, "Stop and reconcile active work before revising" unless items.one? && %w[failed error dead].include?(items.first.status.to_s)
+        end
+        workflow = fields.fetch("nevaeh_structured")
+        workflow.fetch("steps").each_key do |id|
+          old = previous.fetch("inputs").fetch("sections").find { |step| step["id"] == id }
+          raise Invalid, "Verified section #{id} must be preserved" unless compiled.find { |step| step["id"] == id } == old
+        end
+        order = previous.merge("inputs" => {"sections" => compiled}, "acceptance_criteria" => compiled.map { |step| "#{step['id']}: #{ACTIONS.fetch(step['action']).fetch('label')} output matches the saved inputs and passes its registered verifier" })
+        WorkOrder.validate!(order)
+        revision = TicketApproval.fingerprint(order)
+        workflow.merge!("automatic" => automatic == true, "authorized_actor_id" => actor.id,
+          "authorized_revision" => automatic ? revision : nil, "retry_count" => 0)
+        state.merge!("work_order_sha256" => revision, "actor_id" => actor.id) if state["reservation_id"].present?
+        fields["nevaeh_work_order"] = order
+        fields["nevaeh_backlog"] = fields.fetch("nevaeh_backlog", {}).merge("status" => automatic ? "queued" : "awaiting_approval", "blockers" => [])
+        ticket.update!(extra_fields: fields)
+        ticket.log!(action: "nevaeh_structured_revision_saved", actor: actor, detail: {"previous_sha256" => TicketApproval.fingerprint(previous), "revision_sha256" => revision, "preserved_sections" => workflow.fetch("steps").keys, "automatic" => automatic}.to_json)
+      end
+      ProcessBacklogJob.perform_later(ticket_id: ticket.id) if automatic
+    end
+
     def plan!(ticket:)
       raise Invalid, "Knowledge Base unavailable" unless defined?(DymondKb::Article) && DymondKb::Article.table_exists?
       ticket.with_lock do

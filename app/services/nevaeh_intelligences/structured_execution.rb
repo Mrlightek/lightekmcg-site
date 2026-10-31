@@ -34,7 +34,7 @@ module NevaehIntelligences
         order = WorkOrder.read!(ticket: ticket)
         state = fields.fetch("nevaeh", {})
         if state["reservation_id"].present?
-          return reconcile!(ticket: ticket)
+          return explicit ? resume!(ticket: ticket, actor: actor, explicit: true) : reconcile!(ticket: ticket)
         end
         raise StructuredTicket::Invalid, "Ticket execution permission required" unless actor&.persisted? && Ability.new(actor).can?(:execute_nevaeh, ticket)
         authorization = fields.fetch("nevaeh_structured")
@@ -157,6 +157,7 @@ module NevaehIntelligences
       fields = ticket.reload.extra_fields.to_h.deep_stringify_keys
       state = fields.fetch("nevaeh", {})
       return "resolved" if ticket.status == "resolved" && state["execution_status"] == "verified"
+      return "awaiting_approval" if fields.dig("nevaeh_structured", "authorized_revision").blank?
       matches = DymondDispatch::WorkItem.where(subject_type: "Marlon::Ticket", subject_id: ticket.id,
         kind: StructuredTicket::CAPABILITY, correlation_id: state["reservation_id"]).to_a
       raise StructuredTicket::Invalid, "Structured dispatch receipt requires review" unless matches.one?

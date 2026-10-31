@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Employee
   class TicketsController < Employee::ApplicationController
-    before_action :set_ticket, only: %i[show reply resolve execute_nevaeh resume_nevaeh]
+    before_action :set_ticket, only: %i[show reply resolve execute_nevaeh resume_nevaeh edit_nevaeh revise_nevaeh]
 
     def index
       authorize! :read, Marlon::Ticket
@@ -75,6 +75,27 @@ module Employee
       redirect_to employee_ticket_path(@ticket), notice: "Nevaeh processing queued; existing reservations and approvals are preserved."
     rescue NevaehIntelligences::WorkOrder::Invalid => error
       redirect_to employee_ticket_path(@ticket), alert: error.message
+    end
+
+    def edit_nevaeh
+      authorize! :execute_nevaeh, @ticket
+      order = NevaehIntelligences::WorkOrder.read!(ticket: @ticket)
+      raise NevaehIntelligences::WorkOrder::Invalid, "Structured ticket required" unless order["intent_key"] == "ticket.structured.execute"
+      @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
+      @structured_values = {"enabled" => "1", "sections" => order.fetch("inputs").fetch("sections").each_with_index.to_h { |step, index| [index.to_s, step] }}
+    end
+
+    def revise_nevaeh
+      authorize! :execute_nevaeh, @ticket
+      values = structured_ticket_params.to_h
+      NevaehIntelligences::StructuredTicket.revise!(ticket: @ticket, actor: current_user,
+        sections: values.fetch("sections", {}), automatic: values["automatic"] == "1")
+      redirect_to employee_ticket_path(@ticket), notice: "Revision saved. Verified sections were preserved."
+    rescue NevaehIntelligences::WorkOrder::Invalid => error
+      @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
+      @structured_values = values
+      @ticket.errors.add(:base, error.message)
+      render :edit_nevaeh, status: :unprocessable_entity
     end
 
     def reply

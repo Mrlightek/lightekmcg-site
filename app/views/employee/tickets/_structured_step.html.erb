@@ -12,18 +12,27 @@
     <div data-action-fields="<%= key %>" <%= 'hidden' unless key == selected %>>
       <% definition['fields'].each do |field| %>
         <% value = values.fetch('inputs', {})[field] %>
-        <% value = JSON.pretty_generate(value) if value.is_a?(Hash) %>
-        <label style="display:block;margin:10px 0"><%= field.humanize %>
+        <div style="display:block;margin:10px 0"><%= field == "data" ? "Section content" : label_tag("structured_ticket[sections][#{index}][inputs][#{field}]", field.humanize) %>
           <% if field == 'site_id' %>
             <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(Array(@structured_sites).map { |site| [site.name, site.id] }, value), prompt: 'Choose a website', class: 'fg-input', disabled: key != selected %>
           <% elsif field == 'kind' %>
-            <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(LightekDesign::Catalog.section_definitions.map { |definition| [definition['kind'].humanize, definition['kind']] }.uniq, value), prompt: 'Choose a section type', class: 'fg-input', disabled: key != selected %>
+            <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(LightekDesign::Catalog.section_definitions.map { |definition| [definition['kind'].humanize, definition['kind']] }.uniq, value), prompt: 'Choose a section type', class: 'fg-input', disabled: key != selected, data: { section_kind_select: true, action: 'change->structured-ticket#change' } %>
           <% elsif field == 'data' %>
-            <%= text_area_tag "structured_ticket[sections][#{index}][inputs][#{field}]", value || '{"heading":"Welcome","intro":"About our work"}', class: 'fg-input', rows: 4, disabled: key != selected %>
+            <% LightekDesign::Catalog.section_definitions.uniq { |entry| entry['kind'] }.each do |definition| %>
+              <% active_kind = values.fetch('inputs', {})['kind'] == definition['kind'] %>
+              <div data-section-kind="<%= definition['kind'] %>" <%= 'hidden' unless active_kind %>>
+                <% definition.fetch('fields').each do |content_field| %>
+                  <% name = content_field.fetch('name'); content = value.is_a?(Hash) ? value[name] : nil %>
+                  <label style="display:block;margin:8px 0"><%= content_field.fetch('label') %>
+                    <%= text_area_tag "structured_ticket[sections][#{index}][inputs][data][#{name}]", content || definition.fetch('data', {})[name], class: 'fg-input', rows: content_field['type'] == 'text' ? 3 : 1, disabled: key != selected || !active_kind %>
+                  </label>
+                <% end %>
+              </div>
+            <% end %>
           <% else %>
             <%= text_field_tag "structured_ticket[sections][#{index}][inputs][#{field}]", value, class: 'fg-input', disabled: key != selected, placeholder: field == 'page_id' ? '@page.page_id or an existing page ID' : nil %>
           <% end %>
-        </label>
+        </div>
       <% end %>
       <p style="font-size:12px">Verified outputs: <code><%= definition['outputs'].join(', ') %></code></p>
     </div>

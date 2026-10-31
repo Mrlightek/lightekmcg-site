@@ -36,7 +36,7 @@
       <p><strong>Policy:</strong> <%= order.dig('execution_policy', 'environment') %> / <%= order.dig('execution_policy', 'approval') %></p>
     <% end %>
     <% if order.present? && state['work_item_id'].blank? && ticket.status != 'resolved' && can?(:execute_nevaeh, ticket) %>
-      <p style="font-size:12px;">Execution requires employee authorization, an enabled capability, and matching environment. Production execution is blocked pending trusted approval.</p>
+      <p style="font-size:12px;">Execution requires employee authorization, an enabled capability, and matching environment. Execution is bound to your approved revision and the registered capability policy.</p>
       <%= button_to "Execute Work Order", execute_nevaeh_employee_ticket_path(ticket), method: :post, class: "dd-topbar-btn dd-btn-primary", data: { turbo_confirm: "Execute this Work Order through Nevaeh and Gatekeeper?" } %>
     <% end %>
     <h3 style="font-size:15px;">Execution</h3>
@@ -59,6 +59,9 @@
 <% if workflow.present? %>
 <section class="dd-card" aria-label="Structured ticket sections" style="margin-bottom:16px">
   <div class="dd-card-title">Action sections · Verified outputs</div>
+  <% if ticket.status != 'resolved' && can?(:execute_nevaeh, ticket) %>
+    <%= link_to 'Revise action sections', edit_nevaeh_employee_ticket_path(ticket), class: 'dd-topbar-btn' %>
+  <% end %>
   <% ticket.extra_fields.dig('nevaeh_work_order', 'inputs', 'sections').to_a.each do |step| %>
     <% receipt = workflow.fetch('steps', {})[step['id']] %>
     <details style="padding:12px 0;border-bottom:1px solid var(--dd-border)">

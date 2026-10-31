@@ -14,8 +14,20 @@ module NevaehIntelligences
     module_function
 
     def root!
-      root = ENV["NEVAEH_ENGINEERING_WORKSPACE"].to_s
-      raise StructuredTicket::Invalid, "Configure NEVAEH_ENGINEERING_WORKSPACE as an isolated Git checkout" if root.empty? || !File.directory?(root)
+      root = File.expand_path(ENV["NEVAEH_ENGINEERING_WORKSPACE"].presence || Rails.root.join("tmp", "nevaeh-engineering", "workspace").to_s)
+      raise StructuredTicket::Invalid, "Engineering workspace must be separate from the live application" if root == File.realpath(Rails.root)
+      FileUtils.mkdir_p(File.dirname(root))
+      File.open("#{root}.bootstrap.lock", File::RDWR | File::CREAT, 0o600) do |lock|
+        lock.flock(File::LOCK_EX)
+        unless File.directory?(File.join(root, ".git"))
+          raise StructuredTicket::Invalid, "Engineering workspace contains unrelated files" if File.exist?(root) && (!File.directory?(root) || !Dir.empty?(root))
+          expected = ENV.fetch("NEVAEH_ENGINEERING_BRANCH", "feat/nevaeh-historical-backlog-20261031")
+          raise StructuredTicket::Invalid, "Engineering branch required" if expected.blank? || %w[main master HEAD].include?(expected)
+          _out, _error, status = Open3.capture3({"GIT_TERMINAL_PROMPT" => "0"}, "git", "clone", "--single-branch", "--branch", expected,
+            "https://github.com/Mrlightek/lightekmcg-site.git", root)
+          raise StructuredTicket::Invalid, "Engineering workspace clone failed" unless status.success?
+        end
+      end
       root = File.realpath(root)
       raise StructuredTicket::Invalid, "Engineering workspace must be separate from the live application" if root == File.realpath(Rails.root)
       branch = run!(root, "rev-parse", "--abbrev-ref", "HEAD").strip

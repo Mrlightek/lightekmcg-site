@@ -642,6 +642,18 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal "verified", row.reload.extra_fields.dig("nevaeh_structured", "steps", "page", "status")
     assert_equal "open", row.status
     assert_equal 0, DymondKb::Article.count
+    DymondDispatch::WorkItem.create!(kind: "ticket.structured.execute", subject_type: "Marlon::Ticket", subject_id: row.id,
+      correlation_id: "controlled-reservation", status: "failed")
+    sections = NevaehIntelligences::WorkOrder.read!(ticket: row).fetch("inputs").fetch("sections")
+    changed = Marshal.load(Marshal.dump(sections))
+    changed[0]["inputs"]["title"] = "Cannot change verified output"
+    assert_raises(NevaehIntelligences::StructuredTicket::Invalid) { NevaehIntelligences::StructuredTicket.revise!(ticket: row, actor: actor, sections: changed, automatic: true) }
+    sections[1]["inputs"]["kind"] = "lightek_product_grid"
+    NevaehIntelligences::StructuredTicket.revise!(ticket: row, actor: actor, sections: sections, automatic: true)
+    NevaehIntelligences::StructuredExecution.execute!(ticket: row, reservation: "controlled-reservation")
+    assert_equal 1, site.pages.count
+    assert_equal 1, DymondSite::Section.count
+    assert_equal "resolved", row.reload.status
   end
 
 end

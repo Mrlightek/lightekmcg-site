@@ -18,6 +18,12 @@ export default class extends Controller {
         const active = fields.dataset.actionFields === selected
         fields.hidden = !active
         fields.querySelectorAll("input, textarea, select").forEach(input => { input.disabled = !active })
+        const kind = fields.querySelector("[data-section-kind-select]")?.value
+        fields.querySelectorAll("[data-section-kind]").forEach(content => {
+          const chosen = active && content.dataset.sectionKind === kind
+          content.hidden = !chosen
+          content.querySelectorAll("input, textarea, select").forEach(input => { input.disabled = !chosen })
+        })
       })
     })
   }

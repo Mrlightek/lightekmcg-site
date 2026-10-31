@@ -134,7 +134,7 @@ require "json"
 require "ipaddr"
 c=JSON.parse(STDIN.read)
 zones=Godaddy::DnsService.zones.select { |z| (c.fetch("domain")==z || c.fetch("domain").end_with?("."+z)) }.sort_by { |z| -z.length }
-if ENV["GODADDY_PAT"].blank? || zones.empty?
+if zones.empty?
   puts "LIGHTEK_DNS_RESULT="+JSON.generate({status:"not_configured"})
   exit
 end
@@ -190,8 +190,8 @@ def dns_setup(root,stage,c):
     if not line:raise DeployError('DNS integration returned no result')
     status=json.loads(line.split('=',1)[1])
     if status['status']=='not_configured':
-        if c.get('_headless'):raise DeployError('DNS needs configuration: publish '+c['domain']+' at '+ip+' or configure the existing GoDaddy service, then retry.')
-        print('GoDaddy credentials/zone are not configured locally. Set '+c['domain']+' to '+ip+' in DNS, then press Enter.')
+        if c.get('_headless'):raise DeployError('Website DNS is not published: create an A/AAAA record for '+c['domain']+' pointing to '+ip+' at the domain\'s authoritative DNS provider, then retry. GoDaddy is optional.')
+        print('No managed DNS credentials for this zone. Set '+c['domain']+' to '+ip+' at its authoritative DNS provider, then press Enter.')
         input()
     else:print('DNS: '+status['status'])
     # Check every currently published address; an old AAAA can break ACME even
@@ -205,29 +205,12 @@ def dns_setup(root,stage,c):
             time.sleep(10)
     raise DeployError('DNS has not converged to '+ip+'. Rerun after propagation; no server deployment started.')
 
-class TokenParser(HTMLParser):
-    def __init__(self):super().__init__();self.token=None
-    def handle_starttag(self,tag,attrs):
-        d=dict(attrs)
-        if tag=='input' and d.get('name')=='authenticity_token':self.token=d.get('value')
-
 def verify_public(c):
-    base='https://'+c['domain']
-    opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
-    def request(path,data=None):
-        req=urllib.request.Request(base+path,data=data,headers={'User-Agent':'Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0','Accept':'text/html,application/json'})
-        with opener.open(req,timeout=30) as r:return r.geturl(),r.read().decode(),r.status
-    _,body,_=request('/__lightek/website-health');h=json.loads(body)
-    if h.get('release')!=c['release'] or h.get('domain')!=c['domain'] or h.get('sections',0)<3:raise DeployError('Public website health does not match this release')
-    _,html,_=request('/')
-    if 'name="lightek-release" content="'+c['release']+'"' not in html:raise DeployError('Public homepage is not this deployed template')
-    _,login,_=request('/session/new');parser=TokenParser();parser.feed(login)
-    if not parser.token:raise DeployError('Sign-in form has no CSRF token')
-    data=urllib.parse.urlencode(dict(authenticity_token=parser.token,email_address=c['owner_email'],password=c['owner_password'])).encode()
-    request('/session',data)
-    final,body,status=request('/dashboard/pages')
-    if status!=200 or urllib.parse.urlparse(final).path.startswith('/session'):raise DeployError('Owner cannot open website management after sign-in')
-    return h
+    # The installer and the production audit use the same live probes.
+    sys.path.insert(0,str(pathlib.Path.cwd()/'script'/'lightek'))
+    from verify_paid_instance import verify_public as verify, PublicVerificationError
+    try:return verify(c)
+    except PublicVerificationError as error:raise DeployError(str(error)) from error
 
 @contextlib.contextmanager
 def authenticated_ssh(config):
@@ -338,14 +321,53 @@ def main():
                 run(ssh+['tar -xzf '+remote+'/release.tgz -C '+remote+' && chmod 700 '+remote+'/remote.sh'])
                 print('Installing on the server. A sudo prompt, if shown, is for the Linux account.',flush=True)
                 run(ssh[:1]+['-tt']+ssh[1:]+['sudo bash '+remote+'/remote.sh'])
+                # The existing Lightek Mail installer is private/held by design.
+                # Explicitly opt in only on a dedicated Ubuntu 24.04 customer VPS.
+                # SMTP delivery is not enabled by this step.
+                mail_setup_status='not_requested'
+                mail_registration_status='not_requested'
+                if c.get('_headless') or os.environ.get('LIGHTEK_INSTALL_PRIVATE_MAIL_NODE')=='true':
+                    mail_script='/opt/lightek-sites/'+c['domain']+'/releases/'+c['release']+'/lib/scripts/setup_lightek_mail_node.sh'
+                    check='systemctl is-active --quiet postfix && systemctl is-active --quiet dovecot && systemctl is-active --quiet rspamd && systemctl is-active --quiet lightek-mail-redis'
+                    command='if '+check+'; then sudo LIGHTEK_MAIL_INITIAL_ADDRESS='+shlex.quote('admin@'+c['domain'])+' bash '+shlex.quote(mail_script)+' --mailbox-only; else sudo LIGHTEK_MAIL_INITIAL_ADDRESS='+shlex.quote('admin@'+c['domain'])+' LIGHTEK_MAIL_HOST='+shlex.quote('mail.'+c['domain'])+' LIGHTEK_MAIL_DKIM_DOMAIN='+shlex.quote(c['domain'])+' bash '+shlex.quote(mail_script)+' --install; fi'
+                    try:
+                        run(ssh+[command])
+                        mailbox_node_ready=True
+                        mail_setup_status='configured'
+                    except subprocess.CalledProcessError:
+                        mailbox_node_ready=False
+                        mail_setup_status='pending'
+                        print('LIGHTEK_MAIL_SETUP_PENDING: customer website installation continues',flush=True)
+                    # Register mailbox in the customer's own Rails database.
+                    # Sending stays disabled until DNS, provider ports, and mail
+                    # transport have been verified independently.
+                    deploy_root='/opt/lightek-sites/'+c['domain']
+                    project='lt_'+hashlib.sha256(c['domain'].encode()).hexdigest()[:16]
+                    cmd=['docker','compose','--env-file',deploy_root+'/.env','-p',project,
+                         '-f',deploy_root+'/compose.yml','run','--rm','-T',
+                         '-e','LIGHTEK_INITIAL_MAIL_OWNER='+c['owner_email'],
+                         '-e','LIGHTEK_INITIAL_MAIL_ADDRESS=admin@'+c['domain'],
+                         'web','bin/rails','runner','script/lightek_mail_account_bootstrap.rb']
+                    if not mailbox_node_ready:
+                        mail_registration_status='pending'
+                    if mailbox_node_ready:
+                        try:
+                            run(ssh+['sudo '+shlex.join(cmd)])
+                            mail_registration_status='registered'
+                        except subprocess.CalledProcessError:
+                            mail_registration_status='pending'
+                            print('LIGHTEK_MAIL_REGISTRATION_PENDING: customer website installation continues',flush=True)
                 health=verify_public(c)
+                # Mail egress/ingress restrictions are controlled by the VPS
+                # provider. A configured instance may activate while external
+                # mail delivery is pending the provider's port-unblock ticket.
                 if not c.get('_headless'):
                     config_result=run(ssh+['printf "%s" "${USER:-root}"'],capture_output=True,text=True)
                     user=c['ssh'].split('@')[0] if '@' in c['ssh'] else config_result.stdout.strip()
                     result=rails_code(root,stage,REGISTER_CODE,dict(domain=c['domain'],ssh_host=c['ssh'].split('@')[-1],ssh_user=user,port=c['port'],release=c['release']))
                     print('\n'.join(x for x in result.splitlines() if x.startswith('GATEKEEPER_NODE_REGISTERED=')))
                 receipt=root/'tmp/website_deploy'/('receipt-'+c['release']+'.json');receipt.parent.mkdir(parents=True,exist_ok=True)
-                receipt.write_text(json.dumps(dict(package_sha256=hashlib.sha256(package.read_bytes()).hexdigest(),url='https://'+c['domain'],release=c['release'],public_https_verified=True,owner_login_verified=True,health=health,verified_at=datetime.datetime.now(datetime.timezone.utc).isoformat()),indent=2))
+                receipt.write_text(json.dumps(dict(package_sha256=hashlib.sha256(package.read_bytes()).hexdigest(),url='https://'+c['domain'],release=c['release'],public_https_verified=True,owner_login_verified=True,health=health,mail_setup_status=mail_setup_status,mail_registration_status=mail_registration_status,verified_at=datetime.datetime.now(datetime.timezone.utc).isoformat()),indent=2))
                 print('WEBSITE_DEPLOYMENT_PASS=https://'+c['domain'])
                 print('Owner management: https://'+c['domain']+'/dashboard/pages')
                 print('Receipt: '+str(receipt))

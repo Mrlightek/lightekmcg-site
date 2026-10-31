@@ -1,0 +1,244 @@
+name: Paid Provisioning Release Gate
+
+on:
+  push:
+    branches:
+      - fix/paid-instance-provisioning-recovery-20261028
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mail_bootstrap:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python mail bootstrap regression tests
+        run: python3 -m unittest discover -s test/scripts -p 'test_lightek_mail_bootstrap.py' -v
+      - name: Shell syntax
+        run: bash -n lib/scripts/setup_lightek_mail_node.sh
+      - name: Python syntax
+        run: python3 -m py_compile lib/scripts/lightek_mail_server.py lib/scripts/lightek_mailbox.py
+      - name: Standalone Stripe webhook routing regressions (no private gems)
+        run: ruby test/scripts/stripe_webhook_routing_standalone.rb
+      - name: DNS preflight and recovery regressions (no private gems)
+        run: ruby test/scripts/paid_dns_recovery_standalone.rb
+      - name: Ruby syntax for shared Stripe dispatch and acceptance tests
+        run: |
+          ruby -c config/initializers/lightek_commerce_stripe_routing.rb
+          ruby -c test/services/lightek_commerce/stripe_webhook_routing_test.rb
+          ruby -c app/services/lightek_commerce/stripe_events.rb
+
+  paid_provisioning:
+    runs-on: ubuntu-24.04
+    env:
+      RAILS_ENV: test
+      DB_HOST: 127.0.0.1
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: lightek_ci_test
+      REDIS_URL: redis://127.0.0.1:6379/0
+      PARALLEL_WORKERS: 1
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: lightek_ci_test
+          POSTGRES_DB: lightekmcg_site_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check private dependency credentials
+        env:
+          LIGHTEK_APP_ID: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          LIGHTEK_APP_KEY: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$LIGHTEK_APP_ID" || -z "$LIGHTEK_APP_KEY" ]]; then
+            echo "::error::Missing private dependency GitHub App credentials"
+            exit 1
+          fi
+      - uses: actions/create-github-app-token@v2
+        id: private_repos
+        with:
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+          owner: lightekmcg
+      - name: Authenticate private gem repositories
+        env:
+          LIGHTEK_GITHUB_TOKEN: ${{ steps.private_repos.outputs.token }}
+        run: |
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${LIGHTEK_GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - name: Prepare test database
+        run: bin/rails db:test:prepare
+      - name: Paid provisioning and commercial installation contract
+        run: bin/rails test test/jobs/lightek_commerce/paid_instance_provisioning_job_test.rb test/services/lightek_commerce/commercial_installation_acceptance_contract_test.rb test/services/gatekeeper/compute/paid_instance_allocation_reconciliation_test.rb test/services/gatekeeper/compute/deleted_node_reconciliation_test.rb test/services/gatekeeper/website_deployment_test.rb test/services/gatekeeper/website_dns_publication_test.rb test/services/gatekeeper/website_dns_conflict_test.rb test/services/godaddy/dns_service_test.rb test/services/lightek_commerce/stripe_events_test.rb test/services/lightek_commerce/stripe_webhook_routing_test.rb
+
+  production_acceptance_status:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Read current manual-order installation status
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_status
+          chmod 600 ~/.ssh/lightek_status
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_status -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'bash -s' <<'LIGHTEK_STATUS_REMOTE'
+            set -euo pipefail
+            sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc '
+              set -euo pipefail
+              set -a
+              source /etc/lightek/lightekmcg-site.env
+              set +a
+              export RBENV_ROOT=/home/lightek/.rbenv
+              export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+              export RAILS_ENV=production
+              cd /var/www/lightekmcg-site
+              bin/rails runner -
+            ' <<'LIGHTEK_STATUS_RUBY'
+          require "json"
+          order = LightekCommerce::Order.find_by(payment_provider: "manual_acceptance", payment_reference: "manual_acceptance:paid-vps-20261031")
+          request = ProvisioningRequest.find_by(id: order.provisioning_request_id) if order&.provisioning_request_id
+          node = request&.gatekeeper_node
+          operation = GatekeeperOperation.where(capability: "deploy_website", gatekeeper_node: node).order(:id).last if node
+          puts JSON.pretty_generate(order: order&.attributes&.slice("id", "status", "paid_at", "provisioning_state", "provisioned_at"),
+            request: request&.attributes&.slice("id", "execution_status", "gatekeeper_node_id"),
+            node: node&.attributes&.slice("id", "provider_resource_id", "ip_address", "status"),
+            operation: operation&.attributes&.slice("id", "status", "error_class", "started_at", "completed_at"))
+          if order && request
+            puts JSON.generate(manual_acceptance_order_count: LightekCommerce::Order.where(payment_provider: "manual_acceptance", payment_reference: order.payment_reference).count,
+              matching_subscription_count: DymondBank::Subscription.where(subscriber: request.owner, plan_id: request.subscription_plan_id).count)
+            path = Rails.root.join("log/production.log")
+            if path.file?
+              text = File.open(path, "rb") { |file| file.seek([file.size - 8 * 1024 * 1024, 0].max); file.read }
+              lines = text.lines
+              queued = lines.select { |line| line.include?("Enqueued") && line.include?("InstanceReadyMailer") && line.include?("[#{order.id}]") }
+              job_ids = queued.filter_map { |line| line[/Job ID: ([0-9a-f-]+)/, 1] }.uniq
+              accepted = job_ids.any? { |id| lines.any? { |line| line.include?(id) && (line.include?("sent gmail_message_id=") || line.include?("Delivered mail")) } }
+              puts JSON.generate(ready_notification_queued: job_ids.any?, ready_notification_delivery_accepted: accepted)
+            end
+            begin
+              pid = IO.popen(["systemctl", "show", "-p", "MainPID", "--value", "lightekmcg-site-sidekiq"], &:read).strip.to_i
+              values = File.binread("/proc/#{pid}/environ").split("\0").map { |item| item.split("=", 2) }.to_h
+              names = %w[LIGHTEK_AUTO_VPS_MONTHLY_COST_CENTS LIGHTEK_AUTO_VPS_REGION LIGHTEK_AUTO_VPS_PLAN LIGHTEK_AUTO_VPS_IMAGE]
+              puts JSON.generate(worker_vps_settings_loaded: names.all? { |name| values[name].present? && values[name] == ENV[name] })
+            rescue StandardError => error
+              puts "WORKER_ENV_CHECK=#{error.class.name}"
+            end
+          end
+          if order
+            require "sidekiq/api"
+            jobs = [Sidekiq::Queue.new("mailers"), Sidekiq::RetrySet.new, Sidekiq::DeadSet.new].flat_map(&:to_a)
+            mail_jobs = jobs.select do |job|
+              arguments = job.item.dig("args", 0, "arguments")
+              arguments.is_a?(Array) && arguments.first == "LightekCommerce::InstanceReadyMailer" && arguments.last.to_h["args"] == [order.id]
+            end
+            puts JSON.generate(ready_notification_pending_jobs: mail_jobs.size,
+              ready_notification_error_classes: mail_jobs.filter_map { |job| job.item["error_class"] }.uniq)
+          end
+          if node
+            payload = nil
+            begin
+              require "net/ssh"
+              actor = User.find_by!(role: "super_admin")
+              payload = LightekVault::Service.checkout!(slug: node.metadata.fetch("node_credential_secret_slug"),
+                consumer: Gatekeeper::WebsiteDeployment::CONSUMER, purpose: "node_bootstrap", requested_by: actor.email_address)
+              Net::SSH.start(node.ip_address, "root", password: payload.fetch("root_password"),
+                non_interactive: true, verify_host_key: :accept_new, timeout: 15) do |ssh|
+                puts "REMOTE_INSTALLER_PROCESSES"
+                puts ssh.exec!("ps -eo comm,etime,%cpu,rss --sort=-%cpu | head -12; df -Pm / | tail -1")
+              end
+            rescue StandardError => error
+              puts "REMOTE_STATUS_ERROR=#{error.class.name}"
+            ensure
+              payload&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
+            end
+          end
+          LIGHTEK_STATUS_RUBY
+          python3 - <<'LIGHTEK_NOTIFICATION_PYTHON'
+          import json,re,subprocess
+          result=subprocess.run(['journalctl','-u','lightekmcg-site-sidekiq','--since','2026-10-31 00:00:00 UTC','--no-pager','-o','cat'],text=True,capture_output=True)
+          lines=result.stdout.splitlines()
+          job_ids=set()
+          for line in lines:
+              if 'InstanceReadyMailer' in line:
+                  job_ids.update(re.findall(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',line))
+          matched=[line for line in lines if any(job in line for job in job_ids)]
+          accepted=any('sent gmail_message_id=' in line or 'Delivered mail' in line for line in matched)
+          print(json.dumps(dict(ready_notification_observed_in_worker=bool(job_ids),ready_notification_delivery_accepted=accepted)))
+          LIGHTEK_NOTIFICATION_PYTHON
+          LIGHTEK_STATUS_REMOTE
+
+  installation_ui_predeploy:
+    concurrency:
+      group: installation-ui-dedicated-test-database
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Test portal in an isolated checkout and dedicated test database
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_ui_tests
+          chmod 600 ~/.ssh/lightek_ui_tests
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_ui_tests -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$GITHUB_SHA'" <<'LIGHTEK_STAGED_TESTS'
+          set -euo pipefail
+          sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -s -- "$1" <<'LIGHTEK_APP_TESTS'
+          set -euo pipefail
+          set -a
+          source /etc/lightek/lightekmcg-site.env
+          set +a
+          export RBENV_ROOT=/home/lightek/.rbenv
+          export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+          application_root=/var/www/lightekmcg-site
+          test_root=$(mktemp -d /tmp/lightek-installation-ui-tests.XXXXXXXX)
+          cleanup() { git -C "$application_root" worktree remove --force "$test_root" >/dev/null; }
+          git -C "$application_root" fetch origin fix/paid-instance-provisioning-recovery-20261028
+          git -C "$application_root" worktree add --detach "$test_root" "$1"
+          trap cleanup EXIT
+          if [[ -f "$application_root/.bundle/config" ]]; then
+            mkdir -p "$test_root/.bundle"
+            cp "$application_root/.bundle/config" "$test_root/.bundle/config"
+            chmod 600 "$test_root/.bundle/config"
+          fi
+          bundle_base=$(cd "$application_root" && bundle exec ruby -e 'puts Bundler.settings[:path].to_s')
+          if [[ -n "$bundle_base" ]]; then
+            [[ "$bundle_base" == /* ]] || bundle_base="$application_root/$bundle_base"
+            export BUNDLE_PATH="$bundle_base"
+          fi
+          cd "$test_root"
+          export BUNDLE_GEMFILE="$test_root/Gemfile"
+          export RAILS_ENV=test
+          export PARALLEL_WORKERS=1
+          unset DATABASE_URL
+          bin/rails runner 'abort "Unsafe test database" unless Rails.env.test? && ActiveRecord::Base.connection_db_config.database == "lightekmcg_site_test"'
+          bin/rails db:migrate
+          bin/rails assets:precompile
+          bin/rails test test/controllers/installations_flow_test.rb test/controllers/authentication_branding_test.rb test/controllers/website_fonts_markup_test.rb
+          LIGHTEK_APP_TESTS
+          LIGHTEK_STAGED_TESTS

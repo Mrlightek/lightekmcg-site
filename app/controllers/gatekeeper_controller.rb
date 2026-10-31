@@ -27,24 +27,48 @@ class GatekeeperController < ApplicationController
   LIVE_PLAYBACK_URL =
     "https://stream-akamai.castr.com/5b9352dbda7b8c769937e459/live_2361c920455111ea85db6911fe397b9e/index.fmp4.m3u8".freeze
 
-   # The single entry point / router method
-  def octavia
+  # Explicit Gatekeeper device API dispatcher. Never dynamically dispatch arbitrary
+  # controller methods supplied by the client.
+  def device_api
+    action = params[:method_type].to_s
+    unless permitted_actions.include?(action)
+      return render json: { error: "Action not permitted" }, status: :bad_request
+    end
 
-    # 1. Grab the target method name from parameters
-    target_action = params[:method_type] 
+    device = NetworkManagedDevice.find_by(identifier: params[:identifier].to_s)
+    return render json: { error: "Device not registered" }, status: :unauthorized unless device
+    return render json: { error: "Device retired" }, status: :forbidden if device.status == "retired"
 
-    # 2. Whitelist allowed methods to prevent malicious code execution
-    allowed_actions = LIGHTEK_ALLOWED_ACTIONS
+    token = request.authorization.to_s.delete_prefix("Bearer ").strip
+    unless request.authorization.to_s.start_with?("Bearer ") && device.authenticate_enrollment_token?(token)
+      return render json: { error: "Invalid device credentials" }, status: :unauthorized
+    end
 
-    if allowed_actions.include?(target_action)
-      # 3. Dynamically invoke the method and return its JSON response
-      render json: send(target_action)
-    else
-      render json: LIGHTEK_REQUEST_ERROR, status: :bad_request
+    case action
+    when "device_enroll"
+      return render json: { error: "Device is suspended" }, status: :forbidden if device.status == "maintenance"
+      device.update!(enrolled_at: Time.current, last_seen_at: Time.current,
+        last_heartbeat_ip: request.remote_ip, status: "active")
+      render json: { ok: true, device_id: device.id, status: device.status }
+    when "device_heartbeat"
+      return render json: { error: "Enrollment required" }, status: :forbidden unless device.enrolled_at?
+      return render json: { error: "Device is not active" }, status: :forbidden unless %w[active offline].include?(device.status)
+      device.update!(last_seen_at: Time.current, last_heartbeat_ip: request.remote_ip,
+        status: "active")
+      render json: { ok: true, device_id: device.id, status: device.status,
+        server_time: Time.current.iso8601 }
     end
   end
 
-  
+  # Legacy Octavia dispatcher: allowlist is evaluated as data, never as a
+  # method name or dynamic controller target.
+  def octavia
+    action = params[:method_type].to_s
+    return render json: request_error_message, status: :bad_request unless permitted_actions.include?(action)
+    return render json: { error: "Use the device API endpoint" }, status: :bad_request if action.start_with?("device_")
+    render json: { error: "Unsupported action" }, status: :bad_request
+  end
+
   def init_cloud_instance
     #connect to cloud instance
     #conduct business
@@ -56,7 +80,7 @@ class GatekeeperController < ApplicationController
     end
     
     def permitted_actions
-    %w[fetch_users fetch_inventory update_settings delete_cache]
+    %w[device_enroll device_heartbeat]
     end
     
     def lightek_theme_colors

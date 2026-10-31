@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <% brand = authentication_branding %>
     <title>
       <%= content_for(:title) || "Lightek" %>
     </title>
@@ -12,11 +13,12 @@
 
     <meta
       name="theme-color"
-      content="#07070a"
+      content="<%= brand.color("color_bg") %>"
     >
 
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+    <% if (font_url = LightekDesign::Fonts.stylesheet(brand.tokens.values_at("font_sans", "font_heading"))) %><%= stylesheet_link_tag font_url %><% end %>
 
     <style>
       :root {
@@ -334,6 +336,12 @@
           background .18s ease;
       }
 
+      .auth-input-plain { padding-left: 18px; }
+      .auth-field-help { margin: 0; color: #aaa6a0; font-size: 12px; line-height: 1.6; }
+      .auth-brand:focus-visible, .auth-secondary:focus-visible, .auth-submit:focus-visible, .auth-link:focus-visible {
+        outline: 3px solid var(--auth-gold-light); outline-offset: 4px;
+      }
+
       .auth-input::placeholder {
         color: #65646a;
       }
@@ -553,10 +561,34 @@
           transition: none !important;
         }
       }
+      :root {
+        --auth-bg:<%= brand.color("color_bg") %>; --auth-text:<%= brand.color("color_text") %>;
+        --auth-muted:<%= brand.color("color_text_muted") %>; --auth-gold:<%= brand.color("color_primary") %>;
+        --auth-gold-light:<%= brand.blend(brand.color("color_primary"), "#ffffff", 0.25) %>;
+        --auth-line:rgba(<%= brand.accent_rgb %>,.18); --auth-line-strong:rgba(<%= brand.accent_rgb %>,.35);
+      }
+      html,body {font-family:<%= brand.font("font_sans").html_safe %>;}
+      .auth-story-copy h2,.auth-card h1 {font-family:<%= brand.font("font_heading").html_safe %>;}
+      .auth-shell {background:var(--auth-bg);}
+      .auth-story {background:radial-gradient(ellipse at 62% 34%,rgba(<%= brand.accent_rgb %>,.20),transparent 55%),var(--auth-bg);}
+      <% if brand.background_url %>.auth-story {background-image:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.8)),url(<%= brand.background_url.to_json.html_safe %>);background-size:cover;background-position:center;}<% end %>
+      .auth-story::before {border-color:var(--auth-line);box-shadow:0 0 0 52px rgba(<%= brand.accent_rgb %>,.025),0 0 0 118px rgba(<%= brand.accent_rgb %>,.018);}
+      .auth-story::after {background:linear-gradient(120deg,transparent,rgba(<%= brand.accent_rgb %>,.12),transparent);}
+      .auth-panel {background:<%= brand.blend(brand.color("color_bg"), "#000000", 0.12) %>;}
+      .auth-field label {color:var(--auth-text);}
+      .auth-story-copy p,.auth-field-help,.auth-footnote,.auth-divider,.auth-input::placeholder {color:var(--auth-muted);}
+      .auth-input:focus {border-color:var(--auth-gold);box-shadow:0 0 0 3px rgba(<%= brand.accent_rgb %>,.15);}
+      .auth-submit {background:var(--auth-gold);color:<%= brand.button_text %>;box-shadow:0 12px 34px rgba(<%= brand.accent_rgb %>,.15);}
+      .auth-secondary {border-color:var(--auth-gold);}
+      .auth-secondary:hover {background:rgba(<%= brand.accent_rgb %>,.06);}
+      .auth-monogram {display:grid;place-items:center;width:46px;height:46px;border:1px solid var(--auth-gold);border-radius:12px;color:var(--auth-gold);font-size:24px;flex-shrink:0;}
+      .auth-brand img {object-fit:contain;}
+      .auth-wordmark {overflow-wrap:anywhere;}
+      .auth-story-copy h2 {overflow-wrap:anywhere;}
     </style>
   </head>
 
-  <body data-auth-layout="lightek">
+  <body data-auth-layout="lightek" data-auth-site="<%= brand.site&.id %>">
     <%= yield %>
   </body>
 </html>

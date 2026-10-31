@@ -1,0 +1,9 @@
+<% content_for :title, "My Applications · Lightek" %>
+<div class="li-heading"><span class="li-eyebrow">YOUR LIGHTEK WORKSPACE</span><h1>My Applications</h1><p>Follow your installation, set your password, and open your application.</p></div>
+<section aria-label="Your installations" class="li-grid">
+<% @orders.each do |order| %><% state = LightekCommerce::Installations.summary(order) %>
+<article class="li-card"><span class="li-badge <%= state[:ready] ? 'li-ready' : '' %>"><%= state[:state].humanize %></span><h2><%= state[:hostname] %></h2><p>Order #<%= order.id %> · <%= order.items.map { |item| item.product.name }.join(', ') %></p><%= link_to state[:ready] ? "Set up & open application" : "View installation", installation_path(order), class: "li-button" %></article>
+<% end %>
+<% if @orders.empty? %><article class="li-card"><h2>Your applications will appear here</h2><p>After payment is confirmed, installation starts automatically. You can return here at any time.</p></article><% end %>
+</section>
+<% if @products.any? %><section class="li-plans"><div class="li-heading"><span class="li-eyebrow">BUILD WITH LIGHTEK</span><h2>Start an application</h2><p>Choose a plan and continue to secure payment. Installation begins after payment confirmation.</p></div><div class="li-grid"><% @products.each do |product| %><article class="li-card"><h3><%= product.name %></h3><p><%= product.short_description.presence || "Your own Lightek application and dashboard." %></p><p class="li-price"><%= number_to_currency(product.price_cents / 100.0) %></p><%= form_with url: installations_path, method: :post, data: {turbo: false} do %><%= hidden_field_tag :product_id, product.id %><%= hidden_field_tag :checkout_key, SecureRandom.uuid %><%= submit_tag "Continue to secure payment", class: "li-button", data: {disable_with: "Opening secure payment…"} %><% end %></article><% end %></div></section><% end %>

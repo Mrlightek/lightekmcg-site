@@ -1,6 +1,6 @@
 Your Lightek installation is ready.
 
-Application: https://<%= @hostname %>
-To access your account, open https://<%= @hostname %>/passwords/new and request a password setup link using this email address.
+Choose a password and open your dashboard:
+<%= installation_url(@order, host: ENV.fetch('APP_HOST', 'lightekmcg.com'), protocol: 'https') %>
 
-Thank you for choosing Lightek.
+Sign in using the account that purchased this application.

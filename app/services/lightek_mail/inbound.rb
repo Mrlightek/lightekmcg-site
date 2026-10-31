@@ -2,6 +2,7 @@ require "digest"
 module LightekMail
   class Inbound
     def self.accept!(raw:, recipients:)
+      raise ArgumentError, "Supply a nonempty raw email." unless raw.is_a?(String) && !raw.empty?
       raise ArgumentError, "Inbound message is too large." if raw.bytesize > Submission::MAX_BYTES
       recipients = Submission.addresses(recipients).sort
       provisioned = Account.joins(:domain).where(address: recipients, enabled: true).where.not(lightek_mail_domains: {verified_at: nil}).pluck(:address)

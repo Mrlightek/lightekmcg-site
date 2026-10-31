@@ -177,4 +177,13 @@ class LightekMailStudioTest < ActiveSupport::TestCase
     assert_equal 1,account.messages.count
   end
 
+  test "nil and empty raw email are rejected before reading bytes or writing intake records" do
+    [nil, ""].each do |raw|
+      assert_no_difference "ActionMailbox::InboundEmail.count" do
+        error = assert_raises(ArgumentError) { LightekMail::Inbound.accept!(raw: raw, recipients: []) }
+        assert_equal "Supply a nonempty raw email.", error.message
+      end
+    end
+  end
+
 end

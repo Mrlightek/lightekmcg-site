@@ -87,4 +87,19 @@ class LightekMailRecipientExportTest < ActionDispatch::IntegrationTest
   ensure
     old.nil? ? ENV.delete("LIGHTEK_MAIL_INGRESS_TOKEN") : ENV["LIGHTEK_MAIL_INGRESS_TOKEN"] = old
   end
+  test "authenticated empty installer probe returns 422 without creating mail" do
+    old = ENV["LIGHTEK_MAIL_INGRESS_TOKEN"]
+    ENV["LIGHTEK_MAIL_INGRESS_TOKEN"] = "fixture-probe-#{'e' * 40}"
+    assert_no_difference ["ActionMailbox::InboundEmail.count", "LightekMail::Message.count"] do
+      post "/api/lightek-mail/inbound", params: "", headers: {
+        "Content-Type" => "application/x-www-form-urlencoded",
+        "X-Lightek-Mail-Ingress" => ENV["LIGHTEK_MAIL_INGRESS_TOKEN"],
+        "X-Lightek-Mail-Recipients" => "[]"
+      }
+      assert_response :unprocessable_entity
+    end
+  ensure
+    old.nil? ? ENV.delete("LIGHTEK_MAIL_INGRESS_TOKEN") : ENV["LIGHTEK_MAIL_INGRESS_TOKEN"] = old
+  end
+
 end

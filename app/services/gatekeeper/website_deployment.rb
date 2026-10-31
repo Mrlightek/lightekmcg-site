@@ -130,7 +130,17 @@ module Gatekeeper
         $stdout.flush
         sleep [10, remaining].min
       end
-      Gatekeeper::WebsiteDnsPublication.call!(hostname: domain, ipv4: node.reload.ip_address)
+      # DNS credentials can be scoped to the deployment Vault secret rather than
+      # the local Mac process environment. Never mutate process-global ENV.
+      dns_secret = nil
+      begin
+        dns_secret = LightekVault::Service.checkout!(slug: config.fetch("credential_slug"),
+          consumer: CONSUMER, purpose: "website_deploy", requested_by: actor.email_address)
+        Gatekeeper::WebsiteDnsPublication.call!(hostname: domain,
+          ipv4: node.reload.ip_address, dns_env: dns_environment(dns_secret))
+      ensure
+        dns_secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
+      end
       run!(actor:, node:, domain:)
     end
 

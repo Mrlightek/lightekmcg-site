@@ -87,4 +87,32 @@ class LightekMailTest < ActionDispatch::IntegrationTest
     refute account.messages.exists?(record.id)
   end
 
+  test "browser compose preserves Cc Bcc and deduplicates submission retries" do
+    account = mailbox
+    login(account.user)
+    body = {to: " first@example.test, second@example.test ", cc: "copy@example.test", bcc: "blind@example.test", subject: "Launch", text: "Ready", commit_action: "draft", idempotency_key: "web_browser_retry_123"}
+    2.times do
+      post "/dashboard/mail/accounts/#{account.id}/messages", params: body
+      assert_response :redirect
+    end
+    assert_equal 1, account.messages.count
+    message = account.messages.last
+    assert_equal %w[first@example.test second@example.test], message.to_addresses
+    assert_equal ["copy@example.test"], message.cc_addresses
+    assert_equal ["blind@example.test"], message.bcc_addresses
+  end
+
+  test "failed compose preserves message and unauthorized account ids do not fall back" do
+    account, other = mailbox(actor("client")), mailbox(actor("client"))
+    login(account.user)
+    post "/dashboard/mail/accounts/#{account.id}/messages", params: {to: "invalid", subject: "Keep my work", text: "Unsaved message", commit_action: "draft"}
+    assert_response :unprocessable_entity
+    assert_select "textarea[name=text]", text: "Unsaved message"
+    post "/dashboard/mail/accounts/#{other.id}/receiving-check"
+    assert_response :not_found
+    post "/dashboard/mail/accounts/#{other.id}/messages", params: {to: "recipient@example.test", subject: "No", text: "No", commit_action: "draft"}
+    assert_response :not_found
+    assert_equal 0, other.messages.count
+  end
+
 end

@@ -395,6 +395,7 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
   post "/domains/:id/verify", action: :verify_domain, as: :verify_dashboard_mail_domain
   post "/accounts", action: :create_account, as: :dashboard_mail_accounts
   patch "/accounts/:account_id", action: :configure_account, as: :dashboard_mail_account
+  post "/accounts/:account_id/receiving-check", action: :check_receiving, as: :check_receiving_dashboard_mail
   post "/accounts/:account_id/token", action: :token, as: :dashboard_mail_token
   get "/accounts/:account_id/compose", action: :compose, as: :compose_dashboard_mail
   post "/accounts/:account_id/messages", action: :create_message, as: :dashboard_mail_messages
@@ -412,6 +413,7 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
 end
 post "/api/lightek-mail/messages", to: "api/lightek_mail#create"
 get "/api/lightek-mail/messages/:id", to: "api/lightek_mail#show"
+get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 

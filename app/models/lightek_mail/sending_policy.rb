@@ -1,28 +1,18 @@
-class NilClass
-  def sending_enabled?
-    true
-  end
-end
-
 module LightekMail
   class SendingPolicy < ApplicationRecord
-    class << self
-      def synchronize(&block)
-        @mutex ||= Mutex.new
-        @mutex.synchronize(&block)
-      end
+    self.table_name = "lightek_mail_sending_policies"
 
-      def current
-        first || new(active: true)
-      end
-
-      def sending_enabled?
-        current.sending_enabled?
-      end
+    def self.current
+      create_or_find_by!(id: 1)
     end
 
-    def sending_enabled?
-      respond_to?(:active?) ? active? : true
+    def self.sending_enabled? = current.sending_enabled?
+
+    # Database locking serializes mail reservations across Passenger and workers.
+    # Always yield the persisted policy; a process-local mutex cannot do this.
+    def self.synchronize
+      policy = current
+      policy.with_lock(requires_new: true) { yield policy }
     end
   end
 end

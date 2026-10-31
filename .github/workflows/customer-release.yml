@@ -1,0 +1,92 @@
+name: Publish Customer Release
+
+on:
+  workflow_run:
+    workflows: [Deploy Production]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      channel:
+        type: choice
+        options: [stable, beta]
+        default: stable
+      backward_compatible:
+        description: Previous application code is compatible with all database migrations in this release
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: customer-release-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/create-github-app-token@v2
+        id: dependencies
+        with:
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+          owner: lightekmcg
+      - name: Configure private dependency access
+        env:
+          TOKEN: ${{ steps.dependencies.outputs.token }}
+        run: |
+          git config --global --add url."https://x-access-token:${TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - name: Install isolated persistence-test adapter
+        run: gem install activerecord:8.0.4 activejob:8.0.4 sqlite3:2.7.4 minitest:5.25.5 --no-document
+      - name: Test fleet control and remote updater
+        run: |
+          ruby test/standalone/fleet_updates_test.rb
+          python3 -m unittest discover -s test/standalone -p 'fleet*_test.py'
+      - name: Package application and private gem sources once
+        run: python3 script/lightek/build_fleet_release.py --output "$RUNNER_TEMP/fleet-image"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image coordinates
+        id: coordinates
+        run: |
+          SHA=$(git rev-parse HEAD)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}/customer" >> "$GITHUB_OUTPUT"
+          echo "bundler=$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/fleet-image/fleet-build.json"))["bundler"])')" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: ${{ runner.temp }}/fleet-image
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.coordinates.outputs.image }}:${{ steps.coordinates.outputs.sha }}-${{ github.run_id }}
+          build-args: |
+            BUNDLER_VERSION=${{ steps.coordinates.outputs.bundler }}
+      - name: Register immutable release in Dashboard
+        env:
+          CALLBACK: ${{ vars.GATEKEEPER_FLEET_RELEASE_URL }}
+          TOKEN: ${{ secrets.GATEKEEPER_FLEET_RELEASE_TOKEN }}
+          SHA: ${{ steps.coordinates.outputs.sha }}
+          IMAGE: ${{ steps.coordinates.outputs.image }}@${{ steps.build.outputs.digest }}
+          CHANNEL: ${{ inputs.channel || 'stable' }}
+          COMPATIBLE: ${{ inputs.backward_compatible || false }}
+        run: |
+          set -euo pipefail
+          [[ "$CALLBACK" == https://* && -n "$TOKEN" ]] || { echo 'Configure GATEKEEPER_FLEET_RELEASE_URL and GATEKEEPER_FLEET_RELEASE_TOKEN.'; exit 1; }
+          jq -n --arg version "${SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --arg sha "$SHA" --arg image "$IMAGE" --arg channel "$CHANNEL" --arg notes "GitHub ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --argjson compatible "$COMPATIBLE" '{release:{version:$version,source_sha:$sha,image:$image,channel:$channel,notes:$notes,backward_compatible:$compatible}}' > "$RUNNER_TEMP/fleet-release.json"
+          curl --fail-with-body --retry 3 --retry-all-errors --max-time 60 -sS "$CALLBACK" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' --data-binary "@$RUNNER_TEMP/fleet-release.json"

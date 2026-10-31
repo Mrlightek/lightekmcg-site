@@ -1,0 +1,60 @@
+<% content_for :page_title, "Customer Updates" %>
+<div style="display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:24px">
+  <div><div style="color:var(--dd-text-muted);font-size:12px">Gatekeeper · Fleet releases</div><h1>Customer Updates</h1>
+  <p>Publish once. Verify a canary, then update customer servers in controlled batches.</p></div>
+  <%= button_to "Sync registered installations", sync_dashboard_fleet_updates_path, class: "dd-btn dd-btn-secondary" %>
+</div>
+<div class="dd-card" style="padding:24px;margin-bottom:24px">
+  <h2>Create a rollout</h2>
+  <p>Choose a release and installations below. The next screen previews the complete target list before starting.</p>
+  <%= form_with url: dashboard_fleet_updates_path do |f| %>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+      <label>Release <%= f.select :release_id, @releases.map { |r| ["#{r.version} · #{r.channel} · #{r.source_sha.first(8)}", r.id] }, {include_blank: "Select a release"}, required: true %></label>
+      <label>Targets <%= f.select :selection, [["Selected installations below", "selected"], ["All eligible installations on release channel", "all"]] %></label>
+      <label>Canary servers <%= f.number_field :canary_size, value: 1, min: 1, max: 50, required: true %></label>
+      <label>Servers per batch <%= f.number_field :batch_size, value: 10, min: 1, max: 50, required: true %></label>
+      <label>Start at (UTC, optional) <%= f.datetime_local_field :scheduled_at %></label>
+      <label><%= f.check_box :auto_promote %> Continue automatically after canary passes</label>
+    </div>
+    <div style="overflow-x:auto"><table style="width:100%;text-align:left"><thead><tr><th>Select</th><th>Customer installation</th><th>Server</th><th>Installed version</th><th>Channel</th><th>Auto updates</th><th>State</th></tr></thead><tbody>
+      <% @installations.each do |installation| %>
+        <tr><td><%= check_box_tag "installation_ids[]", installation.id, false, disabled: !installation.eligible?, aria: {label: "Select #{installation.domain}"} %></td>
+        <td><%= installation.domain %></td><td><%= installation.gatekeeper_node.name %></td>
+        <td><%= installation.current_version.presence || "Awaiting first version report" %></td><td><%= installation.channel %></td>
+        <td><%= installation.automatic_updates? ? "Enabled" : "Manual" %></td><td><%= installation.eligible? ? "Available" : "Disabled / unavailable" %></td></tr>
+      <% end %>
+    </tbody></table></div>
+    <% if @installations.empty? %><p>Sync registered installations to discover customer deployments.</p><% end %>
+    <div style="margin-top:20px"><%= f.submit "Preview rollout", class: "dd-btn dd-btn-primary" %></div>
+  <% end %>
+</div>
+<div class="dd-card" style="padding:24px;margin-bottom:24px"><h2>Rollouts</h2>
+  <% @rollouts.each do |rollout| %><p><%= link_to "##{rollout.id} · #{rollout.gatekeeper_release.version}", dashboard_fleet_update_path(rollout) %> · <%= rollout.status.humanize %> · <%= rollout.created_at.utc.strftime("%b %d %H:%M UTC") %></p><% end %>
+  <% if @rollouts.empty? %><p>No customer rollouts yet.</p><% end %>
+</div>
+<details class="dd-card" style="padding:24px;margin-bottom:24px"><summary>Installation update policies</summary>
+  <p>Opt installations into release-pipeline automation, choose their channel, or disable updates.</p>
+  <% @installations.each do |installation| %>
+    <%= form_with url: installation_dashboard_fleet_updates_path(installation_id: installation.id), method: :patch, scope: :installation do |f| %>
+      <p><strong><%= installation.domain %></strong>
+      <%= f.select :channel, %w[stable beta], selected: installation.channel %>
+      <label><%= f.check_box :enabled, checked: installation.enabled? %> Updates enabled</label>
+      <label><%= f.check_box :automatic_updates, checked: installation.automatic_updates? %> Automatic releases</label>
+      <%= f.submit "Save policy", class: "dd-btn dd-btn-secondary" %></p>
+    <% end %>
+  <% end %>
+</details>
+<details class="dd-card" style="padding:24px"><summary>Release registry and manual registration</summary>
+  <p>Successful production deployments publish a customer image through the release workflow. Images are pinned by digest; release records cannot be edited.</p>
+  <% @releases.each do |release| %><p><strong><%= release.version %></strong> · <%= release.channel %> · <%= release.backward_compatible? ? "Compatible with previous schema" : "Manual recovery after schema changes" %><br><code style="overflow-wrap:anywhere"><%= release.image %></code><br><%= release.notes %></p><% end %>
+  <%= form_with url: release_dashboard_fleet_updates_path, scope: :release do |f| %>
+    <p><label>Version <%= f.text_field :version, required: true, maxlength: 100 %></label></p>
+    <p><label>Source commit (40 characters) <%= f.text_field :source_sha, required: true, pattern: "[a-f0-9]{40}" %></label></p>
+    <p><label>GHCR image with @sha256 digest <%= f.text_field :image, required: true, style: "width:100%" %></label></p>
+    <p><label>Channel <%= f.select :channel, %w[stable beta] %></label></p>
+    <p><label>Release notes <%= f.text_area :notes %></label></p>
+    <p><label><%= f.check_box :backward_compatible %> Previous application code can run against this release's migrated database</label></p>
+    <p>Only mark compatibility after verifying additive migrations. Failed updates restore previous code automatically only when safe. Database restoration is a separate recovery action.</p>
+    <%= f.submit "Register release", class: "dd-btn dd-btn-secondary" %>
+  <% end %>
+</details>

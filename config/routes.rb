@@ -138,6 +138,7 @@ resources :susu_match_preferences, only: %i[index new create show destroy]
 
 # ── Gatekeeper Infrastructure Control ────────────────────────────────────────
 namespace :gatekeeper do
+  post "callbacks/fleet_release", to: "fleet_releases#create", as: :fleet_release_callback
   post "callbacks/github_deployment", to: "callbacks#github_deployment", as: :github_deployment_callback
   get "infrastructure", to: "infrastructure#index", as: :infrastructure
   resources :nodes
@@ -274,6 +275,14 @@ resources :dashboard_compute_providers, path: "/dashboard/infrastructure/provide
 end
 
 get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#index", as: :dashboard_infrastructure_catalog
+resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", controller: "dashboard/fleet_updates", only: %i[index show create] do
+  collection do
+    post :sync
+    post :release
+    patch :installation
+  end
+  member { post :control }
+end
 post "/dashboard/infrastructure/profiles", to: "dashboard/infrastructure_catalog#create_profile", as: :dashboard_infrastructure_profiles
 post "/dashboard/infrastructure/policies", to: "dashboard/infrastructure_catalog#create_policy", as: :dashboard_infrastructure_policies
 

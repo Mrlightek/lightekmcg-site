@@ -18,6 +18,13 @@ susu_cycle_advance:
   cron: "0 0 * * 0" # Every Sunday at midnight
   class: "SusuCycleAdvanceJob"
   queue: default
+
+nevaeh_historical_backlog:
+  cron: "*/5 * * * *"
+  class: "NevaehIntelligences::ProcessBacklogJob"
+  queue: default
+  active_job: true
+
 gatekeeper_device_heartbeat_sweep:
   cron: "*/1 * * * *"
   class: "GatekeeperDeviceHeartbeatSweepJob"

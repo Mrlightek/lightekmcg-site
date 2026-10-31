@@ -21,6 +21,14 @@ module NevaehOrchestration
     def call
       raise "Marlon::Ticket is unavailable" unless defined?(Marlon::Ticket)
 
+      # Structured execution already owns an authoritative support ticket.
+      # Generic outcome handling must not open a second ticket for its failure.
+      if plan.capability == "ticket.structured.execute" && work_item&.subject_type == "Marlon::Ticket"
+        original = Marlon::Ticket.find(work_item.subject_id)
+        log_ticket!(original, action: "nevaeh_structured_outcome_review", detail: decision.reason)
+        return original
+      end
+
       existing = existing_ticket
       return existing if existing
 

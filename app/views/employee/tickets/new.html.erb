@@ -1,6 +1,6 @@
 <% content_for :page_title, "New Ticket" %>
 <%= form_with model: @ticket, url: employee_tickets_path do |f| %>
-  <div class="dd-card" style="display:flex; flex-direction:column; gap:12px; max-width:600px;">
+  <div class="dd-card" style="display:flex; flex-direction:column; gap:12px; max-width:900px;">
     <label>Category
       <%= f.select :category, Marlon::TicketCategories.ids.map { |id| [Marlon::TicketCategories.label_for(id), id] }, {}, class: "fg-input" %>
     </label>
@@ -16,11 +16,12 @@
         <%= @ticket.errors.full_messages.join(", ") %>
       </div>
     <% end %>
+    <%= render 'structured_form' %>
     <% wo = @work_order_values || {} %>
     <fieldset style="border:1px solid currentColor; border-radius:8px; padding:14px; display:flex; flex-direction:column; gap:10px;">
       <legend>Nevaeh Work Order (optional)</legend>
       <label><%= check_box_tag 'work_order[enabled]', '1', wo['enabled'] == '1' %> Assign structured instructions to Nevaeh</label>
-      <p style="margin:0; opacity:.8;">Creating the ticket does not automatically execute it. Gatekeeper authorization and the Work Order dispatch policy still apply.</p>
+      <p style="margin:0; opacity:.8;">Advanced capability contract. Use this instead of action sections when supplying an existing registered work order.</p>
       <label>Work type
         <%= select_tag 'work_order[work_type]', options_for_select(NevaehIntelligences::WorkOrder::TYPES.map { |t| [t.upcase, t] }, wo['work_type'] || 'create'), class: 'fg-input' %>
       </label>

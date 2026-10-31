@@ -22,6 +22,25 @@
     <div class="nv-card"><div class="nv-muted">Executable catalog entries</div><div class="nv-stat"><%= @executable_services %></div></div>
   </div>
   <div class="nv-note"><strong>Execution remains disabled in this console.</strong> YAML registration and file presence are not Gatekeeper authorization.</div>
+  <h2>Ticket processing</h2>
+  <p><%= @ticket_counts.fetch('open', 0) %> open · <%= @ticket_counts.fetch('in_progress', 0) %> in progress · <%= @ticket_counts.fetch('resolved', 0) %> resolved</p>
+  <p class="nv-muted"><% @backlog_counts.each do |status, count| %><span><%= status.humanize %>: <%= count %> · </span><% end %></p>
+  <div class="nv-card" style="overflow-x:auto;margin-bottom:24px">
+    <table style="width:100%;text-align:left">
+      <thead><tr><th>Ticket</th><th>Processing</th><th>Blockers</th></tr></thead>
+      <tbody>
+        <% @backlog_tickets.each do |ticket| %>
+          <% backlog = ticket.extra_fields.to_h.fetch('nevaeh_backlog', {}) %>
+          <tr>
+            <td><%= link_to "#{ticket.number}: #{ticket.title}", employee_ticket_path(ticket) %></td>
+            <td><%= backlog.fetch('status', 'not_analyzed').humanize %></td>
+            <td><%= Array(backlog['blockers']).join('; ') %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <p class="nv-muted">Showing the first 100 unresolved tickets. Counts cover all ticket records.</p>
+  </div>
   <h2>Explore Nevaeh</h2>
   <div class="nv-actions" aria-label="Nevaeh navigation">
     <%= link_to "Capabilities / Configuration →", employee_nevaeh_capabilities_path %>
@@ -29,5 +48,5 @@
     <%= link_to "Tickets & Work Orders →", employee_tickets_path %>
     <%= link_to "JSON system summary →", employee_nevaeh_overview_path(format: :json) %>
   </div>
-  <p class="nv-muted" style="margin-top:24px">Job execution and knowledge documentation workspaces are planned; links will be added when verified routes exist.</p>
+
 </section>

@@ -207,7 +207,7 @@ end
 namespace :employee do
     resources :users, only: %i[index new create edit update destroy]
     resources :tickets, only: %i[index show new create] do
-      member { patch :reply; patch :resolve; post :execute_nevaeh }
+      member { patch :reply; patch :resolve; post :execute_nevaeh; post :resume_nevaeh; get :edit_nevaeh; post :revise_nevaeh }
     end
   root "dashboard#index"
   resources :clients,   only: %i[index show]

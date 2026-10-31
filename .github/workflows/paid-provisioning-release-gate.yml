@@ -184,27 +184,6 @@ jobs:
           accepted=any('sent gmail_message_id=' in line or 'Delivered mail' in line for line in matched)
           print(json.dumps(dict(ready_notification_observed_in_worker=bool(job_ids),ready_notification_delivery_accepted=accepted)))
           LIGHTEK_NOTIFICATION_PYTHON
-          python3 - <<'LIGHTEK_CSRF_DIAGNOSTICS'
-          import json
-          from pathlib import Path
-          for filename in ['/var/www/lightekmcg-site/log/production.log', '/var/log/apache2/error.log']:
-              path=Path(filename)
-              if not path.is_file():
-                  continue
-              with path.open('rb') as f:
-                  f.seek(max(0,path.stat().st_size-4*1024*1024))
-                  lines=f.read().decode('utf-8',errors='replace').splitlines()
-              markers={
-                  'null_origin': "The browser returned a 'null' origin",
-                  'origin_mismatch': "didn't match request.base_url",
-                  'csrf_invalid': "Can't verify CSRF token authenticity",
-                  'csrf_exception': 'InvalidAuthenticityToken',
-                  'status_422': 'Completed 422',
-              }
-              print(json.dumps(dict(csrf_log=path.name, observations={key:sum(marker in line for line in lines) for key,marker in markers.items()})))
-              ids={line.split(']')[0]+']' for line in lines if '/my/installations/1/access' in line and 'Started POST' in line}
-              print(json.dumps(dict(reset_post_requests=len(ids), reset_request_null_origin=any("The browser returned a 'null' origin" in line and any(i in line for i in ids) for line in lines))))
-          LIGHTEK_CSRF_DIAGNOSTICS
           LIGHTEK_STATUS_REMOTE
 
   installation_ui_predeploy:

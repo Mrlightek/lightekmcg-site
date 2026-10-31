@@ -22,6 +22,13 @@ module Godaddy
       raise ConfigurationError, "Domain is not in managed DNS zones" unless @configured_domains.include?(@zone)
     end
 
+    # Fail before allocating a billable instance when DNS cannot authenticate.
+    # The same provider and credential resolution is used during publication.
+    def verify_access!
+      records
+      true
+    end
+
     def records
       page = 1
       items = []

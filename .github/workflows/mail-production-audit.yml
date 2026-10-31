@@ -1,0 +1,185 @@
+name: One-time mail production acceptance
+on:
+  push:
+    branches: ['fix/mail-receiving-and-workspace-20261031']
+    paths: ['.github/workflows/mail-production-audit.yml']
+permissions:
+  contents: read
+concurrency:
+  group: mail-production-acceptance-pr160
+  cancel-in-progress: false
+jobs:
+  mail_acceptance:
+    # Owner authorized one audit and one corporate inbox test. This exact-parent
+    # guard prevents future branch updates and rerun attempts from executing it.
+    if: github.event.before == '30088222ca5416b559ee617acccc760e382e378a' && github.run_attempt == 1 && github.repository == 'Mrlightek/lightekmcg-site'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # No checkout: no PR files execute with production credentials.
+      - name: Inspect production mail settings and verify incoming delivery
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$SSH_KEY" && -n "$SSH_HOST" && -n "$SSH_USER" ]] || { echo 'Production SSH credentials are unavailable'; exit 1; }
+          install -d -m 0700 ~/.ssh
+          export MAIL_AUDIT_SSH_KEY_FILE="$HOME/.ssh/lightek_mail_audit"
+          printf '%s\n' "$SSH_KEY" > "$MAIL_AUDIT_SSH_KEY_FILE"
+          chmod 0600 "$MAIL_AUDIT_SSH_KEY_FILE"
+          trap 'rm -f "$MAIL_AUDIT_SSH_KEY_FILE"' EXIT
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          unset SSH_KEY
+          python3 - <<'LIGHTEK_AUDIT_PYTHON'
+          #!/usr/bin/env python3
+          """Read production mail state and send at most one corporate inbox test.
+
+          Run only with the owner's explicit authorization. Production credentials stay in
+          SSH's key file; ingress secrets, addresses and mail content never enter job logs.
+          This script does not deploy code, change settings, migrate data or alter DNS.
+          """
+          import email.message
+          import json
+          import os
+          import smtplib
+          import subprocess
+          import sys
+
+          MESSAGE_ID = 'mail-acceptance-pr160-20261031@lightekmcg.com'
+          REMOTE_PREFIX = '''set -euo pipefail
+          sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -c '
+            set -e
+            export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:$PATH
+            set -a
+            source /etc/lightek/lightekmcg-site.env
+            set +a
+            cd /var/www/lightekmcg-site
+            RAILS_ENV=production bundle exec rails runner -
+          ' <<'MAIL_AUDIT_RUBY'
+          '''
+          AUDIT = '''require "resolv"
+          require "open3"
+          connection = ActiveRecord::Base.connection
+          canonical = connection.select_one("SELECT sending_enabled, stop_reason FROM lightek_mail_sending_policies WHERE id = 1")
+          legacy = connection.select_one("SELECT active FROM sending_policies ORDER BY id LIMIT 1") if connection.data_source_exists?(:sending_policies)
+          cast = ActiveModel::Type::Boolean.new
+          account = LightekMail::Account.joins(:domain, :user).where(enabled: true, lightek_mail_domains: {name: "lightekmcg.com"}, users: {role: "super_admin", first_name: "Marlon", last_name: "Henry"}).where.not(lightek_mail_domains: {verified_at: nil}).order(:id).first
+          host = ENV.fetch("LIGHTEK_MAIL_HOST", "mail.lightekmcg.com").downcase.delete_suffix(".")
+          mx = Resolv::DNS.open do |dns|
+            dns.timeouts = 3
+            dns.getresources("lightekmcg.com.", Resolv::DNS::Resource::IN::MX).map { |record| record.exchange.to_s.downcase.delete_suffix(".") }.uniq
+          end
+          local_mta = system("command -v postconf >/dev/null 2>&1")
+          listener = if local_mta
+            output, status = Open3.capture2e("postconf", "-h", "inet_interfaces")
+            status.success? ? output.strip : "unknown"
+          end
+          observed = connection.select_value("SELECT 1 FROM lightek_mail_messages WHERE direction = 'outbound' AND state = 'sent' LIMIT 1").present?
+          upgraded_enabled = if canonical && (cast.cast(canonical["sending_enabled"]) || canonical["stop_reason"].present?)
+            cast.cast(canonical["sending_enabled"])
+          elsif legacy
+            cast.cast(legacy["active"]) == true
+          else
+            observed
+          end
+          puts "LIGHTEK_MAIL_AUDIT_JSON=" + JSON.generate({
+            canonical_present: canonical.present?, canonical_enabled: canonical && cast.cast(canonical["sending_enabled"]),
+            explicit_stop: canonical && canonical["stop_reason"].present?, legacy_present: legacy.present?,
+            legacy_enabled: legacy && cast.cast(legacy["active"]), has_sent_mail: observed,
+            upgraded_enabled: upgraded_enabled, ingress_configured: ENV["LIGHTEK_MAIL_INGRESS_TOKEN"].to_s.bytesize >= 32,
+            corporate_mailbox_available: account.present?, account_id: account&.id, address: account&.address,
+            local_mta: local_mta, public_listener: listener && !%w[loopback-only localhost 127.0.0.1 unknown].include?(listener),
+            mx_correct: mx == [host], mail_host: host,
+            already_received: account && account.messages.exists?(direction: "inbound", message_id: "mail-acceptance-pr160-20261031@lightekmcg.com")
+          })
+          '''
+
+
+          def ssh_json(ruby):
+              command = ['ssh', '-i', os.environ['MAIL_AUDIT_SSH_KEY_FILE'], '-p', os.environ.get('SSH_PORT') or '22',
+                         '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', '-o', 'ServerAliveInterval=15',
+                         '-o', 'ServerAliveCountMax=2', os.environ['SSH_USER'] + '@' + os.environ['SSH_HOST'], 'bash -s']
+              result = subprocess.run(command, input=REMOTE_PREFIX + ruby + '\nMAIL_AUDIT_RUBY\n',
+                                      text=True, capture_output=True, timeout=150)
+              if result.returncode:
+                  # Do not print raw SSH/Rails output; it could contain environment values.
+                  raise RuntimeError('Production SSH/Rails audit failed (no raw output logged)')
+              lines = [line.split('=', 1)[1] for line in result.stdout.splitlines() if line.startswith('LIGHTEK_MAIL_AUDIT_JSON=')]
+              if len(lines) != 1:
+                  raise RuntimeError('Production audit returned no unique result')
+              return json.loads(lines[0])
+
+
+          def main():
+              data = ssh_json(AUDIT)
+              for key in ('canonical_present', 'canonical_enabled', 'explicit_stop', 'legacy_present', 'legacy_enabled',
+                          'has_sent_mail', 'upgraded_enabled', 'ingress_configured', 'corporate_mailbox_available',
+                          'local_mta', 'public_listener', 'mx_correct', 'already_received'):
+                  print('LIGHTEK_MAIL_' + key.upper() + '=' + str(data.get(key)).lower(), flush=True)
+              if not data['mx_correct']:
+                  raise RuntimeError('Incoming MX does not exclusively route to the configured Lightek mail host; no test message sent')
+              if not data['corporate_mailbox_available']:
+                  raise RuntimeError('No verified enabled corporate mailbox owned by Marlon Henry was found; no test message sent')
+              if data['already_received']:
+                  print('LIGHTEK_MAIL_INBOUND_VERIFIED=true', flush=True)
+                  return
+              if data['mail_host'] != 'mail.lightekmcg.com':
+                  raise RuntimeError('Configured mail host differs from the authorized corporate test host; no test message sent')
+              address = data['address']
+              if not isinstance(address, str) or not address.endswith('@lightekmcg.com') or any(c in address for c in '\r\n'):
+                  raise RuntimeError('Invalid corporate mailbox; no test message sent')
+              message = email.message.EmailMessage()
+              message['From'] = address
+              message['To'] = address
+              message['Subject'] = 'Lightek incoming mail verification - PR 160'
+              message['Message-ID'] = '<' + MESSAGE_ID + '>'
+              message['Auto-Submitted'] = 'auto-generated'
+              message.set_content('Authorized Lightek incoming mail verification. This one-time test checks delivery from an external runner into your dashboard inbox.')
+              try:
+                  with smtplib.SMTP('mail.lightekmcg.com', 25, timeout=20) as smtp:
+                      smtp.ehlo('mail-verification.lightekmcg.com')
+                      if smtp.has_extn('starttls'):
+                          import ssl
+                          smtp.starttls(context=ssl.create_default_context())
+                          smtp.ehlo('mail-verification.lightekmcg.com')
+                      smtp.send_message(message, from_addr=address, to_addrs=[address])
+              except smtplib.SMTPResponseException as error:
+                  raise RuntimeError(f'Public SMTP rejected the test (SMTP {error.smtp_code}); no raw server response logged') from None
+              except (OSError, smtplib.SMTPException):
+                  raise RuntimeError('Public SMTP connection or submission failed; check port 25/TLS and the mail-server logs') from None
+              print('LIGHTEK_MAIL_SMTP_ACCEPTED=true', flush=True)
+              account_id = int(data['account_id'])
+              verify = '''deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 60
+          loop do
+            message = LightekMail::Message.find_by(account_id: ACCOUNT_ID, direction: "inbound", message_id: "mail-acceptance-pr160-20261031@lightekmcg.com")
+            if message
+              puts 'LIGHTEK_MAIL_AUDIT_JSON=' + JSON.generate({received: true, source_stored: message.source.attached?})
+              break
+            end
+            if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+              puts 'LIGHTEK_MAIL_AUDIT_JSON=' + JSON.generate({received: false})
+              break
+            end
+            sleep 5
+          end
+          '''.replace('ACCOUNT_ID', str(account_id))
+              receipt = ssh_json(verify)
+              if not receipt.get('received'):
+                  raise RuntimeError('SMTP accepted the test but it did not appear in the Rails inbox within 60 seconds')
+              print('LIGHTEK_MAIL_INBOUND_VERIFIED=true', flush=True)
+              print('LIGHTEK_MAIL_SOURCE_STORED=' + str(receipt.get('source_stored')).lower(), flush=True)
+
+
+          if __name__ == '__main__':
+              try:
+                  main()
+              except (RuntimeError, subprocess.TimeoutExpired, KeyError, ValueError) as error:
+                  # Only RuntimeError messages are designed for logs; other exceptions can
+                  # include SSH hostnames, addresses or captured output.
+                  print(str(error) if isinstance(error, RuntimeError) else 'Mail production verification could not complete', file=sys.stderr)
+                  sys.exit(1)
+          LIGHTEK_AUDIT_PYTHON

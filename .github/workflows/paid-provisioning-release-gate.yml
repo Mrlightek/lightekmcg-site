@@ -239,6 +239,7 @@ jobs:
           bin/rails runner 'abort "Unsafe test database" unless Rails.env.test? && ActiveRecord::Base.connection_db_config.database == "lightekmcg_site_test"'
           bin/rails db:migrate
           bin/rails assets:precompile
+          bin/rails runner 'c = "RegistrationsController".safe_constantize; puts({registration_class: c&.name, registration_methods: c&.instance_methods(false), compute_constants: DymondCompute.constants.grep(/Asset|Storage/)}.to_json); if c; p = c.instance_method(:new).source_location&.first; puts File.read(p).first(10000) if p && File.file?(p); end; p = DymondCompute::Storage.method(:ingest).source_location&.first; puts File.read(p).first(10000) if p && File.file?(p)'
           bin/rails test test/controllers/installations_flow_test.rb
           LIGHTEK_APP_TESTS
           LIGHTEK_STAGED_TESTS

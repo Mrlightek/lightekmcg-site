@@ -34,7 +34,7 @@ ActiveRecord::Schema.define do
     t.timestamps
   end
   create_table :nevaeh_capabilities do |t|
-    %i[name slug domain intent_name handler queue].each { |c| t.string c }
+    %i[name slug domain intent_name handler queue gatekeeper_capability].each { |c| t.string c }
     t.integer :priority
     t.boolean :enabled
     t.timestamps
@@ -352,6 +352,26 @@ class NevaehBacklogPersistenceTest < Minitest::Test
     assert_equal "verification_failed", NevaehIntelligences::TicketExecution.reconcile!(ticket: row)
     assert_equal "in_progress", row.reload.status
     assert_equal 0, DymondKb::Article.count
+  end
+
+  def test_native_gatekeeper_metadata_matches_real_registry_alias_and_links_related_operations
+    capability = NevaehCapability.create!(name: "Deploy", slug: "gatekeeper.deploy", domain: "infrastructure",
+      intent_name: "deploy", handler: "Gatekeeper::Capabilities::DeployProject", queue: "default", priority: 5,
+      enabled: true, gatekeeper_capability: "deploy_project")
+    article = DymondKb::Article.create!(title: "Deploy procedure", metadata: {capability: "deploy_project"})
+    source = {"capability" => "deploy_project", "operation_id" => 14, "node_id" => "2", "project_id" => "1",
+      "error_class" => "RuntimeError", "error_message" => "Controlled deployment failure"}
+    related = ticket(extra_fields: {"gatekeeper" => source.merge("operation_id" => 20)})
+    row = ticket(extra_fields: {"source" => "gatekeeper", "gatekeeper" => source})
+    assert_equal "escalated", NevaehIntelligences::TicketBacklog.process!(ticket: row)
+    state = backlog(row)
+    assert_equal "gatekeeper.deploy", state.fetch("required_capability")
+    assert_equal "operational_execution", state.fetch("classification")
+    assert_equal [related.id], state.fetch("related_ticket_ids")
+    assert_equal [article.id], state.fetch("knowledge_article_ids")
+    assert_equal 14, state.dig("engineering_plan", "source_evidence", "operation_id")
+    assert_equal "open", related.reload.status, "related operations are not automatically duplicates"
+    assert_equal "open", row.status
   end
 
 end

@@ -65,12 +65,12 @@ module NevaehIntelligences
 
     # Native historical tickets need an inspectable plan even when they did not
     # originate in GitHub. This is planning data, never an execution permission.
-    def from_native_ticket(ticket:, knowledge_article_ids:, capability_snapshot:)
+    def from_native_ticket(ticket:, knowledge_article_ids:, capability_snapshot:, required_capability: nil, source_evidence: {})
       raise Rejected, "persisted Marlon ticket required" unless ticket.is_a?(Marlon::Ticket) && ticket.persisted?
       fields = ticket.extra_fields.to_h.deep_stringify_keys
       order = fields["nevaeh_work_order"]
       order = WorkOrder.validate!(order) if order
-      requirement = order&.fetch("intent_key") || fields["required_capability"]
+      requirement = order&.fetch("intent_key") || fields["required_capability"] || required_capability
       criteria = order&.fetch("acceptance_criteria") || fields["acceptance_criteria"] || []
       raise Rejected, "invalid acceptance criteria" unless criteria.is_a?(Array) && criteria.all? { |v| v.is_a?(String) && v.present? }
       steps = [
@@ -85,7 +85,7 @@ module NevaehIntelligences
         "schema_version" => VERSION, "status" => "planning_only", "ticket_id" => ticket.id,
         "source" => "marlon_ticket", "objective" => order&.fetch("objective") || ticket.description.presence || ticket.title,
         "required_capability" => requirement, "acceptance_criteria" => criteria,
-        "knowledge_article_ids" => knowledge_article_ids,
+        "knowledge_article_ids" => knowledge_article_ids, "source_evidence" => source_evidence,
         "capability_resolution" => "unverified_requires_repository_and_registry_inspection",
         "dependencies" => fields.fetch("depends_on_ticket_ids", []), "steps" => steps,
         "gatekeeper" => {"authorization_required" => true, "production_execution_allowed" => false,

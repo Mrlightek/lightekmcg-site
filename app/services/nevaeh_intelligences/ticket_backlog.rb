@@ -114,20 +114,37 @@ module NevaehIntelligences
       end
       order = fields["nevaeh_work_order"]
       order = WorkOrder.validate!(order) if order
-      key = order&.fetch("intent_key") || fields["required_capability"]
+      source = fields.fetch("gatekeeper", {}).to_h
+      key = order&.fetch("intent_key") || fields["required_capability"] || source["capability"]
       capabilities = NevaehCapability.order(:id).map do |record|
         {"slug" => record.slug, "enabled" => record.enabled?, "handler" => record.handler,
-          "updated_at" => record.updated_at&.iso8601(6)}
+          "gatekeeper_capability" => record.gatekeeper_capability, "updated_at" => record.updated_at&.iso8601(6)}
+      end
+      aliases = capabilities.select { |record| record["gatekeeper_capability"] == key }
+      key = aliases.first.fetch("slug") if aliases.one? && !capabilities.any? { |record| record["slug"] == key }
+      related_ids = if source["capability"].present? && source["node_id"].present? && source["project_id"].present?
+        Marlon::Ticket.where.not(id: ticket.id)
+          .where("extra_fields->'gatekeeper'->>'capability' = ?", source["capability"])
+          .where("extra_fields->'gatekeeper'->>'node_id' = ?", source["node_id"].to_s)
+          .where("extra_fields->'gatekeeper'->>'project_id' = ?", source["project_id"].to_s)
+          .order(:id).limit(100).pluck(:id)
+      else
+        []
       end
       # Do not silently treat a KB outage as "no known procedure".
       raise "Knowledge Base unavailable" unless defined?(DymondKb::Article) && DymondKb::Article.table_exists?
       articles = NevaehOrchestration::KnowledgeResolver.for(capability: key,
         additional_article_ids: fields.fetch("knowledge_article_ids", []))
+      if source["capability"].present? && source["capability"] != key
+        articles += NevaehOrchestration::KnowledgeResolver.for(capability: source["capability"])
+        articles = articles.uniq(&:id).first(10)
+      end
       if articles.empty? && ticket.title.present?
         articles = DymondKb::Article.search(ticket.title.to_s.first(240)).ordered.limit(5).to_a
       end
       plan = GithubDevelopmentPlanV7a.from_native_ticket(ticket: ticket,
-        knowledge_article_ids: articles.map(&:id), capability_snapshot: capabilities)
+        knowledge_article_ids: articles.map(&:id), capability_snapshot: capabilities,
+        required_capability: key, source_evidence: source.slice("operation_id", "capability", "node_id", "project_id", "error_class", "error_message"))
       blockers = []
       dependencies = Array(fields["depends_on_ticket_ids"])
       if dependencies.any? { |id| !id.is_a?(Integer) || id <= 0 || id == ticket.id }
@@ -161,7 +178,8 @@ module NevaehIntelligences
         "knowledge" => articles.map { |a| [a.id, a.updated_at&.iso8601(6)] },
         "blockers" => blockers})
       {"status" => blockers.empty? ? "ready" : "escalated", "blockers" => blockers,
-        "classification" => order&.fetch("work_type") || "investigation",
+        "classification" => order&.fetch("work_type") || (source["operation_id"].present? ? "operational_execution" : "investigation"),
+        "related_ticket_ids" => related_ids,
         "analysis_sha256" => input_digest, "engineering_plan" => plan,
         "knowledge_article_ids" => articles.map(&:id), "required_capability" => key,
         "implementation_verified" => false}

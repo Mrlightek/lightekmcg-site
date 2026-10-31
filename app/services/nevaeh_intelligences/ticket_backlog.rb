@@ -187,6 +187,7 @@ module NevaehIntelligences
 
     def save_analysis!(fields, analysis)
       prior = fields.fetch("nevaeh_backlog", {})
+      analysis["source_diagnostics"] = prior["source_diagnostics"] if prior.key?("source_diagnostics")
       return if prior.except("updated_at") == analysis
       analysis["updated_at"] = Time.current.iso8601
       fields["nevaeh_backlog"] = analysis

@@ -63,6 +63,20 @@ Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
           "handler" => item.handler, "error" => item.error.to_s.last(3000)}
         media_handlers = %w[DymondCompute::TrimHandler DymondCompute::TimelineRenderHandler DymondCompute::BlenderRenderHandler]
         if media_handlers.include?(item.handler)
+          diagnostic["media_arguments"] = item.args
+          diagnostic["registered_media_capabilities"] = NevaehCapability.where(handler: item.handler)
+            .map { |capability| {"slug" => capability.slug, "enabled" => capability.enabled?, "subject_type" => capability.subject_type} }
+          implementation = {
+            "DymondCompute::TrimHandler" => ["DymondCompute::Transcoding::TrimPipeline", :trim],
+            "DymondCompute::TimelineRenderHandler" => ["DymondCompute::Transcoding::TimelineRenderer", :render],
+            "DymondCompute::BlenderRenderHandler" => ["DymondCompute::Transcoding::BlenderRenderer", :render]
+          }.fetch(item.handler)
+          renderer = implementation.first.constantize.method(implementation.last)
+          renderer_path, renderer_line = renderer.source_location
+          if renderer_path && File.file?(renderer_path)
+            diagnostic["renderer_inspection"] = {"source_path" => renderer_path, "source_line" => renderer_line,
+              "source_excerpt" => File.read(renderer_path).byteslice(0, 26000)}
+          end
           klass = item.handler.constantize
           target = if klass.respond_to?(:perform)
             klass.method(:perform)

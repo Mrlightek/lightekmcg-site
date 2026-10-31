@@ -1,0 +1,7 @@
+<% content_for :page_title, "Servers & Applications" %>
+<h1>Servers & Applications</h1>
+<p>Manage your server instances and create additional websites on an existing server.</p>
+<div class="dd-card" style="padding:24px;overflow-x:auto"><table style="width:100%;text-align:left"><thead><tr><th>Server</th><th>Hostname</th><th>Provider</th><th>State</th></tr></thead><tbody>
+<% @nodes.each do |node| %><tr><td><%= link_to node.name, dashboard_server_path(node) %></td><td><%= node.display_host %></td><td><%= node.compute_provider&.name || node.provider %></td><td><%= node.status.humanize %></td></tr><% end %>
+</tbody></table><% if @nodes.empty? %><p>No server instances are assigned to your account.</p><% end %><%= paginate @nodes %></div>
+<p><%= link_to "Browse hosting services", main_app.marketplace_path %></p>

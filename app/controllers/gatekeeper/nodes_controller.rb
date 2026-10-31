@@ -1,5 +1,6 @@
 module Gatekeeper
   class NodesController < ApplicationController
+    before_action :require_node_operator!
     before_action :set_node, only: %i[show edit update destroy]
 
     def index = @nodes = GatekeeperNode.order(:name)
@@ -19,11 +20,14 @@ module Gatekeeper
     end
 
     def destroy
-      @node.destroy!
-      redirect_to gatekeeper_nodes_path, notice: "Gatekeeper node removed."
+      redirect_to main_app.dashboard_server_path(@node), status: :see_other, alert: "Review and confirm cloud deletion in Servers & Applications."
     end
 
     private
+
+    def require_node_operator!
+      redirect_to main_app.dashboard_servers_path, alert: "Use your server management area." unless current_user&.role == "super_admin"
+    end
 
     def set_node = @node = GatekeeperNode.find(params[:id])
 

@@ -5,4 +5,5 @@ class SubscriptionInfrastructureEntitlement < ApplicationRecord
 
   validates :subscription_plan_id, uniqueness: true
   validates :node_quantity, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :max_sites, numericality: {only_integer: true, greater_than_or_equal_to: 0}
 end

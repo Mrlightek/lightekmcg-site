@@ -1,0 +1,53 @@
+name: Customer Update Acceptance
+on:
+  pull_request:
+    paths:
+      - 'app/models/gatekeeper*'
+      - 'app/services/gatekeeper/**'
+      - 'app/jobs/gatekeeper/fleet/**'
+      - 'app/jobs/gatekeeper/hosting/**'
+      - 'app/controllers/dashboard/server_instances_controller.rb'
+      - 'app/controllers/gatekeeper/hosted_sites_controller.rb'
+      - 'app/views/dashboard/server_instances/**'
+      - 'app/models/subscription_infrastructure_entitlement.rb'
+      - 'db/migrate/*server_application*'
+      - 'lib/scripts/gatekeeper/create_hosted_site.py'
+      - 'lib/scripts/gatekeeper/deploy_project.sh'
+      - 'app/controllers/dashboard/fleet_updates_controller.rb'
+      - 'app/controllers/gatekeeper/fleet_releases_controller.rb'
+      - 'app/views/dashboard/fleet_updates/**'
+      - 'db/migrate/*gatekeeper_fleet*'
+      - 'lib/scripts/gatekeeper/update_installation.py'
+      - 'lib/scripts/gatekeeper/update_native_installation.py'
+      - 'app/controllers/gatekeeper/fleet_health_controller.rb'
+      - 'config/initializers/fleet_boot_revision.rb'
+      - 'db/migrate/*native_fleet*'
+      - 'script/lightek/build_fleet_release.py'
+      - 'test/standalone/fleet*'
+      - '.github/workflows/customer*.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fleet_contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+      - name: Install isolated test dependencies
+        run: gem install activerecord:8.0.4 activejob:8.0.4 sqlite3:2.7.4 minitest:5.25.5 --no-document
+      - name: Test fleet persistence, batching, retries and recovery
+        run: ruby test/standalone/fleet_updates_test.rb
+      - name: Test remote installation updates and release packaging
+        run: python3 -m unittest discover -s test/standalone -p 'fleet*_test.py'
+      - name: Check Ruby syntax
+        run: |
+          find app/services/gatekeeper/fleet app/jobs/gatekeeper/fleet -name '*.rb' -exec ruby -c {} \;
+          ruby -c app/controllers/dashboard/fleet_updates_controller.rb
+          ruby -c app/controllers/gatekeeper/fleet_releases_controller.rb
+          ruby -c app/controllers/dashboard/server_instances_controller.rb
+          ruby -c app/controllers/gatekeeper/hosted_sites_controller.rb
+          find app/services/gatekeeper/hosting app/jobs/gatekeeper/hosting -name '*.rb' -exec ruby -c {} \;
+          bash -n lib/scripts/gatekeeper/deploy_project.sh

@@ -1,5 +1,6 @@
 module Gatekeeper
   class ProjectsController < ApplicationController
+    before_action :require_project_operator!
     before_action :set_project, only: %i[show edit update destroy deploy deploy_github healthcheck]
 
     def index = @projects = GatekeeperProject.includes(:gatekeeper_node).order(:name)
@@ -59,6 +60,10 @@ module Gatekeeper
     end
 
     private
+
+    def require_project_operator!
+      redirect_to main_app.dashboard_servers_path, alert: "Use your server management area." unless current_user&.role == "super_admin"
+    end
 
     def set_project = @project = GatekeeperProject.find(params[:id])
 

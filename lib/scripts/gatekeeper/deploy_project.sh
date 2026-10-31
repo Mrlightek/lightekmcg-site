@@ -17,6 +17,12 @@ RUBY_BIN="/home/${APP_USER}/.rbenv/versions/${RUBY_VERSION}/bin"
 [[ -d "${APP_ROOT}/.git" ]] || { echo "ERROR: ${APP_ROOT} is not a git checkout"; exit 1; }
 [[ -f "${ENV_FILE}" ]] || { echo "ERROR: missing ${ENV_FILE}"; exit 1; }
 
+# Share the native fleet adapter's checkout lock with ordinary deployments.
+FLEET_LOCK_KEY="$(printf '%s' "$(readlink -f "$APP_ROOT")" | sha256sum | cut -c1-24)"
+install -d -m 0700 "/var/lib/lightek/fleet/${FLEET_LOCK_KEY}"
+exec 9>"/var/lib/lightek/fleet/${FLEET_LOCK_KEY}/update.lock"
+flock -n 9 || { echo "ERROR: another deployment owns this checkout"; exit 1; }
+
 echo "[1/8] Pull"
 
 run_as_app_user() {
@@ -82,6 +88,7 @@ echo "[7/8] Apache"
 apache2ctl configtest
 systemctl reload "${APACHE_SERVICE}"
 systemctl is-active --quiet "${APACHE_SERVICE}"
+passenger-config restart-app "${APP_ROOT}" --ignore-app-not-running
 
 echo "[8/8] Health"
 HTTP_CODE=""

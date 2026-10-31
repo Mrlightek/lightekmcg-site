@@ -217,6 +217,7 @@ module Gatekeeper
       @node.with_lock do
         @node.update!(metadata: @node.metadata.to_h.merge("website_deployment" => receipt), status: "healthy")
       end
+      Gatekeeper::Fleet::Inventory.sync_node!(@node)
       {operation_id: operation.id, url: receipt.fetch("url"), verified: true}
     rescue StandardError => error
       if operation

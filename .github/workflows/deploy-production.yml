@@ -97,6 +97,13 @@ jobs:
             set -e
             # Restore the repository's documented production ownership model.
             bash /var/www/lightekmcg-site/lib/scripts/repair_lightek_production_permissions.sh
+            if [[ "$1" == fix/paid-instance-provisioning-recovery-20261028 ]]; then
+              # Preserve interrupted checkout and manual source changes locally.
+              # Ignored runtime data/environment files remain in place.
+              sudo -u lightek -H git -C /var/www/lightekmcg-site \
+                -c user.name='Lightek Release' -c user.email='deploy@lightekmcg.com' \
+                stash push --include-untracked -m paid-order-1-pre-release-recovery
+            fi
 
             APP_ROOT=/var/www/lightekmcg-site \
             APP_USER=lightek \

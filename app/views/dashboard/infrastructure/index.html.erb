@@ -1,21 +1,51 @@
 <% content_for :page_title, "Infrastructure" %>
-<div style="margin-bottom:20px">
-  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Gatekeeper · Operations</div>
-  <h2 style="font-size:22px;margin:6px 0 0">Infrastructure Control</h2>
-  <p><%= link_to "Customer Updates →", main_app.dashboard_fleet_updates_path %></p>
-  <p><%= link_to "Servers & Applications →", main_app.dashboard_servers_path %></p>
-  <p style="color:var(--dd-text-secondary);font-size:13px">Nevaeh decides. Gatekeeper executes. Marlon handles the unknown.</p>
+<%= render "dashboard/infrastructure/styles" %>
+<% total = @metrics[:operations].to_i; succeeded = @metrics[:succeeded].to_i; failed = @metrics[:failed].to_i; pending = [total - succeeded - failed, 0].max %>
+<% success_share = total.positive? ? succeeded.fdiv(total) * 100 : 0; failure_share = total.positive? ? failed.fdiv(total) * 100 : 0; node_counts = @nodes.group_by(&:status).transform_values(&:size) %>
+<div class="infra">
+  <header class="infra-hero">
+    <div><span class="infra-eyebrow">Gatekeeper / Control plane</span><h1>Your infrastructure, at a glance.</h1><p>Servers, applications and automation in one place. See what needs attention and move straight into the next action.</p></div>
+    <div class="infra-actions"><%= link_to "Customer updates", main_app.dashboard_fleet_updates_path, class: "infra-button" %><%= link_to "Manage servers →", main_app.dashboard_servers_path, class: "infra-button infra-button-primary" %></div>
+  </header>
+  <section class="infra-stats" aria-label="Infrastructure summary">
+    <% [["Servers", @nodes.size, "Registered across your network", "server"], ["Application runtimes", @projects.size, "Registered deployment targets", "apps"], ["Operations", total, "Recorded in the last 7 days", "activity"], ["Need attention", @metrics[:open_support_tickets], "Open automation support tickets", "lifebuoy"]].each do |label, value, caption, icon| %>
+      <div class="infra-stat"><div class="infra-stat-label"><span><%= label %></span><i class="ti ti-<%= icon %>" aria-hidden="true"></i></div><strong><%= number_with_delimiter(value) %></strong><small><%= caption %></small></div>
+    <% end %>
+  </section>
+  <div class="infra-columns">
+    <section class="infra-panel"><div class="infra-panel-header"><div><h2>Automation performance</h2><p>Operation outcomes · last 7 days</p></div><span class="infra-badge">7-day snapshot</span></div>
+      <div class="infra-chart">
+        <div class="infra-ring" role="img" aria-label="<%= succeeded %> succeeded, <%= failed %> failed, <%= pending %> queued or running" style="background:conic-gradient(var(--dd-success,#3dae82) 0% <%= success_share %>%,var(--dd-danger,#cd4d3d) <%= success_share %>% <%= success_share + failure_share %>%,#7b8496 <%= success_share + failure_share %>% 100%)">
+          <div class="infra-ring-center"><strong><%= total.positive? ? number_to_percentage(success_share, precision: 0) : "—" %></strong><small><%= total.positive? ? "success rate" : "no operations" %></small></div>
+        </div>
+        <div class="infra-legend"><% [["Succeeded", succeeded, "good"], ["Failed", failed, "danger"], ["Queued / running", pending, "neutral"]].each do |label, count, tone| %><div class="infra-legend-row"><span><span class="infra-dot infra-dot-<%= tone %>"></span><%= label %></span><strong><%= count %></strong></div><% end %></div>
+      </div>
+      <div class="infra-meter-label"><span>Human interventions</span><strong><%= @metrics[:human_interventions] %></strong></div>
+      <p class="infra-muted" style="font-size:12px">Support tickets created for automation in the last 7 days. Open tickets above include older unresolved work.</p>
+    </section>
+    <section class="infra-panel"><div class="infra-panel-header"><div><h2>Server states</h2><p>Latest recorded status · <%= @nodes.size %> registered</p></div></div>
+      <% if node_counts.empty? %><div class="infra-empty"><i class="ti ti-server" aria-hidden="true"></i>No servers registered yet.</div><% else %>
+        <% node_counts.sort_by { |status, count| [-count, status] }.each do |status, count| %><div class="infra-meter-label"><span><%= status.humanize %></span><strong><%= count %></strong></div><div class="infra-meter" role="img" aria-label="<%= count %> of <%= @nodes.size %> servers are <%= status.humanize %>"><span class="infra-fill-<%= infrastructure_status_tone(status) %>" style="width:<%= count.fdiv(@nodes.size) * 100 %>%"></span></div><% end %>
+      <% end %>
+    </section>
+  </div>
+  <section class="infra-shortcuts" aria-label="Infrastructure actions">
+    <%= link_to main_app.dashboard_servers_path, class: "infra-shortcut" do %><i class="ti ti-server-2" aria-hidden="true"></i><strong>Servers & applications ↗</strong><small>Open an instance, add a website or review server deletion.</small><% end %>
+    <%= link_to main_app.dashboard_fleet_updates_path, class: "infra-shortcut" do %><i class="ti ti-refresh" aria-hidden="true"></i><strong>Customer updates ↗</strong><small>Ship a release to one account or roll it out across your fleet.</small><% end %>
+  </section>
+  <div class="infra-two">
+    <section class="infra-panel"><div class="infra-panel-header"><div><h2>Server inventory</h2><p>Open a server to manage its applications</p></div></div>
+      <% @nodes.each do |node| %><div class="infra-list-row"><div><strong><%= link_to node.name, main_app.dashboard_server_path(node) %></strong><small><%= node.display_host %></small></div><%= infrastructure_status_badge(node.status) %></div><% end %>
+      <% if @nodes.empty? %><div class="infra-empty">Your registered servers will appear here.</div><% end %>
+    </section>
+    <section class="infra-panel"><div class="infra-panel-header"><div><h2>Application runtimes</h2><p>Domains and deployed revisions</p></div></div>
+      <% @projects.each do |project| %><div class="infra-list-row"><div><strong><%= project.name %></strong><small><%= project.domain %><% if project.deployed_sha.present? %> · <%= project.deployed_sha.first(8) %><% end %></small></div><%= infrastructure_status_badge(project.status) %></div><% end %>
+      <% if @projects.empty? %><div class="infra-empty">Registered runtimes will appear here.</div><% end %>
+    </section>
+  </div>
+  <section class="infra-panel"><div class="infra-panel-header"><div><h2>Recent activity</h2><p>The latest 20 recorded Gatekeeper operations</p></div></div>
+    <% if @operations.any? %><div class="infra-table-wrap" tabindex="0" role="region" aria-label="Scrollable table"><table class="infra-table"><thead><tr><th scope="col">Operation</th><th scope="col">Server</th><th scope="col">Requested by</th><th scope="col">Status</th><th scope="col">Started</th></tr></thead><tbody>
+      <% @operations.each do |op| %><tr><td><strong><%= op.capability.humanize %></strong></td><td><%= op.gatekeeper_node&.name || "—" %></td><td><%= op.requested_by %></td><td><%= infrastructure_status_badge(op.status) %></td><td><%= time_tag op.created_at, "#{time_ago_in_words(op.created_at)} ago" %></td></tr><% end %>
+    </tbody></table></div><% else %><div class="infra-empty"><i class="ti ti-activity" aria-hidden="true"></i>No operations yet. Your deployment and automation activity will appear here.</div><% end %>
+  </section>
 </div>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px">
-  <% [["Nodes", @nodes.count], ["Projects", @projects.count], ["Operations", @metrics[:operations]], ["Succeeded", @metrics[:succeeded]], ["Failed", @metrics[:failed]], ["Need Intervention", @metrics[:open_support_tickets]]].each do |label, value| %>
-    <div class="dd-card" style="padding:18px"><div style="font-size:28px;font-weight:700"><%= value %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= label %></div></div>
-  <% end %>
-</div>
-<div class="dd-card" style="padding:20px;margin-bottom:16px">
-  <div style="display:flex;justify-content:space-between;align-items:center"><strong>Marlon Dependency</strong><strong style="font-size:24px;color:var(--dd-accent-primary)"><%= number_to_percentage(@metrics[:marlon_dependency_rate].to_f * 100, precision: 2) %></strong></div>
-</div>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
-  <div class="dd-card" style="padding:20px"><h3>Nodes</h3><% @nodes.each do |node| %><div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color)"><strong><%= node.name %></strong> · <%= node.status %><br><small style="color:var(--dd-text-secondary)"><%= node.display_host %></small></div><% end %></div>
-  <div class="dd-card" style="padding:20px"><h3>Projects</h3><% @projects.each do |project| %><div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color)"><strong><%= project.name %></strong> · <%= project.status %><br><small style="color:var(--dd-text-secondary)"><%= project.domain %><% if project.deployed_sha.present? %> · <%= project.deployed_sha.first(8) %><% end %></small></div><% end %></div>
-</div>
-<div class="dd-card" style="padding:20px;margin-top:16px"><h3>Recent Automation</h3><% if @operations.any? %><% @operations.each do |op| %><div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color);font-size:13px"><strong><%= op.capability.humanize %></strong> · <%= op.status %> · <span style="color:var(--dd-text-secondary)"><%= op.requested_by %></span></div><% end %><% else %><p style="color:var(--dd-text-secondary)">No Gatekeeper operations yet.</p><% end %></div>

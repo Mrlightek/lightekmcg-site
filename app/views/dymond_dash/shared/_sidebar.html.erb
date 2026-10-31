@@ -7,6 +7,10 @@
     <%= link_to main_app.dashboard_business_hub_path, class: "dd-nav-item" do %><i class="ti ti-building-store"></i> Business<% end %>
     <%= link_to main_app.dashboard_agency_reports_path, class: "dd-nav-item" do %><i class="ti ti-chart-dots"></i> Agency & Marketing<% end %>
     <%= link_to main_app.dashboard_website_designs_path, class: "dd-nav-item" do %><i class="ti ti-palette"></i> Design & Content<% end %>
+    <% if LightekPwa::Policy.administration_available_for?(current_user) %>
+      <% pwa_active = request.path == main_app.dashboard_pwa_path || request.path.start_with?("#{main_app.dashboard_pwa_path}/") %>
+      <%= link_to main_app.dashboard_pwa_path, class: "dd-nav-item#{' active' if pwa_active}", aria: { current: pwa_active ? 'page' : nil } do %><i class="ti ti-device-mobile"></i> PWA Administration<% end %>
+    <% end %>
     <%= link_to main_app.dashboard_mail_path, class: "dd-nav-item" do %><i class="ti ti-mail"></i> Communications<% end %>
     <% if current_user.role == "super_admin" %>
       <%= link_to main_app.dashboard_infrastructure_path, class: "dd-nav-item" do %><i class="ti ti-server"></i> Infrastructure<% end %>

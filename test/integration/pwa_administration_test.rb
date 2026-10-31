@@ -16,6 +16,7 @@ class PwaAdministrationTest < ActionDispatch::IntegrationTest
     get dashboard_pwa_path(site_id: site.id)
     assert_response :success
     assert_select "h1", "PWA Administration"
+    assert_select "aside.dd-sidebar a[href=?]", dashboard_pwa_path, text: /PWA Administration/
     patch dashboard_pwa_path(site_id: site.id), params: {application: {name: "Client-owned PWA", lock_version: site.pwa_application.lock_version}}
     assert_response :redirect
     assert_equal "Client-owned PWA", site.reload.pwa_application.name
@@ -31,5 +32,6 @@ class PwaAdministrationTest < ActionDispatch::IntegrationTest
     login(actor("super_admin"))
     get dashboard_pwa_path(site_id: site.id, section: "settings")
     assert_response :success
+    assert_select "aside.dd-sidebar a[href=?][aria-current=page]", dashboard_pwa_path, text: /PWA Administration/
   end
 end

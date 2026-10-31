@@ -1,6 +1,6 @@
 # PWA administration
 
-Open **Dashboard → PWA Administration** (`/dashboard/pwa`). There are also entry points from Settings, Website Settings, the Business Command Center, application installations, and the PWA's service links for authorized administrators.
+Open **Dashboard → Workspaces → PWA Administration** (`/dashboard/pwa`). The host dashboard has a custom sidebar; its PWA link is rendered directly for platform super admins, authorized site administrators and remote installation owners. FeatureRegistry registration alone does not populate this sidebar. There are also entry points from Settings, Website Settings, the Business Command Center, application installations, and the PWA's service links for authorized administrators.
 
 Select the website/application before editing. Configuration belongs to that site, not to the global PWA template records. A client's edits cannot rename or disable another client's application. Existing shared-site and native application provisioning initializes a named PWA configuration for each new website; existing websites receive their own defaults automatically and persist configuration on their first save.
 

@@ -40,6 +40,58 @@ Marlon::Ticket.where.not(status: "resolved").find_each do |ticket|
     raise "Planning unexpectedly resolved ticket" if ticket.status == "resolved"
     raise "Missing engineering plan" unless state["engineering_plan"].is_a?(Hash)
     raise "Escalation omitted blockers" unless state["blockers"].is_a?(Array) && state["blockers"].any?
+    diagnostic = {}
+    native_fields = ticket.extra_fields.to_h.deep_stringify_keys
+    source = native_fields.fetch("gatekeeper", {})
+    if source["operation_id"].present?
+      operation = GatekeeperOperation.find_by(id: source["operation_id"])
+      if operation
+        diagnostic["gatekeeper_operation"] = {
+          "id" => operation.id, "status" => operation.status,
+          "error_class" => operation.error_class, "error_message" => operation.error_message,
+          "exit_status" => operation.exit_status, "output_tail" => operation.output.to_s.last(6000),
+          "result" => operation.result.to_h.slice("github_run_id", "github_run_url", "deployed_sha", "http_status")
+        }
+      end
+    end
+    # The historical dispatcher puts its receipt number in this fixed title.
+    # This lookup is read-only, never an instruction to invoke the named handler.
+    if (match = /\AWorkItem failed.*\(#(\d+)\)\z/.match(ticket.title))
+      item = DymondDispatch::WorkItem.find_by(id: match[1])
+      if item
+        diagnostic["work_item"] = {"id" => item.id, "status" => item.status,
+          "handler" => item.handler, "error" => item.error.to_s.last(3000)}
+        media_handlers = %w[DymondCompute::TrimHandler DymondCompute::TimelineRenderHandler DymondCompute::BlenderRenderHandler]
+        if media_handlers.include?(item.handler)
+          klass = item.handler.constantize
+          target = if klass.respond_to?(:perform)
+            klass.method(:perform)
+          elsif klass.respond_to?(:call)
+            klass.method(:call)
+          else
+            klass.instance_method(:perform)
+          end
+          path, line = target.source_location
+          if path && File.file?(path)
+            diagnostic["handler_inspection"] = {"parameters" => target.parameters,
+              "source_path" => path, "source_line" => line,
+              "source_excerpt" => File.readlines(path)[[line - 5, 0].max, 140].to_a.join.byteslice(0, 14000)}
+          end
+        end
+      end
+    end
+    if diagnostic.present?
+      ticket.with_lock do
+        fields = ticket.extra_fields.to_h.deep_stringify_keys
+        state = fields.fetch("nevaeh_backlog")
+        if state["source_diagnostics"] != diagnostic
+          state["source_diagnostics"] = diagnostic
+          fields["nevaeh_backlog"] = state
+          ticket.update!(extra_fields: fields)
+          ticket.log!(action: "nevaeh_native_source_inspected", detail: JSON.generate(diagnostic))
+        end
+      end
+    end
     counts[outcome] += 1
   rescue StandardError => error
     NevaehIntelligences::TicketBacklog.record_failure!(ticket: ticket, error: error)

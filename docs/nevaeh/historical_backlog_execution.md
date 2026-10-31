@@ -34,7 +34,7 @@ KB IDs and operator resume. GET requests do not dispatch work.
 
 ## Verification completed in this session
 
-`ruby test/standalone/nevaeh_backlog_test.rb`: 17 tests, 92 assertions, zero failures
+`ruby test/standalone/nevaeh_backlog_test.rb`: 18 tests, 100 assertions, zero failures
 or errors. This controlled integration uses SQLite, ActiveRecord 7.2 and ActiveJob
 with minimal host/engine adapters. It loads actual changed ticket services and jobs.
 It verifies intake, paged historical discovery, exact capability/KB matching,
@@ -48,8 +48,12 @@ No Rails regression success is claimed.
 
 ## Open acceptance work
 
-- Read actual production Marlon ticket and KB records; the browser currently shows
-  the Lightek sign-in screen and this environment has no production SSH credential.
+- Authenticated live inspection found 25 historical tickets. One deliberate
+  unknown-handler test fixture was closed as documented obsolete. The other 24
+  received explicit escalation notes, acceptance steps and related-investigation
+  references on their actual ticket timelines. No production repair was declared
+  verified. Native database planning is being checked through the existing
+  deployment SSH transport in a separate candidate Rails process.
 - Implement repository-changing engineering execution through the existing approved
   pipeline; current candidate generators remain isolated/review-only.
 - Extend verified executors/acceptance contracts for the actual backlog requirements.
@@ -57,7 +61,23 @@ No Rails regression success is claimed.
   No policy was removed to claim completion.
 - Verify PostgreSQL concurrency, real Sidekiq crash/restart recovery, live Dash,
   deployment behavior and ticket-specific acceptance against the installed app.
-- Execute real backlog tickets and record actual IDs/outcomes. None were retrieved,
-  executed, resolved, declared duplicate or declared obsolete in this session.
+- Full lifecycle acceptance, general code implementation and live Sidekiq restart
+  proof remain outstanding. The native acceptance workflow records candidate plans
+  and blockers in the existing database and intentionally preserves the installed
+  production execution policy. Its result must be reviewed before making any claim
+  about native planning success.
 
 No completion PR has been opened. This branch is not production-accepted.
+
+## Native acceptance transport
+
+`.github/workflows/nevaeh-backlog-acceptance.yml` uses the same SSH secret names,
+application user, environment file and Ruby path as the existing deployment
+workflow. It archives the candidate commit into a separate temporary directory,
+then boots the installed application with its existing private engines and database.
+`script/nevaeh_verify_backlog.rb` overlays only the candidate planning services in
+that separate process, processes actual unresolved records and persists plans and
+blockers on those records. It does not change the live checkout or restart services.
+CI logs contain counts and error classes rather than ticket/financial contents.
+This checks native planning/persistence; it explicitly does not claim complete
+production acceptance or enable unsupported operations.

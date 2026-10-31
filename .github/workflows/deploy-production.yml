@@ -45,6 +45,7 @@ jobs:
         run: |
           ruby test/scripts/paid_dns_recovery_standalone.rb
           python3 -m unittest discover -s test/scripts -p 'test_paid_instance_verification.py' -v
+          python3 -m unittest discover -s test/scripts -p 'test_manual_instance_config.py' -v
 
       - name: Configure SSH
         env:
@@ -135,23 +136,28 @@ jobs:
           [[ "$DEPLOYED_SHA" == "$GITHUB_SHA" ]] || { echo 'Deployment revision differs from tested commit'; exit 1; }
           ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'bash -s' <<'LIGHTEK_RECOVERY'
             set -euo pipefail
-            sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc '
-              set -euo pipefail
-              set -a
-              source /etc/lightek/lightekmcg-site.env
-              set +a
-              export RBENV_ROOT=/home/lightek/.rbenv
-              export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
-              export RAILS_ENV=production
-              cd /var/www/lightekmcg-site
-              bin/rails runner script/lightek/paid_instance_recovery_context.rb
-              set +e
-              LIGHTEK_CREATE_MANUAL_PAID_ORDER=1 bin/rails runner script/lightek/create_manual_paid_instance_order.rb
-              recovery_status=$?
-              LIGHTEK_ACCEPTANCE_ORDER_ID="$(cat tmp/manual_paid_instance_order_id 2>/dev/null || echo 1)" bin/rails runner script/lightek/paid_instance_acceptance_audit.rb
-              acceptance_status=$?
-              [[ "$recovery_status" == 0 && "$acceptance_status" == 0 ]]
-            '
+            run_application() {
+              sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc '
+                set -euo pipefail
+                set -a
+                source /etc/lightek/lightekmcg-site.env
+                set +a
+                export RBENV_ROOT=/home/lightek/.rbenv
+                export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+                export RAILS_ENV=production
+                cd /var/www/lightekmcg-site
+                "$@"
+              ' lightek-runtime "$@"
+            }
+            run_application env LIGHTEK_CREATE_MANUAL_PAID_ORDER=1 bin/rails runner script/lightek/prepare_manual_instance_catalog.rb
+            python3 /var/www/lightekmcg-site/script/lightek/persist_manual_instance_config.py
+            set +e
+            run_application env LIGHTEK_CREATE_MANUAL_PAID_ORDER=1 bin/rails runner script/lightek/create_manual_paid_instance_order.rb
+            recovery_status=$?
+            order_id=$(cat /var/www/lightekmcg-site/tmp/manual_paid_instance_order_id 2>/dev/null || echo 1)
+            run_application env LIGHTEK_ACCEPTANCE_ORDER_ID="$order_id" bin/rails runner script/lightek/paid_instance_acceptance_audit.rb
+            acceptance_status=$?
+            [[ "$recovery_status" == 0 && "$acceptance_status" == 0 ]]
           LIGHTEK_RECOVERY
 
       - name: Notify Gatekeeper succeeded

@@ -16,6 +16,12 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     @dns_checks = {}
     @provisioning_requests = ProvisioningRequest.includes(:gatekeeper_node, :compute_provider, :owner).order(created_at: :desc).limit(30)
     @managed_nodes = GatekeeperNode.where.not(compute_provider_id: nil).order(created_at: :desc).limit(30)
+    @customer_domains = @provisioning_requests.flat_map do |provisioning_request|
+      provisioning_request.metadata.to_h.fetch("website_deployments", {}).map do |hostname, config|
+        { hostname: hostname, owner_id: config["owner_id"], node_id: provisioning_request.gatekeeper_node_id,
+          ip_address: provisioning_request.gatekeeper_node&.ip_address }
+      end
+    end
     @recent_network_operations = GatekeeperOperation.where(capability: %w[provision_compute_node deploy_website dns_create dns_update dns_delete]).order(created_at: :desc).limit(20)
     begin
       @zones = Godaddy::DnsService.zones
@@ -40,6 +46,7 @@ class Dashboard::NetworkController < DymondDash::ApplicationController
     @zones ||= []
     @provisioning_requests ||= ProvisioningRequest.none
     @managed_nodes ||= GatekeeperNode.none
+    @customer_domains ||= []
     @recent_network_operations ||= GatekeeperOperation.none
     @firewall_status ||= "Unavailable: #{e.message}"
     flash.now[:alert] = e.message

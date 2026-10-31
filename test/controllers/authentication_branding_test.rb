@@ -107,7 +107,7 @@ class AuthenticationBrandingTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "&lt;script&gt;alert(1)&lt;/script&gt;"
     refute_includes response.body, "<script>alert(1)</script>"
     refute_includes response.body, "javascript:alert"
-    @template.update!(settings: {"tokens" => {"font_heading" => "</style><script>bad</script>", "color_primary" => "expression(bad)"}})
+    @template.update_columns(settings: {"tokens" => {"font_heading" => "</style><script>bad</script>", "color_primary" => "expression(bad)"}})
     get new_session_path
     refute_includes response.body, "expression(bad)"
     refute_includes response.body, "<script>bad</script>"

@@ -22,7 +22,7 @@
         <p><%= label_tag "branding_#{key}", label %> <%= color_field_tag "branding[#{key}]", @branding.color(key) %></p>
       <% end %>
       <% {"font_sans" => "Body font", "font_heading" => "Heading font"}.each do |key, label| %>
-        <p><%= label_tag "branding_#{key}", label %><br><%= text_field_tag "branding[#{key}]", @branding.tokens[key], placeholder: key == "font_heading" ? "Georgia" : "system-ui", maxlength: 300 %></p>
+        <%= render "lightek_design/font_picker", template: (@site.active_template || DymondSite::SiteTemplate.new(settings: {})), field: {name: key}, param_root: "branding" %>
       <% end %>
       <%= submit_tag "Save account branding" %>
     </section>

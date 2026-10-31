@@ -14,7 +14,7 @@ module LightekDesign
     def settings = site&.manifest.to_h.fetch("authentication_branding", {}).to_h
     def tokens = site&.active_template&.settings.to_h.fetch("tokens", {}).to_h
     def name = site&.name.presence || "Lightek"
-    def platform? = site.nil? || site.host.to_s == ENV.fetch("APP_HOST", "lightekmcg.com")
+    def platform? = site.nil? || %w[lightekmcg.com www.lightekmcg.com].include?(site.host.to_s)
     def text(key) = settings[key].to_s.presence
     def color(key)
       value = tokens[key].to_s

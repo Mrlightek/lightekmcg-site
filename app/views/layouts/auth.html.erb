@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <% brand = authentication_branding %>
     <title>
       <%= content_for(:title) || "Lightek" %>
     </title>
@@ -12,12 +13,11 @@
 
     <meta
       name="theme-color"
-      content="#07070a"
+      content="<%= brand.color("color_bg") %>"
     >
 
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
-    <% brand = authentication_branding %>
     <% if (font_url = LightekDesign::Fonts.stylesheet(brand.tokens.values_at("font_sans", "font_heading"))) %><%= stylesheet_link_tag font_url %><% end %>
 
     <style>
@@ -578,7 +578,7 @@
       .auth-field label {color:var(--auth-text);}
       .auth-story-copy p,.auth-field-help,.auth-footnote,.auth-divider,.auth-input::placeholder {color:var(--auth-muted);}
       .auth-input:focus {border-color:var(--auth-gold);box-shadow:0 0 0 3px rgba(<%= brand.accent_rgb %>,.15);}
-      .auth-submit {background:linear-gradient(105deg,var(--auth-gold),var(--auth-gold-light));color:<%= brand.button_text %>;box-shadow:0 12px 34px rgba(<%= brand.accent_rgb %>,.15);}
+      .auth-submit {background:var(--auth-gold);color:<%= brand.button_text %>;box-shadow:0 12px 34px rgba(<%= brand.accent_rgb %>,.15);}
       .auth-secondary {border-color:var(--auth-gold);}
       .auth-secondary:hover {background:rgba(<%= brand.accent_rgb %>,.06);}
       .auth-monogram {display:grid;place-items:center;width:46px;height:46px;border:1px solid var(--auth-gold);border-radius:12px;color:var(--auth-gold);font-size:24px;flex-shrink:0;}

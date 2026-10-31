@@ -62,7 +62,7 @@ if ticket.status != "resolved"
   unless LightekDesign::Catalog.section_definition(content.fetch("inputs").fetch("kind"))
     definition = LightekDesign::Catalog.section_definitions.first || raise("Installed site has no section definitions")
     content["inputs"]["kind"] = definition.fetch("kind")
-    content["inputs"]["data"] = definition.fetch("data", {}).slice(*definition.fetch("fields").map { |field| field.fetch("name") })
+    content["inputs"]["data"] = definition.fetch("fields").first(2).to_h { |field| [field.fetch("name"), "Nevaeh verified output"] }
     NevaehIntelligences::StructuredTicket.revise!(ticket: ticket, actor: actor, sections: saved_sections, automatic: false)
   end
 end
@@ -113,7 +113,7 @@ log = Tempfile.new(["nevaeh-structured-worker-", ".log"])
     page_and_section_persisted: true, studio_hierarchy_persisted: true, code_committed_and_pushed: true, kb_saved: true, form_rendered: true, approval_denial_verified: true, duplicate_delivery_suppressed: true)}"
 rescue StandardError => error
   ticket.log!(action: "nevaeh_native_structured_acceptance_failed", detail: JSON.generate("error_class" => error.class.name,
-    "error" => error.message, "private_worker_log_tail" => File.read(log.path).last(10000))) if ticket
+    "error" => error.message, "private_worker_log_tail" => (log && File.file?(log.path) ? File.read(log.path).last(10000) : nil))) if ticket
   raise
 ensure
   if worker

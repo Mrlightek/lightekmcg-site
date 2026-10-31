@@ -18,7 +18,7 @@ controller_class.prepend_view_path(File.join(candidate_root, "app/views"))
 build_controller = lambda do |format|
   controller = controller_class.new
   controller.request = ActionDispatch::Request.new(Rack::MockRequest.env_for("/employee/nevaeh", "HTTP_ACCEPT" => "#{format == 'json' ? 'application/json' : 'text/html'}"))
-  controller.response = ActionDispatch::Response.new
+  controller.send(:set_response!, ActionDispatch::Response.new)
   controller
 end
 html_controller = build_controller.call("html")

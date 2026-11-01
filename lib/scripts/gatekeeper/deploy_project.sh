@@ -57,6 +57,7 @@ echo "[2/8] Bundle"
 run_rails "bundle install --jobs 1"
 
 echo "[studio] Install and verify Blender media dependency"
+python3 "${APP_ROOT}/lib/scripts/setup_studio_docker_access.py" --app-user "$APP_USER"
 run_rails "bash lib/scripts/setup_studio_media.sh"
 
 python3 "${APP_ROOT}/lib/scripts/setup_studio_spatial.py" --app-root "$APP_ROOT" --app-user "$APP_USER" --domain "$APP_DOMAIN" --env-file "$ENV_FILE"

@@ -30,3 +30,4 @@ class StudioMediaSetupTest(unittest.TestCase):
         deploy=(ROOT/'lib/scripts/gatekeeper/deploy_project.sh').read_text()
         self.assertLess(deploy.index('bash lib/scripts/setup_studio_media.sh'),deploy.index('systemctl restart "${SIDEKIQ_SERVICE}"'))
         self.assertIn('studio:blender:bootstrap',deploy)
+        self.assertLess(deploy.index('setup_studio_docker_access.py'),deploy.index('bash lib/scripts/setup_studio_media.sh'))

@@ -23,8 +23,9 @@ module Studio
         Rails.root.join("tmp","studio_live_hls",id.to_s)
       end
       def self.hls_path(id) = hls_directory(id).join("index.m3u8")
-      def initialize(output:, test:, on_event:, hls: false)
+      def initialize(output:, test:, on_event:, hls: false, relay_output: nil)
         @output, @test, @on_event, @hls = output.to_s, test, on_event, hls
+        @relay_output = relay_output
         @mutex = Mutex.new
         @sequence = 0
         @started = @last_input = monotonic
@@ -42,6 +43,14 @@ module Studio
           ["-movflags", "+faststart", "-f", "mp4", @output]
         else
           ["-rw_timeout", "5000000", "-f", "flv", @output]
+        end
+        if @relay_output
+          raise Failure, "Simulcast requires a Lightek HLS output." unless @hls
+          # Separate muxers in one supervised process: both destinations must
+          # remain healthy for the session to report successful delivery.
+          args += ["-map", "0:v:0", "-map", "0:a:0", "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
+            "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-threads", "2", "-r", "24", "-g", "48", "-b:v", "1800k",
+            "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-rw_timeout", "5000000", "-f", "flv", @relay_output.to_s]
         end
         # Never send FFmpeg stderr (which can include the stream key) to application logs.
         @input, @progress, @waiter = Open3.popen2(*args, err: File::NULL, pgroup: true)

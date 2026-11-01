@@ -24,7 +24,7 @@ Rails.application.config.after_initialize do
     f.gem_source = "lightekmcg-site"
     f.nav_section = :services
     f.min_plan = :starter
-    f.nav_items = [{ label: "Live Studio", icon: "broadcast", path: "main_app.dashboard_live_path" }]
+    f.nav_items = [{label: "Studio & broadcasting", icon: "movie", path: "main_app.dashboard_media_studio_path"}, { label: "Live Studio", icon: "broadcast", path: "main_app.dashboard_live_path" }]
   end
 
   DymondDash::FeatureRegistry.register do |f|

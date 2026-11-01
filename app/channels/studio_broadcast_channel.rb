@@ -21,9 +21,10 @@ class StudioBroadcastChannel < ApplicationCable::Channel
     end
     Rails.logger.info("[StudioLive] encoder starting operation=#{@operation.id} user=#{current_user.id}")
     test = @operation.metadata["destination"] == "test"
-    hls = @operation.metadata["destination"] == "lightek"
+    hls = %w[lightek simulcast].include?(@operation.metadata["destination"])
     output = hls ? Studio::Live::Encoder.hls_path(@operation.id) : test ? Studio::Live::Encoder.recording_path(@operation.id) : Studio::Live::Destination.output!(current_user, provider: @operation.metadata.fetch("destination"))
-    @encoder = Studio::Live::Encoder.new(output: output, test: test, hls: hls, on_event: method(:encoder_event)).start!
+    relay = @operation.metadata["destination"] == "simulcast" ? Studio::Live::Destination.output!(current_user, provider: "restream") : nil
+    @encoder = Studio::Live::Encoder.new(output: output, test: test, hls: hls, relay_output: relay, on_event: method(:encoder_event)).start!
     transmit({event: "ready"})
   rescue StandardError => error
     fail_session(error)
@@ -49,7 +50,7 @@ class StudioBroadcastChannel < ApplicationCable::Channel
       return
     end
     ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user.reload, operation: @operation)
-    LightekPwa::Policy.new(user: current_user, site: @operation.studio_project.site).authorize!("watch") if @operation.metadata["destination"] == "lightek"
+    LightekPwa::Policy.new(user: current_user, site: @operation.studio_project.site).authorize!("watch") if %w[lightek simulcast].include?(@operation.metadata["destination"])
     Studio::Live::Sessions.authorize_content!(@operation,current_user)
     Studio::Live::Sessions.scope.where(id: @operation.id, status: %w[draft connecting live]).update_all(updated_at: Time.current)
     @last_heartbeat = Time.current

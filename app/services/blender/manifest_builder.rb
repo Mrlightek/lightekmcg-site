@@ -37,7 +37,7 @@ module Blender
       credits=Array(scene.settings["source_credits"])
       ids=scene.scene_objects.where(object_type:"imported_asset").reject { |object| object.definition["native_source_preview"] }.map { |object| object.definition["asset_id"] }.compact
       ids<<scene.settings["native_blender_asset_id"] if credits.empty? && scene.settings["native_blender_asset_id"]
-      (credits+StudioAsset.where(id:ids).filter_map { |asset| asset.metadata["source"] }).uniq
+      (credits+StudioAsset.where(id:ids).flat_map { |asset| Array(asset.metadata["source_credits"])+[asset.metadata["source"]].compact }).uniq
     end
 
     def serialize_object(object)

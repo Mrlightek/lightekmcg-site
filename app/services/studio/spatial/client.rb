@@ -4,12 +4,12 @@ require "securerandom"
 module Studio
   module Spatial
     class Client
-      def initialize(access)
-        @access=access
+      def initialize(access,origin:nil)
+        @access=access;@origin=origin
       end
       def create(scene)
         id=SecureRandom.uuid
-        root=Pathname(ENV.fetch("STUDIO_SPATIAL_ROOT",Rails.root.join("tmp/studio-spatial").to_s)).join(id)
+        root=Pathname(Runtime.fetch("STUDIO_SPATIAL_ROOT",Rails.root.join("tmp/studio-spatial").to_s)).join(id)
         FileUtils.mkdir_p(root,mode:0700)
         manifest=Blender::ManifestBuilder.new(scene).call
         manifest["revision"]=scene.lock_version
@@ -41,7 +41,7 @@ module Studio
           end
           download(source,path);manifest["native_template_path"]=path.relative_path_from(root).to_s
         end
-        request("/sessions",{session_id:id,user_id:@access.user.id,site_id:@access.site_id,manifest:manifest})
+        request("/sessions",{session_id:id,user_id:@access.user.id,site_id:@access.site_id,origin:@origin,manifest:manifest})
       rescue StandardError
         FileUtils.rm_rf(root) if root
         raise
@@ -58,9 +58,9 @@ module Studio
         File.open(path,"wb",0600) { |file| attachment.blob.download { |chunk| file.write(chunk) } }
       end
       def request(path,payload)
-        secret=ENV["STUDIO_SPATIAL_SECRET"]
+        secret=Runtime.fetch("STUDIO_SPATIAL_SECRET")
         raise ArgumentError,"The Blender streaming service is not configured on this instance" if secret.to_s.length<32
-        uri=URI(ENV.fetch("STUDIO_SPATIAL_URL","http://127.0.0.1:8095")+path)
+        uri=URI(Runtime.fetch("STUDIO_SPATIAL_URL","http://127.0.0.1:8095")+path)
         raise ArgumentError,"Blender service must use loopback HTTP" unless %w[127.0.0.1 localhost].include?(uri.host) && uri.scheme=="http"
         http=Net::HTTP.new(uri.host,uri.port,nil);http.open_timeout=3;http.read_timeout=60
         response=http.post(uri.request_uri,payload.to_json,{"Content-Type"=>"application/json","Authorization"=>"Bearer #{secret}"})

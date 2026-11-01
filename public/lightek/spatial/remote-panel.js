@@ -39,5 +39,5 @@ export function mountRemotePanel(root,scene,compositor){
   q('[data-frame]').oninput=()=>{const frame=Number(q('[data-frame]').value),start=Number(scene.settings?.frame_start||1);q('[data-position]').textContent=String(start+frame);
     stream?.socket.send('TIMELINE_SCRUB',{frame,blender_frame:start+frame,fps:{num:Number(scene.settings?.fps||24)*1000,den:Math.round(Number(scene.settings?.fps_base||1)*1000)},playback_state:'scrubbing',evaluate_keyframes:true},'timeline');};
   const visibility=()=>{if(document.visibilityState==='hidden')void stop();};document.addEventListener('visibilitychange',visibility);
-  return {dispose(){disposed=true;document.removeEventListener('visibilitychange',visibility);void stop();panel.remove();}};
+  return {async refresh(){if(!stream||disposed)return;await stop();if(!disposed)await q('[data-connect]').onclick();},dispose(){disposed=true;document.removeEventListener('visibilitychange',visibility);void stop();panel.remove();}};
 }

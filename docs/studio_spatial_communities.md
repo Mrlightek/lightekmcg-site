@@ -1,3 +1,5 @@
+> Connected implementation: publication forms, immutable snapshots, the actual PWA community viewer, Fork Scene and the Library Community Asset Hub are now wired. See `studio_spatial_connected_workflows.md`. The React container remains an alternative implementation; the mounted PWA uses the shared Three.js loader directly.
+
 # Spatial posts, communities and remixing
 
 ## Post contract
@@ -34,7 +36,7 @@ The stage uses an off-axis physical-window frustum. It does not merely rotate th
 
 ## Fork Scene protocol
 
-`POST /spatial/scenes/:source/forks` is a proposed authenticated, idempotent endpoint accepting source immutable revision, request key, destination community and permitted identity substitutions. In one transaction: authorize source visibility AND remix rights; check licenses of every nested asset; create a creator-owned project/scene referencing immutable permitted assets; copy camera/timeline/light data; retain source lineage and attribution. Do not copy access tokens, private files, live webcam tracks, provider credentials, publication rights or purchased licenses that disallow redistribution.
+`POST /api/lightek/pwa/posts/:post_id/spatial/fork` is the implemented authenticated, idempotent endpoint for a published immutable scene snapshot. Further identity substitutions happen in the new owned Studio project. In one transaction: authorize source visibility AND remix rights; check licenses of every nested asset; create a creator-owned project/scene referencing immutable permitted assets; copy camera/timeline/light data; retain source lineage and attribution. Do not copy access tokens, private files, live webcam tracks, provider credentials, publication rights or purchased licenses that disallow redistribution.
 
 Return the new scene ID/revision plus a remap of object IDs. The creator then attaches their own local webcam/avatar, edits cameras/lighting, previews, saves and explicitly republishes. Publishing revalidates current rights, produces a flat master and spatial manifest, and records derivative credits. Rights revocation, moderation and asset deletion must be enforced by the asset gateway and descendants policy, rather than silently broadening source visibility. Concurrent source changes do not alter the pinned fork.
 
@@ -50,4 +52,4 @@ Object storage holds immutable manifests, masters, aligned angle segments, depth
 
 Use each customer's own deployment/resources and configurable local worker concurrency. Cache public immutable derivatives at the edge, prefetch only an adjacent post, stop hidden decoding, adapt resolution/LOD, and reserve live GPU renders for active editors or paid interactive sessions. Measure actual egress/render costs before setting prices.
 
-Build purchases/subscriptions/tips on existing DymondBank/payment and community entitlement records: immutable license purchase receipt, creator/platform split, refunds/chargeback state, entitlement checks at download/fork/publish, and a ledger separate from asset ownership. Scene template tips do not silently buy remix rights. Subscription expiry follows the license terms for already published derivatives. These are proposed platform contracts; this PR's prototype does not create a live marketplace, fork API or billing product.
+Build purchases/subscriptions/tips on existing DymondBank/payment and community entitlement records: immutable license purchase receipt, creator/platform split, refunds/chargeback state, entitlement checks at download/fork/publish, and a ledger separate from asset ownership. Scene template tips do not silently buy remix rights. Subscription expiry follows the license terms for already published derivatives. The snapshot/fork/asset-hub workflow is connected to the PWA. Marketplace transactions, tipping and subscription billing remain separate proposed extensions.

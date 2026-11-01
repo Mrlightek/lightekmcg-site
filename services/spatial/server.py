@@ -34,8 +34,8 @@ def verify(secret,value):
     return claims
 
 class SpatialSession:
-    def __init__(self,service,identifier,owner,scene_id,bridge):
-        self.service=service;self.id=identifier;self.owner=owner;self.scene_id=scene_id;self.bridge=bridge
+    def __init__(self,service,identifier,owner,scene_id,bridge,origin=None):
+        self.origin=origin;self.service=service;self.id=identifier;self.owner=owner;self.scene_id=scene_id;self.bridge=bridge
         self.epoch=str(uuid.uuid4());self.server_seq=0;self.clients=set();self.last_activity=time.monotonic();self.receipts=OrderedDict();self.watermarks={}
         self.commits=deque();self.previews=OrderedDict();self.wakeup=asyncio.Event();self.peer=None;self.channel=None;self.track=None;self.closed=False
         self.pump=asyncio.create_task(self._pump());self.signal_lock=asyncio.Lock();self.ice=[];self.frame_sent={};self.stats={'frame_round_trip_ms':None};self.monitor=asyncio.create_task(self._monitor())
@@ -103,7 +103,7 @@ class SpatialSession:
     async def offer(self,ws,payload):
         async with self.signal_lock:
             if self.peer:await self.peer.close()
-            servers=[RTCIceServer(**item) for item in self.service.ice_servers]
+            servers=[RTCIceServer(**item) for item in self.service.rtc_servers(self.owner['user_id'])]
             peer=self.peer=RTCPeerConnection(RTCConfiguration(iceServers=servers))
             track=self.track=BlenderTrack(self.bridge,self.service.encoder,on_error=lambda text:asyncio.create_task(self.failed(text)))
             sender=peer.addTrack(track)
@@ -157,9 +157,10 @@ class SpatialSession:
         for ws in list(self.clients):await ws.close(code=1001,message=b'Scene session closed')
 
 class SpatialService:
-    def __init__(self,*,root,secret,blender='blender',backend='render',encoder='libx264',origins=(),ice_servers=(),commit_callback=None,launcher=None):
+    def __init__(self,*,root,secret,blender='blender',backend='render',encoder='libx264',origins=(),ice_servers=(),commit_callback=None,launcher=None,turn_secret=None,turn_host=None):
         if len(secret)<32:raise ValueError('Use a service secret of at least 32 characters')
         self.root=Path(root).resolve();self.root.mkdir(parents=True,exist_ok=True);self.secret=secret;self.blender=blender;self.backend=backend;self.encoder=encoder
+        self.turn_secret=turn_secret;self.turn_host=turn_host
         self.origins=set(origins);self.ice_servers=list(ice_servers);self.commit_callback=commit_callback;self.launcher=launcher;self.sessions={};self.http=None;self.creation_lock=asyncio.Lock()
     def auth(self,request):
         if not hmac.compare_digest(request.headers.get('Authorization',''),'Bearer '+self.secret):raise web.HTTPUnauthorized()
@@ -172,9 +173,16 @@ class SpatialService:
                 if response.status!=200:raise ValueError(result.get('error','CONFLICT: canonical scene changed'))
                 return result['revision']
         raise ValueError('Durable changes require the canonical Rails commit endpoint; preview controls remain available')
+    def rtc_servers(self,user_id):
+        servers=list(self.ice_servers)
+        if self.turn_secret and self.turn_host:
+            username=str(int(time.time()+3600))+':'+str(user_id)
+            credential=base64.b64encode(hmac.new(self.turn_secret.encode(),username.encode(),hashlib.sha1).digest()).decode()
+            servers.append({'urls':['turn:'+self.turn_host+':3478?transport=udp','turn:'+self.turn_host+':3478?transport=tcp'],'username':username,'credential':credential})
+        return servers
     def credentials(self,session):
-        claims={'sid':session.id,'uid':session.owner['user_id'],'scene_id':session.scene_id,'exp':int(time.time()+300)}
-        return {'session_id':session.id,'ticket':ticket(self.secret,claims),'expires_at':claims['exp'],'ice_servers':self.ice_servers,'backend':self.backend,'encoder':self.encoder}
+        claims={'sid':session.id,'uid':session.owner['user_id'],'scene_id':session.scene_id,'origin':session.origin,'exp':int(time.time()+300)}
+        return {'session_id':session.id,'ticket':ticket(self.secret,claims),'expires_at':claims['exp'],'ice_servers':self.rtc_servers(session.owner['user_id']),'backend':self.backend,'encoder':self.encoder}
     async def create(self,request):
         async with self.creation_lock:return await self._create(request)
     async def _create(self,request):
@@ -196,7 +204,7 @@ class SpatialService:
         bridge=BlenderBridge(directory,manifest,blender=self.blender,backend=self.backend,width=int(os.environ.get('SPATIAL_WIDTH','640')),height=int(os.environ.get('SPATIAL_HEIGHT','360')),fps=int(os.environ.get('SPATIAL_FPS','60')),launcher=self.launcher)
         try:await bridge.start()
         except Exception as error:raise web.HTTPServiceUnavailable(text=str(error))
-        session=SpatialSession(self,identifier,owner,scene_id,bridge);bridge.state['revision']=int(manifest.get('revision',0));self.sessions[identifier]=session
+        session=SpatialSession(self,identifier,owner,scene_id,bridge,origin=data.get('origin'));bridge.state['revision']=int(manifest.get('revision',0));self.sessions[identifier]=session
         return web.json_response(self.credentials(session),status=201)
     async def ticket_handler(self,request):
         self.auth(request);data=await request.json();session=self.sessions.get(request.match_info['sid'])
@@ -207,13 +215,16 @@ class SpatialService:
         if session and session.owner=={'user_id':int(data['user_id']),'site_id':data.get('site_id')}:await session.close();self.sessions.pop(session.id,None)
         return web.json_response({'closed':True})
     async def websocket(self,request):
-        if self.origins and request.headers.get('Origin') not in self.origins:raise web.HTTPForbidden()
         ws=web.WebSocketResponse(heartbeat=15,max_msg_size=65536,compress=False);await ws.prepare(request);session=None;signal_tasks=set()
         try:
             hello=await asyncio.wait_for(ws.receive_str(),5);message=parse_message(hello)
             if message['type']!='HELLO':raise ValueError('Authenticate with HELLO first')
             claims=verify(self.secret,message['payload']['ticket']);session=self.sessions.get(claims['sid'])
             if not session or claims['uid']!=session.owner['user_id'] or claims['scene_id']!=session.scene_id or message['session_id']!=session.id:raise ValueError('Session access denied')
+            origin=request.headers.get('Origin')
+            if claims.get('origin'):
+                if origin!=claims['origin']:raise ValueError('Session origin differs')
+            elif self.origins and origin not in self.origins:raise ValueError('Origin denied')
             client_id=message['payload']['client_id'];session.clients.add(ws);await session.state(ws,client_id)
             async for event in ws:
                 if event.type!=WSMsgType.TEXT:continue
@@ -258,5 +269,5 @@ if __name__=='__main__':
     image=os.environ.get('SPATIAL_CONTAINER_IMAGE');backend=os.environ.get('SPATIAL_BACKEND','render')
     if not image and os.environ.get('SPATIAL_ALLOW_NATIVE')!='1':raise RuntimeError('Configure SPATIAL_CONTAINER_IMAGE or explicitly allow a trusted native Blender runtime')
     launcher=container_launcher(image,backend) if image else None
-    service=SpatialService(root=os.environ['STUDIO_SPATIAL_ROOT'],secret=os.environ['STUDIO_SPATIAL_SECRET'],blender=os.environ.get('BLENDER_BIN','blender'),backend=os.environ.get('SPATIAL_BACKEND','render'),encoder=os.environ.get('SPATIAL_ENCODER','libx264'),origins=json.loads(os.environ.get('SPATIAL_ORIGINS','[]')),ice_servers=json.loads(os.environ.get('SPATIAL_ICE_SERVERS','[]')),launcher=launcher)
+    service=SpatialService(root=os.environ['STUDIO_SPATIAL_ROOT'],secret=os.environ['STUDIO_SPATIAL_SECRET'],blender=os.environ.get('BLENDER_BIN','blender'),backend=os.environ.get('SPATIAL_BACKEND','render'),encoder=os.environ.get('SPATIAL_ENCODER','libx264'),origins=json.loads(os.environ.get('SPATIAL_ORIGINS','[]')),ice_servers=json.loads(os.environ.get('SPATIAL_ICE_SERVERS','[]')),launcher=launcher,turn_secret=os.environ.get('SPATIAL_TURN_SECRET'),turn_host=os.environ.get('SPATIAL_TURN_HOST'))
     web.run_app(service.app(),host='127.0.0.1',port=int(os.environ.get('STUDIO_SPATIAL_PORT','8095')),access_log=None)

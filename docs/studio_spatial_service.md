@@ -1,3 +1,7 @@
+> Integration update: native deployment, paid-instance packaging and native fleet updates now invoke `lib/scripts/setup_studio_spatial.py`. It installs Python dependencies, preserves generated secrets, registers a per-installation service, adds Apache routing and a managed TURN relay, and writes private runtime configuration that Rails reads directly. The steps below describe its inputs rather than customer assembly tasks. CPU-only instances start with the Cycles render fallback; GPU viewport acceleration still requires compatible hardware/display access and validation.
+>
+> The Studio prompt/job/Library/staging workflow, Dashboard Vault provider form, spatial publication snapshots, mounted community viewer, Fork Scene and community Asset Hub are now connected. See `docs/studio_spatial_connected_workflows.md` for operation and verification.
+
 # Persistent Blender viewport implementation
 
 The shipped PWA Spatial / 4D workspace now has **Connect Blender**, a live video viewport, camera selection, lens preview/save, integer-frame scrubbing and render/decoded FPS plus RTT readouts. `useBlenderStream.ts` wraps the same compiled client used by the PWA. This is a separate interactive viewport service; the existing Live Studio broadcasting encoder and public live routes are unchanged.
@@ -42,7 +46,7 @@ The health endpoint reports binary availability and active sessions, not a succe
 
 `services/spatial/assets.py` provides a bounded durable SQLite job queue, restart recovery, owner-bound idempotency, and size/time-limited public-HTTPS GLB downloads with DNS/address validation. `tripo.py` is a Tripo v3 asynchronous adapter. `blender/spatial_optimize.py` optimizes static meshes and resizes textures in an isolated preparation process; animated/rigged meshes are not decimated. `spatial_asset_staging.py` performs actual camera-frustum fitting/PBR defaults; the worker supports backend-only STAGE_ASSET and creates collision/rig anchors. Anchors are metadata, not an automatic character rig or physics simulation.
 
-These pieces are integration primitives: no paid provider is configured, no generation button is exposed, and canonical generated-asset persistence/job endpoints are not yet wired into the PWA. A backend job should generate → approved-host download → optimize → import to StudioAsset → stage → save its final transform with optimistic locking → send metadata. Preserve original/provider provenance and retry receipts. Do not trigger billing from speculative scene previews.
+The prompt panel and authenticated generation/status/resume endpoints now use durable StudioAsset records and the existing Studio job queue. A site administrator supplies their Tripo key in Dashboard; no provider credentials are bundled with deployment. A backend job should generate → approved-host download → optimize → import to StudioAsset → stage → save its final transform with optimistic locking → send metadata. Preserve original/provider provenance and retry receipts. Do not trigger billing from speculative scene previews.
 
 The compositor now accepts float confidence masks and targets up to 60 inference requests/sec with one in flight, worker GPU segmentation with CPU fallback and measured inference duration. Head tracking is throttled independently. Hardware throughput is measured, not promised. Alpha is not depth: optional relief requires a separate estimated depth map.
 
@@ -66,4 +70,4 @@ flowchart TD
   C --> F
 ```
 
-Provider/queue/optimizer/stager implementations are supplied; the canonical asset and job API integration points above remain future wiring, not an enabled production generation flow.
+The connected Rails job performs this routing and saves its provider task ID, original asset, proxy and scene placement. A retry resumes the provider task or saved original rather than automatically submitting another paid generation.

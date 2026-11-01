@@ -845,6 +845,10 @@ def stage_manifest(manifest):
         else:
             obj = create_manifest_object(item)
             apply_library_motion(obj, definition)
+        if definition.get('staging_anchors'):
+            for anchor_kind in ('rig', 'collision'):
+                anchor=bpy.data.objects.new(obj.name+' '+anchor_kind+' anchor',None)
+                bpy.context.scene.collection.objects.link(anchor);anchor.parent=obj;anchor['lightek_anchor_kind']=anchor_kind
         created[str(item.get("id"))] = obj
 
         log(

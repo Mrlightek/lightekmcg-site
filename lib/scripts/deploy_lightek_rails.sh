@@ -6,6 +6,7 @@ set -euo pipefail
 APP_USER="${APP_USER:-lightek}"
 APP_NAME="${APP_NAME:-lightekmcg-site}"
 APP_ROOT="${APP_ROOT:-/var/www/${APP_NAME}}"
+APP_DOMAIN="${APP_DOMAIN:-lightekmcg.com}"
 RUBY_VERSION="${RUBY_VERSION:-3.3.6}"
 APP_HOME="/home/${APP_USER}"
 RBENV_ROOT="${APP_HOME}/.rbenv"
@@ -34,6 +35,8 @@ sudo -u "${APP_USER}" -H bash -lc "
 echo
 echo "=== Blender media dependency ==="
 sudo -u "${APP_USER}" -H bash -lc "set -a; source '${ENV_FILE}'; set +a; cd '${APP_ROOT}'; bash lib/scripts/setup_studio_media.sh"
+
+python3 "${APP_ROOT}/lib/scripts/setup_studio_spatial.py" --app-root "$APP_ROOT" --app-user "$APP_USER" --domain "$APP_DOMAIN" --env-file "$ENV_FILE"
 
 echo "=== Database ==="
 sudo -u "${APP_USER}" -H bash -lc "

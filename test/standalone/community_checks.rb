@@ -124,6 +124,7 @@ class ApplicationJob < ActiveJob::Base; end
    app/models/studio_operation app/models/artifact app/models/studio_publication app/models/studio_live_operation
    app/services/studio/native_blender/runtime app/services/studio/native_blender/object_edit app/jobs/studio_blender_preview_job app/services/studio/native_blender/camera_settings app/services/studio/native_blender/media_presets app/services/studio/native_blender/preset_use app/services/studio/native_blender/demo_catalog app/services/studio/native_blender/native_template app/services/studio/native_blender/demo_import app/jobs/studio_blender_demo_import_job
    app/services/studio/library/catalog app/services/studio/library/generated_asset app/services/studio/library/apply
+   app/services/studio/spatial/publication app/services/studio/spatial/runtime app/services/studio/spatial/generation
    app/services/studio/publishers/base app/services/studio/publishers/lightek_social
    app/services/studio/director/pwa_intent app/jobs/studio_publication_dispatch_job
    app/services/gatekeeper/studio_live_policy app/services/studio/pwa_access app/services/studio/workers/workspace app/services/studio/workers/project_creation

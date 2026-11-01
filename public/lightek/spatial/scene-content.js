@@ -6,6 +6,7 @@ export class StudioSceneContent {
   constructor(scene) {this.scene=scene;this.group=new THREE.Group();this.scene.add(this.group);this.loaded=false;this.generation=0;}
   async load(record) {
     const generation=++this.generation;
+    for(const child of [...this.group.children]){this.group.remove(child);child.traverse(object=>{object.geometry?.dispose();if(object.material)(Array.isArray(object.material)?object.material:[object.material]).forEach(material=>{for(const value of Object.values(material))if(value?.isTexture)value.dispose();material.dispose();});});}
     const blender=new THREE.Group();blender.rotation.x=-Math.PI/2;this.group.add(blender);
     const objects=record.objects||[],native=objects.filter(item=>item.object_type==='native_object');
     const addNative=gltf=>{
@@ -23,7 +24,7 @@ export class StudioSceneContent {
     const tasks=[];
     for(const object of objects){
       const d=object.definition||{};if(d.hide_viewport||d.native_deleted)continue;
-      if(object.object_type==='imported_asset'&&/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(d.asset_proxy_url||'')){
+      if(object.object_type==='imported_asset'&&/^\/api\/lightek\/pwa\/(?:assets\/\d+\/proxy|posts\/\d+\/spatial\/assets\/\d+)$/.test(d.asset_proxy_url||'')){
         tasks.push(new GLTFLoader().setWithCredentials(true).loadAsync(d.asset_proxy_url).then(gltf=>{
           if(d.native_source_preview)addNative(gltf);
           else if(generation===this.generation){const holder=new THREE.Group();gltf.scene.rotation.x=Math.PI/2;holder.add(gltf.scene);apply(holder,d);blender.add(holder);}

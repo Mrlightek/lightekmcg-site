@@ -33,7 +33,7 @@ class LoopbackTests(unittest.IsolatedAsyncioTestCase):
             try:
                 async with ClientSession() as http:
                     manifest={'schema_version':'1.0','revision':0,'scene':{'id':1,'name':'RTC proof','settings':{'fps':24,'frame_start':1,'frame_end':250},'objects':[{'id':1,'name':'Cube','type':'cube','definition':{'location':[0,0,1],'scale':[1,1,1]}}]},'outputs':{}}
-                    async with http.post(url+'/sessions',headers={'Authorization':'Bearer '+SECRET},json={'user_id':1,'manifest':manifest}) as response:
+                    async with http.post(url+'/sessions',headers={'Authorization':'Bearer '+SECRET},json={'user_id':1,'origin':'https://studio.test','manifest':manifest}) as response:
                         self.assertEqual(response.status,201,await response.text());credentials=await response.json()
                     sid=credentials['session_id'];seq=0
                     def message(kind,payload):
@@ -52,7 +52,10 @@ class LoopbackTests(unittest.IsolatedAsyncioTestCase):
                         if event['type']=='FRAME_META':metadata.put_nowait(event)
                         if event['type']=='PONG':pongs.put_nowait(event)
                         if event['type']=='FRAME_ACK':frame_acks.put_nowait(event)
-                    async with http.ws_connect(url+'/ws') as ws:
+                    async with http.ws_connect(url+'/ws',headers={'Origin':'https://wrong.test'}) as denied:
+                        await denied.send_json(message('HELLO',{'ticket':credentials['ticket'],'client_id':'denied','known_server_epoch':None}))
+                        await denied.receive();self.assertEqual(denied.close_code,1008)
+                    async with http.ws_connect(url+'/ws',headers={'Origin':'https://studio.test'}) as ws:
                         await ws.send_json(message('HELLO',{'ticket':credentials['ticket'],'client_id':'integration','known_server_epoch':None}))
                         state=json.loads((await ws.receive()).data);parse_message(json.dumps(state),client=False);pid=state['payload']['worker_id']
                         await peer.setLocalDescription(await peer.createOffer());await ws.send_json(message('SDP_OFFER',{'sdp':peer.localDescription.sdp,'type':'offer'}))

@@ -49,7 +49,7 @@ module Gatekeeper
             installation.deployment_config = config.fetch("fleet_config", {})
             installation.account_id = config["owner_id"]
           end
-          installation.current_version ||= receipt["release"] if url == "https://#{domain}"
+          installation.current_version ||= (receipt["source_sha"] || receipt["release"]) if url == "https://#{domain}"
           installation.save!
         end
       end

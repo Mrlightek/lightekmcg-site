@@ -12,6 +12,7 @@ async function run({denied=false,noWebgl=false}={}){
  await page.route('https://spatial.test/**',route=>{
   const url=new URL(route.request().url()),json=data=>route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
   if(url.pathname==='/api/nevaeh/bootstrap')return json({identity:{id:1,profile:{id:1,name:'Spatial tester',profile_type:'creator'}},navigation:[],surfaces:[],capabilities:[]});
+  if(url.pathname==='/api/lightek/pwa/studio/generation'){const request=route.request().postDataJSON();if(request.operation==='status')return json({asset_id:55,status:'ready',generation:{phase:'ready',scene_revision:1},object:{id:55,name:'Generated cube',object_type:'cube',definition:{location:[0,0,0],rotation:[0,0,0],scale:[1,1,1]}}});assert.equal(request.prompt,'A brass lamp');return json({asset_id:55,status:'uploaded'});}
   if(url.pathname==='/api/lightek/pwa/studio/spatial')return route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({error:'Blender streaming worker unavailable on this instance'})});
   if(url.pathname==='/api/lightek/pwa/uploads'){uploads++;assert(route.request().postDataBuffer().length>1000);return json({signed_id:'signed-recording'});}
   if(url.pathname==='/api/nevaeh/execute'){
@@ -32,6 +33,7 @@ async function run({denied=false,noWebgl=false}={}){
  if(noWebgl){await page.getByText(/Spatial \/ 4D requires WebGL/).waitFor();assert(await page.locator('[data-webcam-start]').isDisabled());assert.equal(uploads,0);assert.deepEqual(errors,[]);return;}
  await page.locator('[data-spatial-canvas] canvas').waitFor();assert.equal(uploads,0);
  await page.locator('[data-connect]').click();await page.getByText('Blender streaming worker unavailable on this instance',{exact:true}).waitFor();assert(await page.locator('[data-connect]').isEnabled());
+ await page.locator('[data-generation-panel] textarea').fill('A brass lamp');await page.locator('[data-generation-panel] form button').first().click();await page.locator('[data-spatial-status]').filter({hasText:'Generated asset is visible on stage'}).waitFor();
  const adapted=await page.evaluate(async()=>{
   const THREE=await import('/lightek/vendor/three/three.module.js'),{StudioSceneContent}=await import('/lightek/spatial/scene-content.js');
   const scene=new THREE.Scene(),content=new StudioSceneContent(scene);

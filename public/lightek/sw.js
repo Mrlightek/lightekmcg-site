@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v53"
+const CACHE = "lightek-shell-v54"
 
 const SHELL = [
   "/lightek/index.html",
@@ -9,6 +9,7 @@ const SHELL = [
   "/lightek/community-app.js",
   "/lightek/studio-app.js",
   "/lightek/studio-media.js",
+  "/lightek/studio-community-hub.js",
   "/lightek/studio-native.js",
   "/lightek/studio-workflows.js",
   "/lightek/studio-spatial.js",
@@ -21,8 +22,10 @@ const SHELL = [
   "/lightek/spatial/scene-content.js",
   "/lightek/spatial/output.js",
   "/lightek/spatial/remote-panel.js",
+  "/lightek/spatial/generation-panel.js",
   "/lightek/spatial/server-depth.js",
   "/lightek/spatial/feed-stage.js",
+  "/lightek/spatial/community-feed.js",
   "/lightek/spatial/rtc/SpatialSocket.js",
   "/lightek/spatial/rtc/BlenderStream.js",
   "/lightek/asset-preview.js",

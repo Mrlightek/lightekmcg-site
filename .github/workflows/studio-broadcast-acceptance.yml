@@ -67,6 +67,8 @@ jobs:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/blender_authoring_checks.rb
       - run: bundle exec ruby test/standalone/spatial_commit_checks.rb
+      - run: bundle exec ruby test/standalone/spatial_publication_checks.rb
+      - run: bundle exec ruby test/standalone/spatial_generation_checks.rb
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -98,12 +100,14 @@ jobs:
         run: |
           bash test/javascript/prepare_spatial_fixtures.sh
           blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr "import bpy; bpy.context.scene.objects['Cube']['lightek_object_name']='Cube'; bpy.ops.export_scene.gltf(filepath='/tmp/native-viewport-proof.glb', export_format='GLB', export_extras=True)"
+          LIGHTEK_TEST_BLENDER=1 bundle exec ruby test/standalone/spatial_generation_checks.rb
           node test/javascript/studio_spatial_math_test.cjs
           node test/javascript/studio_spatial_browser_test.cjs
           node test/javascript/studio_spatial_vision_test.cjs
           node test/javascript/studio_spatial_depth_test.cjs
+          node test/javascript/studio_spatial_feed_test.cjs
           python3 -m pip install -r services/spatial/requirements.txt
-          SPATIAL_TEST_BLENDER="$(command -v blender)" PYTHONPATH="$PWD" python3 -m unittest test.operations.studio_spatial_service_test test.operations.studio_spatial_assets_test
+          SPATIAL_TEST_BLENDER="$(command -v blender)" PYTHONPATH="$PWD" python3 -m unittest test.operations.studio_spatial_service_test test.operations.studio_spatial_assets_test test.operations.studio_spatial_setup_test
           blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python test/operations/spatial_asset_staging_blender.py
           npm ci --prefix examples/spatial-editor --ignore-scripts
           npm --prefix examples/spatial-editor run check

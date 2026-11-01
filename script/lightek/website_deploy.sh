@@ -264,7 +264,7 @@ def main():
         if c['owner_password']!=getpass.getpass('Confirm owner password: '):raise DeployError('Passwords differ')
         c['extra_env']=extra_env(args.env_file,root)
     if c.get('owner_role','admin') not in ('admin','super_admin'):raise DeployError('Invalid owner role')
-    validate(c);c['release']=secrets.token_hex(10)
+    validate(c);c['release']=secrets.token_hex(10);c['source_sha']=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
     os.umask(0o077)
     with authenticated_ssh(c) as ssh:
         run(ssh+['test -f /etc/os-release && . /etc/os-release && [ "$ID" = ubuntu ] && printf "SSH_UBUNTU_OK\\n"'])
@@ -272,7 +272,8 @@ def main():
             stage=pathlib.Path(temp)
             for name,encoded in PAYLOAD.items():
                 p=stage/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(base64.b64decode(encoded))
-            print('Packaging the local Rails application and private gem sources...',flush=True)
+            shutil.copy2(root/'script/lightek/native_website_remote.sh',stage/'remote.sh')
+            print('Packaging the native Rails application and private gem sources...',flush=True)
             metadata=stage/'metadata.json'
             run(['bundle','exec','ruby',str(stage/'metadata.rb'),str(metadata)],cwd=root)
             meta=json.loads(metadata.read_text())
@@ -280,7 +281,7 @@ def main():
             if not re.fullmatch(r'[0-9]+(?:\.[0-9A-Za-z]+)+',c['bundler']):raise DeployError('Invalid Bundler version in package metadata')
             if meta['ruby']!='3.3.6':raise DeployError('This deployment matches Ruby 3.3.6; current Ruby is '+meta['ruby'])
             app=stage/'app';app.mkdir()
-            for name in ['app','bin','config','db','lib','public','script','vendor']:
+            for name in ['app','bin','config','db','lib','public','script','vendor','blender','services','docker']:
                 if (root/name).is_dir():copy_source(root/name,app/name)
             for name in ['Rakefile','config.ru','Gemfile.lock','package.json','yarn.lock']:
                 if (root/name).is_file():shutil.copy2(root/name,app/name)
@@ -294,6 +295,7 @@ def main():
             route=app/'config/routes.rb';route.write_text(add_routes(route.read_text()))
             application=app/'config/application.rb';application.write_text(add_boot_sync_hook(application.read_text()))
             make_gemfile(meta,app)
+            shutil.copy2(app/'Gemfile',app/'Gemfile.native')
             if not c.get('sidebar_sections'):
                 nav=rails_code(root,stage,'require "json"; puts "LIGHTEK_SIDEBAR="+JSON.generate(DymondDash::NavSection.order(:position).map { |s| s.attributes.slice("slug","label","position") })',{})
                 line=next((x for x in nav.splitlines() if x.startswith('LIGHTEK_SIDEBAR=')),None)
@@ -344,11 +346,8 @@ def main():
                     # transport have been verified independently.
                     deploy_root='/opt/lightek-sites/'+c['domain']
                     project='lt_'+hashlib.sha256(c['domain'].encode()).hexdigest()[:16]
-                    cmd=['docker','compose','--env-file',deploy_root+'/.env','-p',project,
-                         '-f',deploy_root+'/compose.yml','run','--rm','-T',
-                         '-e','LIGHTEK_INITIAL_MAIL_OWNER='+c['owner_email'],
-                         '-e','LIGHTEK_INITIAL_MAIL_ADDRESS=admin@'+c['domain'],
-                         'web','bin/rails','runner','script/lightek_mail_account_bootstrap.rb']
+                    cmd=['-u','lightek','env','LIGHTEK_INITIAL_MAIL_OWNER='+c['owner_email'],'LIGHTEK_INITIAL_MAIL_ADDRESS=admin@'+c['domain'],
+                         'python3',deploy_root+'/run-app.py','bundle','exec','rails','runner','script/lightek_mail_account_bootstrap.rb']
                     if not mailbox_node_ready:
                         mail_registration_status='pending'
                     if mailbox_node_ready:
@@ -368,7 +367,7 @@ def main():
                     result=rails_code(root,stage,REGISTER_CODE,dict(domain=c['domain'],ssh_host=c['ssh'].split('@')[-1],ssh_user=user,port=c['port'],release=c['release']))
                     print('\n'.join(x for x in result.splitlines() if x.startswith('GATEKEEPER_NODE_REGISTERED=')))
                 receipt=root/'tmp/website_deploy'/('receipt-'+c['release']+'.json');receipt.parent.mkdir(parents=True,exist_ok=True)
-                receipt.write_text(json.dumps(dict(package_sha256=hashlib.sha256(package.read_bytes()).hexdigest(),url='https://'+c['domain'],release=c['release'],public_https_verified=True,owner_login_verified=True,health=health,mail_setup_status=mail_setup_status,mail_registration_status=mail_registration_status,verified_at=datetime.datetime.now(datetime.timezone.utc).isoformat()),indent=2))
+                receipt.write_text(json.dumps(dict(package_sha256=hashlib.sha256(package.read_bytes()).hexdigest(),url='https://'+c['domain'],release=c['release'],source_sha=c['source_sha'],adapter='native_rails',fleet_config=dict(app_root='/opt/lightek-sites/'+c['domain']+'/current',app_user='lightek',env_file='/opt/lightek-sites/'+c['domain']+'/.env',ruby_bin='/home/lightek/.rbenv/versions/3.3.6/bin',health_url='https://'+c['domain']+'/__lightek/website-health',revision_url='https://'+c['domain']+'/__lightek/release',worker_mode='systemd',worker_service='lightek-'+hashlib.sha256(c['domain'].encode()).hexdigest()[:12]+'-sidekiq',compose_project='lt_'+hashlib.sha256(c['domain'].encode()).hexdigest()[:16],compose_file='/opt/lightek-sites/'+c['domain']+'/dependencies.yml',db_service='db'),public_https_verified=True,owner_login_verified=True,health=health,mail_setup_status=mail_setup_status,mail_registration_status=mail_registration_status,verified_at=datetime.datetime.now(datetime.timezone.utc).isoformat()),indent=2))
                 print('WEBSITE_DEPLOYMENT_PASS=https://'+c['domain'])
                 print('Owner management: https://'+c['domain']+'/dashboard/pages')
                 print('Receipt: '+str(receipt))

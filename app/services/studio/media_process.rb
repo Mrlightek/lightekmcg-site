@@ -3,9 +3,10 @@ require "timeout"
 module Studio
   class MediaProcess
     class Cancelled < StandardError; end
-    def self.run!(command, timeout:90, cancel_if:nil)
+    def self.run!(command, timeout:90, cancel_if:nil, stdin_data:nil)
       output="";errors="";status=nil
       Open3.popen3(*command,pgroup:true) do |input,stdout,stderr,wait|
+        input.write(stdin_data) if stdin_data
         input.close
         readers=[Thread.new{while(chunk=stdout.read(16_384));output=(output+chunk).last(1_048_576);end},Thread.new{while(chunk=stderr.read(4096));errors=(errors+chunk).last(4096);end}]
         begin

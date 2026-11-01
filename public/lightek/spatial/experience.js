@@ -1,3 +1,4 @@
+import {mountGenerationPanel} from './generation-panel.js';
 import {mountRemotePanel} from './remote-panel.js';
 import {HeadPose,faceMeasurement} from './projection.js';
 import {WebcamSource,VideoAngles} from './video-sources.js';
@@ -23,6 +24,13 @@ export function mountSpatial(root,{settings={},onSettings=()=>{},scene={},saveRe
   catch(error){say('Spatial / 4D requires WebGL. This browser could not create a graphics context. The regular 3D Layout software preview remains available.');root.querySelectorAll('button,input,select').forEach(el=>el.disabled=true);return {dispose(){remote.dispose();}};}
   remote=mountRemotePanel(root,scene,compositor);
   const sceneContent=new StudioSceneContent(compositor.scene);
+  const generation=mountGenerationPanel(root,scene,async result=>{
+    if(disposed||!result.object)return;
+    scene.lock_version=result.generation.scene_revision;
+    scene.objects=[...(scene.objects||[]).filter(object=>object.id!==result.object.id),result.object];
+    await sceneContent.load(scene);compositor.marker.visible=false;
+    await remote.refresh?.();say('Generated asset is visible on stage and saved in Library.');
+  });
   const recording=new SpatialRecording(compositor.renderer.domElement,{onStatus:say,onReady:output=>{
     const link=root.querySelector('[data-spatial-download]');link.href=output.url;link.download=output.filename;link.hidden=false;
     root.querySelector('[data-spatial-save-media]').disabled=false;
@@ -133,5 +141,5 @@ export function mountSpatial(root,{settings={},onSettings=()=>{},scene={},saveRe
     frame=requestAnimationFrame(animate);
   };
   frame=requestAnimationFrame(animate);
-  return {dispose(){remote.dispose();disposed=true;token++;cancelAnimationFrame(frame);document.removeEventListener('visibilitychange',visibility);webcam.close();tracker.stop();angles.dispose();recording.dispose();sceneContent.dispose();compositor.dispose();}};
+  return {dispose(){generation.dispose();remote.dispose();disposed=true;token++;cancelAnimationFrame(frame);document.removeEventListener('visibilitychange',visibility);webcam.close();tracker.stop();angles.dispose();recording.dispose();sceneContent.dispose();compositor.dispose();}};
 }

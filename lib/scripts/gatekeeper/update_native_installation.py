@@ -288,10 +288,17 @@ class NativeUpdater:
                 self.hook("maintenance_hook", "enable")
                 self.worker("stop")
                 self.backup()
+            if (self.root / "tmp/native-instance-overlay.json").exists():
+                self.as_user(["python3", str(self.root / "lib/scripts/native_instance_overlay.py"), "restore", str(self.root)])
             self.git("checkout", "--detach", desired)
             changed = True
+            if (self.root / "Gemfile.native").exists():
+                self.as_user(["python3", str(self.root / "lib/scripts/native_instance_overlay.py"), "apply", str(self.root)])
             if self.config["adapter"] == "native_rails":
                 self.as_user(["bundle", "install", "--jobs", "1"])
+                if self.config["component"] == "lightek_app":
+                    self.as_user(["bash", "lib/scripts/setup_studio_media.sh"])
+                    self.command(["python3", str(self.root / "lib/scripts/setup_studio_spatial.py"), "--app-root", self.profile["app_root"], "--app-user", self.user.pw_name, "--domain", self.config["domain"], "--env-file", self.profile["env_file"]])
                 self.migration_started = True
                 self.as_user(["bundle", "exec", "rails", "db:migrate"])
                 if self.config["component"] == "lightek_app":
@@ -322,7 +329,11 @@ class NativeUpdater:
             if can_restore:
                 try:
                     if changed:
+                        if (self.root / "tmp/native-instance-overlay.json").exists():
+                            self.as_user(["python3", str(self.root / "lib/scripts/native_instance_overlay.py"), "restore", str(self.root)])
                         self.git("checkout", "--detach", previous)
+                        if (self.root / "Gemfile.native").exists():
+                            self.as_user(["python3", str(self.root / "lib/scripts/native_instance_overlay.py"), "apply", str(self.root)])
                         self.execution_sha = previous
                         if self.config["adapter"] == "native_rails":
                             self.as_user(["bundle", "install", "--jobs", "1"])

@@ -38,6 +38,7 @@ module Studio
               kind: kind, metadata: {"sources"=>Array(metadata["sources"])}, distribution: publication.platform, audience: metadata.fetch("audience","everyone"), visibility: community&.visibility == "private" ? "community" : "public", request_key: key)
             post.media.attach(publication.artifact.file.blob)
             post.save!
+            Studio::Spatial::Publication.attach!(publication,post)
           end
         end
         publication.update!(metadata: metadata.merge("post_id" => post.id))

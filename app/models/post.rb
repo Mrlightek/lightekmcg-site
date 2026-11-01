@@ -2,6 +2,8 @@
 class Post < ApplicationRecord
   MEDIA_TYPES = %w[image/jpeg image/png image/webp image/gif video/mp4 video/webm video/quicktime audio/mpeg audio/mp4 audio/wav audio/x-wav audio/ogg audio/flac].freeze
   KINDS = %w[post article photo story video clip audio live event playlist series].freeze
+  has_one_attached :spatial_scene
+  has_many_attached :spatial_files
   belongs_to :user
   belongs_to :community, optional: true
   belongs_to :site, class_name: "DymondSite::Site", optional: true

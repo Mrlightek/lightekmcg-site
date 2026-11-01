@@ -5,7 +5,7 @@ module Api
       allow_unauthenticated_access only: :create
       skip_forgery_protection only: :create
       def create
-        secret=ENV["STUDIO_SPATIAL_SECRET"].to_s
+        secret=::Studio::Spatial::Runtime.fetch("STUDIO_SPATIAL_SECRET").to_s
         supplied=request.headers["Authorization"].to_s.delete_prefix("Bearer ")
         return head :unauthorized unless secret.length>=32 && ActiveSupport::SecurityUtils.secure_compare(secret,supplied)
         access=::Studio::PwaAccess.new("user_id"=>params.require(:user_id),"site_id"=>params[:site_id])

@@ -75,6 +75,7 @@ class LoopbackTests(unittest.IsolatedAsyncioTestCase):
                         current=json.loads((await ws.receive()).data);parse_message(json.dumps(current),client=False);self.assertEqual(current['scene_revision'],1)
                         await ws.send_json(commit_message);duplicate=json.loads((await ws.receive()).data);self.assertEqual(duplicate['payload']['status'],'duplicate')
                         stale=message('CAMERA_UPDATE',commit_message['payload']);await ws.send_json(stale);conflict=json.loads((await ws.receive()).data);self.assertEqual(conflict['payload']['code'],'CONFLICT')
+                        service.sessions[sid].bridge.process.terminate();failure=json.loads((await asyncio.wait_for(ws.receive(),10)).data);self.assertEqual(failure['payload']['code'],'WORKER_FAILED')
                         print(json.dumps({'worker_pid':pid,'decoded_size':[frame.width,frame.height],'changed_pixels':changed,'render_ms':meta['render_ms'],'rtp_timestamp':meta['rtp_timestamp']}))
             finally:
                 await peer.close()

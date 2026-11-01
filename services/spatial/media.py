@@ -19,8 +19,8 @@ from aiortc.rtp import is_rtcp
 
 class BlenderTrack(MediaStreamTrack):
     kind='video'
-    def __init__(self,bridge,encoder='libx264'):
-        super().__init__();self.bridge=bridge;self.encoder_name=encoder;self.codec=None
+    def __init__(self,bridge,encoder='libx264',on_error=lambda text:None):
+        super().__init__();self.bridge=bridge;self.encoder_name=encoder;self.codec=None;self.on_error=on_error
         self.sequence=0;self.origin=None;self.last_pts=-1;self.packets=deque();self.metadata=deque(maxlen=64);self.by_pts={};self.force_keyframe=True
     def _encode(self,metadata,pixels,pts):
         if metadata['format']=='jpeg':image=Image.open(io.BytesIO(pixels)).convert('RGB');frame=av.VideoFrame.from_image(image)
@@ -44,7 +44,10 @@ class BlenderTrack(MediaStreamTrack):
             self.sequence=metadata['sequence'];self.origin=self.origin or metadata['captured_ns']
             pts=max(self.last_pts+1,(metadata['captured_ns']-self.origin)*90000//1000000000);self.last_pts=pts
             self.by_pts[pts]=metadata
-            started=time.monotonic_ns();packets=await asyncio.to_thread(self._encode,metadata,pixels,pts)
+            started=time.monotonic_ns()
+            try:packets=await asyncio.to_thread(self._encode,metadata,pixels,pts)
+            except Exception as error:
+                self.on_error('Video encoder failed: '+str(error)[:500]);raise MediaStreamError from error
             for packet in packets:
                 packet.time_base=Fraction(1,90000);meta=self.by_pts.pop(packet.pts,metadata)
                 self.packets.append((packet,{**meta,'encode_ms':(time.monotonic_ns()-started)/1e6}))

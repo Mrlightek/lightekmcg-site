@@ -38,7 +38,15 @@ class SpatialSession:
         self.service=service;self.id=identifier;self.owner=owner;self.scene_id=scene_id;self.bridge=bridge
         self.epoch=str(uuid.uuid4());self.server_seq=0;self.clients=set();self.last_activity=time.monotonic();self.receipts=OrderedDict();self.watermarks={}
         self.commits=deque();self.previews=OrderedDict();self.wakeup=asyncio.Event();self.peer=None;self.channel=None;self.track=None;self.closed=False
-        self.pump=asyncio.create_task(self._pump());self.signal_lock=asyncio.Lock();self.ice=[];self.frame_sent={};self.stats={'frame_round_trip_ms':None}
+        self.pump=asyncio.create_task(self._pump());self.signal_lock=asyncio.Lock();self.ice=[];self.frame_sent={};self.stats={'frame_round_trip_ms':None};self.monitor=asyncio.create_task(self._monitor())
+    async def failed(self,text):
+        for ws in list(self.clients):
+            try:await self.error(ws,{},'WORKER_FAILED',text)
+            except Exception:pass
+        if self.peer:await self.peer.close()
+    async def _monitor(self):
+        await self.bridge.process.wait()
+        if not self.closed:await self.failed(self.bridge.error or 'Blender worker exited. Reopen the saved scene.')
     def envelope(self,kind,payload):
         self.server_seq+=1
         return {'v':1,'type':kind,'session_id':self.id,'message_id':str(uuid.uuid4()),'seq':self.server_seq,'scene_revision':self.bridge.state.get('revision',self.bridge.manifest.get('revision',0)),'payload':payload}
@@ -97,7 +105,7 @@ class SpatialSession:
             if self.peer:await self.peer.close()
             servers=[RTCIceServer(**item) for item in self.service.ice_servers]
             peer=self.peer=RTCPeerConnection(RTCConfiguration(iceServers=servers))
-            track=self.track=BlenderTrack(self.bridge,self.service.encoder)
+            track=self.track=BlenderTrack(self.bridge,self.service.encoder,on_error=lambda text:asyncio.create_task(self.failed(text)))
             sender=peer.addTrack(track)
             transceiver=next(t for t in peer.getTransceivers() if t.sender==sender)
             capabilities=sender.getCapabilities('video');transceiver.setCodecPreferences([codec for codec in capabilities.codecs if codec.mimeType.lower()=='video/h264'])
@@ -142,9 +150,9 @@ class SpatialSession:
             self.channel.send(json.dumps(metadata,separators=(',',':'),allow_nan=False))
     async def close(self):
         if self.closed:return
-        self.closed=True;self.pump.cancel()
+        self.closed=True;self.pump.cancel();self.monitor.cancel()
         if self.peer:await self.peer.close()
-        await self.bridge.close();await asyncio.gather(self.pump,return_exceptions=True)
+        await self.bridge.close();await asyncio.gather(self.pump,self.monitor,return_exceptions=True)
         await asyncio.to_thread(__import__('shutil').rmtree,self.bridge.root,True)
         for ws in list(self.clients):await ws.close(code=1001,message=b'Scene session closed')
 

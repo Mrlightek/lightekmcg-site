@@ -4,6 +4,7 @@ class Dashboard::PwaController < Dashboard::SettingsHomeController
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
   before_action :prepare_application
+  helper_method :pwa_link
   before_action { response.set_header("Cache-Control", "private, no-store") }
   rescue_from LightekPwa::Policy::Denied, LightekCommunity::AccessDenied do |error|
     render plain: error.message, status: :forbidden
@@ -47,10 +48,27 @@ class Dashboard::PwaController < Dashboard::SettingsHomeController
   end
 
   private
+  def pwa_link(route = nil)
+    host = @site.host.to_s.downcase
+    same_host = host == request.host.to_s.downcase
+    # A public dashboard must never send a browser to a development VM left in
+    # a selected site's saved hostname. Keep real client domains site-specific.
+    return nil if !same_host && local_network_host?(host) && !local_network_host?(request.host)
+    origin = same_host ? "" : URI::HTTPS.build(host: host).to_s
+    "#{origin}/lightek/index.html#{route.present? ? '#/' + route : ''}"
+  end
+  def local_network_host?(host)
+    require "ipaddr"
+    return true if host.to_s.downcase == "localhost" || host.to_s.downcase.end_with?(".localhost", ".local")
+    ip = IPAddr.new(host.to_s)
+    ip.private? || ip.loopback? || IPAddr.new("169.254.0.0/16").include?(ip) || IPAddr.new("fe80::/10").include?(ip)
+  rescue IPAddr::InvalidAddressError
+    false
+  end
   def prepare_application
     @sites = LightekPwa::Policy.sites_for(current_user).order(:name, :id)
     @remote_installations = LightekPwa::Policy.remote_installations_for(current_user).reject { |installation| @sites.exists?(host: installation.domain) }
-    @site = params[:site_id].present? ? @sites.find(params[:site_id]) : @sites.find_by(host: request.host) || (@sites.first if @sites.count == 1)
+    @site = params[:site_id].present? ? @sites.find(params[:site_id]) : @sites.find_by(host: request.host)
     return if @site.nil? && action_name == "show"
     raise ActiveRecord::RecordNotFound unless @site
     @section = params[:section].presence || "overview"

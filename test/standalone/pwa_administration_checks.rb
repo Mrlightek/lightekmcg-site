@@ -386,4 +386,44 @@ class PwaAdministrationTest < PwaHttpIntegrationTest
     refute LightekPwa::Policy.administration_available_for?(nil)
   end
 
+  def test_production_pwa_links_stay_on_the_selected_public_domain
+    @site.update!(host: "lightekmcg.com")
+    client = session_for
+    client.host! "lightekmcg.com"
+    client.get "/dashboard/pwa", params: {site_id: @site.id, section: "content"}, headers: headers.merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    html = Nokogiri::HTML(client.response.body)
+    assert html.at_css('a[href="/lightek/index.html#/create"]')
+    assert html.at_css('a[href="/lightek/index.html"]')
+    refute_match(/192\.168\./, client.response.body)
+    client.get "/dashboard/pwa", params: {site_id: @site.id, section: "communities"}, headers: headers.merge("Accept" => "text/html")
+    assert Nokogiri::HTML(client.response.body).at_css('a[href="/lightek/index.html#/create/community"]')
+  end
+
+  def test_platform_administration_keeps_other_clients_pwa_domains
+    @carol.update!(role: "super_admin")
+    @other_site.update!(host: "tiffany.example.test")
+    client = session_for(@carol)
+    client.get "/dashboard/pwa", params: {site_id: @other_site.id, section: "content"}, headers: headers(@carol).merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    html = Nokogiri::HTML(client.response.body)
+    assert html.at_css('a[href="https://tiffany.example.test/lightek/index.html#/create"]')
+    assert_nil html.at_css('a[href="/lightek/index.html#/create"]')
+  end
+
+  def test_public_dashboard_never_silently_opens_a_saved_private_vm
+    @site.update!(host: "192.168.64.2")
+    client = session_for
+    client.get "/dashboard/pwa", params: {section: "content"}, headers: headers.merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Choose your application"
+    assert_nil Nokogiri::HTML(client.response.body).at_css('a[href*="192.168.64.2/lightek"]')
+    client.get "/dashboard/pwa", params: {site_id: @site.id, section: "content"}, headers: headers.merge("Accept" => "text/html")
+    assert_includes client.response.body, "This website points to a private network address"
+    assert_nil Nokogiri::HTML(client.response.body).at_css('a[href*="192.168.64.2/lightek"]')
+    client.host! "192.168.64.2"
+    client.get "/dashboard/pwa", params: {site_id: @site.id, section: "content"}, headers: headers.merge("Accept" => "text/html")
+    assert Nokogiri::HTML(client.response.body).at_css('a[href="/lightek/index.html#/create"]')
+  end
+
 end

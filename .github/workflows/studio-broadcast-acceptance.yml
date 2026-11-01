@@ -23,6 +23,7 @@ on:
       - 'test/javascript/prepare_spatial_fixtures.sh'
       - 'app/models/scene_object.rb'
       - 'lib/scripts/setup_studio_media.sh'
+      - 'lib/scripts/setup_studio_docker_access.py'
       - 'lib/scripts/gatekeeper/deploy_project.sh'
       - 'lib/tasks/studio/**'
       - 'test/javascript/studio_native_authoring_test.cjs'
@@ -119,4 +120,4 @@ jobs:
           blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr "import bpy; bpy.context.scene.objects['Cube']['lightek_object_name']='Cube'; bpy.ops.export_scene.gltf(filepath='/tmp/native-viewport-proof.glb', export_format='GLB', export_extras=True)"
           node test/javascript/studio_native_viewport_test.cjs
       - name: Blender archive and transform regression
-        run: python3 -m unittest test/operations/studio_media_setup_test.py test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py test/operations/deploy_checkout_test.py
+        run: python3 -m unittest test/operations/studio_docker_access_test.py test/operations/studio_media_setup_test.py test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py test/operations/deploy_checkout_test.py

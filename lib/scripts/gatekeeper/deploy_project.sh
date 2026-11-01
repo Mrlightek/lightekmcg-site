@@ -5,6 +5,7 @@ set -euo pipefail
 : "${APP_USER:?APP_USER required}"
 : "${APP_NAME:?APP_NAME required}"
 : "${APP_DOMAIN:?APP_DOMAIN required}"
+[[ "$APP_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "ERROR: APP_DOMAIN must be a DNS hostname"; exit 1; }
 
 APP_BRANCH="${APP_BRANCH:-main}"
 RUBY_VERSION="${RUBY_VERSION:-3.3.6}"
@@ -96,6 +97,12 @@ if ! passenger-config restart-app "${APP_ROOT}" --ignore-app-not-running; then
   echo "Passenger control command failed; requesting application restart through tmp/restart.txt"
   run_as_app_user "mkdir -p tmp && touch tmp/restart.txt"
 fi
+
+# Activate the new repair UI before enforcing this gate on legacy installations.
+# A failed binding never receives deployment acceptance; an operator can repair
+# the existing row from the dashboard and rerun verification.
+echo "[website] Verify the release domain and PWA binding"
+run_rails "LIGHTEK_EXPECTED_SITE_HOST='${APP_DOMAIN}' bundle exec rails lightek:site_binding:verify"
 
 echo "[8/8] Health"
 HTTP_CODE=""

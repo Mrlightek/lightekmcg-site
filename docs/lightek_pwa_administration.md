@@ -39,3 +39,13 @@ python3 test/operations/migration_versions_test.py
 The standalone Rails harness runs actual models, policies, migrations, controllers and ERB with only private host authentication/layout boundaries substituted. It can capture actual dashboard markup for Playwright with `PWA_ADMIN_CAPTURE_DIR=/tmp/lightek-pwa-dashboard`. Browser checks cover the actual rendered forms, mobile layout, branding changes and disabled/maintenance client behavior. Media checks execute actual FFmpeg/Blender and process cancellation. CI includes both isolated tests and a native-host PostgreSQL/Redis job using the existing private-dependency credentials.
 
 The native-host integration tests in `test/integration/pwa_administration_test.rb` verify client-owner and super-admin access through the real dashboard/session stack. The full private dashboard gem, production layouts/feature-plan resolution and deployed cross-installation navigation still require native-host acceptance; isolated tests are not a production deployment claim.
+
+## Website domain binding
+
+Customer provisioning stores the requested public DNS hostname and initializes that site's PWA. IP literals and local/internal hostnames are rejected by the installer, hosted-site bootstrap and production Site validation. Existing legacy rows can still be edited without forcing a hostname change; a new or changed production hostname must be valid.
+
+The normal deployment and fleet update paths run `lightek:site_binding:verify` with the deployment's expected domain after migration. An HTTP `/up` response alone is insufficient: the domain must resolve to an actual website row, and that row must have its own PWA configuration. Missing bindings stop deployment acceptance with an explicit error, without guessing which site's content to move. This check does not update DNS or certificates.
+
+For a legacy site such as the imported `192.168.64.2` record, a platform super admin can select it in PWA Administration and click **Use [current dashboard domain] for this website**. The target comes from the request serving the dashboard, not a submitted hostname. The action keeps the same site ID, pages, posts, communities and PWA settings, checks the expected previous hostname and unique domain, and writes an audit event. Ordinary tenant owners/editors cannot rebind a domain. Public-domain sites and provisioning-managed identities must use the existing Network & Domains workflow so infrastructure reservations do not drift.
+
+No hardcoded Lightek production hostname is substituted into customer records. No data migration or reseed is needed for this change. Full authenticated production acceptance still requires deploying it and using the repair control on the affected installation.

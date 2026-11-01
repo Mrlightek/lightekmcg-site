@@ -72,6 +72,7 @@ class FleetUpdaterTest(unittest.TestCase):
         commands = [" ".join(command) for command, _ in self.calls]
         self.assertTrue(any("stop web worker" in command for command in commands))
         self.assertTrue(any("db:migrate" in command for command in commands))
+        self.assertTrue(any("lightek:site_binding:verify" in command and "LIGHTEK_EXPECTED_SITE_HOST=customer.example.com" in command for command in commands))
         self.assertFalse(any("bootstrap" in command or "volume rm" in command or "down" in command for command in commands))
         self.assertLess(next(i for i, c in enumerate(commands) if "pg_dump" in c), next(i for i, c in enumerate(commands) if "db:migrate" in c))
 
@@ -81,6 +82,14 @@ class FleetUpdaterTest(unittest.TestCase):
         receipt = self.execute(attempt=2)
         self.assertTrue(receipt["already_current"])
         self.assertEqual([], self.calls)
+
+    def test_missing_site_binding_never_activates_a_customer_release(self):
+        self.fail_on = lambda args: "lightek:site_binding:verify" in args
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.execute()
+        receipt = json.loads((self.site / "backups/fleet-7-1.json").read_text())
+        self.assertEqual("failed", receipt["status"])
+        self.assertFalse(any("assets:precompile" in args for args, _ in self.calls))
 
     def test_backup_failure_restores_previous_code_before_any_migration(self):
         self.fail_on = lambda args: "pg_dump" in " ".join(args)

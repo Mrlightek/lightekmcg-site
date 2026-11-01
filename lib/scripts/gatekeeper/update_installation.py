@@ -16,6 +16,8 @@ import urllib.request
 
 def validate(config):
     domain = config["domain"]
+    if domain.rsplit(".", 1)[-1].isdigit() or domain.endswith((".local", ".localhost", ".internal", ".home.arpa")):
+        raise ValueError("Use a public DNS hostname, not an IP or local hostname")
     if len(domain) > 253 or not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+", domain):
         raise ValueError("Invalid domain")
     if not re.fullmatch(r"[a-f0-9]{40}", config["source_sha"]):
@@ -171,6 +173,7 @@ class Updater:
             # All DB/worker writes are stopped during schema transitions.
             migrated = True  # even a failed migration can have committed preceding migrations
             self.compose("run", "--rm", "-T", "--no-deps", "web", "bin/rails", "db:migrate")
+            self.compose("run", "--rm", "-T", "--no-deps", "-e", "LIGHTEK_EXPECTED_SITE_HOST=" + self.config["domain"], "web", "bin/rails", "lightek:site_binding:verify")
             self.compose("run", "--rm", "-T", "--no-deps", "web", "bin/rails", "assets:precompile")
             self.compose("up", "-d", "--no-deps", "--pull", "never", "web", "worker")
             for attempt in range(24):

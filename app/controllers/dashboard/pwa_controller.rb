@@ -19,6 +19,12 @@ class Dashboard::PwaController < Dashboard::SettingsHomeController
   def show
     load_section
   end
+  def repair_hostname
+    # Bind only the hostname actually serving this dashboard, never a domain
+    # supplied in form data. The service checks actor, stale state and collision.
+    LightekSettings::SiteDomain.repair!(site: @site, actor: current_user, host: request.host, expected_host: params.require(:expected_host))
+    redirect_to dashboard_pwa_path(site_id: @site.id), notice: "Website hostname repaired. Your existing content and PWA settings are preserved."
+  end
   def update
     @admin.save!(application_params)
     redirect_to dashboard_pwa_path(site_id: @site.id, section: params[:section].presence || "settings"), notice: "PWA changes saved."

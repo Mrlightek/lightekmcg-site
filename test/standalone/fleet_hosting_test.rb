@@ -1,5 +1,6 @@
 # Additional hosting contracts loaded by fleet_updates_test.rb.
 require_relative "fleet_updates_test" unless defined?(FleetUpdatesTest)
+require Rails.root.join("app/services/lightek_settings/site_domain").to_s
 require Rails.root.join("app/models/gatekeeper_hosted_application").to_s
 %w[access runtime applications deletions dns site_routing].each { |file| require Rails.root.join("app/services/gatekeeper/hosting", file).to_s }
 %w[provision_application_job delete_server_job recovery_job].each { |file| require Rails.root.join("app/jobs/gatekeeper/hosting", file).to_s }
@@ -52,6 +53,16 @@ class FleetUpdatesTest
     assert_equal [node.id], Gatekeeper::Hosting::Access.nodes(owner).pluck(:id)
     assert_equal 2, Gatekeeper::Hosting::Access.nodes(hosting_owner("super_admin")).count
     assert_raises(Gatekeeper::Hosting::Access::Denied) { Gatekeeper::Hosting::Access.authorize!(owner, other) }
+  end
+
+  def test_customer_private_domain_is_rejected_before_creating_a_reservation
+    owner = hosting_owner("super_admin")
+    node, project = hosting_server(owner)
+    count = GatekeeperHostedApplication.count
+    assert_raises(Gatekeeper::Hosting::Access::Denied) do
+      hosted_site(actor: owner, node: node, project: project, domain: "192.168.64.2")
+    end
+    assert_equal count, GatekeeperHostedApplication.count
   end
 
   def test_second_application_uses_existing_node_and_reserves_plan_capacity

@@ -19,7 +19,8 @@ require "json"
 c = JSON.parse(STDIN.read)
 DymondSite::Site.transaction do
   owner = User.find_by!(email_address: c.fetch("owner_email"))
-  site = DymondSite::Site.find_or_initialize_by(host: c.fetch("domain"))
+  host = LightekSettings::SiteDomain.public_hostname!(c.fetch("domain"))
+  site = DymondSite::Site.find_or_initialize_by(host: host)
   if site.persisted?
     raise "Hostname is already owned or managed separately" unless site.tenant == owner && site.manifest.to_h["hosted_application_key"] == c.fetch("application_key")
   else
@@ -35,6 +36,7 @@ DymondSite::Site.transaction do
     site.update!(manifest: site.manifest.to_h.merge("hosted_application_key" => c.fetch("application_key")))
   end
   LightekPwa::Application.find_or_create_by!(site: site) { |pwa| pwa.name = site.name }
+  LightekSettings::SiteDomain.verify!(host: host)
   puts "LIGHTEK_SITE=" + JSON.generate({site_id: site.id, application_key: c.fetch("application_key"), domain: site.host})
 end
 '''
@@ -42,6 +44,8 @@ end
 
 def validate(config):
     host = config["domain"]
+    if host.rsplit(".", 1)[-1].isdigit() or host.endswith((".local", ".localhost", ".internal", ".home.arpa")):
+        raise ValueError("Use a public DNS hostname, not an IP or local hostname")
     if len(host) > 253 or not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+", host):
         raise ValueError("Invalid hostname")
     if not re.fullmatch(r"[a-f0-9-]{36}", config["application_key"]):

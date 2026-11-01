@@ -111,11 +111,25 @@ class FleetHostedSiteTest(unittest.TestCase):
         subprocess.run(["ruby", "-c"], input=hosted.BOOTSTRAP.encode(), stdout=subprocess.DEVNULL, check=True)
 
     def test_profile_rejects_hostname_path_and_user_injection(self):
-        for config in (dict(self.config, domain="a.example.com; reboot"), dict(self.config, application_key="../../etc/passwd"),
+        for config in (dict(self.config, domain="192.168.64.2"), dict(self.config, domain="8.8.8.8"), dict(self.config, domain="client.local"), dict(self.config, domain="a.example.com; reboot"), dict(self.config, application_key="../../etc/passwd"),
                        dict(self.config, deployment=dict(self.config["deployment"], app_root='/var/www/"bad')),
                        dict(self.config, deployment=dict(self.config["deployment"], app_user="root; reboot"))):
             with self.subTest(config=config), self.assertRaises(ValueError):
                 hosted.validate(config)
+
+    def test_packaged_customer_installer_rejects_private_domains_before_setup(self):
+        script = (ROOT / "script/lightek/website_deploy.sh").read_text().split("<<'LIGHTEK_PYTHON'\n", 1)[1].split("\nLIGHTEK_PYTHON", 1)[0]
+        namespace = {"__name__": "installer_domain_test", "__file__": str(ROOT / "script/lightek/website_deploy.sh")}
+        exec(compile(script, "customer_installer", "exec"), namespace)
+        config = dict(domain="customer.example.com", ssh="deploy@server", port=22, email="owner@example.com", owner_email="owner@example.com", owner_password="test-password", site_name="Customer", headline="Hello", description="Company")
+        namespace["validate"](config)
+        for domain in ("192.168.64.2", "127.0.0.1", "8.8.8.8", "client.local", "client.localhost", "a..example.com"):
+            with self.subTest(domain=domain), self.assertRaises(namespace["DeployError"]):
+                namespace["validate"](dict(config, domain=domain))
+        import base64
+        bootstrap = base64.b64decode(namespace["PAYLOAD"]["payload/app/services/lightek_website/bootstrap.rb"])
+        check = 'eval(STDIN.read); begin; LightekWebsite::Bootstrap.call({"domain" => "192.168.64.2"}); abort "IP accepted"; rescue LightekSettings::SiteDomain::Invalid; end'
+        subprocess.run(["ruby", "-r", str(ROOT / "app/services/lightek_settings/site_domain.rb"), "-e", check], input=bootstrap, check=True)
 
     def test_public_verification_requires_rendered_homepage_as_well_as_health_record(self):
         site = hosted.HostedSite(self.config, self.base)

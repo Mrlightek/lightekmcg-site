@@ -44,6 +44,10 @@ def validate(config):
         raise ValueError("Invalid installation hostname")
     if any(type(config[k]) is not int or config[k] < 1 for k in ("target_id", "attempt")) or type(config["backward_compatible"]) is not bool:
         raise ValueError("Invalid execution identity or compatibility")
+    if config["adapter"] == "native_rails" and config["component"] == "lightek_app":
+        labels = config["domain"].split(".")
+        if len(labels) < 2 or labels[-1].isdigit() or labels[-1] in ("local", "localhost", "internal") or config["domain"].endswith(".home.arpa"):
+            raise ValueError("Use a public DNS hostname for the application")
     deployment = config["deployment"]
     if not isinstance(deployment, dict) or set(deployment) - KEYS:
         raise ValueError("Unknown profile fields")
@@ -290,6 +294,8 @@ class NativeUpdater:
                 self.as_user(["bundle", "install", "--jobs", "1"])
                 self.migration_started = True
                 self.as_user(["bundle", "exec", "rails", "db:migrate"])
+                if self.config["component"] == "lightek_app":
+                    self.as_user(["env", "LIGHTEK_EXPECTED_SITE_HOST=" + self.config["domain"], "bundle", "exec", "rails", "lightek:site_binding:verify"])
                 self.as_user(["bundle", "exec", "rails", "assets:precompile"])
                 self.as_user(["bundle", "exec", "rails", "zeitwerk:check"])
             else:

@@ -114,6 +114,9 @@ class FleetNativeUpdaterTest(unittest.TestCase):
         self.assertEqual("SECRET_KEY_BASE=customer-private-key\n", self.env.read_text())
         self.assertIn(["bundle", "install", "--jobs", "1"], instance.calls)
         self.assertIn(["bundle", "exec", "rails", "db:migrate"], instance.calls)
+        binding = ["env", "LIGHTEK_EXPECTED_SITE_HOST=" + instance.config["domain"], "bundle", "exec", "rails", "lightek:site_binding:verify"]
+        self.assertIn(binding, instance.calls)
+        self.assertLess(instance.calls.index(["bundle", "exec", "rails", "db:migrate"]), instance.calls.index(binding))
         self.assertIn(["passenger-config", "restart-app", str(self.app), "--ignore-app-not-running"], instance.calls)
         docker = [call for call in instance.calls if call[0] == "docker"]
         self.assertEqual(1, len(docker))
@@ -140,6 +143,14 @@ class FleetNativeUpdaterTest(unittest.TestCase):
         self.assertTrue(instance.receipt["migration_started"])
         self.assertNotIn("code_restored", instance.receipt)
         self.assertFalse(any("pg_restore" in args for args in instance.calls))
+
+    def test_wrong_website_domain_never_reports_a_successful_native_release(self):
+        instance = self.instance()
+        instance.fail = lambda args: "lightek:site_binding:verify" in args
+        with self.assertRaises(subprocess.CalledProcessError):
+            instance.execute()
+        self.assertEqual("failed", instance.receipt["status"])
+        self.assertFalse(any("assets:precompile" in args for args in instance.calls))
 
     def test_compatible_native_migration_failure_restores_previous_checkout(self):
         instance = self.instance()

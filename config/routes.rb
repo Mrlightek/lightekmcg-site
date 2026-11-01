@@ -1,6 +1,7 @@
 Rails.application.routes.draw do
   get "/dashboard/pwa", to: "dashboard/pwa#show", as: :dashboard_pwa
   patch "/dashboard/pwa", to: "dashboard/pwa#update"
+  post "/dashboard/pwa/hostname", to: "dashboard/pwa#repair_hostname", as: :dashboard_pwa_hostname
   patch "/dashboard/pwa/records/:kind/:id", to: "dashboard/pwa#moderate", as: :dashboard_pwa_record
   post "/dashboard/pwa/communities/:id/members", to: "dashboard/pwa#community_invite", as: :dashboard_pwa_community_members
   post "/dashboard/pwa/people", to: "dashboard/pwa#invite", as: :dashboard_pwa_people

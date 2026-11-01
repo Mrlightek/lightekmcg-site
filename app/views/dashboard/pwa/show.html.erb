@@ -8,7 +8,14 @@
   <% if @site %>
     <div class="pa-row"><p><strong><%= @site.name %></strong> <span class="pa-muted">· <%= @site.host %></span> <span class="pa-pill"><%= @application.status.humanize %></span></p><% if pwa_link %><%= link_to "Open PWA ↗", pwa_link, class: "pa-button alt", target: "_blank", rel: "noopener" %><% end %></div>
     <nav class="pa-tabs" aria-label="PWA administration sections"><% LightekPwa::Administration::SECTIONS.each do |key| %><% next if key == "people" && @policy.role != "admin" %><% next if %w[settings navigation studio].include?(key) && @policy.role == "moderator" %><%= link_to key.humanize, dashboard_pwa_path(site_id: @site.id, section: key), class: (@section == key ? "active" : nil), aria: {current: (@section == key ? "page" : nil)} %><% end %></nav>
-    <% unless pwa_link %><div class="pa-errors" role="alert"><strong>This website points to a private network address: <%= @site.host %>.</strong> Choose the website for <%= request.host %> or the client's public domain in the application selector. Its saved hostname must be corrected in website configuration before opening its PWA from production.</div><% end %>
+    <% unless pwa_link %><div class="pa-errors" role="alert"><strong>This website points to a private network address: <%= @site.host %>.</strong> Choose the website for <%= request.host %> or the client's public domain in the application selector. Its saved hostname must be corrected before opening its PWA from production.
+<% if @policy.super_admin? && LightekSettings::SiteDomain.public_hostname?(request.host) %>
+<%= form_with url: dashboard_pwa_hostname_path(site_id: @site.id), method: :post do %>
+<%= hidden_field_tag :expected_host, @site.host %>
+<p>Keep this website and its content, and bind it to <strong><%= request.host %></strong>.</p>
+<%= submit_tag "Use #{request.host} for this website", class: "pa-button" %>
+<% end %>
+<% end %></div><% end %>
     <% if flash[:notice] %><p class="pa-card" role="status"><%= flash[:notice] %></p><% end %>
     <% if @errors.present? %><div class="pa-errors" role="alert"><%= @errors.join(". ") %></div><% end %>
     <% if @section == "overview" %>

@@ -546,6 +546,9 @@ def configure_render(settings):
             setattr(scene, field, int(settings[field]))
     if "fps" in settings:
         scene.render.fps = int(settings["fps"])
+    if "fps_base" in settings:
+        scene.render.fps_base = float(settings["fps_base"])
+    scene.frame_set(int(settings.get("frame_current", 1)))
     scene.render.image_settings.file_format = "PNG"
 
     scene.render.film_transparent = bool(
@@ -597,6 +600,101 @@ def export_project_bundle(output_directory, manifest):
                     source = os.path.join(directory, name)
                     archive.write(source, os.path.relpath(source, output_directory))
         archive.writestr('source-credits.json', json.dumps(manifest.get('credits', []), ensure_ascii=False, indent=2))
+
+
+def apply_json_presets(settings, created):
+    scene = bpy.context.scene
+    for preset in settings.get('blender_presets', []):
+        token = str(preset['instance'])
+        prefix = 'LightekPreset_' + token
+        # Preserve the complete historical definition alongside native outputs.
+        text = bpy.data.texts.new(prefix + '.json')
+        text.write(json.dumps(preset, ensure_ascii=False, indent=2))
+        for marker in preset.get('markers', []):
+            scene.timeline_markers.new(str(marker['name']), frame=int(marker['frame']))
+        for index, item in enumerate(preset.get('texts', [])):
+            curve = bpy.data.curves.new(prefix + '_Text', 'FONT')
+            curve.body = str(item['body'])[:200]
+            curve.align_x = 'CENTER'
+            curve.size = 0.3
+            obj = bpy.data.objects.new(prefix + '_Title', curve)
+            scene.collection.objects.link(obj)
+            camera = scene.camera
+            frame = camera.data.view_frame(scene=scene)
+            depth = 2.0
+            factor = depth / abs(frame[0].z) if camera.data.type != 'ORTHO' else 1.0
+            width = (max(v.x for v in frame) - min(v.x for v in frame)) * factor
+            height = (max(v.y for v in frame) - min(v.y for v in frame)) * factor
+            obj.parent = camera
+            obj.location = (-width * 0.45, -height * 0.4 + index * height * 0.08, -depth)
+            curve.align_x = 'LEFT'
+            curve.size = width * 0.035
+            material = bpy.data.materials.new(prefix + '_TitleColor')
+            material.use_nodes = True
+            shader = material.node_tree.nodes.get('Principled BSDF')
+            shader.inputs['Base Color'].default_value = item['color']
+            shader.inputs['Emission Color'].default_value = item['color']
+            shader.inputs['Emission Strength'].default_value = 1
+            curve.materials.append(material)
+        for item in preset.get('materials', []):
+            material = bpy.data.materials.new(str(item['name']))
+            material.use_nodes = True
+            bsdf = material.node_tree.nodes.get('Principled BSDF')
+            bsdf.inputs['Base Color'].default_value = item['color']
+            bsdf.inputs['Metallic'].default_value = float(item['metallic'])
+            bsdf.inputs['Roughness'].default_value = float(item['roughness'])
+            material.use_fake_user = True
+        for item in preset.get('geometry_groups', []):
+            parameters = item.get('parameters', {})
+            group = bpy.data.node_groups.new(str(item['name']), 'GeometryNodeTree')
+            group.interface.new_socket(name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+            inputs = group.nodes.new('NodeGroupInput')
+            output = group.nodes.new('NodeGroupOutput')
+            cube = group.nodes.new('GeometryNodeMeshCube')
+            size = group.nodes.new('ShaderNodeCombineXYZ')
+            size.inputs['X'].default_value = 4
+            size.inputs['Y'].default_value = 2
+            size.inputs['Z'].default_value = 0.3
+            for name, value in parameters.items():
+                socket = group.interface.new_socket(name=str(name), in_out='INPUT', socket_type='NodeSocketFloat')
+                socket.default_value = float(value)
+                if name in ('desk_length', 'bar_width', 'platform_radius'):
+                    group.links.new(inputs.outputs[name], size.inputs['X'])
+            group.links.new(size.outputs[0], cube.inputs['Size'])
+            group.links.new(cube.outputs['Mesh'], output.inputs['Geometry'])
+            mesh = bpy.data.meshes.new(prefix + '_Geometry')
+            obj = bpy.data.objects.new(str(item.get('target_object', prefix)), mesh)
+            scene.collection.objects.link(obj)
+            modifier = obj.modifiers.new('JSON Geometry Preset', 'NODES')
+            modifier.node_group = group
+            obj['lightek_parameters'] = json.dumps(parameters)
+        nodes = preset.get('nodes', [])
+        if nodes:
+            scene.use_nodes = True
+            tree = scene.node_tree
+            composite = next((n for n in tree.nodes if n.type == 'COMPOSITE'), None) or tree.nodes.new('CompositorNodeComposite')
+            prior = composite.inputs['Image'].links[0].from_socket if composite.inputs['Image'].is_linked else None
+            if prior is None:
+                layer = tree.nodes.new('CompositorNodeRLayers')
+                prior = layer.outputs['Image']
+            types = {'glare': 'CompositorNodeGlare', 'colorbalance': 'CompositorNodeColorBalance',
+                     'lensdistortion': 'CompositorNodeLensdist', 'chromaticaberration': 'CompositorNodeLensdist',
+                     'rgbsplit': 'CompositorNodeLensdist', 'blur': 'CompositorNodeBlur'}
+            for name in nodes:
+                kind = types.get(str(name).lower().replace('_', ''))
+                if not kind:
+                    continue
+                node = tree.nodes.new(kind)
+                node.label = prefix + ': ' + name
+                if kind == 'CompositorNodeGlare':
+                    node.glare_type = 'FOG_GLOW'
+                if kind == 'CompositorNodeLensdist':
+                    node.inputs['Dispersion'].default_value = 0.015
+                if kind == 'CompositorNodeBlur':
+                    node.size_x = node.size_y = 2
+                tree.links.new(prior, node.inputs['Image'])
+                prior = node.outputs['Image']
+            tree.links.new(prior, composite.inputs['Image'])
 
 
 def requested_outputs(manifest):
@@ -703,6 +801,11 @@ def main():
                 f"{obj.name!r}"
             )
 
+        # An explicit production format takes precedence over recipe animation FPS.
+        if "fps" in settings:
+            bpy.context.scene.render.fps = int(settings["fps"])
+        if "fps_base" in settings:
+            bpy.context.scene.render.fps_base = float(settings["fps_base"])
         active_id = settings.get("active_camera_object_id")
         selected = created.get(str(active_id)) if active_id is not None else None
         if selected is None and settings.get("active_camera"):
@@ -712,6 +815,7 @@ def main():
                 raise RuntimeError('The active render camera must be a Blender camera')
             bpy.context.scene.camera = selected
         ensure_camera()
+        apply_json_presets(settings, created)
         if bpy.context.scene.camera.data.type == 'PANO':
             bpy.context.scene.render.engine = 'CYCLES'
         if not native_path:

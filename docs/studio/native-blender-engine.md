@@ -20,7 +20,7 @@ Render artifacts include an editable `.blend`, preview and manifest. Native temp
 
 ## Workers and deployment
 
-Run `bin/rails db:migrate`, including `20261101030000_register_native_blender_studio.rb`, to register the five native actions. No new media tables are required; Active Storage stores native sources and bundles. Restart the `studio` queue worker and serve PWA shell cache v48.
+Run `bin/rails db:migrate`, including `20261101030000_register_native_blender_studio.rb`, to register the five native actions. No new media tables are required; Active Storage stores native sources and bundles. Restart the `studio` queue worker and serve PWA shell cache v49.
 
 Production imports and renders execute Blender in isolated containers. Set `STUDIO_ASSET_WORKER_IMAGE`; optionally set `STUDIO_RENDER_WORKER_IMAGE` to use a different render image (it defaults to the asset worker image). Images need Blender and a writable `/tmp`; the application launches renders without network access, with a read-only filesystem, no added capabilities, a writable job directory and bounded memory/CPU. Local development uses `BLENDER_BIN` or `STUDIO_RENDER_ENGINE_BIN`. Use a worker version at least as new as each chosen source file. The tested runtime is Blender 4.0.2. Application hosting remains unchanged.
 

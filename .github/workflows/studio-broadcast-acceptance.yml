@@ -22,12 +22,13 @@ on:
       - 'app/services/blender/**'
       - 'app/models/studio_*.rb'
       - 'app/jobs/studio_blender_demo_import_job.rb'
-      - 'config/studio/blender_demos.json'
+      - 'config/studio/**'
       - 'test/operations/**'
       - 'test/javascript/studio_native_camera_test.cjs'
       - 'db/migrate/20261101010000_create_studio_broadcast_control.rb'
       - 'db/migrate/20261101020000_register_studio_library_actions.rb'
       - 'db/migrate/20261101030000_register_native_blender_studio.rb'
+      - 'db/migrate/20261101040000_register_blender_media_presets.rb'
       - '.github/workflows/studio-broadcast-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -47,7 +48,7 @@ jobs:
       - name: Library, HTTP, Gatekeeper, publication and native Blender acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
-        run: bundle exec ruby test/standalone/native_blender_checks.rb
+        run: bundle exec ruby test/standalone/media_preset_checks.rb
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'

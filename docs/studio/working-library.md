@@ -2,6 +2,8 @@
 
 Open **Studio → Library** in the PWA. The library brings production recipes, imported/generated media, and saved project scenes together.
 
+The original JSON media packs are also available as project templates and in-project presets; see [JSON media presets](json-media-presets.md).
+
 ## Built-in production recipes
 
 All 22 entries in the original library now map to server-owned executable recipes through `studio.workspace.library.apply`. Pick a saved scene and use an item to create real scene objects, apply a material/motion to a selected element, or generate reusable media. The workspace shelf also has **Use in this scene** actions.
@@ -38,7 +40,7 @@ Loading media is a local preview operation. A broadcast starts only through the 
 
 ## Deployment and verification
 
-Run `bin/rails db:migrate` to register the four new library capabilities. No new media database tables are needed. The PWA shell cache is bumped to v48. Run the native Blender capability migration as well; see [Native Blender engine](native-blender-engine.md). Existing Blender/FFmpeg processing and queue configuration still apply.
+Run `bin/rails db:migrate` to register the four new library capabilities. No new media database tables are needed. The PWA shell cache is bumped to v49. Run the native Blender capability migration as well; see [Native Blender engine](native-blender-engine.md). Existing Blender/FFmpeg processing and queue configuration still apply.
 
 Acceptance commands with the standalone bundle:
 

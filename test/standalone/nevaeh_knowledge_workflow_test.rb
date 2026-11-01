@@ -114,6 +114,7 @@ require_relative "../../app/services/nevaeh_intelligences/lesson_distribution"
 require_relative "../../app/services/studio/native_blender/media_presets"
 require_relative "../../app/services/nevaeh_intelligences/central_reporting"
 require_relative "../../app/jobs/nevaeh_intelligences/knowledge_gap_notification_job"
+require_relative "../../app/jobs/nevaeh_intelligences/process_backlog_job"
 require_relative "../../app/services/gatekeeper/lesson_service"
 
 class NevaehKnowledgeWorkflowTest < Minitest::Test
@@ -182,6 +183,19 @@ class NevaehKnowledgeWorkflowTest < Minitest::Test
     assert Procedures.validate_steps!([saved])
     assert_equal @rows.first.fetch("contract").fetch("acceptance_criteria").map { |text| "page: #{text}" }, order["acceptance_criteria"]
     assert_nil record.reload.extra_fields.dig("nevaeh_structured", "authorized_revision")
+  end
+  def test_periodic_sweep_recovers_pending_notifications_even_when_analysis_is_capped
+    record = ticket
+    NevaehOrchestration::Escalation.knowledge_gap!(ticket: record, reason: "Missing lesson")
+    fields = record.reload.extra_fields.merge("nevaeh_backlog" => {"failure_count" => 5, "status" => "escalated"})
+    record.update!(extra_fields: fields)
+    ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+    NevaehIntelligences::TicketBacklog.stub(:enabled?, true) do
+      NevaehIntelligences::ProcessBacklogJob.new.perform(after_id: 0, ceiling_id: 0)
+    end
+    jobs = ActiveJob::Base.queue_adapter.enqueued_jobs
+    assert_equal 1, jobs.size
+    assert_equal NevaehIntelligences::KnowledgeGapNotificationJob, jobs.first.fetch(:job)
   end
   def test_customer_cannot_enable_automatic_execution
     record = ticket
@@ -331,7 +345,9 @@ class NevaehKnowledgeWorkflowTest < Minitest::Test
   def test_ticket_templates_crud_preserves_user_scope_and_does_not_dispatch
     saved = NevaehTicketTemplate.create!(user: @client, name: "Reusable page", sections: [step])
     assert_equal 1, NevaehTicketTemplate.for_user(@client).count
-    assert_empty NevaehTicketTemplate.for_user(@admin)
+    other_client = User.create!(role: "client", email_address: "other@example.com")
+    assert_empty NevaehTicketTemplate.for_user(other_client)
+    assert_equal 1, NevaehTicketTemplate.for_user(@admin).count
     assert_equal article.id, saved.reusable_sections!.first.dig("procedure", "article_id")
     assert_equal 0, Marlon::Ticket.count
     saved.update!(name: "Our about page")

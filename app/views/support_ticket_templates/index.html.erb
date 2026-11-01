@@ -7,7 +7,8 @@
 <%= link_to 'Create ticket template', new_support_ticket_template_path, class: 'dd-topbar-btn' %>
 <% if @templates.empty? %><p>No saved templates yet. Start with a supported procedure and customize its values.</p><% end %>
 <% @templates.each do |template| %>
-  <article><h2><%= template.name %></h2><p><%= template.sections.size %> procedure sections</p>
+  <article><h2><%= template.name %></h2>
+  <% if current_user.role == "super_admin" %><p>Owner: <%= template.user.email_address %></p><% end %><p><%= template.sections.size %> procedure sections</p>
   <%= link_to 'Customize and submit ticket', supports_path(template_id: template.id), class: 'dd-topbar-btn' %>
   <%= link_to 'Edit template', edit_support_ticket_template_path(template) %>
   <%= button_to 'Delete template', support_ticket_template_path(template), method: :delete %></article>

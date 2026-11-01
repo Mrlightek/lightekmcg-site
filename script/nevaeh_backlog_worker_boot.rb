@@ -14,6 +14,17 @@ ENV["NEVAEH_BACKLOG_ENABLED"] = "1"
   constant.constantize
   load File.join(root, path)
 end
+# A candidate overlay must include its notification/KB dependencies. Keep
+# notifications durably pending until release rather than delivering test mail
+# or placing an undeployed job class on the production queue.
+ENV["NEVAEH_ESCALATION_ENQUEUE"] = "0"
+NevaehOrchestration::Escalation
+load File.join(root, "app/services/nevaeh_orchestration/escalation.rb")
+%w[structured_ticket structured_actions knowledge_procedures engineering_settings github_issue_client github_backlog central_reporting].each do |name|
+  load File.join(root, "app/services/nevaeh_intelligences/#{name}.rb")
+end
+Dir[File.join(root, "app/services/nevaeh_intelligences/structured_workers/*.rb")].sort.each { |path| load path }
+load File.join(root, "app/jobs/nevaeh_intelligences/knowledge_gap_notification_job.rb")
 load File.join(root, "app/services/nevaeh_intelligences/ticket_backlog.rb")
 load File.join(root, "app/jobs/nevaeh_intelligences/process_backlog_job.rb")
 

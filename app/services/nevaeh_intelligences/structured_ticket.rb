@@ -108,7 +108,9 @@ module NevaehIntelligences
         workflow = fields.fetch("nevaeh_structured")
         workflow.fetch("steps").each_key do |id|
           old = previous.fetch("inputs").fetch("sections").find { |step| step["id"] == id }
-          raise Invalid, "Verified section #{id} must be preserved" unless compiled.find { |step| step["id"] == id } == old
+          replacement = compiled.find { |step| step["id"] == id }
+          preserved = replacement == old || (old && !old.key?("procedure") && replacement&.except("procedure") == old)
+          raise Invalid, "Verified section #{id} must be preserved" unless preserved
         end
         order = previous.merge("inputs" => {"sections" => compiled}, "acceptance_criteria" => KnowledgeProcedures.criteria(compiled))
         WorkOrder.validate!(order)

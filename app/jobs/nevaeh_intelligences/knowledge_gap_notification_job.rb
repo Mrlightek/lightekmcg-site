@@ -7,7 +7,7 @@ module NevaehIntelligences
 
     def perform(ticket_id)
       ticket = Marlon::Ticket.find_by(id: ticket_id)
-      return unless ticket
+      return unless ticket && ticket.status != "resolved"
       if CentralReporting.client?
         CentralReporting.deliver!(ticket: ticket)
         return

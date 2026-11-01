@@ -7,7 +7,7 @@ class NevaehTicketTemplate < ApplicationRecord
   validate :compile_kb_bound_sections
 
   def self.for_user(user)
-    where(user_id: user.id)
+    user.role == "super_admin" ? all : where(user_id: user.id)
   end
 
   def reusable_sections!

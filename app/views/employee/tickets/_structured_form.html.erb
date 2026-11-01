@@ -12,9 +12,9 @@
       <p style="font-size:12px">Without automatic authorization, the ticket waits for your Execute Work Order action. Pages stay drafts; generated code is tested and committed on the engineering branch.</p>
       <div data-structured-ticket-target="list">
         <% rows = structured.fetch('sections', {}).presence || {'1' => {'id' => 'page', 'action' => 'site.page.create'}} %>
-        <% rows.each do |index, values| %><%= render 'structured_step', index: index, values: values %><% end %>
+        <% rows.each do |index, values| %><%= render 'employee/tickets/structured_step', index: index, values: values %><% end %>
       </div>
-      <template data-structured-ticket-target="template"><%= render 'structured_step', index: 'NEW_STEP', values: {} %></template>
+      <template data-structured-ticket-target="template"><%= render 'employee/tickets/structured_step', index: 'NEW_STEP', values: {} %></template>
       <button type="button" data-action="structured-ticket#add" class="dd-topbar-btn">+ Add action section</button>
       <p style="font-size:12px">For example, name a page section <code>page</code>, then set the next section's page ID to <code>@page.page_id</code>. Dependencies and acceptance checks are generated from these typed actions.</p>
     </fieldset>

@@ -18,6 +18,13 @@ module NevaehIntelligences
         journal!(ticket, "completed", outcome: outcome)
         return outcome
       end
+      # Notification reservations remain pending across Redis outages and
+      # earlier capped analysis failures. Recover them independently of a work
+      # order's job receipt; the existing mail/webhook outboxes are idempotent.
+      if ENV.fetch("NEVAEH_ESCALATION_ENQUEUE", "1") == "1"
+        pending = Marlon::Ticket.where.not(status: "resolved").where("extra_fields -> 'nevaeh_knowledge_gap' -> 'notification' ->> 'state' = ?", "pending").order(:id).limit(BATCH_SIZE)
+        pending.pluck(:id).each { |id| KnowledgeGapNotificationJob.perform_later(id) }
+      end
       # Fixed high-water mark bounds each sweep; the next cron catches new rows.
       ceiling = ceiling_id || Marlon::Ticket.maximum(:id) || 0
       ids = Marlon::Ticket.where.not(status: "resolved").where("id > ? AND id <= ?", after_id, ceiling)

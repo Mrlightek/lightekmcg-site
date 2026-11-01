@@ -18,7 +18,7 @@ module NevaehOrchestration
           ticket.log!(action: "nevaeh_knowledge_gap_escalated", detail: gap.except("notification").to_json)
         end
       end
-      NevaehIntelligences::KnowledgeGapNotificationJob.perform_later(ticket.id) unless %w[submitted reported_to_central].include?(ticket.extra_fields.to_h.dig("nevaeh_knowledge_gap", "notification", "state"))
+      NevaehIntelligences::KnowledgeGapNotificationJob.perform_later(ticket.id) if ENV.fetch("NEVAEH_ESCALATION_ENQUEUE", "1") == "1" && !%w[submitted reported_to_central].include?(ticket.extra_fields.to_h.dig("nevaeh_knowledge_gap", "notification", "state"))
       ticket
     end
 

@@ -47,7 +47,7 @@ class SupportTicketTemplatesController < ::DymondDash::ApplicationController
   end
 
   def set_template
-    # Templates and custom values stay private to their creator on this instance.
+    # Customer templates stay scoped to their owner; platform super admins retain oversight.
     @template = NevaehTicketTemplate.for_user(current_user).find(params[:id])
   end
 

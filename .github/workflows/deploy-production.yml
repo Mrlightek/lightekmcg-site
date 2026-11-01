@@ -43,7 +43,7 @@ jobs:
 
       - name: Verify DNS recovery regressions before release
         run: |
-          python3 test/operations/deploy_checkout_test.py
+          python3 -m unittest test.operations.deploy_checkout_test test.operations.deploy_release_bootstrap_test test.operations.studio_docker_access_test
           ruby test/scripts/paid_dns_recovery_standalone.rb
           python3 -m unittest discover -s test/scripts -p 'test_paid_instance_verification.py' -v
           python3 -m unittest discover -s test/scripts -p 'test_manual_instance_config.py' -v
@@ -100,7 +100,8 @@ jobs:
             "bash /var/www/lightekmcg-site/lib/scripts/repair_lightek_production_permissions.sh && sudo -u lightek -H bash -s -- /var/www/lightekmcg-site" \
             < lib/scripts/gatekeeper/prepare_checkout.sh
 
-          ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$APP_BRANCH'" <<'LIGHTEK_DEPLOY' | tee deploy-output.txt
+          DEPLOY_RELEASE_SCRIPT=$(base64 -w0 lib/scripts/gatekeeper/deploy_project.sh)
+          ssh -i ~/.ssh/lightek_deploy -p "$PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$APP_BRANCH' '$DEPLOY_RELEASE_SCRIPT' '$GITHUB_SHA'" <<'LIGHTEK_DEPLOY' | tee deploy-output.txt
             set -e
             # Restore the repository's documented production ownership model.
             bash /var/www/lightekmcg-site/lib/scripts/repair_lightek_production_permissions.sh
@@ -112,6 +113,13 @@ jobs:
                 stash push --include-untracked -m paid-order-1-pre-release-recovery
             fi
 
+            # Execute this workflow release's bytes, not the server's older script.
+            DEPLOY_SCRIPT=$(mktemp "${TMPDIR:-/tmp}/lightek-deploy.XXXXXXXX")
+            chmod 700 "$DEPLOY_SCRIPT"
+            trap 'rm -f "$DEPLOY_SCRIPT"' EXIT
+            printf '%s' "$2" | base64 --decode > "$DEPLOY_SCRIPT"
+
+            APP_TARGET_SHA="$3" \
             APP_ROOT=/var/www/lightekmcg-site \
             APP_USER=lightek \
             APP_NAME=lightekmcg-site \
@@ -121,7 +129,7 @@ jobs:
             APACHE_SERVICE=apache2 \
             SIDEKIQ_SERVICE=lightekmcg-site-sidekiq \
             ENV_FILE=/etc/lightek/lightekmcg-site.env \
-            bash /var/www/lightekmcg-site/lib/scripts/gatekeeper/deploy_project.sh
+            bash "$DEPLOY_SCRIPT"
             bash /var/www/lightekmcg-site/lib/scripts/prepare_apache_passenger_env.sh
             systemctl restart apache2
             systemctl is-active --quiet apache2

@@ -8,6 +8,8 @@ set -euo pipefail
 [[ "$APP_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "ERROR: APP_DOMAIN must be a DNS hostname"; exit 1; }
 
 APP_BRANCH="${APP_BRANCH:-main}"
+APP_TARGET_SHA="${APP_TARGET_SHA:-}"
+[[ -z "$APP_TARGET_SHA" || "$APP_TARGET_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "ERROR: APP_TARGET_SHA must be an exact commit SHA" >&2; exit 1; }
 RUBY_VERSION="${RUBY_VERSION:-3.3.6}"
 APACHE_SERVICE="${APACHE_SERVICE:-apache2}"
 SIDEKIQ_SERVICE="${SIDEKIQ_SERVICE:-${APP_NAME}-sidekiq}"
@@ -38,8 +40,17 @@ run_as_app_user() {
 run_as_app_user "bash lib/scripts/gatekeeper/prepare_checkout.sh '${APP_ROOT}'"
 
 run_as_app_user "git fetch origin '${APP_BRANCH}'"
-run_as_app_user "git checkout '${APP_BRANCH}'"
-run_as_app_user "git pull --ff-only origin '${APP_BRANCH}'"
+if [[ -n "$APP_TARGET_SHA" ]]; then
+  APP_CHECKOUT_SHA=$(run_as_app_user "git rev-parse HEAD")
+  if [[ "$APP_CHECKOUT_SHA" != "$APP_TARGET_SHA" ]] && run_as_app_user "git merge-base --is-ancestor '${APP_TARGET_SHA}' HEAD"; then
+    echo "ERROR: requested release is older than the server checkout; start a deployment of the current release instead of rerunning an older job." >&2
+    exit 1
+  fi
+  run_as_app_user "git checkout --detach '${APP_TARGET_SHA}'"
+else
+  run_as_app_user "git checkout '${APP_BRANCH}'"
+  run_as_app_user "git pull --ff-only origin '${APP_BRANCH}'"
+fi
 
 run_rails() {
   sudo -u "${APP_USER}" -H env -u GEM_HOME -u GEM_PATH bash -lc "

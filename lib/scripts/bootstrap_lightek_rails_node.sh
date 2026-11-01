@@ -56,8 +56,10 @@ cleanup_policy
 POLICY_CREATED=0
 trap - EXIT
 
-systemctl disable apache2 >/dev/null 2>&1 || true
-systemctl stop apache2 >/dev/null 2>&1 || true
+if [[ "${LIGHTEK_KEEP_APACHE:-0}" != 1 ]]; then
+  systemctl disable apache2 >/dev/null 2>&1 || true
+  systemctl stop apache2 >/dev/null 2>&1 || true
+fi
 
 if ! id "${APP_USER}" >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash "${APP_USER}"

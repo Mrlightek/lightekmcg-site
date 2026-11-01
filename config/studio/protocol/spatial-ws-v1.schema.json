@@ -1,0 +1,1130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lightekmcg.com/schemas/spatial-ws-v1.json",
+  "title": "Lightek Spatial control protocol v1",
+  "$defs": {
+    "HELLO": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "HELLO"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "ticket": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 4096
+            },
+            "client_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "known_server_epoch": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "ticket",
+            "client_id",
+            "known_server_epoch"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "CAMERA_UPDATE": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "CAMERA_UPDATE"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "camera_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "mode": {
+              "enum": [
+                "preview",
+                "commit"
+              ]
+            },
+            "role": {
+              "enum": [
+                "viewer",
+                "shot"
+              ]
+            },
+            "matrix_order": {
+              "const": "column-major"
+            },
+            "coordinate_space": {
+              "const": "BLENDER_Z_UP_METERS"
+            },
+            "camera_world_matrix": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -1000000,
+                "maximum": 1000000
+              },
+              "minItems": 16,
+              "maxItems": 16
+            },
+            "focal_length_mm": {
+              "type": "number",
+              "minimum": 2,
+              "maximum": 250
+            },
+            "lens_shift": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -2,
+                "maximum": 2
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "activate": {
+              "const": true
+            }
+          },
+          "required": [
+            "camera_id",
+            "mode",
+            "role",
+            "matrix_order",
+            "coordinate_space"
+          ],
+          "additionalProperties": false,
+          "anyOf": [
+            {
+              "required": [
+                "camera_world_matrix"
+              ]
+            },
+            {
+              "required": [
+                "focal_length_mm"
+              ]
+            },
+            {
+              "required": [
+                "lens_shift"
+              ]
+            },
+            {
+              "required": [
+                "activate"
+              ]
+            }
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "role": {
+                    "const": "viewer"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "mode": {
+                    "const": "preview"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "TIMELINE_SCRUB": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "TIMELINE_SCRUB"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "frame": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "blender_frame": {
+              "type": "integer",
+              "minimum": -1000000,
+              "maximum": 2000000
+            },
+            "fps": {
+              "type": "object",
+              "properties": {
+                "num": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 120000
+                },
+                "den": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000
+                }
+              },
+              "required": [
+                "num",
+                "den"
+              ],
+              "additionalProperties": false
+            },
+            "playback_state": {
+              "enum": [
+                "paused",
+                "playing",
+                "scrubbing"
+              ]
+            },
+            "evaluate_keyframes": {
+              "const": true
+            }
+          },
+          "required": [
+            "frame",
+            "blender_frame",
+            "fps",
+            "playback_state",
+            "evaluate_keyframes"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "ASSET_TRANSFORM": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "ASSET_TRANSFORM"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "object_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "mode": {
+              "enum": [
+                "preview",
+                "commit"
+              ]
+            },
+            "space": {
+              "const": "WORLD"
+            },
+            "position": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -1000000,
+                "maximum": 1000000
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "rotation_quaternion": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -1,
+                "maximum": 1
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "scale": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": -10000,
+                "maximum": 10000,
+                "not": {
+                  "minimum": -9.9999e-07,
+                  "maximum": 9.9999e-07
+                }
+              },
+              "minItems": 3,
+              "maxItems": 3
+            }
+          },
+          "required": [
+            "object_id",
+            "mode",
+            "space",
+            "position",
+            "rotation_quaternion",
+            "scale"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "SERVER_STATE": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "SERVER_STATE"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "server_epoch": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "ready": {
+              "type": "boolean"
+            },
+            "worker_id": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "frame": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "blender_frame": {
+              "type": "integer",
+              "minimum": -1000000,
+              "maximum": 2000000
+            },
+            "playback_state": {
+              "enum": [
+                "paused",
+                "playing",
+                "scrubbing"
+              ]
+            },
+            "render": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "enum": [
+                    "staged",
+                    "rendering",
+                    "ready",
+                    "failed"
+                  ]
+                },
+                "frame_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "render_ms": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "rendered_fps": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "status",
+                "frame_id",
+                "render_ms",
+                "rendered_fps"
+              ],
+              "additionalProperties": false
+            },
+            "cameras": {
+              "type": "array",
+              "maxItems": 128,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_.:-]+$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "focal_length_mm": {
+                    "type": "number"
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "camera_type": {
+                    "enum": [
+                      "PERSP",
+                      "ORTHO",
+                      "PANO"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "focal_length_mm",
+                  "active"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "active_layer_nodes": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9_.:-]+$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "kind": {
+                    "type": "string",
+                    "maxLength": 32
+                  },
+                  "visible": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "kind",
+                  "visible"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "last_client_seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "recent_receipts": {
+              "type": "array",
+              "maxItems": 256,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_.:-]+$"
+              }
+            }
+          },
+          "required": [
+            "server_epoch",
+            "ready",
+            "worker_id",
+            "frame",
+            "blender_frame",
+            "playback_state",
+            "render",
+            "cameras",
+            "active_layer_nodes",
+            "last_client_seq",
+            "recent_receipts"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "ACK": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "ACK"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            },
+            "status": {
+              "enum": [
+                "applied",
+                "duplicate",
+                "superseded"
+              ]
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "command_id",
+            "status",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "ERROR": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "ERROR"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "command_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            },
+            "code": {
+              "enum": [
+                "INVALID",
+                "UNAUTHORIZED",
+                "CONFLICT",
+                "BUSY",
+                "RECOVERY_REQUIRED",
+                "WORKER_FAILED"
+              ]
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "command_id",
+            "code",
+            "message",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "PING": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "PING"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "PONG": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "PONG"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "SDP_OFFER": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "SDP_OFFER"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "sdp": {
+              "type": "string",
+              "maxLength": 64000
+            },
+            "type": {
+              "const": "offer"
+            }
+          },
+          "required": [
+            "sdp",
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "SDP_ANSWER": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "SDP_ANSWER"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "sdp": {
+              "type": "string",
+              "maxLength": 64000
+            },
+            "type": {
+              "const": "answer"
+            }
+          },
+          "required": [
+            "sdp",
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "ICE_CANDIDATE": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "ICE_CANDIDATE"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "scene_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "candidate": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 2048
+            },
+            "sdpMid": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            },
+            "sdpMLineIndex": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 32
+            }
+          },
+          "required": [
+            "candidate",
+            "sdpMid",
+            "sdpMLineIndex"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "session_id",
+        "message_id",
+        "seq",
+        "scene_revision",
+        "payload"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/HELLO"
+    },
+    {
+      "$ref": "#/$defs/CAMERA_UPDATE"
+    },
+    {
+      "$ref": "#/$defs/TIMELINE_SCRUB"
+    },
+    {
+      "$ref": "#/$defs/ASSET_TRANSFORM"
+    },
+    {
+      "$ref": "#/$defs/SERVER_STATE"
+    },
+    {
+      "$ref": "#/$defs/ACK"
+    },
+    {
+      "$ref": "#/$defs/ERROR"
+    },
+    {
+      "$ref": "#/$defs/PING"
+    },
+    {
+      "$ref": "#/$defs/PONG"
+    },
+    {
+      "$ref": "#/$defs/SDP_OFFER"
+    },
+    {
+      "$ref": "#/$defs/SDP_ANSWER"
+    },
+    {
+      "$ref": "#/$defs/ICE_CANDIDATE"
+    }
+  ]
+}

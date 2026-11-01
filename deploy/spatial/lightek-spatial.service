@@ -1,0 +1,27 @@
+[Unit]
+Description=Lightek persistent Blender WebRTC viewport
+After=network.target
+
+[Service]
+Type=simple
+User=lightek
+Group=lightek
+WorkingDirectory=/opt/lightek/current
+EnvironmentFile=/etc/lightek/spatial.env
+ExecStart=/opt/lightek/spatial-venv/bin/python -m services.spatial.server
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=false
+# A viewport worker uses a dedicated GPU Xorg socket, shared with its container.
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lightek/spatial
+UMask=0077
+TasksMax=512
+MemoryMax=8G
+
+[Install]
+WantedBy=multi-user.target

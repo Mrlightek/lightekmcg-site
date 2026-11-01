@@ -20,6 +20,10 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
     @stats = {"Published titles"=>posts.where(moderation_state: "published").count, "OTT applications"=>applications.count,
       "Channels on air"=>channels.where(status: "published").count, "Broadcasts sending"=>@live.where(status: "live").count}
   end
+  def save_generation_provider
+    Studio::Spatial::Generation.save_provider!(site:@site,user:current_user,key:params.require(:api_key))
+    back("Text-to-3D provider saved securely. Studio can now generate and stage assets.")
+  end
   def save_application
     record = params[:id].present? ? applications.find(params[:id]) : applications.new
     raw = params.require(:outlet).permit(:name, :slug, :platform, :status, :minimum_client_version, :lock_version,

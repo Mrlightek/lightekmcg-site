@@ -3500,7 +3500,7 @@ const ST={
   projects:[],
   objectTypes:[],
   selectedObjectId:null,
-  workspaceMode:"production",
+  workspaceMode:"3d",
   busy:false,
   mutationStatus:"",
   createBlueprintKey:null,
@@ -7210,18 +7210,14 @@ const studio3DWorkspace=record=>{
         </span>
 
         <h2 style="margin-top:8px">
-          SceneObjects
+          Scene Outliner
         </h2>
 
-        ${studioObjectRows(
-          scene.objects||[]
-        )}
+        ${window.LightekStudioApp?.outliner?.(scene)||studioObjectRows(scene.objects||[])}
       </section>
 
       <aside class="studio-panel">
-        ${studioInspector(
-          scene
-        )}
+        ${window.LightekStudioApp?.inspector?.(scene)||studioInspector(scene)}
       </aside>
     </div>
   `
@@ -7301,7 +7297,9 @@ const studioSceneView=record=>{
           `).join("")}
         </div>
 
-        ${ST.workspaceMode==="scene"
+        ${ST.workspaceMode==="spatial"
+          ?window.LightekStudioApp.story(record,"spatial")
+          :ST.workspaceMode==="scene"
           ?studioSceneSummary(record)
           :ST.workspaceMode==="3d"
             ?studio3DWorkspace(record)
@@ -13386,9 +13384,13 @@ addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)loc
 
 <script src="/lightek/vendor/hls/hls.light.min.js"></script>
 <script src="/lightek/community-app.js"></script>
+<script type="module" src="/lightek/spatial/community-feed.js"></script>
 <script src="/lightek/studio-app.js"></script>
 <script src="/lightek/studio-media.js"></script>
+<script src="/lightek/studio-community-hub.js"></script>
 <script src="/lightek/studio-native.js"></script>
+<script src="/lightek/studio-workflows.js"></script>
+<script src="/lightek/studio-spatial.js"></script>
 <script type="module" src="/lightek/asset-preview.js"></script>
 <script src="/lightek/bootstrap-adapter.js"></script>
 <script src="/lightek/application-settings.js"></script>

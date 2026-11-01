@@ -9,6 +9,8 @@ class StudioPublication < ApplicationRecord
   ].freeze
   STATUSES = %w[draft scheduled publishing published failed cancelled].freeze
 
+  has_one_attached :spatial_scene
+  has_many_attached :spatial_files
   belongs_to :studio_project
   belongs_to :production, optional: true
   belongs_to :artifact

@@ -52,6 +52,10 @@ end
 Rails.application.routes.append do
   resources :posts
   resources :communities
+  get "/api/lightek/pwa/posts/:post_id/spatial",to:"api/lightek_pwa#spatial_manifest"
+  get "/api/lightek/pwa/posts/:post_id/spatial/assets/:asset_id",to:"api/lightek_pwa#spatial_asset"
+  post "/api/lightek/pwa/posts/:post_id/spatial/fork",to:"api/lightek_pwa#spatial_fork"
+  post "/api/lightek/pwa/studio/generation",to:"api/lightek_pwa#spatial_generation"
   get "/api/lightek/pwa/assets/:id/:flavor",to:"api/lightek_pwa#asset_file"
   get "/api/lightek/ott/catalog",to:"api/lightek_pwa#ott_catalog"
   get "/api/lightek/pwa/live/:post_id/index.m3u8",to:"api/lightek_pwa#live_playlist"

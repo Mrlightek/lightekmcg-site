@@ -216,7 +216,13 @@ module Gatekeeper
       @deployment_stage = "receipt_persistence"
       operation.update!(status: "succeeded", exit_status: 0, completed_at: Time.current, result: receipt)
       @node.with_lock do
-        @node.update!(metadata: @node.metadata.to_h.merge("website_deployment" => receipt), status: "healthy")
+        metadata=@node.metadata.to_h.deep_dup
+        metadata["website_deployment"]=receipt
+        if receipt["fleet_config"]
+          metadata["website_deployments"]||={}
+          metadata["website_deployments"][@domain]=config.merge("deployment_adapter"=>"native_rails","fleet_config"=>receipt["fleet_config"])
+        end
+        @node.update!(metadata:metadata,status:"healthy")
       end
       Gatekeeper::Fleet::Inventory.sync_node!(@node)
       {operation_id: operation.id, url: receipt.fetch("url"), verified: true}

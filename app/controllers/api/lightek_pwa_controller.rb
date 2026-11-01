@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Api
   class LightekPwaController < ApplicationController
-    allow_unauthenticated_access only: %i[show media cover live_playlist live_segment ott_catalog manifest]
+    allow_unauthenticated_access only: %i[show media cover live_playlist live_segment ott_catalog manifest spatial_manifest spatial_asset]
     before_action :resolve_context
     rescue_from ActiveRecord::RecordNotFound do
       render json: { error: "Content not found" }, status: :not_found
@@ -87,6 +87,72 @@ module Api
       stream_blob(attachment.blob)
     end
 
+    def spatial_manifest
+      post=::LightekCommunity::Access.new(user:current_user,site_id:@site.id).posts.find(params[:post_id])
+      render json: ::Studio::Spatial::Publication.manifest(post)
+    end
+    def spatial_asset
+      post=::LightekCommunity::Access.new(user:current_user,site_id:@site.id).posts.find(params[:post_id])
+      ref=Array(post.metadata.dig("spatial","assets")).find { |asset| asset["id"].to_s==params[:asset_id].to_s } or raise ActiveRecord::RecordNotFound
+      stream_blob(post.spatial_files.blobs.find(ref.fetch("proxy_blob_id")))
+    end
+    def spatial_fork
+      community=::LightekCommunity::Access.new(user:current_user,site_id:@site.id)
+      post=community.posts.find(params[:post_id]);community.require_profile!
+      access=::Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
+      render json: ::Studio::Spatial::Publication.fork!(post,access:access,request_key:params.require(:request_key))
+    rescue ArgumentError => error
+      render json:{error:error.message},status: :unprocessable_entity
+    end
+
+    def spatial_hub
+      access=::LightekCommunity::Access.new(user:current_user,site_id:@site.id)
+      community=access.community!(params.require(:slug))
+      posts=access.posts.where(community_id:community.id).order(id: :desc).limit(40)
+      assets=posts.flat_map do |post|
+        next [] unless post.metadata.dig("spatial","allow_remix")
+        Array(post.metadata.dig("spatial","assets")).map { |ref| {post_id:post.id,asset_id:ref["id"],name:ref["name"],license:post.metadata.dig("spatial","license"),author:post.user.profile.public_display_name,url:"/api/lightek/pwa/posts/#{post.id}/spatial/assets/#{ref['id']}"} }
+      end
+      render json:{community:community.slug,assets:assets}
+    end
+    def spatial_hub_import
+      community=::LightekCommunity::Access.new(user:current_user,site_id:@site.id)
+      post=community.posts.find(params.require(:post_id));community.require_profile!
+      access=::Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
+      asset=::Studio::Spatial::Publication.import_asset!(post,access:access,asset_id:params.require(:asset_id),request_key:params.require(:request_key))
+      render json:{asset_id:asset.id,name:asset.name,status:asset.status}
+    rescue ArgumentError => error
+      render json:{error:error.message},status: :unprocessable_entity
+    end
+
+    def spatial_generation
+      access=::Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
+      asset=case params.fetch(:operation,"create")
+      when "create" then ::Studio::Spatial::Generation.submit(access:access,scene_id:params.require(:scene_id),prompt:params.require(:prompt),request_key:params.require(:request_key))
+      when "status" then StudioAsset.for_actor(access).find(params.require(:asset_id))
+      when "retry" then ::Studio::Spatial::Generation.retry!(access,StudioAsset.for_actor(access).find(params.require(:asset_id)))
+      else raise ArgumentError,"Unsupported generation operation"
+      end
+      render json: ::Studio::Spatial::Generation.status(asset)
+    rescue ArgumentError => error
+      render json:{error:error.message},status: :unprocessable_entity
+    end
+
+    def spatial_session
+      access=::Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
+      client=::Studio::Spatial::Client.new(access,origin:request.base_url)
+      result=case params.fetch(:operation,"create")
+      when "create" then client.create(access.scene!(params.require(:scene_id)))
+      when "ticket" then client.ticket(params.require(:session_id))
+      when "close" then client.close(params.require(:session_id))
+      else raise ArgumentError,"Unsupported Blender session operation"
+      end
+      result["ws_url"]="#{request.ssl? ? 'wss' : 'ws'}://#{request.host_with_port}/studio-spatial/ws" unless result["closed"]
+      render json:result
+    rescue ArgumentError => error
+      render json:{error:error.message},status: :unprocessable_entity
+    end
+
     def upload
       file = params.require(:file)
       raise ArgumentError, "Choose a media file" unless file.respond_to?(:tempfile)
@@ -157,8 +223,9 @@ module Api
       @site = LightekPwa::SiteContext.resolve(request.host)
       surface = case action_name
       when "manifest" then nil
-      when "asset_file" then "studio"
+      when "asset_file", "spatial_session", "spatial_generation", "spatial_fork", "spatial_hub", "spatial_hub_import" then "studio"
       when "upload" then params[:purpose] == "studio_asset" ? "studio" : "create"
+      when "spatial_manifest", "spatial_asset" then "home"
       when "ott_catalog", "live_playlist", "live_segment" then "watch"
       when "show" then {"feed" => "home", "saved" => "home", "profile" => "space", "community" => "communities", "post" => "home", "media" => "watch"}.fetch(params.fetch(:view, "feed"), params[:view])
       end

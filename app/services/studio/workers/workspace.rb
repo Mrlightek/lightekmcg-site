@@ -123,6 +123,10 @@ module Studio
             publication = project.studio_publications.create!(artifact: artifact, production: operation.production,
               platform: platform, request_key: key, status: time&.future? ? "scheduled" : "draft", scheduled_at: time,
               metadata: metadata)
+            if ActiveModel::Type::Boolean.new.cast(@payload["spatial"])
+              scene=operation.studio_scene || @access.scene!(@payload.fetch("scene_id"))
+              Studio::Spatial::Publication.capture!(publication,access:@access,scene:scene,remix:ActiveModel::Type::Boolean.new.cast(@payload["allow_remix"]),rights_confirmed:ActiveModel::Type::Boolean.new.cast(@payload["spatial_rights"]))
+            end
           end
         end
         StudioPublicationDispatchJob.perform_later(publication.id)

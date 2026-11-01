@@ -42,7 +42,8 @@ module NevaehIntelligences
     end
 
     def receive!(installation:, payload:)
-      source = payload.to_h.deep_stringify_keys
+      raise Invalid, "Escalation report must be an object" unless payload.is_a?(Hash)
+      source = payload.deep_stringify_keys
       raise Invalid, "Unsupported escalation report" unless source["version"] == 1 && source["ticket_id"].is_a?(Integer) && source["ticket_id"].positive?
       %w[number title description reason].each do |key|
         maximum = {"number" => 100, "title" => 1000, "description" => 20000, "reason" => 4000}.fetch(key)
@@ -87,17 +88,17 @@ module NevaehIntelligences
         raise Invalid, "The escalation report exceeds 64 KB; support must review its attachments locally" if body.bytesize > 64000
         ticket.update!(extra_fields: fields)
       end
-        timestamp = Time.now.to_i.to_s
-        request = Net::HTTP::Post.new(uri)
-        request["Content-Type"] = "application/json"
-        request["X-Lightek-Installation"] = ENV.fetch("NEVAEH_INSTALLATION_ID")
-        request["X-Lightek-Timestamp"] = timestamp
-        request["X-Lightek-Signature"] = signature(ENV.fetch("NEVAEH_CENTRAL_TOKEN"), timestamp, body)
-        request.body = body
-        response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 30) { |http| http.request(request) }
-        raise Invalid, "Central support rejected or could not receive the report (HTTP #{response.code})" unless response.is_a?(Net::HTTPSuccess)
-        receipt = JSON.parse(response.body)
-        raise Invalid, "Central support returned an invalid receipt" unless receipt["ticket_id"].is_a?(Integer) && receipt["ticket_id"].positive?
+      timestamp = Time.now.to_i.to_s
+      request = Net::HTTP::Post.new(uri)
+      request["Content-Type"] = "application/json"
+      request["X-Lightek-Installation"] = ENV.fetch("NEVAEH_INSTALLATION_ID")
+      request["X-Lightek-Timestamp"] = timestamp
+      request["X-Lightek-Signature"] = signature(ENV.fetch("NEVAEH_CENTRAL_TOKEN"), timestamp, body)
+      request.body = body
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 30) { |http| http.request(request) }
+      raise Invalid, "Central support rejected or could not receive the report (HTTP #{response.code})" unless response.is_a?(Net::HTTPSuccess)
+      receipt = JSON.parse(response.body)
+      raise Invalid, "Central support returned an invalid receipt" unless receipt["ticket_id"].is_a?(Integer) && receipt["ticket_id"].positive?
       ticket.with_lock do
         fields = ticket.extra_fields.to_h.deep_stringify_keys
         notification = fields.fetch("nevaeh_knowledge_gap").fetch("notification")

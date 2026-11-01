@@ -77,15 +77,49 @@ ActiveRecord::Base.transaction do
   browser = ActionDispatch::Integration::Session.new(Rails.application)
   browser.https!
   browser.host!('lightekmcg.com')
-  browser.post('/session', params: {email_address: email, password: password}, as: :json)
+  browser.get('/session/new')
+  csrf = Nokogiri::HTML(browser.response.body).at_css('meta[name="csrf-token"]')&.[]('content')
+  raise "Native sign-in form has no CSRF token" unless csrf
+  browser.post('/session', params: {email_address: email, password: password, authenticity_token: csrf})
   raise "Controlled native login failed" unless browser.response.redirect? && Session.where(user_id: account.id).exists?
   paths = ['/employee/tickets/new', '/support_ticket_templates', '/support_ticket_templates/new', '/employee/nevaeh_lessons', '/supports?procedure=studio.project.from_template']
   paths.each do |path|
     browser.get(path)
-    raise "Dashboard request failed #{path}: #{browser.response.status}" unless browser.response.status == 200
+    raise "Dashboard request failed #{path}: #{browser.response.status} redirect=#{browser.response.location && URI(browser.response.location).path}" unless browser.response.status == 200
   end
   raise "Movie ticket fields missing from rendered form" unless browser.response.body.include?('Camera lens') && browser.response.body.include?('4096')
   report["authenticated_dashboard_and_request_forms"] = paths
+  # Exercise the actual public webhook, PostgreSQL idempotency and encrypted
+  # Vault credential lookup. No SSH target or external email is contacted.
+  load File.join(candidate, "app/services/nevaeh_intelligences/central_reporting.rb")
+  load File.join(candidate, "app/jobs/nevaeh_intelligences/knowledge_gap_notification_job.rb")
+  load File.join(candidate, "app/services/nevaeh_orchestration/escalation.rb")
+  load File.join(candidate, "app/controllers/gatekeeper/central_escalations_controller.rb")
+  node = GatekeeperNode.create!(name: "Controlled reporting #{SecureRandom.hex(8)}", ip_address: "192.0.2.8", ssh_user: "root", ssh_port: 22, status: "healthy", metadata: {})
+  profile = {"app_root" => "/var/www/controlled", "app_user" => "lightek", "env_file" => "/etc/lightek/controlled.env", "ruby_bin" => "/usr/bin", "worker_mode" => "systemd", "worker_service" => "controlled-sidekiq", "health_url" => "https://controlled.example.com/up", "revision_url" => "https://controlled.example.com/__lightek/release"}
+  installation = GatekeeperInstallation.create!(gatekeeper_node: node, account: account, domain: "controlled.example.com", adapter: "native_rails", component: "lightek_app", repository: "https://github.com/Mrlightek/lightekmcg-site.git", channel: "stable", deployment_config: profile, enabled: true)
+  token = SecureRandom.hex(32)
+  slug = "controlled-nevaeh-#{SecureRandom.hex(8)}"
+  LightekVault::Service.store!(name: "Controlled reporting credential", slug: slug, payload: {"token" => token}, secret_type: "webhook_secret", purpose: NevaehIntelligences::CentralReporting::PURPOSE,
+    access_policy: {"consumers" => [NevaehIntelligences::CentralReporting::CONSUMER], "purposes" => [NevaehIntelligences::CentralReporting::PURPOSE]}, requested_by: operator.id.to_s)
+  installation.update!(nevaeh_reporting_secret_slug: slug)
+  capability.update!(metadata: capability.metadata.to_h.merge("central_reporting" => {"enabled" => true}))
+  payload = JSON.generate({"version" => 1, "ticket_id" => 42, "number" => "CONTROLLED-42", "title" => "Controlled client lesson request", "description" => "Controlled webhook boundary", "reason" => "Missing lesson"})
+  timestamp = Time.now.to_i.to_s
+  headers = {"CONTENT_TYPE" => "application/json", "HTTP_X_LIGHTEK_INSTALLATION" => installation.id.to_s, "HTTP_X_LIGHTEK_TIMESTAMP" => timestamp,
+    "HTTP_X_LIGHTEK_SIGNATURE" => NevaehIntelligences::CentralReporting.signature(token, timestamp, payload)}
+  client = ActionDispatch::Integration::Session.new(Rails.application)
+  client.https!
+  client.host!('lightekmcg.com')
+  before = Marlon::Ticket.count
+  2.times do
+    client.post('/gatekeeper/callbacks/nevaeh_escalation', params: payload, headers: headers)
+    raise "Authenticated central webhook failed #{client.response.status}" unless client.response.status == 200
+  end
+  raise "Repeated client report created duplicate support tickets" unless Marlon::Ticket.count == before + 1
+  client.post('/gatekeeper/callbacks/nevaeh_escalation', params: payload + " ", headers: headers)
+  raise "Tampered client report was accepted" unless client.response.status == 401
+  report["central_webhook_signed_receipt_and_deduplication_verified"] = true
   lesson.update!(body: lesson.body.to_s + "\nControlled amendment")
   begin
     NevaehIntelligences::KnowledgeProcedures.validate_steps!(order.fetch("inputs").fetch("sections"))

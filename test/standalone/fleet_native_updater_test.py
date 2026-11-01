@@ -39,7 +39,13 @@ class TestRuntime(native.NativeUpdater):
             self.running_sha = git(self.root, "rev-parse", "HEAD")
         return "" if capture else None
 
-    def as_user(self, args, capture=False, stdout=None):
+    def as_user(self, args, capture=False, stdout=None, input_data=None):
+        if args[-1] == "script/nevaeh_apply_lesson_bundle.rb":
+            self.calls.append(args)
+            self.lesson_input = json.loads(input_data)
+            if self.fail(args):
+                raise subprocess.CalledProcessError(1, args)
+            return "NEVAEH_KNOWLEDGE_BUNDLE=" + json.dumps({"sha256": self.lesson_input["sha256"], "lessons": len(self.lesson_input["lessons"])})
         if args[0] == "git":
             return git(self.root, *args[1:])
         if capture and args[0] == self.profile.get("verify_hook"):
@@ -168,6 +174,27 @@ class FleetNativeUpdaterTest(unittest.TestCase):
         receipt = instance.execute()
         self.assertTrue(receipt["already_current"])
         self.assertFalse(any("db:migrate" in args for args in instance.calls))
+
+    def test_scoped_knowledge_bundle_uses_the_existing_native_update_and_verified_receipt(self):
+        instance = self.instance()
+        instance.config["nevaeh_lessons"] = {"version": 1, "lessons": [{"key": "controlled-lesson"}], "sha256": "a" * 64}
+        receipt = instance.execute()
+        self.assertEqual("a" * 64, receipt["knowledge_bundle_sha256"])
+        self.assertEqual(instance.config["nevaeh_lessons"], instance.lesson_input)
+        instance.calls.clear()
+        receipt = instance.execute()
+        self.assertTrue(receipt["already_current"])
+        self.assertEqual("a" * 64, receipt["knowledge_bundle_sha256"])
+        self.assertFalse(any("db:migrate" in args for args in instance.calls))
+
+    def test_failed_knowledge_import_cannot_report_successful_release(self):
+        instance = self.instance()
+        instance.config["nevaeh_lessons"] = {"version": 1, "lessons": [], "sha256": "b" * 64}
+        instance.fail = lambda args: args[-1] == "script/nevaeh_apply_lesson_bundle.rb"
+        with self.assertRaises(subprocess.CalledProcessError):
+            instance.execute()
+        self.assertEqual("failed", instance.receipt["status"])
+        self.assertNotIn("knowledge_bundle_sha256", instance.receipt)
 
     def test_dirty_customer_checkout_is_preserved_and_refused(self):
         (self.app / "feature.rb").write_text("# uncommitted custom work\n")

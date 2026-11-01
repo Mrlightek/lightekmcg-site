@@ -63,7 +63,7 @@ module NevaehIntelligences
           end
         end
         raise WorkOrder::Invalid, "Multiple tickets claim GitHub issue #{source['number']}; reconcile duplicates" if matches.size > 1
-        ticket = matches.first || Marlon::Ticket.create!(title: source["title"], description: source["body"], category: "technical",
+        ticket = matches.first || Marlon::Ticket.create!(number: "LT-GH-#{source['number']}", title: source["title"], description: source["body"], category: "technical",
           priority: source["body"].include?("**Priority:** P0") ? "high" : "medium", urgency: 5, status: "open", submitted_by: actor)
         ticket.lock!
         fields = ticket.extra_fields.to_h.deep_stringify_keys

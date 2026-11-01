@@ -1471,6 +1471,100 @@ const createViewportDom = (
   }
 };
 
+// Use the same scene geometry and saved transforms when GPU contexts are unavailable.
+// This is a layout preview, not a substitute for a Blender camera render.
+let frameRequest = [];
+window.addEventListener('lightek:frame-objects', event => { frameRequest = event.detail?.ids || []; });
+const layoutBounds = (objects, ids = []) => {
+  const bounds = new THREE.Box3();
+  for (const [id, root] of objects) {
+    if (!root.visible || (ids.length && !ids.includes(Number(id)))) continue;
+    if (!ids.length && ['camera','point_light','area_light','sun_light'].includes(root.userData.sceneObjectType)) continue;
+    bounds.expandByObject(root);
+  }
+  if (bounds.isEmpty()) bounds.set(new THREE.Vector3(-2,-2,0), new THREE.Vector3(2,2,3));
+  return bounds;
+};
+const mountSoftware = (dom, state) => {
+  const canvas = document.createElement('canvas');
+  canvas.setAttribute('aria-label', 'Software 3D layout preview');
+  canvas.dataset.studioSoftware = 'true';
+  canvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none';
+  dom.canvasHost.append(canvas);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { dom.status.textContent = 'This browser cannot draw a layout preview. Render a Blender draft frame above to inspect the scene.'; return; }
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(50,1,.01,10000);
+  camera.up.set(0,0,1);
+  const target = new THREE.Vector3();
+  let yaw = -.9, pitch = .25, distance = 10, faces = [], animation = 0;
+  const noop = () => {};
+  active = {...dom, sceneId:Number(state.sceneId), scene, camera, objects:new Map(), pickables:[], mode:'select',
+    orbit:{target, update:noop}, transform:{detach:noop, attach:noop, setMode:noop, setSpace:noop},
+    renderer:{setAnimationLoop:noop,dispose:()=>cancelAnimationFrame(animation)}};
+  for (const object of state.objects || []) { const root=buildObject(object); active.objects.set(objectIdFor(object),root); scene.add(root); }
+  const fit = ids => {
+    scene.updateMatrixWorld(true);
+    const bounds=layoutBounds(active.objects,ids);
+    bounds.getCenter(target); distance=Math.max(bounds.getSize(new THREE.Vector3()).length()*1.65,3);
+  };
+  const memory=cameraMemory.get(Number(state.sceneId));
+  if(memory&&!frameRequest.length){
+    target.fromArray(memory.target);
+    const offset=new THREE.Vector3().fromArray(memory.position).sub(target);
+    distance=Math.max(offset.length(),.5);yaw=Math.atan2(offset.y,offset.x);pitch=Math.asin(offset.z/distance);
+  }else fit(frameRequest);
+  frameRequest=[];
+  dom.toolbar.querySelectorAll('[data-studio-tool]').forEach(button=>{button.hidden=true;});
+  dom.toolbar.querySelector('[data-studio-frame]').textContent='Frame scene';
+  dom.toolbar.querySelector('[data-studio-frame]').onclick=()=>fit([]);
+  dom.status.textContent='Software layout · WebGL unavailable';
+  dom.shell.querySelector('.studio-viewport-hint').textContent='Drag to orbit · wheel to zoom · click a shape to select · edit and save in Inspector. Use Blender draft preview for final appearance.';
+  const point = (vector,width,height) => { const p=vector.clone().project(camera);return {x:(p.x+1)*width/2,y:(1-p.y)*height/2,z:p.z}; };
+  const draw = () => {
+    if (!active || active.shell!==dom.shell) return;
+    const width=Math.max(dom.canvasHost.clientWidth,1),height=Math.max(dom.canvasHost.clientHeight,1),ratio=Math.min(devicePixelRatio||1,2);
+    if(canvas.width!==Math.round(width*ratio)||canvas.height!==Math.round(height*ratio)){canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);}
+    ctx.setTransform(ratio,0,0,ratio,0,0);ctx.fillStyle='#101720';ctx.fillRect(0,0,width,height);
+    camera.aspect=width/height;camera.updateProjectionMatrix();
+    camera.position.set(target.x+distance*Math.cos(pitch)*Math.cos(yaw),target.y+distance*Math.cos(pitch)*Math.sin(yaw),target.z+distance*Math.sin(pitch));camera.lookAt(target);camera.updateMatrixWorld(true);scene.updateMatrixWorld(true);
+    ctx.strokeStyle='#344452';ctx.lineWidth=.7;
+    const gridSize=Math.max(4,Math.ceil(distance/2));
+    for(let i=-gridSize;i<=gridSize;i++) for(const pair of [[[i,-gridSize,0],[i,gridSize,0]],[[-gridSize,i,0],[gridSize,i,0]]]){
+      const [a,b]=pair.map(v=>point(new THREE.Vector3(...v),width,height));
+      if(a.z>1||b.z>1)continue;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+    faces=[];
+    for(const [id,root] of active.objects){if(!root.visible)continue;root.traverseVisible(mesh=>{
+      if(!mesh.isMesh||!mesh.geometry?.attributes.position)return;
+      const geometry=mesh.geometry,positions=geometry.attributes.position,index=geometry.index;
+      const count=index?index.count:positions.count,material=Array.isArray(mesh.material)?mesh.material[0]:mesh.material;
+      const color=material?.color || new THREE.Color(.5,.6,.7);
+      // Layout proxies can be dense; cap the CPU preview and use Blender for detailed inspection.
+      const step=Math.max(1,Math.ceil(count/18000))*3;
+      for(let n=0;n+2<count;n+=step){
+        const vertices=[0,1,2].map(k=>new THREE.Vector3().fromBufferAttribute(positions,index?index.getX(n+k):n+k).applyMatrix4(mesh.matrixWorld));
+        const projected=vertices.map(v=>point(v,width,height));
+        if(projected.some(p=>p.z>1||p.z< -1))continue;
+        const normal=new THREE.Vector3().subVectors(vertices[1],vertices[0]).cross(new THREE.Vector3().subVectors(vertices[2],vertices[0])).normalize();
+        const shade=.45+.55*Math.abs(normal.dot(new THREE.Vector3(.4,-.5,.8).normalize()));
+        faces.push({id,points:projected,depth:projected.reduce((sum,p)=>sum+p.z,0)/3,color:`rgb(${Math.round(color.r*shade*255)},${Math.round(color.g*shade*255)},${Math.round(color.b*shade*255)})`});
+      }
+    });}
+    faces.sort((a,b)=>b.depth-a.depth);
+    for(const face of faces){ctx.beginPath();face.points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fillStyle=face.color;ctx.fill();if(Number(state.selectedObjectId)===face.id){ctx.strokeStyle='#ffd05b';ctx.lineWidth=.65;ctx.stroke();}}
+    canvas.dataset.drawnFaces=String(faces.length);
+    if(!(state.objects||[]).length){ctx.fillStyle='#cdd8e4';ctx.font='16px sans-serif';ctx.fillText('Add a character or set from Library to begin.',24,40);}
+    animation=requestAnimationFrame(draw);
+  };
+  let drag=null;
+  canvas.addEventListener('pointerdown',event=>{drag={x:event.clientX,y:event.clientY,moved:false};canvas.setPointerCapture(event.pointerId);});
+  canvas.addEventListener('pointermove',event=>{if(!drag)return;const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)<3&&!drag.moved)return;drag.moved=true;yaw-=dx*.008;pitch=Math.max(-1.4,Math.min(1.4,pitch+dy*.008));drag.x=event.clientX;drag.y=event.clientY;});
+  canvas.addEventListener('pointerup',event=>{if(!drag?.moved){const box=canvas.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;for(const face of [...faces].reverse()){const [a,b,c]=face.points;const sign=(p,q)=>(x-q.x)*(p.y-q.y)-(p.x-q.x)*(y-q.y);const signs=[sign(a,b),sign(b,c),sign(c,a)];if(signs.every(n=>n>=0)||signs.every(n=>n<=0)){bridge()?.selectObject?.(face.id);break;}}}drag=null;});
+  canvas.addEventListener('pointercancel',()=>{drag=null;});
+  canvas.addEventListener('wheel',event=>{event.preventDefault();distance=Math.max(.5,Math.min(2000,distance*Math.exp(event.deltaY*.001)));},{passive:false});
+  draw();
+};
+
 const mount = (
   grid,
   state
@@ -1505,10 +1599,9 @@ const mount = (
     1
   );
 
-  const renderer =
-    new THREE.WebGLRenderer({
-      antialias: true
-    });
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({antialias:true}); }
+  catch (error) { console.warn("[Lightek Studio] Using software layout preview", error.message); mountSoftware(dom,state); return; }
 
   renderer.setPixelRatio(
     Math.min(
@@ -1667,6 +1760,12 @@ const mount = (
   });
 
   updateHighlights(state);
+  if (frameRequest.length || !cameraMemory.has(Number(state.sceneId))) {
+    const bounds=layoutBounds(active.objects,frameRequest);frameRequest=[];
+    bounds.getCenter(orbit.target);
+    camera.position.copy(orbit.target).add(new THREE.Vector3(1,-1,.65).normalize().multiplyScalar(Math.max(bounds.getSize(new THREE.Vector3()).length()*1.65,3)));
+    orbit.update();
+  }
 
   const resize = () => {
     if (!active) return;

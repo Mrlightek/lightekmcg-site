@@ -7,7 +7,7 @@
   let operationBusy = false;
   let quote = null;
   let dirty = false;
-  const input = (name, label, value, type = 'text') => `<label class="fld"><span>${E(label)}</span><input name="${E(name)}" type="${type}" ${type === "number" ? 'step="any"' : ''} value="${E(String(value ?? ''))}"></label>`;
+  const input = (name, label, value, type = 'text') => `<label class="fld"><span>${E(label)}</span><input name="${E(name)}" type="${type}" ${type === "number" ? 'step="any" required' : ''} value="${E(String(value ?? ''))}"></label>`;
   const button = (label, action, attrs = '') => `<button type="button" class="btn sm" data-a="${action}" ${attrs} ${ST.busy ? 'disabled' : ''}>${E(label)}</button>`;
   const current = () => studioSceneRecord(studioCurrentSceneId());
   function prepare(record) {
@@ -115,6 +115,7 @@
     else if (el.matches('[data-studio-audio]')) STUDIO_WAVE2_STATE.audioNotes = el.value;
     else if (el.matches('[data-studio-release-date]')) STUDIO_W4_STATE.releaseDate = el.value;
     else if (el.matches('[data-studio-release-notes]')) STUDIO_W4_STATE.notes = el.value;
+    else if (el.closest('[data-studio-form], [data-native-object-form], [data-media-form]') || el.matches('[data-blender-preview-frame], #studio-create-name, #studio-create-type')) return;
     else if (!el.closest('.studio-shell')) return;
     dirty = true;
     const status = document.getElementById('studio-save-status'); if (status) status.textContent = 'Unsaved changes';
@@ -136,7 +137,7 @@
         const rgb = data.color ? [1,3,5].map(start => parseInt(data.color.slice(start,start+2),16)/255) : null;
         const result = await execute('studio.workspace.visual.save', {scene_id:record.scene.id,lock_version:record.scene.lock_version,object_id:['camera','native_object'].includes(object?.object_type)?null:object?.id,
           render_settings:{render_engine:data.render_engine,resolution_x:Number(data.resolution_x),resolution_y:Number(data.resolution_y),transparent_background:data.transparent_background==='true',frame_start:Number(data.frame_start),frame_end:Number(data.frame_end),frame_current:Number(data.frame_current),fps:Number(data.fps),samples:Number(data.samples)},
-          properties:{lens:Number(data.lens),energy:Number(data.energy),size:Number(data.size),color:rgb?(object?.object_type.endsWith('_light')?rgb:[...rgb,1]):null}});
+          properties:{...Object.fromEntries(['energy','size'].filter(key=>data[key]!==undefined).map(key=>[key,Number(data[key])])),...(rgb?{color:object?.object_type.endsWith('_light')?rgb:[...rgb,1]}:{})}});
         if(result){await A.studioLoad(true);toast('Visual settings saved');}
       });
       return;
@@ -169,7 +170,7 @@
       const attributes = { name: values.name };
       for (const key of ['location', 'rotation', 'scale']) {
         attributes[key] = [0, 1, 2].map(i => Number(values[`${key}_${i}`]));
-        if (attributes[key].some(n => !Number.isFinite(n))) throw new Error('Enter finite numbers for the transform.');
+        if ([0,1,2].some(i => !values[`${key}_${i}`]?.trim()) || attributes[key].some(n => !Number.isFinite(n))) throw new Error('Enter finite numbers for the transform.');
       }
       await studioExecuteMutation('studio.scene_object.transform', { scene_id: Number(form.dataset.scene), object_id: Number(form.dataset.object), attributes });
     });

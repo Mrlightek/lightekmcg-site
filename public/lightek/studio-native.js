@@ -5,7 +5,7 @@
   const esc=v=>E(String(v??''));
   const call=async(action,payload)=>(await nevaeh.execute({capability:'studio.workspace.blender.'+action,payload})).result;
   const run=fn=>Promise.resolve().then(fn).catch(error=>toast(error.message));
-  const input=(key,label,value,type='number')=>`<label class="fld"><span>${esc(label)}</span><input name="${esc(key)}" type="${type}" ${type==='number'?'step="any"':''} value="${esc(value)}"></label>`;
+  const input=(key,label,value,type='number')=>`<label class="fld"><span>${esc(label)}</span><input name="${esc(key)}" type="${type}" ${type==='number'?'step="any" required':''} value="${esc(value)}"></label>`;
   let preview={},lastScene=null;
   const prepare=ui.prepare;
   ui.prepare=record=>{prepare(record);if(lastScene!==record.scene.id){lastScene=record.scene.id;if(record.scene.settings?.native_blender_asset_id&&['production','scene'].includes(ST.workspaceMode))ST.workspaceMode='3d';}};
@@ -54,6 +54,7 @@
   app.addEventListener('submit',event=>{
     const form=event.target.closest('[data-native-object-form]');if(!form)return;event.preventDefault();
     run(async()=>{
+      for(const field of form.querySelectorAll('input[type=number]'))if(!field.value.trim()||!Number.isFinite(Number(field.value)))throw Error('Enter a number for '+field.name+'.');
       const object=studioWorkspaceSelectedObject(current()?.scene),d=object.definition;
       const properties={};for(const key of ['location','rotation','scale'])properties[key]=[0,1,2].map(i=>Number(form.elements[`${key}_${i}`].value));
       for(const key of ['hide_render','hide_viewport'])properties[key]=form.elements[key].checked;

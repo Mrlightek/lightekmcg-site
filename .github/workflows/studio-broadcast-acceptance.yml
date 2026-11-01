@@ -23,6 +23,7 @@ on:
       - 'lib/tasks/studio/**'
       - 'test/javascript/studio_native_authoring_test.cjs'
       - 'test/javascript/studio_native_viewport_test.cjs'
+      - 'test/javascript/studio_visible_workflows_test.cjs'
       - 'app/jobs/studio_blender_preview_job.rb'
       - 'public/lightek/index.html'
       - 'blender/**'
@@ -78,6 +79,7 @@ jobs:
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_native_camera_test.cjs
           node test/javascript/studio_native_authoring_test.cjs
+          node test/javascript/studio_visible_workflows_test.cjs
       - name: Native Blender mesh picking and transform tools
         env:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules

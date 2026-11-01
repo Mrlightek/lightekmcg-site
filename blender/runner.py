@@ -164,6 +164,16 @@ def create_mesh(object_type, name, definition):
 
         if bsdf:
             bsdf.inputs["Base Color"].default_value = rgba
+            for field, socket in (("metallic", "Metallic"), ("roughness", "Roughness"), ("transmission", "Transmission Weight")):
+                value = material_definition.get(field)
+                if isinstance(value, (int, float)) and math.isfinite(value) and socket in bsdf.inputs:
+                    bsdf.inputs[socket].default_value = max(0.0, min(1.0, value))
+            if "Alpha" in bsdf.inputs:
+                bsdf.inputs["Alpha"].default_value = rgba[3]
+            if rgba[3] < 1 and hasattr(material, "surface_render_method"):
+                material.surface_render_method = "DITHERED"
+            elif rgba[3] < 1 and hasattr(material, "blend_method"):
+                material.blend_method = "BLEND"
 
         obj.data.materials.append(material)
 
@@ -294,6 +304,39 @@ def point_at(obj, target=(0.0, 0.0, 0.0)):
         "-Z",
         "Y",
     ).to_euler()
+
+
+def apply_library_motion(obj, definition):
+    target = definition.get("look_at")
+    if isinstance(target, list) and len(target) == 3:
+        point_at(obj, tuple(float(value) for value in target))
+    animation = definition.get("animation") or {}
+    frames = animation.get("frames", [])
+    if not isinstance(frames, list) or len(frames) > 100:
+        raise RuntimeError("Invalid library animation")
+    fps = int(animation.get("fps", 24))
+    if frames:
+        bpy.context.scene.render.fps = max(1, min(60, fps))
+    for frame in frames:
+        number = int(frame["frame"])
+        if not 1 <= number <= 14400:
+            raise RuntimeError("Library frame is outside the supported range")
+        bpy.context.scene.frame_end = max(bpy.context.scene.frame_end, number)
+        if "location" in frame:
+            obj.location = vector3(frame["location"], obj.location)
+            obj.keyframe_insert(data_path="location", frame=number)
+        if "rotation" in frame:
+            obj.rotation_euler = [math.radians(value) for value in vector3(frame["rotation"], [0, 0, 0])]
+            obj.keyframe_insert(data_path="rotation_euler", frame=number)
+    # Linear interpolation matches the Studio viewport preview.
+    if obj.animation_data and obj.animation_data.action:
+        try:
+            curves = obj.animation_data.action.fcurves
+            for curve in curves:
+                for point in curve.keyframe_points:
+                    point.interpolation = "LINEAR"
+        except AttributeError:
+            pass
 
 
 def ensure_camera():
@@ -535,6 +578,7 @@ def main():
                 )
 
             obj = create_manifest_object(item)
+            apply_library_motion(obj, item.get("definition") or {})
 
             log(
                 f"Created {item.get('type')} "
@@ -543,6 +587,7 @@ def main():
 
         ensure_camera()
         ensure_lighting()
+        bpy.context.scene.frame_set(1)
 
         outputs = requested_outputs(manifest)
         generated = []

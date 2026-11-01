@@ -74,9 +74,9 @@ module Blender
     end
 
     def write_log(stdout, stderr)
-      File.write(
+      File.binwrite(
         output_directory.join("blender.log"),
-        stdout.to_s + stderr.to_s
+        stdout.to_s.b + stderr.to_s.b
       )
     end
 

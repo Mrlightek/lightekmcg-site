@@ -323,7 +323,10 @@ const meshObject = object => {
 
   const material =
     materialFor(type);
-  const rgba = object.definition?.material?.color;
+  const surface = object.definition?.material || {};
+  const rgba = surface.color;
+  for (const [source,target] of [['roughness','roughness'],['metallic','metalness']]) if(Number.isFinite(surface[source])) material[target]=Math.max(0,Math.min(1,surface[source]));
+  if(Array.isArray(rgba)&&Number.isFinite(rgba[3])&&rgba[3]<1){material.transparent=true;material.opacity=Math.max(0,rgba[3]);}
   if (Array.isArray(rgba) && rgba.length >= 3 && rgba.slice(0,3).every(Number.isFinite)) {
     material.color.setRGB(rgba[0],rgba[1],rgba[2]);
   }
@@ -334,7 +337,7 @@ const meshObject = object => {
     case "sphere":
       geometry =
         new THREE.SphereGeometry(
-          0.65,
+          1,
           32,
           18
         );
@@ -343,9 +346,9 @@ const meshObject = object => {
     case "cylinder":
       geometry =
         new THREE.CylinderGeometry(
-          0.55,
-          0.55,
-          1.3,
+          1,
+          1,
+          2,
           32
         );
 
@@ -377,9 +380,9 @@ const meshObject = object => {
     default:
       geometry =
         new THREE.BoxGeometry(
-          1,
-          1,
-          1
+          2,
+          2,
+          2
         );
       break;
   }
@@ -486,6 +489,9 @@ const buildObject = object => {
     radians(rotation[2])
   );
 
+  if(Array.isArray(definition.look_at)&&definition.look_at.length===3){root.up.set(0,0,1);root.lookAt(...definition.look_at);}
+  root.userData.libraryAnimation=definition.animation;
+  root.userData.libraryBase={location:[...location],rotation:root.rotation.toArray().slice(0,3)};
   root.scale.set(
     scale[0],
     scale[1],
@@ -1190,6 +1196,13 @@ const installPicking = () => {
 };
 
 const installToolbar = state => {
+  if([...active.objects.values()].some(root=>root.userData.libraryAnimation?.frames?.length)){
+    const button=document.createElement('button');button.type='button';button.textContent='Play library motion';button.setAttribute('aria-pressed','false');
+    button.addEventListener('click',()=>{active.libraryPlaying=!active.libraryPlaying;active.transform.enabled=!active.libraryPlaying;active.libraryStarted=performance.now();button.textContent=active.libraryPlaying?'Pause library motion':'Play library motion';button.setAttribute('aria-pressed',String(active.libraryPlaying));
+      if(!active.libraryPlaying)for(const root of active.objects.values()){const base=root.userData.libraryBase;if(base){root.position.set(...base.location);root.rotation.set(...base.rotation);}}
+    });active.toolbar.append(button);
+  }
+
   active.toolbar
     .querySelectorAll(
       "[data-studio-tool]"
@@ -1726,6 +1739,15 @@ const mount = (
     () => {
       if (!active) return;
 
+      if(active.libraryPlaying&&!active.transform.dragging){
+        for(const root of active.objects.values()){
+          const motion=root.userData.libraryAnimation,frames=motion?.frames;if(!frames?.length)continue;
+          const end=frames.at(-1).frame,frame=1+((performance.now()-active.libraryStarted)/1000*(motion.fps||24))%Math.max(1,end-1);
+          const next=frames.findIndex(point=>point.frame>frame),b=frames[next<0?frames.length-1:next],a=frames[Math.max(0,(next<0?frames.length-1:next)-1)];
+          const ratio=b.frame===a.frame?0:(frame-a.frame)/(b.frame-a.frame);
+          for(const [field,target] of [['location','position'],['rotation','rotation']])if(a[field]&&b[field]){const values=a[field].map((value,i)=>value+(b[field][i]-value)*ratio);root[target].set(...(field==='rotation'?values.map(radians):values));}
+        }
+      }
       active.orbit.update();
 
       active.renderer.render(

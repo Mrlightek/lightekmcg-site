@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place].freeze
+      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -154,10 +154,85 @@ module Studio
       end
 
       def assets_list
-        { assets: StudioAsset.for_actor(@access).order(id: :desc).limit(100).map { |asset|
+        scope=StudioAsset.for_actor(@access).order(id: :desc)
+        scope=scope.where("id < ?",Integer(@payload["before"])) if @payload["before"].present?
+        records=scope.limit(101).to_a
+        more=records.length>100
+        records=records.first(100)
+        { builtins: Studio::Library::Catalog.items, next_before: more ? records.last.id : nil, assets: records.map { |asset|
           { id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,error:asset.error_message,metadata:asset.metadata,
             url:"/api/lightek/pwa/assets/#{asset.id}/original",proxy_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil,
             thumbnail_url:asset.thumbnail.attached? ? "/api/lightek/pwa/assets/#{asset.id}/thumbnail" : nil } } }
+      end
+
+      def library_apply
+        Studio::Library::Apply.call(access: @access, payload: @payload)
+      end
+
+      def asset_retry
+        asset=StudioAsset.for_actor(@access).find(@payload.fetch("asset_id"))
+        asset.with_lock do
+          raise ArgumentError,"Only failed imports can be retried" unless asset.status=="failed"
+          asset.update!(status:"uploaded",error_message:nil)
+        end
+        StudioAssetIngestJob.perform_later(asset.id)
+        {asset_id:asset.id,status:asset.status}
+      end
+
+      def asset_use
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        asset=StudioAsset.for_actor(@access).where(status:"ready",kind:%w[image audio video]).find(@payload.fetch("asset_id"))
+        key=@payload.fetch("request_key").to_s
+        raise ArgumentError,"A library request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        result=nil
+        scene.with_lock do
+          journal=scene.settings.fetch("library_requests",{})
+          return journal[key] if journal[key]
+          scene.lock_version=Integer(@payload.fetch("lock_version"))
+          timeline=scene.settings.fetch("timeline",{"output"=>"video","width"=>1280,"height"=>720,"clips"=>[]}).deep_dup
+          placement=@payload.fetch("placement","append")
+          raise ArgumentError,"Choose append or overlay placement" unless %w[append overlay].include?(placement)
+          ending=timeline["clips"].map { |clip| clip.fetch("start",0)+clip.fetch("out")-clip.fetch("in",0) }.max || 0
+          duration=asset.kind=="image" ? 5 : [asset.metadata["duration"].to_f,600].min
+          raise ArgumentError,"This media has no usable duration. Retry its import." unless duration>0
+          timeline["clips"]<<{"asset_id"=>asset.id,"in"=>0,"out"=>duration,"start"=>placement=="overlay" ? 0 : ending,
+            "track"=>placement=="overlay" ? timeline["clips"].map { |clip| clip.fetch("track",0) }.max.to_i+1 : 0,"gain"=>1}
+          assets=StudioAsset.for_actor(@access).where(id:timeline["clips"].map { |clip| clip["asset_id"] }).index_by(&:id)
+          normalized=Studio::Editing::Timeline.normalize(timeline,assets:assets)
+          result={"scene_id"=>scene.id,"lock_version"=>scene.lock_version+1,"timeline"=>normalized}
+          # Retain only the receipt, not a duplicate copy of the timeline per click.
+          receipt=result.except("timeline")
+          scene.settings=scene.settings.merge("timeline"=>normalized,"library_requests"=>journal.to_a.last(99).to_h.merge(key=>receipt))
+          scene.save!
+        end
+        result
+      rescue ActiveRecord::StaleObjectError
+        raise ArgumentError,"The scene changed. Refresh before adding media."
+      end
+
+      def asset_publish
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        asset=StudioAsset.for_actor(@access).where(status:"ready",kind:%w[image audio video]).find(@payload.fetch("asset_id"))
+        source=asset.proxy.attached? ? asset.proxy.blob : asset.file.blob
+        platform=@payload.fetch("platform","lightek_social")
+        if platform!="lightek_social" && source.content_type!="video/mp4"
+          raise ArgumentError,"OTT needs an MP4 video master. Add this asset to a timeline and export it first."
+        end
+        project=scene.studio_project
+        artifact=nil
+        project.with_lock do
+          operation=project.studio_operations.where(operation_type:"asset_source",studio_scene_id:scene.id)
+            .where("CAST(metadata ->> 'asset_id' AS TEXT) = ?",asset.id.to_s).first
+          unless operation
+            operation=project.studio_operations.create!(studio_scene:scene,production:scene.production,operation_type:"asset_source",provider:"library",
+              capability:"studio.workspace.asset.publish",status:"completed",intent:{"user_id"=>@access.user.id},metadata:{"asset_id"=>asset.id})
+            artifact=operation.artifacts.create!(kind:asset.kind,filename:source.filename.to_s)
+            artifact.file.attach(source)
+          end
+          artifact||=operation.artifacts.first!
+        end
+        @payload=@payload.merge("project_id"=>project.id,"artifact_id"=>artifact.id,"title"=>@payload["title"].presence || asset.name)
+        artifact_publish
       end
 
       def asset_import

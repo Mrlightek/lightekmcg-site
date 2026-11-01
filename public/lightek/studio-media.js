@@ -1,5 +1,5 @@
 (() => {
-  const library={loaded:false,loading:false,items:[],error:''};
+  const library={loaded:false,loading:false,items:[],builtins:[],error:'',query:'',category:'all',nextBefore:null};
   let sceneId=null,timeline=null,preview=null;
   const esc=v=>E(String(v??''));
   const current=()=>studioSceneRecord(studioCurrentSceneId());
@@ -8,21 +8,43 @@
   const field=(label,value,attrs,type='number')=>`<label class="fld"><span>${esc(label)}</span><input type="${type}" step="any" value="${esc(value)}" ${attrs}></label>`;
   const previousPrepare=LightekStudioApp.prepare;
   LightekStudioApp.prepare=record=>{previousPrepare(record);if(sceneId!==record.scene.id){sceneId=record.scene.id;timeline=JSON.parse(JSON.stringify(record.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]}));stopPreview();}};
-  async function loadAssets(force=false){
-    if(library.loading||library.loaded&&!force)return;
+  async function loadAssets(force=false,before=null){
+    if(library.loading||library.loaded&&!force&&!before)return;
     library.loading=true;
-    try{const data=await call('assets.list');if(!Array.isArray(data.assets))throw Error('The asset library response was incomplete.');library.items=data.assets;library.loaded=true;library.error='';}
+    try{const data=await call('assets.list',before?{before}:{});if(!Array.isArray(data.assets))throw Error('The asset library response was incomplete.');library.items=before?[...library.items,...data.assets.filter(item=>!library.items.some(existing=>existing.id===item.id))]:data.assets;library.nextBefore=data.next_before;library.builtins=data.builtins||[];library.loaded=true;library.error='';}
     catch(error){library.error=error.message;library.loaded=true;}
     finally{library.loading=false;if(location.hash.startsWith('#/studio'))render(1);}
     if(library.items.some(a=>a.status==='uploaded'||a.status==='processing'))setTimeout(()=>{if(location.hash.startsWith('#/studio'))loadAssets(true)},3000);
   }
   A.studioAssetsReload=()=>run(()=>loadAssets(true));
+  A.studioAssetsMore=()=>run(()=>loadAssets(false,library.nextBefore));
   const previousAfter=AF.studio;
   AF.studio=id=>{previousAfter(id);if(me())loadAssets();};
+  const sceneOptions=()=>studioSceneRecords().map(record=>`<option value="${record.scene.id}">${esc(record.project.name)} · ${esc(record.scene.name)}</option>`).join('');
+  const objectOptions=(id,category)=>(studioSceneRecord(Number(id))?.scene.objects||[]).filter(object=>category!=='materials'||['cube','sphere','cylinder','plane'].includes(object.object_type||object.type)).map(object=>`<option value="${object.id}">${esc(object.name)}</option>`).join('');
+  const targetScene=()=>`<label class="fld"><span>Use in scene</span><select name="scene_id" required data-library-scene>${sceneOptions()}</select></label>`;
+  const noScenes=()=>!studioSceneRecords().length;
+  function builtinCard(item){return `<article class="pwa-post" data-library-key="${esc(item.key)}"><span class="eb">${esc(item.category.replaceAll('_',' '))}</span><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><form data-media-form="builtin" data-key="${esc(item.key)}">${targetScene()}${item.target==='object'?`<label class="fld"><span>Target scene element</span><select name="object_id" required data-library-object>${objectOptions(studioSceneRecords()[0]?.scene.id,item.category)}</select></label>`:''}${item.key==='gfx_lower_thirds'?'<label class="fld"><span>Title</span><input name="title" maxlength="30" value="LIGHTEK LIVE"></label><label class="fld"><span>Guest / subtitle</span><input name="subtitle" maxlength="42" value="GUEST NAME"></label>':''}<button class="btn p sm" ${noScenes()?'disabled':''}>${item.target==='object'?'Apply to element':item.target==='timeline'?'Generate & add to timeline':'Add to scene'}</button><p role="status" data-library-status></p></form></article>`;}
+  function assetCard(asset){
+    const model=['glb','blend'].includes(asset.kind),media=['audio','image','video'].includes(asset.kind);
+    const ready=asset.status==='ready';
+    const preview=ready?(model?`<button type="button" class="btn sm" data-a="studioAssetPreview" data-id="${asset.id}">3D preview</button>`:asset.kind==='image'?`<img class="pwa-media" src="${esc(asset.proxy_url)}" alt="${esc(asset.name)}">`:`<${asset.kind==='audio'?'audio':'video'} class="pwa-media" src="${esc(asset.proxy_url)}" controls playsinline preload="metadata"></${asset.kind==='audio'?'audio':'video'}>`):'';
+    const use=ready?`<form data-media-form="${model?'place':'use'}" data-id="${asset.id}">${targetScene()}${model?`<label class="fld"><span>Production role</span><select name="category">${['character','environment','prop','vehicle','architecture','geometry'].map(name=>`<option>${name}</option>`).join('')}</select></label>`:`<label class="fld"><span>Timeline placement</span><select name="placement"><option value="append">After the current sequence</option><option value="overlay">Layer / mix from the start</option></select></label>`}<button class="btn p sm" ${noScenes()?'disabled':''}>${model?'Place in scene':'Add to timeline'}</button>${media?`<button type="button" class="btn sm" data-a="studioAssetPublish" data-id="${asset.id}" ${noScenes()?'disabled':''}>Publish / schedule</button>`:''}<p role="status" data-library-status></p></form>`:'';
+    return `<article class="pwa-post"><h3>${esc(asset.name)}</h3><p>${esc(asset.kind)} · ${esc(asset.status)}</p>${asset.error?`<p role="alert">${esc(asset.error)}</p>`:''}${asset.thumbnail_url&&asset.kind!=='image'?`<img class="pwa-media" src="${esc(asset.thumbnail_url)}" alt="">`:''}${preview}${use}<div class="pwa-post-actions"><a class="btn sm" href="${esc(asset.url)}" download>Download original</a>${ready&&media?`<a class="btn sm" href="/dashboard/live?library_asset_id=${asset.id}">Use in Live Studio</a>`:''}${asset.status==='failed'?`<button type="button" class="btn sm" data-a="studioAssetRetry" data-id="${asset.id}">Retry processing</button>`:''}</div><div data-preview-for="${asset.id}"></div></article>`;
+  }
   const previousStudio=R.studio;
   R.studio=id=>{
     if(id!=='library'||!meProfile()||!ST.loaded)return previousStudio(id);
-    return `<div class="wrap pwa-page"><span class="eb">Lightek Studio</span><h1>Asset Library</h1><p>Media, Blender scenes and GLB models, with previews and reusable scene placement.</p><a class="btn" href="#/studio">Back to productions</a><button class="btn" data-a="studioAssetsReload">Refresh library</button><form data-media-form="import" class="pwa-post"><label class="fld"><span>Name</span><input name="name" maxlength="160"></label><label class="fld"><span>Choose an image, audio, video, .blend or .glb file · up to 250 MB</span><input type="file" name="file" accept="image/*,audio/*,video/*,.blend,.glb" required></label><button class="btn p">Import asset</button><p role="status" data-import-status></p></form>${library.error?`<p role="alert">${esc(library.error)}</p>`:''}<div class="g3">${library.items.map(asset=>`<article class="pwa-post"><h3>${esc(asset.name)}</h3><p>${esc(asset.kind)} · ${esc(asset.status)}</p>${asset.error?`<p role="alert">${esc(asset.error)}</p>`:''}${asset.thumbnail_url?`<img class="pwa-media" src="${esc(asset.thumbnail_url)}" alt="">`:''}${asset.status==='ready'?['glb','blend'].includes(asset.kind)?`<button class="btn sm" data-a="studioAssetPreview" data-id="${asset.id}">3D preview</button><form data-media-form="place" data-id="${asset.id}"><label class="fld"><span>Add to scene</span><select name="scene_id">${studioSceneRecords().map(record=>`<option value="${record.scene.id}">${esc(record.project.name)} · ${esc(record.scene.name)}</option>`).join('')}</select></label><label class="fld"><span>Production role</span><select name="category">${['character','environment','prop','vehicle','architecture','geometry'].map(name=>`<option>${name}</option>`).join('')}</select></label><button class="btn sm">Place in scene</button></form>`:asset.kind==='image'?`<img class="pwa-media" src="${esc(asset.proxy_url)}" alt="${esc(asset.name)}">`:`<${asset.kind==='audio'?'audio':'video'} class="pwa-media" src="${esc(asset.proxy_url)}" controls playsinline preload="metadata"></${asset.kind==='audio'?'audio':'video'}>`:''}<div data-preview-for="${asset.id}"></div></article>`).join('')||'<p>No assets yet. Import your first file above.</p>'}</div></div>`;
+    const match=item=>(library.category==='all'||item.category===library.category||item.kind===library.category)&&[item.name,item.description,item.kind,item.category].join(' ').toLowerCase().includes(library.query.toLowerCase());
+    const categories=[...new Set([...library.builtins.map(item=>item.category),...library.items.map(item=>item.kind)])].sort();
+    return `<div class="wrap pwa-page"><span class="eb">Lightek Studio / working library</span><h1>Build with what you have.</h1><p>Use production recipes, imported models, images, audio and video in saved scenes, timelines, publications and live broadcasts.</p><div class="pwa-post-actions"><a class="btn" href="#/studio">Back to productions</a><a class="btn" href="#/studio/templates">Saved project templates</a><button class="btn" data-a="studioAssetsReload">Refresh library</button></div>${noScenes()?'<p class="pwa-empty">Create a production first to give library items a scene and timeline.</p>':''}<form data-media-form="filter" class="pwa-post-actions"><label class="fld"><span>Find an item</span><input name="query" type="search" value="${esc(library.query)}" placeholder="Search library"></label><label class="fld"><span>Category</span><select name="category"><option value="all">All items</option>${categories.map(category=>`<option value="${esc(category)}" ${category===library.category?'selected':''}>${esc(category.replaceAll('_',' '))}</option>`).join('')}</select></label><button class="btn sm">Filter</button></form><form data-media-form="import" class="pwa-post"><h2>Import your media</h2><label class="fld"><span>Name</span><input name="name" maxlength="160"></label><label class="fld"><span>Image, audio, video, .blend or .glb · up to 250 MB</span><input type="file" name="file" accept="image/*,audio/*,video/*,.blend,.glb" required></label><button class="btn p">Import asset</button><p role="status" data-import-status></p></form>${library.error?`<p role="alert">${esc(library.error)}</p>`:''}<h2>Production recipes</h2><p>Editable procedural assets for blocking and production. They create real scene elements or reusable media; character mannequins are stand-ins for finished cast models.</p><div class="g3">${library.builtins.filter(match).map(builtinCard).join('')||'<p>No recipes match this filter.</p>'}</div><h2>Your imported & generated media</h2><div class="g3">${library.items.filter(match).map(assetCard).join('')||'<p>No media matches. Import a file or generate a library recipe.</p>'}</div>${library.nextBefore?'<button class="btn" data-a="studioAssetsMore">Load more media</button>':''}<h2>Saved projects & scenes</h2><div class="g3">${ST.projects.map(project=>`<article class="pwa-post"><h3>${esc(project.name)}</h3>${(project.scenes||studioSceneRecords().filter(record=>record.project.id===project.id).map(record=>record.scene)).map(scene=>`<a class="btn sm" href="#/studio/${scene.id}">${esc(scene.name)}</a>`).join(' ')}</article>`).join('')||'<p>No saved projects yet.</p>'}</div></div>`;
+  };
+  A.studioAssetRetry=button=>run(async()=>{await call('asset.retry',{asset_id:Number(button.dataset.id)});await loadAssets(true);toast('Processing queued');});
+  A.studioBuiltinQuick=button=>run(async()=>{const record=current();if(!record)throw Error('Open a saved scene first.');await call('library.apply',{key:button.dataset.key,scene_id:record.scene.id,lock_version:record.scene.lock_version,object_id:studioWorkspaceSelectedObject(record.scene)?.id,request_key:crypto.randomUUID()});sceneId=null;await A.studioLoad(true);toast('Library item added to the scene');});
+  A.studioAssetPublish=button=>{
+    const asset=library.items.find(item=>item.id===Number(button.dataset.id)),scene=button.closest('form').elements.scene_id.value;
+    if(!scene)return toast('Choose a scene first.');
+    const dialog=document.createElement('dialog');dialog.className='pwa-publish-dialog';dialog.innerHTML=`<form data-media-form="publish" data-id="${asset.id}" data-scene="${scene}"><h2>Publish ${esc(asset.name)}</h2><label class="fld"><span>Title</span><input name="title" required maxlength="160" value="${esc(asset.name)}"></label><label class="fld"><span>Destination</span><select name="platform"><option value="lightek_social">Lightek profile & community</option>${asset.kind==='video'?'<option value="lightek_streaming">Lightek OTT</option><option value="octavia">Octavia</option>':''}</select></label><label class="fld"><span>Audience</span><select name="audience"><option value="everyone">Everyone</option><option value="women">Women only</option><option value="men">Men only</option></select></label><label class="fld"><span>Release time · optional</span><input type="datetime-local" name="publish_at"></label><p>OTT playback requires an MP4. Other video formats can be exported from a timeline first.</p><button class="btn p">Queue publication</button><button type="button" class="btn" data-library-close>Cancel</button><p role="status" data-library-status></p></form>`;dialog.querySelector('[data-library-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>dialog.remove());app.append(dialog);dialog.showModal();
   };
   A.studioAssetPreview=b=>{
     const asset=library.items.find(a=>a.id===Number(b.dataset.id));const root=app.querySelector(`[data-preview-for="${asset.id}"]`);
@@ -44,22 +66,37 @@
   A.studioTimelineSave=()=>run(async()=>{await saveTimeline();toast('Timeline saved');});
   A.studioTimelineQuote=()=>run(async()=>{await saveTimeline();const result=await call('timeline.quote',{scene_id:current().scene.id});LightekStudioApp.setQuote(result);ST.workspaceMode='publish';render(1);});
   app.addEventListener('change',e=>{
-    const el=e.target;if(el.dataset.timelineSetting){timeline[el.dataset.timelineSetting]=el.dataset.timelineSetting==='output'?el.value:Number(el.value);render(1);}
+    const el=e.target;if(el.matches('[data-library-scene]')){const select=el.closest('form').querySelector('[data-library-object]');if(select)select.innerHTML=objectOptions(el.value,el.closest('form').dataset.key?.startsWith('mat_')?'materials':null);}
+    if(el.dataset.timelineSetting){timeline[el.dataset.timelineSetting]=el.dataset.timelineSetting==='output'?el.value:Number(el.value);render(1);}
     if(el.dataset.clipField){timeline.clips[Number(el.dataset.clip)][el.dataset.clipField]=el.type==='checkbox'?el.checked:Number(el.value);render(1);}
     if(el.dataset.frameField){timeline.clips[Number(el.dataset.clip)].keyframes[Number(el.dataset.keyframe)][el.dataset.frameField]=Number(el.value);}
   });
   app.addEventListener('submit',e=>{
-    const form=e.target.closest('[data-media-form]');if(!form)return;e.preventDefault();run(async()=>{
-      if(form.dataset.mediaForm==='import'){
+    const form=e.target.closest('[data-media-form]');if(!form)return;e.preventDefault();
+    const action=form.dataset.mediaForm;
+    if(action==='filter'){library.query=form.elements.query.value;library.category=form.elements.category.value;render(1);return;}
+    if(form.dataset.busy)return;form.dataset.busy='true';const submit=form.querySelector('button:not([type="button"])');if(submit)submit.disabled=true;
+    const notice=form.querySelector('[data-library-status],[data-import-status]');if(notice)notice.textContent='Working…';
+    Promise.resolve().then(async()=>{
+      if(action==='import'){
         const file=form.elements.file.files[0];if(!file||file.size>250*1024*1024)throw Error('Choose a file smaller than 250 MB.');
-        const notice=form.querySelector('[data-import-status]');notice.textContent='Uploading…';const body=new FormData();body.append('file',file);body.append('purpose','studio_asset');
+        const body=new FormData();body.append('file',file);body.append('purpose','studio_asset');
         const response=await fetch('/api/lightek/pwa/uploads',{method:'POST',credentials:'same-origin',headers:nevaeh.csrfHeaders(),body});const upload=await nevaeh.parseResponse(response);
         await call('asset.import',{signed_id:upload.signed_id,name:form.elements.name.value.trim()||file.name,request_key:form.dataset.requestKey||=crypto.randomUUID()});
         await loadAssets(true);toast('Import queued');
-      }else if(form.dataset.mediaForm==='place'){
-        const result=await call('asset.place',{asset_id:Number(form.dataset.id),scene_id:Number(form.elements.scene_id.value),category:form.elements.category.value});await A.studioLoad(true);location.hash='#/studio/'+result.scene_id;
+      }else if(action==='publish'){
+        const result=await call('asset.publish',{asset_id:Number(form.dataset.id),scene_id:Number(form.dataset.scene),title:form.elements.title.value,platform:form.elements.platform.value,audience:form.elements.audience.value,publish_at:form.elements.publish_at.value?new Date(form.elements.publish_at.value).toISOString():null,request_key:form.dataset.requestKey||=crypto.randomUUID()});
+        form.closest('dialog').close();toast(`Publication #${result.publication_id} queued`);
+      }else{
+        const record=studioSceneRecord(Number(form.elements.scene_id.value));if(!record)throw Error('Choose a saved scene first.');
+        const payload={asset_id:Number(form.dataset.id),scene_id:record.scene.id,lock_version:record.scene.lock_version,request_key:form.dataset.requestKey||=crypto.randomUUID()};
+        if(action==='place')payload.category=form.elements.category.value;
+        if(action==='use')payload.placement=form.elements.placement.value;
+        if(action==='builtin')Object.assign(payload,{key:form.dataset.key,object_id:form.elements.object_id?.value,title:form.elements.title?.value,subtitle:form.elements.subtitle?.value});
+        const result=await call(action==='builtin'?'library.apply':action==='place'?'asset.place':'asset.use',payload);
+        sceneId=null;await A.studioLoad(true);await loadAssets(true);if(action==='use'||result.asset_ids?.length)ST.workspaceMode='timeline';else ST.workspaceMode='3d';location.hash='#/studio/'+result.scene_id;render(1);toast('Library item ready in your production');
       }
-    });
+    }).catch(error=>{if(notice)notice.textContent=error.message;toast(error.message);}).finally(()=>{delete form.dataset.busy;if(submit)submit.disabled=false;});
   });
   function stopPreview(){if(!preview)return;cancelAnimationFrame(preview.frame);preview.items.forEach(item=>{if(item.el.pause)item.el.pause();item.el.src='';});preview.audio.close();preview=null;}
   const interpolate=(frames,key,t,base)=>{if(!frames?.length)return base;const ordered=[...frames].sort((a,b)=>a.time-b.time);if(t<=ordered[0].time)return ordered[0][key];for(let i=1;i<ordered.length;i++)if(t<ordered[i].time){const a=ordered[i-1],b=ordered[i],ratio=(t-a.time)/(b.time-a.time);return a[key]+(b[key]-a[key])*ratio;}return ordered.at(-1)[key];};

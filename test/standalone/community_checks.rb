@@ -122,6 +122,7 @@ class ApplicationJob < ActiveJob::Base; end
    app/services/lightek_pwa/policy app/services/lightek_pwa/configuration app/services/lightek_pwa/administration
    app/models/studio_project app/models/production app/models/studio_scene app/models/scene_object
    app/models/studio_operation app/models/artifact app/models/studio_publication app/models/studio_live_operation
+   app/services/studio/library/catalog app/services/studio/library/generated_asset app/services/studio/library/apply
    app/services/studio/publishers/base app/services/studio/publishers/lightek_social
    app/services/studio/director/pwa_intent app/jobs/studio_publication_dispatch_job
    app/services/gatekeeper/studio_live_policy app/services/studio/pwa_access app/services/studio/workers/workspace app/services/studio/workers/project_creation

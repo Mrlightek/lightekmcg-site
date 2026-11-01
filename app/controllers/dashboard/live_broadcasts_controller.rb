@@ -12,6 +12,9 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     @tiktok_ready = Studio::Live::Destination.configured?(current_user)
     access=LightekCommunity::Access.new(user:current_user,site_id:LightekPwa::SiteContext.resolve(request.host).id)
     @communities=access.communities.select{|community|access.super_admin? || community.member?(current_user.profile)}
+    site = LightekPwa::SiteContext.resolve(request.host)
+    actor = Studio::PwaAccess.new("user_id"=>current_user.id, "site_id"=>site.id)
+    @library_assets = StudioAsset.for_actor(actor).where(site_id: site.id, status: "ready", kind: %w[image audio video]).includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }
     @recent = Studio::Live::Sessions.for_user(current_user).order(id: :desc).limit(8)
   end
   def create

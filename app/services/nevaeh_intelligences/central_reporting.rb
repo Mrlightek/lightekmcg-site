@@ -44,7 +44,7 @@ module NevaehIntelligences
     def receive!(installation:, payload:)
       raise Invalid, "Escalation report must be an object" unless payload.is_a?(Hash)
       source = payload.deep_stringify_keys
-      raise Invalid, "Unsupported escalation report" unless source["version"] == 1 && source["ticket_id"].is_a?(Integer) && source["ticket_id"].positive?
+      raise Invalid, "Unsupported escalation report" unless source["version"] == 1 && source["ticket_id"].is_a?(Integer) && source["ticket_id"].positive? && source["ticket_id"] <= 9223372036854775807
       %w[number title description reason].each do |key|
         maximum = {"number" => 100, "title" => 1000, "description" => 20000, "reason" => 4000}.fetch(key)
         raise Invalid, "Invalid escalation #{key}" unless source[key].is_a?(String) && source[key].bytesize <= maximum
@@ -56,7 +56,7 @@ module NevaehIntelligences
       installation.with_lock do
         ticket = Marlon::Ticket.where(related: installation).where("CAST(extra_fields -> 'nevaeh_remote' ->> 'ticket_id' AS TEXT) = ?", source.fetch("ticket_id").to_s).first
         unless ticket
-          ticket = Marlon::Ticket.create!(title: "#{installation.domain}: #{source.fetch('title')}", description: source.fetch("description"),
+          ticket = Marlon::Ticket.create!(number: "LT-I#{installation.id}-T#{source.fetch('ticket_id')}", title: "#{installation.domain}: #{source.fetch('title')}", description: source.fetch("description"),
             category: "technical", priority: "high", urgency: 8, status: "open", submitted_by: installation.account, related: installation,
             extra_fields: {"source" => "nevaeh_remote", "nevaeh_remote" => {"installation_id" => installation.id,
               "account_id" => installation.account_id, "domain" => installation.domain, "ticket_id" => source.fetch("ticket_id"),

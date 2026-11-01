@@ -434,7 +434,7 @@ const CATEGORIES = <%= raw @categories.map { |id, meta|
 }.to_json %>;
 // ── EXISTING TICKETS DATA ────────────────────
 // ── EXISTING TICKETS DATA — real, from Marlon::Ticket, not hardcoded ───────
-const MY_TICKETS = <%= raw @my_tickets_json.to_json %>;
+const MY_TICKETS = <%= raw json_escape(@my_tickets_json.to_json) %>;
 
 let selectedCategory=null;
 let selectedPriority='medium';

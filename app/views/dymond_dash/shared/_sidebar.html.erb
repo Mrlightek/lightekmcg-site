@@ -19,14 +19,29 @@
     <% end %>
     <% if current_user.employee? && can?(:read, Marlon::Ticket) %>
       <div class="dd-nav-label">SUPPORT</div>
-      <% tickets_active = request.path.start_with?(main_app.employee_tickets_path) && request.path != main_app.new_employee_ticket_path %>
+      <% tickets_active = request.path.start_with?(main_app.employee_tickets_path) && request.path != main_app.new_employee_ticket_path && params[:queue] != 'knowledge_gaps' %>
       <%= link_to main_app.employee_tickets_path, class: "dd-nav-item#{' active' if tickets_active}", aria: { current: tickets_active ? 'page' : nil } do %><i class="ti ti-ticket"></i> Support Tickets<% end %>
       <% if can?(:create, Marlon::Ticket) %>
         <% new_ticket_active = request.path == main_app.new_employee_ticket_path %>
         <%= link_to main_app.new_employee_ticket_path, class: "dd-nav-item#{' active' if new_ticket_active}", aria: { current: new_ticket_active ? 'page' : nil } do %><i class="ti ti-plus"></i> New Ticket<% end %>
       <% end %>
-      <% nevaeh_active = request.path.start_with?(main_app.employee_nevaeh_overview_path) %>
+      <% if can?(:create, Marlon::Ticket) %>
+        <%= link_to main_app.support_ticket_templates_path, class: "dd-nav-item#{' active' if request.path.start_with?(main_app.support_ticket_templates_path)}" do %><i class="ti ti-copy"></i> Ticket Templates<% end %>
+      <% end %>
+      <% if can?(:execute_nevaeh, Marlon::Ticket) %>
+        <%= link_to main_app.employee_nevaeh_lessons_path, class: "dd-nav-item#{' active' if request.path.start_with?(main_app.employee_nevaeh_lessons_path)}" do %><i class="ti ti-book"></i> KB Lessons &amp; Workers<% end %>
+        <%= link_to main_app.employee_tickets_path(queue: 'knowledge_gaps'), class: "dd-nav-item#{' active' if params[:queue] == 'knowledge_gaps'}" do %><i class="ti ti-school"></i> Teaching Queue<% end %>
+      <% end %>
+      <% if current_user.role == 'super_admin' %>
+        <%= link_to main_app.dashboard_fleet_updates_path, class: "dd-nav-item#{' active' if request.path.start_with?(main_app.dashboard_fleet_updates_path)}" do %><i class="ti ti-cloud-upload"></i> Customer Updates<% end %>
+      <% end %>
+      <% nevaeh_active = request.path == main_app.employee_nevaeh_overview_path %>
       <%= link_to main_app.employee_nevaeh_overview_path, class: "dd-nav-item#{' active' if nevaeh_active}", aria: { current: nevaeh_active ? 'page' : nil } do %><i class="ti ti-sparkles"></i> Nevaeh<% end %>
+    <% end %>
+    <% if !current_user.employee? && can?(:create, Marlon::Ticket) %>
+      <div class="dd-nav-label">SUPPORT</div>
+      <%= link_to main_app.supports_path, class: 'dd-nav-item' do %><i class="ti ti-ticket"></i> Support Center<% end %>
+      <%= link_to main_app.support_ticket_templates_path, class: "dd-nav-item#{' active' if request.path.start_with?(main_app.support_ticket_templates_path)}" do %><i class="ti ti-copy"></i> Ticket Templates<% end %>
     <% end %>
     <div class="dd-nav-label">SYSTEM</div>
     <%= link_to main_app.dashboard_settings_home_path, class: "dd-nav-item" do %><i class="ti ti-settings"></i> Settings<% end %>

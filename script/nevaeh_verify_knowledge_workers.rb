@@ -36,7 +36,7 @@ ActiveRecord::Base.transaction do
   available = NevaehIntelligences::KnowledgeProcedures.available
   raise "Core request lessons unavailable" unless available.keys.sort == NevaehIntelligences::StructuredTicket::ACTIONS.keys.sort
   site = LightekSettings::WebsiteIdentity.sites_for(operator).order(:id).first || raise("No operator-accessible website for controlled worker verification")
-  ticket = Marlon::Ticket.create!(category: "technical", title: "Controlled KB worker acceptance", priority: "medium", urgency: 5, status: "open", submitted_by: operator)
+  ticket = Marlon::Ticket.create!(number: "NEVAEH-CONTROLLED-#{SecureRandom.hex(12)}", category: "technical", title: "Controlled KB worker acceptance", priority: "medium", urgency: 5, status: "open", submitted_by: operator)
   sections = [{"id" => "page", "action" => "site.page.create", "inputs" => {"site_id" => site.id, "title" => "KB worker acceptance", "slug" => "nevaeh-kb-#{SecureRandom.hex(8)}"}}]
   definition = LightekDesign::Catalog.section_definitions.first || raise("No installed design section")
   allowed = definition.fetch("fields").map { |field| field.fetch("name") }

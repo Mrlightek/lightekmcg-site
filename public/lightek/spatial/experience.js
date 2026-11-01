@@ -1,3 +1,4 @@
+import {mountRemotePanel} from './remote-panel.js';
 import {HeadPose,faceMeasurement} from './projection.js';
 import {WebcamSource,VideoAngles} from './video-sources.js';
 import {FaceTracker} from './tracker.js';
@@ -6,6 +7,7 @@ import {StudioSceneContent} from './scene-content.js';
 import {SpatialRecording} from './output.js';
 
 export function mountSpatial(root,{settings={},onSettings=()=>{},scene={},saveRecording}={}) {
+  let remote={dispose(){}};
   let disposed=false,token=0,webcamItem=null,measurement=null,lastFace=0,lastMask=0,last=performance.now(),frame=0,lastReadout=0;
   const status=root.querySelector('[data-spatial-status]'),trackingStatus=root.querySelector('[data-tracking-status]');
   const say=message=>{status.textContent=message;};
@@ -18,7 +20,8 @@ export function mountSpatial(root,{settings={},onSettings=()=>{},scene={},saveRe
   const pose=new HeadPose({distance:Number(config.distance),mirror:config.mirror});
   let compositor;
   try{compositor=new SpatialCompositor(root.querySelector('[data-spatial-canvas]'),{width:Number(config.width)});}
-  catch(error){say('Spatial / 4D requires WebGL. This browser could not create a graphics context. The regular 3D Layout software preview remains available.');root.querySelectorAll('button,input,select').forEach(el=>el.disabled=true);return {dispose(){}};}
+  catch(error){say('Spatial / 4D requires WebGL. This browser could not create a graphics context. The regular 3D Layout software preview remains available.');root.querySelectorAll('button,input,select').forEach(el=>el.disabled=true);return {dispose(){remote.dispose();}};}
+  remote=mountRemotePanel(root,scene,compositor);
   const sceneContent=new StudioSceneContent(compositor.scene);
   const recording=new SpatialRecording(compositor.renderer.domElement,{onStatus:say,onReady:output=>{
     const link=root.querySelector('[data-spatial-download]');link.href=output.url;link.download=output.filename;link.hidden=false;
@@ -130,5 +133,5 @@ export function mountSpatial(root,{settings={},onSettings=()=>{},scene={},saveRe
     frame=requestAnimationFrame(animate);
   };
   frame=requestAnimationFrame(animate);
-  return {dispose(){disposed=true;token++;cancelAnimationFrame(frame);document.removeEventListener('visibilitychange',visibility);webcam.close();tracker.stop();angles.dispose();recording.dispose();sceneContent.dispose();compositor.dispose();}};
+  return {dispose(){remote.dispose();disposed=true;token++;cancelAnimationFrame(frame);document.removeEventListener('visibilitychange',visibility);webcam.close();tracker.stop();angles.dispose();recording.dispose();sceneContent.dispose();compositor.dispose();}};
 }

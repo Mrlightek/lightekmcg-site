@@ -27,7 +27,7 @@ const {chromium}=require('playwright');
    };
    worker.postMessage({type:'init'});
   }));
-  assert(result.landmarks>=468);assert(result.mask?.width>0);assert(result.mask.min<40&&result.mask.max>200);
+  assert(result.landmarks>=468);assert(result.mask?.width>0);assert(result.mask.min<.2&&result.mask.max>.8);
   console.log('STUDIO_SPATIAL_VISION_PASS real_mediapipe_wasm face_landmarks foreground_confidence_mask worker_inference',JSON.stringify(result));
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

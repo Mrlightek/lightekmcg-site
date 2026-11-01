@@ -1,3 +1,5 @@
+> Implementation update: the persistent Blender/WebRTC service and mounted PWA controls are now in `docs/studio_spatial_service.md`. Sections below retain the earlier subsystem design; consult that update for implemented versus remaining capabilities.
+
 # Lightek Spatial / 4D: browser implementation and Blender preview protocol
 
 ## Delivery status

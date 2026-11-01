@@ -471,6 +471,8 @@ get "manifest"       => "rails/pwa#manifest",       as: :pwa_manifest
   get "/api/lightek/pwa/posts/:post_id/media/:attachment_id", to: "api/lightek_pwa#media"
   get "/api/lightek/pwa/communities/:slug/cover", to: "api/lightek_pwa#cover"
   get "/api/lightek/pwa", to: "api/lightek_pwa#show"
+  post "/api/lightek/pwa/studio/spatial", to: "api/lightek_pwa#spatial_session"
+  post "/internal/studio/spatial/commit", to: "api/studio/spatial_commits#create"
   post "/api/lightek/pwa/uploads", to: "api/lightek_pwa#upload"
   get "/api/nevaeh/executions/:id", to: "api/nevaeh#execution"
 

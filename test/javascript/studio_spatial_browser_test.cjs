@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
 const {chromium}=require('playwright');
-const fakeWorker=`self.onmessage=({data})=>{if(data.type==='init')self.postMessage({type:'ready'});if(data.type==='segment')self.postMessage({type:'segment-ready'});if(data.type==='frame'){const landmarks=Array.from({length:468},()=>({x:.5,y:.5,z:0}));const x=.5+Math.sin(data.time/1500)*.08;landmarks[33]={x:x-.08,y:.45,z:0};landmarks[263]={x:x+.08,y:.45,z:0};data.bitmap.close();self.postMessage({type:'result',landmarks,mask:data.segment?{width:2,height:2,bytes:new Uint8Array([0,255,0,255])}:null});}}`;
+const fakeWorker=`self.onmessage=({data})=>{if(data.type==='init')self.postMessage({type:'ready'});if(data.type==='segment')self.postMessage({type:'segment-ready'});if(data.type==='frame'){const landmarks=Array.from({length:468},()=>({x:.5,y:.5,z:0}));const x=.5+Math.sin(data.time/1500)*.08;landmarks[33]={x:x-.08,y:.45,z:0};landmarks[263]={x:x+.08,y:.45,z:0};data.bitmap.close();self.postMessage({type:'result',landmarks,inferenceMs:10,mask:data.segment?{width:2,height:2,bytes:new Uint8Array([0,255,0,255])}:null});}}`;
 async function run({denied=false,noWebgl=false}={}){
  const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{}),args:['--no-sandbox','--no-zygote','--single-process','--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream',...(noWebgl?['--disable-webgl']:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])]});
  let scene={id:1,name:'Spatial production',lock_version:0,object_count:1,objects:[{id:1,name:'Blender cube',object_type:'cube',definition:{location:[0,0,1],rotation:[0,0,0],scale:[1,1,1],material:{color:[.8,.4,.1,1]}}}],settings:{}};
@@ -12,6 +12,7 @@ async function run({denied=false,noWebgl=false}={}){
  await page.route('https://spatial.test/**',route=>{
   const url=new URL(route.request().url()),json=data=>route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
   if(url.pathname==='/api/nevaeh/bootstrap')return json({identity:{id:1,profile:{id:1,name:'Spatial tester',profile_type:'creator'}},navigation:[],surfaces:[],capabilities:[]});
+  if(url.pathname==='/api/lightek/pwa/studio/spatial')return route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({error:'Blender streaming worker unavailable on this instance'})});
   if(url.pathname==='/api/lightek/pwa/uploads'){uploads++;assert(route.request().postDataBuffer().length>1000);return json({signed_id:'signed-recording'});}
   if(url.pathname==='/api/nevaeh/execute'){
    const request=route.request().postDataJSON();requests.push(request);const {capability,payload}=request;let result={};
@@ -30,6 +31,7 @@ async function run({denied=false,noWebgl=false}={}){
  await page.locator('.studio-work-tabs [data-mode=spatial]').click();await page.locator('[data-spatial-root]').waitFor();
  if(noWebgl){await page.getByText(/Spatial \/ 4D requires WebGL/).waitFor();assert(await page.locator('[data-webcam-start]').isDisabled());assert.equal(uploads,0);assert.deepEqual(errors,[]);return;}
  await page.locator('[data-spatial-canvas] canvas').waitFor();assert.equal(uploads,0);
+ await page.locator('[data-connect]').click();await page.getByText('Blender streaming worker unavailable on this instance',{exact:true}).waitFor();assert(await page.locator('[data-connect]').isEnabled());
  const adapted=await page.evaluate(async()=>{
   const THREE=await import('/lightek/vendor/three/three.module.js'),{StudioSceneContent}=await import('/lightek/spatial/scene-content.js');
   const scene=new THREE.Scene(),content=new StudioSceneContent(scene);

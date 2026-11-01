@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v52"
+const CACHE = "lightek-shell-v53"
 
 const SHELL = [
   "/lightek/index.html",
@@ -20,6 +20,11 @@ const SHELL = [
   "/lightek/spatial/experience.js",
   "/lightek/spatial/scene-content.js",
   "/lightek/spatial/output.js",
+  "/lightek/spatial/remote-panel.js",
+  "/lightek/spatial/server-depth.js",
+  "/lightek/spatial/feed-stage.js",
+  "/lightek/spatial/rtc/SpatialSocket.js",
+  "/lightek/spatial/rtc/BlenderStream.js",
   "/lightek/asset-preview.js",
   "/lightek/vendor/hls/hls.light.min.js",
   "/lightek/vendor/three/addons/loaders/GLTFLoader.js",

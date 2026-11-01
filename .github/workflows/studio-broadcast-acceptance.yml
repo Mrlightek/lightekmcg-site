@@ -31,6 +31,10 @@ on:
       - 'app/jobs/studio_blender_preview_job.rb'
       - 'public/lightek/index.html'
       - 'blender/**'
+      - 'services/spatial/**'
+      - 'app/services/studio/spatial/**'
+      - 'app/controllers/api/studio/spatial_commits_controller.rb'
+      - 'test/operations/studio_spatial_service_test.py'
       - 'app/services/blender/**'
       - 'app/models/studio_*.rb'
       - 'app/jobs/studio_blender_demo_import_job.rb'
@@ -62,10 +66,14 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/blender_authoring_checks.rb
+      - run: bundle exec ruby test/standalone/spatial_commit_checks.rb
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/media_checks.rb
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -93,6 +101,9 @@ jobs:
           node test/javascript/studio_spatial_math_test.cjs
           node test/javascript/studio_spatial_browser_test.cjs
           node test/javascript/studio_spatial_vision_test.cjs
+          node test/javascript/studio_spatial_depth_test.cjs
+          python3 -m pip install -r services/spatial/requirements.txt
+          SPATIAL_TEST_BLENDER="$(command -v blender)" PYTHONPATH="$PWD" python3 -m unittest test.operations.studio_spatial_service_test test.operations.studio_spatial_assets_test
           blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python test/operations/spatial_asset_staging_blender.py
           npm ci --prefix examples/spatial-editor --ignore-scripts
           npm --prefix examples/spatial-editor run check

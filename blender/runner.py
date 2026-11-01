@@ -773,6 +773,118 @@ def write_result(output_directory, payload):
         )
 
 
+def stage_manifest(manifest):
+    scene_data = manifest["scene"]
+    settings = scene_data.get("settings") or {}
+    if not isinstance(settings, dict):
+        raise RuntimeError("Scene settings must be an object")
+    native_path = manifest.get("native_template_path")
+    if native_path:
+        bpy.ops.wm.open_mainfile(filepath=native_path, load_ui=False, use_scripts=False)
+        name = settings.get("native_scene")
+        if name not in bpy.data.scenes:
+            raise RuntimeError('Native Blender scene is unavailable')
+        bpy.context.window.scene = bpy.data.scenes[name]
+        scene = bpy.context.scene
+        for field in ("resolution_x", "resolution_y", "resolution_percentage", "fps", "fps_base"):
+            if field in settings:
+                setattr(scene.render, field, settings[field])
+        if "render_engine" in settings:
+            scene.render.engine = settings["render_engine"]
+        if "transparent_background" in settings:
+            scene.render.film_transparent = bool(settings["transparent_background"])
+        if scene.render.engine == "CYCLES":
+            scene.cycles.device = 'CPU'
+            if "samples" in settings:
+                scene.cycles.samples = max(1, min(256, int(settings["samples"])))
+        for field in ("frame_start", "frame_end"):
+            if field in settings:
+                setattr(scene, field, int(settings[field]))
+        scene.frame_set(int(settings.get("frame_current", scene.frame_current)))
+    else:
+        clear_scene()
+        configure_world(settings)
+        configure_render(settings)
+
+    objects = scene_data.get("objects") or []
+
+    if not isinstance(objects, list):
+        raise RuntimeError(
+            "Scene objects must be an array"
+        )
+
+    created = {}
+    for item in objects:
+        if not isinstance(item, dict):
+            raise RuntimeError(
+                "Every scene object must be an object"
+            )
+
+        definition = item.get("definition") or {}
+        if definition.get("native_source_preview"):
+            continue
+        if native_path and definition.get("native_duplicate_of"):
+            original = bpy.context.scene.objects.get(definition["native_duplicate_of"])
+            if original is None:
+                raise RuntimeError("The source object for this Blender duplicate is unavailable")
+            clone = original.copy()
+            clone.data = original.data.copy() if original.data else None
+            clone.name = definition["blender_object_name"]
+            bpy.context.scene.collection.objects.link(clone)
+        if native_path and item.get("type") == "native_object":
+            obj = bpy.context.scene.objects.get(definition["blender_object_name"])
+            if obj is None:
+                raise RuntimeError("The native Blender object is unavailable")
+            configure_native_object(obj, definition)
+        elif native_path and item.get("type") == "camera" and definition.get("blender_object_name"):
+            obj = bpy.context.scene.objects.get(definition["blender_object_name"])
+            if obj is None or obj.type != 'CAMERA':
+                raise RuntimeError('Native Blender camera is unavailable')
+            configure_camera(obj, definition, native=True)
+            configure_native_object(obj, definition)
+        else:
+            obj = create_manifest_object(item)
+            apply_library_motion(obj, definition)
+        created[str(item.get("id"))] = obj
+
+        log(
+            f"Created {item.get('type')} "
+            f"{obj.name!r}"
+        )
+
+    # An explicit production format takes precedence over recipe animation FPS.
+    if "fps" in settings:
+        bpy.context.scene.render.fps = int(settings["fps"])
+    if "fps_base" in settings:
+        bpy.context.scene.render.fps_base = float(settings["fps_base"])
+    active_id = settings.get("active_camera_object_id")
+    selected = created.get(str(active_id)) if active_id is not None else None
+    if selected is None and settings.get("active_camera"):
+        selected = bpy.context.scene.objects.get(settings["active_camera"])
+    if selected is not None:
+        if selected.type != 'CAMERA':
+            raise RuntimeError('The active render camera must be a Blender camera')
+        bpy.context.scene.camera = selected
+    if bpy.context.scene.camera and any(item.get('definition', {}).get('native_deleted') and created.get(str(item.get('id'))) == bpy.context.scene.camera for item in objects):
+        bpy.context.scene.camera = None
+    ensure_camera()
+    apply_json_presets(settings, created)
+    if bpy.context.scene.camera.data.type == 'PANO':
+        bpy.context.scene.render.engine = 'CYCLES'
+    if not native_path:
+        ensure_lighting()
+        bpy.context.scene.frame_set(int(settings.get("frame_current", 1)))
+
+    # Source identities stay stable while editing; resolve all references
+    # first, then give native objects their saved display names.
+    for item in objects:
+        obj = created.get(str(item.get('id')))
+        if obj is not None and item.get('definition', {}).get('native_original') and item.get('name'):
+            obj.name = item['name']
+
+    return created
+
+
 def main():
     manifest_path, output_directory = parse_arguments()
 
@@ -789,113 +901,7 @@ def main():
             f"{manifest.get('schema_version')}"
         )
 
-        scene_data = manifest["scene"]
-        settings = scene_data.get("settings") or {}
-        if not isinstance(settings, dict):
-            raise RuntimeError("Scene settings must be an object")
-        native_path = manifest.get("native_template_path")
-        if native_path:
-            bpy.ops.wm.open_mainfile(filepath=native_path, load_ui=False, use_scripts=False)
-            name = settings.get("native_scene")
-            if name not in bpy.data.scenes:
-                raise RuntimeError('Native Blender scene is unavailable')
-            bpy.context.window.scene = bpy.data.scenes[name]
-            scene = bpy.context.scene
-            for field in ("resolution_x", "resolution_y", "resolution_percentage", "fps", "fps_base"):
-                if field in settings:
-                    setattr(scene.render, field, settings[field])
-            if "render_engine" in settings:
-                scene.render.engine = settings["render_engine"]
-            if "transparent_background" in settings:
-                scene.render.film_transparent = bool(settings["transparent_background"])
-            if scene.render.engine == "CYCLES":
-                scene.cycles.device = 'CPU'
-                if "samples" in settings:
-                    scene.cycles.samples = max(1, min(256, int(settings["samples"])))
-            for field in ("frame_start", "frame_end"):
-                if field in settings:
-                    setattr(scene, field, int(settings[field]))
-            scene.frame_set(int(settings.get("frame_current", scene.frame_current)))
-        else:
-            clear_scene()
-            configure_world(settings)
-            configure_render(settings)
-
-        objects = scene_data.get("objects") or []
-
-        if not isinstance(objects, list):
-            raise RuntimeError(
-                "Scene objects must be an array"
-            )
-
-        created = {}
-        for item in objects:
-            if not isinstance(item, dict):
-                raise RuntimeError(
-                    "Every scene object must be an object"
-                )
-
-            definition = item.get("definition") or {}
-            if definition.get("native_source_preview"):
-                continue
-            if native_path and definition.get("native_duplicate_of"):
-                original = bpy.context.scene.objects.get(definition["native_duplicate_of"])
-                if original is None:
-                    raise RuntimeError("The source object for this Blender duplicate is unavailable")
-                clone = original.copy()
-                clone.data = original.data.copy() if original.data else None
-                clone.name = definition["blender_object_name"]
-                bpy.context.scene.collection.objects.link(clone)
-            if native_path and item.get("type") == "native_object":
-                obj = bpy.context.scene.objects.get(definition["blender_object_name"])
-                if obj is None:
-                    raise RuntimeError("The native Blender object is unavailable")
-                configure_native_object(obj, definition)
-            elif native_path and item.get("type") == "camera" and definition.get("blender_object_name"):
-                obj = bpy.context.scene.objects.get(definition["blender_object_name"])
-                if obj is None or obj.type != 'CAMERA':
-                    raise RuntimeError('Native Blender camera is unavailable')
-                configure_camera(obj, definition, native=True)
-                configure_native_object(obj, definition)
-            else:
-                obj = create_manifest_object(item)
-                apply_library_motion(obj, definition)
-            created[str(item.get("id"))] = obj
-
-            log(
-                f"Created {item.get('type')} "
-                f"{obj.name!r}"
-            )
-
-        # An explicit production format takes precedence over recipe animation FPS.
-        if "fps" in settings:
-            bpy.context.scene.render.fps = int(settings["fps"])
-        if "fps_base" in settings:
-            bpy.context.scene.render.fps_base = float(settings["fps_base"])
-        active_id = settings.get("active_camera_object_id")
-        selected = created.get(str(active_id)) if active_id is not None else None
-        if selected is None and settings.get("active_camera"):
-            selected = bpy.context.scene.objects.get(settings["active_camera"])
-        if selected is not None:
-            if selected.type != 'CAMERA':
-                raise RuntimeError('The active render camera must be a Blender camera')
-            bpy.context.scene.camera = selected
-        if bpy.context.scene.camera and any(item.get('definition', {}).get('native_deleted') and created.get(str(item.get('id'))) == bpy.context.scene.camera for item in objects):
-            bpy.context.scene.camera = None
-        ensure_camera()
-        apply_json_presets(settings, created)
-        if bpy.context.scene.camera.data.type == 'PANO':
-            bpy.context.scene.render.engine = 'CYCLES'
-        if not native_path:
-            ensure_lighting()
-            bpy.context.scene.frame_set(int(settings.get("frame_current", 1)))
-
-        # Source identities stay stable while editing; resolve all references
-        # first, then give native objects their saved display names.
-        for item in objects:
-            obj = created.get(str(item.get('id')))
-            if obj is not None and item.get('definition', {}).get('native_original') and item.get('name'):
-                obj.name = item['name']
+        stage_manifest(manifest)
 
         outputs = requested_outputs(manifest)
         generated = []

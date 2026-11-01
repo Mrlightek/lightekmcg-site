@@ -1,3 +1,5 @@
+> Implementation update: the persistent Blender/WebRTC service and mounted PWA controls are now in `docs/studio_spatial_service.md`. Sections below retain the earlier subsystem design; consult that update for implemented versus remaining capabilities.
+
 # Advanced Blender-to-browser subsystems
 
 This extends `studio_spatial_4d.md`. These are service designs and integration contracts, not a claim that a deployed 60 fps WebRTC/Blender service exists. The reusable asset-staging helper is implemented and tested in Blender; endpoint registration, coordinator and media sidecar remain future integrations.

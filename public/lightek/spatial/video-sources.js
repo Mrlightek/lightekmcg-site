@@ -4,7 +4,7 @@ export class WebcamSource {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('Webcam capture requires HTTPS and a supported browser.');
     this.close(); const generation = this.generation;
     const stream = await navigator.mediaDevices.getUserMedia({audio: false,
-      video: {facingMode: 'user', width: {ideal: 640}, height: {ideal: 480}, frameRate: {ideal: 24, max: 30}}});
+      video: {facingMode: 'user', width: {ideal: 640}, height: {ideal: 480}, frameRate: {ideal: 60, max: 60}}});
     if (generation !== this.generation) {
       stream.getTracks().forEach(track => track.stop());
       throw new Error('Webcam start cancelled.');

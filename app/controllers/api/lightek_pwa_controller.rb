@@ -87,6 +87,21 @@ module Api
       stream_blob(attachment.blob)
     end
 
+    def spatial_session
+      access=::Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
+      client=::Studio::Spatial::Client.new(access)
+      result=case params.fetch(:operation,"create")
+      when "create" then client.create(access.scene!(params.require(:scene_id)))
+      when "ticket" then client.ticket(params.require(:session_id))
+      when "close" then client.close(params.require(:session_id))
+      else raise ArgumentError,"Unsupported Blender session operation"
+      end
+      result["ws_url"]="#{request.ssl? ? 'wss' : 'ws'}://#{request.host_with_port}/studio-spatial/ws" unless result["closed"]
+      render json:result
+    rescue ArgumentError => error
+      render json:{error:error.message},status: :unprocessable_entity
+    end
+
     def upload
       file = params.require(:file)
       raise ArgumentError, "Choose a media file" unless file.respond_to?(:tempfile)
@@ -157,7 +172,7 @@ module Api
       @site = LightekPwa::SiteContext.resolve(request.host)
       surface = case action_name
       when "manifest" then nil
-      when "asset_file" then "studio"
+      when "asset_file", "spatial_session" then "studio"
       when "upload" then params[:purpose] == "studio_asset" ? "studio" : "create"
       when "ott_catalog", "live_playlist", "live_segment" then "watch"
       when "show" then {"feed" => "home", "saved" => "home", "profile" => "space", "community" => "communities", "post" => "home", "media" => "watch"}.fetch(params.fetch(:view, "feed"), params[:view])

@@ -20,7 +20,8 @@ Each supported item has a concrete workflow:
 
 | Item | Uses |
 | --- | --- |
-| `.blend` / `.glb` | Interactive model preview; placement in an authorized saved scene; existing Blender render/export workflow |
+| `.blend` | Native template scenes/cameras, editable source download, optional interactive preview, native Blender rendering |
+| `.glb` | Interactive model preview, placement in an authorized saved scene, Blender render/export |
 | Image | Preview; append/layer on a timeline; social publication; live still or graphic overlay |
 | Audio | Preview; append/mix on a timeline; social publication; looped live audio bed |
 | Video | Preview; timeline editing/export; social/OTT publication; live program clip |
@@ -37,12 +38,12 @@ Loading media is a local preview operation. A broadcast starts only through the 
 
 ## Deployment and verification
 
-Run `bin/rails db:migrate` to register the four new library capabilities. No new media database tables are needed. The PWA shell cache is bumped to v47. Existing Blender/FFmpeg processing and queue configuration still apply.
+Run `bin/rails db:migrate` to register the four new library capabilities. No new media database tables are needed. The PWA shell cache is bumped to v48. Run the native Blender capability migration as well; see [Native Blender engine](native-blender-engine.md). Existing Blender/FFmpeg processing and queue configuration still apply.
 
 Acceptance commands with the standalone bundle:
 
 ```sh
-LIGHTEK_TEST_BLENDER=1 BUNDLE_GEMFILE=test/standalone/Gemfile bundle exec ruby test/standalone/studio_library_checks.rb
+LIGHTEK_TEST_BLENDER=1 BUNDLE_GEMFILE=test/standalone/Gemfile bundle exec ruby test/standalone/native_blender_checks.rb
 LIGHTEK_TEST_BLENDER=1 BUNDLE_GEMFILE=test/standalone/Gemfile bundle exec ruby test/standalone/media_checks.rb
 CHROME_PATH=/path/to/chromium node test/javascript/studio_library_test.cjs
 CHROME_PATH=/path/to/chromium node test/javascript/studio_live_library_test.cjs

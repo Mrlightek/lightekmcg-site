@@ -4,7 +4,8 @@ import math
 import os
 import sys
 import traceback
-from mathutils import Vector
+import zipfile
+from mathutils import Vector, Matrix, Euler
 
 
 SCHEMA_VERSION = "1.0"
@@ -180,18 +181,76 @@ def create_mesh(object_type, name, definition):
     return obj
 
 
+def clear_camera_animation(data, path):
+    animation = data.animation_data
+    if not animation:
+        return
+    if animation.action:
+        animation.action = animation.action.copy()
+        for curve in list(getattr(animation.action, 'fcurves', [])):
+            if curve.data_path == path:
+                animation.action.fcurves.remove(curve)
+    for curve in list(animation.drivers):
+        if curve.data_path == path:
+            data.driver_remove(path)
+
+
+def configure_camera(obj, definition, native=False):
+    data = obj.data
+    original = definition.get("native_original") if native else None
+    changed = lambda key: original is None or definition.get(key) != original.get(key)
+    if native and original and data.users > 1 and any(changed(key) for key in definition if key not in {'native_original','location','rotation','scale','blender_object_name'}):
+        obj.data = data.copy()
+        data = obj.data
+    transform_changed = any(changed(key) for key in ("location", "rotation", "scale"))
+    if native and transform_changed:
+        obj.matrix_world = Matrix.LocRotScale(Vector(vector3(definition.get("location"), [0,0,0])),
+            Euler([math.radians(v) for v in vector3(definition.get("rotation"), [0,0,0])]).to_quaternion(),
+            Vector(vector3(definition.get("scale"), [1,1,1])))
+    elif not native:
+        apply_transform(obj, definition)
+    fields = {"camera_type":"type", "lens":"lens", "lens_unit":"lens_unit", "sensor_fit":"sensor_fit", "sensor_width":"sensor_width", "sensor_height":"sensor_height",
+        "shift_x":"shift_x", "shift_y":"shift_y", "clip_start":"clip_start", "clip_end":"clip_end", "ortho_scale":"ortho_scale"}
+    for field, attribute in fields.items():
+        if field in definition and changed(field):
+            if native:
+                clear_camera_animation(data, attribute)
+            setattr(data, attribute, definition[field])
+    if definition.get("lens_unit") == "FOV" and (changed("fov_degrees") or changed("lens_unit")):
+        if native:
+            clear_camera_animation(data, 'lens')
+        data.angle = math.radians(float(definition.get("fov_degrees", 39.5978)))
+    panorama = getattr(data, 'cycles', data)
+    for field in ("panorama_type", "fisheye_lens", "fisheye_fov", "latitude_min", "latitude_max", "longitude_min", "longitude_max", "fisheye_polynomial_k0", "fisheye_polynomial_k1", "fisheye_polynomial_k2", "fisheye_polynomial_k3", "fisheye_polynomial_k4"):
+        if field in definition and changed(field) and hasattr(panorama, field):
+            setattr(panorama, field, math.radians(definition[field]) if field in {"fisheye_fov","latitude_min","latitude_max","longitude_min","longitude_max"} else definition[field])
+    for field in ("convergence_mode", "pivot", "interocular_distance", "convergence_distance"):
+        key = 'stereo_' + field
+        if key in definition and changed(key):
+            setattr(data.stereo, field, definition[key])
+    dof = {"dof_enabled":"use_dof", "focus_distance":"focus_distance", "aperture_fstop":"aperture_fstop", "aperture_blades":"aperture_blades", "aperture_ratio":"aperture_ratio"}
+    for field, attribute in dof.items():
+        if field in definition and changed(field):
+            if native:
+                clear_camera_animation(data, 'dof.' + attribute)
+            setattr(data.dof, attribute, definition[field])
+    if "aperture_rotation" in definition and changed("aperture_rotation"):
+        data.dof.aperture_rotation = math.radians(definition["aperture_rotation"])
+    if "focus_object_name" in definition and changed("focus_object_name"):
+        name = definition["focus_object_name"]
+        target = bpy.context.scene.objects.get(name) if name else None
+        if name and target is None:
+            raise RuntimeError('The selected Blender focus object is unavailable')
+        data.dof.focus_object = target
+
+
 def create_camera(name, definition):
     data = bpy.data.cameras.new(name=name)
     obj = bpy.data.objects.new(name, data)
-
     bpy.context.scene.collection.objects.link(obj)
-
-    apply_transform(obj, definition)
-
-    data.lens = float(definition.get("lens", 50.0))
-
-    bpy.context.scene.camera = obj
-
+    configure_camera(obj, definition)
+    if not bpy.context.scene.camera:
+        bpy.context.scene.camera = obj
     return obj
 
 
@@ -250,7 +309,17 @@ def create_manifest_object(item):
         if not path or not os.path.isfile(path):
             raise RuntimeError("Imported asset proxy is unavailable")
         existing = set(bpy.context.scene.objects)
-        bpy.ops.import_scene.gltf(filepath=path)
+        if definition.get("asset_format") == "blend":
+            with bpy.data.libraries.load(path, link=False) as (available, target):
+                requested = definition.get("asset_scene")
+                target.scenes = [requested] if requested in available.scenes else available.scenes[:1]
+            source_scene = target.scenes[0]
+            for collection in source_scene.collection.children:
+                bpy.context.scene.collection.children.link(collection)
+            for child in source_scene.collection.objects:
+                bpy.context.scene.collection.objects.link(child)
+        else:
+            bpy.ops.import_scene.gltf(filepath=path)
         imported = set(bpy.context.scene.objects) - existing
         root = bpy.data.objects.new(name, None)
         bpy.context.scene.collection.objects.link(root)
@@ -472,6 +541,11 @@ def configure_render(settings):
         settings.get("resolution_percentage", 100)
     )
 
+    for field in ("frame_start", "frame_end"):
+        if field in settings:
+            setattr(scene, field, int(settings[field]))
+    if "fps" in settings:
+        scene.render.fps = int(settings["fps"])
     scene.render.image_settings.file_format = "PNG"
 
     scene.render.film_transparent = bool(
@@ -505,10 +579,24 @@ def render_preview(path):
     scene = bpy.context.scene
 
     scene.render.filepath = path
+    scene.render.image_settings.file_format = "PNG"
 
     log(f"Rendering preview: {path}")
 
     bpy.ops.render.render(write_still=True)
+
+
+def export_project_bundle(output_directory, manifest):
+    path = os.path.join(output_directory, 'project.zip')
+    with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.write(os.path.join(output_directory, 'scene.blend'), 'scene.blend')
+        folder = os.path.join(output_directory, 'native-bundle')
+        if os.path.isdir(folder):
+            for directory, _children, files in os.walk(folder):
+                for name in files:
+                    source = os.path.join(directory, name)
+                    archive.write(source, os.path.relpath(source, output_directory))
+        archive.writestr('source-credits.json', json.dumps(manifest.get('credits', []), ensure_ascii=False, indent=2))
 
 
 def requested_outputs(manifest):
@@ -551,18 +639,37 @@ def main():
             f"{manifest.get('schema_version')}"
         )
 
-        clear_scene()
-
         scene_data = manifest["scene"]
         settings = scene_data.get("settings") or {}
-
         if not isinstance(settings, dict):
-            raise RuntimeError(
-                "Scene settings must be an object"
-            )
-
-        configure_world(settings)
-        configure_render(settings)
+            raise RuntimeError("Scene settings must be an object")
+        native_path = manifest.get("native_template_path")
+        if native_path:
+            bpy.ops.wm.open_mainfile(filepath=native_path, load_ui=False, use_scripts=False)
+            name = settings.get("native_scene")
+            if name not in bpy.data.scenes:
+                raise RuntimeError('Native Blender scene is unavailable')
+            bpy.context.window.scene = bpy.data.scenes[name]
+            scene = bpy.context.scene
+            for field in ("resolution_x", "resolution_y", "resolution_percentage", "fps", "fps_base"):
+                if field in settings:
+                    setattr(scene.render, field, settings[field])
+            if "render_engine" in settings:
+                scene.render.engine = settings["render_engine"]
+            if "transparent_background" in settings:
+                scene.render.film_transparent = bool(settings["transparent_background"])
+            if scene.render.engine == "CYCLES":
+                scene.cycles.device = 'CPU'
+                if "samples" in settings:
+                    scene.cycles.samples = max(1, min(256, int(settings["samples"])))
+            for field in ("frame_start", "frame_end"):
+                if field in settings:
+                    setattr(scene, field, int(settings[field]))
+            scene.frame_set(int(settings.get("frame_current", scene.frame_current)))
+        else:
+            clear_scene()
+            configure_world(settings)
+            configure_render(settings)
 
         objects = scene_data.get("objects") or []
 
@@ -571,23 +678,45 @@ def main():
                 "Scene objects must be an array"
             )
 
+        created = {}
         for item in objects:
             if not isinstance(item, dict):
                 raise RuntimeError(
                     "Every scene object must be an object"
                 )
 
-            obj = create_manifest_object(item)
-            apply_library_motion(obj, item.get("definition") or {})
+            definition = item.get("definition") or {}
+            if definition.get("native_source_preview"):
+                continue
+            if native_path and item.get("type") == "camera" and definition.get("blender_object_name"):
+                obj = bpy.context.scene.objects.get(definition["blender_object_name"])
+                if obj is None or obj.type != 'CAMERA':
+                    raise RuntimeError('Native Blender camera is unavailable')
+                configure_camera(obj, definition, native=True)
+            else:
+                obj = create_manifest_object(item)
+                apply_library_motion(obj, definition)
+            created[str(item.get("id"))] = obj
 
             log(
                 f"Created {item.get('type')} "
                 f"{obj.name!r}"
             )
 
+        active_id = settings.get("active_camera_object_id")
+        selected = created.get(str(active_id)) if active_id is not None else None
+        if selected is None and settings.get("active_camera"):
+            selected = bpy.context.scene.objects.get(settings["active_camera"])
+        if selected is not None:
+            if selected.type != 'CAMERA':
+                raise RuntimeError('The active render camera must be a Blender camera')
+            bpy.context.scene.camera = selected
         ensure_camera()
-        ensure_lighting()
-        bpy.context.scene.frame_set(1)
+        if bpy.context.scene.camera.data.type == 'PANO':
+            bpy.context.scene.render.engine = 'CYCLES'
+        if not native_path:
+            ensure_lighting()
+            bpy.context.scene.frame_set(int(settings.get("frame_current", 1)))
 
         outputs = requested_outputs(manifest)
         generated = []
@@ -615,6 +744,10 @@ def main():
             )
             render_preview(path)
             generated.append("preview.png")
+
+        if outputs.get("bundle"):
+            export_project_bundle(output_directory, manifest)
+            generated.append("project.zip")
 
         write_result(
             output_directory,

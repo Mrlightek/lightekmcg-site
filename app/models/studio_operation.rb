@@ -1,6 +1,10 @@
 class StudioOperation < ApplicationRecord
   STATUSES = %w[awaiting_planning awaiting_approval awaiting_payment pending running completed failed cancelled].freeze
 
+  has_one_attached :blender_bundle
+  has_one_attached :blender_source
+  after_create :capture_blender_source
+
   belongs_to :studio_project
   belongs_to :production, optional: true
   belongs_to :studio_scene, optional: true
@@ -78,6 +82,11 @@ class StudioOperation < ApplicationRecord
   def executable? = status.in?(%w[pending awaiting_approval])
 
   private
+
+  def capture_blender_source
+    blender_source.attach(studio_scene.blender_source.blob) if studio_scene&.blender_source&.attached?
+    blender_bundle.attach(studio_scene.blender_bundle.blob) if studio_scene&.blender_bundle&.attached?
+  end
 
   def json_payloads_must_be_objects
     %i[intent manifest cost_quote metadata].each do |attribute|

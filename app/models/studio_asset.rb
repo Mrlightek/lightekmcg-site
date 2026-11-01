@@ -3,6 +3,8 @@ class StudioAsset < ApplicationRecord
   belongs_to :site, class_name: "DymondSite::Site", optional: true
   belongs_to :studio_project, optional: true
   has_one_attached :file
+  has_one_attached :bundle
+  has_one_attached :native
   has_one_attached :proxy
   has_one_attached :thumbnail
   validates :name, presence: true, length: { maximum: 160 }

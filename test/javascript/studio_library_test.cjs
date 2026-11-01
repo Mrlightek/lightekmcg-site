@@ -14,10 +14,13 @@ const studioWorkspaceSelectedObject=scene=>scene.objects[0];
 window.LightekStudioApp={prepare:()=>{},story:()=>'',setQuote:()=>{}};
 window.requests=[];
 const builtins=[{key:'char_iris',name:'Iris',category:'characters',description:'Editable blocking mannequin.',target:'scene'},{key:'mat_worn_brass',name:'Worn Brass',category:'materials',description:'Apply a material.',target:'object'},{key:'audio_neural_pulse',name:'Neural Pulse Bed',category:'audio',description:'Generated audio.',target:'timeline'},{key:'gfx_lower_thirds',name:'Lower third',category:'graphics',description:'Generated graphic.',target:'timeline'}];
-let assets=[{id:3,name:'Photo',kind:'image',status:'ready',url:'/asset/3',proxy_url:'/asset/3',metadata:{}},{id:2,name:'Model',kind:'glb',status:'ready',url:'/asset/2',proxy_url:'/asset/2',metadata:{}},{id:1,name:'Broken audio',kind:'audio',status:'failed',error:'Invalid media',url:'/asset/1',metadata:{}}];
+const camera_presets=[{key:'orthographic',name:'Orthographic',settings:{camera_type:'ORTHO',lens:50,sensor_width:36}}],blender_demos=[{key:'pebble_scattering',name:'Scattering Pebbles',author:'Blender Studio',license:'CC0',minimum_blender:'3.0',description:'Native nodes',source_page:'https://www.blender.org/download/demo-files/'}];
+let assets=[{id:4,name:'Native scene',kind:'blend',status:'ready',url:'/asset/4',native_url:'/asset/4/native',proxy_url:'/asset/4',metadata:{native_blender:true,blender_version:'4.0.2',scenes:[{name:'Native Stage',object_count:4,cameras:[{name:'Camera'}]}]}},{id:3,name:'Photo',kind:'image',status:'ready',url:'/asset/3',proxy_url:'/asset/3',metadata:{}},{id:2,name:'Model',kind:'glb',status:'ready',url:'/asset/2',proxy_url:'/asset/2',metadata:{}},{id:1,name:'Broken audio',kind:'audio',status:'failed',error:'Invalid media',url:'/asset/1',metadata:{}}];
 const nevaeh={csrfHeaders:()=>({}),parseResponse:response=>response.json(),execute:async({capability,payload})=>{requests.push({capability,payload});
-if(capability.endsWith('assets.list'))return {result:{assets:payload.before?[{id:0,name:'Older clip',kind:'video',status:'ready',url:'/asset/0',proxy_url:'/asset/0',metadata:{duration:2}}]:assets,builtins,next_before:payload.before?null:1}};
+if(capability.endsWith('assets.list'))return {result:{assets:payload.before?[{id:0,name:'Older clip',kind:'video',status:'ready',url:'/asset/0',proxy_url:'/asset/0',metadata:{duration:2}}]:assets,builtins,camera_presets,blender_demos,next_before:payload.before?null:1}};
 if(capability.endsWith('asset.retry')){assets=assets.map(asset=>asset.id===payload.asset_id?{...asset,status:'uploaded'}:asset);return {result:{status:'uploaded'}};}
+if(capability.endsWith('blender.demo.import'))return {result:{asset_id:4,status:'uploaded'}};
+if(capability.endsWith('blender.template.use'))return {result:{project_id:1,scene_id:1}};
 if(capability.endsWith('asset.publish'))return {result:{publication_id:42,status:'draft'}};
 const record=studioSceneRecord(payload.scene_id);if(record){record.scene.lock_version++;if(capability.endsWith('asset.use'))record.scene.settings.timeline={output:'video',width:1280,height:720,clips:[{asset_id:payload.asset_id,in:0,out:2,start:0,track:0,gain:1,keyframes:[]}]};}
 return {result:{scene_id:payload.scene_id,lock_version:record?.scene.lock_version,object_ids:[12],asset_ids:capability.endsWith('library.apply')&&payload.key==='audio_neural_pulse'?[3]:[]}};
@@ -34,6 +37,11 @@ window.addEventListener('hashchange',()=>render());
   await page.route('https://library.test/**',route=>route.fulfill({contentType:route.request().url().endsWith('.js')?'application/javascript':'text/html',body:route.request().url().endsWith('.js')?script:fixture}));
   await page.goto('https://library.test/');await page.locator('[data-library-key="char_iris"]').waitFor();
   assert.equal(await page.locator('h1').textContent(),'Build with what you have.');
+  await page.locator('[data-a="studioBlenderDemoImport"]').click();await page.waitForFunction(()=>requests.some(item=>item.capability.endsWith('blender.demo.import')));
+  await page.locator('[data-media-form="native-template"] button').click();await page.waitForFunction(()=>location.hash==='#/studio/1');assert.equal(await page.evaluate(()=>requests.find(item=>item.capability.endsWith('blender.template.use')).payload.source_scene),null);
+  await page.evaluate(()=>{location.hash='#/studio/library';render();});
+  await page.locator('[data-media-form="camera-create"] button').click();await page.waitForFunction(()=>requests.some(item=>item.capability.endsWith('blender.camera.create')));assert.equal(await page.evaluate(()=>requests.find(item=>item.capability.endsWith('blender.camera.create')).payload.preset),'orthographic');
+  await page.evaluate(()=>{location.hash='#/studio/library';render();});
   await page.locator('[data-key="mat_worn_brass"] [data-library-scene]').selectOption('2');assert.equal(await page.locator('[data-key="mat_worn_brass"] [data-library-object] option').textContent(),'Guest');
   await page.locator('[data-key="mat_worn_brass"] button').click();await page.waitForFunction(()=>location.hash==='#/studio/2');
   let request=await page.evaluate(()=>requests.find(item=>item.capability.endsWith('library.apply')));assert.equal(request.payload.object_id,'2');assert.equal(request.payload.scene_id,2);assert.equal(request.payload.key,'mat_worn_brass');

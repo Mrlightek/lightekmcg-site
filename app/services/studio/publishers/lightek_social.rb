@@ -35,7 +35,7 @@ module Studio
             end
             post = ::Post.new(user: user, site_id: site_id, community: community,
               title: metadata["title"].presence || project.name, content: metadata["content"],
-              kind: kind, distribution: publication.platform, audience: metadata.fetch("audience","everyone"), visibility: community&.visibility == "private" ? "community" : "public", request_key: key)
+              kind: kind, metadata: {"sources"=>Array(metadata["sources"])}, distribution: publication.platform, audience: metadata.fetch("audience","everyone"), visibility: community&.visibility == "private" ? "community" : "public", request_key: key)
             post.media.attach(publication.artifact.file.blob)
             post.save!
           end

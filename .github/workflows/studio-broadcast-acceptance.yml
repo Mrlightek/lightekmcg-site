@@ -19,8 +19,15 @@ on:
       - 'public/lightek/studio-*.js'
       - 'public/lightek/index.html'
       - 'blender/**'
+      - 'app/services/blender/**'
+      - 'app/models/studio_*.rb'
+      - 'app/jobs/studio_blender_demo_import_job.rb'
+      - 'config/studio/blender_demos.json'
+      - 'test/operations/**'
+      - 'test/javascript/studio_native_camera_test.cjs'
       - 'db/migrate/20261101010000_create_studio_broadcast_control.rb'
       - 'db/migrate/20261101020000_register_studio_library_actions.rb'
+      - 'db/migrate/20261101030000_register_native_blender_studio.rb'
       - '.github/workflows/studio-broadcast-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -40,7 +47,7 @@ jobs:
       - name: Library, HTTP, Gatekeeper, publication and native Blender acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
-        run: bundle exec ruby test/standalone/studio_library_checks.rb
+        run: bundle exec ruby test/standalone/native_blender_checks.rb
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -60,3 +67,6 @@ jobs:
         run: |
           node test/javascript/studio_library_test.cjs
           node test/javascript/studio_live_library_test.cjs
+          node test/javascript/studio_native_camera_test.cjs
+      - name: Blender archive and transform regression
+        run: python3 -m unittest test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py

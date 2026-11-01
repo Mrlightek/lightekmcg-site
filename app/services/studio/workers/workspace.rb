@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply].freeze
+      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -39,6 +39,14 @@ module Studio
         scene.transaction do
           scene.settings = scene.settings.to_h.merge("render_engine" => engine, "resolution_x" => width, "resolution_y" => height,
             "transparent_background" => ActiveModel::Type::Boolean.new.cast(settings["transparent_background"]))
+          timeline={}
+          %w[frame_start frame_end frame_current fps samples].each { |key| timeline[key]=Integer(settings[key]) if settings.key?(key) }
+          raise ArgumentError,"Use an FPS from 1 to 120" if timeline["fps"] && !timeline["fps"].between?(1,120)
+          raise ArgumentError,"Use 1–256 preview samples" if timeline["samples"] && !timeline["samples"].between?(1,256)
+          first=timeline.fetch("frame_start",scene.settings.fetch("frame_start",1));last=timeline.fetch("frame_end",scene.settings.fetch("frame_end",250))
+          frame=timeline.fetch("frame_current",scene.settings.fetch("frame_current",first))
+          raise ArgumentError,"Choose an ordered Blender frame range and a frame within it" unless first.between?(-1000000,1000000) && last.between?(first,1000000) && frame.between?(first,last)
+          scene.settings=scene.settings.merge(timeline)
           if @payload["object_id"].present?
             object = scene.scene_objects.find(@payload["object_id"])
             properties = @payload.fetch("properties", {}).to_h
@@ -109,6 +117,7 @@ module Studio
           unless publication
             operation = project.studio_operations.where(status: "completed").joins(:artifacts).where(artifacts: { id: @payload.fetch("artifact_id") }).first!
             artifact = operation.artifacts.find(@payload.fetch("artifact_id"))
+            metadata["sources"] = Array(operation.manifest["credits"])
             raise ArgumentError,"OTT publishing requires a video master" if platform!="lightek_social" && !artifact.file.blob.content_type.start_with?("video/")
             time = @payload["publish_at"].present? ? Time.iso8601(@payload["publish_at"]) : nil
             publication = project.studio_publications.create!(artifact: artifact, production: operation.production,
@@ -159,10 +168,82 @@ module Studio
         records=scope.limit(101).to_a
         more=records.length>100
         records=records.first(100)
-        { builtins: Studio::Library::Catalog.items, next_before: more ? records.last.id : nil, assets: records.map { |asset|
+        { builtins: Studio::Library::Catalog.items, camera_presets: Studio::NativeBlender::CameraSettings.presets, blender_demos: Studio::NativeBlender::DemoCatalog.items, next_before: more ? records.last.id : nil, assets: records.map { |asset|
           { id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,error:asset.error_message,metadata:asset.metadata,
-            url:"/api/lightek/pwa/assets/#{asset.id}/original",proxy_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil,
+            url:asset.file.attached? ? "/api/lightek/pwa/assets/#{asset.id}/original" : nil,bundle_url:asset.bundle.attached? ? "/api/lightek/pwa/assets/#{asset.id}/bundle" : nil,native_url:asset.native.attached? ? "/api/lightek/pwa/assets/#{asset.id}/native" : nil,proxy_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil,
             thumbnail_url:asset.thumbnail.attached? ? "/api/lightek/pwa/assets/#{asset.id}/thumbnail" : nil } } }
+      end
+
+      def blender_template_use
+        Studio::NativeBlender::NativeTemplate.call(access:@access,payload:@payload)
+      end
+
+      def blender_prepare
+        asset=StudioAsset.for_actor(@access).where(kind:"blend").find(@payload.fetch("asset_id"))
+        asset.with_lock do
+          raise ArgumentError,"This Blender import is already processing" if %w[uploaded processing].include?(asset.status)
+          asset.update!(status:"uploaded",error_message:nil)
+        end
+        StudioAssetIngestJob.perform_later(asset.id)
+        {asset_id:asset.id,status:asset.status}
+      end
+
+      def blender_demo_import
+        demo=Studio::NativeBlender::DemoCatalog.fetch(@payload.fetch("demo_key"))
+        asset=nil
+        @access.user.with_lock do
+          asset=StudioAsset.find_or_initialize_by(owner_id:@access.user.id,request_key:"blender-demo-#{@access.site_id}-#{demo.fetch('key')}")
+          unless asset.persisted?
+            asset.assign_attributes(site_id:@access.site_id,name:demo.fetch("name"),kind:"blend",status:"uploaded",metadata:{"demo_key"=>demo["key"],"source"=>demo})
+            asset.save!
+          end
+          asset.update!(status:"uploaded",error_message:nil) if asset.status=="failed"
+        end
+        StudioBlenderDemoImportJob.perform_later(asset.id) if asset.status=="uploaded"
+        {asset_id:asset.id,status:asset.status}
+      end
+
+      def blender_camera_create
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        key=@payload.fetch("request_key").to_s
+        raise ArgumentError,"A camera request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        settings=Studio::NativeBlender::CameraSettings.preset(@payload.fetch("preset"))
+        result=nil
+        scene.with_lock do
+          journal=scene.settings.fetch("library_requests",{})
+          return journal[key] if journal[key]
+          scene.lock_version=Integer(@payload.fetch("lock_version"))
+          object=scene.scene_objects.create!(name:@payload["name"].presence || Studio::NativeBlender::CameraSettings::PRESETS.fetch(@payload["preset"]).first,object_type:"camera",position:scene.scene_objects.maximum(:position).to_i+1,
+            definition:settings.merge("location"=>[6,-8,4],"rotation"=>[72,0,0],"scale"=>[1,1,1],"look_at"=>[0,0,1.5]))
+          result={"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.lock_version+1}
+          scene.settings=scene.settings.merge("active_camera_object_id"=>object.id,"active_camera"=>object.name,"library_requests"=>journal.to_a.last(99).to_h.merge(key=>result))
+          scene.settings=scene.settings.merge("render_engine"=>"CYCLES") if settings["camera_type"]=="PANO"
+          scene.save!
+        end
+        result
+      rescue ActiveRecord::StaleObjectError
+        raise ArgumentError,"The scene changed. Refresh before adding a camera."
+      end
+
+      def blender_camera_save
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        result=nil
+        scene.with_lock do
+          scene.lock_version=Integer(@payload.fetch("lock_version"))
+          camera=scene.scene_objects.where(object_type:"camera").find(@payload.fetch("object_id"))
+          values=Studio::NativeBlender::CameraSettings.normalize(@payload.fetch("properties"),base:camera.definition)
+          camera.update!(definition:camera.definition.merge(values))
+          if ActiveModel::Type::Boolean.new.cast(@payload["active"])
+            scene.settings=scene.settings.merge("active_camera_object_id"=>camera.id,"active_camera"=>camera.definition["blender_object_name"].presence || camera.name)
+            scene.settings=scene.settings.merge("render_engine"=>"CYCLES") if values["camera_type"]=="PANO"
+          end
+          scene.settings=scene.settings.merge("blender_camera_revision"=>scene.settings.fetch("blender_camera_revision",0).to_i+1)
+          scene.save!
+          result={scene_id:scene.id,object_id:camera.id,lock_version:scene.lock_version}
+        end
+        result
+      rescue ActiveRecord::StaleObjectError
+        raise ArgumentError,"The scene changed. Refresh before saving the camera."
       end
 
       def library_apply
@@ -175,7 +256,7 @@ module Studio
           raise ArgumentError,"Only failed imports can be retried" unless asset.status=="failed"
           asset.update!(status:"uploaded",error_message:nil)
         end
-        StudioAssetIngestJob.perform_later(asset.id)
+        (asset.metadata["demo_key"] ? StudioBlenderDemoImportJob : StudioAssetIngestJob).perform_later(asset.id)
         {asset_id:asset.id,status:asset.status}
       end
 
@@ -317,11 +398,18 @@ module Studio
             copy.studio_project = project
             copy.production = productions[scene.production_id]
             copy.save!
+            copy.blender_source.attach(scene.blender_source.blob) if scene.blender_source.attached?
+            copy.blender_bundle.attach(scene.blender_bundle.blob) if scene.blender_bundle.attached?
+            object_ids={}
             scene.scene_objects.each do |object|
               child = object.dup
               child.studio_scene = copy
               child.save!
+              object_ids[object.id]=child.id
             end
+            settings=copy.settings.except("library_requests")
+            settings["active_camera_object_id"]=object_ids[scene.settings["active_camera_object_id"]] if scene.settings["active_camera_object_id"]
+            copy.update!(settings:settings)
           end
           { project_id: project.id, scene_id: project.studio_scenes.order(:id).first&.id, is_template: template }
         end

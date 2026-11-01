@@ -16,13 +16,16 @@ module Blender
 
     EXPECTED_OUTPUTS = {
       "blend" => "scene.blend",
+      "bundle" => "project.zip",
       "glb" => "scene.glb",
       "preview" => "preview.png"
     }.freeze
 
-    def initialize(execution_record, asset_paths: {})
+    def initialize(execution_record, asset_paths: {}, template_path: nil, template_bundle: nil)
       @execution_record = execution_record
       @asset_paths = asset_paths
+      @template_path = template_path
+      @template_bundle = template_bundle
     end
 
     def call
@@ -66,9 +69,39 @@ module Blender
 
     def write_manifest
       manifest=execution_record.manifest.deep_dup
+      # Paths are supplied by the authorized provider, never by a client.
+      manifest.delete("native_template_path")
+      if @template_path
+        path=output_directory.join("native-source.blend")
+        if @template_bundle
+          bundle=output_directory.join("native-bundle.zip")
+          FileUtils.cp(@template_bundle,bundle)
+          base=output_directory.join("native-bundle")
+          Studio::MediaProcess.run!(["python3",Rails.root.join("blender/extract_demo.py").to_s,bundle.to_s,base.to_s],timeout:90)
+          relative=manifest.dig("scene","settings","native_bundle_path").to_s
+          candidate=base.join(relative).cleanpath
+          raise ExecutionError,"Native bundle source path is invalid" if relative.empty? || Pathname(relative).absolute? || !candidate.to_s.start_with?(base.to_s+"/") || candidate.extname!=".blend"
+          path=candidate
+        end
+        FileUtils.cp(@template_path,path)
+        relative=path.relative_path_from(output_directory)
+        manifest["native_template_path"]=Rails.env.production? ? "/work/#{relative}" : path.to_s
+      elsif manifest.dig("scene","settings","native_blender_asset_id")
+        raise ExecutionError,"Native Blender source was not resolved by the provider"
+      end
       Array(manifest.dig("scene","objects")).each do |object|
         next unless object["type"]=="imported_asset"
-        object["definition"]["asset_path"]=@asset_paths.fetch(object.fetch("definition").fetch("asset_id").to_i)
+        definition=object.fetch("definition")
+        definition.delete("asset_path")
+        next if definition["native_source_preview"]
+        id=definition.fetch("asset_id").to_i
+        entry=@asset_paths.fetch(id)
+        entry={path:entry,format:"glb"} if entry.is_a?(String)
+        path=output_directory.join("input-#{id}.#{entry.fetch(:format)}")
+        FileUtils.cp(entry.fetch(:path),path)
+        definition["asset_path"]=Rails.env.production? ? "/work/#{path.basename}" : path.to_s
+        definition["asset_format"]=entry.fetch(:format)
+        definition["asset_scene"]=entry[:scene]
       end
       File.write(manifest_path,JSON.pretty_generate(manifest))
     end
@@ -81,17 +114,14 @@ module Blender
     end
 
     def command
-      [
-        render_engine_binary,
-        "--background",
-        "--factory-startup",
-        "--disable-autoexec", "--python-exit-code", "1",
-        "--python",
-        Rails.root.join("blender/runner.py").to_s,
-        "--",
-        manifest_path.to_s,
-        output_directory.to_s
-      ]
+      script=Rails.root.join("blender/runner.py").to_s
+      if Rails.env.production?
+        image=ENV["STUDIO_RENDER_WORKER_IMAGE"].presence || ENV.fetch("STUDIO_ASSET_WORKER_IMAGE")
+        ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory","4g","--cpus","2","--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
+          "-v","#{output_directory}:/work:rw","-v","#{script}:/engine/runner.py:ro",image,"blender","--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python","/engine/runner.py","--","/work/manifest.json","/work"]
+      else
+        [render_engine_binary,"--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python",script,"--",manifest_path.to_s,output_directory.to_s]
+      end
     end
 
     def render_engine_binary

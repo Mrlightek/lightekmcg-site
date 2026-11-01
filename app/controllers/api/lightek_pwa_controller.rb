@@ -77,6 +77,8 @@ module Api
       asset = StudioAsset.for_actor(access).find(params[:id])
       attachment = case params[:flavor]
       when "original" then asset.file
+      when "native" then asset.native
+      when "bundle" then asset.bundle
       when "proxy" then asset.proxy
       when "thumbnail" then asset.thumbnail
       else raise ActiveRecord::RecordNotFound

@@ -1,4 +1,6 @@
 class StudioScene < ApplicationRecord
+  has_one_attached :blender_bundle
+  has_one_attached :blender_source
   belongs_to :studio_project
   belongs_to :production, optional: true
   has_many :scene_objects, -> { order(:position, :id) }, dependent: :destroy

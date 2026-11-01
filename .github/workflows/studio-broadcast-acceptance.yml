@@ -17,6 +17,13 @@ on:
       - 'test/javascript/studio_library_test.cjs'
       - 'test/javascript/studio_live_library_test.cjs'
       - 'public/lightek/studio-*.js'
+      - 'app/models/scene_object.rb'
+      - 'lib/scripts/setup_studio_media.sh'
+      - 'lib/scripts/gatekeeper/deploy_project.sh'
+      - 'lib/tasks/studio/**'
+      - 'test/javascript/studio_native_authoring_test.cjs'
+      - 'test/javascript/studio_native_viewport_test.cjs'
+      - 'app/jobs/studio_blender_preview_job.rb'
       - 'public/lightek/index.html'
       - 'blender/**'
       - 'app/services/blender/**'
@@ -29,6 +36,7 @@ on:
       - 'db/migrate/20261101020000_register_studio_library_actions.rb'
       - 'db/migrate/20261101030000_register_native_blender_studio.rb'
       - 'db/migrate/20261101040000_register_blender_media_presets.rb'
+      - 'db/migrate/20261101050000_register_blender_authoring.rb'
       - '.github/workflows/studio-broadcast-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -48,7 +56,7 @@ jobs:
       - name: Library, HTTP, Gatekeeper, publication and native Blender acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
-        run: bundle exec ruby test/standalone/media_preset_checks.rb
+        run: bundle exec ruby test/standalone/blender_authoring_checks.rb
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -69,5 +77,12 @@ jobs:
           node test/javascript/studio_library_test.cjs
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_native_camera_test.cjs
+          node test/javascript/studio_native_authoring_test.cjs
+      - name: Native Blender mesh picking and transform tools
+        env:
+          NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
+        run: |
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr "import bpy; bpy.context.scene.objects['Cube']['lightek_object_name']='Cube'; bpy.ops.export_scene.gltf(filepath='/tmp/native-viewport-proof.glb', export_format='GLB', export_extras=True)"
+          node test/javascript/studio_native_viewport_test.cjs
       - name: Blender archive and transform regression
-        run: python3 -m unittest test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py
+        run: python3 -m unittest test/operations/studio_media_setup_test.py test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py test/operations/deploy_checkout_test.py

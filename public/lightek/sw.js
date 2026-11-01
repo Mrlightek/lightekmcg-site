@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v49"
+const CACHE = "lightek-shell-v50"
 
 const SHELL = [
   "/lightek/index.html",
@@ -9,6 +9,7 @@ const SHELL = [
   "/lightek/community-app.js",
   "/lightek/studio-app.js",
   "/lightek/studio-media.js",
+  "/lightek/studio-native.js",
   "/lightek/asset-preview.js",
   "/lightek/vendor/hls/hls.light.min.js",
   "/lightek/vendor/three/addons/loaders/GLTFLoader.js",

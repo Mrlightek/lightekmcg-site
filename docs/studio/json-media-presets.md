@@ -40,7 +40,7 @@ Rendering uses the existing paid quote/checkout path. Preview remains a still at
 
 ## Deployment and checks
 
-Run `bin/rails db:migrate`, including `20261101040000_register_blender_media_presets.rb`; restart workers and serve PWA cache v49. No media-table migration is needed.
+Run `bin/rails db:migrate`, including `20261101040000_register_blender_media_presets.rb`; restart workers and serve PWA cache v50. No media-table migration is needed.
 
 ```sh
 LIGHTEK_TEST_BLENDER=1 BUNDLE_GEMFILE=test/standalone/Gemfile bundle exec ruby test/standalone/media_preset_checks.rb

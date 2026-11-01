@@ -6571,6 +6571,7 @@ const studioSemanticGroup=object=>{
     STUDIO_SEMANTIC_GROUPS.find(g=>g.key==="other");
 };
 const studioWorkspaceSceneGraph=scene=>{
+  const native=window.LightekStudioApp?.outliner?.(scene);if(native)return native;
   const objects=Array.isArray(scene?.objects)?scene.objects:[];
   const groups=STUDIO_SEMANTIC_GROUPS.map(group=>({
     ...group,
@@ -13387,6 +13388,7 @@ addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)loc
 <script src="/lightek/community-app.js"></script>
 <script src="/lightek/studio-app.js"></script>
 <script src="/lightek/studio-media.js"></script>
+<script src="/lightek/studio-native.js"></script>
 <script type="module" src="/lightek/asset-preview.js"></script>
 <script src="/lightek/bootstrap-adapter.js"></script>
 <script src="/lightek/application-settings.js"></script>

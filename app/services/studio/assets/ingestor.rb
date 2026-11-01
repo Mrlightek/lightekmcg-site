@@ -59,7 +59,7 @@ module Studio
       def convert_model(input, root)
         script = Rails.root.join("blender/import_asset.py").to_s
         if Rails.env.production?
-          image = ENV.fetch("STUDIO_ASSET_WORKER_IMAGE")
+          image = Studio::NativeBlender::Runtime.image
           FileUtils.mkdir_p(File.join(root,"out"))
           # Uploaded Blender files execute in a networkless, unprivileged worker
           # with only this asset mounted, without application files or secrets.
@@ -87,7 +87,7 @@ module Studio
       def run!(command, timeout: 90,root:nil)
         if Rails.env.production? && root
           mapped=command.map{|argument|argument.start_with?(root) ? argument.sub(root,"/work") : argument}
-          command=Studio::MediaProcess.container(mapped,root:root,image:ENV.fetch("STUDIO_MEDIA_WORKER_IMAGE"))
+          command=Studio::MediaProcess.container(mapped,root:root,image:Studio::NativeBlender::Runtime.image(:media))
         end
         Studio::MediaProcess.run!(command,timeout:timeout)
       end

@@ -10,3 +10,10 @@
 .pwa-top-people>.ah h2{white-space:nowrap}.pwa-top-people .pwa-post small{display:block;margin-bottom:10px}@media(max-width:650px){.pwa-top-people>.ah{align-items:flex-start;flex-direction:column;gap:4px}.pwa-top-people>.ah h2{margin-bottom:0}.pwa-top-people{padding-bottom:20px}}
 
 html:not([data-lightek-bootstrap="ready"]) #top .logo{visibility:hidden}
+
+/* Native Blender properties must fit both desktop inspectors and mobile. */
+.studio-native-inspector{min-width:0;overflow-wrap:anywhere}
+.studio-native-inspector fieldset{min-inline-size:0;min-width:0;max-width:100%}
+.studio-native-inspector input:not([type=checkbox]){min-width:0;width:100%}
+.studio-native-inspector .pwa-vector{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.studio-native-inspector .pwa-vector label{width:auto;min-width:0}

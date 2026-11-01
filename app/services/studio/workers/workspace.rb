@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use].freeze
+      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -180,6 +180,57 @@ module Studio
 
       def blender_preset_use
         Studio::NativeBlender::PresetUse.call(access:@access,payload:@payload)
+      end
+
+      def blender_runtime_status
+        Studio::NativeBlender::Runtime.status
+      end
+
+      def blender_library_install
+        keys=@payload["keys"] || Studio::NativeBlender::DemoCatalog.items.map { |item| item["key"] }
+        raise ArgumentError,"Choose 1–12 official demos" unless keys.is_a?(Array) && keys.length.between?(1,12)
+        keys.each { |key| Studio::NativeBlender::DemoCatalog.fetch(key) }
+        original=@payload
+        begin
+          results=keys.uniq.map do |key|
+            @payload=original.merge("demo_key"=>key)
+            blender_demo_import
+          end
+        ensure
+          @payload=original
+        end
+        {imports:results}
+      end
+
+      def blender_object_save
+        Studio::NativeBlender::ObjectEdit.call(access:@access,payload:@payload)
+      end
+
+      def blender_preview
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        if @payload["operation_id"]
+          operation=scene.studio_operations.where(capability:"studio.workspace.blender.preview").find(@payload["operation_id"])
+        else
+          @access.user.with_lock do
+            operation=scene.studio_operations.where(capability:"studio.workspace.blender.preview",status:%w[pending running]).first
+            unless operation
+              count=StudioOperation.where(capability:"studio.workspace.blender.preview",studio_project_id:@access.projects.select(:id)).where("created_at > ?",1.minute.ago).limit(100).to_a.count { |row| row.intent["user_id"].to_i==@access.user.id }
+              raise ArgumentError,"Wait for the current draft renders before requesting another preview" if count>=6
+              manifest=::Blender::ManifestBuilder.new(scene).call.deep_dup
+              frame=Integer(@payload.fetch("frame",scene.settings.fetch("frame_current",1)))
+              raise ArgumentError,"Choose a frame in this Blender scene" unless frame.between?(scene.settings.fetch("frame_start",1),scene.settings.fetch("frame_end",250))
+              manifest["scene"]["settings"]["frame_current"]=frame
+              manifest["outputs"]={"preview"=>true}
+              width=scene.settings.fetch("resolution_x",1280).to_f;height=scene.settings.fetch("resolution_y",720).to_f
+              factor=320/[width,height].max
+              manifest["scene"]["settings"].merge!("resolution_x"=>(width*factor).round.clamp(64,320),"resolution_y"=>(height*factor).round.clamp(64,320),"resolution_percentage"=>100,"samples"=>2)
+              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.blender.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"draft_preview"=>true})
+              StudioBlenderPreviewJob.perform_later(operation.id)
+            end
+          end
+        end
+        artifact=operation.artifacts.find_by(kind:"preview")
+        {operation_id:operation.id,status:operation.status,frame:operation.manifest.dig("scene","settings","frame_current"),error:operation.error_message,url:artifact&.file&.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}
       end
 
       def blender_prepare

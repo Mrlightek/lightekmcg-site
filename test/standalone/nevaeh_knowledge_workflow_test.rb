@@ -367,6 +367,14 @@ class NevaehKnowledgeWorkflowTest < Minitest::Test
     assert_raises(Structured::Invalid) { worker.values!(inputs.deep_merge("data" => {"command" => "anything"})) }
     assert_raises(Structured::Invalid) { worker.preset!(inputs.merge("preset_key" => "base/production_preset")) }
   end
+  def test_incomplete_movie_template_is_rejected_before_a_worker_can_be_created
+    input = Procedures.fetch!("studio.project.from_template").fetch("defaults").merge("site_id" => 1)
+    invalid = {"id" => "movie", "action" => "studio.project.from_template", "inputs" => input.deep_merge("data" => {"fps" => "not a frame rate"})}
+    record = ticket
+    assert_raises(Structured::Invalid) { Structured.attach!(ticket: record, actor: @admin, sections: [invalid], automatic: true) }
+    assert_nil record.reload.extra_fields["nevaeh_work_order"]
+    assert_raises(Structured::Invalid) { Structured.compile([{"id" => "section", "action" => "site.section.add", "inputs" => {"site_id" => 1, "page_id" => 1, "kind" => "unknown", "data" => {}}}], bind_procedures: true) }
+  end
   def test_central_reports_reuse_the_ticket_and_derive_account_from_installation
     installation = GatekeeperInstallation.create!(domain: "client.example.com", account: @client)
     source = {"version" => 1, "ticket_id" => 42, "number" => "LT-REAL", "title" => "Teach a request", "description" => "Client request details", "reason" => "Missing registered lesson", "account_id" => @admin.id}

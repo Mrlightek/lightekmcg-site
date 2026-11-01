@@ -66,11 +66,13 @@ ActiveRecord::Base.transaction do
   template.destroy!
   report["ticket_template_crud_verified"] = true
   # Render through authenticated native HTTP and the real DymondDash layout.
-  %w[support_ticket_templates_controller supports_controller employee/nevaeh_lessons_controller].each do |name|
+  %w[support_ticket_templates_controller supports_controller employee/nevaeh_lessons_controller dashboard/fleet_updates_controller].each do |name|
     load File.join(candidate, "app/controllers/#{name}.rb")
   end
   load File.join(candidate, "config/routes.rb")
-  [SupportTicketTemplatesController, SupportsController, Employee::TicketsController, Employee::NevaehLessonsController].each { |klass| klass.prepend_view_path(File.join(candidate, "app/views")) }
+  load File.join(candidate, "config/initializers/nevaeh_nav.rb")
+  load File.join(candidate, "config/initializers/ticket_nav.rb")
+  [SupportTicketTemplatesController, SupportsController, Employee::TicketsController, Employee::NevaehLessonsController, Dashboard::FleetUpdatesController].each { |klass| klass.prepend_view_path(File.join(candidate, "app/views")) }
   email = "nevaeh-acceptance-#{SecureRandom.hex(8)}@example.invalid"
   password = SecureRandom.hex(24)
   account = User.create!(email_address: email, password: password, password_confirmation: password, first_name: "Controlled", last_name: "Acceptance", role: "super_admin")
@@ -82,11 +84,14 @@ ActiveRecord::Base.transaction do
   raise "Native sign-in form has no CSRF token" unless csrf
   browser.post('/session', params: {email_address: email, password: password, authenticity_token: csrf})
   raise "Controlled native login failed" unless browser.response.redirect? && Session.where(user_id: account.id).exists?
-  paths = ['/employee/tickets/new', '/support_ticket_templates', '/support_ticket_templates/new', '/employee/nevaeh_lessons', '/supports?procedure=studio.project.from_template']
+  paths = ['/employee/tickets/new', '/support_ticket_templates', '/support_ticket_templates/new', '/employee/nevaeh_lessons', '/dashboard/infrastructure/updates', '/supports?procedure=studio.project.from_template']
   paths.each do |path|
     browser.get(path)
     raise "Dashboard request failed #{path}: #{browser.response.status} redirect=#{browser.response.location && URI(browser.response.location).path}" unless browser.response.status == 200
   end
+  browser.get('/support_ticket_templates')
+  raise "Dashboard navigation missing KB and template controls" unless browser.response.body.include?('Ticket Templates') && browser.response.body.include?('KB Lessons')
+  browser.get('/supports?procedure=studio.project.from_template')
   raise "Movie ticket fields missing from rendered form" unless browser.response.body.include?('Camera lens') && browser.response.body.include?('4096')
   report["authenticated_dashboard_and_request_forms"] = paths
   # Exercise the actual public webhook, PostgreSQL idempotency and encrypted

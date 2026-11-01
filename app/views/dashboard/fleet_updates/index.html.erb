@@ -46,7 +46,7 @@
   <% @installations.each do |installation| %>
     <%= form_with url: installation_dashboard_fleet_updates_path(installation_id: installation.id), method: :patch, scope: :installation do |f| %>
       <p><strong><%= installation.domain %></strong>
-      <span>Nevaeh central reporting: <%= installation.nevaeh_reporting_configured_at ? 'Connected' : installation.nevaeh_reporting_error.presence || 'Setup required' %></span>
+      <span>Nevaeh central reporting: <%= @last_nevaeh_reports[installation.id] ? 'Validated client report received' : installation.nevaeh_reporting_configured_at ? 'Configured; awaiting first report' : installation.nevaeh_reporting_error.presence || 'Setup required' %></span>
       <%= f.select :channel, %w[stable beta], selected: installation.channel %>
       <label><%= f.check_box :enabled, checked: installation.enabled? %> Updates enabled</label>
       <label><%= f.check_box :automatic_updates, checked: installation.automatic_updates? %> Automatic releases</label>

@@ -33,6 +33,12 @@ module NevaehIntelligences
         key
       end
 
+      def self.validate_inputs!(inputs)
+        raise StructuredTicket::Invalid, "Use a movie project name of 1–120 characters" unless inputs.fetch("name").is_a?(String) && inputs.fetch("name").strip.length.between?(1, 120) && inputs.fetch("name").length <= 120
+        values!(inputs)
+        preset!(inputs)
+      end
+
       def self.perform(inputs, actor:, ticket:)
         values = values!(inputs)
         key = preset!(inputs)

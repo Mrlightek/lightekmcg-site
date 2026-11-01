@@ -4,7 +4,30 @@ require "json"
 module NevaehIntelligences
   module GithubBacklog
     REPOSITORY = GithubIssueContractV7a::REPOSITORY
+    IMPORT_CAPABILITY = "github.tickets.import"
     module_function
+
+    def authorize_import!(actor:)
+      raise WorkOrder::Invalid, "GitHub intake requires an authorized operator" unless actor&.persisted? && Ability.new(actor).can?(:execute_nevaeh, Marlon::Ticket)
+      capability = NevaehCapability.find_or_initialize_by(slug: IMPORT_CAPABILITY)
+      if capability.new_record?
+        capability.assign_attributes(name: "Import GitHub support requests", domain: "support", intent_name: "import_github_issues",
+          handler: "NevaehIntelligences::SyncGithubIssuesJob", queue: "default", priority: 5,
+          gatekeeper_capability: IMPORT_CAPABILITY, enabled: true)
+        capability.save!
+      end
+      raise WorkOrder::Invalid, "GitHub intake capability has a conflicting handler" unless capability.handler == "NevaehIntelligences::SyncGithubIssuesJob" && capability.gatekeeper_capability == IMPORT_CAPABILITY
+      Gatekeeper.authorize_capability!(capability: IMPORT_CAPABILITY, context: {"actor" => {"type" => "User", "id" => actor.id}})
+    end
+
+    def repository_evidence(source)
+      path = Rails.root.join("config/project_tracking/lightek_studio.json")
+      key = source.fetch("title")[/\A\[(STUDIO-\d{3})\]/, 1]
+      item = JSON.parse(File.read(path)).fetch("items").find { |entry| entry["key"] == key } if key
+      {"tracking_key" => key, "tracking_status" => item&.fetch("status"),
+        "tracking_evidence" => item&.fetch("evidence", []), "tracking_source_sha256" => Digest::SHA256.file(path).hexdigest,
+        "implementation_verification" => "requires_acceptance_checks"}.compact
+    end
 
     def normalize(raw)
       value = raw.to_h.deep_stringify_keys
@@ -84,16 +107,20 @@ module NevaehIntelligences
           return nil
         end
       end
+      repository = repository_evidence(source)
       blockers = ["This GitHub source revision has no approved KB procedure binding; teach its complete implementation and acceptance checks, then save a reviewed work order"]
+      blockers << "The repository roadmap marks this feature done; verify the existing implementation and teach its acceptance procedure before closing" if repository["tracking_status"] == "done"
       blockers << "GitHub issue changed after authorization; review its new revision" if source["revision_requires_review"]
       ticket.with_lock do
         fields = ticket.extra_fields.to_h.deep_stringify_keys
         order = WorkOrder.read!(ticket: ticket)
         articles = NevaehOrchestration::KnowledgeResolver.for(capability: "kb.procedure.required", additional_article_ids: fields.fetch("knowledge_article_ids", []))
+        query = source.fetch("title").sub(/\A\[STUDIO-\d{3}\]\s*/, "").first(240)
+        articles = (articles + DymondKb::Article.search(query).ordered.limit(5).to_a).uniq(&:id)
         snapshot = NevaehCapability.order(:id).map { |row| {"slug" => row.slug, "enabled" => row.enabled?, "handler" => row.handler} }
         plan = GithubDevelopmentPlanV7a.from_native_ticket(ticket: ticket, knowledge_article_ids: articles.map(&:id), capability_snapshot: snapshot,
-          source_evidence: source.slice("repository", "number", "url", "source_sha256"))
-        fields["nevaeh_backlog"] = fields.fetch("nevaeh_backlog", {}).merge("status" => "escalated", "classification" => "engineering",
+          source_evidence: source.slice("repository", "number", "url", "source_sha256").merge("repository_inspection" => repository))
+        fields["nevaeh_backlog"] = fields.fetch("nevaeh_backlog", {}).merge("status" => "escalated", "classification" => repository["tracking_status"] == "done" ? "verification" : "engineering",
           "engineering_plan" => plan, "knowledge_article_ids" => articles.map(&:id), "blockers" => blockers,
           "implementation_verified" => false, "updated_at" => Time.current.iso8601)
         ticket.update!(extra_fields: fields)

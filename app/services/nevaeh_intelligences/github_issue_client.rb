@@ -37,6 +37,12 @@ module NevaehIntelligences
         req.body = JSON.generate(body)
       end
       res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 60) { |http| http.request(req) }
+      if res.is_a?(Net::HTTPUnauthorized) && method == :get && req["Authorization"]
+        # This repository is public. An expired optional deployment credential
+        # must not prevent authorized intake of its public issue records.
+        req.delete("Authorization")
+        res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 60) { |http| http.request(req) }
+      end
       raise Error, "GitHub request failed (HTTP #{res.code}); retry after checking repository access or rate limits" unless res.is_a?(Net::HTTPSuccess)
       JSON.parse(res.body)
     rescue JSON::ParserError

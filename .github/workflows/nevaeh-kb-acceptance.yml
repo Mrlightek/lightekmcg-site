@@ -18,6 +18,7 @@ on:
       - 'config/nevaeh/procedures/**'
       - 'test/standalone/nevaeh_knowledge_workflow_test.rb'
       - 'script/nevaeh_verify_knowledge_workers.rb'
+      - 'script/nevaeh_import_github_backlog.rb'
       - '.github/workflows/nevaeh-kb-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -70,6 +71,18 @@ jobs:
             "umask 022; mkdir -p '$CANDIDATE_ROOT'; tar -xf - -C '$CANDIDATE_ROOT'"
           ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
             "sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc 'set -e; set -a; source /etc/lightek/lightekmcg-site.env; set +a; export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin; export RAILS_ENV=production; export NEVAEH_BACKLOG_ENABLED=0; cd /var/www/lightekmcg-site; bundle exec rails runner $CANDIDATE_ROOT/script/nevaeh_verify_knowledge_workers.rb'"
+
+      - name: Import and triage the actual historical GitHub backlog
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          CANDIDATE_ROOT="/var/tmp/lightek-nevaeh-kb-${GITHUB_SHA}"
+          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc 'set -e; set -a; source /etc/lightek/lightekmcg-site.env; set +a; export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin; export RAILS_ENV=production; cd /var/www/lightekmcg-site; bundle exec rails runner $CANDIDATE_ROOT/script/nevaeh_import_github_backlog.rb'"
 
       - name: Remove this job's disposable verification archive
         if: always()

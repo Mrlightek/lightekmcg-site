@@ -2,6 +2,7 @@
 module NevaehIntelligences
   class ConfigureCentralReportingJob < ApplicationJob
     queue_as :default
+    self.enqueue_after_transaction_commit = true
     retry_on StandardError, wait: :polynomially_longer, attempts: 5
 
     def perform(operation_id)

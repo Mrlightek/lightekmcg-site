@@ -6,7 +6,11 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
 
   def index
     @releases = GatekeeperRelease.order(created_at: :desc).limit(50)
-    @installations = GatekeeperInstallation.includes(:gatekeeper_node, :account, :pinned_release).order(:domain, :component).page(params[:page]).per(50)
+    scope = GatekeeperInstallation.includes(:gatekeeper_node, :account, :pinned_release)
+    scope = scope.where(id: params[:installation_id]) if params[:installation_id].present?
+    @installations = scope.order(:domain, :component).page(params[:page]).per(50)
+    @last_nevaeh_reports = Marlon::Ticket.where(related_type: "GatekeeperInstallation", related_id: @installations.map(&:id))
+      .where("extra_fields ->> 'nevaeh_remote' IS NOT NULL").group(:related_id).maximum(:created_at)
     @rollouts = GatekeeperRollout.includes(:gatekeeper_release).order(created_at: :desc).limit(25)
     @accounts = User.order(:email_address)
     @nodes = GatekeeperNode.order(:name)

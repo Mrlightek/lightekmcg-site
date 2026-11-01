@@ -60,6 +60,7 @@ module NevaehIntelligences
         step = {"id" => id, "action" => action, "inputs" => inputs, "depends_on" => deps.uniq}
         if bind_procedures
           step["procedure"] = KnowledgeProcedures.bind!(action, row["procedure"])
+          StructuredActions.validate_inputs!(action, inputs)
         elsif row.key?("procedure")
           binding = row["procedure"]
           raise Invalid, "Invalid KB procedure reference" unless binding.is_a?(Hash) && binding.keys.sort == %w[article_id sha256] &&

@@ -2,6 +2,12 @@
 module NevaehIntelligences
   module StructuredWorkers
     class AddSection
+      def self.validate_inputs!(inputs)
+        definition = LightekDesign::Catalog.section_definition(inputs.fetch("kind")) || raise(StructuredTicket::Invalid, "Unknown registered section kind")
+        allowed = definition.fetch("fields").map { |field| field.fetch("name") }
+        raise StructuredTicket::Invalid, "Unknown section data fields" if (inputs.fetch("data").keys - allowed).any?
+      end
+
       def self.perform(inputs, actor:, ticket:)
         website = StructuredActions.site(actor, inputs)
         page = website.pages.find(inputs.fetch("page_id"))

@@ -20,6 +20,11 @@ module NevaehIntelligences
       end
     end
 
+    def validate_inputs!(action, inputs)
+      worker = worker_for(action)
+      worker.validate_inputs!(inputs) if worker.respond_to?(:validate_inputs!)
+    end
+
     def perform(action, inputs, actor:, ticket:)
       worker_for(action).perform(inputs, actor: actor, ticket: ticket)
     end

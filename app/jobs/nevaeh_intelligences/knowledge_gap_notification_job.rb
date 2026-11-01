@@ -2,6 +2,7 @@
 module NevaehIntelligences
   class KnowledgeGapNotificationJob < ApplicationJob
     queue_as :default
+    self.enqueue_after_transaction_commit = true
     class Unavailable < StandardError; end
     retry_on StandardError, wait: :polynomially_longer, attempts: 5
 

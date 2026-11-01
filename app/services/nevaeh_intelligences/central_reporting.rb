@@ -30,7 +30,7 @@ module NevaehIntelligences
 
     def authenticate!(installation_id:, timestamp:, supplied:, body:)
       raise Invalid, "Unauthorized installation report" unless settings["enabled"] == true && body.bytesize <= 64000 &&
-        installation_id.to_s.match?(/\A[1-9][0-9]*\z/) && timestamp.to_s.match?(/\A[0-9]{10}\z/) && supplied.to_s.match?(/\A[0-9a-f]{64}\z/) &&
+        installation_id.to_s.length <= 19 && installation_id.to_s.match?(/\A[1-9][0-9]*\z/) && installation_id.to_i <= 9223372036854775807 && timestamp.to_s.match?(/\A[0-9]{10}\z/) && supplied.to_s.match?(/\A[0-9a-f]{64}\z/) &&
         (Time.now.to_i - timestamp.to_i).abs <= 300
       installation = GatekeeperInstallation.find(installation_id)
       raise Invalid, "Unauthorized installation report" unless installation.eligible? && installation.nevaeh_reporting_secret_slug.present?

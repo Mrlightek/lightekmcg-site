@@ -1,18 +1,25 @@
 <% values ||= {} %>
-<% selected = values['action'] || 'site.page.create' %>
+<% procedures = NevaehIntelligences::KnowledgeProcedures.available %>
+<% selected = values['action'] || procedures.keys.first %>
 <section data-step style="padding:16px;border:1px solid var(--dd-border);border-radius:10px;margin:12px 0">
   <div style="display:flex;gap:12px;align-items:center">
     <label>Section ID <%= text_field_tag "structured_ticket[sections][#{index}][id]", values['id'] || "step_#{index}", class: 'fg-input', required: false %></label>
     <button type="button" data-action="structured-ticket#remove" class="dd-topbar-btn">Remove section</button>
   </div>
   <label>Action
-    <%= select_tag "structured_ticket[sections][#{index}][action]", options_for_select(NevaehIntelligences::StructuredTicket::ACTIONS.map { |key, definition| [definition['label'], key] }, selected), class: 'fg-input', data: { action_select: true, action: 'change->structured-ticket#change' } %>
+    <%= select_tag "structured_ticket[sections][#{index}][action]", options_for_select(procedures.map { |key, definition| [definition['label'], key] }, selected), class: 'fg-input', data: { action_select: true, action: 'change->structured-ticket#change' } %>
   </label>
-  <% NevaehIntelligences::StructuredTicket::ACTIONS.each do |key, definition| %>
+  <% procedures.each do |key, definition| %>
     <div data-action-fields="<%= key %>" <%= 'hidden' unless key == selected %>>
+      <% binding = values['action'] == key && values['procedure'] ? values['procedure'] : definition.fetch('procedure') %>
+      <%= hidden_field_tag "structured_ticket[sections][#{index}][procedure][article_id]", binding.fetch('article_id'), disabled: key != selected %>
+      <%= hidden_field_tag "structured_ticket[sections][#{index}][procedure][sha256]", binding.fetch('sha256'), disabled: key != selected %>
+      <p>KB procedure #<%= binding.fetch('article_id') %> · <%= link_to 'Knowledge Base', '/kb' %></p>
+      <p>Backend worker: <code><%= definition.fetch('worker') %></code></p>
+      <ul><% definition.fetch('acceptance_criteria').each do |check| %><li><%= check %></li><% end %></ul>
       <% definition['fields'].each do |field| %>
         <% value = values.fetch('inputs', {})[field] %>
-        <div style="display:block;margin:10px 0"><%= field == "data" ? "Section content" : label_tag("structured_ticket[sections][#{index}][inputs][#{field}]", field.humanize) %>
+        <div style="display:block;margin:10px 0"><%= field == "data" ? "Section content" : label_tag("structured_ticket[sections][#{index}][inputs][#{field}]", definition.fetch('inputs').fetch(field).fetch('label')) %>
           <% if field == 'site_id' %>
             <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(Array(@structured_sites).map { |site| [site.name, site.id] }, value), prompt: 'Choose a website', class: 'fg-input', disabled: key != selected %>
           <% elsif field == 'kind' %>

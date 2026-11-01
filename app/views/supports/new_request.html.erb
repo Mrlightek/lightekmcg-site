@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <%= csrf_meta_tags %>
+  <title>New request · Lightek Support</title>
+  <%= javascript_importmap_tags %>
+  <style>
+    :root{color-scheme:dark;--dd-border:#334155}body{margin:0;background:#0b1220;color:#e2e8f0;font:16px system-ui,sans-serif}main{max-width:880px;margin:auto;padding:32px 20px}a{color:#67e8f9}h1{font-size:2rem}form{display:grid;gap:18px}.fg-input{display:block;box-sizing:border-box;width:100%;margin:8px 0;padding:12px;border:1px solid #475569;border-radius:8px;background:#111c30;color:#f8fafc;font:inherit}label{display:block}button,input[type=submit]{padding:12px 18px;background:#164e63;color:#ecfeff;border:1px solid #22d3ee;border-radius:8px;cursor:pointer}fieldset{min-width:0}[role=alert]{color:#fda4af}
+  </style>
+</head>
+<body><main>
+  <%= link_to '← Support center', supports_path %>
+  <h1>What can Nevaeh do for you?</h1>
+  <p>Choose a supported procedure and supply its inputs. An operator reviews the request before execution.</p>
+  <%= form_with model: @ticket, url: supports_path do |form| %>
+    <%= form.hidden_field :category, value: 'technical' %>
+    <%= form.hidden_field :priority, value: 'medium' %>
+    <%= form.hidden_field :urgency, value: 5 %>
+    <% if @ticket.errors.any? %><p role="alert"><%= @ticket.errors.full_messages.join(', ') %></p><% end %>
+    <label>Request title <%= form.text_field :title, required: true, class: 'fg-input' %></label>
+    <label>Additional context <%= form.text_area :description, class: 'fg-input' %></label>
+    <% if params[:teaching] == '1' || params[:request_type] == 'knowledge_gap' %>
+      <%= hidden_field_tag :request_type, 'knowledge_gap' %>
+      <p>This request goes to Technical Team / Admin queue. Nevaeh will not attempt unfamiliar work. An administrator will investigate, implement and verify a lesson for future requests.</p>
+    <% else %>
+      <%= render 'employee/tickets/structured_form' %>
+    <% end %>
+    <%= form.submit 'Submit request for approval' %>
+  <% end %>
+</main></body></html>

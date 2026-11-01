@@ -22,6 +22,12 @@
     <div class="nv-card"><div class="nv-muted">Executable catalog entries</div><div class="nv-stat"><%= @executable_services %></div></div>
   </div>
   <div class="nv-note"><strong>Execution remains disabled in this console.</strong> YAML registration and file presence are not Gatekeeper authorization.</div>
+  <h2>Knowledge Base and support escalation</h2>
+  <p><%= NevaehIntelligences::KnowledgeProcedures.available.size %> supported request procedures</p>
+  <p><%= link_to 'Technical Support / Admin teaching queue', employee_tickets_path(queue: 'knowledge_gaps') %> · <%= link_to 'Knowledge Base', '/kb' %></p>
+  <% if can?(:execute_nevaeh, Marlon::Ticket) %>
+    <%= button_to 'Sync GitHub tickets into this instance', '/employee/nevaeh/sync_github', method: :post, class: 'dd-topbar-btn' %>
+  <% end %>
   <h2>Ticket processing</h2>
   <p><%= @ticket_counts.fetch('open', 0) %> open · <%= @ticket_counts.fetch('in_progress', 0) %> in progress · <%= @ticket_counts.fetch('resolved', 0) %> resolved</p>
   <p class="nv-muted"><% @backlog_counts.each do |status, count| %><span><%= status.humanize %>: <%= count %> · </span><% end %></p>

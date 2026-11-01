@@ -31,6 +31,18 @@ module Employee
       end
     end
 
+    def sync_github
+      authorize! :execute_nevaeh, Marlon::Ticket
+      capability = NevaehIntelligences::StructuredTicket.registered!
+      capability.with_lock do
+        metadata = capability.metadata.to_h.deep_stringify_keys
+        metadata["github_engineering"] = {"sync_enabled" => true, "actor_id" => current_user.id}
+        capability.update!(metadata: metadata)
+      end
+      NevaehIntelligences::SyncGithubIssuesJob.perform_later
+      redirect_to employee_nevaeh_overview_path, notice: "GitHub intake queued. Requests without a learned procedure go to Technical Support / Admin queue."
+    end
+
     private
 
     def authorize_overview!

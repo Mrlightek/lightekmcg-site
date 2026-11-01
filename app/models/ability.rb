@@ -39,6 +39,10 @@ class Ability
     end
 
     can :read, :dashboard if user.persisted? && LightekPwa::Policy.sites_for(user).exists?
+    if user.persisted?
+      can :create, Marlon::Ticket
+      can [:read, :reply], Marlon::Ticket, submitted_by_id: user.id
+    end
 
     # Any authenticated user can create or view active Susus
     can :read, SusuGroup, status: "active"

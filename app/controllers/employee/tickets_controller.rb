@@ -6,6 +6,7 @@ module Employee
     def index
       authorize! :read, Marlon::Ticket
       @tickets = Marlon::Ticket.open_first
+      @tickets = @tickets.where(assigned_team: "Technical Team").where("extra_fields ->> 'nevaeh_knowledge_gap' IS NOT NULL") if params[:queue] == "knowledge_gaps"
       @tickets = @tickets.where(status: params[:status]) if params[:status].present?
       @tickets = @tickets.where(category: params[:category]) if params[:category].present?
     end
@@ -31,16 +32,15 @@ module Employee
       begin
         Marlon::Ticket.transaction do
           @ticket.save!
-          if @structured_values["enabled"] == "1"
+          if params[:request_type] == "knowledge_gap"
+            NevaehOrchestration::Escalation.knowledge_gap!(ticket: @ticket, reason: @ticket.description.presence || @ticket.title)
+          elsif @structured_values["enabled"] == "1"
             raise NevaehIntelligences::WorkOrder::Invalid, "Choose structured sections or an advanced work order" if @work_order_values["enabled"] == "1"
-            authorize! :execute_nevaeh, @ticket
+            authorize! :execute_nevaeh, @ticket if @structured_values["automatic"] == "1"
             NevaehIntelligences::StructuredTicket.attach!(ticket: @ticket, actor: current_user,
               sections: @structured_values.fetch("sections", {}), automatic: @structured_values["automatic"] == "1")
-          elsif @work_order_values["enabled"] == "1"
-            NevaehIntelligences::WorkOrder.attach!(
-              ticket: @ticket,
-              attributes: build_work_order(@work_order_values)
-            )
+          else
+            raise NevaehIntelligences::WorkOrder::Invalid, "Choose an available Knowledge Base procedure for this request"
           end
           @ticket.log!(action: "Ticket submitted", actor: current_user)
         end
@@ -79,17 +79,31 @@ module Employee
 
     def edit_nevaeh
       authorize! :execute_nevaeh, @ticket
-      order = NevaehIntelligences::WorkOrder.read!(ticket: @ticket)
-      raise NevaehIntelligences::WorkOrder::Invalid, "Structured ticket required" unless order["intent_key"] == "ticket.structured.execute"
+      order = @ticket.extra_fields.to_h["nevaeh_work_order"]
+      raise NevaehIntelligences::WorkOrder::Invalid, "Only unreserved support requests can receive a new procedure" if order.to_h["intent_key"] != "ticket.structured.execute" && @ticket.extra_fields.to_h.dig("nevaeh", "reservation_id")
+      sections = order.to_h.dig("inputs", "sections") || []
       @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
-      @structured_values = {"enabled" => "1", "sections" => order.fetch("inputs").fetch("sections").each_with_index.to_h { |step, index| [index.to_s, step] }}
+      @structured_values = {"enabled" => "1", "sections" => sections.each_with_index.to_h { |step, index| [index.to_s, step] }}
     end
 
     def revise_nevaeh
       authorize! :execute_nevaeh, @ticket
       values = structured_ticket_params.to_h
-      NevaehIntelligences::StructuredTicket.revise!(ticket: @ticket, actor: current_user,
+      if (source = @ticket.extra_fields.to_h["nevaeh_github"])
+        unless values["source_sha256"] == source["source_sha256"] && values["reviewed_source"] == "1"
+          raise NevaehIntelligences::WorkOrder::Invalid, "Review the full GitHub source revision before assigning its procedure"
+        end
+        @ticket.with_lock do
+          fields = @ticket.extra_fields.to_h.deep_stringify_keys
+          raise NevaehIntelligences::WorkOrder::Invalid, "GitHub source changed during review" unless fields.dig("nevaeh_github", "source_sha256") == values["source_sha256"]
+          fields.fetch("nevaeh_github").delete("revision_requires_review")
+          @ticket.update!(extra_fields: fields)
+        end
+      end
+      method = @ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute" ? :revise! : :attach!
+      NevaehIntelligences::StructuredTicket.public_send(method, ticket: @ticket, actor: current_user,
         sections: values.fetch("sections", {}), automatic: values["automatic"] == "1")
+      NevaehIntelligences::ProcessBacklogJob.perform_later(ticket_id: @ticket.id) if method == :attach! && values["automatic"] == "1"
       redirect_to employee_ticket_path(@ticket), notice: "Revision saved. Verified sections were preserved."
     rescue NevaehIntelligences::WorkOrder::Invalid => error
       @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
@@ -107,7 +121,7 @@ module Employee
 
     def resolve
       authorize! :resolve, @ticket
-      if @ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute" && @ticket.extra_fields.to_h.dig("nevaeh", "execution_status") != "verified"
+      if (@ticket.extra_fields.to_h["nevaeh_knowledge_gap"] || @ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute") && @ticket.extra_fields.to_h.dig("nevaeh", "execution_status") != "verified"
         return redirect_to employee_ticket_path(@ticket), alert: "Nevaeh acceptance must pass before this work order can be resolved."
       end
       @ticket.resolve!(actor: current_user)
@@ -122,7 +136,7 @@ module Employee
     end
 
     def structured_ticket_params
-      params.fetch(:structured_ticket, ActionController::Parameters.new).permit(:enabled, :automatic, sections: {})
+      params.fetch(:structured_ticket, ActionController::Parameters.new).permit(:enabled, :automatic, :source_sha256, :reviewed_source, sections: {})
     end
 
     def work_order_params

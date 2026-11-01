@@ -1,0 +1,122 @@
+[
+  {
+    "key": "nevaeh-request-create-page",
+    "body": "Create a draft website page on a website the execution operator can administer. Required inputs: website, title, URL slug. The slug uses lowercase words separated by hyphens. The page remains unpublished. Acceptance: reload the page through the selected website, compare title and slug, and confirm it is a draft. Publishing is a separate operation. Executor and verifier: StructuredActions site.page.create.",
+    "contract": {
+      "version": 1,
+      "status": "available",
+      "action": "site.page.create",
+      "label": "Create website page",
+      "verifier": "site.page.create",
+      "inputs": {
+        "site_id": {
+          "type": "record_id",
+          "required": true,
+          "label": "Website"
+        },
+        "title": {
+          "type": "text",
+          "required": true,
+          "label": "Page title"
+        },
+        "slug": {
+          "type": "text",
+          "required": true,
+          "label": "URL slug"
+        }
+      },
+      "acceptance_criteria": [
+        "The page belongs to the selected website",
+        "Saved title and slug match the request",
+        "The page remains a draft"
+      ],
+      "worker": "NevaehIntelligences::StructuredWorkers::CreatePage"
+    }
+  },
+  {
+    "key": "nevaeh-request-add-section",
+    "body": "Add a registered design section to an existing draft page. The execution operator must administer its website. A preceding create-page step may supply @page.page_id. Choose an installed section kind and provide only its registered content fields. Published pages are rejected. Acceptance: reload the saved section through the specified website and page; compare kind and content exactly and confirm the page remains a draft. Executor and verifier: StructuredActions site.section.add.",
+    "contract": {
+      "version": 1,
+      "status": "available",
+      "action": "site.section.add",
+      "label": "Add page section",
+      "verifier": "site.section.add",
+      "inputs": {
+        "site_id": {
+          "type": "record_id",
+          "required": true,
+          "label": "Website"
+        },
+        "page_id": {
+          "type": "record_id",
+          "required": true,
+          "label": "Draft page or previous section output"
+        },
+        "kind": {
+          "type": "text",
+          "required": true,
+          "label": "Installed section type"
+        },
+        "data": {
+          "type": "object",
+          "required": true,
+          "label": "Section content"
+        }
+      },
+      "acceptance_criteria": [
+        "The section belongs to the selected website and draft page",
+        "Section kind and saved content match the request exactly",
+        "The page remains unpublished"
+      ],
+      "worker": "NevaehIntelligences::StructuredWorkers::AddSection"
+    }
+  },
+  {
+    "key": "nevaeh-request-create-studio-project",
+    "body": "Create a blank Studio production project with the existing Studio project worker. The execution operator requires Studio project creation permission. Supply a project name and optional description. This creates project structure; it does not create media assets or completed scenes. Acceptance: the project name matches and its production and default scene exist with matching project ownership. Executor and verifier: StructuredActions studio.project.create.",
+    "contract": {
+      "version": 1,
+      "status": "available",
+      "action": "studio.project.create",
+      "label": "Create blank Studio project",
+      "verifier": "studio.project.create",
+      "inputs": {
+        "name": {
+          "type": "text",
+          "required": true,
+          "label": "Project name"
+        },
+        "description": {
+          "type": "text",
+          "required": false,
+          "label": "Project description"
+        }
+      },
+      "acceptance_criteria": [
+        "The project name matches the request",
+        "The production belongs to the project",
+        "The default scene belongs to that project and production"
+      ],
+      "worker": "NevaehIntelligences::StructuredWorkers::CreateStudioProject"
+    }
+  },
+  {
+    "key": "nevaeh-request-reviewed-metadata-service",
+    "body": "Generate only the reviewed metadata normalization service from ReviewedImplementationTemplateV7a. This is a specific implementation recipe, not a general code author. No user-supplied source or commands are executed. Prerequisites: a separate engineering checkout on the configured non-main branch and the existing authorized GitHub integration for branch writes. Run the template regression checks, commit on that branch, push and verify source hashes against the remote. This procedure does not deploy or merge code. Executor and verifier: StructuredRepository via StructuredActions engineering.service.generate.",
+    "contract": {
+      "version": 1,
+      "status": "available",
+      "action": "engineering.service.generate",
+      "label": "Build reviewed metadata normalization service",
+      "verifier": "engineering.service.generate",
+      "inputs": {},
+      "acceptance_criteria": [
+        "The generated source matches the reviewed template hash",
+        "The template regression checks pass",
+        "The implementation commit is present on the configured engineering branch; deployment is not claimed"
+      ],
+      "worker": "NevaehIntelligences::StructuredWorkers::GenerateMetadataService"
+    }
+  }
+]

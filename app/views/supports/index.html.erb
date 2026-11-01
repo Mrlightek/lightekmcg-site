@@ -337,7 +337,8 @@ textarea.tdbr-input:focus{border-color:rgba(0,180,220,.35);}
   </div>
 
   <div class="hub-categories">
-    <div class="hc-label">SELECT YOUR ISSUE CATEGORY TO BEGIN</div>
+    <div class="hc-label">CHOOSE A REQUEST NEVAEH HAS LEARNED</div>
+    <p><%= link_to 'Need something Nevaeh has not learned? Ask Technical Support to teach her.', supports_path(teaching: '1'), style: 'color:#40E8FF' %></p>
     <div class="category-grid" id="cat-grid">
       <!-- Rendered by JS -->
     </div>
@@ -449,25 +450,26 @@ function showView(id){
 
 // ── HUB ─────────────────────────────────────
 function renderHub(){
-  // category grid
+  // Supported requests come exclusively from this instance's KB.
   const grid=document.getElementById('cat-grid');
-  grid.innerHTML=CATEGORIES.map(c=>`
-    <div class="cat-card" onclick="openForm('${c.id}')" style="">
-      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${c.stripeBg};"></div>
-      <div class="cc-top">
-        <div class="cc-icon">${c.icon}</div>
-        <div class="cc-sla" style="border-color:${c.color}30;color:${c.color};">SLA: ${c.sla}</div>
-      </div>
-      <div class="cc-name" style="color:${c.color};">${c.name}</div>
-      <div class="cc-desc">${c.desc}</div>
-      <div class="cc-examples">
-        ${c.examples.slice(0,3).map(e=>`<div class="cce-item">${e}</div>`).join('')}
-      </div>
-      <div class="cc-action">
-        <div class="cca-text" style="color:${c.color};">SUBMIT TICKET →</div>
-        <div class="cca-arrow" style="color:${c.color};">→</div>
-      </div>
-    </div>`).join('');
+  grid.replaceChildren();
+  const requests = <%= raw json_escape(@procedures.values.map { |entry| entry.slice('action', 'label', 'acceptance_criteria') }.to_json) %>;
+  requests.forEach(procedure => {
+    const card = document.createElement('a');
+    card.className = 'cat-card';
+    card.href = '/supports?procedure=' + encodeURIComponent(procedure.action);
+    const heading = document.createElement('h2');
+    heading.className = 'cc-name';
+    heading.textContent = procedure.label;
+    const description = document.createElement('p');
+    description.className = 'cc-desc';
+    description.textContent = procedure.acceptance_criteria.join(' · ');
+    card.append(heading, description);
+    grid.append(card);
+  });
+  if (!requests.length) {
+    grid.textContent = 'No supported request procedures are available. Contact your Lightek operator to review this instance’s Knowledge Base.';
+  }
   // tickets preview
   const preview=document.getElementById('ticket-preview');
   preview.innerHTML=MY_TICKETS.map(t=>{
@@ -487,12 +489,7 @@ function renderHub(){
 }
 
 // ── FORM ─────────────────────────────────────
-function openForm(catId){
-  selectedCategory=CATEGORIES.find(c=>c.id===catId);
-  if(!selectedCategory)return;
-  renderForm();
-  showView('form');
-}
+function openForm(){ showView('hub'); }
 
 function renderForm(){
   const c=selectedCategory;
@@ -702,44 +699,7 @@ function handleFiles(input){
   list.innerHTML=Array.from(input.files).map(f=>`<div style="display:flex;align-items:center;gap:7px;padding:5px 9px;background:rgba(0,180,220,.05);border:1px solid rgba(0,180,220,.1);margin-bottom:3px;font-family:var(--fm);font-size:7px;letter-spacing:.08em;color:rgba(228,238,248,.5);">📎 ${f.name} <span style="color:var(--muted);">${(f.size/1024).toFixed(0)}KB</span></div>`).join('');
 }
 
-function submitTicket(){
-  const c=selectedCategory;
-  if(!c)return;
-  const subject=document.getElementById('ticket-subject')?.value||'Support ticket';
-  const description=document.getElementById('ticket-desc')?.value||'';
-  const csrf=document.querySelector('meta[name="csrf-token"]')?.content;
-
-  fetch('/supports',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':csrf},
-    body:JSON.stringify({ticket:{category:c.id,title:subject,description:description,priority:selectedPriority,urgency:urgencyLevel}})
-  }).then(r=>r.json()).then(data=>{
-    if(!data.ok){alert(data.error||'Could not submit ticket.');return;}
-    const ticketNum=data.number;
-    const now=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-    // Reflect the new ticket locally so the tracker shows it without a reload.
-    MY_TICKETS.unshift({id:data.id,num:ticketNum,cat:c.id,subject:subject,status:'open',time:'just now',
-      priority:selectedPriority.toUpperCase(),
-      events:[{time:now,dot:c.color,action:'Ticket submitted',detail:description}]});
-    // populate confirm
-    document.getElementById('conf-ticket-num').textContent='TICKET: '+ticketNum;
-    document.getElementById('conf-num2').textContent=ticketNum;
-    document.getElementById('conf-stripe').style.background=c.stripeBg;
-    document.getElementById('conf-cat-label').textContent=c.name+' SUPPORT';
-    document.getElementById('conf-cat-label').style.color=c.color;
-    document.getElementById('conf-subject').textContent=subject||`${c.name} support request`;
-    document.getElementById('conf-sla').textContent=c.sla;
-    document.getElementById('conf-sla').style.color=c.color;
-    document.getElementById('conf-cat-val').textContent=c.name;
-    document.getElementById('conf-cat-val').style.color=c.color;
-    document.getElementById('conf-priority').textContent=selectedPriority.toUpperCase();
-    document.getElementById('conf-priority').style.color=selectedPriority==='critical'?'var(--red2)':selectedPriority==='high'?'var(--orange2)':selectedPriority==='medium'?'var(--cyan)':'var(--yellow2)';
-    document.getElementById('conf-team').textContent=c.team;
-    document.getElementById('conf-rep').textContent=c.rep;
-    document.getElementById('conf-time').textContent='Today '+now;
-    showView('confirm');
-  }).catch(()=>alert('Network error — ticket was not submitted.'));
-}
+function submitTicket(){ showView('hub'); }
 
 // ── TRACKER ─────────────────────────────────
 function renderTracker(){

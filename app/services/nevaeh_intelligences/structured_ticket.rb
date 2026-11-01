@@ -14,14 +14,14 @@ module NevaehIntelligences
     REF = /\A@([a-z][a-z0-9_]{0,39})\.([a-z][a-z0-9_]*)\z/
     module_function
 
-    def compile(raw)
+    def compile(raw, bind_procedures: false)
       rows = raw.is_a?(Hash) ? raw.values : raw
       raise Invalid, "Add between 1 and 20 action sections" unless rows.is_a?(Array) && rows.length.between?(1, 20)
       seen = {}
       rows.map do |entry|
         raise Invalid, "Invalid action section" unless entry.is_a?(Hash)
         row = entry.deep_stringify_keys
-        raise Invalid, "Unknown section fields" if (row.keys - %w[id action inputs depends_on]).any?
+        raise Invalid, "Unknown section fields" if (row.keys - %w[id action inputs depends_on procedure]).any?
         id = row.fetch("id", "").to_s
         raise Invalid, "Section IDs must be unique lowercase names" unless id.match?(/\A[a-z][a-z0-9_]{0,39}\z/) && !seen.key?(id)
         action = row.fetch("action", "")
@@ -56,18 +56,28 @@ module NevaehIntelligences
         end
         raise Invalid, "Use a URL slug such as about-us" if action == "site.page.create" && !inputs["slug"].to_s.match?(/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/)
         seen[id] = action
-        {"id" => id, "action" => action, "inputs" => inputs, "depends_on" => deps.uniq}
+        step = {"id" => id, "action" => action, "inputs" => inputs, "depends_on" => deps.uniq}
+        if bind_procedures
+          step["procedure"] = KnowledgeProcedures.bind!(action, row["procedure"])
+        elsif row.key?("procedure")
+          binding = row["procedure"]
+          raise Invalid, "Invalid KB procedure reference" unless binding.is_a?(Hash) && binding.keys.sort == %w[article_id sha256] &&
+            binding["article_id"].is_a?(Integer) && binding["article_id"].positive? && binding["sha256"].is_a?(String) && binding["sha256"].match?(/\A[0-9a-f]{64}\z/)
+          step["procedure"] = binding
+        end
+        step
       end
     rescue JSON::ParserError
       raise Invalid, "Section data must be valid JSON"
     end
 
     def attach!(ticket:, actor:, sections:, automatic: false)
-      raise Invalid, "Ticket execution permission required" unless actor&.persisted? && Ability.new(actor).can?(:execute_nevaeh, ticket)
-      compiled = compile(sections)
+      raise Invalid, "Ticket submission permission required" unless actor&.persisted? && Ability.new(actor).can?(:create, Marlon::Ticket)
+      raise Invalid, "Ticket execution permission required" if automatic && !Ability.new(actor).can?(:execute_nevaeh, ticket)
+      compiled = compile(sections, bind_procedures: true)
       order = WorkOrder.template(work_type: "build", intent_key: CAPABILITY).merge(
         "objective" => ticket.title, "inputs" => {"sections" => compiled},
-        "acceptance_criteria" => compiled.map { |step| "#{step['id']}: #{ACTIONS.fetch(step['action']).fetch('label')} output matches the saved inputs and passes its registered verifier" },
+        "acceptance_criteria" => KnowledgeProcedures.criteria(compiled),
         "execution_policy" => {"environment" => Rails.env.to_s, "approval" => "gatekeeper"})
       ticket.with_lock do
         WorkOrder.attach!(ticket: ticket, attributes: order)
@@ -83,7 +93,7 @@ module NevaehIntelligences
 
     def revise!(ticket:, actor:, sections:, automatic: false)
       raise Invalid, "Ticket execution permission required" unless actor&.persisted? && Ability.new(actor).can?(:execute_nevaeh, ticket)
-      compiled = compile(sections)
+      compiled = compile(sections, bind_procedures: true)
       ticket.with_lock do
         raise Invalid, "Resolved ticket cannot be revised" if ticket.status == "resolved"
         fields = ticket.extra_fields.to_h.deep_stringify_keys
@@ -99,7 +109,7 @@ module NevaehIntelligences
           old = previous.fetch("inputs").fetch("sections").find { |step| step["id"] == id }
           raise Invalid, "Verified section #{id} must be preserved" unless compiled.find { |step| step["id"] == id } == old
         end
-        order = previous.merge("inputs" => {"sections" => compiled}, "acceptance_criteria" => compiled.map { |step| "#{step['id']}: #{ACTIONS.fetch(step['action']).fetch('label')} output matches the saved inputs and passes its registered verifier" })
+        order = previous.merge("inputs" => {"sections" => compiled}, "acceptance_criteria" => KnowledgeProcedures.criteria(compiled))
         WorkOrder.validate!(order)
         revision = TicketApproval.fingerprint(order)
         workflow.merge!("automatic" => automatic == true, "authorized_actor_id" => actor.id,
@@ -118,6 +128,7 @@ module NevaehIntelligences
       ticket.with_lock do
         fields = ticket.extra_fields.to_h.deep_stringify_keys
         order = WorkOrder.read!(ticket: ticket)
+        KnowledgeProcedures.validate_steps!(order.fetch("inputs").fetch("sections"))
         Array(fields["depends_on_ticket_ids"]).each do |id|
           dependency = id.is_a?(Integer) && id != ticket.id && Marlon::Ticket.find_by(id: id)
           raise Invalid, "Dependency ticket #{id} lacks verified resolution" unless dependency && dependency.status == "resolved" && dependency.extra_fields.to_h.dig("nevaeh", "execution_status") == "verified"
@@ -125,6 +136,8 @@ module NevaehIntelligences
         articles = ([CAPABILITY] + order.fetch("inputs").fetch("sections").map { |step| step.fetch("action") }).uniq.flat_map do |key|
           NevaehOrchestration::KnowledgeResolver.for(capability: key, additional_article_ids: fields.fetch("knowledge_article_ids", []))
         end.uniq(&:id)
+        pinned_ids = order.fetch("inputs").fetch("sections").map { |step| step.fetch("procedure").fetch("article_id") }
+        articles = (DymondKb::Article.where(id: pinned_ids).to_a + articles).uniq(&:id)
         capabilities = NevaehCapability.order(:id).map do |record|
           {"slug" => record.slug, "enabled" => record.enabled?, "handler" => record.handler,
             "gatekeeper_capability" => record.gatekeeper_capability, "updated_at" => record.updated_at&.iso8601(6)}

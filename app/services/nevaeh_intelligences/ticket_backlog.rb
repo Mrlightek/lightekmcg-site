@@ -22,9 +22,17 @@ module NevaehIntelligences
     def process!
       return "disabled" unless self.class.enabled?
       return "resolved" if ticket.reload.status == "resolved"
+      if ticket.extra_fields.to_h["nevaeh_github"].present?
+        blocked = GithubBacklog.process!(ticket: ticket)
+        return blocked if blocked
+      end
       if ticket.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute"
         state = ticket.extra_fields.to_h.fetch("nevaeh", {})
         return StructuredExecution.reconcile!(ticket: ticket) if state["reservation_id"].present?
+        if ticket.extra_fields.to_h.dig("nevaeh_structured", "authorized_revision").blank?
+          record_state!("awaiting_approval", [])
+          return "awaiting_approval"
+        end
         return StructuredExecution.dispatch!(ticket: ticket, actor: User.find_by(id: ticket.extra_fields.to_h.dig("nevaeh_structured", "authorized_actor_id")))
       end
       fields = ticket.extra_fields.to_h.deep_stringify_keys
@@ -53,7 +61,10 @@ module NevaehIntelligences
           analysis["failure_count"] = prior.fetch("failure_count", 0)
         end
         save_analysis!(fields, analysis)
-        return analysis.fetch("status") unless analysis["status"] == "ready"
+        unless analysis["status"] == "ready"
+          NevaehOrchestration::Escalation.knowledge_gap!(ticket: ticket, reason: analysis.fetch("blockers").join("; ")) if analysis["status"] == "escalated"
+          return analysis.fetch("status")
+        end
       end
       actor = User.find_by(id: ENV["NEVAEH_BACKLOG_ACTOR_ID"])
       WorkOrder.dispatch!(ticket: ticket, actor: actor)
@@ -64,6 +75,7 @@ module NevaehIntelligences
       # reservation merely because another worker observed it.
       if ticket.reload.extra_fields.to_h.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute"
         record_state!("escalated", ["#{error.class}: #{error.message}"])
+        NevaehOrchestration::Escalation.knowledge_gap!(ticket: ticket, reason: error.message) if error.is_a?(KnowledgeProcedures::Invalid)
         return "escalated"
       end
       return reconcile! if ticket.reload.extra_fields.to_h.deep_stringify_keys.dig("nevaeh", "execution_status").present?

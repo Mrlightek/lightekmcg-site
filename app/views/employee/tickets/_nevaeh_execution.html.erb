@@ -1,3 +1,15 @@
+<% if (gap = ticket.extra_fields.to_h['nevaeh_knowledge_gap']) %>
+<section class="dd-card" aria-label="Knowledge gap escalation">
+  <h3>Technical Support · Teach Nevaeh</h3>
+  <p><strong>Queue:</strong> <%= ticket.assigned_team %> · <%= ticket.assigned_rep %></p>
+  <p><%= gap['reason'] %></p>
+  <p><strong>Administrator notification:</strong> <%= gap.dig('notification', 'state') || 'pending' %></p>
+  <% if gap.dig('notification', 'blocker') %><p role="alert"><%= gap.dig('notification', 'blocker') %></p><% end %>
+  <% if ticket.status != 'resolved' && can?(:execute_nevaeh, ticket) %>
+    <%= link_to 'Assign or revise a KB procedure', edit_nevaeh_employee_ticket_path(ticket), class: 'dd-topbar-btn' %>
+  <% end %>
+</section>
+<% end %>
 <% backlog = ticket.extra_fields.to_h.deep_stringify_keys.fetch('nevaeh_backlog', {}) %>
 <% if backlog.present? %>
   <section class="dd-card" aria-label="Nevaeh backlog processing" style="margin-bottom:16px">

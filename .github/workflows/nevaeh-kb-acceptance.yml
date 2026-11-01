@@ -1,0 +1,64 @@
+name: Nevaeh KB worker acceptance
+on:
+  push:
+    branches: [feat/nevaeh-historical-backlog-20261031]
+    paths:
+      - 'app/services/nevaeh_intelligences/**'
+      - 'app/services/nevaeh_orchestration/escalation.rb'
+      - 'app/jobs/nevaeh_intelligences/**'
+      - 'app/controllers/employee/tickets_controller.rb'
+      - 'app/controllers/supports_controller.rb'
+      - 'app/models/marlon/ticket.rb'
+      - 'app/views/employee/tickets/**'
+      - 'app/views/supports/**'
+      - 'config/nevaeh/procedures/**'
+      - 'test/standalone/nevaeh_knowledge_workflow_test.rb'
+      - 'script/nevaeh_verify_knowledge_workers.rb'
+      - '.github/workflows/nevaeh-kb-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nevaeh-kb-acceptance
+  cancel-in-progress: false
+jobs:
+  persisted_contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - run: gem install activerecord -v 8.0.4 --no-document
+      - run: gem install activejob -v 8.0.4 --no-document
+      - run: gem install sqlite3 -v '~> 2.8' --no-document
+      - run: gem install minitest -v '~> 5.25' --no-document
+      - run: ruby test/standalone/nevaeh_knowledge_workflow_test.rb
+  installed_workers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify KB-bound workers against installed Rails and PostgreSQL
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SSH_KEY" && -n "$SSH_HOST" ]] || { echo '::error::Existing production SSH secrets are unavailable'; exit 1; }
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_deploy
+          chmod 600 ~/.ssh/lightek_deploy
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          CANDIDATE_ROOT="/var/tmp/lightek-nevaeh-kb-${GITHUB_SHA}"
+          git archive HEAD | ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "umask 022; mkdir -p '$CANDIDATE_ROOT'; tar -xf - -C '$CANDIDATE_ROOT'"
+          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc 'set -e; set -a; source /etc/lightek/lightekmcg-site.env; set +a; export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin; export RAILS_ENV=production; export NEVAEH_BACKLOG_ENABLED=0; cd /var/www/lightekmcg-site; bundle exec rails runner $CANDIDATE_ROOT/script/nevaeh_verify_knowledge_workers.rb'"

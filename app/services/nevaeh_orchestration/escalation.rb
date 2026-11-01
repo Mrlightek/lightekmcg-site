@@ -2,6 +2,26 @@
 
 module NevaehOrchestration
   class Escalation
+    # Intake gaps already have a canonical support ticket. Route that ticket to
+    # people and preserve its source, rather than manufacturing a duplicate.
+    def self.knowledge_gap!(ticket:, reason:)
+      ticket.with_lock do
+        return ticket if ticket.status == "resolved"
+        fields = ticket.extra_fields.to_h.deep_stringify_keys
+        gap = fields.fetch("nevaeh_knowledge_gap", {})
+        unless gap["opened_at"]
+          operator = User.where(role: %w[super_admin admin]).order(:id).first
+          gap = {"opened_at" => Time.current.iso8601, "reason" => reason.to_s,
+            "assigned_user_id" => operator&.id, "notification" => {"state" => "pending"}}
+          fields["nevaeh_knowledge_gap"] = gap
+          ticket.update!(assigned_team: "Technical Team", assigned_rep: operator ? "User:#{operator.id}" : "Admin queue", extra_fields: fields)
+          ticket.log!(action: "nevaeh_knowledge_gap_escalated", detail: gap.except("notification").to_json)
+        end
+      end
+      NevaehIntelligences::KnowledgeGapNotificationJob.perform_later(ticket.id) unless ticket.extra_fields.to_h.dig("nevaeh_knowledge_gap", "notification", "state") == "submitted"
+      ticket
+    end
+
     def self.call(plan:, outcome:, decision:, work_item: nil)
       new(
         plan: plan,

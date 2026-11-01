@@ -29,3 +29,9 @@ gatekeeper_device_heartbeat_sweep:
   cron: "*/1 * * * *"
   class: "GatekeeperDeviceHeartbeatSweepJob"
   queue: default
+
+nevaeh_github_backlog:
+  cron: "*/15 * * * *"
+  class: "NevaehIntelligences::SyncGithubIssuesJob"
+  queue: default
+  active_job: true

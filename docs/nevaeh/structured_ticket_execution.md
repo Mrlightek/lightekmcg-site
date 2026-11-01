@@ -124,3 +124,19 @@ Full application CI remains blocked before Ruby setup by missing
 reads. Native installed-stack acceptance is separate evidence and does not make
 those skipped security, lint and full-suite checks pass. The PR remains unmerged
 and general production acceptance is not claimed.
+
+## Knowledge-first requests and per-procedure workers
+
+The available request catalog now comes from `DymondKb::Article.metadata.nevaeh_procedure` in this instance's KB. A lesson must declare its typed inputs, required fields, acceptance criteria, registered action, and exact backend worker. The fixed application registry supplies the implementation and output verifier; KB prose cannot introduce arbitrary code or commands. The release teaches four existing procedures from `config/nevaeh/procedures/core.json`. Later releases preserve local lesson edits and withdrawals.
+
+Each procedure has a dedicated backend worker under `NevaehIntelligences::StructuredWorkers`. The existing structured-ticket Sidekiq worker coordinates these workers through the existing Gatekeeper authorization and persisted per-step receipts. The KB article ID and content revision are pinned in the saved work order. A changed or withdrawn lesson requires review before execution. Verified execution records both a solution article and provenance on the taught procedure. Evidence updates do not change a procedure's operational revision.
+
+Employee and customer ticket entry points offer KB procedures and their fields. Customer requests always await operator approval. An administrator can authorize automatic execution through the employee interface. The separate **request a new lesson** option creates a technical support ticket rather than attempting unknown work.
+
+A knowledge gap routes the canonical ticket to **Technical Team / Admin queue**, assigns an administrator when available, and queues notification through the existing Lightek Mail submission/outbox and Sidekiq infrastructure. A stable per-ticket/per-administrator idempotency key prevents duplicate mail submissions. Notification submission is not claimed as successful delivery; message IDs and configuration failures remain on the ticket. The recurring backlog sweep recovers pending notification work. Repeated escalation does not manufacture duplicate tickets.
+
+Operators investigate the escalation, implement missing functionality and its worker/verifier, teach the KB procedure, then assign a reviewed procedure to the original ticket. Acceptance evidence must pass before the request can close. Obsolete/duplicate dispositions remain explicit alternatives. Unknown requests do not become executable because their prose resembles a known action.
+
+GitHub intake is opt-in per instance from the Nevaeh console. It imports actual repository issue identities and content, reuses canonical imports, preserves source changes, and routes missing procedures into the same support queue. It does not close GitHub issues merely because an import or engineering plan succeeded. Generic code authoring through an external model is not part of this implementation.
+
+`test/standalone/nevaeh_knowledge_workflow_test.rb` exercises persisted ticket/KB contracts and real action workers with SQLite, including failed-step recovery. Its permission and mail boundaries are fixtures, so it is not proof of production mail delivery or authorization. `script/nevaeh_verify_knowledge_workers.rb` uses the installed Rails/private engines, actual Gatekeeper policy, and PostgreSQL; its controlled page, section, ticket and KB writes roll back. Neither check constitutes completion of every historical engineering request.

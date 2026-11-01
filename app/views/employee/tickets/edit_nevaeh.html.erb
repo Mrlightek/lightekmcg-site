@@ -4,6 +4,13 @@
   <p>Keep verified sections unchanged. Correct the remaining work and authorize its new revision.</p>
   <% if @ticket.errors.any? %><p role="alert"><%= @ticket.errors.full_messages.join(', ') %></p><% end %>
   <%= form_with url: revise_nevaeh_employee_ticket_path(@ticket), method: :post do %>
+    <% if (source = @ticket.extra_fields.to_h['nevaeh_github']) %>
+      <h3>Review the actual GitHub request</h3>
+      <p><%= link_to source['title'], source['url'] %></p>
+      <pre style="white-space:pre-wrap;overflow-wrap:anywhere"><%= source['body'] %></pre>
+      <%= hidden_field_tag 'structured_ticket[source_sha256]', source['source_sha256'] %>
+      <label><%= check_box_tag 'structured_ticket[reviewed_source]', '1' %> I reviewed this source revision and the selected procedures cover its complete acceptance requirements.</label>
+    <% end %>
     <%= render 'structured_form' %>
     <%= submit_tag 'Save revision', class: 'dd-topbar-btn dd-btn-primary' %>
   <% end %>

@@ -105,6 +105,7 @@ post "/employee/nevaeh/config/:key/jobs", to: "employee/nevaeh_configuration#add
 
   # 7A.8I - read-only Nevaeh overview; existing employee auth applies.
   get "/employee/nevaeh", to: "employee/nevaeh_overview#index", as: :employee_nevaeh_overview
+  post "/employee/nevaeh/sync_github", to: "employee/nevaeh_overview#sync_github", as: :employee_nevaeh_sync_github
 
 # Phase 7A.8E: read-only capability console; no write or execution routes.
 get "/employee/nevaeh/capabilities", to: "employee/nevaeh_capabilities#index", as: :employee_nevaeh_capabilities

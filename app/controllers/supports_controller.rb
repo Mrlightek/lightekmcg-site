@@ -9,6 +9,14 @@ class SupportsController < ApplicationController
 
   def index
     @categories = Marlon::TicketCategories::ALL
+    @procedures = NevaehIntelligences::KnowledgeProcedures.available
+    if params[:procedure].present? || params[:teaching] == "1"
+      NevaehIntelligences::KnowledgeProcedures.fetch!(params[:procedure]) unless params[:teaching] == "1"
+      @ticket = Marlon::Ticket.new(category: "technical", priority: "medium", urgency: 5)
+      @structured_values = {"sections" => {"1" => {"id" => "request", "action" => params[:procedure]}}}
+      @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
+      return render :new_request
+    end
     tickets     = Marlon::Ticket.where(submitted_by: current_user).open_first.limit(20)
     @my_tickets_json = tickets.map { |t| ticket_to_hub_json(t) }
   end
@@ -18,16 +26,47 @@ class SupportsController < ApplicationController
     ticket.submitted_by = current_user
     ticket.organization_name ||= current_user&.full_name
 
-    if ticket.save
-      ticket.log!(action: "Ticket submitted", actor: current_user)
-      render json: { ok: true, number: ticket.number, id: ticket.id }
-    else
-      render json: { ok: false, error: ticket.errors.full_messages.join(", ") }, status: :unprocessable_entity
+    authorize! :create, Marlon::Ticket
+    begin
+      Marlon::Ticket.transaction do
+        ticket.save!
+        values = params.fetch(:structured_ticket, ActionController::Parameters.new).permit(:enabled, sections: {}).to_h
+        if params[:request_type] == "knowledge_gap"
+          NevaehOrchestration::Escalation.knowledge_gap!(ticket: ticket, reason: ticket.description.presence || ticket.title)
+        else
+        raise NevaehIntelligences::WorkOrder::Invalid, "Choose a supported Knowledge Base procedure" unless values["enabled"] == "1"
+        # Public intake always waits for operator approval. A submitted automatic
+        # flag or work-order approval string cannot grant execution permission.
+        NevaehIntelligences::StructuredTicket.attach!(ticket: ticket, actor: current_user,
+          sections: values.fetch("sections", {}), automatic: false)
+        end
+        ticket.log!(action: "Ticket submitted", actor: current_user)
+      end
+      respond_to do |format|
+        format.json { render json: {ok: true, number: ticket.number, id: ticket.id} }
+        format.html { redirect_to supports_path, notice: "Ticket #{ticket.number} submitted for approval." }
+      end
+    rescue ActiveRecord::RecordInvalid, NevaehIntelligences::WorkOrder::Invalid => error
+      respond_to do |format|
+        format.json { render json: {ok: false, error: error.message}, status: :unprocessable_entity }
+        format.html do
+          @ticket = ticket
+          @ticket.errors.add(:base, error.message) unless @ticket.errors.any?
+          @structured_values = values || {}
+          @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
+          render :new_request, status: :unprocessable_entity
+        end
+      end
     end
+  end
+
+  rescue_from NevaehIntelligences::KnowledgeProcedures::Invalid do |error|
+    render plain: error.message, status: :unprocessable_entity
   end
 
   def reply
     ticket = Marlon::Ticket.find(params[:id])
+    authorize! :reply, ticket
     ticket.log!(action: "#{current_user.full_name} replied", detail: params[:detail], actor: current_user)
     render json: { ok: true }
   end

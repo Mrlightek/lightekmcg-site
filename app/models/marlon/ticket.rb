@@ -17,6 +17,8 @@ module Marlon
     validates :status,   inclusion: { in: STATUSES }
     validates :urgency, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 10 }
 
+    validate :require_nevaeh_acceptance_for_closure
+
     before_validation :assign_number, on: :create
     before_validation :apply_category_defaults, on: :create
 
@@ -39,6 +41,18 @@ module Marlon
     end
 
     private
+
+    def require_nevaeh_acceptance_for_closure
+      return unless will_save_change_to_status? && status == "resolved"
+      fields = extra_fields.to_h
+      return unless fields["nevaeh_knowledge_gap"] || fields.dig("nevaeh_work_order", "intent_key") == "ticket.structured.execute"
+      disposition = fields.dig("nevaeh_backlog", "disposition")
+      documented = disposition.is_a?(Hash) && %w[documented_obsolete documented_duplicate].include?(disposition["outcome"]) &&
+        disposition["reason"].to_s.length >= 50 && disposition["actor_id"].present?
+      unless fields.dig("nevaeh", "execution_status") == "verified" || documented
+        errors.add(:status, "requires verified Nevaeh acceptance or a documented obsolete/duplicate disposition")
+      end
+    end
 
     def enqueue_nevaeh_backlog
       return if status == "resolved"

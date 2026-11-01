@@ -14,13 +14,17 @@ module NevaehIntelligences
       raise StructuredTicket::Invalid, "Ticket execution permission revoked" unless actor&.persisted? && Ability.new(actor).can?(:execute_nevaeh, ticket)
       raise StructuredTicket::Invalid, "Wrong structured work order" unless order["intent_key"] == StructuredTicket::CAPABILITY && order.dig("execution_policy", "environment") == Rails.env
       fingerprint = TicketApproval.fingerprint(order)
+      if fields["nevaeh_github"]
+        expected_source = {"source_sha256" => fields.fetch("nevaeh_github").fetch("source_sha256"), "work_order_sha256" => fingerprint}
+        raise StructuredTicket::Invalid, "GitHub source revision lacks operator authorization" unless fields["nevaeh_github_authorization"] == expected_source && !fields.dig("nevaeh_github", "revision_requires_review")
+      end
       raise StructuredTicket::Invalid, "Structured revision is not authorized" unless authorization["authorized_revision"] == fingerprint && authorization["authorized_actor_id"] == actor.id && state["work_order_sha256"] == fingerprint
       raise StructuredTicket::Invalid, "Execution reservation missing" unless state["reservation_id"].present?
       given_actor = context.to_h.deep_stringify_keys["actor"]
       if given_actor.present?
         raise StructuredTicket::Invalid, "Dispatch actor mismatch" unless given_actor["type"] == "User" && given_actor["id"].to_s == actor.id.to_s
       end
-      StructuredTicket.compile(order.fetch("inputs").fetch("sections"))
+      KnowledgeProcedures.validate_steps!(StructuredTicket.compile(order.fetch("inputs").fetch("sections")))
       actor
     end
 
@@ -41,6 +45,10 @@ module NevaehIntelligences
         fingerprint = TicketApproval.fingerprint(order)
         if explicit
           authorization.merge!("authorized_actor_id" => actor.id, "authorized_revision" => fingerprint)
+          if fields["nevaeh_github"]
+            raise StructuredTicket::Invalid, "Review the updated GitHub issue before authorizing" if fields.dig("nevaeh_github", "revision_requires_review")
+            fields["nevaeh_github_authorization"] = {"source_sha256" => fields.fetch("nevaeh_github").fetch("source_sha256"), "work_order_sha256" => fingerprint}
+          end
         end
         raise StructuredTicket::Invalid, "Awaiting operator approval" unless authorization["authorized_actor_id"] == actor.id && authorization["authorized_revision"] == fingerprint
         reservation = SecureRandom.uuid
@@ -93,7 +101,7 @@ module NevaehIntelligences
           end
           receipt = completed[step["id"]]
           output = receipt ? receipt.fetch("output") : StructuredActions.perform(step["action"], inputs, actor: actor, ticket: ticket)
-          StructuredActions.verify!(step["action"], inputs, output, actor: actor)
+          StructuredActions.verify!(step["action"], inputs, output, actor: actor, ticket: ticket)
           unless receipt
             completed[step["id"]] = {"status" => "verified", "inputs" => inputs, "output" => output, "verified_at" => Time.current.iso8601}
             ticket.update!(extra_fields: fields)
@@ -105,14 +113,19 @@ module NevaehIntelligences
         fields = ticket.extra_fields.to_h.deep_stringify_keys
         return {"verified" => true, "ticket_id" => ticket.id} if fields.dig("nevaeh", "execution_status") == "verified"
         completed = fields.fetch("nevaeh_structured").fetch("steps")
+        KnowledgeProcedures.validate_steps!(order.fetch("inputs").fetch("sections"))
         order.fetch("inputs").fetch("sections").each do |step|
           receipt = completed.fetch(step["id"])
-          StructuredActions.verify!(step["action"], receipt.fetch("inputs"), receipt.fetch("output"), actor: actor)
+          StructuredActions.verify!(step["action"], receipt.fetch("inputs"), receipt.fetch("output"), actor: actor, ticket: ticket)
         end
         article = Gatekeeper::LessonService.record!(key: "nevaeh-structured-ticket-#{ticket.id}", title: "Verified structured procedure: #{ticket.title}",
           capability: StructuredTicket::CAPABILITY, symptom: ticket.title, cause: "Structured action request",
           remediation: JSON.generate(order.fetch("inputs")), verification: JSON.generate(completed),
-          metadata: {"source_ticket_id" => ticket.id, "nevaeh_capability" => StructuredTicket::CAPABILITY, "auto_executable" => false})
+          metadata: {"source_ticket_id" => ticket.id, "nevaeh_capability" => StructuredTicket::CAPABILITY, "auto_executable" => false, "procedure_revisions" => order.fetch("inputs").fetch("sections").map { |step| step.fetch("procedure") }})
+        KnowledgeProcedures.record_verification!(ticket: ticket, steps: order.fetch("inputs").fetch("sections"), completed: completed, solution_article: article)
+        if fields["nevaeh_knowledge_gap"]
+          fields["nevaeh_knowledge_gap"].merge!("state" => "learned", "solution_article_id" => article.id, "verified_at" => Time.current.iso8601)
+        end
         fields.fetch("nevaeh").merge!("execution_status" => "verified", "knowledge_article_id" => article.id, "verification" => {"sections" => completed, "verified_at" => Time.current.iso8601})
         fields["nevaeh_backlog"] = fields.fetch("nevaeh_backlog", {}).merge("status" => "verified_resolved", "blockers" => [], "implementation_verified" => true)
         ticket.update!(status: "resolved", resolved_at: Time.current, extra_fields: fields)
@@ -142,6 +155,10 @@ module NevaehIntelligences
         if explicit
           state["actor_id"] = actor.id
           workflow.merge!("authorized_actor_id" => actor.id, "authorized_revision" => state["work_order_sha256"])
+          if fields["nevaeh_github"]
+            raise StructuredTicket::Invalid, "Review the updated GitHub source before resuming" if fields.dig("nevaeh_github", "revision_requires_review")
+            fields["nevaeh_github_authorization"] = {"source_sha256" => fields.fetch("nevaeh_github").fetch("source_sha256"), "work_order_sha256" => state["work_order_sha256"]}
+          end
         end
         workflow["retry_count"] = count + 1
         ticket.update!(extra_fields: fields)

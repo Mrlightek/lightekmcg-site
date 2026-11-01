@@ -414,10 +414,35 @@ const buildObject = object => {
   let root;
 
   switch (type) {
+    case "native_object": {
+      const d=object.definition||{};
+      const dims=(d.dimensions||[.2,.2,.2]).map((v,i)=>Math.max(.05,Math.abs(v/(d.scale?.[i]||1))));
+      root=markRoot(new THREE.Mesh(new THREE.BoxGeometry(...dims),new THREE.MeshBasicMaterial({color:0x8796aa,wireframe:true})),object);
+      root.userData.nativePlaceholder=true;
+      break;
+    }
     case "imported_asset": {
       root = markRoot(new THREE.Group(),object);
       const url=String(object.definition?.asset_proxy_url||'');
-      if(/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url))new GLTFLoader().setWithCredentials(true).load(url,gltf=>{root.add(gltf.scene);},undefined,()=>{});
+      if(/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url))new GLTFLoader().setWithCredentials(true).load(url,gltf=>{
+        if(!active||active.sceneId!==Number(studioRouteSceneId())||active.objects.get(object.id)!==root)return;
+        gltf.scene.rotation.x=Math.PI/2;root.add(gltf.scene);active.scene.updateMatrixWorld(true);
+        if(object.definition?.native_source_preview){
+          const native=(bridge()?.snapshot?.().objects||[]).filter(item=>item.object_type==='native_object');
+          const byName=new Map(native.map(item=>[item.definition.blender_object_name,item]));
+          const matches=[];gltf.scene.traverse(node=>{const item=byName.get(node.userData.lightek_object_name||node.name);if(item)matches.push([node,item]);});
+          for(const [node,item] of matches){
+            const previous=active.objects.get(item.id);if(previous){previous.visible=false;previous.traverse(child=>{const i=active.pickables.indexOf(child);if(i>=0)active.pickables.splice(i,1);});}
+            active.scene.attach(node);markRoot(node,item);const d=item.definition;
+            node.position.set(...d.location);node.rotation.set(...d.rotation.map(radians));node.scale.set(...d.scale);node.visible=!d.hide_viewport&&!d.native_deleted;
+            if(d.material_override)node.traverse(child=>{if(!child.isMesh)return;const materials=Array.isArray(child.material)?child.material:[child.material];child.material=materials.map(m=>{const copy=m.clone(),p=d.material_override;if(p.color)copy.color?.setRGB(...p.color.slice(0,3));if(p.metallic!==undefined)copy.metalness=p.metallic;if(p.roughness!==undefined)copy.roughness=p.roughness;return copy;});if(!Array.isArray(child.material)||child.material.length!==1)return;child.material=child.material[0];});
+            active.objects.set(item.id,node);
+          }
+        }
+        for(const mesh of [...active.scene.children])mesh.traverse(child=>{if(child.isMesh&&!active.pickables.includes(child)&&child.visible)active.pickables.push(child);});
+        updateHighlights(bridge()?.snapshot?.());applyTool(active.mode,bridge()?.snapshot?.());
+        window.dispatchEvent(new CustomEvent('lightek:proxy-ready',{detail:{assetObjectId:object.id}}));
+      },undefined,()=>{if(active?.status)active.status.textContent='Viewport proxy unavailable. Native objects remain editable; use Blender draft preview to inspect the scene.';});
       break;
     }
     case "camera":
@@ -470,6 +495,7 @@ const buildObject = object => {
       [1, 1, 1]
     );
 
+  root.visible=!definition.hide_viewport&&!definition.native_deleted;
   root.position.set(
     location[0],
     location[1],
@@ -931,6 +957,7 @@ const applyTool = (
       "[data-studio-tool]"
     )
     .forEach(button => {
+      button.setAttribute("aria-pressed", String(button.dataset.studioTool === next));
       button.classList.toggle(
         "on",
         button.dataset
@@ -1181,6 +1208,7 @@ const installPicking = () => {
         );
 
       for (const hit of hits) {
+        let visible=true;for(let node=hit.object;node;node=node.parent)if(!node.visible){visible=false;break;}if(!visible)continue;
         const id =
           resolveObjectId(
             hit.object
@@ -1248,9 +1276,11 @@ const installToolbar = state => {
 
         const map = {
           q: "select",
+          g: "move",
           w: "move",
           e: "rotate",
-          r: "scale"
+          r: "rotate",
+          s: "scale"
         };
 
         if (map[key]) {
@@ -1317,7 +1347,7 @@ const createViewportDom = (
           <button
             type="button"
             data-studio-tool="move"
-            title="Move (W)"
+            title="Move (G)"
           >
             Move
           </button>
@@ -1325,7 +1355,7 @@ const createViewportDom = (
           <button
             type="button"
             data-studio-tool="rotate"
-            title="Rotate (E)"
+            title="Rotate (R)"
           >
             Rotate
           </button>
@@ -1333,7 +1363,7 @@ const createViewportDom = (
           <button
             type="button"
             data-studio-tool="scale"
-            title="Scale (R)"
+            title="Scale (S)"
           >
             Scale
           </button>
@@ -1363,7 +1393,7 @@ const createViewportDom = (
 
       <div class="studio-viewport-hint">
         Drag to orbit · right-drag to pan · wheel to zoom ·
-        Q Select · W Move · E Rotate · R Scale · F Frame
+        Q Select · G Move · R Rotate · S Scale · F Frame
       </div>
     </div>
   `;

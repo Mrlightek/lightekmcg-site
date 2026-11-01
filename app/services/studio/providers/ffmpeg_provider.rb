@@ -26,7 +26,7 @@ module Studio
           command=Studio::Editing::Timeline.command(timeline,paths:paths,output:output)
           if Rails.env.production?
             mapped=command.map{|argument|argument.start_with?(root) ? argument.sub(root,"/work") : argument}
-            command=Studio::MediaProcess.container(mapped,root:root,image:ENV.fetch("STUDIO_MEDIA_WORKER_IMAGE"))
+            command=Studio::MediaProcess.container(mapped,root:root,image:Studio::NativeBlender::Runtime.image(:media))
           end
           Studio::MediaProcess.run!(command,timeout:900,cancel_if: -> { @operation.reload.status == "cancelled" })
           raise "Media export did not produce an artifact" unless File.size?(output)

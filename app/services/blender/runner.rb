@@ -116,7 +116,7 @@ module Blender
     def command
       script=Rails.root.join("blender/runner.py").to_s
       if Rails.env.production?
-        image=ENV["STUDIO_RENDER_WORKER_IMAGE"].presence || ENV.fetch("STUDIO_ASSET_WORKER_IMAGE")
+        image=Studio::NativeBlender::Runtime.image(:render)
         ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory","4g","--cpus","2","--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
           "-v","#{output_directory}:/work:rw","-v","#{script}:/engine/runner.py:ro",image,"blender","--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python","/engine/runner.py","--","/work/manifest.json","/work"]
       else
@@ -202,6 +202,7 @@ module Blender
     end
 
     def timeout_seconds
+      return 60 if execution_record.respond_to?(:metadata) && execution_record.metadata["draft_preview"]
       ENV.fetch(
         "STUDIO_RENDER_TIMEOUT_SECONDS",
         ENV.fetch("BLENDER_TIMEOUT_SECONDS", 900)

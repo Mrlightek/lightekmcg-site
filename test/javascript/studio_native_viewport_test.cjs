@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {chromium}=require('playwright');
+const model=process.env.STUDIO_VIEWPORT_FIXTURE||'/tmp/native-viewport-proof.glb';
+const fixture=`<!doctype html><html><head><script type="importmap">{"imports":{"three":"/lightek/vendor/three/three.module.js"}}</script><style>body{margin:0;background:#111;color:white}.studio-live-layout{display:grid;grid-template-columns:120px 700px 120px}.studio-viewport-canvas{width:700px;height:500px}.studio-viewport{width:700px}button{margin:4px}</style></head><body><main id="app"><div class="studio-work-grid"><aside>Native Outliner</aside><aside>Native properties</aside></div><p id="selection"></p></main><script>
+location.hash='#/studio/1';let selected=null;window.proxyReady=false;window.addEventListener('lightek:proxy-ready',()=>window.proxyReady=true);
+const objects=[{id:99,name:'Blender source',object_type:'imported_asset',definition:{native_source_preview:true,asset_proxy_url:'/api/lightek/pwa/assets/1/proxy',location:[0,0,0],rotation:[0,0,0],scale:[1,1,1]}},{id:1,name:'Cube',object_type:'native_object',definition:{blender_object_name:'Cube',native_type:'MESH',location:[0,0,0],rotation:[0,0,0],scale:[1,1,1],dimensions:[2,2,2]}}];
+window.LightekStudioViewportBridge={snapshot:()=>({sceneId:1,workspaceMode:'3d',objects,selectedObjectId:selected,busy:false,settings:{}}),selectObject:id=>{selected=id;document.getElementById('selection').textContent='Selected native object '+id},commitTransform:async(id,properties)=>{window.saved={id,properties}}};
+</script><script type="module" src="/lightek/studio-viewport.js"></script></body></html>`;
+(async()=>{const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{}),args:['--no-sandbox','--no-zygote','--single-process','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});try{
+ const page=await browser.newPage({viewport:{width:1100,height:720}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('https://viewport.test/**',route=>{const url=new URL(route.request().url());if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:fixture});if(url.pathname.includes('/assets/'))return route.fulfill({contentType:'model/gltf-binary',body:fs.readFileSync(model)});return route.fulfill({contentType:'application/javascript',body:fs.readFileSync(path.join('public',url.pathname))});});
+ await page.goto('https://viewport.test/');await page.waitForFunction(()=>window.proxyReady);
+ const host=page.locator('.studio-viewport-canvas');const box=await host.boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2);
+ await page.waitForFunction(()=>document.getElementById('selection').textContent==='Selected native object 1');
+ await host.press('g');assert.equal(await page.locator('[data-studio-tool=move]').getAttribute('aria-pressed'),'true');await host.press('r');assert.equal(await page.locator('[data-studio-tool=rotate]').getAttribute('aria-pressed'),'true');await host.press('s');assert.equal(await page.locator('[data-studio-tool=scale]').getAttribute('aria-pressed'),'true');
+ assert.deepEqual(errors,[]);console.log('STUDIO_NATIVE_VIEWPORT_PASS actual_glb native_mesh_picking blender_g_r_s_tools');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

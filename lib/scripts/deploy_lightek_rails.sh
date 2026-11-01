@@ -32,6 +32,9 @@ sudo -u "${APP_USER}" -H bash -lc "
 "
 
 echo
+echo "=== Blender media dependency ==="
+sudo -u "${APP_USER}" -H bash -lc "set -a; source '${ENV_FILE}'; set +a; cd '${APP_ROOT}'; bash lib/scripts/setup_studio_media.sh"
+
 echo "=== Database ==="
 sudo -u "${APP_USER}" -H bash -lc "
   set -a

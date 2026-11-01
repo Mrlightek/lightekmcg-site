@@ -14,7 +14,7 @@ def camera_payload(obj):
     camera = obj.data
     euler = obj.matrix_world.to_euler()
     return {"name": obj.name, "definition": {
-        "blender_object_name": obj.name, "location": list(obj.matrix_world.translation),
+        "blender_object_name": obj.name, "native_type": "CAMERA", "hide_render": bool(obj.hide_render), "hide_viewport": bool(obj.hide_viewport), "parent_name": obj.parent.name if obj.parent else None, "collections": [c.name for c in obj.users_collection], "location": list(obj.matrix_world.translation),
         "rotation": [math.degrees(v) for v in euler], "scale": list(obj.matrix_world.to_scale()),
         "camera_type": camera.type, "fov_degrees": math.degrees(camera.angle), "lens": camera.lens, "lens_unit": camera.lens_unit,
         "sensor_fit": camera.sensor_fit, "sensor_width": camera.sensor_width, "sensor_height": camera.sensor_height,
@@ -29,6 +29,41 @@ def camera_payload(obj):
         **{'stereo_'+key:getattr(camera.stereo,key) for key in ('convergence_mode','pivot','interocular_distance','convergence_distance')}}}
 
 
+def object_payload(obj):
+    definition = {'blender_object_name': obj.name, 'native_type': obj.type,
+        'location': list(obj.matrix_world.translation), 'rotation': [math.degrees(v) for v in obj.matrix_world.to_euler()],
+        'scale': list(obj.matrix_world.to_scale()), 'hide_render': bool(obj.hide_render), 'hide_viewport': bool(obj.hide_viewport),
+        'parent_name': obj.parent.name if obj.parent else None, 'collections': [c.name for c in obj.users_collection],
+        'dimensions': list(obj.dimensions), 'modifiers': [{'name': m.name, 'type': m.type} for m in obj.modifiers]}
+    if obj.type == 'LIGHT':
+        definition.update({'light_type': obj.data.type, 'energy': obj.data.energy, 'color': list(obj.data.color), 'size': getattr(obj.data, 'size', 1)})
+    materials = []
+    for slot_index, slot in enumerate(obj.material_slots):
+        material = slot.material
+        if not material:
+            continue
+        bsdf = material.node_tree.nodes.get('Principled BSDF') if material.use_nodes else None
+        color = list(bsdf.inputs['Base Color'].default_value) if bsdf else list(material.diffuse_color)
+        materials.append({'name': material.name, 'slot': slot_index, 'editable': bool(bsdf), 'color': color,
+            'metallic': float(bsdf.inputs['Metallic'].default_value) if bsdf else 0,
+            'roughness': float(bsdf.inputs['Roughness'].default_value) if bsdf else 0.5})
+    definition['materials'] = materials
+    inputs = []
+    for mod in obj.modifiers:
+        if mod.type != 'NODES' or not mod.node_group:
+            continue
+        for socket in mod.node_group.interface.items_tree:
+            if socket.item_type != 'SOCKET' or socket.in_out != 'INPUT' or socket.socket_type not in {'NodeSocketFloat', 'NodeSocketInt', 'NodeSocketBool'}:
+                continue
+            value = mod.get(socket.identifier, getattr(socket, 'default_value', None))
+            if isinstance(value, (int, float, bool)) and math.isfinite(value):
+                inputs.append({'modifier': mod.name, 'identifier': socket.identifier, 'name': socket.name, 'value': value,
+                    'type': socket.socket_type, 'min': max(-1000000, getattr(socket, 'min_value', -1000000)),
+                    'max': min(1000000, getattr(socket, 'max_value', 1000000))})
+    definition['node_inputs'] = inputs
+    return {'name': obj.name, 'definition': definition}
+
+
 def scene_payload(scene):
     return {"name": scene.name, "active_camera": scene.camera.name if scene.camera else None,
         "settings": {"render_engine": scene.render.engine, "resolution_x": scene.render.resolution_x,
@@ -37,6 +72,7 @@ def scene_payload(scene):
           "fps_base": scene.render.fps_base, "frame_start": scene.frame_start, "frame_end": scene.frame_end,
           "frame_current": scene.frame_current},
         "cameras": [camera_payload(obj) for obj in scene.objects if obj.type == 'CAMERA'],
+        "objects": [object_payload(obj) for obj in list(scene.objects)[:2000] if obj.type != 'CAMERA'],
         "object_count": len(scene.objects), "collection_count": len(scene.collection.children),
         "armature_count": sum(obj.type == 'ARMATURE' for obj in scene.objects),
         "geometry_nodes_count": sum(mod.type == 'NODES' for obj in scene.objects for mod in obj.modifiers),
@@ -81,14 +117,16 @@ def main():
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output, 'native.blend'), check_existing=False, compress=True, relative_remap=False)
     scene = bpy.context.scene
     original_scene = scene.name
-    metadata={"native_blender":kind=='blend',"blender_version":bpy.app.version_string,"source_blender_version":source_version,"source_scene":original_scene,
+    metadata={"native_inventory_version":1,"native_blender":kind=='blend',"blender_version":bpy.app.version_string,"source_blender_version":source_version,"source_scene":original_scene,
         "scenes":scenes,"readmes":readmes,"missing_dependencies":missing,"warnings":[]}
     with open(os.path.join(output,'asset.json'),'w',encoding='utf-8') as handle:
         json.dump(metadata,handle,ensure_ascii=False)
     meshes = [obj for obj in scene.objects if obj.type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'VOLUME', 'GPENCIL', 'GREASEPENCIL'}]
     warnings = []
     try:
-        bpy.ops.export_scene.gltf(filepath=os.path.join(output, 'asset.glb'), export_format='GLB', export_cameras=True)
+        for obj in scene.objects:
+            obj['lightek_object_name'] = obj.name
+        bpy.ops.export_scene.gltf(filepath=os.path.join(output, 'asset.glb'), export_format='GLB', export_cameras=True, export_extras=True)
     except Exception as error:
         warnings.append('Viewport proxy is unavailable: ' + str(error)[:400])
     # Thumbnail settings affect only the process after native.blend was saved.
@@ -117,7 +155,7 @@ def main():
         bpy.ops.render.render(write_still=True)
     except Exception as error:
         warnings.append('Thumbnail is unavailable: ' + str(error)[:400])
-    metadata={"native_blender":kind=='blend',"blender_version":bpy.app.version_string,"source_blender_version":source_version,"source_scene":original_scene,
+    metadata={"native_inventory_version":1,"native_blender":kind=='blend',"blender_version":bpy.app.version_string,"source_blender_version":source_version,"source_scene":original_scene,
         "scenes":scenes,"mesh_count":len(meshes),"readmes":readmes,"missing_dependencies":missing,"warnings":warnings}
     with open(os.path.join(output,'asset.json'),'w',encoding='utf-8') as handle:
         json.dump(metadata,handle,ensure_ascii=False)

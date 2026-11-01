@@ -1,5 +1,5 @@
 class SceneObject < ApplicationRecord
-  TYPES = %w[cube sphere cylinder plane camera point_light sun_light area_light imported_asset].freeze
+  TYPES = %w[cube sphere cylinder plane camera point_light sun_light area_light imported_asset native_object].freeze
 
   belongs_to :studio_scene
 

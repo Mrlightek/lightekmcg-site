@@ -244,6 +244,58 @@ def configure_camera(obj, definition, native=False):
         data.dof.focus_object = target
 
 
+def configure_native_object(obj, definition):
+    original = definition.get('native_original', {})
+    changed = lambda key: definition.get(key) != original.get(key)
+    if definition.get('native_deleted'):
+        obj.hide_render = True
+        obj.hide_viewport = True
+        return
+    for key, path in [('location', 'location'), ('rotation', 'rotation_euler'), ('scale', 'scale')]:
+        if changed(key):
+            clear_camera_animation(obj, path)
+    if any(changed(key) for key in ('location', 'rotation', 'scale')):
+        obj.matrix_world = Matrix.LocRotScale(Vector(definition['location']),
+            Euler([math.radians(v) for v in definition['rotation']]).to_quaternion(), Vector(definition['scale']))
+    for key in ('hide_render', 'hide_viewport'):
+        if key in definition and changed(key):
+            clear_camera_animation(obj, key)
+            setattr(obj, key, bool(definition[key]))
+    if obj.type == 'LIGHT':
+        fields = [key for key in ('energy', 'size', 'color') if key in definition and changed(key)]
+        if fields:
+            obj.data = obj.data.copy()
+            for key in fields:
+                if hasattr(obj.data, key):
+                    clear_camera_animation(obj.data, key)
+                    setattr(obj.data, key, definition[key])
+    override = definition.get('material_override')
+    if override and len(obj.material_slots):
+        obj.data = obj.data.copy()
+        slot = definition.get('materials', [{}])[0].get('slot', 0)
+        material = obj.material_slots[slot].material.copy()
+        obj.data.materials[slot] = material
+        material.use_nodes = True
+        bsdf = material.node_tree.nodes.get('Principled BSDF')
+        if bsdf:
+            for key, socket in [('color', 'Base Color'), ('metallic', 'Metallic'), ('roughness', 'Roughness')]:
+                if key in override:
+                    for link in list(bsdf.inputs[socket].links):
+                        material.node_tree.links.remove(link)
+                    clear_camera_animation(material.node_tree, bsdf.inputs[socket].path_from_id("default_value"))
+                    bsdf.inputs[socket].default_value = override[key]
+    original_inputs = {(item['modifier'], item['identifier']): item['value'] for item in original.get('node_inputs', [])}
+    for item in definition.get('node_inputs', []):
+        if original_inputs.get((item['modifier'], item['identifier'])) == item['value']:
+            continue
+        mod = obj.modifiers.get(item['modifier'])
+        if mod is None or mod.type != 'NODES' or mod.node_group is None:
+            raise RuntimeError('The native Geometry Nodes modifier is unavailable')
+        clear_camera_animation(obj, 'modifiers[' + json.dumps(mod.name) + '][' + json.dumps(item['identifier']) + ']')
+        mod[item['identifier']] = item['value']
+        obj.update_tag()
+
+
 def create_camera(name, definition):
     data = bpy.data.cameras.new(name=name)
     obj = bpy.data.objects.new(name, data)
@@ -786,11 +838,25 @@ def main():
             definition = item.get("definition") or {}
             if definition.get("native_source_preview"):
                 continue
-            if native_path and item.get("type") == "camera" and definition.get("blender_object_name"):
+            if native_path and definition.get("native_duplicate_of"):
+                original = bpy.context.scene.objects.get(definition["native_duplicate_of"])
+                if original is None:
+                    raise RuntimeError("The source object for this Blender duplicate is unavailable")
+                clone = original.copy()
+                clone.data = original.data.copy() if original.data else None
+                clone.name = definition["blender_object_name"]
+                bpy.context.scene.collection.objects.link(clone)
+            if native_path and item.get("type") == "native_object":
+                obj = bpy.context.scene.objects.get(definition["blender_object_name"])
+                if obj is None:
+                    raise RuntimeError("The native Blender object is unavailable")
+                configure_native_object(obj, definition)
+            elif native_path and item.get("type") == "camera" and definition.get("blender_object_name"):
                 obj = bpy.context.scene.objects.get(definition["blender_object_name"])
                 if obj is None or obj.type != 'CAMERA':
                     raise RuntimeError('Native Blender camera is unavailable')
                 configure_camera(obj, definition, native=True)
+                configure_native_object(obj, definition)
             else:
                 obj = create_manifest_object(item)
                 apply_library_motion(obj, definition)
@@ -814,6 +880,8 @@ def main():
             if selected.type != 'CAMERA':
                 raise RuntimeError('The active render camera must be a Blender camera')
             bpy.context.scene.camera = selected
+        if bpy.context.scene.camera and any(item.get('definition', {}).get('native_deleted') and created.get(str(item.get('id'))) == bpy.context.scene.camera for item in objects):
+            bpy.context.scene.camera = None
         ensure_camera()
         apply_json_presets(settings, created)
         if bpy.context.scene.camera.data.type == 'PANO':
@@ -821,6 +889,13 @@ def main():
         if not native_path:
             ensure_lighting()
             bpy.context.scene.frame_set(int(settings.get("frame_current", 1)))
+
+        # Source identities stay stable while editing; resolve all references
+        # first, then give native objects their saved display names.
+        for item in objects:
+            obj = created.get(str(item.get('id')))
+            if obj is not None and item.get('definition', {}).get('native_original') and item.get('name'):
+                obj.name = item['name']
 
         outputs = requested_outputs(manifest)
         generated = []

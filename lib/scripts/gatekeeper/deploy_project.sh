@@ -56,6 +56,9 @@ run_rails() {
 echo "[2/8] Bundle"
 run_rails "bundle install --jobs 1"
 
+echo "[studio] Install and verify Blender media dependency"
+run_rails "bash lib/scripts/setup_studio_media.sh"
+
 echo "[3/8] Migrate"
 run_rails "bundle exec rails db:migrate"
 
@@ -86,6 +89,9 @@ if systemctl cat "${APP_NAME}-cable.service" >/dev/null 2>&1; then
   systemctl is-active --quiet "${APP_NAME}-cable.service"
   python3 "${APP_ROOT}/lib/scripts/lightek_cable_setup.py" --probe-backend
 fi
+
+echo "[studio] Queue native Blender starter files"
+run_rails "LIGHTEK_STUDIO_SITE_HOST='${APP_DOMAIN}' bundle exec rails studio:blender:bootstrap"
 
 echo "[7/8] Apache"
 apache2ctl configtest

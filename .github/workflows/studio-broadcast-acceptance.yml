@@ -18,6 +18,7 @@ on:
       - 'test/javascript/studio_live_library_test.cjs'
       - 'public/lightek/studio-*.js'
       - 'public/lightek/spatial/**'
+      - 'examples/spatial-editor/**'
       - 'test/javascript/studio_spatial*'
       - 'test/javascript/prepare_spatial_fixtures.sh'
       - 'app/models/scene_object.rb'
@@ -92,6 +93,10 @@ jobs:
           node test/javascript/studio_spatial_math_test.cjs
           node test/javascript/studio_spatial_browser_test.cjs
           node test/javascript/studio_spatial_vision_test.cjs
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python test/operations/spatial_asset_staging_blender.py
+          npm ci --prefix examples/spatial-editor --ignore-scripts
+          npm --prefix examples/spatial-editor run check
+          npm --prefix examples/spatial-editor test
       - name: Native Blender mesh picking and transform tools
         env:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules

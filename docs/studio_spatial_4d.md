@@ -172,11 +172,14 @@ A separate ephemeral demand might be:
   "request_seq": 104,
   "scene_revision": 82,
   "frame": 144,
+  "blender_frame": 145,
   "camera_ids": [3, 4],
   "quality": {"width": 640, "height": 360, "samples": 8},
   "viewer": {"space": "window-y-up-meters", "eye": [0.04, 0.0, 0.6]}
 }
 ```
+
+The new timeline protocol uses zero-based `frame` and an explicit `blender_frame = canonical_frame_start + frame` (145 for timeline frame 144 in a scene starting at 1). Validate that mapping on the server and echo both in frame metadata. The existing queued native-preview API uses its native absolute Blender `frame`; its adapter performs that conversion.
 
 Keep only the newest pending preview demand. Do not enqueue every mouse move or face frame as a durable render job. Retain all accepted durable edits; a latest-value policy applies to preview requests only. A worker already rendering revision 81 can finish or be cooperatively cancelled; it must never label that image revision 82.
 
@@ -191,6 +194,7 @@ Keep only the newest pending preview demand. Do not enqueue every mouse move or 
   "scene_revision": 82,
   "bundle_id": "82-144-104",
   "frame": 144,
+  "blender_frame": 145,
   "fps": {"numerator": 24, "denominator": 1},
   "views": [
     {"camera_id": 3, "frame_id": "82-144-104-3", "color_url": "authenticated-short-lived-artifact-url", "depth_url": null},
@@ -266,7 +270,7 @@ def render_bundle(demand):
     if demand['scene_revision'] != current_revision:
         return emit_revision_mismatch(demand, current_revision)
     scene = bpy.context.scene
-    scene.frame_set(demand['frame'])  # Same animation evaluation for every camera.
+    scene.frame_set(demand['blender_frame'])  # Same animation evaluation for every camera.
     configure_preview_quality(scene, demand['quality'])
     outputs = []
     for camera_id in demand['camera_ids']:
@@ -328,3 +332,9 @@ Browser tests require Playwright/Chromium and FFmpeg/FFprobe. The browser fixtur
 - Three.js video textures: https://threejs.org/docs/pages/VideoTexture.html
 
 - Blender Python threading guidance: https://docs.blender.org/api/5.0/info_gotchas_threading.html
+
+## Further design and code
+
+- `docs/studio_realtime_subsystems.md`: GPU/WebRTC transport, registered depth occlusion, Text-to-Stage service pattern.
+- `blender/spatial_asset_staging.py`: tested GLTF/OBJ camera-framing helper, not a registered endpoint.
+- `examples/spatial-editor/`: typechecked React/Dockview/Zustand layout and timeline synchronization reference; not mounted in the production PWA.

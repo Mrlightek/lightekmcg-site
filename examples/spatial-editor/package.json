@@ -1,0 +1,8 @@
+{
+  "name": "lightek-spatial-editor-reference",
+  "private": true,
+  "type": "module",
+  "scripts": {"check": "tsc --noEmit", "test": "node --import tsx --test src/*.test.ts"},
+  "dependencies": {"react": "^19.2.0", "react-dom": "^19.2.0", "dockview-react": "^4.0.0", "zustand": "^5.0.8"},
+  "devDependencies": {"typescript": "^5.9.3", "@types/react": "^19.2.0", "@types/react-dom": "^19.2.0", "@types/node": "^22.18.0", "tsx": "^4.20.6"}
+}

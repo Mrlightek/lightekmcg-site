@@ -81,3 +81,16 @@ jobs:
           CANDIDATE_ROOT="/var/tmp/lightek-nevaeh-${GITHUB_SHA}"
           printf '%s' "$ENGINEERING_TOKEN" | ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
             "sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc 'set -e; set -a; source /etc/lightek/lightekmcg-site.env; set +a; export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin; export RAILS_ENV=production; cd /var/www/lightekmcg-site; bundle exec rails runner $CANDIDATE_ROOT/script/nevaeh_verify_structured_ticket.rb'"
+
+      - name: Remove this job's disposable verification archive
+        if: always()
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          if [[ -f ~/.ssh/lightek_deploy && -n "$SSH_HOST" && "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+              "NEVAEH_ARCHIVE_KIND=backlog python3 - '$GITHUB_SHA'" < script/nevaeh_cleanup_verification_archives.py
+          fi

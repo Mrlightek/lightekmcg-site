@@ -12,10 +12,14 @@ if any(not re.fullmatch(r"[0-9a-f]{40}", value) for value in completed):
     raise SystemExit("Invalid completed verification identity")
 
 root = '/var/tmp'
-pattern = re.compile(r'lightek-nevaeh-(?:kb|overview|backlog)-[0-9a-f]{40}\Z')
+pattern = re.compile(r'lightek-nevaeh-(?:(kb|overview|backlog)-)?[0-9a-f]{40}\Z')
+kind = os.environ.get('NEVAEH_ARCHIVE_KIND')
+if kind not in (None, 'kb', 'overview', 'backlog'):
+    raise SystemExit('Invalid verification archive kind')
 removed = []
 for name in os.listdir(root):
-    if not pattern.fullmatch(name):
+    match = pattern.fullmatch(name)
+    if not match or (kind and (match.group(1) or "backlog") != kind):
         continue
     path = os.path.join(root, name)
     info = os.lstat(path)

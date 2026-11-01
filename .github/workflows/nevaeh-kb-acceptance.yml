@@ -64,9 +64,22 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_deploy
           chmod 600 ~/.ssh/lightek_deploy
           ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
-          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'python3 - c3d429b09e6dfa94c22f903cb8148fd2979c83e4 38f5f34e172827e8ecdb0915fd3f79fdf2ba0322' < script/nevaeh_cleanup_verification_archives.py
+          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'python3 - c3d429b09e6dfa94c22f903cb8148fd2979c83e4 38f5f34e172827e8ecdb0915fd3f79fdf2ba0322 1235f3b127ee91fc67fcb58590bdd187873ba028 29ddd11d22ae7c0f43a39d4fdcc271c8e5cc2cc9' < script/nevaeh_cleanup_verification_archives.py
           CANDIDATE_ROOT="/var/tmp/lightek-nevaeh-kb-${GITHUB_SHA}"
           git archive HEAD | ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
             "umask 022; mkdir -p '$CANDIDATE_ROOT'; tar -xf - -C '$CANDIDATE_ROOT'"
           ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
             "sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -lc 'set -e; set -a; source /etc/lightek/lightekmcg-site.env; set +a; export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin; export RAILS_ENV=production; export NEVAEH_BACKLOG_ENABLED=0; cd /var/www/lightekmcg-site; bundle exec rails runner $CANDIDATE_ROOT/script/nevaeh_verify_knowledge_workers.rb'"
+
+      - name: Remove this job's disposable verification archive
+        if: always()
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          if [[ -f ~/.ssh/lightek_deploy && -n "$SSH_HOST" && "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+              "NEVAEH_ARCHIVE_KIND=kb python3 - '$GITHUB_SHA'" < script/nevaeh_cleanup_verification_archives.py
+          fi

@@ -7297,7 +7297,9 @@ const studioSceneView=record=>{
           `).join("")}
         </div>
 
-        ${ST.workspaceMode==="scene"
+        ${ST.workspaceMode==="spatial"
+          ?window.LightekStudioApp.story(record,"spatial")
+          :ST.workspaceMode==="scene"
           ?studioSceneSummary(record)
           :ST.workspaceMode==="3d"
             ?studio3DWorkspace(record)
@@ -13386,6 +13388,7 @@ addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)loc
 <script src="/lightek/studio-media.js"></script>
 <script src="/lightek/studio-native.js"></script>
 <script src="/lightek/studio-workflows.js"></script>
+<script src="/lightek/studio-spatial.js"></script>
 <script type="module" src="/lightek/asset-preview.js"></script>
 <script src="/lightek/bootstrap-adapter.js"></script>
 <script src="/lightek/application-settings.js"></script>

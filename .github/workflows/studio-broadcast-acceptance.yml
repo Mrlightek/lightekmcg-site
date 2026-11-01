@@ -17,6 +17,9 @@ on:
       - 'test/javascript/studio_library_test.cjs'
       - 'test/javascript/studio_live_library_test.cjs'
       - 'public/lightek/studio-*.js'
+      - 'public/lightek/spatial/**'
+      - 'test/javascript/studio_spatial*'
+      - 'test/javascript/prepare_spatial_fixtures.sh'
       - 'app/models/scene_object.rb'
       - 'lib/scripts/setup_studio_media.sh'
       - 'lib/scripts/gatekeeper/deploy_project.sh'
@@ -80,6 +83,15 @@ jobs:
           node test/javascript/studio_native_camera_test.cjs
           node test/javascript/studio_native_authoring_test.cjs
           node test/javascript/studio_visible_workflows_test.cjs
+      - name: Spatial window, browser composition and real vision models
+        env:
+          NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
+        run: |
+          bash test/javascript/prepare_spatial_fixtures.sh
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr "import bpy; bpy.context.scene.objects['Cube']['lightek_object_name']='Cube'; bpy.ops.export_scene.gltf(filepath='/tmp/native-viewport-proof.glb', export_format='GLB', export_extras=True)"
+          node test/javascript/studio_spatial_math_test.cjs
+          node test/javascript/studio_spatial_browser_test.cjs
+          node test/javascript/studio_spatial_vision_test.cjs
       - name: Native Blender mesh picking and transform tools
         env:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules

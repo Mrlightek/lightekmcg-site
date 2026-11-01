@@ -15,20 +15,21 @@ module Studio
         operation
       end
       def self.authorize_content!(operation,user)
-        return unless operation.metadata["destination"]=="lightek"
+        return unless %w[lightek simulcast].include?(operation.metadata["destination"])
         access=LightekCommunity::Access.new(user:user,site_id:operation.studio_project.site_id)
         post=access.posts.find(operation.metadata.fetch("post_id"))
         access.participate!(post.community) if post.community
       end
       def self.create!(user:, destination:, title:, site: nil, community_slug: nil, audience: "everyone")
         ::Gatekeeper::StudioLivePolicy.authorize!(user: user)
-        LightekPwa::Policy.new(user: user, site: site).authorize!("watch") if destination == "lightek" && site
-        raise ArgumentError, "Choose a supported destination." unless %w[test tiktok restream lightek].include?(destination)
-        if !%w[test lightek].include?(destination) && !Destination.configured?(user, provider: destination)
-          raise Destination::Unavailable, "Configure your #{Destination.provider!(destination)[:label]} streaming destination first."
+        LightekPwa::Policy.new(user: user, site: site).authorize!("watch") if %w[lightek simulcast].include?(destination) && site
+        raise ArgumentError, "Choose a supported destination." unless %w[test tiktok restream lightek simulcast].include?(destination)
+        provider = destination == "simulcast" ? "restream" : destination
+        if !%w[test lightek].include?(destination) && !Destination.configured?(user, provider: provider)
+          raise Destination::Unavailable, "Configure your #{Destination.provider!(provider)[:label]} streaming destination first."
         end
         raise Encoder::Failure, "FFmpeg is not installed on the application server." unless Encoder.available?
-        raise ArgumentError,"A configured site is required for Lightek broadcasts." if destination=="lightek" && !site
+        raise ArgumentError,"A configured site is required for Lightek broadcasts." if %w[lightek simulcast].include?(destination) && !site
         title = title.to_s.strip
         raise ArgumentError, "Enter a broadcast title of 1–120 characters." unless title.length.between?(1, 120)
         user.with_lock do
@@ -38,9 +39,9 @@ module Studio
           raise Busy, "End your current broadcast session before starting another." if for_user(user).where(status: %w[draft connecting live]).exists?
           raise Busy, "The broadcaster is at capacity. Try again after another session ends." if scope.where(status: %w[draft connecting live]).count >= 2
           project = StudioProject.create!(owner: user, site: site, name: title, description: "Lightek browser broadcast")
-          operation=StudioLiveOperation.create!(studio_project: project, platform: %w[test lightek].include?(destination) ? "lightek_streaming" : "tiktok", status: "draft", credential_ref: %w[test lightek].include?(destination) ? nil : Destination.slug(user, provider: destination),
+          operation=StudioLiveOperation.create!(studio_project: project, platform: %w[test lightek simulcast].include?(destination) ? "lightek_streaming" : "tiktok", status: "draft", credential_ref: %w[test lightek].include?(destination) ? nil : Destination.slug(user, provider: provider),
             metadata: {"broadcaster" => "browser_v1", "owner_id" => user.id, "destination" => destination, "title" => title})
-          if destination=="lightek"
+          if %w[lightek simulcast].include?(destination)
             access=LightekCommunity::Access.new(user:user,site_id:site&.id)
             community=community_slug.present? ? access.community!(community_slug) : nil
             access.participate!(community) if community

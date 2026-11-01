@@ -6,6 +6,12 @@ module Studio
       end
 
       def call
+        claimed = false
+        publication.with_lock do
+          return if publication.status.in?(%w[published cancelled publishing])
+          publication.update!(status: "publishing", error_message: nil)
+          claimed = true
+        end
         Studio::Gatekeeper::Client.authorize!(
           capability: %w[lightek_social lightek_streaming octavia].include?(publication.platform) ? "studio.workspace.artifact.publish" : "studio.publish.#{publication.platform}",
           subject: publication,
@@ -17,12 +23,11 @@ module Studio
           }.compact
         )
 
-        publication.update!(status: "publishing", error_message: nil)
         result = Studio::Publishers::Registry.fetch(publication.platform).new(publication).call
         publication.update!(status: "published", published_at: Time.current)
         result
       rescue StandardError => error
-        publication&.update(status: "failed", error_message: error.message.to_s.first(2_000))
+        publication.update(status: "failed", error_message: error.message.to_s.first(2_000)) if claimed
         raise
       end
 

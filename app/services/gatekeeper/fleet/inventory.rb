@@ -52,6 +52,7 @@ module Gatekeeper
           installation.current_version ||= receipt["release"] if url == "https://#{domain}"
           installation.save!
         end
+        NevaehIntelligences::ReportingEnrollment.enroll_pending! if GatekeeperInstallation.column_names.include?("nevaeh_reporting_secret_slug")
       end
     end
   end

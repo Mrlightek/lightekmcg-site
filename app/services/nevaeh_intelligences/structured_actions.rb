@@ -14,6 +14,7 @@ module NevaehIntelligences
       when "site.page.create" then StructuredWorkers::CreatePage
       when "site.section.add" then StructuredWorkers::AddSection
       when "studio.project.create" then StructuredWorkers::CreateStudioProject
+      when "studio.project.from_template" then StructuredWorkers::CreateMovieProject
       when "engineering.service.generate" then StructuredWorkers::GenerateMetadataService
       else raise StructuredTicket::Invalid, "No registered structured worker for #{action}"
       end

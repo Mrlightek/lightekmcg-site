@@ -4,6 +4,7 @@
 require "json"
 require "rack/mock"
 require "active_job/queue_adapters/test_adapter"
+require "action_dispatch/testing/integration"
 raise "Installed production runtime required" unless Rails.env.production?
 candidate = File.expand_path("..", __dir__)
 raise "Candidate must be separate from installed application" if File.realpath(candidate) == File.realpath(Rails.root)
@@ -20,6 +21,14 @@ Employee::TicketsController
 load File.join(candidate, "app/controllers/employee/tickets_controller.rb")
 report = {}
 ActiveRecord::Base.transaction do
+  # Exercise the release's actual DDL in a rollback-only transaction.
+  %w[20261101011000_create_nevaeh_ticket_templates 20261101012000_add_nevaeh_reporting_to_installations 20261101013000_add_nevaeh_knowledge_bundle_to_rollouts].each do |name|
+    load File.join(candidate, "db/migrate/#{name}.rb")
+    name.sub(/\A[0-9]+_/, "").camelize.constantize.new.migrate(:up)
+  end
+  GatekeeperInstallation.reset_column_information
+  GatekeeperRollout.reset_column_information
+  load File.join(candidate, "app/models/nevaeh_ticket_template.rb")
   operator = User.where(role: "super_admin").order(:id).first || raise("No installed super administrator")
   capability = NevaehCapability.find_by!(slug: NevaehIntelligences::StructuredTicket::CAPABILITY)
   raise "Operator has disabled the structured capability" unless capability.enabled?
@@ -31,7 +40,7 @@ ActiveRecord::Base.transaction do
   sections = [{"id" => "page", "action" => "site.page.create", "inputs" => {"site_id" => site.id, "title" => "KB worker acceptance", "slug" => "nevaeh-kb-#{SecureRandom.hex(8)}"}}]
   definition = LightekDesign::Catalog.section_definitions.first || raise("No installed design section")
   allowed = definition.fetch("fields").map { |field| field.fetch("name") }
-  sections << {"id" => "content", "action" => "site.section.add", "inputs" => {"site_id" => site.id, "page_id" => "@page.page_id", "kind" => definition.fetch("kind"), "data" => definition.fetch("data", {}).slice(*allowed)}}
+  sections << {"id" => "content", "action" => "site.section.add", "inputs" => {"site_id" => site.id, "page_id" => "@page.page_id", "kind" => definition.fetch("kind"), "data" => {}}}
   order = NevaehIntelligences::StructuredTicket.attach!(ticket: ticket, actor: operator, sections: sections, automatic: true)
   fields = ticket.reload.extra_fields
   fields["nevaeh"] = {"actor_id" => operator.id, "reservation_id" => SecureRandom.uuid, "work_order_sha256" => NevaehIntelligences::TicketApproval.fingerprint(order)}
@@ -43,6 +52,40 @@ ActiveRecord::Base.transaction do
   pinned = order.fetch("inputs").fetch("sections").first.fetch("procedure")
   lesson = DymondKb::Article.find(pinned.fetch("article_id"))
   raise "Verified evidence was not learned" unless lesson.metadata.to_h.dig("nevaeh_verified_executions", ticket.id.to_s)
+  # A movie ticket uses the actual historical JSON preset and creates real
+  # persisted camera/scene/geometry records through its registered worker.
+  movie_definition = available.fetch("studio.project.from_template")
+  movie_inputs = movie_definition.fetch("defaults").merge("site_id" => site.id, "name" => "Controlled movie ticket")
+  movie_output = NevaehIntelligences::StructuredActions.perform("studio.project.from_template", movie_inputs, actor: operator, ticket: ticket)
+  NevaehIntelligences::StructuredActions.verify!("studio.project.from_template", movie_inputs, movie_output, actor: operator)
+  report["movie_project_cameras_and_settings_verified"] = true
+  template = NevaehTicketTemplate.create!(user: operator, name: "Controlled movie template", sections: [{"id" => "movie", "action" => "studio.project.from_template", "inputs" => movie_inputs}])
+  raise "Ticket template revision missing" unless template.reusable_sections!.first.dig("procedure", "article_id")
+  template.update!(name: "Updated controlled template")
+  raise "Template update failed" unless template.reload.name == "Updated controlled template"
+  template.destroy!
+  report["ticket_template_crud_verified"] = true
+  # Render through authenticated native HTTP and the real DymondDash layout.
+  %w[support_ticket_templates_controller supports_controller employee/nevaeh_lessons_controller].each do |name|
+    load File.join(candidate, "app/controllers/#{name}.rb")
+  end
+  load File.join(candidate, "config/routes.rb")
+  [SupportTicketTemplatesController, SupportsController, Employee::TicketsController, Employee::NevaehLessonsController].each { |klass| klass.prepend_view_path(File.join(candidate, "app/views")) }
+  email = "nevaeh-acceptance-#{SecureRandom.hex(8)}@example.invalid"
+  password = SecureRandom.hex(24)
+  account = User.create!(email_address: email, password: password, password_confirmation: password, first_name: "Controlled", last_name: "Acceptance", role: "super_admin")
+  browser = ActionDispatch::Integration::Session.new(Rails.application)
+  browser.https!
+  browser.host!('lightekmcg.com')
+  browser.post('/session', params: {email_address: email, password: password}, as: :json)
+  raise "Controlled native login failed" unless browser.response.redirect? && Session.where(user_id: account.id).exists?
+  paths = ['/employee/tickets/new', '/support_ticket_templates', '/support_ticket_templates/new', '/employee/nevaeh_lessons', '/supports?procedure=studio.project.from_template']
+  paths.each do |path|
+    browser.get(path)
+    raise "Dashboard request failed #{path}: #{browser.response.status}" unless browser.response.status == 200
+  end
+  raise "Movie ticket fields missing from rendered form" unless browser.response.body.include?('Camera lens') && browser.response.body.include?('4096')
+  report["authenticated_dashboard_and_request_forms"] = paths
   lesson.update!(body: lesson.body.to_s + "\nControlled amendment")
   begin
     NevaehIntelligences::KnowledgeProcedures.validate_steps!(order.fetch("inputs").fetch("sections"))

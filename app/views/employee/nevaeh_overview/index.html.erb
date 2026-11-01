@@ -24,7 +24,7 @@
   <div class="nv-note"><strong>Execution remains disabled in this console.</strong> YAML registration and file presence are not Gatekeeper authorization.</div>
   <h2>Knowledge Base and support escalation</h2>
   <p><%= NevaehIntelligences::KnowledgeProcedures.available.size %> supported request procedures</p>
-  <p><%= link_to 'Technical Support / Admin teaching queue', employee_tickets_path(queue: 'knowledge_gaps') %> · <%= link_to 'Knowledge Base', '/kb' %></p>
+  <p><%= link_to 'KB Lessons & Workers', employee_nevaeh_lessons_path %> · <%= link_to 'Ticket Templates', support_ticket_templates_path %> · <%= link_to 'Technical Support / Admin teaching queue', employee_tickets_path(queue: 'knowledge_gaps') %> · <%= link_to 'Knowledge Base', '/kb' %></p>
   <% if can?(:execute_nevaeh, Marlon::Ticket) %>
     <%= button_to 'Sync GitHub tickets into this instance', '/employee/nevaeh/sync_github', method: :post, class: 'dd-topbar-btn' %>
   <% end %>

@@ -11,6 +11,10 @@ on:
       - 'app/models/marlon/ticket.rb'
       - 'app/views/employee/tickets/**'
       - 'app/views/supports/**'
+      - 'app/views/support_ticket_templates/**'
+      - 'app/services/gatekeeper/fleet/**'
+      - 'app/controllers/gatekeeper/central_escalations_controller.rb'
+      - 'app/controllers/employee/nevaeh_lessons_controller.rb'
       - 'config/nevaeh/procedures/**'
       - 'test/standalone/nevaeh_knowledge_workflow_test.rb'
       - 'script/nevaeh_verify_knowledge_workers.rb'
@@ -35,6 +39,9 @@ jobs:
       - run: gem install sqlite3 -v '~> 2.8' --no-document
       - run: gem install minitest -v '~> 5.25' --no-document
       - run: ruby test/standalone/nevaeh_knowledge_workflow_test.rb
+      - run: ruby test/standalone/fleet_transport_test.rb
+      - run: python3 test/standalone/fleet_native_updater_test.py
+      - run: python3 test/operations/nevaeh_reporting_test.py
   installed_workers:
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -57,7 +64,7 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_deploy
           chmod 600 ~/.ssh/lightek_deploy
           ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
-          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'python3 -' < script/nevaeh_cleanup_verification_archives.py
+          ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'python3 - c3d429b09e6dfa94c22f903cb8148fd2979c83e4 38f5f34e172827e8ecdb0915fd3f79fdf2ba0322' < script/nevaeh_cleanup_verification_archives.py
           CANDIDATE_ROOT="/var/tmp/lightek-nevaeh-kb-${GITHUB_SHA}"
           git archive HEAD | ssh -i ~/.ssh/lightek_deploy -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
             "umask 022; mkdir -p '$CANDIDATE_ROOT'; tar -xf - -C '$CANDIDATE_ROOT'"

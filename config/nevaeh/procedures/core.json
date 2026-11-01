@@ -118,5 +118,100 @@
       ],
       "worker": "NevaehIntelligences::StructuredWorkers::GenerateMetadataService"
     }
+  },
+  {
+    "key": "nevaeh-request-movie-project",
+    "body": "Create a movie project using the installed film/proof_of_concept JSON media preset. This creates its production, scenes, editable cameras, lighting and blocking geometry through Studio NativeBlender PresetUse. The user can customize project name, frame rate, frame dimensions, scene duration, lens and aperture through the ticket template. Verify all persisted project, scene and camera values and ownership. This creates a production setup; finished acting, filmed footage and rendered movie delivery are separate work.",
+    "contract": {
+      "version": 1,
+      "status": "available",
+      "action": "studio.project.from_template",
+      "label": "Build a movie project",
+      "worker": "NevaehIntelligences::StructuredWorkers::CreateMovieProject",
+      "verifier": "studio.project.from_template",
+      "inputs": {
+        "site_id": {
+          "type": "record_id",
+          "required": true,
+          "label": "Website / application"
+        },
+        "name": {
+          "type": "text",
+          "required": true,
+          "label": "Movie project name"
+        },
+        "preset_key": {
+          "type": "text",
+          "required": true,
+          "label": "Learned production preset",
+          "options": [
+            "film/proof_of_concept"
+          ]
+        },
+        "data": {
+          "type": "object",
+          "required": true,
+          "label": "Movie setup",
+          "properties": {
+            "fps": {
+              "label": "Frames per second",
+              "type": "number",
+              "minimum": 1,
+              "maximum": 120
+            },
+            "resolution_x": {
+              "label": "Frame width",
+              "type": "number",
+              "minimum": 64,
+              "maximum": 4096
+            },
+            "resolution_y": {
+              "label": "Frame height",
+              "type": "number",
+              "minimum": 64,
+              "maximum": 4096
+            },
+            "duration_seconds": {
+              "label": "Scene duration (seconds)",
+              "type": "number",
+              "minimum": 1,
+              "maximum": 1800
+            },
+            "lens": {
+              "label": "Camera lens (mm)",
+              "type": "number",
+              "minimum": 1,
+              "maximum": 1200
+            },
+            "aperture_fstop": {
+              "label": "Camera aperture (f-stop)",
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 128
+            }
+          }
+        }
+      },
+      "defaults": {
+        "name": "My movie project",
+        "preset_key": "film/proof_of_concept",
+        "data": {
+          "fps": 24,
+          "resolution_x": 4096,
+          "resolution_y": 1716,
+          "duration_seconds": 5,
+          "lens": 50,
+          "aperture_fstop": 2.8
+        }
+      },
+      "preset_sources": {
+        "film/proof_of_concept": "6c1095e77476cb42a1113a675cc32f633bbe32a732cec901e7199a3d7d6dbd45"
+      },
+      "acceptance_criteria": [
+        "Project, production and preset scenes exist under the authorized application",
+        "Each scene contains the preset cameras, lighting and blocking geometry",
+        "Saved frame rate, dimensions, duration, camera lens and aperture match the customized ticket values"
+      ]
+    }
   }
 ]

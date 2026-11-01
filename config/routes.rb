@@ -105,6 +105,11 @@ post "/employee/nevaeh/config/:key/jobs", to: "employee/nevaeh_configuration#add
 
   # 7A.8I - read-only Nevaeh overview; existing employee auth applies.
   get "/employee/nevaeh", to: "employee/nevaeh_overview#index", as: :employee_nevaeh_overview
+  namespace :employee do
+    resources :nevaeh_lessons, only: %i[index edit update] do
+      collection { post :enable_central }
+    end
+  end
   post "/employee/nevaeh/sync_github", to: "employee/nevaeh_overview#sync_github", as: :employee_nevaeh_sync_github
 
 # Phase 7A.8E: read-only capability console; no write or execution routes.
@@ -138,6 +143,7 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   resources :storyline_arenas
   resources :storylines
   #resources :dashboards
+  resources :support_ticket_templates, only: %i[index new create edit update destroy]
   resources :supports, only: %i[index create] do
     member { patch :reply }
   end
@@ -180,6 +186,7 @@ resources :susu_match_preferences, only: %i[index new create show destroy]
 
 # ── Gatekeeper Infrastructure Control ────────────────────────────────────────
 namespace :gatekeeper do
+  post "callbacks/nevaeh_escalation", to: "central_escalations#create", as: :central_escalation_callback
   post "callbacks/fleet_release", to: "fleet_releases#create", as: :fleet_release_callback
   post "callbacks/github_deployment", to: "callbacks#github_deployment", as: :github_deployment_callback
   get "infrastructure", to: "infrastructure#index", as: :infrastructure
@@ -332,6 +339,7 @@ resources :dashboard_fleet_updates, path: "/dashboard/infrastructure/updates", c
     post :release
     patch :installation
     post :register_installation
+    post :reporting
   end
   member { post :control }
 end

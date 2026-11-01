@@ -5,6 +5,11 @@ import re
 import shutil
 import stat
 import time
+import sys
+
+completed = set(sys.argv[1:])
+if any(not re.fullmatch(r"[0-9a-f]{40}", value) for value in completed):
+    raise SystemExit("Invalid completed verification identity")
 
 root = '/var/tmp'
 pattern = re.compile(r'lightek-nevaeh-(?:kb|overview|backlog)-[0-9a-f]{40}\Z')
@@ -14,7 +19,7 @@ for name in os.listdir(root):
         continue
     path = os.path.join(root, name)
     info = os.lstat(path)
-    if not stat.S_ISDIR(info.st_mode) or time.time() - info.st_mtime < 1800:
+    if not stat.S_ISDIR(info.st_mode) or (time.time() - info.st_mtime < 1800 and name[-40:] not in completed):
         continue
     shutil.rmtree(path)
     removed.append(name)

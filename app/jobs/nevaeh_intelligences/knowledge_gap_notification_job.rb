@@ -8,6 +8,10 @@ module NevaehIntelligences
     def perform(ticket_id)
       ticket = Marlon::Ticket.find_by(id: ticket_id)
       return unless ticket
+      if CentralReporting.client?
+        CentralReporting.deliver!(ticket: ticket)
+        return
+      end
       ticket.with_lock do
         fields = ticket.extra_fields.to_h.deep_stringify_keys
         gap = fields["nevaeh_knowledge_gap"]

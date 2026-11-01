@@ -18,12 +18,20 @@
       <p>Backend worker: <code><%= definition.fetch('worker') %></code></p>
       <ul><% definition.fetch('acceptance_criteria').each do |check| %><li><%= check %></li><% end %></ul>
       <% definition['fields'].each do |field| %>
-        <% value = values.fetch('inputs', {})[field] %>
+        <% value = values.fetch('inputs', {}).fetch(field, definition.fetch('defaults', {})[field]) %>
         <div style="display:block;margin:10px 0"><%= field == "data" ? "Section content" : label_tag("structured_ticket[sections][#{index}][inputs][#{field}]", definition.fetch('inputs').fetch(field).fetch('label')) %>
           <% if field == 'site_id' %>
             <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(Array(@structured_sites).map { |site| [site.name, site.id] }, value), prompt: 'Choose a website', class: 'fg-input', disabled: key != selected %>
           <% elsif field == 'kind' %>
             <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(LightekDesign::Catalog.section_definitions.map { |definition| [definition['kind'].humanize, definition['kind']] }.uniq, value), prompt: 'Choose a section type', class: 'fg-input', disabled: key != selected, data: { section_kind_select: true, action: 'change->structured-ticket#change' } %>
+          <% elsif definition.fetch('inputs').fetch(field)['options'] %>
+            <%= select_tag "structured_ticket[sections][#{index}][inputs][#{field}]", options_for_select(definition.fetch('inputs').fetch(field).fetch('options'), value), class: 'fg-input', disabled: key != selected %>
+          <% elsif field == 'data' && definition.fetch('inputs').fetch(field)['properties'] %>
+            <% definition.fetch('inputs').fetch(field).fetch('properties').each do |name, setting| %>
+              <label><%= setting.fetch('label') %>
+                <%= number_field_tag "structured_ticket[sections][#{index}][inputs][data][#{name}]", value.to_h[name], min: setting['minimum'], max: setting['maximum'], step: 'any', class: 'fg-input', disabled: key != selected %>
+              </label>
+            <% end %>
           <% elsif field == 'data' %>
             <% LightekDesign::Catalog.section_definitions.uniq { |entry| entry['kind'] }.each do |definition| %>
               <% active_kind = values.fetch('inputs', {})['kind'] == definition['kind'] %>

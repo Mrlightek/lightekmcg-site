@@ -6,7 +6,7 @@
       <% if NevaehIntelligences::KnowledgeProcedures.available.empty? %>
         <p role="alert">No request procedures are available. An operator must add a supported procedure to this instance’s Knowledge Base before work can be requested.</p>
       <% end %>
-      <% if can?(:execute_nevaeh, Marlon::Ticket) %>
+      <% if can?(:execute_nevaeh, Marlon::Ticket) && !@editing_ticket_template %>
       <label style="display:block;margin:12px 0"><%= check_box_tag 'structured_ticket[automatic]', '1', structured['automatic'] == '1' %> Authorize Nevaeh to run these saved sections automatically</label>
       <% end %>
       <p style="font-size:12px">Without automatic authorization, the ticket waits for your Execute Work Order action. Pages stay drafts; generated code is tested and committed on the engineering branch.</p>

@@ -12,6 +12,8 @@ Rails.application.config.after_initialize do
     feature.min_plan = :starter
     feature.nav_items = [
       { label: "Nevaeh Overview", icon: "brain", path: "main_app.employee_nevaeh_overview_path" },
+      { label: "KB Lessons & Workers", icon: "book-open", path: "main_app.employee_nevaeh_lessons_path" },
+      { label: "Ticket Templates", icon: "copy", path: "main_app.support_ticket_templates_path" },
       { label: "Configuration", icon: "settings", path: "main_app.employee_nevaeh_configuration_path" },
       { label: "Draft Generator", icon: "code", path: "main_app.employee_nevaeh_generator_path" },
       { label: "Ticket Drafts", icon: "ticket", path: "main_app.employee_nevaeh_ticket_drafts_path" },

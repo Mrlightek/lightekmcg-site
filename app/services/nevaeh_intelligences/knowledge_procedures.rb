@@ -41,7 +41,7 @@ module NevaehIntelligences
       raise Invalid, "Procedure verification must use the registered action verifier" unless contract["verifier"] == action
       digest = Digest::SHA256.hexdigest(JSON.generate(canonical({"contract" => contract, "body" => article.body.to_s})))
       {"action" => action, "worker" => worker.name, "label" => contract["label"], "fields" => schema.keys,
-        "inputs" => schema, "outputs" => executor.fetch("outputs"), "acceptance_criteria" => checks,
+        "inputs" => schema, "defaults" => contract.fetch("defaults", {}), "preset_sources" => contract.fetch("preset_sources", {}), "outputs" => executor.fetch("outputs"), "acceptance_criteria" => checks,
         "procedure" => {"article_id" => article.id, "sha256" => digest}}
     end
 
@@ -96,7 +96,7 @@ module NevaehIntelligences
           end
           metadata = article.metadata.to_h.deep_stringify_keys
           history = metadata.fetch("nevaeh_verified_executions", {})
-          history[ticket.id.to_s] = {"solution_article_id" => solution_article.id, "verified_at" => Time.current.iso8601,
+          history[ticket.id.to_s] = {"procedure_sha256" => matches.first.fetch("procedure").fetch("sha256"), "solution_article_id" => solution_article.id, "verified_at" => Time.current.iso8601,
             "evidence_sha256" => Digest::SHA256.hexdigest(JSON.generate(canonical(completed)))}
           metadata["nevaeh_verified_executions"] = history.to_a.last(100).to_h
           article.update!(metadata: metadata)

@@ -115,13 +115,13 @@ class NativeUpdater:
         self.migration_started = False
         self.execution_sha = config["source_sha"]
 
-    def command(self, args, capture=False, stdout=None):
+    def command(self, args, capture=False, stdout=None, input_data=None):
         with self.log.open("ab") as log:
             result = subprocess.run(args, cwd=self.root, check=True, timeout=900,
-                stdout=subprocess.PIPE if capture else (stdout if stdout is not None else log), stderr=log)
+                stdout=subprocess.PIPE if capture else (stdout if stdout is not None else log), stderr=log, input=input_data)
             return result.stdout.decode().strip() if capture else None
 
-    def as_user(self, args, capture=False, stdout=None):
+    def as_user(self, args, capture=False, stdout=None, input_data=None):
         # argv preserves spaces and shell characters; only the administrator's
         # existing environment file is sourced, as in deploy_project.sh.
         binary = self.profile.get("ruby_bin", "/usr/local/bin")
@@ -131,7 +131,23 @@ class NativeUpdater:
             "LIGHTEK_TARGET_SHA=" + self.execution_sha, "bash", "-c",
             'set -e; if [ -n "$2" ]; then set -a; . "$2"; set +a; fi; cd "$1"; shift 2; exec "$@"',
             "fleet-run", str(self.root), self.profile.get("env_file", "")] + list(args)
-        return self.command(command, capture=capture, stdout=stdout)
+        return self.command(command, capture=capture, stdout=stdout, input_data=input_data)
+
+    def apply_nevaeh_lessons(self):
+        bundle = self.config.get("nevaeh_lessons")
+        if not bundle:
+            return
+        if self.config["adapter"] != "native_rails" or self.config["component"] != "lightek_app":
+            raise ValueError("Knowledge distribution requires a native Lightek application")
+        raw = json.dumps(bundle).encode()
+        if len(raw) > 256000:
+            raise ValueError("Knowledge bundle exceeds its limit")
+        output = self.as_user(["bundle", "exec", "rails", "runner", "script/nevaeh_apply_lesson_bundle.rb"], capture=True, input_data=raw)
+        prefix = "NEVAEH_KNOWLEDGE_BUNDLE="
+        receipts = [json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
+        if len(receipts) != 1 or receipts[0].get("sha256") != bundle.get("sha256"):
+            raise ValueError("Knowledge bundle did not pass client verification")
+        self.receipt["knowledge_bundle_sha256"] = receipts[0]["sha256"]
 
     def git(self, *args, capture=False):
         return self.as_user(["git", *args], capture=capture)
@@ -271,6 +287,7 @@ class NativeUpdater:
             except Exception:
                 pass
             else:
+                self.apply_nevaeh_lessons()
                 self.receipt.update(status="succeeded", already_current=True)
                 self.save_receipt()
                 return self.receipt
@@ -296,6 +313,7 @@ class NativeUpdater:
                 self.as_user(["bundle", "exec", "rails", "db:migrate"])
                 if self.config["component"] == "lightek_app":
                     self.as_user(["env", "LIGHTEK_EXPECTED_SITE_HOST=" + self.config["domain"], "bundle", "exec", "rails", "lightek:site_binding:verify"])
+                self.apply_nevaeh_lessons()
                 self.as_user(["bundle", "exec", "rails", "assets:precompile"])
                 self.as_user(["bundle", "exec", "rails", "zeitwerk:check"])
             else:

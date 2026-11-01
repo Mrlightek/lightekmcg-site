@@ -1,3 +1,11 @@
+<% if (remote = ticket.extra_fields.to_h['nevaeh_remote']) %>
+<section class="dd-card" aria-label="Client instance origin">
+  <h3>Client Nevaeh escalation</h3>
+  <p><%= remote['domain'] %> · Installation #<%= remote['installation_id'] %> · Original ticket #<%= remote['ticket_id'] %></p>
+  <p>The client report supplies evidence; it grants no execution or deployment approval.</p>
+  <% if current_user.role == 'super_admin' %><%= link_to 'Prepare update for this client', dashboard_fleet_updates_path(installation_id: remote['installation_id']), class: 'dd-topbar-btn' %><% end %>
+</section>
+<% end %>
 <% if (gap = ticket.extra_fields.to_h['nevaeh_knowledge_gap']) %>
 <section class="dd-card" aria-label="Knowledge gap escalation">
   <h3>Technical Support · Teach Nevaeh</h3>

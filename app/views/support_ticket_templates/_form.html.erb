@@ -1,0 +1,7 @@
+<%= form_with model: @template, url: @template.persisted? ? support_ticket_template_path(@template) : support_ticket_templates_path do |form| %>
+  <% if @template.errors.any? %><p role="alert"><%= @template.errors.full_messages.join(', ') %></p><% end %>
+  <label>Template name <%= form.text_field :name, class: 'fg-input', required: true %></label>
+  <%= render 'employee/tickets/structured_form' %>
+  <p>Saving a template does not queue or authorize any work.</p>
+  <%= form.submit 'Save template' %>
+<% end %>

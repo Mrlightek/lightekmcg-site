@@ -1,0 +1,26 @@
+<% content_for :page_title, 'Nevaeh · KB Lessons & Workers' %>
+<div class="dd-card">
+  <h1>Teach the lesson. Define the request. Run the worker.</h1>
+  <p><%= @available.size %> available procedures on this instance. Each lesson binds typed inputs to an implemented backend worker and acceptance verifier.</p>
+  <p><%= link_to 'Ticket templates', support_ticket_templates_path %> · <%= link_to 'Technical Support / Admin teaching queue', employee_tickets_path(queue: 'knowledge_gaps') %> · <%= link_to 'Worker engineering', employee_nevaeh_generator_path %> · <%= link_to 'Knowledge Base', '/kb' %></p>
+  <% if current_user.role == 'super_admin' %>
+    <section class="dd-card"><h2>Client instance escalations</h2>
+      <p>Receive unfamiliar client requests on this application, with their registered installation and original ticket attached. Existing Customer Updates controls deliver fixes to one installation, one account or all eligible installations.</p>
+      <%= button_to 'Enable central support and connect client instances', enable_central_employee_nevaeh_lessons_path, method: :post, class: 'dd-topbar-btn' %>
+      <%= link_to 'Customer update pipeline', dashboard_fleet_updates_path %>
+    </section>
+  <% end %>
+  <% @lessons.each do |lesson| %>
+    <% contract = lesson.metadata.fetch('nevaeh_procedure') %>
+    <article class="dd-card" style="margin:16px 0">
+      <h2><%= contract['label'] %></h2>
+      <p><strong>State:</strong> <%= @available[contract['action']]&.dig('procedure', 'article_id') == lesson.id ? 'Available for requests' : 'Unavailable / requires review' %></p>
+      <p><strong>Backend worker:</strong> <code><%= contract['worker'] %></code></p>
+      <p><strong>Verifier:</strong> <code><%= contract['verifier'] %></code></p>
+      <p><strong>Required inputs:</strong> <%= contract.fetch('inputs', {}).filter_map { |key, field| field['label'] if field['required'] }.join(', ') %></p>
+      <p><strong>Verified executions recorded:</strong> <%= lesson.metadata.fetch('nevaeh_verified_executions', {}).size %></p>
+      <%= link_to 'Edit lesson / availability', edit_employee_nevaeh_lesson_path(lesson), class: 'dd-topbar-btn' %>
+    </article>
+  <% end %>
+  <p>New functionality is taught through the technical support queue: implement and register its worker and verifier, then publish its KB contract. Lesson text alone does not create executable code.</p>
+</div>

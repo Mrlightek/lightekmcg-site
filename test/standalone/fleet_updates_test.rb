@@ -93,6 +93,9 @@ AddNativeFleetAdapters.new.migrate(:up)
 source = File.read(Rails.root.join("db/migrate/20261031230000_add_server_application_management.rb"))
 eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING, "hosting_migration")
 AddServerApplicationManagement.new.migrate(:up)
+ActiveRecord::Schema.define do
+  add_column :gatekeeper_rollouts, :nevaeh_lesson_bundle, :json, null: false, default: {}
+end
 require Rails.root.join("app/services/gatekeeper/fleet/adapters").to_s
 %w[gatekeeper_node gatekeeper_operation gatekeeper_installation gatekeeper_release gatekeeper_rollout gatekeeper_update_target].each do |file|
   require Rails.root.join("app/models", file).to_s

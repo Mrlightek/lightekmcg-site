@@ -17,9 +17,16 @@
       <label>Start at (UTC, optional) <%= f.datetime_local_field :scheduled_at %></label>
       <label><%= f.check_box :auto_promote %> Continue automatically after canary passes</label>
     </div>
+    <fieldset style="margin:18px 0;padding:14px;border:1px solid var(--dd-border)">
+      <legend>Verified Nevaeh lessons to include (optional)</legend>
+      <p>Selected lessons go only to this rollout's selected installations. Current-revision acceptance evidence is required; conflicting instance edits stop the update for review.</p>
+      <% @nevaeh_lessons.each do |lesson| %>
+        <label style="display:block"><%= check_box_tag 'knowledge_article_ids[]', lesson.dig('procedure', 'article_id') %> <%= lesson['label'] %></label>
+      <% end %>
+    </fieldset>
     <div style="overflow-x:auto"><table style="width:100%;text-align:left"><thead><tr><th>Select</th><th>Customer installation</th><th>Server</th><th>Installed version</th><th>Channel</th><th>Auto updates</th><th>State</th></tr></thead><tbody>
       <% @installations.each do |installation| %>
-        <tr><td><%= check_box_tag "installation_ids[]", installation.id, false, disabled: !installation.eligible?, aria: {label: "Select #{installation.domain}"} %></td>
+        <tr><td><%= check_box_tag "installation_ids[]", installation.id, params[:installation_id].to_s == installation.id.to_s, disabled: !installation.eligible?, aria: {label: "Select #{installation.domain}"} %></td>
         <td><%= installation.domain %><br><small><%= installation.adapter %> · <%= installation.component %><% if installation.pinned_release_id %> · Custom release pinned<% end %></small></td><td><%= installation.gatekeeper_node.name %></td>
         <td><%= installation.current_version.presence || "Awaiting first version report" %></td><td><%= installation.channel %></td>
         <td><%= installation.automatic_updates? ? "Enabled" : "Manual" %></td><td><%= installation.eligible? ? "Available" : "Disabled / unavailable" %></td></tr>
@@ -39,6 +46,7 @@
   <% @installations.each do |installation| %>
     <%= form_with url: installation_dashboard_fleet_updates_path(installation_id: installation.id), method: :patch, scope: :installation do |f| %>
       <p><strong><%= installation.domain %></strong>
+      <span>Nevaeh central reporting: <%= installation.nevaeh_reporting_configured_at ? 'Connected' : installation.nevaeh_reporting_error.presence || 'Setup required' %></span>
       <%= f.select :channel, %w[stable beta], selected: installation.channel %>
       <label><%= f.check_box :enabled, checked: installation.enabled? %> Updates enabled</label>
       <label><%= f.check_box :automatic_updates, checked: installation.automatic_updates? %> Automatic releases</label>
@@ -50,6 +58,9 @@
       <p><label>Repository <%= f.text_field :repository, value: installation.repository, required: true, style: "width:100%" %></label></p>
       <p><label>Deployment profile (JSON) <%= f.text_area :deployment_config, value: JSON.pretty_generate(installation.deployment_config), rows: 10, style: "width:100%;font-family:monospace" %></label></p>
       <%= f.submit "Save installation", class: "dd-btn dd-btn-secondary" %>
+    <% end %>
+    <% if installation.adapter == 'native_rails' && installation.component == 'lightek_app' %>
+      <%= button_to 'Connect / retry Nevaeh reporting', reporting_dashboard_fleet_updates_path(installation_id: installation.id), method: :post, class: 'dd-btn dd-btn-secondary' %>
     <% end %>
   <% end %>
 </details>

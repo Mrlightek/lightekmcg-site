@@ -20,6 +20,8 @@ ActiveRecord::Schema.define do
   create_table(:request_sites) { |t| t.integer :user_id; t.string :name }
   create_table(:request_pages) { |t| t.integer :request_site_id; t.string :title; t.string :slug; t.boolean :published; t.integer :position }
   create_table(:request_sections) { |t| t.integer :request_page_id; t.string :kind; t.json :data; t.integer :position }
+  create_table(:nevaeh_ticket_templates) { |t| t.integer :user_id; t.string :name; t.json :sections, default: []; t.timestamps }
+  create_table(:gatekeeper_installations) { |t| t.integer :account_id; t.string :domain; t.boolean :enabled, default: true; t.string :nevaeh_reporting_secret_slug }
   create_table(:users) { |t| t.string :role; t.string :email_address }
   create_table(:nevaeh_capabilities) { |t| t.string :slug; t.boolean :enabled; t.string :handler; t.string :gatekeeper_capability; t.json :metadata; t.timestamps }
   create_table(:dymond_kb_articles) { |t| t.string :article_id; t.string :slug; t.string :title; t.string :article_type; t.text :body; t.json :metadata; t.timestamps }
@@ -37,6 +39,15 @@ class ApplicationJob < ActiveJob::Base; end
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(File::NULL)
 class User < ApplicationRecord; end
+class GatekeeperInstallation < ApplicationRecord
+  belongs_to :account, class_name: "User", optional: true
+  def eligible? = enabled?
+end
+module LightekVault
+  class Service
+    class AccessDenied < StandardError; end
+  end
+end
 # Permission fixture: production CanCan rules are exercised by native checks.
 class Ability
   def initialize(actor) = @actor = actor
@@ -97,6 +108,11 @@ Dir[File.expand_path("../../app/services/nevaeh_intelligences/structured_workers
 require_relative "../../app/services/nevaeh_intelligences/knowledge_procedures"
 require_relative "../../app/services/nevaeh_intelligences/teach_core_procedures"
 require_relative "../../app/services/nevaeh_orchestration/escalation"
+require_relative "../../app/models/nevaeh_ticket_template"
+require_relative "../../app/services/gatekeeper/fleet/rollouts"
+require_relative "../../app/services/nevaeh_intelligences/lesson_distribution"
+require_relative "../../app/services/studio/native_blender/media_presets"
+require_relative "../../app/services/nevaeh_intelligences/central_reporting"
 require_relative "../../app/jobs/nevaeh_intelligences/knowledge_gap_notification_job"
 require_relative "../../app/services/gatekeeper/lesson_service"
 
@@ -104,7 +120,7 @@ class NevaehKnowledgeWorkflowTest < Minitest::Test
   Procedures = NevaehIntelligences::KnowledgeProcedures
   Structured = NevaehIntelligences::StructuredTicket
   def setup
-    [RequestSection, RequestPage, RequestSite, Marlon::TicketEvent, Marlon::Ticket, DymondKb::Article, NevaehCapability, LightekMail::Account, User].each(&:delete_all)
+    [NevaehTicketTemplate, GatekeeperInstallation, RequestSection, RequestPage, RequestSite, Marlon::TicketEvent, Marlon::Ticket, DymondKb::Article, NevaehCapability, LightekMail::Account, User].each(&:delete_all)
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
     @admin = User.create!(role: "super_admin", email_address: "admin@example.com")
     @client = User.create!(role: "client", email_address: "client@example.com")
@@ -130,7 +146,7 @@ class NevaehKnowledgeWorkflowTest < Minitest::Test
   end
 
   def test_only_available_unambiguous_executable_kb_lessons_are_offered
-    assert_equal 4, Procedures.available.size
+    assert_equal 5, Procedures.available.size
     change_contract("status" => "draft")
     refute Procedures.available.key?(step["action"])
     change_contract("status" => "available", "action" => "shell.run")
@@ -312,10 +328,104 @@ class NevaehKnowledgeWorkflowTest < Minitest::Test
     record.update!(extra_fields: fields)
     assert_raises(Structured::Invalid) { NevaehIntelligences::StructuredExecution.authorize!(ticket: record) }
   end
+  def test_ticket_templates_crud_preserves_user_scope_and_does_not_dispatch
+    saved = NevaehTicketTemplate.create!(user: @client, name: "Reusable page", sections: [step])
+    assert_equal 1, NevaehTicketTemplate.for_user(@client).count
+    assert_empty NevaehTicketTemplate.for_user(@admin)
+    assert_equal article.id, saved.reusable_sections!.first.dig("procedure", "article_id")
+    assert_equal 0, Marlon::Ticket.count
+    saved.update!(name: "Our about page")
+    assert_equal "Our about page", saved.reload.name
+    article.update!(body: "Changed lesson requires review")
+    assert_raises(Procedures::Invalid) { saved.reusable_sections! }
+    saved.destroy!
+    assert_empty NevaehTicketTemplate.for_user(@client)
+  end
+  def test_movie_template_is_pinned_to_the_actual_original_json_preset
+    worker = NevaehIntelligences::StructuredWorkers::CreateMovieProject
+    definition = Procedures.fetch!(worker::ACTION)
+    inputs = definition.fetch("defaults")
+    assert_equal "film/proof_of_concept", worker.preset!(inputs)
+    assert_equal 4096, worker.values!(inputs).fetch("resolution_x")
+    assert_raises(Structured::Invalid) { worker.values!(inputs.deep_merge("data" => {"fps" => "NaN"})) }
+    assert_raises(Structured::Invalid) { worker.values!(inputs.deep_merge("data" => {"command" => "anything"})) }
+    assert_raises(Structured::Invalid) { worker.preset!(inputs.merge("preset_key" => "base/production_preset")) }
+  end
+  def test_central_reports_reuse_the_ticket_and_derive_account_from_installation
+    installation = GatekeeperInstallation.create!(domain: "client.example.com", account: @client)
+    source = {"version" => 1, "ticket_id" => 42, "number" => "LT-REAL", "title" => "Teach a request", "description" => "Client request details", "reason" => "Missing registered lesson", "account_id" => @admin.id}
+    first = NevaehIntelligences::CentralReporting.receive!(installation: installation, payload: source)
+    second = NevaehIntelligences::CentralReporting.receive!(installation: installation, payload: source)
+    assert_equal first.id, second.id
+    assert_equal 1, Marlon::Ticket.count
+    assert_equal @client.id, first.submitted_by_id
+    assert_equal @client.id, first.extra_fields.dig("nevaeh_remote", "account_id")
+    refute first.extra_fields.dig("nevaeh_remote", "payload").key?("account_id")
+    assert_equal "Technical Team", first.reload.assigned_team
+  end
+  def test_signed_installation_identity_body_and_timestamp_are_enforced
+    reporting = NevaehIntelligences::CentralReporting
+    installation = GatekeeperInstallation.create!(domain: "client.example.com", account: @client, nevaeh_reporting_secret_slug: "fixture-key")
+    timestamp = Time.now.to_i.to_s
+    body = '{"version":1}'
+    signed = reporting.signature("fixture-token", timestamp, body)
+    reporting.stub(:settings, {"enabled" => true}) do
+      reporting.stub(:credential, "fixture-token") do
+        assert_equal installation.id, reporting.authenticate!(installation_id: installation.id, timestamp: timestamp, supplied: signed, body: body).id
+        assert_raises(reporting::Invalid) { reporting.authenticate!(installation_id: installation.id, timestamp: timestamp, supplied: signed, body: body + " ") }
+        assert_raises(reporting::Invalid) { reporting.authenticate!(installation_id: installation.id, timestamp: (Time.now.to_i - 600).to_s, supplied: signed, body: body) }
+        installation.update!(enabled: false)
+        assert_raises(reporting::Invalid) { reporting.authenticate!(installation_id: installation.id, timestamp: timestamp, supplied: signed, body: body) }
+      end
+    end
+  end
+  def test_client_forwarding_persists_the_snapshot_and_does_not_repeat_completed_reports
+    record = ticket
+    NevaehOrchestration::Escalation.knowledge_gap!(ticket: record, reason: "Teach a new worker")
+    keys = NevaehIntelligences::CentralReporting::KEYS
+    previous = keys.to_h { |key| [key, ENV[key]] }
+    ENV["NEVAEH_CENTRAL_URL"] = "https://main.example.com/gatekeeper/callbacks/nevaeh_escalation"
+    ENV["NEVAEH_INSTALLATION_ID"] = "10"
+    ENV["NEVAEH_CENTRAL_TOKEN"] = "fixture-token"
+    calls = []
+    response = Net::HTTPOK.new("1.1", "200", "OK")
+    response.instance_variable_set(:@read, true)
+    response.body = JSON.generate({"ticket_id" => 900, "ticket_number" => "LT-CENTRAL"})
+    http = Object.new
+    http.define_singleton_method(:request) do |request|
+      calls << request
+      assert_body = Marlon::Ticket.find(record.id).extra_fields.dig("nevaeh_knowledge_gap", "notification", "report_body")
+      raise "Snapshot was not committed before sending" unless assert_body == request.body
+      response
+    end
+    start = ->(*_args, **_options, &block) { block.call(http) }
+    Net::HTTP.stub(:start, start) do
+      2.times { NevaehIntelligences::KnowledgeGapNotificationJob.new.perform(record.id) }
+    end
+    assert_equal 1, calls.size
+    assert_equal "10", calls.first["X-Lightek-Installation"]
+    assert_equal "reported_to_central", record.reload.extra_fields.dig("nevaeh_knowledge_gap", "notification", "state")
+    assert_equal 900, record.extra_fields.dig("nevaeh_knowledge_gap", "notification", "central_ticket_id")
+  ensure
+    previous&.each { |key, value| value ? ENV[key] = value : ENV.delete(key) }
+  end
+  def test_knowledge_distribution_requires_current_revision_proof_and_preserves_local_edits
+    distribution = NevaehIntelligences::LessonDistribution
+    assert_raises(Procedures::Invalid) { distribution.export!(ids: [article.id], actor: @admin) }
+    steps = Structured.compile([step], bind_procedures: true)
+    Procedures.record_verification!(ticket: ticket, steps: steps, completed: {"page" => {"status" => "verified"}}, solution_article: article)
+    bundle = distribution.export!(ids: [article.id], actor: @admin)
+    assert_equal 1, distribution.import!(bundle).fetch("lessons")
+    article.update!(body: "Local client customization")
+    assert_raises(Procedures::Invalid) { distribution.import!(bundle) }
+    assert_equal "Local client customization", article.reload.body
+    bundle["lessons"].first["body"] = "Tampered in transit"
+    assert_raises(Procedures::Invalid) { distribution.import!(bundle) }
+  end
   def test_reteaching_on_release_preserves_instance_amendments
     article.update!(body: "Instance-specific amended lesson")
     NevaehIntelligences::TeachCoreProcedures.call
     assert_equal "Instance-specific amended lesson", article.reload.body
-    assert_equal 4, DymondKb::Article.count
+    assert_equal 5, DymondKb::Article.count
   end
 end

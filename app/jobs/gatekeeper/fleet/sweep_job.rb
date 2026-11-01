@@ -3,6 +3,11 @@ module Gatekeeper
     class SweepJob < ApplicationJob
       queue_as :default
       def perform
+        if GatekeeperInstallation.column_names.include?("nevaeh_reporting_secret_slug")
+          GatekeeperOperation.where(capability: "nevaeh.reporting.configure", status: "queued").find_each do |operation|
+            NevaehIntelligences::ConfigureCentralReportingJob.perform_later(operation.id)
+          end
+        end
         GatekeeperRollout.where(status: "draft", requested_by: "github_release_pipeline").find_each do |rollout|
           Releases.start_pending!(rollout)
         end

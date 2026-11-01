@@ -9,6 +9,7 @@ module NevaehIntelligences
       "site.page.create" => {"label" => "Create website page", "fields" => %w[site_id title slug], "outputs" => %w[site_id page_id]},
       "site.section.add" => {"label" => "Add page section", "fields" => %w[site_id page_id kind data], "outputs" => %w[site_id page_id section_id]},
       "studio.project.create" => {"label" => "Create Studio project", "fields" => %w[name description], "outputs" => %w[project_id production_id default_scene_id]},
+      "studio.project.from_template" => {"label" => "Create movie project from learned JSON preset", "fields" => %w[site_id name preset_key data], "outputs" => %w[project_id production_id default_scene_id]},
       "engineering.service.generate" => {"label" => "Implement reviewed metadata normalization service", "fields" => [], "outputs" => %w[path sha256 commit_sha branch]}
     }.freeze
     REF = /\A@([a-z][a-z0-9_]{0,39})\.([a-z][a-z0-9_]*)\z/

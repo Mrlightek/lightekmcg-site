@@ -1,0 +1,14 @@
+<% content_for :page_title, 'Edit Nevaeh lesson' %>
+<div class="dd-card" style="max-width:960px">
+<h1><%= @contract['label'] %></h1>
+<p>Backend worker: <code><%= @contract['worker'] %></code> · Verifier: <code><%= @contract['verifier'] %></code></p>
+<% if @lesson.errors.any? %><p role="alert"><%= @lesson.errors.full_messages.join(', ') %></p><% end %>
+<%= form_with url: employee_nevaeh_lesson_path(@lesson), method: :patch do %>
+  <label>Request label <%= text_field_tag 'lesson[label]', @contract['label'], class: 'fg-input', required: true %></label>
+  <label>Availability <%= select_tag 'lesson[status]', options_for_select([['Available for requests', 'available'], ['Withdraw from requests', 'withdrawn']], @contract['status']), class: 'fg-input' %></label>
+  <label>Lesson and procedure <%= text_area_tag 'lesson[body]', @lesson.body, class: 'fg-input', rows: 16, required: true %></label>
+  <label>Acceptance requirements (one per line) <%= text_area_tag 'lesson[acceptance_criteria]', Array(@contract['acceptance_criteria']).join("\n"), class: 'fg-input', rows: 6, required: true %></label>
+  <p>Changing this lesson invalidates saved request revisions. Execution approval remains separate.</p>
+  <%= submit_tag 'Save lesson', class: 'dd-topbar-btn dd-btn-primary' %>
+<% end %>
+</div>

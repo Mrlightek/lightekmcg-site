@@ -23,6 +23,8 @@ module Gatekeeper
         raise Rollouts::Invalid, "Remote version verification failed" unless receipt["status"] == "succeeded" &&
           receipt["domain"] == installation.domain && receipt["source_sha"] == release.source_sha && receipt["image"] == release.image &&
           receipt["adapter"] == release.adapter && receipt["component"] == release.component
+        bundle = rollout.nevaeh_lesson_bundle
+        raise Rollouts::Invalid, "Client KB lesson verification failed" if bundle.present? && receipt["knowledge_bundle_sha256"] != bundle["sha256"]
         rollout.with_lock do
           # A stale worker must not overwrite a later attempt's result.
           target.reload

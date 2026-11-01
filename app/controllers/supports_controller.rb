@@ -10,6 +10,13 @@ class SupportsController < ApplicationController
   def index
     @categories = Marlon::TicketCategories::ALL
     @procedures = NevaehIntelligences::KnowledgeProcedures.available
+    if params[:template_id].present?
+      template = NevaehTicketTemplate.for_user(current_user).find(params[:template_id])
+      @ticket = Marlon::Ticket.new(title: template.name, category: "technical", priority: "medium", urgency: 5)
+      @structured_values = {"sections" => template.reusable_sections!.each_with_index.to_h { |row, index| [index.to_s, row] }}
+      @structured_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name).limit(200)
+      return render :new_request
+    end
     if params[:procedure].present? || params[:teaching] == "1"
       NevaehIntelligences::KnowledgeProcedures.fetch!(params[:procedure]) unless params[:teaching] == "1"
       @ticket = Marlon::Ticket.new(category: "technical", priority: "medium", urgency: 5)
@@ -34,10 +41,10 @@ class SupportsController < ApplicationController
         if params[:request_type] == "knowledge_gap"
           NevaehOrchestration::Escalation.knowledge_gap!(ticket: ticket, reason: ticket.description.presence || ticket.title)
         else
-        raise NevaehIntelligences::WorkOrder::Invalid, "Choose a supported Knowledge Base procedure" unless values["enabled"] == "1"
-        # Public intake always waits for operator approval. A submitted automatic
-        # flag or work-order approval string cannot grant execution permission.
-        NevaehIntelligences::StructuredTicket.attach!(ticket: ticket, actor: current_user,
+          raise NevaehIntelligences::WorkOrder::Invalid, "Choose a supported Knowledge Base procedure" unless values["enabled"] == "1"
+          # Public intake always waits for operator approval. A submitted automatic
+          # flag or work-order approval string cannot grant execution permission.
+          NevaehIntelligences::StructuredTicket.attach!(ticket: ticket, actor: current_user,
           sections: values.fetch("sections", {}), automatic: false)
         end
         ticket.log!(action: "Ticket submitted", actor: current_user)

@@ -2,7 +2,7 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
   before_action :require_fleet_operator!
-  rescue_from Gatekeeper::Fleet::Rollouts::Invalid, ActiveRecord::RecordInvalid, ArgumentError, with: :invalid_request
+  rescue_from Gatekeeper::Fleet::Rollouts::Invalid, NevaehIntelligences::WorkOrder::Invalid, ActiveRecord::RecordInvalid, ArgumentError, with: :invalid_request
 
   def index
     @releases = GatekeeperRelease.order(created_at: :desc).limit(50)
@@ -10,6 +10,7 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
     @rollouts = GatekeeperRollout.includes(:gatekeeper_release).order(created_at: :desc).limit(25)
     @accounts = User.order(:email_address)
     @nodes = GatekeeperNode.order(:name)
+    @nevaeh_lessons = NevaehIntelligences::KnowledgeProcedures.available.values
   end
 
   def show
@@ -31,6 +32,12 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
       installation.update!(installation_attributes)
     end
     redirect_to dashboard_fleet_updates_path, notice: "Installation update policy saved."
+  end
+
+  def reporting
+    installation = GatekeeperInstallation.find(params[:installation_id])
+    operation = NevaehIntelligences::ReportingEnrollment.request!(installation: installation, actor: current_user)
+    redirect_to dashboard_fleet_updates_path, notice: "Nevaeh connection queued through Gatekeeper operation #{operation.id}."
   end
 
   def register_installation
@@ -63,6 +70,9 @@ class Dashboard::FleetUpdatesController < DymondDash::ApplicationController
     raise Gatekeeper::Fleet::Rollouts::Invalid, "Select registered installations" unless ids.uniq.size == installations.size
     options = params.permit(:canary_size, :batch_size, :scheduled_at, :auto_promote).to_h.symbolize_keys
     options[:scheduled_at] = nil if options[:scheduled_at].blank?
+    bundle = NevaehIntelligences::LessonDistribution.export!(ids: params[:knowledge_article_ids], actor: current_user)
+    raise ArgumentError, "KB lessons require a Lightek native Rails release" if bundle.present? && (release.adapter != "native_rails" || release.component != "lightek_app")
+    options[:nevaeh_lesson_bundle] = bundle
     rollout = Gatekeeper::Fleet::Rollouts.create!(release: release, installations: installations,
       requested_by: current_user.email_address, **options)
     redirect_to dashboard_fleet_update_path(rollout), notice: "Rollout preview created. Review targets, then start."

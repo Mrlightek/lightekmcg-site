@@ -12,6 +12,9 @@ NevaehIntelligences::YamlCapabilityRegistryV7a
 load File.join(candidate_root, "app/services/nevaeh_intelligences/yaml_capability_registry_v7a.rb")
 Employee::NevaehOverviewController
 load File.join(candidate_root, "app/controllers/employee/nevaeh_overview_controller.rb")
+%w[structured_actions knowledge_procedures].each { |name| load File.join(candidate_root, "app/services/nevaeh_intelligences/#{name}.rb") }
+Dir[File.join(candidate_root, "app/services/nevaeh_intelligences/structured_workers/*.rb")].sort.each { |path| load path }
+load File.join(candidate_root, "config/routes.rb")
 controller_class = Employee::NevaehOverviewController
 controller_class.prepend_view_path(File.join(candidate_root, "app/views"))
 

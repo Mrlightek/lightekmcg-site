@@ -22,14 +22,14 @@ module Gatekeeper
         release = target.gatekeeper_rollout.gatekeeper_release
         payload = {domain: installation.domain, source_sha: release.source_sha, image: release.image,
           backward_compatible: release.backward_compatible?, target_id: target.id, attempt: target.attempts,
-          expected_previous_sha: installation.current_version}.merge(Adapters.payload(installation, release))
+          expected_previous_sha: installation.current_version, nevaeh_lessons: target.gatekeeper_rollout.nevaeh_lesson_bundle}.merge(Adapters.payload(installation, release))
         run!(node: node, domain: installation.domain, requested_by: target.gatekeeper_rollout.requested_by,
           operation_id: target.gatekeeper_operation_id, payload: payload, script_name: Adapters.script(installation.adapter),
           registry: installation.adapter == "docker_compose")
       end
 
       def self.run!(node:, domain:, requested_by:, operation_id:, payload:, script_name:, registry: false)
-        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py].include?(script_name)
+        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py configure_nevaeh_reporting.py].include?(script_name)
         script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
         if node.local?
           stdout, _, status = Timeout.timeout(1900) do

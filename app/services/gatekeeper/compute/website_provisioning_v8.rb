@@ -26,7 +26,7 @@ module Gatekeeper
         plan = ProvisioningExecutionService.website_plan_v8(
           account_key: @account_key, base_domain: @base_domain
         )
-        hostname = plan.fetch("default_subdomain")
+        hostname = LightekSettings::SiteDomain.public_hostname!(plan.fetch("default_subdomain"))
 
         # Subscription row serializes retries on the same purchase.
         # Site identity is bound to the actual subscriber, not a request parameter.

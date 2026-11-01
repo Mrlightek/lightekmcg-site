@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require_relative "pwa_http_checks"
+require File.join(ROOT, "app/services/lightek_settings/site_domain")
 require File.join(ROOT, "app/services/lightek_pwa/bootstrap")
 require File.join(ROOT, "app/models/concerns/lightek_pwa_site")
 DymondSite::Site.include(LightekPwaSite)
@@ -32,6 +33,7 @@ Rails.application.routes.append do
   get "/api/nevaeh/bootstrap", to: "api/nevaeh#bootstrap"
   get "/dashboard/pwa", to: "dashboard/pwa#show", as: :dashboard_pwa
   patch "/dashboard/pwa", to: "dashboard/pwa#update"
+  post "/dashboard/pwa/hostname", to: "dashboard/pwa#repair_hostname", as: :dashboard_pwa_hostname
   patch "/dashboard/pwa/records/:kind/:id", to: "dashboard/pwa#moderate", as: :dashboard_pwa_record
   post "/dashboard/pwa/communities/:id/members", to: "dashboard/pwa#community_invite", as: :dashboard_pwa_community_members
   post "/dashboard/pwa/people", to: "dashboard/pwa#invite", as: :dashboard_pwa_people
@@ -424,6 +426,66 @@ class PwaAdministrationTest < PwaHttpIntegrationTest
     client.host! "192.168.64.2"
     client.get "/dashboard/pwa", params: {site_id: @site.id, section: "content"}, headers: headers.merge("Accept" => "text/html")
     assert Nokogiri::HTML(client.response.body).at_css('a[href="/lightek/index.html#/create"]')
+  end
+
+  def test_public_hostname_contract_rejects_ip_and_local_installation_defaults
+    %w[192.168.64.2 127.0.0.1 8.8.8.8 2001:db8::1 localhost app.local app.localhost app.internal app.home.arpa https://client.example.com client.example.com:443 a..example.com -bad.example.com].each do |host|
+      assert_raises(LightekSettings::SiteDomain::Invalid, host) { LightekSettings::SiteDomain.public_hostname!(host) }
+    end
+    assert_equal "client.example.com", LightekSettings::SiteDomain.public_hostname!(" Client.Example.COM. ")
+    assert_equal "lightekmcg.com", LightekSettings::SiteDomain.public_hostname!("lightekmcg.com")
+  end
+
+  def test_domain_repair_from_dashboard_preserves_identity_and_restores_pwa_api
+    @site.update!(host: "192.168.64.2")
+    @carol.update!(role: "super_admin")
+    post = publish(title: "Preserve this story")
+    application = admin.application
+    application.update!(name: "My existing PWA")
+    client = session_for(@carol)
+    client.get "/dashboard/pwa", params: {site_id: @site.id}, headers: headers(@carol).merge("Accept" => "text/html")
+    html = Nokogiri::HTML(client.response.body)
+    assert html.at_css('form[action*="/dashboard/pwa/hostname"]')
+    token = html.at_css('form[action*="/dashboard/pwa/hostname"] input[name="authenticity_token"]')["value"]
+    client.post "/dashboard/pwa/hostname", params: {site_id: @site.id, expected_host: "192.168.64.2", host: "attacker.example.com"}, headers: headers(@carol).merge("X-CSRF-Token" => token)
+    assert_equal 302, client.response.status, Nokogiri::HTML(client.response.body).css(".pa-errors").text
+    assert_equal "lightek.test", @site.reload.host
+    assert_equal @site.id, Post.find(post[:id]).site_id
+    assert_equal application.id, @site.pwa_application.id
+    assert_equal "My existing PWA", @site.pwa_application.name
+    assert_equal "192.168.64.2", @site.pwa_admin_events.last.details["previous_host"]
+    assert_equal @carol.id, @site.pwa_admin_events.last.actor_id
+    assert_equal @site.id, LightekSettings::SiteDomain.verify!(host: "lightek.test").id
+    client.get "/api/lightek/pwa?view=feed", headers: headers(@carol)
+    assert_equal 200, client.response.status
+    assert_equal post[:id], body(client)["posts"].first["id"]
+  end
+
+  def test_domain_repair_rejects_owner_editor_collision_stale_and_managed_identity
+    @site.update!(host: "192.168.64.2")
+    @carol.update!(role: "super_admin")
+    assert_raises(LightekPwa::Policy::Denied) { LightekSettings::SiteDomain.repair!(site: @site, actor: @alice, host: "lightek.test", expected_host: @site.host) }
+    assert_raises(LightekSettings::SiteDomain::Invalid) { LightekSettings::SiteDomain.repair!(site: @site, actor: @carol, host: "lightek.test", expected_host: "stale") }
+    assert_raises(LightekSettings::SiteDomain::Invalid) { LightekSettings::SiteDomain.repair!(site: @site, actor: @carol, host: @other_site.host, expected_host: @site.host) }
+    @site.update!(manifest: {"hosted_application_key" => "managed-reservation"})
+    assert_raises(LightekSettings::SiteDomain::Invalid) { LightekSettings::SiteDomain.repair!(site: @site, actor: @carol, host: "lightek.test", expected_host: @site.host) }
+    assert_equal "192.168.64.2", @site.reload.host
+    assert_equal 0, @site.pwa_admin_events.count
+    assert_raises(LightekSettings::SiteDomain::Invalid) { LightekSettings::SiteDomain.verify!(host: "missing.example.com") }
+  end
+
+  def test_production_model_rejects_new_private_hosts_but_allows_repair_of_legacy_rows
+    @site.update!(host: "192.168.64.2")
+    previous_env = Rails.env
+    Rails.define_singleton_method(:env) { ActiveSupport::EnvironmentInquirer.new("production") }
+    invalid = DymondSite::Site.new(name: "Invalid new customer", host: "192.168.64.2", tenant: @alice)
+    refute invalid.valid?
+    assert_includes invalid.errors[:host].join, "public DNS hostname"
+    @site.update!(name: "Legacy settings remain editable")
+    @site.update!(host: "Client.Example.COM.")
+    assert_equal "client.example.com", @site.reload.host
+  ensure
+    Rails.define_singleton_method(:env) { previous_env }
   end
 
 end

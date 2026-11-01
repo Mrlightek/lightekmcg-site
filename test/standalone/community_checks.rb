@@ -34,7 +34,7 @@ ActiveRecord::Schema.define do
   create_table(:dymond_bank_transactions) { |t| t.integer :account_id; t.integer :invoice_id; t.string :payable_type; t.integer :payable_id; t.string :transaction_type; t.string :status; t.string :currency; t.integer :amount_cents; t.integer :fee_cents; t.timestamps }
   create_table(:users) { |t| t.string :role; t.string :email_address }
   create_table(:profiles) { |t| t.references :user; t.string :display_name; t.string :handle; t.text :bio; t.string :avatar_url; t.string :profile_type, default: "person" }
-  create_table(:dymond_site_sites) { |t| t.string :name; t.string :host; t.string :tenant_type; t.integer :tenant_id }
+  create_table(:dymond_site_sites) { |t| t.string :name; t.string :host; t.string :tenant_type; t.integer :tenant_id; t.json :manifest, default: {} }
   create_table(:communities) { |t| t.timestamps }
   create_table(:posts) { |t| t.references :user; t.text :content; t.timestamps }
   create_table(:studio_projects) { |t| t.string :name; t.text :description; t.timestamps }

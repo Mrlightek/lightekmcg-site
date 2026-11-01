@@ -6,12 +6,17 @@ module Gatekeeper
         raise Access::Denied, "Runtime is not installed on this server" unless project.gatekeeper_node_id == node.id
         raise Access::Denied, "Only super admins may assign another account" unless Access.super_admin?(actor) || actor == owner
         Runtime.resolve(project)
+        begin
+          hostname = LightekSettings::SiteDomain.public_hostname!(domain)
+        rescue LightekSettings::SiteDomain::Invalid => error
+          raise Access::Denied, error.message
+        end
         app = nil
         owner.with_lock do
           node.with_lock do
             Access.active!(node)
             Access.enforce_limit!(actor: actor, owner: owner, additional: 1)
-            host = domain.to_s.strip.downcase
+            host = hostname
             raise Access::Denied, "Hostname is already assigned to an application" if GatekeeperProject.exists?(domain: host)
             app = GatekeeperHostedApplication.create!(gatekeeper_node: node, gatekeeper_project: project,
               owner: owner, requested_by: actor, name: name, domain: host)

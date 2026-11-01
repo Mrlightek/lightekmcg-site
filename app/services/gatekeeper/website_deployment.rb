@@ -20,10 +20,11 @@ module Gatekeeper
     def self.configuration(owner:, domain:, site_name:, headline:, description:, certificate_email:,
                            credential_slug:, internal: false, owner_email: nil)
       raise Invalid, "Owner must be a persisted User" unless owner.is_a?(User) && owner.persisted?
-      host = domain.to_s.downcase.strip
-      labels = host.split(".")
-      raise Invalid, "A full hostname is required" unless labels.size >= 2 && host.size <= 253 &&
-        labels.all? { |label| label.match?(/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/) }
+      begin
+        host = LightekSettings::SiteDomain.public_hostname!(domain)
+      rescue LightekSettings::SiteDomain::Invalid => error
+        raise Invalid, error.message
+      end
       values = {"domain" => host, "owner_id" => owner.id, "site_name" => site_name.to_s,
         "headline" => headline.to_s, "description" => description.to_s,
         "email" => certificate_email.to_s, "credential_slug" => credential_slug.to_s,

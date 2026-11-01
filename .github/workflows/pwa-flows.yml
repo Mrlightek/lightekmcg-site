@@ -9,6 +9,9 @@ on:
       - 'public/lightek/**'
       - 'app/services/lightek_community/**'
       - 'app/services/lightek_pwa/**'
+      - 'app/services/lightek_settings/site_domain.rb'
+      - 'lib/tasks/site_binding.rake'
+      - 'script/lightek/website_deploy.sh'
       - 'app/services/studio/**'
       - 'app/controllers/api/**'
       - 'app/controllers/posts_controller.rb'
@@ -140,4 +143,4 @@ jobs:
       - name: Prepare database and check application loading
         run: bin/rails db:test:prepare zeitwerk:check
       - name: Native Studio, live, social and messaging checks
-        run: bin/rails test test/services/studio test/services/lightek_social test/services/lightek_messaging test/integration/live_broadcasts_test.rb test/integration/pwa_administration_test.rb test/channels/studio_broadcast_channel_test.rb
+        run: bin/rails test test/services/studio test/services/lightek_social test/services/lightek_messaging test/integration/live_broadcasts_test.rb test/integration/pwa_administration_test.rb test/services/gatekeeper/website_deployment_test.rb test/channels/studio_broadcast_channel_test.rb

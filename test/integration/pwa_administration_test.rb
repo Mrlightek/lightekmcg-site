@@ -34,4 +34,20 @@ class PwaAdministrationTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "aside.dd-sidebar a[href=?][aria-current=page]", dashboard_pwa_path, text: /PWA Administration/
   end
+  test "platform administrator can repair a legacy hostname from the dashboard" do
+    super_admin = actor("super_admin")
+    host! "repair-#{SecureRandom.hex(6)}.example.test"
+    site = DymondSite::Site.create!(name: "Imported application", host: "192.168.64.2", tenant: super_admin)
+    application_id = site.pwa_application.id
+    login(super_admin)
+    get dashboard_pwa_path(site_id: site.id)
+    assert_response :success
+    assert_select "form[action=?]", dashboard_pwa_hostname_path(site_id: site.id)
+    post dashboard_pwa_hostname_path(site_id: site.id), params: {expected_host: "192.168.64.2"}
+    assert_response :redirect
+    assert_equal request.host, site.reload.host
+    assert_equal application_id, site.pwa_application.id
+    assert_equal "website.hostname.repaired", site.pwa_admin_events.last.action
+  end
+
 end

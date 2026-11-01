@@ -38,6 +38,13 @@ class GatekeeperWebsiteDeploymentTest < ActiveSupport::TestCase
     assert_raises(Gatekeeper::WebsiteDeployment::Invalid) { configuration(owner: actor("client"), internal: true) }
   end
 
+  test "private hostname is rejected before registering a customer deployment" do
+    assert_raises(Gatekeeper::WebsiteDeployment::Invalid) do
+      Gatekeeper::WebsiteDeployment.configuration(owner: actor, domain: "192.168.64.2", site_name: "Client",
+        headline: "Hello", description: "Client website", certificate_email: "owner@example.test", credential_slug: "deployment-test")
+    end
+  end
+
   test "registration and preview preserve unrelated node metadata without reading secrets" do
     owner = actor
     node = target

@@ -1,0 +1,134 @@
+[
+  {
+    "key": "classroom",
+    "name": "Classroom",
+    "author": "Christophe Seux",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/test/classroom.zip",
+    "minimum_blender": "2.80",
+    "description": "Interior lighting / camera template",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "cozy_kitchen",
+    "name": "Cozy Kitchen",
+    "author": "Nicole Morena",
+    "license": "CC-BY-SA",
+    "license_url": "https://creativecommons.org/licenses/by-sa/",
+    "url": "https://download.blender.org/demo/splash/blender-3.5-splash.blend",
+    "minimum_blender": "3.5",
+    "description": "Native kitchen scene with materials and camera",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "gaku",
+    "name": "Gaku \u2014 Blender 4.0",
+    "author": "Gaku Tada",
+    "license": "CC-BY-SA",
+    "license_url": "https://creativecommons.org/licenses/by-sa/",
+    "url": "https://download.blender.org/demo/splash/blender-4.0-splash.blend",
+    "minimum_blender": "4.0",
+    "description": "Native artwork and scene composition",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "cube_diorama",
+    "name": "Cube Diorama",
+    "author": "Blender Studio",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/asset-bundles/cube-diorama/cube-diorama-v1.0.0.zip",
+    "minimum_blender": "3.0",
+    "description": "Reusable diorama assets",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "flower_scattering",
+    "name": "Flower Scattering",
+    "author": "Blender Studio",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/geometry-nodes/fields/flower_scattering.blend",
+    "minimum_blender": "3.0",
+    "description": "Native Geometry Nodes scattering",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "pebble_scattering",
+    "name": "Scattering Pebbles",
+    "author": "Blender Studio",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/geometry-nodes/fields/pebble_scattering.blend",
+    "minimum_blender": "3.0",
+    "description": "Native procedural environment",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "tree_leaves_grass",
+    "name": "Tree, Leaves and Grass",
+    "author": "Simon Thommes / Blender Studio",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/geometry-nodes/fields/tree_leaves_moss_geo-nodes-demo.blend",
+    "minimum_blender": "3.0",
+    "description": "Native vegetation node graphs",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "sample_uv_surface",
+    "name": "Sample UV Surface",
+    "author": "Simon Thommes / Blender Studio",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/geometry-nodes/geometry_nodes_sample_uv_surface.blend",
+    "minimum_blender": "3.4",
+    "description": "Native UV and Geometry Nodes setup",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "animal_fur",
+    "name": "Animal Fur Examples",
+    "author": "Simon Thommes / Blender Studio",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/geometry-nodes/hair_nodes-animal_fur_examples.blend",
+    "minimum_blender": "3.5",
+    "description": "Native hair and grooming node graphs",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "jiggly_pudding",
+    "name": "Jiggly Pudding",
+    "author": "Mingwei Lim",
+    "license": "CC0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "url": "https://download.blender.org/demo/geometry-nodes/jiggly_pudding.blend",
+    "minimum_blender": "3.6",
+    "description": "Native simulation nodes",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "repeat_flower",
+    "name": "Repeat Zone Flower",
+    "author": "MiRA",
+    "license": "CC-BY-SA",
+    "license_url": "https://creativecommons.org/licenses/by-sa/",
+    "url": "https://download.blender.org/demo/geometry-nodes/repeat_zone_flower_by_MiRA.blend",
+    "minimum_blender": "4.0",
+    "description": "Native repeat-zone node setup",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "chocolate_donut",
+    "name": "Chocolate Donut",
+    "author": "Zijun Eary Zhou",
+    "license": "CC-BY",
+    "license_url": "https://creativecommons.org/licenses/by/",
+    "url": "https://download.blender.org/demo/geometry-nodes/fields/chocolate_donut.blend",
+    "minimum_blender": "3.0",
+    "description": "Native material and procedural modeling",
+    "source_page": "https://www.blender.org/download/demo-files/"
+  }
+]

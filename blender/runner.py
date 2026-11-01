@@ -4,7 +4,8 @@ import math
 import os
 import sys
 import traceback
-from mathutils import Vector
+import zipfile
+from mathutils import Vector, Matrix, Euler
 
 
 SCHEMA_VERSION = "1.0"
@@ -164,24 +165,92 @@ def create_mesh(object_type, name, definition):
 
         if bsdf:
             bsdf.inputs["Base Color"].default_value = rgba
+            for field, socket in (("metallic", "Metallic"), ("roughness", "Roughness"), ("transmission", "Transmission Weight")):
+                value = material_definition.get(field)
+                if isinstance(value, (int, float)) and math.isfinite(value) and socket in bsdf.inputs:
+                    bsdf.inputs[socket].default_value = max(0.0, min(1.0, value))
+            if "Alpha" in bsdf.inputs:
+                bsdf.inputs["Alpha"].default_value = rgba[3]
+            if rgba[3] < 1 and hasattr(material, "surface_render_method"):
+                material.surface_render_method = "DITHERED"
+            elif rgba[3] < 1 and hasattr(material, "blend_method"):
+                material.blend_method = "BLEND"
 
         obj.data.materials.append(material)
 
     return obj
 
 
+def clear_camera_animation(data, path):
+    animation = data.animation_data
+    if not animation:
+        return
+    if animation.action:
+        animation.action = animation.action.copy()
+        for curve in list(getattr(animation.action, 'fcurves', [])):
+            if curve.data_path == path:
+                animation.action.fcurves.remove(curve)
+    for curve in list(animation.drivers):
+        if curve.data_path == path:
+            data.driver_remove(path)
+
+
+def configure_camera(obj, definition, native=False):
+    data = obj.data
+    original = definition.get("native_original") if native else None
+    changed = lambda key: original is None or definition.get(key) != original.get(key)
+    if native and original and data.users > 1 and any(changed(key) for key in definition if key not in {'native_original','location','rotation','scale','blender_object_name'}):
+        obj.data = data.copy()
+        data = obj.data
+    transform_changed = any(changed(key) for key in ("location", "rotation", "scale"))
+    if native and transform_changed:
+        obj.matrix_world = Matrix.LocRotScale(Vector(vector3(definition.get("location"), [0,0,0])),
+            Euler([math.radians(v) for v in vector3(definition.get("rotation"), [0,0,0])]).to_quaternion(),
+            Vector(vector3(definition.get("scale"), [1,1,1])))
+    elif not native:
+        apply_transform(obj, definition)
+    fields = {"camera_type":"type", "lens":"lens", "lens_unit":"lens_unit", "sensor_fit":"sensor_fit", "sensor_width":"sensor_width", "sensor_height":"sensor_height",
+        "shift_x":"shift_x", "shift_y":"shift_y", "clip_start":"clip_start", "clip_end":"clip_end", "ortho_scale":"ortho_scale"}
+    for field, attribute in fields.items():
+        if field in definition and changed(field):
+            if native:
+                clear_camera_animation(data, attribute)
+            setattr(data, attribute, definition[field])
+    if definition.get("lens_unit") == "FOV" and (changed("fov_degrees") or changed("lens_unit")):
+        if native:
+            clear_camera_animation(data, 'lens')
+        data.angle = math.radians(float(definition.get("fov_degrees", 39.5978)))
+    panorama = getattr(data, 'cycles', data)
+    for field in ("panorama_type", "fisheye_lens", "fisheye_fov", "latitude_min", "latitude_max", "longitude_min", "longitude_max", "fisheye_polynomial_k0", "fisheye_polynomial_k1", "fisheye_polynomial_k2", "fisheye_polynomial_k3", "fisheye_polynomial_k4"):
+        if field in definition and changed(field) and hasattr(panorama, field):
+            setattr(panorama, field, math.radians(definition[field]) if field in {"fisheye_fov","latitude_min","latitude_max","longitude_min","longitude_max"} else definition[field])
+    for field in ("convergence_mode", "pivot", "interocular_distance", "convergence_distance"):
+        key = 'stereo_' + field
+        if key in definition and changed(key):
+            setattr(data.stereo, field, definition[key])
+    dof = {"dof_enabled":"use_dof", "focus_distance":"focus_distance", "aperture_fstop":"aperture_fstop", "aperture_blades":"aperture_blades", "aperture_ratio":"aperture_ratio"}
+    for field, attribute in dof.items():
+        if field in definition and changed(field):
+            if native:
+                clear_camera_animation(data, 'dof.' + attribute)
+            setattr(data.dof, attribute, definition[field])
+    if "aperture_rotation" in definition and changed("aperture_rotation"):
+        data.dof.aperture_rotation = math.radians(definition["aperture_rotation"])
+    if "focus_object_name" in definition and changed("focus_object_name"):
+        name = definition["focus_object_name"]
+        target = bpy.context.scene.objects.get(name) if name else None
+        if name and target is None:
+            raise RuntimeError('The selected Blender focus object is unavailable')
+        data.dof.focus_object = target
+
+
 def create_camera(name, definition):
     data = bpy.data.cameras.new(name=name)
     obj = bpy.data.objects.new(name, data)
-
     bpy.context.scene.collection.objects.link(obj)
-
-    apply_transform(obj, definition)
-
-    data.lens = float(definition.get("lens", 50.0))
-
-    bpy.context.scene.camera = obj
-
+    configure_camera(obj, definition)
+    if not bpy.context.scene.camera:
+        bpy.context.scene.camera = obj
     return obj
 
 
@@ -240,7 +309,17 @@ def create_manifest_object(item):
         if not path or not os.path.isfile(path):
             raise RuntimeError("Imported asset proxy is unavailable")
         existing = set(bpy.context.scene.objects)
-        bpy.ops.import_scene.gltf(filepath=path)
+        if definition.get("asset_format") == "blend":
+            with bpy.data.libraries.load(path, link=False) as (available, target):
+                requested = definition.get("asset_scene")
+                target.scenes = [requested] if requested in available.scenes else available.scenes[:1]
+            source_scene = target.scenes[0]
+            for collection in source_scene.collection.children:
+                bpy.context.scene.collection.children.link(collection)
+            for child in source_scene.collection.objects:
+                bpy.context.scene.collection.objects.link(child)
+        else:
+            bpy.ops.import_scene.gltf(filepath=path)
         imported = set(bpy.context.scene.objects) - existing
         root = bpy.data.objects.new(name, None)
         bpy.context.scene.collection.objects.link(root)
@@ -294,6 +373,39 @@ def point_at(obj, target=(0.0, 0.0, 0.0)):
         "-Z",
         "Y",
     ).to_euler()
+
+
+def apply_library_motion(obj, definition):
+    target = definition.get("look_at")
+    if isinstance(target, list) and len(target) == 3:
+        point_at(obj, tuple(float(value) for value in target))
+    animation = definition.get("animation") or {}
+    frames = animation.get("frames", [])
+    if not isinstance(frames, list) or len(frames) > 100:
+        raise RuntimeError("Invalid library animation")
+    fps = int(animation.get("fps", 24))
+    if frames:
+        bpy.context.scene.render.fps = max(1, min(60, fps))
+    for frame in frames:
+        number = int(frame["frame"])
+        if not 1 <= number <= 14400:
+            raise RuntimeError("Library frame is outside the supported range")
+        bpy.context.scene.frame_end = max(bpy.context.scene.frame_end, number)
+        if "location" in frame:
+            obj.location = vector3(frame["location"], obj.location)
+            obj.keyframe_insert(data_path="location", frame=number)
+        if "rotation" in frame:
+            obj.rotation_euler = [math.radians(value) for value in vector3(frame["rotation"], [0, 0, 0])]
+            obj.keyframe_insert(data_path="rotation_euler", frame=number)
+    # Linear interpolation matches the Studio viewport preview.
+    if obj.animation_data and obj.animation_data.action:
+        try:
+            curves = obj.animation_data.action.fcurves
+            for curve in curves:
+                for point in curve.keyframe_points:
+                    point.interpolation = "LINEAR"
+        except AttributeError:
+            pass
 
 
 def ensure_camera():
@@ -429,6 +541,14 @@ def configure_render(settings):
         settings.get("resolution_percentage", 100)
     )
 
+    for field in ("frame_start", "frame_end"):
+        if field in settings:
+            setattr(scene, field, int(settings[field]))
+    if "fps" in settings:
+        scene.render.fps = int(settings["fps"])
+    if "fps_base" in settings:
+        scene.render.fps_base = float(settings["fps_base"])
+    scene.frame_set(int(settings.get("frame_current", 1)))
     scene.render.image_settings.file_format = "PNG"
 
     scene.render.film_transparent = bool(
@@ -462,10 +582,119 @@ def render_preview(path):
     scene = bpy.context.scene
 
     scene.render.filepath = path
+    scene.render.image_settings.file_format = "PNG"
 
     log(f"Rendering preview: {path}")
 
     bpy.ops.render.render(write_still=True)
+
+
+def export_project_bundle(output_directory, manifest):
+    path = os.path.join(output_directory, 'project.zip')
+    with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.write(os.path.join(output_directory, 'scene.blend'), 'scene.blend')
+        folder = os.path.join(output_directory, 'native-bundle')
+        if os.path.isdir(folder):
+            for directory, _children, files in os.walk(folder):
+                for name in files:
+                    source = os.path.join(directory, name)
+                    archive.write(source, os.path.relpath(source, output_directory))
+        archive.writestr('source-credits.json', json.dumps(manifest.get('credits', []), ensure_ascii=False, indent=2))
+
+
+def apply_json_presets(settings, created):
+    scene = bpy.context.scene
+    for preset in settings.get('blender_presets', []):
+        token = str(preset['instance'])
+        prefix = 'LightekPreset_' + token
+        # Preserve the complete historical definition alongside native outputs.
+        text = bpy.data.texts.new(prefix + '.json')
+        text.write(json.dumps(preset, ensure_ascii=False, indent=2))
+        for marker in preset.get('markers', []):
+            scene.timeline_markers.new(str(marker['name']), frame=int(marker['frame']))
+        for index, item in enumerate(preset.get('texts', [])):
+            curve = bpy.data.curves.new(prefix + '_Text', 'FONT')
+            curve.body = str(item['body'])[:200]
+            curve.align_x = 'CENTER'
+            curve.size = 0.3
+            obj = bpy.data.objects.new(prefix + '_Title', curve)
+            scene.collection.objects.link(obj)
+            camera = scene.camera
+            frame = camera.data.view_frame(scene=scene)
+            depth = 2.0
+            factor = depth / abs(frame[0].z) if camera.data.type != 'ORTHO' else 1.0
+            width = (max(v.x for v in frame) - min(v.x for v in frame)) * factor
+            height = (max(v.y for v in frame) - min(v.y for v in frame)) * factor
+            obj.parent = camera
+            obj.location = (-width * 0.45, -height * 0.4 + index * height * 0.08, -depth)
+            curve.align_x = 'LEFT'
+            curve.size = width * 0.035
+            material = bpy.data.materials.new(prefix + '_TitleColor')
+            material.use_nodes = True
+            shader = material.node_tree.nodes.get('Principled BSDF')
+            shader.inputs['Base Color'].default_value = item['color']
+            shader.inputs['Emission Color'].default_value = item['color']
+            shader.inputs['Emission Strength'].default_value = 1
+            curve.materials.append(material)
+        for item in preset.get('materials', []):
+            material = bpy.data.materials.new(str(item['name']))
+            material.use_nodes = True
+            bsdf = material.node_tree.nodes.get('Principled BSDF')
+            bsdf.inputs['Base Color'].default_value = item['color']
+            bsdf.inputs['Metallic'].default_value = float(item['metallic'])
+            bsdf.inputs['Roughness'].default_value = float(item['roughness'])
+            material.use_fake_user = True
+        for item in preset.get('geometry_groups', []):
+            parameters = item.get('parameters', {})
+            group = bpy.data.node_groups.new(str(item['name']), 'GeometryNodeTree')
+            group.interface.new_socket(name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+            inputs = group.nodes.new('NodeGroupInput')
+            output = group.nodes.new('NodeGroupOutput')
+            cube = group.nodes.new('GeometryNodeMeshCube')
+            size = group.nodes.new('ShaderNodeCombineXYZ')
+            size.inputs['X'].default_value = 4
+            size.inputs['Y'].default_value = 2
+            size.inputs['Z'].default_value = 0.3
+            for name, value in parameters.items():
+                socket = group.interface.new_socket(name=str(name), in_out='INPUT', socket_type='NodeSocketFloat')
+                socket.default_value = float(value)
+                if name in ('desk_length', 'bar_width', 'platform_radius'):
+                    group.links.new(inputs.outputs[name], size.inputs['X'])
+            group.links.new(size.outputs[0], cube.inputs['Size'])
+            group.links.new(cube.outputs['Mesh'], output.inputs['Geometry'])
+            mesh = bpy.data.meshes.new(prefix + '_Geometry')
+            obj = bpy.data.objects.new(str(item.get('target_object', prefix)), mesh)
+            scene.collection.objects.link(obj)
+            modifier = obj.modifiers.new('JSON Geometry Preset', 'NODES')
+            modifier.node_group = group
+            obj['lightek_parameters'] = json.dumps(parameters)
+        nodes = preset.get('nodes', [])
+        if nodes:
+            scene.use_nodes = True
+            tree = scene.node_tree
+            composite = next((n for n in tree.nodes if n.type == 'COMPOSITE'), None) or tree.nodes.new('CompositorNodeComposite')
+            prior = composite.inputs['Image'].links[0].from_socket if composite.inputs['Image'].is_linked else None
+            if prior is None:
+                layer = tree.nodes.new('CompositorNodeRLayers')
+                prior = layer.outputs['Image']
+            types = {'glare': 'CompositorNodeGlare', 'colorbalance': 'CompositorNodeColorBalance',
+                     'lensdistortion': 'CompositorNodeLensdist', 'chromaticaberration': 'CompositorNodeLensdist',
+                     'rgbsplit': 'CompositorNodeLensdist', 'blur': 'CompositorNodeBlur'}
+            for name in nodes:
+                kind = types.get(str(name).lower().replace('_', ''))
+                if not kind:
+                    continue
+                node = tree.nodes.new(kind)
+                node.label = prefix + ': ' + name
+                if kind == 'CompositorNodeGlare':
+                    node.glare_type = 'FOG_GLOW'
+                if kind == 'CompositorNodeLensdist':
+                    node.inputs['Dispersion'].default_value = 0.015
+                if kind == 'CompositorNodeBlur':
+                    node.size_x = node.size_y = 2
+                tree.links.new(prior, node.inputs['Image'])
+                prior = node.outputs['Image']
+            tree.links.new(prior, composite.inputs['Image'])
 
 
 def requested_outputs(manifest):
@@ -508,18 +737,37 @@ def main():
             f"{manifest.get('schema_version')}"
         )
 
-        clear_scene()
-
         scene_data = manifest["scene"]
         settings = scene_data.get("settings") or {}
-
         if not isinstance(settings, dict):
-            raise RuntimeError(
-                "Scene settings must be an object"
-            )
-
-        configure_world(settings)
-        configure_render(settings)
+            raise RuntimeError("Scene settings must be an object")
+        native_path = manifest.get("native_template_path")
+        if native_path:
+            bpy.ops.wm.open_mainfile(filepath=native_path, load_ui=False, use_scripts=False)
+            name = settings.get("native_scene")
+            if name not in bpy.data.scenes:
+                raise RuntimeError('Native Blender scene is unavailable')
+            bpy.context.window.scene = bpy.data.scenes[name]
+            scene = bpy.context.scene
+            for field in ("resolution_x", "resolution_y", "resolution_percentage", "fps", "fps_base"):
+                if field in settings:
+                    setattr(scene.render, field, settings[field])
+            if "render_engine" in settings:
+                scene.render.engine = settings["render_engine"]
+            if "transparent_background" in settings:
+                scene.render.film_transparent = bool(settings["transparent_background"])
+            if scene.render.engine == "CYCLES":
+                scene.cycles.device = 'CPU'
+                if "samples" in settings:
+                    scene.cycles.samples = max(1, min(256, int(settings["samples"])))
+            for field in ("frame_start", "frame_end"):
+                if field in settings:
+                    setattr(scene, field, int(settings[field]))
+            scene.frame_set(int(settings.get("frame_current", scene.frame_current)))
+        else:
+            clear_scene()
+            configure_world(settings)
+            configure_render(settings)
 
         objects = scene_data.get("objects") or []
 
@@ -528,21 +776,51 @@ def main():
                 "Scene objects must be an array"
             )
 
+        created = {}
         for item in objects:
             if not isinstance(item, dict):
                 raise RuntimeError(
                     "Every scene object must be an object"
                 )
 
-            obj = create_manifest_object(item)
+            definition = item.get("definition") or {}
+            if definition.get("native_source_preview"):
+                continue
+            if native_path and item.get("type") == "camera" and definition.get("blender_object_name"):
+                obj = bpy.context.scene.objects.get(definition["blender_object_name"])
+                if obj is None or obj.type != 'CAMERA':
+                    raise RuntimeError('Native Blender camera is unavailable')
+                configure_camera(obj, definition, native=True)
+            else:
+                obj = create_manifest_object(item)
+                apply_library_motion(obj, definition)
+            created[str(item.get("id"))] = obj
 
             log(
                 f"Created {item.get('type')} "
                 f"{obj.name!r}"
             )
 
+        # An explicit production format takes precedence over recipe animation FPS.
+        if "fps" in settings:
+            bpy.context.scene.render.fps = int(settings["fps"])
+        if "fps_base" in settings:
+            bpy.context.scene.render.fps_base = float(settings["fps_base"])
+        active_id = settings.get("active_camera_object_id")
+        selected = created.get(str(active_id)) if active_id is not None else None
+        if selected is None and settings.get("active_camera"):
+            selected = bpy.context.scene.objects.get(settings["active_camera"])
+        if selected is not None:
+            if selected.type != 'CAMERA':
+                raise RuntimeError('The active render camera must be a Blender camera')
+            bpy.context.scene.camera = selected
         ensure_camera()
-        ensure_lighting()
+        apply_json_presets(settings, created)
+        if bpy.context.scene.camera.data.type == 'PANO':
+            bpy.context.scene.render.engine = 'CYCLES'
+        if not native_path:
+            ensure_lighting()
+            bpy.context.scene.frame_set(int(settings.get("frame_current", 1)))
 
         outputs = requested_outputs(manifest)
         generated = []
@@ -570,6 +848,10 @@ def main():
             )
             render_preview(path)
             generated.append("preview.png")
+
+        if outputs.get("bundle"):
+            export_project_bundle(output_directory, manifest)
+            generated.append("project.zip")
 
         write_result(
             output_directory,

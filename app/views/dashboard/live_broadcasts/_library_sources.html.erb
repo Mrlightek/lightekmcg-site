@@ -1,0 +1,12 @@
+<details class="ll-config"><summary>Library sources · clips, graphics & sound</summary>
+  <p class="ll-note">Load a library image or video as your program, layer a transparent graphic over your camera/screen, or mix an audio bed. The preview stays local until you start broadcasting. Holding screen mutes all library audio.</p>
+  <% selected = @library_assets.find { |asset| asset.id.to_s == params[:library_asset_id].to_s } %>
+  <label>Program image / video<select data-library-visual><option value="">No library program</option><% @library_assets.select { |asset| %w[image video].include?(asset.kind) }.each do |asset| %><option value="<%= asset.id %>" data-kind="<%= asset.kind %>" data-library-url="/api/lightek/pwa/assets/<%= asset.id %>/proxy" <%= "selected" if selected == asset %>><%= asset.name %></option><% end %></select></label>
+  <label><input type="checkbox" data-library-loop> Loop program video</label>
+  <label>Graphic overlay<select data-library-overlay><option value="">No overlay</option><% @library_assets.select { |asset| asset.kind == "image" }.each do |asset| %><option value="<%= asset.id %>" data-library-url="/api/lightek/pwa/assets/<%= asset.id %>/proxy"><%= asset.name %></option><% end %></select></label>
+  <label>Audio bed<select data-library-audio><option value="">No audio bed</option><% @library_assets.select { |asset| asset.kind == "audio" }.each do |asset| %><option value="<%= asset.id %>" data-library-url="/api/lightek/pwa/assets/<%= asset.id %>/proxy" <%= "selected" if selected == asset %>><%= asset.name %></option><% end %></select></label>
+  <label>Audio bed level<input type="range" min="0" max="1" step="0.05" value="0.25" data-library-volume></label>
+  <button type="button" data-load-library>Load selected library media</button><button type="button" data-clear-library>Clear library sources</button>
+  <p role="status" aria-live="polite" data-library-status>Select media and load it to preview.</p>
+  <a href="/lightek/index.html#/studio/library">Open asset library ↗</a>
+</details>

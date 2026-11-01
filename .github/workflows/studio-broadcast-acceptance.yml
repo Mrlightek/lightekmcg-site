@@ -14,7 +14,21 @@ on:
       - 'public/lightek/broadcast/**'
       - 'test/standalone/**'
       - 'test/javascript/studio_capture_transport_test.cjs'
+      - 'test/javascript/studio_library_test.cjs'
+      - 'test/javascript/studio_live_library_test.cjs'
+      - 'public/lightek/studio-*.js'
+      - 'public/lightek/index.html'
+      - 'blender/**'
+      - 'app/services/blender/**'
+      - 'app/models/studio_*.rb'
+      - 'app/jobs/studio_blender_demo_import_job.rb'
+      - 'config/studio/**'
+      - 'test/operations/**'
+      - 'test/javascript/studio_native_camera_test.cjs'
       - 'db/migrate/20261101010000_create_studio_broadcast_control.rb'
+      - 'db/migrate/20261101020000_register_studio_library_actions.rb'
+      - 'db/migrate/20261101030000_register_native_blender_studio.rb'
+      - 'db/migrate/20261101040000_register_blender_media_presets.rb'
       - '.github/workflows/studio-broadcast-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -30,10 +44,14 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: HTTP, publication, Gatekeeper and simulcast acceptance
-        run: bundle exec ruby test/standalone/broadcast_control_checks.rb
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
+      - name: Library, HTTP, Gatekeeper, publication and native Blender acceptance
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/media_preset_checks.rb
       - name: Existing Studio media regression
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/media_checks.rb
       - uses: actions/setup-node@v4
         with:
@@ -44,3 +62,12 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
         run: node test/javascript/studio_capture_transport_test.cjs
+      - name: Working library UI and live media sources
+        env:
+          NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
+        run: |
+          node test/javascript/studio_library_test.cjs
+          node test/javascript/studio_live_library_test.cjs
+          node test/javascript/studio_native_camera_test.cjs
+      - name: Blender archive and transform regression
+        run: python3 -m unittest test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py

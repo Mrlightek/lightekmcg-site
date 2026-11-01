@@ -1,0 +1,2770 @@
+[
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/base/show_bible.json",
+    "source_sha256": "fa957286fa4077150ec4ee7b4055bc43136e615f595d065359cbe92d01f56f7f",
+    "definition": {
+      "key": "base/show_bible",
+      "kind": "show_bible",
+      "version": "1.0.0",
+      "title": "Base Show Bible",
+      "body": {
+        "series": {
+          "format": "anthology",
+          "tone": "cinematic",
+          "overlay_copy": {
+            "hook": "System breach",
+            "payoff": "Power shifts now",
+            "brand_tag": "A new signal begins"
+          }
+        },
+        "style_notes": [
+          "high contrast lighting",
+          "controlled camera movement"
+        ],
+        "visual_motifs": [
+          "glass reflections",
+          "signal distortion",
+          "screens within screens"
+        ]
+      }
+    },
+    "key": "base/show_bible"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/base/brand_system.json",
+    "source_sha256": "8623c9cf5ca8fd213e12e80968126e4284b4372d19bad9cd238c57e5bfbb5d0d",
+    "definition": {
+      "key": "base/brand_system",
+      "kind": "brand_system",
+      "version": "1.0.0",
+      "title": "Base Brand System",
+      "body": {
+        "palette": [
+          "#0A0A0A",
+          "#F3F3F3",
+          "#7A5CFF",
+          "#00D0FF"
+        ],
+        "type_system": {
+          "headline": "condensed_bold",
+          "body": "modern_sans"
+        },
+        "logo_rules": {
+          "safe_area": "8%",
+          "position": "endcard_center"
+        },
+        "motion_language": [
+          "glitch wipe",
+          "signal pulse",
+          "scanline drift"
+        ]
+      }
+    },
+    "key": "base/brand_system"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/base/timeline_60s.json",
+    "source_sha256": "d5b8739360574ae36f4eaa1426fcda7e0790f415728718267da62bd2362295dd",
+    "definition": {
+      "key": "base/timeline_60s",
+      "kind": "timeline_template",
+      "version": "1.0.0",
+      "title": "Base 60 Second Timeline",
+      "body": {
+        "beats": [
+          "hook",
+          "inciting_image",
+          "thesis",
+          "escalation",
+          "payoff",
+          "brand_tag"
+        ],
+        "cadence": {
+          "hook": 6,
+          "inciting_image": 8,
+          "thesis": 10,
+          "escalation": 14,
+          "payoff": 14,
+          "brand_tag": 8
+        }
+      }
+    },
+    "key": "base/timeline_60s"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/base/voice_music.json",
+    "source_sha256": "f605bbba7cec97a8b42e520cc79f84e92f95362128988bfb743ea59eeff2c946",
+    "definition": {
+      "key": "base/voice_music",
+      "kind": "voice_music",
+      "version": "1.0.0",
+      "title": "Base Voice and Music",
+      "body": {
+        "voice": {
+          "profile": "cinematic_narrator",
+          "pace": "measured",
+          "delivery": "grave"
+        },
+        "music": {
+          "bed": "dark_synth",
+          "energy_curve": [
+            "low",
+            "medium",
+            "high",
+            "resolve"
+          ]
+        },
+        "sfx": [
+          "glitch",
+          "impact",
+          "sub_bass_hit"
+        ]
+      }
+    },
+    "key": "base/voice_music"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/base/blender_graph.json",
+    "source_sha256": "e608ff3bcd7ffd41d5fdbff7ea3c6308ff5fc310582be91c16e5a1d4131bf143",
+    "definition": {
+      "key": "base/blender_graph",
+      "kind": "blender_graph",
+      "version": "1.0.0",
+      "title": "Base Blender Graph",
+      "body": {
+        "graph_key": "signal_grade_v1",
+        "compositor_nodes": [
+          "glare",
+          "lens_distortion",
+          "color_balance",
+          "vignette"
+        ],
+        "edit_logic": {
+          "transition": "glitch_cut",
+          "title_overlay": "lower_third_minimal"
+        }
+      }
+    },
+    "key": "base/blender_graph"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/base/character_rig.json",
+    "source_sha256": "d5a52440d84c3586a3d63625131e081b35f5f2e2ab76d259830804c380f38200",
+    "definition": {
+      "key": "base/character_rig",
+      "kind": "character_rig",
+      "version": "1.0.0",
+      "title": "Base Character Rig",
+      "body": {
+        "skeleton": "biped_v1",
+        "facial_controls": [
+          "brows",
+          "eyes",
+          "jaw",
+          "phonemes"
+        ],
+        "wardrobe_slots": [
+          "outerwear",
+          "base_layer",
+          "accessory"
+        ],
+        "performance_profiles": [
+          "speaker",
+          "walker",
+          "hero_pose"
+        ]
+      }
+    },
+    "key": "base/character_rig"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/base/asset_ingest.json",
+    "source_sha256": "5db52ed52a2e94994f503736ae70e80e887133e7b0a45b3c0e0e390279e2ac27",
+    "definition": {
+      "key": "base/asset_ingest",
+      "kind": "asset_ingest",
+      "version": "1.0.0",
+      "title": "Base Asset Ingest",
+      "body": {
+        "accepted_types": [
+          "image",
+          "video",
+          "audio",
+          "font",
+          "mesh",
+          "material"
+        ],
+        "naming": "series/season/episode/asset_slug",
+        "transcode": {
+          "video_proxy": "h264_1080p",
+          "audio_proxy": "wav_48k"
+        }
+      }
+    },
+    "key": "base/asset_ingest"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/base/production_preset.json",
+    "source_sha256": "3e76c65e25a706b3af955dfc5a28ce542feb84dde31f6d5b11988c709bde6093",
+    "definition": {
+      "key": "base/production_preset",
+      "kind": "production_preset",
+      "version": "1.0.0",
+      "title": "Base Production Preset",
+      "body": {
+        "shots": {
+          "camera": "push_in",
+          "edit_style": "glitch_cut"
+        },
+        "render_defaults": {
+          "aspect_ratio": "16:9",
+          "resolution": "1920x1080",
+          "fps": 24
+        },
+        "deliverables": [
+          "master",
+          "preview",
+          "poster_frame"
+        ]
+      }
+    },
+    "key": "base/production_preset"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/streaming/prestige_cold_open.json",
+    "source_sha256": "9cd5810d5630a7e5760b6ab061e7af074a56fdcc2d5ada5cb98b87b978f8876f",
+    "definition": {
+      "key": "streaming/prestige_cold_open",
+      "kind": "production_preset",
+      "version": "1.0.0",
+      "title": "Prestige Streaming Cold Open",
+      "inherits": [
+        "base/production_preset"
+      ],
+      "body": {
+        "shots": {
+          "camera": "slow_dolly",
+          "edit_style": "hard_flash_cut"
+        },
+        "render_defaults": {
+          "aspect_ratio": "16:9",
+          "resolution": "3840x2160",
+          "fps": 24
+        },
+        "title_treatment": "prestige_minimal"
+      }
+    },
+    "key": "streaming/prestige_cold_open"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/social/vertical_cyberpunk_drop.json",
+    "source_sha256": "937e27335fa561c915b53937d1330a69b9fa7f88f595ed88d3977c972da26750",
+    "definition": {
+      "key": "social/vertical_cyberpunk_drop",
+      "kind": "production_preset",
+      "version": "1.0.0",
+      "title": "Vertical Cyberpunk Drop",
+      "inherits": [
+        "base/production_preset"
+      ],
+      "body": {
+        "shots": {
+          "camera": "handheld_push",
+          "edit_style": "glitch_pulse"
+        },
+        "render_defaults": {
+          "aspect_ratio": "9:16",
+          "resolution": "1080x1920",
+          "fps": 30
+        },
+        "caption_style": "kinetic_stack"
+      }
+    },
+    "key": "social/vertical_cyberpunk_drop"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/episode/cold_open_60s.json",
+    "source_sha256": "3ef854d3c9897b9138a9189166840eee86b6ef8f9b7582a04b7ff4dc73dc8cc3",
+    "definition": {
+      "key": "episode/cold_open_60s",
+      "kind": "timeline_template",
+      "version": "1.0.0",
+      "title": "Cold Open 60s",
+      "inherits": [
+        "base/timeline_60s"
+      ],
+      "body": {
+        "beats": [
+          "hook",
+          "inciting_image",
+          "thesis",
+          "escalation",
+          "payoff",
+          "brand_tag"
+        ],
+        "cadence": {
+          "hook": 5,
+          "inciting_image": 7,
+          "thesis": 9,
+          "escalation": 16,
+          "payoff": 15,
+          "brand_tag": 8
+        }
+      }
+    },
+    "key": "episode/cold_open_60s"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/feature/trailer_teaser_90s.json",
+    "source_sha256": "12ef9d145d25bd6d34696b6e78a7b56c26bd71f4a1f76ae7f8e1d0f4b00dd65f",
+    "definition": {
+      "key": "feature/trailer_teaser_90s",
+      "kind": "timeline_template",
+      "version": "1.0.0",
+      "title": "Trailer Teaser 90s",
+      "body": {
+        "beats": [
+          "cold_open",
+          "world_hint",
+          "character_flash",
+          "stakes",
+          "crescendo",
+          "title_card"
+        ],
+        "cadence": {
+          "cold_open": 10,
+          "world_hint": 15,
+          "character_flash": 15,
+          "stakes": 20,
+          "crescendo": 20,
+          "title_card": 10
+        }
+      }
+    },
+    "key": "feature/trailer_teaser_90s"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/brand/paramount_tylerish.json",
+    "source_sha256": "a154b020ec530b02194af673c243a46c6540ff38fb38401dd7c1447d619b8bb7",
+    "definition": {
+      "key": "brand/paramount_tylerish",
+      "kind": "brand_system",
+      "version": "1.0.0",
+      "title": "Streaming Studio House Brand",
+      "inherits": [
+        "base/brand_system"
+      ],
+      "body": {
+        "palette": [
+          "#090B14",
+          "#EEE8D5",
+          "#B291FF",
+          "#44C7F4",
+          "#D4A34F"
+        ],
+        "type_system": {
+          "headline": "lux_serif_bold",
+          "body": "clean_grotesk"
+        },
+        "motion_language": [
+          "orchestral swell cut",
+          "studio seal reveal",
+          "premium light sweep"
+        ],
+        "network_package": {
+          "bumpers": [
+            "feature_prestige",
+            "sitcom",
+            "docu"
+          ],
+          "lower_thirds": "network_classic"
+        }
+      }
+    },
+    "key": "brand/paramount_tylerish"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/nwo/show_bible.json",
+    "source_sha256": "4974765a5b358030455530e7ca6c3f83cba9f58381725b45401475c7d818f31a",
+    "definition": {
+      "key": "nwo/show_bible",
+      "kind": "show_bible",
+      "version": "1.0.0",
+      "title": "Nerd World Order Show Bible",
+      "inherits": [
+        "base/show_bible"
+      ],
+      "body": {
+        "series": {
+          "format": "serial manifesto",
+          "premise": "A covert Afrofuturist media-tech collective exposes hoarded systems and redistributes access.",
+          "overlay_copy": {
+            "hook": "They laughed at us",
+            "inciting_image": "We were learning",
+            "thesis": "They hoarded the future",
+            "escalation": "We became it",
+            "payoff": "This is a reset",
+            "brand_tag": "Nerd World Order"
+          }
+        },
+        "style_notes": [
+          "Afrofuturist iconography",
+          "broadcast hijack framing",
+          "hero silhouettes"
+        ],
+        "visual_motifs": [
+          "server lights",
+          "masked reflections",
+          "holographic overlays"
+        ]
+      }
+    },
+    "key": "nwo/show_bible"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/nwo/rig_collective_lead.json",
+    "source_sha256": "f9bba4d8e9c2071638c5c622663f53908d0e4071588eed464f71b26859d4b886",
+    "definition": {
+      "key": "nwo/rig_collective_lead",
+      "kind": "character_rig",
+      "version": "1.0.0",
+      "title": "Collective Lead Rig",
+      "inherits": [
+        "base/character_rig"
+      ],
+      "body": {
+        "wardrobe_slots": [
+          "hoodie",
+          "tech_jacket",
+          "visor",
+          "gloves"
+        ],
+        "performance_profiles": [
+          "speaker",
+          "command_pose",
+          "console_hack"
+        ]
+      }
+    },
+    "key": "nwo/rig_collective_lead"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/nwo/voice_manifest.json",
+    "source_sha256": "bbae58d05714671f659b6ea6da6c618fa1d9044cea7be93e3dec916ec14eceb9",
+    "definition": {
+      "key": "nwo/voice_manifest",
+      "kind": "voice_music",
+      "version": "1.0.0",
+      "title": "NWO Voice Manifest",
+      "inherits": [
+        "base/voice_music"
+      ],
+      "body": {
+        "voice": {
+          "profile": "deep_cinematic",
+          "pace": "deliberate",
+          "delivery": "thunder_calm"
+        },
+        "music": {
+          "bed": "sub_bass_cyber_orchestral",
+          "energy_curve": [
+            "threat",
+            "build",
+            "dominate",
+            "resolve"
+          ]
+        }
+      }
+    },
+    "key": "nwo/voice_manifest"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/graphs/cyber_signal_stack.json",
+    "source_sha256": "abae57ab85e8e5b447cd210ebb46394019cfd668fc7193a4c213bd4e2a41c0e4",
+    "definition": {
+      "key": "graphs/cyber_signal_stack",
+      "kind": "blender_graph",
+      "version": "1.0.0",
+      "title": "Cyber Signal Graph Stack",
+      "inherits": [
+        "base/blender_graph"
+      ],
+      "body": {
+        "graph_key": "cyber_signal_stack",
+        "compositor_nodes": [
+          "rgb_split",
+          "glare",
+          "chromatic_aberration",
+          "scanline_overlay",
+          "color_balance"
+        ],
+        "edit_logic": {
+          "transition": "signal_smear",
+          "title_overlay": "broadcast_intrusion"
+        }
+      }
+    },
+    "key": "graphs/cyber_signal_stack"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/ingest/studio_master.json",
+    "source_sha256": "4ac3a19468a5c6542a73cdf164247c1977b5e3ef47267b6a36f85c0af3deba8c",
+    "definition": {
+      "key": "ingest/studio_master",
+      "kind": "asset_ingest",
+      "version": "1.0.0",
+      "title": "Studio Master Ingest",
+      "inherits": [
+        "base/asset_ingest"
+      ],
+      "body": {
+        "accepted_types": [
+          "image",
+          "video",
+          "audio",
+          "font",
+          "mesh",
+          "material",
+          "hdr",
+          "subtitle"
+        ],
+        "qc": [
+          "slug_required",
+          "duration_scan",
+          "sample_rate_check",
+          "frame_rate_probe"
+        ]
+      }
+    },
+    "key": "ingest/studio_master"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/tv/sitcom_dialogue_scene.json",
+    "source_sha256": "fe7faa56df6d3a6d35c5eb67c00e1e724e7fade2aeb719c4991ad0bb8e5baeb1",
+    "definition": {
+      "key": "tv/sitcom_dialogue_scene",
+      "kind": "production_preset",
+      "version": "1.0.0",
+      "title": "Sitcom Dialogue Scene",
+      "body": {
+        "shots": {
+          "camera": "two_shot_cut",
+          "edit_style": "invisible_cut"
+        },
+        "render_defaults": {
+          "aspect_ratio": "16:9",
+          "resolution": "1920x1080",
+          "fps": 24
+        },
+        "laugh_track": false
+      }
+    },
+    "key": "tv/sitcom_dialogue_scene"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/tv/docu_explainer.json",
+    "source_sha256": "bf27216026b6c9f1ead01423a5b158ae558c8d047ab39af0a80a9010ca31ec32",
+    "definition": {
+      "key": "tv/docu_explainer",
+      "kind": "production_preset",
+      "version": "1.0.0",
+      "title": "Docu Explainer",
+      "body": {
+        "shots": {
+          "camera": "interview_lockoff",
+          "edit_style": "archive_dissolve"
+        },
+        "render_defaults": {
+          "aspect_ratio": "16:9",
+          "resolution": "1920x1080",
+          "fps": 24
+        },
+        "graphics": "information_panels"
+      }
+    },
+    "key": "tv/docu_explainer"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v2.zip",
+    "source_path": "templates/packs/film/proof_of_concept.json",
+    "source_sha256": "483852dc43c379f5feb697b85eea0d4d17ba6eb09c44e3d8ddc0ed608bdf37f0",
+    "definition": {
+      "key": "film/proof_of_concept",
+      "kind": "production_preset",
+      "version": "1.0.0",
+      "title": "Feature Proof of Concept",
+      "body": {
+        "shots": {
+          "camera": "anamorphic_push",
+          "edit_style": "cinematic_smash"
+        },
+        "render_defaults": {
+          "aspect_ratio": "2.39:1",
+          "resolution": "4096x1716",
+          "fps": 24
+        },
+        "grain": "subtle_35mm"
+      }
+    },
+    "key": "film/proof_of_concept"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/show/dating_show_bible.json",
+    "source_sha256": "94e2aada186d78d6d84ebbf1675be200bcf2acc1f1ad32202d2ba1490cc8bc62",
+    "definition": {
+      "key": "show/dating_show_bible",
+      "type": "show_bible",
+      "config": {
+        "genre": "reality_dating",
+        "format": "episodic",
+        "segments": [
+          "cold_open_drama",
+          "contestant_intro",
+          "confessional",
+          "ceremony"
+        ],
+        "look": "warm_glossy"
+      }
+    },
+    "key": "show/dating_show_bible"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/show/game_show_bible.json",
+    "source_sha256": "448fe43021668312cf0e39b4ec2034d19e6c46ecf4ec2c17eb16d2b748b6f07b",
+    "definition": {
+      "key": "show/game_show_bible",
+      "type": "show_bible",
+      "config": {
+        "genre": "game_show",
+        "format": "multi_cam_stage",
+        "segments": [
+          "open",
+          "round_one",
+          "reaction",
+          "finale"
+        ],
+        "look": "bright_stage"
+      }
+    },
+    "key": "show/game_show_bible"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/show/sports_broadcast_bible.json",
+    "source_sha256": "550e00377d1e5b176c475357e8a89140873a56453c8b36fc5299dedf712fd64f",
+    "definition": {
+      "key": "show/sports_broadcast_bible",
+      "type": "show_bible",
+      "config": {
+        "genre": "sports",
+        "format": "broadcast",
+        "segments": [
+          "open",
+          "lineup",
+          "play",
+          "replay",
+          "analysis"
+        ],
+        "look": "sports_broadcast"
+      }
+    },
+    "key": "show/sports_broadcast_bible"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/show/prestige_drama_bible.json",
+    "source_sha256": "538c70159b92e48c2b80ba9d7bca0c83df68ebbf65fdeea3348aaf0ad56d2332",
+    "definition": {
+      "key": "show/prestige_drama_bible",
+      "type": "show_bible",
+      "config": {
+        "genre": "prestige_drama",
+        "format": "streaming",
+        "segments": [
+          "cold_open",
+          "act_build",
+          "cliffhanger"
+        ],
+        "look": "cinematic"
+      }
+    },
+    "key": "show/prestige_drama_bible"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/camera/lens_classic_24mm.json",
+    "source_sha256": "b7241066602c8a855c41caab459c74c28a3c69f62425faac93108e2d5e5d6a39",
+    "definition": {
+      "key": "camera/lens_classic_24mm",
+      "type": "camera_profile",
+      "config": {
+        "lens": 24,
+        "depth_of_field": false,
+        "movement": "wide_stage"
+      }
+    },
+    "key": "camera/lens_classic_24mm"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/camera/lens_portrait_85mm.json",
+    "source_sha256": "617c9018cc13b25c75fe39e66c22813f3c8f241ecb110d7be33e783f9d6c3881",
+    "definition": {
+      "key": "camera/lens_portrait_85mm",
+      "type": "camera_profile",
+      "config": {
+        "lens": 85,
+        "depth_of_field": true,
+        "movement": "close_drama"
+      }
+    },
+    "key": "camera/lens_portrait_85mm"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/camera/dolly_signature.json",
+    "source_sha256": "ceff19fd962c684fd9010f32ccb23c54683ae51957df971d06b2394a78c675a8",
+    "definition": {
+      "key": "camera/dolly_signature",
+      "type": "camera_profile",
+      "config": {
+        "movement": "dolly_float",
+        "emotion": "surreal_intensity"
+      }
+    },
+    "key": "camera/dolly_signature"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/camera/sports_follow_cam.json",
+    "source_sha256": "d84d973bdae199c7b7064471ec7ed8ba63323c69ea33b22f4cfec96b310e5a0a",
+    "definition": {
+      "key": "camera/sports_follow_cam",
+      "type": "camera_grammar",
+      "lens_mm": 85,
+      "sensor_width": 36,
+      "dof": true,
+      "f_stop": 2.8,
+      "movement": "follow",
+      "target": "subject_primary"
+    },
+    "key": "camera/sports_follow_cam"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/style/cyberpunk_vertical.json",
+    "source_sha256": "a3cb00dd8e15989cf3b597d14238a44244d6b4345370764417ae8f80a0dba0b1",
+    "definition": {
+      "key": "style/cyberpunk_vertical",
+      "type": "style_profile",
+      "style_profile": {
+        "look": "cyberpunk",
+        "grain": 0.15,
+        "neon": true
+      }
+    },
+    "key": "style/cyberpunk_vertical"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/style/reality_tv_gloss.json",
+    "source_sha256": "077d6f9330e00c700fbca32c1c514b70689697ad54aa90580690782ff84db356",
+    "definition": {
+      "key": "style/reality_tv_gloss",
+      "type": "style_profile",
+      "style_profile": {
+        "look": "reality_gloss",
+        "saturation": 1.12
+      }
+    },
+    "key": "style/reality_tv_gloss"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/style/sports_broadcast_clean.json",
+    "source_sha256": "71e7cdb016f019752acee3a44a61dec2bb8a0a3e5113df7d0265a2f312eb25fb",
+    "definition": {
+      "key": "style/sports_broadcast_clean",
+      "type": "style_profile",
+      "style_profile": {
+        "look": "sports_broadcast",
+        "overlay": "scorebug_modern"
+      }
+    },
+    "key": "style/sports_broadcast_clean"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/timeline/episode_vertical_hook.json",
+    "source_sha256": "6f31092d8c97d0d58d799ba2a9323b2e303ea869eb857109465ae9d8ab803ed1",
+    "definition": {
+      "key": "timeline/episode_vertical_hook",
+      "type": "timeline_template",
+      "config": {
+        "shots": [
+          "hook",
+          "title",
+          "hero",
+          "cta"
+        ]
+      }
+    },
+    "key": "timeline/episode_vertical_hook"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/timeline/game_show_round.json",
+    "source_sha256": "cda42e3d031a8045b01582da6c48e59e79ed1f4ccb7f1f4eec503c7453798c11",
+    "definition": {
+      "key": "timeline/game_show_round",
+      "type": "timeline_template",
+      "config": {
+        "shots": [
+          "host_intro",
+          "question",
+          "contestant_reaction",
+          "score_reveal"
+        ]
+      }
+    },
+    "key": "timeline/game_show_round"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/timeline/sports_highlight_package.json",
+    "source_sha256": "d735cd1bac97c251398ff8d3f5b19cd38a4606ffd26bf106dab7f77e627c2e0e",
+    "definition": {
+      "key": "timeline/sports_highlight_package",
+      "type": "timeline_template",
+      "config": {
+        "shots": [
+          "open",
+          "play",
+          "replay",
+          "stat",
+          "close"
+        ]
+      }
+    },
+    "key": "timeline/sports_highlight_package"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/graphics/lower_third_modern.json",
+    "source_sha256": "04742324af8b6fd4553720b6689d35e826cf7e0e1dbb4675d1aeea56f61672fb",
+    "definition": {
+      "key": "graphics/lower_third_modern",
+      "type": "graphics_pack",
+      "config": {
+        "lower_third": "modern_left",
+        "font": "Bfont"
+      }
+    },
+    "key": "graphics/lower_third_modern"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/graphics/scorebug_modern.json",
+    "source_sha256": "eac4bbe7cb9541e2cc1797322486e8dc069f5469fa537eb86674798b7b39227e",
+    "definition": {
+      "key": "graphics/scorebug_modern",
+      "type": "graphics_pack",
+      "config": {
+        "scorebug": "top_bar",
+        "timer": true
+      }
+    },
+    "key": "graphics/scorebug_modern"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/audio/dramatic_voice.json",
+    "source_sha256": "7098bef501388fa33ca2a64be5a89f15e5aeb950a54b8cda2e669dced7c8620b",
+    "definition": {
+      "key": "audio/dramatic_voice",
+      "type": "audio_profile",
+      "config": {
+        "voice": "deep_cinematic",
+        "music": "pulse"
+      }
+    },
+    "key": "audio/dramatic_voice"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/audio/cinematic_pulse.json",
+    "source_sha256": "4d252b130ebe7cd3d229105111d4a7a052d3bd540f2c21ca86e7513706bf5928",
+    "definition": {
+      "key": "audio/cinematic_pulse",
+      "type": "audio_profile",
+      "config": {
+        "music": "cinematic_pulse",
+        "bpm": 90
+      }
+    },
+    "key": "audio/cinematic_pulse"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/brand/network_premium.json",
+    "source_sha256": "f759bffdfdb7fef569d63b8d2f934be13a5cee2d4ccabf6cae1bae61d9474d7c",
+    "definition": {
+      "key": "brand/network_premium",
+      "type": "brand_system",
+      "brand": {
+        "network_name": "Premium Network",
+        "palette": {
+          "primary": "#0A0A0A",
+          "accent": "#00AEEF"
+        }
+      },
+      "title": "Premium Original Series"
+    },
+    "key": "brand/network_premium"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/industry/dating_show_pack.json",
+    "source_sha256": "09a7bad1ae05c3e5a956f9618b0e637c95fd7b9362f89e3fa8e812cba889fc48",
+    "definition": {
+      "key": "industry/dating_show_pack",
+      "type": "industry_pack",
+      "config": {
+        "scene_generator": "dating_show_set",
+        "delivery": "vertical"
+      },
+      "set": {
+        "type": "dating_stage"
+      },
+      "lighting": {
+        "rig": "reality_confessional"
+      },
+      "camera": {
+        "style": "handheld_doc",
+        "focal_length": 85,
+        "sensor_width": 36,
+        "fstop": 2.0,
+        "use_dof": true
+      },
+      "compositor": {
+        "graph": "reality_gloss"
+      },
+      "graphics": {
+        "lower_third_style": "reality_confessional"
+      }
+    },
+    "key": "industry/dating_show_pack"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/industry/game_show_pack.json",
+    "source_sha256": "3dc071a67bfa40ceb06b5d1b2a3ae788bdfc84f1a9ee2fa8a4c9e09bb14dffc7",
+    "definition": {
+      "key": "industry/game_show_pack",
+      "type": "industry_pack",
+      "config": {
+        "scene_generator": "game_show_stage",
+        "delivery": "horizontal"
+      },
+      "set": {
+        "type": "game_show_stage"
+      },
+      "lighting": {
+        "rig": "three_point"
+      },
+      "camera": {
+        "style": "locked_push",
+        "focal_length": 35,
+        "sensor_width": 36,
+        "fstop": 4.0
+      },
+      "compositor": {
+        "graph": "clean"
+      }
+    },
+    "key": "industry/game_show_pack"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/industry/sports_broadcast_pack.json",
+    "source_sha256": "f63d5b0bda3e12cebc35a29bb05c134fc53ca8c8db1d8cf21c4cc72ccca191f1",
+    "definition": {
+      "key": "industry/sports_broadcast_pack",
+      "type": "industry_pack",
+      "config": {
+        "scene_generator": "sports_broadcast_set",
+        "delivery": "horizontal"
+      },
+      "set": {
+        "type": "sports_desk"
+      },
+      "lighting": {
+        "rig": "sports_broadcast"
+      },
+      "camera": {
+        "style": "sports_follow",
+        "focal_length": 70,
+        "sensor_width": 36,
+        "fstop": 5.6
+      },
+      "compositor": {
+        "graph": "sports_clean"
+      },
+      "graphics": {
+        "scorebug": {
+          "enabled": true,
+          "text": "HOME 0 - 0 AWAY"
+        }
+      }
+    },
+    "key": "industry/sports_broadcast_pack"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/industry/prestige_streaming_pack.json",
+    "source_sha256": "ceec35d8426ed617ec087058b34101cf27b7b7ba3bf16594566c1015e6365638",
+    "definition": {
+      "key": "industry/prestige_streaming_pack",
+      "type": "industry_pack",
+      "config": {
+        "scene_generator": "prestige_drama_room",
+        "delivery": "cinemascope"
+      },
+      "set": {
+        "type": "stage"
+      },
+      "lighting": {
+        "rig": "three_point"
+      },
+      "camera": {
+        "style": "dolly_float",
+        "focal_length": 50,
+        "sensor_width": 36,
+        "fstop": 2.8
+      },
+      "compositor": {
+        "graph": "gritty_drama"
+      }
+    },
+    "key": "industry/prestige_streaming_pack"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v3.zip",
+    "source_path": "text_to_video_rails_generator_v3/templates/packs/character/host_default.json",
+    "source_sha256": "63c4fbbf37cb2df1626a1b6ae1587248bb9e8fce624a6e3c0de88cce1acfae2d",
+    "definition": {
+      "key": "character/host_default",
+      "type": "character_rig",
+      "config": {
+        "rig": "proxy_humanoid",
+        "wardrobe": "formal_dark"
+      }
+    },
+    "key": "character/host_default"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/camera/full_frame_85mm_portrait.json",
+    "source_sha256": "70a2c2e378959e48406ce6ccfd352816da72b0d5aecc92bb0a48ccca96a01d99",
+    "definition": {
+      "key": "camera/full_frame_85mm_portrait",
+      "type": "camera_profile",
+      "camera": {
+        "focal_length": 85,
+        "sensor_width": 36,
+        "fstop": 1.8,
+        "use_dof": true,
+        "style": "locked_push"
+      }
+    },
+    "key": "camera/full_frame_85mm_portrait"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/camera/sports_box_70mm.json",
+    "source_sha256": "aed400c4b31ed96cb564c5d3bc780c8e936bb581026a4d54ef78941420a221ac",
+    "definition": {
+      "key": "camera/sports_box_70mm",
+      "type": "camera_profile",
+      "camera": {
+        "focal_length": 70,
+        "sensor_width": 36,
+        "fstop": 5.6,
+        "use_dof": false,
+        "style": "sports_follow"
+      }
+    },
+    "key": "camera/sports_box_70mm"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/camera/spike_dolly_float.json",
+    "source_sha256": "0e51e66fad1ad97e4810b694830cc8dc6341db44efd691666ab0a4a4556433d6",
+    "definition": {
+      "key": "camera/spike_dolly_float",
+      "type": "camera_profile",
+      "camera": {
+        "focal_length": 35,
+        "sensor_width": 36,
+        "fstop": 2.8,
+        "use_dof": true,
+        "style": "dolly_float"
+      }
+    },
+    "key": "camera/spike_dolly_float"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/graphics/reality_confessional_lower_third.json",
+    "source_sha256": "e8ee939a98bf89a82587982e0a98369456486ef3c978695e8f93d1e8bd5b4040",
+    "definition": {
+      "key": "graphics/reality_confessional_lower_third",
+      "type": "graphics_pack",
+      "graphics": {
+        "lower_third": {
+          "enabled": true,
+          "style": "reality_confessional"
+        }
+      }
+    },
+    "key": "graphics/reality_confessional_lower_third"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/graphics/sports_scorebug_modern.json",
+    "source_sha256": "499e273759568b2e888786bbcdbdad7646d60d12f493a44380adccaf0a5c8f9a",
+    "definition": {
+      "key": "graphics/sports_scorebug_modern",
+      "type": "graphics_pack",
+      "graphics": {
+        "scorebug": {
+          "enabled": true,
+          "text": "HOME 0 - 0 AWAY"
+        }
+      }
+    },
+    "key": "graphics/sports_scorebug_modern"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/asset_ingest/starter_assets.json",
+    "source_sha256": "4904174cff4aac5af42af014c64f7f56002e5e242b97c92040252e7d35360beb",
+    "definition": {
+      "key": "asset_ingest/starter_assets",
+      "type": "asset_ingest",
+      "asset_ingest": {
+        "assets": [
+          {
+            "kind": "blend_collection",
+            "path": "./assets/sets/reality_set.blend",
+            "collection": "RealitySet"
+          },
+          {
+            "kind": "copy_media",
+            "path": "./assets/audio/theme.wav",
+            "destination": "./tmp/imports/theme.wav"
+          }
+        ]
+      }
+    },
+    "key": "asset_ingest/starter_assets"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/audio/reality_music_bed.json",
+    "source_sha256": "8d381145f72298e871c3ea66957789f95f981cbcd96a2ea99c3de80be55eadaa",
+    "definition": {
+      "key": "audio/reality_music_bed",
+      "type": "audio_pack",
+      "audio": {
+        "music_cues": [
+          {
+            "name": "reality_theme",
+            "path": "./assets/audio/reality_theme.wav",
+            "frame_start": 1
+          }
+        ]
+      }
+    },
+    "key": "audio/reality_music_bed"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/audio/sports_music_bed.json",
+    "source_sha256": "ef6a50f368a51bc2db55e5998c11b5e380d34e4a3aa174ee891766c2af3ce518",
+    "definition": {
+      "key": "audio/sports_music_bed",
+      "type": "audio_pack",
+      "audio": {
+        "music_cues": [
+          {
+            "name": "sports_theme",
+            "path": "./assets/audio/sports_theme.wav",
+            "frame_start": 1
+          }
+        ]
+      }
+    },
+    "key": "audio/sports_music_bed"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/show_bible/dating_competition_show.json",
+    "source_sha256": "b19b27865ba5fbc624408f88fdc88fa8b436ee37589d5d73cca7e7e70859e76f",
+    "definition": {
+      "key": "show_bible/dating_competition_show",
+      "type": "show_bible",
+      "title": "Heart Hackers",
+      "shot_plan": [
+        {
+          "name": "cold_open",
+          "duration_seconds": 3,
+          "scene_generator": "dating_show_set",
+          "overlay": "title_card",
+          "lower_third": "Tonight on Heart Hackers"
+        },
+        {
+          "name": "confessional",
+          "duration_seconds": 5,
+          "scene_generator": "dating_show_set",
+          "lower_third": "Contestant A"
+        },
+        {
+          "name": "ceremony",
+          "duration_seconds": 4,
+          "scene_generator": "dating_show_set",
+          "overlay": "logo_endcard"
+        }
+      ]
+    },
+    "key": "show_bible/dating_competition_show"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/show_bible/game_show.json",
+    "source_sha256": "36e3f0c90653a74d2488c94629a02837f9ff35457df7206c619c823834e0ace9",
+    "definition": {
+      "key": "show_bible/game_show",
+      "type": "show_bible",
+      "title": "Stack The Facts",
+      "shot_plan": [
+        {
+          "name": "host_intro",
+          "duration_seconds": 3,
+          "scene_generator": "game_show_stage",
+          "overlay": "title_card"
+        },
+        {
+          "name": "round_one",
+          "duration_seconds": 6,
+          "scene_generator": "game_show_stage",
+          "lower_third": "Round 1"
+        },
+        {
+          "name": "winner",
+          "duration_seconds": 3,
+          "scene_generator": "game_show_stage",
+          "overlay": "logo_endcard"
+        }
+      ]
+    },
+    "key": "show_bible/game_show"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/show_bible/sports_studio_show.json",
+    "source_sha256": "63eaac035ad57533a600c9e92271ad7f4bb4f852faec885d1fa0af0b12c85ea1",
+    "definition": {
+      "key": "show_bible/sports_studio_show",
+      "type": "show_bible",
+      "title": "Game Night Central",
+      "shot_plan": [
+        {
+          "name": "open",
+          "duration_seconds": 3,
+          "scene_generator": "sports_broadcast_set",
+          "overlay": "title_card"
+        },
+        {
+          "name": "analysis",
+          "duration_seconds": 6,
+          "scene_generator": "sports_broadcast_set",
+          "lower_third": "Halftime Report"
+        },
+        {
+          "name": "close",
+          "duration_seconds": 3,
+          "scene_generator": "sports_broadcast_set",
+          "overlay": "logo_endcard"
+        }
+      ]
+    },
+    "key": "show_bible/sports_studio_show"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/industry/reality_dating_plus.json",
+    "source_sha256": "c1584e62a48a5faa3c9b39a83193d6f9ee82fd672915ce9d0240d25217de0139",
+    "definition": {
+      "key": "industry/reality_dating_plus",
+      "type": "industry_pack",
+      "config": {
+        "scene_generator": "dating_show_set",
+        "camera": {
+          "grammar": "dating_reveal"
+        },
+        "graphics": {
+          "lower_third_style": "reality_confessional"
+        }
+      }
+    },
+    "key": "industry/reality_dating_plus"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/industry/sports_network_live.json",
+    "source_sha256": "74cf3c360fb6839a5a913ab86851ba6eaff129d775deeb6a61ad7d34e139f98c",
+    "definition": {
+      "key": "industry/sports_network_live",
+      "type": "industry_pack",
+      "config": {
+        "scene_generator": "sports_broadcast_set",
+        "camera": {
+          "grammar": "sports_commentary"
+        },
+        "graphics": {
+          "scorebug_style": "college_modern"
+        }
+      }
+    },
+    "key": "industry/sports_network_live"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/graphics/scorebug_college_modern.json",
+    "source_sha256": "5b43504e247ac743d585308f28435f2204cb4433f1617858eaafe2f1f3bbcfbb",
+    "definition": {
+      "key": "graphics/scorebug_college_modern",
+      "type": "graphics",
+      "config": {
+        "scorebug": {
+          "home_abbr": "HME",
+          "home_score": 14,
+          "away_abbr": "AWY",
+          "away_score": 10,
+          "period_label": "Q3",
+          "clock": "05:22",
+          "font_size": 38
+        }
+      }
+    },
+    "key": "graphics/scorebug_college_modern"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/show_bible/dating_confessional_show.json",
+    "source_sha256": "47761f93d5af15c8c185b8e3c4a4c68faf03c7154cb040fe41ee9c269fc39912",
+    "definition": {
+      "key": "show_bible/dating_confessional_show",
+      "type": "show_bible",
+      "config": {
+        "scene_generator": "dating_show_set",
+        "camera_grammar": "confessional",
+        "structure": [
+          "cold_open",
+          "confessional",
+          "reveal",
+          "elimination"
+        ]
+      }
+    },
+    "key": "show_bible/dating_confessional_show"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/show_bible/game_show_night.json",
+    "source_sha256": "203223409aaa05e277ed770b29a14d8cc93ffa469b529f22d72b53b0932de5f5",
+    "definition": {
+      "key": "show_bible/game_show_night",
+      "type": "show_bible",
+      "config": {
+        "scene_generator": "game_show_stage",
+        "camera_grammar": "game_show_host",
+        "structure": [
+          "host_intro",
+          "contestant_intro",
+          "round",
+          "winner_reveal"
+        ]
+      }
+    },
+    "key": "show_bible/game_show_night"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/show_bible/sports_studio_live.json",
+    "source_sha256": "6975923480348ff0bbcfe4a4ef4fd1a4cd5e3675bcffefdfff19d9e401b481a2",
+    "definition": {
+      "key": "show_bible/sports_studio_live",
+      "type": "show_bible",
+      "config": {
+        "scene_generator": "sports_broadcast_set",
+        "camera_grammar": "sports_commentary",
+        "structure": [
+          "cold_open",
+          "desk_hit",
+          "analysis",
+          "replay",
+          "close"
+        ]
+      }
+    },
+    "key": "show_bible/sports_studio_live"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/rigs/host_presenter.json",
+    "source_sha256": "abd38e25c0c233b1fa1cd44ad98d637332256427554d9b0b10807447bbf9a83c",
+    "definition": {
+      "key": "rigs/host_presenter",
+      "type": "rig_profile",
+      "config": {
+        "library_blend": "assets/rigs/host_presenter.blend",
+        "collection": "HostPresenter",
+        "default_action": "game_show_present",
+        "actions": [
+          "idle_hold",
+          "game_show_present",
+          "winner_react"
+        ]
+      }
+    },
+    "key": "rigs/host_presenter"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/rigs/dating_contestant.json",
+    "source_sha256": "7d72380907b35c47b68a576fb9ca3830ac2c5ff2d2b13d9cad2c7b9db9fe141d",
+    "definition": {
+      "key": "rigs/dating_contestant",
+      "type": "rig_profile",
+      "config": {
+        "library_blend": "assets/rigs/dating_contestant.blend",
+        "collection": "DatingContestant",
+        "default_action": "confessional_listen",
+        "actions": [
+          "confessional_listen",
+          "dating_reveal_turn",
+          "idle_hold"
+        ]
+      }
+    },
+    "key": "rigs/dating_contestant"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/rigs/sports_anchor.json",
+    "source_sha256": "25d0d038e4f807d480d62e44623954f04daf8b7b8e6bc1ecd33a3e17d22ae762",
+    "definition": {
+      "key": "rigs/sports_anchor",
+      "type": "rig_profile",
+      "config": {
+        "library_blend": "assets/rigs/sports_anchor.blend",
+        "collection": "SportsAnchor",
+        "default_action": "sports_commentary_emphasis",
+        "actions": [
+          "idle_hold",
+          "sports_commentary_emphasis"
+        ]
+      }
+    },
+    "key": "rigs/sports_anchor"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/materials/broadcast_led_wall.json",
+    "source_sha256": "b017c0dcdfeda3c0de1f95cc03718e780c0f81bf379bdd8a18c8ccdcbc7f0d30",
+    "definition": {
+      "key": "materials/broadcast_led_wall",
+      "type": "material",
+      "config": {
+        "catalog_key": "broadcast_led_wall"
+      }
+    },
+    "key": "materials/broadcast_led_wall"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/materials/glamour_floor.json",
+    "source_sha256": "94f9e986e5afb272932318df7775a473ec42f0807d615a03c8b393e8bf5dda2c",
+    "definition": {
+      "key": "materials/glamour_floor",
+      "type": "material",
+      "config": {
+        "catalog_key": "glamour_floor"
+      }
+    },
+    "key": "materials/glamour_floor"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/materials/arena_turf.json",
+    "source_sha256": "e48e4bbd324d39a77150f94d794b655718da64e81f335c13f7926070df2fae89",
+    "definition": {
+      "key": "materials/arena_turf",
+      "type": "material",
+      "config": {
+        "catalog_key": "arena_turf"
+      }
+    },
+    "key": "materials/arena_turf"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/geometry/game_show_stage.json",
+    "source_sha256": "ed0b5dee860c805aa414b658c7c0546d8153e1f7d4497d07650e8ba4c76d815e",
+    "definition": {
+      "key": "geometry/game_show_stage",
+      "type": "geometry_set",
+      "config": {
+        "primitives": [
+          "podium",
+          "podium",
+          "led_wall"
+        ]
+      }
+    },
+    "key": "geometry/game_show_stage"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/geometry/confessional_corner.json",
+    "source_sha256": "82565c71f503c836dd4f0fb9ef6fb280ef8bf5a0db5b60e1fe027f0dcdc181d7",
+    "definition": {
+      "key": "geometry/confessional_corner",
+      "type": "geometry_set",
+      "config": {
+        "primitives": [
+          "confessional_chair",
+          "led_wall"
+        ]
+      }
+    },
+    "key": "geometry/confessional_corner"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/geometry/sports_desk_set.json",
+    "source_sha256": "f8290c26906ff755d3172e80e0536bb4d4a649bd28f15458ec065e1f662f3c8b",
+    "definition": {
+      "key": "geometry/sports_desk_set",
+      "type": "geometry_set",
+      "config": {
+        "primitives": [
+          "broadcast_desk",
+          "stadium_backdrop"
+        ]
+      }
+    },
+    "key": "geometry/sports_desk_set"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/camera_grammar/confessional.json",
+    "source_sha256": "699997314ab04f96dfd60cf95098439de4647d53ac9ea90e0ffaaf4a286854f8",
+    "definition": {
+      "key": "camera_grammar/confessional",
+      "type": "camera_grammar",
+      "config": {
+        "grammar": "confessional",
+        "lens": 85
+      }
+    },
+    "key": "camera_grammar/confessional"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/camera_grammar/dating_reveal.json",
+    "source_sha256": "bce51ab19d21b857be753e45abb70255852674f83f8074244da2ee5d57a26607",
+    "definition": {
+      "key": "camera_grammar/dating_reveal",
+      "type": "camera_grammar",
+      "config": {
+        "grammar": "dating_reveal",
+        "move": "push_in"
+      }
+    },
+    "key": "camera_grammar/dating_reveal"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/camera_grammar/game_show_host.json",
+    "source_sha256": "9498a299656a32cfbe17e84deebc885788ddd61e3cb75a7eef55ebbd46dc49f7",
+    "definition": {
+      "key": "camera_grammar/game_show_host",
+      "type": "camera_grammar",
+      "config": {
+        "grammar": "game_show_host",
+        "lens": 35
+      }
+    },
+    "key": "camera_grammar/game_show_host"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/camera_grammar/sports_commentary.json",
+    "source_sha256": "ce334dafd24ff08bcc61d29df1b4364a7a14b3f817383d66295b376115f07096",
+    "definition": {
+      "key": "camera_grammar/sports_commentary",
+      "type": "camera_grammar",
+      "config": {
+        "grammar": "sports_commentary",
+        "lens": 55
+      }
+    },
+    "key": "camera_grammar/sports_commentary"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/camera_grammar/sports_replay_follow.json",
+    "source_sha256": "ca96e68ff7ebb00e0dc08e5358348d9cd641884b7007fd50a708308b2178466d",
+    "definition": {
+      "key": "camera_grammar/sports_replay_follow",
+      "type": "camera_grammar",
+      "config": {
+        "grammar": "sports_replay_follow",
+        "lens": 70
+      }
+    },
+    "key": "camera_grammar/sports_replay_follow"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v5.zip",
+    "source_path": "text_to_video_rails_generator_v5/templates/packs/timeline/sports_replay_package.json",
+    "source_sha256": "b9d9ccf51731605b58492a45472823d94ddaa7b7f109e6a4657f3f4e933833b6",
+    "definition": {
+      "key": "timeline/sports_replay_package",
+      "type": "timeline",
+      "config": {
+        "intro": {
+          "enabled": true,
+          "duration_frames": 18,
+          "title": "GAME NIGHT"
+        },
+        "graphics": {
+          "replay": {
+            "label": "INSTANT REPLAY",
+            "frame_start": 36,
+            "frame_end": 96
+          }
+        }
+      }
+    },
+    "key": "timeline/sports_replay_package"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/industry/sports/broadcast_vertical.json",
+    "source_sha256": "e28cc04bc0c97aa4d325d2bef4e05bab172f9e33f64a7c4efe013847cf8e9c77",
+    "definition": {
+      "show_bible": {
+        "series_key": "sports/live_broadcast",
+        "segments": [
+          {
+            "slug": "cold_open",
+            "duration_seconds": 5,
+            "camera_grammar": "camera/sports_follow_cam",
+            "set_template": "set/sports_desk_arena",
+            "overlay_package": "titles/scorebug_modern",
+            "prompt_hint": "arena cold open and host toss"
+          },
+          {
+            "slug": "replay_breakdown",
+            "duration_seconds": 7,
+            "camera_grammar": "camera/replay_iso_zoom",
+            "set_template": "set/sports_replay_wall",
+            "overlay_package": "titles/replay_wipe",
+            "prompt_hint": "replay and telestrator energy"
+          }
+        ]
+      },
+      "timeline": "timeline/sports_vertical",
+      "asset_packages": [
+        {
+          "key": "industry/sports_broadcast_core",
+          "type": "blend_library",
+          "path": "assets/blend/sports_broadcast_core.blend",
+          "depends_on": [
+            "materials/broadcast_core"
+          ]
+        }
+      ],
+      "camera_grammars": [
+        "camera/sports_follow_cam",
+        "camera/replay_iso_zoom"
+      ],
+      "compositor_graphs": [
+        "compositor/broadcast_clean"
+      ],
+      "title_packages": [
+        "titles/scorebug_modern",
+        "titles/replay_wipe"
+      ],
+      "audio_packages": [
+        "audio/sports_sting_pack"
+      ]
+    },
+    "key": "industry/sports/broadcast_vertical"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/industry/dating/confessional_episode.json",
+    "source_sha256": "de86882256ec9729e209794010cc01f5a736a6f7d128336f50f6cee5c1bc48ad",
+    "definition": {
+      "show_bible": {
+        "series_key": "reality/dating_show",
+        "segments": [
+          {
+            "slug": "intro_walkup",
+            "duration_seconds": 6,
+            "camera_grammar": "camera/reality_walkup",
+            "set_template": "set/dating_lounge",
+            "overlay_package": "titles/romance_lower_third",
+            "prompt_hint": "sultry entrance and reaction shots"
+          },
+          {
+            "slug": "confessional",
+            "duration_seconds": 8,
+            "camera_grammar": "camera/confessional_single",
+            "set_template": "set/confessional_room",
+            "overlay_package": "titles/confessional_name",
+            "prompt_hint": "confessional direct-to-camera moment"
+          }
+        ]
+      },
+      "timeline": "timeline/reality_vertical",
+      "asset_packages": [
+        {
+          "key": "industry/dating_show_core",
+          "type": "blend_library",
+          "path": "assets/blend/dating_show_core.blend"
+        }
+      ],
+      "camera_grammars": [
+        "camera/reality_walkup",
+        "camera/confessional_single"
+      ],
+      "compositor_graphs": [
+        "compositor/reality_soft_glow"
+      ],
+      "title_packages": [
+        "titles/romance_lower_third",
+        "titles/confessional_name"
+      ],
+      "audio_packages": [
+        "audio/reality_pop_cues"
+      ]
+    },
+    "key": "industry/dating/confessional_episode"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/assets/industry/sports_broadcast_core.json",
+    "source_sha256": "1acaa22feb22fa812f5c1efb2eec0832bd8e3a3b76200f8a89c80c4d8c65078c",
+    "definition": {
+      "key": "industry/sports_broadcast_core",
+      "type": "blend_library",
+      "path": "assets/blend/sports_broadcast_core.blend",
+      "collections": [
+        "DeskSet",
+        "ReplayWall",
+        "ArenaLights",
+        "LowerThirdSafe"
+      ],
+      "objects": [
+        "HostDesk",
+        "AnalystDesk",
+        "ReplayMonitor"
+      ]
+    },
+    "key": "industry/sports_broadcast_core"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/assets/industry/dating_show_core.json",
+    "source_sha256": "d81d88fe19dc24b579de0f0e51be78fb5cf7c8afc721a40e9dbe1df79e1bd622",
+    "definition": {
+      "key": "industry/dating_show_core",
+      "type": "blend_library",
+      "path": "assets/blend/dating_show_core.blend",
+      "collections": [
+        "Lounge",
+        "Confessional",
+        "CeremonyStage"
+      ],
+      "objects": [
+        "RosePedestal",
+        "ConfessionalChair",
+        "AmbientPracticalLights"
+      ]
+    },
+    "key": "industry/dating_show_core"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/assets/materials/broadcast_core.json",
+    "source_sha256": "caca6c56b4525189a81377a92b099b95689002bb1d7f7d3a1334dfaacddf4ad9",
+    "definition": {
+      "key": "materials/broadcast_core",
+      "type": "material_catalog",
+      "materials": [
+        "GlossBlack",
+        "LEDRed",
+        "LEDBlue",
+        "BrushedMetal"
+      ]
+    },
+    "key": "materials/broadcast_core"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/camera/replay_iso_zoom.json",
+    "source_sha256": "1742c27ee9bf71e5017f67a274828a14ce3856ab09ec82f119bf5026a019674d",
+    "definition": {
+      "key": "camera/replay_iso_zoom",
+      "type": "camera_grammar",
+      "lens_mm": 135,
+      "sensor_width": 36,
+      "dof": true,
+      "f_stop": 4.0,
+      "movement": "push_in",
+      "target": "replay_subject"
+    },
+    "key": "camera/replay_iso_zoom"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/camera/reality_walkup.json",
+    "source_sha256": "87191a9e7c6049145b6ecf560b708842631114ebf3f72360150378d11880281c",
+    "definition": {
+      "key": "camera/reality_walkup",
+      "type": "camera_grammar",
+      "lens_mm": 50,
+      "sensor_width": 36,
+      "dof": true,
+      "f_stop": 2.0,
+      "movement": "handheld_walk",
+      "target": "contestant"
+    },
+    "key": "camera/reality_walkup"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/camera/confessional_single.json",
+    "source_sha256": "242db89168cbf3e9e726c3a7446e595659b2253b6827c778db936799ebf2af26",
+    "definition": {
+      "key": "camera/confessional_single",
+      "type": "camera_grammar",
+      "lens_mm": 85,
+      "sensor_width": 36,
+      "dof": true,
+      "f_stop": 1.8,
+      "movement": "locked_off",
+      "target": "speaker"
+    },
+    "key": "camera/confessional_single"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/compositor/broadcast_clean.json",
+    "source_sha256": "8ea87b1eaf8826af6a9a75a42bfc745bce9f3a34a8522c3ff4b9658eb3152f9c",
+    "definition": {
+      "key": "compositor/broadcast_clean",
+      "type": "compositor_graph",
+      "nodes": [
+        "RenderLayers",
+        "Glare",
+        "ColorBalance",
+        "Composite"
+      ]
+    },
+    "key": "compositor/broadcast_clean"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/compositor/reality_soft_glow.json",
+    "source_sha256": "7ae183ddf384e0e22869bcc9f74142b93a92e359fc18cd27504fb3195708f78c",
+    "definition": {
+      "key": "compositor/reality_soft_glow",
+      "type": "compositor_graph",
+      "nodes": [
+        "RenderLayers",
+        "Blur",
+        "Mix",
+        "Composite"
+      ]
+    },
+    "key": "compositor/reality_soft_glow"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/titles/scorebug_modern.json",
+    "source_sha256": "e03401da9a4d7b0e59101d6e3ca1ce0f8571fe41ee9fe3a9707d2eaf8c6d9642",
+    "definition": {
+      "key": "titles/scorebug_modern",
+      "type": "overlay_package",
+      "elements": [
+        "scorebug",
+        "clock",
+        "period",
+        "ticker"
+      ]
+    },
+    "key": "titles/scorebug_modern"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/titles/replay_wipe.json",
+    "source_sha256": "a7b9a1a7daee9c3b5a2e5115b9f69be2bca699ed9138e63dae32c6130a1c17da",
+    "definition": {
+      "key": "titles/replay_wipe",
+      "type": "overlay_package",
+      "elements": [
+        "replay_tag",
+        "wipe_transition"
+      ]
+    },
+    "key": "titles/replay_wipe"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/titles/romance_lower_third.json",
+    "source_sha256": "c8776261cd09373d7b0595698e84a7a9efb1bbf63fd2638d91b4ebe04c257aa9",
+    "definition": {
+      "key": "titles/romance_lower_third",
+      "type": "overlay_package",
+      "elements": [
+        "name",
+        "age",
+        "tagline"
+      ]
+    },
+    "key": "titles/romance_lower_third"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/titles/confessional_name.json",
+    "source_sha256": "1e639ee037d2f77a1d88d22b0886d2e8d3d1033d58a671e66c35bba779e5138f",
+    "definition": {
+      "key": "titles/confessional_name",
+      "type": "overlay_package",
+      "elements": [
+        "speaker_name",
+        "role"
+      ]
+    },
+    "key": "titles/confessional_name"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/audio/sports_sting_pack.json",
+    "source_sha256": "4347763e0366f5f68298172c02d9085981b6c8669b6eaf77870f537404522c39",
+    "definition": {
+      "key": "audio/sports_sting_pack",
+      "type": "audio_package",
+      "tracks": [
+        "intro_sting.wav",
+        "replay_hit.wav",
+        "bed_loop.wav"
+      ]
+    },
+    "key": "audio/sports_sting_pack"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v6.zip",
+    "source_path": "text_to_video_rails_generator_v6/templates/packs/audio/reality_pop_cues.json",
+    "source_sha256": "5e9be58b8715a0e34f78719e933890108fc5f19747d529d22937c432aeb10593",
+    "definition": {
+      "key": "audio/reality_pop_cues",
+      "type": "audio_package",
+      "tracks": [
+        "romance_intro.wav",
+        "tension_hit.wav",
+        "confessional_pad.wav"
+      ]
+    },
+    "key": "audio/reality_pop_cues"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v7.zip",
+    "source_path": "text_to_video_rails_generator_v7/lib/generators/text_to_video_v7/templates/packs/show_bible/nerd_world_order_series.json",
+    "source_sha256": "a8950539181c6bb4c53aee3fd1367d55e0afd712dc6dacb54450650a07676c53",
+    "definition": {
+      "key": "show_bible/nerd_world_order_series",
+      "type": "show_bible",
+      "config": {
+        "series_title": "Nerd World Order",
+        "camera": {
+          "lens_mm": 50,
+          "sensor_width_mm": 36,
+          "dof": {
+            "enabled": true,
+            "fstop": 2.0
+          },
+          "location": [
+            0,
+            -8,
+            2
+          ],
+          "rotation_euler": [
+            1.25,
+            0,
+            0
+          ]
+        },
+        "titles": {
+          "extrude": 0.03,
+          "scale": [
+            0.8,
+            0.8,
+            0.8
+          ]
+        }
+      },
+      "episodes": [
+        {
+          "slug": "e01",
+          "title": "The Signal",
+          "segments": [
+            {
+              "slug": "cold_open",
+              "purpose": "broadcast interruption",
+              "duration_seconds": 8,
+              "camera_grammar": "camera/prestige_drama_grammar",
+              "title_overlay": "THE SIGNAL"
+            },
+            {
+              "slug": "assembly",
+              "purpose": "collective reveal",
+              "duration_seconds": 10,
+              "camera_grammar": "camera/prestige_drama_grammar"
+            },
+            {
+              "slug": "manifesto",
+              "purpose": "brand declaration",
+              "duration_seconds": 8,
+              "camera_grammar": "camera/hero_push_in",
+              "title_overlay": "NERD WORLD ORDER"
+            }
+          ]
+        }
+      ]
+    },
+    "key": "show_bible/nerd_world_order_series"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v7.zip",
+    "source_path": "text_to_video_rails_generator_v7/lib/generators/text_to_video_v7/templates/packs/camera/prestige_drama_grammar.json",
+    "source_sha256": "7d5ce665be7d8e1683d6467700d5a9c331ee50a40cde158eef7b4d8bdedc5ae9",
+    "definition": {
+      "key": "camera/prestige_drama_grammar",
+      "type": "camera_grammar",
+      "config": {
+        "camera": {
+          "lens_mm": 65,
+          "sensor_width_mm": 36,
+          "dof": {
+            "enabled": true,
+            "fstop": 1.8
+          },
+          "location": [
+            0,
+            -7,
+            2.1
+          ],
+          "rotation_euler": [
+            1.22,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "key": "camera/prestige_drama_grammar"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v7.zip",
+    "source_path": "text_to_video_rails_generator_v7/lib/generators/text_to_video_v7/templates/packs/camera/hero_push_in.json",
+    "source_sha256": "6ab7449e822f969b7868df6a212d3b27893a589e436358e352bf322cfd29bd6a",
+    "definition": {
+      "key": "camera/hero_push_in",
+      "type": "camera_grammar",
+      "config": {
+        "camera": {
+          "lens_mm": 85,
+          "sensor_width_mm": 36,
+          "dof": {
+            "enabled": true,
+            "fstop": 2.2
+          },
+          "location": [
+            0,
+            -5.5,
+            2.0
+          ],
+          "rotation_euler": [
+            1.3,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "key": "camera/hero_push_in"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v7.zip",
+    "source_path": "text_to_video_rails_generator_v7/lib/generators/text_to_video_v7/templates/packs/brand/nerd_gang_brand_system.json",
+    "source_sha256": "beb9fc497da1f25e23f669e4f9ff15f27df8476b65ac49eb5fd2bbb58772bdc8",
+    "definition": {
+      "key": "brand/nerd_gang_brand_system",
+      "type": "brand_system",
+      "config": {
+        "palette": {
+          "bg": "#070707",
+          "primary": "#6A5CFF",
+          "accent": "#00D1FF"
+        },
+        "titles": {
+          "extrude": 0.04,
+          "scale": [
+            1.1,
+            1.1,
+            1.1
+          ]
+        }
+      }
+    },
+    "key": "brand/nerd_gang_brand_system"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v7.zip",
+    "source_path": "text_to_video_rails_generator_v7/lib/generators/text_to_video_v7/templates/packs/industry/streaming_prestige_network.json",
+    "source_sha256": "e4002432a0a351dd7d3106fd86d8faa75c4b8f641c6491458f2d6741ba7cc76a",
+    "definition": {
+      "key": "industry/streaming_prestige_network",
+      "type": "broadcast_package",
+      "config": {
+        "format": "vertical_1080x1920",
+        "compositor": "fog_glow",
+        "vse": {
+          "lower_thirds": true,
+          "cold_open": true
+        }
+      }
+    },
+    "key": "industry/streaming_prestige_network"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v7.zip",
+    "source_path": "text_to_video_rails_generator_v7/lib/generators/text_to_video_v7/templates/packs/assets/example_character_library.json",
+    "source_sha256": "aba520dc0418ad8d102aacac4f8537e2af5559c992788be34af3c54f922fb64f",
+    "definition": {
+      "key": "assets/example_character_library",
+      "type": "asset_library",
+      "config": {
+        "library_name": "example_characters",
+        "base_path": "assets/blend/characters"
+      },
+      "assets": [
+        {
+          "name": "collective_lead",
+          "blend_path": "assets/blend/characters/collective_lead.blend",
+          "object": "CollectiveLeadRig"
+        },
+        {
+          "name": "console_wall",
+          "blend_path": "assets/blend/sets/console_wall.blend",
+          "object": "ConsoleWall"
+        }
+      ]
+    },
+    "key": "assets/example_character_library"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v7.zip",
+    "source_path": "text_to_video_rails_generator_v7/lib/generators/text_to_video_v7/templates/packs/actions/example_dialogue_action_pack.json",
+    "source_sha256": "6d6916541ec2be26c60e4db49ebb4f708e101a68bd3f288d82a0e12d04ef2256",
+    "definition": {
+      "key": "actions/example_dialogue_action_pack",
+      "type": "action_pack",
+      "config": {
+        "pack_name": "dialogue_actions"
+      },
+      "actions": [
+        {
+          "name": "calm_address",
+          "target_object": "CollectiveLeadRig",
+          "action_name": "CalmAddress"
+        },
+        {
+          "name": "hero_turn",
+          "target_object": "CollectiveLeadRig",
+          "action_name": "HeroTurn"
+        }
+      ]
+    },
+    "key": "actions/example_dialogue_action_pack"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v7.zip",
+    "source_path": "text_to_video_rails_generator_v7/lib/generators/text_to_video_v7/templates/packs/broadcast/streaming_titles_package.json",
+    "source_sha256": "6f1919d96f0ba2ca000988d5724762cacd3123fe25692cf66d951c48ee445ea0",
+    "definition": {
+      "key": "broadcast/streaming_titles_package",
+      "type": "title_package",
+      "config": {
+        "animation": "glow_slide",
+        "safe_area": "vertical_title_safe",
+        "font_family": "system_default"
+      }
+    },
+    "key": "broadcast/streaming_titles_package"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/industry/streaming_prestige.json",
+    "source_sha256": "ba1ef0466a25c3d06e5099f1a1398c0c716a0ab81553bc7aa7847b2b9ca401eb",
+    "definition": {
+      "key": "industry/streaming_prestige",
+      "type": "industry_pack",
+      "camera_grammar": "prestige_dolly",
+      "brand_system": "brand/prestige_network",
+      "geometry_nodes_pack": "geo/prestige_set",
+      "edit_mode": "prestige_pacing"
+    },
+    "key": "industry/streaming_prestige"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/industry/dating_show.json",
+    "source_sha256": "bbba2c00dcc960664b6ec27c484f229a33cd78b369d1434f0a84b0eead9f3e55",
+    "definition": {
+      "key": "industry/dating_show",
+      "type": "industry_pack",
+      "camera_grammar": "dating_reveal",
+      "brand_system": "brand/reality_hot",
+      "geometry_nodes_pack": "geo/reality_villa",
+      "edit_mode": "reaction_heavy"
+    },
+    "key": "industry/dating_show"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/industry/game_show.json",
+    "source_sha256": "9f0bff35afde3139331c1ac30b7bd28fdfccb66810f974171ce36cfd411c983d",
+    "definition": {
+      "key": "industry/game_show",
+      "type": "industry_pack",
+      "camera_grammar": "game_show_host",
+      "brand_system": "brand/stage_bright",
+      "geometry_nodes_pack": "geo/game_stage",
+      "edit_mode": "host_contestant_switch"
+    },
+    "key": "industry/game_show"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/industry/sports_broadcast.json",
+    "source_sha256": "80d2e4fd9fd660d78c1335f7de36bdee8efece647820398eedad7b260d865061",
+    "definition": {
+      "key": "industry/sports_broadcast",
+      "type": "industry_pack",
+      "camera_grammar": "sports_follow",
+      "brand_system": "brand/broadcast_live",
+      "geometry_nodes_pack": "geo/sports_desk",
+      "edit_mode": "play_replay_graphics"
+    },
+    "key": "industry/sports_broadcast"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/brand/prestige_network.json",
+    "source_sha256": "08ce04fcde91394d19e866026312ee9b2e366121c2f8160233e87aeba4f39cf0",
+    "definition": {
+      "key": "brand/prestige_network",
+      "type": "brand_system",
+      "palette": "teal_amber",
+      "title_safe": 0.9,
+      "lower_third_style": "glass_dark"
+    },
+    "key": "brand/prestige_network"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/brand/reality_hot.json",
+    "source_sha256": "66111f02b2b1ac59af74209d66190c79358965a06ae097098ff4da8eb1066060",
+    "definition": {
+      "key": "brand/reality_hot",
+      "type": "brand_system",
+      "palette": "rose_gold",
+      "title_safe": 0.88,
+      "lower_third_style": "reality_pop"
+    },
+    "key": "brand/reality_hot"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/brand/stage_bright.json",
+    "source_sha256": "5b296e8134c52f6b4e6e89440aa569f90e3084549f5d5152905821eb2ecbe5bf",
+    "definition": {
+      "key": "brand/stage_bright",
+      "type": "brand_system",
+      "palette": "stage_rgb",
+      "title_safe": 0.9,
+      "lower_third_style": "neon_quiz"
+    },
+    "key": "brand/stage_bright"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/brand/broadcast_live.json",
+    "source_sha256": "844ec62c178c6a5d8f94349b73e08a4126dbbb4e7f4bd822b8a9004fa7653dd9",
+    "definition": {
+      "key": "brand/broadcast_live",
+      "type": "brand_system",
+      "palette": "broadcast_clean",
+      "title_safe": 0.92,
+      "lower_third_style": "sports_clean"
+    },
+    "key": "brand/broadcast_live"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/geometry_nodes/prestige_set.json",
+    "source_sha256": "49c0cf9c96ca582a369bb0df4141e2ad0b7b9e7f517cf260c73286fa964fb677",
+    "definition": {
+      "key": "geo/prestige_set",
+      "type": "geometry_nodes_pack",
+      "node_groups": [
+        {
+          "name": "GEO_STAGE",
+          "target_object": "StageRoot",
+          "parameters": {
+            "platform_radius": 5,
+            "step_count": 3
+          }
+        },
+        {
+          "name": "GEO_LOWERTHIRD",
+          "target_object": "GraphicsRoot",
+          "parameters": {
+            "bar_width": 0.8
+          }
+        }
+      ]
+    },
+    "key": "geo/prestige_set"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/geometry_nodes/reality_villa.json",
+    "source_sha256": "0cd2358225d055636a60f64e54aa3b9f31294507bee24b36bff26cf136f72cfe",
+    "definition": {
+      "key": "geo/reality_villa",
+      "type": "geometry_nodes_pack",
+      "node_groups": [
+        {
+          "name": "GEO_STAGE",
+          "target_object": "VillaRoot",
+          "parameters": {
+            "pool": 1,
+            "arches": 3
+          }
+        }
+      ]
+    },
+    "key": "geo/reality_villa"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/geometry_nodes/game_stage.json",
+    "source_sha256": "00a4a718ab44ebde6a9499edd52c73a17f3350298985da93a670ed9f9a098a55",
+    "definition": {
+      "key": "geo/game_stage",
+      "type": "geometry_nodes_pack",
+      "node_groups": [
+        {
+          "name": "GEO_STAGE",
+          "target_object": "GameStageRoot",
+          "parameters": {
+            "podiums": 3,
+            "led_wall": 1
+          }
+        }
+      ]
+    },
+    "key": "geo/game_stage"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/geometry_nodes/sports_desk.json",
+    "source_sha256": "b51c0c7e1003518699fc0bd565e86aa905f3986662bff7b7874a25ef9574dcd8",
+    "definition": {
+      "key": "geo/sports_desk",
+      "type": "geometry_nodes_pack",
+      "node_groups": [
+        {
+          "name": "GEO_STAGE",
+          "target_object": "DeskRoot",
+          "parameters": {
+            "desk_length": 4.5,
+            "scorebug_mount": 1
+          }
+        }
+      ]
+    },
+    "key": "geo/sports_desk"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/show_bible/reality_dating_episode.json",
+    "source_sha256": "6e4d23bf713d37bf61dd46adb38b3fb1026a8450a87fb7b2d9b67e37ac3e1d7e",
+    "definition": {
+      "key": "show_bible/reality_dating_episode",
+      "type": "show_bible",
+      "segments": [
+        "cold_open_drama",
+        "contestant_intro",
+        "date_sequence",
+        "confessional",
+        "elimination_button"
+      ]
+    },
+    "key": "show_bible/reality_dating_episode"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/show_bible/game_show_round.json",
+    "source_sha256": "e69a9437c535af7dedcdc21f380a66a69d2d75116da4f8f6008e62a3898e4d5d",
+    "definition": {
+      "key": "show_bible/game_show_round",
+      "type": "show_bible",
+      "segments": [
+        "host_intro",
+        "contestant_intro",
+        "round_play",
+        "score_reveal",
+        "winner_button"
+      ]
+    },
+    "key": "show_bible/game_show_round"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/show_bible/sports_halftime.json",
+    "source_sha256": "88a108683ee7eb52f1bef9eedef35bcffc26b4c79642470cb37f666a82400629",
+    "definition": {
+      "key": "show_bible/sports_halftime",
+      "type": "show_bible",
+      "segments": [
+        "tease",
+        "desk_analysis",
+        "highlight_replay",
+        "stats_board",
+        "sponsor_button"
+      ]
+    },
+    "key": "show_bible/sports_halftime"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/assets/example_asset_library.json",
+    "source_sha256": "47d787d693ca508fdc98d93a947026e2675cdff4ca32df5deb825a1bb528b17e",
+    "definition": {
+      "key": "assets/example_library",
+      "type": "asset_library",
+      "libraries": [
+        "libraries/sets/main_sets.blend",
+        "libraries/chars/hosts.blend"
+      ],
+      "collections": [
+        "ENV_MainStage",
+        "CHAR_Host",
+        "PROP_Desk"
+      ]
+    },
+    "key": "assets/example_library"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v8.zip",
+    "source_path": "text_to_video_rails_generator_v8/templates/packs/actions/example_action_pack.json",
+    "source_sha256": "412b30eb69920c6d725a611bc74f404d190f8d5573c72d83197d96f96388fb93",
+    "definition": {
+      "key": "actions/example_pack",
+      "type": "action_pack",
+      "actions": [
+        "idle",
+        "talk",
+        "host_point",
+        "celebrate"
+      ]
+    },
+    "key": "actions/example_pack"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v9.zip",
+    "source_path": "text_to_video_rails_generator_v9/templates/packs/demo/vse_storyboard_timeline.json",
+    "source_sha256": "1a3876e6408d187628517a3b42d549d49a4a04b698df978c560f65012d74c795",
+    "definition": {
+      "key": "demo/pack/vse_storyboard_timeline",
+      "type": "timeline",
+      "definition": {
+        "source_family": "blender_demo_files",
+        "derived_from": "Video Sequencer Storyboarding",
+        "supports": [
+          "sequence_editor",
+          "shot_strips",
+          "editorial_templates"
+        ],
+        "shot_layout": [
+          "cold_open",
+          "establishing",
+          "insert",
+          "reaction",
+          "end_card"
+        ]
+      }
+    },
+    "key": "demo/pack/vse_storyboard_timeline"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v9.zip",
+    "source_path": "text_to_video_rails_generator_v9/templates/packs/demo/fluid_simulation_showcase.json",
+    "source_sha256": "730d503057be129fcab19fa67182c392a8e4deb5ba8f75fbc59e72de38cf7c72",
+    "definition": {
+      "key": "demo/pack/fluid_simulation_showcase",
+      "type": "scene_template",
+      "definition": {
+        "source_family": "blender_demo_files",
+        "derived_from": "APIC vs FLIP fluid simulation",
+        "supports": [
+          "simulation",
+          "physics",
+          "fx_showcase"
+        ],
+        "render_targets": [
+          "social_teaser",
+          "broadcast_bumper",
+          "motion_background"
+        ]
+      }
+    },
+    "key": "demo/pack/fluid_simulation_showcase"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v9.zip",
+    "source_path": "text_to_video_rails_generator_v9/templates/packs/demo/sculpt_surface_study.json",
+    "source_sha256": "ae65891be1976bad01c936ae244f909ac92963b56e83867b144f2d2d01749fd9",
+    "definition": {
+      "key": "demo/pack/sculpt_surface_study",
+      "type": "material_style",
+      "definition": {
+        "source_family": "blender_demo_files",
+        "derived_from": "Cloth Sculpt Brushes",
+        "supports": [
+          "sculpt",
+          "surface_detail",
+          "closeup_macro"
+        ],
+        "notes": "Confirm file-specific licensing before external distribution."
+      }
+    },
+    "key": "demo/pack/sculpt_surface_study"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v10.zip",
+    "source_path": "text_to_video_rails_generator_v10/templates/packs/demo_recipes/blender_storyboard_seed.json",
+    "source_sha256": "a55c885ad235664456864e031a19596ee8a5061e5a1301ec94a2f6706bfb2f31",
+    "definition": {
+      "key": "demo/blender_storyboard_seed",
+      "type": "demo_ingest_recipe",
+      "config": {
+        "extractors": [
+          "scenes",
+          "cameras",
+          "materials",
+          "node_groups",
+          "vse"
+        ],
+        "template_targets": [
+          "show_bible",
+          "timeline",
+          "camera_grammar",
+          "compositor_pack"
+        ],
+        "telemetry_tags": [
+          "demo",
+          "blender",
+          "storyboard"
+        ]
+      },
+      "training_policy": {
+        "key": "training/strict_rights_cleared"
+      }
+    },
+    "key": "demo/blender_storyboard_seed"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v10.zip",
+    "source_path": "text_to_video_rails_generator_v10/templates/packs/training_policies/strict_rights_cleared.json",
+    "source_sha256": "ba96ed033c16caaceb414516f758be608335ca405e3e7f37dce2d58d9d14895c",
+    "definition": {
+      "key": "training/strict_rights_cleared",
+      "type": "training_policy",
+      "constraints": {
+        "require_provenance_chain": true,
+        "require_human_review": true,
+        "block_unknown_license": true,
+        "block_noncommercial_only": true
+      }
+    },
+    "key": "training/strict_rights_cleared"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v11.zip",
+    "source_path": "text_to_video_rails_generator_v11/templates/packs/training_policies/strict_approved_only.json",
+    "source_sha256": "4e5c0a1725a60c8b188afbd84cf9361ea688473691da0a7b98f8ee7350ba0ad9",
+    "definition": {
+      "key": "training_policy/strict_approved_only",
+      "type": "training_policy",
+      "config": {
+        "requires_explicit_approval": true,
+        "allow_unknown_license": false,
+        "allow_pending_review": false,
+        "require_provenance_notes": true
+      }
+    },
+    "key": "training_policy/strict_approved_only"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v11.zip",
+    "source_path": "text_to_video_rails_generator_v11/templates/packs/import_recipes/blender_demo_local.json",
+    "source_sha256": "b1cb356055b073f231074267af2ac9dc8a7175c0f805153187b66d47c60ea54c",
+    "definition": {
+      "key": "import_recipe/blender_demo_local",
+      "type": "import_recipe",
+      "config": {
+        "accepted_extensions": [
+          ".blend"
+        ],
+        "auto_extract_metadata": true,
+        "initial_training_status": "pending_review",
+        "required_fields": [
+          "source_path",
+          "license_label",
+          "provenance_notes"
+        ]
+      }
+    },
+    "key": "import_recipe/blender_demo_local"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v14.zip",
+    "source_path": "text_to_video_rails_generator_v14/templates/packs/video/social_tiktok_vertical.json",
+    "source_sha256": "7c7e715484da6dcaec07f46336f85168ab103525a2043903ed970cef4d269946",
+    "definition": {
+      "key": "video/social_tiktok_vertical",
+      "type": "format",
+      "config": {
+        "aspect_ratio": "9:16",
+        "resolution": [
+          1080,
+          1920
+        ],
+        "fps": 24,
+        "max_duration_seconds": 60
+      }
+    },
+    "key": "video/social_tiktok_vertical"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v14.zip",
+    "source_path": "text_to_video_rails_generator_v14/templates/packs/video/broadcast_sports_1080p.json",
+    "source_sha256": "a6162781fee60a22c60b4652e29a8716f683f32f16d4c0930f6a638d7d8ae82c",
+    "definition": {
+      "key": "video/broadcast_sports_1080p",
+      "type": "format",
+      "config": {
+        "aspect_ratio": "16:9",
+        "resolution": [
+          1920,
+          1080
+        ],
+        "fps": 59.94,
+        "max_duration_seconds": 1800
+      }
+    },
+    "key": "video/broadcast_sports_1080p"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v14.zip",
+    "source_path": "text_to_video_rails_generator_v14/templates/packs/training_policies/strict_rights_cleared.json",
+    "source_sha256": "829168d35851ed08038c518d2382858811065869edda38b050b45f91aa9bd183",
+    "definition": {
+      "key": "training_policy/strict_rights_cleared",
+      "type": "training_policy",
+      "config": {
+        "requires_approved_for_training": true,
+        "requires_license_label": true,
+        "forbid_unknown_provenance": true,
+        "allow_seed_only_when_reviewed": true
+      }
+    },
+    "key": "training_policy/strict_rights_cleared"
+  },
+  {
+    "source_archive": "text_to_video_rails_generator_v14.zip",
+    "source_path": "text_to_video_rails_generator_v14/templates/packs/reports/default_report_schema.json",
+    "source_sha256": "ca09ce49e8c1b56b29bbb517a36caf944757c710b2fa0c408176ff22a12e071e",
+    "definition": {
+      "key": "report/default_render_report",
+      "type": "report_schema",
+      "config": {
+        "fields": [
+          "render_request_id",
+          "production_run_id",
+          "prompt",
+          "selected_pack_keys",
+          "render_seconds",
+          "quality_score",
+          "warnings",
+          "output_path"
+        ]
+      }
+    },
+    "key": "report/default_render_report"
+  }
+]

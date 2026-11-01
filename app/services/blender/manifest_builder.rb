@@ -9,6 +9,7 @@ module Blender
     def call
       {
         "schema_version" => SCHEMA_VERSION,
+        "credits" => source_credits,
         "project" => {
           "id" => scene.studio_project_id,
           "name" => scene.studio_project.name
@@ -21,7 +22,8 @@ module Blender
         },
         "outputs" => {
           "blend" => true,
-          "glb" => true,
+          "bundle" => scene.blender_bundle.attached?,
+          "glb" => scene.settings["native_blender_asset_id"].blank?,
           "preview" => true
         }
       }
@@ -30,6 +32,13 @@ module Blender
     private
 
     attr_reader :scene
+
+    def source_credits
+      credits=Array(scene.settings["source_credits"])
+      ids=scene.scene_objects.where(object_type:"imported_asset").reject { |object| object.definition["native_source_preview"] }.map { |object| object.definition["asset_id"] }.compact
+      ids<<scene.settings["native_blender_asset_id"] if credits.empty? && scene.settings["native_blender_asset_id"]
+      (credits+StudioAsset.where(id:ids).filter_map { |asset| asset.metadata["source"] }).uniq
+    end
 
     def serialize_object(object)
       {

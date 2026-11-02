@@ -74,7 +74,7 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/media_checks.rb
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - uses: actions/setup-node@v4

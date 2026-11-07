@@ -58,6 +58,8 @@ run_rails "bundle install --jobs 1"
 
 echo "[studio] Install and verify Blender media dependency"
 run_rails "bash lib/scripts/setup_studio_media.sh"
+run_rails "bash lib/scripts/setup_studio_workstation.sh"
+python3 "${APP_ROOT}/lib/scripts/install_studio_workstation.py" --app-root "${APP_ROOT}" --app-user "${APP_USER}" --app-name "${APP_NAME}" --domain "${APP_DOMAIN}"
 
 echo "[hosting] Prepare GitHub secret-encryption dependency"
 if ! python3 -c 'import ctypes.util,sys; sys.exit(0 if ctypes.util.find_library("sodium") else 1)'; then

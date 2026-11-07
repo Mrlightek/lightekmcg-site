@@ -1,0 +1,132 @@
+.sw-page {
+  padding: 24px;
+  max-width: 1900px;
+  margin: auto;
+  color: #e1e8ef;
+  background: #0b121b;
+  min-height: 100vh;
+  font: 14px/1.55 system-ui;
+}
+.sw-page > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+}
+.sw-page > header span {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: #d6bd8a;
+}
+.sw-page h1 {
+  font-size: 32px;
+  margin: 5px 0;
+}
+.sw-page a {
+  color: #b4d9dd;
+}
+.sw-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 0;
+}
+.sw-toolbar button {
+  background: #213347;
+  color: #e8edf2;
+  border: 1px solid #52697d;
+  border-radius: 8px;
+  padding: 10px 15px;
+  cursor: pointer;
+}
+.sw-toolbar .sw-primary {
+  background: #7c6236;
+}
+.sw-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sw-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 18px;
+}
+.sw-screen {
+  background: #02070e;
+  border: 1px solid #344c62;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 700px;
+}
+.sw-screen iframe {
+  border: 0;
+  width: 100%;
+  height: 82vh;
+  min-height: 700px;
+  background: #121212;
+}
+.sw-screen [data-placeholder] {
+  padding: 50px;
+}
+.sw-layout aside {
+  padding: 18px;
+  border: 1px solid #344c62;
+  border-radius: 12px;
+  background: #101c29;
+  max-height: 82vh;
+  overflow: auto;
+}
+.sw-layout h2 {
+  font-size: 18px;
+}
+.sw-layout dt {
+  color: #e3c78e;
+  margin-top: 16px;
+  font-weight: 600;
+}
+.sw-layout dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #b6c6d5;
+}
+.sw-layout aside > a {
+  display: block;
+  padding: 8px 0;
+}
+.sw-page [role="alert"] {
+  background: #42272b;
+  padding: 12px;
+  border-radius: 8px;
+}
+@media (max-width: 900px) {
+  .sw-layout {
+    grid-template-columns: 1fr;
+  }
+  .sw-layout aside {
+    max-height: none;
+  }
+  .sw-page {
+    padding: 14px;
+  }
+  .sw-page > header {
+    display: block;
+  }
+  .sw-screen,
+  .sw-screen iframe {
+    min-height: 500px;
+  }
+}
+.sw-tasks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.sw-tasks button {
+  background: #26394b;
+  color: #e6edf4;
+  border: 1px solid #486174;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}

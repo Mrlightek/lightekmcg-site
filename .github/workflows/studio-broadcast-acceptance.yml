@@ -104,7 +104,7 @@ jobs:
         run: /usr/bin/python3 -m venv "$RUNNER_TEMP/studio-spatial-python"
       - name: Verify the Blender Python environment
         run: blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr 'import bpy, numpy; print("STUDIO_SYSTEM_NUMPY_READY", numpy.__version__)'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0
@@ -168,7 +168,7 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: true
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy python3-venv
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0

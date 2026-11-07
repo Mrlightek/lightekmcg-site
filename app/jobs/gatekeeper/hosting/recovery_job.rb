@@ -3,6 +3,17 @@ module Gatekeeper
     class RecoveryJob < ApplicationJob
       queue_as :default
       def perform
+        GatekeeperApplicationLaunch.where(status: "queued").find_each { |launch| LaunchApplicationJob.perform_later(launch.id) }
+        GatekeeperApplicationLaunch.where(status: "provisioning").where("updated_at < ?", 2.hours.ago).find_each do |launch|
+          launch.with_lock do
+            next unless launch.status == "provisioning" && launch.updated_at < 2.hours.ago
+            launch.update!(status: "failed", error_message: "Installation worker stopped reporting; retry reuses this server and application.")
+          end
+        end
+        GatekeeperApplicationLaunch.where(status: "ready").find_each do |launch|
+          MailPortRequestJob.perform_later(launch.id) if launch.receipt["mail_port_status"] == "pending"
+        end
+        GatekeeperApplicationTemplate.where(build_status: "queued").where("updated_at < ?", 2.hours.ago).update_all(build_status: "failed", enabled: false)
         GatekeeperHostedApplication.where(status: "queued").find_each { |app| ProvisionApplicationJob.perform_later(app.id) }
         GatekeeperHostedApplication.where(status: "provisioning").where("started_at < ?", 1.hour.ago).find_each do |app|
           app.with_lock do

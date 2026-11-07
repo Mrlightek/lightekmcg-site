@@ -1,7 +1,8 @@
 <% content_for :page_title, "Servers & Applications" %>
 <%= render "dashboard/infrastructure/styles" %>
 <div class="infra">
-  <header class="infra-hero"><div><span class="infra-eyebrow">Infrastructure / Instances</span><h1>Servers & applications</h1><p>Your hosting workspace. Manage instances, launch additional websites and keep track of server states.</p></div><div class="infra-actions"><%= link_to "Browse hosting services ↗", main_app.marketplace_path, class: "infra-button infra-button-primary" %></div></header>
+  <header class="infra-hero"><div><span class="infra-eyebrow">Infrastructure / Instances</span><h1>Servers & applications</h1><p>Your hosting workspace. Manage instances, launch additional websites and keep track of server states.</p></div><div class="infra-actions"><% if Gatekeeper::Hosting::Access.super_admin?(current_user) %><%= link_to "+ Create server & application", new_dashboard_application_launch_path, class: "infra-button infra-button-primary" %><% end %><%= link_to "Browse hosting services →", hosting_dashboard_servers_path, class: "infra-button" %></div></header>
+  <%= render "dashboard/application_launches/list" %>
   <section class="infra-stats" aria-label="Server summary">
     <% [["Total instances", @node_counts.values.sum, "All servers you can manage", "server"], ["Healthy", @node_counts.fetch("healthy", 0), "Latest recorded state", "circle-check"], ["Need attention", @node_counts.values_at("failed", "unreachable", "degraded", "delete_failed").compact.sum, "Review these instances", "alert-triangle"], ["In progress", @node_counts.values_at("provisioning", "deleting").compact.sum, "Provisioning or deleting", "loader"]].each do |label, value, caption, icon| %>
       <div class="infra-stat"><div class="infra-stat-label"><span><%= label %></span><i class="ti ti-<%= icon %>" aria-hidden="true"></i></div><strong><%= value %></strong><small><%= caption %></small></div>

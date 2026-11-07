@@ -1,4 +1,4 @@
-<%= form_with model: [:gatekeeper, project] do |f| %>
+<%= form_with model: project, url: (project.persisted? ? gatekeeper_project_path(project) : gatekeeper_projects_path) do |f| %>
   <% project.errors.full_messages.each { |message| concat(content_tag(:p, message)) } %>
   <p><%= f.label :gatekeeper_node_id, "Node" %><br><%= f.collection_select :gatekeeper_node_id, GatekeeperNode.order(:name), :id, :name %></p>
   <p><%= f.label :name %><br><%= f.text_field :name, required: true %></p>

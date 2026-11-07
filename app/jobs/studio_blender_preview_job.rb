@@ -4,7 +4,7 @@ class StudioBlenderPreviewJob < ApplicationJob
     operation=StudioOperation.find(id)
     operation.with_lock do
       return unless operation.status=="pending"
-      raise ArgumentError,"Not an authoring preview" unless operation.capability=="studio.workspace.blender.preview" && operation.metadata["draft_preview"]
+      raise ArgumentError,"Not an authoring preview" unless %w[studio.workspace.blender.preview studio.workspace.blender.authoring.preview].include?(operation.capability) && operation.metadata["draft_preview"]
       operation.update!(status:"running")
     end
     Studio::Providers::BlenderProvider.new(operation).call

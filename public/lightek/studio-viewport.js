@@ -424,12 +424,13 @@ const buildObject = object => {
     case "imported_asset": {
       root = markRoot(new THREE.Group(),object);
       const url=String(object.definition?.asset_proxy_url||'');
-      if(/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url))new GLTFLoader().setWithCredentials(true).load(url,gltf=>{
+      if((/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url)||/^\/rails\/active_storage\/blobs\/(redirect|proxy)\//.test(url)))new GLTFLoader().setWithCredentials(true).load(url,gltf=>{
         if(!active||active.sceneId!==Number(studioRouteSceneId())||active.objects.get(object.id)!==root)return;
         gltf.scene.rotation.x=Math.PI/2;root.add(gltf.scene);active.scene.updateMatrixWorld(true);
+        const mixer=new THREE.AnimationMixer(active.scene);for(const clip of gltf.animations)mixer.clipAction(clip).play();active.mixers.push(mixer);
         if(object.definition?.native_source_preview){
-          const native=(bridge()?.snapshot?.().objects||[]).filter(item=>item.object_type==='native_object');
-          const byName=new Map(native.map(item=>[item.definition.blender_object_name,item]));
+          const native=(bridge()?.snapshot?.().objects||[]).filter(item=>['native_object','cube','sphere','cylinder','plane','imported_asset'].includes(item.object_type)&&!item.definition?.native_source_preview);
+          const byName=new Map(native.map(item=>[item.definition.blender_object_name||item.name,item]));
           const matches=[];gltf.scene.traverse(node=>{const item=byName.get(node.userData.lightek_object_name||node.name);if(item)matches.push([node,item]);});
           for(const [node,item] of matches){
             const previous=active.objects.get(item.id);if(previous){previous.visible=false;previous.traverse(child=>{const i=active.pickables.indexOf(child);if(i>=0)active.pickables.splice(i,1);});}
@@ -1215,12 +1216,39 @@ const installPicking = () => {
           );
 
         if (id) {
+          const object=bridge()?.snapshot?.().objects?.find(item=>Number(item.id)===id);
+          const d=object?.definition||{},matrix=new THREE.Matrix4().compose(new THREE.Vector3(...vector(d,'location',[0,0,0])),new THREE.Quaternion().setFromEuler(new THREE.Euler(...vector(d,'rotation',[0,0,0]).map(radians),'XYZ')),new THREE.Vector3(...vector(d,'scale',[1,1,1])));
+          const point=hit.point.clone().applyMatrix4(matrix.invert());
+          window.dispatchEvent(new CustomEvent('lightek:authoring-pick',{detail:{sceneId:studioRouteSceneId(),objectId:id,point:point.toArray()}}));
           selectFromViewport(id);
           break
         }
       }
     }
   )
+};
+
+const installSculptBrush = () => {
+  const canvas=active.renderer.domElement,raycaster=new THREE.Raycaster();let stroke=null;
+  const pointFor=event=>{
+    if(!stroke)return null;raycaster.setFromCamera(pointerToNdc(event),active.camera);
+    const hits=raycaster.intersectObject(stroke.root,true);if(!hits.length)return null;
+    return stroke.root.worldToLocal(hits[0].point.clone());
+  };
+  const stamp=point=>{
+    if(!point||stroke.points.length>=32)return;
+    if(stroke.points.length&&point.distanceTo(new THREE.Vector3(...stroke.points.at(-1)))<stroke.settings.radius*.12)return;
+    stroke.points.push(point.toArray());const delta=new THREE.Vector3(...stroke.settings.delta);
+    stroke.root.traverse(mesh=>{if(!mesh.isMesh||!mesh.geometry?.attributes.position)return;if(!mesh.userData.authoringGeometry){mesh.geometry=mesh.geometry.clone();mesh.userData.authoringGeometry=true;}
+      const attr=mesh.geometry.attributes.position;if(attr.count>500000)return;
+      for(let i=0;i<attr.count;i++){const local=new THREE.Vector3().fromBufferAttribute(attr,i),p=stroke.root.worldToLocal(mesh.localToWorld(local.clone())),distance=p.distanceTo(point);if(distance<stroke.settings.radius){p.addScaledVector(delta,(1-distance/stroke.settings.radius)**2);const next=mesh.worldToLocal(stroke.root.localToWorld(p));attr.setXYZ(i,next.x,next.y,next.z);}}
+      attr.needsUpdate=true;mesh.geometry.computeVertexNormals();mesh.geometry.computeBoundingSphere();
+    });
+  };
+  canvas.addEventListener('pointerdown',event=>{const brush=window.LightekStudioBrush,state=bridge()?.snapshot?.();if(!brush?.active)return;const root=active.objects.get(Number(state?.selectedObjectId)),settings=brush.settings();if(!root||!settings||settings.radius<=0)return;stroke={root,objectId:Number(state.selectedObjectId),settings,points:[]};active.orbit.enabled=false;active.transform.enabled=false;event.preventDefault();event.stopImmediatePropagation();canvas.setPointerCapture(event.pointerId);stamp(pointFor(event));},true);
+  canvas.addEventListener('pointermove',event=>{if(!stroke)return;event.preventDefault();event.stopImmediatePropagation();stamp(pointFor(event));},true);
+  const end=event=>{if(!stroke)return;event.preventDefault();event.stopImmediatePropagation();const done=stroke;stroke=null;active.orbit.enabled=true;active.transform.enabled=true;window.LightekStudioBrush?.commit(done.objectId,done.points);};
+  canvas.addEventListener('pointerup',end,true);canvas.addEventListener('pointercancel',end,true);
 };
 
 const installToolbar = state => {
@@ -1623,6 +1651,7 @@ const mount = (
       new Map(),
 
     pickables: [],
+    mixers: [],
 
     mode:
       toolMemory.get(
@@ -1748,6 +1777,7 @@ const mount = (
     }
   );
 
+  installSculptBrush();
   installPicking();
   installToolbar(state);
 
@@ -1932,3 +1962,19 @@ queueReconcile();
 console.info(
   "[Lightek Studio] Three.js viewport runtime ready"
 );
+
+window.addEventListener('lightek:authoring-frame',event=>{
+  if(!active||Number(event.detail?.sceneId)!==active.sceneId)return;
+  const state=bridge()?.snapshot?.(),fps=Number(state?.settings?.fps||24),frame=Number(event.detail.frame);
+  for(const mixer of active.mixers||[])mixer.setTime((frame-1)/fps);
+  for(const object of state?.objects||[]){
+    const root=active.objects.get(Number(object.id));if(!root)continue;
+    const frames=(object.definition?.authoring_commands||[]).filter(c=>c.kind==='keyframe').sort((a,b)=>a.frame-b.frame);
+    for(const [field,target] of [['location','position'],['rotation','rotation'],['scale','scale']]){
+      const keys=frames.filter(k=>k[field]);if(!keys.length)continue;
+      let a=keys[0],b=keys.at(-1);for(let i=0;i<keys.length;i++){if(keys[i].frame<=frame)a=keys[i];if(keys[i].frame>=frame){b=keys[i];break;}}
+      const t=Math.max(0,Math.min(1,(frame-a.frame)/Math.max(1,b.frame-a.frame))),values=a[field].map((v,i)=>v+(b[field][i]-v)*t);
+      root[target].set(...(field==='rotation'?values.map(radians):values));
+    }
+  }
+});

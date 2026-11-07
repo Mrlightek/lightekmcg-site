@@ -8,6 +8,8 @@ module Studio
         "project.zip" => "package",
         "scene.glb" => "glb",
         "preview.png" => "preview",
+        "movie.mp4" => "video",
+        "authoring.json" => "authoring",
         "manifest.json" => "manifest",
         "blender.log" => "log"
       }.freeze
@@ -88,6 +90,7 @@ module Studio
       def content_type_for(filename)
         {
           ".png" => "image/png",
+          ".mp4" => "video/mp4",
           ".zip" => "application/zip",
           ".json" => "application/json",
           ".glb" => "model/gltf-binary",

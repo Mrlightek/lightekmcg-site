@@ -1,11 +1,25 @@
 # frozen_string_literal: true
 class CommerceController < ApplicationController
   allow_unauthenticated_access only: %i[index add remove]
+  helper LightekDesign::StudioHelper
+  helper DymondDash::TemplateSchemaHelper
   skip_authorization_check
   before_action :set_site
   def index
     @products = LightekCommerce::Product.visible.where(site: @site)
     @cart = cart
+    page_id = @site.manifest.to_h["lightek_commerce_starter_page_id"]
+    @page = @site.pages.find_by(id: page_id, published: true) if page_id
+    design_key = @site.manifest.to_h["lightek_commerce_design_key"]
+    unless @page
+      candidates = @site.manifest.to_h.fetch("lightek_commerce_design_pages", {})
+      @page = @site.pages.where(id: candidates.keys, published: true).order(created_at: :desc).first
+      design_key = candidates[@page.id.to_s] if @page
+    end
+    if @page && design_key.present?
+      @design_key = design_key
+      render "commerce/styled", layout: "lightek_design/website"
+    end
   end
   def add
     product = LightekCommerce::Product.visible.where(site: @site).find(params[:product_id])

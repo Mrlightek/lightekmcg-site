@@ -5,7 +5,16 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   helper DymondDash::TemplateSchemaHelper
   helper LightekDesign::StudioHelper
 
-  def index; end
+  def index
+    @html_imports = @site ? LightekDesign::HtmlImport.records_for(user: current_user, site: @site) : []
+  end
+
+  def upload_html
+    LightekDesign::HtmlImport.enqueue!(user: current_user, site: @site, html_file: params[:html_file], css_file: params[:css_file], name: params[:name], create_page: params[:create_page] == "1", product_selector: params[:product_selector])
+    redirect_to dashboard_website_designs_path(site_id: @site.id), notice: "HTML design queued. Refresh to see the converted design and page."
+  rescue ArgumentError => error
+    redirect_to dashboard_website_designs_path(site_id: @site.id), alert: error.message
+  end
 
   def preview
     @preview = true

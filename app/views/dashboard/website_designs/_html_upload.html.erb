@@ -1,0 +1,23 @@
+<section class="card" style="margin:24px 0;padding:28px;background:linear-gradient(135deg,#141b2e,#24203b);color:#f7f7ff;border-radius:18px">
+  <span>Lightek · Design & Content</span><h2>Turn HTML into a website design</h2>
+  <p>Upload your layout and CSS. Save a reusable design in the website design library and create editable Pages & Sections.</p>
+  <%= form_with url: upload_dashboard_website_designs_path(site_id: @site.id), multipart: true, local: true do %>
+    <label>Design name <%= text_field_tag :name, nil, maxlength: 120, placeholder: "e.g. Lightek corporate" %></label>
+    <label>HTML file <%= file_field_tag :html_file, accept: ".html,.htm,text/html", required: true %></label>
+    <label>CSS file (optional if embedded in HTML) <%= file_field_tag :css_file, accept: ".css,text/css" %></label>
+    <label><%= check_box_tag :create_page, "1", true %> Also create a draft page on <%= @site.name %></label>
+    <details><summary>Connect a shop layout to live products</summary><p>Enter the CSS selector of the product container, such as <code>#grid</code> for the attached Lightek Store design. That section becomes a live product grid with cart actions.</p><%= text_field_tag :product_selector, nil, placeholder: "[data-lightek-products]" %></details>
+    <p><small>UTF-8 HTML/CSS · 500 KB per file. Uses hosted image URLs. Scripts, forms, and external CSS require review; upload the CSS alongside the HTML. Original source is retained with the import.</small></p>
+    <%= submit_tag "Upload & convert design" %>
+  <% end %>
+</section>
+<% if @html_imports.present? %>
+<section class="card"><h2>Recent HTML imports</h2><%= link_to "Refresh import status", dashboard_website_designs_path(site_id: @site.id) %>
+<% @html_imports.each do |record| %><% import = record.settings.fetch("html_import") %>
+<article style="padding:18px 0;border-bottom:1px solid #64748b"><h3><%= record.name %> · <%= import["status"].humanize %></h3>
+<% if import["status"] == "complete" %>
+<p><%= link_to "Edit in Design Studio", edit_dashboard_design_studio_path(import["document_id"]) %> · <%= link_to "Preview design", preview_dashboard_website_designs_path(site_id: @site.id, design: import["release_key"]) %></p>
+<% if import["page_id"] %><p>Draft page created. <%= link_to "Open Pages & Sections", dymond_dash.pages_path(site_id: @site.id) %></p><% end %>
+<details><summary>Conversion notes</summary><ul><% import.fetch("warnings", []).each do |note| %><li><%= note %></li><% end %></ul></details>
+<% elsif import["error"] %><p role="alert"><%= import["error"] %></p><% else %><p>Waiting for the background worker. Refresh to check progress.</p><% end %>
+</article><% end %></section><% end %>

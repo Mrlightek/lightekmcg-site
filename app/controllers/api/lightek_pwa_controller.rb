@@ -92,9 +92,10 @@ module Api
       raise ArgumentError, "Choose a media file" unless file.respond_to?(:tempfile)
       raise ArgumentError, "File must be smaller than 250 MB" if file.size > 250.megabytes
       studio_kind = nil
-      if params[:purpose]=="studio_asset" && %w[.blend .glb].include?(File.extname(file.original_filename).downcase)
+      if params[:purpose]=="studio_asset" && %w[.blend .glb .zip].include?(File.extname(file.original_filename).downcase)
         magic=File.binread(file.tempfile.path,12)
-        studio_kind = "blend" if magic.start_with?("BLENDER")
+        studio_kind = "blend" if magic.start_with?("BLENDER", "\x1f\x8b".b, "\x28\xb5\x2f\xfd".b)
+        studio_kind = "blend" if File.extname(file.original_filename).downcase==".zip" && magic.start_with?("PK\x03\x04".b)
         studio_kind = "glb" if magic.start_with?("glTF")
         raise ArgumentError,"File does not match its asset format" unless studio_kind
       end

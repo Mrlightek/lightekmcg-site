@@ -71,7 +71,7 @@ permissions:
   contents: read
 jobs:
   acceptance:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       BUNDLE_GEMFILE: test/standalone/Gemfile
     steps:
@@ -80,7 +80,7 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy python3-venv
       - name: Library, HTTP, Gatekeeper, publication and native Blender acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -100,9 +100,10 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/media_checks.rb
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Create an isolated Python environment for spatial service tests
+        run: /usr/bin/python3 -m venv "$RUNNER_TEMP/studio-spatial-python"
+      - name: Verify the Blender Python environment
+        run: blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr 'import bpy, numpy; print("STUDIO_SYSTEM_NUMPY_READY", numpy.__version__)'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -139,8 +140,8 @@ jobs:
           node test/javascript/studio_spatial_vision_test.cjs
           node test/javascript/studio_spatial_depth_test.cjs
           node test/javascript/studio_spatial_feed_test.cjs
-          python3 -m pip install -r services/spatial/requirements.txt
-          SPATIAL_TEST_BLENDER="$(command -v blender)" PYTHONPATH="$PWD" python3 -m unittest test.operations.studio_spatial_service_test test.operations.studio_spatial_assets_test test.operations.studio_spatial_setup_test
+          "$RUNNER_TEMP/studio-spatial-python/bin/python" -m pip install -r services/spatial/requirements.txt
+          SPATIAL_TEST_BLENDER="$(command -v blender)" PYTHONPATH="$PWD" "$RUNNER_TEMP/studio-spatial-python/bin/python" -m unittest test.operations.studio_spatial_service_test test.operations.studio_spatial_assets_test test.operations.studio_spatial_setup_test
           blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python test/operations/spatial_asset_staging_blender.py
           npm ci --prefix examples/spatial-editor --ignore-scripts
           npm --prefix examples/spatial-editor run check
@@ -156,7 +157,7 @@ jobs:
       - name: Blender archive and transform regression
         run: python3 -m unittest test/operations/studio_docker_access_test.py test/operations/studio_media_setup_test.py test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py test/operations/deploy_checkout_test.py test/operations/deploy_release_bootstrap_test.py
   workstation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       BUNDLE_GEMFILE: test/standalone/Gemfile
@@ -166,7 +167,7 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy python3-venv
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

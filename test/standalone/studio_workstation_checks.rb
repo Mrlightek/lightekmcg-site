@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 require_relative "studio_authoring_checks"
-require File.join(ROOT,"db/migrate/20261107210000_create_studio_workstations")
-CreateStudioWorkstations.new.migrate(:up)
 %w[app/models/studio_workstation app/services/studio/workstations/runtime app/services/studio/workstations/access app/jobs/studio_workstation_start_job app/jobs/studio_workstation_save_job app/controllers/dashboard/studio_workstations_controller].each { |path| require File.join(ROOT,path) }
 Dashboard::StudioWorkstationsController.prepend_view_path(File.join(ROOT,"app/views"));Dashboard::StudioWorkstationsController.layout false
 Rails.application.routes.append do

@@ -27,8 +27,11 @@ class Dashboard::StudioWorkstationsController < Dashboard::SettingsHomeControlle
     tasks=%w[layout model sculpt uv animate shade geometry composite sequence render]
     position=tasks.index(params[:task].to_s)
     raise ArgumentError,"Choose a production workspace" unless position
-    key=position==9 ? "0" : (position+1).to_s
-    Studio::Workstations::Runtime.command("exec","--env","DISPLAY=:99",session.container_id,"xdotool","key","--clearmodifiers","ctrl+alt+#{key}",timeout:8)
+    runtime=Studio::Workstations::Runtime
+    temporary=runtime.work(session).join(".workspace-#{SecureRandom.hex(8)}")
+    File.open(temporary,File::WRONLY|File::CREAT|File::EXCL|File::NOFOLLOW,0600) { |file| file.write(JSON.generate({task:tasks[position]})) }
+    File.rename(temporary,runtime.work(session).join(".studio-workspace-request.json"))
+    runtime.command("exec","--env","DISPLAY=:99",session.container_id,"xdotool","key","--clearmodifiers","F8",timeout:8)
     render json:{task:tasks[position],status:"requested"}
   end
   def save

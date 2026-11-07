@@ -66,6 +66,21 @@ class LIGHTEK_OT_save_session(bpy.types.Operator):
     bl_description = 'Save the complete native project for Studio Library and rendering'
     def execute(self, context):
         try:
+            request_path = os.path.join(WORK, '.studio-workspace-request.json')
+            if os.path.isfile(request_path):
+                with open(request_path, encoding='utf-8') as stream: request = json.load(stream)
+                os.unlink(request_path)
+                if request.get('task') not in WORKSPACES: raise ValueError('Invalid production workspace')
+                bpy.ops.wm.lightek_workspace(task=request['task'])
+                # Workspace changes are applied by Blender's next UI event
+                # cycle. A receipt from this operator would report the old one.
+                window = context.window
+                def confirm_workspace():
+                    with open(os.path.join(WORK, '.studio-workspace-receipt.json'), 'w', encoding='utf-8') as stream:
+                        json.dump({'task':request['task'],'workspace':window.workspace.name}, stream)
+                    return None
+                bpy.app.timers.register(confirm_workspace, first_interval=0.25)
+                return {'FINISHED'}
             save_session()
             self.report({'INFO'}, 'Native project saved for Lightek Studio')
             return {'FINISHED'}

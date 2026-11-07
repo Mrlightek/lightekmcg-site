@@ -35,7 +35,14 @@ class DesktopAcceptance(unittest.TestCase):
                 env=dict(os.environ,DESKTOP_URL=url,DESKTOP_SCREENSHOT=str(ROOT/'tmp/workstation-desktop.png'));(ROOT/'tmp').mkdir(exist_ok=True)
                 run_result=subprocess.run(['node','-e',script],env=env,text=True,capture_output=True,timeout=90)
                 self.assertEqual(run_result.returncode,0,run_result.stdout+run_result.stderr)
-                run('docker','exec','-e','DISPLAY=:99',container,'xdotool','key','ctrl+alt+4')
+                (work/'.studio-workspace-request.json').write_text(json.dumps({'task':'uv'}))
+                run('docker','exec','-e','DISPLAY=:99',container,'xdotool','key','--clearmodifiers','F8')
+                workspace_receipt=work/'.studio-workspace-receipt.json'
+                for attempt in range(20):
+                    if workspace_receipt.exists():break
+                    time.sleep(1)
+                self.assertTrue(workspace_receipt.exists(),'Workspace command receipt missing')
+                self.assertEqual(json.loads(workspace_receipt.read_text())['workspace'],'UV Editing')
                 nonce='0123456789abcdef';(work/'.studio-save-request.json').write_text(json.dumps({'nonce':nonce}))
                 run('docker','exec','-e','DISPLAY=:99',container,'xdotool','key','F8')
                 receipt=work/'.studio-save-receipt.json'

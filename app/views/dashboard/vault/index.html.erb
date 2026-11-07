@@ -5,6 +5,16 @@
   <p style="color:var(--dd-text-secondary);font-size:13px">Encrypted credentials, keys, certificates and service secrets. Secret values are never redisplayed.</p>
 </div>
 
+<section class="dd-card" style="padding:20px;margin-bottom:18px">
+  <h3>Vault access</h3><p role="status"><%= @vault_readiness[:message] %></p>
+  <% unless @vault_readiness[:ready] %>
+    <p>Saved credentials remain encrypted. Check existing key sources automatically, or restore the original master key if this environment does not have it. A new key cannot unlock existing credentials.</p>
+    <%= form_with url: repair_access_dashboard_vault_path, method: :post do %>
+      <%= password_field_tag :master_key, nil, placeholder: "Original Vault master key (only if restoring it)", autocomplete: "off" %>
+      <%= submit_tag "Repair & verify Vault access" %>
+    <% end %>
+  <% end %>
+</section>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px">
   <% [["Active secrets", @active_count], ["Expiring ≤30d", @expiring_count], ["Audit events", LightekVault::AuditEvent.count], ["Key version", ENV.fetch("LIGHTEK_VAULT_KEY_VERSION", "1")]].each do |label, value| %>
     <div class="dd-card" style="padding:18px"><div style="font-size:28px;font-weight:700"><%= value %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= label %></div></div>
@@ -24,6 +34,8 @@
     <select id="vault-template" style="width:100%;margin-bottom:8px">
       <option value="">Custom credential</option>
       <option value="godaddy">GoDaddy DNS — Personal Access Token</option>
+      <option value="github">GitHub — repository access token</option>
+      <option value="github_app">GitHub App — existing app credentials</option>
     </select>
     <p id="vault-template-note" role="status" style="font-size:11px;color:var(--dd-text-secondary);margin-bottom:12px">Select a template to fill suggested field names and access policies. It will never fill, reveal, or save a secret value automatically.</p>
     <%= form_with url: dashboard_vault_path, method: :post do %>
@@ -101,25 +113,28 @@
     if (!selector || selector.dataset.ready) return;
     selector.dataset.ready = "true";
     selector.addEventListener("change", function() {
-      if (selector.value !== "godaddy") return;
+      if (!["godaddy", "github", "github_app"].includes(selector.value)) return;
       const form = document.querySelector('form[action$="/dashboard/vault"]');
       if (!form) return;
-      const suggested = {
+      const suggested = selector.value === "godaddy" ? {
         name: "GoDaddy DNS",
         slug: "godaddy-dns",
         provider: "godaddy",
         purpose: "dns_management",
         allowed_consumers: "Godaddy::DnsService",
         allowed_purposes: "dns_management"
-      };
+      } : {name: selector.value === "github_app" ? "GitHub CI App" : "GitHub build connection",
+        slug: selector.value === "github_app" ? "github-ci-app" : "github-actions", provider: "github",
+        purpose: "image_build_setup", allowed_consumers: "Gatekeeper::Hosting::BuildSetup", allowed_purposes: "image_build_setup"};
       Object.entries(suggested).forEach(function(entry) {
         const input = form.elements["vault_secret[" + entry[0] + "]"];
         if (input && !input.value.trim()) input.value = entry[1];
       });
       const keys = form.querySelectorAll('input[name="vault_secret[payload_keys][]"]');
-      if (keys.length && !keys[0].value.trim()) keys[0].value = "token";
+      const fields = selector.value === "github_app" ? ["app_id", "private_key"] : ["token"];
+      fields.forEach(function(field, index) { if (keys[index] && !keys[index].value.trim()) keys[index].value = field; });
       const note = document.getElementById("vault-template-note");
-      if (note) note.textContent = "GoDaddy fields suggested. Paste the PAT next to token under Structured fields; leave Single secret value empty. Review everything before saving.";
+      if (note) note.textContent = selector.value === "godaddy" ? "GoDaddy fields suggested. Paste the PAT next to token under Structured fields; leave Single secret value empty. Review everything before saving." : "GitHub field names and access policy filled. Add the existing authorized credential once; image-build setup reuses it automatically. App access tokens are generated as needed from app credentials.";
     });
   }
   document.addEventListener("turbo:load", setupVaultHelp);

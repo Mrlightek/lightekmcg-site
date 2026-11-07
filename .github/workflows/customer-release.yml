@@ -19,17 +19,36 @@ on:
         description: Previous application code is compatible with all database migrations in this release
         type: boolean
         default: false
+      template_id:
+        description: Dashboard template build (bypasses fleet release publishing)
+        type: string
+        required: false
+      callback_url:
+        type: string
+        required: false
+      callback_audience:
+        type: string
+        required: false
 
 permissions:
   contents: read
   packages: write
+  id-token: write
 concurrency:
-  group: customer-release-publish
+  group: customer-release-${{ inputs.template_id || 'publish' }}
   cancel-in-progress: false
 
 jobs:
+  application_template:
+    if: github.event_name == 'workflow_dispatch' && inputs.template_id != ''
+    uses: ./.github/workflows/application-image.yml
+    with:
+      template_id: ${{ inputs.template_id }}
+      callback_url: ${{ inputs.callback_url }}
+      callback_audience: ${{ inputs.callback_audience }}
+    secrets: inherit
   publish:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
+    if: (github.event_name == 'workflow_dispatch' && inputs.template_id == '') || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

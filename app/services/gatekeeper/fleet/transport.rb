@@ -62,8 +62,10 @@ module Gatekeeper
             options[:password] = root.fetch("root_password")
           end
         end
-        if registry && ENV["LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"].present?
-          registry = checkout.call(ENV.fetch("LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"), "fleet_registry", name)
+        registry_slug = ENV["LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"].presence
+        registry_slug ||= Gatekeeper::Hosting::BuildSetup.registry_slug if registry
+        if registry && registry_slug.present?
+          registry = checkout.call(registry_slug, "fleet_registry", name)
           payload[:registry] = registry.slice("username", "password")
         end
         require "net/ssh"

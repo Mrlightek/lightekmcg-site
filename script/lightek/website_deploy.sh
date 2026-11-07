@@ -59,7 +59,7 @@ def validate(c, require_password=True):
 EXCLUDED={'.git','.bundle','.ssh','storage','tmp','log','node_modules','coverage','test','spec','uploads'}
 def ignored(directory,names):
     blocked = {'bundle','cache'} if pathlib.Path(directory).name == 'vendor' else ({'assets'} if pathlib.Path(directory).name == 'public' else set())
-    if pathlib.Path(directory).name == 'config': blocked.add('credentials.yml.enc')
+    if pathlib.Path(directory).name == 'config': blocked.update({'credentials.yml.enc', *(n for n in names if n.startswith('vault-master.key'))})
     if pathlib.Path(directory).name == 'credentials': blocked.update(n for n in names if n.endswith('.yml.enc'))
     return [n for n in names if n in blocked or n in EXCLUDED or n.startswith('.') or n.endswith(('.key','.pem','.p12','.pfx','.log','.bundle','.so','.zip','.mov')) or '.bak' in n]
 

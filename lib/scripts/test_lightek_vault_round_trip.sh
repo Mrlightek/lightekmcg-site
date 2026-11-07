@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 bin/rails runner - <<'RUBY'
-abort "LIGHTEK_VAULT_MASTER_KEY missing" if ENV["LIGHTEK_VAULT_MASTER_KEY"].blank?
+LightekVault::MasterKey.resolve!(create_if_empty: true)
 slug = "vault-round-trip-#{SecureRandom.hex(4)}"
 secret = LightekVault::Service.store!(name: "Vault Round Trip", slug: slug, payload: { "value" => "test-secret-#{SecureRandom.hex(8)}" }, secret_type: "api_key", provider: "self_test", environment: Rails.env, purpose: "vault_self_test", access_policy: { "consumers" => ["LightekVault::SelfTest"], "purposes" => ["verify_encryption"] }, requested_by: "vault-self-test")
 payload = LightekVault::Service.checkout!(slug: slug, consumer: "LightekVault::SelfTest", purpose: "verify_encryption", requested_by: "vault-self-test")

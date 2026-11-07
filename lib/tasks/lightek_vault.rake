@@ -1,19 +1,19 @@
 namespace :lightek_vault do
+  task bootstrap: :environment do
+    LightekVault::MasterKey.ensure_available!(create_if_empty: true)
+    result = LightekVault::Readiness.call
+    abort result.fetch(:message) unless result.fetch(:ready)
+    puts "Vault access verified; original encrypted credentials preserved."
+  end
+
   task readiness: :environment do
-    key = ENV["LIGHTEK_VAULT_MASTER_KEY"]
     puts "=== LIGHTEK VAULT READINESS ==="
-    puts "Master key:      #{key.present? ? "PRESENT" : "MISSING"}"
-    puts "Key version:     #{ENV.fetch("LIGHTEK_VAULT_KEY_VERSION", "1")}"
-    puts "Secrets table:   #{LightekVault::Secret.table_exists?}"
-    puts "Audit table:     #{LightekVault::AuditEvent.table_exists?}"
-    puts "Active secrets:  #{LightekVault::Secret.active.count}"
-    puts "Expiring soon:   #{LightekVault::Secret.expiring_soon.count}"
-    begin
-      key.present? ? LightekVault::Crypto.new : nil
-      puts "Crypto:          #{key.present? ? "READY" : "NOT CONFIGURED"}"
-    rescue StandardError => e
-      puts "Crypto:          ERROR #{e.message}"
-    end
+    puts "Secrets table: #{LightekVault::Secret.table_exists?}"
+    puts "Audit table: #{LightekVault::AuditEvent.table_exists?}"
+    puts "Active secrets: #{LightekVault::Secret.active.count}"
+    result = LightekVault::Readiness.call
+    puts "Crypto: #{result.fetch(:ready) ? 'READY' : 'UNAVAILABLE'}"
+    puts result.fetch(:message)
   end
 
   task learn: :environment do

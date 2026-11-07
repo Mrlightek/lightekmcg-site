@@ -324,12 +324,14 @@ resources :dashboard_application_launches, path: "/dashboard/applications/instal
   collection do
     post :create_template
     post :build_image
+    post :setup_builds
   end
   member do
     post :retry
     patch :disable_template
   end
 end
+post "/dashboard/vault/repair-access", to: "dashboard/vault#repair_access", as: :repair_access_dashboard_vault
 get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#index", as: :dashboard_infrastructure_catalog
 resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard/server_instances", only: %i[index show destroy] do
   collection { get :hosting }

@@ -10,7 +10,7 @@ class DesktopAcceptance(unittest.TestCase):
         def run(*args):return subprocess.check_output(args,text=True,stderr=subprocess.STDOUT).strip()
         image=os.environ.get('STUDIO_WORKSTATION_IMAGE','lightek/studio-workstation:20261107')
         with tempfile.TemporaryDirectory(prefix='lightek-desktop-') as temp:
-            root=pathlib.Path(temp);key='a'*32;session=root/'sessions'/key;work=session/'work';work.mkdir(parents=True)
+            root=pathlib.Path(temp)/('native-application-root-'+'x'*65);root.mkdir();key='a'*32;session=root/'sessions'/key;work=session/'work';work.mkdir(parents=True)
             run('blender','--background','--factory-startup','--disable-autoexec','--python-exit-code','1','--python-expr',f"import bpy; bpy.ops.wm.save_as_mainfile(filepath={str(work/'scene.blend')!r})")
             container=run('docker','run','-d','--rm','--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges','--pids-limit','512','--memory','4g','--cpus','2','--shm-size','512m','--user',f'{os.getuid()}:{os.getgid()}','--tmpfs','/tmp:rw,nosuid,size=1g','--mount',f'type=bind,source={work},target=/work','--mount',f'type=bind,source={ROOT}/blender,target=/engine,readonly',image)
             server=None

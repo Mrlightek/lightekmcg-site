@@ -117,15 +117,20 @@ class GatewayHandler(BaseHTTPRequestHandler):
         except (PermissionError, KeyError, ValueError, CookieError): return self.reply(403, b'Workstation access denied or expired')
         except (OSError, http.client.HTTPException): return self.reply(502, b'Native desktop is unavailable')
     def websocket(self, session, token):
-        path=self.server.root/'sessions'/session['session_key']/'work/.desktop.sock'
-        if path.is_symlink() or not stat.S_ISSOCK(path.lstat().st_mode):raise PermissionError('Invalid desktop socket')
+        work=self.server.root/'sessions'/session['session_key']/'work'
+        directory=os.open(work,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
         remote=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);remote.settimeout(10)
         try:
-            remote.connect(str(path))
+            info=os.stat('.desktop.sock',dir_fd=directory,follow_symlinks=False)
+            if not stat.S_ISSOCK(info.st_mode):raise PermissionError('Invalid desktop socket')
+            # Native app roots commonly exceed Linux's 108-byte Unix address
+            # limit. Pin the work directory and use its short proc-fd alias.
+            remote.connect('/proc/self/fd/'+str(directory)+'/.desktop.sock')
             _pid,uid,_gid=struct.unpack('3i',remote.getsockopt(socket.SOL_SOCKET,socket.SO_PEERCRED,struct.calcsize('3i')))
             if uid!=os.geteuid():raise PermissionError('Wrong desktop socket owner')
         except BaseException:
             remote.close();raise
+        finally:os.close(directory)
         try:
             names = ('Sec-WebSocket-Key', 'Sec-WebSocket-Version', 'Sec-WebSocket-Protocol')
             headers = ['GET /websockify HTTP/1.1', 'Host: 127.0.0.1', 'Connection: Upgrade', 'Upgrade: websocket', 'Origin: ' + session['origin']]

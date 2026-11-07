@@ -103,7 +103,7 @@ class StudioWorkstationTest < StudioAuthoringTest
     work=Studio::Workstations::Runtime.work(s);FileUtils.mkdir_p(work)
     source=native_fixture(work.to_s);FileUtils.cp(source,work.join("scene.blend"));original=File.binread(source)
     code="import bpy,sys; bpy.ops.wm.open_mainfile(filepath=#{work.join('scene.blend').to_s.inspect},load_ui=False,use_scripts=False); sys.path.insert(0,#{File.join(ROOT,'blender').inspect}); import workstation; bpy.data.objects['NativeCube'].location.x=4; workstation.save_session()"
-    command=->(*_args,**_opts){Studio::MediaProcess.run!([ENV.fetch("BLENDER_BIN","blender"),"--factory-startup","--disable-autoexec","--python-exit-code","1","--python-expr",code],timeout:60)}
+    command=->(*_args,**_opts){Studio::MediaProcess.run!([ENV.fetch("BLENDER_BIN","blender"),"--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python-expr",code],timeout:60)}
     previous=ENV["LIGHTEK_WORKSTATION_TEST_ROOT"];ENV["LIGHTEK_WORKSTATION_TEST_ROOT"]=work.to_s
     Rails.stub(:root,Pathname(ROOT)) do
       Studio::Workstations::Runtime.stub(:command,command) { StudioWorkstationSaveJob.perform_now(s.id) }

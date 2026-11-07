@@ -98,7 +98,7 @@ jobs:
           if [[ -f "$RUNNER_TEMP/fleet-image/fleet-build.json" ]]; then
             echo "bundler=$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/fleet-image/fleet-build.json"))["bundler"])')" >> "$GITHUB_OUTPUT"
           fi
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: inputs.adapter == 'docker_compose'
       - uses: docker/build-push-action@v6
         if: inputs.adapter == 'docker_compose'

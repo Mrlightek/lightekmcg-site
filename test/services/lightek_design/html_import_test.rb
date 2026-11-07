@@ -9,8 +9,15 @@ class LightekDesignHtmlImportTest < ActiveSupport::TestCase
   def upload
     fixture_file_upload("website_designs/lightek_website.html", "text/html")
   end
+  test "interactive uploads complete without an enqueued worker job" do
+    assert_no_enqueued_jobs do
+      record = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: upload, create_page: true)
+      assert_equal "complete", record.settings.dig("html_import", "status")
+      refute @site.pages.first.published?
+    end
+  end
   test "queued source becomes a library release and draft page once" do
-    record = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: upload, create_page: true)
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: upload, create_page: true)
     assert_equal "queued", record.settings.dig("html_import", "status")
     original = record.settings.dig("html_import", "html")
     assert_includes original, "<script>"
@@ -30,14 +37,14 @@ class LightekDesignHtmlImportTest < ActiveSupport::TestCase
     assert_nil @site.reload.active_template_id
   end
   test "a revoked site owner cannot complete an import" do
-    record = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: upload, create_page: true)
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: upload, create_page: true)
     @site.update!(tenant: nil)
     LightekDesign::HtmlImportJob.perform_now(record.id)
     assert_equal "failed", record.reload.settings.dig("html_import", "status")
     assert_equal 0, @site.pages.count
   end
   test "bad input records failure without partial workspace or page" do
-    record = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: upload, create_page: true, product_selector: "[")
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: upload, create_page: true, product_selector: "[")
     count = DymondSite::SiteTemplate.count
     LightekDesign::HtmlImportJob.perform_now(record.id)
     assert_equal "failed", record.reload.settings.dig("html_import", "status")

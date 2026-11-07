@@ -33,6 +33,29 @@ class LightekHtmlDesignImportTest < ActionDispatch::IntegrationTest
     assert_select "h3", text: "Uploaded design · Complete"
     refute site.pages.first.published?
   end
+  test "saved queued uploads can convert immediately and repeated requests preserve edits" do
+    user = actor; site = website(user); login(user)
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: user, site: site, html_file: fixture_file_upload("website_designs/lightek_website.html", "text/html"), create_page: true)
+    get dashboard_website_designs_path(site_id: site.id)
+    assert_select "form[action*='/dashboard/website/designs/convert']"
+    post convert_dashboard_website_designs_path(site_id: site.id, import_id: record.id)
+    assert_response :redirect
+    assert_equal "complete", record.reload.settings.dig("html_import", "status")
+    page = site.pages.first
+    page.update!(title: "Preserve my changes")
+    post convert_dashboard_website_designs_path(site_id: site.id, import_id: record.id)
+    assert_equal 1, site.pages.count
+    assert_equal "Preserve my changes", page.reload.title
+  end
+  test "recovery cannot convert another site's source" do
+    owner = actor; site = website(owner)
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: owner, site: site, html_file: fixture_file_upload("website_designs/lightek_website.html", "text/html"), create_page: true)
+    other = actor; other_site = website(other); login(other)
+    post convert_dashboard_website_designs_path(site_id: other_site.id, import_id: record.id)
+    assert_response :not_found
+    assert_equal "queued", record.reload.settings.dig("html_import", "status")
+    assert_empty site.pages
+  end
   test "industry previews render complete layouts without creating records" do
     user = actor; site = website(user); login(user)
     assert_no_difference ["DymondSite::Page.count", "DymondSite::SiteTemplate.count"] do

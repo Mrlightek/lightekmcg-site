@@ -8,10 +8,12 @@ module Gatekeeper
         node.with_lock do
           raise Access::Denied, "Server is already deleted" if node.status == "decommissioned"
           raise Access::Denied, "Wait for application setup to finish" if GatekeeperHostedApplication.where(gatekeeper_node: node, status: "provisioning").exists?
-          active = GatekeeperOperation.where(gatekeeper_node: node, status: "running", capability: %w[deploy_project deploy_website update_installation create_hosted_application])
+          raise Access::Denied, "Wait for application installation to finish" if GatekeeperApplicationLaunch.where(gatekeeper_node: node, status: %w[queued provisioning]).exists?
+          active = GatekeeperOperation.where(gatekeeper_node: node, status: "running", capability: %w[deploy_project deploy_website update_installation create_hosted_application install_container_application])
           raise Access::Denied, "Wait for the running deployment to finish" if active.exists?
           if !Access.super_admin?(actor)
             raise Access::Denied, "A shared server requires a super administrator to delete it" if
+              GatekeeperApplicationLaunch.where(gatekeeper_node: node).where.not(owner: actor).where.not(status: "deleted").exists? ||
               GatekeeperHostedApplication.where(gatekeeper_node: node).where.not(owner: actor).where.not(status: "deleted").exists? ||
               GatekeeperInstallation.where(gatekeeper_node: node).where.not(account_id: [nil, actor.id]).exists?
           end

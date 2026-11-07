@@ -31,6 +31,7 @@ module Gatekeeper
       def self.site_domains(owner)
         nodes = GatekeeperNode.where(owner: owner).where.not(status: "decommissioned")
         values = GatekeeperProject.where(gatekeeper_node_id: nodes.select(:id)).pluck(:domain)
+        values += GatekeeperApplicationLaunch.where(owner: owner).where.not(status: "deleted").pluck(:domain)
         values += GatekeeperHostedApplication.where(owner: owner).where.not(status: "deleted").pluck(:domain)
         values += DymondSite::Site.where(tenant: owner).pluck(:host) if defined?(DymondSite::Site)
         values.compact.map(&:downcase).uniq

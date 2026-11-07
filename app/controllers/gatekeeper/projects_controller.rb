@@ -1,5 +1,6 @@
 module Gatekeeper
   class ProjectsController < ApplicationController
+    layout "dymond_dash/layouts/dymond_dash"
     before_action :require_project_operator!
     before_action :set_project, only: %i[show edit update destroy deploy deploy_github healthcheck]
 

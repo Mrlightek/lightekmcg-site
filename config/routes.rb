@@ -319,8 +319,20 @@ resources :dashboard_compute_providers, path: "/dashboard/infrastructure/provide
   end
 end
 
+post "/gatekeeper/application-images", to: "gatekeeper/application_images#create", as: :gatekeeper_application_images
+resources :dashboard_application_launches, path: "/dashboard/applications/install", controller: "dashboard/application_launches", only: %i[new create] do
+  collection do
+    post :create_template
+    post :build_image
+  end
+  member do
+    post :retry
+    patch :disable_template
+  end
+end
 get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#index", as: :dashboard_infrastructure_catalog
 resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard/server_instances", only: %i[index show destroy] do
+  collection { get :hosting }
   member do
     post :create_application
     post :retry_application

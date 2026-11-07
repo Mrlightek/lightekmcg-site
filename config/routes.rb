@@ -1,4 +1,13 @@
 Rails.application.routes.draw do
+  resources :studio_workstations,path:"/dashboard/studio/workstations",controller:"dashboard/studio_workstations",only:%i[create show destroy],as: :dashboard_studio_workstations do
+    member do
+      get :status
+      post :ticket
+      post :workspace
+      post :save
+    end
+  end
+
   # Host Studio routes precede every engine mount.
   get "/dashboard/studio-broadcasting", to: "dashboard/media_studio#index", as: :dashboard_media_studio
   post "/dashboard/studio-broadcasting/generation-provider", to: "dashboard/media_studio#save_generation_provider", as: :dashboard_studio_generation_provider
@@ -52,6 +61,7 @@ Rails.application.routes.draw do
   resources :dashboard_commerce_products, path: "/dashboard/commerce/products", controller: "dashboard/commerce_products", except: %i[show]
   post "/commerce/stripe/webhook", to: "commerce_stripe_webhooks#create", as: :commerce_stripe_webhook
   post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_refunds#create", as: :dashboard_commerce_refund
+  get "/dashboard/commerce/industry/preview", to: "dashboard/commerce_products#preview_industry", as: :preview_dashboard_commerce_industry
   post "/dashboard/commerce/industry", to: "dashboard/commerce_products#install_industry", as: :dashboard_commerce_industry
   post "/dashboard/commerce/orders/:order_id/fulfill", to: "dashboard/commerce_fulfillments#create", as: :dashboard_commerce_fulfill
   post "/dashboard/commerce/products/:product_id/variants", to: "dashboard/commerce_variants#create", as: :dashboard_commerce_variants
@@ -319,8 +329,22 @@ resources :dashboard_compute_providers, path: "/dashboard/infrastructure/provide
   end
 end
 
+post "/gatekeeper/application-images", to: "gatekeeper/application_images#create", as: :gatekeeper_application_images
+resources :dashboard_application_launches, path: "/dashboard/applications/install", controller: "dashboard/application_launches", only: %i[new create] do
+  collection do
+    post :create_template
+    post :build_image
+    post :setup_builds
+  end
+  member do
+    post :retry
+    patch :disable_template
+  end
+end
+post "/dashboard/vault/repair-access", to: "dashboard/vault#repair_access", as: :repair_access_dashboard_vault
 get "/dashboard/infrastructure/catalog", to: "dashboard/infrastructure_catalog#index", as: :dashboard_infrastructure_catalog
 resources :dashboard_servers, path: "/dashboard/servers", controller: "dashboard/server_instances", only: %i[index show destroy] do
+  collection { get :hosting }
   member do
     post :create_application
     post :retry_application
@@ -394,6 +418,8 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
   get "/dashboard/website/designs/preview", to: "dashboard/website_designs#preview", as: :preview_dashboard_website_designs
   post "/dashboard/website/designs/apply", to: "dashboard/website_designs#apply", as: :apply_dashboard_website_designs
   post "/dashboard/website/designs/import", to: "dashboard/website_designs#import", as: :import_dashboard_website_designs
+  post "/dashboard/website/designs/convert", to: "dashboard/website_designs#convert_html", as: :convert_dashboard_website_designs
+  post "/dashboard/website/designs/upload", to: "dashboard/website_designs#upload_html", as: :upload_dashboard_website_designs
   patch "/dashboard/website/designs/fonts", to: "dashboard/website_designs#update_fonts", as: :fonts_dashboard_website_designs
 # END LIGHTEK WEBSITE DESIGNS
 

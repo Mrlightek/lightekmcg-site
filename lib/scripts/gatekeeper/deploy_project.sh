@@ -70,11 +70,20 @@ run_rails "bundle install --jobs 1"
 echo "[studio] Install and verify Blender media dependency"
 python3 "${APP_ROOT}/lib/scripts/setup_studio_docker_access.py" --app-user "$APP_USER"
 run_rails "bash lib/scripts/setup_studio_media.sh"
+run_rails "bash lib/scripts/setup_studio_workstation.sh"
+python3 "${APP_ROOT}/lib/scripts/install_studio_workstation.py" --app-root "${APP_ROOT}" --app-user "${APP_USER}" --app-name "${APP_NAME}" --domain "${APP_DOMAIN}"
+
+echo "[hosting] Prepare GitHub secret-encryption dependency"
+if ! python3 -c 'import ctypes.util,sys; sys.exit(0 if ctypes.util.find_library("sodium") else 1)'; then
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y libsodium23
+fi
 
 python3 "${APP_ROOT}/lib/scripts/setup_studio_spatial.py" --app-root "$APP_ROOT" --app-user "$APP_USER" --domain "$APP_DOMAIN" --env-file "$ENV_FILE"
 
 echo "[3/8] Migrate"
 run_rails "bundle exec rails db:migrate"
+run_rails "bundle exec rails lightek_vault:bootstrap"
 
 echo "[nav] Register dashboard control-plane navigation"
 run_rails "bundle exec rails gatekeeper:dashboard_nav"

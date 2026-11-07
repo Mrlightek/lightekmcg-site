@@ -111,6 +111,8 @@ require File.join(ROOT, "db/migrate/20261031140002_integrate_profile_top_people_
 IntegrateProfileTopPeopleAndAudiences.new.migrate(:up)
 require File.join(ROOT,"db/migrate/20261031150000_create_studio_asset_library")
 CreateStudioAssetLibrary.new.migrate(:up)
+require File.join(ROOT,"db/migrate/20261107210000_create_studio_workstations")
+CreateStudioWorkstations.new.migrate(:up)
 require File.join(ROOT, "db/migrate/20261031213017_add_lightek_pwa_administration")
 AddLightekPwaAdministration.new.migrate(:up)
 require File.join(ROOT, "db/migrate/20261001124100_create_lightek_pwa_storefront")
@@ -120,15 +122,15 @@ class ApplicationJob < ActiveJob::Base; end
 %w[app/models/lightek_pwa/application app/models/lightek_pwa/membership app/models/lightek_pwa/admin_event
    app/models/lightek_pwa/surface app/models/lightek_pwa/surface_module app/models/lightek_pwa/navigation_item
    app/services/lightek_pwa/policy app/services/lightek_pwa/configuration app/services/lightek_pwa/administration
-   app/models/studio_project app/models/production app/models/studio_scene app/models/scene_object
+   app/models/studio_project app/models/production app/models/studio_scene app/models/scene_object app/models/studio_workstation
    app/models/studio_operation app/models/artifact app/models/studio_publication app/models/studio_live_operation
-   app/services/studio/native_blender/runtime app/services/studio/native_blender/object_edit app/jobs/studio_blender_preview_job app/services/studio/native_blender/camera_settings app/services/studio/native_blender/media_presets app/services/studio/native_blender/preset_use app/services/studio/native_blender/demo_catalog app/services/studio/native_blender/native_template app/services/studio/native_blender/demo_import app/jobs/studio_blender_demo_import_job
+   app/services/studio/native_blender/authoring app/services/studio/native_blender/create app/jobs/studio_asset_save_job app/services/studio/native_blender/runtime app/services/studio/native_blender/object_edit app/jobs/studio_blender_preview_job app/services/studio/native_blender/camera_settings app/services/studio/native_blender/media_presets app/services/studio/native_blender/preset_use app/services/studio/native_blender/demo_catalog app/services/studio/native_blender/native_template app/services/studio/native_blender/demo_import app/jobs/studio_blender_demo_import_job
    app/services/studio/library/catalog app/services/studio/library/generated_asset app/services/studio/library/apply
    app/services/studio/spatial/publication app/services/studio/spatial/runtime app/services/studio/spatial/generation
    app/services/studio/publishers/base app/services/studio/publishers/lightek_social
    app/services/studio/director/pwa_intent app/jobs/studio_publication_dispatch_job
    app/services/gatekeeper/studio_live_policy app/services/studio/pwa_access app/services/studio/workers/workspace app/services/studio/workers/project_creation
-   app/services/studio/live/encoder app/services/studio/live/sessions app/models/studio_asset app/services/studio/media_process app/services/studio/assets/ingestor app/services/studio/editing/timeline app/services/studio/providers/ffmpeg_provider app/jobs/studio_asset_ingest_job
+   app/services/studio/live/encoder app/services/studio/live/sessions app/models/studio_asset app/services/studio/media_process app/services/studio/assets/bundle_import app/services/studio/assets/ingestor app/services/studio/editing/timeline app/services/studio/providers/ffmpeg_provider app/jobs/studio_asset_ingest_job
    app/services/lightek_pwa/money app/models/lightek_social/top_person app/services/lightek_community/audience app/models/community app/models/post app/models/lightek_community/membership app/models/lightek_community/engagement
    app/models/lightek_messaging/conversation app/models/lightek_messaging/participant app/models/lightek_messaging/message
    app/services/lightek_messaging/access_denied app/services/lightek_messaging/send_message

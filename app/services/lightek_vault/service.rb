@@ -3,7 +3,7 @@ module LightekVault
     class AccessDenied < StandardError; end
 
     def self.store!(name:, slug:, payload:, secret_type: "credential", provider: nil, environment: "production", purpose: nil, access_policy: {}, metadata: {}, expires_at: nil, requested_by: "system")
-      encrypted = Crypto.new.encrypt_hash(payload)
+      encrypted = Crypto.new(master_key: MasterKey.ensure_available!(create_if_empty: true)).encrypt_hash(payload)
       secret = Secret.find_or_initialize_by(slug: slug.to_s)
       was_new = secret.new_record?
 

@@ -15,7 +15,7 @@ module LightekDesign
       if (match = kind.to_s.match(/\Ald_(\d+)_v(\d+)_/))
         fetch("ld_release_#{match[1]}_v#{match[2]}")["sections"].find { |entry| entry["kind"] == kind }
       else
-        builtin_designs.values.flat_map { |definition| definition["sections"] }.find { |entry| entry["kind"] == kind.to_s }
+        (builtin_designs.values.flat_map { |definition| definition["sections"] } + CommerceSections.definitions).find { |entry| entry["kind"] == kind.to_s }
       end
     rescue KeyError
       nil
@@ -92,11 +92,11 @@ module LightekDesign
   module StudioTemplateGuard
     def index
       super
-      @templates = @templates.reject { |template| template.settings["lightek_studio"] || template.settings["lightek_studio_release"] }
+      @templates = @templates.reject { |template| template.settings["lightek_studio"] || template.settings["lightek_studio_release"] || template.settings["html_import"] }
     end
     def apply
       candidate = DymondSite::SiteTemplate.find(params[:id])
-      raise ActiveRecord::RecordNotFound if candidate.settings["lightek_studio"] || candidate.settings["lightek_studio_release"]
+      raise ActiveRecord::RecordNotFound if candidate.settings["lightek_studio"] || candidate.settings["lightek_studio_release"] || candidate.settings["html_import"]
       design_key = candidate.settings["lightek_design"].to_s
       if design_key.start_with?("ld_release_") && !Catalog.selectable_designs(user: current_user, active: Catalog.design_for(@site)).key?(design_key)
         raise ActiveRecord::RecordNotFound
@@ -106,7 +106,7 @@ module LightekDesign
     private
     def set_template
       super
-      raise ActiveRecord::RecordNotFound if @template.settings["lightek_studio"] || @template.settings["lightek_studio_release"]
+      raise ActiveRecord::RecordNotFound if @template.settings["lightek_studio"] || @template.settings["lightek_studio_release"] || @template.settings["html_import"]
     end
   end
 end

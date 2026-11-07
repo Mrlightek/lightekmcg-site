@@ -18,7 +18,9 @@ module Blender
       "blend" => "scene.blend",
       "bundle" => "project.zip",
       "glb" => "scene.glb",
-      "preview" => "preview.png"
+      "preview" => "preview.png",
+      "animation" => "movie.mp4",
+      "authoring" => "authoring.json"
     }.freeze
 
     def initialize(execution_record, asset_paths: {}, template_path: nil, template_bundle: nil)
@@ -118,7 +120,7 @@ module Blender
       if Rails.env.production?
         image=Studio::NativeBlender::Runtime.image(:render)
         ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory","4g","--cpus","2","--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
-          "-v","#{output_directory}:/work:rw","-v","#{script}:/engine/runner.py:ro",image,"blender","--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python","/engine/runner.py","--","/work/manifest.json","/work"]
+          "-v","#{output_directory}:/work:rw","-v","#{Rails.root.join("blender")}:/engine:ro",image,"blender","--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python","/engine/runner.py","--","/work/manifest.json","/work"]
       else
         [render_engine_binary,"--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python",script,"--",manifest_path.to_s,output_directory.to_s]
       end
@@ -202,6 +204,7 @@ module Blender
     end
 
     def timeout_seconds
+      return 120 if execution_record.respond_to?(:metadata) && execution_record.metadata["asset_source_export"]
       return 60 if execution_record.respond_to?(:metadata) && execution_record.metadata["draft_preview"]
       ENV.fetch(
         "STUDIO_RENDER_TIMEOUT_SECONDS",

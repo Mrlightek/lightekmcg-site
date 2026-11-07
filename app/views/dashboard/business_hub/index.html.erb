@@ -72,8 +72,8 @@
         </tbody></table></div><% if @recent_campaigns.empty? %><p class="lbh-sub">No campaigns yet. Create a campaign to begin.</p><% end %>
       </section>
     </div>
-    <section class="lbh-panel"><div class="lbh-panelhead"><div><h2>Industry starter designs</h2><p class="lbh-sub">Start with an editable industry Shop page built with existing Pages & Sections.</p></div><%= link_to "Open Design Studio", dashboard_website_designs_path(site_id: @site.id) %></div>
-      <div class="lbh-gallery"><% @industry_starters.each do |key, definition| %><article class="lbh-tile"><strong><%= definition[:name] %></strong><p><%= definition[:intro] %></p><%= button_to "Use design", dashboard_commerce_industry_path(site_id: @site.id, industry: key), method: :post %></article><% end %></div>
+    <section class="lbh-panel"><div class="lbh-panelhead"><div><h2>Industry starter designs</h2><p class="lbh-sub">Launch a complete styled shop: collection hero, featured categories, live products, brand story and checkout. Edit the design in Design Studio.</p></div><%= link_to "Open Design Studio", dashboard_website_designs_path(site_id: @site.id) %></div>
+      <%= render "dashboard/website_designs/industry_designs" %>
     </section>
   <% else %>
     <div class="lbh-panel"><h2>No website selected</h2><p>Choose or create a Dymond Site website to manage your business.</p><%= link_to "Website Designs", dashboard_website_designs_path, class: "lbh-button" %></div>

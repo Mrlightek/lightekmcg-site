@@ -1,0 +1,156 @@
+.sa-dock {
+  margin: 18px 0;
+  border: 1px solid #3c5262;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #15212d, #0a111a);
+  padding: 20px;
+  color: #e6edf2;
+}
+.sa-dock > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sa-dock h3 {
+  margin: 5px 0 12px;
+}
+.sa-dock nav,
+.sa-transport {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.sa-transport {
+  padding: 12px;
+  background: #070d15;
+  border-radius: 10px;
+}
+.sa-transport label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 140px;
+}
+.sa-transport input {
+  width: 100%;
+}
+.sa-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  max-height: 540px;
+  overflow: auto;
+  margin-top: 14px;
+  padding: 2px;
+}
+.sa-form-grid > form,
+.sa-form-grid > section {
+  border: 1px solid #30414f;
+  border-radius: 12px;
+  padding: 16px;
+  background: #111b26;
+  min-width: 0;
+}
+.sa-form-grid h4 {
+  margin: 0 0 12px;
+  color: #dcc490;
+}
+.sa-form-grid .fld {
+  display: block;
+  margin: 8px 0;
+}
+.sa-form-grid input,
+.sa-form-grid select {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 8px;
+  background: #080f18;
+  border: 1px solid #405363;
+  color: #f1f3f6;
+  border-radius: 6px;
+}
+.sa-vector {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.sa-form-grid fieldset {
+  border: 0;
+  padding: 0;
+  margin: 8px 0;
+}
+.sa-form-grid legend {
+  font-size: 12px;
+  color: #b6c4cf;
+}
+.sa-topology,
+.sa-node-graphs {
+  grid-column: 1/-1;
+  min-width: 0;
+}
+.sa-topology > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 170px;
+  overflow: auto;
+}
+.sa-graph {
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #344956;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+.sa-graph svg {
+  width: 100%;
+  min-width: 400px;
+  max-height: 420px;
+}
+.sa-node-graphs {
+  overflow: auto;
+}
+.sa-graph details {
+  font-size: 12px;
+}
+.sa-bones {
+  display: grid;
+  max-height: 200px;
+  overflow: auto;
+  gap: 7px;
+}
+.sa-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sa-render {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  margin: 12px auto;
+}
+.sa-dock [role="status"] {
+  font-size: 13px;
+  color: #abd6d0;
+}
+@media (max-width: 550px) {
+  .sa-dock {
+    padding: 12px;
+  }
+  .sa-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .sa-graph svg {
+    min-width: 700px;
+  }
+  .sa-dock .btn {
+    white-space: normal;
+  }
+}

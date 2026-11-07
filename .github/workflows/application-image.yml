@@ -1,0 +1,93 @@
+name: Build Application Template Image
+on:
+  workflow_dispatch:
+    inputs:
+      template_id:
+        description: Dashboard application template ID
+        required: true
+      callback_url:
+        description: Public Lightek callback URL (supplied by Dashboard)
+        required: true
+      callback_audience:
+        description: Per-build identity audience (supplied by Dashboard)
+        required: true
+  workflow_call:
+    inputs:
+      template_id:
+        required: true
+        type: string
+      callback_url:
+        required: true
+        type: string
+      callback_audience:
+        required: true
+        type: string
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/create-github-app-token@v2
+        id: dependencies
+        with:
+          app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
+          private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
+          owner: lightekmcg
+      - name: Configure private dependency access
+        env:
+          TOKEN: ${{ steps.dependencies.outputs.token }}
+        run: |
+          git config --global --add url."https://x-access-token:${TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://x-access-token:${TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+      - run: bundle install
+      - name: Package Rails application
+        run: python3 script/lightek/build_fleet_release.py --output "$RUNNER_TEMP/template-image"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Image coordinates
+        id: coordinates
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}/design" >> "$GITHUB_OUTPUT"
+          echo "bundler=$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/template-image/fleet-build.json"))["bundler"])')" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: ${{ runner.temp }}/template-image
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.coordinates.outputs.image }}:${{ github.sha }}-${{ github.run_id }}
+          build-args: |
+            BUNDLER_VERSION=${{ steps.coordinates.outputs.bundler }}
+      - name: Report build result to Dashboard
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          CALLBACK: ${{ inputs.callback_url }}
+          AUDIENCE: ${{ inputs.callback_audience }}
+          TEMPLATE_ID: ${{ inputs.template_id }}
+          IMAGE: ${{ steps.coordinates.outputs.image }}@${{ steps.build.outputs.digest }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        with:
+          script: |
+            const endpoint = new URL(process.env.CALLBACK);
+            if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password) throw new Error('Invalid callback URL');
+            const token = await core.getIDToken(process.env.AUDIENCE);
+            core.setSecret(token);
+            const body = {template_id: process.env.TEMPLATE_ID};
+            if (process.env.BUILD_OUTCOME === 'success') body.image = process.env.IMAGE;
+            else body.status = 'failed';
+            const response = await fetch(endpoint, {method: 'POST', redirect: 'error',
+              headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+            if (!response.ok) throw new Error(`Dashboard callback failed (HTTP ${response.status})`);
+            if (body.image) await core.summary.addRaw(`Published image: ${body.image}`).write();

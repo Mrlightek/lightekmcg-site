@@ -29,7 +29,7 @@ module Gatekeeper
       end
 
       def self.run!(node:, domain:, requested_by:, operation_id:, payload:, script_name:, registry: false)
-        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py].include?(script_name)
+        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py install_container_application.py].include?(script_name)
         script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
         if node.local?
           stdout, _, status = Timeout.timeout(1900) do
@@ -62,8 +62,10 @@ module Gatekeeper
             options[:password] = root.fetch("root_password")
           end
         end
-        if registry && ENV["LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"].present?
-          registry = checkout.call(ENV.fetch("LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"), "fleet_registry", name)
+        registry_slug = ENV["LIGHTEK_FLEET_REGISTRY_SECRET_SLUG"].presence
+        registry_slug ||= Gatekeeper::Hosting::BuildSetup.registry_slug if registry
+        if registry && registry_slug.present?
+          registry = checkout.call(registry_slug, "fleet_registry", name)
           payload[:registry] = registry.slice("username", "password")
         end
         require "net/ssh"

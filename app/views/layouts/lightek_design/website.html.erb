@@ -4,7 +4,7 @@
   base_style = definition["base_design"] || design_key
   navigation_style = base_style == "plain" ? "vinylctrl" : base_style
   tokens = definition.fetch("tokens").merge(definition.fetch("fonts"))
-  tokens.merge!(@site.active_template.tokens) unless @preview
+  tokens.merge!(@site.active_template.tokens) if !@preview && @site.active_template && !@design_key
   stacks = %w[font_sans font_heading font_mono].each_with_object({}) do |key, result|
     result[key] = LightekDesign::Fonts.css_stack(tokens[key].presence || definition.fetch("fonts")[key], fallback: key == "font_mono" ? "monospace" : "sans-serif")
   end
@@ -34,6 +34,8 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
 </head><body class="lt-website-<%= base_style %>" data-lightek-website>
 <a class="lt-skip" href="#main-content">Skip to content</a>
 <% if @preview && !@studio_preview_definition %><aside class="lt-preview-banner">Design preview · <%= link_to "Back to website designs", dashboard_website_designs_path(site_id: @site.id) %></aside><% end %>
+<% content_has_header = @preview ? definition["sections"].any? { |entry| entry["chrome_header"] } : @page.sections.any? { |record| LightekDesign::Catalog.section_definition(record.kind)&.fetch("chrome_header", false) } %>
+<% unless content_has_header %>
 <header class="lt-design-<%= navigation_style %>">
 <% if !@preview && @site.nav_menu && @site.nav_menu.roots.any? %>
   <%= render "lightek_design/site_navigation", design_key: navigation_style %>
@@ -43,6 +45,7 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
   <%= render "lightek_design/#{design_key}/navigation", section: definition.fetch("navigation").fetch("data") %>
 <% end %>
 </header>
+<% end %>
 <main id="main-content"><%= yield %></main>
 <% unless @preview || @page.sections.any? { |section| %w[vinylctrl_waitlist ybnc_footer].include?(section.kind) || LightekDesign::Catalog.section_definition(section.kind)&.fetch("chrome_footer", false) } %>
   <div class="lt-design-<%= navigation_style %>">

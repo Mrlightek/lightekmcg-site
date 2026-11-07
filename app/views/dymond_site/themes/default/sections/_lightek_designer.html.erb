@@ -1,2 +1,4 @@
+<%= stylesheet_link_tag "/lightek/designer/website.css" %>
+<%= javascript_include_tag "/lightek/designs/website.js", defer: true %>
 <% entry = LightekDesign::Catalog.section_definition(section.section.kind) %>
 <%= studio_render_section(entry, section.data) if entry %>

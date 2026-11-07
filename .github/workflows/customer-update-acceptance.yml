@@ -24,6 +24,10 @@ on:
       - 'db/migrate/*native_fleet*'
       - 'script/lightek/build_fleet_release.py'
       - 'test/standalone/fleet*'
+      - 'test/standalone/hosting_bootstrap_test.rb'
+      - 'app/services/lightek_vault/**'
+      - 'app/controllers/dashboard/vault_controller.rb'
+      - '.github/workflows/application-image.yml'
       - '.github/workflows/customer*.yml'
   workflow_dispatch:
 permissions:
@@ -36,10 +40,18 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3.6'
+      - name: Prepare secret-encryption support
+        run: |
+          if ! ldconfig -p | grep 'libsodium.so.23' >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y libsodium23
+          fi
       - name: Install isolated test dependencies
-        run: gem install activerecord:8.0.4 activejob:8.0.4 sqlite3:2.7.4 minitest:5.25.5 --no-document
+        run: gem install activerecord:8.0.4 activejob:8.0.4 sqlite3:2.7.4 minitest:5.25.5 jwt:2.10.3 --no-document
       - name: Test fleet persistence, batching, retries and recovery
         run: ruby test/standalone/fleet_updates_test.rb
+      - name: Verify Vault recovery and automatic build setup
+        run: ruby test/standalone/hosting_bootstrap_test.rb
       - name: Test remote installation updates and release packaging
         run: python3 -m unittest discover -s test/standalone -p 'fleet*_test.py'
       - name: Check Ruby syntax

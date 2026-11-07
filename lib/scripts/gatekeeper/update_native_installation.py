@@ -300,6 +300,9 @@ class NativeUpdater:
                     self.command(["python3", str(self.root / "lib/scripts/setup_studio_docker_access.py"), "--app-user", self.user.pw_name])
                     self.as_user(["bash", "lib/scripts/setup_studio_media.sh"])
                     self.command(["python3", str(self.root / "lib/scripts/setup_studio_spatial.py"), "--app-root", self.profile["app_root"], "--app-user", self.user.pw_name, "--domain", self.config["domain"], "--env-file", self.profile["env_file"]])
+                    if (self.root / "lib/scripts/setup_studio_workstation.sh").is_file():
+                        self.as_user(["bash", "lib/scripts/setup_studio_workstation.sh"])
+                        self.command(["python3", str(self.root / "lib/scripts/install_studio_workstation.py"), "--app-root", str(self.root), "--app-user", self.user.pw_name, "--app-name", self.root.name, "--domain", self.config["domain"]])
                 self.migration_started = True
                 self.as_user(["bundle", "exec", "rails", "db:migrate"])
                 if self.config["component"] == "lightek_app":

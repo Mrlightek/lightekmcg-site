@@ -50,7 +50,7 @@ module LightekDesign
       end
       def from_definition(definition)
         {"name" => definition["name"], "description" => definition["description"], "base_design" => definition["base_design"] || (definition["name"] == "YBNC" ? "ybnc" : "vinylctrl"), "fonts" => definition["fonts"], "tokens" => definition["tokens"], "sections" => definition.fetch("sections").map do |entry|
-          {"id" => SecureRandom.hex(6), "anchor" => entry["anchor"].to_s, "title" => entry["title"], "block" => entry["block"], "source_kind" => (entry["block"].present? ? nil : entry["render_kind"] || entry["kind"]), "data" => entry["data"], "style" => entry["style"] || STYLE_DEFAULTS.merge("padding" => 0, "width" => 1600, "radius" => 0)}
+          {"id" => SecureRandom.hex(6), "anchor" => entry["anchor"].to_s, "title" => entry["title"], "chrome_header" => entry["chrome_header"], "chrome_footer" => entry["chrome_footer"], "block" => entry["block"], "source_kind" => (entry["block"].present? ? nil : entry["render_kind"] || entry["kind"]), "data" => entry["data"], "style" => entry["style"] || STYLE_DEFAULTS.merge("padding" => 0, "width" => 1600, "radius" => 0)}
         end}
       end
       def new_block(key)
@@ -59,7 +59,7 @@ module LightekDesign
       end
       def normalize(raw)
         raise ArgumentError, "The design must be an object." unless raw.is_a?(Hash)
-        raise ArgumentError, "Design is too large." if raw.to_json.bytesize > 700_000
+        raise ArgumentError, "Design is too large." if raw.to_json.bytesize > 4_000_000
         name = raw["name"].to_s.strip
         raise ArgumentError, "Give the design a name (1–120 characters)." unless name.length.between?(1, 120)
         raise ArgumentError, "Choose a valid base style." unless %w[plain vinylctrl ybnc].include?(raw["base_design"])
@@ -87,9 +87,13 @@ module LightekDesign
           anchors << anchor unless anchor.empty?
           block, source = section["block"].presence, section["source_kind"].presence
           raise ArgumentError, "Choose one section type." if block && source
-          entry = {"id" => id, "anchor" => anchor, "title" => section["title"].to_s.first(120), "block" => block, "source_kind" => source, "style" => normalize_style(section["style"] || {})}
+          entry = {"id" => id, "anchor" => anchor, "title" => section["title"].to_s.first(120), "block" => block, "source_kind" => source, "chrome_header" => section["chrome_header"] == true, "chrome_footer" => section["chrome_footer"] == true, "style" => normalize_style(section["style"] || {})}
           schema = StudioBlocks.schema_for(entry)
-          entry["data"] = normalize_data(section["data"] || {}, schema)
+          entry["data"] = if block == "html"
+            HtmlDocument.normalize_data(section["data"] || {})
+          else
+            normalize_data(section["data"] || {}, schema)
+          end
           entry
         end
         {"name" => name, "description" => raw["description"].to_s.first(1000), "base_design" => raw["base_design"], "tokens" => tokens, "fonts" => fonts, "sections" => normalized}
@@ -201,7 +205,7 @@ module LightekDesign
         {"name" => document["name"], "description" => document["description"], "designer" => true, "document_id" => document_id, "version" => version,
           "base_design" => document["base_design"], "fonts" => document["fonts"], "tokens" => document["tokens"], "sections" => document["sections"].map do |section|
             {"kind" => "ld_#{document_id}_v#{version}_#{section['id']}", "anchor" => section["anchor"], "title" => section["title"], "fields" => StudioBlocks.schema_for(section), "data" => section["data"], "block" => section["block"], "render_kind" => section["source_kind"], "style" => section["style"], "designer" => true,
-              "chrome_footer" => section["block"] == "footer" || %w[vinylctrl_waitlist ybnc_footer].include?(section["source_kind"])}
+              "chrome_header" => section["chrome_header"] == true, "chrome_footer" => section["chrome_footer"] == true || section["block"] == "footer" || %w[vinylctrl_waitlist ybnc_footer].include?(section["source_kind"])}
           end}
       end
     end

@@ -5,7 +5,22 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   helper DymondDash::TemplateSchemaHelper
   helper LightekDesign::StudioHelper
 
-  def index; end
+  def index
+    @html_imports = @site ? LightekDesign::HtmlImport.records_for(user: current_user, site: @site) : []
+  end
+
+  def upload_html
+    record = LightekDesign::HtmlImport.enqueue!(user: current_user, site: @site, html_file: params[:html_file], css_file: params[:css_file], name: params[:name], create_page: params[:create_page] == "1", product_selector: params[:product_selector])
+    redirect_after_html_import(record)
+  rescue ArgumentError => error
+    redirect_to dashboard_website_designs_path(site_id: @site.id), alert: error.message
+  end
+
+  def convert_html
+    record = LightekDesign::HtmlImport.records_for(user: current_user, site: @site).find(params.require(:import_id))
+    LightekDesign::HtmlImportJob.perform_now(record.id)
+    redirect_after_html_import(record.reload)
+  end
 
   def preview
     @preview = true
@@ -36,6 +51,15 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   end
 
   private
+
+  def redirect_after_html_import(record)
+    meta = record.settings.fetch("html_import")
+    if meta["status"] == "complete"
+      redirect_to dashboard_website_designs_path(site_id: @site.id), notice: "Design converted and saved to the design library.#{' Your draft page is ready in Pages & Sections.' if meta['page_id']}"
+    else
+      redirect_to dashboard_website_designs_path(site_id: @site.id), alert: meta["error"].presence || "Conversion did not complete. Use Convert now to retry the saved source."
+    end
+  end
 
   def set_design_site
     @sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name, :id)

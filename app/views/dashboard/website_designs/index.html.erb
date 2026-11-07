@@ -11,6 +11,8 @@
 <% if @site %>
 <p><%= link_to "Sign-in & account branding →", dashboard_authentication_branding_path(site_id: @site.id) %></p>
 <p>Editing <strong><%= @site.name %></strong> · <%= @site.host %></p>
+<%= render "html_upload" %>
+<%= render "dashboard/website_designs/industry_designs" %>
 <div class="grid">
 <% LightekDesign::Catalog.selectable_designs(user: current_user, active: LightekDesign::Catalog.design_for(@site)).each do |key, design| %>
 <section class="card">

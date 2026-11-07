@@ -16,6 +16,7 @@ gem "importmap-rails"
 gem "turbo-rails"
 gem "stimulus-rails"
 gem "jbuilder"
+gem "jwt", "~> 2.10"
 
 # ── Auth & authorization ───────────────────────────────────────────────────────
 # Rails 8 native auth — no Devise

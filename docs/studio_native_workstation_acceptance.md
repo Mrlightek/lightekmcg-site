@@ -8,7 +8,7 @@ The provisioning and native update adapters install the media tools, build `ligh
 
 Open a production, then choose **Open full Blender workstation**. The session starts from the production's pinned source. Task buttons select native editors. **Save version to Studio** packs resources, saves a separate Library asset and creates an editable production. The original production is retained. Use movie export and delivery for publishing; use a GLB stage in Live Studio for program composition.
 
-Sessions last four hours and allow one active workstation per user. Default limits: four GiB RAM, two CPUs, 512 processes, 512 MiB shared memory. The desktop uses software OpenGL; GPU acceleration and frame-rate/latency targets are not verified by this change. Cache and resource files must remain under `/work` to be retained. Close native modal dialogs before switching or saving.
+Sessions last four hours and allow one active workstation per user. Default limits: four GiB RAM, up to two CPUs (clamped to Docker daemon capacity), 512 processes, 512 MiB shared memory. The desktop uses software OpenGL; GPU acceleration and frame-rate/latency targets are not verified by this change. Cache and resource files must remain under `/work` to be retained. Close native modal dialogs before switching or saving.
 
 Each session has no network, no published ports, and no access to the app, credentials, Docker socket or host home. Its only writable persistent mount is its own working directory. The authenticated host gateway serves immutable noVNC code and bridges a private Unix socket. Owner/site checks, CSRF, signed session access, same-origin WebSockets, expiry and revocation protect entry. Automatic file scripts are disabled; explicitly installed native add-ons are not provided.
 
@@ -41,3 +41,5 @@ Each session has no network, no published ports, and no access to the app, crede
 `LIGHTEK_TEST_WORKSTATION=1 NODE_PATH=/path/to/browser/node_modules python3 -m unittest test/operations/studio_workstation_container_test.py`
 
 The desktop test must execute (not skip) on CI. It produces `tmp/workstation-desktop.png`. Green data round-trip tests alone do not establish interactive parity. Complete Blender/Maya parity remains an open acceptance goal; native Blender availability is broader tool access, not proof of all requested production workflows.
+
+CPU budgets for media probes, imports, rendering, workstations and spatial containers use the daemon capacity reported by `docker info`. `STUDIO_WORKER_CPUS` sets the requested budget (default 2); `SPATIAL_WORKER_CPUS` can override it for spatial workers. A one-CPU server receives a one-CPU limit automatically; fractional budgets are preserved.

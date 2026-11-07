@@ -3,7 +3,7 @@ require "timeout"
 module Studio
   class MediaProcess
     class Cancelled < StandardError; end
-    def self.run!(command, timeout:90, cancel_if:nil, stdin_data:nil)
+    def self.run!(command, timeout:90, cancel_if:nil, stdin_data:nil, cleanup_container:true)
       output="";errors="";status=nil
       Open3.popen3(*command,pgroup:true) do |input,stdout,stderr,wait|
         input.write(stdin_data) if stdin_data
@@ -31,13 +31,16 @@ module Studio
       raise "Media processing failed: #{errors.last(1000)}" unless status.success?
       output
     ensure
-      if command&.first=="docker" && (index=command.index("--name"))
+      if cleanup_container && command&.first=="docker" && (index=command.index("--name"))
         Open3.capture3("docker","rm","-f",command[index+1]) rescue nil
       end
     end
+    def self.cpu_limit
+      run!(["python3",Rails.root.join("lib/scripts/studio_worker_limits.py").to_s],timeout:15).strip
+    end
     def self.container(command, root:, image:)
       name="lightek-media-#{SecureRandom.hex(8)}"
-      ["docker","run","--rm","--name",name,"--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","2g","--cpus","2","--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=512m","-v","#{root}:/work:rw",image]+command
+      ["docker","run","--rm","--name",name,"--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","2g","--cpus",cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=512m","-v","#{root}:/work:rw",image]+command
     end
   end
 end

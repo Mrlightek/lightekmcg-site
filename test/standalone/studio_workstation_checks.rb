@@ -22,6 +22,35 @@ class StudioWorkstationTest < StudioAuthoringTest
   end
   def access(user=@alice,site=@site) = Studio::Workstations::Access.new(user:user,site:site)
   def create_session(**payload) = access.create!({"scene_id"=>@scene.id,"request_key"=>SecureRandom.uuid}.merge(payload.stringify_keys),origin:"https://lightek.test")
+  def test_workstation_shared_cpu_policy_reaches_media_container_commands
+    previous_path=ENV["PATH"];previous_budget=ENV["STUDIO_WORKER_CPUS"]
+    Dir.mktmpdir("studio-daemon-cpu-") do |folder|
+      docker=File.join(folder,"docker")
+      File.write(docker,"#!/bin/sh\nprintf '1\\n'\n");File.chmod(0755,docker)
+      ENV["PATH"]="#{folder}:#{previous_path}";ENV["STUDIO_WORKER_CPUS"]="2"
+      Rails.stub(:root,Pathname(ROOT)) do
+        assert_equal "1",Studio::MediaProcess.cpu_limit
+        command=Studio::MediaProcess.container(["ffmpeg","-version"],root:folder,image:"fixture/media")
+        assert_equal "1",command[command.index("--cpus")+1]
+      end
+    end
+  ensure
+    ENV["PATH"]=previous_path;ENV["STUDIO_WORKER_CPUS"]=previous_budget
+  end
+  def test_workstation_detached_container_survives_the_launch_command
+    previous_path=ENV["PATH"]
+    Dir.mktmpdir("studio-container-life-") do |folder|
+      trace=File.join(folder,"commands");docker=File.join(folder,"docker")
+      File.write(docker,"#!/bin/sh\nprintf '%s\\n' \"$*\" >> #{trace}\nprintf 'container-started\\n'\n");File.chmod(0755,docker)
+      ENV["PATH"]="#{folder}:#{previous_path}"
+      Studio::Workstations::Runtime.command("run","-d","--name","studio-fixture")
+      assert_equal ["run -d --name studio-fixture"],File.readlines(trace,chomp:true)
+      Studio::MediaProcess.run!(["docker","run","--name","transient-fixture"])
+      assert_equal "rm -f transient-fixture",File.readlines(trace,chomp:true).last
+    end
+  ensure
+    ENV["PATH"]=previous_path
+  end
   def test_workstation_creation_is_idempotent_and_preserves_an_immutable_source_snapshot
     key=SecureRandom.uuid;s=create_session(request_key:key);again=create_session(request_key:key)
     assert_equal s.id,again.id
@@ -63,12 +92,15 @@ class StudioWorkstationTest < StudioAuthoringTest
       runtime.stub(:readiness!,nil) do
         runtime.stub(:wait_for_desktop!,nil) do
           runtime.stub(:command,command) do
-            Studio::Providers::BlenderProvider.stub(:new,->(_op){provider}) { StudioWorkstationStartJob.perform_now(s.id) }
+            Studio::MediaProcess.stub(:cpu_limit,"1") do
+              Studio::Providers::BlenderProvider.stub(:new,->(_op){provider}) { StudioWorkstationStartJob.perform_now(s.id) }
+            end
           end
         end
       end
       run=commands.find{|args|args.first=="run"}
       assert_equal "none",run[run.index("--network")+1]
+      assert_equal "1",run[run.index("--cpus")+1]
       refute_includes run,"--publish"
       assert_includes run,"--read-only";assert_includes run,"no-new-privileges"
       mounts=run.each_index.filter_map{|i|run[i+1] if run[i]=="--mount"}

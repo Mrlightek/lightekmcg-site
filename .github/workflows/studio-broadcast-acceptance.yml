@@ -3,6 +3,12 @@ on:
   pull_request:
     paths:
       - 'app/**/studio/**'
+      - 'app/**/studio_workstation*'
+      - 'app/views/dashboard/studio_workstations/**'
+      - 'docker/studio-workstation/**'
+      - 'lib/scripts/*studio_workstation*'
+      - 'public/lightek/workstation.*'
+      - 'db/migrate/20261107210000_create_studio_workstations.rb'
       - 'app/controllers/dashboard/live_broadcasts_controller.rb'
       - 'app/controllers/dashboard/media_studio_controller.rb'
       - 'app/controllers/gatekeeper_controller.rb'
@@ -64,7 +70,7 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
       - name: Library, HTTP, Gatekeeper, publication and native Blender acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -114,3 +120,43 @@ jobs:
         run: BLENDER_BIN="$(command -v blender)" python3 -m unittest test/operations/studio_native_tools_test.py
       - name: Blender archive and transform regression
         run: python3 -m unittest test/operations/studio_media_setup_test.py test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py test/operations/deploy_checkout_test.py
+  workstation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0
+      - run: "$RUNNER_TEMP/studio-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - name: Native workstation access, save, render and publication
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/studio_workstation_checks.rb --name /test_workstation/
+      - name: Native project preservation and gateway security
+        run: BLENDER_BIN="$(command -v blender)" python3 -m unittest test/operations/studio_workstation_gateway_test.py test/operations/studio_workstation_bridge_test.py
+      - name: Native workstation controls
+        env:
+          NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
+        run: node test/javascript/studio_workstation_test.cjs
+      - name: Build isolated native desktop
+        run: docker build -t lightek/studio-workstation:20261107 docker/studio-workstation
+      - name: Real native Blender desktop and save receipt
+        env:
+          LIGHTEK_TEST_WORKSTATION: '1'
+          NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
+        run: python3 -m unittest test/operations/studio_workstation_container_test.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: studio-native-desktop
+          path: tmp/workstation-desktop.png
+          if-no-files-found: ignore

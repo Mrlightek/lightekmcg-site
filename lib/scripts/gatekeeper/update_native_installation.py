@@ -292,6 +292,10 @@ class NativeUpdater:
             changed = True
             if self.config["adapter"] == "native_rails":
                 self.as_user(["bundle", "install", "--jobs", "1"])
+                if (self.root / "lib/scripts/setup_studio_workstation.sh").is_file():
+                    self.as_user(["bash", "lib/scripts/setup_studio_media.sh"])
+                    self.as_user(["bash", "lib/scripts/setup_studio_workstation.sh"])
+                    self.command(["python3", str(self.root / "lib/scripts/install_studio_workstation.py"), "--app-root", str(self.root), "--app-user", self.user.pw_name, "--app-name", self.root.name, "--domain", self.config["domain"]])
                 self.migration_started = True
                 self.as_user(["bundle", "exec", "rails", "db:migrate"])
                 if self.config["component"] == "lightek_app":

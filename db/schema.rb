@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_07_190000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_07_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2793,6 +2793,27 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_07_190000) do
     t.index ["studio_project_id"], name: "index_studio_scenes_on_studio_project_id"
   end
 
+  create_table "studio_workstations", force: :cascade do |t|
+    t.bigint "owner_id", null: false
+    t.bigint "site_id"
+    t.bigint "studio_scene_id", null: false
+    t.string "session_key", null: false
+    t.string "request_key", null: false
+    t.string "status", default: "starting", null: false
+    t.string "container_id"
+    t.integer "port"
+    t.datetime "expires_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_id", "request_key"], name: "index_studio_workstations_on_owner_id_and_request_key", unique: true
+    t.index ["owner_id"], name: "index_studio_workstations_on_owner_id"
+    t.index ["session_key"], name: "index_studio_workstations_on_session_key", unique: true
+    t.index ["site_id"], name: "index_studio_workstations_on_site_id"
+    t.index ["studio_scene_id"], name: "index_studio_workstations_on_studio_scene_id"
+  end
+
   create_table "subscription_infrastructure_entitlements", force: :cascade do |t|
     t.bigint "subscription_plan_id", null: false
     t.bigint "provisioning_profile_id"
@@ -3176,6 +3197,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_07_190000) do
   add_foreign_key "studio_publications", "studio_projects"
   add_foreign_key "studio_scenes", "productions"
   add_foreign_key "studio_scenes", "studio_projects"
+  add_foreign_key "studio_workstations", "studio_scenes"
+  add_foreign_key "studio_workstations", "users", column: "owner_id"
   add_foreign_key "subscription_infrastructure_entitlements", "compute_policies"
   add_foreign_key "subscription_infrastructure_entitlements", "dymond_bank_subscription_plans", column: "subscription_plan_id"
   add_foreign_key "subscription_infrastructure_entitlements", "provisioning_profiles"

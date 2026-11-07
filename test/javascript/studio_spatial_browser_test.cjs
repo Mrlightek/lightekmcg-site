@@ -54,7 +54,9 @@ async function run({denied=false,noWebgl=false}={}){
  await page.getByRole('button',{name:'View 3 · red.webm',exact:true}).click();await page.waitForTimeout(400);
  const red=await page.locator('[data-spatial-canvas] canvas').screenshot({path:'/tmp/lightek-spatial-composition.png'});assert(!blue.equals(red),'switching angle changes the actual WebGL image');
  await page.locator('[name=view]').selectOption('orbit');await page.locator('[name=layout]').selectOption('array');
- await page.getByText('Window calibration & person layers',{exact:true}).click();await page.locator('[name=cutout]').check();await page.getByText(/Person cutout ready/).waitFor();
+ // The ready message is transient: the next mask frame immediately reports active.
+ // Require a processed mask instead of racing that initial progress message.
+ await page.getByText('Window calibration & person layers',{exact:true}).click();await page.locator('[name=cutout]').check();await page.locator('[data-tracking-status]').filter({hasText:/Person cutout active/}).waitFor();
  await page.locator('[name=width]').fill('0.55');await page.locator('[name=width]').dispatchEvent('change');
  await page.getByRole('button',{name:'Save workspace',exact:true}).click();await page.getByText('Saved to your account',{exact:true}).waitFor();
  assert.equal(scene.settings.workspace.story.spatial.width,.55);assert.equal(scene.settings.workspace.story.spatial.layout,'array');assert.equal(uploads,0);

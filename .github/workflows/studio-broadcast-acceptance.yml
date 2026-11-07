@@ -21,6 +21,10 @@ on:
       - 'lib/scripts/setup_studio_media.sh'
       - 'lib/scripts/gatekeeper/deploy_project.sh'
       - 'lib/tasks/studio/**'
+      - 'test/javascript/studio_creation_test.cjs'
+      - 'app/jobs/studio_asset_save_job.rb'
+      - 'docker/studio-media/**'
+      - 'db/migrate/20261107153000_register_studio_native_creation.rb'
       - 'test/javascript/studio_native_authoring_test.cjs'
       - 'test/javascript/studio_native_viewport_test.cjs'
       - 'app/jobs/studio_blender_preview_job.rb'
@@ -57,6 +61,10 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/blender_authoring_checks.rb
+      - name: Studio creation and reusable Blender source acceptance
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/studio_creation_checks.rb --name '/test_creation|test_saved_source/'
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -64,7 +72,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright
+      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright jsdom
       - run: "$RUNNER_TEMP/studio-browser/node_modules/.bin/playwright install --with-deps chromium"
       - name: Browser capture transport regression
         env:
@@ -74,6 +82,7 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
         run: |
+          node test/javascript/studio_creation_test.cjs
           node test/javascript/studio_library_test.cjs
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_native_camera_test.cjs

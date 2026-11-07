@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install].freeze
+      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -168,7 +168,7 @@ module Studio
         records=scope.limit(101).to_a
         more=records.length>100
         records=records.first(100)
-        { media_presets: Studio::NativeBlender::MediaPresets.items, builtins: Studio::Library::Catalog.items, camera_presets: Studio::NativeBlender::CameraSettings.presets, blender_demos: Studio::NativeBlender::DemoCatalog.items, next_before: more ? records.last.id : nil, assets: records.map { |asset|
+        { creation_recipes: Studio::NativeBlender::Create.items, media_presets: Studio::NativeBlender::MediaPresets.items, builtins: Studio::Library::Catalog.items, camera_presets: Studio::NativeBlender::CameraSettings.presets, blender_demos: Studio::NativeBlender::DemoCatalog.items, next_before: more ? records.last.id : nil, assets: records.map { |asset|
           { id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,error:asset.error_message,metadata:asset.metadata,
             url:asset.file.attached? ? "/api/lightek/pwa/assets/#{asset.id}/original" : nil,bundle_url:asset.bundle.attached? ? "/api/lightek/pwa/assets/#{asset.id}/bundle" : nil,native_url:asset.native.attached? ? "/api/lightek/pwa/assets/#{asset.id}/native" : nil,proxy_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil,
             thumbnail_url:asset.thumbnail.attached? ? "/api/lightek/pwa/assets/#{asset.id}/thumbnail" : nil } } }
@@ -180,6 +180,38 @@ module Studio
 
       def blender_preset_use
         Studio::NativeBlender::PresetUse.call(access:@access,payload:@payload)
+      end
+
+      def blender_create
+        Studio::NativeBlender::Create.call(access:@access,payload:@payload)
+      end
+
+      def blender_asset_save
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        key=@payload.fetch("request_key").to_s
+        raise ArgumentError,"An asset request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        operation=nil;asset=nil
+        @access.user.with_lock do
+          asset=StudioAsset.find_by(owner_id:@access.user.id,request_key:key)
+          if asset
+            raise ArgumentError,"Request key belongs to another asset" unless asset.site_id==@access.site_id && asset.metadata["saved_scene_id"]==scene.id
+            return {asset_id:asset.id,status:asset.status}
+          end
+          scene.with_lock do
+            raise ArgumentError,"The scene changed. Refresh before saving an asset." unless scene.lock_version==Integer(@payload.fetch("lock_version"))
+            manifest=::Blender::ManifestBuilder.new(scene).call.deep_dup
+            raise ArgumentError,"Save at most 500 scene objects at a time" if manifest.dig("scene","objects").length>500
+            manifest["outputs"]={"blend"=>true,"bundle"=>scene.blender_bundle.attached?}
+            asset=StudioAsset.create!(owner:@access.user,site_id:@access.site_id,studio_project:scene.studio_project,
+              name:(@payload["name"].presence || scene.name).to_s.first(160),kind:"blend",status:"processing",request_key:key,
+              metadata:{"saved_scene_id"=>scene.id,"sources"=>manifest["credits"]})
+            operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,
+              operation_type:"build_scene",provider:"blender",capability:"studio.workspace.blender.asset.save",status:"pending",
+              intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"asset_id"=>asset.id,"asset_source_export"=>true})
+          end
+        end
+        StudioAssetSaveJob.perform_later(operation.id)
+        {asset_id:asset.id,status:asset.status,operation_id:operation.id}
       end
 
       def blender_runtime_status
@@ -309,6 +341,14 @@ module Studio
         asset=StudioAsset.for_actor(@access).find(@payload.fetch("asset_id"))
         asset.with_lock do
           raise ArgumentError,"Only failed imports can be retried" unless asset.status=="failed"
+          if asset.metadata["saved_scene_id"] && !asset.file.attached?
+            operation=asset.studio_project.studio_operations.where(capability:"studio.workspace.blender.asset.save").detect { |row| row.metadata["asset_id"]==asset.id }
+            raise ArgumentError,"The saved source operation is unavailable" unless operation && operation.status=="failed"
+            operation.update!(status:"pending",error_message:nil)
+            asset.update!(status:"processing",error_message:nil)
+            StudioAssetSaveJob.perform_later(operation.id)
+            return {asset_id:asset.id,status:asset.status}
+          end
           asset.update!(status:"uploaded",error_message:nil)
         end
         (asset.metadata["demo_key"] ? StudioBlenderDemoImportJob : StudioAssetIngestJob).perform_later(asset.id)

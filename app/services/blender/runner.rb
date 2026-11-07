@@ -202,6 +202,7 @@ module Blender
     end
 
     def timeout_seconds
+      return 120 if execution_record.respond_to?(:metadata) && execution_record.metadata["asset_source_export"]
       return 60 if execution_record.respond_to?(:metadata) && execution_record.metadata["draft_preview"]
       ENV.fetch(
         "STUDIO_RENDER_TIMEOUT_SECONDS",

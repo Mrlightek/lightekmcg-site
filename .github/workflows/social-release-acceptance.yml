@@ -26,7 +26,7 @@ jobs:
       LIGHTEK_APP_KEY: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/create-github-app-token@v2
+      - uses: actions/create-github-app-token@v3
         id: private_repos
         with:
           app-id: ${{ env.LIGHTEK_APP_ID }}

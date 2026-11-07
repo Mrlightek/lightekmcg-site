@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Create private dependency token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         id: dependencies
         with:
           app-id: ${{ env.LIGHTEK_APP_ID }}

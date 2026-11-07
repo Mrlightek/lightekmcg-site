@@ -26,7 +26,7 @@ jobs:
 
       - name: Create Lightek private dependency token
         id: lightek_private_repos
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
@@ -71,7 +71,7 @@ jobs:
 
       - name: Create Lightek private dependency token
         id: lightek_private_repos
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
@@ -115,7 +115,7 @@ jobs:
 
       - name: Create Lightek private dependency token
         id: lightek_private_repos
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}
@@ -187,7 +187,7 @@ jobs:
 
       - name: Create Lightek private dependency token
         id: lightek_private_repos
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.LIGHTEK_CI_APP_ID || vars.LIGHTEK_CI_APP_ID }}
           private-key: ${{ secrets.LIGHTEK_CI_APP_PRIVATE_KEY }}

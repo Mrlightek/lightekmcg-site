@@ -394,6 +394,7 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
   get "/dashboard/website/designs/preview", to: "dashboard/website_designs#preview", as: :preview_dashboard_website_designs
   post "/dashboard/website/designs/apply", to: "dashboard/website_designs#apply", as: :apply_dashboard_website_designs
   post "/dashboard/website/designs/import", to: "dashboard/website_designs#import", as: :import_dashboard_website_designs
+  post "/dashboard/website/designs/convert", to: "dashboard/website_designs#convert_html", as: :convert_dashboard_website_designs
   post "/dashboard/website/designs/upload", to: "dashboard/website_designs#upload_html", as: :upload_dashboard_website_designs
   patch "/dashboard/website/designs/fonts", to: "dashboard/website_designs#update_fonts", as: :fonts_dashboard_website_designs
 # END LIGHTEK WEBSITE DESIGNS

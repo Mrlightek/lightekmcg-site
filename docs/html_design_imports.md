@@ -1,11 +1,10 @@
 # HTML/CSS website imports and shop designs
 
 Website tools → Website designs → choose a website → Upload & convert design.
-Upload a UTF-8 HTML file and optional CSS file (500 KB each). The background
-worker saves the original source in the import record, creates an owned Design
+Upload a UTF-8 HTML file and optional CSS file (500 KB each). The conversion saves the original source in the import record, creates an owned Design
 Studio workspace, releases a version to the website design library, and optionally
-creates an unpublished Page with ordered Sections. Refresh the import status to
-open the workspace, preview, or Pages & Sections. Existing page publishing and
+creates an unpublished Page with ordered Sections. The upload request completes conversion immediately so no separate worker is
+needed. Open the workspace, preview, or Pages & Sections. Existing page publishing and
 home page selection remain under the website editor's control.
 
 Each top-level body element and each direct child of main becomes an editable
@@ -38,7 +37,10 @@ chosen website. Reusing a starter returns that same page without overwriting
 edits. Templates create no fake stock, products, reviews or performance claims.
 
 No migration or new worker service is required. Deploy the source and restart
-Passenger and the existing Sidekiq worker. HTML imports use the default queue.
+Passenger and the existing Sidekiq worker. Interactive HTML imports run immediately
+through the same idempotent job. Optional background submissions still use the
+default queue. Existing queued or failed uploads have a Convert now / Retry
+conversion action that reuses their saved source without uploading again.
 
 ## Verification
 
@@ -49,8 +51,8 @@ industry layouts. Rails integration/service tests cover authorization, job
 idempotency, original source retention, publication, site isolation and recovery.
 Run those in the application's normal Ruby/Bundler/PostgreSQL environment.
 
-Local verification: 7 conversion tests / 103 assertions and 5 persisted job tests /
-26 assertions passed using Ruby 3.2 and a minimal Active Record 6.1 SQLite harness.
+Local verification: 7 conversion tests / 103 assertions and 7 persisted job tests /
+35 assertions passed using Ruby 3.2 and a minimal Active Record 6.1 SQLite harness.
 All 16 changed ERB templates compiled; Ruby/JavaScript syntax and diff checks passed.
 The app's full Rails 8/PostgreSQL tests and browser visual checks are not verified
 in this workspace. Browser installation was unavailable. The persisted harness

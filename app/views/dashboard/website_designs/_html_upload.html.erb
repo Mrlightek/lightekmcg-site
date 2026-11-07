@@ -8,7 +8,7 @@
     <label><%= check_box_tag :create_page, "1", true %> Also create a draft page on <%= @site.name %></label>
     <details><summary>Connect a shop layout to live products</summary><p>Enter the CSS selector of the product container, such as <code>#grid</code> for the attached Lightek Store design. That section becomes a live product grid with cart actions.</p><%= text_field_tag :product_selector, nil, placeholder: "[data-lightek-products]" %></details>
     <p><small>UTF-8 HTML/CSS · 500 KB per file. Uses hosted image URLs. Scripts, forms, and external CSS require review; upload the CSS alongside the HTML. Original source is retained with the import.</small></p>
-    <%= submit_tag "Upload & convert design" %>
+    <%= submit_tag "Upload & convert design", data: { turbo_submits_with: "Converting design…" } %>
   <% end %>
 </section>
 <% if @html_imports.present? %>
@@ -19,5 +19,8 @@
 <p><%= link_to "Edit in Design Studio", edit_dashboard_design_studio_path(import["document_id"]) %> · <%= link_to "Preview design", preview_dashboard_website_designs_path(site_id: @site.id, design: import["release_key"]) %></p>
 <% if import["page_id"] %><p>Draft page created. <%= link_to "Open Pages & Sections", dymond_dash.pages_path(site_id: @site.id) %></p><% end %>
 <details><summary>Conversion notes</summary><ul><% import.fetch("warnings", []).each do |note| %><li><%= note %></li><% end %></ul></details>
-<% elsif import["error"] %><p role="alert"><%= import["error"] %></p><% else %><p>Waiting for the background worker. Refresh to check progress.</p><% end %>
+<% else %>
+<% if import["error"] %><p role="alert"><%= import["error"] %></p><% else %><p>Conversion has not started. Convert the saved upload now.</p><% end %>
+<%= button_to(import["status"] == "failed" ? "Retry conversion" : "Convert now", convert_dashboard_website_designs_path(site_id: @site.id, import_id: record.id), method: :post, data: { turbo_submits_with: "Converting design…" }) %>
+<% end %>
 </article><% end %></section><% end %>

@@ -10,7 +10,7 @@ module LightekDesign
       scope.order(created_at: :desc).limit(20)
     end
 
-    def self.enqueue!(user:, site:, html_file:, css_file: nil, name: nil, create_page: false, product_selector: nil)
+    def self.enqueue!(user:, site:, html_file:, css_file: nil, name: nil, create_page: false, product_selector: nil, background: false)
       raise ArgumentError, "Administrator access is required." unless user&.role.to_s.in?(%w[admin super_admin])
       html = read_file!(html_file, %w[.html .htm])
       css = css_file.present? ? read_file!(css_file, %w[.css]) : ""
@@ -18,10 +18,18 @@ module LightekDesign
         settings: {"html_import" => {"status" => "queued", "owner_id" => user.id, "site_id" => site.id,
           "html" => html, "css" => css, "filename" => html_file.original_filename, "name" => name.to_s.first(120),
           "create_page" => create_page, "product_selector" => product_selector.to_s.first(200)}})
-      begin
-        LightekDesign::HtmlImportJob.perform_later(record.id)
-      rescue StandardError
-        record.update!(settings: record.settings.deep_merge("html_import" => {"status" => "failed", "error" => "The import queue is unavailable. Retry when the worker is running."}))
+      if background
+        begin
+          job = LightekDesign::HtmlImportJob.perform_later(record.id)
+          raise ActiveJob::EnqueueError, "Import was not enqueued" unless job
+        rescue StandardError
+          record.update!(settings: record.settings.deep_merge("html_import" => {"status" => "failed", "error" => "The import queue is unavailable. Use Convert now to process the saved source."}))
+        end
+      else
+        # Inputs are bounded to 500 KB each. Interactive imports must not depend
+        # on a separately started worker; reuse the same idempotent job inline.
+        LightekDesign::HtmlImportJob.perform_now(record.id)
+        record.reload
       end
       record
     end

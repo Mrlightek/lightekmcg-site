@@ -7,6 +7,7 @@ require 'active_record'
 require "active_support/core_ext"
 require 'active_job'
 require 'minitest/autorun'
+require 'minitest/mock'
 ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: ':memory:')
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
@@ -70,8 +71,27 @@ class ImportPersistenceChecks < Minitest::Test
     source.define_singleton_method(:original_filename) { "#{name}.html" }
     source
   end
-  def test_complete_job_retains_source_and_is_idempotent
+  def test_interactive_upload_completes_without_enqueuing_or_a_worker
+    queued = ActiveJob::Base.queue_adapter.enqueued_jobs.length
     record = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: file('lightek_website'), create_page: true)
+    assert_equal 'complete', record.settings.dig('html_import', 'status')
+    assert_equal queued, ActiveJob::Base.queue_adapter.enqueued_jobs.length
+    assert_equal 1, @site.pages.count
+    refute @site.pages.first.published?
+  end
+  def test_enqueue_rejection_keeps_source_available_for_inline_recovery
+    record = nil
+    LightekDesign::HtmlImportJob.stub(:perform_later, false) do
+      record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: file('lightek_website'), create_page: true)
+    end
+    assert_equal 'failed', record.settings.dig('html_import', 'status')
+    assert_includes record.settings.dig('html_import', 'html'), '<title>'
+    LightekDesign::HtmlImportJob.perform_now(record.id)
+    assert_equal 'complete', record.reload.settings.dig('html_import', 'status')
+    assert_equal 1, @site.pages.count
+  end
+  def test_complete_job_retains_source_and_is_idempotent
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: file('lightek_website'), create_page: true)
     original = record.settings.dig('html_import', 'html')
     LightekDesign::HtmlImportJob.perform_now(record.id)
     meta = record.reload.settings['html_import']
@@ -88,14 +108,14 @@ class ImportPersistenceChecks < Minitest::Test
     assert_empty LightekDesign::HtmlImport.records_for(user: User.create!(role: 'admin'), site: @site)
   end
   def test_revoked_ownership_fails_without_creating_pages
-    record = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: file('lightek_website'), create_page: true)
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: file('lightek_website'), create_page: true)
     @site.update!(tenant: nil)
     LightekDesign::HtmlImportJob.perform_now(record.id)
     assert_equal 'failed', record.reload.settings.dig('html_import', 'status')
     assert_empty @site.pages
   end
   def test_invalid_selector_rolls_back_and_records_failure
-    record = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: file('lightek_website'), create_page: true, product_selector: '[')
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: file('lightek_website'), create_page: true, product_selector: '[')
     count = DymondSite::SiteTemplate.count
     LightekDesign::HtmlImportJob.perform_now(record.id)
     assert_equal 'failed', record.reload.settings.dig('html_import', 'status')
@@ -116,7 +136,7 @@ class ImportPersistenceChecks < Minitest::Test
     assert_equal 2, @site.pages.count
   end
   def test_store_maps_live_products_and_registers_shop_draft
-    record = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: file('lightek_store'), create_page: true, product_selector: '#grid')
+    record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: file('lightek_store'), create_page: true, product_selector: '#grid')
     LightekDesign::HtmlImportJob.perform_now(record.id)
     meta = record.reload.settings['html_import']
     assert_equal 'complete', meta['status'], meta['error']

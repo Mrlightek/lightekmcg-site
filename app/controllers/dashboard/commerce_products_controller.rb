@@ -1,13 +1,28 @@
 # frozen_string_literal: true
 class Dashboard::CommerceProductsController < Dashboard::SettingsHomeController
+  helper LightekDesign::StudioHelper
+  helper DymondDash::TemplateSchemaHelper
   before_action :set_site
   before_action :set_product, only: %i[edit update destroy]
   def index
     @products = LightekCommerce::Product.where(site: @site).order(:position, :id)
   end
+  def preview_industry
+    document = LightekDesign::StudioDocument.normalize(LightekCommerce::IndustryStarters.document(params.require(:industry), site: @site))
+    @preview = true
+    @design_key = "industry_preview"
+    @design = LightekDesign::StudioDocument.definition_for(document, key: @design_key, document_id: 0, version: 0)
+    @studio_preview_definition = @design
+    @page = Struct.new(:title).new(document["name"])
+    response.set_header("Cache-Control", "private, no-store")
+    render "lightek_design/preview", layout: "lightek_design/website"
+  rescue KeyError
+    raise ActiveRecord::RecordNotFound
+  end
+
   def install_industry
-    LightekCommerce::IndustryStarters.install!(site: @site, industry: params.require(:industry))
-    redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Industry starter applied to the draft Shop page."
+    LightekCommerce::IndustryStarters.install!(site: @site, industry: params.require(:industry), user: current_user)
+    redirect_to dashboard_commerce_products_path(site_id: @site.id), notice: "Complete shop design saved to Design Studio and a draft page. Edit and publish it in Pages & Sections."
   rescue KeyError
     redirect_to dashboard_commerce_products_path(site_id: @site.id), alert: "Unknown industry."
   end

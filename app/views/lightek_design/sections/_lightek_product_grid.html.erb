@@ -1,16 +1,9 @@
 <section class="lt-commerce-products" aria-label="Products">
   <h2><%= LightekDesign::Catalog.value(section, "heading", "Shop the collection") %></h2>
   <p><%= LightekDesign::Catalog.value(section, "intro", "Explore what we have to offer.") %></p>
-  <% products = LightekCommerce::Product.visible.where(site_id: @site.id).limit(24) %>
+  <% products = @preview ? [] : LightekCommerce::Product.visible.where(site_id: @site.id).includes(:variants, photos_attachments: :blob).limit(24) %>
   <div class="lt-commerce-grid">
-    <% products.each do |product| %>
-      <article class="lt-commerce-product">
-        <h3><%= product.name %></h3>
-        <p><%= product.description %></p>
-        <strong><%= number_to_currency(product.price_cents / 100.0, unit: "$") %></strong>
-        <% if product.inventory_quantity == 0 %><span>Out of stock</span><% end %>
-      </article>
-    <% end %>
+    <% products.each do |product| %><%= render "commerce/product_card", product: product %><% end %>
   </div>
-  <% if products.empty? %><p>Products are coming soon.</p><% end %>
+  <% if products.empty? %><div class="lt-commerce-empty"><h3><%= @preview ? "Your collection goes here" : "A new collection is on its way" %></h3><p><%= @preview ? "Published products, images, prices and cart actions appear here for the selected website." : "Check back soon to explore our latest products." %></p></div><% end %>
 </section>

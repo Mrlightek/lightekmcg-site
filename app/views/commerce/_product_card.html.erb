@@ -1,0 +1,11 @@
+<article class="lt-commerce-product">
+<% if product.photos.attached? %><%= image_tag product.photos.first.variant(resize_to_limit: [640, 480]), alt: product.name, loading: "lazy" %><% elsif product.image_url.present? %><%= image_tag LightekDesign::Catalog.safe_url(product.image_url, image: true), alt: product.name, loading: "lazy" %><% else %><div class="lt-commerce-product-art" aria-hidden="true"><%= product.name.first(1) %></div><% end %>
+<div class="lt-commerce-product-copy"><% if product.featured? %><span class="lt-commerce-badge">Featured</span><% end %><h3><%= product.name %></h3><p><%= product.short_description.presence || product.description %></p><strong><%= number_to_currency(product.price_cents / 100.0) %></strong>
+<% variants = product.variants.select { |variant| variant.active? && variant.inventory_quantity.positive? } %>
+<% if product.variants.any?(&:active?) ? variants.any? : product.inventory_quantity.positive? %>
+<%= form_with url: main_app.commerce_cart_add_path(site_id: @site.id), method: :post, local: true do %>
+<%= hidden_field_tag :product_id, product.id %>
+<% if product.variants.any?(&:active?) %><label>Choose an option <%= select_tag :variant_id, options_from_collection_for_select(variants, :id, :name), prompt: "Select an option", required: true %></label><% end %>
+<%= hidden_field_tag :quantity, 1 %><%= submit_tag "Add to cart", class: "lt-commerce-add" %>
+<% end %><% else %><p>Out of stock</p><% end %></div>
+</article>

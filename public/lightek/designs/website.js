@@ -13,3 +13,25 @@
  }
  document.addEventListener('turbo:load',start);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+
+// Declarative Shadow DOM fallback, also used after Turbo frame navigation.
+function mountImportedDesigns() {
+  document.querySelectorAll('lightek-html').forEach(host => {
+    const template = host.querySelector('template[shadowrootmode]');
+    if (template && !host.shadowRoot) host.attachShadow({mode: 'open'}).append(template.content.cloneNode(true));
+    const root = host.shadowRoot;
+    if (!root || host.dataset.mounted) return;
+    host.dataset.mounted = 'true';
+    root.addEventListener('click', event => {
+      const link = event.target.closest('a[href^="#"]');
+      if (!link || link.getAttribute('href') === '#') return;
+      const id = link.getAttribute('href').slice(1);
+      const targets = [...document.querySelectorAll('lightek-html')].map(item => item.shadowRoot?.getElementById(id));
+      const target = targets.find(Boolean) || document.getElementById(id);
+      if (target) { event.preventDefault(); target.scrollIntoView({behavior: 'smooth'}); }
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', mountImportedDesigns);
+document.addEventListener('turbo:load', mountImportedDesigns);
+mountImportedDesigns();

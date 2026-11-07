@@ -1,0 +1,9 @@
+<section style="margin:28px 0"><h2>Complete shop templates</h2><p>Six editable sections. Distinct industry styling. Products and checkout from your website.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px">
+<% LightekCommerce::IndustryStarters::INDUSTRIES.each do |key, design| %>
+<article style="border:1px solid #64748b55;border-radius:18px;overflow:hidden;background:<%= design[:background] %>;color:<%= design[:ink] %>">
+<%= image_tag "/lightek/commerce/#{key}.svg", alt: "#{design[:name]} template illustration", loading: "lazy", style: "width:100%;height:180px;object-fit:cover" %>
+<div style="padding:22px"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.12em"><%= design[:name] %></span><h3 style="font-size:26px;line-height:1.12;margin:14px 0"><%= design[:heading] %></h3><p><%= design[:intro] %></p>
+<p><%= link_to "Preview full design", preview_dashboard_commerce_industry_path(site_id: @site.id, industry: key), target: "_blank", rel: "noopener", style: "color:inherit;text-decoration:underline" %></p>
+<%= button_to "Use design", dashboard_commerce_industry_path(site_id: @site.id, industry: key), method: :post, style: "padding:12px 18px;border:1px solid currentColor;border-radius:9px;background:transparent;color:inherit;cursor:pointer;font-weight:700" %></div>
+</article><% end %></div></section>

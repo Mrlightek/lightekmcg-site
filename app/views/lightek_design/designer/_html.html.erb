@@ -1,0 +1,11 @@
+<% source = LightekDesign::HtmlDocument.normalize_data(data) %>
+<lightek-html style="display:block;isolation:isolate">
+  <template shadowrootmode="open">
+    <% source["font_stylesheets"].lines.map(&:strip).each do |url| %><link rel="stylesheet" href="<%= url %>"><% end %>
+    <style>:host{display:block} .li-body{display:flow-root;margin:0} <%= LightekDesign::HtmlDocument.shadow_css(source["css"]).html_safe %>
+    /* Imported content must remain visible without its original JS effects. */
+    .rv{opacity:1!important;transform:none!important}
+    </style>
+    <div class="li-body <%= source['body_class'] %>"><%= LightekDesign::HtmlDocument.render_html(source).html_safe %></div>
+  </template>
+</lightek-html>

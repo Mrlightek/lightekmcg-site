@@ -6,6 +6,7 @@ class StudioScene < ApplicationRecord
   has_many :scene_objects, -> { order(:position, :id) }, dependent: :destroy
   has_many :creation_jobs, dependent: :destroy
   has_many :studio_operations, dependent: :nullify
+  has_many :studio_workstations, dependent: :destroy
 
   validates :name, presence: true
   validate :settings_must_be_an_object

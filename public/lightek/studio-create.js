@@ -20,6 +20,9 @@
     try{await call('asset.save',{scene_id:record.scene.id,lock_version:record.scene.lock_version,name:record.scene.name,request_key:saveKey.requestKey});toast('Blender asset save queued. Follow its status in Blender files.');location.hash='#/studio/library';await A.studioAssetsReload();}
     catch(e){toast(e.message);}finally{button.disabled=false;}
   };
+  const nativeTools=ui.tools;
+  ui.tools=record=>nativeTools(record)+`<div class="pwa-post-actions"><button class="btn p" data-a="studioOpenNativeWorkstation">Open full Blender workstation</button><small>UVs, sculpt brushes, rig constraints, animation curves, simulations and complete native node editors.</small></div>`;
+  A.studioOpenNativeWorkstation=async button=>{const record=studioSceneRecord(studioCurrentSceneId());if(!record)return toast('Open a saved production first.');button.disabled=true;try{const response=await fetch('/dashboard/studio/workstations',{method:'POST',credentials:'same-origin',headers:{...nevaeh.csrfHeaders(),'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify({scene_id:record.scene.id,request_key:button.dataset.requestKey||=crypto.randomUUID()})});const data=await nevaeh.parseResponse(response);if(!/^\/dashboard\/studio\/workstations\/[a-f0-9]{32}$/.test(data.url))throw Error('Invalid workstation response.');location.href=data.url;}catch(e){toast(e.message);button.disabled=false;}};
   app.addEventListener('submit',async event=>{
     const form=event.target.closest('[data-studio-create-form]');if(!form)return;event.preventDefault();if(form.dataset.busy)return;
     form.dataset.busy='true';const button=form.querySelector('button'),notice=form.querySelector('[data-create-status]');button.disabled=true;notice.textContent='Creating editable scene…';

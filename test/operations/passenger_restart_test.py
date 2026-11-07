@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class PassengerRestartTest(unittest.TestCase):
-    def run_restart_phase(self, cli_status, blocked_tmp=False):
+    def run_restart_phase(self, cli_status, blocked_tmp=False, binding_status=0):
         source = (ROOT / 'lib/scripts/gatekeeper/deploy_project.sh').read_text()
         phase = source.split('echo "[7/8] Apache"', 1)[1].split('echo "[8/8] Health"', 1)[0]
         with tempfile.TemporaryDirectory() as directory:
@@ -26,10 +26,13 @@ class PassengerRestartTest(unittest.TestCase):
             script = '''set -euo pipefail
 apache2ctl() { return 0; }
 systemctl() { return 0; }
+run_rails() { printf '%s\\n' "$*" >> "$APP_ROOT/rails_calls"; return "$FIXTURE_BINDING_STATUS"; }
 run_as_app_user() { (cd "$APP_ROOT"; bash -e -c "$*"); }
 ''' + phase
             result = subprocess.run(['bash'], input=script, text=True, capture_output=True,
-                                    env=dict(os.environ, APP_ROOT=str(application), APACHE_SERVICE='fixture', PATH=str(commands) + ':' + os.environ['PATH']))
+                                    env=dict(os.environ, APP_ROOT=str(application), APP_DOMAIN='fixture.example', FIXTURE_BINDING_STATUS=str(binding_status), APACHE_SERVICE='fixture', PATH=str(commands) + ':' + os.environ['PATH']))
+            if not blocked_tmp:
+                self.assertEqual("LIGHTEK_EXPECTED_SITE_HOST='fixture.example' bundle exec rails lightek:site_binding:verify\n", (application / 'rails_calls').read_text())
             marker = application / 'tmp/restart.txt'
             return result.returncode, marker.is_file()
 
@@ -38,6 +41,10 @@ run_as_app_user() { (cd "$APP_ROOT"; bash -e -c "$*"); }
 
     def test_transient_cli_failure_requests_restart_and_allows_health_gate_to_run(self):
         self.assertEqual((0, True), self.run_restart_phase(1))
+
+    def test_failed_site_binding_still_blocks_the_health_gate(self):
+        code, _marker = self.run_restart_phase(0, binding_status=1)
+        self.assertNotEqual(0, code)
 
     def test_unwritable_restart_target_stops_deployment_instead_of_claiming_success(self):
         code, marker = self.run_restart_phase(1, blocked_tmp=True)

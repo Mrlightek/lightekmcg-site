@@ -123,7 +123,8 @@ const server=http.createServer((req,res)=>{
   await page.getByRole('button',{name:'Timeline',exact:true}).first().click();
   assert.equal(await page.locator('[data-frame-field="x"]').inputValue(),'24');
   await page.goto(`http://127.0.0.1:${server.address().port}/lightek/index.html#/studio/library`);
-  await page.getByRole('heading',{name:'Asset Library',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Build with what you have.',exact:true}).waitFor();
+  await page.getByRole('button',{name:'My media',exact:true}).click();
   await page.getByRole('heading',{name:'Camera take',exact:true}).waitFor();
   application={name:'Dymondcutz',short_name:'Dymond',status:'published',theme_color:'#dd7722',background_color:'#161121',start_surface:'home',administration:{super_admin:false,can_manage:true}};
   disabledSurfaces=['clips'];

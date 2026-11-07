@@ -1136,15 +1136,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_07_140000) do
     t.jsonb "template_snapshot", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["status", "updated_at"], name: "index_gatekeeper_application_launches_on_status_and_updated_at"
     t.index ["domain"], name: "index_gatekeeper_application_launches_on_domain", unique: true
     t.index ["gatekeeper_application_template_id"], name: "idx_on_gatekeeper_application_template_id_36eccce17b"
     t.index ["gatekeeper_node_id"], name: "index_gatekeeper_application_launches_on_gatekeeper_node_id"
     t.index ["owner_id"], name: "index_gatekeeper_application_launches_on_owner_id"
     t.index ["provisioning_request_id"], name: "idx_on_provisioning_request_id_73793da448"
     t.index ["requested_by_id"], name: "index_gatekeeper_application_launches_on_requested_by_id"
+    t.index ["status", "updated_at"], name: "index_gatekeeper_application_launches_on_status_and_updated_at"
   end
-
 
   create_table "gatekeeper_application_templates", force: :cascade do |t|
     t.string "name", null: false
@@ -1161,7 +1160,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_07_140000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
-
 
   create_table "gatekeeper_hosted_applications", force: :cascade do |t|
     t.bigint "gatekeeper_node_id", null: false

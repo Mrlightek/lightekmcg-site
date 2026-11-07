@@ -60,7 +60,7 @@ jobs:
         run: |
           echo "image=ghcr.io/${GITHUB_REPOSITORY,,}/design" >> "$GITHUB_OUTPUT"
           echo "bundler=$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/template-image/fleet-build.json"))["bundler"])')" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         id: build
         with:
           context: ${{ runner.temp }}/template-image

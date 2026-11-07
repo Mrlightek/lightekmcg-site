@@ -2,13 +2,20 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   helper InfrastructureDashboardHelper
   before_action :require_operator!
-  rescue_from Gatekeeper::Hosting::Access::Denied, ActiveRecord::RecordInvalid, ArgumentError, KeyError, with: :invalid_action
+  rescue_from Gatekeeper::Hosting::Access::Denied, ActiveRecord::RecordInvalid, ArgumentError, KeyError, Gatekeeper::Hosting::GithubClient::Error, LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError, LightekVault::Service::AccessDenied, with: :invalid_action
 
   rescue_from ActiveRecord::RecordNotUnique do
     redirect_to new_dashboard_application_launch_path, alert: "This domain has already been reserved. Review its application installation."
   end
 
   def new
+    @registry_credentials = LightekVault::Secret.active.where("LOWER(provider) IN (?)", %w[github ghcr docker]).order(:name)
+    @github_credentials = LightekVault::Secret.active.where("LOWER(provider) = ?", "github").where.not(slug: [Gatekeeper::Hosting::BuildSetup::SETTINGS_SLUG, Gatekeeper::Hosting::BuildSetup::REGISTRY_SLUG]).order(:name)
+    begin
+      @build_setup = Gatekeeper::Hosting::BuildSetup.settings(actor: current_user)
+    rescue LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError, LightekVault::Service::AccessDenied
+      @build_setup = {}
+    end
     @templates = GatekeeperApplicationTemplate.available
     @builds = GatekeeperApplicationTemplate.where(build_status: %w[queued failed]).order(id: :desc).limit(20)
     @nodes = Gatekeeper::Hosting::Access.nodes(current_user).where.not(status: %w[deleting delete_failed decommissioned provisioning]).order(:name)
@@ -19,6 +26,14 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
     if @provider
       begin
         @catalog = Gatekeeper::Compute::LinodeCatalogService.call(provider: @provider, requested_by: current_user.email_address, region: params[:region])
+      rescue LightekVault::Crypto::ConfigurationError => error
+        @vault_error = error.message
+        flash.now[:alert] = "Linode credentials could not be unlocked. #{error.message}"
+      rescue LightekVault::Crypto::DecryptionError
+        @vault_error = "A Vault key is available, but it cannot unlock the saved credentials. Restore this database's original key through Vault access repair."
+        flash.now[:alert] = @vault_error
+      rescue LightekVault::Service::AccessDenied => error
+        flash.now[:alert] = "The Linode credential exists, but its Vault policy denied provider access: #{error.message}"
       rescue StandardError => error
         flash.now[:alert] = "Provider catalog unavailable (#{error.class}). Check the provider connection before creating a server."
       end
@@ -31,9 +46,16 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
     redirect_to dashboard_servers_path, notice: "#{launch.name} queued. Track installation below; new servers incur provider charges."
   end
 
+  def setup_builds
+    Gatekeeper::Hosting::BuildSetup.prepare!(actor: current_user, origin: params[:origin].presence || request.base_url,
+      credential_slug: params[:github_credential_slug], dependency_slug: params[:dependency_slug], registry_slug: params[:registry_slug])
+    redirect_to new_dashboard_application_launch_path, notice: "Image building connected. Callback identity, CI dependency settings and available registry credentials are configured automatically."
+  end
+
   def build_image
     Gatekeeper::Hosting::ImageBuilds.queue!(actor: current_user,
-      attributes: params.require(:build).permit(:name, :preview_domain, :source_ref, :credential_slug).to_h)
+      attributes: params.require(:build).permit(:name, :preview_domain, :source_ref, :credential_slug).to_h,
+      origin: Gatekeeper::Hosting::BuildSetup.settings(actor: current_user)["origin"].presence || request.base_url)
     redirect_to new_dashboard_application_launch_path, notice: "Rails Docker build queued. The template becomes available when the build publishes its image."
   end
 

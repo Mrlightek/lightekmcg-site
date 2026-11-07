@@ -5,6 +5,7 @@ class Dashboard::VaultController < DymondDash::ApplicationController
   def index
     @secrets = LightekVault::Secret.order(updated_at: :desc)
     @audit_events = LightekVault::AuditEvent.includes(:secret).order(created_at: :desc).limit(30)
+    @vault_readiness = LightekVault::Readiness.call
     @active_count = LightekVault::Secret.active.count
     @expiring_count = LightekVault::Secret.expiring_soon.count
   end
@@ -33,6 +34,18 @@ class Dashboard::VaultController < DymondDash::ApplicationController
     redirect_to dashboard_vault_path, alert: e.message
   end
 
+  def repair_access
+    value = params[:master_key].to_s
+    value.present? ? LightekVault::MasterKey.restore!(value) : LightekVault::MasterKey.ensure_available!(create_if_empty: true)
+    readiness = LightekVault::Readiness.call
+    raise LightekVault::MasterKey::ConfigurationError, readiness[:message] unless readiness[:ready]
+    redirect_to dashboard_vault_path, notice: "Vault access verified. Existing credentials are preserved."
+  rescue LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError => error
+    redirect_to dashboard_vault_path, alert: error.message
+  ensure
+    value&.clear
+  end
+
   def disable
     LightekVault::Service.disable!(slug: params.require(:slug), requested_by: current_user.email_address)
     redirect_to dashboard_vault_path, notice: "Secret disabled."
@@ -57,7 +70,7 @@ class Dashboard::VaultController < DymondDash::ApplicationController
 
       raise ArgumentError, "Duplicate payload field: #{key}" if payload.key?(key)
 
-      payload[key] = value.to_s
+      payload[key] = key == "private_key" ? value.to_s.gsub("\\n", "\n") : value.to_s
     end
 
     return structured if structured.any?

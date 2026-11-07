@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_07_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_07_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1159,6 +1159,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_07_140000) do
     t.boolean "enabled", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "build_identity", default: {}, null: false
   end
 
   create_table "gatekeeper_hosted_applications", force: :cascade do |t|

@@ -4,11 +4,11 @@ require "json"
 
 module LightekVault
   class Crypto
-    class ConfigurationError < StandardError; end
+    ConfigurationError = MasterKey::ConfigurationError
     class DecryptionError < StandardError; end
     CIPHER = "aes-256-gcm".freeze
 
-    def initialize(master_key: ENV["LIGHTEK_VAULT_MASTER_KEY"], key_version: ENV.fetch("LIGHTEK_VAULT_KEY_VERSION", "1"))
+    def initialize(master_key: MasterKey.resolve!, key_version: ENV.fetch("LIGHTEK_VAULT_KEY_VERSION", "1"))
       @master_key = decode_master_key(master_key)
       @key_version = Integer(key_version)
     end

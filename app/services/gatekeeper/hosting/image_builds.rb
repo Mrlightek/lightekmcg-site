@@ -1,30 +1,32 @@
-require "net/http"
-require "json"
+require "securerandom"
 module Gatekeeper
   module Hosting
     class ImageBuilds
       REPOSITORY = "Mrlightek/lightekmcg-site".freeze
-      def self.queue!(actor:, attributes:)
+      def self.queue!(actor:, attributes:, origin: nil)
         raise Access::Denied, "Super admin required" unless Access.super_admin?(actor)
         ref = attributes.fetch("source_ref").to_s
-        raise Access::Denied, "Choose a branch or commit without spaces" unless ref.match?(/\A[a-zA-Z0-9][a-zA-Z0-9._\/-]{0,199}\z/) && !ref.include?("..")
-        token = ENV["GITHUB_ACTIONS_TOKEN"].presence || raise(Access::Denied, "Configure GITHUB_ACTIONS_TOKEN to build images from Dashboard")
+        raise Access::Denied, "Choose a branch or tag without spaces" unless ref.match?(/\A[a-zA-Z0-9][a-zA-Z0-9._\/-]{0,199}\z/) && !ref.include?("..")
+        raise Access::Denied, "Choose a named branch or tag for GitHub Actions." if ref.match?(/\A[0-9a-f]{40}\z/)
+        config = BuildSetup.prepare!(actor: actor, origin: origin)
+        client = BuildSetup.client(actor: actor)
+        commit = client.call(:get, "/repos/#{REPOSITORY}/commits/#{URI.encode_www_form_component(ref)}")
+        sha = commit.fetch("sha")
+        raise Access::Denied, "GitHub did not return a source commit" unless sha.match?(/\A[0-9a-f]{40}\z/)
         template = GatekeeperApplicationTemplate.create!(name: attributes.fetch("name"), preview_domain: attributes["preview_domain"],
           kind: "docker", build_status: "queued", source_ref: ref, enabled: false, rails_database: true, rails_worker: true,
           credential_slug: attributes["credential_slug"], container_port: 3000)
-        uri = URI("https://api.github.com/repos/#{REPOSITORY}/actions/workflows/application-image.yml/dispatches")
-        request = Net::HTTP::Post.new(uri)
-        request["Authorization"] = "Bearer #{token}"
-        request["Accept"] = "application/vnd.github+json"
-        request["Content-Type"] = "application/json"
-        request["X-GitHub-Api-Version"] = "2022-11-28"
-        request.body = JSON.generate(ref: ref, inputs: {template_id: template.id.to_s})
-        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 30) { |http| http.request(request) }
-        raise Access::Denied, "Image build dispatch failed (HTTP #{response.code})" unless response.is_a?(Net::HTTPSuccess)
+        identity = {"source_sha" => sha, "repository_id" => config.fetch("repository_id"),
+          "audience" => "#{config.fetch('callback_url')}/#{template.id}/#{SecureRandom.hex(16)}"}
+        template.update!(build_identity: identity)
+        client.call(:post, "/repos/#{REPOSITORY}/actions/workflows/customer-release.yml/dispatches",
+          body: {ref: ref, inputs: {template_id: template.id.to_s, callback_url: config.fetch("callback_url"), callback_audience: identity.fetch("audience")}})
         template
       rescue StandardError
         template&.update!(build_status: "failed", enabled: false)
         raise
+      ensure
+        client&.close
       end
     end
   end

@@ -39,3 +39,8 @@
 *.py[cod]
 
 /tmp/nevaeh/
+
+/config/vault-master.key
+/config/vault-master.key.*
+
+.vault-key-recovery-*

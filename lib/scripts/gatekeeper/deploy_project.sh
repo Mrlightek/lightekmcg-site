@@ -59,8 +59,15 @@ run_rails "bundle install --jobs 1"
 echo "[studio] Install and verify Blender media dependency"
 run_rails "bash lib/scripts/setup_studio_media.sh"
 
+echo "[hosting] Prepare GitHub secret-encryption dependency"
+if ! python3 -c 'import ctypes.util,sys; sys.exit(0 if ctypes.util.find_library("sodium") else 1)'; then
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y libsodium23
+fi
+
 echo "[3/8] Migrate"
 run_rails "bundle exec rails db:migrate"
+run_rails "bundle exec rails lightek_vault:bootstrap"
 
 echo "[nav] Register dashboard control-plane navigation"
 run_rails "bundle exec rails gatekeeper:dashboard_nav"

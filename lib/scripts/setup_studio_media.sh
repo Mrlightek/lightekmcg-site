@@ -15,9 +15,10 @@ if [[ -z "${STUDIO_ASSET_WORKER_IMAGE:-}" ]]; then
 else
   docker image inspect "$STUDIO_RUNTIME_IMAGE" >/dev/null || docker pull "$STUDIO_RUNTIME_IMAGE"
 fi
+STUDIO_RUNTIME_CPUS="$(python3 "$STUDIO_RUNTIME_ROOT/lib/scripts/studio_worker_limits.py")"
 # Probe with the same restrictions used by imports, without app files/secrets.
 docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
-  --pids-limit 128 --memory 2g --cpus 2 --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,size=512m \
+  --pids-limit 128 --memory 2g --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,size=512m \
   "$STUDIO_RUNTIME_IMAGE" blender --background --factory-startup --disable-autoexec --python-exit-code 1 \
   --python-expr 'import bpy, numpy; assert bpy.app.version >= (4, 0, 0); print("LIGHTEK_BLENDER_RUNTIME_READY=" + bpy.app.version_string)'
 if [[ -n "${STUDIO_RENDER_WORKER_IMAGE:-}" && "$STUDIO_RENDER_WORKER_IMAGE" != "$STUDIO_RUNTIME_IMAGE" ]]; then

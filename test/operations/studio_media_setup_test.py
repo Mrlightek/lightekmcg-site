@@ -11,7 +11,7 @@ class StudioMediaSetupTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             folder=Path(folder)
             docker=folder/'docker'
-            docker.write_text('#!/usr/bin/env python3\nimport json,os,sys\nwith open(os.environ["STUDIO_SETUP_TRACE"],"a") as f:f.write(json.dumps(sys.argv[1:])+"\\n")\nif "--python-expr" in sys.argv:print("LIGHTEK_BLENDER_RUNTIME_READY=4.0.2")\n')
+            docker.write_text('#!/usr/bin/env python3\nimport json,os,sys\nwith open(os.environ["STUDIO_SETUP_TRACE"],"a") as f:f.write(json.dumps(sys.argv[1:])+"\\n")\nif "--python-expr" in sys.argv:print("LIGHTEK_BLENDER_RUNTIME_READY=4.0.2")\nif sys.argv[1:]==["info","--format","{{.NCPU}}"]:print("1")\n')
             docker.chmod(0o755)
             env=os.environ.copy()
             env.pop('STUDIO_ASSET_WORKER_IMAGE',None)
@@ -24,6 +24,7 @@ class StudioMediaSetupTest(unittest.TestCase):
             probe=next(command for command in commands if command[0]=='run')
             self.assertIn('--disable-autoexec',probe)
             self.assertIn('--read-only',probe)
+            self.assertEqual('1',probe[probe.index('--cpus')+1])
             self.assertEqual(probe[probe.index('--network')+1],'none')
             self.assertIn('LIGHTEK_BLENDER_RUNTIME_READY=',output)
     def test_normal_deployment_installs_engine_before_starting_workers_and_queues_starter_files(self):

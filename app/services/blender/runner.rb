@@ -119,7 +119,7 @@ module Blender
       script=Rails.root.join("blender/runner.py").to_s
       if Rails.env.production?
         image=Studio::NativeBlender::Runtime.image(:render)
-        ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory","4g","--cpus","2","--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
+        ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory","4g","--cpus",Studio::MediaProcess.cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
           "-v","#{output_directory}:/work:rw","-v","#{Rails.root.join("blender")}:/engine:ro",image,"blender","--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python","/engine/runner.py","--","/work/manifest.json","/work"]
       else
         [render_engine_binary,"--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python",script,"--",manifest_path.to_s,output_directory.to_s]

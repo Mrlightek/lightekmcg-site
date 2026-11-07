@@ -10,7 +10,7 @@ module Studio
         if Rails.env.production?
           output=Studio::MediaProcess.run!(["docker","run","--rm","--name","lightek-blender-health-#{SecureRandom.hex(8)}",
             "--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges",
-            "--pids-limit","128","--memory","2g","--cpus","2","--user","#{Process.uid}:#{Process.gid}",
+            "--pids-limit","128","--memory","2g","--cpus",Studio::MediaProcess.cpu_limit,"--user","#{Process.uid}:#{Process.gid}",
             "--tmpfs","/tmp:rw,nosuid,size=512m",image,"blender","--background","--factory-startup","--disable-autoexec",
             "--python-exit-code","1","--python-expr",'import bpy, numpy; assert bpy.app.version >= (4, 0, 0); print("LIGHTEK_BLENDER_RUNTIME_READY=" + bpy.app.version_string)'],timeout:20)
           version=output.lines.find { |line| line.start_with?("LIGHTEK_BLENDER_RUNTIME_READY=") }&.strip&.split("=",2)&.last

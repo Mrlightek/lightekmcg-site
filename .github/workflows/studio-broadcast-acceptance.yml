@@ -32,6 +32,7 @@ on:
       - 'app/controllers/api/lightek_pwa_controller.rb'
       - 'app/models/scene_object.rb'
       - 'lib/scripts/setup_studio_media.sh'
+      - 'lib/scripts/studio_worker_limits.py'
       - 'lib/scripts/setup_studio_docker_access.py'
       - 'lib/scripts/gatekeeper/deploy_project.sh'
       - 'lib/tasks/studio/**'
@@ -76,6 +77,8 @@ jobs:
       BUNDLE_GEMFILE: test/standalone/Gemfile
     steps:
       - uses: actions/checkout@v4
+      - name: Verify single-CPU worker allocation
+        run: python3 -m unittest test.operations.studio_worker_limits_test test.operations.studio_media_setup_test
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3.6'
@@ -163,6 +166,8 @@ jobs:
       BUNDLE_GEMFILE: test/standalone/Gemfile
     steps:
       - uses: actions/checkout@v4
+      - name: Verify single-CPU worker allocation
+        run: python3 -m unittest test.operations.studio_worker_limits_test test.operations.studio_media_setup_test
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3.6'

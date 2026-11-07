@@ -97,6 +97,15 @@ class StudioWorkstationTest < StudioAuthoringTest
     assert_includes client.response.body,"Native Blender production workstation"
     assert_includes client.response.body,"Save version to Studio"
   end
+  def test_workstation_scene_deletion_stops_and_revokes_the_desktop
+    s=create_session;s.update!(status:"ready",container_id:"a"*64)
+    runtime=Studio::Workstations::Runtime;runtime.write_state(s)
+    commands=[]
+    runtime.stub(:command,->(*args,**_opts){commands<<args;""}) { s.studio_scene.destroy! }
+    assert_equal ["rm","-f","a"*64],commands.first
+    refute StudioWorkstation.exists?(s.id)
+    assert_equal "stopped",JSON.parse(File.read(runtime.directory(s).join("session.json")))["status"]
+  end
   def test_workstation_real_native_save_returns_to_library_without_changing_the_original
     skip "Set LIGHTEK_TEST_BLENDER=1" unless ENV["LIGHTEK_TEST_BLENDER"]=="1"
     s=create_session;s.update!(status:"saving",container_id:"a"*64,port:22000,metadata:s.metadata.merge("save_nonce"=>"b"*16))

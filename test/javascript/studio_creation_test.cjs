@@ -1,0 +1,25 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const {JSDOM}=require('jsdom');
+const recipes=[{key:'cube',name:'Cube',category:'geometry'},{key:'env_rooftop',name:'Rooftop stage',category:'sets'}];
+const dom=new JSDOM('<main id="app"></main>',{url:'https://studio.test/lightek/index.html#/studio/workshop',runScripts:'outside-only'});
+const w=dom.window,requests=[],scene={id:7,name:'Saved scene',lock_version:3},record={scene,project:{id:1,name:'Production'}};
+w.E=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+w.app=w.document.getElementById('app');w.ST={loaded:true};w.R={studio:id=>'original-'+id};w.A={studioLoad:async()=>{},studioAssetsReload:async()=>{}};
+w.LightekStudioApp={tools:()=>'<section>Original tools</section>'};w.meProfile=()=>true;w.studioSceneRecords=()=>[record];w.studioSceneRecord=id=>id===7?record:null;w.studioCurrentSceneId=()=>7;w.toast=value=>w.lastToast=value;
+w.nevaeh={execute:async request=>{requests.push(request);return {result:request.capability.endsWith('assets.list')?{creation_recipes:recipes}:request.capability.endsWith('asset.save')?{asset_id:3,status:'processing'}:{scene_id:7,object_id:9}}}};
+w.render=()=>{w.app.innerHTML=w.R.studio('workshop')};
+w.eval(fs.readFileSync('public/lightek/studio-create.js','utf8'));
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+(async()=>{
+ assert.equal(w.R.studio('create'),'original-create','Existing production wizard stays available');
+ w.render();await tick();
+ assert.match(w.app.textContent,/No provider account or API key required/);
+ assert.equal(w.app.querySelectorAll('[data-studio-create-form]').length,2);
+ const form=w.app.querySelector('form');form.elements.scene_id.value='7';form.elements.name.value='My stage';form.elements.size.value='2';form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
+ let req=requests.find(r=>r.capability==='studio.workspace.blender.create');assert.equal(req.payload.scene_id,7);assert.equal(req.payload.lock_version,3);assert.equal(req.payload.size,2);assert.equal(w.ST.workspaceMode,'3d');assert.equal(w.ST.selectedObjectId,9);assert.equal(w.location.hash,'#/studio/7');
+ w.app.innerHTML=w.LightekStudioApp.tools(record);const button=w.app.querySelector('button');await w.A.studioSaveNativeAsset(button);req=requests.at(-1);assert.equal(req.capability,'studio.workspace.blender.asset.save');assert.equal(req.payload.scene_id,7);assert.equal(w.location.hash,'#/studio/library');
+ await w.A.studioSaveNativeAsset(button);assert.equal(requests.at(-1).payload.request_key,req.payload.request_key);
+ w.nevaeh.execute=async()=>{throw Error('Blender worker unavailable')};await w.A.studioSaveNativeAsset(button);assert.equal(w.lastToast,'Blender worker unavailable');assert.equal(button.disabled,false);
+ console.log('STUDIO_CREATION_PASS creation form scene/version payload existing wizard native asset save retries errors');
+ dom.window.close();
+})().catch(e=>{console.error(e);process.exitCode=1;dom.window.close()});

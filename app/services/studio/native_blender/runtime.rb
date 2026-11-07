@@ -8,8 +8,14 @@ module Studio
       end
       def self.status
         if Rails.env.production?
-          Studio::MediaProcess.run!(["docker","image","inspect",image],timeout:8)
-          {ready:true,message:"Blender worker installed",image:image}
+          output=Studio::MediaProcess.run!(["docker","run","--rm","--name","lightek-blender-health-#{SecureRandom.hex(8)}",
+            "--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges",
+            "--pids-limit","128","--memory","2g","--cpus","2","--user","#{Process.uid}:#{Process.gid}",
+            "--tmpfs","/tmp:rw,nosuid,size=512m",image,"blender","--background","--factory-startup","--disable-autoexec",
+            "--python-exit-code","1","--python-expr",'import bpy, numpy; assert bpy.app.version >= (4, 0, 0); print("LIGHTEK_BLENDER_RUNTIME_READY=" + bpy.app.version_string)'],timeout:20)
+          version=output.lines.find { |line| line.start_with?("LIGHTEK_BLENDER_RUNTIME_READY=") }&.strip&.split("=",2)&.last
+          raise "Blender startup was not confirmed" if version.blank?
+          {ready:true,message:"Blender #{version} ready",version:version,image:image}
         else
           version=Studio::MediaProcess.run!([ENV.fetch("BLENDER_BIN","blender"),"--version"],timeout:8).lines.first.to_s.strip
           {ready:true,message:version}

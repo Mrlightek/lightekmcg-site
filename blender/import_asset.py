@@ -8,6 +8,8 @@ import os
 import json
 import math
 from mathutils import Vector
+sys.path.insert(0, os.path.dirname(__file__))
+import authoring
 
 
 def camera_payload(obj):
@@ -61,6 +63,7 @@ def object_payload(obj):
                     'type': socket.socket_type, 'min': max(-1000000, getattr(socket, 'min_value', -1000000)),
                     'max': min(1000000, getattr(socket, 'max_value', 1000000))})
     definition['node_inputs'] = inputs
+    definition.update(authoring.inventory(obj))
     return {'name': obj.name, 'definition': definition}
 
 
@@ -77,6 +80,7 @@ def scene_payload(scene):
         "armature_count": sum(obj.type == 'ARMATURE' for obj in scene.objects),
         "geometry_nodes_count": sum(mod.type == 'NODES' for obj in scene.objects for mod in obj.modifiers),
         "animation_count": sum(bool(obj.animation_data) for obj in scene.objects),
+        "compositor_graph": authoring.graph_payload(scene.node_tree) if scene.use_nodes else None,
         "compositor": scene.use_nodes, "world": scene.world.name if scene.world else None}
 
 
@@ -117,7 +121,7 @@ def main():
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output, 'native.blend'), check_existing=False, compress=True, relative_remap=False)
     scene = bpy.context.scene
     original_scene = scene.name
-    metadata={"native_inventory_version":1,"native_blender":kind=='blend',"blender_version":bpy.app.version_string,"source_blender_version":source_version,"source_scene":original_scene,
+    metadata={"authoring_version":1,"native_inventory_version":1,"native_blender":kind=='blend',"blender_version":bpy.app.version_string,"source_blender_version":source_version,"source_scene":original_scene,
         "scenes":scenes,"readmes":readmes,"missing_dependencies":missing,"warnings":[]}
     with open(os.path.join(output,'asset.json'),'w',encoding='utf-8') as handle:
         json.dump(metadata,handle,ensure_ascii=False)
@@ -155,7 +159,7 @@ def main():
         bpy.ops.render.render(write_still=True)
     except Exception as error:
         warnings.append('Thumbnail is unavailable: ' + str(error)[:400])
-    metadata={"native_inventory_version":1,"native_blender":kind=='blend',"blender_version":bpy.app.version_string,"source_blender_version":source_version,"source_scene":original_scene,
+    metadata={"authoring_version":1,"native_inventory_version":1,"native_blender":kind=='blend',"blender_version":bpy.app.version_string,"source_blender_version":source_version,"source_scene":original_scene,
         "scenes":scenes,"mesh_count":len(meshes),"readmes":readmes,"missing_dependencies":missing,"warnings":warnings}
     with open(os.path.join(output,'asset.json'),'w',encoding='utf-8') as handle:
         json.dump(metadata,handle,ensure_ascii=False)

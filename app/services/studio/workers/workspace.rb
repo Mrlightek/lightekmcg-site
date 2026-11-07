@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save].freeze
+      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -87,9 +87,15 @@ module Studio
 
       def render_quote
         scene = @access.scene!(@payload.fetch("scene_id"))
+        manifest=Blender::ManifestBuilder.new(scene).call
+        if @payload.fetch("output","still")=="movie"
+          first=Integer(scene.settings.fetch("frame_start",1));last=Integer(scene.settings.fetch("frame_end",250))
+          raise ArgumentError,"Export a shot of 1–2400 frames at a time" unless first>=1 && (last-first+1).between?(1,2400)
+          manifest["outputs"]={"blend"=>true,"animation"=>true,"bundle"=>scene.blender_bundle.attached?}
+        end
         operation = scene.studio_operations.create!(studio_project: scene.studio_project, production: scene.production,
           operation_type: "build_scene", provider: "blender", capability: "studio.render.preview", status: "awaiting_payment", intent: {"user_id"=>@access.user.id},
-          manifest: Blender::ManifestBuilder.new(scene).call)
+          manifest: manifest)
         Studio::Billing::Quote.call(operation: operation, rail: :stripe_card)
         { operation_id: operation.id, quote: operation.reload.cost_quote, status: operation.status }
       end
@@ -182,6 +188,10 @@ module Studio
         Studio::NativeBlender::PresetUse.call(access:@access,payload:@payload)
       end
 
+      def blender_authoring_edit
+        Studio::NativeBlender::Authoring.call(access:@access,payload:@payload)
+      end
+
       def blender_create
         Studio::NativeBlender::Create.call(access:@access,payload:@payload)
       end
@@ -238,31 +248,38 @@ module Studio
         Studio::NativeBlender::ObjectEdit.call(access:@access,payload:@payload)
       end
 
+      def blender_authoring_preview = blender_preview
+
       def blender_preview
+        preview_capability=@action=="blender_authoring_preview" ? "studio.workspace.blender.authoring.preview" : "studio.workspace.blender.preview"
         scene=@access.scene!(@payload.fetch("scene_id"))
         if @payload["operation_id"]
-          operation=scene.studio_operations.where(capability:"studio.workspace.blender.preview").find(@payload["operation_id"])
+          operation=scene.studio_operations.where(capability:preview_capability).find(@payload["operation_id"])
         else
           @access.user.with_lock do
-            operation=scene.studio_operations.where(capability:"studio.workspace.blender.preview",status:%w[pending running]).first
+            operation=scene.studio_operations.where(capability:preview_capability,status:%w[pending running]).first
             unless operation
-              count=StudioOperation.where(capability:"studio.workspace.blender.preview",studio_project_id:@access.projects.select(:id)).where("created_at > ?",1.minute.ago).limit(100).to_a.count { |row| row.intent["user_id"].to_i==@access.user.id }
+              count=StudioOperation.where(capability:preview_capability,studio_project_id:@access.projects.select(:id)).where("created_at > ?",1.minute.ago).limit(100).to_a.count { |row| row.intent["user_id"].to_i==@access.user.id }
               raise ArgumentError,"Wait for the current draft renders before requesting another preview" if count>=6
               manifest=::Blender::ManifestBuilder.new(scene).call.deep_dup
               frame=Integer(@payload.fetch("frame",scene.settings.fetch("frame_current",1)))
               raise ArgumentError,"Choose a frame in this Blender scene" unless frame.between?(scene.settings.fetch("frame_start",1),scene.settings.fetch("frame_end",250))
               manifest["scene"]["settings"]["frame_current"]=frame
-              manifest["outputs"]={"preview"=>true}
+              manifest["authoring_object_id"]=scene.scene_objects.find(@payload["object_id"]).id if @action=="blender_authoring_preview" && @payload["object_id"].present?
+              manifest["outputs"]=@action=="blender_authoring_preview" ? {"glb"=>true,"preview"=>true,"authoring"=>true} : {"preview"=>true}
               width=scene.settings.fetch("resolution_x",1280).to_f;height=scene.settings.fetch("resolution_y",720).to_f
               factor=320/[width,height].max
               manifest["scene"]["settings"].merge!("resolution_x"=>(width*factor).round.clamp(64,320),"resolution_y"=>(height*factor).round.clamp(64,320),"resolution_percentage"=>100,"samples"=>2)
-              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.blender.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"draft_preview"=>true})
+              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:preview_capability,status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"draft_preview"=>true,"native_revision"=>scene.settings.fetch("native_revision",0)})
               StudioBlenderPreviewJob.perform_later(operation.id)
             end
           end
         end
         artifact=operation.artifacts.find_by(kind:"preview")
-        {operation_id:operation.id,status:operation.status,frame:operation.manifest.dig("scene","settings","frame_current"),error:operation.error_message,url:artifact&.file&.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}
+        inventory=operation.artifacts.find_by(kind:"authoring")
+        authoring_data=inventory&.file&.attached? && inventory.file.blob.byte_size<5000000 ? JSON.parse(inventory.file.blob.download) : {}
+        proxy=operation.artifacts.find_by(kind:"glb")
+        {authoring:authoring_data,proxy_url:proxy&.file&.attached? ? Rails.application.routes.url_helpers.rails_blob_path(proxy.file,only_path:true) : nil,native_revision:operation.metadata["native_revision"],operation_id:operation.id,status:operation.status,frame:operation.manifest.dig("scene","settings","frame_current"),error:operation.error_message,url:artifact&.file&.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}
       end
 
       def blender_prepare

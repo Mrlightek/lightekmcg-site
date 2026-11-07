@@ -6,6 +6,8 @@ import sys
 import traceback
 import zipfile
 from mathutils import Vector, Matrix, Euler
+sys.path.insert(0, os.path.dirname(__file__))
+import authoring
 
 
 SCHEMA_VERSION = "1.0"
@@ -627,6 +629,7 @@ def export_glb(path):
         filepath=path,
         export_format="GLB",
         use_selection=False,
+        export_extras=True,
     )
 
 
@@ -860,6 +863,8 @@ def main():
             else:
                 obj = create_manifest_object(item)
                 apply_library_motion(obj, definition)
+            authoring.apply(obj, definition.get("authoring_commands", []))
+            obj["lightek_object_name"] = definition.get("blender_object_name", obj.name)
             created[str(item.get("id"))] = obj
 
             log(
@@ -897,8 +902,16 @@ def main():
             if obj is not None and item.get('definition', {}).get('native_original') and item.get('name'):
                 obj.name = item['name']
 
+        bpy.context.scene.frame_set(int(settings.get("frame_current", 1)))
         outputs = requested_outputs(manifest)
         generated = []
+
+        if outputs.get("authoring"):
+            inventory = {str(item.get('id')): authoring.inventory(created[str(item.get('id'))]) for item in objects
+                         if str(item.get('id')) in created and (item.get('definition', {}).get('authoring_commands') or item.get('id') == manifest.get('authoring_object_id'))}
+            with open(os.path.join(output_directory, 'authoring.json'), 'w') as handle:
+                json.dump(inventory, handle)
+            generated.append('authoring.json')
 
         if outputs.get("blend"):
             path = os.path.join(
@@ -923,6 +936,19 @@ def main():
             )
             render_preview(path)
             generated.append("preview.png")
+
+        if outputs.get("animation"):
+            scene = bpy.context.scene
+            if not 1 <= scene.frame_end-scene.frame_start+1 <= 2400:
+                raise RuntimeError('Export 1–2400 frames per movie shot')
+            scene.render.image_settings.file_format = 'FFMPEG'
+            scene.render.ffmpeg.format = 'MPEG4'
+            scene.render.ffmpeg.codec = 'H264'
+            scene.render.ffmpeg.constant_rate_factor = 'MEDIUM'
+            scene.render.ffmpeg.audio_codec = 'AAC'
+            scene.render.filepath = os.path.join(output_directory, 'movie.mp4')
+            bpy.ops.render.render(animation=True)
+            generated.append('movie.mp4')
 
         if outputs.get("bundle"):
             export_project_bundle(output_directory, manifest)

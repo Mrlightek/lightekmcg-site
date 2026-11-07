@@ -26,7 +26,7 @@ module Studio
           project.studio_scenes.destroy_all
           production=project.productions.create!(name:project.name,kind:"general",status:"development",metadata:{"native_blender_asset_id"=>asset.id,"source"=>asset.metadata["source"]})
           sources.first(100).each do |source|
-            settings=source.fetch("settings",{}).merge("native_blender_asset_id"=>asset.id,"native_scene"=>source.fetch("name"),"active_camera"=>source["active_camera"],"native_preserve"=>true,"native_bundle_path"=>asset.metadata["bundle_relative_source"],"source_credits"=>(Array(asset.metadata["sources"])+[asset.metadata["source"]].compact).uniq)
+            settings=source.fetch("settings",{}).merge("native_blender_asset_id"=>asset.id,"native_scene"=>source.fetch("name"),"active_camera"=>source["active_camera"],"native_preserve"=>true,"compositor_graph"=>source["compositor_graph"],"native_bundle_path"=>asset.metadata["bundle_relative_source"],"source_credits"=>(Array(asset.metadata["sources"])+[asset.metadata["source"]].compact).uniq)
             scene=project.studio_scenes.create!(production:production,name:source["name"],settings:settings)
             scene.scene_objects.create!(name:"#{asset.name} · Blender source",object_type:"imported_asset",position:0,
               definition:{"asset_id"=>asset.id,"native_source_preview"=>true,"asset_proxy_url"=>"/api/lightek/pwa/assets/#{asset.id}/proxy","location"=>[0,0,0],"rotation"=>[0,0,0],"scale"=>[1,1,1]}) if asset.proxy.attached? && source["name"]==asset.metadata["source_scene"]

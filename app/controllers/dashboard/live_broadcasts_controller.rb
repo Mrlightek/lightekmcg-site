@@ -15,6 +15,7 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     site = LightekPwa::SiteContext.resolve(request.host)
     actor = Studio::PwaAccess.new("user_id"=>current_user.id, "site_id"=>site.id)
     @library_assets = StudioAsset.for_actor(actor).where(site_id: site.id, status: "ready", kind: %w[image audio video]).includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }
+    @stage_assets = StudioAsset.for_actor(actor).where(site_id:site.id,status:"ready",kind:%w[blend glb]).includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }
     @recent = Studio::Live::Sessions.for_user(current_user).order(id: :desc).limit(8)
   end
   def create

@@ -17,6 +17,9 @@ on:
       - 'test/javascript/studio_library_test.cjs'
       - 'test/javascript/studio_live_library_test.cjs'
       - 'public/lightek/studio-*.js'
+      - 'public/lightek/studio-authoring.css'
+      - 'test/operations/studio_native_tools_test.py'
+      - 'app/controllers/api/lightek_pwa_controller.rb'
       - 'app/models/scene_object.rb'
       - 'lib/scripts/setup_studio_media.sh'
       - 'lib/scripts/gatekeeper/deploy_project.sh'
@@ -25,6 +28,11 @@ on:
       - 'app/jobs/studio_asset_save_job.rb'
       - 'docker/studio-media/**'
       - 'db/migrate/20261107153000_register_studio_native_creation.rb'
+      - 'db/migrate/20261107190000_register_studio_authoring.rb'
+      - 'test/javascript/studio_authoring_test.cjs'
+      - 'test/javascript/studio_stage_test.cjs'
+      - 'blender/**'
+      - 'app/models/artifact.rb'
       - 'test/javascript/studio_native_authoring_test.cjs'
       - 'test/javascript/studio_native_viewport_test.cjs'
       - 'app/jobs/studio_blender_preview_job.rb'
@@ -65,6 +73,10 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/studio_creation_checks.rb --name '/test_creation|test_saved_source/'
+      - name: Native production authoring and animation acceptance
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/studio_authoring_checks.rb --name /test_authoring/
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -72,19 +84,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright jsdom
+      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0
       - run: "$RUNNER_TEMP/studio-browser/node_modules/.bin/playwright install --with-deps chromium"
       - name: Browser capture transport regression
         env:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
         run: node test/javascript/studio_capture_transport_test.cjs
+      - name: Prepare native stage browser fixture
+        run: blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr "import bpy; bpy.context.scene.objects['Cube']['lightek_object_name']='Cube'; bpy.ops.export_scene.gltf(filepath='/tmp/native-viewport-proof.glb', export_format='GLB', export_extras=True)"
       - name: Working library UI and live media sources
         env:
+          STUDIO_BROWSER_FIXTURE_WEBM: "1"
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
         run: |
           node test/javascript/studio_creation_test.cjs
+          node test/javascript/studio_authoring_test.cjs
           node test/javascript/studio_library_test.cjs
           node test/javascript/studio_live_library_test.cjs
+          node test/javascript/studio_stage_test.cjs
           node test/javascript/studio_native_camera_test.cjs
           node test/javascript/studio_native_authoring_test.cjs
       - name: Native Blender mesh picking and transform tools
@@ -93,5 +110,7 @@ jobs:
         run: |
           blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr "import bpy; bpy.context.scene.objects['Cube']['lightek_object_name']='Cube'; bpy.ops.export_scene.gltf(filepath='/tmp/native-viewport-proof.glb', export_format='GLB', export_extras=True)"
           node test/javascript/studio_native_viewport_test.cjs
+      - name: Native mesh, sculpt, modifier and graph tools
+        run: BLENDER_BIN="$(command -v blender)" python3 -m unittest test/operations/studio_native_tools_test.py
       - name: Blender archive and transform regression
         run: python3 -m unittest test/operations/studio_media_setup_test.py test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py test/operations/deploy_checkout_test.py

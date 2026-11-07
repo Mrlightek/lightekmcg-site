@@ -23,3 +23,5 @@ Production runtime health now actually starts Blender in a networkless, read-onl
 ## Verification
 
 Run the standalone creation checks with the standalone Gemfile, setting `LIGHTEK_TEST_BLENDER=1` and `BLENDER_BIN` to a Blender 4+ executable for the real export/import round trip. Run `test/javascript/studio_creation_test.cjs` with `jsdom` available to test workshop forms, scene/version payloads, save receipts, failures and preservation of the existing production wizard.
+
+The follow-up [Production authoring suite](production-authoring.md) adds native mesh/sculpt/rig/node commands, movie export, resource ZIP imports and depth-tested live stages. Its supported operations and remaining gaps supersede the authoring limitations above.

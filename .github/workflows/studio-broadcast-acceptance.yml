@@ -70,7 +70,7 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
       - name: Library, HTTP, Gatekeeper, publication and native Blender acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -120,6 +120,23 @@ jobs:
         run: BLENDER_BIN="$(command -v blender)" python3 -m unittest test/operations/studio_native_tools_test.py
       - name: Blender archive and transform regression
         run: python3 -m unittest test/operations/studio_media_setup_test.py test/operations/blender_demo_archive_test.py test/operations/studio_transform_test.py test/operations/deploy_checkout_test.py
+  workstation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0
+      - run: "$RUNNER_TEMP/studio-browser/node_modules/.bin/playwright install --with-deps chromium"
       - name: Native workstation access, save, render and publication
         env:
           LIGHTEK_TEST_BLENDER: '1'

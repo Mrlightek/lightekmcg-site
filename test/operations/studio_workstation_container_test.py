@@ -43,7 +43,7 @@ class DesktopAcceptance(unittest.TestCase):
                     if receipt.exists():break
                     time.sleep(1)
                 self.assertTrue(receipt.exists(),'Native F8 save receipt missing')
-                data=json.loads(receipt.read_text());self.assertEqual(data['nonce'],nonce)
+                data=json.loads(receipt.read_text());self.assertEqual(data['nonce'],nonce);self.assertEqual(data['workspace'],'UV Editing')
                 self.assertEqual(data['sha256'],hashlib.sha256((work/'scene.blend').read_bytes()).hexdigest())
                 self.assertTrue((work/'project.zip').exists())
                 manifest['status']='stopped';(session/'session.json').write_text(json.dumps(manifest))

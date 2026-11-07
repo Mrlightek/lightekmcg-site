@@ -37,6 +37,20 @@ class StudioWorkstationTest < StudioAuthoringTest
   ensure
     ENV["PATH"]=previous_path;ENV["STUDIO_WORKER_CPUS"]=previous_budget
   end
+  def test_workstation_detached_container_survives_the_launch_command
+    previous_path=ENV["PATH"]
+    Dir.mktmpdir("studio-container-life-") do |folder|
+      trace=File.join(folder,"commands");docker=File.join(folder,"docker")
+      File.write(docker,"#!/bin/sh\nprintf '%s\\n' \"$*\" >> #{trace}\nprintf 'container-started\\n'\n");File.chmod(0755,docker)
+      ENV["PATH"]="#{folder}:#{previous_path}"
+      Studio::Workstations::Runtime.command("run","-d","--name","studio-fixture")
+      assert_equal ["run -d --name studio-fixture"],File.readlines(trace,chomp:true)
+      Studio::MediaProcess.run!(["docker","run","--name","transient-fixture"])
+      assert_equal "rm -f transient-fixture",File.readlines(trace,chomp:true).last
+    end
+  ensure
+    ENV["PATH"]=previous_path
+  end
   def test_workstation_creation_is_idempotent_and_preserves_an_immutable_source_snapshot
     key=SecureRandom.uuid;s=create_session(request_key:key);again=create_session(request_key:key)
     assert_equal s.id,again.id

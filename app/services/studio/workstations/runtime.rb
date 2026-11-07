@@ -25,7 +25,7 @@ module Studio
         signature=Base64.urlsafe_encode64(OpenSSL::HMAC.digest("SHA256",secret,data),padding:false)
         "#{data}.#{signature}"
       end
-      def self.command(*args,timeout:30) = Studio::MediaProcess.run!(["docker",*args],timeout:timeout)
+      def self.command(*args,timeout:30) = Studio::MediaProcess.run!(["docker",*args],timeout:timeout,cleanup_container:false)
       def self.stop(session,status:"stopped")
         command("rm","-f",session.container_id,timeout:15) if session.container_id&.match?(/\A[a-f0-9]{64}\z/)
         session.update!(status:status,port:nil);write_state(session)

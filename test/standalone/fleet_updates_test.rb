@@ -53,6 +53,8 @@ ActiveRecord::Schema.define do
   create_table(:provisioning_requests) do |t|
     t.references :owner, polymorphic: true; t.references :gatekeeper_node; t.references :compute_provider
     t.string :approval_status; t.string :execution_status; t.integer :requested_node_count
+    t.string :selected_region; t.string :selected_plan; t.string :selected_image; t.string :node_label
+    t.integer :estimated_monthly_cost_cents; t.string :approved_by; t.datetime :approved_at; t.string :approval_reason
     t.string :destroy_approval_status; t.string :destroy_approved_by; t.datetime :destroy_approved_at
     t.datetime :destroyed_at; t.json :metadata, default: {}
   end
@@ -66,6 +68,7 @@ end
 class User < ApplicationRecord; end
 class ComputeProvider < ApplicationRecord
   class_attribute :test_adapter
+  def self.active = all
   def adapter(**) = self.class.test_adapter
 end
 class ProvisioningRequest < ApplicationRecord
@@ -93,6 +96,10 @@ AddNativeFleetAdapters.new.migrate(:up)
 source = File.read(Rails.root.join("db/migrate/20261031230000_add_server_application_management.rb"))
 eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING, "hosting_migration")
 AddServerApplicationManagement.new.migrate(:up)
+source = File.read(Rails.root.join("db/migrate/20261107140000_create_application_launches.rb"))
+eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING, "application_launches_migration")
+CreateApplicationLaunches.new.migrate(:up)
+%w[gatekeeper_application_template gatekeeper_application_launch].each { |file| require Rails.root.join("app/models", file).to_s }
 require Rails.root.join("app/services/gatekeeper/fleet/adapters").to_s
 %w[gatekeeper_node gatekeeper_operation gatekeeper_installation gatekeeper_release gatekeeper_rollout gatekeeper_update_target].each do |file|
   require Rails.root.join("app/models", file).to_s
@@ -109,6 +116,7 @@ end
 class FleetUpdatesTest < Minitest::Test
   include ActiveSupport::Testing::TimeHelpers
   def setup
+    GatekeeperApplicationLaunch.delete_all; GatekeeperApplicationTemplate.delete_all
     GatekeeperUpdateTarget.delete_all; GatekeeperRollout.delete_all
     GatekeeperHostedApplication.delete_all if defined?(GatekeeperHostedApplication)
     ProvisioningRequest.delete_all; DymondBank::Subscription.delete_all; SubscriptionInfrastructureEntitlement.delete_all
@@ -486,3 +494,4 @@ end
 
 require_relative "fleet_hosting_test"
 require_relative "fleet_transport_test"
+require_relative "fleet_application_launches_test"

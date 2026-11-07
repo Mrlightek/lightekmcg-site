@@ -2,16 +2,26 @@ class Dashboard::ServerInstancesController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   helper InfrastructureDashboardHelper
   protect_from_forgery with: :exception
-  before_action :set_node, except: :index
+  before_action :set_node, except: %i[index hosting]
   rescue_from Gatekeeper::Hosting::Access::Denied, ActiveRecord::RecordInvalid, with: :invalid_action
 
   def index
     scope = Gatekeeper::Hosting::Access.nodes(current_user)
+    @launches = GatekeeperApplicationLaunch.includes(:gatekeeper_node, :gatekeeper_application_template, :provisioning_request).order(id: :desc).limit(50)
+    @launches = @launches.where(owner: current_user) unless Gatekeeper::Hosting::Access.super_admin?(current_user)
     @node_counts = scope.group(:status).count
     @nodes = scope.includes(:compute_provider).order(:name).page(params[:page]).per(50)
   end
 
+  def hosting
+    Gatekeeper::Hosting::Access.nodes(current_user)
+    @listings = DymondCatalog::MarketplaceListing.storefront.includes(offer: :subscription_plan)
+      .where("dymond_catalog_marketplace_listings.configuration ->> 'blueprint_key' = ?", "compute_instance")
+  end
+
   def show
+    @launches = GatekeeperApplicationLaunch.where(gatekeeper_node: @node).includes(:gatekeeper_application_template).order(id: :desc)
+    @launches = @launches.where(owner: current_user) unless Gatekeeper::Hosting::Access.super_admin?(current_user)
     @projects = @node.gatekeeper_projects.order(:name)
     @installations = GatekeeperInstallation.where(gatekeeper_node: @node).order(:component, :domain)
     @applications = GatekeeperHostedApplication.where(gatekeeper_node: @node).order(:id)

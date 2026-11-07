@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_01_040000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_07_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1121,6 +1121,47 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_01_040000) do
     t.datetime "updated_at", null: false
     t.integer "season"
   end
+
+  create_table "gatekeeper_application_launches", force: :cascade do |t|
+    t.bigint "gatekeeper_application_template_id", null: false
+    t.bigint "gatekeeper_node_id"
+    t.bigint "provisioning_request_id"
+    t.bigint "owner_id", null: false
+    t.bigint "requested_by_id", null: false
+    t.string "name", null: false
+    t.string "domain", null: false
+    t.string "status", default: "queued", null: false
+    t.text "error_message"
+    t.jsonb "receipt", default: {}, null: false
+    t.jsonb "template_snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status", "updated_at"], name: "index_gatekeeper_application_launches_on_status_and_updated_at"
+    t.index ["domain"], name: "index_gatekeeper_application_launches_on_domain", unique: true
+    t.index ["gatekeeper_application_template_id"], name: "idx_on_gatekeeper_application_template_id_36eccce17b"
+    t.index ["gatekeeper_node_id"], name: "index_gatekeeper_application_launches_on_gatekeeper_node_id"
+    t.index ["owner_id"], name: "index_gatekeeper_application_launches_on_owner_id"
+    t.index ["provisioning_request_id"], name: "idx_on_provisioning_request_id_73793da448"
+    t.index ["requested_by_id"], name: "index_gatekeeper_application_launches_on_requested_by_id"
+  end
+
+
+  create_table "gatekeeper_application_templates", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "preview_domain"
+    t.string "kind", default: "native_rails", null: false
+    t.string "image"
+    t.string "build_status", default: "ready", null: false
+    t.string "source_ref"
+    t.integer "container_port", default: 3000, null: false
+    t.string "credential_slug"
+    t.boolean "rails_database", default: true, null: false
+    t.boolean "rails_worker", default: false, null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
 
   create_table "gatekeeper_hosted_applications", force: :cascade do |t|
     t.bigint "gatekeeper_node_id", null: false
@@ -2996,6 +3037,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_01_040000) do
   add_foreign_key "dymond_studio_text_overlays", "dymond_studio_timelines", column: "timeline_id"
   add_foreign_key "dymond_studio_timeline_clips", "dymond_studio_timeline_tracks", column: "track_id"
   add_foreign_key "dymond_studio_timeline_tracks", "dymond_studio_timelines", column: "timeline_id"
+  add_foreign_key "gatekeeper_application_launches", "gatekeeper_application_templates"
+  add_foreign_key "gatekeeper_application_launches", "gatekeeper_nodes"
+  add_foreign_key "gatekeeper_application_launches", "provisioning_requests"
+  add_foreign_key "gatekeeper_application_launches", "users", column: "owner_id"
+  add_foreign_key "gatekeeper_application_launches", "users", column: "requested_by_id"
   add_foreign_key "gatekeeper_hosted_applications", "gatekeeper_nodes"
   add_foreign_key "gatekeeper_hosted_applications", "gatekeeper_operations"
   add_foreign_key "gatekeeper_hosted_applications", "gatekeeper_projects"

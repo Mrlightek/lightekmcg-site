@@ -32,6 +32,7 @@ module Gatekeeper
               request.update!(destroyed_at: now, metadata: request.metadata.to_h.merge("deprovision_operation_id" => operation.id, "delete_state" => "destroyed"))
               GatekeeperInstallation.where(gatekeeper_node: node).update_all(enabled: false, automatic_updates: false)
               GatekeeperHostedApplication.where(gatekeeper_node: node).update_all(status: "deleted")
+              GatekeeperApplicationLaunch.where(gatekeeper_node: node).update_all(status: "deleted")
               operation.update!(status: "succeeded", exit_status: 0, completed_at: now,
                 result: {provider_resource_id: node.provider_resource_id, destroyed: true})
             rescue StandardError => error

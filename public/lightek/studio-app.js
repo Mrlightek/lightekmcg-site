@@ -7,6 +7,8 @@
   let operationBusy = false;
   let quote = null;
   let dirty = false;
+  let writingDraft = null;
+  let writingProfiles = [];
   const input = (name, label, value, type = 'text') => `<label class="fld"><span>${E(label)}</span><input name="${E(name)}" type="${type}" ${type === "number" ? 'step="any" required' : ''} value="${E(String(value ?? ''))}"></label>`;
   const button = (label, action, attrs = '') => `<button type="button" class="btn sm" data-a="${action}" ${attrs} ${ST.busy ? 'disabled' : ''}>${E(label)}</button>`;
   const current = () => studioSceneRecord(studioCurrentSceneId());
@@ -19,7 +21,7 @@
     if (workspace.delivery) Object.assign(STUDIO_W4_STATE, workspace.delivery);
     if (workspace.layout) Object.assign(STUDIO_WORKSPACE_LAYOUT, workspace.layout);
     STUDIO_W5_STATE.presets = workspace.presets || [];
-    dirty = false;
+    dirty = false; writingDraft = null;
     operationRows = []; publicationRows = []; operationProject = null; quote = null;
   }
   function inspector(scene) {
@@ -31,10 +33,13 @@
   function story(record, mode) {
     if (!['script', 'storyboard', 'audio', 'planning'].includes(mode)) return null;
     const state = STUDIO_WAVE2_STATE;
-    if (mode === 'script') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Script</h2><label class="fld"><span>${E(record.scene.name)} · Scene script</span><textarea data-studio-script rows="18" placeholder="Write the scene…">${E(state.scriptDraft)}</textarea></label><p>Save workspace to persist your script with this scene.</p></section>`;
+    if (mode === 'script') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Script</h2><label class="fld"><span>${E(record.scene.name)} · Scene script</span><textarea data-studio-script rows="18" placeholder="Write the scene…">${E(state.scriptDraft)}</textarea></label><p>Save workspace to persist your script with this scene.</p>${writingPanel(record)}</section>`;
     if (mode === 'storyboard') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Storyboard</h2><div class="g2">${(state.storyboard || []).map((shot, i) => `<div class="studio-wave2-panel"><h3>Shot ${i + 1}</h3><label class="fld"><span>Framing & action</span><textarea data-studio-shot="${i}" rows="5">${E(shot)}</textarea></label>${button('Remove shot', 'studioShotRemove', `data-index="${i}"`)}</div>`).join('')}</div>${button('Add shot', 'studioShotAdd')}</section>`;
     if (mode === 'planning') return `<section class="studio-wave2"><span class="eb">Production Planning</span><h2>Readiness</h2>${STUDIO_WAVE2_TASKS.map((task, i) => `<label class="studio-wave2-check"><input type="checkbox" data-studio-wave2-task="${i}" ${state.checks.includes(i) ? 'checked' : ''}><span>${E(task)}</span></label>`).join('')}<p>Readiness is saved with the scene.</p></section>`;
     return `<section class="studio-wave2"><span class="eb">Audio</span><h2>Scene sound</h2><p>Publish or upload audio through Create, then reference its post ID in your scene notes.</p><label class="fld"><span>Dialogue, ambience, music & cues</span><textarea data-studio-audio rows="10">${E(state.audioNotes || '')}</textarea></label><a class="btn sm" href="#/create/audio">Upload audio</a></section>`;
+  }
+  function writingPanel(record) {
+    return `<section class="studio-v3-card"><span class="eb">Nevaeh Writing</span><h3>Build a draft from context.</h3><form data-studio-form="writing"><div class="pwa-editor-fields"><label class="fld"><span>Format</span><select name="format"><option value="script">Scene script</option><option value="caption">Caption</option><option value="post">Social post</option><option value="description">Description</option></select></label><label class="fld"><span>Writing service</span><select name="profile_id"><option value="">Built-in context & rules</option>${writingProfiles.map(p=>`<option value="${Number(p.id)}" data-format="${E(p.format)}">${E(p.name)} · ${E(p.provider)}</option>`).join('')}</select></label></div><button type="button" class="btn sm" data-writing-profiles>Load saved writing services</button><div class="pwa-editor-fields">${['topic','goal','obstacle','setting','protagonist','companion','audience','call_to_action'].map(key=>input(key,key.replaceAll('_',' '),key==='topic'?record.scene.name:'')).join('')}</div><label class="fld"><span>Known facts / story continuity</span><textarea name="facts" rows="3" maxlength="4000" placeholder="Details the draft must preserve"></textarea></label><button class="btn p" ${ST.busy?'disabled':''}>Generate draft</button><p role="status" data-writing-status></p></form>${writingDraft?`<label class="fld"><span>Draft · ${E(writingDraft.provider)}</span><textarea rows="10" data-generated-writing>${E(writingDraft.text)}</textarea></label><div class="pwa-post-actions">${writingDraft.format==='script'?'<button type="button" class="btn p" data-writing-apply>Use as scene script</button>':''}<button type="button" class="btn sm" data-writing-copy>Copy draft</button></div>`:''}<p>Drafts are reviewed before use. Save workspace after applying a script.</p></section>`;
   }
   const hexColor = values => '#' + (values || [0.55,0.58,0.65]).slice(0,3).map(v => Math.round(Math.max(0,Math.min(1,Number(v))) * 255).toString(16).padStart(2,'0')).join('');
   function cameraForm(record, object){
@@ -120,7 +125,17 @@
     dirty = true;
     const status = document.getElementById('studio-save-status'); if (status) status.textContent = 'Unsaved changes';
   });
+  app.addEventListener('click', event => {
+    const load=event.target.closest('[data-writing-profiles]');
+    if(load)run(async()=>{const result=await execute('studio.workspace.writing.profiles',{});if(!result)return;writingProfiles=result.profiles;const select=load.closest('form').elements.profile_id;select.innerHTML='<option value="">Built-in context & rules</option>'+writingProfiles.map(p=>`<option value="${Number(p.id)}" data-format="${E(p.format)}">${E(p.name)} · ${E(p.provider)}</option>`).join('');toast('Writing services loaded');});
+    if(event.target.closest('[data-writing-apply]')){const text=app.querySelector('[data-generated-writing]').value;STUDIO_WAVE2_STATE.scriptDraft=text;const field=app.querySelector('[data-studio-script]');if(field)field.value=text;dirty=true;const status=document.getElementById('studio-save-status');if(status)status.textContent='Unsaved changes';toast('Script draft applied. Save workspace to keep it.');}
+    if(event.target.closest('[data-writing-copy]'))run(async()=>{const field=app.querySelector('[data-generated-writing]');try{await navigator.clipboard.writeText(field.value);toast('Draft copied');}catch{field.select();toast('Select and copy the draft');}});
+  });
+  app.addEventListener('change',event=>{const form=event.target.closest('[data-studio-form="writing"]');if(form&&event.target.name==='profile_id'){const format=event.target.selectedOptions[0]?.dataset.format;if(format)form.elements.format.value=format;}});
   app.addEventListener('submit', event => {
+    const writing=event.target.closest('[data-studio-form="writing"]');
+    if(writing){event.preventDefault();const sceneId=current()?.scene.id,notice=writing.querySelector('[data-writing-status]'),submit=writing.querySelector('button:not([type=button])');submit.disabled=true;notice.textContent='Writing…';run(async()=>{try{const values=Object.fromEntries(new FormData(writing)),format=values.format,profile_id=values.profile_id;delete values.format;delete values.profile_id;const context=Object.fromEntries(Object.entries(values).filter(([,v])=>v.trim()));const result=await execute('studio.workspace.content.generate',{scene_id:sceneId,format,profile_id,context});if(result&&current()?.scene.id===sceneId){writingDraft=result;render(1);toast('Writing draft ready');}}finally{submit.disabled=false;notice.textContent='';}});return;}
+
     const camera=event.target.closest('[data-studio-form="camera"]');
     if(camera){event.preventDefault();const notice=camera.querySelector('[data-camera-status]');run(async()=>{
       const values=Object.fromEntries(new FormData(camera)),record=current(),object=studioWorkspaceSelectedObject(record.scene);

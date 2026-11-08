@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -13,6 +13,16 @@ module Studio
         LightekPwa::Policy.new(user: @access.user, site: DymondSite::Site.find(@access.site_id)).authorize!("studio") if @access.site_id
         raise ArgumentError, "Unsupported Studio workspace action" unless ACTIONS.include?(@action)
         public_send(@action)
+      end
+
+      def writing_profiles
+        {profiles: NevaehWritingProfile.where(enabled: true).order(:name).limit(100).map { |profile| {id: profile.id, name: profile.name, format: profile.format, provider: profile.provider} }}
+      end
+
+      def content_generate
+        @access.scene!(@payload.fetch("scene_id"))
+        profile = NevaehWritingProfile.where(enabled: true).find(@payload["profile_id"]) if @payload["profile_id"].present?
+        NevaehIntelligences::WritingEngine.generate(format: @payload.fetch("format"), context: @payload.fetch("context"), profile: profile&.contract)
       end
 
       def scene_save

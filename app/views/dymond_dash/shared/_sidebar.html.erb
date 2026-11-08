@@ -2,33 +2,14 @@
   <div class="dd-brand"><%= link_to "LIGHTEK", dymond_dash.root_path, class: "dd-brand-name" %><div class="dd-brand-sub">Business operating system</div></div>
   <div class="dd-user"><div class="dd-avatar"><%= current_user.email_address.to_s.first.upcase %></div><div><div class="dd-user-name"><%= current_user.email_address %></div><small class="dd-brand-sub"><%= current_user.role.to_s.humanize %></small></div></div>
   <nav class="dd-nav" aria-label="Workspaces">
-    <div class="dd-nav-label">WORKSPACES</div>
-    <%= link_to dymond_dash.root_path, class: "dd-nav-item" do %><i class="ti ti-layout-dashboard"></i> Overview<% end %>
-    <%= link_to main_app.dashboard_business_hub_path, class: "dd-nav-item" do %><i class="ti ti-building-store"></i> Business<% end %>
-    <%= link_to main_app.dashboard_agency_reports_path, class: "dd-nav-item" do %><i class="ti ti-chart-dots"></i> Agency & Marketing<% end %>
-    <%= link_to main_app.dashboard_website_designs_path, class: "dd-nav-item" do %><i class="ti ti-palette"></i> Design & Content<% end %>
-    <% if LightekPwa::Policy.administration_available_for?(current_user) %>
-      <% pwa_active = request.path == main_app.dashboard_pwa_path || request.path.start_with?("#{main_app.dashboard_pwa_path}/") %>
-      <%= link_to main_app.dashboard_pwa_path, class: "dd-nav-item#{' active' if pwa_active}", aria: { current: pwa_active ? 'page' : nil } do %><i class="ti ti-device-mobile"></i> PWA Administration<% end %>
-    <% end %>
-    <%= link_to main_app.dashboard_mail_path, class: "dd-nav-item" do %><i class="ti ti-mail"></i> Communications<% end %>
-    <% if current_user.role == "super_admin" %>
-      <%= link_to main_app.dashboard_infrastructure_path, class: "dd-nav-item" do %><i class="ti ti-server"></i> Infrastructure<% end %>
-      <%= link_to main_app.dashboard_bank_path, class: "dd-nav-item" do %><i class="ti ti-wallet"></i> Finance<% end %>
-      <%= link_to main_app.dashboard_vault_path, class: "dd-nav-item" do %><i class="ti ti-lock"></i> Vault<% end %>
+    <% previous_group = nil %>
+    <% nevaeh_sidebar_entries.reject { |entry| entry['hidden'] }.each do |entry| %>
+      <% if entry['group'] != previous_group %><div class="dd-nav-label"><%= entry['group'] %></div><% previous_group = entry['group'] %><% end %>
+      <% active = request.path == entry['path'] || (entry['path'] != dymond_dash.root_path && request.path.start_with?("#{entry['path']}/")) %>
+      <%= link_to entry['path'], class: "dd-nav-item#{' active' if active}", aria: {current: active ? 'page' : nil} do %><i class="ti <%= entry['icon'] %>"></i><%= entry['label'] %><% end %>
     <% end %>
     <% if current_user.employee? && can?(:read, Marlon::Ticket) %>
-      <div class="dd-nav-label">SUPPORT</div>
-      <% tickets_active = request.path.start_with?(main_app.employee_tickets_path) && request.path != main_app.new_employee_ticket_path %>
-      <%= link_to main_app.employee_tickets_path, class: "dd-nav-item#{' active' if tickets_active}", aria: { current: tickets_active ? 'page' : nil } do %><i class="ti ti-ticket"></i> Support Tickets<% end %>
-      <% if can?(:create, Marlon::Ticket) %>
-        <% new_ticket_active = request.path == main_app.new_employee_ticket_path %>
-        <%= link_to main_app.new_employee_ticket_path, class: "dd-nav-item#{' active' if new_ticket_active}", aria: { current: new_ticket_active ? 'page' : nil } do %><i class="ti ti-plus"></i> New Ticket<% end %>
-      <% end %>
-      <% nevaeh_active = request.path.start_with?(main_app.employee_nevaeh_overview_path) %>
-      <%= link_to main_app.employee_nevaeh_overview_path, class: "dd-nav-item#{' active' if nevaeh_active}", aria: { current: nevaeh_active ? 'page' : nil } do %><i class="ti ti-sparkles"></i> Nevaeh<% end %>
+      <%= link_to main_app.employee_nevaeh_control_center_path(tab: 'navigation'), class: "dd-nav-item" do %><i class="ti ti-adjustments-horizontal"></i> Customize sidebar<% end %>
     <% end %>
-    <div class="dd-nav-label">SYSTEM</div>
-    <%= link_to main_app.dashboard_settings_home_path, class: "dd-nav-item" do %><i class="ti ti-settings"></i> Settings<% end %>
   </nav>
 </aside>

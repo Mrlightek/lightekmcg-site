@@ -1,6 +1,7 @@
 <section class="container py-4" aria-label="Nevaeh capability registry">
   <h1>Nevaeh Capabilities</h1>
-  <p>Read-only capability configuration. Registration does not authorize execution.</p>
+  <p>Build workers, schedules and writing services in the Control Center. Inspect declarative definitions below.</p>
+  <p><%= link_to "Open Nevaeh Control Center →", employee_nevaeh_control_center_path %></p>
   <p><%= link_to "View JSON", employee_nevaeh_capabilities_path(format: :json) %> · <%= link_to "Trusted services (JSON)", employee_nevaeh_services_path(format: :json) %></p>
   <% if @capabilities.empty? %>
     <p>No capability definitions have been saved.</p>

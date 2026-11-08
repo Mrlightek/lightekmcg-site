@@ -9,6 +9,7 @@ module NevaehIntelligences
       "site.page.create" => {"label" => "Create website page", "fields" => %w[site_id title slug], "outputs" => %w[site_id page_id]},
       "site.section.add" => {"label" => "Add page section", "fields" => %w[site_id page_id kind data], "outputs" => %w[site_id page_id section_id]},
       "studio.project.create" => {"label" => "Create Studio project", "fields" => %w[name description], "outputs" => %w[project_id production_id default_scene_id]},
+      "content.generate" => {"label" => "Write a content draft", "fields" => %w[format context profile_id], "outputs" => %w[text format sha256]},
       "engineering.service.generate" => {"label" => "Implement reviewed metadata normalization service", "fields" => [], "outputs" => %w[path sha256 commit_sha branch]}
     }.freeze
     REF = /\A@([a-z][a-z0-9_]{0,39})\.([a-z][a-z0-9_]*)\z/
@@ -30,7 +31,7 @@ module NevaehIntelligences
         raise Invalid, "Section inputs must be an object" unless inputs.is_a?(Hash)
         inputs = inputs.deep_stringify_keys.reject { |_key, value| value == "" }
         raise Invalid, "Unknown inputs for #{action}" if (inputs.keys - definition.fetch("fields")).any?
-        required = definition.fetch("fields") - %w[description]
+        required = definition.fetch("fields") - %w[description profile_id]
         raise Invalid, "Missing inputs for #{action}: #{(required - inputs.keys).join(', ')}" if (required - inputs.keys).any?
         deps = row.fetch("depends_on", [])
         deps = deps.split(",").map(&:strip).reject(&:empty?) if deps.is_a?(String)
@@ -46,7 +47,7 @@ module NevaehIntelligences
               raise Invalid, "#{key} must be a positive ID or @section.output reference" unless value.to_s.match?(/\A[1-9][0-9]*\z/)
               inputs[key] = value.to_i
             end
-          elsif key == "data"
+          elsif %w[data context].include?(key)
             value = JSON.parse(value) if value.is_a?(String)
             raise Invalid, "Section data must be a bounded object" unless value.is_a?(Hash) && value.size <= 40 && JSON.generate(value).bytesize <= 16000
             inputs[key] = value.deep_stringify_keys

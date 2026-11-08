@@ -8,6 +8,14 @@ class Dashboard::InstallationsController < Dashboard::SettingsHomeController
       .includes(:site, items: :product).order(created_at: :desc).limit(150)
   end
 
+  def connect_reservations
+    return head :forbidden unless current_user.role == 'super_admin'
+    order = LightekCommerce::Installations.scope_for(current_user, operator: true).find(params.require(:id))
+    LightekReservations::Federation::Issuer.connect_existing!(order: order, actor: current_user)
+    redirect_to dashboard_installations_path, notice: 'The server is connected to the central reservation and payout network.'
+  rescue ArgumentError, Gatekeeper::Fleet::Transport::RemoteFailure => error
+    redirect_to dashboard_installations_path, alert: error.message
+  end
   def retry_installation
     order = LightekCommerce::Installations.scope_for(current_user, operator: true).find(params.require(:id))
     LightekCommerce::Installations.resume!(order)

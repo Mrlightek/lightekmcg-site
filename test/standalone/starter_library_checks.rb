@@ -7,6 +7,13 @@ require 'tmpdir'
 module Rails
   def self.root = Pathname.new(File.expand_path('../..', __dir__))
 end
+module LightekReservations
+  class Resource
+    def self.available = self
+    def self.where(**) = self
+    def self.exists? = false
+  end
+end
 require_relative '../../app/services/lightek_design/starter_library'
 require_relative '../../app/services/lightek_design/template_branding'
 require_relative '../../app/services/lightek_design/website_designs'

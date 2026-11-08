@@ -107,6 +107,26 @@ module LightekDesign
         status.content = preview ? "Preview only. Requests are saved when this page is published." : "Send an inquiry. Availability and payment are confirmed separately."
         form.add_child(status)
       end
+      # Published booking experiences replace inquiry-only calls to action. Keep
+      # contact forms available for questions, without pretending they reserved time.
+      if site && LightekReservations::Resource.available.where(site_id: site.id).exists?
+        fragment.css('a[href],button').each do |node|
+          next unless node.text.strip.match?(/\A(?:book|reserve|schedule|make a reservation|request an appointment)/i)
+          next if node.ancestors('form').any?
+          node.name = 'a'
+          node['href'] = "/reservations"
+          node.remove_attribute('type')
+          node.remove_attribute('data-add')
+        end
+        fragment.css('form').each do |form|
+          next unless form.at_css('[name="date"],[name="time"],[type="date"],[type="datetime-local"]')
+          link = Nokogiri::XML::Node.new('a', fragment.document)
+          link['href'] = '/reservations'
+          link['class'] = 'btn'
+          link.content = 'Choose an available experience & book'
+          form.add_previous_sibling(link)
+        end
+      end
       # Demo cart counters and fake audio playback never impersonate real commerce.
       fragment.css("[data-add]").each { |button| button.name = "a"; button["href"] = "#contact"; button.content = "Ask about this item"; button.remove_attribute("data-add") }
       fragment.css(".trk button").each { |button| button["disabled"] = "disabled"; button["title"] = "Add an audio source before offering playback" }

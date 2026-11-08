@@ -8,6 +8,8 @@ module LightekCommerce
     class NotReady < StandardError; end
 
     def self.call!(order:)
+      return if order.purpose == "reservation_change"
+      reservation = LightekReservations::Reservation.find_by(order_id: order.id)
       product_items = order.items.select { |item| item.product.product_type == "lightek_instance" }
       return if product_items.empty?
       raise NotReady, "One installation per checkout" unless product_items.size == 1 && product_items.first.quantity == 1
@@ -15,9 +17,16 @@ module LightekCommerce
       product = item.product
       raise NotReady, "Instance product has no configured subscription plan" unless product.subscription_plan_id.present?
       actor = User.find_by(role: "super_admin") || raise(NotReady, "No Lightek super admin operator configured")
+      if reservation
+        raise NotReady, "Reservation is not confirmed or has not started" unless reservation.status == 'confirmed' && reservation.starts_at <= Time.current
+      end
       raise NotReady, "Paid order required" unless order.paid_at? && %w[paid fulfilled].include?(order.status)
 
-      vps = required_vps_configuration!
+      vps = if reservation&.server?
+        reservation.package_snapshot.fetch('compute').symbolize_keys
+      else
+        required_vps_configuration!
+      end
 
       customer = User.find_by(email_address: order.customer_email)
       unless customer
@@ -36,11 +45,11 @@ module LightekCommerce
         return order if order.provisioned_at?
         request = ProvisioningRequest.find_by(id: order.provisioning_request_id) if order.provisioning_request_id.present?
         unless request
-          plan = DymondBank::SubscriptionPlan.find(product.subscription_plan_id)
+          plan = DymondBank::SubscriptionPlan.find(reservation ? reservation.package_snapshot.fetch('subscription_plan_id') : product.subscription_plan_id)
           subscription = DymondBank::Subscription.create!(
             subscriber: customer, plan: plan,
-            status: "active", billing_interval: "monthly",
-            current_period_start: Time.current, current_period_end: 1.month.from_now)
+            status: "active", billing_interval: reservation&.package_snapshot&.fetch('billing_interval') == 'annual' ? 'annual' : 'monthly',
+            current_period_start: reservation&.starts_at || Time.current, current_period_end: reservation&.ends_at || 1.month.from_now)
           request = Gatekeeper::Compute::ProvisioningRequestBuilder.call(
             subscription: subscription, requested_by: actor.email_address,
             estimated_monthly_cost_cents: vps.fetch(:monthly_cost_cents))
@@ -50,7 +59,7 @@ module LightekCommerce
       raise NotReady, "Provisioning ownership mismatch" unless request.owner == customer
       raise NotReady, "Provisioning subscription differs from the purchased plan" unless
         request.subscription&.subscriber == customer &&
-        request.subscription.plan_id == product.subscription_plan_id
+        request.subscription.plan_id == (reservation ? reservation.package_snapshot.fetch('subscription_plan_id') : product.subscription_plan_id)
       raise NotReady, "Cloud provider configuration missing" unless request.compute_provider
 
       # Reconcile a provider-confirmed external deletion before deciding whether
@@ -92,6 +101,12 @@ module LightekCommerce
         site_name: "#{customer.first_name}'s Lightek", headline: "Welcome to Lightek",
         description: "Your Lightek workspace", certificate_email: actor.email_address,
         credential_slug: slug)
+      config['reservation_federation'] = LightekReservations::Federation::Issuer.ensure!(order: order, merchant: customer, domain: domain)
+      if reservation
+        config["reservation_experience"] = reservation.package_snapshot.merge("reference" => reservation.reference,
+          "starts_at" => reservation.starts_at.iso8601, "ends_at" => reservation.ends_at.iso8601,
+          "manage_url" => "#{ENV.fetch('LIGHTEK_RESERVATION_ORIGIN', 'https://lightekmcg.com')}/my/reservations/#{reservation.id}")
+      end
       unless request.metadata.to_h.fetch("website_deployments", {}).key?(domain)
         Gatekeeper::WebsiteDeployment.register!(actor: actor, record: request, config: config)
       end
@@ -108,6 +123,7 @@ module LightekCommerce
       end
       # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+      Fulfillment.complete!(order: order, reference: "server-reservation-#{reservation.reference}") if reservation && order.status == 'paid'
       begin
         publish_ready_notification!(order: order, customer: customer, domain: domain)
       rescue StandardError => error

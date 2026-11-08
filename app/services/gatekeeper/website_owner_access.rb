@@ -33,8 +33,17 @@ module Gatekeeper
       require "net/ssh"
       root = "/opt/lightek-sites/#{domain}"
       project = "lt_#{Digest::SHA256.hexdigest(domain)[0, 16]}"
-      command = Shellwords.join(["docker", "compose", "--env-file", "#{root}/.env", "-p", project,
-        "-f", "#{root}/compose.yml", "exec", "-T", "web", "bin/rails", "runner", RESET_RUNNER])
+      command = if config['deployment_adapter'] == 'native_rails'
+        profile = config.fetch('fleet_config')
+        Gatekeeper::Fleet::Adapters.validate!('native_rails', profile)
+        runner = 'set -e; set -a; . "$1"; set +a; cd "$2"; exec bundle exec rails runner "$3"'
+        Shellwords.join(['sudo', '-u', profile.fetch('app_user'), '-H', 'env', '-u', 'GEM_HOME', '-u', 'GEM_PATH',
+          "PATH=#{profile.fetch('ruby_bin')}:/usr/local/bin:/usr/bin:/bin", 'bash', '-c', runner,
+          'owner-access', profile.fetch('env_file'), profile.fetch('app_root'), RESET_RUNNER])
+      else
+        Shellwords.join(["docker", "compose", "--env-file", "#{root}/.env", "-p", project,
+          "-f", "#{root}/compose.yml", "exec", "-T", "web", "bin/rails", "runner", RESET_RUNNER])
+      end
       output = String.new
       exit_status = nil
       Net::SSH.start(node.ip_address, node.ssh_user, port: node.ssh_port, password: secret.fetch("root_password"),

@@ -1,0 +1,94 @@
+name: Resort release integration verification
+on:
+  push:
+    branches: [feat/resort-reservations]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lightek-resort-release-verification
+  cancel-in-progress: false
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify integration
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
+          chmod 600 ~/.ssh/lightek_release_verify
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- 'integration' '$GITHUB_SHA' '$GITHUB_RUN_ID'" < script/lightek/run_resort_verification.sh
+  payment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: integration
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify payment
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
+          chmod 600 ~/.ssh/lightek_release_verify
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- 'payment' '$GITHUB_SHA' '$GITHUB_RUN_ID'" < script/lightek/run_resort_verification.sh
+  cloud:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    needs: payment
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify cloud
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
+          chmod 600 ~/.ssh/lightek_release_verify
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- 'cloud' '$GITHUB_SHA' '$GITHUB_RUN_ID'" < script/lightek/run_resort_verification.sh
+  payment_receipt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: cloud
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify payment_receipt
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
+          chmod 600 ~/.ssh/lightek_release_verify
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- 'payment_receipt' '$GITHUB_SHA' '$GITHUB_RUN_ID'" < script/lightek/run_resort_verification.sh

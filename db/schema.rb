@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_08_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2349,6 +2349,60 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["slug"], name: "index_nevaeh_capabilities_on_slug", unique: true
   end
 
+  create_table "nevaeh_construction_releases", force: :cascade do |t|
+    t.bigint "nevaeh_construction_id", null: false
+    t.integer "version", null: false
+    t.jsonb "definition", default: {}, null: false
+    t.jsonb "sample_tests", default: [], null: false
+    t.jsonb "artifacts", default: {}, null: false
+    t.jsonb "verification", default: {}, null: false
+    t.string "fingerprint", null: false
+    t.string "status", default: "built", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_construction_id", "version"], name: "idx_construction_release_version", unique: true
+    t.index ["nevaeh_construction_id"], name: "idx_construction_release_parent"
+  end
+
+  create_table "nevaeh_constructions", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.string "name", null: false
+    t.string "key", null: false
+    t.text "description"
+    t.jsonb "definition", default: {}, null: false
+    t.jsonb "sample_tests", default: [], null: false
+    t.string "status", default: "draft", null: false
+    t.bigint "active_release_id"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_constructions_on_creator_id"
+    t.index ["key"], name: "index_nevaeh_constructions_on_key", unique: true
+  end
+
+  create_table "nevaeh_conversation_turns", force: :cascade do |t|
+    t.bigint "nevaeh_conversation_id", null: false
+    t.string "request_key", null: false
+    t.text "prompt", null: false
+    t.text "response", null: false
+    t.bigint "checkpoint_id", null: false
+    t.jsonb "evidence", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_conversation_id", "request_key"], name: "idx_conversation_request", unique: true
+    t.index ["nevaeh_conversation_id"], name: "idx_turn_conversation"
+  end
+
+  create_table "nevaeh_conversations", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "nevaeh_language_model_id", null: false
+    t.string "title", default: "Conversation", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_language_model_id"], name: "idx_conversation_model"
+    t.index ["user_id"], name: "index_nevaeh_conversations_on_user_id"
+  end
+
   create_table "nevaeh_inference_models", force: :cascade do |t|
     t.string "name", null: false
     t.text "description"
@@ -2376,6 +2430,32 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["intent_key"], name: "index_nevaeh_intelligences_on_intent_key", unique: true
     t.index ["nevaeh_capability_id"], name: "index_nevaeh_intelligences_on_nevaeh_capability_id"
     t.index ["status"], name: "index_nevaeh_intelligences_on_status"
+  end
+
+  create_table "nevaeh_language_checkpoints", force: :cascade do |t|
+    t.bigint "nevaeh_training_run_id", null: false
+    t.bigint "nevaeh_language_model_id", null: false
+    t.jsonb "weights", default: {}, null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.string "sha256", null: false
+    t.string "status", default: "candidate", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_language_model_id"], name: "idx_checkpoint_model"
+    t.index ["nevaeh_training_run_id"], name: "idx_checkpoint_run", unique: true
+  end
+
+  create_table "nevaeh_language_models", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.bigint "active_checkpoint_id"
+    t.string "visibility", default: "internal", null: false
+    t.integer "hidden_size", default: 16, null: false
+    t.integer "vocabulary_limit", default: 256, null: false
+    t.boolean "enabled", default: true, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "nevaeh_studio_idempotency_records", force: :cascade do |t|
@@ -2423,6 +2503,40 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["correlation_id"], name: "index_nevaeh_test_runs_on_correlation_id"
     t.index ["marlon_ticket_id"], name: "index_nevaeh_test_runs_on_marlon_ticket_id"
     t.index ["run_id"], name: "index_nevaeh_test_runs_on_run_id", unique: true
+  end
+
+  create_table "nevaeh_training_datasets", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.string "name", null: false
+    t.string "status", default: "draft", null: false
+    t.jsonb "examples", default: [], null: false
+    t.jsonb "provenance", default: {}, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_training_datasets_on_creator_id"
+  end
+
+  create_table "nevaeh_training_runs", force: :cascade do |t|
+    t.bigint "nevaeh_language_model_id", null: false
+    t.bigint "nevaeh_training_dataset_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "status", default: "queued", null: false
+    t.string "request_key", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.text "error"
+    t.datetime "started_at"
+    t.datetime "heartbeat_at"
+    t.string "lease_token"
+    t.integer "epochs", default: 10, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_nevaeh_training_runs_on_actor_id"
+    t.index ["nevaeh_language_model_id", "request_key"], name: "idx_training_run_request", unique: true
+    t.index ["nevaeh_language_model_id"], name: "idx_training_run_model"
+    t.index ["nevaeh_training_dataset_id"], name: "idx_training_run_dataset"
+    t.index ["status"], name: "idx_single_neural_training_lease", unique: true, where: "((status)::text = 'running'::text)"
   end
 
   create_table "nevaeh_workflow_runs", force: :cascade do |t|
@@ -2476,7 +2590,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "language_model_id"
     t.index ["inference_model_id"], name: "index_nevaeh_writing_profiles_on_inference_model_id"
+    t.index ["language_model_id"], name: "index_nevaeh_writing_profiles_on_language_model_id"
   end
 
   create_table "nevaehs", force: :cascade do |t|
@@ -3222,12 +3338,26 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
   add_foreign_key "marlon_project_type_capability_packs", "marlon_project_types", column: "project_type_id"
   add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
+  add_foreign_key "nevaeh_construction_releases", "nevaeh_constructions"
+  add_foreign_key "nevaeh_constructions", "nevaeh_construction_releases", column: "active_release_id"
+  add_foreign_key "nevaeh_constructions", "users", column: "creator_id"
+  add_foreign_key "nevaeh_conversation_turns", "nevaeh_conversations"
+  add_foreign_key "nevaeh_conversations", "nevaeh_language_models"
+  add_foreign_key "nevaeh_conversations", "users"
   add_foreign_key "nevaeh_intelligences", "nevaeh_capabilities"
+  add_foreign_key "nevaeh_language_checkpoints", "nevaeh_language_models"
+  add_foreign_key "nevaeh_language_checkpoints", "nevaeh_training_runs"
+  add_foreign_key "nevaeh_language_models", "nevaeh_language_checkpoints", column: "active_checkpoint_id"
+  add_foreign_key "nevaeh_training_datasets", "users", column: "creator_id"
+  add_foreign_key "nevaeh_training_runs", "nevaeh_language_models"
+  add_foreign_key "nevaeh_training_runs", "nevaeh_training_datasets"
+  add_foreign_key "nevaeh_training_runs", "users", column: "actor_id"
   add_foreign_key "nevaeh_workflow_runs", "nevaeh_workflows"
   add_foreign_key "nevaeh_workflow_runs", "users", column: "actor_id"
   add_foreign_key "nevaeh_workflows", "users", column: "creator_id"
   add_foreign_key "nevaeh_workspace_preferences", "users"
   add_foreign_key "nevaeh_writing_profiles", "nevaeh_inference_models", column: "inference_model_id"
+  add_foreign_key "nevaeh_writing_profiles", "nevaeh_language_models", column: "language_model_id"
   add_foreign_key "nevaehs", "users"
   add_foreign_key "posts", "communities"
   add_foreign_key "posts", "dymond_site_sites", column: "site_id"

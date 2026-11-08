@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'digest'
 module NevaehNeuralLanguage
   extend ActiveSupport::Concern
   def neural_reply(prompt:, history: [], max_tokens: 64, temperature: 0.6)

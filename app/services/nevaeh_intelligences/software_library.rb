@@ -18,6 +18,8 @@ module NevaehIntelligences
         title = body.lines.find { |line| line.match?(/\A#\s+\S/) }&.sub(/\A#\s+/, '')&.strip || File.basename(path, '.*').tr('_-', ' ')
         {id: Digest::SHA256.hexdigest(relative)[0, 24], path: relative, title: title, section: relative.split('/')[0...-1].join('/').presence || 'Project', body: body,
           modified_at: File.mtime(path), sha256: Digest::SHA256.hexdigest(body)}
+      rescue Errno::ENOENT, Errno::EACCES
+        nil
       end.sort_by { |entry| [entry[:section], entry[:title].downcase] }
     end
     def search(query: '', section: '')

@@ -5,7 +5,7 @@ module Employee
       authorize! :manage, NevaehWorkflow
       response.set_header('Cache-Control', 'private, no-store')
     end
-    rescue_from ArgumentError, JSON::ParserError, ActiveRecord::RecordInvalid, ActiveRecord::StaleObjectError do |error|
+    rescue_from ArgumentError, JSON::ParserError, ActiveRecord::RecordInvalid, ActiveRecord::StaleObjectError, NevaehIntelligences::WorkOrder::Invalid, Gatekeeper::LessonService::KnowledgeBaseUnavailable do |error|
       redirect_back fallback_location: employee_nevaeh_factory_path, alert: error.is_a?(ActiveRecord::StaleObjectError) ? 'This record changed in another editor. Reload before saving.' : error.message
     end
     rescue_from NevaehIntelligences::SoftwareLibrary::Missing do

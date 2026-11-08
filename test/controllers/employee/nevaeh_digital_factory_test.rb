@@ -20,7 +20,7 @@ class NevaehDigitalFactoryHttpTest < ActionDispatch::IntegrationTest
   end
   test 'administrator can read installed documentation and contextual field help' do
     sign_in('super_admin')
-    get employee_software_library_path,q:'Nevaeh'
+    get employee_software_library_path,params:{q:'Nevaeh'}
     assert_response :success
     assert_select '.sl-results'
     assert_equal 'private, no-store',response.headers['Cache-Control']

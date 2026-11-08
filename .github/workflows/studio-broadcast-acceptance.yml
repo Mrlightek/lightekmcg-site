@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verify single-CPU worker allocation
-        run: python3 -m unittest test.operations.studio_worker_limits_test test.operations.studio_media_setup_test
+        run: python3 -m unittest test.operations.studio_worker_limits_test test.operations.studio_media_setup_test test.operations.studio_workstation_units_test
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3.6'
@@ -167,7 +167,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verify single-CPU worker allocation
-        run: python3 -m unittest test.operations.studio_worker_limits_test test.operations.studio_media_setup_test
+        run: python3 -m unittest test.operations.studio_worker_limits_test test.operations.studio_media_setup_test test.operations.studio_workstation_units_test
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3.6'

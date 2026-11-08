@@ -113,9 +113,6 @@ if systemctl cat "${APP_NAME}-cable.service" >/dev/null 2>&1; then
   python3 "${APP_ROOT}/lib/scripts/lightek_cable_setup.py" --probe-backend
 fi
 
-echo "[studio] Queue native Blender starter files"
-run_rails "LIGHTEK_STUDIO_SITE_HOST='${APP_DOMAIN}' bundle exec rails studio:blender:bootstrap"
-
 echo "[7/8] Apache"
 apache2ctl configtest
 systemctl reload "${APACHE_SERVICE}"
@@ -164,6 +161,16 @@ done
   echo "ERROR: healthcheck failed after ${HEALTH_ATTEMPTS} attempts"
   exit 1
 }
+
+# Optional library population runs only after the web application is healthy.
+# Demo imports can launch large Blender jobs; never start them during a normal
+# release on the same host that must boot Passenger and background workers.
+if [[ "${LIGHTEK_STUDIO_BOOTSTRAP_DEMOS:-0}" == "1" ]]; then
+  echo "[studio] Queue explicitly requested native Blender starter files"
+  run_rails "LIGHTEK_STUDIO_SITE_HOST='${APP_DOMAIN}' bundle exec rails studio:blender:bootstrap"
+else
+  echo "[studio] Starter imports skipped; import demos from Studio or explicitly opt in with LIGHTEK_STUDIO_BOOTSTRAP_DEMOS=1"
+fi
 
 SHA="$(git -C "${APP_ROOT}" rev-parse HEAD)"
 echo "GATEKEEPER_DEPLOYED_SHA=${SHA}"

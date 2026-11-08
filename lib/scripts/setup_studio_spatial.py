@@ -2,7 +2,32 @@
 """Idempotent per-installation streaming runtime. Invoked by provisioning/deploy/fleet."""
 import argparse,hashlib,ipaddress,json,os,pathlib,pwd,re,secrets,shlex,subprocess,time,urllib.request
 
-def run(args):subprocess.run(args,check=True,timeout=900)
+DPKG_CONFIG_OPTIONS = ['--force-confdef', '--force-confold']
+
+def run(args):
+    environment=dict(os.environ)
+    if args[0]=='apt-get':environment['DEBIAN_FRONTEND']='noninteractive'
+    subprocess.run(args,check=True,timeout=900,env=environment)
+
+def ensure_packages():
+    installed=subprocess.run(['dpkg-query','-W','-f=${Status}\n','python3-venv','coturn'],capture_output=True,text=True)
+    if installed.returncode or installed.stdout.count('install ok installed')!=2:
+      # Also completes coturn left unpacked by an earlier conffile prompt.
+      options=[argument for option in DPKG_CONFIG_OPTIONS for argument in ['-o','Dpkg::Options::='+option]]
+      run(['apt-get','update','-qq'])
+      run(['apt-get',*options,'install','-y','--no-install-recommends','python3-venv','coturn'])
+
+def prepare_turn(config,domain,turn):
+    marker='# LIGHTEK MANAGED SPATIAL TURN\n'
+    if turn.exists() and turn.read_text().strip() and not turn.read_text().startswith(marker):
+      # Ubuntu's shipped file contains comments only. Preserve operator settings.
+      active=[line for line in turn.read_text().splitlines() if line.strip() and not line.lstrip().startswith('#')]
+      if active:raise ValueError('Existing TURN configuration needs an explicit external TURN profile; refusing to overwrite it')
+    # Let dpkg install its conffile before writing our managed configuration.
+    ensure_packages()
+    if not turn.exists() or not turn.read_text().startswith(marker):
+      turn_text=marker+'\n'.join(['listening-port=3478','fingerprint','use-auth-secret','static-auth-secret='+config['SPATIAL_TURN_SECRET'],'realm='+domain,'min-port=49160','max-port=49200','no-cli','no-multicast-peers','stale-nonce=600','user-quota=12','total-quota=100'])+'\n'
+      write(turn,turn_text,0o600)
 def plan(root,user,domain,previous=None,environment=None):
     previous=previous or {};environment=environment or {};root=pathlib.Path(root).absolute()
     if not re.fullmatch(r'[a-zA-Z0-9_.-]+',user) or not re.fullmatch(r'[a-zA-Z0-9.-]+',domain):raise ValueError('Invalid installation identity')
@@ -72,16 +97,8 @@ def main():
     setup=plan(root,args.app_user,args.domain,previous,environment);config=setup['config'];base=setup['base'];base.mkdir(parents=True,exist_ok=True)
     # One TURN daemon per server, with independent auth secrets accepted via dynamic realm entries.
     # A customer instance normally has one Rails installation; preserve an existing managed secret.
-    turn=pathlib.Path('/etc/turnserver.conf');marker='# LIGHTEK MANAGED SPATIAL TURN\n'
-    if turn.exists() and turn.read_text().strip() and not turn.read_text().startswith(marker):
-      # Ubuntu's shipped file contains comments only. Never overwrite an operator's live configuration.
-      active=[line for line in turn.read_text().splitlines() if line.strip() and not line.lstrip().startswith('#')]
-      if active:raise ValueError('Existing TURN configuration needs an explicit external TURN profile; refusing to overwrite it')
-    turn_text=marker+'\n'.join(['listening-port=3478','fingerprint','use-auth-secret','static-auth-secret='+config['SPATIAL_TURN_SECRET'],'realm='+args.domain,'min-port=49160','max-port=49200','no-cli','no-multicast-peers','stale-nonce=600','user-quota=12','total-quota=100'])+'\n'
-    if not turn.exists() or not turn.read_text().startswith(marker):write(turn,turn_text,0o600)
-    installed=subprocess.run(['dpkg-query','-W','-f=${Status}\n','python3-venv','coturn'],capture_output=True,text=True)
-    if installed.returncode or installed.stdout.count('install ok installed')!=2:
-      run(['apt-get','update','-qq']);run(['apt-get','install','-y','--no-install-recommends','python3-venv','coturn'])
+    turn=pathlib.Path('/etc/turnserver.conf')
+    prepare_turn(config,args.domain,turn)
     if not (base/'venv/bin/python').exists():run(['python3','-m','venv',str(base/'venv')])
     dependency_hash=hashlib.sha256((root/'services/spatial/requirements.txt').read_bytes()).hexdigest();receipt=base/'dependencies.sha256'
     if not receipt.exists() or receipt.read_text()!=dependency_hash:

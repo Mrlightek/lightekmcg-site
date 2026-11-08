@@ -1,0 +1,10 @@
+<%= @reminder ? 'Your experience is coming up.' : "Your reservation is #{@reservation.status.humanize.downcase}." %>
+
+<%= @reservation.package_snapshot['name'] %>
+<%= @reservation.resource.site.name %> · <%= @reservation.reference %>
+Starts: <%= @reservation.starts_at.in_time_zone(@reservation.package_snapshot['timezone']).strftime('%B %-d, %Y · %-I:%M %p %Z') %>
+Ends: <%= @reservation.ends_at.in_time_zone(@reservation.package_snapshot['timezone']).strftime('%B %-d, %Y · %-I:%M %p %Z') %>
+
+<% if @reservation.status == 'held' %>Complete secure payment to confirm your booking.<% end %>
+Manage your reservation, payment, calendar, and access:
+<%= @manage_url %>

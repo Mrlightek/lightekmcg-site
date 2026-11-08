@@ -1,0 +1,43 @@
+name: Reservations and merchant payouts
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'config/routes/**'
+      - 'db/migrate/*reservations*'
+      - 'lib/scripts/gatekeeper/sync_reservation.py'
+      - 'test/standalone/reservations*'
+      - '.github/workflows/reservations-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reservations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: reservations
+          POSTGRES_DB: reservations_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      RESERVATIONS_DATABASE_URL: postgres://postgres:reservations@localhost:5432/reservations_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - name: Install isolated test dependencies
+        run: |
+          gem install 'activerecord:8.0.4' 'actionpack:8.0.4' 'railties:8.0.4' 'minitest:~>5.25' pg --no-document
+      - name: Exercise booking, payments, payouts, HTTP ownership and PostgreSQL races
+        run: ruby test/standalone/reservations_concurrency_checks.rb
+      - name: Validate remote package synchronizer
+        run: python3 -m py_compile lib/scripts/gatekeeper/sync_reservation.py

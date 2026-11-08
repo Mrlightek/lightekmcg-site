@@ -2,6 +2,7 @@ class SusuPayoutAccountsController < DymondDash::ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
 
   def show
+    @payout_schedule = LightekCommerce::PayoutSchedule.for!(current_user)
     return if current_user.stripe_connect_account_id.blank?
     DymondBank::StripeService.sync_connect_status!(current_user)
   rescue DymondBank::StripeService::StripeError => e

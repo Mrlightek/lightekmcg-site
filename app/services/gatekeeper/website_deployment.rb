@@ -113,7 +113,7 @@ module Gatekeeper
       end
       # Bind the deployment to the recovered/allocated node before boot polling.
       # A retry must reuse its node and registered deployment configuration.
-      register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role"))
+      register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role", "reservation_experience"))
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 600
       loop do
         result = Gatekeeper::Compute::NodeVerificationService.call(request:, requested_by: actor.email_address)
@@ -196,7 +196,7 @@ module Gatekeeper
             command = "umask 077; mkdir -p ~/.ssh; chmod 700 ~/.ssh; touch ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; printf '%s\\n' #{Shellwords.escape(public_key)} >> ~/.ssh/authorized_keys"
             ssh.exec!(command) { |_channel, _stream, _data| }
             installed = true
-            input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email")
+            input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email", "reservation_experience")
             input.merge!("owner_password" => password, "ssh" => "root@#{@node.ip_address}",
               "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key)
             @deployment_stage = "remote_installer"

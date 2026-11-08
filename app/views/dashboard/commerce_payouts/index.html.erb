@@ -1,4 +1,5 @@
-<main class="lt-settings">
+<%= stylesheet_link_tag "reservations" %>
+<main class="lt-settings lr-admin">
 <h1>Commerce · Merchant payouts</h1>
 <p><%= @site.name %> · Transfer earnings from Lightek's Stripe balance into your connected Stripe account.</p>
 <p>Funds reach your bank according to your Stripe Connect payout schedule. Merchant transfers are separate from bank payouts.</p>
@@ -7,13 +8,14 @@
 <% else %>
   <p><strong>Stripe Connect:</strong> Setup required. <%= link_to "Set up your payout account", dashboard_susu_payout_account_path %></p>
 <% end %>
+<section class="lr-card"><span class="lr-eyebrow">YOUR PAYDAY</span><h2>Automatic earnings releases</h2><p>Choose when eligible fulfilled orders are released to your connected payout account. The default is every two weeks. Stripe determines bank arrival after release.</p><%= form_with url: dashboard_commerce_payout_schedule_path, method: :patch, class: 'lr-form' do %><%= hidden_field_tag :site_id, @site.id %><label>Release schedule<%= select_tag :cadence, options_for_select([['Every two weeks (14 days)', 'biweekly'], ['Every week (7 days)', 'weekly']], @payout_schedule.cadence) %></label><label><span><%= check_box_tag :enabled, '1', @payout_schedule.enabled? %> Enable automatic earnings releases</span></label><%= submit_tag 'Save payout schedule', class: 'lr-button' %><% end %><p>Next release: <strong><%= @payout_schedule.next_run_at.in_time_zone('America/New_York').strftime('%b %-d, %Y · %-I:%M %p %Z') %></strong></p><p>Pending refunds, incomplete onboarding, and unavailable funds delay release. Unpaid orders are never eligible.</p><% if @payout_schedule.last_error.present? %><p class="lr-alert" role="status"><%= @payout_schedule.last_error %></p><% end %><%= link_to 'Add or manage payout account ↗', dashboard_susu_payout_account_path, class: 'lr-link' %></section>
 <p><%= link_to "Orders", dashboard_commerce_orders_path(site_id: @site.id) %></p>
-<table><thead><tr><th>Order</th><th>Gross</th><th>Processor reserve</th><th>Platform fee</th><th>Transfer</th><th>Status</th></tr></thead><tbody>
+<table><thead><tr><th>Order</th><th>Gross</th><th>Processor reserve</th><th>Platform fee / infrastructure</th><th>Transfer</th><th>Status</th></tr></thead><tbody>
 <% @orders.each do |order| %>
 <% quote = LightekCommerce::MerchantPayouts.fee_quote(order) %>
 <tr><td>#<%= order.id %></td><td><%= number_to_currency(quote[:gross_cents] / 100.0) %></td>
 <td><%= number_to_currency(quote[:processor_reserve_cents] / 100.0) %></td>
-<td><%= number_to_currency(quote[:platform_fee_cents] / 100.0) %></td>
+<td><%= number_to_currency((quote[:platform_fee_cents] + quote[:infrastructure_reserve_cents]) / 100.0) %></td>
 <td><%= number_to_currency(quote[:net_cents] / 100.0) %></td>
 <td><% if order.merchant_transfer_ref.present? %>Transferred: <%= order.merchant_transfer_ref %>
 <% elsif order.refunded_cents.to_i > 0 %>Refund requires reconciliation

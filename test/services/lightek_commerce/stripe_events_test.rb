@@ -18,6 +18,8 @@ class LightekCommerceStripeEventsTest < ActiveSupport::TestCase
       @items = [FakeItem.new(FakeProduct.new("lightek_instance"))]
     end
 
+    def purpose = "purchase"
+
     def with_lock
       yield
     end

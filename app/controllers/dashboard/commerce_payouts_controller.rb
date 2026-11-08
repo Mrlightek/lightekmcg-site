@@ -2,8 +2,23 @@
 class Dashboard::CommercePayoutsController < Dashboard::SettingsHomeController
   def index
     @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
+    @payout_schedule = LightekCommerce::PayoutSchedule.for!(current_user)
     @orders = LightekCommerce::Order.where(site: @site, status: "fulfilled")
       .includes(:refunds).order(created_at: :desc).limit(100)
+  end
+
+  def schedule
+    LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
+    cadence = params.require(:cadence)
+    raise ArgumentError, 'Choose weekly or every two weeks' unless %w[weekly biweekly].include?(cadence)
+    schedule = LightekCommerce::PayoutSchedule.for!(current_user)
+    schedule.with_lock do
+      schedule.update!(cadence: cadence, enabled: params[:enabled] == '1',
+        next_run_at: Time.current + (cadence == 'weekly' ? 7 : 14).days)
+    end
+    redirect_to dashboard_commerce_payouts_path(site_id: params.require(:site_id)), notice: 'Your payout preference has been saved.'
+  rescue ArgumentError => error
+    redirect_to dashboard_commerce_payouts_path(site_id: params[:site_id]), alert: error.message
   end
 
   def create

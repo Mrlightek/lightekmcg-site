@@ -28,6 +28,10 @@ module Gatekeeper
           }.merge(auth).merge(options.compact))
         end
 
+        def resize_node(id, plan:)
+          request(:post, "/linode/instances/#{Integer(id)}/resize", body: {type: plan, allow_auto_disk_resize: false})
+        end
+
         def reboot_node(id) = request(:post, "/linode/instances/#{id}/reboot", body: {})
         def shutdown_node(id) = request(:post, "/linode/instances/#{id}/shutdown", body: {})
         def start_node(id) = request(:post, "/linode/instances/#{id}/boot", body: {})

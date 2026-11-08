@@ -17,7 +17,7 @@ module LightekCommerce
         mode: "payment",
         customer_email: order.customer_email,
         client_reference_id: order.id.to_s,
-        metadata: {lightek_commerce_order_id: order.id.to_s, lightek_site_id: order.site_id.to_s},
+        metadata: PaymentIdentity.metadata(order),
         line_items: order.items.map { |item|
           {price_data: {currency: order.currency, unit_amount: item.unit_price_cents,
             product_data: {name: item.name}}, quantity: item.quantity}
@@ -28,7 +28,7 @@ module LightekCommerce
         success_url: success_url,
         cancel_url: cancel_url,
         expires_at: 30.minutes.from_now.to_i
-      }, {idempotency_key: "lightek-commerce-order-#{order.id}-checkout"})
+      }, {idempotency_key: PaymentIdentity.key(order, 'checkout')})
       order.update!(payment_provider: "stripe", payment_reference: session.id)
       session
     rescue ::Stripe::StripeError => e

@@ -15,15 +15,29 @@ module LightekCommerce
       raise Invalid, "Fee settings out of range" unless (0..2500).cover?(processor_bps) && (0..2500).cover?(platform_bps) && (0..2000).cover?(processor_fixed)
       processor_reserve = (gross * processor_bps + 9999) / 10_000 + processor_fixed
       platform_fee = (gross * platform_bps + 9999) / 10_000
-      {gross_cents: gross, processor_reserve_cents: processor_reserve,
-        platform_fee_cents: platform_fee, net_cents: [merchandise - processor_reserve - platform_fee, 0].max}
+      reservation = order.respond_to?(:id) ? LightekReservations::Reservation.find_by(order_id: order.id) : nil
+      change = order.respond_to?(:id) ? LightekReservations::Change.find_by(order_id: order.id) : nil
+      infrastructure = reservation&.server? ? reservation.package_snapshot.fetch('cost_floor_cents', 0).to_i : 0
+      if change
+        quote = change.quote
+        target_floor = quote.dig('target', 'cost_floor_cents').to_i
+        old_floor = quote.dig('original', 'cost_floor_cents').to_i
+        infrastructure = if quote['renewal']
+          target_floor
+        else
+          difference = [target_floor - old_floor, 0].max
+          (difference * quote['unused_seconds'].to_i + quote['term_seconds'].to_i - 1) / [quote['term_seconds'].to_i, 1].max
+        end
+      end
+      {gross_cents: gross, infrastructure_reserve_cents: infrastructure, processor_reserve_cents: processor_reserve,
+        platform_fee_cents: platform_fee, net_cents: [merchandise - processor_reserve - platform_fee - infrastructure, 0].max}
     end
 
     def self.request!(order:, merchant:)
       order.with_lock do
         raise Invalid, "Platform Stripe balance has not been reconciled for transfers" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
         raise Invalid, "Order does not belong to your store" unless
-          LightekSettings::WebsiteIdentity.sites_for(merchant).exists?(id: order.site_id)
+          LightekSettings::WebsiteIdentity.sites_for(merchant).where(tenant: merchant).exists?(id: order.site_id)
         return order if order.merchant_transfer_ref.present?
         raise Invalid, "Only fulfilled, nonrefunded orders are eligible" unless order.status == "fulfilled"
         raise Invalid, "Order is not paid" unless order.paid_at.present?
@@ -40,8 +54,8 @@ module LightekCommerce
             currency: order.currency,
             destination_account: merchant.stripe_connect_account_id,
             description: "Lightek Commerce order ##{order.id}",
-            metadata: {lightek_commerce_order_id: order.id.to_s, lightek_site_id: order.site_id.to_s},
-            idempotency_key: "lightek-commerce-order-#{order.id}-merchant-transfer-v1"
+            metadata: PaymentIdentity.metadata(order),
+            idempotency_key: PaymentIdentity.key(order, 'merchant-transfer-v1')
           )
           order.update!(merchant_transfer_ref: transfer.id,
             merchant_transfer_amount_cents: quote.fetch(:net_cents),

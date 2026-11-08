@@ -19,9 +19,18 @@ module LightekCommerce
       end
       begin
         order = Order.find(order_id)
+        return if order.purpose == "reservation_change"
         return unless order.paid_at? && %w[paid fulfilled].include?(order.status)
         return unless order.items.any? { |item| item.product.product_type == "lightek_instance" }
         return if order.provisioned_at?
+        reservation = LightekReservations::Reservation.find_by(order_id: order.id)
+        if reservation
+          return unless reservation.status == 'confirmed'
+          if reservation.starts_at > Time.current
+            self.class.set(wait_until: reservation.starts_at).perform_later(order.id)
+            return
+          end
+        end
         PaidInstanceProvisioning.call!(order: order)
       ensure
         connection.select_value("SELECT pg_advisory_unlock(#{lock_key})")

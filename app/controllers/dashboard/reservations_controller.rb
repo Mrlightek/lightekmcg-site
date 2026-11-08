@@ -5,6 +5,26 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
   before_action :load_site
   rescue_from ActiveRecord::RecordInvalid, LightekReservations::Booking::Invalid,
     LightekReservations::Availability::Invalid, JSON::ParserError, ArgumentError, with: :invalid_booking
+  def network
+    @network = network_client.request('catalog')
+    @network_payouts = network_client.request('payouts')
+    render 'dashboard/reservations/network'
+  rescue LightekReservations::Federation::Client::Unavailable => error
+    redirect_to dashboard_reservations_path(site_id: @site.id), alert: error.message
+  end
+  def network_offer
+    values = params.require(:offer).permit(:id, :name, :description, :source_id, :price_cents, :template_key, :published).to_h
+    network_client.request('offers', body: {offer: values, brand_name: @site.name}, method: :post)
+    redirect_to network_dashboard_reservations_path(site_id: @site.id), notice: 'Server resort offer saved on the Lightek network.'
+  rescue LightekReservations::Federation::Client::Unavailable => error
+    redirect_to network_dashboard_reservations_path(site_id: @site.id), alert: error.message
+  end
+  def network_payouts
+    network_client.request('payouts', method: :patch, body: {cadence: params.require(:cadence), enabled: params[:enabled] == '1'})
+    redirect_to network_dashboard_reservations_path(site_id: @site.id), notice: 'Your central payout schedule has been updated.'
+  rescue LightekReservations::Federation::Client::Unavailable => error
+    redirect_to network_dashboard_reservations_path(site_id: @site.id), alert: error.message
+  end
   def index
     @resources = LightekReservations::Resource.where(site: @site).includes(:product).order(:name)
     @resource = params[:resource_id].present? ? @resources.find(params[:resource_id]) : LightekReservations::Resource.new(site: @site)
@@ -94,6 +114,7 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
     redirect_to dashboard_reservations_path(site_id: @site.id), notice: 'Reservation updated.'
   end
   private
+  def network_client = LightekReservations::Federation::Client.new(@site)
   def load_site
     @sites = LightekSettings::WebsiteIdentity.sites_for(current_user)
     @site = params[:site_id].present? ? @sites.find(params[:site_id]) : @sites.order(:id).first

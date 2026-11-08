@@ -36,6 +36,9 @@ module LightekCommerce
     def self.start!(**) = OpenStruct.new(url: 'https://checkout.stripe.com/test-session')
   end
 end
+module Api; end
+require ROOT.join('app/controllers/api/reservation_federation_controller').to_s
+require ROOT.join('app/controllers/network_reservations_controller').to_s
 require ROOT.join('app/controllers/reservations_controller').to_s
 require ROOT.join('app/controllers/dashboard/reservations_controller').to_s
 require ROOT.join('app/controllers/dashboard/commerce_payouts_controller').to_s

@@ -9,11 +9,19 @@ class ReservationsController < ApplicationController
   rescue_from LightekReservations::Availability::Invalid, LightekReservations::Booking::Invalid,
     LightekReservations::PackageChanges::Invalid, LightekCommerce::OrderPlacement::Invalid,
     LightekCommerce::InstallationCheckout::Invalid, LightekCommerce::StripeCheckout::Unavailable,
-    ActiveRecord::RecordInvalid, with: :booking_error
+    ActiveRecord::RecordInvalid, LightekReservations::Federation::Client::Unavailable, with: :booking_error
 
   def catalog
     @site = public_site
     @resources = @site ? LightekReservations::Resource.available.where(site: @site).includes(:product) : LightekReservations::Resource.none
+    @network = nil
+    if LightekReservations::Federation::Client.config(@site)
+      begin
+        @network = LightekReservations::Federation::Client.new(@site).request('catalog')
+      rescue LightekReservations::Federation::Client::Unavailable => error
+        flash.now[:alert] = error.message
+      end
+    end
     @industry = params[:industry].to_s
     @resources = @resources.where(template_key: @industry) if @industry.present?
   end
@@ -24,6 +32,14 @@ class ReservationsController < ApplicationController
   def index
     @reservations = LightekReservations::Reservation.where(customer: current_user).includes(resource: :site).order(starts_at: :desc).limit(100)
     site = DymondSite::Site.find_by(host: request.host)
+    @network_reservations = []
+    if LightekReservations::Federation::Client.config(site)
+      begin
+        @network_reservations = LightekReservations::Federation::Client.new(site).request("reservations/#{current_user.id}").fetch('reservations')
+      rescue LightekReservations::Federation::Client::Unavailable => error
+        flash.now[:alert] = error.message
+      end
+    end
     @central_reservation = site&.manifest.to_h&.fetch('lightek_reservation', nil)
   end
   def show
@@ -34,6 +50,13 @@ class ReservationsController < ApplicationController
     @changes = @reservation.package_changes.order(created_at: :desc)
   end
   def create
+    if params[:network_offer_id].present?
+      site = public_site
+      client = LightekReservations::Federation::Client.new(site)
+      url = client.checkout(checkout: {offer_id: params.require(:network_offer_id), starts_at: params.require(:starts_at),
+        checkout_key: params.require(:checkout_key), subject: current_user.id.to_s})
+      return redirect_to url, allow_other_host: true, status: :see_other
+    end
     resource = LightekReservations::Resource.available.where(site: public_site).find(params.require(:resource_id))
     reservation = LightekReservations::Booking.reserve!(customer: current_user, resource: resource,
       starts_at: params.require(:starts_at), checkout_key: params.require(:checkout_key),

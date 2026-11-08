@@ -7,6 +7,7 @@ on:
       - 'db/migrate/*reservations*'
       - 'lib/scripts/gatekeeper/sync_reservation.py'
       - 'test/standalone/reservations*'
+      - 'test/standalone/reservation_federation*'
       - '.github/workflows/reservations-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -36,8 +37,10 @@ jobs:
           bundler-cache: false
       - name: Install isolated test dependencies
         run: |
-          gem install 'activerecord:8.0.4' 'actionpack:8.0.4' 'railties:8.0.4' 'minitest:~>5.25' pg --no-document
+          gem install 'activerecord:8.0.4' 'actionpack:8.0.4' 'railties:8.0.4' 'minitest:~>5.25' pg webrick 'sqlite3:~>2.7' --no-document
       - name: Exercise booking, payments, payouts, HTTP ownership and PostgreSQL races
         run: ruby test/standalone/reservations_concurrency_checks.rb
+      - name: Verify cross-database reseller federation over HTTPS
+        run: env -u RESERVATIONS_DATABASE_URL ruby test/standalone/reservation_federation_checks.rb
       - name: Validate remote package synchronizer
         run: python3 -m py_compile lib/scripts/gatekeeper/sync_reservation.py

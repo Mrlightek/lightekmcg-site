@@ -101,6 +101,7 @@ module LightekCommerce
         site_name: "#{customer.first_name}'s Lightek", headline: "Welcome to Lightek",
         description: "Your Lightek workspace", certificate_email: actor.email_address,
         credential_slug: slug)
+      config['reservation_federation'] = LightekReservations::Federation::Issuer.ensure!(order: order, merchant: customer, domain: domain)
       if reservation
         config["reservation_experience"] = reservation.package_snapshot.merge("reference" => reservation.reference,
           "starts_at" => reservation.starts_at.iso8601, "ends_at" => reservation.ends_at.iso8601,

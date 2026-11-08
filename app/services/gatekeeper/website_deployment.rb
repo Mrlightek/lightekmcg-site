@@ -113,7 +113,7 @@ module Gatekeeper
       end
       # Bind the deployment to the recovered/allocated node before boot polling.
       # A retry must reuse its node and registered deployment configuration.
-      register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role", "reservation_experience"))
+      register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role", "reservation_experience", "reservation_federation"))
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 600
       loop do
         result = Gatekeeper::Compute::NodeVerificationService.call(request:, requested_by: actor.email_address)
@@ -196,7 +196,13 @@ module Gatekeeper
             command = "umask 077; mkdir -p ~/.ssh; chmod 700 ~/.ssh; touch ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; printf '%s\\n' #{Shellwords.escape(public_key)} >> ~/.ssh/authorized_keys"
             ssh.exec!(command) { |_channel, _stream, _data| }
             installed = true
-            input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email", "reservation_experience")
+            input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email", "reservation_experience", "reservation_federation")
+            if config['reservation_federation']
+              peer_secrets = LightekVault::Service.checkout!(slug: config['reservation_federation'].fetch('credential_slug'),
+                consumer: CONSUMER, purpose: 'reservation_federation', requested_by: @actor.email_address,
+                gatekeeper_operation_id: operation.id)
+              input['reservation_federation'] = config['reservation_federation'].merge('token' => peer_secrets.fetch('token'))
+            end
             input.merge!("owner_password" => password, "ssh" => "root@#{@node.ip_address}",
               "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key)
             @deployment_stage = "remote_installer"
@@ -243,7 +249,7 @@ module Gatekeeper
       end
       raise Invalid, "Website deployment failed at #{@deployment_stage || 'initialization'} (#{error.class.name}); operation #{operation&.id || 'not created'}"
     ensure
-      [secrets, root_secret].compact.each { |payload| payload.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? } }
+      [secrets, root_secret, peer_secrets].compact.each { |payload| payload.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? } }
     end
 
     def run_packager(config)

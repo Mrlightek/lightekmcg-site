@@ -1,0 +1,63 @@
+name: Resort release integration verification
+on:
+  push:
+    branches: [feat/resort-reservations]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lightek-resort-release-verification
+  cancel-in-progress: false
+jobs:
+  configured-environment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify configured environment without changing production
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
+          chmod 600 ~/.ssh/lightek_release_verify
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$GITHUB_SHA'" <<'REMOTE'
+          set -euo pipefail
+          sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -s -- "$1" <<'APPLICATION'
+          set -euo pipefail
+          set -a
+          source /etc/lightek/lightekmcg-site.env
+          set +a
+          export RBENV_ROOT=/home/lightek/.rbenv
+          export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+          root=/var/www/lightekmcg-site
+          checkout=$(mktemp -d /tmp/lightek-resort-verification.XXXXXXXX)
+          cleanup() { git -C "$root" worktree remove --force "$checkout" >/dev/null; }
+          git -C "$root" fetch origin feat/resort-reservations
+          git -C "$root" worktree add --detach "$checkout" "$1"
+          trap cleanup EXIT
+          if [[ -f "$root/.bundle/config" ]]; then
+            mkdir -p "$checkout/.bundle"
+            cp "$root/.bundle/config" "$checkout/.bundle/config"
+            chmod 600 "$checkout/.bundle/config"
+          fi
+          bundle_base=$(cd "$root" && bundle exec ruby -e 'puts Bundler.settings[:path].to_s')
+          if [[ -n "$bundle_base" ]]; then
+            [[ "$bundle_base" == /* ]] || bundle_base="$root/$bundle_base"
+            export BUNDLE_PATH="$bundle_base"
+          fi
+          cd "$root"
+          RAILS_ENV=production bin/rails runner "$checkout/script/lightek/resort_release_probe.rb"
+          cd "$checkout"
+          export BUNDLE_GEMFILE="$checkout/Gemfile"
+          # The next verification phase will use a separate database. This probe
+          # intentionally performs no migration, release, charge or provider write.
+          APPLICATION
+          REMOTE

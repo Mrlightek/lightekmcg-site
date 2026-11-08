@@ -20,6 +20,7 @@ module LightekReservations
     scope :available, -> {where(published: true).order(:name)}
     def server? = kind == 'server'
     def price_cents = product&.price_cents.to_i
+    def minimum_price_cents = LightekCommerce::MerchantPayouts.minimum_charge_cents(cost_floor_cents)
     def snapshot
       {'resource_id' => id, 'name' => name, 'kind' => kind, 'price_cents' => price_cents,
         'product_id' => product_id, 'subscription_plan_id' => product&.subscription_plan_id,
@@ -44,7 +45,7 @@ module LightekReservations
         end
         errors.add(:product, 'must be a priced server product with a subscription plan') unless product&.product_type == 'lightek_instance' && product.subscription_plan_id.present? && price_cents.positive?
         errors.add(:cost_floor_cents, 'must cover the configured infrastructure cost') if cost_floor_cents.to_i <= 0
-        errors.add(:product, 'price is below the cost floor') if price_cents < cost_floor_cents.to_i
+        errors.add(:product, 'must cover the infrastructure/margin floor and payment fee reserve') if price_cents < minimum_price_cents
         errors.add(:compute, 'requires region, plan, image and positive monthly_cost_cents') unless compute.is_a?(Hash) && %w[region plan image].all? { |k| compute[k].present? } && compute['monthly_cost_cents'].to_i.positive?
         months = billing_interval == 'annual' ? 12 : 1
         errors.add(:cost_floor_cents, 'must cover the full term infrastructure cost') if compute.is_a?(Hash) && cost_floor_cents.to_i < compute['monthly_cost_cents'].to_i * months

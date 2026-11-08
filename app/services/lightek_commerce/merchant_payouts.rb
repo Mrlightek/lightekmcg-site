@@ -6,6 +6,24 @@ module LightekCommerce
   class MerchantPayouts
     class Invalid < StandardError; end
 
+    # USD storefronts reserve processing on the price plus a conservative 25%
+    # tax allowance. The platform's cost/margin floor must survive those fees.
+    def self.minimum_charge_cents(floor)
+      processor = Integer(ENV.fetch('LIGHTEK_COMMERCE_PROCESSOR_FEE_BPS', '300'))
+      platform = Integer(ENV.fetch('LIGHTEK_COMMERCE_PLATFORM_FEE_BPS', '0'))
+      fixed = Integer(ENV.fetch('LIGHTEK_COMMERCE_PROCESSOR_FIXED_CENTS', '30'))
+      raise Invalid, 'Fee settings out of range' unless (0..2500).cover?(processor) && (0..2500).cover?(platform) && (0..2000).cover?(fixed)
+      fees = processor + platform
+      denominator = 100_000_000 - fees * 12_500
+      price = ((floor.to_i + fixed) * 100_000_000 + denominator - 1) / denominator
+      loop do
+        gross = (price * 12_500 + 9999) / 10_000
+        reserve = (gross * processor + 9999) / 10_000 + (gross * platform + 9999) / 10_000 + fixed
+        return price if price - reserve >= floor.to_i
+        price += 1
+      end
+    end
+
     def self.fee_quote(order)
       gross = order.total_cents.to_i
       merchandise = order.respond_to?(:subtotal_cents) ? order.subtotal_cents.to_i : gross

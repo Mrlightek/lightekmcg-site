@@ -17,10 +17,10 @@ ActiveRecord::Base.establish_connection(ENV.fetch('RESERVATIONS_DATABASE_URL', '
 ActiveRecord::Migration.verbose = false
 ActiveRecord::ConnectionAdapters::TableDefinition.class_eval { alias_method :jsonb, :json } if ActiveRecord::Base.connection.adapter_name == 'SQLite'
 ActiveRecord::Schema.define do
-  create_table(:users, force: :cascade) { |t| t.string :email_address; t.string :role; t.string :stripe_connect_account_id }
+  create_table(:users, force: :cascade) { |t| t.string :email_address; t.string :first_name; t.string :role; t.string :stripe_connect_account_id }
   create_table(:dymond_site_sites, force: :cascade) { |t| t.string :name; t.string :host; t.string :tenant_type; t.integer :tenant_id; t.json :manifest, default: {} }
 end
-%w[20261028101500_create_lightek_commerce_products 20261028113000_create_lightek_commerce_orders 20261028160000_add_commerce_refund_tracking 20261028195000_add_commerce_fulfillment_tracking 20261028230000_add_commerce_payout_tracking 20261108190000_create_lightek_resort_reservations].each do |name|
+%w[20261028101500_create_lightek_commerce_products 20261028113000_create_lightek_commerce_orders 20261028160000_add_commerce_refund_tracking 20261028195000_add_commerce_fulfillment_tracking 20261028230000_add_commerce_payout_tracking 20261108190000_create_lightek_resort_reservations 20261108200000_add_reservation_federation].each do |name|
   path = ROOT.join("db/migrate/#{name}.rb")
   next unless path.exist?
   source = path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
@@ -61,6 +61,7 @@ end
 module LightekSettings
   module WebsiteIdentity
     def self.sites_for(actor)
+      return DymondSite::Site.where(id: LightekReservations::Peer.where(merchant: actor).select(:site_id)) if actor&.role == 'client'
       return DymondSite::Site.all if actor&.role == 'super_admin'
       return DymondSite::Site.where(tenant: actor) if actor&.role == 'admin'
       DymondSite::Site.none
@@ -97,9 +98,9 @@ module LightekCommerce
 end
 %w[lightek_commerce/order lightek_commerce/order_item lightek_commerce/refund
   lightek_reservations/resource lightek_reservations/reservation lightek_reservations/blackout
-  lightek_reservations/change lightek_commerce/payout_schedule].each { |file| require ROOT.join('app/models', file).to_s }
+  lightek_reservations/change lightek_reservations/peer lightek_reservations/intent lightek_commerce/payout_schedule].each { |file| require ROOT.join('app/models', file).to_s }
 %w[lightek_reservations/availability lightek_reservations/booking lightek_reservations/package_changes
-  lightek_reservations/settlement lightek_commerce/payment_identity lightek_commerce/order_placement lightek_commerce/installation_checkout
+  lightek_reservations/settlement lightek_reservations/federation/client lightek_reservations/federation/catalog lightek_reservations/federation/issuer lightek_commerce/payment_identity lightek_commerce/order_placement lightek_commerce/installation_checkout
   lightek_commerce/stripe_events lightek_commerce/merchant_payouts lightek_commerce/fulfillment].each { |file| require ROOT.join('app/services', file).to_s }
 %w[lightek_commerce/reservation_expiry_job lightek_reservations/sweep_job lightek_commerce/scheduled_payouts_job].each { |file| require ROOT.join('app/jobs', file).to_s }
 module DymondBank
@@ -171,7 +172,7 @@ require ROOT.join('app/jobs/lightek_reservations/package_change_job').to_s
 require ROOT.join('app/jobs/lightek_reservations/expire_server_job').to_s
 class ReservationsChecks < Minitest::Test
   def setup
-    [LightekReservations::Change, LightekReservations::Reservation, LightekReservations::Blackout,
+    [LightekReservations::Intent, LightekReservations::Peer, LightekReservations::Change, LightekReservations::Reservation, LightekReservations::Blackout,
       LightekReservations::Resource, LightekCommerce::PayoutSchedule, LightekCommerce::OrderItem,
       LightekCommerce::Refund, LightekCommerce::Order, LightekCommerce::Product, DymondSite::Site, User].each(&:delete_all)
     [GatekeeperInstallation, ProvisioningRequest, TestNode, TestProvider, TestSubscription].each(&:delete_all)

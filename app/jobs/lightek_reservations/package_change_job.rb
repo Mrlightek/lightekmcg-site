@@ -2,7 +2,9 @@ module LightekReservations
   class PackageChangeJob < ApplicationJob
     queue_as :default
     class Pending < StandardError; end
-    retry_on Pending, wait: 2.minutes, attempts: 60
+    retry_on Pending, wait: 2.minutes, attempts: 60 do |job, error|
+      Change.find_by(id: job.arguments.first)&.update!(status: 'failed', error: error.message.first(1000))
+    end
     def perform(change_id)
       change = Change.find(change_id)
       # A row lock serializes retries; provider state is reconciled before another
@@ -62,7 +64,8 @@ module LightekReservations
           change.order.update!(status: 'fulfilled', fulfilled_at: Time.current)
         end
       end
-    rescue Pending
+    rescue Pending => error
+      change&.update!(error: error.message.first(1000))
       raise
     rescue StandardError => error
       change&.update!(status: 'failed', error: "#{error.class}: #{error.message}".first(1000))

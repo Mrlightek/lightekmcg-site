@@ -20,7 +20,7 @@ module Studio
           rescue IOError, JSON::ParserError
             # Only normalized events leave the process; no upstream debug payloads.
           ensure
-            receiver.call({'type'=>'status', 'status'=>'disconnected'})
+            receiver.call({'type'=>'status', 'status'=>'reader_stopped'})
           end
         end
       end

@@ -4,6 +4,7 @@ module LightekSessions
     def perform
       StudioLiveViewer.where('last_seen_at < ?', 1.day.ago).delete_all
       LightekAudienceLease.where('expires_at <= ?', Time.current).delete_all
+      Room.where("retired_media_names <> '[]'").find_each { |room| room.retired_media_names.each { |name| RetireMediaRoomJob.perform_later(room.id, name) } }
       Room.where(status: 'ended').where('updated_at > ?', 1.day.ago).find_each { |room| CloseRoomJob.perform_later(room.id) }
       Room.where(status: 'open').find_each do |room|
         if Time.current >= room.ends_at || !room.resource.native_session?

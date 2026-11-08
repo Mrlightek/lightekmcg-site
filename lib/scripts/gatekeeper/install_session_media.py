@@ -23,7 +23,7 @@ def configuration(payload):
     return {'port': 7880, 'bind_addresses': ['127.0.0.1'],
             'rtc': {'tcp_port': 7881, 'port_range_start': 50000, 'port_range_end': 50100, 'use_external_ip': True},
             'turn': {'enabled': True, 'domain': domain, 'udp_port': 3478},
-            'keys': {payload['api_key']: payload['api_secret']}, 'logging': {'level': 'warn'}}
+            'room': {'auto_create': False}, 'keys': {payload['api_key']: payload['api_secret']}, 'logging': {'level': 'warn'}}
 
 def patch_vhost(text, domain):
     # Only a single HTTPS virtual host for this exact website can be changed.

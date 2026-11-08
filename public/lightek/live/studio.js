@@ -132,6 +132,7 @@ function boot(){
  const unload=event=>{if(active){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',unload);
  const cleanup=()=>{finish('Session ended.');release();window.removeEventListener('beforeunload',unload);delete root.dataset.wired;};
  document.addEventListener('turbo:before-cache',cleanup,{once:true});window.addEventListener('pagehide',cleanup,{once:true});
+ if(q('[data-session-key]')?.value)q('[data-session-key]').dispatchEvent(new Event('change'));
  root.dataset.encoder=q('[data-start]').disabled?'missing':'ready';controls();if(!supported)message('Screen capture needs a compatible Firefox or Chrome browser over HTTPS. Your Mac does not need TikTok LIVE Studio.');
 }
 document.addEventListener('turbo:load',boot);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();

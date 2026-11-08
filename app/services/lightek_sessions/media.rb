@@ -54,13 +54,14 @@ module LightekSessions
       host = room.host?(user)
       call('CreateRoom', {name: room.media_name, empty_timeout: 300, departure_timeout: 60,
         max_participants: [room.resource.capacity + 4, 1004].min}, room: room.media_name)
+      Access.authorize!(room.reload, user, joining: true)
       publish = !studio && (host || !room.live?)
       sources = room.resource.kind == 'voice' ? ['microphone'] : %w[camera microphone screen_share screen_share_audio]
       token = jwt(identity: "user-#{user.id}#{studio ? '-studio' : ''}", name: user.first_name.to_s.first(80),
-        grant: {room: room.media_name, roomJoin: true, canSubscribe: true, canPublish: publish,
+        ttl: [45, (room.ends_at - Time.current).floor].min.clamp(1, 45), grant: {room: room.media_name, roomJoin: true, canSubscribe: true, canPublish: publish,
           canPublishData: !studio, canUpdateOwnMetadata: false, canPublishSources: publish ? sources : []})
       {url: url, token: token, publish: publish, voice_only: room.resource.kind == 'voice',
-        host: host, ends_at: room.ends_at.iso8601, studio: studio}
+        host: host, room_generation: room.media_name, ends_at: room.ends_at.iso8601, studio: studio}
     end
   end
 end

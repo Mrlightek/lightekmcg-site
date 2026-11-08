@@ -4,6 +4,7 @@ class CreateLightekSessionRooms < ActiveRecord::Migration[8.0]
       t.references :resource, null: false, foreign_key: {to_table: :lightek_reservation_resources}
       t.string :key, null: false
       t.string :media_name, null: false
+      t.jsonb :retired_media_names, null: false, default: []
       t.datetime :starts_at, null: false
       t.datetime :ends_at, null: false
       t.string :status, null: false, default: 'scheduled'

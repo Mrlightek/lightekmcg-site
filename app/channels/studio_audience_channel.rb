@@ -8,7 +8,12 @@ class StudioAudienceChannel < ApplicationCable::Channel
     config = source == 'tiktok' ? {'source'=>source, 'username'=>settings.fetch('tiktok_username')} : {'source'=>source, 'session'=>settings.fetch('ssn_session')}
     config['sign_api_key'] = settings['sign_api_key'] if source == 'tiktok' && settings['sign_api_key'].present?
     @lease = LightekAudienceLease.acquire!(current_user, source)
-    @reader = Studio::Live::SocialReader.new(config) { |event| transmit(event) }
+    @reader = Studio::Live::SocialReader.new(config) do |event|
+      if event['type'] == 'status' && event['status'] == 'reader_stopped'
+        ActiveRecord::Base.connection_pool.with_connection { LightekAudienceLease.where(id: @lease.id).delete_all }
+      end
+      transmit(event)
+    end
   rescue StandardError
     @lease&.destroy
     transmit({'type'=>'status', 'status'=>'unavailable'})

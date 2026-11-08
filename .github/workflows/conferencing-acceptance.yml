@@ -35,6 +35,10 @@ jobs:
         run: |
           python3 -m unittest test/standalone/session_media_installer_test.py test/standalone/fleet_native_updater_test.py
           npm test --prefix services/live-audience
+      - name: Verify managed social-reader container
+        run: |
+          docker build -t lightek-audience-ci services/live-audience
+          docker run --rm --read-only --memory=256m --cpus=0.5 --pids-limit=64 --cap-drop=ALL --security-opt=no-new-privileges lightek-audience-ci node --input-type=module -e "import {TikTokLiveConnection,WebcastEvent} from 'tiktok-live-connector'; if(!TikTokLiveConnection || !WebcastEvent.CHAT) process.exit(1); console.log('SOCIAL_READER_CONTAINER_PASS');"
       - name: Verify production compositor and existing capture transport
         run: |
           node test/javascript/session_presentation_test.cjs
@@ -45,7 +49,7 @@ jobs:
           echo '1e9ee90ca301e1842b2887fc77cb122759756a9c8aeb4334ee91de3325ec43fb  /tmp/livekit.tgz' | sha256sum --check
           mkdir -p /tmp/lightek-livekit
           tar -xzf /tmp/livekit.tgz -C /tmp/lightek-livekit
-          /tmp/lightek-livekit/livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --rtc.enable_loopback_candidate > /tmp/lightek-livekit.log 2>&1 &
+          /tmp/lightek-livekit/livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --rtc.enable_loopback_candidate --room.auto_create=false > /tmp/lightek-livekit.log 2>&1 &
           media_pid=$!
           trap 'kill "$media_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do

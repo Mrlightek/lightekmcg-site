@@ -17,7 +17,7 @@ CreateLightekSessionRooms.new.migrate(:up)
 path = ROOT.join('db/migrate/20261109003000_add_session_presentation.rb')
 eval(path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]"), TOPLEVEL_BINDING, path.to_s)
 AddSessionPresentation.new.migrate(:up)
-%w[models/lightek_sessions/room models/lightek_sessions/member services/lightek_sessions/access services/lightek_sessions/presentation services/lightek_sessions/media services/studio/live/audience jobs/lightek_sessions/close_room_job controllers/session_rooms_controller].each { |file| require ROOT.join("app/#{file}").to_s }
+%w[models/lightek_sessions/room models/lightek_sessions/member services/lightek_sessions/access services/lightek_sessions/presentation services/lightek_sessions/media services/studio/live/audience jobs/lightek_sessions/close_room_job jobs/lightek_sessions/retire_media_room_job controllers/session_rooms_controller].each { |file| require ROOT.join("app/#{file}").to_s }
 module SessionCleanup
   def setup
     LightekSessions::Member.delete_all
@@ -115,6 +115,17 @@ class SessionRoomsChecks < ActionDispatch::IntegrationTest
     assert_raises(LightekSessions::Access::Denied){LightekSessions::Access.invite!(@room,@guest,extra.email_address)}
     assert LightekSessions::Access.authorize!(@room,@other)
     @booking.update!(status:'canceled');assert_raises(LightekSessions::Access::Denied){LightekSessions::Access.authorize!(@room,@other)}
+  end
+  def test_removing_a_guest_rotates_the_provider_room_before_retiring_old_access
+    admitted
+    old_name=@room.media_name
+    member=@room.members.find_by!(user:@guest)
+    post session_room_control_path(@room.key),params:{operation:'remove',member_id:member.id},headers:as(@owner),as: :json
+    assert_response :success
+    assert_equal 'blocked',member.reload.status
+    refute_equal old_name,@room.reload.media_name
+    assert_includes LightekSessions::RetireMediaRoomJob.enqueues,[@room.id,old_name]
+    assert_raises(LightekSessions::Access::Denied){LightekSessions::Access.authorize!(@room,@guest)}
   end
   def test_ticket_requires_explicit_broadcast_consent
     admitted

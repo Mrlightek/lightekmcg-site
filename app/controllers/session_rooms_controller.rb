@@ -23,7 +23,7 @@ class SessionRoomsController < ApplicationController
     member = LightekSessions::Access.request!(@room, current_user)
     members = @room.members.where('last_seen_at > ?', 60.seconds.ago).includes(:user)
     render json: {status: @room.status, locked: @room.locked, admitted: member.status == 'admitted',
-      ends_at: @room.ends_at.iso8601, presentation: @room.presentation,
+      ends_at: @room.ends_at.iso8601, presentation: @room.presentation, room_generation: @room.media_name,
       members: @room.host?(current_user) ? members.map { |m| {id: m.id, name: m.user.first_name, status: m.status, host: @room.host?(m.user)} } : []}
   end
   def ticket
@@ -33,7 +33,7 @@ class SessionRoomsController < ApplicationController
   end
   def control
     LightekSessions::Access.host!(@room, current_user)
-    removed_member = nil
+    removed_media_room = nil
     @room.with_lock do
       LightekSessions::Access.authorize!(@room, current_user)
       case params.require(:operation)
@@ -54,7 +54,10 @@ class SessionRoomsController < ApplicationController
           member.update!(status: 'admitted')
         else
           member.update!(status: 'blocked')
-          removed_member = member
+          # Self-hosted media cannot revoke an already issued participant JWT.
+          # Retire the old room so a removed guest cannot reuse a refreshed token.
+          removed_media_room = @room.media_name
+          @room.update!(media_name: "lightek-#{SecureRandom.hex(20)}", retired_media_names: (@room.retired_media_names + [removed_media_room]).uniq)
         end
       when 'mute'
         member = @room.members.find(params.require(:member_id))
@@ -67,8 +70,8 @@ class SessionRoomsController < ApplicationController
       else raise LightekSessions::Access::Denied, 'Unknown room control.'
       end
     end
-    if removed_member
-      LightekSessions::Media.new(@room.resource.site).call('RemoveParticipant', {room: @room.media_name, identity: "user-#{removed_member.user_id}"}, room: @room.media_name)
+    if removed_media_room
+      LightekSessions::RetireMediaRoomJob.perform_later(@room.id, removed_media_room)
     end
     render json: {status: @room.status}
   end

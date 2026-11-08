@@ -9,6 +9,7 @@ class MediaInstallerTest(unittest.TestCase):
         self.assertEqual(config['rtc']['port_range_end'],50100)
         self.assertEqual(config['keys'],{'a'*24:'b'*64})
         self.assertEqual(config['bind_addresses'],['127.0.0.1'])
+        self.assertFalse(config['room']['auto_create'])
     def test_identity_and_credentials_reject_configuration_injection(self):
         for field,value in [('domain','client.example.test\nServerName evil'),('api_key','a\nb'),('api_secret','short')]:
             payload={'domain':'client.example.test','api_key':'a'*24,'api_secret':'b'*64};payload[field]=value

@@ -16,12 +16,12 @@ ActiveRecord::Schema.define do
   create_table(:lightek_vault_secrets) { |t| t.string :slug; t.string :status; t.json :payload; t.datetime :expires_at }
 end
 module LightekVault
-  class Secret < ApplicationRecord;end
+  class Secret < ApplicationRecord;self.table_name='lightek_vault_secrets';end
   class Service
     class AccessDenied < StandardError;end
     def self.checkout!(slug:, **) = Secret.find_by!(slug:slug,status:'active').payload.deep_dup
     def self.store!(slug:,payload:,**) = Secret.find_or_initialize_by(slug:slug).tap { |s| s.update!(status:'active',payload:payload) }
   end
 end
-%w[app/models/lightek_reservations/resource app/models/lightek_sessions/room app/models/lightek_sessions/member
+%w[app/models/lightek_commerce/product app/models/lightek_reservations/resource app/models/lightek_sessions/room app/models/lightek_sessions/member
    app/models/studio_live_viewer app/services/studio/live/audience].each { |file| require File.join(ROOT,file) }

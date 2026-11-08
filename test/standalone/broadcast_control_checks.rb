@@ -178,6 +178,36 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     assert_equal 404, client.response.status
     assert_equal "Other", foreign.reload.name
   end
+  def test_live_studio_filters_session_rooms_by_site_owner_before_rendering
+    @site.update!(tenant:@alice);@other_site.update!(tenant:@bob);@alice.update!(role:'admin')
+    own=LightekReservations::Resource.create!(site:@site,name:'Our presentation',kind:'video')
+    foreign=LightekReservations::Resource.create!(site:@other_site,name:'Private foreign conference',kind:'video')
+    [own,foreign].each { |resource| LightekSessions::Room.create!(resource:resource,key:SecureRandom.uuid,media_name:SecureRandom.hex(20),starts_at:Time.current,ends_at:1.hour.from_now) }
+    client=session_for
+    Studio::Live::Destination.stub(:configured?,false) do
+      client.get '/dashboard/live',headers:headers.merge('Accept'=>'text/html')
+      assert_equal 200,client.response.status,client.response.body.first(1000)
+      assert_includes client.response.body,'Our presentation'
+      refute_includes client.response.body,'Private foreign conference'
+      assert_includes client.response.body,'Presentation director'
+    end
+  end
+  def test_audience_desk_uses_authorized_live_viewers_and_community_replies
+    operation=Studio::Live::Sessions.create!(user:@alice,title:'Audience check',destination:'lightek',site:@site)
+    operation.update!(status:'live')
+    StudioLiveViewer.create!(studio_live_operation:operation,user:@bob,last_seen_at:Time.current)
+    StudioLiveViewer.create!(studio_live_operation:operation,user:@carol,last_seen_at:2.minutes.ago)
+    post=Post.find(operation.metadata.fetch('post_id'))
+    Post.create!(user:@bob,site:@site,parent:post,content:'Hello from the community',kind:'post')
+    client=session_for
+    client.get "/dashboard/live/#{operation.id}/audience",headers:headers
+    assert_equal 200,client.response.status,client.response.body
+    assert_equal 1,body(client)['viewer_count']
+    assert_equal 'Bob',body(client)['viewers'].first['name']
+    assert_equal 'Hello from the community',body(client)['comments'].first['text']
+    client.get "/dashboard/live/#{operation.id}/audience",headers:headers(@bob)
+    assert_equal 403,client.response.status
+  end
   def test_live_studio_keeps_hostname_based_site_resolution
     client = session_for
     Studio::Live::Destination.stub(:configured?, false) do

@@ -175,6 +175,7 @@ class PwaHttpIntegrationTest < LightekCommunityIntegrationTest
     slug=perform("community_create",name:"The Nail Salon",audience:"women",request_key:SecureRandom.uuid)[:community][:slug]
     operation=Studio::Live::Sessions.create!(user:@alice,site:@site,destination:"lightek",title:"Ladies chatting",community_slug:slug)
     post=Post.find(operation.metadata["post_id"])
+    operation.update!(status:"live")
     assert_equal "lightek_streaming",post.distribution
     directory=Studio::Live::Encoder.hls_directory(operation.id)
     FileUtils.mkdir_p(directory)

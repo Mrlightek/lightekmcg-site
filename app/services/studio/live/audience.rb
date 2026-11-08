@@ -52,6 +52,9 @@ module Studio
         StudioLiveViewer.upsert({studio_live_operation_id: operation.id, user_id: user.id, last_seen_at: Time.current},
           unique_by: 'idx_lightek_live_viewer_identity')
       end
+      def display_name(user)
+        user.profile&.public_display_name.presence || user.first_name.presence || 'Guest'
+      end
       def snapshot(operation, user)
         Studio::Live::Sessions.find!(operation.id, user)
         viewers = StudioLiveViewer.present_now.where(studio_live_operation: operation).includes(:user)
@@ -60,10 +63,10 @@ module Studio
           access = LightekCommunity::Access.new(user: user, site_id: operation.studio_project.site_id)
           post = access.posts.find(operation.metadata.fetch('post_id'))
           comments = access.posts.where(parent_id: post.id).includes(:user).order(id: :desc).limit(50).to_a.reverse.map do |reply|
-            {id: reply.id, name: reply.user.first_name, text: reply.content.to_s.first(2000)}
+            {id: reply.id, name: display_name(reply.user), text: reply.content.to_s.first(2000)}
           end
         end
-        {viewers: viewers.limit(100).map { |v| {name: v.user.first_name} }, viewer_count: viewers.count,
+        {viewers: viewers.limit(100).map { |v| {name: display_name(v.user)} }, viewer_count: viewers.count,
           comments: comments, observed_at: Time.current.iso8601, note: 'Signed-in Lightek viewers requesting playback in the last 45 seconds. Social viewers are not included.'}
       end
     end

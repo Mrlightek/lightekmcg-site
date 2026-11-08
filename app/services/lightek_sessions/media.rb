@@ -53,7 +53,7 @@ module LightekSessions
       Access.host!(room, user) if studio
       host = room.host?(user)
       call('CreateRoom', {name: room.media_name, empty_timeout: 300, departure_timeout: 60,
-        max_participants: [room.resource.capacity + 4, 1004].min}, room: room.media_name)
+        max_participants: room.resource.capacity + 4}, room: room.media_name)
       Access.authorize!(room.reload, user, joining: true)
       publish = !studio && (host || !room.live?)
       sources = room.resource.kind == 'voice' ? ['microphone'] : %w[camera microphone screen_share screen_share_audio]

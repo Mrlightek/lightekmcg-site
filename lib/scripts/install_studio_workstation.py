@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 
 
 def configuration(app_root, app_user, app_name, state_root, port=None):
@@ -14,7 +15,8 @@ def configuration(app_root, app_user, app_name, state_root, port=None):
     port=port or 19080+int(identity,16)%10000
     if not re.fullmatch(r'[a-zA-Z0-9_-]+', app_name) or not re.fullmatch(r'[a-z_][a-z0-9_-]*', app_user): raise ValueError('Invalid service account or application name')
     if not 1024 <= port <= 65535: raise ValueError('Invalid loopback port')
-    # Unit paths are quoted. Reject systemd specifiers, control characters and
+    # ExecStart and path-list values use quotes; WorkingDirectory takes a raw
+    # absolute path. Reject systemd specifiers, control characters and
     # quotes rather than trying to interpret deployment inputs as unit syntax.
     for path in (str(app_root), str(state_root)):
         if not path.startswith('/') or any(c in path for c in '\n\r\x00%"\\'): raise ValueError('Unsupported service path')
@@ -25,7 +27,7 @@ Requires=docker.service
 [Service]
 Type=simple
 User={app_user}
-WorkingDirectory="{app_root}"
+WorkingDirectory={app_root}
 ExecStart=/usr/bin/python3 "{app_root}/lib/scripts/studio_workstation_gateway.py" --root "{state_root}" --port {port}
 Environment=PYTHONDONTWRITEBYTECODE=1
 Restart=on-failure
@@ -71,6 +73,24 @@ WantedBy=timers.target
     return {'unit':unit,'apache':apache,'service':service,'conf':service,'port':port,'cleanup_unit':cleanup_unit,'cleanup_timer':cleanup_timer}
 
 
+def validate_units(config, run=None):
+    """Parse staged units before changing services, vhosts or gateway settings."""
+    run = run or subprocess.run
+    files = {
+        config['service']+'.service':config['unit'],
+        config['service']+'-cleanup.service':config['cleanup_unit'],
+        config['service']+'-cleanup.timer':config['cleanup_timer'],
+    }
+    with tempfile.TemporaryDirectory(prefix='lightek-studio-units-') as folder:
+        paths=[]
+        for name, content in files.items():
+            path=Path(folder)/name;path.write_text(content);paths.append(str(path))
+        try:
+            run(['systemd-analyze','verify',*paths],check=True,text=True,capture_output=True)
+        except subprocess.CalledProcessError as error:
+            raise RuntimeError('Studio service configuration is invalid: '+(error.stderr or str(error)).strip()) from error
+
+
 def patch_vhosts(text, app_root, domain, include_path):
     count=0
     marker='IncludeOptional "'+str(include_path)+'"'
@@ -98,6 +118,7 @@ def main():
     if args.dry_run:
         print(json.dumps(config));return
     if os.geteuid()!=0: raise SystemExit('Run the service installer from the root deployment pipeline')
+    validate_units(config)
     def run(command): subprocess.run(command,check=True)
     unit=Path('/etc/systemd/system')/(config['service']+'.service')
     conf=Path('/etc/apache2/conf-available')/(config['conf']+'.conf')

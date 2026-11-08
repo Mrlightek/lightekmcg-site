@@ -76,7 +76,7 @@ python3 "${APP_ROOT}/lib/scripts/install_studio_workstation.py" --app-root "${AP
 echo "[hosting] Prepare GitHub secret-encryption dependency"
 if ! python3 -c 'import ctypes.util,sys; sys.exit(0 if ctypes.util.find_library("sodium") else 1)'; then
   apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y libsodium23
+  DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install -y libsodium23
 fi
 
 python3 "${APP_ROOT}/lib/scripts/setup_studio_spatial.py" --app-root "$APP_ROOT" --app-user "$APP_USER" --domain "$APP_DOMAIN" --env-file "$ENV_FILE"

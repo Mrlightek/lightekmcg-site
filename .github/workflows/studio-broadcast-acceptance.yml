@@ -144,7 +144,7 @@ jobs:
           node test/javascript/studio_spatial_depth_test.cjs
           node test/javascript/studio_spatial_feed_test.cjs
           "$RUNNER_TEMP/studio-spatial-python/bin/python" -m pip install -r services/spatial/requirements.txt
-          SPATIAL_TEST_BLENDER="$(command -v blender)" PYTHONPATH="$PWD" "$RUNNER_TEMP/studio-spatial-python/bin/python" -m unittest test.operations.studio_spatial_service_test test.operations.studio_spatial_assets_test test.operations.studio_spatial_setup_test
+          SPATIAL_TEST_BLENDER="$(command -v blender)" PYTHONPATH="$PWD" "$RUNNER_TEMP/studio-spatial-python/bin/python" -m unittest test.operations.studio_spatial_service_test test.operations.studio_spatial_assets_test test.operations.studio_spatial_setup_test test.operations.studio_spatial_packages_test
           blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python test/operations/spatial_asset_staging_blender.py
           npm ci --prefix examples/spatial-editor --ignore-scripts
           npm --prefix examples/spatial-editor run check

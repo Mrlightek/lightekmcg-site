@@ -5,6 +5,9 @@ on:
   pull_request:
     paths: ['app/**', 'services/live-audience/**', 'public/lightek/**', 'config/routes/**', 'db/migrate/*session*', 'test/**', '.github/workflows/conferencing-acceptance.yml']
   workflow_dispatch:
+concurrency:
+  group: conference-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -42,11 +45,11 @@ jobs:
           echo '1e9ee90ca301e1842b2887fc77cb122759756a9c8aeb4334ee91de3325ec43fb  /tmp/livekit.tgz' | sha256sum --check
           mkdir -p /tmp/lightek-livekit
           tar -xzf /tmp/livekit.tgz -C /tmp/lightek-livekit
-          /tmp/lightek-livekit/livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 > /tmp/lightek-livekit.log 2>&1 &
+          /tmp/lightek-livekit/livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --rtc.enable_loopback_candidate > /tmp/lightek-livekit.log 2>&1 &
           media_pid=$!
           trap 'kill "$media_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:7880/ > /dev/null; then break; fi
             sleep 1
           done
-          node test/javascript/conference_media_test.cjs
+          node test/javascript/conference_media_test.cjs || { tail -80 /tmp/lightek-livekit.log; exit 1; }

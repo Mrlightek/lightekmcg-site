@@ -8,7 +8,6 @@ class CreateLightekSessionRooms < ActiveRecord::Migration[8.0]
       t.datetime :ends_at, null: false
       t.string :status, null: false, default: 'scheduled'
       t.boolean :locked, null: false, default: false
-      t.boolean :broadcast_consent, null: false, default: false
       t.timestamps
     end
     add_index :lightek_session_rooms, :key, unique: true

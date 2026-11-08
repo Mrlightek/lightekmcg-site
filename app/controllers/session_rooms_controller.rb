@@ -17,13 +17,14 @@ class SessionRoomsController < ApplicationController
   def show
     @site = @room.resource.site
     @host = @room.host?(current_user)
+    @can_invite = @room.bookings.where(customer: current_user).where('quantity > 1').exists?
   end
   def state
     member = LightekSessions::Access.request!(@room, current_user)
     members = @room.members.where('last_seen_at > ?', 60.seconds.ago).includes(:user)
     render json: {status: @room.status, locked: @room.locked, admitted: member.status == 'admitted',
-      ends_at: @room.ends_at.iso8601, presentation: @room.presentation, broadcast_consent: @room.broadcast_consent,
-      members: @room.host?(current_user) ? members.map { |m| {id: m.id, name: m.user.first_name, status: m.status} } : []}
+      ends_at: @room.ends_at.iso8601, presentation: @room.presentation,
+      members: @room.host?(current_user) ? members.map { |m| {id: m.id, name: m.user.first_name, status: m.status, host: @room.host?(m.user)} } : []}
   end
   def ticket
     raise LightekSessions::Access::Denied, 'Accept that the host can broadcast this session before joining.' unless params[:consent] == true

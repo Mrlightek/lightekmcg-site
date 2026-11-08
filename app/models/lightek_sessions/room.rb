@@ -9,6 +9,7 @@ module LightekSessions
       raise Access::Denied, 'This experience does not use a Lightek session room.' unless reservation.resource.native_session?
       reservation.resource.with_lock do
         find_or_create_by!(resource: reservation.resource, starts_at: reservation.starts_at, ends_at: reservation.ends_at) do |room|
+          room.presentation = {'layout'=>'gallery', 'title'=>reservation.resource.name.to_s.first(120), 'brand'=>reservation.resource.site.name.to_s.first(120), 'background'=>'#142f2c', 'accent'=>'#d6edac', 'participants'=>{}}
           room.key = SecureRandom.uuid
           room.media_name = "lightek-#{SecureRandom.hex(20)}"
         end

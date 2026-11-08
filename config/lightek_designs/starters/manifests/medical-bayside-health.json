@@ -1,0 +1,302 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "medical-bayside-health",
+  "industry": "medical",
+  "meta": {
+    "brand": "Bayside Family Health",
+    "title": "Bayside Family Health — Medical and dental care for the whole family",
+    "description": "Medical and dental care for the whole family"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#f7fbfc",
+      "bg2": "#eaf4f6",
+      "card": "#ffffff",
+      "ink": "#0f2a33",
+      "mut": "#5a7480",
+      "line": "#dbe8ec",
+      "line2": "#c2d6dc",
+      "a": "#0a8f9b",
+      "b": "#5bc0a3",
+      "on": "#ffffff",
+      "r": "16px",
+      "fh": "'DM Serif Display',serif",
+      "fb": "'Nunito Sans',sans-serif",
+      "hbg": "rgba(247,251,252,.9)",
+      "g1": "#0a8f9b22",
+      "g2": "#5bc0a320",
+      "hw": "400"
+    },
+    "fonts_query": "family=DM+Serif+Display&family=Nunito+Sans:wght@400;600;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "services",
+        "label": "Services"
+      },
+      {
+        "id": "doctors",
+        "label": "Our team"
+      },
+      {
+        "id": "faq",
+        "label": "FAQ"
+      },
+      {
+        "id": "contact",
+        "label": "Book"
+      }
+    ],
+    "cta": "Book a visit"
+  },
+  "hero": {
+    "eyebrow": "Medical · Dental · Pediatrics",
+    "title": "Care that feels like family.",
+    "subtitle": "Same-week appointments, clear answers and a team that knows your name. Primary care and dentistry under one roof.",
+    "primary_cta": "Book an appointment",
+    "secondary_cta": "Our services",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "services",
+      "type": "cards",
+      "background": "default",
+      "header": {
+        "eyebrow": "Services",
+        "title": "Everything in one place",
+        "subtitle": "Comprehensive care for every age and stage."
+      },
+      "content": [
+        {
+          "icon": "heart",
+          "title": "Primary care",
+          "text": "Annual exams, chronic care and same-week sick visits.",
+          "meta": ""
+        },
+        {
+          "icon": "shield",
+          "title": "Preventive screenings",
+          "text": "Early detection, vaccines and wellness plans.",
+          "meta": ""
+        },
+        {
+          "icon": "user",
+          "title": "Pediatrics",
+          "text": "Gentle, kid-friendly care from newborn to teen.",
+          "meta": ""
+        },
+        {
+          "icon": "star",
+          "title": "Dental care",
+          "text": "Cleanings, fillings, whitening and orthodontic referrals.",
+          "meta": ""
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "alt",
+      "header": null,
+      "content": [
+        {
+          "value": "20+",
+          "label": "Years caring for families"
+        },
+        {
+          "value": "15k",
+          "label": "Patients"
+        },
+        {
+          "value": "4.9★",
+          "label": "Patient rating"
+        },
+        {
+          "value": "Same week",
+          "label": "Appointments"
+        }
+      ]
+    },
+    {
+      "id": "doctors",
+      "type": "people",
+      "background": "default",
+      "header": {
+        "eyebrow": "Our team",
+        "title": "Meet your providers",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "name": "Dr. Amara Okafor",
+          "role": "Family medicine",
+          "image": null
+        },
+        {
+          "name": "Dr. Daniel Reyes",
+          "role": "Pediatrics",
+          "image": null
+        },
+        {
+          "name": "Dr. Mei Lin",
+          "role": "General dentistry",
+          "image": null
+        },
+        {
+          "name": "Nadia Brooks, NP",
+          "role": "Nurse practitioner",
+          "image": null
+        }
+      ]
+    },
+    {
+      "id": "insurance",
+      "type": "badges",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Insurance",
+        "title": "Plans we accept",
+        "subtitle": "Not listed? Call us and we will check your coverage."
+      },
+      "content": [
+        "Aetna",
+        "Blue Cross",
+        "Cigna",
+        "UnitedHealthcare",
+        "Humana",
+        "Medicare",
+        "Delta Dental",
+        "Self-pay plans"
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "default",
+      "header": {
+        "eyebrow": "Reviews",
+        "title": "Patients say",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "Warm, thorough and never rushed. My kids love coming here.",
+          "author": "Jessica M."
+        },
+        {
+          "quote": "Same-day appointment when I was sick. Incredible.",
+          "author": "Robert T."
+        },
+        {
+          "quote": "Finally a dentist who explains everything.",
+          "author": "Aaliyah S."
+        }
+      ]
+    },
+    {
+      "id": "faq",
+      "type": "faq",
+      "background": "alt",
+      "header": {
+        "eyebrow": "FAQ",
+        "title": "Before your visit",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "question": "Do you accept new patients?",
+          "answer": "Yes. We welcome new patients of all ages."
+        },
+        {
+          "question": "What should I bring?",
+          "answer": "Photo ID, insurance card and a list of current medications."
+        },
+        {
+          "question": "Can I cancel or reschedule?",
+          "answer": "Yes, up to 24 hours before your appointment with no fee."
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "default",
+      "header": {
+        "eyebrow": "Appointments",
+        "title": "Request a visit",
+        "subtitle": "We confirm by phone or email within one business day."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "clock",
+            "title": "Hours",
+            "value": "Mon–Fri 8am–6pm · Sat 9am–1pm"
+          },
+          {
+            "icon": "pin",
+            "title": "Clinic",
+            "value": "55 Harbor Drive, Your City, FL"
+          },
+          {
+            "icon": "phone",
+            "title": "Call",
+            "value": "(555) 010-5566"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "phone",
+            "type": "tel",
+            "label": "Phone",
+            "options": null
+          },
+          {
+            "name": "svc",
+            "type": "select",
+            "label": "Visit type",
+            "options": [
+              "Primary care",
+              "Pediatrics",
+              "Dental",
+              "Other"
+            ]
+          },
+          {
+            "name": "time",
+            "type": "hidden",
+            "label": null,
+            "options": null
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Reason for visit (do not include sensitive medical details)",
+            "options": null
+          }
+        ],
+        "submit": "Request appointment",
+        "success_message": "Thank you. Our team will contact you to confirm your appointment.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Bayside Family Health Primary care and dentistry for the whole family.",
+    "visit": [
+      "55 Harbor Drive",
+      "Your City, FL",
+      "(555) 010-5566"
+    ]
+  }
+}

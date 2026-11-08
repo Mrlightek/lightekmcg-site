@@ -8,7 +8,7 @@ module LightekDesign
   class HtmlDocument
     MAX_BYTES = 500_000
     TAGS = %w[a abbr article aside b blockquote br button caption code col colgroup dd details div dl dt em figcaption figure footer h1 h2 h3 h4 h5 h6 header hr i img label li main nav ol p picture pre s section small source span strong sub summary sup table tbody td th thead time tr u ul video audio svg g path circle ellipse rect line polygon polyline defs symbol use linearGradient radialGradient stop title].freeze
-    ATTRIBUTES = %w[id class style href src srcset alt title width height viewBox viewbox fill stroke stroke-width stroke-opacity stroke-linejoin d points cx cy r rx ry x y x1 x2 y1 y2 offset stop-color opacity role aria-label aria-hidden aria-expanded aria-controls loading controls poster type media sizes target rel colspan rowspan datetime].freeze
+    ATTRIBUTES = %w[id class style href src srcset alt title width height viewBox viewbox fill stroke stroke-width stroke-opacity stroke-linejoin d points cx cy r rx ry x y x1 x2 y1 y2 offset stop-color opacity role aria-label aria-hidden aria-expanded aria-controls loading controls poster type media sizes target rel colspan rowspan datetime hidden data-section data-icon data-img].freeze
 
     def self.normalize_data(raw)
       raise ArgumentError, "Invalid HTML section." unless raw.is_a?(Hash)

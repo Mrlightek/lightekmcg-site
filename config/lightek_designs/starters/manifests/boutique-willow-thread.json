@@ -1,0 +1,328 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "boutique-willow-thread",
+  "industry": "boutique",
+  "meta": {
+    "brand": "Willow & Thread",
+    "title": "Willow & Thread — Independent fashion boutique",
+    "description": "Independent fashion boutique"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#fbf6f1",
+      "bg2": "#f3e9e0",
+      "card": "#fffdfb",
+      "ink": "#231a17",
+      "mut": "#7a6a63",
+      "line": "#eadfd5",
+      "line2": "#d9c9bc",
+      "a": "#c0576b",
+      "b": "#e6b8a2",
+      "on": "#ffffff",
+      "r": "4px",
+      "fh": "'Bodoni Moda',serif",
+      "fb": "'Jost',sans-serif",
+      "hbg": "rgba(251,246,241,.92)",
+      "g1": "#c0576b20",
+      "g2": "#e6b8a233",
+      "hw": "600"
+    },
+    "fonts_query": "family=Bodoni+Moda:ital,wght@0,500;0,700;1,500&family=Jost:wght@400;500;600",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "shop",
+        "label": "Shop"
+      },
+      {
+        "id": "why",
+        "label": "Why us"
+      },
+      {
+        "id": "faq",
+        "label": "Shipping"
+      },
+      {
+        "id": "contact",
+        "label": "Contact"
+      }
+    ],
+    "cta": "Bag (0)"
+  },
+  "hero": {
+    "eyebrow": "New season · Small batch",
+    "title": "Dressed with intention.",
+    "subtitle": "Thoughtfully made pieces from independent designers. Free shipping on orders over $75.",
+    "primary_cta": "Shop the collection",
+    "secondary_cta": "Explore",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "shop",
+      "type": "products",
+      "background": "default",
+      "header": {
+        "eyebrow": "Shop",
+        "title": "The collection",
+        "subtitle": "Add to bag to preview the cart experience. Connect your store to go live."
+      },
+      "content": [
+        {
+          "label": "New in",
+          "items": [
+            {
+              "badge": "NEW",
+              "category": "Dresses",
+              "title": "Linen Wrap Dress",
+              "price": "$128",
+              "image": null
+            },
+            {
+              "badge": "NEW",
+              "category": "Bottoms",
+              "title": "Wide-Leg Trousers",
+              "price": "$96",
+              "image": null
+            },
+            {
+              "badge": "",
+              "category": "Accessories",
+              "title": "Silk Scarf",
+              "price": "$54",
+              "image": null
+            },
+            {
+              "badge": "NEW",
+              "category": "Tops",
+              "title": "Cotton Overshirt",
+              "price": "$88",
+              "image": null
+            }
+          ]
+        },
+        {
+          "label": "Dresses",
+          "items": [
+            {
+              "badge": "NEW",
+              "category": "Dresses",
+              "title": "Linen Wrap Dress",
+              "price": "$128",
+              "image": null
+            },
+            {
+              "badge": "",
+              "category": "Dresses",
+              "title": "Midi Slip Dress",
+              "price": "$142",
+              "image": null
+            },
+            {
+              "badge": "SALE",
+              "category": "Dresses",
+              "title": "Smocked Sundress",
+              "price": "$110",
+              "image": null
+            }
+          ]
+        },
+        {
+          "label": "Accessories",
+          "items": [
+            {
+              "badge": "",
+              "category": "Accessories",
+              "title": "Silk Scarf",
+              "price": "$54",
+              "image": null
+            },
+            {
+              "badge": "NEW",
+              "category": "Bags",
+              "title": "Woven Tote",
+              "price": "$78",
+              "image": null
+            },
+            {
+              "badge": "",
+              "category": "Jewelry",
+              "title": "Pearl Hoops",
+              "price": "$42",
+              "image": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "why",
+      "type": "cards",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Why us",
+        "title": "Better by design",
+        "subtitle": "Shop small. Dress well."
+      },
+      "content": [
+        {
+          "icon": "hand",
+          "title": "Independent designers",
+          "text": "Every piece is sourced directly from makers we know.",
+          "meta": ""
+        },
+        {
+          "icon": "check",
+          "title": "Easy returns",
+          "text": "Not the right fit? Return within 30 days.",
+          "meta": ""
+        },
+        {
+          "icon": "heart",
+          "title": "Small batch",
+          "text": "Limited runs mean less waste and more character.",
+          "meta": ""
+        },
+        {
+          "icon": "star",
+          "title": "Free shipping",
+          "text": "On every order over $75 within the US.",
+          "meta": ""
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "default",
+      "header": {
+        "eyebrow": "Reviews",
+        "title": "Loved by customers",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "The quality is exceptional. I get compliments every time.",
+          "author": "Tasha R."
+        },
+        {
+          "quote": "Fast shipping and beautiful packaging.",
+          "author": "Elena M."
+        },
+        {
+          "quote": "My new favorite shop.",
+          "author": "Chloe W."
+        }
+      ]
+    },
+    {
+      "id": "offer",
+      "type": "cta",
+      "background": "alt",
+      "header": null,
+      "content": {
+        "title": "10% off your first order.",
+        "text": "Join the list for new arrivals, restocks and private sales.",
+        "button": "Join the list"
+      }
+    },
+    {
+      "id": "faq",
+      "type": "faq",
+      "background": "default",
+      "header": {
+        "eyebrow": "Shipping & returns",
+        "title": "Good to know",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "question": "How long does shipping take?",
+          "answer": "Orders ship in 1–2 business days and arrive in 3–6 business days."
+        },
+        {
+          "question": "What is your return policy?",
+          "answer": "Unworn items can be returned within 30 days for a refund or exchange."
+        },
+        {
+          "question": "Do you offer gift wrapping?",
+          "answer": "Yes. Add gift wrapping at checkout for $5."
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Contact",
+        "title": "Say hello",
+        "subtitle": "Questions about sizing or an order? We reply within one business day."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "mail",
+            "title": "Email",
+            "value": "hello@yourdomain.com"
+          },
+          {
+            "icon": "pin",
+            "title": "Studio",
+            "value": "22 Market Street, Your City, FL"
+          },
+          {
+            "icon": "clock",
+            "title": "Hours",
+            "value": "Tue–Sat 11am–6pm"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "Email",
+            "options": null
+          },
+          {
+            "name": "topic",
+            "type": "select",
+            "label": "Topic",
+            "options": [
+              "Order help",
+              "Sizing",
+              "Wholesale",
+              "Other"
+            ]
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Message",
+            "options": null
+          }
+        ],
+        "submit": "Send message",
+        "success_message": "Thank you. We will reply within one business day.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Willow & Thread Independent fashion and accessories from designers we love.",
+    "visit": [
+      "22 Market Street",
+      "Your City, FL",
+      "hello@yourdomain.com"
+    ]
+  }
+}

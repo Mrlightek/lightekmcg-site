@@ -1,0 +1,15 @@
+<% source = LightekDesign::StarterLibrary.normalize_data(data) %>
+<% manifest = LightekDesign::StarterLibrary.fetch(source["template_key"]) %>
+<% definition = LightekDesign::StarterLibrary.designs.fetch("starter_#{source['template_key'].tr('-', '_')}") %>
+<% tokens = definition.fetch("tokens").merge(!@preview && @site&.respond_to?(:active_template) ? @site.active_template&.settings.to_h.fetch("tokens", {}).to_h : {}) %>
+<% tokens.merge!(@studio_preview_definition.fetch("tokens").merge(@studio_preview_definition.fetch("fonts"))) if @studio_preview_definition %>
+<% fonts = definition.fetch("fonts").merge(tokens.slice("font_sans", "font_heading")) %>
+<lightek-starter data-template="<%= source['template_key'] %>" style="display:block;isolation:isolate;<%= 'position:sticky;top:0;z-index:30' if source['section_key'] == 'nav' %>">
+  <template shadowrootmode="open">
+    <link rel="stylesheet" href="<%= LightekDesign::Fonts.stylesheet(fonts.values) %>">
+    <link rel="stylesheet" href="/lightek/templates/<%= source['template_key'] %>.css">
+    <style>:host{display:block;--starter-bg:<%= tokens['color_bg'] %>;--starter-text:<%= tokens['color_text'] %>;--starter-accent:<%= tokens['color_primary'] %>;--starter-muted:<%= tokens['color_text_muted'] %>;--starter-body-font:<%= LightekDesign::Fonts.css_stack(fonts['font_sans']).html_safe %>;--starter-heading-font:<%= LightekDesign::Fonts.css_stack(fonts['font_heading']).html_safe %>} .li-body{display:flow-root}</style>
+    <div class="li-body"><%= LightekDesign::StarterLibrary.render_html(source, site: @site, preview: !!@preview, authenticity_token: form_authenticity_token).html_safe %></div>
+  </template>
+</lightek-starter>
+<%= javascript_include_tag "/lightek/templates/runtime.js", defer: true %>

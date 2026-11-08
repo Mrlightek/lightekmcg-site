@@ -1,0 +1,300 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "realestate-skyline",
+  "industry": "realestate",
+  "meta": {
+    "brand": "Skyline Realty",
+    "title": "Skyline Realty — Homes, condos and rentals",
+    "description": "Homes, condos and rentals"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#ffffff",
+      "bg2": "#f2f5fa",
+      "card": "#ffffff",
+      "ink": "#0d1b2e",
+      "mut": "#56657a",
+      "line": "#e3e9f2",
+      "line2": "#cbd5e4",
+      "a": "#1b6ef3",
+      "b": "#0fb5a6",
+      "on": "#ffffff",
+      "r": "14px",
+      "fh": "'Manrope',sans-serif",
+      "fb": "'Manrope',sans-serif",
+      "hbg": "rgba(255,255,255,.88)",
+      "g1": "#1b6ef326",
+      "g2": "#0fb5a622",
+      "hw": "800",
+      "hl": "-.02em",
+      "lw": "800"
+    },
+    "fonts_query": "family=Manrope:wght@400;600;800",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "listings",
+        "label": "Listings"
+      },
+      {
+        "id": "calculator",
+        "label": "Calculator"
+      },
+      {
+        "id": "agents",
+        "label": "Agents"
+      },
+      {
+        "id": "contact",
+        "label": "Contact"
+      }
+    ],
+    "cta": "Get in touch"
+  },
+  "hero": {
+    "eyebrow": "Residential · Commercial · Rentals",
+    "title": "Find the place you’ll call home.",
+    "subtitle": "Local expertise, honest guidance and a team that stays with you from first tour to final signature.",
+    "primary_cta": "Request a showing",
+    "secondary_cta": "Browse listings",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "listings",
+      "type": "listings",
+      "background": "default",
+      "header": {
+        "eyebrow": "Featured",
+        "title": "Homes on the market",
+        "subtitle": "Hand-picked listings from our team."
+      },
+      "content": [
+        {
+          "label": "For sale",
+          "items": [
+            {
+              "badge": "NEW",
+              "price": "$485,000",
+              "title": "Modern Lakefront Home",
+              "meta": "4 bd · 3 ba · 2,450 sqft",
+              "image": null
+            },
+            {
+              "badge": "OPEN HOUSE",
+              "price": "$329,000",
+              "title": "Downtown Loft",
+              "meta": "2 bd · 2 ba · 1,180 sqft",
+              "image": null
+            },
+            {
+              "badge": "PRICE DROP",
+              "price": "$615,000",
+              "title": "Garden Estate",
+              "meta": "5 bd · 4 ba · 3,200 sqft",
+              "image": null
+            }
+          ]
+        },
+        {
+          "label": "For rent",
+          "items": [
+            {
+              "badge": "AVAILABLE",
+              "price": "$2,400/mo",
+              "title": "Skyview Condo",
+              "meta": "2 bd · 2 ba · 1,050 sqft",
+              "image": null
+            },
+            {
+              "badge": "NEW",
+              "price": "$1,850/mo",
+              "title": "Cozy Townhome",
+              "meta": "2 bd · 1.5 ba · 1,120 sqft",
+              "image": null
+            },
+            {
+              "badge": "AVAILABLE",
+              "price": "$3,100/mo",
+              "title": "Park Side Villa",
+              "meta": "3 bd · 2 ba · 1,700 sqft",
+              "image": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "calculator",
+      "type": "calculator",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Tools",
+        "title": "Mortgage calculator",
+        "subtitle": "Get a quick monthly estimate before you start touring."
+      },
+      "content": {
+        "defaults": {
+          "price": 450000,
+          "down_percent": 20,
+          "rate": 6.5,
+          "years": 30
+        }
+      }
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "default",
+      "header": null,
+      "content": [
+        {
+          "value": "850+",
+          "label": "Homes sold"
+        },
+        {
+          "value": "$420M",
+          "label": "In sales volume"
+        },
+        {
+          "value": "18",
+          "label": "Days average on market"
+        },
+        {
+          "value": "4.9★",
+          "label": "Client rating"
+        }
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "people",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Our agents",
+        "title": "People who know the market",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "name": "Elena Ruiz",
+          "role": "Principal broker",
+          "image": null
+        },
+        {
+          "name": "James Carter",
+          "role": "Buyer specialist",
+          "image": null
+        },
+        {
+          "name": "Aisha Khan",
+          "role": "Rentals & leasing",
+          "image": null
+        },
+        {
+          "name": "Tom Nguyen",
+          "role": "Commercial",
+          "image": null
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "default",
+      "header": {
+        "eyebrow": "Reviews",
+        "title": "Clients say",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "They found us the perfect home in three weeks.",
+          "author": "The Alvarez family"
+        },
+        {
+          "quote": "Honest advice and fast answers every time.",
+          "author": "Michael B."
+        },
+        {
+          "quote": "Sold above asking, stress free.",
+          "author": "Dana L."
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Contact",
+        "title": "Request a showing",
+        "subtitle": "Tell us what you are looking for and we will match you with an agent."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "pin",
+            "title": "Office",
+            "value": "900 Skyline Blvd, Your City, FL"
+          },
+          {
+            "icon": "phone",
+            "title": "Call",
+            "value": "(555) 010-9090"
+          },
+          {
+            "icon": "mail",
+            "title": "Email",
+            "value": "hello@yourdomain.com"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "phone",
+            "type": "tel",
+            "label": "Phone",
+            "options": null
+          },
+          {
+            "name": "interest",
+            "type": "select",
+            "label": "I am looking to",
+            "options": [
+              "Buy",
+              "Sell",
+              "Rent",
+              "Invest"
+            ]
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Tell us about your search",
+            "options": null
+          }
+        ],
+        "submit": "Request showing",
+        "success_message": "Thanks. An agent will reach out shortly.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Skyline Realty Local expertise for buyers, sellers and renters.",
+    "visit": [
+      "900 Skyline Blvd",
+      "Your City, FL",
+      "(555) 010-9090"
+    ]
+  }
+}

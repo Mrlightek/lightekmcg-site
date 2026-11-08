@@ -1,0 +1,285 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "law-hale-associates",
+  "industry": "law",
+  "meta": {
+    "brand": "Hale & Associates",
+    "title": "Hale & Associates — Trusted legal counsel",
+    "description": "Trusted legal counsel"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#faf7f1",
+      "bg2": "#f1ece1",
+      "card": "#fffdf8",
+      "ink": "#14231c",
+      "mut": "#5b6a62",
+      "line": "#e4dccb",
+      "line2": "#cfc4ab",
+      "a": "#0f3d2e",
+      "b": "#b08d57",
+      "on": "#faf7f1",
+      "r": "3px",
+      "fh": "'Cormorant Garamond',serif",
+      "fb": "'Inter',sans-serif",
+      "hbg": "rgba(250,247,241,.9)",
+      "g1": "#0f3d2e1c",
+      "g2": "#b08d5726",
+      "hw": "700",
+      "lr": "0"
+    },
+    "fonts_query": "family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=Inter:wght@400;500;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "practice",
+        "label": "Practice areas"
+      },
+      {
+        "id": "process",
+        "label": "Process"
+      },
+      {
+        "id": "faq",
+        "label": "FAQ"
+      },
+      {
+        "id": "contact",
+        "label": "Consultation"
+      }
+    ],
+    "cta": "Free consultation"
+  },
+  "hero": {
+    "eyebrow": "Corporate · Family · Real estate · Injury",
+    "title": "Counsel you can rely on.",
+    "subtitle": "Clear advice, decisive advocacy and a firm that treats every matter like our own.",
+    "primary_cta": "Free consultation",
+    "secondary_cta": "Practice areas",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "practice",
+      "type": "cards",
+      "background": "default",
+      "header": {
+        "eyebrow": "Practice areas",
+        "title": "How we help",
+        "subtitle": "Focused expertise across the matters that matter most."
+      },
+      "content": [
+        {
+          "icon": "scale",
+          "title": "Business law",
+          "text": "Formation, contracts, compliance and disputes for growing companies.",
+          "meta": ""
+        },
+        {
+          "icon": "home",
+          "title": "Real estate",
+          "text": "Closings, leases, title and landlord–tenant matters.",
+          "meta": ""
+        },
+        {
+          "icon": "heart",
+          "title": "Family law",
+          "text": "Compassionate guidance through divorce, custody and agreements.",
+          "meta": ""
+        },
+        {
+          "icon": "shield",
+          "title": "Personal injury",
+          "text": "Dedicated advocacy to recover what you are owed.",
+          "meta": ""
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "alt",
+      "header": null,
+      "content": [
+        {
+          "value": "25",
+          "label": "Years of practice"
+        },
+        {
+          "value": "1,800+",
+          "label": "Matters resolved"
+        },
+        {
+          "value": "98%",
+          "label": "Client satisfaction"
+        },
+        {
+          "value": "$40M",
+          "label": "Recovered for clients"
+        }
+      ]
+    },
+    {
+      "id": "process",
+      "type": "steps",
+      "background": "default",
+      "header": {
+        "eyebrow": "Process",
+        "title": "How we work together",
+        "subtitle": "Predictable, transparent and focused on your outcome."
+      },
+      "content": [
+        {
+          "title": "Consult",
+          "text": "A free, confidential conversation about your matter."
+        },
+        {
+          "title": "Strategy",
+          "text": "We outline options, timelines and costs in plain language."
+        },
+        {
+          "title": "Action",
+          "text": "We handle filings, negotiations and court appearances."
+        },
+        {
+          "title": "Resolution",
+          "text": "We pursue the best outcome and keep you informed throughout."
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Clients",
+        "title": "In their words",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "Professional, responsive and genuinely caring.",
+          "author": "R. Thompson"
+        },
+        {
+          "quote": "They turned a stressful situation into a manageable one.",
+          "author": "S. Patel"
+        },
+        {
+          "quote": "Outstanding result for our company.",
+          "author": "Meridian Group"
+        }
+      ]
+    },
+    {
+      "id": "faq",
+      "type": "faq",
+      "background": "default",
+      "header": {
+        "eyebrow": "FAQ",
+        "title": "Common questions",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "question": "Is the first consultation really free?",
+          "answer": "Yes. The initial consultation is complimentary and confidential."
+        },
+        {
+          "question": "How are fees structured?",
+          "answer": "We offer flat-fee, hourly and contingency arrangements depending on the matter. We explain costs up front."
+        },
+        {
+          "question": "How quickly can I speak to an attorney?",
+          "answer": "Most inquiries receive a response within one business day."
+        }
+      ]
+    },
+    {
+      "id": "cta",
+      "type": "cta",
+      "background": "alt",
+      "header": null,
+      "content": {
+        "title": "Your matter deserves a plan.",
+        "text": "Schedule a free consultation and get clear next steps.",
+        "button": "Book consultation"
+      }
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "default",
+      "header": {
+        "eyebrow": "Consultation",
+        "title": "Tell us about your matter",
+        "subtitle": "This form is confidential."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "pin",
+            "title": "Office",
+            "value": "100 Court Street, Suite 400, Your City, FL"
+          },
+          {
+            "icon": "phone",
+            "title": "Call",
+            "value": "(555) 010-1212"
+          },
+          {
+            "icon": "clock",
+            "title": "Hours",
+            "value": "Mon–Fri 8:30am–5:30pm"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "Email",
+            "options": null
+          },
+          {
+            "name": "area",
+            "type": "select",
+            "label": "Area of law",
+            "options": [
+              "Business",
+              "Real estate",
+              "Family",
+              "Personal injury",
+              "Other"
+            ]
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Brief description",
+            "options": null
+          }
+        ],
+        "submit": "Request consultation",
+        "success_message": "Thank you. An attorney will respond within one business day.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Hale & Associates Trusted counsel for businesses, families and individuals.",
+    "visit": [
+      "100 Court Street, Suite 400",
+      "Your City, FL",
+      "(555) 010-1212"
+    ]
+  }
+}

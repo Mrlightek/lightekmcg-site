@@ -5,3 +5,5 @@ gem "railties", "8.0.4"
 gem "sqlite3", "~> 2.7"
 gem "minitest", "~> 5.25"
 gem "uri", "~> 1.1"
+
+gem "faker", "~> 3.8"

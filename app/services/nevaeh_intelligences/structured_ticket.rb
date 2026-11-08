@@ -9,6 +9,7 @@ module NevaehIntelligences
       "site.page.create" => {"label" => "Create website page", "fields" => %w[site_id title slug], "outputs" => %w[site_id page_id]},
       "site.section.add" => {"label" => "Add page section", "fields" => %w[site_id page_id kind data], "outputs" => %w[site_id page_id section_id]},
       "studio.project.create" => {"label" => "Create Studio project", "fields" => %w[name description], "outputs" => %w[project_id production_id default_scene_id]},
+      "factory.construct.execute" => {"label" => "Run constructed service", "fields" => %w[release_id data], "outputs" => %w[release_id result sha256]},
       "content.generate" => {"label" => "Write a content draft", "fields" => %w[format context profile_id], "outputs" => %w[text format sha256]},
       "engineering.service.generate" => {"label" => "Implement reviewed metadata normalization service", "fields" => [], "outputs" => %w[path sha256 commit_sha branch]}
     }.freeze
@@ -123,7 +124,12 @@ module NevaehIntelligences
           dependency = id.is_a?(Integer) && id != ticket.id && Marlon::Ticket.find_by(id: id)
           raise Invalid, "Dependency ticket #{id} lacks verified resolution" unless dependency && dependency.status == "resolved" && dependency.extra_fields.to_h.dig("nevaeh", "execution_status") == "verified"
         end
-        articles = ([CAPABILITY] + order.fetch("inputs").fetch("sections").map { |step| step.fetch("action") }).uniq.flat_map do |key|
+        sections = order.fetch("inputs").fetch("sections")
+        constructed_keys = sections.filter_map do |step|
+          next unless step["action"] == "factory.construct.execute"
+          NevaehConstructionRelease.find(step.fetch("inputs").fetch("release_id")).nevaeh_construction.capability_key
+        end
+        articles = ([CAPABILITY] + sections.map { |step| step.fetch("action") } + constructed_keys).uniq.flat_map do |key|
           NevaehOrchestration::KnowledgeResolver.for(capability: key, additional_article_ids: fields.fetch("knowledge_article_ids", []))
         end.uniq(&:id)
         capabilities = NevaehCapability.order(:id).map do |record|

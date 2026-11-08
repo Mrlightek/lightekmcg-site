@@ -4,6 +4,11 @@ on:
     branches: [develop, main]
     paths:
       - 'app/**/nevaeh*'
+      - 'app/controllers/employee/software_library_controller.rb'
+      - 'app/views/employee/software_library/**'
+      - 'app/views/shared/_nevaeh_contextual_help.html.erb'
+      - 'app/services/gatekeeper/authorization_service.rb'
+      - 'docs/nevaeh/**'
       - 'app/**/nevaeh*/**'
       - 'app/services/studio/workers/workspace.rb'
       - 'app/services/script_builder/**'
@@ -30,9 +35,11 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
-      - run: bundle exec ruby test/standalone/nevaeh_control_center_render_test.rb
+      - run: bundle exec ruby test/standalone/nevaeh_digital_factory_test.rb
       - run: node --check public/lightek/nevaeh/control-center.js
       - run: node --check public/lightek/studio-app.js
+      - run: node --check public/lightek/nevaeh/factory.js
+      - run: node --check public/lightek/nevaeh/help.js
       - name: Check migration discovery
         run: |
           bundle exec ruby -ractive_record -e 'ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"); m = ActiveRecord::MigrationContext.new("db/migrate").migrations; abort "Duplicate migration versions" unless m.map(&:version).uniq.length == m.length; puts "Migration versions unique"'

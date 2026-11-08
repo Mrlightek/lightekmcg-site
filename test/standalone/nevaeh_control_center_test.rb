@@ -11,7 +11,11 @@ ActiveRecord::ConnectionAdapters::TableDefinition.class_eval do
 end
 require File.join(ROOT, "db/migrate/20261108010000_create_nevaeh_control_center")
 CreateNevaehControlCenter.new.migrate(:up)
-%w[services/nevaeh_intelligences/writing_engine models/concerns/nevaeh_inference
+require File.join(ROOT, "db/migrate/20261108140000_create_nevaeh_digital_factory")
+CreateNevaehDigitalFactory.new.migrate(:up)
+require File.join(ROOT, "app/models/concerns/nevaeh_neural_language")
+require File.join(ROOT, "app/models/nevaeh_language_model")
+%w[services/nevaeh_intelligences/canonical_json services/nevaeh_intelligences/editorial_direction services/nevaeh_intelligences/writing_engine models/concerns/nevaeh_inference
    models/nevaeh_inference_model models/nevaeh_writing_profile
    services/nevaeh_intelligences/workspace_navigation models/nevaeh_workspace_preference
    models/nevaeh_workflow models/nevaeh_workflow_run

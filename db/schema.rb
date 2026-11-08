@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_07_210000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2349,6 +2349,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_07_210000) do
     t.index ["slug"], name: "index_nevaeh_capabilities_on_slug", unique: true
   end
 
+  create_table "nevaeh_inference_models", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.jsonb "rules", default: [], null: false
+    t.jsonb "examples", default: [], null: false
+    t.jsonb "lexicon", default: {}, null: false
+    t.boolean "enabled", default: true, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "nevaeh_intelligences", force: :cascade do |t|
     t.string "name", null: false
     t.string "intent_key", null: false
@@ -2411,6 +2423,60 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_07_210000) do
     t.index ["correlation_id"], name: "index_nevaeh_test_runs_on_correlation_id"
     t.index ["marlon_ticket_id"], name: "index_nevaeh_test_runs_on_marlon_ticket_id"
     t.index ["run_id"], name: "index_nevaeh_test_runs_on_run_id", unique: true
+  end
+
+  create_table "nevaeh_workflow_runs", force: :cascade do |t|
+    t.bigint "nevaeh_workflow_id", null: false
+    t.bigint "actor_id", null: false
+    t.bigint "ticket_id"
+    t.string "request_key", null: false
+    t.string "status", default: "queued", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_nevaeh_workflow_runs_on_actor_id"
+    t.index ["nevaeh_workflow_id", "request_key"], name: "idx_nevaeh_run_request", unique: true
+    t.index ["nevaeh_workflow_id"], name: "index_nevaeh_workflow_runs_on_nevaeh_workflow_id"
+    t.index ["ticket_id"], name: "index_nevaeh_workflow_runs_on_ticket_id", unique: true
+  end
+
+  create_table "nevaeh_workflows", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.string "status", default: "draft", null: false
+    t.jsonb "sections", default: [], null: false
+    t.integer "interval_minutes"
+    t.datetime "next_run_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_workflows_on_creator_id"
+    t.index ["status", "next_run_at"], name: "index_nevaeh_workflows_on_status_and_next_run_at"
+  end
+
+  create_table "nevaeh_workspace_preferences", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.jsonb "navigation", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_nevaeh_workspace_preferences_on_user_id", unique: true
+  end
+
+  create_table "nevaeh_writing_profiles", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "format", null: false
+    t.string "provider", default: "rules", null: false
+    t.bigint "inference_model_id"
+    t.text "instructions"
+    t.jsonb "templates", default: [], null: false
+    t.jsonb "examples", default: [], null: false
+    t.boolean "enabled", default: true, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["inference_model_id"], name: "index_nevaeh_writing_profiles_on_inference_model_id"
   end
 
   create_table "nevaehs", force: :cascade do |t|
@@ -3157,6 +3223,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_07_210000) do
   add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
   add_foreign_key "nevaeh_intelligences", "nevaeh_capabilities"
+  add_foreign_key "nevaeh_workflow_runs", "nevaeh_workflows"
+  add_foreign_key "nevaeh_workflow_runs", "users", column: "actor_id"
+  add_foreign_key "nevaeh_workflows", "users", column: "creator_id"
+  add_foreign_key "nevaeh_workspace_preferences", "users"
+  add_foreign_key "nevaeh_writing_profiles", "nevaeh_inference_models", column: "inference_model_id"
   add_foreign_key "nevaehs", "users"
   add_foreign_key "posts", "communities"
   add_foreign_key "posts", "dymond_site_sites", column: "site_id"

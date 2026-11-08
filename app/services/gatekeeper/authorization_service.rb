@@ -46,6 +46,17 @@ module Gatekeeper
         end
       end
 
+      if capability_name.start_with?("factory.construct.")
+        begin
+          release = NevaehConstructionRelease.find(context["release_id"] || capability.metadata.to_h.fetch("release_id"))
+          return deny("Construction capability binding mismatch") unless release.nevaeh_construction_id == capability.metadata.to_h.fetch("construction_id")
+          NevaehIntelligences::Factory::Execution.authorize!(release: release, ticket: subject)
+          return allow(policy: "constructed_service_ticket_bound", reason: "Verified construction release and authorized structured ticket")
+        rescue KeyError, NevaehIntelligences::WorkOrder::Invalid, ActiveRecord::RecordNotFound => error
+          return deny(error.message)
+        end
+      end
+
       # Dedicated Gatekeeper policy; Nevaeh retains capability ownership.
       # This scope may authorize an audit entry only, never dispatch or retry.
       if context["authorization_scope"] == "nevaeh_recovery_audit_v2f"

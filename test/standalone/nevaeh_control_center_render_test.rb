@@ -4,6 +4,7 @@ require_relative "nevaeh_control_center_test"
 require "action_view"
 require "ostruct"
 require File.join(ROOT, "app/helpers/nevaeh_control_center_helper")
+require File.join(ROOT, "app/helpers/nevaeh_help_helper")
 module LightekPwa
   class Policy
     def self.administration_available_for?(*) = true
@@ -16,6 +17,7 @@ class NevaehControlCenterRenderTest < Minitest::Test
   def test_all_six_tabs_render_with_live_models
     view = ActionView::Base.with_empty_template_cache.new(ActionView::LookupContext.new([File.join(ROOT,'app/views')]),{},nil)
     view.extend(NevaehControlCenterHelper)
+    view.extend(NevaehHelpHelper)
     class << view
       def current_user = @preview_user
       def can?(*args) = true

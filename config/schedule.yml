@@ -35,3 +35,9 @@ nevaeh_workflow_sweep:
   class: "NevaehIntelligences::WorkflowSweepJob"
   queue: default
   active_job: true
+
+nevaeh_factory_training_recovery:
+  cron: "* * * * *"
+  class: "NevaehIntelligences::FactorySweepJob"
+  queue: default
+  active_job: true

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 require 'json'
 module NevaehIntelligences
-  module CanonicalJSON
+  module CanonicalJson
     module_function
     def normalize(value)
       case value

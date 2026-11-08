@@ -102,7 +102,7 @@ class NevaehDigitalFactoryTest < Minitest::Test
     release=NevaehIntelligences::Factory::Compiler.build!(construction:record,actor:@actor)
     refute release.update(definition:{})
     assert_raises(ArgumentError) { NevaehIntelligences::Factory::Runtime.call(definition:definition,inputs:{'name'=>123}) }
-    assert_equal NevaehIntelligences::CanonicalJSON.dump({'b'=>1,'a'=>2}),NevaehIntelligences::CanonicalJSON.dump({'a'=>2,'b'=>1})
+    assert_equal NevaehIntelligences::CanonicalJson.dump({'b'=>1,'a'=>2}),NevaehIntelligences::CanonicalJson.dump({'a'=>2,'b'=>1})
     release.reload
     assert_equal 'Welcome, A.',NevaehIntelligences::Factory::Compiler.load!(release)::Service.call(inputs:{'name'=>'A'})['greeting']
   end
@@ -142,10 +142,10 @@ class NevaehDigitalFactoryTest < Minitest::Test
   end
   def test_neural_optimizer_reduces_loss_and_changes_actual_weights
     network=NevaehIntelligences::Neural::Network.build(examples:examples,hidden_size:8,vocabulary_limit:64)
-    before=network.epoch(examples);fingerprint=NevaehIntelligences::CanonicalJSON.dump(network.state)
+    before=network.epoch(examples);fingerprint=NevaehIntelligences::CanonicalJson.dump(network.state)
     10.times { |epoch| network.epoch(examples,learning_rate:0.08,seed:epoch) }
     assert_operator network.epoch(examples),:<,before/2
-    refute_equal fingerprint,NevaehIntelligences::CanonicalJSON.dump(network.state)
+    refute_equal fingerprint,NevaehIntelligences::CanonicalJson.dump(network.state)
     assert_operator network.state['updates'],:>,0
     assert_equal 'Hello welcome to the studio',network.generate(prompt:'hello person',temperature:0)['text']
   end
@@ -225,6 +225,22 @@ class NevaehDigitalFactoryTest < Minitest::Test
     repeated=examples+[examples.first.dup]
     train,heldout=NevaehIntelligences::Neural::Training.split(repeated)
     assert_empty train.map { |row| row['prompt'] } & heldout.map { |row| row['prompt'] }
+  end
+  def test_canonical_json_cold_boots_through_zeitwerk
+    Dir.mktmpdir('nevaeh-autoload-') do |directory|
+      namespace=File.join(directory,'nevaeh_intelligences');FileUtils.mkdir_p(namespace)
+      FileUtils.cp(File.join(ROOT,'app/services/nevaeh_intelligences/canonical_json.rb'),File.join(namespace,'canonical_json.rb'))
+      script="require 'zeitwerk'; loader=Zeitwerk::Loader.new; loader.push_dir(ARGV.fetch(0)); loader.setup; loader.eager_load; puts NevaehIntelligences::CanonicalJson.dump({'b'=>2,'a'=>1})"
+      output,error,status=Open3.capture3(RbConfig.ruby,'-e',script,directory)
+      assert status.success?,error
+      assert_equal '{"a":1,"b":2}',output.strip
+    end
+  end
+  def test_canonical_json_constant_matches_rails_autoload_naming
+    expected=File.basename('canonical_json.rb','.rb').camelize
+    assert_equal 'CanonicalJson',expected
+    assert NevaehIntelligences.const_defined?(expected,false)
+    assert_equal '{"a":1,"b":2}',NevaehIntelligences.const_get(expected).dump({'b'=>2,'a'=>1})
   end
   def test_synthetic_corpus_is_reviewable_and_provenance_is_explicit
     generated=NevaehIntelligences::Neural::CorpusFactory.generate(count:10,topic:'Studio')

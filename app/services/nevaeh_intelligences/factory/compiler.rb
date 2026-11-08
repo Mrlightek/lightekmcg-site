@@ -13,12 +13,12 @@ module NevaehIntelligences
         Contract.validate!(definition, tests)
         # All user data is serialized as a dumped Ruby string. No source or class
         # names come from prose, model output, editorial notes or service labels.
-        literal = CanonicalJSON.dump(definition).dump
+        literal = CanonicalJson.dump(definition).dump
         namespace = "R#{Integer(release_id)}"
         service = "# frozen_string_literal: true\nrequire 'json'\nmodule NevaehConstructed\n  module #{namespace}\n    class Service\n      DEFINITION = JSON.parse(#{literal}).freeze\n      def self.call(inputs:)\n        NevaehIntelligences::Factory::Runtime.call(definition: DEFINITION, inputs: inputs)\n      end\n    end\n  end\nend\n"
         worker = "# frozen_string_literal: true\nmodule NevaehConstructed\n  module #{namespace}\n    class Worker\n      def self.perform(action, payload = {})\n        NevaehIntelligences::FactoryWorker.perform(action, payload.merge('release_id' => #{Integer(release_id)}))\n      end\n    end\n  end\nend\n"
         verifier = "# frozen_string_literal: true\nmodule NevaehConstructed\n  module #{namespace}\n    class Verifier\n      def self.verify!(inputs:, output:)\n        expected = Service.call(inputs: inputs)\n        raise ArgumentError, 'Construction acceptance mismatch' unless output == expected\n        true\n      end\n    end\n  end\nend\n"
-        cases = CanonicalJSON.dump(tests).dump
+        cases = CanonicalJson.dump(tests).dump
         test_source = "# frozen_string_literal: true\nrequire 'json'\nrequire 'minitest/autorun'\nrequire_relative 'service'\nclass Construction#{namespace}Test < Minitest::Test\n  def test_saved_examples\n    JSON.parse(#{cases}).each { |row| assert_equal row.fetch('expected'), NevaehConstructed::#{namespace}::Service.call(inputs: row.fetch('inputs')) }\n  end\nend\n"
         {'service.rb' => service, 'worker.rb' => worker, 'verifier.rb' => verifier, 'service_test.rb' => test_source}
       end
@@ -27,7 +27,7 @@ module NevaehIntelligences
         construction.with_lock do
           Contract.validate!(construction.definition, construction.sample_tests)
           release = construction.releases.create!(version: construction.releases.maximum(:version).to_i + 1,
-            definition: construction.definition, sample_tests: construction.sample_tests, fingerprint: Digest::SHA256.hexdigest(CanonicalJSON.dump([construction.definition, construction.sample_tests])))
+            definition: construction.definition, sample_tests: construction.sample_tests, fingerprint: Digest::SHA256.hexdigest(CanonicalJson.dump([construction.definition, construction.sample_tests])))
           source = artifacts(release_id: release.id, definition: release.definition, tests: release.sample_tests)
           # Persist the immutable source on initial insert, not an editable upload.
           release.update_columns(artifacts: source)
@@ -36,7 +36,7 @@ module NevaehIntelligences
         end
       end
       def load!(release)
-        raise ArgumentError, 'Construction fingerprint mismatch' unless release.fingerprint == Digest::SHA256.hexdigest(CanonicalJSON.dump([release.definition, release.sample_tests]))
+        raise ArgumentError, 'Construction fingerprint mismatch' unless release.fingerprint == Digest::SHA256.hexdigest(CanonicalJson.dump([release.definition, release.sample_tests]))
         expected = artifacts(release_id: release.id, definition: release.definition, tests: release.sample_tests)
         raise ArgumentError, 'Generated artifacts do not match the saved contract' unless expected == release.artifacts
         @mutex ||= Mutex.new
@@ -88,7 +88,7 @@ module NevaehIntelligences
           Gatekeeper::LessonService.record!(key: "nevaeh-construction-#{construction.key}-v#{release.version}",
             title: "Constructed service: #{construction.name}", capability: construction.capability_key,
             symptom: construction.description.presence || construction.name, cause: 'Verified factory construction',
-            remediation: CanonicalJSON.dump(release.definition), verification: CanonicalJSON.dump(release.verification),
+            remediation: CanonicalJson.dump(release.definition), verification: CanonicalJson.dump(release.verification),
             metadata: {'nevaeh_capability' => construction.capability_key, 'construction_id' => construction.id, 'release_id' => release.id, 'fingerprint' => release.fingerprint, 'auto_executable' => false})
           construction.update!(active_release: release, status: 'active')
           release.update!(status: 'active')

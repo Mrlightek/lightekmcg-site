@@ -123,7 +123,7 @@ module NevaehIntelligences
         end
         text = generated.join(' ').gsub(/\s+([,.!?;:])/, '\\1').gsub(/([(\[])[ ]+/, '\\1')
         text = text.sub(/\A\p{L}/) { |letter| letter.upcase }
-        {'text' => text, 'tokens' => generated.length, 'engine' => 'native_neural', 'checkpoint_sha256' => Digest::SHA256.hexdigest(CanonicalJSON.dump(@state))}
+        {'text' => text, 'tokens' => generated.length, 'engine' => 'native_neural', 'checkpoint_sha256' => Digest::SHA256.hexdigest(CanonicalJson.dump(@state))}
       end
     end
   end

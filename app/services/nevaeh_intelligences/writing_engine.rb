@@ -64,7 +64,7 @@ module NevaehIntelligences
       when "neural"
         model = NevaehLanguageModel.find(@profile.fetch("language_model_id"))
         raise ArgumentError, "This model is internal to administrators" unless model.available_to?(@actor)
-        inference = model.neural_reply(prompt: "Write a #{@format}. " + CanonicalJSON.dump(@context))
+        inference = model.neural_reply(prompt: "Write a #{@format}. " + CanonicalJson.dump(@context))
         inference.fetch("text")
       else
         raise ArgumentError, "Unknown writing provider"

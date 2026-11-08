@@ -5,7 +5,7 @@ module NevaehNeuralLanguage
     raise ArgumentError, 'This language model is disabled' unless enabled?
     checkpoint = active_checkpoint
     raise ArgumentError, 'Train and activate a passing checkpoint first' unless checkpoint && checkpoint.status == 'active' && checkpoint.nevaeh_language_model_id == id
-    expected = Digest::SHA256.hexdigest(NevaehIntelligences::CanonicalJSON.dump(checkpoint.weights))
+    expected = Digest::SHA256.hexdigest(NevaehIntelligences::CanonicalJson.dump(checkpoint.weights))
     raise ArgumentError, 'Checkpoint checksum mismatch' unless checkpoint.sha256 == expected
     past = history.last(3).map { |turn| "User: #{turn.prompt}\nNevaeh: #{turn.response}" }.join("\n")
     network = NevaehIntelligences::Neural::Network.new(checkpoint.weights)

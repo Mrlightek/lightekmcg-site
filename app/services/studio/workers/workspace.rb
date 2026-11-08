@@ -16,13 +16,13 @@ module Studio
       end
 
       def writing_profiles
-        {profiles: NevaehWritingProfile.where(enabled: true).order(:name).limit(100).map { |profile| {id: profile.id, name: profile.name, format: profile.format, provider: profile.provider} }}
+        {profiles: NevaehWritingProfile.where(enabled: true).includes(:language_model).order(:name).limit(100).select { |p| p.provider != "neural" || p.language_model&.available_to?(@access.user) }.map { |profile| {id: profile.id, name: profile.name, format: profile.format, provider: profile.provider} }}
       end
 
       def content_generate
         @access.scene!(@payload.fetch("scene_id"))
         profile = NevaehWritingProfile.where(enabled: true).find(@payload["profile_id"]) if @payload["profile_id"].present?
-        NevaehIntelligences::WritingEngine.generate(format: @payload.fetch("format"), context: @payload.fetch("context"), profile: profile&.contract)
+        NevaehIntelligences::WritingEngine.generate(format: @payload.fetch("format"), context: @payload.fetch("context"), profile: profile&.contract, actor: @access.user)
       end
 
       def scene_save

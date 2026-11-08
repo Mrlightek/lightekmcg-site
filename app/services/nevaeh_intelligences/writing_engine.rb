@@ -27,11 +27,12 @@ module NevaehIntelligences
       true
     end
 
-    def self.generate(format:, context:, profile: nil)
-      new(format: format, context: context, profile: profile).call
+    def self.generate(format:, context:, profile: nil, actor: nil)
+      new(format: format, context: context, profile: profile, actor: actor).call
     end
 
-    def initialize(format:, context:, profile: nil)
+    def initialize(format:, context:, profile: nil, actor: nil)
+      @actor = actor
       @format = format.to_s
       raise ArgumentError, "Unsupported writing format" unless FORMATS.include?(@format)
       @profile = profile || {"format" => @format, "provider" => "rules", "templates" => [], "examples" => []}
@@ -60,10 +61,16 @@ module NevaehIntelligences
         raise ArgumentError, "This inference model is disabled" unless model.enabled?
         inference = model.infer(format: @format, context: @supplied_context)
         inference.fetch("text")
+      when "neural"
+        model = NevaehLanguageModel.find(@profile.fetch("language_model_id"))
+        raise ArgumentError, "This model is internal to administrators" unless model.available_to?(@actor)
+        inference = model.neural_reply(prompt: "Write a #{@format}. " + CanonicalJSON.dump(@context))
+        inference.fetch("text")
       else
         raise ArgumentError, "Unknown writing provider"
       end
-      {"text" => text, "format" => @format, "provider" => provider, "draft" => true,
+      direction = EditorialDirection.apply(text: text, notes: @profile["instructions"], context: @context)
+      {"text" => direction[:text], "editorial" => direction.except(:text), "format" => @format, "provider" => provider, "draft" => true,
         "profile_sha256" => Digest::SHA256.hexdigest(JSON.generate(@profile)), "context" => @context}.tap { |result| result["inference"] = inference.except("text", "context") if inference }
     end
 

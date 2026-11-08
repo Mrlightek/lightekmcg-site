@@ -1,5 +1,7 @@
 # Nevaeh Control Center
 
+See [Digital Factory](digital_factory.md) for construction, neural training, conversation, editorial directives and the internal Software Library.
+
 Open **Dashboard → Nevaeh Control Center** (`/employee/nevaeh/control-center`). Workers, abilities, execution history, writing services, inference models and personal navigation live in one dashboard. Existing configuration, code-generation and ticket consoles remain available.
 
 ## Native inference
@@ -23,7 +25,7 @@ In **Inference models**, create a model and add rules through the editor. Save v
 
 Examples act as additional candidate plans. Required context fields must be explicitly supplied; generated defaults do not satisfy a requirement. A topic with no matching plan uses the built-in format. The test bench shows selected rule, score, matched terms, fallback status and model fingerprint. Scores measure matching, not statistical confidence. Save before testing.
 
-Create a writing service with the **My inference model** engine and select the model. Rule-based writing services can instead supply their own text blocks. Editorial notes are documentation; they are not interpreted as executable instructions. Supported formats are scripts, captions, posts and descriptions. Explicit context preserves character names, setting, goals, obstacles and facts. Faker supplies fictional example names; it does not supply arbitrary prose or factual knowledge.
+Create a writing service with the **My inference model** engine and select the model. Rule-based writing services can instead supply their own text blocks. Editorial notes now accept supported directives through EditorialDirection; see Digital Factory for tone, word limits, opening and closing instructions. Supported formats are scripts, captions, posts and descriptions. The Digital Factory iteration adds a native neural engine alongside rules and symbolic inference. Explicit context preserves character names, setting, goals, obstacles and facts. Faker supplies fictional example names; it does not supply arbitrary prose or factual knowledge.
 
 In **Studio → Script**, load saved writing services, generate a draft, review it and choose **Use as scene script** or copy the result. Save the workspace to retain the applied script. Publication continues through the existing publication workflow. The two legacy dialogue generators now use connected scene beats instead of unrelated Faker jargon.
 

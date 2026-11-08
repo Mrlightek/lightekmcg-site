@@ -97,6 +97,28 @@ Rails.application.routes.draw do
   resources :dashboard_marketplace_connections, path: "/dashboard/marketplace/connections", controller: "dashboard/marketplace_connections", except: %i[show destroy]
   # END LIGHTEK MARKETPLACE V8.7
   get "/api/studio/capabilities", to: "api/studio/capabilities#index", as: :api_studio_capabilities
+  get "/employee/software-library", to: "employee/software_library#index", as: :employee_software_library
+  get "/employee/nevaeh/help/:topic", to: "employee/nevaeh_help#show", as: :employee_nevaeh_help
+  get "/employee/nevaeh/factory", to: "employee/nevaeh_factory#index", as: :employee_nevaeh_factory
+  post "/employee/nevaeh/factory/constructions", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_constructions
+  patch "/employee/nevaeh/factory/constructions/:id", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_construction
+  post "/employee/nevaeh/factory/constructions/:id/build", to: "employee/nevaeh_factory#build", as: :employee_nevaeh_factory_build_construction
+  post "/employee/nevaeh/factory/constructions/:id/pause", to: "employee/nevaeh_factory#pause", as: :employee_nevaeh_factory_pause_construction
+  post "/employee/nevaeh/factory/releases/:id/activate", to: "employee/nevaeh_factory#activate", as: :employee_nevaeh_factory_activate_release
+  post "/employee/nevaeh/factory/releases/:id/worker", to: "employee/nevaeh_factory#create_worker", as: :employee_nevaeh_factory_release_worker
+  get "/employee/nevaeh/factory/releases/:id/artifacts", to: "employee/nevaeh_factory#artifacts", as: :employee_nevaeh_factory_release_artifacts
+  post "/employee/nevaeh/factory/datasets", to: "employee/nevaeh_factory#save_dataset", as: :employee_nevaeh_factory_datasets
+  patch "/employee/nevaeh/factory/datasets/:id", to: "employee/nevaeh_factory#save_dataset", as: :employee_nevaeh_factory_dataset
+  post "/employee/nevaeh/factory/datasets/generate", to: "employee/nevaeh_factory#generate_dataset", as: :employee_nevaeh_factory_generate_dataset
+  post "/employee/nevaeh/factory/datasets/:id/approve", to: "employee/nevaeh_factory#approve_dataset", as: :employee_nevaeh_factory_approve_dataset
+  post "/employee/nevaeh/factory/models", to: "employee/nevaeh_factory#save_language_model", as: :employee_nevaeh_factory_language_models
+  patch "/employee/nevaeh/factory/models/:id", to: "employee/nevaeh_factory#save_language_model", as: :employee_nevaeh_factory_language_model
+  post "/employee/nevaeh/factory/models/:id/train", to: "employee/nevaeh_factory#train", as: :employee_nevaeh_factory_train_model
+  post "/employee/nevaeh/factory/training/:id/cancel", to: "employee/nevaeh_factory#cancel_training", as: :employee_nevaeh_factory_cancel_training
+  post "/employee/nevaeh/factory/checkpoints/:id/activate", to: "employee/nevaeh_factory#activate_checkpoint", as: :employee_nevaeh_factory_activate_checkpoint
+  post "/employee/nevaeh/factory/conversations", to: "employee/nevaeh_factory#conversation", as: :employee_nevaeh_factory_conversations
+  post "/employee/nevaeh/factory/conversations/:id/reply", to: "employee/nevaeh_factory#reply", as: :employee_nevaeh_factory_reply
+
   get "/employee/nevaeh/control-center", to: "employee/nevaeh_control_center#index", as: :employee_nevaeh_control_center
   post "/employee/nevaeh/workers", to: "employee/nevaeh_control_center#save_workflow", as: :employee_nevaeh_workers
   patch "/employee/nevaeh/workers/:id", to: "employee/nevaeh_control_center#save_workflow", as: :employee_nevaeh_worker

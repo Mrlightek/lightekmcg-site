@@ -38,7 +38,7 @@ module Employee
 
     def save_profile
       @profile = params[:id].present? ? NevaehWritingProfile.find(params[:id]) : NevaehWritingProfile.new
-      values = params.require(:profile).permit(:name, :format, :provider, :inference_model_id, :instructions, :enabled, :lock_version)
+      values = params.require(:profile).permit(:name, :format, :provider, :inference_model_id, :language_model_id, :instructions, :enabled, :lock_version)
       @profile.assign_attributes(values)
       @profile.templates = params[:templates].to_s.lines.map(&:strip).reject(&:empty?)
       @profile.examples = params[:examples].to_s.split(/\n\s*---\s*\n/).map(&:strip).reject(&:empty?)
@@ -53,7 +53,7 @@ module Employee
     def generate
       profile = NevaehWritingProfile.where(enabled: true).find(params[:profile_id]) if params[:profile_id].present?
       context = params.require(:context).permit(*NevaehIntelligences::WritingEngine::TOKENS).to_h
-      result = NevaehIntelligences::WritingEngine.generate(format: params.require(:format), context: context, profile: profile&.contract)
+      result = NevaehIntelligences::WritingEngine.generate(format: params.require(:format), context: context, profile: profile&.contract, actor: current_user)
       render json: result
     rescue ArgumentError => error
       render json: {error: error.message}, status: :unprocessable_entity
@@ -103,6 +103,7 @@ module Employee
       @runs = NevaehWorkflowRun.includes(:nevaeh_workflow, :ticket).order(id: :desc).limit(50)
       @profiles = NevaehWritingProfile.order(:name).limit(100)
       @inference_models = NevaehInferenceModel.order(:name).limit(100)
+      @language_models = NevaehLanguageModel.order(:name).limit(100)
       @inference_model = nil unless preserve
       @inference_model ||= params[:model_id].present? ? NevaehInferenceModel.find(params[:model_id]) : NevaehInferenceModel.new(rules: [], examples: [], lexicon: {}, enabled: true)
       @workflow = nil unless preserve

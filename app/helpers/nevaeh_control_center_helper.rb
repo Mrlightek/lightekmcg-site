@@ -17,6 +17,10 @@ module NevaehControlCenterHelper
     end
     if current_user.employee? && can?(:read, Marlon::Ticket)
       rows << item.call("nevaeh", "Nevaeh Control Center", main_app.employee_nevaeh_control_center_path, "ti-brain", "Nevaeh")
+      if can?(:manage, NevaehWorkflow)
+        rows << item.call("factory", "Digital Factory", main_app.employee_nevaeh_factory_path, "ti-building-factory", "Nevaeh")
+        rows << item.call("software-library", "Software Library", main_app.employee_software_library_path, "ti-books", "Nevaeh")
+      end
       rows << item.call("capabilities", "Capabilities", main_app.employee_nevaeh_capabilities_path, "ti-box", "Nevaeh")
       rows << item.call("tickets", "Support Tickets", main_app.employee_tickets_path, "ti-ticket", "Nevaeh")
       rows << item.call("new-ticket", "New Ticket", main_app.new_employee_ticket_path, "ti-plus", "Nevaeh") if can?(:create, Marlon::Ticket)

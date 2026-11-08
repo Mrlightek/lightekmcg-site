@@ -1,0 +1,7 @@
+<% if current_user&.persisted? && can?(:manage, NevaehWorkflow) %>
+<link rel="stylesheet" href="/lightek/nevaeh/help.css">
+<dialog class="nv-help-dialog" data-nevaeh-help-dialog aria-labelledby="nv-help-title">
+  <div class="nv-help-content"><header><span>LIGHTEK / GUIDE</span><button type="button" data-nevaeh-help-close aria-label="Close tutorial">×</button></header><h2 id="nv-help-title">Guide</h2><div data-nevaeh-help-body role="status"></div><a data-nevaeh-help-document href="<%= main_app.employee_software_library_path %>">Open Software Library →</a></div>
+</dialog>
+<script src="/lightek/nevaeh/help.js" defer></script>
+<% end %>

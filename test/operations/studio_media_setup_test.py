@@ -27,8 +27,25 @@ class StudioMediaSetupTest(unittest.TestCase):
             self.assertEqual('1',probe[probe.index('--cpus')+1])
             self.assertEqual(probe[probe.index('--network')+1],'none')
             self.assertIn('LIGHTEK_BLENDER_RUNTIME_READY=',output)
-    def test_normal_deployment_installs_engine_before_starting_workers_and_queues_starter_files(self):
+    def test_normal_deployment_installs_engine_before_starting_workers(self):
         deploy=(ROOT/'lib/scripts/gatekeeper/deploy_project.sh').read_text()
         self.assertLess(deploy.index('bash lib/scripts/setup_studio_media.sh'),deploy.index('systemctl restart "${SIDEKIQ_SERVICE}"'))
         self.assertIn('studio:blender:bootstrap',deploy)
         self.assertLess(deploy.index('setup_studio_docker_access.py'),deploy.index('bash lib/scripts/setup_studio_media.sh'))
+
+    def test_demo_imports_require_explicit_opt_in_and_follow_web_health(self):
+        deploy=(ROOT/'lib/scripts/gatekeeper/deploy_project.sh').read_text()
+        phase=deploy.split('# Optional library population runs only after',1)[1].split('SHA=',1)[0]
+        phase='# Optional library population runs only after'+phase
+        self.assertGreater(deploy.index('# Optional library population'),deploy.index('ERROR: healthcheck failed'))
+        for value,expected in [(None,False),('0',False),('1',True)]:
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
+                trace=Path(directory)/'calls'
+                environment=dict(os.environ,APP_DOMAIN='example.com',TRACE=str(trace))
+                environment.pop('LIGHTEK_STUDIO_BOOTSTRAP_DEMOS',None)
+                if value is not None:environment['LIGHTEK_STUDIO_BOOTSTRAP_DEMOS']=value
+                script='set -euo pipefail\nrun_rails() { printf "%s\\n" "$*" >> "$TRACE"; }\n'+phase
+                result=subprocess.run(['bash'],input=script,text=True,capture_output=True,env=environment)
+                self.assertEqual(result.returncode,0,result.stderr)
+                self.assertEqual(trace.exists(),expected)
+                if expected:self.assertIn('studio:blender:bootstrap',trace.read_text())

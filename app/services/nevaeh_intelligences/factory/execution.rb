@@ -23,12 +23,12 @@ module NevaehIntelligences
         namespace = Compiler.load!(release)
         output = namespace::Service.call(inputs: inputs)
         namespace::Verifier.verify!(inputs: inputs, output: output)
-        {'release_id' => release.id, 'result' => output, 'fingerprint' => release.fingerprint, 'sha256' => Digest::SHA256.hexdigest(CanonicalJSON.dump(output))}
+        {'release_id' => release.id, 'result' => output, 'fingerprint' => release.fingerprint, 'sha256' => Digest::SHA256.hexdigest(CanonicalJson.dump(output))}
       end
       def verify!(release:, inputs:, output:)
         raise WorkOrder::Invalid, 'Construction receipt revision mismatch' unless output['release_id'] == release.id && output['fingerprint'] == release.fingerprint
         Compiler.load!(release)::Verifier.verify!(inputs: inputs, output: output.fetch('result'))
-        raise WorkOrder::Invalid, 'Construction receipt checksum mismatch' unless output['sha256'] == Digest::SHA256.hexdigest(CanonicalJSON.dump(output.fetch('result')))
+        raise WorkOrder::Invalid, 'Construction receipt checksum mismatch' unless output['sha256'] == Digest::SHA256.hexdigest(CanonicalJson.dump(output.fetch('result')))
         true
       end
     end

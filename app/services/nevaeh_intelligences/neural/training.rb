@@ -14,7 +14,7 @@ module NevaehIntelligences
           model.training_runs.find_or_create_by!(request_key: request_key) do |run|
             run.actor = actor; run.nevaeh_training_dataset = dataset; run.epochs = Integer(epochs)
             run.snapshot = {'examples' => dataset.examples, 'provenance' => dataset.provenance,
-              'dataset_sha256' => Digest::SHA256.hexdigest(CanonicalJSON.dump(dataset.examples)),
+              'dataset_sha256' => Digest::SHA256.hexdigest(CanonicalJson.dump(dataset.examples)),
               'hidden_size' => model.hidden_size, 'vocabulary_limit' => model.vocabulary_limit}
           end
         end
@@ -31,7 +31,7 @@ module NevaehIntelligences
         run.with_lock do
           return unless run.status == 'queued'
           raise ArgumentError, 'Training permission revoked' unless Ability.new(run.actor.reload).can?(:manage, NevaehLanguageModel)
-          raise ArgumentError, 'Dataset approval changed; request training again after review' unless run.nevaeh_training_dataset.reload.status == 'approved' && Digest::SHA256.hexdigest(CanonicalJSON.dump(run.nevaeh_training_dataset.examples)) == run.snapshot['dataset_sha256']
+          raise ArgumentError, 'Dataset approval changed; request training again after review' unless run.nevaeh_training_dataset.reload.status == 'approved' && Digest::SHA256.hexdigest(CanonicalJson.dump(run.nevaeh_training_dataset.examples)) == run.snapshot['dataset_sha256']
           run.update!(status: 'running', started_at: Time.current, heartbeat_at: Time.current, lease_token: token, error: nil)
         end
         train, heldout = split(run.snapshot.fetch('examples'))
@@ -59,7 +59,7 @@ module NevaehIntelligences
         run.with_lock do
           raise Cancelled, 'Training cancelled or lease replaced' unless run.status == 'running' && run.lease_token == token
           checkpoint = NevaehLanguageCheckpoint.create!(nevaeh_training_run: run, nevaeh_language_model: run.nevaeh_language_model,
-            weights: network.state, sha256: Digest::SHA256.hexdigest(CanonicalJSON.dump(network.state)), metrics: metrics, status: passed ? 'verified' : 'candidate')
+            weights: network.state, sha256: Digest::SHA256.hexdigest(CanonicalJson.dump(network.state)), metrics: metrics, status: passed ? 'verified' : 'candidate')
           run.update!(status: 'completed', metrics: metrics.merge('checkpoint_id' => checkpoint.id), lease_token: nil, heartbeat_at: Time.current)
         end
       rescue Cancelled
@@ -77,7 +77,7 @@ module NevaehIntelligences
         checkpoint.nevaeh_language_model.with_lock do
           raise ArgumentError, 'Checkpoint has not passed held-out acceptance' unless checkpoint.status.in?(%w[verified active]) && checkpoint.metrics['acceptance_passed'] == true
           Network.new(checkpoint.weights).validate!
-          raise ArgumentError, 'Checkpoint checksum mismatch' unless checkpoint.sha256 == Digest::SHA256.hexdigest(CanonicalJSON.dump(checkpoint.weights))
+          raise ArgumentError, 'Checkpoint checksum mismatch' unless checkpoint.sha256 == Digest::SHA256.hexdigest(CanonicalJson.dump(checkpoint.weights))
           checkpoint.update!(status: 'active')
           checkpoint.nevaeh_language_model.update!(active_checkpoint: checkpoint)
         end

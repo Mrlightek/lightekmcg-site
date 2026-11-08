@@ -41,7 +41,8 @@ class Api::ReservationFederationController < ActionController::Base
       end
     end
     render json: {cadence: schedule.cadence, enabled: schedule.enabled?, next_run_at: schedule.next_run_at.iso8601,
-      connect_ready: @peer.merchant.stripe_connect_ready?, last_error: schedule.last_error,
+      connect_ready: @peer.merchant.stripe_connect_ready?, connect_account_id: @peer.merchant.stripe_connect_account_id,
+      connect_details_submitted: @peer.merchant.stripe_connect_details_submitted, connect_payouts_enabled: @peer.merchant.stripe_connect_payouts_enabled, last_error: schedule.last_error,
       merchant_url: "#{LightekReservations::Federation::Issuer.origin}/my/resort-earnings?peer=#{@peer.key}"}
   end
   private

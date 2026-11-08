@@ -10,12 +10,12 @@ module LightekCommerce
       end
       return unless %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.expired].include?(event.type)
       session = event.data.object
-      order_id = session.metadata.to_h["lightek_commerce_order_id"].to_s
-      namespace = session.metadata.to_h['lightek_host_key'].presence
+      order_id = session.metadata.to_h.stringify_keys["lightek_commerce_order_id"].to_s
+      namespace = session.metadata.to_h.stringify_keys['lightek_host_key'].presence
       order = namespace ? Order.find_by(id: order_id, payment_namespace: namespace) : Order.find_by(id: order_id)
       return nil if namespace && !order # Another isolated Lightek installation.
       raise Rejected, "Unknown commerce order" unless order
-      raise Rejected, "Mismatched site" unless session.metadata.to_h["lightek_site_id"].to_s == order.site_id.to_s
+      raise Rejected, "Mismatched site" unless session.metadata.to_h.stringify_keys["lightek_site_id"].to_s == order.site_id.to_s
       raise Rejected, "Mismatched checkout" unless session.id == order.payment_reference
       raise Rejected, "Mismatched currency" unless session.currency.to_s.downcase == order.currency
 

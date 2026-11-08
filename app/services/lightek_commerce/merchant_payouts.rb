@@ -57,6 +57,7 @@ module LightekCommerce
         raise Invalid, "Order does not belong to your store" unless
           LightekSettings::WebsiteIdentity.sites_for(merchant).where(tenant: merchant).exists?(id: order.site_id)
         return order if order.merchant_transfer_ref.present?
+        raise Invalid, "Only Stripe-confirmed store payments may fund merchant transfers" unless order.payment_provider == "stripe" && order.payment_reference.to_s.start_with?("cs_")
         raise Invalid, "Only fulfilled, nonrefunded orders are eligible" unless order.status == "fulfilled"
         raise Invalid, "Order is not paid" unless order.paid_at.present?
         raise Invalid, "Outstanding refund prevents payout" if order.refunds.where(status: "pending").exists?

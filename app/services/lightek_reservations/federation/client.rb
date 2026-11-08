@@ -8,6 +8,7 @@ module LightekReservations
       CONSUMER = name.freeze
       def self.config(site) = site&.manifest.to_h&.fetch('lightek_reservation_federation', nil)
       def initialize(site)
+        @site = site
         @config = self.class.config(site) || raise(Unavailable, 'This server is not connected to the reservation network')
         @origin = URI.parse(@config.fetch('origin'))
         raise Unavailable, 'Invalid reservation network origin' unless @origin.is_a?(URI::HTTPS) && @origin.host.present? && !@origin.userinfo && @origin.path.in?(['','/']) && !@origin.query && !@origin.fragment
@@ -32,6 +33,23 @@ module LightekReservations
         raise Unavailable, 'Reservation network is temporarily unavailable. Existing bookings are preserved.'
       ensure
         secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
+      end
+      def synchronize_payouts!(merchant:)
+        raise Unavailable, 'Payout connection belongs to another merchant' unless @site.tenant == merchant
+        data = request('payouts')
+        merchant.update!(stripe_connect_account_id: data['connect_account_id'],
+          stripe_connect_details_submitted: data['connect_details_submitted'] == true,
+          stripe_connect_payouts_enabled: data['connect_payouts_enabled'] == true)
+        existing = LightekCommerce::PayoutSchedule.find_by(merchant: merchant)
+        schedule = existing || LightekCommerce::PayoutSchedule.for!(merchant)
+        schedule.with_lock do
+          attributes = {cadence: data.fetch('cadence'), enabled: data.fetch('enabled')}
+          if !existing || schedule.cadence != attributes[:cadence] || schedule.enabled? != attributes[:enabled]
+            attributes[:next_run_at] = Time.iso8601(data.fetch('next_run_at'))
+          end
+          schedule.update!(attributes)
+        end
+        data
       end
       def checkout(attributes)
         data = request('intents', body: attributes, method: :post)

@@ -16,7 +16,7 @@ module LightekCommerceStripeRouting
     types = %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.expired]
     return false unless types.include?(event.type)
 
-    event.data.object.metadata.to_h["lightek_commerce_order_id"].to_s != ""
+    event.data.object.metadata.to_h.stringify_keys["lightek_commerce_order_id"].to_s != ""
   end
 end
 

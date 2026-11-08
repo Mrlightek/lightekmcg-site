@@ -4,6 +4,7 @@ require 'active_record'
 require 'active_support/all'
 require 'minitest/autorun'
 require 'ostruct'
+require 'stripe'
 require 'pathname'
 ROOT = Pathname.new(File.expand_path('../..', __dir__))
 module Rails
@@ -17,7 +18,7 @@ ActiveRecord::Base.establish_connection(ENV.fetch('RESERVATIONS_DATABASE_URL', '
 ActiveRecord::Migration.verbose = false
 ActiveRecord::ConnectionAdapters::TableDefinition.class_eval { alias_method :jsonb, :json } if ActiveRecord::Base.connection.adapter_name == 'SQLite'
 ActiveRecord::Schema.define do
-  create_table(:users, force: :cascade) { |t| t.string :email_address; t.string :first_name; t.string :role; t.string :stripe_connect_account_id }
+  create_table(:users, force: :cascade) { |t| t.string :email_address; t.string :first_name; t.string :role; t.string :stripe_connect_account_id; t.boolean :stripe_connect_details_submitted; t.boolean :stripe_connect_payouts_enabled }
   create_table(:dymond_site_sites, force: :cascade) { |t| t.string :name; t.string :host; t.string :tenant_type; t.integer :tenant_id; t.json :manifest, default: {} }
 end
 %w[20261028101500_create_lightek_commerce_products 20261028113000_create_lightek_commerce_orders 20261028160000_add_commerce_refund_tracking 20261028195000_add_commerce_fulfillment_tracking 20261028230000_add_commerce_payout_tracking 20261108190000_create_lightek_resort_reservations 20261108200000_add_reservation_federation].each do |name|
@@ -210,7 +211,8 @@ class ReservationsChecks < Minitest::Test
       payment_status: 'paid', status: 'complete', amount_subtotal: order.subtotal_cents, amount_total: order.total_cents,
       total_details: OpenStruct.new(amount_tax: 0, amount_shipping: 0)}.merge(overrides)
     order.update!(payment_reference: 'cs_test', payment_provider: 'stripe')
-    OpenStruct.new(type: 'checkout.session.completed', data: OpenStruct.new(object: OpenStruct.new(values)))
+    values[:total_details] = values[:total_details].to_h
+    Stripe::Event.construct_from(type: 'checkout.session.completed', data: {object: values})
   end
   def active_server
     reservation = reserve(resource: server, start: 1.minute.from_now)
@@ -435,7 +437,7 @@ class ReservationsChecks < Minitest::Test
     assert_equal 7, schedule.interval_days
   end
   def fulfilled_order(site: @site)
-    order = LightekCommerce::Order.create!(site: site, customer_email: @guest.email_address, total_cents: 10000, subtotal_cents: 10000, status: 'fulfilled', paid_at: Time.current)
+    order = LightekCommerce::Order.create!(site: site, customer_email: @guest.email_address, total_cents: 10000, subtotal_cents: 10000, status: 'fulfilled', paid_at: Time.current, payment_provider: 'stripe', payment_reference: 'cs_test_fulfilled')
     order
   end
   def test_automatic_release_is_idempotent

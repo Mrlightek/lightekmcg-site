@@ -2,6 +2,17 @@ module LightekCommerce
   class ScheduledPayoutsJob < ApplicationJob
     queue_as :default
     def perform
+      # Existing storefront payments keep their established processor flow.
+      # Only the public Connect destination and schedule are synchronized; no
+      # platform secret or bank account number is copied between instances.
+      DymondSite::Site.find_each do |site|
+        next unless LightekReservations::Federation::Client.config(site) && site.tenant.is_a?(User)
+        begin
+          LightekReservations::Federation::Client.new(site).synchronize_payouts!(merchant: site.tenant)
+        rescue LightekReservations::Federation::Client::Unavailable => error
+          PayoutSchedule.for!(site.tenant).update!(last_error: error.message)
+        end
+      end
       # Existing merchants receive the same default as newly onboarded merchants.
       User.where.not(stripe_connect_account_id: [nil, '']).find_each { |merchant| PayoutSchedule.for!(merchant) }
       PayoutSchedule.where(enabled: true).where('next_run_at <= ?', Time.current).find_each do |schedule|

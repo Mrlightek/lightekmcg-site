@@ -39,7 +39,7 @@ module LightekCommerce
       raise Unavailable, "Order is not payable" unless order.status == "pending_payment" && order.payment_provider == "stripe"
       Stripe.api_key = DymondBank::StripeCredentials.secret_key
       session = Stripe::Checkout::Session.retrieve(order.payment_reference)
-      metadata = session.metadata.to_h
+      metadata = session.metadata.to_h.stringify_keys
       raise Unavailable, "Checkout does not match this order" unless session.id == order.payment_reference &&
         metadata["lightek_commerce_order_id"].to_s == order.id.to_s && metadata["lightek_site_id"].to_s == order.site_id.to_s
       raise Unavailable, "Checkout has completed or expired; wait for payment confirmation" unless session.status == "open" && session.url.present?

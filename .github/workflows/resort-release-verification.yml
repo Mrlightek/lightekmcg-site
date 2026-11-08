@@ -9,12 +9,12 @@ concurrency:
   group: lightek-resort-release-verification
   cancel-in-progress: false
 jobs:
-  configured-environment:
+  integration:
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Verify configured environment without changing production
+      - name: Verify integration
         env:
           SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
           SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
@@ -28,59 +28,67 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
           chmod 600 ~/.ssh/lightek_release_verify
           ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
-          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- '$GITHUB_SHA' '$GITHUB_RUN_ID'" <<'REMOTE'
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- 'integration' '$GITHUB_SHA' '$GITHUB_RUN_ID'" < script/lightek/run_resort_verification.sh
+  payment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: integration
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify payment
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
           set -euo pipefail
-          sudo -u lightek -H env -u GEM_HOME -u GEM_PATH bash -s -- "$1" "$2" <<'APPLICATION'
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
+          chmod 600 ~/.ssh/lightek_release_verify
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- 'payment' '$GITHUB_SHA' '$GITHUB_RUN_ID'" < script/lightek/run_resort_verification.sh
+  cloud:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    needs: payment
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify cloud
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
           set -euo pipefail
-          set -a
-          source /etc/lightek/lightekmcg-site.env
-          set +a
-          export RBENV_ROOT=/home/lightek/.rbenv
-          export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
-          production_database_url="${DATABASE_URL-}"
-          restore_production_database() {
-            if [[ -n "$production_database_url" ]]; then export DATABASE_URL="$production_database_url"; else unset DATABASE_URL; fi
-          }
-          release_run_id="$2"
-          root=/var/www/lightekmcg-site
-          checkout=$(mktemp -d /tmp/lightek-resort-verification.XXXXXXXX)
-          cleanup() {
-            (restore_production_database; cd "$root"; RAILS_ENV=production BUNDLE_GEMFILE="$root/Gemfile" bin/rails runner "$checkout/script/lightek/resort_live_verification.rb" cleanup "$checkout" "$release_run_id") || true
-            if [[ -f "$checkout/release-database.json" ]]; then
-              (cd "$root" && bundle exec ruby "$checkout/script/lightek/resort_release_database.rb" cleanup "$checkout/release-database.json")
-            fi
-            git -C "$root" worktree remove --force "$checkout" >/dev/null
-          }
-          git -C "$root" fetch origin feat/resort-reservations
-          git -C "$root" worktree add --detach "$checkout" "$1"
-          trap cleanup EXIT
-          if [[ -f "$root/.bundle/config" ]]; then
-            mkdir -p "$checkout/.bundle"
-            cp "$root/.bundle/config" "$checkout/.bundle/config"
-            chmod 600 "$checkout/.bundle/config"
-          fi
-          bundle_base=$(cd "$root" && bundle exec ruby -e 'puts Bundler.settings[:path].to_s')
-          if [[ -n "$bundle_base" ]]; then
-            [[ "$bundle_base" == /* ]] || bundle_base="$root/$bundle_base"
-            export BUNDLE_PATH="$bundle_base"
-          fi
-          cd "$root"
-          RAILS_ENV=production bin/rails runner "$checkout/script/lightek/resort_release_probe.rb"
-          RAILS_ENV=production bin/rails runner "$checkout/script/lightek/resort_release_database.rb" prepare "$checkout/release-database.json" "$2"
-          export DATABASE_URL="$(bundle exec ruby "$checkout/script/lightek/resort_release_database.rb" url "$checkout/release-database.json")"
-          cd "$checkout"
-          export RAILS_ENV=test PARALLEL_WORKERS=1
-          export BUNDLE_GEMFILE="$checkout/Gemfile"
-          bin/rails db:prepare
-          bin/rails test test/services/lightek_reservations/release_test.rb
-          # Actual service verification runs in the existing application context;
-          # only newly labelled verification infrastructure may be changed.
-          cd "$root"
-          export RAILS_ENV=production BUNDLE_GEMFILE="$root/Gemfile"
-          restore_production_database
-          bin/rails runner "$checkout/script/lightek/resort_live_verification.rb" payment "$checkout" "$2"
-          bin/rails runner "$checkout/script/lightek/resort_live_verification.rb" cloud "$checkout" "$2"
-          bin/rails runner "$checkout/script/lightek/resort_live_verification.rb" payment "$checkout" "$2"
-          # Production application code and schema remain unchanged.
-          APPLICATION
-          REMOTE
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
+          chmod 600 ~/.ssh/lightek_release_verify
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- 'cloud' '$GITHUB_SHA' '$GITHUB_RUN_ID'" < script/lightek/run_resort_verification.sh
+  payment_receipt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: cloud
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify payment_receipt
+        env:
+          SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/lightek_release_verify
+          chmod 600 ~/.ssh/lightek_release_verify
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/lightek_release_verify -p "${SSH_PORT:-22}" -o BatchMode=yes "$SSH_USER@$SSH_HOST" "bash -s -- 'payment_receipt' '$GITHUB_SHA' '$GITHUB_RUN_ID'" < script/lightek/run_resort_verification.sh

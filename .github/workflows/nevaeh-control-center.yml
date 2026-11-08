@@ -20,7 +20,7 @@ permissions:
   contents: read
 jobs:
   persistence-and-rendering:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       BUNDLE_GEMFILE: test/standalone/Gemfile
@@ -34,4 +34,5 @@ jobs:
       - run: node --check public/lightek/nevaeh/control-center.js
       - run: node --check public/lightek/studio-app.js
       - name: Check migration discovery
-        run: bundle exec ruby -ractive_record -e 'ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"); m = ActiveRecord::MigrationContext.new("db/migrate").migrations; abort "Duplicate migration versions" unless m.map(&:version).uniq.length == m.length; puts "Migration versions unique"'
+        run: |
+          bundle exec ruby -ractive_record -e 'ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"); m = ActiveRecord::MigrationContext.new("db/migrate").migrations; abort "Duplicate migration versions" unless m.map(&:version).uniq.length == m.length; puts "Migration versions unique"'

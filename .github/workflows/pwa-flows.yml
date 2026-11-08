@@ -46,7 +46,7 @@ on:
   workflow_dispatch:
 jobs:
   client-and-database:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -93,7 +93,7 @@ jobs:
 
   native-host:
     name: Native Rails with PostgreSQL and Redis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     services:

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_08_170000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_08_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1425,6 +1425,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_170000) do
     t.text "provisioning_error"
     t.datetime "provisioned_at"
     t.string "client_checkout_key", limit: 64
+    t.string "payment_namespace"
+    t.string "purpose", default: "purchase", null: false
+    t.boolean "stock_reserved", default: true, null: false
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
     t.index ["merchant_transfer_ref"], name: "index_lightek_commerce_orders_on_merchant_transfer_ref", unique: true
     t.index ["provisioning_request_id"], name: "index_lightek_commerce_orders_on_provisioning_request_id"
@@ -1760,6 +1763,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_170000) do
     t.index ["key"], name: "idx_marketplace_group_key", unique: true
   end
 
+  create_table "lightek_merchant_payout_schedules", force: :cascade do |t|
+    t.bigint "merchant_id", null: false
+    t.string "cadence", default: "biweekly", null: false
+    t.datetime "next_run_at", null: false
+    t.datetime "last_run_at"
+    t.boolean "enabled", default: true, null: false
+    t.text "last_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["merchant_id"], name: "index_lightek_merchant_payout_schedules_on_merchant_id", unique: true
+  end
+
   create_table "lightek_messaging_conversations", force: :cascade do |t|
     t.string "kind", default: "direct", null: false
     t.string "title"
@@ -1903,6 +1918,127 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_170000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_lightek_pwa_surfaces_on_key", unique: true
+  end
+
+  create_table "lightek_reservation_blackouts", force: :cascade do |t|
+    t.bigint "resource_id", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.string "reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["resource_id"], name: "index_lightek_reservation_blackouts_on_resource_id"
+  end
+
+  create_table "lightek_reservation_changes", force: :cascade do |t|
+    t.bigint "reservation_id", null: false
+    t.bigint "target_resource_id", null: false
+    t.bigint "order_id"
+    t.string "status", default: "quoted", null: false
+    t.integer "amount_cents", null: false
+    t.datetime "effective_at", null: false
+    t.datetime "expires_at", null: false
+    t.jsonb "quote", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "provider_receipt", default: {}, null: false
+    t.index ["order_id"], name: "idx_reservation_changes_unique_order", unique: true, where: "(order_id IS NOT NULL)"
+    t.index ["order_id"], name: "index_lightek_reservation_changes_on_order_id"
+    t.index ["reservation_id"], name: "index_lightek_reservation_changes_on_reservation_id"
+    t.index ["target_resource_id"], name: "index_lightek_reservation_changes_on_target_resource_id"
+  end
+
+  create_table "lightek_reservation_intents", force: :cascade do |t|
+    t.bigint "peer_id", null: false
+    t.bigint "resource_id", null: false
+    t.bigint "reservation_id"
+    t.bigint "customer_id"
+    t.string "token", null: false
+    t.string "checkout_key", null: false
+    t.string "remote_subject", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "expires_at", null: false
+    t.integer "price_cents", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id"], name: "index_lightek_reservation_intents_on_customer_id"
+    t.index ["peer_id", "checkout_key"], name: "idx_reservation_peer_checkout", unique: true
+    t.index ["peer_id"], name: "index_lightek_reservation_intents_on_peer_id"
+    t.index ["reservation_id"], name: "index_lightek_reservation_intents_on_reservation_id"
+    t.index ["resource_id"], name: "index_lightek_reservation_intents_on_resource_id"
+    t.index ["token"], name: "index_lightek_reservation_intents_on_token", unique: true
+  end
+
+  create_table "lightek_reservation_peers", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "token_digest", null: false
+    t.bigint "order_id", null: false
+    t.bigint "merchant_id", null: false
+    t.bigint "site_id", null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_lightek_reservation_peers_on_key", unique: true
+    t.index ["merchant_id"], name: "index_lightek_reservation_peers_on_merchant_id"
+    t.index ["order_id"], name: "index_lightek_reservation_peers_on_order_id", unique: true
+    t.index ["site_id"], name: "index_lightek_reservation_peers_on_site_id", unique: true
+  end
+
+  create_table "lightek_reservation_resources", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "source_resource_id"
+    t.bigint "product_id"
+    t.string "name", null: false
+    t.text "description"
+    t.string "kind", default: "service", null: false
+    t.string "timezone", default: "America/New_York", null: false
+    t.integer "capacity", default: 1, null: false
+    t.integer "duration_minutes", default: 60, null: false
+    t.integer "buffer_minutes", default: 0, null: false
+    t.integer "notice_minutes", default: 60, null: false
+    t.integer "cancellation_hours", default: 24, null: false
+    t.boolean "published", default: false, null: false
+    t.jsonb "hours", default: {}, null: false
+    t.string "location"
+    t.string "join_url"
+    t.string "template_key"
+    t.string "billing_interval", default: "monthly", null: false
+    t.jsonb "accommodations", default: [], null: false
+    t.jsonb "compute", default: {}, null: false
+    t.integer "cost_floor_cents", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["product_id"], name: "index_lightek_reservation_resources_on_product_id"
+    t.index ["site_id"], name: "index_lightek_reservation_resources_on_site_id"
+  end
+
+  create_table "lightek_reservations", force: :cascade do |t|
+    t.bigint "resource_id", null: false
+    t.bigint "customer_id", null: false
+    t.bigint "order_id"
+    t.string "reference", null: false
+    t.string "checkout_key", null: false
+    t.string "status", default: "held", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.datetime "blocks_from", null: false
+    t.datetime "blocks_until", null: false
+    t.integer "quantity", default: 1, null: false
+    t.datetime "hold_until"
+    t.datetime "canceled_at"
+    t.text "notes"
+    t.jsonb "notification_keys", default: [], null: false
+    t.jsonb "package_snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id", "checkout_key"], name: "index_lightek_reservations_on_customer_id_and_checkout_key", unique: true
+    t.index ["customer_id"], name: "index_lightek_reservations_on_customer_id"
+    t.index ["order_id"], name: "idx_reservations_unique_order", unique: true, where: "(order_id IS NOT NULL)"
+    t.index ["order_id"], name: "index_lightek_reservations_on_order_id"
+    t.index ["reference"], name: "index_lightek_reservations_on_reference", unique: true
+    t.index ["resource_id", "blocks_from", "blocks_until"], name: "idx_reservations_availability"
+    t.index ["resource_id"], name: "index_lightek_reservations_on_resource_id"
   end
 
   create_table "lightek_social_blocks", force: :cascade do |t|
@@ -3308,6 +3444,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_170000) do
   add_foreign_key "lightek_marketing_social_connections", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_social_posts", "lightek_marketing_campaigns", column: "campaign_id"
   add_foreign_key "lightek_marketing_social_posts", "lightek_marketing_social_connections", column: "connection_id"
+  add_foreign_key "lightek_merchant_payout_schedules", "users", column: "merchant_id"
   add_foreign_key "lightek_messaging_conversations", "profiles", column: "created_by_profile_id"
   add_foreign_key "lightek_messaging_messages", "lightek_messaging_conversations", column: "conversation_id"
   add_foreign_key "lightek_messaging_messages", "lightek_messaging_messages", column: "reply_to_message_id"
@@ -3320,6 +3457,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_170000) do
   add_foreign_key "lightek_pwa_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_pwa_memberships", "profiles"
   add_foreign_key "lightek_pwa_surface_modules", "lightek_pwa_surfaces", column: "surface_id"
+  add_foreign_key "lightek_reservation_blackouts", "lightek_reservation_resources", column: "resource_id"
+  add_foreign_key "lightek_reservation_changes", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_reservation_changes", "lightek_reservation_resources", column: "target_resource_id"
+  add_foreign_key "lightek_reservation_changes", "lightek_reservations", column: "reservation_id"
+  add_foreign_key "lightek_reservation_intents", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "lightek_reservation_intents", "lightek_reservation_resources", column: "resource_id"
+  add_foreign_key "lightek_reservation_intents", "lightek_reservations", column: "reservation_id"
+  add_foreign_key "lightek_reservation_intents", "users", column: "customer_id"
+  add_foreign_key "lightek_reservation_peers", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_reservation_peers", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_reservation_peers", "users", column: "merchant_id"
+  add_foreign_key "lightek_reservation_resources", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_reservation_resources", "lightek_commerce_products", column: "product_id"
+  add_foreign_key "lightek_reservation_resources", "lightek_reservation_resources", column: "source_resource_id"
+  add_foreign_key "lightek_reservations", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_reservations", "lightek_reservation_resources", column: "resource_id"
+  add_foreign_key "lightek_reservations", "users", column: "customer_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocked_profile_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocker_profile_id"
   add_foreign_key "lightek_social_circle_memberships", "lightek_social_circles", column: "circle_id"

@@ -200,11 +200,12 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   resources :homes
   
 # ── Public site ──────────────────────────────────────────────────────────────
+get "/", to: redirect("/site/home", status: 302),constraints: { host: /(?:www\.)?lightekmcg\.com/ }
 get "/", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
 get "/site/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.match?(request.host) }
 get "/:slug", to: "gatekeeper/hosted_sites#show", constraints: ->(request) { Gatekeeper::Hosting::SiteRouting.page_match?(request) }
 get "/__lightek/site-health", to: "gatekeeper/hosted_sites#health"
-root "pages#home"
+root to: redirect("/site/home", status: 302)
 
 get  "about",    to: "pages#about"
 get  "services", to: "pages#services"

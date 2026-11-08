@@ -18,6 +18,7 @@ module LightekReservations
       numericality: {only_integer: true, greater_than_or_equal_to: 0}
     validate :configuration_valid
     scope :available, -> {where(published: true).order(:name)}
+    def native_session? = %w[meeting video voice live].include?(kind) && join_url.blank?
     def server? = kind == 'server'
     def price_cents = product&.price_cents.to_i
     def minimum_price_cents = LightekCommerce::MerchantPayouts.minimum_charge_cents(cost_floor_cents)

@@ -7,7 +7,7 @@ module Studio
         %i[debug info warn error fatal unknown].each do |level|
           define_method(level) do |message = nil, &block|
             text = message || block&.call
-            text = "[Studio live transport details redacted]" if text.to_s.include?("live_chunk") || text.to_s.include?("StudioBroadcastChannel")
+            text = "[Studio live transport details redacted]" if text.to_s.include?("live_chunk") || text.to_s.include?("StudioBroadcastChannel") || text.to_s.include?("StudioAudienceChannel")
             __getobj__.public_send(level, text)
           end
         end

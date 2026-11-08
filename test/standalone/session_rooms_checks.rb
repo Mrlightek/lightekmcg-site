@@ -1,6 +1,7 @@
 require_relative 'reservations_http_checks'
 require 'base64'
 require 'openssl'
+require ROOT.join('app/services/studio/live/log_redaction').to_s
 require ROOT.join('app/services/gatekeeper/studio_live_policy').to_s
 module LightekVault
   class Service
@@ -126,6 +127,14 @@ class SessionRoomsChecks < ActionDispatch::IntegrationTest
     refute_equal old_name,@room.reload.media_name
     assert_includes LightekSessions::RetireMediaRoomJob.enqueues,[@room.id,old_name]
     assert_raises(LightekSessions::Access::Denied){LightekSessions::Access.authorize!(@room,@guest)}
+  end
+  def test_audience_tickets_are_redacted_at_the_connection_logger
+    output=StringIO.new
+    logger=Studio::Live::LogRedaction::SafeLogger.new(Logger.new(output))
+    logger.info('StudioAudienceChannel ticket=fixture-social-ticket')
+    logger.info('Normal status')
+    refute_includes output.string,'fixture-social-ticket'
+    assert_includes output.string,'Normal status'
   end
   def test_ticket_requires_explicit_broadcast_consent
     admitted

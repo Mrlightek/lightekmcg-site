@@ -71,9 +71,11 @@ class StudioLiveTest < ActiveSupport::TestCase
     logger = Studio::Live::LogRedaction::SafeLogger.new(Logger.new(output))
     logger.error('unrecognized command live_chunk=fixture-media')
     logger.info('StudioBroadcastChannel ticket=fixture-ticket')
+    logger.info('StudioAudienceChannel ticket=fixture-social-ticket')
     logger.info('Ordinary connection message')
     refute_includes output.string, "fixture-media"
     refute_includes output.string, "fixture-ticket"
+    refute_includes output.string, "fixture-social-ticket"
     assert_includes output.string, "Ordinary connection message"
   end
 end

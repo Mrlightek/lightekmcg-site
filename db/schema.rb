@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_08_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_08_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -3194,6 +3194,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_140000) do
     t.index ["stripe_connect_account_id"], name: "index_users_on_stripe_connect_account_id", unique: true
   end
 
+  create_table "website_template_inquiries", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "template_key", null: false
+    t.string "section_key", null: false
+    t.jsonb "fields", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_website_template_inquiries_on_site_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "artifacts", "creation_jobs"
@@ -3420,4 +3430,5 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_140000) do
   add_foreign_key "susu_rounds", "susu_memberships", column: "recipient_membership_id"
   add_foreign_key "system_jobs", "job_items"
   add_foreign_key "user_feature_entitlements", "users"
+  add_foreign_key "website_template_inquiries", "dymond_site_sites", column: "site_id"
 end

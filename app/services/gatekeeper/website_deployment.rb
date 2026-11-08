@@ -146,6 +146,7 @@ module Gatekeeper
     end
 
     def execute(config)
+      peer_secrets = nil
       operation = GatekeeperOperation.create!(gatekeeper_node: @node,
         capability: "deploy_website", requested_by: @actor.email_address,
         parameters: {domain: @domain, owner_id: config.fetch("owner_id"), owner_role: config.fetch("owner_role")},

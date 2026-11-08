@@ -97,6 +97,19 @@ Rails.application.routes.draw do
   resources :dashboard_marketplace_connections, path: "/dashboard/marketplace/connections", controller: "dashboard/marketplace_connections", except: %i[show destroy]
   # END LIGHTEK MARKETPLACE V8.7
   get "/api/studio/capabilities", to: "api/studio/capabilities#index", as: :api_studio_capabilities
+  get "/employee/nevaeh/control-center", to: "employee/nevaeh_control_center#index", as: :employee_nevaeh_control_center
+  post "/employee/nevaeh/workers", to: "employee/nevaeh_control_center#save_workflow", as: :employee_nevaeh_workers
+  patch "/employee/nevaeh/workers/:id", to: "employee/nevaeh_control_center#save_workflow", as: :employee_nevaeh_worker
+  post "/employee/nevaeh/workers/:id/run", to: "employee/nevaeh_control_center#run", as: :run_employee_nevaeh_worker
+  post "/employee/nevaeh/writing-profiles", to: "employee/nevaeh_control_center#save_profile", as: :employee_nevaeh_writing_profiles
+  patch "/employee/nevaeh/writing-profiles/:id", to: "employee/nevaeh_control_center#save_profile", as: :employee_nevaeh_writing_profile
+  post "/employee/nevaeh/models", to: "employee/nevaeh_control_center#save_model", as: :employee_nevaeh_inference_models
+  patch "/employee/nevaeh/models/:id", to: "employee/nevaeh_control_center#save_model", as: :employee_nevaeh_inference_model
+  post "/employee/nevaeh/models/:id/infer", to: "employee/nevaeh_control_center#infer", as: :infer_employee_nevaeh_inference_model
+  post "/employee/nevaeh/write", to: "employee/nevaeh_control_center#generate", as: :employee_nevaeh_write
+  post "/employee/nevaeh/sample-context", to: "employee/nevaeh_control_center#sample_context", as: :employee_nevaeh_sample_context
+  patch "/dashboard/nevaeh/navigation", to: "dashboard/nevaeh_navigation#update", as: :dashboard_nevaeh_navigation
+
   get "/employee/nevaeh/review_packets", to: "employee/nevaeh_review_packets#index", as: :employee_nevaeh_review_packets
   get "/employee/nevaeh/coverage", to: "employee/nevaeh_coverage#index", as: :employee_nevaeh_coverage
   get "/employee/nevaeh/acceptance_evidence", to: "employee/nevaeh_acceptance_evidence#index", as: :employee_nevaeh_acceptance_evidence

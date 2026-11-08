@@ -1,0 +1,38 @@
+name: Nevaeh control center
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'app/**/nevaeh*'
+      - 'app/**/nevaeh*/**'
+      - 'app/services/studio/workers/workspace.rb'
+      - 'app/services/script_builder/**'
+      - 'app/services/screenplay_engine/**'
+      - 'app/views/dymond_dash/shared/_sidebar.html.erb'
+      - 'public/lightek/nevaeh/**'
+      - 'public/lightek/studio-app.js'
+      - 'test/standalone/nevaeh*'
+      - 'test/controllers/employee/nevaeh_control_center_test.rb'
+      - 'db/migrate/*nevaeh*'
+      - '.github/workflows/nevaeh-control-center.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  persistence-and-rendering:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - run: bundle exec ruby test/standalone/nevaeh_control_center_render_test.rb
+      - run: node --check public/lightek/nevaeh/control-center.js
+      - run: node --check public/lightek/studio-app.js
+      - name: Check migration discovery
+        run: |
+          bundle exec ruby -ractive_record -e 'ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"); m = ActiveRecord::MigrationContext.new("db/migrate").migrations; abort "Duplicate migration versions" unless m.map(&:version).uniq.length == m.length; puts "Migration versions unique"'

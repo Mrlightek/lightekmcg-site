@@ -35,43 +35,12 @@ module ScreenplayEngine
     EMOTIONS = %i[frustrated desperate hopeful frantic quiet].freeze
 
     def initialize(cast)
-      @cast = cast # Hash of character profiles
-      @current_speaker = cast.keys.first
+      @sequence = NevaehIntelligences::DialogueSequence.new(cast: cast)
     end
 
     def generate_line(topic, emotion)
-      speaker_key = alternate_speaker
-      char = @cast[speaker_key]
-      line = fetch_contextual_line(char[:archetype], topic, emotion)
-      
-      # Direction tag embedded with speaker line
-      "[#{emotion.to_s.upcase}] #{char[:name].upcase}: \"#{line}\""
-    end
-
-    private
-
-    def alternate_speaker
-      keys = @cast.keys
-      @current_speaker = keys[(keys.index(@current_speaker) + 1) % keys.length]
-    end
-
-    def fetch_contextual_line(archetype, topic, emotion)
-      case archetype
-      when :maker_impulsive
-        [
-          "#{Faker::Hacker.verb.capitalize} the #{Faker::Hacker.noun}! If we route it through the #{Faker::Science.element} core, it's going to work!",
-          "I don't care about safety protocols! We have three minutes before the #{topic} collapses!",
-          "Look at the readouts—#{Faker::Company.bs}! I can bridge the gap using my own light!"
-        ].sample
-      when :grounded_skeptic
-        [
-          "Stop! Last time you forced a #{Faker::Hacker.noun}, half the sector lost power.",
-          "Kess, look at your hands—you're burning through your own energy. We need a fallback plan.",
-          "That isn't a fix, that's an explosion waiting to happen! Remember what happened at #{Faker::Address.community}?"
-        ].sample
-      else
-        Faker::Lorem.sentence
-      end
+      line = @sequence.next_line(topic: topic)
+      "[#{emotion.to_s.upcase}] #{line[:speaker].upcase}: \"#{line[:text]}\""
     end
   end
 

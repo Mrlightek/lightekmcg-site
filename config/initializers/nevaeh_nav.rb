@@ -11,6 +11,7 @@ Rails.application.config.after_initialize do
     feature.nav_section = :operations
     feature.min_plan = :starter
     feature.nav_items = [
+      { label: "Control Center", icon: "brain", path: "main_app.employee_nevaeh_control_center_path" },
       { label: "Nevaeh Overview", icon: "brain", path: "main_app.employee_nevaeh_overview_path" },
       { label: "Configuration", icon: "settings", path: "main_app.employee_nevaeh_configuration_path" },
       { label: "Draft Generator", icon: "code", path: "main_app.employee_nevaeh_generator_path" },

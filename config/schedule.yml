@@ -29,3 +29,9 @@ gatekeeper_device_heartbeat_sweep:
   cron: "*/1 * * * *"
   class: "GatekeeperDeviceHeartbeatSweepJob"
   queue: default
+
+nevaeh_workflow_sweep:
+  cron: "* * * * *"
+  class: "NevaehIntelligences::WorkflowSweepJob"
+  queue: default
+  active_job: true

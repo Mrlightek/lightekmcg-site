@@ -1,0 +1,140 @@
+<% content_for :title, "Nevaeh Control Center" %>
+<% content_for :head do %>
+  <link rel="stylesheet" href="/lightek/nevaeh/control-center.css">
+  <script src="/lightek/nevaeh/control-center.js" defer></script>
+<% end %>
+<% builder = can?(:manage, NevaehWorkflow) %>
+<section class="nc" data-nevaeh-center aria-label="Nevaeh Control Center">
+  <header class="nc-hero">
+    <div><span class="nc-eyebrow">LIGHTEK OS / INTELLIGENCE</span><h1>Build her brilliance<span>.</span></h1><p>Nevaeh Control Center</p><p class="nc-muted">Turn what she knows into work she can do.</p></div>
+    <div class="nc-brain" aria-hidden="true"><i class="ti ti-brain"></i><span>NEVAEH</span></div>
+  </header>
+  <div class="nc-metrics">
+    <article><span>Registered abilities</span><strong><%= NevaehCapability.count %></strong><small><%= NevaehCapability.enabled.count %> enabled</small></article>
+    <article><span>Workers</span><strong><%= NevaehWorkflow.count %></strong><small><%= NevaehWorkflow.where(status: 'active').count %> active</small></article>
+    <article><span>Schedules</span><strong><%= NevaehWorkflow.where(status: 'active').where.not(interval_minutes: nil).count %></strong><small>Checked every minute</small></article>
+    <article><span>Writing services</span><strong><%= NevaehWritingProfile.where(enabled: true).count %></strong><small>Shared with Studio</small></article>
+  </div>
+  <nav class="nc-tabs" aria-label="Control center sections">
+    <% {"workers" => ["automation", "Workers & schedules"], "capabilities" => ["apps", "Abilities & services"], "runs" => ["activity", "Execution history"], "writing" => ["pencil", "Writing lab"], "models" => ["brain", "Inference models"], "navigation" => ["layout-sidebar", "My sidebar"]}.each do |key, (icon, label)| %>
+      <%= link_to employee_nevaeh_control_center_path(tab: key), class: "#{'active' if @tab == key}", aria: {current: @tab == key ? 'page' : nil} do %><i class="ti ti-<%= icon %>"></i><%= label %><% end %>
+    <% end %>
+  </nav>
+  <% if @builder_error %><p class="nc-error" role="alert"><%= @builder_error %></p><% end %>
+  <% if @tab == 'workers' %>
+    <div class="nc-heading"><div><h2>Your workforce.</h2><p>Reusable procedures with inputs, ordered steps and verified outcomes.</p></div><%= link_to "+ New worker", employee_nevaeh_control_center_path(tab: 'workers'), class: "nc-button" if builder %></div>
+    <div class="nc-split">
+      <aside class="nc-panel nc-list"><h3>Worker library</h3>
+        <% if @workflows.empty? %><p class="nc-muted">Start with a Studio project, a website page, or a writing draft. Save the procedure once and run it again.</p><% end %>
+        <% @workflows.each do |workflow| %>
+          <article class="nc-worker <%= 'selected' if @workflow.id == workflow.id %>"><%= link_to employee_nevaeh_control_center_path(tab: 'workers', workflow_id: workflow.id) do %><strong><%= workflow.name %></strong><span class="nc-pill"><%= workflow.status %></span><p><%= workflow.sections.size %> steps · <%= workflow.interval_minutes ? "Every #{workflow.interval_minutes} min" : "Manual" %></p><% end %>
+            <% if workflow.next_run_at %><small>Next: <%= workflow.next_run_at.utc.strftime('%b %-d, %H:%M UTC') %></small><% end %>
+            <% if builder && workflow.status == 'active' %><%= button_to "Run worker", run_employee_nevaeh_worker_path(workflow), params: {request_key: SecureRandom.uuid}, class: "nc-button secondary" %><% end %>
+          </article>
+        <% end %>
+        <small class="nc-muted">Showing the latest 100 workers.</small>
+      </aside>
+      <article class="nc-panel">
+        <% if builder %>
+          <div class="nc-heading"><h3><%= @workflow.persisted? ? 'Edit worker' : 'Create a worker' %></h3><span class="nc-pill">Gatekeeper execution</span></div>
+          <%= form_with url: @workflow.persisted? ? employee_nevaeh_worker_path(@workflow) : employee_nevaeh_workers_path, method: @workflow.persisted? ? :patch : :post, data: {worker_form: true} do |form| %>
+            <input type="hidden" name="workflow[lock_version]" value="<%= @workflow.lock_version || 0 %>">
+            <label>Worker name<input name="workflow[name]" value="<%= @workflow.name %>" maxlength="160" required placeholder="Build a new production"></label>
+            <label>Purpose<textarea name="workflow[description]" rows="2" maxlength="4000" placeholder="What should this worker accomplish?"><%= @workflow.description %></textarea></label>
+            <div class="nc-grid2"><label>Lifecycle<select name="workflow[status]"><%= options_for_select(%w[draft active paused archived].map { |s| [s.humanize, s] }, @workflow.status) %></select></label><label>Repeat every (minutes)<input type="number" name="workflow[interval_minutes]" value="<%= @workflow.interval_minutes %>" min="5" max="525600" placeholder="Leave empty for manual runs"></label></div>
+            <p class="nc-muted">Activating authorizes these saved steps. Scheduled runs use <%= @workflow.creator&.email_address || current_user.email_address %>'s current permissions. Pausing stops future runs; submitted tickets continue.</p>
+            <div class="nc-heading"><h3>Execution steps</h3><button type="button" class="nc-button secondary" data-add-step>+ Add step</button></div>
+            <div data-worker-steps></div>
+            <script type="application/json" data-action-contract><%= raw json_escape(NevaehIntelligences::StructuredTicket::ACTIONS.to_json) %></script>
+            <details><summary>Advanced definition</summary><label>Action sections (JSON)<textarea name="sections_json" rows="12" data-sections-json><%= JSON.pretty_generate(@workflow.sections) %></textarea></label><button type="button" class="nc-button secondary" data-import-sections>Load JSON into builder</button></details>
+            <p role="alert" data-worker-error class="nc-error" hidden></p>
+            <button class="nc-button" type="submit">Save worker <i class="ti ti-arrow-right"></i></button>
+          <% end %>
+        <% else %><h3>Worker workspace</h3><p>Choose a worker to inspect its steps. Administrators manage execution and schedules.</p><pre><%= JSON.pretty_generate(@workflow.sections) %></pre><% end %>
+      </article>
+    </div>
+  <% elsif @tab == 'capabilities' %>
+    <div class="nc-heading"><div><h2>One brain. Every workspace.</h2><p>Live registered abilities across the application, including their implementation and queue.</p></div><%= link_to "Draft a new service →", employee_nevaeh_generator_path, class: "nc-button" if builder %></div>
+    <div class="nc-grid3">
+      <% NevaehCapability.group(:domain).count.sort.each do |domain, count| %><article class="nc-panel"><span class="nc-eyebrow"><%= domain %></span><strong class="nc-big"><%= count %></strong><div class="nc-meter"><span style="width:<%= (count.to_f / [NevaehCapability.count, 1].max * 100).round %>%"></span></div><small>of registered abilities</small></article><% end %>
+    </div>
+    <article class="nc-panel"><div class="nc-heading"><h3>Capability registry</h3><label>Find an ability<input type="search" placeholder="Search name, domain or handler" data-capability-search></label></div><div class="nc-table-wrap"><table><thead><tr><th>Ability</th><th>Domain</th><th>Implementation</th><th>State</th></tr></thead><tbody>
+      <% @runtime_capabilities.each do |cap| %><tr data-capability-row><td><strong><%= cap.name %></strong><small><%= cap.slug %></small></td><td><%= cap.domain %></td><td><code><%= cap.handler %></code><small>Queue: <%= cap.queue %> · Priority <%= cap.priority %></small></td><td><span class="nc-pill"><%= cap.enabled? ? 'Enabled' : 'Disabled' %></span></td></tr><% end %>
+    </tbody></table></div><p class="nc-muted">Showing up to 500 abilities. The worker builder composes actions with registered acceptance verifiers. New Ruby implementations go through the existing service generator and engineering ticket workflow.</p></article>
+    <div class="nc-links"><%= link_to "Trusted service catalog →", employee_nevaeh_services_path %><%= link_to "Knowledge & work orders →", employee_tickets_path %><%= link_to "Configuration definitions →", employee_nevaeh_configuration_path %></div>
+  <% elsif @tab == 'runs' %>
+    <div class="nc-heading"><div><h2>See the work happen.</h2><p>Every run has a frozen input snapshot and a linked execution ticket.</p></div><%= link_to "Refresh", employee_nevaeh_control_center_path(tab: 'runs'), class: "nc-button secondary" %></div>
+    <article class="nc-panel nc-table-wrap"><table><thead><tr><th>Run</th><th>Worker / operator</th><th>Execution</th><th>Evidence</th></tr></thead><tbody>
+      <% @runs.each do |run| %><tr><td>#<%= run.id %><small><%= run.created_at.utc.strftime('%b %-d, %H:%M UTC') %></small></td><td><strong><%= run.snapshot['name'] %></strong><small><%= run.actor_id %></small></td><td><span class="nc-pill"><%= run.execution_status.to_s.humanize %></span><% if run.error.present? %><p class="nc-error"><%= run.error %></p><% end %></td><td><% if run.ticket %><%= link_to "Ticket #{run.ticket.number} →", employee_ticket_path(run.ticket) %><details><summary>Saved inputs</summary><pre><%= JSON.pretty_generate(run.snapshot) %></pre></details><% else %>Awaiting ticket creation<% end %></td></tr><% end %>
+    </tbody></table><% if @runs.empty? %><p class="nc-empty">Your first run will appear here. Activate a worker and choose Run worker.</p><% end %><p class="nc-muted">Latest 50 runs. “Dispatched” means submitted; “Verified” requires the ticket's acceptance evidence.</p></article>
+  <% elsif @tab == 'writing' %>
+    <div class="nc-heading"><div><h2>Give her a voice.</h2><p>Create writing services for Studio, captions, posts and descriptions.</p></div><%= link_to "+ New writing service", employee_nevaeh_control_center_path(tab: 'writing'), class: "nc-button" if builder %></div>
+    <div class="nc-links"><% @profiles.each do |profile| %><%= link_to "#{profile.name} · #{profile.provider}", employee_nevaeh_control_center_path(tab: 'writing', profile_id: profile.id) %><% end %></div>
+    <% if builder %><div class="nc-split equal">
+      <article class="nc-panel"><h3>Writing service</h3><p class="nc-muted">Rules use your text blocks. Native inference selects a contextual plan from your model’s rules, examples and vocabulary.</p>
+        <%= form_with url: @profile.persisted? ? employee_nevaeh_writing_profile_path(@profile) : employee_nevaeh_writing_profiles_path, method: @profile.persisted? ? :patch : :post do %>
+          <input type="hidden" name="profile[lock_version]" value="<%= @profile.lock_version || 0 %>">
+          <label>Service name<input name="profile[name]" value="<%= @profile.name %>" required maxlength="160" placeholder="Lightek Studio storyteller"></label>
+          <div class="nc-grid2"><label>Output<select name="profile[format]"><%= options_for_select(NevaehIntelligences::WritingEngine::FORMATS, @profile.format) %></select></label><label>Engine<select name="profile[provider]"><%= options_for_select([['Context & rules', 'rules'], ['My inference model', 'inference']], @profile.provider) %></select></label></div>
+          <label>Inference model<select name="profile[inference_model_id]"><option value="">Choose a native model</option><%= options_for_select(@inference_models.select(&:enabled).map { |model| [model.name, model.id] }, @profile.inference_model_id) %></select></label>
+          <p class="nc-muted">Native Ruby inference runs inside this application. Extend its model and concern as you add new methods. <%= link_to "Manage models →", employee_nevaeh_control_center_path(tab: 'models') %></p>
+          <label>Editorial notes<textarea name="profile[instructions]" rows="3" maxlength="8000"><%= @profile.instructions %></textarea></label>
+          <label>Rule blocks (one per line)<textarea name="templates" rows="8" placeholder="{protagonist}: We need to {goal}."><%= @profile.templates.join("\n") %></textarea></label>
+          <p class="nc-muted">Available fields: <%= NevaehIntelligences::WritingEngine::TOKENS.map { |token| "{#{token}}" }.join(' · ') %>. Empty blocks use the built-in format.</p>
+          <label class="nc-check"><input type="hidden" name="profile[enabled]" value="0"><input type="checkbox" name="profile[enabled]" value="1" <%= 'checked' if @profile.enabled %>> Available to Studio and workers</label>
+          <button class="nc-button">Save writing service</button>
+        <% end %>
+      </article>
+      <article class="nc-panel"><span class="nc-eyebrow">PLAYGROUND</span><h3>Context makes it coherent.</h3>
+        <%= form_with url: employee_nevaeh_write_path, data: {writing_playground: true, sample_url: employee_nevaeh_sample_context_path} do %>
+          <label>Saved writing service<select name="profile_id"><option value="">Built-in rules</option><%= options_for_select(@profiles.select(&:enabled).map { |p| ["#{p.name} (#{p.format})", p.id, {"data-format" => p.format}] }, @profile.persisted? && @profile.enabled ? @profile.id : nil) %></select></label>
+          <label>Format<select name="format"><%= options_for_select(NevaehIntelligences::WritingEngine::FORMATS, @profile.format) %></select></label>
+          <div class="nc-grid2"><% NevaehIntelligences::WritingEngine::TOKENS.each do |token| %><label><%= token.humanize %><input name="context[<%= token %>]" maxlength="4000" <%= 'required' if token == 'topic' %>></label><% end %></div>
+          <div class="nc-links"><button type="button" class="nc-button secondary" data-sample-context>Fill fictional example</button><button class="nc-button">Generate draft</button></div>
+          <p role="status" data-writing-status></p><label>Generated draft<textarea rows="15" data-writing-output readonly></textarea></label><button type="button" class="nc-button secondary" data-copy-draft>Copy draft</button>
+          <p class="nc-muted">Test saved services here. Nothing is published automatically.</p>
+        <% end %>
+      </article>
+    </div><% else %><p>Administrators manage writing services and the playground.</p><% end %>
+  <% elsif @tab == 'models' %>
+    <div class="nc-heading"><div><h2>Build the way she thinks.</h2><p>Native inference objects. Expand her vocabulary, teach examples and control how she selects a plan.</p></div><%= link_to "+ New model", employee_nevaeh_control_center_path(tab: 'models'), class: "nc-button" if builder %></div>
+    <div class="nc-links"><% @inference_models.each do |model| %><%= link_to model.name, employee_nevaeh_control_center_path(tab: 'models', model_id: model.id) %><% end %></div>
+    <% if builder %><div class="nc-split equal">
+      <article class="nc-panel"><h3>Inference model</h3>
+        <%= form_with url: @inference_model.persisted? ? employee_nevaeh_inference_model_path(@inference_model) : employee_nevaeh_inference_models_path, method: @inference_model.persisted? ? :patch : :post, data: {inference_form: true} do %>
+          <input type="hidden" name="inference_model[lock_version]" value="<%= @inference_model.lock_version || 0 %>">
+          <label>Model name<input name="inference_model[name]" required maxlength="160" value="<%= @inference_model.name %>" placeholder="Nevaeh Studio Voice"></label>
+          <label>Purpose<textarea name="inference_model[description]" rows="2" maxlength="4000"><%= @inference_model.description %></textarea></label>
+          <p class="nc-muted">Rules and examples select templates by topic overlap and weight. The lexicon connects related words. Shared context preserves names, goals and facts throughout the output.</p>
+          <div class="nc-heading"><h3>Reasoning rules</h3><button type="button" class="nc-button secondary" data-add-inference-rule>+ Add rule</button></div>
+          <div data-inference-rules></div>
+          <details><summary>Advanced rules JSON</summary><label>Rules<textarea rows="12" name="rules_json" data-inference-json><%= JSON.pretty_generate(@inference_model.rules) %></textarea></label><button type="button" class="nc-button secondary" data-import-inference>Load JSON into editor</button></details>
+          <label>Teaching examples (JSON)<textarea name="examples_json" rows="8"><%= JSON.pretty_generate(@inference_model.examples) %></textarea></label>
+          <p class="nc-muted">Example: [{"format":"caption","topic":"studio premiere","templates":["{topic} — {goal}.","{call_to_action}"]}]. Examples guide selection; they do not train neural weights.</p>
+          <label>Vocabulary / synonyms (JSON)<textarea name="lexicon_json" rows="5"><%= JSON.pretty_generate(@inference_model.lexicon) %></textarea></label>
+          <p class="nc-muted">Example: {"film":["movie","cinema"]}. Extend NevaehInference methods for additional reasoning or generation strategies.</p>
+          <label class="nc-check"><input type="hidden" name="inference_model[enabled]" value="0"><input type="checkbox" name="inference_model[enabled]" value="1" <%= 'checked' if @inference_model.enabled %>> Available for inference</label>
+          <p role="alert" class="nc-error" data-inference-error hidden></p><button class="nc-button">Save inference model</button>
+        <% end %>
+      </article>
+      <article class="nc-panel"><span class="nc-eyebrow">MODEL TEST BENCH</span><h3>Inspect her decision.</h3>
+        <% if @inference_model.persisted? %>
+          <%= form_with url: infer_employee_nevaeh_inference_model_path(@inference_model), data: {writing_playground: true, sample_url: employee_nevaeh_sample_context_path} do %>
+            <label>Format<select name="format"><%= options_for_select(NevaehIntelligences::WritingEngine::FORMATS) %></select></label>
+            <% NevaehIntelligences::WritingEngine::TOKENS.each do |token| %><label><%= token.humanize %><input name="context[<%= token %>]" maxlength="4000" <%= 'required' if token == 'topic' %>></label><% end %>
+            <div class="nc-links"><button type="button" class="nc-button secondary" data-sample-context>Fill fictional example</button><button class="nc-button">Run inference</button></div>
+            <p role="status" data-writing-status></p><label>Result<textarea rows="10" data-writing-output readonly></textarea></label><pre data-inference-evidence hidden></pre><button type="button" class="nc-button secondary" data-copy-draft>Copy draft</button>
+          <% end %>
+        <% else %><p class="nc-muted">Save this model to test its matches, scores and output. Then select it in a writing service to make it available in Studio.</p><% end %>
+        <div class="nc-step"><h3>The inference pipeline</h3><p>Normalize context → extract terms → expand vocabulary → match rules and examples → rank plans → compose the draft.</p><p class="nc-muted">Each stage is a method on the inference concern. No separate server or external AI service is required.</p></div>
+      </article>
+    </div><% else %><p>Administrators build and test inference models.</p><% end %>
+  <% elsif @tab == 'navigation' %>
+    <div class="nc-heading"><div><h2>Your OS, your arrangement.</h2><p>Move applications, rename groups, hide entries or add shortcuts. Saved to your account.</p></div></div>
+    <article class="nc-panel"><%= form_with url: main_app.dashboard_nevaeh_navigation_path, method: :patch, data: {navigation_form: true} do %>
+      <textarea name="navigation_json" data-navigation-json hidden><%= nevaeh_sidebar_entries.to_json %></textarea>
+      <div data-navigation-rows></div><div class="nc-links"><button type="button" class="nc-button secondary" data-add-navigation>+ Application shortcut</button><button type="button" class="nc-button secondary" data-reset-navigation>Restore defaults</button><button class="nc-button">Save my sidebar</button></div><p role="alert" class="nc-error" data-navigation-error hidden></p>
+      <p class="nc-muted">Use an existing application path, for example /dashboard/live or /lightek/index.html#/studio. Navigation changes keep each destination's access rules.</p>
+    <% end %></article>
+  <% end %>
+</section>

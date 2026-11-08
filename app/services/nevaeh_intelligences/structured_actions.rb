@@ -27,6 +27,10 @@ module NevaehIntelligences
       when "studio.project.create"
         raise StructuredTicket::Invalid, "Studio project permission denied" unless Ability.new(actor).can?(:create, StudioProject)
         Studio::Workers::ProjectCreation.perform("create", inputs.merge("intent_key" => "production", "start_mode_key" => "blank")).deep_stringify_keys
+      when "content.generate"
+        profile = NevaehWritingProfile.where(enabled: true).find(inputs["profile_id"]) if inputs["profile_id"]
+        result = WritingEngine.generate(format: inputs.fetch("format"), context: inputs.fetch("context"), profile: profile&.contract)
+        result.merge("sha256" => Digest::SHA256.hexdigest(result.fetch("text")))
       when "engineering.service.generate"
         StructuredRepository.generate!(ticket: ticket)
       else
@@ -48,6 +52,8 @@ module NevaehIntelligences
         production = Production.find_by!(id: output.fetch("production_id"), studio_project_id: project.id)
         StudioScene.find_by!(id: output.fetch("default_scene_id"), studio_project_id: project.id, production_id: production.id)
         raise StructuredTicket::Invalid, "Studio acceptance failed" unless project.name == inputs["name"]
+      when "content.generate"
+        raise StructuredTicket::Invalid, "Writing acceptance failed" unless output["format"] == inputs["format"] && output["text"].is_a?(String) && output["text"].present? && output["sha256"] == Digest::SHA256.hexdigest(output["text"])
       when "engineering.service.generate"
         StructuredRepository.verify!(output)
       else

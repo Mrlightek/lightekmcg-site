@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 module LightekCommerce
   class Order < ApplicationRecord
+    before_validation(on: :create) { self.payment_namespace ||= PaymentIdentity.namespace(site) if site }
     self.table_name = "lightek_commerce_orders"
     belongs_to :site, class_name: "DymondSite::Site"
     has_many :items, class_name: "LightekCommerce::OrderItem", dependent: :restrict_with_error

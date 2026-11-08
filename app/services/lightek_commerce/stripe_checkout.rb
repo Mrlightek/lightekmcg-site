@@ -17,7 +17,7 @@ module LightekCommerce
         mode: "payment",
         customer_email: order.customer_email,
         client_reference_id: order.id.to_s,
-        metadata: {lightek_commerce_order_id: order.id.to_s, lightek_site_id: order.site_id.to_s},
+        metadata: PaymentIdentity.metadata(order),
         line_items: order.items.map { |item|
           {price_data: {currency: order.currency, unit_amount: item.unit_price_cents,
             product_data: {name: item.name}}, quantity: item.quantity}
@@ -28,7 +28,7 @@ module LightekCommerce
         success_url: success_url,
         cancel_url: cancel_url,
         expires_at: 30.minutes.from_now.to_i
-      }, {idempotency_key: "lightek-commerce-order-#{order.id}-checkout"})
+      }, {idempotency_key: PaymentIdentity.key(order, 'checkout')})
       order.update!(payment_provider: "stripe", payment_reference: session.id)
       session
     rescue ::Stripe::StripeError => e
@@ -39,7 +39,7 @@ module LightekCommerce
       raise Unavailable, "Order is not payable" unless order.status == "pending_payment" && order.payment_provider == "stripe"
       Stripe.api_key = DymondBank::StripeCredentials.secret_key
       session = Stripe::Checkout::Session.retrieve(order.payment_reference)
-      metadata = session.metadata.to_h
+      metadata = session.metadata.to_h.stringify_keys
       raise Unavailable, "Checkout does not match this order" unless session.id == order.payment_reference &&
         metadata["lightek_commerce_order_id"].to_s == order.id.to_s && metadata["lightek_site_id"].to_s == order.site_id.to_s
       raise Unavailable, "Checkout has completed or expired; wait for payment confirmation" unless session.status == "open" && session.url.present?

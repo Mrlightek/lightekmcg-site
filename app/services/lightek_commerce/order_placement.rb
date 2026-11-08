@@ -57,6 +57,7 @@ module LightekCommerce
         return order if order.status == "canceled"
         raise Invalid, "Only unpaid orders can release reserved stock" unless order.status == "pending_payment"
         order.items.order(:product_id).each do |item|
+          next unless order.stock_reserved?
           if item.variant_id.present?
             variant = ProductVariant.lock.find(item.variant_id)
             variant.update!(inventory_quantity: variant.inventory_quantity + item.quantity)

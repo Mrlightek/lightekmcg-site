@@ -41,3 +41,15 @@ nevaeh_factory_training_recovery:
   class: "NevaehIntelligences::FactorySweepJob"
   queue: default
   active_job: true
+
+lightek_reservations_recovery:
+  cron: "*/5 * * * *"
+  class: "LightekReservations::SweepJob"
+  queue: default
+  active_job: true
+
+lightek_merchant_payouts:
+  cron: "15 * * * *"
+  class: "LightekCommerce::ScheduledPayoutsJob"
+  queue: default
+  active_job: true

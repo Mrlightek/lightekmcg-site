@@ -1,0 +1,326 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "hotel-meridian-house",
+  "industry": "hotel",
+  "meta": {
+    "brand": "Meridian House",
+    "title": "Meridian House — Boutique hotel and restaurant",
+    "description": "Boutique hotel and restaurant"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#f5f1ea",
+      "bg2": "#ece6db",
+      "card": "#fffdf9",
+      "ink": "#1c1a17",
+      "mut": "#6d675d",
+      "line": "#e1dacb",
+      "line2": "#cdc3ae",
+      "a": "#8c6a3f",
+      "b": "#2f4a46",
+      "on": "#ffffff",
+      "r": "2px",
+      "fh": "'Marcellus',serif",
+      "fb": "'Lato',sans-serif",
+      "hbg": "rgba(245,241,234,.92)",
+      "g1": "#8c6a3f22",
+      "g2": "#2f4a461a",
+      "hw": "400",
+      "hl": ".02em",
+      "lr": "0"
+    },
+    "fonts_query": "family=Marcellus&family=Lato:wght@300;400;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "rooms",
+        "label": "Rooms"
+      },
+      {
+        "id": "stay",
+        "label": "The stay"
+      },
+      {
+        "id": "gallery",
+        "label": "Gallery"
+      },
+      {
+        "id": "contact",
+        "label": "Reserve"
+      }
+    ],
+    "cta": "Book your stay"
+  },
+  "hero": {
+    "eyebrow": "Boutique hotel · Est. 1924",
+    "title": "Stay somewhere that stays with you.",
+    "subtitle": "Thirty-two rooms, a courtyard restaurant and quiet corners to linger. Right in the heart of the city.",
+    "primary_cta": "Reserve a room",
+    "secondary_cta": "See the rooms",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "rooms",
+      "type": "rooms",
+      "background": "default",
+      "header": {
+        "eyebrow": "Rooms",
+        "title": "Rest, redefined",
+        "subtitle": "Each room is individually designed with local art and linen bedding."
+      },
+      "content": [
+        {
+          "badge": "KING",
+          "price": "$289 / night",
+          "title": "Garden Room",
+          "meta": "King bed · Courtyard view · 380 sqft",
+          "image": null
+        },
+        {
+          "badge": "SUITE",
+          "price": "$419 / night",
+          "title": "Meridian Suite",
+          "meta": "King bed · Sitting room · 620 sqft",
+          "image": null
+        },
+        {
+          "badge": "POPULAR",
+          "price": "$349 / night",
+          "title": "Terrace Room",
+          "meta": "Queen beds · Private terrace · 450 sqft",
+          "image": null
+        }
+      ]
+    },
+    {
+      "id": "stay",
+      "type": "cards",
+      "background": "alt",
+      "header": {
+        "eyebrow": "The stay",
+        "title": "Everything you need",
+        "subtitle": "Small enough to feel personal."
+      },
+      "content": [
+        {
+          "icon": "utensils",
+          "title": "Courtyard restaurant",
+          "text": "Seasonal dining and breakfast served daily.",
+          "meta": ""
+        },
+        {
+          "icon": "heart",
+          "title": "Spa & wellness",
+          "text": "Massage rooms, sauna and a plunge pool.",
+          "meta": ""
+        },
+        {
+          "icon": "user",
+          "title": "Concierge",
+          "text": "Tours, tables and tickets arranged for you.",
+          "meta": ""
+        },
+        {
+          "icon": "pin",
+          "title": "Prime location",
+          "text": "Steps from museums, shops and the waterfront.",
+          "meta": ""
+        }
+      ]
+    },
+    {
+      "id": "gallery",
+      "type": "gallery",
+      "background": "default",
+      "header": {
+        "eyebrow": "Gallery",
+        "title": "A look inside",
+        "subtitle": "Replace each tile with your own photography."
+      },
+      "content": [
+        {
+          "caption": "Lobby",
+          "image": null
+        },
+        {
+          "caption": "Courtyard",
+          "image": null
+        },
+        {
+          "caption": "Suite",
+          "image": null
+        },
+        {
+          "caption": "Restaurant",
+          "image": null
+        },
+        {
+          "caption": "Terrace",
+          "image": null
+        },
+        {
+          "caption": "Spa",
+          "image": null
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "alt",
+      "header": null,
+      "content": [
+        {
+          "value": "32",
+          "label": "Rooms"
+        },
+        {
+          "value": "1924",
+          "label": "Welcoming guests since"
+        },
+        {
+          "value": "4.8★",
+          "label": "Guest rating"
+        },
+        {
+          "value": "2",
+          "label": "Dining rooms"
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "default",
+      "header": {
+        "eyebrow": "Reviews",
+        "title": "Guests write",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "Impeccable service in a beautiful building.",
+          "author": "Olivia & James"
+        },
+        {
+          "quote": "The best breakfast and the sweetest staff.",
+          "author": "D. Whitaker"
+        },
+        {
+          "quote": "We did not want to leave.",
+          "author": "Amir K."
+        }
+      ]
+    },
+    {
+      "id": "faq",
+      "type": "faq",
+      "background": "alt",
+      "header": {
+        "eyebrow": "FAQ",
+        "title": "Good to know",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "question": "What time is check-in?",
+          "answer": "Check-in begins at 3pm and check-out is at 11am. Early arrivals can store luggage."
+        },
+        {
+          "question": "Is parking available?",
+          "answer": "Yes. Valet parking is available for a nightly fee."
+        },
+        {
+          "question": "Are pets welcome?",
+          "answer": "Well-behaved dogs are welcome in select rooms."
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "default",
+      "header": {
+        "eyebrow": "Reservations",
+        "title": "Plan your stay",
+        "subtitle": "For groups and events, mention it below."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "phone",
+            "title": "Reservations",
+            "value": "(555) 010-9911"
+          },
+          {
+            "icon": "pin",
+            "title": "Find us",
+            "value": "8 Meridian Square, Your City, FL"
+          },
+          {
+            "icon": "mail",
+            "title": "Email",
+            "value": "stay@yourdomain.com"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "Email",
+            "options": null
+          },
+          {
+            "name": "in",
+            "type": "date",
+            "label": "Check-in",
+            "options": null
+          },
+          {
+            "name": "out",
+            "type": "date",
+            "label": "Check-out",
+            "options": null
+          },
+          {
+            "name": "room",
+            "type": "select",
+            "label": "Room",
+            "options": [
+              "Garden Room",
+              "Meridian Suite",
+              "Terrace Room"
+            ]
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Special requests",
+            "options": null
+          }
+        ],
+        "submit": "Request reservation",
+        "success_message": "Thank you. Our reservations team will confirm shortly.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Meridian House A boutique hotel and courtyard restaurant in the heart of the city.",
+    "visit": [
+      "8 Meridian Square",
+      "Your City, FL",
+      "(555) 010-9911"
+    ]
+  }
+}

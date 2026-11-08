@@ -51,10 +51,10 @@
                      height: 100vh; overflow-y: auto; z-index: 100; }
     .dd-body       { flex: 1; margin-left: var(--dd-sidebar-w);
                      display: flex; flex-direction: column; min-width: 0; }
-    .dd-topbar     { height: var(--dd-topbar-h); background: var(--dd-sidebar-bg);
+    .dd-topbar     { min-height: var(--dd-topbar-h); height: auto; flex: 0 0 auto; gap: 12px; flex-wrap: wrap; background: var(--dd-sidebar-bg);
                      border-bottom: 1px solid var(--dd-border);
                      display: flex; align-items: center; justify-content: space-between;
-                     padding: 0 20px; position: sticky; top: 0; z-index: 90; }
+                     padding: 12px 20px; position: sticky; top: 0; z-index: 90; }
     .dd-content    { padding: 24px; flex: 1; }
 
     /* ── Sidebar brand ───────────────────────────────────────────────── */

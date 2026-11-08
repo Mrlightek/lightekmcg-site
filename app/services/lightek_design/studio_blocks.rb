@@ -8,6 +8,7 @@ module LightekDesign
     def definitions
       common = [field("eyebrow"), field("heading"), field("body", "text"), field("image_url"), field("image_alt"), field("cta_label"), field("cta_url")]
       @definitions ||= {
+        "starter" => {"name" => "Lightek starter section", "fields" => [field("template_key"), field("section_key"), field("copy", "collection", "Text"), field("links", "collection", "Link destinations"), field("images", "collection", "Image URLs")], "data" => {"template_key" => "barber-clean-cut", "section_key" => "hero", "copy" => [], "links" => [], "images" => []}},
         "html" => {"name" => "Imported HTML / CSS", "fields" => [field("copy", "collection", "Text"), field("links", "collection", "Link destinations"), field("images", "collection", "Image URLs"), field("html", "text", "Section HTML (advanced)"), field("css", "text", "Design CSS"), field("font_stylesheets", "text", "Google Fonts stylesheet URLs"), field("body_class")], "data" => {"html" => "<section><h2>Your design</h2><p>Edit this HTML section.</p></section>", "css" => "", "font_stylesheets" => "", "body_class" => ""}},
         "hero" => {"name" => "Hero", "fields" => common, "data" => {"eyebrow" => "Your next chapter", "heading" => "Make something remarkable.", "body" => "Tell your story, introduce your business, and give visitors a clear next step.", "cta_label" => "Get started", "cta_url" => "#contact"}},
         "text" => {"name" => "Text", "fields" => common.first(3), "data" => {"heading" => "A story worth sharing", "body" => "Write your introduction here."}},

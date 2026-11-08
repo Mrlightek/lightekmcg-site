@@ -59,4 +59,8 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
   <% end %>
   </div>
 <% end %>
+<% starter_data = @preview ? definition.fetch("sections").filter_map { |entry| entry["data"] if entry["block"] == "starter" } : @page.sections.filter_map { |record| record.data if LightekDesign::Catalog.section_definition(record.kind)&.fetch("block", nil) == "starter" } %>
+<% if starter_data.any? && starter_data.none? { |data| data["section_key"] == "footer" } %>
+  <footer class="ld-default-footer" data-template-credit><%= LightekDesign::TemplateBranding.new(@site).credit %></footer>
+<% end %>
 </body></html>

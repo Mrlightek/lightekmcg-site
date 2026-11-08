@@ -1,0 +1,43 @@
+<%= stylesheet_link_tag "/lightek/templates/library.css" %>
+<%= javascript_include_tag "/lightek/templates/library.js", defer: true %>
+<% studio = local_assigns.fetch(:studio, false) %>
+<% designs = local_assigns.fetch(:designs) %>
+<section class="template-library" data-template-library aria-label="Website template library">
+  <div class="tl-heading"><div><span class="tl-kicker">Lightek · Made to make yours</span><h2>Start with a little possibility.</h2><p>Choose a foundation for your next website. Keep the layout, bring your brand, and make every section your own.</p></div><span class="tl-count" data-template-count><%= designs.size %> designs</span></div>
+  <div class="tl-toolbar"><div class="tl-search"><label for="template-search-<%= studio ? 'studio' : 'website' %>">Find your starting point</label><input id="template-search-<%= studio ? 'studio' : 'website' %>" type="search" placeholder="Try restaurant, music, community…" data-template-search></div><div class="tl-filters" aria-label="Template categories">
+    <% {"all" => "All designs", "business" => "Business", "creative" => "Creative", "community" => "Community", "custom" => "Your designs"}.each do |key, label| %><button type="button" class="tl-filter" data-template-filter="<%= key %>" aria-pressed="<%= key == 'all' %>"><%= label %></button><% end %>
+  </div></div>
+  <div class="tl-grid">
+    <% designs.each do |key, design| %>
+      <% industry = design["industry"].to_s %>
+      <% category = design["designer"] ? "custom" : %w[music photography].include?(industry) ? "creative" : industry == "community" ? "community" : "business" %>
+      <article class="tl-card" data-template-card data-category="<%= category %>" data-search="<%= [design['name'],design['description'],industry].join(' ').downcase %>">
+        <div class="tl-image">
+          <% if design["starter"] %><%= image_tag "/lightek/templates/#{key.delete_prefix('starter_').tr('_', '-')}-preview.jpg", alt: "#{design['name']} website preview", loading: "lazy" %>
+          <% elsif !design["designer"] %><%= image_tag "/lightek/designs/#{key}-preview.png", alt: "#{design['name']} website preview", loading: "lazy" %>
+          <% else %><div class="tl-type-art" style="background:<%= design.dig('tokens','color_bg') %>;color:<%= design.dig('tokens','color_text') %>"><b style="color:<%= design.dig('tokens','color_primary') %>">Aa</b><span><%= design['name'] %></span></div><% end %>
+        </div>
+        <div class="tl-copy"><div class="tl-meta"><span class="tl-industry"><%= industry.present? ? industry.humanize : design['designer'] ? 'Custom design' : 'Lightek original' %></span><span class="tl-badge"><%= design['designer'] ? "Version #{design['version']}" : "Included" %></span></div>
+          <h3><%= design['name'] %><%= ' · Active' if !studio && LightekDesign::Catalog.design_for(@site) == key %></h3><p><%= design['description'] %></p>
+          <div class="tl-swatches" aria-label="Theme palette"><% design.fetch('tokens').values_at('color_bg','color_primary','color_text').each do |color| %><span style="background:<%= color %>"></span><% end %></div>
+          <small><%= design.fetch('sections').size %> editable sections · <%= LightekDesign::Fonts.first_family(design.dig('fonts','font_heading')) %></small>
+          <div class="tl-actions">
+            <% if studio %>
+              <% if design['starter'] %><%= link_to "Preview ↗", dashboard_website_starter_preview_path(template_key: key.delete_prefix('starter_').tr('_','-')), class: "tl-button", target: "_blank", rel: "noopener" %><% end %>
+              <%= button_to "Customize in Studio →", dashboard_design_studio_index_path, method: :post, params: {source: key, name: "#{design['name']} copy"}, class: "tl-button tl-primary" %>
+            <% else %>
+              <%= link_to "Preview ↗", preview_dashboard_website_designs_path(site_id: @site.id, design: key), class: "tl-button", target: "_blank", rel: "noopener" %>
+              <%= button_to "Use template →", start_dashboard_website_design_path(site_id: @site.id, design: key), method: :post, class: "tl-button tl-primary", form: {data: {turbo_confirm: "Apply this appearance and create an editable draft? Existing pages remain in place."}} %>
+            <% end %>
+          </div>
+          <div class="tl-links">
+            <% if design['starter'] %><%= link_to "Download manifest JSON", dashboard_website_design_manifest_path(template_key: key.delete_prefix('starter_').tr('_','-')) %><% end %>
+            <% unless studio %><%= button_to "Appearance only", apply_dashboard_website_designs_path(site_id: @site.id, design: key), method: :post, class: "tl-button" %><% end %>
+          </div>
+        </div>
+      </article>
+    <% end %>
+  </div>
+  <p class="tl-empty" data-template-empty hidden>No designs match that search. Try another phrase or category.</p>
+  <p class="tl-note">Example names, reviews, prices, and imagery are placeholders. Replace them before publishing. “Use template” applies its appearance and creates a draft; importing it again preserves your edits.</p>
+</section>

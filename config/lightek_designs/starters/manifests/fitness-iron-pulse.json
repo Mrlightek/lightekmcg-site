@@ -1,0 +1,341 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "fitness-iron-pulse",
+  "industry": "fitness",
+  "meta": {
+    "brand": "Iron Pulse",
+    "title": "Iron Pulse — Strength and conditioning gym",
+    "description": "Strength and conditioning gym"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#08090a",
+      "bg2": "#101214",
+      "card": "#121518",
+      "ink": "#f4f6f0",
+      "mut": "#9aa39a",
+      "line": "#1d2226",
+      "line2": "#2c343a",
+      "a": "#c6ff00",
+      "b": "#00e5a0",
+      "on": "#0a0f00",
+      "r": "4px",
+      "fh": "'Anton',sans-serif",
+      "fb": "'Inter',sans-serif",
+      "hbg": "rgba(8,9,10,.86)",
+      "g1": "#c6ff0020",
+      "g2": "#00e5a01a",
+      "hw": "400",
+      "ht": "uppercase",
+      "hl": ".01em",
+      "lr": "0"
+    },
+    "fonts_query": "family=Anton&family=Inter:wght@400;500;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "programs",
+        "label": "Programs"
+      },
+      {
+        "id": "schedule",
+        "label": "Schedule"
+      },
+      {
+        "id": "pricing",
+        "label": "Pricing"
+      },
+      {
+        "id": "contact",
+        "label": "Join"
+      }
+    ],
+    "cta": "Free week"
+  },
+  "hero": {
+    "eyebrow": "Strength · Conditioning · Community",
+    "title": "Built, not born.",
+    "subtitle": "Coached training for every level. Show up, put in the work, and watch the numbers move.",
+    "primary_cta": "Claim your free week",
+    "secondary_cta": "See programs",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "programs",
+      "type": "cards",
+      "background": "default",
+      "header": {
+        "eyebrow": "Programs",
+        "title": "Train with purpose",
+        "subtitle": "Pick a path. Our coaches adapt it to you."
+      },
+      "content": [
+        {
+          "icon": "dumbbell",
+          "title": "Strength",
+          "text": "Barbell fundamentals and progressive overload with real coaching.",
+          "meta": ""
+        },
+        {
+          "icon": "bolt",
+          "title": "HIIT",
+          "text": "45-minute high-intensity sessions that never repeat.",
+          "meta": ""
+        },
+        {
+          "icon": "heart",
+          "title": "Mobility",
+          "text": "Recovery, flexibility and injury prevention.",
+          "meta": ""
+        },
+        {
+          "icon": "user",
+          "title": "Personal training",
+          "text": "One-on-one plans built around your goals.",
+          "meta": ""
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "alt",
+      "header": null,
+      "content": [
+        {
+          "value": "2,400",
+          "label": "Members"
+        },
+        {
+          "value": "35",
+          "label": "Weekly classes"
+        },
+        {
+          "value": "18",
+          "label": "Certified coaches"
+        },
+        {
+          "value": "24/7",
+          "label": "Access"
+        }
+      ]
+    },
+    {
+      "id": "schedule",
+      "type": "tabs",
+      "background": "default",
+      "header": {
+        "eyebrow": "Schedule",
+        "title": "Class timetable",
+        "subtitle": "Reserve your spot in the app or at the desk."
+      },
+      "content": [
+        {
+          "label": "Mon–Wed",
+          "items": [
+            {
+              "title": "Strength 101",
+              "text": "Coach Ray · 60 min",
+              "price": "6:00 AM"
+            },
+            {
+              "title": "HIIT Burn",
+              "text": "Coach Jade · 45 min",
+              "price": "12:15 PM"
+            },
+            {
+              "title": "Power Lift",
+              "text": "Coach Ray · 75 min",
+              "price": "6:00 PM"
+            }
+          ]
+        },
+        {
+          "label": "Thu–Fri",
+          "items": [
+            {
+              "title": "Mobility Flow",
+              "text": "Coach Ana · 50 min",
+              "price": "7:00 AM"
+            },
+            {
+              "title": "Metcon",
+              "text": "Coach Jade · 45 min",
+              "price": "5:30 PM"
+            }
+          ]
+        },
+        {
+          "label": "Weekend",
+          "items": [
+            {
+              "title": "Open Gym Social",
+              "text": "All levels · free for members",
+              "price": "9:00 AM"
+            },
+            {
+              "title": "Team Training",
+              "text": "Coach Ray · 90 min",
+              "price": "11:00 AM"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pricing",
+      "type": "pricing",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Membership",
+        "title": "Choose your level",
+        "subtitle": "No contracts. Cancel anytime."
+      },
+      "content": [
+        {
+          "name": "Basic",
+          "price_monthly": "49",
+          "price_annual": "42",
+          "unit": "/mo",
+          "description": "Open gym access",
+          "features": [
+            "Gym floor 5am–10pm",
+            "Locker room",
+            "1 guest pass / month"
+          ],
+          "highlighted": false,
+          "cta": "Start Basic"
+        },
+        {
+          "name": "Pro",
+          "price_monthly": "89",
+          "price_annual": "76",
+          "unit": "/mo",
+          "description": "Classes + open gym",
+          "features": [
+            "24/7 access",
+            "Unlimited classes",
+            "Monthly body scan",
+            "2 guest passes"
+          ],
+          "highlighted": true,
+          "cta": "Go Pro"
+        },
+        {
+          "name": "Elite",
+          "price_monthly": "149",
+          "price_annual": "127",
+          "unit": "/mo",
+          "description": "Coaching included",
+          "features": [
+            "Everything in Pro",
+            "4 PT sessions / month",
+            "Custom nutrition plan",
+            "Priority booking"
+          ],
+          "highlighted": false,
+          "cta": "Join Elite"
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "default",
+      "header": {
+        "eyebrow": "Results",
+        "title": "Real members, real change",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "Down 38 lbs and stronger than I have ever been.",
+          "author": "Jamal K."
+        },
+        {
+          "quote": "The coaches know your name and your goals.",
+          "author": "Sofia R."
+        },
+        {
+          "quote": "Best community I have trained with.",
+          "author": "Chris D."
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Join",
+        "title": "Claim your free week",
+        "subtitle": "Tour the gym and meet a coach, no pressure."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "clock",
+            "title": "Hours",
+            "value": "Open 24/7 for members · Staffed 5am–10pm"
+          },
+          {
+            "icon": "pin",
+            "title": "Gym",
+            "value": "789 Iron Road, Your City, FL"
+          },
+          {
+            "icon": "phone",
+            "title": "Call",
+            "value": "(555) 010-7788"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "Email",
+            "options": null
+          },
+          {
+            "name": "goal",
+            "type": "select",
+            "label": "Main goal",
+            "options": [
+              "Build strength",
+              "Lose weight",
+              "Improve fitness",
+              "Train for sport"
+            ]
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Anything we should know?",
+            "options": null
+          }
+        ],
+        "submit": "Claim free week",
+        "success_message": "You are in. A coach will contact you to schedule your first session.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Iron Pulse Coached strength and conditioning for every level.",
+    "visit": [
+      "789 Iron Road",
+      "Your City, FL",
+      "(555) 010-7788"
+    ]
+  }
+}

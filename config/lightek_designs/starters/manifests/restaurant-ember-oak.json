@@ -1,0 +1,311 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "restaurant-ember-oak",
+  "industry": "restaurant",
+  "meta": {
+    "brand": "Ember & Oak",
+    "title": "Ember & Oak — Wood-fired kitchen and cocktail bar",
+    "description": "Wood-fired kitchen and cocktail bar"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#120e0b",
+      "bg2": "#1a1410",
+      "card": "#1d1611",
+      "ink": "#f6ece0",
+      "mut": "#b5a595",
+      "line": "#2c221a",
+      "line2": "#44352a",
+      "a": "#e8a24a",
+      "b": "#b4432a",
+      "on": "#1a0f05",
+      "r": "6px",
+      "fh": "'Playfair Display',serif",
+      "fb": "'DM Sans',sans-serif",
+      "hbg": "rgba(18,14,11,.86)",
+      "g1": "#e8a24a26",
+      "g2": "#b4432a22",
+      "hw": "800"
+    },
+    "fonts_query": "family=Playfair+Display:ital,wght@0,600;0,800;1,400&family=DM+Sans:wght@400;500;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "menu",
+        "label": "Menu"
+      },
+      {
+        "id": "story",
+        "label": "Our Story"
+      },
+      {
+        "id": "reviews",
+        "label": "Reviews"
+      },
+      {
+        "id": "contact",
+        "label": "Reserve"
+      }
+    ],
+    "cta": "Reserve"
+  },
+  "hero": {
+    "eyebrow": "Wood-fired · Seasonal · Local",
+    "title": "Fire. Salt. Season.",
+    "subtitle": "Open-flame cooking built on local farms and honest ingredients. Dinner Tuesday through Sunday.",
+    "primary_cta": "Reserve a table",
+    "secondary_cta": "See the menu",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "menu",
+      "type": "tabs",
+      "background": "default",
+      "header": {
+        "eyebrow": "The menu",
+        "title": "Cooked over oak",
+        "subtitle": "Seasonal plates that change with the harvest."
+      },
+      "content": [
+        {
+          "label": "Starters",
+          "items": [
+            {
+              "title": "Charred Octopus",
+              "text": "Smoked paprika, white bean, lemon oil",
+              "price": "$18"
+            },
+            {
+              "title": "Oak-Roasted Beets",
+              "text": "Whipped goat cheese, pistachio, honey",
+              "price": "$14"
+            },
+            {
+              "title": "Burrata",
+              "text": "Heirloom tomato, basil, grilled sourdough",
+              "price": "$16"
+            }
+          ]
+        },
+        {
+          "label": "Mains",
+          "items": [
+            {
+              "title": "Dry-Aged Ribeye",
+              "text": "14oz, bone marrow butter, charred greens",
+              "price": "$54"
+            },
+            {
+              "title": "Wood-Fired Salmon",
+              "text": "Cedar plank, fennel, citrus beurre blanc",
+              "price": "$34"
+            },
+            {
+              "title": "Mushroom Risotto",
+              "text": "Wild mushrooms, parmesan, truffle",
+              "price": "$26"
+            }
+          ]
+        },
+        {
+          "label": "Desserts",
+          "items": [
+            {
+              "title": "Burnt Honey Tart",
+              "text": "Crème fraîche, sea salt",
+              "price": "$11"
+            },
+            {
+              "title": "Chocolate Pot de Crème",
+              "text": "Espresso cream, shortbread",
+              "price": "$10"
+            }
+          ]
+        },
+        {
+          "label": "Drinks",
+          "items": [
+            {
+              "title": "Smoked Old Fashioned",
+              "text": "Bourbon, oak smoke, orange",
+              "price": "$15"
+            },
+            {
+              "title": "House Red / White",
+              "text": "By the glass, local vineyards",
+              "price": "$12"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "story",
+      "type": "cards",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Our story",
+        "title": "Slow food, real fire",
+        "subtitle": "Everything is made in-house, from the bread to the bitters."
+      },
+      "content": [
+        {
+          "icon": "hand",
+          "title": "Local farms",
+          "text": "We buy from growers within 100 miles, so the menu changes with the seasons.",
+          "meta": ""
+        },
+        {
+          "icon": "bolt",
+          "title": "Open flame",
+          "text": "A live-fire hearth and oak wood give every dish its signature depth.",
+          "meta": ""
+        },
+        {
+          "icon": "heart",
+          "title": "Made with care",
+          "text": "Small kitchen, big attention. Every plate leaves the pass with intent.",
+          "meta": ""
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "default",
+      "header": null,
+      "content": [
+        {
+          "value": "12",
+          "label": "Years of service"
+        },
+        {
+          "value": "40+",
+          "label": "Local farms"
+        },
+        {
+          "value": "4.9★",
+          "label": "Guest rating"
+        },
+        {
+          "value": "0",
+          "label": "Freezers on the line"
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Reviews",
+        "title": "Guests are talking",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "The best steak I have had in years, and the room is unforgettable.",
+          "author": "Maria T."
+        },
+        {
+          "quote": "Seasonal, honest cooking. The beets alone are worth the trip.",
+          "author": "Devon R."
+        },
+        {
+          "quote": "Perfect date night. Service was warm and effortless.",
+          "author": "Priya & Sam"
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "default",
+      "header": {
+        "eyebrow": "Reservations",
+        "title": "Book your table",
+        "subtitle": "Parties of 8+ please call."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "clock",
+            "title": "Hours",
+            "value": "Tue–Thu 5–10pm · Fri–Sun 4–11pm"
+          },
+          {
+            "icon": "pin",
+            "title": "Find us",
+            "value": "123 Main Street, Your City, FL"
+          },
+          {
+            "icon": "phone",
+            "title": "Call",
+            "value": "(555) 010-2030"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "phone",
+            "type": "tel",
+            "label": "Phone",
+            "options": null
+          },
+          {
+            "name": "date",
+            "type": "date",
+            "label": "Date",
+            "options": null
+          },
+          {
+            "name": "size",
+            "type": "select",
+            "label": "Party size",
+            "options": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8+"
+            ]
+          },
+          {
+            "name": "time",
+            "type": "hidden",
+            "label": null,
+            "options": null
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Notes (allergies, occasion)",
+            "options": null
+          }
+        ],
+        "submit": "Request reservation",
+        "success_message": "Thank you. Your request is in and we will confirm shortly.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Ember & Oak Wood-fired kitchen and cocktail bar. Local, seasonal, made by hand.",
+    "visit": [
+      "123 Main Street",
+      "Your City, FL",
+      "(555) 010-2030"
+    ]
+  }
+}

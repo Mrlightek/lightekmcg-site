@@ -1,0 +1,12 @@
+<% branding = LightekDesign::TemplateBranding.new(@site) %>
+<section class="tl-credit"><h2>Template credit & white-label branding</h2>
+<% if current_user.role.to_s == 'super_admin' || branding.white_label? %>
+  <p>Regular Lightek websites retain “Template by LightekMCG”. Authorized white-label agencies can customize or hide the credit.</p>
+  <%= form_with url: dashboard_website_design_branding_path(site_id: @site.id), method: :patch, scope: :branding, local: true do |form| %>
+    <% if current_user.role.to_s == 'super_admin' %><label><%= form.check_box :white_label_enabled, checked: branding.settings['white_label_enabled'] == true %> Enable white-label customization for this website</label><% end %>
+    <label>Credit text<%= form.text_field :credit, value: branding.settings['credit'].presence || LightekDesign::TemplateBranding::DEFAULT_CREDIT, maxlength: 120 %></label>
+    <label><%= form.check_box :show_credit, checked: branding.settings['show_credit'] != false %> Show template credit</label>
+    <%= form.submit 'Save template branding' %>
+  <% end %>
+<% else %><p><%= branding.credit %> · Custom attribution is available to authorized white-label agencies.</p><% end %>
+</section>

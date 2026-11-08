@@ -6,7 +6,7 @@ module LightekDesign
     module_function
 
     def designs
-      @designs ||= JSON.parse(Rails.root.join("config/lightek_designs/catalog.json").read).freeze
+      @designs ||= JSON.parse(Rails.root.join("config/lightek_designs/catalog.json").read).merge(StarterLibrary.designs).freeze
     end
 
     def fetch(key) = designs.fetch(key.to_s)
@@ -35,7 +35,7 @@ module LightekDesign
       section_definitions.each do |entry|
         klass = Class.new(DymondSite::Sections::Base)
         klass.key(entry.fetch("kind"))
-        klass.template(entry.fetch("kind"))
+        klass.template(entry["designer"] ? "lightek_designer" : entry.fetch("kind"))
         entry.fetch("fields").each do |field|
           klass.field(field.fetch("name"), field.fetch("type").to_sym, label: field.fetch("label"))
         end

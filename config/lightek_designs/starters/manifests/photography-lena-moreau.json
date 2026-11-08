@@ -1,0 +1,303 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "photography-lena-moreau",
+  "industry": "photography",
+  "meta": {
+    "brand": "Lena Moreau",
+    "title": "Lena Moreau — Photography for weddings, portraits and brands",
+    "description": "Photography for weddings, portraits and brands"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#0e0e0f",
+      "bg2": "#151516",
+      "card": "#181819",
+      "ink": "#f4f1ec",
+      "mut": "#9d9a94",
+      "line": "#242426",
+      "line2": "#38383b",
+      "a": "#d8c3a5",
+      "b": "#8a6f4e",
+      "on": "#141414",
+      "r": "0px",
+      "fh": "'Italiana',serif",
+      "fb": "'Jost',sans-serif",
+      "hbg": "rgba(14,14,15,.88)",
+      "g1": "#d8c3a51c",
+      "g2": "#8a6f4e18",
+      "hw": "400",
+      "ht": "uppercase",
+      "hl": ".08em",
+      "lw": "400",
+      "lr": "0"
+    },
+    "fonts_query": "family=Italiana&family=Jost:wght@300;400;500",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "work",
+        "label": "Portfolio"
+      },
+      {
+        "id": "packages",
+        "label": "Sessions"
+      },
+      {
+        "id": "about",
+        "label": "Process"
+      },
+      {
+        "id": "contact",
+        "label": "Book"
+      }
+    ],
+    "cta": "Book a session"
+  },
+  "hero": {
+    "eyebrow": "Weddings · Portraits · Brands",
+    "title": "Light, held still.",
+    "subtitle": "Honest, cinematic photography that keeps the feeling of the day long after it is over.",
+    "primary_cta": "Book a session",
+    "secondary_cta": "View portfolio",
+    "art": "inline-svg",
+    "variant": "center"
+  },
+  "sections": [
+    {
+      "id": "work",
+      "type": "gallery",
+      "background": "default",
+      "header": {
+        "eyebrow": "Portfolio",
+        "title": "Selected work",
+        "subtitle": "Replace each tile with your own photography."
+      },
+      "content": [
+        {
+          "caption": "Wedding",
+          "image": null
+        },
+        {
+          "caption": "Portrait",
+          "image": null
+        },
+        {
+          "caption": "Editorial",
+          "image": null
+        },
+        {
+          "caption": "Brand",
+          "image": null
+        },
+        {
+          "caption": "Wedding",
+          "image": null
+        },
+        {
+          "caption": "Family",
+          "image": null
+        },
+        {
+          "caption": "Portrait",
+          "image": null
+        },
+        {
+          "caption": "Engagement",
+          "image": null
+        },
+        {
+          "caption": "Product",
+          "image": null
+        }
+      ]
+    },
+    {
+      "id": "packages",
+      "type": "pricing",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Sessions",
+        "title": "Choose your session",
+        "subtitle": "Every package includes a private online gallery."
+      },
+      "content": [
+        {
+          "name": "Mini",
+          "price_monthly": "350",
+          "price_annual": "350",
+          "unit": "/ session",
+          "description": "45-minute session",
+          "features": [
+            "1 location",
+            "25 edited images",
+            "Online gallery"
+          ],
+          "highlighted": false,
+          "cta": "Book Mini"
+        },
+        {
+          "name": "Signature",
+          "price_monthly": "900",
+          "price_annual": "900",
+          "unit": "/ session",
+          "description": "Portraits & couples",
+          "features": [
+            "2 hours, 2 locations",
+            "60 edited images",
+            "Print release",
+            "Online gallery"
+          ],
+          "highlighted": true,
+          "cta": "Book Signature"
+        },
+        {
+          "name": "Full Day",
+          "price_monthly": "2800",
+          "price_annual": "2800",
+          "unit": "/ session",
+          "description": "Weddings & events",
+          "features": [
+            "8 hours coverage",
+            "Second photographer",
+            "400+ edited images",
+            "Heirloom album"
+          ],
+          "highlighted": false,
+          "cta": "Book Full Day"
+        }
+      ]
+    },
+    {
+      "id": "about",
+      "type": "steps",
+      "background": "default",
+      "header": {
+        "eyebrow": "Process",
+        "title": "From first hello to final gallery",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "title": "Inquire",
+          "text": "Tell me about your day or session."
+        },
+        {
+          "title": "Plan",
+          "text": "We choose locations, timing and style together."
+        },
+        {
+          "title": "Shoot",
+          "text": "Relaxed direction so you look and feel like yourself."
+        },
+        {
+          "title": "Deliver",
+          "text": "A polished gallery within two to three weeks."
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Kind words",
+        "title": "Clients say",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "She captured moments we did not even know happened.",
+          "author": "Hannah & Luke"
+        },
+        {
+          "quote": "Calm, creative and incredibly easy to work with.",
+          "author": "Studio Oro"
+        },
+        {
+          "quote": "The photos are timeless.",
+          "author": "The Carter family"
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "default",
+      "header": {
+        "eyebrow": "Book",
+        "title": "Let’s make something beautiful",
+        "subtitle": "Typically replies within 48 hours."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "mail",
+            "title": "Email",
+            "value": "hello@yourdomain.com"
+          },
+          {
+            "icon": "pin",
+            "title": "Based in",
+            "value": "Your City, FL · Available worldwide"
+          },
+          {
+            "icon": "phone",
+            "title": "Phone",
+            "value": "(555) 010-2468"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "Email",
+            "options": null
+          },
+          {
+            "name": "type",
+            "type": "select",
+            "label": "Session type",
+            "options": [
+              "Wedding",
+              "Portrait",
+              "Family",
+              "Brand / commercial",
+              "Other"
+            ]
+          },
+          {
+            "name": "date",
+            "type": "date",
+            "label": "Preferred date",
+            "options": null
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Tell me about your vision",
+            "options": null
+          }
+        ],
+        "submit": "Send inquiry",
+        "success_message": "Thank you. I will be in touch within 48 hours.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Lena Moreau Honest, cinematic photography for weddings, portraits and brands.",
+    "visit": [
+      "Your City, FL",
+      "hello@yourdomain.com",
+      "(555) 010-2468"
+    ]
+  }
+}

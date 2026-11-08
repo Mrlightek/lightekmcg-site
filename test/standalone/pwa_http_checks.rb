@@ -2,6 +2,7 @@
 # Exercises the real API controllers against the real database workers. Only
 # host authentication and the private Dispatch queue are replaced at boundaries.
 require_relative "community_checks"
+require_relative "session_community_support"
 require "action_dispatch/testing/integration"
 require File.join(ROOT, "app/services/lightek_pwa/site_context")
 require File.join(ROOT, "app/services/lightek_social/access_denied")
@@ -188,6 +189,8 @@ class PwaHttpIntegrationTest < LightekCommunityIntegrationTest
     assert_equal 404,client.response.status
     client.get "/api/lightek/pwa/live/#{post.id}/index.m3u8",headers:headers
     assert_equal 200,client.response.status
+    assert StudioLiveViewer.where(studio_live_operation:operation,user:@alice).exists?
+    refute StudioLiveViewer.where(studio_live_operation:operation,user:@bob).exists?
     assert_includes client.response.body,"/api/lightek/pwa/live/#{post.id}/segments/segment-000000.ts"
     client.get "/api/lightek/pwa/live/#{post.id}/segments/segment-000000.ts",headers:headers
     assert_equal 200,client.response.status

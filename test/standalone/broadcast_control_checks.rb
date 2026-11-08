@@ -42,6 +42,9 @@ Rails.application.routes.append do
   get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
   post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
   post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination
+  post '/dashboard/live/audience-settings',to:'dashboard/live_broadcasts#audience_settings',as: :dashboard_live_audience_settings
+  post '/dashboard/live/audience-connection',to:'dashboard/live_broadcasts#audience_connection',as: :dashboard_live_audience_connection
+  get '/dashboard/live/:id/audience',to:'dashboard/live_broadcasts#audience',as: :dashboard_live_audience
   get "/dashboard/live/:id/recording", to: "dashboard/live_broadcasts#recording", as: :dashboard_live_recording
   get "/gatekeeper", to: "gatekeeper#index"
   get "/gatekeeper/config", to: "gatekeeper#platform_config"

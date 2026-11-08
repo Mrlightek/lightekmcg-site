@@ -23,9 +23,27 @@ module LightekReservations
           raise Pending, 'This provider requires an operator to apply the package change'
         end
         state = adapter.node(node.provider_resource_id)
+        events = adapter.events_for(node.provider_resource_id)
+        if events.any? { |event| %w[scheduled started in_progress].include?(event['status']) }
+          change.update!(status: 'applying', error: 'Waiting for the provider operation to finish')
+          self.class.set(wait: 2.minutes).perform_later(change.id)
+          next
+        end
+        if change.provider_receipt['after_event_id']
+          resize_events = events.select { |event| event['id'].to_i > change.provider_receipt['after_event_id'].to_i && event['action'] == 'linode_resize' }
+          raise StandardError, 'The provider resize failed; review its event before retrying' if resize_events.any? { |event| event['status'] == 'failed' }
+          unless resize_events.any? { |event| %w[completed finished].include?(event['status']) }
+            change.update!(error: 'Waiting for the completed provider resize receipt')
+            self.class.set(wait: 2.minutes).perform_later(change.id)
+            next
+          end
+        end
         plan = target.fetch('compute').fetch('plan')
         if state['type'] != plan
-          adapter.resize_node(node.provider_resource_id, plan: plan) if %w[running offline].include?(state['status'])
+          if %w[running offline].include?(state['status'])
+            receipt = adapter.resize_node(node.provider_resource_id, plan: plan)
+            change.update!(provider_receipt: receipt)
+          end
           # Committing the observation before retry keeps an accepted provider
           # operation durable; no entitlement is changed by an empty API receipt.
           change.update!(status: 'applying', error: 'Waiting for the provider to confirm the target plan')

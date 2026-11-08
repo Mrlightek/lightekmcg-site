@@ -28,8 +28,16 @@ module Gatekeeper
           }.merge(auth).merge(options.compact))
         end
 
+        def events_for(id)
+          response = request(:get, '/account/events?page_size=100', filters: {
+            'entity.type'=>'linode', 'entity.id'=>Integer(id), '+order_by'=>'id', '+order'=>'desc'})
+          Array(response.fetch('data'))
+        end
+
         def resize_node(id, plan:)
+          baseline = events_for(id).map { |event| event['id'].to_i }.max.to_i
           request(:post, "/linode/instances/#{Integer(id)}/resize", body: {type: plan, allow_auto_disk_resize: false})
+          {'after_event_id'=>baseline, 'target_plan'=>plan, 'requested_at'=>Time.current.iso8601}
         end
 
         def reboot_node(id) = request(:post, "/linode/instances/#{id}/reboot", body: {})
@@ -60,8 +68,9 @@ module Gatekeeper
           payload["token"] || payload["value"] || raise(ConfigurationError, "Linode Vault credential must contain token")
         end
 
-        def request(method, path, body: nil, authenticated: true)
+        def request(method, path, body: nil, authenticated: true, filters: nil)
           headers = authenticated ? { "Authorization" => "Bearer #{token}" } : {}
+          headers['X-Filter'] = JSON.generate(filters) if filters
           json_request(method:, url: "#{BASE}#{path}", headers:, body:)
         end
 

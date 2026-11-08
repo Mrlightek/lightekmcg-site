@@ -58,4 +58,45 @@ class LightekReservationsReleaseTest < ActiveSupport::TestCase
     assert_equal 'paid', order.reload.status
     assert_equal 1, LightekReservations::Reservation.where(order: order).count
   end
+  test 'native owner access executes the host Rails runtime rather than Docker' do
+    domain = "client-#{SecureRandom.random_number(1000000)}.example.test"
+    profile = {'app_root'=>"/opt/lightek-sites/#{domain}/current", 'app_user'=>'lightek',
+      'env_file'=>"/opt/lightek-sites/#{domain}/.env", 'ruby_bin'=>'/home/lightek/.rbenv/versions/3.3.6/bin',
+      'health_url'=>"https://#{domain}/up", 'revision_url'=>"https://#{domain}/__lightek/release", 'worker_mode'=>'systemd', 'worker_service'=>'lightek-test-sidekiq'}
+    order = LightekCommerce::Order.create!(site: @site, customer_email: @buyer.email_address, status: 'paid', paid_at: Time.current,
+      provisioning_state: 'ready', provisioned_at: Time.current, subtotal_cents: 10000, total_cents: 10000)
+    expected_domain = LightekCommerce::Installations.hostname(order)
+    profile.transform_values! { |value| value.is_a?(String) ? value.gsub(domain, expected_domain) : value }
+    node = GatekeeperNode.create!(name: "release-#{SecureRandom.hex(5)}", ip_address: '203.0.113.8', ssh_user: 'root', owner: @buyer,
+      metadata: {'node_credential_secret_slug'=>'release-owner-access', 'website_deployments'=>{expected_domain=>{'owner_id'=>@buyer.id,
+        'owner_email'=>@buyer.email_address, 'deployment_adapter'=>'native_rails', 'fleet_config'=>profile}},
+        'website_deployment'=>{'url'=>"https://#{expected_domain}", 'public_https_verified'=>true, 'owner_login_verified'=>true,
+          'health'=>{'full_application_dashboard_verified'=>true}}})
+    request = ProvisioningRequest.create!(owner: @buyer, gatekeeper_node: node, approval_status: 'approved', execution_status: 'succeeded', requested_node_count: 1)
+    order.update!(provisioning_request_id: request.id)
+    command = nil
+    channel = Object.new
+    channel.define_singleton_method(:exec) { |value,&block| command = value; block.call(channel,true) }
+    channel.define_singleton_method(:send_data) { |*| }
+    channel.define_singleton_method(:eof!) {}
+    channel.define_singleton_method(:on_data) { |&block| block.call(channel, "LIGHTEK_OWNER_ACCESS="+JSON.generate(token: 'a'*64)+"\n") }
+    channel.define_singleton_method(:on_extended_data) { |*| }
+    channel.define_singleton_method(:on_request) { |_,&block| block.call(channel, Struct.new(:read_long).new(0)) }
+    ssh = Object.new
+    ssh.define_singleton_method(:open_channel) { |&block| block.call(channel) }
+    ssh.define_singleton_method(:loop) {}
+    require 'net/ssh'
+    Gatekeeper::Compute::NodeVerificationService.stub(:call, ->(**) {true}) do
+      LightekVault::Service.stub(:checkout!, ->(**) {{'root_password'=>String.new('test-only')}}) do
+        Net::SSH.stub(:start, ->(*, **, &block) { block.call(ssh) }) do
+          url = Gatekeeper::WebsiteDeployment.owner_password_setup_url!(actor: @buyer, order: order)
+          assert_equal "https://#{expected_domain}/passwords/#{'a'*64}/edit", url
+        end
+      end
+    end
+    assert_includes command, 'owner-access'
+    assert_includes command, profile['app_root']
+    refute_includes command, 'docker'
+  end
+
 end

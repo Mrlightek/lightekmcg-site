@@ -21,7 +21,7 @@ ActiveRecord::Schema.define do
   create_table(:users, force: :cascade) { |t| t.string :email_address; t.string :first_name; t.string :role; t.string :stripe_connect_account_id; t.boolean :stripe_connect_details_submitted; t.boolean :stripe_connect_payouts_enabled }
   create_table(:dymond_site_sites, force: :cascade) { |t| t.string :name; t.string :host; t.string :tenant_type; t.integer :tenant_id; t.json :manifest, default: {} }
 end
-%w[20261028101500_create_lightek_commerce_products 20261028113000_create_lightek_commerce_orders 20261028160000_add_commerce_refund_tracking 20261028195000_add_commerce_fulfillment_tracking 20261028230000_add_commerce_payout_tracking 20261108190000_create_lightek_resort_reservations 20261108200000_add_reservation_federation].each do |name|
+%w[20261028101500_create_lightek_commerce_products 20261028113000_create_lightek_commerce_orders 20261028160000_add_commerce_refund_tracking 20261028195000_add_commerce_fulfillment_tracking 20261028230000_add_commerce_payout_tracking 20261108190000_create_lightek_resort_reservations 20261108200000_add_reservation_federation 20261108210000_track_reservation_provider_receipts].each do |name|
   path = ROOT.join("db/migrate/#{name}.rb")
   next unless path.exist?
   source = path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
@@ -123,11 +123,16 @@ module Gatekeeper
   module Compute
     module Providers
       class LinodeAdapter
-        class << self; attr_accessor :state, :calls; end
+        class << self; attr_accessor :state, :calls, :events; end
         def node(id) = self.class.state.deep_dup
+        def events_for(id)
+          return self.class.events if self.class.events
+          self.class.calls.any? { |call| call.first == :resize } && self.class.state['status'] == 'running' ? [{'id'=>1,'action'=>'linode_resize','status'=>'finished'}] : []
+        end
         def resize_node(id, plan:)
           self.class.calls << [:resize, id, plan]
           self.class.state['status'] = 'resizing'
+          {'after_event_id'=>0, 'target_plan'=>plan}
         end
         def start_node(id)
           self.class.calls << [:start, id]
@@ -179,6 +184,7 @@ class ReservationsChecks < Minitest::Test
     [GatekeeperInstallation, ProvisioningRequest, TestNode, TestProvider, TestSubscription].each(&:delete_all)
     Gatekeeper::Compute::Providers::LinodeAdapter.state = {'type'=>'g6-nanode-1','status'=>'running'}
     Gatekeeper::Compute::Providers::LinodeAdapter.calls = []
+    Gatekeeper::Compute::Providers::LinodeAdapter.events = nil
     Gatekeeper::Fleet::Transport.calls = []
     Gatekeeper::Fleet::Transport.fail = false
     @owner = User.create!(email_address: 'owner@example.test', role: 'super_admin', stripe_connect_account_id: 'acct_owner')
@@ -579,6 +585,23 @@ class ReservationsChecks < Minitest::Test
     assert_nil LightekCommerce::StripeEvents.process!(e)
     assert_equal 'pending_payment', booking.order.reload.status
     assert_equal 'held', booking.reload.status
+  end
+
+  def test_reported_target_plan_cannot_activate_while_resize_event_is_pending
+    booking = active_server
+    attach_server(booking)
+    target = server(price: 20000, compute: {'region'=>'us-east','image'=>'linode/ubuntu24.04','plan'=>'g6-standard-1','monthly_cost_cents'=>1200})
+    change = paid_change(booking, target)
+    LightekReservations::PackageChangeJob.new.perform(change.id)
+    Gatekeeper::Compute::Providers::LinodeAdapter.state = {'type'=>'g6-standard-1','status'=>'running'}
+    Gatekeeper::Compute::Providers::LinodeAdapter.events = [{'id'=>1,'action'=>'linode_resize','status'=>'scheduled'}]
+    LightekReservations::PackageChangeJob.new.perform(change.id)
+    assert_equal 'applying', change.reload.status
+    assert_equal 10000, booking.reload.package_snapshot['price_cents']
+    assert_empty Gatekeeper::Fleet::Transport.calls
+    Gatekeeper::Compute::Providers::LinodeAdapter.events = [{'id'=>1,'action'=>'linode_resize','status'=>'finished'}]
+    LightekReservations::PackageChangeJob.new.perform(change.id)
+    assert_equal 'applied', change.reload.status
   end
 
 end

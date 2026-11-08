@@ -64,11 +64,14 @@ elsif %w[cloud cleanup].include?(mode)
   image = ENV.fetch('LIGHTEK_AUTO_VPS_IMAGE')
   node_id = nil
   receipt = {allocated: false, upgraded: false, downgraded: false, deleted: false}
-  wait_for = lambda do |type|
+  wait_for = lambda do |type, baseline = nil|
     Timeout.timeout(900) do
       loop do
         state = adapter.node(node_id)
-        break state if state['type'] == type && state['status'] == 'running'
+        events = adapter.events_for(node_id)
+        active = events.any? { |event| %w[scheduled started in_progress].include?(event['status']) }
+        completed = baseline.nil? || events.any? { |event| event['id'].to_i > baseline && event['action'] == 'linode_resize' && %w[completed finished].include?(event['status']) }
+        break state if state['type'] == type && state['status'] == 'running' && !active && completed
         sleep 10
       end
     end
@@ -81,14 +84,18 @@ elsif %w[cloud cleanup].include?(mode)
     File.open(state_dir.join("cloud-#{run_id}.json"), File::WRONLY | File::CREAT | File::TRUNC, 0o600) { |f| f.write(JSON.generate(id: node_id, label: label, tag: tag)) }
     wait_for.call(base.fetch('id')); receipt[:allocated] = true
     puts 'LIGHTEK_CLOUD_PHASE=allocated'
-    adapter.resize_node(node_id, plan: target.fetch('id'))
-    wait_for.call(target.fetch('id')); receipt[:upgraded] = true
+    receipt_up = adapter.resize_node(node_id, plan: target.fetch('id'))
+    wait_for.call(target.fetch('id'), receipt_up.fetch('after_event_id')); receipt[:upgraded] = true
     puts 'LIGHTEK_CLOUD_PHASE=upgraded'
-    adapter.resize_node(node_id, plan: base.fetch('id'))
-    wait_for.call(base.fetch('id')); receipt[:downgraded] = true
+    receipt_down = adapter.resize_node(node_id, plan: base.fetch('id'))
+    wait_for.call(base.fetch('id'), receipt_down.fetch('after_event_id')); receipt[:downgraded] = true
     puts 'LIGHTEK_CLOUD_PHASE=downgraded'
   rescue StandardError => caught
     error = caught; receipt[:error_class] = caught.class.name
+    if caught.respond_to?(:status)
+      receipt[:provider_http_status] = caught.status
+      receipt[:provider_reason] = caught.message.gsub(/(?:sk|rk)_(?:live|test)_[a-zA-Z0-9]+/, '[redacted]').first(500)
+    end
   ensure
     if node_id
       # Never delete an arbitrary ID supplied by a caller or an existing client.

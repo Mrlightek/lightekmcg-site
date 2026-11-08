@@ -68,7 +68,7 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
     change = LightekReservations::Change.joins(reservation: :resource).where(lightek_reservation_resources: {site_id: @site.id}).find(params.require(:id))
     change.with_lock do
       raise ArgumentError, 'Only a failed, verified paid package change can resume' unless change.status == 'failed' && change.order&.paid_at? && %w[paid fulfilled].include?(change.order.status)
-      change.update!(status: 'scheduled', error: nil)
+      change.update!(status: 'scheduled', error: nil, provider_receipt: {})
     end
     LightekReservations::PackageChangeJob.perform_later(change.id)
     redirect_to dashboard_reservations_path(site_id: @site.id), notice: 'The paid package change is queued to resume.'

@@ -3,6 +3,7 @@
 <main class="lds-home">
 <header class="lds-home-header"><div><span class="lds-kicker">Lightek · Website tools</span><h1>Design Studio</h1><p>Build a design once. Customize it for every client.</p></div><%= link_to "Website design library", dashboard_website_designs_path, class: "lds-button" %></header>
 <section class="lds-start"><h2>Import an HTML / CSS layout</h2><p>Convert a complete website or shop design into reusable library designs and editable page sections.</p><%= link_to "Upload a website design", dashboard_website_designs_path, class: "lds-button" %></section>
+<%= render "dashboard/website_designs/template_library", designs: @sources, studio: true %>
 <section class="lds-start"><h2>Start a design</h2>
 <%= form_with url: dashboard_design_studio_index_path, method: :post, local: true do %>
   <label>Design name<%= text_field_tag :name, "New design", maxlength: 120, required: true %></label>

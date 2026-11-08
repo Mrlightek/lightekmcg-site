@@ -87,9 +87,18 @@ module LightekDesign
           anchors << anchor unless anchor.empty?
           block, source = section["block"].presence, section["source_kind"].presence
           raise ArgumentError, "Choose one section type." if block && source
+          # The Add Section palette also exposes installed starter sections.
+          # Preserve their native renderer when inserted as a source section.
+          preset = source && Catalog.builtin_designs.values.flat_map { |design| design["sections"] }.find { |candidate| candidate["kind"] == source }
+          if preset && preset["block"] == "starter"
+            block, source = "starter", nil
+            section = section.merge("chrome_header" => preset["chrome_header"], "chrome_footer" => preset["chrome_footer"])
+          end
           entry = {"id" => id, "anchor" => anchor, "title" => section["title"].to_s.first(120), "block" => block, "source_kind" => source, "chrome_header" => section["chrome_header"] == true, "chrome_footer" => section["chrome_footer"] == true, "style" => normalize_style(section["style"] || {})}
           schema = StudioBlocks.schema_for(entry)
-          entry["data"] = if block == "html"
+          entry["data"] = if block == "starter"
+            StarterLibrary.normalize_data(section["data"] || {})
+          elsif block == "html"
             HtmlDocument.normalize_data(section["data"] || {})
           else
             normalize_data(section["data"] || {}, schema)

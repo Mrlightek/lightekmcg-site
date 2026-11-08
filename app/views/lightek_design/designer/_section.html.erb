@@ -1,4 +1,6 @@
-<% if entry["block"] == "html" %>
+<% if entry["block"] == "starter" %>
+<%= render "lightek_design/designer/starter", data: section_data %>
+<% elsif entry["block"] == "html" %>
 <%= render "lightek_design/designer/html", data: section_data %>
 <% else %>
 <% style = entry.fetch("style", {}) %>

@@ -1,0 +1,4 @@
+<section class="tl-inquiries"><h2>Website template requests</h2><p>Recent inquiries from this website’s published starter forms. Requests require a follow-up; they do not confirm a booking or payment.</p>
+<% Array(@template_inquiries).each do |inquiry| %><details><summary>#<%= inquiry.id %> · <%= inquiry.template_key.humanize %> · <%= inquiry.created_at.strftime('%b %-d, %Y %H:%M %Z') %></summary><dl><% inquiry.fields.each do |field, value| %><dt><%= field.humanize %></dt><dd><%= value %></dd><% end %></dl></details><% end %>
+<% if Array(@template_inquiries).empty? %><p>No requests yet. Published template forms save their requests here.</p><% end %>
+</section>

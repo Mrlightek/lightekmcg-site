@@ -1,0 +1,331 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "homeservices-ridgeline",
+  "industry": "homeservices",
+  "meta": {
+    "brand": "Ridgeline Home Services",
+    "title": "Ridgeline Home Services — Plumbing, HVAC, electrical and roofing",
+    "description": "Plumbing, HVAC, electrical and roofing"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#f6f7f9",
+      "bg2": "#eceff3",
+      "card": "#ffffff",
+      "ink": "#121b27",
+      "mut": "#5b6675",
+      "line": "#dfe3ea",
+      "line2": "#c8ced9",
+      "a": "#f26a1b",
+      "b": "#1c3d6e",
+      "on": "#ffffff",
+      "r": "8px",
+      "fh": "'Oswald',sans-serif",
+      "fb": "'Source Sans 3',sans-serif",
+      "hbg": "rgba(246,247,249,.92)",
+      "g1": "#f26a1b22",
+      "g2": "#1c3d6e18",
+      "hw": "600",
+      "ht": "uppercase",
+      "hl": ".01em",
+      "lr": "0"
+    },
+    "fonts_query": "family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "services",
+        "label": "Services"
+      },
+      {
+        "id": "process",
+        "label": "How it works"
+      },
+      {
+        "id": "plans",
+        "label": "Plans"
+      },
+      {
+        "id": "contact",
+        "label": "Free quote"
+      }
+    ],
+    "cta": "Call (555) 010-8800"
+  },
+  "hero": {
+    "eyebrow": "Licensed · Insured · 24/7 emergency",
+    "title": "Fixed right. The first time.",
+    "subtitle": "Plumbing, heating and cooling, electrical and roofing from one trusted local crew. Upfront pricing, no surprises.",
+    "primary_cta": "Get a free quote",
+    "secondary_cta": "Our services",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "emergency",
+      "type": "cta",
+      "background": "default",
+      "header": null,
+      "content": {
+        "title": "Emergency? We answer 24/7.",
+        "text": "Burst pipe, no heat or a power outage? A technician can be at your door fast.",
+        "button": "Request emergency service"
+      }
+    },
+    {
+      "id": "services",
+      "type": "cards",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Services",
+        "title": "What we fix",
+        "subtitle": "Every job backed by our workmanship guarantee."
+      },
+      "content": [
+        {
+          "icon": "hand",
+          "title": "Plumbing",
+          "text": "Leaks, drains, water heaters and repiping.",
+          "meta": ""
+        },
+        {
+          "icon": "bolt",
+          "title": "Electrical",
+          "text": "Panels, wiring, lighting and safety inspections.",
+          "meta": ""
+        },
+        {
+          "icon": "clock",
+          "title": "HVAC",
+          "text": "Repair, install and seasonal tune-ups.",
+          "meta": ""
+        },
+        {
+          "icon": "home",
+          "title": "Roofing",
+          "text": "Repairs, replacements and storm damage.",
+          "meta": ""
+        },
+        {
+          "icon": "shield",
+          "title": "Inspections",
+          "text": "Whole-home safety and efficiency checks.",
+          "meta": ""
+        },
+        {
+          "icon": "check",
+          "title": "Maintenance",
+          "text": "Scheduled service that prevents costly surprises.",
+          "meta": ""
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "default",
+      "header": null,
+      "content": [
+        {
+          "value": "18",
+          "label": "Years in business"
+        },
+        {
+          "value": "9,500+",
+          "label": "Jobs completed"
+        },
+        {
+          "value": "60 min",
+          "label": "Average response"
+        },
+        {
+          "value": "5-year",
+          "label": "Workmanship guarantee"
+        }
+      ]
+    },
+    {
+      "id": "process",
+      "type": "steps",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Process",
+        "title": "Simple from start to finish",
+        "subtitle": "Fast, clear and respectful of your home."
+      },
+      "content": [
+        {
+          "title": "Call or book",
+          "text": "Tell us what is going on. We schedule the soonest window."
+        },
+        {
+          "title": "Upfront quote",
+          "text": "A flat price before any work starts."
+        },
+        {
+          "title": "Fixed right",
+          "text": "Clean, careful work by licensed pros."
+        },
+        {
+          "title": "Guaranteed",
+          "text": "Backed by our 5-year workmanship promise."
+        }
+      ]
+    },
+    {
+      "id": "plans",
+      "type": "pricing",
+      "background": "default",
+      "header": {
+        "eyebrow": "Plans",
+        "title": "Home maintenance plans",
+        "subtitle": "Stay ahead of repairs with scheduled care."
+      },
+      "content": [
+        {
+          "name": "Essential",
+          "price_monthly": "19",
+          "price_annual": "16",
+          "unit": "/mo",
+          "description": "One tune-up per year",
+          "features": [
+            "Annual HVAC tune-up",
+            "10% off repairs",
+            "Priority scheduling"
+          ],
+          "highlighted": false,
+          "cta": "Choose Essential"
+        },
+        {
+          "name": "Complete",
+          "price_monthly": "39",
+          "price_annual": "33",
+          "unit": "/mo",
+          "description": "Whole-home coverage",
+          "features": [
+            "Two tune-ups per year",
+            "15% off repairs",
+            "No after-hours fee",
+            "Annual safety inspection"
+          ],
+          "highlighted": true,
+          "cta": "Choose Complete"
+        },
+        {
+          "name": "Premier",
+          "price_monthly": "69",
+          "price_annual": "59",
+          "unit": "/mo",
+          "description": "Total peace of mind",
+          "features": [
+            "Everything in Complete",
+            "20% off repairs",
+            "Free minor repairs",
+            "Same-day response"
+          ],
+          "highlighted": false,
+          "cta": "Choose Premier"
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Reviews",
+        "title": "Neighbors recommend us",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "On time, honest quote and spotless work.",
+          "author": "Karen L."
+        },
+        {
+          "quote": "Fixed our AC on the hottest day of the year.",
+          "author": "The Johnsons"
+        },
+        {
+          "quote": "The most trustworthy crew we have hired.",
+          "author": "Miguel A."
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "default",
+      "header": {
+        "eyebrow": "Free quote",
+        "title": "Tell us what you need",
+        "subtitle": "We typically respond within one hour during business hours."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "phone",
+            "title": "24/7 line",
+            "value": "(555) 010-8800"
+          },
+          {
+            "icon": "pin",
+            "title": "Service area",
+            "value": "Your City and surrounding counties"
+          },
+          {
+            "icon": "clock",
+            "title": "Office hours",
+            "value": "Mon–Sat 7am–7pm"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "phone",
+            "type": "tel",
+            "label": "Phone",
+            "options": null
+          },
+          {
+            "name": "svc",
+            "type": "select",
+            "label": "Service needed",
+            "options": [
+              "Plumbing",
+              "Electrical",
+              "HVAC",
+              "Roofing",
+              "Other"
+            ]
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Describe the issue",
+            "options": null
+          }
+        ],
+        "submit": "Get my free quote",
+        "success_message": "Thank you. A technician will contact you shortly.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Ridgeline Home Services Licensed, insured home services with upfront pricing.",
+    "visit": [
+      "Serving Your City & area",
+      "(555) 010-8800",
+      "License # 000000"
+    ]
+  }
+}

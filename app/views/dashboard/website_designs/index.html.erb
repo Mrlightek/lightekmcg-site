@@ -1,36 +1,23 @@
 <% content_for :page_title, "Website designs" %>
 <%= render "dashboard/settings_home/style" %>
-<main class="lt-settings"><h1>Website designs & fonts</h1>
+<main class="lt-settings"><div class="tl-page-heading"><h1>Website designs & fonts</h1></div>
 <p><%= link_to "Open Design Studio →", dashboard_design_studio_index_path %></p>
 <p class="intro">Choose a website, preview a design, then apply its appearance or add an editable starter page.</p>
-<%= form_with url: dashboard_website_designs_path, method: :get, local: true do %>
+<%= form_with url: dashboard_website_designs_path, method: :get, local: true, class: "tl-site-picker" do %>
+  <div>
   <%= label_tag :site_id, "Website" %>
   <%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site&.id), include_blank: "Choose a website", required: true %>
+  </div>
   <%= submit_tag "Choose website" %>
 <% end %>
 <% if @site %>
 <p><%= link_to "Sign-in & account branding →", dashboard_authentication_branding_path(site_id: @site.id) %></p>
 <p>Editing <strong><%= @site.name %></strong> · <%= @site.host %></p>
-<%= render "html_upload" %>
-<%= render "dashboard/website_designs/industry_designs" %>
-<div class="grid">
-<% LightekDesign::Catalog.selectable_designs(user: current_user, active: LightekDesign::Catalog.design_for(@site)).each do |key, design| %>
-<section class="card">
-  <% if design["designer"] %>
-    <div style="padding:24px;min-height:180px;border-radius:8px;background:<%= design.dig('tokens','color_bg') %>;color:<%= design.dig('tokens','color_text') %>"><strong style="display:block;font-size:54px;color:<%= design.dig('tokens','color_primary') %>">Aa</strong><%= design["name"] %> · version <%= design["version"] %></div>
-  <% else %>
-  <%= image_tag "/lightek/designs/#{key}-preview.png", alt: "#{design.fetch('name')} website design", style: "width:100%;height:240px;object-fit:cover;object-position:top;border-radius:8px", loading: "lazy" %>
-  <% end %>
-  <h2><%= design.fetch("name") %><%= " · Active" if LightekDesign::Catalog.design_for(@site) == key %></h2>
-  <p><%= design.fetch("description") %></p>
-  <p><%= design.fetch("sections").length %> editable sections · <%= design.fetch("fonts").values.join(" / ") %></p>
-  <%= link_to "Preview design", preview_dashboard_website_designs_path(site_id: @site.id, design: key), target: "_blank", rel: "noopener" %>
-  <%= button_to "Apply design", apply_dashboard_website_designs_path(site_id: @site.id, design: key), method: :post %>
-  <%= button_to "Import starter page", import_dashboard_website_designs_path(site_id: @site.id, design: key), method: :post %>
-  <p><small>Applying changes appearance. Importing creates a draft; it does not replace your homepage. Re-importing preserves your edits.</small></p>
-</section>
-<% end %>
-</div>
+<%= render "template_library", designs: LightekDesign::Catalog.selectable_designs(user: current_user, active: LightekDesign::Catalog.design_for(@site)) %>
+<details class="tl-upload"><summary>Import your own HTML & CSS</summary><%= render "html_upload" %></details>
+<details class="tl-commerce"><summary>Shop templates with live checkout</summary><%= render "industry_designs" %></details>
+<%= render "template_branding" %>
+<%= render "template_inquiries" %>
 <% if LightekDesign::Catalog.active?(@site) %>
 <section class="card" style="margin-top:24px"><h2>Typography for <%= @site.name %></h2>
 <%= form_with url: fonts_dashboard_website_designs_path(site_id: @site.id), method: :patch, local: true do %>

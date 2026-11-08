@@ -1,0 +1,36 @@
+name: Website template library
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'app/services/lightek_design/**'
+      - 'app/controllers/dashboard/website_designs_controller.rb'
+      - 'app/controllers/website_template_inquiries_controller.rb'
+      - 'app/models/website_template_inquiry.rb'
+      - 'app/views/lightek_design/**'
+      - 'app/views/dashboard/website_designs/**'
+      - 'app/views/dashboard/design_studio/**'
+      - 'app/views/dymond_dash/layouts/dymond_dash.html.erb'
+      - 'config/lightek_designs/**'
+      - 'config/routes.rb'
+      - 'public/lightek/templates/**'
+      - 'test/standalone/starter_library*'
+      - '.github/workflows/website-template-library.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  library-and-http:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - run: bundle exec ruby test/standalone/starter_library_http_checks.rb
+      - run: node --check public/lightek/templates/runtime.js
+      - run: node --check public/lightek/templates/library.js

@@ -1,0 +1,294 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "barber-clean-cut",
+  "industry": "barber",
+  "meta": {
+    "brand": "Clean Cut",
+    "title": "Clean Cut — Barbershop and grooming",
+    "description": "Barbershop and grooming"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#f3eee4",
+      "bg2": "#e9e2d3",
+      "card": "#fbf8f1",
+      "ink": "#101010",
+      "mut": "#5d584d",
+      "line": "#ddd5c3",
+      "line2": "#c9bfa8",
+      "a": "#c8102e",
+      "b": "#12233f",
+      "on": "#ffffff",
+      "r": "2px",
+      "fh": "'Bebas Neue',sans-serif",
+      "fb": "'Work Sans',sans-serif",
+      "hbg": "rgba(243,238,228,.9)",
+      "g1": "#c8102e22",
+      "g2": "#12233f18",
+      "hw": "400",
+      "ht": "uppercase",
+      "hl": ".03em",
+      "lr": "0"
+    },
+    "fonts_query": "family=Bebas+Neue&family=Work+Sans:wght@400;500;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "services",
+        "label": "Services"
+      },
+      {
+        "id": "team",
+        "label": "Barbers"
+      },
+      {
+        "id": "reviews",
+        "label": "Reviews"
+      },
+      {
+        "id": "contact",
+        "label": "Book"
+      }
+    ],
+    "cta": "Book now"
+  },
+  "hero": {
+    "eyebrow": "Est. 2015 · Walk-ins welcome",
+    "title": "Sharp cuts. Sharper style.",
+    "subtitle": "Classic barbering and modern fades from a crew that treats every chair like a main event.",
+    "primary_cta": "Book your cut",
+    "secondary_cta": "View services",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "services",
+      "type": "tabs",
+      "background": "default",
+      "header": {
+        "eyebrow": "Services",
+        "title": "The menu",
+        "subtitle": "Straightforward prices, no surprises."
+      },
+      "content": [
+        {
+          "label": "Cuts",
+          "items": [
+            {
+              "title": "Signature Cut",
+              "text": "Consultation, cut, hot towel, style",
+              "price": "$35"
+            },
+            {
+              "title": "Skin Fade",
+              "text": "Precision fade with lineup",
+              "price": "$40"
+            },
+            {
+              "title": "Kids Cut",
+              "text": "12 and under",
+              "price": "$25"
+            }
+          ]
+        },
+        {
+          "label": "Beard",
+          "items": [
+            {
+              "title": "Beard Trim & Shape",
+              "text": "Razor lineup, hot towel",
+              "price": "$25"
+            },
+            {
+              "title": "Hot Towel Shave",
+              "text": "Straight razor, steam, balm",
+              "price": "$40"
+            }
+          ]
+        },
+        {
+          "label": "Combos",
+          "items": [
+            {
+              "title": "The Full Service",
+              "text": "Cut + beard + hot towel",
+              "price": "$60"
+            },
+            {
+              "title": "Father & Son",
+              "text": "Two cuts, one chair time",
+              "price": "$55"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "alt",
+      "header": null,
+      "content": [
+        {
+          "value": "9",
+          "label": "Years in the game"
+        },
+        {
+          "value": "25k+",
+          "label": "Cuts delivered"
+        },
+        {
+          "value": "4.9★",
+          "label": "Average rating"
+        },
+        {
+          "value": "6",
+          "label": "Master barbers"
+        }
+      ]
+    },
+    {
+      "id": "team",
+      "type": "people",
+      "background": "default",
+      "header": {
+        "eyebrow": "The crew",
+        "title": "Meet your barbers",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "name": "Marcus",
+          "role": "Master barber · fades",
+          "image": null
+        },
+        {
+          "name": "Jay",
+          "role": "Barber · beard work",
+          "image": null
+        },
+        {
+          "name": "Tony",
+          "role": "Barber · classic cuts",
+          "image": null
+        },
+        {
+          "name": "Dre",
+          "role": "Barber · design",
+          "image": null
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Reviews",
+        "title": "Fresh out the chair",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "Best fade in town. I will not go anywhere else.",
+          "author": "Chris M."
+        },
+        {
+          "quote": "Clean shop, great energy, always on time.",
+          "author": "Andre W."
+        },
+        {
+          "quote": "My son and I come every other week.",
+          "author": "Luis P."
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "default",
+      "header": {
+        "eyebrow": "Book",
+        "title": "Pick your slot",
+        "subtitle": "Walk-ins welcome when chairs are open."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "clock",
+            "title": "Hours",
+            "value": "Mon–Sat 9am–8pm · Sun 10am–4pm"
+          },
+          {
+            "icon": "pin",
+            "title": "Shop",
+            "value": "456 Fade Avenue, Your City, FL"
+          },
+          {
+            "icon": "phone",
+            "title": "Call",
+            "value": "(555) 010-4455"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "phone",
+            "type": "tel",
+            "label": "Phone",
+            "options": null
+          },
+          {
+            "name": "svc",
+            "type": "select",
+            "label": "Service",
+            "options": [
+              "Signature Cut",
+              "Skin Fade",
+              "Beard Trim",
+              "Full Service",
+              "Kids Cut"
+            ]
+          },
+          {
+            "name": "barber",
+            "type": "select",
+            "label": "Barber",
+            "options": [
+              "Any",
+              "Marcus",
+              "Jay",
+              "Tony",
+              "Dre"
+            ]
+          },
+          {
+            "name": "time",
+            "type": "hidden",
+            "label": null,
+            "options": null
+          }
+        ],
+        "submit": "Confirm booking",
+        "success_message": "You are on the book. See you soon.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Clean Cut Classic barbering and modern fades. Walk-ins welcome.",
+    "visit": [
+      "456 Fade Avenue",
+      "Your City, FL",
+      "(555) 010-4455"
+    ]
+  }
+}

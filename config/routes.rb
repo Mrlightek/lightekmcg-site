@@ -1,4 +1,9 @@
 Rails.application.routes.draw do
+  post "/website/template-inquiries", to: "website_template_inquiries#create", as: :website_template_inquiries
+  get "/dashboard/website/designs/manifest", to: "dashboard/website_designs#manifest", as: :dashboard_website_design_manifest
+  get "/dashboard/website/designs/starter-preview", to: "dashboard/website_designs#starter_preview", as: :dashboard_website_starter_preview
+  patch "/dashboard/website/designs/branding", to: "dashboard/website_designs#update_branding", as: :dashboard_website_design_branding
+  post "/dashboard/website/designs/start", to: "dashboard/website_designs#start", as: :start_dashboard_website_design
   resources :studio_workstations,path:"/dashboard/studio/workstations",controller:"dashboard/studio_workstations",only:%i[create show destroy],as: :dashboard_studio_workstations do
     member do
       get :status

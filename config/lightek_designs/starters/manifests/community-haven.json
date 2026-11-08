@@ -1,0 +1,301 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "community-haven",
+  "industry": "community",
+  "meta": {
+    "brand": "Haven Community",
+    "title": "Haven Community — Community center and nonprofit",
+    "description": "Community center and nonprofit"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#0b2a2a",
+      "bg2": "#0e3333",
+      "card": "#103838",
+      "ink": "#f3efe6",
+      "mut": "#a9c2bd",
+      "line": "#1b4747",
+      "line2": "#2b5c5c",
+      "a": "#e2b04a",
+      "b": "#2fa89a",
+      "on": "#082020",
+      "r": "20px",
+      "fh": "'Fraunces',serif",
+      "fb": "'Nunito',sans-serif",
+      "hbg": "rgba(11,42,42,.88)",
+      "g1": "#e2b04a26",
+      "g2": "#2fa89a22",
+      "hw": "800"
+    },
+    "fonts_query": "family=Fraunces:ital,wght@0,600;0,800;1,400&family=Nunito:wght@400;600;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "programs",
+        "label": "Programs"
+      },
+      {
+        "id": "events",
+        "label": "Events"
+      },
+      {
+        "id": "give",
+        "label": "Give"
+      },
+      {
+        "id": "contact",
+        "label": "Get involved"
+      }
+    ],
+    "cta": "Donate"
+  },
+  "hero": {
+    "eyebrow": "Faith · Service · Community",
+    "title": "A place for everyone.",
+    "subtitle": "We gather, serve and grow together through education, support and shared purpose.",
+    "primary_cta": "Get involved",
+    "secondary_cta": "Our programs",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "programs",
+      "type": "cards",
+      "background": "default",
+      "header": {
+        "eyebrow": "Programs",
+        "title": "How we serve",
+        "subtitle": "Open to every neighbor, every background."
+      },
+      "content": [
+        {
+          "icon": "book",
+          "title": "Youth & education",
+          "text": "Weekend school, tutoring and mentorship for young people.",
+          "meta": ""
+        },
+        {
+          "icon": "hand",
+          "title": "Food pantry",
+          "text": "Weekly groceries for families in need, no questions asked.",
+          "meta": ""
+        },
+        {
+          "icon": "heart",
+          "title": "Support & counseling",
+          "text": "Confidential guidance and care for individuals and families.",
+          "meta": ""
+        },
+        {
+          "icon": "user",
+          "title": "Community gatherings",
+          "text": "Dinners, celebrations and service days that bring us together.",
+          "meta": ""
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "alt",
+      "header": null,
+      "content": [
+        {
+          "value": "3,200",
+          "label": "Neighbors served"
+        },
+        {
+          "value": "450",
+          "label": "Volunteers"
+        },
+        {
+          "value": "18",
+          "label": "Weekly programs"
+        },
+        {
+          "value": "12",
+          "label": "Years of service"
+        }
+      ]
+    },
+    {
+      "id": "events",
+      "type": "tabs",
+      "background": "default",
+      "header": {
+        "eyebrow": "Events",
+        "title": "What’s happening",
+        "subtitle": "Join us. Everyone is welcome."
+      },
+      "content": [
+        {
+          "label": "This week",
+          "items": [
+            {
+              "title": "Community Dinner",
+              "text": "Open to all · bring a friend",
+              "price": "Fri 6:30 PM"
+            },
+            {
+              "title": "Youth Mentorship Circle",
+              "text": "Ages 12–18",
+              "price": "Sat 10:00 AM"
+            }
+          ]
+        },
+        {
+          "label": "Upcoming",
+          "items": [
+            {
+              "title": "Neighborhood Food Drive",
+              "text": "Volunteers needed",
+              "price": "Next Sat"
+            },
+            {
+              "title": "Family Fun Day",
+              "text": "Games, food and music",
+              "price": "Next month"
+            }
+          ]
+        },
+        {
+          "label": "Weekly",
+          "items": [
+            {
+              "title": "Gathering & service",
+              "text": "Main hall",
+              "price": "Fri 1:00 PM"
+            },
+            {
+              "title": "Food pantry",
+              "text": "Side entrance",
+              "price": "Wed 4–7 PM"
+            },
+            {
+              "title": "Education classes",
+              "text": "Classrooms",
+              "price": "Sun 10 AM"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "give",
+      "type": "donate",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Give",
+        "title": "Support our mission",
+        "subtitle": "Your gift keeps our doors open and our programs free."
+      },
+      "content": {
+        "amounts": [
+          "25",
+          "50",
+          "100",
+          "250"
+        ],
+        "default": 50
+      }
+    },
+    {
+      "id": "reviews",
+      "type": "quotes",
+      "background": "default",
+      "header": {
+        "eyebrow": "Stories",
+        "title": "Lives touched",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "This community held our family when we needed it most.",
+          "author": "A grateful neighbor"
+        },
+        {
+          "quote": "My kids look forward to every weekend here.",
+          "author": "Parent volunteer"
+        },
+        {
+          "quote": "The pantry gave us a fresh start.",
+          "author": "Community member"
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Get involved",
+        "title": "Volunteer or ask a question",
+        "subtitle": "We reply within a few days."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "pin",
+            "title": "Visit",
+            "value": "200 Unity Lane, Your City, FL"
+          },
+          {
+            "icon": "clock",
+            "title": "Weekly gathering",
+            "value": "Fri 1:00 PM · other times by program"
+          },
+          {
+            "icon": "phone",
+            "title": "Call",
+            "value": "(555) 010-3300"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "Email",
+            "options": null
+          },
+          {
+            "name": "how",
+            "type": "select",
+            "label": "I want to",
+            "options": [
+              "Volunteer",
+              "Join a program",
+              "Ask a question",
+              "Request support"
+            ]
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Message",
+            "options": null
+          }
+        ],
+        "submit": "Send message",
+        "success_message": "Thank you. A member of our team will be in touch soon.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Haven Community A welcoming center for service, learning and fellowship.",
+    "visit": [
+      "200 Unity Lane",
+      "Your City, FL",
+      "(555) 010-3300"
+    ]
+  }
+}

@@ -1,0 +1,311 @@
+{
+  "schema": "lightek-template-manifest/1",
+  "template": "music-nova-raye",
+  "industry": "music",
+  "meta": {
+    "brand": "Nova Raye",
+    "title": "Nova Raye — Official artist website",
+    "description": "Official artist website"
+  },
+  "theme": {
+    "tokens": {
+      "bg": "#0a0710",
+      "bg2": "#120c1b",
+      "card": "#170f22",
+      "ink": "#f5eefc",
+      "mut": "#a89bbd",
+      "line": "#241838",
+      "line2": "#3a2858",
+      "a": "#ff4d8d",
+      "b": "#7a5cff",
+      "on": "#ffffff",
+      "r": "10px",
+      "fh": "'Unbounded',sans-serif",
+      "fb": "'Space Grotesk',sans-serif",
+      "hbg": "rgba(10,7,16,.86)",
+      "g1": "#ff4d8d26",
+      "g2": "#7a5cff2a",
+      "hw": "800",
+      "ht": "uppercase",
+      "hl": "-.01em",
+      "lw": "800"
+    },
+    "fonts_query": "family=Unbounded:wght@500;700;800&family=Space+Grotesk:wght@400;500;700",
+    "color_scheme": null
+  },
+  "nav": {
+    "links": [
+      {
+        "id": "music",
+        "label": "Music"
+      },
+      {
+        "id": "tour",
+        "label": "Tour"
+      },
+      {
+        "id": "press",
+        "label": "Press"
+      },
+      {
+        "id": "contact",
+        "label": "Booking"
+      }
+    ],
+    "cta": "Stream now"
+  },
+  "hero": {
+    "eyebrow": "New album · Out now",
+    "title": "Neon Hours",
+    "subtitle": "The new album from Nova Raye. Eleven tracks of late-night synth-pop made for the drive home.",
+    "primary_cta": "Stream the album",
+    "secondary_cta": "Upcoming shows",
+    "art": "inline-svg",
+    "variant": "split"
+  },
+  "sections": [
+    {
+      "id": "music",
+      "type": "tracks",
+      "background": "default",
+      "header": {
+        "eyebrow": "Music",
+        "title": "Latest release",
+        "subtitle": "Press play to preview the player experience. Connect your streaming links."
+      },
+      "content": [
+        {
+          "title": "Neon Hours",
+          "meta": "Title track",
+          "duration": "3:42",
+          "audio_url": null
+        },
+        {
+          "title": "Glass City",
+          "meta": "Feat. Kai Monroe",
+          "duration": "3:18",
+          "audio_url": null
+        },
+        {
+          "title": "Afterglow",
+          "meta": "Single",
+          "duration": "4:05",
+          "audio_url": null
+        },
+        {
+          "title": "Slow Burn",
+          "meta": "",
+          "duration": "3:51",
+          "audio_url": null
+        },
+        {
+          "title": "Midnight Static",
+          "meta": "",
+          "duration": "2:59",
+          "audio_url": null
+        }
+      ]
+    },
+    {
+      "id": "releases",
+      "type": "cards",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Discography",
+        "title": "Releases",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "icon": "star",
+          "title": "Neon Hours",
+          "text": "Album · 2026",
+          "meta": "Listen →"
+        },
+        {
+          "icon": "bolt",
+          "title": "Static EP",
+          "text": "EP · 2025",
+          "meta": "Listen →"
+        },
+        {
+          "icon": "heart",
+          "title": "First Light",
+          "text": "Album · 2023",
+          "meta": "Listen →"
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "type": "stats",
+      "background": "default",
+      "header": null,
+      "content": [
+        {
+          "value": "12M",
+          "label": "Streams"
+        },
+        {
+          "value": "180k",
+          "label": "Monthly listeners"
+        },
+        {
+          "value": "64",
+          "label": "Live shows"
+        },
+        {
+          "value": "3",
+          "label": "Albums"
+        }
+      ]
+    },
+    {
+      "id": "tour",
+      "type": "tabs",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Tour",
+        "title": "Live dates",
+        "subtitle": "Tickets on sale now."
+      },
+      "content": [
+        {
+          "label": "Upcoming",
+          "items": [
+            {
+              "title": "Orlando, FL",
+              "text": "The Beacham · Dec 12",
+              "price": "Tickets"
+            },
+            {
+              "title": "Atlanta, GA",
+              "text": "Tabernacle · Dec 14",
+              "price": "Tickets"
+            },
+            {
+              "title": "Nashville, TN",
+              "text": "Marathon Music Works · Dec 16",
+              "price": "Tickets"
+            },
+            {
+              "title": "Chicago, IL",
+              "text": "Metro · Dec 19",
+              "price": "Sold out"
+            }
+          ]
+        },
+        {
+          "label": "Past",
+          "items": [
+            {
+              "title": "Miami, FL",
+              "text": "Factory Town · Oct 3",
+              "price": "—"
+            },
+            {
+              "title": "Austin, TX",
+              "text": "Emo’s · Sep 28",
+              "price": "—"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "press",
+      "type": "quotes",
+      "background": "default",
+      "header": {
+        "eyebrow": "Press",
+        "title": "What they’re saying",
+        "subtitle": ""
+      },
+      "content": [
+        {
+          "quote": "A dazzling, widescreen pop record.",
+          "author": "Sound Review"
+        },
+        {
+          "quote": "The most exciting voice of the year.",
+          "author": "Wave Magazine"
+        },
+        {
+          "quote": "Pure late-night euphoria.",
+          "author": "The Daily Beat"
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "type": "contact",
+      "background": "alt",
+      "header": {
+        "eyebrow": "Booking & press",
+        "title": "Get in touch",
+        "subtitle": "Management, bookings and collaborations."
+      },
+      "content": {
+        "info": [
+          {
+            "icon": "mail",
+            "title": "Management",
+            "value": "mgmt@yourdomain.com"
+          },
+          {
+            "icon": "phone",
+            "title": "Booking",
+            "value": "(555) 010-1357"
+          },
+          {
+            "icon": "pin",
+            "title": "Based in",
+            "value": "Your City, FL"
+          }
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "label": "Name",
+            "options": null
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "Email",
+            "options": null
+          },
+          {
+            "name": "topic",
+            "type": "select",
+            "label": "Inquiry",
+            "options": [
+              "Booking",
+              "Press",
+              "Collaboration",
+              "Licensing"
+            ]
+          },
+          {
+            "name": "msg",
+            "type": "textarea",
+            "label": "Message",
+            "options": null
+          }
+        ],
+        "submit": "Send inquiry",
+        "success_message": "Thanks. The team will get back to you soon.",
+        "endpoint": null
+      }
+    }
+  ],
+  "footer": {
+    "about": "Nova Raye Official website of Nova Raye. Music, tour dates and booking.",
+    "visit": [
+      "mgmt@yourdomain.com",
+      "Booking: (555) 010-1357",
+      "Your City, FL"
+    ]
+  }
+}

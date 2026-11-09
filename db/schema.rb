@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_09_003000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_09_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2645,6 +2645,63 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_003000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "nevaeh_os_actions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "request_key", null: false
+    t.jsonb "command", default: {}, null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "result", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "request_key"], name: "index_nevaeh_os_actions_on_user_id_and_request_key", unique: true
+    t.index ["user_id"], name: "index_nevaeh_os_actions_on_user_id"
+  end
+
+  create_table "nevaeh_os_agents", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.string "role", default: "Assistant", null: false
+    t.text "instructions"
+    t.date "birth_date"
+    t.string "birth_time"
+    t.string "birth_place"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_nevaeh_os_agents_on_user_id"
+  end
+
+  create_table "nevaeh_os_consents", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "category", null: false
+    t.boolean "enabled", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "category"], name: "index_nevaeh_os_consents_on_user_id_and_category", unique: true
+    t.index ["user_id"], name: "index_nevaeh_os_consents_on_user_id"
+  end
+
+  create_table "nevaeh_os_memories", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "category", null: false
+    t.text "text", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_nevaeh_os_memories_on_user_id"
+  end
+
+  create_table "nevaeh_os_sources", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "url", null: false
+    t.string "title", null: false
+    t.text "body", null: false
+    t.string "sha256", null: false
+    t.string "status", default: "draft", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_nevaeh_os_sources_on_user_id"
+  end
+
   create_table "nevaeh_studio_idempotency_records", force: :cascade do |t|
     t.string "operation_key", null: false
     t.bigint "ticket_id", null: false
@@ -3570,6 +3627,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_003000) do
   add_foreign_key "nevaeh_language_checkpoints", "nevaeh_language_models"
   add_foreign_key "nevaeh_language_checkpoints", "nevaeh_training_runs"
   add_foreign_key "nevaeh_language_models", "nevaeh_language_checkpoints", column: "active_checkpoint_id"
+  add_foreign_key "nevaeh_os_actions", "users"
+  add_foreign_key "nevaeh_os_agents", "users"
+  add_foreign_key "nevaeh_os_consents", "users"
+  add_foreign_key "nevaeh_os_memories", "users"
+  add_foreign_key "nevaeh_os_sources", "users"
   add_foreign_key "nevaeh_training_datasets", "users", column: "creator_id"
   add_foreign_key "nevaeh_training_runs", "nevaeh_language_models"
   add_foreign_key "nevaeh_training_runs", "nevaeh_training_datasets"

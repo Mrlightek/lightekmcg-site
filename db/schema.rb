@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_08_210000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_09_003000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1378,6 +1378,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_210000) do
     t.index ["user_id"], name: "index_lightek_agency_site_memberships_on_user_id"
   end
 
+  create_table "lightek_audience_leases", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "key", null: false
+    t.string "source", null: false
+    t.datetime "expires_at", null: false
+    t.index ["expires_at"], name: "index_lightek_audience_leases_on_expires_at"
+    t.index ["key"], name: "index_lightek_audience_leases_on_key", unique: true
+    t.index ["user_id"], name: "index_lightek_audience_leases_on_user_id"
+  end
+
   create_table "lightek_commerce_order_items", force: :cascade do |t|
     t.bigint "order_id", null: false
     t.bigint "product_id", null: false
@@ -1512,6 +1522,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_210000) do
     t.index ["community_id", "profile_id"], name: "idx_community_member_unique", unique: true
     t.index ["community_id"], name: "index_lightek_community_memberships_on_community_id"
     t.index ["profile_id"], name: "index_lightek_community_memberships_on_profile_id"
+  end
+
+  create_table "lightek_live_viewers", force: :cascade do |t|
+    t.bigint "studio_live_operation_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "last_seen_at", null: false
+    t.index ["last_seen_at"], name: "index_lightek_live_viewers_on_last_seen_at"
+    t.index ["studio_live_operation_id", "user_id"], name: "idx_lightek_live_viewer_identity", unique: true
+    t.index ["studio_live_operation_id"], name: "index_lightek_live_viewers_on_studio_live_operation_id"
+    t.index ["user_id"], name: "index_lightek_live_viewers_on_user_id"
   end
 
   create_table "lightek_mail_accounts", force: :cascade do |t|
@@ -2039,6 +2059,37 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_210000) do
     t.index ["reference"], name: "index_lightek_reservations_on_reference", unique: true
     t.index ["resource_id", "blocks_from", "blocks_until"], name: "idx_reservations_availability"
     t.index ["resource_id"], name: "index_lightek_reservations_on_resource_id"
+  end
+
+  create_table "lightek_session_members", force: :cascade do |t|
+    t.bigint "room_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "reservation_id"
+    t.string "status", default: "waiting", null: false
+    t.datetime "last_seen_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reservation_id"], name: "index_lightek_session_members_on_reservation_id"
+    t.index ["room_id", "user_id"], name: "index_lightek_session_members_on_room_id_and_user_id", unique: true
+    t.index ["room_id"], name: "index_lightek_session_members_on_room_id"
+    t.index ["user_id"], name: "index_lightek_session_members_on_user_id"
+  end
+
+  create_table "lightek_session_rooms", force: :cascade do |t|
+    t.bigint "resource_id", null: false
+    t.string "key", null: false
+    t.string "media_name", null: false
+    t.jsonb "retired_media_names", default: [], null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.string "status", default: "scheduled", null: false
+    t.boolean "locked", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "presentation", default: {}, null: false
+    t.index ["key"], name: "index_lightek_session_rooms_on_key", unique: true
+    t.index ["resource_id", "starts_at", "ends_at"], name: "idx_lightek_room_slot", unique: true
+    t.index ["resource_id"], name: "index_lightek_session_rooms_on_resource_id"
   end
 
   create_table "lightek_social_blocks", force: :cascade do |t|
@@ -3412,6 +3463,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_210000) do
   add_foreign_key "lightek_agency_site_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_agency_site_memberships", "users"
   add_foreign_key "lightek_agency_site_memberships", "users", column: "granted_by_id"
+  add_foreign_key "lightek_audience_leases", "users"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_product_variants", column: "variant_id"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_products", column: "product_id"
@@ -3423,6 +3475,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_210000) do
   add_foreign_key "lightek_community_engagements", "profiles"
   add_foreign_key "lightek_community_memberships", "communities"
   add_foreign_key "lightek_community_memberships", "profiles"
+  add_foreign_key "lightek_live_viewers", "studio_live_operations"
+  add_foreign_key "lightek_live_viewers", "users"
   add_foreign_key "lightek_mail_accounts", "lightek_mail_domains", column: "domain_id"
   add_foreign_key "lightek_mail_accounts", "lightek_mail_templates", column: "auto_template_id"
   add_foreign_key "lightek_mail_accounts", "users"
@@ -3474,6 +3528,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_210000) do
   add_foreign_key "lightek_reservations", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_reservations", "lightek_reservation_resources", column: "resource_id"
   add_foreign_key "lightek_reservations", "users", column: "customer_id"
+  add_foreign_key "lightek_session_members", "lightek_reservations", column: "reservation_id"
+  add_foreign_key "lightek_session_members", "lightek_session_rooms", column: "room_id"
+  add_foreign_key "lightek_session_members", "users"
+  add_foreign_key "lightek_session_rooms", "lightek_reservation_resources", column: "resource_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocked_profile_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocker_profile_id"
   add_foreign_key "lightek_social_circle_memberships", "lightek_social_circles", column: "circle_id"

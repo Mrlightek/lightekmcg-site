@@ -71,7 +71,7 @@ jobs:
             BUNDLER_VERSION=${{ steps.coordinates.outputs.bundler }}
       - name: Report build result to Dashboard
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           CALLBACK: ${{ inputs.callback_url }}
           AUDIENCE: ${{ inputs.callback_audience }}

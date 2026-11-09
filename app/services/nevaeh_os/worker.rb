@@ -7,9 +7,10 @@ module NevaehOs
       action.with_lock do
         return action.result unless action.status == 'pending'
         Gatekeeper.authorize_capability!(capability: 'nevaeh.os.execute', subject: action)
-        # Local writes and receipt commit together. Remote input is read-only.
+        # Local writes commit with the receipt. Host/package effects have their own verification and cannot be rolled back by the database.
         result = Executor.perform!(action)
-        action.update!(status: 'completed', result: result)
+        failed=result.is_a?(Hash) && result['success']==false
+        action.update!(status: failed ? 'failed' : 'completed',result:result,error:failed ? "Application exited with status #{result['exit_code']}" : nil)
         result
       end
     rescue StandardError => error

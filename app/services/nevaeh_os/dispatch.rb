@@ -29,6 +29,14 @@ module NevaehOs
         end
       end
       action
+    rescue ArgumentError, ActiveRecord::RecordNotFound, Gatekeeper::AuthorizationDenied, LightekPwa::Policy::Denied => error
+      if action&.persisted? && action.command==command
+        action.with_lock do
+          item=DymondDispatch::WorkItem.find_by(subject_type:'NevaehOsAction',subject_id:action.id,kind:CAPABILITY)
+          action.update!(status:'failed',error:error.message[0,1000]) if action.status=='pending' && !item
+        end
+      end
+      raise
     end
   end
 end

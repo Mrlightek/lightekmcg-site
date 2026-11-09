@@ -6,7 +6,12 @@ module NevaehOs
     def for(action)
       value = {id:action.id,status:action.status,result:action.result,error:action.error,created_at:action.created_at,kind:action.command['kind']}
       return value unless action.status == 'completed'
-      if action.result['work_item_id']
+      if action.result['agent_run_id']
+        run=NevaehAgentRun.where(actor:action.user).find(action.result['agent_run_id'])
+        child=run.nevaeh_os_action
+        value[:downstream]=child ? self.for(child) : {type:'agent',id:run.id,status:run.status,error:run.error}
+        value[:status]=run.execution_status
+      elsif action.result['work_item_id']
         item = DymondDispatch::WorkItem.find(action.result['work_item_id'])
         value[:downstream] = {type:'dispatch',id:item.id,status:item.status,result:item.result,error:item.error}
         value[:status] = item.done? ? 'completed' : item.failed? ? 'failed' : 'dispatched'

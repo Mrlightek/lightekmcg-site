@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_09_090000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2506,6 +2506,52 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_090000) do
     t.index ["port", "protocol"], name: "index_network_ports_on_port_and_protocol", unique: true
   end
 
+  create_table "nevaeh_agent_runs", force: :cascade do |t|
+    t.bigint "nevaeh_agent_worker_id", null: false
+    t.bigint "actor_id", null: false
+    t.bigint "nevaeh_os_action_id"
+    t.string "request_key", null: false
+    t.string "status", default: "queued", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_nevaeh_agent_runs_on_actor_id"
+    t.index ["nevaeh_agent_worker_id", "request_key"], name: "idx_nevaeh_agent_run_request", unique: true
+    t.index ["nevaeh_agent_worker_id"], name: "index_nevaeh_agent_runs_on_nevaeh_agent_worker_id"
+    t.index ["nevaeh_os_action_id"], name: "index_nevaeh_agent_runs_on_nevaeh_os_action_id"
+  end
+
+  create_table "nevaeh_agent_workers", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "nevaeh_os_agent_id", null: false
+    t.string "name", null: false
+    t.jsonb "command", default: {}, null: false
+    t.boolean "enabled", default: true, null: false
+    t.integer "interval_minutes"
+    t.datetime "next_run_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_os_agent_id"], name: "index_nevaeh_agent_workers_on_nevaeh_os_agent_id"
+    t.index ["user_id"], name: "index_nevaeh_agent_workers_on_user_id"
+  end
+
+  create_table "nevaeh_application_adapters", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "package", null: false
+    t.string "name", null: false
+    t.string "status", default: "draft", null: false
+    t.jsonb "operations", default: {}, null: false
+    t.jsonb "documentation", default: {}, null: false
+    t.jsonb "verification", default: {}, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "package"], name: "idx_nevaeh_app_adapter_owner", unique: true
+    t.index ["user_id"], name: "index_nevaeh_application_adapters_on_user_id"
+  end
+
   create_table "nevaeh_capabilities", force: :cascade do |t|
     t.string "name", null: false
     t.string "slug", null: false
@@ -2668,6 +2714,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_090000) do
     t.string "birth_place"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "system_key"
+    t.boolean "enabled", default: true, null: false
+    t.string "autonomy", default: "manual", null: false
+    t.jsonb "allowed_capabilities", default: [], null: false
+    t.index ["user_id", "system_key"], name: "index_nevaeh_os_agents_on_user_id_and_system_key", unique: true
     t.index ["user_id"], name: "index_nevaeh_os_agents_on_user_id"
   end
 
@@ -3617,6 +3668,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_090000) do
   add_foreign_key "marlon_project_type_capability_packs", "marlon_project_types", column: "project_type_id"
   add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
+  add_foreign_key "nevaeh_agent_runs", "nevaeh_agent_workers"
+  add_foreign_key "nevaeh_agent_runs", "nevaeh_os_actions"
+  add_foreign_key "nevaeh_agent_runs", "users", column: "actor_id"
+  add_foreign_key "nevaeh_agent_workers", "nevaeh_os_agents"
+  add_foreign_key "nevaeh_agent_workers", "users"
+  add_foreign_key "nevaeh_application_adapters", "users"
   add_foreign_key "nevaeh_construction_releases", "nevaeh_constructions"
   add_foreign_key "nevaeh_constructions", "nevaeh_construction_releases", column: "active_release_id"
   add_foreign_key "nevaeh_constructions", "users", column: "creator_id"

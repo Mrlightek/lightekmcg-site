@@ -93,12 +93,13 @@ export class StageComposer {
       height = 3,
     } = {},
   ) {
-    const ready = enabled && video?.readyState >= 2;
+    const canvasSource = video?.tagName === 'CANVAS';
+    const ready = enabled && (canvasSource || video?.readyState >= 2);
     this.subject.visible = !!ready;
     if (!ready) return;
     if (this.video !== video) {
       this.texture?.dispose();
-      this.texture = new THREE.VideoTexture(video);
+      this.texture = canvasSource ? new THREE.CanvasTexture(video) : new THREE.VideoTexture(video);
       this.texture.colorSpace = THREE.SRGBColorSpace;
       this.video = video;
       this.subject.material.uniforms.map.value = this.texture;
@@ -109,7 +110,7 @@ export class StageComposer {
     this.subject.material.uniforms.threshold.value = Number(threshold);
     this.subject.position.set(Number(x), Number(depth), Number(z));
     this.subject.scale.set(
-      (Number(height) * video.videoWidth) / video.videoHeight,
+      (Number(height) * (video.videoWidth || video.width)) / (video.videoHeight || video.height),
       Number(height),
       1,
     );

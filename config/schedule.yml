@@ -53,3 +53,9 @@ lightek_merchant_payouts:
   class: "LightekCommerce::ScheduledPayoutsJob"
   queue: default
   active_job: true
+
+lightek_session_media_reconciliation:
+  cron: "* * * * *"
+  class: "LightekSessions::SweepJob"
+  queue: default
+  active_job: true

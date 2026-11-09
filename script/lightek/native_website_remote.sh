@@ -149,6 +149,7 @@ run_app bundle exec rails assets:precompile
 run_app bundle exec rails zeitwerk:check
 python3 "$APP_ROOT/lib/scripts/setup_studio_docker_access.py" --app-user "$APP_USER"
 run_app bash lib/scripts/setup_studio_media.sh
+run_app bash lib/scripts/setup_live_audience.sh
 # Supply Passenger environment without shell evaluation or exposing it to browsers.
 python3 - "$ENV_FILE" "$BASE/passenger-env.conf" <<'PY'
 import json,pathlib,sys

@@ -1,0 +1,59 @@
+name: Conference rooms, Studio composition and social audience
+on:
+  push:
+    branches: [feat/reservation-conferencing]
+  pull_request:
+    paths: ['app/**', 'services/live-audience/**', 'public/lightek/**', 'config/routes/**', 'db/migrate/*session*', 'test/**', '.github/workflows/conferencing-acceptance.yml']
+  workflow_dispatch:
+concurrency:
+  group: conference-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated test dependencies
+        run: |
+          gem install 'activerecord:8.0.4' 'actionpack:8.0.4' 'railties:8.0.4' 'minitest:~>5.25' pg webrick 'sqlite3:~>2.7' 'stripe:19.6.2' --no-document
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+          npm ci --prefix services/live-audience --ignore-scripts --no-audit --no-fund
+      - name: Verify booking ownership, room permissions and presentation persistence
+        run: ruby test/standalone/session_rooms_checks.rb
+      - name: Verify managed installer and social event adapters
+        run: |
+          python3 -m unittest test/standalone/session_media_installer_test.py test/standalone/fleet_native_updater_test.py
+          npm test --prefix services/live-audience
+      - name: Verify managed social-reader container
+        run: |
+          docker build -t lightek-audience-ci services/live-audience
+          docker run --rm --read-only --memory=256m --cpus=0.5 --pids-limit=64 --cap-drop=ALL --security-opt=no-new-privileges lightek-audience-ci node --input-type=module -e "import {TikTokLiveConnection,WebcastEvent} from 'tiktok-live-connector'; if(!TikTokLiveConnection || !WebcastEvent.CHAT) process.exit(1); console.log('SOCIAL_READER_CONTAINER_PASS');"
+      - name: Verify production compositor and existing capture transport
+        run: |
+          node test/javascript/session_presentation_test.cjs
+          node test/javascript/studio_capture_transport_test.cjs
+      - name: Exercise actual self-hosted multiparty media
+        run: |
+          curl --fail --location --silent --show-error https://github.com/livekit/livekit/releases/download/v1.13.11/livekit_1.13.11_linux_amd64.tar.gz -o /tmp/livekit.tgz
+          echo '1e9ee90ca301e1842b2887fc77cb122759756a9c8aeb4334ee91de3325ec43fb  /tmp/livekit.tgz' | sha256sum --check
+          mkdir -p /tmp/lightek-livekit
+          tar -xzf /tmp/livekit.tgz -C /tmp/lightek-livekit
+          /tmp/lightek-livekit/livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --rtc.enable_loopback_candidate --room.auto_create=false > /tmp/lightek-livekit.log 2>&1 &
+          media_pid=$!
+          trap 'kill "$media_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:7880/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node test/javascript/conference_media_test.cjs || { tail -80 /tmp/lightek-livekit.log; exit 1; }

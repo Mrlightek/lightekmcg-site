@@ -50,6 +50,7 @@ module Api
       post,operation=live_context
       path=::Studio::Live::Encoder.hls_path(operation.id)
       raise ActiveRecord::RecordNotFound unless path.file?
+      ::Studio::Live::Audience.touch!(operation, current_user)
       content=path.read.lines.map do |line|
         value=line.strip
         if value.empty? || value.start_with?("#")

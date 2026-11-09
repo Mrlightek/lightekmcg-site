@@ -5,3 +5,6 @@ Rails.application.config.to_prepare do
     ApplicationCable::Connection.prepend(Studio::Live::LogRedaction)
   end
 end
+
+Rails.application.config.filter_parameters += [:chat_embed_url, :api_secret]
+Rails.application.config.filter_parameters += [:ssn_session, :sign_api_key]

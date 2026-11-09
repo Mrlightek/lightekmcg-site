@@ -44,3 +44,5 @@
 /config/vault-master.key.*
 
 .vault-key-recovery-*
+
+/services/live-audience/node_modules/

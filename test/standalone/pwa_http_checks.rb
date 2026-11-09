@@ -2,6 +2,7 @@
 # Exercises the real API controllers against the real database workers. Only
 # host authentication and the private Dispatch queue are replaced at boundaries.
 require_relative "community_checks"
+require_relative "session_community_support"
 require "action_dispatch/testing/integration"
 require File.join(ROOT, "app/services/lightek_pwa/site_context")
 require File.join(ROOT, "app/services/lightek_social/access_denied")
@@ -174,6 +175,7 @@ class PwaHttpIntegrationTest < LightekCommunityIntegrationTest
     slug=perform("community_create",name:"The Nail Salon",audience:"women",request_key:SecureRandom.uuid)[:community][:slug]
     operation=Studio::Live::Sessions.create!(user:@alice,site:@site,destination:"lightek",title:"Ladies chatting",community_slug:slug)
     post=Post.find(operation.metadata["post_id"])
+    operation.update!(status:"live")
     assert_equal "lightek_streaming",post.distribution
     directory=Studio::Live::Encoder.hls_directory(operation.id)
     FileUtils.mkdir_p(directory)
@@ -188,6 +190,8 @@ class PwaHttpIntegrationTest < LightekCommunityIntegrationTest
     assert_equal 404,client.response.status
     client.get "/api/lightek/pwa/live/#{post.id}/index.m3u8",headers:headers
     assert_equal 200,client.response.status
+    assert StudioLiveViewer.where(studio_live_operation:operation,user:@alice).exists?
+    refute StudioLiveViewer.where(studio_live_operation:operation,user:@bob).exists?
     assert_includes client.response.body,"/api/lightek/pwa/live/#{post.id}/segments/segment-000000.ts"
     client.get "/api/lightek/pwa/live/#{post.id}/segments/segment-000000.ts",headers:headers
     assert_equal 200,client.response.status

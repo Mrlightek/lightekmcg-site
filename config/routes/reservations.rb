@@ -34,3 +34,16 @@
   post '/dashboard/reservations/network/offers', to: 'dashboard/reservations#network_offer', as: :offer_network_dashboard_reservations
   patch '/dashboard/reservations/network/payouts', to: 'dashboard/reservations#network_payouts', as: :payouts_network_dashboard_reservations
   post '/dashboard/installations/:id/reservation-network', to: 'dashboard/installations#connect_reservations', as: :connect_reservations_dashboard_installation
+
+  post '/my/reservations/:reservation_id/room', to: 'session_rooms#from_reservation', as: :reservation_session_room
+  get '/sessions/:key', to: 'session_rooms#show', as: :session_room
+  get '/sessions/:key/state', to: 'session_rooms#state', as: :session_room_state
+  post '/sessions/:key/ticket', to: 'session_rooms#ticket', as: :session_room_ticket
+  post '/sessions/:key/control', to: 'session_rooms#control', as: :session_room_control
+  post '/sessions/:key/invite', to: 'session_rooms#invite', as: :session_room_invite
+  get '/dashboard/live/:id/audience', to: 'dashboard/live_broadcasts#audience', as: :dashboard_live_audience, constraints: {id: /[0-9]+/}
+  post '/dashboard/live/audience-settings', to: 'dashboard/live_broadcasts#audience_settings', as: :dashboard_live_audience_settings
+  get '/dashboard/reservations/media', to: 'dashboard/session_media#show', as: :dashboard_session_media
+  post '/dashboard/reservations/media/install', to: 'dashboard/session_media#install', as: :install_dashboard_session_media
+  post '/dashboard/live/audience-connection', to: 'dashboard/live_broadcasts#audience_connection', as: :dashboard_live_audience_connection
+  patch '/sessions/:key/presentation', to: 'session_rooms#presentation', as: :session_room_presentation

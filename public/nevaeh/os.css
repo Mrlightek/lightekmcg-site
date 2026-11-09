@@ -56,3 +56,14 @@ input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;hei
 .met{grid-template-columns:1fr 22px;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.met .bar{display:none}.met small{font-size:9px;letter-spacing:.04em;margin-top:3px}.met span{color:var(--mut)}@media(max-width:999px){.read{top:124px}.tl{top:58px}.system-label{font-size:8px}.read p{max-width:90vw;font-size:9px}.mtabs{left:12px;right:auto}.chips{display:none}}
 
 .accuracy{max-width:100%;overflow-wrap:anywhere;white-space:normal}@media(max-width:999px){.read{top:140px}.accuracy{max-width:92vw}}
+
+/* Execution evidence is text, separate from the two-column transit icon rows. */
+#inf{min-width:0;display:grid;gap:12px}.evidence-row{display:block;width:100%;min-width:0;padding:12px 0;border-bottom:1px solid var(--line);color:var(--ink);font-size:12px;line-height:1.7;overflow-wrap:break-word}.evidence-label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--cy)}.evidence-row p{margin:5px 0 0}.source-ref{max-width:100%;overflow-wrap:anywhere}#receipt pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0}#receipt summary{cursor:pointer;color:var(--mut);font-size:10px}.result-card{margin:10px 0;padding:12px;border:1px solid #00ffff33;background:#0b101a}.result-card p{margin:4px 0;color:var(--mut)}.core.has-thought .read{z-index:2}.low{max-height:62%;overflow:hidden;grid-template-rows:auto auto minmax(0,1fr) auto}#ans{min-height:0;width:100%;max-height:100%;overflow:auto}.dock{min-width:0}.accuracy{font-size:8px}#trail{flex-shrink:0}#at{max-height:25vh}.tag{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-height:850px) and (min-width:1001px){.read h2{font-size:40px}.read .system-label{font-size:8px}.read p{font-size:9px}.low{max-height:64%}#tdb{padding:7px 11px}}
+@media(max-width:1000px){.low{max-height:58%;overflow:visible;grid-template-rows:auto auto minmax(0,1fr) auto}.low #ans{max-height:30dvh}.accuracy{display:none}.evidence-row{font-size:13px}}
+
+.agent-job{padding:12px 0;border-bottom:1px solid var(--line);font-size:11px}.agent-job p{color:var(--mut);font-size:10px;margin:5px 0}.agent-job .btn{padding:5px 9px;margin-right:6px;font-size:9px}.upload-label{display:grid;gap:6px;margin-top:12px;font-size:10px;color:var(--mut)}.upload-label input{width:100%;font:inherit}#host-tools[hidden]{display:none}
+
+.capability-command{border:1px solid #00ffff33;color:var(--cy);background:#0b101a;padding:7px 10px;margin:4px;font-size:11px}
+
+.output-download{display:block;color:var(--cy);padding:8px 0}

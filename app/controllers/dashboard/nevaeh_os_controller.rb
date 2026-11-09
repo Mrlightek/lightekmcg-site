@@ -22,7 +22,9 @@ class Dashboard::NevaehOsController < ::ApplicationController
     render json: {
       user: {id:current_user.id,name:current_user.respond_to?(:first_name) ? current_user.first_name : 'Operator'},
       resources: NevaehOs::Resources.catalog(current_user),
-      agents: NevaehOsAgent.where(user:current_user).order(:id).map { |a| a.attributes.slice('id','name','role','birth_date','birth_time','birth_place') },
+      agents: NevaehOsAgent.where(user:current_user).order(:id).map { |a| a.attributes.slice('id','name','role','birth_date','birth_time','birth_place','system_key','enabled','autonomy','allowed_capabilities') },
+      host_control: current_user.role=='super_admin',
+      agent_workers: NevaehAgentWorker.where(user:current_user).includes(:nevaeh_os_agent).order(id: :desc).limit(30).map { |worker| {id:worker.id,agent_id:worker.nevaeh_os_agent_id,agent:worker.nevaeh_os_agent.name,name:worker.name,enabled:worker.enabled?,interval_minutes:worker.interval_minutes,next_run_at:worker.next_run_at,last_status:worker.runs.order(id: :desc).first&.execution_status} },
       memory: memory_state,
       actions: NevaehOsAction.where(user:current_user).order(id: :desc).limit(12).map { |a| receipt(a) },
       kernel: {language_models: NevaehLanguageModel.where(enabled:true).where.not(active_checkpoint_id:nil).count, chart_accuracy:'illustrative', ethics_scores:'not_measured'}
@@ -30,6 +32,21 @@ class Dashboard::NevaehOsController < ::ApplicationController
   end
   def ask
     render json: NevaehOs::Conversation.new(actor:current_user,host:request.host,origin:request.base_url).ask(text:params.require(:q),request_key:params.require(:request_key),agent:params[:agent],mode:params[:mode])
+  end
+  def download
+    NevaehOs::UbuntuPackages.authorize!(current_user)
+    path=NevaehOs::Applications.checked_path(NevaehOs::Applications.workspace(current_user),params.require(:filename),existing:true)
+    send_file path,type:'application/octet-stream',disposition:'attachment'
+  end
+  def upload
+    NevaehOs::UbuntuPackages.authorize!(current_user)
+    file=params.require(:file)
+    raise ArgumentError,'Choose a file up to 100 MB' unless file.respond_to?(:tempfile) && file.size.between?(1,100.megabytes)
+    name=File.basename(file.original_filename.to_s).gsub(/[^a-zA-Z0-9_.-]/,'_')[0,100]
+    name="#{SecureRandom.hex(6)}-#{name}"
+    path=NevaehOs::Applications.workspace(current_user).join(name)
+    File.open(path,File::WRONLY|File::CREAT|File::EXCL,0o600) { |target| IO.copy_stream(file.tempfile,target) }
+    render json:{file:name,bytes:File.size(path)}
   end
   def action
     render json: receipt(NevaehOsAction.where(user:current_user).find(params[:id]))

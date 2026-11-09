@@ -60,3 +60,83 @@ Run `ruby test/standalone/nevaeh_os_test.rb`. This uses real OS models, migratio
 Run `node test/standalone/nevaeh_os_browser.cjs` with Playwright installed. `CHROMIUM_PATH` optionally selects an installed Chromium. Screenshots go to `tmp`. These checks use explicit API fixtures to verify layouts, escaping, CSRF request headers, mobile sheets and reduced motion; they do not claim production domain execution or real microphone verification.
 
 Deploy using the normal migration and worker-update pipeline. Keep Dispatch workers running. The full application/private-engine bundle, PostgreSQL runtime, real microphone permissions, paid actions, production deployment and every domain's end-to-end acceptance remain outside the controlled local checks. No external AI service or inference server was added. The natal/transit wheel remains explicitly illustrative; approximate positions do not affect authorization, action selection or evidence. The five principle labels are presentation labels, with no fabricated numerical ethics scores.
+
+## Console, Ubuntu applications and agent workforce update
+
+Capability names are now executable instructions: `susu.list`, `/susu.list`, `/execute susu.list` and `show my susus` all resolve to the same native capability. A capability-shaped request that is absent or disabled returns an explicit error instead of documentation search. The native Susu query includes groups the actor organizes or belongs to. Results render as cards, and the evidence panel has its own full-width text layout rather than the transit icon grid. The CSS/JS version changes force a fresh fetch after deployment.
+
+### Rails console
+
+`/models` discovers installed ActiveRecord models; `/schema User` describes their fields. `/rails` parses Ruby model expressions with Ripper into typed operations, without evaluating arbitrary Ruby:
+
+```ruby
+User.where(role: "client").order(id: :desc).limit(10)
+Marlon::Ticket.find(42)
+User.count
+```
+
+For models that do not require specialized domain services, `create!`, `find(...).update!` and `find(...).destroy!` run normal model validations and callbacks under the current CanCan permissions. Credential fields are unavailable for inputs and redacted from record outputs. Query inputs are literal field hashes; raw SQL, arbitrary constants/methods, blocks and interpolation are rejected. Returned collections are limited to 100 rows. Financial, infrastructure, Studio and orchestration state use their domain capability API for mutations rather than raw table writes. This is a Ruby-style application console, not an unrestricted Ruby interpreter or shell. Administrators can use the data console; host package/application controls require `super_admin`.
+
+### Ubuntu application fabric
+
+`/ubuntu setup ffmpeg` performs installation, documentation import, activation of the shipped typed recipe and a real application version check as one operation. It preserves an existing active adapter. Packages without a shipped recipe remain documented drafts; setup never guesses arbitrary executable arguments.
+
+```text
+/ubuntu setup ffmpeg
+/ubuntu status
+/ubuntu search video
+/ubuntu refresh
+/ubuntu show ffmpeg
+/ubuntu plan ffmpeg
+/ubuntu install ffmpeg
+/ubuntu docs ffmpeg
+/ubuntu integrate ffmpeg
+/app describe ffmpeg
+/app activate ffmpeg
+/app run ffmpeg version
+```
+
+The `ubuntu.<operation>` capability form also works, for example `ubuntu.install {"package":"ffmpeg"}`. `/capabilities` includes these actions and active application operations with runnable command buttons. Application IDs are used in direct capability slugs (`app.12.probe`) to avoid ambiguity in package and operation names.
+
+Package operations run through a root-owned helper installed for the native application user, not by granting Rails a root shell or arbitrary APT arguments. The helper uses configured APT indexes, package metadata and dependency resolution; it verifies trusted Ubuntu origins, rejects planned package removals and keeps ordinary APT archive authentication enabled. Installation pins the selected package version and verifies the resulting installed version. It does not add repositories or run generic OS upgrades/removals. The installer's bootstrap dependency is `python3-apt`. Main deployment, new native instance provisioning and native fleet updates all install the same helper automatically.
+
+Installing a package does not automatically make every function callable. `integrate` reads its installed documentation and binary inventory, records the reference in KB, and creates a **draft** application adapter. FFmpeg, Blender and Pandoc have initial typed operation recipes. Other packages retain their docs and require authored operation contracts. Operators edit `application_adapters` through the existing CRUD interface; changes invalidate activation. Activation validates executable ownership and the typed contract; it does not silently run the operations. Runtime commands use argument arrays, a minimal environment and the unprivileged application user. Application execution is not a container/OS sandbox.
+
+FFmpeg provides version, probe and transcode operations. Pandoc provides version and conversion. Blender's initial new package recipe reports its version; full Blender authoring continues through the existing Studio capability APIs. These are deliberately explicit adapters, not a claim that documentation has become arbitrary executable code or that a small native language model understands every Ubuntu application.
+
+The Application Fabric panel uploads inputs into the operator's application workspace. File parameters stay inside that workspace, reject symlinks/traversal, and output names cannot overwrite existing files. Results include download links for created outputs. Example after uploading an input:
+
+```text
+/app run ffmpeg probe {"input":"UPLOAD_FILENAME.wav"}
+/app run ffmpeg transcode {"input":"UPLOAD_FILENAME.wav","output":"converted.mp4"}
+```
+
+Package changes and application output files are host effects; a database rollback cannot undo them. Receipts record package verification and process exit status, and an unsuccessful application process is marked failed. No package was installed on a customer/production host during local verification.
+
+### Real agents and workers
+
+Nevaeh, Sage, Muse and Warden now resolve to persistent agent identities for each account. Custom personas use the same worker interface. Every executable conversation carries its agent identity into the saved action. Agents retain visual/voice identity, instructions for native model context, enabled state, autonomy mode and optional capability assignments. An empty assignment list inherits the owner's permitted actions; explicit names/prefixes restrict the agent. Agents never elevate the owner's permissions.
+
+```text
+/agents
+/delegate sage susu.list
+/agent schedule warden 60 susu.list
+/agent run WORKER_ID
+/agent pause WORKER_ID
+```
+
+Delegation creates a real worker, immutable run snapshot and saved OS action. A run can call an existing structured worker (`/delegate muse /run ID`) or another executable OS command. Schedules share the existing `NevaehIntelligences::WorkflowSweepJob` minute sweep; no new scheduler daemon is required. A scheduled request explicitly enables scheduled autonomy for its agent. Durable time-slot keys prevent duplicate scheduled runs; pausing a worker or agent and revoking owner permissions are checked again before execution. A failed/blocked prior run pauses future scheduled execution for attention. A queued run does not claim completion: the parent receipt follows the agent action, nested Dispatch result, structured ticket or training job.
+
+The operating workspace shows agent workers, intervals, last execution status, and Run/Pause controls. The existing Control Center links to the workforce. This is explicit task delegation and scheduled execution using existing capabilities; it does not add an unrestricted autonomous LLM planning loop.
+
+### Deployment and verification for this update
+
+Apply migrations `20261109140000_create_nevaeh_application_adapters` and `20261109141000_connect_nevaeh_agent_workforce`, restart the worker process, and use the normal native deployment/update path to install the host helper. Docker-hosted Rails applications are not granted host package access by this implementation; they need a deliberate host transport rather than installing software into an ephemeral container. Manual deployments that bypass the normal installer can run the root installer with the actual app root and unprivileged app user:
+
+```sh
+sudo python3 lib/scripts/nevaeh/install_package_control.py --app-root /var/www/lightekmcg-site --app-user lightek
+```
+
+Run `ruby test/standalone/nevaeh_os_test.rb` with FFmpeg available, `python3 -m unittest test.operations.nevaeh_package_control_test`, and the Playwright check documented above. Package installation tests use controlled APT adapters and an isolated installer filesystem; they do not install real Ubuntu packages. Native domain/queue interfaces retain the controlled persistence harness boundary. A real FFmpeg version/probe/transcode test verifies the unprivileged application runner separately from those adapters.
+
+Implementation references: [Ubuntu package management](https://ubuntu.com/server/docs/how-to/software/package-management/), [APT archive authentication](https://manpages.ubuntu.com/manpages/jammy/man8/apt-secure.8.html), [python-apt package interfaces](https://apt-team.pages.debian.net/python-apt/library/apt.package.html).

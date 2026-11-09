@@ -4,6 +4,8 @@ module NevaehOs
   # Operational services (payments, provisioning, publishing) retain their native capabilities.
   module Resources
     ENTRIES = {
+      'application_adapters'=>['NevaehApplicationAdapter',%w[name package operations lock_version],%w[id name package status operations documentation verification lock_version]],
+      'agent_workers'=>['NevaehAgentWorker',%w[name enabled interval_minutes lock_version],%w[id name nevaeh_os_agent_id enabled interval_minutes next_run_at command lock_version]],
       'workers' => ['NevaehWorkflow', %w[name description status interval_minutes sections lock_version], %w[id name description status interval_minutes next_run_at lock_version]],
       'writing_profiles' => ['NevaehWritingProfile', %w[name format provider instructions templates examples enabled inference_model_id language_model_id lock_version], %w[id name format provider instructions enabled lock_version]],
       'inference_models' => ['NevaehInferenceModel', %w[name description enabled rules examples lexicon lock_version], %w[id name description enabled rules examples lexicon lock_version]],
@@ -11,10 +13,10 @@ module NevaehOs
       'constructions' => ['NevaehConstruction', %w[name key description definition sample_tests lock_version], %w[id name key description status active_release_id lock_version]],
       'datasets' => ['NevaehTrainingDataset', %w[name examples lock_version], %w[id name status provenance lock_version]],
       'tickets' => ['Marlon::Ticket', %w[title description category priority urgency], %w[id title description category priority urgency status]],
-      'agents' => ['NevaehOsAgent', %w[name role instructions birth_date birth_time birth_place], %w[id name role instructions birth_date birth_time birth_place]],
+      'agents' => ['NevaehOsAgent', %w[name role instructions birth_date birth_time birth_place enabled autonomy allowed_capabilities], %w[id name role instructions birth_date birth_time birth_place enabled autonomy allowed_capabilities]],
       'sources' => ['NevaehOsSource', [], %w[id url title body sha256 status created_at]]
     }.freeze
-    OWNED = %w[agents sources].freeze
+    OWNED = %w[agents sources application_adapters agent_workers].freeze
     module_function
     def definition(key)
       ENTRIES.fetch(key.to_s) { raise ArgumentError, 'Unknown resource. Use /resources for available contracts.' }
@@ -26,6 +28,8 @@ module NevaehOs
     end
     def authorize!(actor, operation, key, id = nil, attributes = {})
       raise ArgumentError, 'Sign in first' unless actor&.persisted?
+      UbuntuPackages.authorize!(actor) if key=='application_adapters'
+      raise ArgumentError,'Use /delegate or /agent schedule to create agent workers' if key=='agent_workers' && operation=='create'
       klass = model(key)
       record = id.present? ? scope(key, actor).find(id) : klass.new
       if OWNED.include?(key)
@@ -41,6 +45,7 @@ module NevaehOs
     def serialize(key, record) = record.attributes.slice(*definition(key)[2])
     def catalog(actor)
       ENTRIES.filter_map do |key, (name, fields, output)|
+        next if key=='application_adapters' && actor.role!='super_admin'
         klass = name.safe_constantize
         next unless klass && klass.table_exists?
         next unless OWNED.include?(key) || Ability.new(actor).can?(:read, klass)

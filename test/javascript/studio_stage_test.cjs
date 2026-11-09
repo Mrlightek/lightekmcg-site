@@ -30,7 +30,7 @@ const { chromium } = require("playwright");
       if (p === "/api/lightek/pwa/assets/1/proxy")
         return route.fulfill({
           contentType: "model/gltf-binary",
-          body: fs.readFileSync("/tmp/native-viewport-proof.glb"),
+          body: fs.readFileSync(process.env.STUDIO_VIEWPORT_FIXTURE || "/tmp/native-viewport-proof.glb"),
         });
       return route.fulfill({
         contentType: "application/javascript",
@@ -92,6 +92,10 @@ const { chromium } = require("playwright");
     const behind = await page.evaluate(() => pixel(2));
     assert(front[0] > 200 && front[2] < 30, JSON.stringify(front));
     assert(behind[2] > 200 && behind[0] < 30, JSON.stringify(behind));
+    const presentationPlane=await page.evaluate(()=>{stage.setSubject(subjectCanvas,{key:false,x:0,depth:-2,z:0,height:4});stage.render();return {canvas:stage.texture.isCanvasTexture,visible:stage.subject.visible,aspect:stage.subject.scale.x/stage.subject.scale.y};});
+    assert.equal(presentationPlane.canvas,true);
+    assert.equal(presentationPlane.visible,true);
+    assert.ok(Math.abs(presentationPlane.aspect-16/9)<.01);
     const invalid = await page.evaluate(async () => {
       try {
         await stage.load("https://outside.test/model.glb");
@@ -108,7 +112,7 @@ const { chromium } = require("playwright");
     });
     assert.deepEqual(errors, []);
     console.log(
-      "STUDIO_STAGE_PASS real_glb chroma_key video_texture foreground_background_depth cleanup",
+      "STUDIO_STAGE_PASS real_glb chroma_key video_texture canvas_presentation_texture foreground_background_depth cleanup",
     );
   } finally {
     await browser.close();

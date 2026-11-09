@@ -4,6 +4,18 @@ module NevaehOs
   module Command
     HELP = <<~TEXT.freeze
       I'm Nevaeh. Tell me what you need, or use a command:
+      /agents — agents, assigned workers and execution status
+      /delegate sage susu.list — assign a real task to Sage
+      /agent schedule warden 60 susu.list — run every 60 minutes
+      /agent run ID · /agent pause ID — control an agent worker
+      susu.list — execute a capability directly; JSON inputs are optional
+      show my susus — list the Susus you organize or belong to
+      /models · /schema User — discover the installed Rails data model
+      /rails User.where(role: "client").limit(10) — scoped Ruby-style data console
+      /ubuntu search video · /ubuntu show ffmpeg · /ubuntu plan ffmpeg
+      /ubuntu setup ffmpeg — install, document and connect a supported application
+      /ubuntu install ffmpeg · /ubuntu docs ffmpeg · /ubuntu integrate ffmpeg
+      /app describe ffmpeg · /app activate ffmpeg · /app run ffmpeg version
       /resources — available resource contracts and editable fields
       /capabilities — installed platform actions
       /read workers [ID] · /create workers {"name":"…","sections":[…]}
@@ -30,6 +42,56 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if (m=q.match(/\A\/?delegate\s+(\S+)\s+(.+)\z/im))
+        return {'kind'=>'agent_task','agent_ref'=>m[1],'instruction'=>m[2]}
+      end
+      if (m=q.match(/\A\/?agent\s+schedule\s+(\S+)\s+(\d+)\s+(.+)\z/im))
+        return {'kind'=>'agent_task','agent_ref'=>m[1],'interval_minutes'=>m[2].to_i,'instruction'=>m[3]}
+      end
+      if (m=q.match(/\A\/?agent\s+(run|pause)\s+(\d+)\z/i))
+        return {'kind'=>'agent_control','operation'=>m[1].downcase,'id'=>m[2].to_i}
+      end
+      if q.match?(/\A\/?agents\z/i)
+        return {'kind'=>'agents'}
+      end
+      if (m = q.match(/\A\/?(?:rails|console)\s+(.+)\z/m))
+        return {'kind'=>'console','expression'=>m[1]}
+      end
+      if q.match?(/\A\/?models\z/i)
+        return {'kind'=>'models'}
+      end
+      if (m = q.match(/\A\/?schema\s+([A-Z][A-Za-z0-9_:]*)\z/))
+        return {'kind'=>'schema','model'=>m[1]}
+      end
+      if (m = q.match(/\A\/?ubuntu\s+(search|show|plan|install|docs|integrate|setup)\s+([a-z0-9][a-z0-9+ ._-]{0,100})\z/i))
+        return {'kind'=>'ubuntu','operation'=>m[1].downcase,'package'=>m[2].strip.downcase}
+      end
+      if q.match?(/\A\/?ubuntu(?:\s+(?:status|refresh))?\z/i)
+        return {'kind'=>'ubuntu','operation'=>q.downcase.end_with?('refresh') ? 'refresh' : 'status'}
+      end
+      if (m = q.match(/\A\/?app\s+(describe|activate)\s+([a-z0-9][a-z0-9+.-]+)\z/))
+        return {'kind'=>'application','operation'=>m[1],'package'=>m[2]}
+      end
+      if (m = q.match(/\A\/?app\s+run\s+([a-z0-9][a-z0-9+.-]+)\s+([a-z][a-z0-9_.-]*)(?:\s+(\{.*\}))?\z/m))
+        return {'kind'=>'application','operation'=>'run','package'=>m[1],'action'=>m[2],'inputs'=>m[3] ? JSON.parse(m[3]) : {}}
+      end
+      if (m=q.match(/\A\/?(?:execute\s+)?app\.(\d+)\.([a-z][a-z0-9_.-]*)(?:\s+(\{.*\}))?\z/m))
+        return {'kind'=>'application','operation'=>'run','adapter_id'=>m[1].to_i,'action'=>m[2],'inputs'=>m[3] ? JSON.parse(m[3]) : {}}
+      end
+      if (m=q.match(/\A\/?(?:execute\s+)?ubuntu\.(status|search|show|plan|install|docs|refresh|integrate|setup)(?:\s+(\{.*\}))?\z/m))
+        payload=m[2] ? JSON.parse(m[2]) : {}
+        raise ArgumentError,'Ubuntu actions accept a package field only' unless (payload.keys-%w[package]).empty?
+        return {'kind'=>'ubuntu','operation'=>m[1],'package'=>payload['package']}
+      end
+      if q.match?(/\A\/?agents\.list\z/)
+        return {'kind'=>'agents'}
+      end
+      if (m = q.match(/\A\/?(?:execute\s+)?([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+)(?:\s+(\{.*\}))?\z/m))
+        return {'kind'=>'capability','intent'=>m[1],'payload'=>m[2] ? JSON.parse(m[2]) : {}}
+      end
+      if q.match?(/\A(?:please )?(?:list|show)(?: me)?(?: all)? my susus?[.!]?\z/i)
+        return {'kind'=>'capability','intent'=>'susu.list','payload'=>{}}
+      end
       return {'kind'=>'help'} if q.match?(/\A\/?(?:help|hello|hi|hey)(?: nevaeh)?[!.]?\z/i)
       if (m = q.match(/\A\/?(?:pause|activate) workers? (\d+)\z/i))
         return {'kind'=>'worker_status','id'=>m[1].to_i,'status'=>q.match?(/\A\/?pause/i) ? 'paused' : 'active'}

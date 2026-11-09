@@ -46,9 +46,19 @@ end
 migration = File.read(File.join(ROOT,'db/migrate/20261109090000_create_nevaeh_operating_system.rb')).sub('Migration[8.0]','Migration[7.2]')
 eval(migration, TOPLEVEL_BINDING, 'nevaeh_os_test_migration')
 CreateNevaehOperatingSystem.new.migrate(:up)
+%w[20261109140000_create_nevaeh_application_adapters 20261109141000_connect_nevaeh_agent_workforce].each do |name|
+  eval(File.read(File.join(ROOT,'db/migrate',name+'.rb')).sub('Migration[8.0]','Migration[7.2]'),TOPLEVEL_BINDING,name)
+end
+CreateNevaehApplicationAdapters.new.migrate(:up)
+ConnectNevaehAgentWorkforce.new.migrate(:up)
 class Ability
   def initialize(actor) = @actor=actor
   def can?(_operation,_subject) = %w[admin super_admin].include?(@actor.role)
+end
+module NevaehOs
+  class AgentRunJob
+    def self.perform_later(id) = id
+  end
 end
 module DymondDispatch
   class WorkItem < ApplicationRecord
@@ -79,12 +89,12 @@ class Nevaeh
     args[:subject] ? item : OpenStruct.new(work_item:item)
   end
 end
-%w[models/nevaeh_os_action models/nevaeh_os_consent models/nevaeh_os_memory models/nevaeh_os_source models/nevaeh_os_agent models/nevaeh_capability
- services/nevaeh_os/resources services/nevaeh_os/command services/nevaeh_os/web_document services/nevaeh_os/executor services/nevaeh_os/dispatch services/nevaeh_os/worker
+%w[models/nevaeh_agent_worker models/nevaeh_agent_run models/nevaeh_application_adapter models/nevaeh_os_action models/nevaeh_os_consent models/nevaeh_os_memory models/nevaeh_os_source models/nevaeh_os_agent models/nevaeh_capability
+ services/nevaeh_os/agents services/nevaeh_os/agent_workforce services/nevaeh_os/ubuntu_packages services/nevaeh_os/applications services/nevaeh_os/process_runner services/nevaeh_os/rails_console services/nevaeh_os/resources services/nevaeh_os/command services/nevaeh_os/web_document services/nevaeh_os/executor services/nevaeh_os/dispatch services/nevaeh_os/worker
  services/gatekeeper/authorization_decision services/gatekeeper/authorization_service services/gatekeeper].each { |f| require File.join(ROOT,'app',f) }
 class NevaehOsTest < Minitest::Test
   def setup
-    [NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
+    [NevaehAgentRun,NevaehAgentWorker,NevaehApplicationAdapter,NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
     @actor=User.create!(role:'super_admin')
     @other=User.create!(role:'client')
   end
@@ -344,7 +354,7 @@ module DymondSite
     self.table_name='test_sites'
   end
 end
-ActiveRecord::Schema.define { create_table(:test_sites) }
+ActiveRecord::Schema.define { create_table(:test_sites) { |t| t.string :host } }
 class DymondDispatch::WorkItem
   def done? = status=='done'
   def failed? = status=='failed'
@@ -371,5 +381,254 @@ class NevaehOsNativeHandoffTest < Minitest::Test
     assert_equal [],receipt[:downstream][:result]['messages']
   ensure
     NevaehCapability.where(slug:'messages.list').delete_all
+  end
+end
+
+# Additional console policy adapter for the controlled host harness.
+class ActiveRecord::Base
+  def self.accessible_by(ability,operation=:read) = ability.can?(operation,self) ? all : none
+end
+ActiveRecord::Schema.define do
+  create_table(:console_notes) { |t| t.string :title; t.string :secret_token }
+end
+class ConsoleNote < ApplicationRecord
+  validates :title,presence:true
+end
+class NevaehOperatingConsoleTest < Minitest::Test
+  def setup
+    @admin=User.create!(role:'super_admin')
+    @client=User.create!(role:'client')
+  end
+  def test_bare_capability_and_natural_susu_requests_are_commands
+    %w[susu.list /susu.list /execute\ susu.list].each do |text|
+      value=NevaehOs::Command.parse(text)
+      assert_equal 'capability',value['kind']
+      assert_equal 'susu.list',value['intent']
+      assert_equal({},value['payload'])
+    end
+    assert_equal 'susu.list',NevaehOs::Command.parse('show my susus')['intent']
+    assert_equal({'group_id'=>42},NevaehOs::Command.parse('susu.show {"group_id":42}')['payload'])
+    assert_equal 'console',NevaehOs::Command.parse('/rails ConsoleNote.count')['kind']
+    assert_equal 'ubuntu',NevaehOs::Command.parse('/ubuntu install ffmpeg')['kind']
+    assert_equal 'ubuntu',NevaehOs::Command.parse('ubuntu.install {"package":"ffmpeg"}')['kind']
+    assert_equal 12,NevaehOs::Command.parse('app.12.probe {"input":"test.wav"}')['adapter_id']
+  end
+  def test_ruby_console_queries_create_update_destroy_and_redacts_secrets
+    result=NevaehOs::RailsConsole.execute('ConsoleNote.create!(title: "First")',@admin)
+    id=result['result']['id']
+    assert_equal 'First',result['result']['title']
+    ConsoleNote.find(id).update!(secret_token:'never-display')
+    read=NevaehOs::RailsConsole.execute("ConsoleNote.find(#{id})",@admin)
+    assert_equal '[REDACTED]',read['result']['secret_token']
+    NevaehOs::RailsConsole.execute("ConsoleNote.find(#{id}).update!(title: \"Updated\")",@admin)
+    assert_equal 'Updated',ConsoleNote.find(id).title
+    rows=NevaehOs::RailsConsole.execute('ConsoleNote.where(title: "Updated").order(id: :desc).limit(2)',@admin)
+    assert_equal [id],rows['result'].map { |v| v['id'] }
+    assert NevaehOs::RailsConsole.schema('ConsoleNote',@admin)['fields'].none? { |v| v['name']=='secret_token' }
+    NevaehOs::RailsConsole.execute("ConsoleNote.find(#{id}).destroy!",@admin)
+    refute ConsoleNote.exists?(id)
+  end
+  def test_console_rejects_code_execution_raw_sql_unbounded_limits_and_domain_bypasses
+    ['Kernel.system("id")','ConsoleNote.where("1=1")','ConsoleNote.limit(1000000)','ConsoleNote.all; system("id")','ConsoleNote.where(title: "#{system(\"id\")}")','ConsoleNote.delete_all','ConsoleNote.connection.execute("DROP TABLE users")','ConsoleNote.create!(secret_token: "secret")'].each do |expression|
+      assert_raises(ArgumentError) { NevaehOs::RailsConsole.execute(expression,@admin) }
+    end
+    assert_raises(ArgumentError) { NevaehOs::RailsConsole.execute('ConsoleNote.count',@client) }
+    assert_raises(ArgumentError) { NevaehOs::RailsConsole.execute('NevaehOsAction.create!(status: "completed")',@admin) }
+    assert_raises(ActiveRecord::RecordInvalid) { NevaehOs::RailsConsole.execute('ConsoleNote.create!(title: "")',@admin) }
+  end
+  def test_ubuntu_and_application_control_require_host_super_administrator
+    assert_raises(ArgumentError) { NevaehOs::UbuntuPackages.authorize!(@client) }
+    assert_raises(ArgumentError) { NevaehOs::UbuntuPackages.authorize!(User.create!(role:'admin')) }
+    assert_raises(ArgumentError) { NevaehOs::UbuntuPackages.call(operation:'install',package:'--allow-unauthenticated') }
+    assert_raises(ArgumentError) { NevaehOs::UbuntuPackages.call(operation:'remove',package:'postgresql') }
+  end
+  def test_application_adapter_runs_real_unprivileged_ffmpeg_and_invalidates_on_edit
+    adapter=NevaehApplicationAdapter.create!(user:@admin,package:'ffmpeg',name:'FFmpeg',operations:NevaehOs::Applications.recipes('ffmpeg'),documentation:{'binaries'=>['/usr/bin/ffmpeg','/usr/bin/ffprobe']})
+    NevaehOs::Applications.activate!(adapter,@admin)
+    result=NevaehOs::Applications.run!(adapter:adapter,actor:@admin,operation:'version',inputs:{})
+    assert_equal 0,result['exit_code']
+    assert_includes result['stdout'],'ffmpeg version'
+    root=NevaehOs::Applications.workspace(@admin)
+    data=Array.new(800) { |i| (Math.sin(i*0.2)*1000).to_i }.pack('s<*')
+    wave="RIFF"+[36+data.bytesize].pack('V')+"WAVEfmt "+[16,1,1,8000,16000,2,16].pack('VvvVVvv')+"data"+[data.bytesize].pack('V')+data
+    File.binwrite(root.join('input.wav'),wave)
+    probe=NevaehOs::Applications.run!(adapter:adapter,actor:@admin,operation:'probe',inputs:{'input'=>'input.wav'})
+    assert probe['success']
+    assert_equal 'audio',JSON.parse(probe['stdout'])['streams'].first['codec_type']
+    transcode=NevaehOs::Applications.run!(adapter:adapter,actor:@admin,operation:'transcode',inputs:{'input'=>'input.wav','output'=>'converted.mp4'})
+    assert transcode['success'],transcode['stderr']
+    assert root.join('converted.mp4').file?
+    assert_equal ['converted.mp4'],transcode['outputs']
+    assert_raises(ArgumentError) { NevaehOs::Applications.checked_path(root,'../config/master.key',existing:true) }
+    File.symlink('/etc/passwd',root.join('leak.txt'))
+    assert_raises(ArgumentError) { NevaehOs::Applications.checked_path(root,'leak.txt',existing:true) }
+    adapter.update!(operations:{'version'=>{'argv'=>['/usr/bin/ffmpeg','-version'],'inputs'=>{}}})
+    assert_equal 'draft',adapter.status
+    assert_raises(ArgumentError) { NevaehOs::Applications.run!(adapter:adapter,actor:@admin,operation:'version',inputs:{}) }
+  ensure
+    FileUtils.remove_entry_secure(root) if root&.directory?
+  end
+  def test_agent_has_real_tasks_and_policies_restrict_its_capabilities
+    sage=NevaehOs::Agents.resolve!('sage',@admin)
+    assert_equal 'Sage',sage.name
+    assert_equal sage.id,NevaehOs::Agents.resolve!('sage',@admin).id
+    sage.update!(allowed_capabilities:['susu.list'])
+    assert NevaehOs::Agents.authorize!({'kind'=>'capability','intent'=>'susu.list','agent_id'=>sage.id},@admin)
+    assert_raises(ArgumentError) { NevaehOs::Agents.authorize!({'kind'=>'ubuntu','operation'=>'install','agent_id'=>sage.id},@admin) }
+    assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::Agents.authorize!({'kind'=>'capability','intent'=>'susu.list','agent_id'=>sage.id},@client) }
+    sage.update!(enabled:false)
+    assert_raises(ArgumentError) { NevaehOs::Agents.authorize!({'kind'=>'capability','intent'=>'susu.list','agent_id'=>sage.id},@admin) }
+  end
+  def test_agent_worker_runs_are_idempotent_and_recheck_pause_before_dispatch
+    sage=NevaehOs::Agents.resolve!('sage',@admin)
+    worker=NevaehAgentWorker.create!(user:@admin,nevaeh_os_agent:sage,name:'Inspect own agents',command:{'kind'=>'resource','resource'=>'agents','operation'=>'read','attributes'=>{}})
+    run=NevaehOs::AgentWorkforce.request!(worker:worker,actor:@admin,key:'manual-proof-1')
+    assert_equal run.id,NevaehOs::AgentWorkforce.request!(worker:worker,actor:@admin,key:'manual-proof-1').id
+    NevaehCapability.where(slug:'nevaeh.os.execute').delete_all
+    NevaehOs::AgentWorkforce.execute!(run)
+    assert run.reload.nevaeh_os_action_id
+    assert_equal sage.id,run.nevaeh_os_action.command['agent_id']
+    NevaehOs::AgentWorkforce.execute!(run)
+    assert_equal 1,worker.runs.count
+    second=NevaehOs::AgentWorkforce.request!(worker:worker,actor:@admin,key:'manual-proof-2')
+    worker.update!(enabled:false)
+    NevaehOs::AgentWorkforce.execute!(second)
+    assert_equal 'blocked',second.reload.status
+    assert_nil second.nevaeh_os_action_id
+  end
+  def test_scheduler_pauses_revoked_agents_and_assigns_one_durable_time_slot
+    sage=NevaehOs::Agents.resolve!('sage',@admin)
+    sage.update!(autonomy:'scheduled')
+    worker=NevaehAgentWorker.create!(user:@admin,nevaeh_os_agent:sage,name:'Scheduled inspector',interval_minutes:5,command:{'kind'=>'resource','resource'=>'agents','operation'=>'read','attributes'=>{}})
+    worker.update_columns(next_run_at:1.minute.ago)
+    2.times { NevaehOs::AgentWorkforce.tick! }
+    assert_equal 1,worker.runs.count
+    assert worker.reload.next_run_at>Time.current
+    sage.update!(enabled:false)
+    worker.update_columns(next_run_at:1.minute.ago)
+    NevaehOs::AgentWorkforce.tick!
+    refute worker.reload.enabled?
+    assert_nil worker.next_run_at
+  end
+end
+
+class NevaehOsHttpTest
+  def installed_susu
+    NevaehCapability.where(slug:['susu.list','nevaeh.os.execute']).delete_all
+    NevaehCapability.create!(slug:'susu.list',name:'My Susus',domain:'susu',intent_name:'susu_list',handler:'Susu::Workers::Pwa',queue:'default',priority:5,event_types:['susu.list.requested'])
+    DymondSite::Site.create!(host:@request.host)
+  end
+  def test_exact_reported_bare_susu_command_is_dispatched_without_search
+    installed_susu
+    post :ask,params:{q:'susu.list',request_key:'bare-susu-request'},as: :json
+    assert_response :success
+    result=response.parsed_body
+    assert_equal 'pending',result['status']
+    refute_includes result['text'],'documentation'
+    action=NevaehOsAction.find(result['action_id'])
+    assert_equal 'susu.list',action.command['intent']
+    assert_equal @actor.id,action.user_id
+    NevaehOs::Worker.perform('execute',{'action_id'=>action.id})
+    child=DymondDispatch::WorkItem.find(action.reload.result['work_item_id'])
+    assert_equal 'list',child.args[0]
+    assert_equal @actor.id,child.args[1]['user_id']
+  end
+  def test_delegated_agent_owns_a_real_run_and_nested_dispatch_receipt
+    installed_susu
+    post :ask,params:{q:'/delegate sage susu.list',request_key:'delegate-susu-request'},as: :json
+    assert_response :success
+    action=NevaehOsAction.find(response.parsed_body['action_id'])
+    NevaehOs::Worker.perform('execute',{'action_id'=>action.id})
+    run=NevaehAgentRun.find(action.reload.result['agent_run_id'])
+    assert_equal 'Sage',run.nevaeh_agent_worker.nevaeh_os_agent.name
+    NevaehOs::AgentWorkforce.execute!(run)
+    assert_equal 'dispatched',run.reload.status
+    child=run.nevaeh_os_action
+    NevaehOs::Worker.perform('execute',{'action_id'=>child.id})
+    item=DymondDispatch::WorkItem.find(child.reload.result['work_item_id'])
+    item.update!(status:'done',result:{'groups'=>[{'id'=>3,'name'=>'Community fund'}]})
+    receipt=NevaehOs::Receipts.for(action)
+    assert_equal 'completed',receipt[:status]
+    assert_equal 'Community fund',receipt[:downstream][:downstream][:result]['groups'].first['name']
+  end
+end
+require File.join(ROOT,'app/services/susu/workers/pwa')
+ActiveRecord::Schema.define do
+  create_table(:susu_groups) { |t| t.string :name; t.integer :organizer_id }
+  create_table(:susu_memberships) { |t| t.integer :susu_group_id; t.integer :user_id }
+end
+class SusuGroup < ApplicationRecord
+  has_many :susu_memberships
+end
+class SusuMembership < ApplicationRecord; end
+class NevaehSusuMembershipTest < Minitest::Test
+  def test_list_scope_includes_only_organized_and_member_groups
+    actor=User.create!(role:'client');other=User.create!(role:'client')
+    owned=SusuGroup.create!(name:'Organized',organizer_id:actor.id)
+    joined=SusuGroup.create!(name:'Joined',organizer_id:other.id)
+    hidden=SusuGroup.create!(name:'Private',organizer_id:other.id)
+    SusuMembership.create!(susu_group_id:joined.id,user_id:actor.id)
+    worker=Susu::Workers::Pwa.new(action:'list',payload:{'user_id'=>actor.id})
+    assert_equal [owned.id,joined.id].sort,worker.send(:accessible_groups).pluck(:id).sort
+    refute_includes worker.send(:accessible_groups).pluck(:id),hidden.id
+  end
+end
+
+class NevaehApplicationStorageTest < Minitest::Test
+  def test_workspace_supports_native_shared_storage_symlink_but_not_user_path_symlinks
+    actor=User.create!(role:'super_admin')
+    Dir.mktmpdir do |directory|
+      base=Pathname.new(directory);app=base.join('current');shared=base.join('shared')
+      app.mkpath;shared.mkpath;File.symlink(shared,app.join('storage'))
+      Rails.stub(:root,app) do
+        root=NevaehOs::Applications.workspace(actor)
+        assert_equal shared.join('nevaeh_applications',actor.id.to_s).to_s,root.to_s
+        File.symlink('/etc/passwd',root.join('leak'))
+        assert_raises(ArgumentError) { NevaehOs::Applications.checked_path(root,'leak',existing:true) }
+      end
+    end
+  end
+end
+
+module Gatekeeper
+  class LessonService
+    def self.record!(**) = OpenStruct.new(id:999)
+  end
+end
+class NevaehApplicationSetupTest < Minitest::Test
+  def test_one_command_setup_imports_docs_activates_recipe_and_verifies_actual_application
+    actor=User.create!(role:'super_admin')
+    calls=[]
+    package_service=lambda do |operation:,package:|
+      calls << operation
+      case operation
+      when 'install' then {'package'=>package,'verified'=>true,'status'=>'installed'}
+      when 'docs' then {'package'=>package,'binaries'=>['/usr/bin/ffmpeg','/usr/bin/ffprobe'],'documents'=>[{'path'=>'/usr/share/doc/ffmpeg/README','text'=>'FFmpeg media tools'}]}
+      when 'show' then {'package'=>package,'installed_version'=>'fixture','summary'=>'Media tools','description'=>'FFmpeg media tools'}
+      end
+    end
+    NevaehOs::UbuntuPackages.stub(:call,package_service) do
+      result=NevaehOs::Applications.setup!(actor,'ffmpeg')
+      assert_equal 'active',result['status']
+      assert result['verification']['success']
+      assert_includes result['verification']['stdout'],'ffmpeg version'
+      assert_equal %w[install docs show],calls
+      adapter=NevaehApplicationAdapter.find(result['adapter_id'])
+      assert_equal 'active',adapter.status
+      assert_equal 'FFmpeg media tools',adapter.documentation['documents'].first['text']
+      repeat=NevaehOs::Applications.setup!(actor,'ffmpeg')
+      assert_equal adapter.id,repeat['adapter_id']
+    end
+  ensure
+    root=NevaehOs::Applications.workspace(actor) if actor
+    FileUtils.remove_entry_secure(root) if root&.directory?
+  end
+end
+
+class NevaehConsoleAuthorityTest < Minitest::Test
+  def test_admin_console_cannot_promote_an_account_into_host_super_administrator
+    administrator=User.create!(role:'admin')
+    assert_raises(ArgumentError) { NevaehOs::RailsConsole.execute("User.find(#{administrator.id}).update!(role: \"super_admin\")",administrator) }
+    assert_equal 'admin',administrator.reload.role
   end
 end

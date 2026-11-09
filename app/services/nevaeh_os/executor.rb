@@ -4,9 +4,24 @@ module NevaehOs
     module_function
     def authorize!(action)
       raise ArgumentError, 'Saved operating action required' unless action.is_a?(NevaehOsAction) && action.persisted?
-      actor, command = action.user.reload, action.command
+      authorize_command!(actor:action.user.reload,command:action.command)
+    end
+    def authorize_command!(actor:,command:)
+      Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'console','models','schema'
+        RailsConsole.authorize!(actor)
+        RailsConsole.parse(command.fetch('expression')) if command['kind']=='console'
+      when 'ubuntu','application'
+        UbuntuPackages.authorize!(actor)
+      when 'agent_task'
+        inner=command.fetch('command')
+        raise ArgumentError,'Only executable commands can become agent tasks' if %w[agent_task agent_control agents models schema search help resources capabilities remember status briefing].include?(inner['kind'])
+        agent=Agents.resolve!(command.fetch('agent_ref'),actor)
+        authorize_command!(actor:actor,command:inner.merge('agent_id'=>agent.id))
+      when 'agent_control'
+        NevaehAgentWorker.where(user:actor).find(command.fetch('id'))
       when 'project','build','activate'
         raise ArgumentError, 'Construction administration required' unless Ability.new(actor).can?(:manage, NevaehConstruction) && Ability.new(actor).can?(:manage, NevaehWorkflow)
       when 'ticket'
@@ -18,7 +33,8 @@ module NevaehOs
       when 'capability'
         raise ArgumentError, 'Capability payload must be a bounded object' unless command['payload'].is_a?(Hash) && command['payload'].to_json.bytesize <= 16000
         if NevaehOrchestration::NativeContracts.supported?(command.fetch('intent'))
-          site = DymondSite::Site.find(command.fetch('site_id'))
+          site = DymondSite::Site.find_by(id:command.fetch('site_id'))
+          raise ArgumentError,'An application context is required' unless site || (command.fetch('intent')=='susu.list' && actor.role=='super_admin')
           LightekPwa::Policy.new(user:actor,site:site).authorize_capability!(command.fetch('intent'))
         else
           raise ArgumentError, 'Platform administration required' unless Ability.new(actor).can?(:manage, NevaehWorkflow)
@@ -49,6 +65,36 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'console'
+        RailsConsole.execute(command.fetch('expression'),actor)
+      when 'ubuntu'
+        if command.fetch('operation')=='setup'
+          Applications.setup!(actor,command.fetch('package'))
+        elsif command.fetch('operation')=='integrate'
+          Applications.integrate!(actor,command.fetch('package'))
+        else
+          UbuntuPackages.call(operation:command.fetch('operation'),package:command['package'])
+        end
+      when 'application'
+        adapters=NevaehApplicationAdapter.where(user:actor)
+        adapter=command['adapter_id'] ? adapters.find(command['adapter_id']) : adapters.find_by!(package:command.fetch('package'))
+        case command.fetch('operation')
+        when 'describe' then adapter.attributes.slice('id','name','package','status','operations','documentation','verification','lock_version')
+        when 'activate' then Applications.activate!(adapter,actor)
+        when 'run' then Applications.run!(adapter:adapter,actor:actor,operation:command.fetch('action'),inputs:command.fetch('inputs'))
+        end
+      when 'agent_task'
+        AgentWorkforce.create!(actor:actor,command:command,key:"action-#{action.id}")
+      when 'agent_control'
+        worker=NevaehAgentWorker.where(user:actor).find(command.fetch('id'))
+        if command.fetch('operation')=='pause'
+          worker.update!(enabled:false)
+          {'agent_worker_id'=>worker.id,'status'=>'paused'}
+        else
+          run=AgentWorkforce.request!(worker:worker,actor:actor,key:"action-#{action.id}")
+          NevaehOs::AgentRunJob.perform_later(run.id)
+          {'agent_run_id'=>run.id,'status'=>'queued'}
+        end
       when 'project'
         worker = NevaehWorkflow.create!(creator:actor,name:"Create #{command.fetch('name')}"[0,160],status:'active',sections:[{'id'=>'project','action'=>'studio.project.create','inputs'=>{'name'=>command.fetch('name')},'depends_on'=>[]}])
         run = NevaehIntelligences::WorkflowRunner.request!(workflow:worker,actor:actor,request_key:"os:#{action.id}")

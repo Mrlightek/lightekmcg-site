@@ -37,6 +37,15 @@ module Gatekeeper
         )
       end
 
+      if capability_name == "nevaeh.os.execute"
+        begin
+          NevaehOs::Executor.authorize!(subject)
+          return allow(policy: "nevaeh_os_saved_action", reason: "Saved action, current actor permissions and explicit resource contract verified")
+        rescue ArgumentError, ActiveRecord::RecordNotFound, LightekPwa::Policy::Denied => error
+          return deny(error.message)
+        end
+      end
+
       if capability_name == "ticket.structured.execute"
         begin
           NevaehIntelligences::StructuredExecution.authorize!(ticket: subject, context: context)

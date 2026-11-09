@@ -35,7 +35,7 @@ module Authentication
 end
 
     def after_authentication_url
-  session.delete(:return_to_after_authenticating) || main_app.root_url
+  session.delete(:return_to_after_authenticating) || main_app.dashboard_nevaeh_os_url
 end
 
     def start_new_session_for(user)

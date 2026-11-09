@@ -104,6 +104,14 @@ Rails.application.routes.draw do
   # END LIGHTEK MARKETPLACE V8.7
   get "/api/studio/capabilities", to: "api/studio/capabilities#index", as: :api_studio_capabilities
   get "/employee/software-library", to: "employee/software_library#index", as: :employee_software_library
+  get "/dashboard/nevaeh", to: "dashboard/nevaeh_os#index", as: :dashboard_nevaeh_os
+  get "/dashboard/nevaeh/state", to: "dashboard/nevaeh_os#state"
+  post "/dashboard/nevaeh/ask", to: "dashboard/nevaeh_os#ask"
+  get "/dashboard/nevaeh/actions/:id", to: "dashboard/nevaeh_os#action"
+  patch "/dashboard/nevaeh/consent", to: "dashboard/nevaeh_os#consent"
+  post "/dashboard/nevaeh/memories", to: "dashboard/nevaeh_os#remember"
+  delete "/dashboard/nevaeh/memories/:id", to: "dashboard/nevaeh_os#forget"
+
   get "/employee/nevaeh/help/:topic", to: "employee/nevaeh_help#show", as: :employee_nevaeh_help
   get "/employee/nevaeh/factory", to: "employee/nevaeh_factory#index", as: :employee_nevaeh_factory
   post "/employee/nevaeh/factory/constructions", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_constructions

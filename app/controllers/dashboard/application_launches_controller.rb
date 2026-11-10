@@ -42,7 +42,7 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
 
   def create
     launch = Gatekeeper::Hosting::Launches.create!(actor: current_user,
-      attributes: params.require(:launch).permit(:template_id, :owner_id, :name, :domain, :node_id, :compute_provider_id, :region, :plan, :server_name).to_h)
+      attributes: params.require(:launch).permit(:template_id, :owner_id, :name, :host, :node_id, :compute_provider_id, :region, :plan, :server_name).to_h)
     redirect_to dashboard_servers_path, notice: "#{launch.name} queued. Track installation below; new servers incur provider charges."
   end
 

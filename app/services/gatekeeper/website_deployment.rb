@@ -152,10 +152,12 @@ module Gatekeeper
         parameters: {domain: @domain, owner_id: config.fetch("owner_id"), owner_role: config.fetch("owner_role")},
         status: "running", started_at: Time.current)
       @deployment_stage = "vault_checkout"
-      slug = config["credential_slug"].presence || @node.metadata.to_h["default_credential_slug"]
-      secrets = slug.present? ? LightekVault::Service.checkout!(slug: slug, consumer: CONSUMER, purpose: "website_deploy", requested_by: @actor.email_address, gatekeeper_operation_id: operation.id) : {"owner_password" => "secure_default_password_123"}
-        consumer: CONSUMER, purpose: "website_deploy", requested_by: @actor.email_address,
-        gatekeeper_operation_id: operation.id)
+      credential_slug = config["credential_slug"].presence || @node.metadata.to_h["default_credential_slug"]
+      secrets = if credential_slug.present?
+        LightekVault::Service.checkout!(slug: credential_slug, consumer: CONSUMER, purpose: "website_deploy", requested_by: @actor.email_address, gatekeeper_operation_id: operation.id)
+      else
+        {"owner_password" => "secure_default_password_123"}
+      end
       password = secrets.fetch("owner_password")
       raise Invalid, "Owner credential must have at least 8 characters" unless password.is_a?(String) && password.size >= 8
       root_secret = nil

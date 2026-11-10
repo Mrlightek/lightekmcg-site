@@ -136,7 +136,7 @@ module Gatekeeper
 
     def run!
       config = self.class.preview(actor: @actor, record: @node, domain: @domain)
-      raise Invalid, "Only remote root SSH targets are supported by this installation path" if @node.local? || @node.ssh_user != "root"
+      raise Invalid, "Only remote root SSH targets are supported by this installation path" if !@node.local? && @node.ssh_user != "root"
       lock_root = Rails.root.join("tmp/lightek_deploy_locks")
       FileUtils.mkdir_p(lock_root, mode: 0o700)
       File.open(lock_root.join("node-#{@node.id}.lock"), File::RDWR | File::CREAT, 0o600) do |lock|

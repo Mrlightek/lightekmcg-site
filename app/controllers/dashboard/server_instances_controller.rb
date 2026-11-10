@@ -37,7 +37,7 @@ class Dashboard::ServerInstancesController < ApplicationController
     owner = Gatekeeper::Hosting::Access.super_admin?(current_user) && attributes[:owner_id].present? ? User.find(attributes[:owner_id]) : current_user
     project = @node.gatekeeper_projects.find(attributes.fetch(:gatekeeper_project_id))
     Gatekeeper::Hosting::Applications.create!(actor: current_user, node: @node, project: project,
-      owner: owner, name: attributes[:name], host: attributes[:host])
+      owner: owner, name: attributes[:name], domain: attributes[:domain])
     redirect_to dashboard_server_path(@node), notice: "Application queued on this server. No new server will be created."
   end
 

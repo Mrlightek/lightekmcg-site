@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v56-studio-finish"
+const CACHE = "lightek-shell-v57-character-performance"
 
 const SHELL = [
   "/lightek/index.html",
@@ -30,6 +30,7 @@ const SHELL = [
   "/lightek/spatial/rtc/BlenderStream.js",
   "/lightek/studio-create.js",
   "/lightek/studio-authoring.js",
+  "/lightek/studio-performance.js",
   "/lightek/studio-authoring.css",
   "/lightek/asset-preview.js",
   "/lightek/vendor/hls/hls.light.min.js",

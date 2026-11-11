@@ -23,11 +23,12 @@ module Blender
       "authoring" => "authoring.json"
     }.freeze
 
-    def initialize(execution_record, asset_paths: {}, template_path: nil, template_bundle: nil)
+    def initialize(execution_record, asset_paths: {}, template_path: nil, template_bundle: nil, performance_paths: {})
       @execution_record = execution_record
       @asset_paths = asset_paths
       @template_path = template_path
       @template_bundle = template_bundle
+      @performance_paths = performance_paths
     end
 
     def call
@@ -95,6 +96,13 @@ module Blender
         next unless object["type"]=="imported_asset"
         definition=object.fetch("definition")
         definition.delete("asset_path")
+        if (take=definition["performance"])
+          take.delete("audio_path")
+          source=@performance_paths.fetch(take.fetch("audio_blob_id"))
+          voice=output_directory.join("voice-#{take['audio_blob_id']}#{File.extname(source)}")
+          FileUtils.cp(source,voice) unless voice.exist?
+          take["audio_path"]=Rails.env.production? ? "/work/#{voice.basename}" : voice.to_s
+        end
         next if definition["native_source_preview"]
         id=definition.fetch("asset_id").to_i
         entry=@asset_paths.fetch(id)
@@ -204,6 +212,7 @@ module Blender
     end
 
     def timeout_seconds
+      return 180 if execution_record.respond_to?(:metadata) && execution_record.metadata["performance_preview"]
       return 120 if execution_record.respond_to?(:metadata) && execution_record.metadata["asset_source_export"]
       return 60 if execution_record.respond_to?(:metadata) && execution_record.metadata["draft_preview"]
       ENV.fetch(

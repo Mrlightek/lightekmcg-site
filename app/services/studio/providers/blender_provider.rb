@@ -30,15 +30,31 @@ module Studio
           objects=Array(operation.manifest.dig("scene","objects"))
           ids=objects.select { |object| object["type"]=="imported_asset" && !object.dig("definition","native_source_preview") }.map { |object| object.dig("definition","asset_id").to_i }.uniq
           paths={}
+          performance_paths={}
           ids.each do |id|
             asset=StudioAsset.for_actor(access).where(status:"ready").find(id)
             native=asset.kind=="blend" && asset.native.attached?
             attachment=native ? asset.native : asset.proxy
-            raise ArgumentError,"Asset source is not ready" unless attachment.attached?
+            profile=objects.find { |object| object.dig("definition","asset_id").to_i==id && object.dig("definition","character_profile") }&.dig("definition","character_profile")
+            if profile
+              pinned=operation.performance_sources.find { |source| source.blob_id==profile["source_blob_id"] }
+              raise ArgumentError,"The character source snapshot is unavailable" unless pinned
+              attachment=pinned;native=true
+            end
+            raise ArgumentError,"Asset source is not ready" unless attachment && (attachment.respond_to?(:attached?) ? attachment.attached? : attachment.persisted?)
             extension=native ? "blend" : "glb"
             path=File.join(root,"#{id}.#{extension}")
             File.open(path,"wb") { |file| attachment.blob.download { |chunk| file.write(chunk) } }
             paths[id]={path:path,format:extension,scene:asset.metadata["source_scene"]}
+          end
+          objects.each do |object|
+            take=object.dig("definition","performance");next unless take
+            audio=StudioAsset.for_actor(access).where(status:"ready",kind:%w[audio video]).find(take.fetch("audio_asset_id"))
+            pinned=operation.performance_sources.find { |source| source.blob_id==take["audio_blob_id"] }
+            raise ArgumentError,"The performance recording snapshot is unavailable" unless pinned
+            path=File.join(root,"voice-#{pinned.blob_id}#{File.extname(pinned.filename.to_s)}")
+            File.open(path,"wb") { |file| pinned.blob.download { |chunk| file.write(chunk) } }
+            performance_paths[pinned.blob_id]=path
           end
           template_path=nil
           bundle_path=nil
@@ -63,7 +79,7 @@ module Studio
             template_path=File.join(root,"native-template.blend")
             File.open(template_path,"wb") { |file| source.blob.download { |chunk| file.write(chunk) } }
           end
-          result = ::Blender::Runner.new(operation,asset_paths:paths,template_path:template_path,template_bundle:bundle_path).call
+          result = ::Blender::Runner.new(operation,asset_paths:paths,template_path:template_path,template_bundle:bundle_path,performance_paths:performance_paths).call
           attach_outputs(result.output_directory)
           result
         end

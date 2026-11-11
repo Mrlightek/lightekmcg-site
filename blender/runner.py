@@ -665,6 +665,14 @@ def apply_json_presets(settings, created):
         # Preserve the complete historical definition alongside native outputs.
         text = bpy.data.texts.new(prefix + '.json')
         text.write(json.dumps(preset, ensure_ascii=False, indent=2))
+        for cut in preset.get('camera_cuts', []):
+            camera = next((obj for obj in created.values() if obj.type == 'CAMERA'
+                           and obj.get('lightek_preset_instance') == token
+                           and obj.get('lightek_preset_object') == cut['camera']), None)
+            if camera is None:
+                raise RuntimeError('Production score camera is unavailable')
+            marker = scene.timeline_markers.new(str(cut['camera']), frame=int(cut['frame']))
+            marker.camera = camera
         for marker in preset.get('markers', []):
             scene.timeline_markers.new(str(marker['name']), frame=int(marker['frame']))
         for index, item in enumerate(preset.get('texts', [])):
@@ -849,6 +857,8 @@ def stage_manifest(manifest):
             obj = create_manifest_object(item)
             apply_library_motion(obj, definition)
         authoring.apply(obj, definition.get("authoring_commands", []))
+        obj["lightek_preset_instance"] = definition.get("preset_instance", "")
+        obj["lightek_preset_object"] = definition.get("production_shot_name") or item.get("name", "")
         obj["lightek_object_name"] = definition.get("blender_object_name", obj.name)
         if definition.get('staging_anchors'):
             for anchor_kind in ('rig', 'collision'):

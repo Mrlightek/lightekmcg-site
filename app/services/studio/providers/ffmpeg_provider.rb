@@ -21,17 +21,22 @@ module Studio
             File.open(file,"wb"){|out|assets.fetch(clip['asset_id']).file.blob.download{|chunk|out.write(chunk)}}
             paths<<file
           end
-          extension=timeline["output"]=="audio" ? "wav" : "mp4"
+          extension=timeline["output"]=="audio" ? "wav" : timeline["export_preset"]=="master" ? "mov" : "mp4"
           output=File.join(root,"master.#{extension}")
-          command=Studio::Editing::Timeline.command(timeline,paths:paths,output:output)
+          title_paths=timeline.fetch("titles",[]).each_with_index.map do |title,i|
+            path=File.join(root,"title-#{i}.txt")
+            File.write(path,title.fetch("text"))
+            path
+          end
+          command=Studio::Editing::Timeline.command(timeline,paths:paths,output:output,title_paths:title_paths)
           if Rails.env.production?
-            mapped=command.map{|argument|argument.start_with?(root) ? argument.sub(root,"/work") : argument}
+            mapped=command.map{|argument|argument.gsub(root,"/work")}
             command=Studio::MediaProcess.container(mapped,root:root,image:Studio::NativeBlender::Runtime.image(:media))
           end
           Studio::MediaProcess.run!(command,timeout:900,cancel_if: -> { @operation.reload.status == "cancelled" })
           raise "Media export did not produce an artifact" unless File.size?(output)
           artifact=@operation.artifacts.create!(kind:timeline["output"]=="audio" ? "audio" : "video",filename:"master.#{extension}")
-          artifact.file.attach(io:File.open(output),filename:artifact.filename,content_type:extension=="wav" ? "audio/wav" : "video/mp4")
+          artifact.file.attach(io:File.open(output),filename:artifact.filename,content_type:extension=="wav" ? "audio/wav" : extension=="mov" ? "video/quicktime" : "video/mp4")
           {artifact_id:artifact.id}
         end
       end

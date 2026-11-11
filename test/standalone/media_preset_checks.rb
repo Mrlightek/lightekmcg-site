@@ -7,7 +7,8 @@ class MediaPresetTest < NativeBlenderTest
   end
   def test_all_recovered_definitions_compile_and_keep_provenance
     items=Studio::NativeBlender::MediaPresets.items
-    assert_equal 129,items.length
+    assert_equal 129,items.count { |i| i["source_archive"]!="Lightek original production templates" }
+    assert items.any? { |i| i["key"]=="production/lightek_police_procedural" }
     assert_equal items.map { |i| i["key"] }.uniq,items.map { |i| i["key"] }
     items.each do |item|
       plan=Studio::NativeBlender::MediaPresets.compile(item["key"])
@@ -109,4 +110,65 @@ class MediaPresetTest < NativeBlenderTest
       ENV["BLENDER_OUTPUT_ROOT"]=previous
     end
   end
+  def test_production_score_catalog_has_timed_formats_and_complete_scene_setups
+    records=Studio::NativeBlender::MediaPresets.records.select{|record|record["definition"]["kind"]=="production_template"}
+    assert_equal 8,records.length
+    records.each do |record|
+      data=record["definition"]
+      assert_equal data.dig("production","runtime_seconds"),data["segments"].sum{|segment|segment["duration_seconds"]}
+      data["segments"].each do |segment|
+        plan=Studio::NativeBlender::MediaPresets.compile(record["key"],segment:segment)
+        assert_equal 4,plan["objects"].count{|object|object["type"]=="camera"}
+        assert_equal 4,plan["directives"]["camera_cuts"].length
+        assert_equal 5,plan["settings"]["timeline"]["tracks"].length
+        assert segment["music_cues"].any?
+        assert_equal segment["duration_seconds"],segment["setup"]["coverage"].sum{|shot|shot["duration_seconds"]}
+      end
+    end
+  end
+  def test_production_template_instantiation_keeps_direction_and_is_independent
+    key=SecureRandom.uuid
+    result=preset("production/lightek_police_procedural",mode:"new_project",request_key:key)
+    assert_equal result,preset("production/lightek_police_procedural",mode:"new_project",request_key:key)
+    project=StudioProject.find(result[:project_id]);assert_equal 8,project.studio_scenes.count
+    assert_equal "series",project.productions.first.kind
+    assert_equal 250,project.productions.first.metadata.dig("template_definition","production","runtime_seconds")
+    scene=project.studio_scenes.first;assert_equal 720,scene.settings["frame_end"]
+    assert_equal "Cold open — discovery",scene.settings.dig("production_brief","segment","name")
+    assert_equal [28,65,85,100],scene.scene_objects.where(object_type:"camera").map{|o|o.definition["lens"]}
+    assert_includes scene.scene_objects.pluck(:name),"Evidence marker A"
+    assert_includes project.studio_scenes.third.scene_objects.pluck(:name),"Detectives desk"
+    assert_equal %w[Dialogue],scene.settings.dig("timeline","tracks").first.slice("name").values
+    second=preset("production/lightek_police_procedural",mode:"new_project",request_key:SecureRandom.uuid)
+    refute_equal result[:project_id],second[:project_id]
+    scene.scene_objects.first.update!(name:"Custom blocking")
+    refute_includes StudioProject.find(second[:project_id]).studio_scenes.first.scene_objects.pluck(:name),"Custom blocking"
+    foreign=StudioProject.create!(owner:@bob,site:@other_site,name:"Private")
+    @alice.update!(role:"member")
+    assert_raises(ActiveRecord::RecordNotFound){preset("production/lightek_police_procedural",scene_id:foreign.studio_scenes.first.id)}
+  end
+  def test_real_blender_production_score_binds_camera_cuts_and_music_markers
+    skip "Set LIGHTEK_TEST_BLENDER=1" unless ENV["LIGHTEK_TEST_BLENDER"]=="1"
+    result=preset("production/lightek_police_procedural",mode:"new_project",request_key:SecureRandom.uuid)
+    scene=StudioScene.find(result[:scene_id]);scene.update!(settings:scene.settings.merge("resolution_x"=>64,"resolution_y"=>64,"samples"=>1))
+    project=scene.studio_project
+    scene.scene_objects.where(object_type:"camera").first.update!(name:"My master camera")
+    op=project.studio_operations.create!(studio_scene:scene,operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"pending",intent:{"user_id"=>@alice.id},manifest:Blender::ManifestBuilder.new(scene).call)
+    Dir.mktmpdir("production-score-") do |root|
+      previous=ENV["BLENDER_OUTPUT_ROOT"];ENV["BLENDER_OUTPUT_ROOT"]=root
+      Rails.stub(:root,Pathname(ROOT)) do
+        render=Studio::Providers::BlenderProvider.new(op).call
+        script="import bpy,json; s=bpy.context.scene; print('SCORE_PROOF='+json.dumps({'cuts':[[m.frame,m.camera.name] for m in s.timeline_markers if m.camera],'cues':[m.name for m in s.timeline_markers if not m.camera],'texts':[o.data.body for o in s.objects if o.type=='FONT']}))"
+        output=Studio::MediaProcess.run!([ENV.fetch("BLENDER_BIN","blender"),"--background",render.output_directory.join("scene.blend").to_s,"--disable-autoexec","--python-expr",script],timeout:60)
+        proof=JSON.parse(output.lines.find{|line|line.start_with?("SCORE_PROOF=")}.delete_prefix("SCORE_PROOF="))
+        assert_equal [1,181,361,541],proof["cuts"].map(&:first)
+        assert_equal ["My master camera","Investigator single","Witness reverse","Evidence insert"],proof["cuts"].map(&:last)
+        assert_includes proof["cues"],"Music: Investigation underscore"
+        assert_includes proof["texts"],"LIGHTEK / CASE FILES"
+      end
+    ensure
+      ENV["BLENDER_OUTPUT_ROOT"]=previous
+    end
+  end
+
 end

@@ -7,9 +7,9 @@ module Studio
     # schemas to a bounded, declarative Blender manifest. No template code runs.
     class MediaPresets
       PATH=File.expand_path("../../../../config/studio/packs/original_media.json",__dir__)
-      PROJECT_TYPES=%w[production_preset industry_pack show_bible broadcast_package].freeze
+      PROJECT_TYPES=%w[production_template production_preset industry_pack show_bible broadcast_package].freeze
       ASSET_TYPES=%w[rig_profile blend_library asset_library audio_pack audio_package character_rig scene_template demo_ingest_recipe import_recipe].freeze
-      def self.records = (@records ||= JSON.parse(File.read(PATH)))
+      def self.records = (@records ||= JSON.parse(File.read(PATH)) + JSON.parse(File.read(File.join(File.dirname(PATH),"production_templates.json"))))
       def self.fetch(key) = records.find { |item| item["key"]==key } || raise(ArgumentError,"Choose an available JSON media preset")
       def self.resolve(key, stack=[])
         raise ArgumentError,"Cyclic template inheritance" if stack.include?(key) || stack.length>12
@@ -21,7 +21,7 @@ module Studio
           data=resolve(record["key"]);kind=data["kind"] || data["type"] || "industry_pack"
           {"key"=>record["key"],"name"=>data["title"].presence || record["key"].tr("_/","  ").titleize,
            "category"=>kind,"project_template"=>PROJECT_TYPES.include?(kind),"requires_asset"=>ASSET_TYPES.include?(kind),
-           "output_summary"=>summary(record["key"]),"source_archive"=>record["source_archive"],"source_sha256"=>record["source_sha256"],"description"=>description(kind)}
+           "production"=>data["production"],"scene_count"=>segments(data).length,"output_summary"=>summary(record["key"]),"source_archive"=>record["source_archive"],"source_sha256"=>record["source_sha256"],"description"=>description(kind)}
         end
       end
       def self.summary(key)
@@ -42,8 +42,10 @@ module Studio
         data["shot_plan"] || data.dig("show_bible","segments") || Array(data["episodes"]).flat_map { |episode| episode["segments"] || [] }.presence ||
           data["segments"] || data.dig("config","segments") || data.dig("config","structure") || [data["title"] || "Scene 1"]
       end
-      def self.compile(key, title:nil)
-        data=resolve(key);kind=data["kind"] || data["type"] || "industry_pack"
+      def self.compile(key, title:nil, segment:nil)
+        data=resolve(key)
+        data=data.deep_merge(segment.fetch("setup",{})) if segment.is_a?(Hash)
+        kind=data["kind"] || data["type"] || "industry_pack"
         config=(data["body"] || {}).deep_merge(data["config"] || {})
         plan={"objects"=>[],"settings"=>{},"directives"=>{"key"=>key,"title"=>title.presence || data["title"].presence || key,"definition"=>data,"markers"=>[],"texts"=>[],"nodes"=>[]},"kind"=>kind}
         camera=data["camera"].is_a?(Hash) ? data["camera"] : config["camera"].is_a?(Hash) ? config["camera"] : {}
@@ -55,9 +57,29 @@ module Studio
         if PROJECT_TYPES.include?(kind) || %w[geometry_set].include?(kind)
           generator=config["scene_generator"].to_s.presence || data.dig("set","type").to_s.presence || key
           recipe=generator.match?(/sport|desk/) ? "tpl_live_interview" : generator.match?(/night|city/) ? "tpl_night_exterior" : "tpl_single_camera_drama"
+          recipe=data["set_recipe"] if %w[tpl_police_precinct tpl_interrogation tpl_crime_scene tpl_live_interview tpl_single_camera_drama tpl_night_exterior].include?(data["set_recipe"])
           geometry=Studio::Library::Catalog.objects(recipe).reject { |object| object["type"]=="camera" }
           plan["objects"].concat(geometry)
 
+        end
+        if kind=="production_template"
+          # Keep a scene-sized score in each Blender source; the complete
+          # episode definition is stored once on Production metadata.
+          plan["directives"]["definition"]=data.except("segments").merge("segment"=>segment)
+          coverage=Array(data["coverage"]).first(12)
+          unless coverage.empty?
+            plan["objects"].reject! { |object| object["type"]=="camera" }
+            coverage.each do |shot|
+              plan["objects"]<<{"name"=>shot.fetch("name").to_s.first(120),"type"=>"camera","definition"=>camera_definition(shot,{},data)}
+            end
+          end
+          plan["directives"]["texts"]<<{"body"=>data.dig("branding","series_title").to_s.first(200),"color"=>[0.84,0.66,0.29,1]}
+          render=data.dig("config","render_defaults") || {}
+          resolution=render.fetch("resolution",[1920,1080])
+          plan["settings"]["timeline"]={"output"=>"video","width"=>resolution[0],"height"=>resolution[1],"fps"=>render.fetch("fps",24),"export_preset"=>"review","clips"=>[],"tracks"=>data.fetch("audio_tracks",[]).deep_dup,"titles"=>[]}
+          plan["settings"]["production_brief"]={"template_key"=>key,"segment"=>segment&.except("setup"),"coverage"=>coverage,"production"=>data["production"],"branding"=>data["branding"]}
+          plan["directives"]["camera_cuts"]=coverage.map { |shot| {"camera"=>shot["name"],"frame"=>(shot.fetch("start_seconds",0)*render.fetch("fps",24)).round+1} }
+          plan["directives"]["markers"]+=Array(segment&.fetch("music_cues",[])).map { |cue| {"name"=>"Music: #{cue['purpose']}","frame"=>(cue.fetch("start",0)*render.fetch("fps",24)).round+1} }
         end
         plan["directives"]["geometry_groups"]=data["node_groups"] if kind=="geometry_nodes_pack"
         if kind=="geometry_set"

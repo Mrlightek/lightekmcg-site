@@ -194,7 +194,18 @@ module Gatekeeper
         options[:keys] = [@node.ssh_key_path] if @node.ssh_key_path.present?
         options[:auth_methods] = %w[publickey password keyboard-interactive]
         @deployment_stage = "ssh_authentication"
-        Net::SSH.start(@node.ip_address, @node.ssh_user, **options) do |ssh|
+        if @node.metadata["local_node"] || @node.metadata[:local_node]
+      @deployment_stage = "local_execution"
+      output_data = StringIO.new
+      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
+        stdin.write(JSON.generate(config))
+        stdin.close
+        output.each_line { |line| output_data.print(line); $stdout.print(line) }
+        raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
+      end
+      receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
+    else
+      Net::SSH.start(@node.ip_address, @node.ssh_user, **options) do |ssh|
           installed = false
           begin
             command = "umask 077; mkdir -p ~/.ssh; chmod 700 ~/.ssh; touch ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; printf '%s\\n' #{Shellwords.escape(public_key)} >> ~/.ssh/authorized_keys"

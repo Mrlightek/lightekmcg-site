@@ -60,14 +60,24 @@ module Gatekeeper
       if record.is_a?(ProvisioningRequest) && record.owner != owner
         raise Invalid, "Request owner differs from deployment owner"
       end
+      # record.with_lock do
+      #   entries = record.metadata.to_h.fetch("website_deployments", {}).deep_dup
+      #   previous = entries[config.fetch("domain")]
+      #   raise Invalid, "Hostname already belongs to another owner" if previous && previous["owner_id"] != owner.id
+      #   entries[config.fetch("domain")] = config
+      #   record.update!(metadata: record.metadata.to_h.merge("website_deployments" => entries))
+      # end
+      # config.except("credential_slug")
+      # 
       record.with_lock do
-        entries = record.metadata.to_h.fetch("website_deployments", {}).deep_dup
-        previous = entries[config.fetch("domain")]
-        raise Invalid, "Hostname already belongs to another owner" if previous && previous["owner_id"] != owner.id
-        entries[config.fetch("domain")] = config
-        record.update!(metadata: record.metadata.to_h.merge("website_deployments" => entries))
-      end
-      config.except("credential_slug")
+  safe_config = config.to_h.with_indifferent_access
+  entries = record.metadata.to_h.fetch("website_deployments", {}).deep_dup
+  previous = entries[safe_config.fetch("domain")]
+  raise Invalid, "Hostname already belongs to another owner" if previous && previous["owner_id"] != owner.id
+  entries[safe_config.fetch("domain")] = safe_config
+  record.update!(metadata: record.metadata.to_h.merge("website_deployments" => entries))
+end
+safe_config.except("credential_slug")
     end
 
     def self.preview(actor:, record:, domain:)

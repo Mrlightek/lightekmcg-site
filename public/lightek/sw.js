@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v57-character-performance"
+const CACHE = "lightek-shell-v58-visual-studio"
 
 const SHELL = [
   "/lightek/index.html",
@@ -31,6 +31,8 @@ const SHELL = [
   "/lightek/studio-create.js",
   "/lightek/studio-authoring.js",
   "/lightek/studio-performance.js",
+  "/lightek/studio-visual.js",
+  "/lightek/studio-visual.css",
   "/lightek/studio-authoring.css",
   "/lightek/asset-preview.js",
   "/lightek/vendor/hls/hls.light.min.js",

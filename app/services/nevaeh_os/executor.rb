@@ -10,6 +10,14 @@ module NevaehOs
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'watch'
+        UbuntuPackages.authorize!(actor)
+        if command['operation']=='apply'
+          event=NevaehWatchEvent.find(command.fetch('id'))
+          raise ArgumentError,'Event belongs to another account' unless event.nevaeh_watcher.user_id==actor.id
+        elsif command['id']
+          NevaehWatcher.where(user:actor).find(command.fetch('id'))
+        end
       when 'console','models','schema'
         RailsConsole.authorize!(actor)
         RailsConsole.parse(command.fetch('expression')) if command['kind']=='console'
@@ -65,6 +73,26 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'watch'
+        case command.fetch('operation')
+        when 'list'
+          {'watchers'=>NevaehWatcher.where(user:actor).order(id: :desc).limit(50).map { |w| WatchEngine.receipt(w) }}
+        when 'create'
+          WatchEngine.receipt(WatchEngine.create!(actor:actor,attributes:command.fetch('attributes')))
+        when 'apply'
+          event=NevaehWatchEvent.find(command.fetch('id'))
+          WatchReaction.process!(event,apply:true)
+          {'event_id'=>event.id,'success'=>event.status!='blocked','status'=>event.reload.execution_status,'plan'=>event.plan,'error'=>event.error,'agent_run_id'=>event.nevaeh_agent_run_id}.compact
+        else
+          watcher=NevaehWatcher.where(user:actor).find(command.fetch('id'))
+          polled=nil
+          case command.fetch('operation')
+          when 'poll' then polled=WatchEngine.poll!(watcher.id,force:true)
+          when 'pause' then watcher.update!(status:'paused')
+          when 'resume' then watcher.update!(status:'active',failures:0,error:nil)
+          end
+          WatchEngine.receipt(watcher.reload).merge(poll_status:polled).compact
+        end
       when 'console'
         RailsConsole.execute(command.fetch('expression'),actor)
       when 'ubuntu'

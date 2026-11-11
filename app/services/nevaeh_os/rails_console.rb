@@ -6,7 +6,7 @@ module NevaehOs
   module RailsConsole
     METHODS = %w[all count first last find where limit order create create! update update! destroy destroy!].freeze
     SECRET = /password|secret|token|credential|private_key|encrypted|ciphertext|otp|session_id/i
-    SERVICE_BOUND = /\A(?:Studio|DymondStudio|Susu|DymondBank|Gatekeeper|NevaehCapability|NevaehIntelligence|Session|ActiveStorage::|LightekVault|NevaehOsAction|NevaehApplicationAdapter|NevaehAgentRun|NevaehAgentWorker|NevaehConstructionRelease|NevaehLanguageCheckpoint|NevaehTrainingRun|DymondDispatch::)/
+    SERVICE_BOUND = /\A(?:Studio|DymondStudio|Susu|DymondBank|Gatekeeper|NevaehCapability|NevaehIntelligence|Session|ActiveStorage::|LightekVault|NevaehOsAction|NevaehApplicationAdapter|NevaehAgentRun|NevaehAgentWorker|NevaehWatcher|NevaehWatchEvent|NevaehConstructionRelease|NevaehLanguageCheckpoint|NevaehTrainingRun|DymondDispatch::)/
     module_function
     def authorize!(actor)
       raise ArgumentError, 'Rails console administration required' unless actor&.persisted? && %w[admin super_admin].include?(actor.role)

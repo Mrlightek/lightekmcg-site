@@ -2,6 +2,7 @@
 class Dashboard::NevaehOsController < ::ApplicationController
   # Available to signed-in clients too; every operation has its own resource policy.
   protect_from_forgery with: :exception
+  helper NevaehHelpHelper
   before_action do
     response.set_header('Cache-Control','private, no-store')
   end
@@ -18,6 +19,22 @@ class Dashboard::NevaehOsController < ::ApplicationController
   def index
     render layout: false
   end
+  def guide
+    @topics=NevaehOs::Guide.topics(actor:current_user)
+    @catalog=NevaehOs::Guide.catalog(actor:current_user)
+    @coverage={total:@catalog.size,documented:@catalog.count { |row| row[:coverage]!='schema_needed' },missing:@catalog.count { |row| row[:coverage]=='schema_needed' }}
+    @query=params[:q].to_s[0,200]
+    words=@query.downcase.split.first(10)
+    @matches=@catalog.select { |row| words.all? { |word| "#{row[:key]} #{row[:title]} #{row[:topic]} #{row[:coverage]} #{row[:availability]}".downcase.include?(word) } }
+    @manuals=NevaehOs::Guide.allowed?('admin',current_user) ? NevaehIntelligences::SoftwareLibrary.new.documents.select { |doc| doc[:path].start_with?('docs/') && !doc[:path].start_with?('docs/nevaeh/tutorials/') }.map { |doc| doc.slice(:id,:title,:path) } : []
+    @tutorial_matches=@topics.select { |topic| words.empty? || words.all? { |word| NevaehOs::Guide.tutorial(topic[:id],actor:current_user)[:body].downcase.include?(word) } }
+    @reference=NevaehOs::Guide.capability(params[:capability],actor:current_user) if params[:capability].present?
+    @tutorial=NevaehOs::Guide.tutorial(params[:topic].presence || @reference&.fetch(:topic) || 'start',actor:current_user)
+    respond_to do |format|
+      format.html { render :guide,layout:false }
+      format.json { render json:{topics:@topics,coverage:@coverage,capabilities:@matches,tutorial:@tutorial,reference:@reference} }
+    end
+  end
   def state
     render json: {
       user: {id:current_user.id,name:current_user.respond_to?(:first_name) ? current_user.first_name : 'Operator'},
@@ -25,6 +42,7 @@ class Dashboard::NevaehOsController < ::ApplicationController
       agents: NevaehOsAgent.where(user:current_user).order(:id).map { |a| a.attributes.slice('id','name','role','birth_date','birth_time','birth_place','system_key','enabled','autonomy','allowed_capabilities') },
       host_control: current_user.role=='super_admin',
       agent_workers: NevaehAgentWorker.where(user:current_user).includes(:nevaeh_os_agent).order(id: :desc).limit(30).map { |worker| {id:worker.id,agent_id:worker.nevaeh_os_agent_id,agent:worker.nevaeh_os_agent.name,name:worker.name,enabled:worker.enabled?,interval_minutes:worker.interval_minutes,next_run_at:worker.next_run_at,last_status:worker.runs.order(id: :desc).first&.execution_status} },
+      watchers:current_user.role=='super_admin' ? NevaehWatcher.where(user:current_user).order(id: :desc).limit(8).map { |w| {id:w.id,name:w.name,status:w.status,initialized:w.initialized?,error:w.error,last_polled_at:w.last_polled_at} } : [],
       memory: memory_state,
       actions: NevaehOsAction.where(user:current_user).order(id: :desc).limit(12).map { |a| receipt(a) },
       kernel: {language_models: NevaehLanguageModel.where(enabled:true).where.not(active_checkpoint_id:nil).count, chart_accuracy:'illustrative', ethics_scores:'not_measured'}

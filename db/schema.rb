@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1378,6 +1378,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["user_id"], name: "index_lightek_agency_site_memberships_on_user_id"
   end
 
+  create_table "lightek_audience_leases", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "key", null: false
+    t.string "source", null: false
+    t.datetime "expires_at", null: false
+    t.index ["expires_at"], name: "index_lightek_audience_leases_on_expires_at"
+    t.index ["key"], name: "index_lightek_audience_leases_on_key", unique: true
+    t.index ["user_id"], name: "index_lightek_audience_leases_on_user_id"
+  end
+
   create_table "lightek_commerce_order_items", force: :cascade do |t|
     t.bigint "order_id", null: false
     t.bigint "product_id", null: false
@@ -1425,6 +1435,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.text "provisioning_error"
     t.datetime "provisioned_at"
     t.string "client_checkout_key", limit: 64
+    t.string "payment_namespace"
+    t.string "purpose", default: "purchase", null: false
+    t.boolean "stock_reserved", default: true, null: false
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
     t.index ["merchant_transfer_ref"], name: "index_lightek_commerce_orders_on_merchant_transfer_ref", unique: true
     t.index ["provisioning_request_id"], name: "index_lightek_commerce_orders_on_provisioning_request_id"
@@ -1509,6 +1522,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["community_id", "profile_id"], name: "idx_community_member_unique", unique: true
     t.index ["community_id"], name: "index_lightek_community_memberships_on_community_id"
     t.index ["profile_id"], name: "index_lightek_community_memberships_on_profile_id"
+  end
+
+  create_table "lightek_live_viewers", force: :cascade do |t|
+    t.bigint "studio_live_operation_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "last_seen_at", null: false
+    t.index ["last_seen_at"], name: "index_lightek_live_viewers_on_last_seen_at"
+    t.index ["studio_live_operation_id", "user_id"], name: "idx_lightek_live_viewer_identity", unique: true
+    t.index ["studio_live_operation_id"], name: "index_lightek_live_viewers_on_studio_live_operation_id"
+    t.index ["user_id"], name: "index_lightek_live_viewers_on_user_id"
   end
 
   create_table "lightek_mail_accounts", force: :cascade do |t|
@@ -1760,6 +1783,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["key"], name: "idx_marketplace_group_key", unique: true
   end
 
+  create_table "lightek_merchant_payout_schedules", force: :cascade do |t|
+    t.bigint "merchant_id", null: false
+    t.string "cadence", default: "biweekly", null: false
+    t.datetime "next_run_at", null: false
+    t.datetime "last_run_at"
+    t.boolean "enabled", default: true, null: false
+    t.text "last_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["merchant_id"], name: "index_lightek_merchant_payout_schedules_on_merchant_id", unique: true
+  end
+
   create_table "lightek_messaging_conversations", force: :cascade do |t|
     t.string "kind", default: "direct", null: false
     t.string "title"
@@ -1903,6 +1938,158 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_lightek_pwa_surfaces_on_key", unique: true
+  end
+
+  create_table "lightek_reservation_blackouts", force: :cascade do |t|
+    t.bigint "resource_id", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.string "reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["resource_id"], name: "index_lightek_reservation_blackouts_on_resource_id"
+  end
+
+  create_table "lightek_reservation_changes", force: :cascade do |t|
+    t.bigint "reservation_id", null: false
+    t.bigint "target_resource_id", null: false
+    t.bigint "order_id"
+    t.string "status", default: "quoted", null: false
+    t.integer "amount_cents", null: false
+    t.datetime "effective_at", null: false
+    t.datetime "expires_at", null: false
+    t.jsonb "quote", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "provider_receipt", default: {}, null: false
+    t.index ["order_id"], name: "idx_reservation_changes_unique_order", unique: true, where: "(order_id IS NOT NULL)"
+    t.index ["order_id"], name: "index_lightek_reservation_changes_on_order_id"
+    t.index ["reservation_id"], name: "index_lightek_reservation_changes_on_reservation_id"
+    t.index ["target_resource_id"], name: "index_lightek_reservation_changes_on_target_resource_id"
+  end
+
+  create_table "lightek_reservation_intents", force: :cascade do |t|
+    t.bigint "peer_id", null: false
+    t.bigint "resource_id", null: false
+    t.bigint "reservation_id"
+    t.bigint "customer_id"
+    t.string "token", null: false
+    t.string "checkout_key", null: false
+    t.string "remote_subject", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "expires_at", null: false
+    t.integer "price_cents", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id"], name: "index_lightek_reservation_intents_on_customer_id"
+    t.index ["peer_id", "checkout_key"], name: "idx_reservation_peer_checkout", unique: true
+    t.index ["peer_id"], name: "index_lightek_reservation_intents_on_peer_id"
+    t.index ["reservation_id"], name: "index_lightek_reservation_intents_on_reservation_id"
+    t.index ["resource_id"], name: "index_lightek_reservation_intents_on_resource_id"
+    t.index ["token"], name: "index_lightek_reservation_intents_on_token", unique: true
+  end
+
+  create_table "lightek_reservation_peers", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "token_digest", null: false
+    t.bigint "order_id", null: false
+    t.bigint "merchant_id", null: false
+    t.bigint "site_id", null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_lightek_reservation_peers_on_key", unique: true
+    t.index ["merchant_id"], name: "index_lightek_reservation_peers_on_merchant_id"
+    t.index ["order_id"], name: "index_lightek_reservation_peers_on_order_id", unique: true
+    t.index ["site_id"], name: "index_lightek_reservation_peers_on_site_id", unique: true
+  end
+
+  create_table "lightek_reservation_resources", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "source_resource_id"
+    t.bigint "product_id"
+    t.string "name", null: false
+    t.text "description"
+    t.string "kind", default: "service", null: false
+    t.string "timezone", default: "America/New_York", null: false
+    t.integer "capacity", default: 1, null: false
+    t.integer "duration_minutes", default: 60, null: false
+    t.integer "buffer_minutes", default: 0, null: false
+    t.integer "notice_minutes", default: 60, null: false
+    t.integer "cancellation_hours", default: 24, null: false
+    t.boolean "published", default: false, null: false
+    t.jsonb "hours", default: {}, null: false
+    t.string "location"
+    t.string "join_url"
+    t.string "template_key"
+    t.string "billing_interval", default: "monthly", null: false
+    t.jsonb "accommodations", default: [], null: false
+    t.jsonb "compute", default: {}, null: false
+    t.integer "cost_floor_cents", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["product_id"], name: "index_lightek_reservation_resources_on_product_id"
+    t.index ["site_id"], name: "index_lightek_reservation_resources_on_site_id"
+  end
+
+  create_table "lightek_reservations", force: :cascade do |t|
+    t.bigint "resource_id", null: false
+    t.bigint "customer_id", null: false
+    t.bigint "order_id"
+    t.string "reference", null: false
+    t.string "checkout_key", null: false
+    t.string "status", default: "held", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.datetime "blocks_from", null: false
+    t.datetime "blocks_until", null: false
+    t.integer "quantity", default: 1, null: false
+    t.datetime "hold_until"
+    t.datetime "canceled_at"
+    t.text "notes"
+    t.jsonb "notification_keys", default: [], null: false
+    t.jsonb "package_snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id", "checkout_key"], name: "index_lightek_reservations_on_customer_id_and_checkout_key", unique: true
+    t.index ["customer_id"], name: "index_lightek_reservations_on_customer_id"
+    t.index ["order_id"], name: "idx_reservations_unique_order", unique: true, where: "(order_id IS NOT NULL)"
+    t.index ["order_id"], name: "index_lightek_reservations_on_order_id"
+    t.index ["reference"], name: "index_lightek_reservations_on_reference", unique: true
+    t.index ["resource_id", "blocks_from", "blocks_until"], name: "idx_reservations_availability"
+    t.index ["resource_id"], name: "index_lightek_reservations_on_resource_id"
+  end
+
+  create_table "lightek_session_members", force: :cascade do |t|
+    t.bigint "room_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "reservation_id"
+    t.string "status", default: "waiting", null: false
+    t.datetime "last_seen_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reservation_id"], name: "index_lightek_session_members_on_reservation_id"
+    t.index ["room_id", "user_id"], name: "index_lightek_session_members_on_room_id_and_user_id", unique: true
+    t.index ["room_id"], name: "index_lightek_session_members_on_room_id"
+    t.index ["user_id"], name: "index_lightek_session_members_on_user_id"
+  end
+
+  create_table "lightek_session_rooms", force: :cascade do |t|
+    t.bigint "resource_id", null: false
+    t.string "key", null: false
+    t.string "media_name", null: false
+    t.jsonb "retired_media_names", default: [], null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.string "status", default: "scheduled", null: false
+    t.boolean "locked", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "presentation", default: {}, null: false
+    t.index ["key"], name: "index_lightek_session_rooms_on_key", unique: true
+    t.index ["resource_id", "starts_at", "ends_at"], name: "idx_lightek_room_slot", unique: true
+    t.index ["resource_id"], name: "index_lightek_session_rooms_on_resource_id"
   end
 
   create_table "lightek_social_blocks", force: :cascade do |t|
@@ -2319,6 +2506,52 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["port", "protocol"], name: "index_network_ports_on_port_and_protocol", unique: true
   end
 
+  create_table "nevaeh_agent_runs", force: :cascade do |t|
+    t.bigint "nevaeh_agent_worker_id", null: false
+    t.bigint "actor_id", null: false
+    t.bigint "nevaeh_os_action_id"
+    t.string "request_key", null: false
+    t.string "status", default: "queued", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_nevaeh_agent_runs_on_actor_id"
+    t.index ["nevaeh_agent_worker_id", "request_key"], name: "idx_nevaeh_agent_run_request", unique: true
+    t.index ["nevaeh_agent_worker_id"], name: "index_nevaeh_agent_runs_on_nevaeh_agent_worker_id"
+    t.index ["nevaeh_os_action_id"], name: "index_nevaeh_agent_runs_on_nevaeh_os_action_id"
+  end
+
+  create_table "nevaeh_agent_workers", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "nevaeh_os_agent_id", null: false
+    t.string "name", null: false
+    t.jsonb "command", default: {}, null: false
+    t.boolean "enabled", default: true, null: false
+    t.integer "interval_minutes"
+    t.datetime "next_run_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_os_agent_id"], name: "index_nevaeh_agent_workers_on_nevaeh_os_agent_id"
+    t.index ["user_id"], name: "index_nevaeh_agent_workers_on_user_id"
+  end
+
+  create_table "nevaeh_application_adapters", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "package", null: false
+    t.string "name", null: false
+    t.string "status", default: "draft", null: false
+    t.jsonb "operations", default: {}, null: false
+    t.jsonb "documentation", default: {}, null: false
+    t.jsonb "verification", default: {}, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "package"], name: "idx_nevaeh_app_adapter_owner", unique: true
+    t.index ["user_id"], name: "index_nevaeh_application_adapters_on_user_id"
+  end
+
   create_table "nevaeh_capabilities", force: :cascade do |t|
     t.string "name", null: false
     t.string "slug", null: false
@@ -2349,6 +2582,60 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["slug"], name: "index_nevaeh_capabilities_on_slug", unique: true
   end
 
+  create_table "nevaeh_construction_releases", force: :cascade do |t|
+    t.bigint "nevaeh_construction_id", null: false
+    t.integer "version", null: false
+    t.jsonb "definition", default: {}, null: false
+    t.jsonb "sample_tests", default: [], null: false
+    t.jsonb "artifacts", default: {}, null: false
+    t.jsonb "verification", default: {}, null: false
+    t.string "fingerprint", null: false
+    t.string "status", default: "built", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_construction_id", "version"], name: "idx_construction_release_version", unique: true
+    t.index ["nevaeh_construction_id"], name: "idx_construction_release_parent"
+  end
+
+  create_table "nevaeh_constructions", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.string "name", null: false
+    t.string "key", null: false
+    t.text "description"
+    t.jsonb "definition", default: {}, null: false
+    t.jsonb "sample_tests", default: [], null: false
+    t.string "status", default: "draft", null: false
+    t.bigint "active_release_id"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_constructions_on_creator_id"
+    t.index ["key"], name: "index_nevaeh_constructions_on_key", unique: true
+  end
+
+  create_table "nevaeh_conversation_turns", force: :cascade do |t|
+    t.bigint "nevaeh_conversation_id", null: false
+    t.string "request_key", null: false
+    t.text "prompt", null: false
+    t.text "response", null: false
+    t.bigint "checkpoint_id", null: false
+    t.jsonb "evidence", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_conversation_id", "request_key"], name: "idx_conversation_request", unique: true
+    t.index ["nevaeh_conversation_id"], name: "idx_turn_conversation"
+  end
+
+  create_table "nevaeh_conversations", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "nevaeh_language_model_id", null: false
+    t.string "title", default: "Conversation", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_language_model_id"], name: "idx_conversation_model"
+    t.index ["user_id"], name: "index_nevaeh_conversations_on_user_id"
+  end
+
   create_table "nevaeh_inference_models", force: :cascade do |t|
     t.string "name", null: false
     t.text "description"
@@ -2376,6 +2663,94 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["intent_key"], name: "index_nevaeh_intelligences_on_intent_key", unique: true
     t.index ["nevaeh_capability_id"], name: "index_nevaeh_intelligences_on_nevaeh_capability_id"
     t.index ["status"], name: "index_nevaeh_intelligences_on_status"
+  end
+
+  create_table "nevaeh_language_checkpoints", force: :cascade do |t|
+    t.bigint "nevaeh_training_run_id", null: false
+    t.bigint "nevaeh_language_model_id", null: false
+    t.jsonb "weights", default: {}, null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.string "sha256", null: false
+    t.string "status", default: "candidate", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_language_model_id"], name: "idx_checkpoint_model"
+    t.index ["nevaeh_training_run_id"], name: "idx_checkpoint_run", unique: true
+  end
+
+  create_table "nevaeh_language_models", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.bigint "active_checkpoint_id"
+    t.string "visibility", default: "internal", null: false
+    t.integer "hidden_size", default: 16, null: false
+    t.integer "vocabulary_limit", default: 256, null: false
+    t.boolean "enabled", default: true, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "nevaeh_os_actions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "request_key", null: false
+    t.jsonb "command", default: {}, null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "result", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "request_key"], name: "index_nevaeh_os_actions_on_user_id_and_request_key", unique: true
+    t.index ["user_id"], name: "index_nevaeh_os_actions_on_user_id"
+  end
+
+  create_table "nevaeh_os_agents", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.string "role", default: "Assistant", null: false
+    t.text "instructions"
+    t.date "birth_date"
+    t.string "birth_time"
+    t.string "birth_place"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "system_key"
+    t.boolean "enabled", default: true, null: false
+    t.string "autonomy", default: "manual", null: false
+    t.jsonb "allowed_capabilities", default: [], null: false
+    t.index ["user_id", "system_key"], name: "index_nevaeh_os_agents_on_user_id_and_system_key", unique: true
+    t.index ["user_id"], name: "index_nevaeh_os_agents_on_user_id"
+  end
+
+  create_table "nevaeh_os_consents", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "category", null: false
+    t.boolean "enabled", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "category"], name: "index_nevaeh_os_consents_on_user_id_and_category", unique: true
+    t.index ["user_id"], name: "index_nevaeh_os_consents_on_user_id"
+  end
+
+  create_table "nevaeh_os_memories", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "category", null: false
+    t.text "text", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_nevaeh_os_memories_on_user_id"
+  end
+
+  create_table "nevaeh_os_sources", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "url", null: false
+    t.string "title", null: false
+    t.text "body", null: false
+    t.string "sha256", null: false
+    t.string "status", default: "draft", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_nevaeh_os_sources_on_user_id"
   end
 
   create_table "nevaeh_studio_idempotency_records", force: :cascade do |t|
@@ -2423,6 +2798,40 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["correlation_id"], name: "index_nevaeh_test_runs_on_correlation_id"
     t.index ["marlon_ticket_id"], name: "index_nevaeh_test_runs_on_marlon_ticket_id"
     t.index ["run_id"], name: "index_nevaeh_test_runs_on_run_id", unique: true
+  end
+
+  create_table "nevaeh_training_datasets", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.string "name", null: false
+    t.string "status", default: "draft", null: false
+    t.jsonb "examples", default: [], null: false
+    t.jsonb "provenance", default: {}, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_training_datasets_on_creator_id"
+  end
+
+  create_table "nevaeh_training_runs", force: :cascade do |t|
+    t.bigint "nevaeh_language_model_id", null: false
+    t.bigint "nevaeh_training_dataset_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "status", default: "queued", null: false
+    t.string "request_key", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.text "error"
+    t.datetime "started_at"
+    t.datetime "heartbeat_at"
+    t.string "lease_token"
+    t.integer "epochs", default: 10, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_nevaeh_training_runs_on_actor_id"
+    t.index ["nevaeh_language_model_id", "request_key"], name: "idx_training_run_request", unique: true
+    t.index ["nevaeh_language_model_id"], name: "idx_training_run_model"
+    t.index ["nevaeh_training_dataset_id"], name: "idx_training_run_dataset"
+    t.index ["status"], name: "idx_single_neural_training_lease", unique: true, where: "((status)::text = 'running'::text)"
   end
 
   create_table "nevaeh_workflow_runs", force: :cascade do |t|
@@ -2476,7 +2885,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "language_model_id"
     t.index ["inference_model_id"], name: "index_nevaeh_writing_profiles_on_inference_model_id"
+    t.index ["language_model_id"], name: "index_nevaeh_writing_profiles_on_language_model_id"
   end
 
   create_table "nevaehs", force: :cascade do |t|
@@ -3078,6 +3489,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
     t.index ["stripe_connect_account_id"], name: "index_users_on_stripe_connect_account_id", unique: true
   end
 
+  create_table "website_template_inquiries", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "template_key", null: false
+    t.string "section_key", null: false
+    t.jsonb "fields", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_website_template_inquiries_on_site_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "artifacts", "creation_jobs"
@@ -3150,6 +3571,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
   add_foreign_key "lightek_agency_site_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_agency_site_memberships", "users"
   add_foreign_key "lightek_agency_site_memberships", "users", column: "granted_by_id"
+  add_foreign_key "lightek_audience_leases", "users"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_product_variants", column: "variant_id"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_products", column: "product_id"
@@ -3161,6 +3583,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
   add_foreign_key "lightek_community_engagements", "profiles"
   add_foreign_key "lightek_community_memberships", "communities"
   add_foreign_key "lightek_community_memberships", "profiles"
+  add_foreign_key "lightek_live_viewers", "studio_live_operations"
+  add_foreign_key "lightek_live_viewers", "users"
   add_foreign_key "lightek_mail_accounts", "lightek_mail_domains", column: "domain_id"
   add_foreign_key "lightek_mail_accounts", "lightek_mail_templates", column: "auto_template_id"
   add_foreign_key "lightek_mail_accounts", "users"
@@ -3182,6 +3606,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
   add_foreign_key "lightek_marketing_social_connections", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_social_posts", "lightek_marketing_campaigns", column: "campaign_id"
   add_foreign_key "lightek_marketing_social_posts", "lightek_marketing_social_connections", column: "connection_id"
+  add_foreign_key "lightek_merchant_payout_schedules", "users", column: "merchant_id"
   add_foreign_key "lightek_messaging_conversations", "profiles", column: "created_by_profile_id"
   add_foreign_key "lightek_messaging_messages", "lightek_messaging_conversations", column: "conversation_id"
   add_foreign_key "lightek_messaging_messages", "lightek_messaging_messages", column: "reply_to_message_id"
@@ -3194,6 +3619,27 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
   add_foreign_key "lightek_pwa_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_pwa_memberships", "profiles"
   add_foreign_key "lightek_pwa_surface_modules", "lightek_pwa_surfaces", column: "surface_id"
+  add_foreign_key "lightek_reservation_blackouts", "lightek_reservation_resources", column: "resource_id"
+  add_foreign_key "lightek_reservation_changes", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_reservation_changes", "lightek_reservation_resources", column: "target_resource_id"
+  add_foreign_key "lightek_reservation_changes", "lightek_reservations", column: "reservation_id"
+  add_foreign_key "lightek_reservation_intents", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "lightek_reservation_intents", "lightek_reservation_resources", column: "resource_id"
+  add_foreign_key "lightek_reservation_intents", "lightek_reservations", column: "reservation_id"
+  add_foreign_key "lightek_reservation_intents", "users", column: "customer_id"
+  add_foreign_key "lightek_reservation_peers", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_reservation_peers", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_reservation_peers", "users", column: "merchant_id"
+  add_foreign_key "lightek_reservation_resources", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_reservation_resources", "lightek_commerce_products", column: "product_id"
+  add_foreign_key "lightek_reservation_resources", "lightek_reservation_resources", column: "source_resource_id"
+  add_foreign_key "lightek_reservations", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_reservations", "lightek_reservation_resources", column: "resource_id"
+  add_foreign_key "lightek_reservations", "users", column: "customer_id"
+  add_foreign_key "lightek_session_members", "lightek_reservations", column: "reservation_id"
+  add_foreign_key "lightek_session_members", "lightek_session_rooms", column: "room_id"
+  add_foreign_key "lightek_session_members", "users"
+  add_foreign_key "lightek_session_rooms", "lightek_reservation_resources", column: "resource_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocked_profile_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocker_profile_id"
   add_foreign_key "lightek_social_circle_memberships", "lightek_social_circles", column: "circle_id"
@@ -3222,12 +3668,37 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
   add_foreign_key "marlon_project_type_capability_packs", "marlon_project_types", column: "project_type_id"
   add_foreign_key "marlon_ticket_events", "marlon_tickets", column: "ticket_id"
   add_foreign_key "marlon_timesheets", "marlon_projects", column: "project_id"
+  add_foreign_key "nevaeh_agent_runs", "nevaeh_agent_workers"
+  add_foreign_key "nevaeh_agent_runs", "nevaeh_os_actions"
+  add_foreign_key "nevaeh_agent_runs", "users", column: "actor_id"
+  add_foreign_key "nevaeh_agent_workers", "nevaeh_os_agents"
+  add_foreign_key "nevaeh_agent_workers", "users"
+  add_foreign_key "nevaeh_application_adapters", "users"
+  add_foreign_key "nevaeh_construction_releases", "nevaeh_constructions"
+  add_foreign_key "nevaeh_constructions", "nevaeh_construction_releases", column: "active_release_id"
+  add_foreign_key "nevaeh_constructions", "users", column: "creator_id"
+  add_foreign_key "nevaeh_conversation_turns", "nevaeh_conversations"
+  add_foreign_key "nevaeh_conversations", "nevaeh_language_models"
+  add_foreign_key "nevaeh_conversations", "users"
   add_foreign_key "nevaeh_intelligences", "nevaeh_capabilities"
+  add_foreign_key "nevaeh_language_checkpoints", "nevaeh_language_models"
+  add_foreign_key "nevaeh_language_checkpoints", "nevaeh_training_runs"
+  add_foreign_key "nevaeh_language_models", "nevaeh_language_checkpoints", column: "active_checkpoint_id"
+  add_foreign_key "nevaeh_os_actions", "users"
+  add_foreign_key "nevaeh_os_agents", "users"
+  add_foreign_key "nevaeh_os_consents", "users"
+  add_foreign_key "nevaeh_os_memories", "users"
+  add_foreign_key "nevaeh_os_sources", "users"
+  add_foreign_key "nevaeh_training_datasets", "users", column: "creator_id"
+  add_foreign_key "nevaeh_training_runs", "nevaeh_language_models"
+  add_foreign_key "nevaeh_training_runs", "nevaeh_training_datasets"
+  add_foreign_key "nevaeh_training_runs", "users", column: "actor_id"
   add_foreign_key "nevaeh_workflow_runs", "nevaeh_workflows"
   add_foreign_key "nevaeh_workflow_runs", "users", column: "actor_id"
   add_foreign_key "nevaeh_workflows", "users", column: "creator_id"
   add_foreign_key "nevaeh_workspace_preferences", "users"
   add_foreign_key "nevaeh_writing_profiles", "nevaeh_inference_models", column: "inference_model_id"
+  add_foreign_key "nevaeh_writing_profiles", "nevaeh_language_models", column: "language_model_id"
   add_foreign_key "nevaehs", "users"
   add_foreign_key "posts", "communities"
   add_foreign_key "posts", "dymond_site_sites", column: "site_id"
@@ -3290,4 +3761,5 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_08_010100) do
   add_foreign_key "susu_rounds", "susu_memberships", column: "recipient_membership_id"
   add_foreign_key "system_jobs", "job_items"
   add_foreign_key "user_feature_entitlements", "users"
+  add_foreign_key "website_template_inquiries", "dymond_site_sites", column: "site_id"
 end

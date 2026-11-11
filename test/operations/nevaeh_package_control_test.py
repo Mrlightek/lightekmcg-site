@@ -118,5 +118,27 @@ class PackageControlTest(unittest.TestCase):
             self.assertIn('nevaeh/install_package_control.py', (ROOT / file).read_text())
 
 
+class WatcherPackageSourcesTest(unittest.TestCase):
+    def test_sources_detects_list_and_deb822_without_leaking_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory); (root / 'sources.list.d').mkdir()
+            (root / 'sources.list').write_text('deb [signed-by=/keys/ubuntu.gpg] https://user:secret@example.com/ubuntu?token=secret noble main\n')
+            (root / 'sources.list.d/new.sources').write_text('Types: deb\nURIs: https://archive.ubuntu.com/ubuntu\nSuites: noble-updates\nComponents: main universe\n\nTypes: deb\nURIs: https://disabled.invalid\nSuites: noble\nEnabled: no\n')
+            result = control.repository_sources(root)
+        self.assertEqual(2, len(result['sources']))
+        encoded = json.dumps(result)
+        self.assertNotIn('secret', encoded)
+        self.assertNotIn('user:', encoded)
+        self.assertNotIn('disabled.invalid', encoded)
+        self.assertIn('noble-updates', encoded)
+        self.assertEqual('https://example.com/ubuntu', result['sources'][0]['source'])
+
+    def test_catalog_rejects_option_style_queries_and_sources_needs_no_package(self):
+        self.assertEqual(('sources', ''), control.validate({'operation': 'sources'}))
+        self.assertEqual(('catalog', 'video'), control.validate({'operation': 'catalog', 'package': 'video'}))
+        with self.assertRaises(ValueError):
+            control.validate({'operation': 'catalog', 'package': 'video;curl evil'})
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -4,6 +4,11 @@ module NevaehOs
   module Command
     HELP = <<~TEXT.freeze
       I'm Nevaeh. Tell me what you need, or use a command:
+      /guide — open the operating manual and tutorials
+      /describe susu.list — inputs, permissions, examples and verification
+      /watch create {"name":"FFmpeg updates","kind":"ubuntu_package","target":{"package":"ffmpeg"},"response":"prepare"}
+      /watch list · /watch show ID · /watch poll ID · /watch pause ID · /watch resume ID
+      /watch apply EVENT_ID — apply a prepared event response
       /agents — agents, assigned workers and execution status
       /delegate sage susu.list — assign a real task to Sage
       /agent schedule warden 60 susu.list — run every 60 minutes
@@ -11,7 +16,7 @@ module NevaehOs
       susu.list — execute a capability directly; JSON inputs are optional
       show my susus — list the Susus you organize or belong to
       /models · /schema User — discover the installed Rails data model
-      /rails User.where(role: "client").limit(10) — scoped Ruby-style data console
+      User.where(role: "client").limit(10) — Ruby-style data console; /rails also works
       /ubuntu search video · /ubuntu show ffmpeg · /ubuntu plan ffmpeg
       /ubuntu setup ffmpeg — install, document and connect a supported application
       /ubuntu install ffmpeg · /ubuntu docs ffmpeg · /ubuntu integrate ffmpeg
@@ -42,6 +47,30 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if (m=q.match(/\A\/?(?:guide|tutorial)(?:\s+([a-z0-9_-]+))?\z/i))
+        return {'kind'=>'guide','topic'=>m[1] || 'start'}
+      end
+      if (m=q.match(/\A\/?describe\s+([a-zA-Z0-9_.-]+)\z/))
+        return {'kind'=>'describe','capability'=>m[1]}
+      end
+      if (m=q.match(/\A\/?(?:watch|watcher)\.(create|list|show|poll|pause|resume|apply)(?:\s+(\{.*\}))?\z/m))
+        payload=m[2] ? JSON.parse(m[2]) : {}
+        if m[1]=='create'
+          return {'kind'=>'watch','operation'=>'create','attributes'=>payload}
+        end
+        raise ArgumentError,'Watcher action accepts an id field only' unless payload.is_a?(Hash) && (payload.keys-%w[id]).empty?
+        raise ArgumentError,'Provide a positive watcher/event id' unless m[1]=='list' || payload['id'].to_s.match?(/\A[1-9][0-9]*\z/)
+        return {'kind'=>'watch','operation'=>m[1],'id'=>payload['id']}.compact
+      end
+      if (m=q.match(/\A\/?watch\s+create\s+(\{.*\})\z/im))
+        return {'kind'=>'watch','operation'=>'create','attributes'=>JSON.parse(m[1])}
+      end
+      if (m=q.match(/\A\/?watch\s+(show|poll|pause|resume|apply)\s+(\d+)\z/i))
+        return {'kind'=>'watch','operation'=>m[1].downcase,'id'=>m[2].to_i}
+      end
+      if q.match?(/\A\/?watch(?:\s+list)?\z/i)
+        return {'kind'=>'watch','operation'=>'list'}
+      end
       if (m=q.match(/\A\/?delegate\s+(\S+)\s+(.+)\z/im))
         return {'kind'=>'agent_task','agent_ref'=>m[1],'instruction'=>m[2]}
       end
@@ -57,17 +86,20 @@ module NevaehOs
       if (m = q.match(/\A\/?(?:rails|console)\s+(.+)\z/m))
         return {'kind'=>'console','expression'=>m[1]}
       end
+      if q.match?(/\A[A-Z][A-Za-z0-9_:]*\./)
+        return {'kind'=>'console','expression'=>q}
+      end
       if q.match?(/\A\/?models\z/i)
         return {'kind'=>'models'}
       end
       if (m = q.match(/\A\/?schema\s+([A-Z][A-Za-z0-9_:]*)\z/))
         return {'kind'=>'schema','model'=>m[1]}
       end
-      if (m = q.match(/\A\/?ubuntu\s+(search|show|plan|install|docs|integrate|setup)\s+([a-z0-9][a-z0-9+ ._-]{0,100})\z/i))
+      if (m = q.match(/\A\/?ubuntu\s+(search|show|plan|install|docs|integrate|setup|catalog)\s+([a-z0-9][a-z0-9+ ._-]{0,100})\z/i))
         return {'kind'=>'ubuntu','operation'=>m[1].downcase,'package'=>m[2].strip.downcase}
       end
-      if q.match?(/\A\/?ubuntu(?:\s+(?:status|refresh))?\z/i)
-        return {'kind'=>'ubuntu','operation'=>q.downcase.end_with?('refresh') ? 'refresh' : 'status'}
+      if q.match?(/\A\/?ubuntu(?:\s+(?:status|refresh|sources))?\z/i)
+        return {'kind'=>'ubuntu','operation'=>q.downcase.end_with?('refresh') ? 'refresh' : q.downcase.end_with?('sources') ? 'sources' : 'status'}
       end
       if (m = q.match(/\A\/?app\s+(describe|activate)\s+([a-z0-9][a-z0-9+.-]+)\z/))
         return {'kind'=>'application','operation'=>m[1],'package'=>m[2]}
@@ -78,7 +110,7 @@ module NevaehOs
       if (m=q.match(/\A\/?(?:execute\s+)?app\.(\d+)\.([a-z][a-z0-9_.-]*)(?:\s+(\{.*\}))?\z/m))
         return {'kind'=>'application','operation'=>'run','adapter_id'=>m[1].to_i,'action'=>m[2],'inputs'=>m[3] ? JSON.parse(m[3]) : {}}
       end
-      if (m=q.match(/\A\/?(?:execute\s+)?ubuntu\.(status|search|show|plan|install|docs|refresh|integrate|setup)(?:\s+(\{.*\}))?\z/m))
+      if (m=q.match(/\A\/?(?:execute\s+)?ubuntu\.(status|search|show|plan|install|docs|refresh|integrate|setup|catalog|sources)(?:\s+(\{.*\}))?\z/m))
         payload=m[2] ? JSON.parse(m[2]) : {}
         raise ArgumentError,'Ubuntu actions accept a package field only' unless (payload.keys-%w[package]).empty?
         return {'kind'=>'ubuntu','operation'=>m[1],'package'=>payload['package']}

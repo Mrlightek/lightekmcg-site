@@ -13,7 +13,7 @@ class RegistrationsController < ApplicationController
     @user = User.new(params.require(:user).permit(:first_name, :last_name, :email_address, :password, :password_confirmation).merge(role: "client"))
     if @user.save
       start_new_session_for(@user)
-      redirect_to root_path, notice: "Your account is ready.", status: :see_other
+      redirect_to after_authentication_url, notice: "Your account is ready.", status: :see_other
     else
       render :new, status: :unprocessable_entity
     end

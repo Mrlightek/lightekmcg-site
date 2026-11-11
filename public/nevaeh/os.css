@@ -67,3 +67,5 @@ input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;hei
 .capability-command{border:1px solid #00ffff33;color:var(--cy);background:#0b101a;padding:7px 10px;margin:4px;font-size:11px}
 
 .output-download{display:block;color:var(--cy);padding:8px 0}
+
+.guide-launch{display:block;margin:0 0 12px;padding:11px 12px;color:var(--cy);border:1px solid #00ffff44;background:linear-gradient(120deg,#06333188,#30204c88);font-size:11px;text-decoration:none}.guide-launch:hover{border-color:var(--cy)}#watcher-tools[hidden]{display:none}

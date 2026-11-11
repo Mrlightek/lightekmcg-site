@@ -140,3 +140,31 @@ sudo python3 lib/scripts/nevaeh/install_package_control.py --app-root /var/www/l
 Run `ruby test/standalone/nevaeh_os_test.rb` with FFmpeg available, `python3 -m unittest test.operations.nevaeh_package_control_test`, and the Playwright check documented above. Package installation tests use controlled APT adapters and an isolated installer filesystem; they do not install real Ubuntu packages. Native domain/queue interfaces retain the controlled persistence harness boundary. A real FFmpeg version/probe/transcode test verifies the unprivileged application runner separately from those adapters.
 
 Implementation references: [Ubuntu package management](https://ubuntu.com/server/docs/how-to/software/package-management/), [APT archive authentication](https://manpages.ubuntu.com/manpages/jammy/man8/apt-secure.8.html), [python-apt package interfaces](https://apt-team.pages.debian.net/python-apt/library/apt.package.html).
+
+## Change-driven watchers and the in-app Guide
+
+The follow-up adds `/dashboard/nevaeh/guide`, `/guide TOPIC`, and `/describe CAPABILITY`. Dashboard navigation and Mission Control link to it. Thirteen authored tutorials cover the operating workspace, command discovery, agents/schedules, memory/voice, Ubuntu applications, watchers, Rails data console, Studio, writing, documentation/training, capability construction, other platform modules, and recovery. Installed module manuals are linked from the same page.
+
+The reference is generated from the installed capability registry, resource contracts, built-in commands and owned application adapters. Each entry includes availability, permission, invocation pattern, usage, verification and recovery. Declared schemas and construction/application contracts supply fields; native worker-source hints are explicitly marked as incomplete. Missing input schemas remain visible as `schema_needed` and can prefill a documentation ticket. Disabled registrations, missing operating adapters and ticket-workflow-only capabilities are distinguished from directly connected operations. The Guide does not claim all legacy registrations already have complete authored schemas. New registrations appear without editing a sidebar; publishing their input_schema improves the reference automatically.
+
+Watcher administration is host-super-administrator-only and remains scoped to the owning account and agent. Watchers support:
+
+- `ubuntu_package`: selected package candidate version changes, optionally refreshing APT indexes first.
+- `ubuntu_catalog`: newly available or changed packages in a specific query; incomplete catalogs over 1000 matches fail rather than baseline partial data.
+- `ubuntu_sources`: additions/changes to configured APT sources; this does not discover Internet repositories or enable unknown sources.
+- `github_repository`: a selected branch's commit changes.
+- `github_account`: newly observed repositories under a user/organization; snapshots use stable GitHub repository IDs and are capped at 1000 accessible repositories.
+
+The first successful poll establishes a baseline without executing responses. Subsequent changes create durable deduplicated events. Rules choose `new`, `updated`, or `new_or_updated`; responses are:
+
+- `prepare`: produce a package dependency/download/disk plan, or a repository onboarding packet. `/watch apply EVENT_ID` explicitly dispatches the prepared package setup or opens the onboarding ticket. Applying an event before preparation prepares it first and requires a subsequent apply; it does not skip the review state.
+- `update`: automatically dispatch the selected Ubuntu package's setup flow. This option is restricted to selected-package watchers, not whole-system updates or arbitrary new repositories.
+- `command`: substitute whole-value event data into an explicitly configured command template and run it through the existing agent/Gatekeeper/Dispatch pipeline.
+
+Polling uses leases and configuration fingerprints. Queued duplicate jobs cannot consume an active lease; stale results after pause or rule edits are discarded. Changes to target/condition/response/template/agent establish a new baseline, and old events cannot inherit a new execution policy. Current account and agent permissions are checked again for observation, planning and execution. Three consecutive sensor failures pause the watcher; resume after fixing the recorded error. Events retain before/after observations, plans, blocked reasons and agent-run links. Deleted entities do not trigger installation events.
+
+The existing minute WorkflowSweepJob enqueues due watcher polls and recovers undispatched detected events. Watcher responses use real agent workers and immutable run snapshots. No new scheduler daemon or public webhook is required. Public GitHub reads need no credential; private reads use a Vault checkout authorized for consumer `NevaehOs::WatchSensors` and purpose `nevaeh_repository_watch`. The watcher does not widen Vault policies. User-account private discovery requires the selected user's token; an existing platform GitHub App credential may be scoped only to the platform repository.
+
+Apply migration `20261109160000_create_nevaeh_watchers_and_events`, update the package helper through the existing native deployment path, and restart workers. This follow-up includes the merged PR #205 foundation and has been reconciled with main at `2a0b985`, preserving the later provisioning, routing and schema updates. Polling, package changes and actual external installation/deployment were tested with controlled sensor/queue adapters locally, not against production accounts. Local tests verify the state transitions and permission boundaries; they do not claim live production watcher acceptance.
+
+Commands and complete worked examples are in `docs/nevaeh/tutorials/watchers.md`. Run the existing OS Ruby suite, Python package tests, operating-workspace browser check and `test/standalone/nevaeh_guide_browser.cjs` after rendering its fixture via the Ruby suite.

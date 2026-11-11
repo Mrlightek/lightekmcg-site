@@ -16,6 +16,7 @@ module NevaehOs
     def capability(command)
       case command['kind']
       when 'capability' then command['intent']
+      when 'watch' then "watcher.#{command['operation']}"
       when 'ubuntu' then "ubuntu.#{command['operation']}"
       when 'application' then "application.#{command['operation']}"
       when 'console' then 'rails.console'

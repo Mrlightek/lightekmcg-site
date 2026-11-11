@@ -5,6 +5,7 @@ module NevaehIntelligences
     def perform
       WorkflowRunner.tick!
       NevaehOs::AgentWorkforce.tick!
+      NevaehOs::WatchEngine.tick!
     end
   end
 end

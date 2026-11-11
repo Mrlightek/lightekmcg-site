@@ -44,6 +44,7 @@ jobs:
       - run: bundle exec ruby test/standalone/nevaeh_os_test.rb
       - run: python3 -m unittest test.operations.nevaeh_package_control_test
       - run: node --check public/nevaeh/os.js
+      - run: node --check public/nevaeh/guide.js
       - run: node --check public/lightek/nevaeh/control-center.js
       - run: node --check public/lightek/studio-app.js
       - run: node --check public/lightek/nevaeh/factory.js

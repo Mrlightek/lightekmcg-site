@@ -10,8 +10,10 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
+from urllib.parse import urlsplit, urlunsplit
 
-OPERATIONS = {'status', 'search', 'show', 'plan', 'install', 'docs', 'refresh'}
+OPERATIONS = {'status', 'search', 'show', 'plan', 'install', 'docs', 'refresh', 'catalog', 'sources'}
 ORIGINS = {'Ubuntu', 'UbuntuESM', 'UbuntuESMApps', 'UbuntuESMInfra'}
 PACKAGE = re.compile(r'[a-z0-9][a-z0-9+.-]{1,100}\Z')
 ENV = {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'HOME': '/root', 'LC_ALL': 'C', 'DEBIAN_FRONTEND': 'noninteractive'}
@@ -24,10 +26,10 @@ def validate(request):
     if operation not in OPERATIONS:
         raise ValueError('Unknown package operation')
     value = request.get('package', '')
-    if operation == 'search':
+    if operation in ('search', 'catalog'):
         if not isinstance(value, str) or not re.fullmatch(r'[a-zA-Z0-9+._ -]{1,100}', value):
             raise ValueError('Use a short package search phrase')
-    elif operation not in ('status', 'refresh') and (not isinstance(value, str) or not PACKAGE.fullmatch(value)):
+    elif operation not in ('status', 'refresh', 'sources') and (not isinstance(value, str) or not PACKAGE.fullmatch(value)):
         raise ValueError('Use one Ubuntu package name, without options or paths')
     return operation, value
 
@@ -120,28 +122,69 @@ def documents(name):
             'note': 'Installed documentation is reference data; it does not activate executable adapters.'}
 
 
+def repository_sources(directory=pathlib.Path('/etc/apt')):
+    paths = [directory / 'sources.list'] + sorted((directory / 'sources.list.d').glob('*.list')) + sorted((directory / 'sources.list.d').glob('*.sources'))
+    rows = []
+    for path in paths:
+        if not path.is_file() or path.stat().st_size > 1000000:
+            continue
+        text = path.read_text(errors='replace')
+        entries = []
+        if path.suffix == '.sources':
+            for paragraph in re.split(r'\n\s*\n', text):
+                fields = {}
+                for line in paragraph.splitlines():
+                    if ':' in line and not line.startswith((' ', '#')):
+                        key, value = line.split(':', 1);fields[key.lower()] = value.strip()
+                if fields.get('enabled', 'yes').lower() == 'no':
+                    continue
+                for uri in fields.get('uris', '').split():
+                    entries.append((uri, fields.get('suites', ''), fields.get('components', ''), fields.get('types', 'deb')))
+        else:
+            for line in text.splitlines():
+                match = re.match(r'^\s*(deb(?:-src)?)\s+(?:\[[^]]*\]\s+)?(\S+)\s+(\S+)(?:\s+([^#]+))?', line)
+                if match:
+                    entries.append((match[2], match[3], (match[4] or '').strip(), match[1]))
+        for index, (uri, suites, components, types) in enumerate(entries):
+            parsed = urlsplit(uri)
+            # Credentials, query strings and fragments never enter watcher events.
+            host = parsed.hostname or ''
+            if ':' in host:
+                host = '[' + host + ']'
+            if parsed.port:
+                host += ':' + str(parsed.port)
+            clean = urlunsplit((parsed.scheme, host, parsed.path, '', ''))
+            identity = hashlib.sha256(json.dumps([clean, suites, types]).encode()).hexdigest()
+            rows.append({'identity': identity, 'file': str(path.relative_to(directory)), 'source': clean,
+                         'suites': suites, 'components': components, 'types': types})
+    return {'sources': rows}
+
+
 def execute(request):
     operation, value = validate(request)
     release = ubuntu()
     if operation == 'status':
         return {'os': release.get('PRETTY_NAME'), 'repository': 'configured Ubuntu APT sources',
                 'operations': sorted(OPERATIONS), 'privileged_helper': True}
+    if operation == 'sources':
+        return repository_sources()
     if operation == 'refresh':
         return {'status': 'refreshed', 'output': run(['/usr/bin/apt-get', 'update', '-o', 'APT::Update::Error-Mode=any'], timeout=900)}
     import apt
     import apt_pkg
     apt_pkg.config.set("APT::Install-Recommends", "false")
     cache = apt.Cache()
-    if operation == 'search':
+    if operation in ('search', 'catalog'):
         words = value.lower().split()
         rows = []
         for pkg in cache:
             candidate = pkg.candidate
             if candidate and trusted(candidate) and all(word in (pkg.name + ' ' + candidate.summary).lower() for word in words):
                 rows.append({'package': pkg.name, 'summary': candidate.summary, 'version': candidate.version})
-            if len(rows) >= 40:
+            if len(rows) > (1000 if operation == 'catalog' else 40):
                 break
-        return {'query': value, 'packages': rows, 'limit': 40}
+        limit = 1000 if operation == 'catalog' else 40
+        return {'query': value, 'packages': rows[:limit], 'limit': limit, 'complete': len(rows) <= limit}
     if value not in cache:
         raise ValueError('Package is absent from configured APT indexes')
     if operation == 'show':
@@ -183,7 +226,15 @@ def main():
     # Serialize this helper's package operations; APT also retains its own locks.
     lock = os.open('/run/lock/lightek-package-control.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     with os.fdopen(lock, 'w') as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        deadline = time.monotonic() + 120
+        while True:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise ValueError('Another package operation is still running; retry after it completes')
+                time.sleep(0.25)
         result = execute(request)
     print(json.dumps(result))
 

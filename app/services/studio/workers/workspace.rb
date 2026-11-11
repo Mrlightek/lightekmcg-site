@@ -247,7 +247,7 @@ module Studio
         more=records.length>100
         records=records.first(100)
         { creation_recipes: Studio::NativeBlender::Create.items, media_presets: Studio::NativeBlender::MediaPresets.items, builtins: Studio::Library::Catalog.items, camera_presets: Studio::NativeBlender::CameraSettings.presets, blender_demos: Studio::NativeBlender::DemoCatalog.items, next_before: more ? records.last.id : nil, assets: records.map { |asset|
-          { id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,error:asset.error_message,metadata:@payload["surface"]=="performance" ? Studio::Performance::Cast.inventory(asset) : asset.metadata,
+          { id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,error:asset.error_message,metadata:%w[performance visual].include?(@payload["surface"]) ? Studio::Performance::Cast.inventory(asset) : asset.metadata,
             url:asset.file.attached? ? "/api/lightek/pwa/assets/#{asset.id}/original" : nil,bundle_url:asset.bundle.attached? ? "/api/lightek/pwa/assets/#{asset.id}/bundle" : nil,native_url:asset.native.attached? ? "/api/lightek/pwa/assets/#{asset.id}/native" : nil,proxy_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil,
             thumbnail_url:asset.thumbnail.attached? ? "/api/lightek/pwa/assets/#{asset.id}/thumbnail" : nil } } }
       end

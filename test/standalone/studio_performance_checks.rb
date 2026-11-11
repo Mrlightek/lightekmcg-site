@@ -113,10 +113,12 @@ class StudioPerformanceTest < StudioAuthoringTest
     scenes[0]["objects"][0]["definition"]["mesh"]={"vertices"=>[[1,2,3]]}
     scenes[0]["objects"][0]["definition"]["graphs"]=[{"nodes"=>[1,2,3]}]
     actor.update!(metadata:actor.metadata.merge("scenes"=>scenes))
-    record=action("assets_list",surface:"performance")[:assets].find { |item| item[:id]==actor.id }
-    shape=record[:metadata]["scenes"][0]["objects"][0]["definition"]
-    assert shape["shape_keys"].any?;refute shape.key?("mesh");refute shape.key?("graphs")
-    assert_equal actor.metadata["character_profile"],record[:metadata]["character_profile"]
+    %w[performance visual].each do |surface|
+      record=action("assets_list",surface:surface)[:assets].find { |item| item[:id]==actor.id }
+      shape=record[:metadata]["scenes"][0]["objects"][0]["definition"]
+      assert shape["shape_keys"].any?;refute shape.key?("mesh");refute shape.key?("graphs")
+      assert_equal actor.metadata["character_profile"],record[:metadata]["character_profile"]
+    end
   end
   def test_performance_dashboard_lists_productions_cast_and_embeds_authorized_workspace
     actor=ready_actor

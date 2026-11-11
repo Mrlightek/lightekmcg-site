@@ -1,4 +1,4 @@
-#!/usr/init/env ruby
+#!/usr/bin/env ruby
 # script/lightek/patch_website_deployment.rb
 
 path = "app/services/gatekeeper/website_deployment.rb"
@@ -9,42 +9,32 @@ end
 system("git checkout -- #{path}")
 content = File.read(path)
 
-# Find the exact line where Net::SSH.start is called
-target = "Net::SSH.start("
-unless content.include?(target)
-  abort "Error: Could not find `Net::SSH.start(` in #{path}."
-end
+lines = content.lines
+ssh_start_line_idx = lines.find_index { |l| l.include?("Net::SSH.start") }
+abort "Error: Net::SSH.start line not found in #{path}." unless ssh_start_line_idx
 
-# We replace the Net::SSH.start call with our conditional branch
-replacement = <<~'RUBY'.chomp
-  if @node.metadata["local_node"] || @node.metadata[:local_node]
-        @deployment_stage = "local_execution"
-        output_data = StringIO.new
-        Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
-          stdin.write(JSON.generate(config))
-          stdin.close
-          output.each_line { |line| output_data.print(line); $stdout.print(line) }
-          raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
-        end
-        receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-      else
-        Net::SSH.start(
-RUBY
+indent = lines[ssh_start_line_idx][/^\s*/]
 
-updated = content.sub(target, replacement)
+local_exec_code = [
+  "#{indent}if @node.metadata[\"local_node\"] || @node.metadata[:local_node]\n",
+  "#{indent}  @deployment_stage = \"local_execution\"\n",
+  "#{indent}  output_data = StringIO.new\n",
+  "#{indent}  Open3.popen2e({\"RAILS_ENV\" => Rails.env.to_s}, \"bash\", Rails.root.join(\"script/lightek/website_deploy.sh\").to_s, \"--config-stdin\", chdir: Rails.root.to_s) do |stdin, output, wait_thr|\n",
+  "#{indent}    stdin.write(JSON.generate(config))\n",
+  "#{indent}    stdin.close\n",
+  "#{indent}    output.each_line { |line| output_data.print(line); $stdout.print(line) }\n",
+  "#{indent}    raise \"Local deployment script failed with exit status \#{wait_thr.value.exitstatus}\" unless wait_thr.value.success?\n",
+  "#{indent}  end\n",
+  "#{indent}  receipt = JSON.parse(output_data.string.lines.grep(/\\{/).last || \"{}\")\n",
+  "#{indent}else\n"
+]
 
-# Now find where the Net::SSH block closes or append the closing `end` for the `if` statement 
-# right before the end of the mktmpdir block or ensure clause.
-# Let's ensure the `else` block has its corresponding `end`.
-# Since Net::SSH.start(...) do |ssh| ... end is a block, the `else` branch needs to close before the `ensure`.
-# Let's target the closing of the Net::SSH block.
-net_ssh_block_end_target = "end\n    rescue"
-if updated.include?(net_ssh_block_end_target)
-  updated.sub!(net_ssh_block_end_target, "end\n      end\n    rescue")
-else
-  # Fallback search if spacing differs
-  updated.sub!("    rescue", "      end\n    rescue")
-end
+lines.insert(ssh_start_line_idx, *local_exec_code)
 
-File.write(path, updated)
-puts "Successfully patched #{path} with correct block closure!"
+rescue_line_idx = lines.find_index.with_index { |l, i| i > ssh_start_line_idx && l.strip.start_with?("rescue") }
+abort "Error: rescue keyword not found after Net::SSH.start." unless rescue_line_idx
+
+lines.insert(rescue_line_idx, "#{indent}end\n")
+
+File.write(path, lines.join)
+puts "Successfully patched #{path} with precise line-level injection!"

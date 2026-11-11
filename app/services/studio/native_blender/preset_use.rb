@@ -20,7 +20,7 @@ module Studio
             end
             project=StudioProject.create!(owner:@access.user,site_id:@access.site_id,name:(@payload["name"].presence || data["title"].presence || record["key"]).first(120),request_key:receipt,description:"JSON Blender template: #{record['key']}")
             project.studio_scenes.destroy_all
-            production=project.productions.create!(name:project.name,kind:"general",status:"development",metadata:{"json_template_key"=>record["key"]})
+            production=project.productions.create!(name:project.name,kind:data.dig("production","kind").presence || "general",status:"preproduction",metadata:{"json_template_key"=>record["key"],"template_definition"=>data.deep_dup})
             scenes=create_scenes(project,production,record,data)
             result={project_id:project.id,scene_id:scenes.first.id,scene_ids:scenes.map(&:id)}
           else
@@ -48,7 +48,7 @@ module Studio
           detail=segment.is_a?(Hash) ? segment : {"name"=>segment}
           name=detail["name"] || detail["title"] || detail["slug"] || "Scene #{index+1}"
           scene=project.studio_scenes.create!(production:production,name:name.to_s.first(120),settings:StudioScene.default_settings)
-          apply(scene,record)
+          apply(scene,record,segment:detail)
           if detail["camera_grammar"] && MediaPresets.records.any? { |r| r["key"]==detail["camera_grammar"] }
             apply(scene,MediaPresets.fetch(detail["camera_grammar"]))
           end
@@ -58,9 +58,10 @@ module Studio
           scene
         end
       end
-      def apply(scene,record)
-        plan=MediaPresets.compile(record["key"],title:@payload["title"])
+      def apply(scene,record,segment:nil)
+        plan=MediaPresets.compile(record["key"],title:@payload["title"],segment:segment)
         kind=plan["kind"];instance=SecureRandom.hex(8)
+        plan["settings"].delete("timeline") if scene.settings.dig("timeline","clips").present?
         settings=scene.settings.deep_merge(plan["settings"])
         if MediaPresets::ASSET_TYPES.include?(kind)
           raise ArgumentError,"Choose a prepared library file for this template" if @payload["asset_id"].blank?
@@ -68,7 +69,8 @@ module Studio
           if %w[audio_pack audio_package].include?(kind)
             raise ArgumentError,"Choose an audio asset" unless asset.kind=="audio"
             Studio::Library::Apply.new(@access,{}).append(scene,asset)
-            settings=scene.settings.deep_merge(plan["settings"])
+            plan["settings"].delete("timeline") if scene.settings.dig("timeline","clips").present?
+        settings=scene.settings.deep_merge(plan["settings"])
           else
             raise ArgumentError,"Choose a packed native Blender asset" unless asset.kind=="blend" && asset.native.attached? && !asset.bundle.attached? && Array(asset.metadata["missing_dependencies"]).empty?
             plan["objects"]<<{"name"=>asset.name,"type"=>"imported_asset","definition"=>{"asset_id"=>asset.id,"location"=>[0,0,0],"rotation"=>[0,0,0],"scale"=>[1,1,1]}}
@@ -81,7 +83,7 @@ module Studio
         end
         position=scene.scene_objects.maximum(:position).to_i
         plan["objects"].each_with_index do |item,index|
-          object=scene.scene_objects.create!(name:item["name"].first(120),object_type:item["type"],position:position+index+1,definition:item["definition"].merge("json_preset_key"=>record["key"],"preset_instance"=>instance))
+          object=scene.scene_objects.create!(name:item["name"].first(120),object_type:item["type"],position:position+index+1,definition:item["definition"].merge("json_preset_key"=>record["key"],"preset_instance"=>instance,"production_shot_name"=>(kind=="production_template" && item["type"]=="camera" ? item["name"] : nil)))
           settings.merge!("active_camera_object_id"=>object.id,"active_camera"=>object.name) if item["type"]=="camera"
         end
         directives=Array(settings["blender_presets"])

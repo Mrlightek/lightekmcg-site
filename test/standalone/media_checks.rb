@@ -49,6 +49,22 @@ class StudioMediaIntegrationTest < LightekCommunityIntegrationTest
       end
     end
   end
+  def test_completed_render_reuse_is_idempotent_and_actor_scoped
+    project=StudioProject.create!(owner:@alice,site:@site,name:"Rendered shots")
+    operation=project.studio_operations.create!(operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"completed")
+    artifact=operation.artifacts.create!(kind:"video",filename:"animation.mp4")
+    artifact.file.attach(io:StringIO.new("test-source"),filename:"animation.mp4",content_type:"video/mp4",identify:false)
+    payload={user_id:@alice.id,site_id:@site.id,project_id:project.id,artifact_id:artifact.id}
+    first=Studio::Workers::Workspace.perform("artifact_reuse",payload)
+    assert_equal first,Studio::Workers::Workspace.perform("artifact_reuse",payload)
+    asset=StudioAsset.find(first[:asset_id])
+    assert_equal artifact.file.blob.id,asset.file.blob.id
+    assert_equal project.id,asset.studio_project_id
+    assert_equal "uploaded",asset.status
+    assert_raises(ActiveRecord::RecordNotFound){Studio::Workers::Workspace.perform("artifact_reuse",payload.merge(user_id:@bob.id))}
+    operation.update!(status:"pending")
+    assert_raises(ActiveRecord::RecordNotFound){Studio::Workers::Workspace.perform("artifact_reuse",payload)}
+  end
   def test_timeline_rejects_foreign_assets_and_unbounded_keyframes
     asset=StudioAsset.create!(owner:@bob,site:@site,name:"Private",kind:"audio",status:"ready",request_key:SecureRandom.uuid,metadata:{duration:2,has_audio:true})
     p=StudioProject.create!(owner:@alice,site:@site,name:"Mine")

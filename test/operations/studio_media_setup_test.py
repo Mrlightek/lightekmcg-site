@@ -20,7 +20,7 @@ class StudioMediaSetupTest(unittest.TestCase):
             output=subprocess.check_output(['bash',str(ROOT/'lib/scripts/setup_studio_media.sh')],env=env,text=True)
             commands=[json.loads(line) for line in (folder/'trace').read_text().splitlines()]
             self.assertEqual(commands[0],['info'])
-            self.assertIn(['build','--tag','lightek/studio-media:20261101',str(ROOT/'docker/studio-media')],commands)
+            self.assertIn(['build','--tag','lightek/studio-media:20261111',str(ROOT/'docker/studio-media')],commands)
             probe=next(command for command in commands if command[0]=='run')
             self.assertIn('--disable-autoexec',probe)
             self.assertIn('--read-only',probe)

@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -117,6 +117,26 @@ module Studio
         return_url = "#{@payload.fetch('origin')}/lightek/index.html#/studio/#{operation.studio_scene_id}"
         checkout = Studio::Billing::Checkout.call(operation: operation, payer: @access.user, success_url: return_url, cancel_url: return_url)
         { checkout_url: checkout.respond_to?(:url) ? checkout.url : checkout.fetch(:url) }
+      end
+
+      def artifact_reuse
+        project=@access.projects.find(@payload.fetch("project_id"))
+        operation=project.studio_operations.where(status:"completed").joins(:artifacts).where(artifacts:{id:@payload.fetch("artifact_id")}).first!
+        artifact=operation.artifacts.find(@payload.fetch("artifact_id"))
+        raise ArgumentError,"Choose a completed image, video or audio artifact" unless artifact.file.attached? && %w[preview image video audio].include?(artifact.kind)
+        asset=nil
+        @access.user.with_lock do
+          key="render-artifact-#{artifact.id}"
+          asset=StudioAsset.find_by(owner_id:@access.user.id,request_key:key)
+          unless asset
+            asset=StudioAsset.new(owner:@access.user,site_id:@access.site_id,studio_project:project,name:artifact.filename.to_s.first(160),
+              request_key:key,kind:artifact.kind=="preview" ? "image" : artifact.kind,status:"uploaded")
+            asset.file.attach(artifact.file.blob)
+            asset.save!
+            StudioAssetIngestJob.perform_later(asset.id)
+          end
+        end
+        {asset_id:asset.id,status:asset.status}
       end
 
       def artifact_publish
@@ -399,7 +419,7 @@ module Studio
           timeline=scene.settings.fetch("timeline",{"output"=>"video","width"=>1280,"height"=>720,"clips"=>[]}).deep_dup
           placement=@payload.fetch("placement","append")
           raise ArgumentError,"Choose append or overlay placement" unless %w[append overlay].include?(placement)
-          ending=timeline["clips"].map { |clip| clip.fetch("start",0)+clip.fetch("out")-clip.fetch("in",0) }.max || 0
+          ending=timeline["clips"].map { |clip| clip.fetch("start",0)+(clip.fetch("out")-clip.fetch("in",0))/clip.fetch("speed",1) }.max || 0
           duration=asset.kind=="image" ? 5 : [asset.metadata["duration"].to_f,600].min
           raise ArgumentError,"This media has no usable duration. Retry its import." unless duration>0
           timeline["clips"]<<{"asset_id"=>asset.id,"in"=>0,"out"=>duration,"start"=>placement=="overlay" ? 0 : ending,

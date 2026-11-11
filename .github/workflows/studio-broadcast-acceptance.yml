@@ -21,6 +21,10 @@ on:
       - 'test/standalone/**'
       - 'test/javascript/studio_capture_transport_test.cjs'
       - 'test/javascript/studio_library_test.cjs'
+      - 'test/javascript/studio_finishing_test.cjs'
+      - 'config/studio/packs/**'
+      - 'public/lightek/community-app.css'
+      - 'db/migrate/20261111130000_register_studio_production_suite.rb'
       - 'test/javascript/studio_live_library_test.cjs'
       - 'public/lightek/studio-*.js'
       - 'public/lightek/spatial/**'
@@ -91,6 +95,10 @@ jobs:
       - run: bundle exec ruby test/standalone/spatial_commit_checks.rb
       - run: bundle exec ruby test/standalone/spatial_publication_checks.rb
       - run: bundle exec ruby test/standalone/spatial_generation_checks.rb
+      - name: Production scores and native camera-cut acceptance
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/media_preset_checks.rb --name '/test_production_|test_real_blender_production_score|test_all_recovered|test_presets_create|test_format_and_material|test_idempotency_stale|test_missing_assets/'
       - name: Studio creation and reusable Blender source acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -102,7 +110,9 @@ jobs:
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
-        run: bundle exec ruby test/standalone/media_checks.rb
+        run: |
+          bundle exec ruby test/standalone/timeline_finishing_checks.rb
+          bundle exec ruby test/standalone/media_checks.rb
       - name: Create an isolated Python environment for spatial service tests
         run: /usr/bin/python3 -m venv "$RUNNER_TEMP/studio-spatial-python"
       - name: Verify the Blender Python environment
@@ -126,6 +136,7 @@ jobs:
           node test/javascript/studio_creation_test.cjs
           node test/javascript/studio_authoring_test.cjs
           node test/javascript/studio_library_test.cjs
+          node test/javascript/studio_finishing_test.cjs
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_stage_test.cjs
           node test/javascript/studio_native_camera_test.cjs

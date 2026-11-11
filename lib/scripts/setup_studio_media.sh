@@ -2,7 +2,7 @@
 set -euo pipefail
 # Run as the same OS account as Sidekiq, from the application checkout.
 # Rails stays on Passenger. Blender/FFmpeg are isolated dependency workers.
-STUDIO_RUNTIME_IMAGE="${STUDIO_ASSET_WORKER_IMAGE:-lightek/studio-media:20261101}"
+STUDIO_RUNTIME_IMAGE="${STUDIO_ASSET_WORKER_IMAGE:-lightek/studio-media:20261111}"
 STUDIO_RUNTIME_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 command -v docker >/dev/null || { echo 'ERROR: Docker is required for isolated Studio media workers.' >&2; exit 1; }
 if ! STUDIO_DOCKER_STATUS="$(docker info 2>&1)"; then

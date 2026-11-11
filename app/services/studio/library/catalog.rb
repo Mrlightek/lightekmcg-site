@@ -36,6 +36,12 @@ module Studio
       end
       def self.objects(key)
         case key
+        when "tpl_police_precinct" then chamber + objects("tpl_single_camera_drama") +
+          [mesh("Case board","cube",[0,4.5,2.4],[2.4,0.12,1.1],[0.12,0.16,0.2,1]),mesh("Detectives desk","cube",[0,1,0.8],[2.2,0.8,0.8]),mesh("Evidence folder","cube",[0,0.8,1.64],[0.4,0.3,0.02],[0.7,0.56,0.3,1])]
+        when "tpl_interrogation" then chamber + objects("tpl_single_camera_drama") +
+          [mesh("Interview table","cube",[0,0,0.9],[1.5,0.8,0.1]),mesh("One-way observation glass","cube",[0,4.7,2.1],[2,0.05,1.1],[0.08,0.13,0.16,1])]
+        when "tpl_crime_scene" then objects("tpl_night_exterior") + objects("char_iris") + objects("char_marcus") + sedan +
+          [mesh("Evidence marker A","cube",[-1,-2,0.15],[0.15,0.15,0.15],[0.9,0.7,0.05,1]),mesh("Evidence marker B","cube",[2,1,0.15],[0.15,0.15,0.15],[0.9,0.7,0.05,1])]
         when "char_iris" then mannequin("Iris", -1.2, [0.25,0.65,0.7,1])
         when "char_marcus" then mannequin("Marcus", 1.2, [0.65,0.35,0.2,1])
         when "cam_intimate_50" then cameras

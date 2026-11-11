@@ -205,6 +205,17 @@ module Gatekeeper
       end
       receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
     else
+      if @node.metadata["local_node"] || @node.metadata[:local_node]
+      @deployment_stage = "local_execution"
+      output_data = StringIO.new
+      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
+        stdin.write(JSON.generate(config))
+        stdin.close
+        output.each_line { |line| output_data.print(line); $stdout.print(line) }
+        raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
+      end
+      receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
+    else
       Net::SSH.start(@node.ip_address, @node.ssh_user, **options) do |ssh|
           installed = false
           begin

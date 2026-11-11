@@ -1,0 +1,10 @@
+<% content_for :page_title, "Production workspace" %>
+<%= stylesheet_link_tag "/lightek/broadcast/control.css?v=1" %>
+<main class="ms-control">
+  <header class="ms-header"><div><p class="ms-eyebrow">LIGHTEK / PRODUCTION COMPANY</p><h1><%= @scene ? @scene.studio_project.name : "Create your production" %></h1><p><%= @scene&.name || "Start from a show template or create your own production." %></p></div><%= link_to "Control room", dashboard_media_studio_path(site_id:@site.id), class:"ms-button" %></header>
+  <% if @same_site %>
+    <iframe src="<%= @studio_path %>" title="Lightek production workspace" style="display:block;width:100%;height:82vh;min-height:640px;border:1px solid #ffffff20;border-radius:12px;background:#07070a" allow="fullscreen; autoplay; clipboard-write" allowfullscreen></iframe>
+  <% else %>
+    <section class="ms-card"><h2>Open this application’s production workspace</h2><p>This production belongs to <%= @site.host %>. Use its workspace so authentication and media stay with that application.</p><%= link_to "Open production workspace", "https://#{@site.host}#{@studio_path}", class:"ms-button ms-primary" %></section>
+  <% end %>
+</main>

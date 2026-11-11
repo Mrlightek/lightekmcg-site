@@ -1,5 +1,7 @@
 # Lightek production suite: production scores and finishing
 
+For reusable characters, face/gesture direction and voiced native movies, see [Cast & Performance](cast-and-performance.md).
+
 ## Start with a production, not an empty scene
 
 Open **Studio → Templates**. The chooser now includes the original JSON media packs alongside eight original Lightek production packages. Choose a production name and **Create production from template**. Existing projects stay intact; the new project has independent scenes, a Production record and reusable scene settings.

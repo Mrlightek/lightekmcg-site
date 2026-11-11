@@ -2,8 +2,10 @@ class StudioOperation < ApplicationRecord
   STATUSES = %w[awaiting_planning awaiting_approval awaiting_payment pending running completed failed cancelled].freeze
 
   has_one_attached :blender_bundle
+  has_many_attached :performance_sources
   has_one_attached :blender_source
   after_create :capture_blender_source
+  after_create :capture_performance_sources
 
   belongs_to :studio_project
   belongs_to :production, optional: true
@@ -82,6 +84,25 @@ class StudioOperation < ApplicationRecord
   def executable? = status.in?(%w[pending awaiting_approval])
 
   private
+
+  def capture_performance_sources
+    return unless Array(manifest.dig("scene","objects")).any? { |object| object.dig("definition","character_profile") || object.dig("definition","performance") }
+    raise ArgumentError,"Use at most sixteen Cast members in a shot" if Array(manifest.dig("scene","objects")).count { |object| object.dig("definition","character_profile") }>16
+    access=Studio::PwaAccess.new("user_id"=>intent["user_id"] || studio_project.owner_id,"site_id"=>studio_project.site_id)
+    Array(manifest.dig("scene","objects")).each do |object|
+      definition=object.fetch("definition",{})
+      if (profile=definition["character_profile"])
+        asset=StudioAsset.for_actor(access).find(definition.fetch("asset_id"))
+        raise ArgumentError,"The character source changed. Register its new version in Cast." unless asset.native.attached? && asset.native.blob.id==profile["source_blob_id"]
+        performance_sources.attach(asset.native.blob)
+      end
+      if (take=definition["performance"])
+        audio=StudioAsset.for_actor(access).find(take.fetch("audio_asset_id"))
+        raise ArgumentError,"The performance recording changed. Save the take again." unless audio.file.attached? && audio.file.blob.id==take["audio_blob_id"]
+        performance_sources.attach(audio.file.blob)
+      end
+    end
+  end
 
   def capture_blender_source
     blender_source.attach(studio_scene.blender_source.blob) if studio_scene&.blender_source&.attached?

@@ -1,5 +1,7 @@
 # Current production-suite release
 
+See [Cast & Performance](cast-and-performance.md) for the connected character/take workflow and the planned video, compositing, likeness and episode milestones.
+
 See [Production scores and finishing](production-suite.md) for the implemented workflow, limits, deployment and tutorials. The phased outline below is historical planning, not an acceptance checklist.
 
 # Lightek Studio roadmap

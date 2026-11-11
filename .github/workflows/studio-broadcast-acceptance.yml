@@ -22,6 +22,9 @@ on:
       - 'test/javascript/studio_capture_transport_test.cjs'
       - 'test/javascript/studio_library_test.cjs'
       - 'test/javascript/studio_finishing_test.cjs'
+      - 'test/javascript/studio_performance_test.cjs'
+      - 'db/migrate/20261111190000_register_studio_character_performance.rb'
+      - 'app/jobs/studio_character_create_job.rb'
       - 'config/studio/packs/**'
       - 'public/lightek/community-app.css'
       - 'db/migrate/20261111130000_register_studio_production_suite.rb'
@@ -95,6 +98,10 @@ jobs:
       - run: bundle exec ruby test/standalone/spatial_commit_checks.rb
       - run: bundle exec ruby test/standalone/spatial_publication_checks.rb
       - run: bundle exec ruby test/standalone/spatial_generation_checks.rb
+      - name: Reusable Cast, native performance and audible movie acceptance
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/studio_performance_checks.rb --name /test_performance_/
       - name: Production scores and native camera-cut acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -137,6 +144,7 @@ jobs:
           node test/javascript/studio_authoring_test.cjs
           node test/javascript/studio_library_test.cjs
           node test/javascript/studio_finishing_test.cjs
+          node test/javascript/studio_performance_test.cjs
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_stage_test.cjs
           node test/javascript/studio_native_camera_test.cjs

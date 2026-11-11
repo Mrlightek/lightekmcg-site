@@ -72,10 +72,9 @@ module Gatekeeper
 
     def self.preview(actor:, record:, domain:)
       authorize!(actor)
-      deployments = record.metadata.to_h.fetch("website_deployments", {}).with_indifferent_access
-      raw_config = deployments.fetch(domain) {
-        raise Invalid, "No deployment configuration is registered for this hostname"
-      }
+  deployments = record.metadata.to_h.fetch("website_deployments", {}).with_indifferent_access
+  raw_config = deployments[domain] || deployments.find { |k, _| k.start_with?("#{domain}.") || k == domain }&.last
+  raise Invalid, "No deployment configuration is registered for this hostname" unless raw_config
       config = raw_config.to_h.with_indifferent_access
       owner = User.find(config.fetch("owner_id"))
       raise Invalid, "Internal owner is no longer super_admin" if config["owner_role"] == "super_admin" && owner.role != "super_admin"

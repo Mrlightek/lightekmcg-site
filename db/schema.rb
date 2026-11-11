@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_09_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2834,6 +2834,52 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.index ["status"], name: "idx_single_neural_training_lease", unique: true, where: "((status)::text = 'running'::text)"
   end
 
+  create_table "nevaeh_watch_events", force: :cascade do |t|
+    t.bigint "nevaeh_watcher_id", null: false
+    t.bigint "nevaeh_agent_run_id"
+    t.string "event_key", null: false
+    t.string "entity", null: false
+    t.string "change", null: false
+    t.jsonb "before_value", default: {}, null: false
+    t.jsonb "after_value", default: {}, null: false
+    t.jsonb "plan", default: {}, null: false
+    t.string "status", default: "detected", null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_agent_run_id"], name: "index_nevaeh_watch_events_on_nevaeh_agent_run_id"
+    t.index ["nevaeh_watcher_id", "event_key"], name: "idx_nevaeh_watch_event_identity", unique: true
+    t.index ["nevaeh_watcher_id"], name: "index_nevaeh_watch_events_on_nevaeh_watcher_id"
+  end
+
+  create_table "nevaeh_watchers", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "nevaeh_os_agent_id", null: false
+    t.string "name", null: false
+    t.string "kind", null: false
+    t.jsonb "target", default: {}, null: false
+    t.string "condition", default: "updated", null: false
+    t.string "response", default: "prepare", null: false
+    t.jsonb "command_template", default: {}, null: false
+    t.string "status", default: "active", null: false
+    t.integer "interval_minutes", default: 60, null: false
+    t.jsonb "baseline", default: {}, null: false
+    t.boolean "initialized", default: false, null: false
+    t.datetime "next_poll_at"
+    t.datetime "last_polled_at"
+    t.string "lease_token"
+    t.datetime "lease_expires_at"
+    t.integer "poll_sequence", default: 0, null: false
+    t.integer "failures", default: 0, null: false
+    t.text "error"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_os_agent_id"], name: "index_nevaeh_watchers_on_nevaeh_os_agent_id"
+    t.index ["status", "next_poll_at"], name: "index_nevaeh_watchers_on_status_and_next_poll_at"
+    t.index ["user_id"], name: "index_nevaeh_watchers_on_user_id"
+  end
+
   create_table "nevaeh_workflow_runs", force: :cascade do |t|
     t.bigint "nevaeh_workflow_id", null: false
     t.bigint "actor_id", null: false
@@ -3693,6 +3739,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
   add_foreign_key "nevaeh_training_runs", "nevaeh_language_models"
   add_foreign_key "nevaeh_training_runs", "nevaeh_training_datasets"
   add_foreign_key "nevaeh_training_runs", "users", column: "actor_id"
+  add_foreign_key "nevaeh_watch_events", "nevaeh_agent_runs"
+  add_foreign_key "nevaeh_watch_events", "nevaeh_watchers"
+  add_foreign_key "nevaeh_watchers", "nevaeh_os_agents"
+  add_foreign_key "nevaeh_watchers", "users"
   add_foreign_key "nevaeh_workflow_runs", "nevaeh_workflows"
   add_foreign_key "nevaeh_workflow_runs", "users", column: "actor_id"
   add_foreign_key "nevaeh_workflows", "users", column: "creator_id"

@@ -1,3 +1,7 @@
+# Current production-suite release
+
+See [Production scores and finishing](production-suite.md) for the implemented workflow, limits, deployment and tutorials. The phased outline below is historical planning, not an acceptance checklist.
+
 # Lightek Studio roadmap
 
 ## Phase 1 — Studio v2 foundation (current)

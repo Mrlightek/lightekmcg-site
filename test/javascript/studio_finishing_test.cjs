@@ -1,0 +1,34 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {JSDOM}=require('jsdom');
+const dom=new JSDOM('<main id="app"></main>',{url:'https://studio.test/#/studio/1',runScripts:'outside-only'});
+const w=dom.window;
+const assets=[{id:1,name:'Blender shot',kind:'video',status:'ready',metadata:{duration:10},proxy_url:'/shot.mp4'}];
+const presets=JSON.parse(fs.readFileSync('config/studio/packs/production_templates.json','utf8')).map(r=>({key:r.key,name:r.definition.title,category:'production_template',project_template:true,scene_count:r.definition.segments.length,production:r.definition.production,output_summary:[]}));
+const record={project:{id:1,name:'Pilot'},scene:{id:1,name:'Cold open',objects:[],lock_version:0,settings:{timeline:{output:'video',width:1920,height:1080,fps:24,clips:[{asset_id:1,in:0,out:8,start:0,track:0,speed:2,gain:1,keyframes:[{time:0,x:0,y:0,gain:0.5},{time:4,x:40,y:0,gain:1}]}]}}}};
+const requests=[];
+Object.assign(w,{E:value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),app:w.document.querySelector('main'),ST:{loaded:true,projects:[record.project],workspaceMode:'timeline'},R:{studio:()=>'<h2>Saved templates</h2>'},AF:{studio:()=>{}},A:{},STUDIO_WORKSPACE_MODES:[],me:()=>true,meProfile:()=>({}),studioSceneRecord:()=>record,studioCurrentSceneId:()=>1,studioSceneRecords:()=>[record],studioWorkspaceSelectedObject:()=>null,LightekStudioApp:{prepare:()=>{},story:()=>'',tools:()=>'',setQuote:()=>{}},toast:()=>{},nevaeh:{execute:async request=>{requests.push(request);if(request.capability.endsWith('assets.list'))return{result:{assets,media_presets:presets}};if(request.capability.endsWith('blender.preset.use'))return{result:{project_id:2,scene_id:1}};return{result:{timeline:request.payload.timeline,lock_version:1}};}}});
+w.render=()=>{w.LightekStudioApp.prepare(record);w.app.innerHTML=w.location.hash.endsWith('/templates')?w.R.studio('templates'):w.LightekStudioApp.story(record,'timeline');};
+w.A.studioLoad=async()=>{};
+w.eval(fs.readFileSync('public/lightek/studio-media.js','utf8'));
+w.A.studioTimelinePreview=()=>{}; // Media decoding is covered by real FFmpeg tests; this harness exercises editing state and DOM.
+const change=(selector,value)=>{const el=w.app.querySelector(selector);assert(el,selector);if(el.type==='checkbox')el.checked=value;else el.value=value;el.dispatchEvent(new w.Event('change',{bubbles:true}));};
+const save=async()=>{await w.A.studioTimelineSave();await new Promise(resolve=>setImmediate(resolve));return requests.filter(r=>r.capability.endsWith('timeline.save')).at(-1).payload.timeline;};
+(async()=>{
+ w.render();w.AF.studio('1');await new Promise(resolve=>setImmediate(resolve));
+ change('[data-timeline-playhead]',2);
+ w.A.studioTimelineSplit();let timeline=await save();
+ assert.equal(timeline.clips.length,2);assert.equal(timeline.clips[0].out,4);assert.equal(timeline.clips[1].in,4);assert.equal(timeline.clips[1].start,2);
+ assert.equal(timeline.clips[0].keyframes.at(-1).x,20);assert.equal(timeline.clips[1].keyframes[0].x,20);assert.equal(timeline.clips[1].keyframes.at(-1).time,2);
+ w.A.studioTimelineUndo();timeline=await save();assert.equal(timeline.clips.length,1);
+ w.A.studioTimelineRedo();timeline=await save();assert.equal(timeline.clips.length,2);
+ change('[data-track-field="name"]','Dialogue');change('[data-track-field="solo"]',true);change('[data-track-field="pan"]',-0.5);
+ change('[data-clip-field="brightness"]',0.1);change('[data-timeline-setting="export_preset"]','master');
+ w.A.studioTimelineTitleAdd();change('[data-title-field="text"]','LIGHTEK: CASE FILES');
+ timeline=await save();assert.equal(timeline.tracks[0].name,'Dialogue');assert.equal(timeline.tracks[0].solo,true);assert.equal(timeline.tracks[0].pan,-0.5);assert.equal(timeline.export_preset,'master');assert.equal(timeline.titles[0].text,'LIGHTEK: CASE FILES');
+ w.location.hash='#/studio/templates';w.render();assert.equal(w.app.querySelectorAll('[data-json-preset]').length,8);
+ const form=w.app.querySelector('[data-json-preset="production/lightek_police_procedural"] form');assert(form);form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await new Promise(resolve=>setImmediate(resolve));
+ const request=requests.find(r=>r.capability.endsWith('blender.preset.use'));assert.equal(request.payload.mode,'new_project');assert.equal(request.payload.key,'production/lightek_police_procedural');
+ console.log('STUDIO_FINISHING_PASS speed-aware split keyframe continuity undo redo track mixer color master titles eight production templates project creation');
+ dom.window.close();
+})().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

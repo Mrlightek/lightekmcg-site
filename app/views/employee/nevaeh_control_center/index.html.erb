@@ -9,7 +9,7 @@
     <div><span class="nc-eyebrow">LIGHTEK OS / INTELLIGENCE</span><h1>Build her brilliance<span>.</span></h1><p>Nevaeh Control Center</p><p class="nc-muted">Turn what she knows into work she can do.</p></div>
     <div class="nc-brain" aria-hidden="true"><i class="ti ti-brain"></i><span>NEVAEH</span></div>
   </header>
-  <% if builder %><nav class="nc-links"><%= link_to "Talk to Nevaeh & agent workforce →", dashboard_nevaeh_os_path(anchor: "workforce") %><%= link_to "Digital Factory →", employee_nevaeh_factory_path %><%= link_to "Neural training & conversation →", employee_nevaeh_factory_path(tab: 'training') %><%= link_to "Software Library →", employee_software_library_path %></nav><% end %>
+  <% if builder %><nav class="nc-links"><%= link_to "Operating guide & tutorials →", dashboard_nevaeh_guide_path %><%= link_to "Talk to Nevaeh & agent workforce →", dashboard_nevaeh_os_path(anchor: "workforce") %><%= link_to "Digital Factory →", employee_nevaeh_factory_path %><%= link_to "Neural training & conversation →", employee_nevaeh_factory_path(tab: 'training') %><%= link_to "Software Library →", employee_software_library_path %></nav><% end %>
   <div class="nc-metrics">
     <article><span>Registered abilities</span><strong><%= NevaehCapability.count %></strong><small><%= NevaehCapability.enabled.count %> enabled</small></article>
     <article><span>Workers</span><strong><%= NevaehWorkflow.count %></strong><small><%= NevaehWorkflow.where(status: 'active').count %> active</small></article>

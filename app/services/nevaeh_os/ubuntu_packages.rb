@@ -4,14 +4,14 @@ require 'timeout'
 module NevaehOs
   module UbuntuPackages
     HELPER = '/usr/local/sbin/lightek-package-control'
-    OPERATIONS = %w[status search show plan install docs refresh].freeze
+    OPERATIONS = %w[status search show plan install docs refresh catalog sources].freeze
     module_function
     def authorize!(actor)
       raise ArgumentError, 'Host package administration requires the super administrator' unless actor&.persisted? && actor.role == 'super_admin'
     end
     def call(operation:, package: nil)
       raise ArgumentError, 'Unsupported Ubuntu operation' unless OPERATIONS.include?(operation)
-      unless %w[status refresh search].include?(operation)
+      unless %w[status refresh search catalog sources].include?(operation)
         raise ArgumentError, 'Use one package name without options or paths' unless package.to_s.match?(/\A[a-z0-9][a-z0-9+.-]{1,100}\z/)
       end
       raise ArgumentError, 'Package control is not installed on this host. Deploy the Nevaeh package-control installer through the native update pipeline.' unless File.file?(HELPER)

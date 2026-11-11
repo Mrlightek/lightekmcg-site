@@ -105,6 +105,7 @@ Rails.application.routes.draw do
   get "/api/studio/capabilities", to: "api/studio/capabilities#index", as: :api_studio_capabilities
   get "/employee/software-library", to: "employee/software_library#index", as: :employee_software_library
   get "/dashboard/nevaeh", to: "dashboard/nevaeh_os#index", as: :dashboard_nevaeh_os
+  get "/dashboard/nevaeh/guide", to: "dashboard/nevaeh_os#guide", as: :dashboard_nevaeh_guide
   get "/dashboard/nevaeh/state", to: "dashboard/nevaeh_os#state"
   get "/dashboard/nevaeh/files/*filename", to: "dashboard/nevaeh_os#download", format: false
   post "/dashboard/nevaeh/files", to: "dashboard/nevaeh_os#upload"

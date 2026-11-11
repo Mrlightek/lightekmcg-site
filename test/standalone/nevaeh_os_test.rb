@@ -8,6 +8,18 @@ require 'active_support/all'
 require 'tmpdir'
 require 'logger'
 require 'ostruct'
+# This container snapshot maps packaged system binaries to nobody. Simulate only
+# their root ownership during activation; real binary execution and mode checks remain.
+def with_packaged_binary_ownership
+  original=File.method(:stat)
+  File.stub(:stat,lambda { |path|
+    stat=original.call(path)
+    if %w[/usr/bin/ffmpeg /usr/bin/ffprobe].include?(path.to_s) && stat.uid==65534
+      stat.define_singleton_method(:uid) { 0 }
+    end
+    stat
+  }) { yield }
+end
 ROOT = File.expand_path('../..', __dir__)
 ActiveRecord::Base.establish_connection(adapter:'sqlite3',database:':memory:')
 ActiveRecord::Schema.verbose = false
@@ -27,6 +39,7 @@ ActiveRecord::Schema.define do
     t.integer :priority, default:5
     t.json :event_types, default:[]
     t.json :knowledge_article_ids, default:[]
+    t.json :metadata, default:{}
   end
   create_table(:dymond_dispatch_work_items) do |t|
     t.string :subject_type
@@ -46,16 +59,23 @@ end
 migration = File.read(File.join(ROOT,'db/migrate/20261109090000_create_nevaeh_operating_system.rb')).sub('Migration[8.0]','Migration[7.2]')
 eval(migration, TOPLEVEL_BINDING, 'nevaeh_os_test_migration')
 CreateNevaehOperatingSystem.new.migrate(:up)
-%w[20261109140000_create_nevaeh_application_adapters 20261109141000_connect_nevaeh_agent_workforce].each do |name|
+%w[20261109140000_create_nevaeh_application_adapters 20261109141000_connect_nevaeh_agent_workforce 20261109160000_create_nevaeh_watchers_and_events].each do |name|
   eval(File.read(File.join(ROOT,'db/migrate',name+'.rb')).sub('Migration[8.0]','Migration[7.2]'),TOPLEVEL_BINDING,name)
 end
 CreateNevaehApplicationAdapters.new.migrate(:up)
 ConnectNevaehAgentWorkforce.new.migrate(:up)
+CreateNevaehWatchersAndEvents.new.migrate(:up)
 class Ability
   def initialize(actor) = @actor=actor
   def can?(_operation,_subject) = %w[admin super_admin].include?(@actor.role)
 end
 module NevaehOs
+  class WatchPollJob
+    def self.perform_later(*args) = args
+  end
+  class WatchEventJob
+    def self.perform_later(id) = id
+  end
   class AgentRunJob
     def self.perform_later(id) = id
   end
@@ -89,12 +109,12 @@ class Nevaeh
     args[:subject] ? item : OpenStruct.new(work_item:item)
   end
 end
-%w[models/nevaeh_agent_worker models/nevaeh_agent_run models/nevaeh_application_adapter models/nevaeh_os_action models/nevaeh_os_consent models/nevaeh_os_memory models/nevaeh_os_source models/nevaeh_os_agent models/nevaeh_capability
+%w[helpers/nevaeh_help_helper services/nevaeh_os/watch_contract services/nevaeh_os/watch_sensors services/nevaeh_os/watch_engine services/nevaeh_os/watch_reaction services/nevaeh_os/guide services/nevaeh_intelligences/software_library models/nevaeh_watcher models/nevaeh_watch_event models/nevaeh_agent_worker models/nevaeh_agent_run models/nevaeh_application_adapter models/nevaeh_os_action models/nevaeh_os_consent models/nevaeh_os_memory models/nevaeh_os_source models/nevaeh_os_agent models/nevaeh_capability
  services/nevaeh_os/agents services/nevaeh_os/agent_workforce services/nevaeh_os/ubuntu_packages services/nevaeh_os/applications services/nevaeh_os/process_runner services/nevaeh_os/rails_console services/nevaeh_os/resources services/nevaeh_os/command services/nevaeh_os/web_document services/nevaeh_os/executor services/nevaeh_os/dispatch services/nevaeh_os/worker
  services/gatekeeper/authorization_decision services/gatekeeper/authorization_service services/gatekeeper].each { |f| require File.join(ROOT,'app',f) }
 class NevaehOsTest < Minitest::Test
   def setup
-    [NevaehAgentRun,NevaehAgentWorker,NevaehApplicationAdapter,NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
+    [NevaehWatchEvent,NevaehWatcher,NevaehAgentRun,NevaehAgentWorker,NevaehApplicationAdapter,NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
     @actor=User.create!(role:'super_admin')
     @other=User.create!(role:'client')
   end
@@ -219,6 +239,7 @@ class NevaehOsHttpTest < ActionController::TestCase
     @request.session[:actor_id]=@actor.id
     @routes=ActionDispatch::Routing::RouteSet.new
     @routes.draw do
+      get '/dashboard/nevaeh/guide',to:'dashboard/nevaeh_os#guide',as: :dashboard_nevaeh_guide
       get '/dashboard/nevaeh/state',to:'dashboard/nevaeh_os#state'
       post '/dashboard/nevaeh/ask',to:'dashboard/nevaeh_os#ask'
       patch '/dashboard/nevaeh/consent',to:'dashboard/nevaeh_os#consent'
@@ -413,6 +434,15 @@ class NevaehOperatingConsoleTest < Minitest::Test
     assert_equal 'ubuntu',NevaehOs::Command.parse('ubuntu.install {"package":"ffmpeg"}')['kind']
     assert_equal 12,NevaehOs::Command.parse('app.12.probe {"input":"test.wav"}')['adapter_id']
   end
+  def test_bare_ruby_expression_uses_console_dispatch_and_current_authorization
+    command=NevaehOs::Command.parse('ConsoleNote.count')
+    assert_equal({'kind'=>'console','expression'=>'ConsoleNote.count'},command)
+    assert NevaehOs::Executor.authorize_command!(actor:@admin,command:command)
+    assert_raises(ArgumentError) { NevaehOs::Executor.authorize_command!(actor:@client,command:command) }
+    rejected=NevaehOs::Command.parse('Kernel.system("id")')
+    assert_raises(ArgumentError) { NevaehOs::Executor.authorize_command!(actor:@admin,command:rejected) }
+    assert_equal 'capability',NevaehOs::Command.parse('susu.list')['kind']
+  end
   def test_ruby_console_queries_create_update_destroy_and_redacts_secrets
     result=NevaehOs::RailsConsole.execute('ConsoleNote.create!(title: "First")',@admin)
     id=result['result']['id']
@@ -444,6 +474,8 @@ class NevaehOperatingConsoleTest < Minitest::Test
   end
   def test_application_adapter_runs_real_unprivileged_ffmpeg_and_invalidates_on_edit
     adapter=NevaehApplicationAdapter.create!(user:@admin,package:'ffmpeg',name:'FFmpeg',operations:NevaehOs::Applications.recipes('ffmpeg'),documentation:{'binaries'=>['/usr/bin/ffmpeg','/usr/bin/ffprobe']})
+    root=nil
+    with_packaged_binary_ownership do
     NevaehOs::Applications.activate!(adapter,@admin)
     result=NevaehOs::Applications.run!(adapter:adapter,actor:@admin,operation:'version',inputs:{})
     assert_equal 0,result['exit_code']
@@ -465,6 +497,7 @@ class NevaehOperatingConsoleTest < Minitest::Test
     adapter.update!(operations:{'version'=>{'argv'=>['/usr/bin/ffmpeg','-version'],'inputs'=>{}}})
     assert_equal 'draft',adapter.status
     assert_raises(ArgumentError) { NevaehOs::Applications.run!(adapter:adapter,actor:@admin,operation:'version',inputs:{}) }
+    end
   ensure
     FileUtils.remove_entry_secure(root) if root&.directory?
   end
@@ -607,6 +640,7 @@ class NevaehApplicationSetupTest < Minitest::Test
       when 'show' then {'package'=>package,'installed_version'=>'fixture','summary'=>'Media tools','description'=>'FFmpeg media tools'}
       end
     end
+    with_packaged_binary_ownership do
     NevaehOs::UbuntuPackages.stub(:call,package_service) do
       result=NevaehOs::Applications.setup!(actor,'ffmpeg')
       assert_equal 'active',result['status']
@@ -619,6 +653,7 @@ class NevaehApplicationSetupTest < Minitest::Test
       repeat=NevaehOs::Applications.setup!(actor,'ffmpeg')
       assert_equal adapter.id,repeat['adapter_id']
     end
+    end
   ensure
     root=NevaehOs::Applications.workspace(actor) if actor
     FileUtils.remove_entry_secure(root) if root&.directory?
@@ -630,5 +665,227 @@ class NevaehConsoleAuthorityTest < Minitest::Test
     administrator=User.create!(role:'admin')
     assert_raises(ArgumentError) { NevaehOs::RailsConsole.execute("User.find(#{administrator.id}).update!(role: \"super_admin\")",administrator) }
     assert_equal 'admin',administrator.reload.role
+  end
+end
+
+class NevaehWatcherTest < Minitest::Test
+  def setup
+    @actor=User.create!(role:'super_admin')
+    @agent=NevaehOs::Agents.resolve!('warden',@actor)
+    NevaehCapability.where(slug:'nevaeh.os.execute').delete_all
+  end
+  def watcher(**extra)
+    attributes={'name'=>'FFmpeg updates','kind'=>'ubuntu_package','target'=>{'package'=>'ffmpeg','refresh'=>false},'condition'=>'updated','response'=>'prepare','interval_minutes'=>60}.merge(extra.stringify_keys)
+    NevaehOs::WatchEngine.create!(actor:@actor,attributes:attributes)
+  end
+  def poll(record,snapshot)
+    NevaehOs::WatchSensors.stub(:snapshot,snapshot) { NevaehOs::WatchEngine.poll!(record.id,force:true) }
+    record.reload
+  end
+  def versions(value) = {'ffmpeg'=>{'package'=>'ffmpeg','version'=>value}}
+  def changed(record)
+    poll(record,versions('1'));poll(record,versions('2'));record.events.order(:id).last
+  end
+  def test_first_poll_baselines_then_detects_each_real_transition_once
+    record=watcher
+    poll(record,versions('1'));assert record.initialized?;assert_equal 0,record.events.count
+    poll(record,versions('2'));assert_equal 1,record.events.count
+    poll(record,versions('2'));assert_equal 1,record.events.count
+    poll(record,versions('1'));assert_equal 2,record.events.count
+    assert_equal %w[updated updated],record.events.pluck(:change)
+    assert_equal 2,record.events.pluck(:event_key).uniq.size
+  end
+  def test_new_catalog_entries_do_not_trigger_for_the_initial_catalog
+    record=watcher(kind:'ubuntu_catalog',target:{'query'=>'video'},condition:'new')
+    poll(record,versions('1'))
+    poll(record,versions('2').merge('new-tool'=>{'package'=>'new-tool','version'=>'1'}))
+    assert_equal ['new-tool'],record.events.pluck(:entity)
+    assert_equal 'new',record.events.first.change
+  end
+  def test_prepare_is_read_only_and_explicit_apply_creates_one_agent_run
+    record=watcher;event=changed(record)
+    NevaehOs::UbuntuPackages.stub(:call,{'changes'=>[{'package'=>'ffmpeg','version'=>'2'}],'download_bytes'=>500}) do
+      NevaehOs::WatchReaction.process!(event)
+    end
+    assert_equal 'prepared',event.reload.status
+    assert_nil event.nevaeh_agent_run_id
+    assert_equal 500,event.plan['installation']['download_bytes']
+    NevaehOs::WatchReaction.process!(event,apply:true)
+    assert_equal 'dispatched',event.reload.status
+    run_id=event.nevaeh_agent_run_id
+    assert_equal 'ubuntu',event.nevaeh_agent_run.snapshot['kind']
+    assert_equal 'setup',event.nevaeh_agent_run.snapshot['operation']
+    NevaehOs::WatchReaction.process!(event,apply:true)
+    assert_equal run_id,event.reload.nevaeh_agent_run_id
+  end
+  def test_automatic_update_reuses_real_agent_execution_and_current_permissions
+    record=watcher(response:'update');event=changed(record)
+    NevaehOs::WatchReaction.process!(event)
+    assert_equal 'dispatched',event.reload.status
+    assert_equal @agent.id,event.nevaeh_agent_run.snapshot['agent_id']
+    @actor.update!(role:'client')
+    NevaehOs::AgentWorkforce.execute!(event.nevaeh_agent_run)
+    assert_equal 'blocked',event.nevaeh_agent_run.reload.status
+    assert_nil event.nevaeh_agent_run.nevaeh_os_action_id
+  end
+  def test_rule_edit_rebaselines_and_cannot_upgrade_an_old_event_policy
+    record=watcher;event=changed(record)
+    record.update!(response:'update')
+    refute record.initialized?
+    NevaehOs::WatchReaction.process!(event)
+    assert_equal 'blocked',event.reload.status
+    assert_match(/definition changed/,event.error)
+    assert_nil event.nevaeh_agent_run_id
+  end
+  def test_paused_owner_or_agent_blocks_observation_and_pending_reaction
+    record=watcher;event=changed(record)
+    @agent.update!(enabled:false)
+    NevaehOs::WatchReaction.process!(event)
+    assert_equal 'blocked',event.reload.status
+    assert_raises(ArgumentError) { poll(record,versions('3')) }
+    assert_equal 'paused',record.reload.status
+  end
+  def test_three_sensor_failures_pause_without_consuming_the_baseline
+    record=watcher
+    3.times do
+      NevaehOs::WatchSensors.stub(:snapshot,->(*) { raise ArgumentError,'Network unavailable' }) do
+        assert_raises(ArgumentError) { NevaehOs::WatchEngine.poll!(record.id,force:true) }
+      end
+    end
+    record.reload
+    assert_equal 'paused',record.status
+    assert_equal 3,record.failures
+    refute record.initialized?
+    assert_equal({},record.baseline)
+  end
+  def test_lease_and_revision_prevent_competing_or_stale_polls
+    record=watcher
+    record.update!(lease_token:'in-flight',lease_expires_at:10.minutes.from_now)
+    assert_equal 'busy',NevaehOs::WatchEngine.poll!(record.id,force:true)
+    record.update!(lease_token:nil,lease_expires_at:nil)
+    sensor=->(_) { record.reload.update!(status:'paused');versions('2') }
+    NevaehOs::WatchSensors.stub(:snapshot,sensor) { assert_equal 'superseded',NevaehOs::WatchEngine.poll!(record.id,force:true) }
+    assert_equal 0,record.events.count
+    refute record.reload.initialized?
+  end
+  def test_named_worker_command_template_is_data_bound_and_idempotent
+    record=watcher(response:'command',command_template:{'kind'=>'ticket','text'=>'@event.entity'})
+    event=changed(record)
+    # Ticket permission is a real boundary adapter here; avoid creating a ticket.
+    NevaehOs::Executor.stub(:authorize_command!,@actor) do
+      NevaehOs::AgentWorkforce.stub(:request!,->(worker:,actor:,key:) { worker.runs.create!(actor:actor,request_key:key,snapshot:worker.command) }) do
+        NevaehOs::WatchReaction.process!(event)
+      end
+    end
+    assert_equal 'ffmpeg',event.reload.nevaeh_agent_run.snapshot['text']
+    assert_equal 'dispatched',event.status
+    assert_equal 'literal #{bad}',NevaehOs::WatchContract.expand('literal #{bad}',{})
+    assert_raises(ArgumentError) { NevaehOs::WatchContract.expand('@event.untrusted',{}) }
+  end
+  def test_watcher_contract_rejects_unknown_sources_credentials_and_unbounded_rules
+    [{kind:'github_repository',target:{'repository'=>'owner/repo/../../evil','branch'=>'main'}},
+     {kind:'github_account',target:{'owner'=>'owner','account_type'=>'bad'}},
+     {kind:'ubuntu_package',target:{'package'=>'--unsafe'}},
+     {kind:'ubuntu_package',target:{'package'=>'ffmpeg','token'=>'never-store'}},
+     {kind:'github_account',target:{'owner'=>'owner','account_type'=>'user'},response:'update'}].each do |attributes|
+      assert_raises(ActiveRecord::RecordInvalid) { watcher(**attributes) }
+    end
+  end
+  def test_github_sensors_encode_branch_names_and_observe_account_creation
+    record=watcher(kind:'github_repository',target:{'repository'=>'Mrlightek/lightekmcg-site','branch'=>'feature/new'},condition:'updated')
+    paths=[]
+    NevaehOs::WatchSensors.stub(:github_get,->(path,_) { paths << path;{'commit'=>{'sha'=>'abc'}} }) do
+      data=NevaehOs::WatchSensors.snapshot(record)
+      assert_equal 'abc',data['Mrlightek/lightekmcg-site']['version']
+    end
+    assert_includes paths.first,'feature%2Fnew'
+    account=watcher(kind:'github_account',target:{'owner'=>'Mrlightek','account_type'=>'user'},condition:'new')
+    NevaehOs::WatchSensors.stub(:github_get,[{'id'=>123,'full_name'=>'Mrlightek/new-project','default_branch'=>'main'}]) do
+      assert_equal ['123'],NevaehOs::WatchSensors.snapshot(account).keys
+    end
+  end
+end
+
+class NevaehGuideTest < Minitest::Test
+  def setup
+    @actor=User.create!(role:'super_admin')
+    @client=User.create!(role:'client')
+  end
+  def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
+    topics=NevaehOs::Guide.topics(actor:@actor)
+    assert_equal 13,topics.size
+    topics.each do |topic|
+      document=NevaehOs::Guide.tutorial(topic[:id],actor:@actor)
+      assert document[:body].start_with?('# ')
+      assert_operator document[:body].length,:>,800
+      assert_includes document[:body],'## '
+    end
+    refute NevaehOs::Guide.topics(actor:@client).any? { |row| row[:id]=='ubuntu' }
+    assert_raises(ArgumentError) { NevaehOs::Guide.tutorial('console',actor:@client) }
+    assert_raises(ArgumentError) { NevaehOs::Guide.tutorial('../../etc/passwd',actor:@actor) }
+  end
+  def test_new_installed_capabilities_automatically_get_visible_reference_and_schema_gap
+    cap=NevaehCapability.create!(slug:'guide.example.new',name:'Example documented registration',domain:'example',intent_name:'guide_example_new',handler:'ExampleWorker',queue:'default',priority:5)
+    reference=NevaehOs::Guide.capability(cap.slug,actor:@actor)
+    assert_equal 'schema_needed',reference[:coverage]
+    assert_equal 'adapter_needed',reference[:availability]
+    %i[permission how_to verification recovery example topic].each { |key| assert reference[key].present?,key }
+    assert_raises(ArgumentError) { NevaehOs::Guide.capability(cap.slug,actor:@client) }
+    cap.update!(metadata:{'input_schema'=>{'record_id'=>{'type'=>'integer'}}})
+    updated=NevaehOs::Guide.capability(cap.slug,actor:@actor)
+    assert_equal 'fields',updated[:coverage]
+    assert_equal({'record_id'=>'integer'},updated[:inputs])
+  ensure
+    cap&.destroy!
+  end
+  def test_builtin_and_resource_guides_cover_host_watchers_agents_and_actual_operations
+    catalog=NevaehOs::Guide.catalog(actor:@actor)
+    %w[ubuntu.setup watcher.create watcher.apply agents.list agent.schedule rails.console].each do |key|
+      assert catalog.any? { |row| row[:key]==key },key
+    end
+    refute catalog.any? { |row| row[:key]=='resource.watchers.create' }
+    refute catalog.any? { |row| row[:key]=='resource.sources.create' }
+    assert catalog.any? { |row| row[:key]=='resource.sources.destroy' }
+    refute NevaehOs::Guide.catalog(actor:@client).any? { |row| row[:key]=='ubuntu.setup' }
+  end
+end
+
+class NevaehOsHttpTest
+  def test_guide_json_and_in_chat_tutorials_share_the_installed_reference
+    get :guide,params:{topic:'watchers'},as: :json
+    assert_response :success
+    payload=response.parsed_body
+    assert_equal 'watchers',payload['tutorial']['id']
+    assert payload['capabilities'].any? { |row| row['key']=='watcher.create' }
+    post :ask,params:{q:'/guide agents',request_key:'guide-agents-request'},as: :json
+    assert_response :success
+    assert_includes response.parsed_body['text'],'/delegate sage susu.list'
+    assert_equal '/dashboard/nevaeh/guide?topic=agents',response.parsed_body['guide_url']
+  end
+  def test_client_cannot_read_host_tutorial_or_create_watchers
+    @request.session[:actor_id]=@other.id
+    get :guide,params:{topic:'watchers'},as: :json
+    assert_response :unprocessable_entity
+    post :ask,params:{q:'/watch create {"name":"Forbidden","kind":"ubuntu_sources","target":{}}',request_key:'forbidden-watcher-request'},as: :json
+    assert_response :unprocessable_entity
+    refute NevaehWatcher.where(user:@other).exists?
+  end
+  def test_rendered_guide_has_live_reference_examples_and_escaped_titles
+    @controller.prepend_view_path(File.join(ROOT,'app/views'))
+    @controller.class.helper(Module.new do
+      def dashboard_nevaeh_guide_path(**values) = '/dashboard/nevaeh/guide?'+URI.encode_www_form(values)
+    end)
+    unsafe=NevaehCapability.create!(slug:'guide.escaping.example',name:'<script>window.BAD_GUIDE=1</script>',domain:'example',intent_name:'guide_escaping_example',handler:'ExampleWorker',queue:'default',priority:5)
+    get :guide,params:{topic:'watchers'},format: :html
+    assert_response :success
+    assert_includes response.body,'Watch changes and respond automatically'
+    assert_includes response.body,'Live capability reference'
+    assert_includes response.body,'/watch create'
+    assert_includes response.body,'Input schemas to publish'
+    FileUtils.mkdir_p(File.join(ROOT,'tmp'))
+    assert_includes response.body,'&lt;script&gt;window.BAD_GUIDE=1&lt;/script&gt;'
+    refute_includes response.body,'<script>window.BAD_GUIDE=1</script>'
+    File.write(File.join(ROOT,'tmp/nevaeh-guide-preview.html'),response.body)
+    unsafe.destroy!
   end
 end

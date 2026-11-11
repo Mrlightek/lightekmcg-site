@@ -10,7 +10,7 @@ module NevaehOs
         # Local writes commit with the receipt. Host/package effects have their own verification and cannot be rolled back by the database.
         result = Executor.perform!(action)
         failed=result.is_a?(Hash) && result['success']==false
-        action.update!(status: failed ? 'failed' : 'completed',result:result,error:failed ? "Application exited with status #{result['exit_code']}" : nil)
+        action.update!(status: failed ? 'failed' : 'completed',result:result,error:failed ? (result['error'].presence || "Application exited with status #{result['exit_code']}") : nil)
         result
       end
     rescue StandardError => error

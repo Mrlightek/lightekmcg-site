@@ -8,16 +8,22 @@ module NevaehOs
       command = Command.parse(text)
       persona=Agents.resolve!(agent.presence || 'nevaeh',@actor)
       command=prepare_command(command)
-      command['agent_id']=persona.id unless %w[help resources capabilities status briefing remember search models schema agents].include?(command['kind'])
+      command['agent_id']=persona.id unless %w[help resources capabilities status briefing remember search models schema agents guide describe].include?(command['kind'])
       if command['kind']=='agent_task'
         command['command']=prepare_command(Command.parse(command.delete('instruction')))
       end
       command['persona_id']=persona.id if command['kind']=='model'
-      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents].include?(command['kind'])
+      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe].include?(command['kind'])
       result = if planning
         {'text'=>"#{mode.to_s.in?(%w[3 reflect]) ? 'Reflection' : 'Proposed action'}: #{command.to_json}\nNo action dispatched in this mode. Choose Operate to execute this instruction.", 'status'=>'planned'}
       else
         case command.fetch('kind')
+      when 'guide'
+        tutorial=Guide.tutorial(command.fetch('topic'),actor:@actor)
+        {'text'=>tutorial.fetch(:body),'guide_url'=>"/dashboard/nevaeh/guide?topic=#{tutorial[:id]}",'status'=>'ready','tutorial'=>tutorial.except(:body)}
+      when 'describe'
+        entry=Guide.capability(command.fetch('capability'),actor:@actor)
+        {'text'=>JSON.pretty_generate(entry),'guide_url'=>"/dashboard/nevaeh/guide?capability=#{entry[:key]}",'status'=>'ready','capability'=>entry}
       when 'help'
         {'text'=>Command::HELP, 'status'=>'ready'}
       when 'models'
@@ -42,8 +48,11 @@ module NevaehOs
           rows += NevaehIntelligence.available.includes(:nevaeh_capability).order(:intent_key).limit(500).map { |r| {slug:r.intent_key,name:r.name,domain:r.nevaeh_capability.domain} }
         end
         if @actor.role=='super_admin'
-          rows += %w[status search show plan install docs refresh integrate setup].map { |operation| {slug:"ubuntu.#{operation}",name:"Ubuntu #{operation}",domain:'ubuntu',invoke:operation.in?(%w[status refresh]) ? "ubuntu.#{operation}" : "ubuntu.#{operation} {\"package\":\"ffmpeg\"}"} }
+          rows += %w[status search show plan install docs refresh integrate setup catalog sources].map { |operation| {slug:"ubuntu.#{operation}",name:"Ubuntu #{operation}",domain:'ubuntu',invoke:operation.in?(%w[status refresh sources]) ? "ubuntu.#{operation}" : "ubuntu.#{operation} {\"package\":\"ffmpeg\"}"} }
           rows += NevaehApplicationAdapter.where(user:@actor,status:'active').flat_map { |adapter| adapter.operations.keys.map { |operation| {slug:"app.#{adapter.id}.#{operation}",name:"#{adapter.name}: #{operation}",domain:'applications',invoke:"/app run #{adapter.package} #{operation} {}"} } }
+        end
+        if @actor.role=='super_admin'
+          rows += %w[create list show poll pause resume apply].map { |operation| {slug:"watcher.#{operation}",name:"Watcher #{operation}",domain:'watchers',invoke:operation=='create' ? '/watch create {"name":"FFmpeg updates","kind":"ubuntu_package","target":{"package":"ffmpeg"},"response":"prepare"}' : "/watch #{operation}#{operation=='list' ? '' : ' ID'}"} }
         end
         rows << {slug:'agents.list',name:'Agent workforce',domain:'agents',invoke:'/agents'}
         rows = rows.uniq { |row| row[:slug] }

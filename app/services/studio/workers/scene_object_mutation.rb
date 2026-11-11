@@ -59,7 +59,15 @@ module Studio
           )
       end
 
+      def reject_performance_fields!(definition)
+        raw=definition.to_h.deep_stringify_keys
+        if (raw.keys & %w[character_profile performance performance_instance]).any?
+          raise ArgumentError,"Use Cast & Performance to register characters and save takes"
+        end
+      end
+
       def create_object
+        reject_performance_fields!(payload.fetch("definition",{}))
         object =
           domain.create_scene_object(
             scene: scene,
@@ -82,6 +90,7 @@ module Studio
       end
 
       def transform_object
+        reject_performance_fields!(payload.fetch("attributes",{}).to_h.fetch("definition",{}))
         object =
           domain.update_scene_object(
             scene_object: scene_object,

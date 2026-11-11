@@ -89,7 +89,9 @@
     if (result) { toast('Template saved'); await A.studioLoad(true); }
   });
   A.studioTemplateUsePersisted = b => run(async () => {
-    const result = await execute('studio.workspace.template.use', { project_id: Number(b.dataset.project), request_key: crypto.randomUUID() });
+    const name=b.closest('.studio-panel')?.querySelector('[data-studio-episode-name]')?.value.trim();
+    if(!name)return toast('Enter an episode or project name.');
+    const result = await execute('studio.workspace.template.use', { project_id: Number(b.dataset.project), name, request_key: crypto.randomUUID() });
     if (result) { await A.studioLoad(true); location.hash = `#/studio/${result.scene_id}`; }
   });
   A.studioRenderQuote = () => run(async () => { const record = current(); quote = await execute('studio.workspace.render.quote', { scene_id: record.scene.id }); render(1); });
@@ -120,7 +122,7 @@
     else if (el.matches('[data-studio-audio]')) STUDIO_WAVE2_STATE.audioNotes = el.value;
     else if (el.matches('[data-studio-release-date]')) STUDIO_W4_STATE.releaseDate = el.value;
     else if (el.matches('[data-studio-release-notes]')) STUDIO_W4_STATE.notes = el.value;
-    else if (el.closest('[data-studio-form], [data-native-object-form], [data-media-form]') || el.matches('[data-blender-preview-frame], #studio-create-name, #studio-create-type')) return;
+    else if (el.closest('[data-studio-form], [data-native-object-form], [data-media-form], [data-performance-form]') || el.matches('[data-blender-preview-frame], #studio-create-name, #studio-create-type')) return;
     else if (!el.closest('.studio-shell')) return;
     dirty = true;
     const status = document.getElementById('studio-save-status'); if (status) status.textContent = 'Unsaved changes';
@@ -194,7 +196,7 @@
   R.studio = id => {
     if (!meProfile() || !ST.loaded || !['library', 'templates', 'template-maker', 'template-config'].includes(id)) return originalStudio(id);
     const templates = ST.projects.filter(p => p.is_template);
-    const content = id === 'library' ? ST.projects.map(project => `<section class="studio-panel"><h2>${E(project.name)}</h2>${project.scenes.map(scene => `<a class="btn sm" href="#/studio/${scene.id}">${E(scene.name)} · ${scene.object_count} elements</a>`).join(' ')}</section>`).join('') : templates.map(project => `<section class="studio-panel"><h2>${E(project.name)}</h2><p>${E(project.description || '')}</p>${button('Create from template', 'studioTemplateUsePersisted', `data-project="${project.id}"`)}</section>`).join('');
+    const content = id === 'library' ? ST.projects.map(project => `<section class="studio-panel"><h2>${E(project.name)}</h2>${project.scenes.map(scene => `<a class="btn sm" href="#/studio/${scene.id}">${E(scene.name)} · ${scene.object_count} elements</a>`).join(' ')}</section>`).join('') : templates.map(project => `<section class="studio-panel"><h2>${E(project.name)}</h2><p>${E(project.description || '')}</p>${input('episode_name','Episode / project name',(project.name+' — Episode 1').slice(0,120)).replace('name="episode_name"','name="episode_name" data-studio-episode-name maxlength="120"')}${button('Create from template', 'studioTemplateUsePersisted', `data-project="${project.id}"`)}</section>`).join('');
     return `<div class="wrap pwa-page"><span class="eb">Lightek Studio</span><h1>${id === 'library' ? 'Library' : 'Templates'}</h1><p>${id === 'library' ? 'Saved projects, scenes and scene elements.' : 'Save a project as a template from its workspace, then create a new independent project from it.'}</p><a class="btn sm" href="#/studio">Back to Studio</a><div class="g2" style="margin-top:24px">${content || '<p>Your library is empty. Create a project to get started.</p>'}</div></div>`;
   };
   window.LightekStudioApp = { prepare, inspector, story, delivery, tools, director, visual, setQuote(value){quote=value;} };

@@ -8,6 +8,7 @@ import zipfile
 from mathutils import Vector, Matrix, Euler
 sys.path.insert(0, os.path.dirname(__file__))
 import authoring
+import performance
 
 
 SCHEMA_VERSION = "1.0"
@@ -363,7 +364,17 @@ def create_manifest_object(item):
         if not path or not os.path.isfile(path):
             raise RuntimeError("Imported asset proxy is unavailable")
         existing = set(bpy.context.scene.objects)
-        if definition.get("asset_format") == "blend":
+        source_objects = {}
+        if definition.get("character_profile"):
+            names = definition["character_profile"]["objects"]
+            with bpy.data.libraries.load(path, link=False) as (available, target):
+                if any(name not in available.objects for name in names):
+                    raise RuntimeError('Character source objects changed; register its new version in Cast')
+                target.objects = list(names)
+            for source_name, child in zip(names, target.objects):
+                bpy.context.scene.collection.objects.link(child)
+                source_objects[source_name] = child
+        elif definition.get("asset_format") == "blend":
             with bpy.data.libraries.load(path, link=False) as (available, target):
                 requested = definition.get("asset_scene")
                 target.scenes = [requested] if requested in available.scenes else available.scenes[:1]
@@ -381,6 +392,8 @@ def create_manifest_object(item):
             if child.parent not in imported:
                 child.parent = root
         apply_transform(root, definition)
+        if definition.get("character_profile"):
+            performance.apply(root, source_objects, definition)
         return root
 
     if object_type in {
@@ -969,7 +982,13 @@ def main():
             scene.render.ffmpeg.constant_rate_factor = 'MEDIUM'
             scene.render.ffmpeg.audio_codec = 'AAC'
             scene.render.filepath = os.path.join(output_directory, 'movie.mp4')
+            # Render the camera; voice-only VSE strips must not replace picture.
+            old_sequencer = scene.render.use_sequencer
+            if performance.SOUNDS:
+                scene.render.use_sequencer = False
             bpy.ops.render.render(animation=True)
+            scene.render.use_sequencer = old_sequencer
+            performance.mux_movie(scene.render.filepath)
             generated.append('movie.mp4')
 
         if outputs.get("bundle"):

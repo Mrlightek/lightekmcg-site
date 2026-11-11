@@ -45,7 +45,7 @@ module Blender
         "id" => object.id,
         "name" => object.name,
         "type" => object.object_type,
-        "definition" => object.definition
+        "definition" => object.definition["character_profile"] ? object.definition.merge("performance_instance"=>object.id) : object.definition
       }
     end
   end

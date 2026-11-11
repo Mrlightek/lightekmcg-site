@@ -9,6 +9,11 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
 
   def index
     return unless @site
+    access=Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
+    scoped=access.projects.where(site_id:@site.id)
+    @production_projects=scoped.select(:id,:name,:is_template,:updated_at).order(updated_at: :desc).limit(24)
+    @production_scenes=StudioScene.where(studio_project_id:@production_projects.map(&:id)).select(:id,:name,:studio_project_id).order(:id).group_by(&:studio_project_id)
+    @cast_members=StudioAsset.for_actor(access).where(kind:"blend",status:"ready").where("metadata ->> 'character_profile' IS NOT NULL").select(:id,:name).order(id: :desc).limit(12)
     @applications = applications.order(:platform, :id)
     @channels = channels.order(:position, :id)
     @posts = posts.order(id: :desc).limit(100)
@@ -19,6 +24,17 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
     @live = StudioLiveOperation.where(studio_project_id: projects.select(:id)).order(id: :desc).limit(10)
     @stats = {"Published titles"=>posts.where(moderation_state: "published").count, "OTT applications"=>applications.count,
       "Channels on air"=>channels.where(status: "published").count, "Broadcasts sending"=>@live.where(status: "live").count}
+  end
+  def workspace
+    access=Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
+    if params[:scene_id].present?
+      @scene=access.scene!(params[:scene_id])
+      raise ActiveRecord::RecordNotFound unless @scene.studio_project.site_id==@site.id
+    end
+    mode=params[:workspace].presence || "performance"
+    raise ArgumentError,"Choose an available production workspace" unless %w[performance 3d timeline script publish].include?(mode)
+    @studio_path="/lightek/index.html?workspace=#{mode}#/studio#{@scene ? "/#{@scene.id}" : ""}"
+    @same_site=request.host.casecmp?(@site.host.to_s)
   end
   def save_generation_provider
     Studio::Spatial::Generation.save_provider!(site:@site,user:current_user,key:params.require(:api_key))

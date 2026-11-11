@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -13,6 +13,43 @@ module Studio
         LightekPwa::Policy.new(user: @access.user, site: DymondSite::Site.find(@access.site_id)).authorize!("studio") if @access.site_id
         raise ArgumentError, "Unsupported Studio workspace action" unless ACTIONS.include?(@action)
         public_send(@action)
+      end
+
+      def cast_retry = Studio::Performance::Cast.retry(access:@access,payload:@payload)
+      def cast_create = Studio::Performance::Cast.create(access:@access,payload:@payload)
+      def cast_register = Studio::Performance::Cast.register(access:@access,payload:@payload)
+      def cast_place = Studio::Performance::Cast.place(access:@access,payload:@payload)
+      def performance_save = Studio::Performance::Take.save(access:@access,payload:@payload)
+      def performance_remove = Studio::Performance::Take.remove(access:@access,payload:@payload)
+
+      def performance_preview
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        if @payload["operation_id"]
+          operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview").find(@payload["operation_id"])
+        else
+          raise ArgumentError,"Save a character performance first" unless scene.scene_objects.any? { |object| object.definition["performance"] }
+          @access.user.with_lock do
+            operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview",status:%w[pending running]).first
+            unless operation
+              recent=StudioOperation.where(studio_project_id:@access.projects.select(:id),capability:"studio.workspace.performance.preview").where("created_at > ?",1.minute.ago).count
+              raise ArgumentError,"Wait before requesting another performance preview" if recent>=4
+              manifest=Blender::ManifestBuilder.new(scene).call.deep_dup
+              settings=manifest["scene"]["settings"]
+              fps=settings.fetch("fps",24).to_f/settings.fetch("fps_base",1)
+              first=scene.scene_objects.filter_map { |object| object.definition.dig("performance","start") }.min
+              width=settings.fetch("resolution_x",1280);height=settings.fetch("resolution_y",720)
+              factor=320.0/[width,height].max
+              settings.merge!("resolution_x"=>(width*factor).round.clamp(64,320),"resolution_y"=>(height*factor).round.clamp(64,320),"samples"=>8,
+                "frame_start"=>1+(first*fps).round,"frame_end"=>[(first*fps+3*fps).round,settings.fetch("frame_end",250)].min,"frame_current"=>1+(first*fps).round)
+              manifest["outputs"]={"animation"=>true,"blend"=>true}
+              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.performance.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"performance_preview"=>true,"draft_preview"=>true,"native_revision"=>scene.settings.fetch("native_revision",0)})
+              StudioBlenderPreviewJob.perform_later(operation.id)
+            end
+          end
+        end
+        artifact=operation.artifacts.find_by(kind:"video")
+        {operation_id:operation.id,status:operation.status,error:operation.error_message,stale:operation.metadata["native_revision"]!=scene.settings.fetch("native_revision",0),
+          url:artifact&.file&.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}
       end
 
       def writing_profiles
@@ -205,11 +242,12 @@ module Studio
       def assets_list
         scope=StudioAsset.for_actor(@access).order(id: :desc)
         scope=scope.where("id < ?",Integer(@payload["before"])) if @payload["before"].present?
+        scope=scope.where(kind:%w[blend audio video]) if @payload["surface"]=="performance"
         records=scope.limit(101).to_a
         more=records.length>100
         records=records.first(100)
         { creation_recipes: Studio::NativeBlender::Create.items, media_presets: Studio::NativeBlender::MediaPresets.items, builtins: Studio::Library::Catalog.items, camera_presets: Studio::NativeBlender::CameraSettings.presets, blender_demos: Studio::NativeBlender::DemoCatalog.items, next_before: more ? records.last.id : nil, assets: records.map { |asset|
-          { id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,error:asset.error_message,metadata:asset.metadata,
+          { id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,error:asset.error_message,metadata:@payload["surface"]=="performance" ? Studio::Performance::Cast.inventory(asset) : asset.metadata,
             url:asset.file.attached? ? "/api/lightek/pwa/assets/#{asset.id}/original" : nil,bundle_url:asset.bundle.attached? ? "/api/lightek/pwa/assets/#{asset.id}/bundle" : nil,native_url:asset.native.attached? ? "/api/lightek/pwa/assets/#{asset.id}/native" : nil,proxy_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil,
             thumbnail_url:asset.thumbnail.attached? ? "/api/lightek/pwa/assets/#{asset.id}/thumbnail" : nil } } }
       end
@@ -553,7 +591,7 @@ module Studio
               child.save!
               object_ids[object.id]=child.id
             end
-            settings=copy.settings.except("library_requests", "json_preset_requests")
+            settings=copy.settings.except("library_requests", "json_preset_requests", "cast_receipts", "performance_receipts")
             settings["active_camera_object_id"]=object_ids[scene.settings["active_camera_object_id"]] if scene.settings["active_camera_object_id"]
             copy.update!(settings:settings)
           end

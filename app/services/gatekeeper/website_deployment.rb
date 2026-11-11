@@ -72,7 +72,8 @@ module Gatekeeper
 
     def self.preview(actor:, record:, domain:)
       authorize!(actor)
-      raw_config = record.metadata.to_h.fetch("website_deployments", {}).fetch(domain) {
+      deployments = record.metadata.to_h.fetch("website_deployments", {}).with_indifferent_access
+      raw_config = deployments.fetch(domain) {
         raise Invalid, "No deployment configuration is registered for this hostname"
       }
       config = raw_config.to_h.with_indifferent_access
@@ -84,6 +85,21 @@ module Gatekeeper
         "request_id" => record.is_a?(ProvisioningRequest) ? record.id : nil,
         "estimated_monthly_cost_cents" => record.is_a?(ProvisioningRequest) ? record.estimated_monthly_cost_cents : nil).with_indifferent_access
     end
+
+    # def self.preview(actor:, record:, domain:)
+    #   authorize!(actor)
+    #   raw_config = record.metadata.to_h.fetch("website_deployments", {}).fetch(domain) {
+    #     raise Invalid, "No deployment configuration is registered for this hostname"
+    #   }
+    #   config = raw_config.to_h.with_indifferent_access
+    #   owner = User.find(config.fetch("owner_id"))
+    #   raise Invalid, "Internal owner is no longer super_admin" if config["owner_role"] == "super_admin" && owner.role != "super_admin"
+    #   config.merge("owner_email" => config.fetch("owner_email", owner.email_address),
+    #     "target" => record.is_a?(GatekeeperNode) ? "existing_node" : "new_instance",
+    #     "node_id" => record.is_a?(GatekeeperNode) ? record.id : record.gatekeeper_node_id,
+    #     "request_id" => record.is_a?(ProvisioningRequest) ? record.id : nil,
+    #     "estimated_monthly_cost_cents" => record.is_a?(ProvisioningRequest) ? record.estimated_monthly_cost_cents : nil).with_indifferent_access
+    # end
 
     def self.run!(actor:, node:, domain:)
       authorize!(actor)

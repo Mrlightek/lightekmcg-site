@@ -22,7 +22,8 @@ module Gatekeeper
       raise Invalid, "Owner must be a persisted User" unless owner.is_a?(User) && owner.persisted?
       begin
         host = LightekSettings::SiteDomain.public_hostname!(domain)
-      rescue LightekSettings::SiteDomain::Invalid => error
+        end
+    rescue LightekSettings::SiteDomain::Invalid => error
         raise Invalid, error.message
       end
       values = {"domain" => host, "owner_id" => owner.id, "site_name" => site_name.to_s,
@@ -195,6 +196,17 @@ module Gatekeeper
         options[:auth_methods] = %w[publickey password keyboard-interactive]
         @deployment_stage = "ssh_authentication"
         if @node.metadata["local_node"] || @node.metadata[:local_node]
+      @deployment_stage = "local_execution"
+      output_data = StringIO.new
+      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
+        stdin.write(JSON.generate(config))
+        stdin.close
+        output.each_line { |line| output_data.print(line); $stdout.print(line) }
+        raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
+      end
+      receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
+    else
+      if @node.metadata["local_node"] || @node.metadata[:local_node]
       @deployment_stage = "local_execution"
       output_data = StringIO.new
       Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|

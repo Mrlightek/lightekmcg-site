@@ -35,7 +35,8 @@ module Gatekeeper
         "description" => description.to_s,
         "email" => certificate_email.to_s, 
         "credential_slug" => credential_slug.to_s,
-        "owner_role" => internal ? "super_admin" : "admin"
+        "owner_role" => internal ? "super_admin" : "admin",
+        "ssh" => "localhost"
       }
 
       raise Invalid, "Internal ownership requires a super_admin account" if internal && owner.role != "super_admin"

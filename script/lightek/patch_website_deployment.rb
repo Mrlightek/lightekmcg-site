@@ -6,30 +6,41 @@ unless File.exist?(path)
   abort "Error: #{path} not found. Run this from your Rails root directory."
 end
 
-# Force clean git checkout to wipe out any accumulated bad patches
+# Hard reset to ensure zero accumulated syntax debris
 system("git checkout -f #{path}")
 content = File.read(path)
 
-target = "def execute(config)"
+target = "Net::SSH.start("
 unless content.include?(target)
-  abort "Error: Could not find `def execute(config)` in #{path}."
+  abort "Error: Could not find `Net::SSH.start(` in #{path}."
 end
 
-guard_code = <<~'RUBY'
-  def execute(config)
-    if @node.metadata["local_node"] || @node.metadata[:local_node]
-      @deployment_stage = "local_execution"
-      output_data = StringIO.new
-      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
-        stdin.write(JSON.generate(config))
-        stdin.close
-        output.each_line { |line| output_data.print(line); $stdout.print(line) }
-        raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
-      end
-      return JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-    end
+replacement = <<~'RUBY'.chomp
+  if @node.metadata["local_node"] || @node.metadata[:local_node]
+        @deployment_stage = "local_execution"
+        output_data = StringIO.new
+        Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
+          stdin.write(JSON.generate(config))
+          stdin.close
+          output.each_line { |line| output_data.print(line); $stdout.print(line) }
+          raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
+        end
+        receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
+        # Bypass SSH block
+        ssh = nil
+      else
+        Net::SSH.start(
 RUBY
 
-content.sub!(target, guard_code.chomp)
+content.sub!(target, replacement)
+
+# Close the `if` statement right before the rescue block of the mktmpdir/ssh block
+# We find the specific rescue handling SSH/deployment errors
+if content.include?("rescue StandardError => error")
+  content.sub!("rescue StandardError => error", "end\n    rescue StandardError => error")
+elsif content.include?("rescue")
+  content.sub!("rescue", "end\n    rescue")
+end
+
 File.write(path, content)
-puts "Successfully applied clean early-return guard to WebsiteDeployment#execute!"
+puts "Successfully patched website_deployment.rb cleanly!"

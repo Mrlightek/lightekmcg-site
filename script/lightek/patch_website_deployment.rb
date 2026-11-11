@@ -6,18 +6,16 @@ unless File.exist?(path)
   abort "Error: #{path} not found. Run this from your Rails root directory."
 end
 
-# Reset to clean git state
-system("git checkout -- #{path}")
+# Force clean git checkout to wipe out any accumulated bad patches
+system("git checkout -f #{path}")
 content = File.read(path)
 
-# Target the execute method definition
 target = "def execute(config)"
 unless content.include?(target)
   abort "Error: Could not find `def execute(config)` in #{path}."
 end
 
-# Insert our local execution guard clause right at the start of execute(config)
-replacement = <<~'RUBY'.chomp
+guard_code = <<~'RUBY'
   def execute(config)
     if @node.metadata["local_node"] || @node.metadata[:local_node]
       @deployment_stage = "local_execution"
@@ -32,6 +30,6 @@ replacement = <<~'RUBY'.chomp
     end
 RUBY
 
-content.sub!(target, replacement)
+content.sub!(target, guard_code.chomp)
 File.write(path, content)
-puts "Successfully patched website_deployment.rb with clean top-level guard clause!"
+puts "Successfully applied clean early-return guard to WebsiteDeployment#execute!"

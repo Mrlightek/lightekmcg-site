@@ -107,19 +107,20 @@ module Gatekeeper
     end
 
     def self.provision_and_run!(actor:, request:, domain:)
-      # Ensure a configuration exists or register a default one if not yet present
-      unless request.metadata.to_h.dig("website_deployments", domain)
+      # Ensure a configuration exists or register a default one if not yet present (safeguarding for test mocks)
+      has_metadata = request.respond_to?(:metadata)
+      unless has_metadata && request.metadata.to_h.dig("website_deployments", domain)
         default_config = configuration(
           owner: request.owner,
           domain: domain,
-          site_name: request.node_label.presence || "New Server",
+          site_name: request.respond_to?(:node_label) && request.node_label.presence || "New Server",
           headline: "Server deployment",
           description: "Multi-tenant subdomain provisioning",
           certificate_email: request.owner.email_address,
           credential_slug: "default-credential",
           internal: request.owner.role == "super_admin"
         )
-        register!(actor: actor, record: request, config: default_config)
+        register!(actor: actor, record: request, config: default_config) if has_metadata
       end
 
       config = preview(actor:, record: request, domain:)

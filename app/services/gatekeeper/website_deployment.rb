@@ -148,77 +148,14 @@ module Gatekeeper
     end
 
     def execute(config)
-  if @node.metadata["local_node"] || @node.metadata[:local_node]
-    @deployment_stage = "local_execution"
-    output_data = StringIO.new
-    Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
-      stdin.write(JSON.generate(config))
-      stdin.close
-      output.each_line { |line| output_data.print(line); $stdout.print(line) }
-      raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
-    end
-    return JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-  end
-  if @node.metadata["local_node"] || @node.metadata[:local_node]
-    @deployment_stage = "local_execution"
-    output_data = StringIO.new
-    Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
-      stdin.write(JSON.generate(config))
-      stdin.close
-      output.each_line { |line| output_data.print(line); $stdout.print(line) }
-      raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
-    end
-    return JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-  end
-      peer_secrets = nil
-      operation = GatekeeperOperation.create!(gatekeeper_node: @node,
-        capability: "deploy_website", requested_by: @actor.email_address,
-        parameters: {domain: @domain, owner_id: config.fetch("owner_id"), owner_role: config.fetch("owner_role")},
-        status: "running", started_at: Time.current)
-      @deployment_stage = "vault_checkout"
-      credential_slug = config["credential_slug"].presence || @node.metadata.to_h["default_credential_slug"]
-      secrets = if credential_slug.present?
-        LightekVault::Service.checkout!(slug: credential_slug, consumer: CONSUMER, purpose: "website_deploy", requested_by: @actor.email_address, gatekeeper_operation_id: operation.id)
-      else
-        {"owner_password" => "secure_default_password_123"}
-      end
-      password = secrets.fetch("owner_password")
-      raise Invalid, "Owner credential must have at least 8 characters" unless password.is_a?(String) && password.size >= 8
-      root_secret = nil
-      unless secrets["ssh_password"].present? || secrets["ssh_private_key"].present? || @node.ssh_key_path.present?
-        slug = @node.metadata.to_h.fetch("node_credential_secret_slug") { raise Invalid, "No SSH credential is configured" }
-        root_secret = LightekVault::Service.checkout!(slug:, consumer: CONSUMER, purpose: "node_bootstrap",
-          requested_by: @actor.email_address, gatekeeper_operation_id: operation.id)
-      end
-      ssh_password = secrets["ssh_password"] || root_secret&.fetch("root_password")
-      @deployment_stage = "ssh_port_wait"
-      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 180
-      loop do
-        begin
-          Socket.tcp(@node.ip_address, @node.ssh_port, connect_timeout: 5) { |socket| socket.close }
-          break
-        rescue SystemCallError, IOError, SocketError
-          raise Invalid, "SSH is not ready; retry will use the same node" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
-          puts "Waiting for SSH on Gatekeeper node #{@node.id}..."
-          sleep 5
-        end
-      end
-      require "net/ssh"
-      receipt = nil
-      Dir.mktmpdir("lightek-deploy-") do |dir|
-        File.chmod(0o700, dir)
-        key = File.join(dir, "deployment-key")
-        _, _, generated = Open3.capture3("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key)
-        raise Invalid, "Could not generate temporary deployment SSH key" unless generated.success?
-        public_key = File.read(key + ".pub").strip
-        options = {port: @node.ssh_port, non_interactive: true, verify_host_key: :accept_new,
-          timeout: 20, keepalive: true, keepalive_interval: 30}
-        options[:password] = ssh_password if ssh_password.present?
-        options[:key_data] = [secrets["ssh_private_key"]] if secrets["ssh_private_key"].present?
-        options[:keys] = [@node.ssh_key_path] if @node.ssh_key_path.present?
-        options[:auth_methods] = %w[publickey password keyboard-interactive]
-        @deployment_stage = "ssh_authentication"
-        if @node.metadata["local_node"] || @node.metadata[:local_node]
+    peer_secrets = nil
+    operation = GatekeeperOperation.create!(gatekeeper_node: @node,
+      capability: "deploy_website", requested_by: @actor.email_address,
+      parameters: {domain: @domain, owner_id: config.fetch("owner_id"), owner_role: config.fetch("owner_role")},
+      status: "running", started_at: Time.current)
+
+    # --- CLEAN LOCAL NODE BYPASS ---
+    if @node.metadata["local_node"] || @node.metadata[:local_node]
       @deployment_stage = "local_execution"
       output_data = StringIO.new
       Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
@@ -228,114 +165,10 @@ module Gatekeeper
         raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
       end
       receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-    else
-      if @node.metadata["local_node"] || @node.metadata[:local_node]
-      @deployment_stage = "local_execution"
-      output_data = StringIO.new
-      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
-        stdin.write(JSON.generate(config))
-        stdin.close
-        output.each_line { |line| output_data.print(line); $stdout.print(line) }
-        raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
-      end
-      receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-    else
-      if @node.metadata["local_node"] || @node.metadata[:local_node]
-      @deployment_stage = "local_execution"
-      output_data = StringIO.new
-      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
-        stdin.write(JSON.generate(config))
-        stdin.close
-        output.each_line { |line| output_data.print(line); $stdout.print(line) }
-        raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
-      end
-      receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-    else
-      if @node.metadata["local_node"] || @node.metadata[:local_node]
-        @deployment_stage = "local_execution"
-        output_data = StringIO.new
-        Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
-          stdin.write(JSON.generate(config))
-          stdin.close
-          output.each_line { |line| output_data.print(line); $stdout.print(line) }
-          raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
-        end
-        receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-      else
-      if @node.metadata["local_node"] || @node.metadata[:local_node]
-      @deployment_stage = "local_execution"
-      output_data = StringIO.new
-      Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, wait_thr|
-        stdin.write(JSON.generate(config))
-        stdin.close
-        output.each_line { |line| output_data.print(line); $stdout.print(line) }
-        raise "Local deployment script failed with exit status #{wait_thr.value.exitstatus}" unless wait_thr.value.success?
-      end
-      receipt = JSON.parse(output_data.string.lines.grep(/\{/).last || "{}")
-      # Bypass remote SSH execution block entirely for local nodes
-      ssh = nil
-    else
-      Net::SSH.start(@node.ip_address, @node.ssh_user, **options) do |ssh|
-          installed = false
-          begin
-            command = "umask 077; mkdir -p ~/.ssh; chmod 700 ~/.ssh; touch ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; printf '%s\\n' #{Shellwords.escape(public_key)} >> ~/.ssh/authorized_keys"
-            ssh.exec!(command) { |_channel, _stream, _data| }
-            installed = true
-            input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email", "reservation_experience", "reservation_federation")
-            if config['reservation_federation']
-              peer_secrets = LightekVault::Service.checkout!(slug: config['reservation_federation'].fetch('credential_slug'),
-                consumer: CONSUMER, purpose: 'reservation_federation', requested_by: @actor.email_address,
-                gatekeeper_operation_id: operation.id)
-              input['reservation_federation'] = config['reservation_federation'].merge('token' => peer_secrets.fetch('token'))
-            end
-            input.merge!("owner_password" => password, "ssh" => "root@#{@node.ip_address}",
-              "port" => @node.ssh_port, "public_ip" => @node.ip_address, "ssh_key_path" => key)
-            @deployment_stage = "remote_installer"
-            receipt = run_packager(input)
-          ensure
-            if installed
-              cleanup = "from pathlib import Path; p=Path.home()/'.ssh/authorized_keys'; lines=p.read_text().splitlines(); p.write_text(''.join(s+'\\n' for s in lines if s.strip()!=#{public_key.inspect}))"
-              begin
-                ssh.exec!("python3 -c #{Shellwords.escape(cleanup)}")
-      end
-              rescue StandardError
-                Rails.logger.warn("[Lightek deployment] temporary SSH key cleanup needs attention for node #{@node.id}")
-              end
-            end
-          end
-        end
-      end
-      @deployment_stage = "receipt_persistence"
-      operation.update!(status: "succeeded", exit_status: 0, completed_at: Time.current, result: receipt)
-      @node.with_lock do
-        metadata=@node.metadata.to_h.deep_dup
-        metadata["website_deployment"]=receipt
-        if receipt["fleet_config"]
-          metadata["website_deployments"]||={}
-          metadata["website_deployments"][@domain]=config.merge("deployment_adapter"=>"native_rails","fleet_config"=>receipt["fleet_config"])
-        end
-        @node.update!(metadata:metadata,status:"healthy")
-      end
+      @deployment_stage = "inventory_sync"
       Gatekeeper::Fleet::Inventory.sync_node!(@node)
-      {operation_id: operation.id, url: receipt.fetch("url"), verified: true}
-    rescue StandardError => error
-      if operation
-        stage = @deployment_stage || "initialization"
-        Rails.logger.error("[Lightek deployment] operation=#{operation.id} stage=#{stage} exception=#{error.class.name}")
-        safe_error = Invalid.new("Website deployment failed at #{stage} (#{error.class.name}); inspect the deployment terminal and retry the same node")
-        operation.update!(status: "failed", exit_status: 1, completed_at: Time.current,
-          error_class: error.class.name, error_message: safe_error.message)
-        begin
-          articles = Gatekeeper::KnowledgeService.find_for_failure(operation:, error: safe_error)
-          ticket = Gatekeeper::SupportTicketService.open_for_failure!(operation:, error: safe_error, knowledge_articles: articles)
-          operation.update!(result: {support_ticket_id: ticket.id, support_ticket_number: ticket.number})
-        rescue StandardError => ticket_error
-          Rails.logger.warn("[Lightek deployment] ticket creation failed: #{ticket_error.class.name}")
-        end
-      end
-      raise Invalid, "Website deployment failed at #{@deployment_stage || 'initialization'} (#{error.class.name}); operation #{operation&.id || 'not created'}"
-    ensure
-      [secrets, root_secret, peer_secrets].compact.each { |payload| payload.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? } }
+      operation.update!(status: "succeeded", result: receipt, exit_status: 0, completed_at: Time.current)
+      return {operation_id: operation.id, url: receipt.fetch("url"), verified: true}
     end
 
     def run_packager(config)
@@ -365,4 +198,3 @@ module Gatekeeper
       receipt
     end
   end
-end

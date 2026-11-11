@@ -1477,6 +1477,8 @@ const createViewportDom = (
     )
   }
 
+  window.LightekStudioVisual?.mountStage(viewport);
+
   return {
     shell,
 
@@ -2076,4 +2078,11 @@ window.addEventListener('lightek:authoring-frame',event=>{
       root[target].set(...(field==='rotation'?values.map(radians):values));
     }
   }
+});
+
+window.addEventListener('lightek:visual-selection',()=>{
+  if(!active)return;
+  const state=bridge()?.snapshot?.();
+  updateHighlights(state);
+  if(active.transform)applyTool(active.mode,state);
 });

@@ -23,7 +23,7 @@
   A.studioAssetsReload=()=>run(()=>{library.runtime=null;return loadAssets(true);});
   A.studioAssetsMore=()=>run(()=>loadAssets(false,library.nextBefore));
   const previousAfter=AF.studio;
-  AF.studio=id=>{previousAfter(id);if(me())loadAssets();};
+  AF.studio=id=>{previousAfter(id);if(me()&&!app.querySelector('.visual-workbench'))loadAssets();};
   const sceneOptions=()=>studioSceneRecords().map(record=>`<option value="${record.scene.id}">${esc(record.project.name)} · ${esc(record.scene.name)}</option>`).join('');
   const objectOptions=(id,category)=>(studioSceneRecord(Number(id))?.scene.objects||[]).filter(object=>category!=='materials'||['cube','sphere','cylinder','plane'].includes(object.object_type||object.type)).map(object=>`<option value="${object.id}">${esc(object.name)}</option>`).join('');
   const targetScene=()=>`<label class="fld"><span>Use in scene</span><select name="scene_id" required data-library-scene>${sceneOptions()}</select></label>`;
@@ -219,10 +219,20 @@
         }
         if(timeline.output!=='audio')for(const title of timeline.titles||[]){if(t<title.start||t>title.end)continue;ctx.save();ctx.font=`${title.size}px sans-serif`;ctx.textBaseline='top';title.text.split('\n').forEach((line,index)=>{const y=title.y+index*title.size*1.2;ctx.fillStyle='#0008';ctx.fillRect(title.x-10,y-10,ctx.measureText(line).width+20,title.size*1.2+10);ctx.fillStyle='white';ctx.fillText(line,title.x,y);});ctx.restore();}
         ctx.restore();const notice=app.querySelector('[data-timeline-status]');if(notice)notice.textContent=t.toFixed(3)+' seconds · proxy preview; export applies final processing';
-        const playhead=app.querySelector('[data-timeline-playhead]');if(playhead)playhead.value=edit.playhead;
+        const playhead=app.querySelector('[data-timeline-playhead],[data-vw-playhead]');if(playhead)playhead.value=edit.playhead;const clock=app.querySelector('[data-vw-time]');if(clock)clock.textContent=Math.floor(edit.playhead/60).toString().padStart(2,'0')+':'+(edit.playhead%60).toFixed(1).padStart(4,'0');
         if(singleFrame||t>=sequenceDuration()){stopPreview();return;}state.frame=requestAnimationFrame(draw);
       }draw();
     }catch(error){if(preview===state)stopPreview();throw error;}
   });
   new MutationObserver(()=>{if(preview&&!preview.canvas?.isConnected)stopPreview();}).observe(app,{childList:true,subtree:true});
+  window.LightekStudioTimeline={
+    get:()=>timeline?JSON.parse(JSON.stringify(timeline)):null,
+    set:value=>{stopPreview();timeline=JSON.parse(JSON.stringify(value));},
+    save:saveTimeline,
+    assets:items=>{library.items=[...items,...library.items.filter(a=>!items.some(b=>b.id===a.id))];},
+    seek:seconds=>{edit.playhead=Number(seconds)||0;return A.studioTimelinePreview(true);},
+    play:seconds=>{edit.playhead=Number(seconds)||0;return A.studioTimelinePreview();},
+    stop:stopPreview
+  };
+
 })();

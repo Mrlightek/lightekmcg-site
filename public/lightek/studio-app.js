@@ -99,7 +99,7 @@
   A.studioRenderCheckout = () => run(async () => {
     if (!quote) return;
     const result = await execute('studio.workspace.render.checkout', { operation_id: quote.operation_id });
-    if (result?.checkout_url) { const url = new URL(result.checkout_url); if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com') throw new Error('Invalid checkout URL'); location.assign(url.href); }
+    if (result?.checkout_url) { const url = new URL(result.checkout_url); if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com') throw new Error('Invalid checkout URL'); window.top.location.href=url.href; }
   });
   A.studioArtifactPublish = b => {
     const dialog = document.createElement('dialog');

@@ -1,26 +1,27 @@
 <% content_for :page_title, "Studio & broadcasting OS" %>
 <%= stylesheet_link_tag "/lightek/broadcast/control.css?v=1" %>
 <main class="ms-control">
-  <header class="ms-header"><div><p class="ms-eyebrow">LIGHTEK MEDIA OS / CONTROL ROOM</p><h1>Make it. Publish it. Go live.</h1><p>Your productions, channels and television apps. One control room.</p></div><%= link_to "Open Live Studio ↗", (@site ? "https://#{@site.host}/dashboard/live" : dashboard_live_path), class: "ms-button ms-primary" %></header>
+  <header class="ms-header"><div><p class="ms-eyebrow">LIGHTEK MEDIA OS / CONTROL ROOM</p><h1>Your studio.</h1><p>Open a scene to build your set, direct your cast and edit your media.</p></div><%= link_to "Open Live Studio ↗", (@site ? "https://#{@site.host}/dashboard/live" : dashboard_live_path), class: "ms-button ms-primary" %></header>
   <%= form_with url: dashboard_media_studio_path, method: :get, local: true, class: "ms-selector" do %>
     <label>Application workspace<%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site&.id), include_blank: "Choose an application" %></label><%= submit_tag "Open workspace", class: "ms-button" %>
     <% if @site %><span class="ms-domain"><%= @site.host %></span><% end %>
   <% end %>
   <% unless @site %><section class="ms-card ms-empty"><h2>Select your application</h2><p>Choose a workspace above to manage its media and OTT apps.</p></section><% else %>
-    <nav class="ms-tabs" aria-label="Media control room"><a href="#overview">Overview</a><a href="#productions">Shows & episodes</a><a href="#cast">Cast</a><a href="#releases">Media & releases</a><a href="#channels">Channels</a><a href="#schedule">Program guide</a><a href="#applications">OTT applications</a></nav>
-    <section class="ms-metrics" id="overview"><% @stats.each do |label,value| %><article><span><%= label %></span><strong><%= value %></strong><small><%= @site.name %></small></article><% end %></section>
+
+    <details><summary>Broadcast overview</summary><section class="ms-metrics" id="overview"><% @stats.each do |label,value| %><article><span><%= label %></span><strong><%= value %></strong><small><%= @site.name %></small></article><% end %></section></details>
     <section class="ms-card" id="productions">
       <div class="ms-section-heading"><div><p class="ms-eyebrow">PRODUCTION COMPANY</p><h2>Shows & episodes</h2></div><%= link_to "Create a production", dashboard_production_workspace_path(site_id:@site.id,workspace:"3d"), class:"ms-button ms-primary" %></div>
       <p>Develop a show, reuse its cast and sets, direct performances, finish the episode and manage its release from this control room.</p>
-      <% @production_projects.each do |project| %><details class="ms-editor"><summary><strong><%= project.name %></strong><span class="ms-pill"><%= project.is_template ? "Show template" : "Production" %></span></summary>
+      <% @production_projects.each do |project| %><details class="ms-editor" open><summary><strong><%= project.name %></strong><span class="ms-pill"><%= project.is_template ? "Show template" : "Production" %></span></summary>
         <% scenes=@production_scenes.fetch(project.id,[]) %><p><%= scenes.length %> scenes</p>
-        <% scenes.first(12).each do |scene| %><div class="ms-activity"><strong><%= scene.name %></strong><div><%= link_to "Cast & performance", dashboard_production_workspace_path(scene_id:scene.id,site_id:@site.id,workspace:"performance"), class:"ms-button" %> <%= link_to "Set & cameras", dashboard_production_workspace_path(scene_id:scene.id,site_id:@site.id,workspace:"3d"), class:"ms-button" %> <%= link_to "Edit & mix", dashboard_production_workspace_path(scene_id:scene.id,site_id:@site.id,workspace:"timeline"), class:"ms-button" %></div></div><% end %>
+        <% scenes.first(12).each do |scene| %><div class="ms-activity"><strong><%= scene.name %></strong><div><%= link_to "Open studio →", dashboard_production_workspace_path(scene_id:scene.id,site_id:@site.id), class:"ms-button ms-primary" %> </div></div><% end %>
         <% if scenes.length>12 %><p>Open the production workspace to browse all scenes.</p><% end %>
       </details><% end %>
       <% if @production_projects.empty? %><p class="ms-empty">Create your first show from a production template, then save the recurring cast and set for future episodes.</p><% end %>
     </section>
-    <section class="ms-card" id="cast"><div class="ms-section-heading"><div><p class="ms-eyebrow">RECURRING TALENT</p><h2>Cast library</h2></div></div><p>Create, register and direct performers from a scene’s Cast & Performance workspace. The same character can play independent roles in one scene.</p><div class="ms-pipeline"><% @cast_members.each do |actor| %><div><strong><%= actor.name %></strong><p>Reusable native character</p></div><% end %></div><% if @cast_members.empty? %><p class="ms-muted">Your saved performers will appear here.</p><% end %></section>
-    <section class="ms-card"><div class="ms-section-heading"><div><p class="ms-eyebrow">PRODUCTION DESK</p><h2>Studio & broadcasting OS</h2></div><%= link_to "Open production workspace", dashboard_production_workspace_path(site_id:@site.id,workspace:"3d"), class: "ms-button" %></div><div class="ms-pipeline"><div><b>01 / Create</b><p>Build scenes, edit your timeline and export a master in Studio.</p></div><div><b>02 / Release</b><p>Publish the master to Lightek or Octavia, now or on a schedule.</p></div><div><b>03 / Broadcast</b><p>Serve your catalog to OTT apps through Gatekeeper. Go live through Restream.</p></div></div></section>
+    <details class="ms-card"><summary><strong>Manage cast, releases, channels & OTT apps</strong></summary>
+    <section class="ms-card" id="cast"><div class="ms-section-heading"><div><p class="ms-eyebrow">RECURRING TALENT</p><h2>Cast library</h2></div></div><p>Open a scene in Studio to add a character and give it a recording. The same character can play independent roles in one scene.</p><div class="ms-pipeline"><% @cast_members.each do |actor| %><div><strong><%= actor.name %></strong><p>Reusable native character</p></div><% end %></div><% if @cast_members.empty? %><p class="ms-muted">Your saved performers will appear here.</p><% end %></section>
+
     <section class="ms-card"><p class="ms-eyebrow">ASSET WORKSHOP</p><h2>Build your own production assets.</h2><p>Create shapes, sets, stages, lights and effects in Studio. Import and edit native Blender files, save reusable scene assets, then export for your community, channels and live productions.</p><div class="ms-section-heading"><%= link_to "Create in Studio ↗", "https://#{@site.host}/lightek/index.html#/studio/workshop", class: "ms-button ms-primary" %><%= link_to "Blender files & asset library ↗", "https://#{@site.host}/lightek/index.html#/studio/library", class: "ms-button" %></div></section>
     <section class="ms-card" id="releases"><div class="ms-section-heading"><div><p class="ms-eyebrow">DISTRIBUTION</p><h2>Media & releases</h2></div><span class="ms-pill">Lightek · Octavia</span></div>
       <%= form_with url: dashboard_broadcast_publications_path(site_id: @site.id), scope: :publication, local: true, class: "ms-form" do |f| %>
@@ -49,5 +50,6 @@
       <% @applications.each do |outlet| %><details class="ms-editor"><summary><strong><%= outlet.name %></strong><span><%= outlet.platform.humanize %></span><span class="ms-pill"><%= outlet.status %></span></summary><%= render "application_form", outlet: outlet %><div class="ms-endpoint"><strong>Gatekeeper configuration</strong><code><%= "https://#{@site.host}/gatekeeper/config?platform=#{outlet.platform}&application=#{outlet.slug}" %></code><%= link_to "Preview contract ↗", "https://#{@site.host}/gatekeeper/config?platform=#{outlet.platform}&application=#{outlet.slug}", target: "_blank", rel: "noopener" %></div></details><% end %>
       <details class="ms-editor" <%= "open" if @applications.empty? %>><summary>＋ Create an OTT application</summary><%= render "application_form", outlet: Studio::Broadcasting::Application.new %></details>
     </section>
+    </details>
   <% end %>
 </main>

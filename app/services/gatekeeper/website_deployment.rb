@@ -110,15 +110,17 @@ module Gatekeeper
       # Ensure a configuration exists or register a default one if not yet present (safeguarding for test mocks)
       has_metadata = request.respond_to?(:metadata)
       unless has_metadata && request.metadata.to_h.dig("website_deployments", domain)
+        owner = request.respond_to?(:owner) ? request.owner : actor
+        is_super = owner.respond_to?(:role) && owner.role == "super_admin"
         default_config = configuration(
-          owner: request.owner,
+          owner: owner,
           domain: domain,
           site_name: request.respond_to?(:node_label) && request.node_label.presence || "New Server",
           headline: "Server deployment",
           description: "Multi-tenant subdomain provisioning",
-          certificate_email: request.owner.email_address,
+          certificate_email: owner.respond_to?(:email_address) ? owner.email_address : actor.email_address,
           credential_slug: "default-credential",
-          internal: request.owner.role == "super_admin"
+          internal: is_super
         )
         register!(actor: actor, record: request, config: default_config) if has_metadata
       end

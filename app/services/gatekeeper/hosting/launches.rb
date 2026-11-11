@@ -6,7 +6,8 @@ module Gatekeeper
         raise Access::Denied, "A super admin installs application templates; additional websites use your plan allowance." unless Access.super_admin?(actor)
         template = GatekeeperApplicationTemplate.available.find(attributes.fetch("template_id"))
         owner = User.find(attributes["owner_id"].presence || actor.id)
-        domain = LightekSettings::SiteDomain.public_hostname!(attributes.fetch("domain"))
+        domain = LightekSettings::SiteDomain.public_hostname!(attributes.to_h.with_indifferent_access.fetch("domain"))
+        #domain = LightekSettings::SiteDomain.public_hostname!(attributes.fetch("domain"))
         node = Access.nodes(actor).find(attributes["node_id"]) if attributes["node_id"].present?
         Access.active!(node) if node
         launch = nil

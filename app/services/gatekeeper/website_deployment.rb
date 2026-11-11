@@ -272,7 +272,11 @@ module Gatekeeper
       path = Pathname.new(receipt_path).realpath
       expected = Rails.root.join("tmp/website_deploy").realpath
       raise Invalid, "Invalid deployment receipt path" unless path.parent == expected
-      receipt = JSON.parse(path.read)
+      receipt = begin
+      JSON.parse(path.read)
+    rescue JSON::ParserError, Errno::ENOENT
+      { "status" => "failed", "error" => "Invalid or missing receipt file" }
+    end
       raise Invalid, "Acceptance receipt is incomplete" unless receipt["url"] == "https://#{@domain}" &&
         receipt["public_https_verified"] == true && receipt["owner_login_verified"] == true &&
         receipt.dig("health", "full_application_dashboard_verified") == true

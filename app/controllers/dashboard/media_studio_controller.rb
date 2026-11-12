@@ -12,7 +12,7 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
     access=Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
     scoped=access.projects.where(site_id:@site.id)
     @production_projects=scoped.select(:id,:name,:is_template,:updated_at).order(updated_at: :desc).limit(24)
-    @production_scenes=StudioScene.where(studio_project_id:@production_projects.map(&:id)).select(:id,:name,:studio_project_id).order(:id).group_by(&:studio_project_id)
+    @production_scenes=StudioScene.where(studio_project_id:@production_projects.map(&:id)).select(:id,:name,:studio_project_id,:settings).order(:id).group_by(&:studio_project_id)
     @cast_members=StudioAsset.for_actor(access).where(kind:"blend",status:"ready").where("metadata ->> 'character_profile' IS NOT NULL").select(:id,:name).order(id: :desc).limit(12)
     @applications = applications.order(:platform, :id)
     @channels = channels.order(:position, :id)

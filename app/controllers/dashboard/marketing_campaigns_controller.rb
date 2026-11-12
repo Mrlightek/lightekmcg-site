@@ -5,7 +5,12 @@ class Dashboard::MarketingCampaignsController < Dashboard::CommerceBaseControlle
   before_action :set_campaign, only: %i[edit update destroy send_email send_audience schedule studio]
   def studio
     scene = LightekMarketing::StudioProduction.open!(campaign: @campaign, actor: current_user)
-    redirect_to dashboard_production_workspace_path(site_id: @site.id, scene_id: scene.id, workspace: "script"), status: :see_other
+    path = if scene.settings["editor_kind"] == "video"
+      dashboard_studio_editor_path(kind: "video", id: scene.id, site_id: @site.id)
+    else
+      dashboard_production_workspace_path(site_id: @site.id, scene_id: scene.id, workspace: "script")
+    end
+    redirect_to path, status: :see_other
   rescue LightekPwa::Policy::Denied, ActiveRecord::RecordInvalid, ArgumentError => error
     redirect_to edit_dashboard_marketing_campaign_path(@campaign, site_id: @site.id), alert: error.message, status: :see_other
   end

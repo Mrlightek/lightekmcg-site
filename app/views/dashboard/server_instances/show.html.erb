@@ -3,7 +3,7 @@
 <div class="infra">
   <%= link_to "← Servers & applications", dashboard_servers_path, class: "infra-back" %>
   <header class="infra-hero"><div><span class="infra-eyebrow">Infrastructure / Server workspace</span><h1><%= @node.name %></h1><p><%= @node.display_host %> · <%= @node.compute_provider&.name || @node.provider %></p></div><%= infrastructure_status_badge(@node.status) %></header>
-  <% if Gatekeeper::Hosting::Access.super_admin?(current_user) %><%= link_to "+ Install Rails / Docker application", new_dashboard_application_launch_path(node_id: @node.id), class: "infra-button infra-button-primary" %><% end %>
+  <%= link_to "+ Install independent Rails / Docker website", new_dashboard_application_launch_path(node_id: @node.id), class: "infra-button infra-button-primary" %>
   <%= render "dashboard/application_launches/list" %>
   <section class="infra-stats" aria-label="Instance summary">
     <% [["Application runtimes", @projects.size, "Registered on this server", "apps"], ["Website applications", @applications.size, "Visible to your account", "world"], ["Managed services", @installations.size, "Registered service installations", "settings"], ["Account site allowance", @limit.infinite? ? "Unlimited" : "#{@usage} / #{@limit}", @limit.infinite? ? "Super admin access" : "Sites in use across your account", "chart-donut"]].each do |label, value, caption, icon| %>

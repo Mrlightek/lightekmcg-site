@@ -24,8 +24,8 @@ module LightekCommerce
       end
     end
 
-    def self.fee_quote(order)
-      gross = order.total_cents.to_i
+    def self.fee_quote(order, gross_cents: nil)
+      gross = gross_cents || order.total_cents.to_i
       merchandise = order.respond_to?(:subtotal_cents) ? order.subtotal_cents.to_i : gross
       processor_bps = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FEE_BPS", "300"))
       processor_fixed = Integer(ENV.fetch("LIGHTEK_COMMERCE_PROCESSOR_FIXED_CENTS", "30"))
@@ -35,7 +35,8 @@ module LightekCommerce
       platform_fee = (gross * platform_bps + 9999) / 10_000
       reservation = order.respond_to?(:id) ? LightekReservations::Reservation.find_by(order_id: order.id) : nil
       change = order.respond_to?(:id) ? LightekReservations::Change.find_by(order_id: order.id) : nil
-      infrastructure = reservation&.server? ? reservation.package_snapshot.fetch('cost_floor_cents', 0).to_i : 0
+      hosting_reserve = order.respond_to?(:items) ? order.items.first&.purchase_snapshot.to_h.dig("hosting", "monthly_cost_ceiling_cents").to_i : 0
+      infrastructure = reservation&.server? ? reservation.package_snapshot.fetch('cost_floor_cents', 0).to_i : hosting_reserve
       if change
         quote = change.quote
         target_floor = quote.dig('target', 'cost_floor_cents').to_i
@@ -47,23 +48,35 @@ module LightekCommerce
           (difference * quote['unused_seconds'].to_i + quote['term_seconds'].to_i - 1) / [quote['term_seconds'].to_i, 1].max
         end
       end
+      upstream = order.respond_to?(:revenue_share_snapshot) ? RevenueSharing.total_cents(order) : 0
+      shipping_margin = order.respond_to?(:shipping_quote) && order.shipping_quote ? order.shipping_quote.customer_price_cents - order.shipping_quote.platform_price_cents : 0
+      available = [merchandise + shipping_margin - processor_reserve - platform_fee - infrastructure, 0].max
+      raise Invalid, "Revenue shares exceed the sale's available proceeds" if upstream > available
       {gross_cents: gross, infrastructure_reserve_cents: infrastructure, processor_reserve_cents: processor_reserve,
-        platform_fee_cents: platform_fee, net_cents: [merchandise - processor_reserve - platform_fee - infrastructure, 0].max}
+        platform_fee_cents: platform_fee, upstream_share_cents: upstream, net_cents: available - upstream}
     end
 
     def self.request!(order:, merchant:)
+      if order.payment_provider == "network"
+        raise Invalid, "Order does not belong to your store" unless order.site.tenant == merchant
+        NetworkCheckout.action!(order: order, action: "payout")
+        return order
+      end
       order.with_lock do
         raise Invalid, "Platform Stripe balance has not been reconciled for transfers" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
         raise Invalid, "Order does not belong to your store" unless
           LightekSettings::WebsiteIdentity.sites_for(merchant).where(tenant: merchant).exists?(id: order.site_id)
         return order if order.merchant_transfer_ref.present?
-        raise Invalid, "Only Stripe-confirmed store payments may fund merchant transfers" unless order.payment_provider == "stripe" && order.payment_reference.to_s.start_with?("cs_")
+        checkout_paid = order.payment_provider == "stripe" && order.payment_reference.to_s.start_with?("cs_")
+        renewal_paid = order.payment_provider == "stripe_invoice" && BillingInvoice.exists?(settlement_order_id: order.id, processor_reference: order.payment_reference)
+        raise Invalid, "Only Stripe-confirmed store payments may fund merchant transfers" unless checkout_paid || renewal_paid
         raise Invalid, "Only fulfilled, nonrefunded orders are eligible" unless order.status == "fulfilled"
         raise Invalid, "Order is not paid" unless order.paid_at.present?
         raise Invalid, "Outstanding refund prevents payout" if order.refunds.where(status: "pending").exists?
         raise Invalid, "Partially refunded order requires manual settlement" if order.refunded_cents.to_i.positive?
         DymondBank::StripeService.sync_connect_status!(merchant)
         raise Invalid, "Complete Stripe Connect onboarding before requesting funds" unless merchant.stripe_connect_ready?
+        RevenueSharing.record!(order)
         quote = fee_quote(order)
         raise Invalid, "Net transfer amount is zero" unless quote[:net_cents].positive?
         order.update!(merchant_transfer_requested_at: Time.current, merchant_transfer_error: nil)

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::CommerceProductsController < Dashboard::SettingsHomeController
+class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   helper LightekDesign::StudioHelper
   helper DymondDash::TemplateSchemaHelper
   before_action :set_site
@@ -70,6 +70,6 @@ class Dashboard::CommerceProductsController < Dashboard::SettingsHomeController
     @product = LightekCommerce::Product.where(site: @site).find(params[:id])
   end
   def product_params
-    params.require(:product).permit(:name, :slug, :description, :price_cents, :inventory_quantity, :published, :position, :image_url, :sku, :product_type, :short_description, :compare_at_cents, :featured, :subscription_plan_id, photos: [], remove_photo_ids: [])
+    params.require(:product).permit(:shipping_weight_lb, :shipping_length_in, :shipping_width_in, :shipping_height_in, :name, :slug, :description, :price_cents, :inventory_quantity, :published, :position, :image_url, :sku, :product_type, :billing_interval, :track_inventory, :short_description, :compare_at_cents, :featured, :subscription_plan_id, photos: [], remove_photo_ids: [])
   end
 end

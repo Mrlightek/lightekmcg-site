@@ -18,7 +18,12 @@ BOOTSTRAP = r'''
 require "json"
 c = JSON.parse(STDIN.read)
 DymondSite::Site.transaction do
-  owner = User.find_by!(email_address: c.fetch("owner_email"))
+  owner = User.find_or_initialize_by(email_address: c.fetch("owner_email"))
+  if owner.new_record?
+    owner.assign_attributes(first_name: c.fetch("owner").fetch("first_name"), last_name: c.fetch("owner").fetch("last_name"),
+      role: "client", password: SecureRandom.urlsafe_base64(36))
+    owner.save!
+  end
   host = LightekSettings::SiteDomain.public_hostname!(c.fetch("domain"))
   site = DymondSite::Site.find_or_initialize_by(host: host)
   if site.persisted?
@@ -34,6 +39,9 @@ DymondSite::Site.transaction do
     menu = site.nav_menu || site.create_nav_menu!(name: "Main Menu")
     menu.nav_items.create!(page: page, label: "Home", position: 0)
     site.update!(manifest: site.manifest.to_h.merge("hosted_application_key" => c.fetch("application_key")))
+  end
+  if c["branding"].is_a?(Hash)
+    site.update!(manifest: site.manifest.to_h.merge("agency_branding" => c["branding"].slice("brand_name", "logo_url", "support_email", "accent_color")))
   end
   LightekPwa::Application.find_or_create_by!(site: site) { |pwa| pwa.name = site.name }
   LightekSettings::SiteDomain.verify!(host: host)

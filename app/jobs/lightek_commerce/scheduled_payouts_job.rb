@@ -2,6 +2,25 @@ module LightekCommerce
   class ScheduledPayoutsJob < ApplicationJob
     queue_as :default
     def perform
+      Order.where("refunded_cents > 0").joins(:revenue_allocations).distinct.find_each do |order|
+        begin
+          RevenueSharing.reverse_for_refunds!(order)
+        rescue StandardError => error
+          Rails.logger.warn("[Revenue reversals] order=#{order.id} #{error.class}")
+        end
+      end
+      RevenueAllocation.where(status: "pending").includes(:order, :beneficiary).find_each do |allocation|
+        next unless allocation.order.status == "fulfilled" && allocation.order.refunded_cents.zero?
+        unless allocation.beneficiary.role == "super_admin"
+          schedule = PayoutSchedule.for!(allocation.beneficiary)
+          next unless schedule.enabled? && schedule.next_run_at <= Time.current
+        end
+        begin
+          RevenueSharing.pay!(allocation)
+        rescue StandardError => error
+          Rails.logger.warn("[Revenue shares] allocation=#{allocation.id} #{error.class}")
+        end
+      end
       # Existing storefront payments keep their established processor flow.
       # Only the public Connect destination and schedule are synchronized; no
       # platform secret or bank account number is copied between instances.

@@ -9,6 +9,14 @@ module NevaehControlCenterHelper
       item.call("agency", "Agency & Marketing", main_app.dashboard_agency_reports_path, "ti-chart-dots"),
       item.call("design", "Design & Content", main_app.dashboard_website_designs_path, "ti-palette"),
       item.call("mail", "Communications", main_app.dashboard_mail_path, "ti-mail")]
+    rows << item.call("servers", "Servers & Applications", main_app.dashboard_servers_path, "ti-server")
+    if current_user.can_access_feature?("commerce_workspace")
+      rows << item.call("commerce", "Commerce", main_app.dashboard_commerce_path, "ti-shopping-cart")
+      rows << item.call("shipping", "Shipping & Fulfillment", main_app.dashboard_shipping_path, "ti-truck-delivery")
+    end
+    if current_user.role.in?(%w[super_admin white_label])
+      rows << item.call("white-label", "White Label Agencies", main_app.dashboard_agencies_path, "ti-brand-asana")
+    end
     if LightekPwa::Policy.administration_available_for?(current_user)
       rows << item.call("pwa", "PWA Administration", main_app.dashboard_pwa_path, "ti-device-mobile")
     end

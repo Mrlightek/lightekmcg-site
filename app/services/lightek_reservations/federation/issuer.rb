@@ -51,7 +51,7 @@ module LightekReservations
             peer = Peer.create!(key: key, token_digest: Digest::SHA256.hexdigest(token), order: order, merchant: merchant, site: site)
           end
         end
-        {'origin'=>origin, 'key'=>peer.key, 'credential_slug'=>"reservation-peer-#{peer.key}"}
+        {'origin'=>origin, 'client_host'=>domain, 'key'=>peer.key, 'credential_slug'=>"reservation-peer-#{peer.key}"}
       end
     end
   end

@@ -35,6 +35,7 @@ end
 end
 CreateLightekVault.new.migrate(:up)
 CreateApplicationLaunches.new.migrate(:up)
+ActiveRecord::Migration.add_column(:gatekeeper_application_templates, :lightek_application, :boolean, default: false, null: false)
 AddImageBuildIdentity.new.migrate(:up)
 class User < ApplicationRecord; end
 %w[lightek_vault/secret lightek_vault/audit_event gatekeeper_application_template].each do |file|

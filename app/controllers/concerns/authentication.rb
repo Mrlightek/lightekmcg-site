@@ -35,7 +35,11 @@ module Authentication
 end
 
     def after_authentication_url
-  session.delete(:return_to_after_authenticating) || main_app.dashboard_nevaeh_os_url
+  session.delete(:return_to_after_authenticating) || case Current.session&.user&.role
+  when "white_label" then main_app.dashboard_agencies_url
+  when "client" then main_app.dashboard_servers_url
+  else main_app.dashboard_nevaeh_os_url
+  end
 end
 
     def start_new_session_for(user)

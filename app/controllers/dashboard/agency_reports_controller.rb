@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::AgencyReportsController < Dashboard::SettingsHomeController
+class Dashboard::AgencyReportsController < Dashboard::CommerceBaseController
   def index
     @sites = LightekAgency::Access.sites_for(current_user).order(:name, :id)
     ids = @sites.select(:id)

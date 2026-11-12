@@ -13,6 +13,10 @@ module LightekCommerceStripeRouting
   private
 
   def commerce_checkout?(event)
+    if LightekCommerce::SubscriptionEvents::TYPES.include?(event.type)
+      return LightekCommerce::SubscriptionEvents.metadata(event)["lightek_commerce_order_id"].present? ||
+        LightekCommerce::Subscription.exists?(processor_reference: LightekCommerce::SubscriptionEvents.reference(event))
+    end
     types = %w[checkout.session.completed checkout.session.async_payment_succeeded checkout.session.expired]
     return false unless types.include?(event.type)
 

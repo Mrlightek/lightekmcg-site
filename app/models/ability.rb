@@ -30,13 +30,15 @@ class Ability
       can :read,   DymondBank::Payout, recipient: user
       can :read,   DymondBank::RoyaltyPayment
 
-    elsif user.role == "client"
+    elsif user.role.in?(%w[client white_label])
       # Clients only see their own data through the client portal
       can :read,   DymondBank::Invoice,      billable: user
       can :read,   DymondBank::Subscription, subscriber: user
       can :manage, DymondBank::LinkedAccount, linkable: user
       can :read,   :portal
     end
+
+    can :read, :dashboard if user.role == "white_label"
 
     can :read, :dashboard if user.persisted? && LightekPwa::Policy.sites_for(user).exists?
 

@@ -1,13 +1,30 @@
 # frozen_string_literal: true
 class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
+  skip_before_action :require_settings_operator!
   before_action :set_design_site, except: %i[manifest starter_preview]
   before_action :set_design, only: %i[preview apply import start]
   helper DymondDash::TemplateSchemaHelper
   helper LightekDesign::StudioHelper
 
   def index
+    @site_themes = @site ? DymondSite::SiteTemplate.where(id: @site.manifest.to_h.fetch("lightek_site_themes", {}).values).order(updated_at: :desc) : []
     @html_imports = @site ? LightekDesign::HtmlImport.records_for(user: current_user, site: @site) : []
     @template_inquiries = @site ? WebsiteTemplateInquiry.where(site: @site).order(created_at: :desc).limit(50) : []
+  end
+
+  def install_theme
+    template=if params[:home_design].present?
+      LightekDesign::SiteTheme.from_designs!(site:@site,user:current_user,name:params[:name],home_design:params[:home_design],page_designs:params[:page_designs],include_store:params[:include_store]=="1",include_blog:params[:include_blog]=="1",request_key:params[:request_key])
+    else
+      LightekDesign::SiteTheme.install!(site:@site,user:current_user,name:params[:name],files:params[:theme_files],css_file:params[:css_file],home_file:params[:home_file],product_selector:params[:product_selector],request_key:params[:request_key])
+    end
+    redirect_to dashboard_website_designs_path(site_id:@site.id),status: :see_other,notice:"#{template.name} prepared. New pages are drafts; existing pages keep their edits. Review Pages & Sections, publish the pages you want, then activate the shared theme."
+  rescue ArgumentError, ActiveRecord::RecordInvalid => error
+    redirect_to dashboard_website_designs_path(site_id:@site.id),status: :see_other,alert:error.message
+  end
+  def activate_theme
+    LightekDesign::SiteTheme.activate!(site:@site,user:current_user,template_id:params.require(:template_id))
+    redirect_to dashboard_website_designs_path(site_id:@site.id),status: :see_other,notice:"Website theme activated. Existing navigation and pages were retained; draft pages remain private."
   end
 
   def manifest
@@ -88,6 +105,7 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
     redirect_to dashboard_website_designs_path(site_id: @site.id), notice: "Website fonts saved."
   rescue ArgumentError => error
     flash.now[:alert] = error.message
+    index
     render :index, status: :unprocessable_entity
   end
 
@@ -106,6 +124,8 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
     @sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name, :id)
     @site = if params[:site_id].present?
       @sites.find(params[:site_id])
+    elsif session[:dymond_dash_site_id].present?
+      @sites.find_by(id:session[:dymond_dash_site_id]) || (@sites.first if @sites.count==1)
     elsif @sites.count == 1
       @sites.first
     end

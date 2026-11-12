@@ -1,4 +1,13 @@
 Rails.application.routes.draw do
+  post "/dashboard/website/designs/themes", to: "dashboard/website_designs#install_theme", as: :dashboard_website_themes
+  post "/dashboard/website/designs/themes/:template_id/activate", to: "dashboard/website_designs#activate_theme", as: :activate_dashboard_website_theme
+  resources :blog, only: %i[index show], param: :slug, controller: "lightek_blog", as: :website_blog
+  get "/journal.xml", to: "lightek_blog#feed", as: :website_blog_feed
+  namespace :dashboard do
+    resources :blog, only: %i[index create update], controller: "blog" do
+      get :preview, on: :member
+    end
+  end
   draw :reservations
   post "/website/template-inquiries", to: "website_template_inquiries#create", as: :website_template_inquiries
   get "/dashboard/website/designs/manifest", to: "dashboard/website_designs#manifest", as: :dashboard_website_design_manifest

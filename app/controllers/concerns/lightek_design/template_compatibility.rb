@@ -11,6 +11,11 @@ module LightekDesign
 
     def apply
       template = DymondSite::SiteTemplate.find(params[:id])
+      if template.settings["lightek_site_theme"]
+        SiteTheme.activate!(site:@site,user:current_user,template_id:template.id)
+        redirect_to main_app.dashboard_website_designs_path(site_id:@site.id),notice:"Website theme activated."
+        return
+      end
       design = template.settings["lightek_design"]
       return super unless Catalog.designs.key?(design)
       WebsiteDesigns.apply!(site: @site, design: design)

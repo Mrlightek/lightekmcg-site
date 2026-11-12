@@ -1,5 +1,6 @@
 <% @page.sections.order(:position, :id).each do |record| %>
   <% entry = LightekDesign::Catalog.section_definition(record.kind) %>
+  <% next if studio_theme_section?(entry) %>
   <% if entry && entry["designer"] %>
     <%= studio_render_section(entry, record.data) %>
   <% elsif entry %>

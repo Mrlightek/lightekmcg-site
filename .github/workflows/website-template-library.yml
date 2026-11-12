@@ -4,6 +4,26 @@ on:
     branches: [develop, main]
     paths:
       - 'app/services/lightek_design/**'
+      - 'app/services/lightek_blog/**'
+      - 'app/models/lightek_blog/**'
+      - 'app/controllers/lightek_blog_controller.rb'
+      - 'app/controllers/dashboard/blog_controller.rb'
+      - 'app/controllers/commerce_controller.rb'
+      - 'app/helpers/lightek_design/**'
+      - 'app/views/lightek_blog/**'
+      - 'app/views/layouts/lightek_blog.html.erb'
+      - 'app/views/layouts/lightek_design/**'
+      - 'app/views/dashboard/blog/**'
+      - 'app/views/commerce/**'
+      - 'app/views/dymond_site/themes/default/sections/_lightek_blog_index.html.erb'
+      - 'db/migrate/*lightek_blog*'
+      - 'public/lightek/site-content.*'
+      - 'test/standalone/site_content*'
+      - 'test/javascript/site_content*'
+      - 'app/services/lightek_community/presenter.rb'
+      - 'app/services/lightek_community/workers/pwa.rb'
+      - 'public/lightek/community-app.js'
+      - 'test/javascript/community-browser.cjs'
       - 'app/controllers/dashboard/website_designs_controller.rb'
       - 'app/controllers/website_template_inquiries_controller.rb'
       - 'app/models/website_template_inquiry.rb'
@@ -34,3 +54,21 @@ jobs:
       - run: bundle exec ruby test/standalone/starter_library_http_checks.rb
       - run: node --check public/lightek/templates/runtime.js
       - run: node --check public/lightek/templates/library.js
+      - name: Verify site themes, article publishing and site isolation
+        env:
+          SITE_CONTENT_PREVIEW_DIR: ${{ runner.temp }}/site-content
+        run: bundle exec ruby test/standalone/site_content_checks.rb --name /test_site_/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser acceptance dependency
+        run: |
+          npm install --prefix "$RUNNER_TEMP/site-content-browser" playwright@1.51.1
+          "$RUNNER_TEMP/site-content-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify responsive content and theme workflows
+        env:
+          SITE_CONTENT_PREVIEW_DIR: ${{ runner.temp }}/site-content
+          NODE_PATH: ${{ runner.temp }}/site-content-browser/node_modules
+        run: |
+          node test/javascript/site_content_browser_test.cjs
+          SITE_CONTENT_PWA_ONLY=1 node test/javascript/community-browser.cjs

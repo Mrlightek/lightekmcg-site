@@ -3,7 +3,7 @@
 <nav class="nav lt-site-nav" aria-label="Main navigation">
 <a href="/" class="nav__brand nav__logo"><%= @site.name %></a>
 <ul class="nav__links lt-nav-list" id="<%= design_key %>-navigation">
-<%= render partial: "lightek_design/navigation_item", collection: @site.nav_menu.roots, as: :item %>
+<%= render partial: "lightek_design/navigation_item", collection: @site.nav_menu.roots.select{|item|!item.page_id || @site.pages.where(id:item.page_id,published:true).exists?}, as: :item %>
 </ul>
 <button class="nav__ham" type="button" data-design-menu aria-label="Open navigation" aria-expanded="false" aria-controls="<%= design_key %>-navigation"><span></span><span></span><span></span></button>
 </nav>

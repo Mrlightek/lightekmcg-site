@@ -4,7 +4,7 @@ Rails.application.config.after_initialize do
   DymondDash::FeatureRegistry.register do |f|
     f.slug = :studio; f.label = "Studio"; f.icon = "box"
     f.gem_source = "lightekmcg-site"; f.nav_section = :services; f.min_plan = :starter
-    f.nav_items = [{label:"Studio",icon:"movie",path:"main_app.dashboard_media_studio_path"}]
+    f.nav_items = [{label:"Media Studio",icon:"movie",path:"main_app.dashboard_media_studio_path"}]
   end
 rescue StandardError => e
   Rails.logger.warn "[Studio] nav registration skipped: #{e.message}"

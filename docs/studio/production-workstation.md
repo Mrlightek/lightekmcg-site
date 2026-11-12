@@ -14,7 +14,7 @@ The intended product combines professional editing, audio/music production, colo
 - Use the Lightek black/charcoal, warm gold and restrained blue sound/clip accents. Color supports selection and timing, rather than replacing labels.
 - Production templates create editable project structure: scenes, cast, shots, media tracks, music source and delivery settings. Creating an episode makes an independent copy.
 
-Start with the [connected production workspace](connected-workspace.md) and [music quickstart](music-quickstart.md) for the implemented workflow.
+Start with the [Media Studio editor](media-workbench.md), [connected production workspace](connected-workspace.md) and [music quickstart](music-quickstart.md) for the implemented workflow.
 
 ## Native Dashboard foundation implemented in this change
 

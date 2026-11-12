@@ -12,10 +12,15 @@ var studioWorkspaceSelectedObject=scene=>scene?.objects.find(o=>Number(o.id)===N
 var meProfile=()=>({id:Number(document.querySelector('#lightek-studio-dashboard').dataset.userId)}),me=meProfile;
 var toast=message=>{let el=document.querySelector('[data-dashboard-studio-notice]');if(!el){el=document.createElement('div');el.dataset.dashboardStudioNotice='';el.role='status';el.className='studio-dashboard-notice';app.before(el);}el.textContent=message;};
 var studioExecuteMutation=async(capability,payload)=>{const result=await nevaeh.execute({capability,payload});await A.studioLoad(true);return result.result;};
+var studioRendering=false,studioRenderQueued=false;
 var render=()=>{
+  if(studioRendering){if(!studioRenderQueued){studioRenderQueued=true;queueMicrotask(()=>{studioRenderQueued=false;render();});}return;}
+  studioRendering=true;
+  try{
   if(!ST.loaded){app.innerHTML=`<section class="studio-dashboard-empty"><h1>Lightek Studio</h1><p role="status">${E(ST.error||'Opening your productions…')}</p>${ST.error?'<button class="vw-btn" data-a="studioReload">Try again</button>':''}</section>`;return;}
-  const id=location.hash.split('/')[2];if(!window.LightekStudioProduction?.render(id))app.innerHTML=R.studio(id);app.classList.toggle('studio-dashboard-auxiliary',!app.querySelector('.visual-workbench,.studio-dashboard-advanced'));AF.studio?.(id);
+  const id=location.hash.split('/')[2];if(!window.LightekStudioProduction?.render(id))app.innerHTML=R.studio(id);app.classList.toggle('studio-dashboard-auxiliary',!app.querySelector('.visual-workbench,.studio-dashboard-advanced,.edit-workbench'));AF.studio?.(id);
   window.dispatchEvent(new CustomEvent('lightek:bootstrap'));
+  }finally{studioRendering=false;}
 };
 R.studio=id=>{
   const record=studioSceneRecord(Number(id));if(!record)return '<section class="studio-dashboard-empty"><h1>Choose a production</h1><a href="#/studio">Studio home</a></section>';

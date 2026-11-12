@@ -180,7 +180,7 @@
       }
     }).catch(error=>{if(notice)notice.textContent=error.message;toast(error.message);}).finally(()=>{delete form.dataset.busy;if(submit)submit.disabled=false;});
   });
-  function stopPreview(){if(!preview)return;const state=preview;preview=null;cancelAnimationFrame(state.frame);state.items.forEach(item=>{item.el.pause?.();item.el.removeAttribute('src');item.el.load?.();});state.audio.close().catch(()=>{});}
+  function stopPreview(){if(!preview)return;const state=preview;preview=null;cancelAnimationFrame(state.frame);state.items.forEach(item=>{item.el.pause?.();item.el.removeAttribute('src');item.el.load?.();});state.audio.close().catch(()=>{});window.dispatchEvent(new CustomEvent('lightek:timeline-stopped'));}
   const interpolate=(frames,key,t,base)=>{if(!frames?.length)return base;const ordered=[...frames].sort((a,b)=>a.time-b.time);if(t<=ordered[0].time)return ordered[0][key];for(let i=1;i<ordered.length;i++)if(t<ordered[i].time){const a=ordered[i-1],b=ordered[i],ratio=(t-a.time)/(b.time-a.time);return a[key]+(b[key]-a[key])*ratio;}return ordered.at(-1)[key];};
   A.studioTimelineStop=stopPreview;
   A.studioTimelinePreview=singleFrame=>run(async()=>{
@@ -221,7 +221,7 @@
         }
         if(timeline.output!=='audio')for(const title of timeline.titles||[]){if(t<title.start||t>title.end)continue;ctx.save();ctx.font=`${title.size}px sans-serif`;ctx.textBaseline='top';title.text.split('\n').forEach((line,index)=>{const y=title.y+index*title.size*1.2;ctx.fillStyle='#0008';ctx.fillRect(title.x-10,y-10,ctx.measureText(line).width+20,title.size*1.2+10);ctx.fillStyle='white';ctx.fillText(line,title.x,y);});ctx.restore();}
         ctx.restore();const notice=app.querySelector('[data-timeline-status]');if(notice)notice.textContent=t.toFixed(3)+' seconds · proxy preview; export applies final processing';
-        const playhead=app.querySelector('[data-timeline-playhead],[data-vw-playhead]');if(playhead)playhead.value=edit.playhead;const clock=app.querySelector('[data-vw-time]');if(clock)clock.textContent=Math.floor(edit.playhead/60).toString().padStart(2,'0')+':'+(edit.playhead%60).toFixed(1).padStart(4,'0');
+        const playhead=app.querySelector('[data-timeline-playhead],[data-vw-playhead]');if(playhead)playhead.value=edit.playhead;window.dispatchEvent(new CustomEvent('lightek:timeline-time',{detail:{time:edit.playhead}}));const clock=app.querySelector('[data-vw-time]');if(clock)clock.textContent=Math.floor(edit.playhead/60).toString().padStart(2,'0')+':'+(edit.playhead%60).toFixed(1).padStart(4,'0');
         if(singleFrame||t>=sequenceDuration()){stopPreview();return;}state.frame=requestAnimationFrame(draw);
       }draw();
     }catch(error){if(preview===state)stopPreview();throw error;}
@@ -229,6 +229,11 @@
   new MutationObserver(()=>{if(preview&&!preview.canvas?.isConnected)stopPreview();}).observe(app,{childList:true,subtree:true});
   const timelineDirty=()=>!!timeline&&JSON.stringify(timeline)!==JSON.stringify(current()?.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]});
   window.LightekStudioTimeline={
+    editor:()=>({selected:edit.selected,playhead:edit.playhead,undo:edit.undo.length,redo:edit.redo.length,assets:clone(library.items),loading:library.loading,error:library.error}),
+    insert:(id,start,track)=>{const asset=library.items.find(a=>a.id===Number(id)&&a.status==='ready'&&['image','video','audio'].includes(a.kind));if(!asset)throw Error('Choose prepared video, audio or an image.');if(timeline.clips.length>=64)throw Error('This sequence supports up to 64 clips.');checkpoint();const ending=Math.max(0,...timeline.clips.filter(c=>library.items.find(a=>a.id===c.asset_id)?.kind!=='audio').map(c=>c.start+lengthOf(c)));const lane=track??(asset.kind==='audio'?1:0);timeline.clips.push({asset_id:asset.id,in:0,out:asset.kind==='image'?5:Math.min(asset.metadata.duration||5,600),start:snap(start??ending),track:lane,gain:1,x:0,y:0,muted:false,keyframes:[]});edit.selected=timeline.clips.length-1;render(1);},
+    move:(index,start,track)=>{if(!timeline.clips[index])return;checkpoint();Object.assign(timeline.clips[index],{start:snap(Math.max(0,start)),track:Math.max(0,Math.min(15,Number(track)))});edit.selected=index;render(1);},
+    playhead:seconds=>{stopPreview();edit.playhead=snap(Math.max(0,Number(seconds)||0));},
+    playing:()=>!!preview,
     time:()=>edit.playhead,dirty:timelineDirty,hasDrafts:()=>timelineDirty()||[...timelineDrafts.entries()].some(([id,d])=>JSON.stringify(d.timeline)!==JSON.stringify(studioSceneRecord(id)?.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]})),
     get:()=>timeline?JSON.parse(JSON.stringify(timeline)):null,
     set:value=>{stopPreview();timeline=JSON.parse(JSON.stringify(value));},

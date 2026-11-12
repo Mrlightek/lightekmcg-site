@@ -36,6 +36,8 @@ A PWA belongs to a provisioned website/application. The hosted-site installer cu
 
 Reference: https://www.blackmagicdesign.com/products/davinciresolve
 
+The native Studio now keeps Dashboard navigation visible and offers optional focus mode. A saved campaign can create/reopen its own production with an editable brief and a return link. See [ERP completion and acceptance](erp-completion.md) for this handoff and the accounting workstreams, source boundaries and acceptance requirements.
+
 ## CMS and journal delivery
 
 Design & Content now puts Pages & Sections first and separates the working tools from the collapsed design library. Site-theme bundles coordinate installed designs or multiple HTML uploads, shared chrome, real navigation, native store/cart/checkout sections and the website journal. Website articles share their canonical `Post` body/author with PWA/community publication; draft/archive state, per-site URLs and editor conflicts remain explicit. See `docs/cms/site-themes-and-journal.md` for workflows, deployment and acceptance boundaries.

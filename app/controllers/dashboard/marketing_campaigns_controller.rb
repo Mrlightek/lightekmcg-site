@@ -1,7 +1,14 @@
 # frozen_string_literal: true
 class Dashboard::MarketingCampaignsController < Dashboard::CommerceBaseController
+  protect_from_forgery with: :exception
   before_action :set_site
-  before_action :set_campaign, only: %i[edit update destroy send_email send_audience schedule]
+  before_action :set_campaign, only: %i[edit update destroy send_email send_audience schedule studio]
+  def studio
+    scene = LightekMarketing::StudioProduction.open!(campaign: @campaign, actor: current_user)
+    redirect_to dashboard_production_workspace_path(site_id: @site.id, scene_id: scene.id, workspace: "script"), status: :see_other
+  rescue LightekPwa::Policy::Denied, ActiveRecord::RecordInvalid, ArgumentError => error
+    redirect_to edit_dashboard_marketing_campaign_path(@campaign, site_id: @site.id), alert: error.message, status: :see_other
+  end
   def index
     @campaigns = LightekMarketing::Campaign.where(site: @site).order(updated_at: :desc)
   end

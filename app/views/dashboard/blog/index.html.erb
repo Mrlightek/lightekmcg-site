@@ -1,3 +1,4 @@
+<%= render "dashboard/shared/business_workspace", active: "Design & Content" %>
 <% content_for :page_title,"Journal & Articles" %><%= stylesheet_link_tag "/lightek/site-content.css?v=1" %><%= javascript_include_tag "/lightek/site-content.js?v=1",defer:true %>
 <main class="content-hub"><header class="content-heading"><div><span class="content-eyebrow">LIGHTEK / DESIGN & CONTENT</span><h1>Write something worth sharing.</h1><p>Articles for your website and PWA, using the same publishing records.</p></div><%= link_to "Back to Design & Content",dashboard_website_designs_path(site_id:@site.id),class:"content-button" %></header>
 <%= form_with url:dashboard_blog_index_path,method: :get,local:true,class:"content-actions" do %><label>Website<%= select_tag :site_id,options_from_collection_for_select(@sites,:id,:name,@site.id) %></label><%= submit_tag "Switch website",class:"content-button" %><% end %>

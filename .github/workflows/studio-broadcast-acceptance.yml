@@ -28,6 +28,12 @@ on:
       - 'public/lightek/broadcast/**'
       - 'public/lightek/studio-visual.*'
       - 'public/lightek/studio-dashboard.*'
+      - 'public/lightek/studio-dashboard-context.js'
+      - 'public/lightek/business-workspace.css'
+      - 'app/views/dashboard/shared/_business_workspace.html.erb'
+      - 'app/services/lightek_marketing/studio_production.rb'
+      - 'app/controllers/dashboard/marketing_campaigns_controller.rb'
+      - 'test/javascript/studio_dashboard_context_test.cjs'
       - 'public/lightek/studio-production.js'
       - 'public/lightek/studio-delivery.*'
       - 'test/javascript/studio_delivery_test.cjs'
@@ -144,6 +150,10 @@ jobs:
           bundle exec ruby test/standalone/studio_ai_checks.rb --name /test_ai_/
       - name: Guided media runtime connection
         run: bundle exec ruby test/standalone/session_media_setup_checks.rb --name /test_media_setup_/
+      - name: Campaign to native Dashboard Studio handoff
+        env:
+          STUDIO_WORKSPACE_PREVIEW_DIR: ${{ runner.temp }}/studio-context
+        run: bundle exec ruby test/standalone/campaign_studio_checks.rb --name /CampaignStudioChecks/
       - name: Local media helper authorization
         run: python3 -m unittest test.operations.session_media_access_test
       - name: Native Dashboard music source and isolation
@@ -184,6 +194,7 @@ jobs:
       - name: Working library UI and live media sources
         env:
           STUDIO_BROWSER_FIXTURE_WEBM: "1"
+          STUDIO_WORKSPACE_PREVIEW_DIR: ${{ runner.temp }}/studio-context
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
         run: |
           node test/javascript/studio_creation_test.cjs
@@ -193,6 +204,7 @@ jobs:
           node test/javascript/studio_performance_test.cjs
           node test/javascript/studio_visual_test.cjs
           node test/javascript/studio_dashboard_browser_test.cjs
+          node test/javascript/studio_dashboard_context_test.cjs
           node test/javascript/studio_edit_workbench_test.cjs
           node test/javascript/studio_delivery_test.cjs
           node test/javascript/studio_music_ui_test.cjs

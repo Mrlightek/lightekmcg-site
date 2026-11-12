@@ -1,4 +1,13 @@
 Rails.application.routes.draw do
+  scope "/dashboard/studio/editors/:kind", controller: "dashboard/studio_editors", as: :dashboard_studio_editor do
+    get "/new", action: :new, as: :new
+    post "/", action: :create, as: :create
+    get "/:id", action: :show, as: ""
+    put "/:id/document", action: :save, as: :document
+    post "/:id/media", action: :media, as: :media
+    post "/:id/export", action: :export, as: :export
+    get "/:id/exports/:operation_id", action: :status, as: :status
+  end
   post "/dashboard/website/designs/themes", to: "dashboard/website_designs#install_theme", as: :dashboard_website_themes
   post "/dashboard/website/designs/themes/:template_id/activate", to: "dashboard/website_designs#activate_theme", as: :activate_dashboard_website_theme
   resources :blog, only: %i[index show], param: :slug, controller: "lightek_blog", as: :website_blog

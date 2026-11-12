@@ -29,6 +29,15 @@ on:
       - 'public/lightek/studio-visual.*'
       - 'public/lightek/studio-dashboard.*'
       - 'public/lightek/studio-dashboard-context.js'
+      - 'public/lightek/studio-editors.*'
+      - 'public/lightek/editors/**'
+      - 'app/controllers/dashboard/studio_editors_controller.rb'
+      - 'app/jobs/studio_editor_export_job.rb'
+      - 'app/javascript/studio_editors/**'
+      - 'lib/studio_editors/**'
+      - 'vendor/studio-editors/**'
+      - 'script/studio/build_open_source_editors.mjs'
+      - 'test/javascript/studio_open_source_editors_test.cjs'
       - 'public/lightek/business-workspace.css'
       - 'app/views/dashboard/shared/_business_workspace.html.erb'
       - 'app/services/lightek_marketing/studio_production.rb'
@@ -185,6 +194,13 @@ jobs:
           node-version: '22'
       - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0 node-web-audio-api@2.2.0
       - run: "$RUNNER_TEMP/studio-browser/node_modules/.bin/playwright install --with-deps chromium"
+      - name: Open-source editor persistence and real PNG/MP4 export
+        env:
+          NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
+          STUDIO_EDITOR_PROOF_DIR: ${{ runner.temp }}/open-source-editors
+        run: |
+          bundle exec ruby test/standalone/studio_editors_checks.rb --name /StudioEditorsChecks/
+          node test/javascript/studio_open_source_editors_test.cjs
       - name: Browser capture transport regression
         env:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules

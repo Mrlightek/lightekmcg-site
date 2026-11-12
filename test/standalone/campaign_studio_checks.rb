@@ -8,7 +8,25 @@ end
 %w[app/models/lightek_marketing/campaign app/models/lightek_agency/site_membership app/services/lightek_settings/website_identity app/services/lightek_agency/access app/services/lightek_marketing/studio_production].each { |name| require File.join(ROOT, name) }
 require File.join(ROOT, "app/controllers/dashboard/commerce_base_controller")
 require File.join(ROOT, "app/controllers/dashboard/marketing_campaigns_controller")
+require File.join(ROOT, "app/services/studio/editors/document")
+require File.join(ROOT, "app/services/studio/editors/export")
+require File.join(ROOT, "app/controllers/dashboard/studio_editors_controller")
+Dashboard::StudioEditorsController.prepend_view_path(File.join(ROOT,"app/views"))
+Dashboard::StudioEditorsController.layout false
 Rails.application.routes.draw do
+  # Use Rails' real blob redirect/disk routes for editor media acceptance.
+  storage_routes = File.read(ActiveStorage::Engine.root.join("config/routes.rb"))
+  storage_routes = storage_routes.sub(/.*?Rails\.application\.routes\.draw do/m, "").sub(/end if ActiveStorage\.draw_routes\s*\z/, "")
+  instance_eval(storage_routes, "active_storage_routes.rb")
+  scope "/dashboard/studio/editors/:kind", controller: "dashboard/studio_editors", as: :dashboard_studio_editor do
+    get "/new", action: :new, as: :new
+    post "/", action: :create, as: :create
+    get "/:id", action: :show, as: ""
+    put "/:id/document", action: :save, as: :document
+    post "/:id/media", action: :media, as: :media
+    post "/:id/export", action: :export, as: :export
+    get "/:id/exports/:operation_id", action: :status, as: :status
+  end
   post "/dashboard/studio-broadcasting/execute", to: "dashboard/media_studio#workspace_execute"
   post "/dashboard/studio-broadcasting/uploads", to: "dashboard/media_studio#workspace_upload"
   get "/dashboard/studio-broadcasting/assets/:id/:flavor", to: "dashboard/media_studio#workspace_asset"
@@ -75,10 +93,12 @@ class CampaignStudioChecks < StudioProductionTest
     assert_equal 303, client.response.status
     location = client.response.location
     assert_includes location, "site_id=#{@site.id}"
-    assert_includes location, "workspace=script"
+    assert_includes location, "/dashboard/studio/editors/video/"
     scene = StudioProject.find_by!(request_key: "campaign-#{@campaign.id}-actor-#{@alice.id}").studio_scenes.first!
     client.get location, headers: headers.merge("Accept" => "text/html")
     assert_equal 200, client.response.status
+    assert_includes client.response.body, 'data-editor-kind="video"'
+    client.get "/dashboard/studio-broadcasting/workspace/#{scene.id}?site_id=#{@site.id}&workspace=script", headers: headers.merge("Accept"=>"text/html")
     doc = Nokogiri::HTML(client.response.body)
     assert_equal @site.host, doc.at_css(".business-workspace-identity span").text
     assert_equal "false", doc.at_css("[data-studio-focus]")["aria-pressed"]

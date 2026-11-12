@@ -1,0 +1,15 @@
+<% content_for :page_title, "New #{@kind.capitalize} production" %>
+<%= stylesheet_link_tag "/lightek/studio-editors.css?v=1" %>
+<main class="studio-editor-launch">
+  <%= render "dashboard/shared/business_workspace", active: "Studio" %>
+  <header><p>LIGHTEK STUDIO</p><h1>Make something worth sharing.</h1><p>Open a photo or video project. Your source stays editable and exports return to your media library.</p></header>
+  <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
+  <nav aria-label="Editor type"><%= link_to "Photo & graphics", dashboard_studio_editor_new_path(kind: "photo", site_id: @site.id), aria: {current: @kind == "photo" ? "page" : nil} %><%= link_to "Video & audio", dashboard_studio_editor_new_path(kind: "video", site_id: @site.id), aria: {current: @kind == "video" ? "page" : nil} %></nav>
+  <%= form_with url: dashboard_studio_editor_create_path(kind: @kind, site_id: @site.id), local: true, data: {turbo: false} do |form| %>
+    <%= form.hidden_field :request_key, value: params[:request_key].presence || SecureRandom.uuid %>
+    <%= form.label :name, "Project name", for: "studio-editor-name" %><%= form.text_field :name, id: "studio-editor-name", value: params[:name], required: true, maxlength: 120, autofocus: true, placeholder: @kind == "photo" ? "Summer campaign artwork" : "Our next story" %>
+    <%= form.label :format, "Canvas", for: "studio-editor-format" %><%= form.select :format, [["Landscape · 1920 × 1080", "landscape"], ["Portrait · 1080 × 1920", "portrait"], ["Square · 1080 × 1080", "square"]], {selected: params[:format]}, {id: "studio-editor-format"} %>
+    <%= form.submit "Open #{@kind == 'photo' ? 'Photo' : 'Video'} Studio" %>
+  <% end %>
+  <p><%= link_to "Back to productions", dashboard_media_studio_path(site_id: @site.id) %></p>
+</main>

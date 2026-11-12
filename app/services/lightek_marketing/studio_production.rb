@@ -18,6 +18,7 @@ module LightekMarketing
           unless scene.settings["campaign_id"]
             settings = scene.settings.deep_dup
             settings["campaign_id"] = campaign.id
+            settings["editor_kind"] = "video"
             settings["workspace"] ||= {}
             settings["workspace"]["story"] ||= {}
             settings["workspace"]["story"]["scriptDraft"] ||= [campaign.headline, campaign.message, campaign.cta_label, campaign.cta_url].compact_blank.join("\n\n")

@@ -1,0 +1,60 @@
+{
+  "upstream": {
+    "photo": [
+      "viliusle/miniPaint",
+      "c9192c15918eb61f7dd89e362cf8065a276b89e9"
+    ],
+    "video": [
+      "moviemasher/moviemasher.js",
+      "d87af5622290fdccedeaad2334b2cd16b0d7cd06"
+    ]
+  },
+  "files": {
+    "THIRD_PARTY_NOTICES.txt": "8269ed76fd947a3958d85a916939c15799b051f89642edbcceee81324c3a8a35",
+    "photo/LICENSE.txt": "92a21f763974d0a691f7738ed8aae674b74ef077ff6341844ad7fadf36999be8",
+    "photo/bundle.js.LICENSE.txt": "9e5986d30ba34559d55217fb3d9fd5d213307da6c66d6bd4565261c6f8c3a141",
+    "photo/editor.js": "9ffa1c5850bc6442457c4d9701d479045ad7f1b2e94c3db4e6d8cd113c484e4b",
+    "photo/images/favicon.png": "10f9d4453abcd61027ff3b1887095a51cc07c5be6497b21851c49c73675191c8",
+    "photo/images/favicon.svg": "03d703d539e877fc7a6aa99923ee9305a3368e42bbd874d13ff2c9cebde8166b",
+    "photo/images/icons/animation.svg": "9ef703d870f240423e90c7ad7a23b8c55dba6b922e9d1b8304584032b28e114c",
+    "photo/images/icons/arrow-down.svg": "e69175b7efdbb79915f5a439be6d892b4d42079d609eced9e4478eaee5211174",
+    "photo/images/icons/blur.svg": "7435c5c961c4b6f215ac689ec36ae19dc483fd85b669620ff76d0a738c525bf2",
+    "photo/images/icons/bold.svg": "e780537ae49a1fbbc08f9148b051c2bf859a04626d399fd2edcb7e279edbc7bb",
+    "photo/images/icons/brush.svg": "c8951ccfc3e1fb832a02d25d5cf42a53a27832380e530b3a2d5b3286263779a2",
+    "photo/images/icons/bulge_pinch.svg": "36d5f303d4b96ae1965dae63a7c71482bc3ae981e5681cb035a8118c79b681f9",
+    "photo/images/icons/clone.svg": "4fa943415cd3bd8102c4ba200c2215da1f93098c3b8c0d360c79e6795ced8f90",
+    "photo/images/icons/crop.svg": "d590d30e69af69917db85acf309c886f3c320106f3a6f4c4f61b10060e906d09",
+    "photo/images/icons/delete.svg": "0079b35b9bef597506571c382f20bbfabffebe95fa4151cb3e743fdd5cc1a956",
+    "photo/images/icons/desaturate.svg": "db4ba134a95d18b163ff8ed9aa333b836ca85a0817d74b87da9a4b0d8ec0d7a6",
+    "photo/images/icons/erase.svg": "ad5fb3322dcaa69b56496a5a3952b59594b699fbefad0f0983c546c714fb037c",
+    "photo/images/icons/external.png": "963dfbe509bdc120d63cedf360444dbdf21bc07a893140054463707e207f98f7",
+    "photo/images/icons/fill.svg": "caf7ac4dd9c08f73f86c120d516bbba4442f20d089f66efe2e4f942ddeeaa8ae",
+    "photo/images/icons/gradient.png": "46970c34d16330c00d331530ad80e70d08437e0562e30f500ed07f3461a7afd4",
+    "photo/images/icons/grid.png": "bc894cbcd7ed2e435ef168dd287df31ae5073bcdd3179434dc4e6752fb6f373c",
+    "photo/images/icons/italic.svg": "7d1447a94c00944669c4b8eb55346473cfe7e135982409ca9a6e0f1327475276",
+    "photo/images/icons/magic_erase.svg": "9bb85309f841b38a2a040a903a367e0279206f26399b5a2eea69c32abb6ea941",
+    "photo/images/icons/media.svg": "27e6c07b1d17175194d89b380b0c64e53e2b0be319ae3b4345225c200bb7b79b",
+    "photo/images/icons/menu.svg": "4c9a372f42bc77b8ba5f007d55002017f9641e5cf323df7c81fb0b5fdfe5a5bd",
+    "photo/images/icons/pencil.svg": "2f87a4884d0847679a36598375bca4872ca5f00139084ec3f167946c0eaa1662",
+    "photo/images/icons/pick_color.svg": "26580a28d09ddee0ed1642f7b578e60777e20fd8cf762600888682282503a1cf",
+    "photo/images/icons/refresh.svg": "697845a5f6bd1bda06b66f1906bc409f431a44c7a163e9e3cd6694bb4298bb75",
+    "photo/images/icons/select.svg": "551f596f569c134ab1c0376cd83d89213e9ef0d3f677341f1edb155770b48f46",
+    "photo/images/icons/selection.svg": "f50291ea0c98a4f7a33e64ea729dd17f48105580ef580c7d6e17336482ffd0ec",
+    "photo/images/icons/shape.svg": "ef128d835528471d48e46dceb91c373ee99f5b3291bb508441ac512a5062b307",
+    "photo/images/icons/sharpen.svg": "4dc5a230f0a2b06b4a833fcc0206b6552afc639fbdd4af879566816444be4427",
+    "photo/images/icons/strikethrough.svg": "e484509f12c9263ffac0ceba7bb1a50870caa65b2a30dccfb2c76efe392e9499",
+    "photo/images/icons/text.svg": "73022c1f554995703d9cb488919b60cb0d300e8bc3ef030f5b796853fe71b5e4",
+    "photo/images/icons/underline.svg": "e85b8fab5707ce961f82e497648a30dd7bf131af775667b28363c35ae626ffca",
+    "photo/images/icons/undo.svg": "f95f9dbcf6adacf58ebc040fa671129e4f9a4d1d2fc5150d813223083587189d",
+    "photo/images/icons/view.svg": "a22269e7dbe5f3796e88d1003486199519d9078fad86196f26cbdbe84184a5b2",
+    "photo/images/logo.svg": "aea3e13dc4f5f6b67e39418b2fd034f2c30b71ac85893acd535355b32af3d811",
+    "photo/index.html": "58f27848989e3289ef45fe63c280a14472d2484bd55e86c0dabf4173b9b4dc6c",
+    "photo/setup.js": "27649bc6154bc85e36f6b0b151123c314e4c08961a64a2e41f68f27460234e6e",
+    "video/FONT-LICENSE.txt": "e81d9dced49fea2a7d576cbea283873de58563c5d488f954deb282843c3ea79c",
+    "video/LICENSE.txt": "af175b9d96ee93c21a036152e1b905b0b95304d4ae8c2c921c7609100ba8df7e",
+    "video/editor.css": "b4f9b903cc2bc06aac7cf297b111e35aa1bccd451699da3782375b1d0494aca7",
+    "video/editor.js": "9b500097f89c81cd6f7cdded7ed305a94b14912648e53036ef75c1263c5a6721",
+    "video/font.ttf": "57f73e11f51999432bf7ab22ce55b6f945d5eca1bf824404cfa9ec2e3718c84e"
+  },
+  "renderer_sha256": "40ea616d8d07c6512bf25dc6ddae377c31c8e4ee0ef9090198505a0027835620"
+}

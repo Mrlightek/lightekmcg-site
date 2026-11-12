@@ -27,6 +27,10 @@ Dashboard::LiveBroadcastsController.prepend_view_path(File.join(ROOT, "app/views
 Dashboard::MediaStudioController.layout false
 Dashboard::LiveBroadcastsController.layout false
 Rails.application.routes.append do
+  unless Rails.application.routes.named_routes.names.include?(:dashboard_studio_editor_new)
+    get "/dashboard/studio/editors/:kind/new", to: "dashboard/studio_editors#new", as: :dashboard_studio_editor_new
+    get "/dashboard/studio/editors/:kind/:id", to: "dashboard/studio_editors#show", as: :dashboard_studio_editor
+  end
   get "/dashboard/website/designs", to: "dashboard/media_studio#index", as: :dashboard_website_designs
   get "/dashboard/marketing/campaigns", to: "dashboard/media_studio#index", as: :dashboard_marketing_campaigns
   get "/dashboard/commerce", to: "dashboard/media_studio#index", as: :dashboard_commerce

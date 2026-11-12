@@ -9,6 +9,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 COPY --from=blender /opt/blender /opt/blender
 RUN ln -s /opt/blender/blender /usr/local/bin/blender
 ENV HOME=/tmp
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
+COPY movie-render.cjs /opt/lightek-editors/movie-render.cjs
 WORKDIR /work
 USER 65532:65532
 CMD ["ffmpeg", "-version"]

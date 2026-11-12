@@ -17,6 +17,9 @@ else
   docker image inspect "$STUDIO_RUNTIME_IMAGE" >/dev/null || docker pull "$STUDIO_RUNTIME_IMAGE"
 fi
 STUDIO_RUNTIME_CPUS="$(python3 "$STUDIO_RUNTIME_ROOT/lib/scripts/studio_worker_limits.py")"
+docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --pids-limit 128 --memory 256m --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" \
+  "$STUDIO_RUNTIME_IMAGE" node /opt/lightek-editors/movie-render.cjs --health
 # Probe with the same restrictions used by imports, without app files/secrets.
 docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
   --pids-limit 128 --memory 2g --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,size=512m \

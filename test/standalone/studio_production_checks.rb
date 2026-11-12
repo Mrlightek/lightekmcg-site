@@ -2,6 +2,19 @@
 require_relative "studio_music_checks"
 class StudioProductionTest < StudioMusicTest
   StudioMusicTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
+  def test_production_new_edit_is_idempotent_scoped_and_needs_no_blender_job
+    before=ActiveJob::Base.queue_adapter.enqueued_jobs.size
+    key=SecureRandom.uuid
+    result=action("project_create",name:"New movie",request_key:key)
+    project=StudioProject.find(result[:project_id]);scene=StudioScene.find(result[:scene_id])
+    assert_equal @alice.id,project.owner_id
+    assert_equal @site.id,project.site_id
+    assert_empty scene.scene_objects
+    assert_empty scene.settings.fetch("timeline").fetch("clips")
+    assert_equal before,ActiveJob::Base.queue_adapter.enqueued_jobs.size
+    assert_equal result,action("project_create",name:"New movie",request_key:key)
+    assert_raises(ArgumentError){action("project_create",name:"Foreign",request_key:key,site_id:@other_site.id)}
+  end
   def completed_shot(project=@project,draft:false)
     op=project.studio_operations.create!(studio_scene:project.studio_scenes.first,operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"completed",metadata:{"draft_preview"=>draft})
     artifact=op.artifacts.create!(kind:"video",filename:"shot.mp4")

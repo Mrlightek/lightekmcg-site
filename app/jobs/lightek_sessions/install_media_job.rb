@@ -21,10 +21,22 @@ module LightekSessions
       raise Media::Unavailable, 'The media installation did not return a healthy receipt.' unless receipt['status'] == 'ready' && receipt['domain'] == site.host
       site.with_lock { site.update!(manifest: site.manifest.to_h.merge('session_media_install'=>{'status'=>'ready', 'verified_at'=>Time.current.iso8601})) }
     rescue StandardError => error
-      site&.with_lock { site.update!(manifest: site.manifest.to_h.merge('session_media_install'=>{'status'=>'failed', 'error_class'=>error.class.name})) }
+      site&.with_lock { site.update!(manifest: site.manifest.to_h.merge('session_media_install'=>{'status'=>'failed', 'error_class'=>error.class.name, 'message'=>failure_message(error)})) }
       raise
     ensure
       secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
+    end
+    private
+    def failure_message(error)
+      if error.is_a?(Gatekeeper::Fleet::Transport::RemoteFailure)
+        case error.receipt['reason']
+        when 'Use a server with at least 2 GB RAM' then 'This server needs at least 2 GB RAM. Finish the resize, then retry.'
+        when 'Find exactly one active HTTPS virtual host for this website' then 'The website HTTPS configuration needs repair before live rooms can start.'
+        else 'The server could not finish media setup. Check its runtime connection and retry.'
+        end
+      else
+        'Setup could not finish. Check the website runtime and retry. Your existing application is retained.'
+      end
     end
   end
 end

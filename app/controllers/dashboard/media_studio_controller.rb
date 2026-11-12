@@ -31,8 +31,8 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
       @scene=access.scene!(params[:scene_id])
       raise ActiveRecord::RecordNotFound unless @scene.studio_project.site_id==@site.id
     end
-    mode=params[:workspace].presence || "stage"
-    raise ArgumentError,"Choose an available production workspace" unless %w[stage edit cast scene camera deliver performance 3d timeline script publish music].include?(mode)
+    mode=params[:workspace].presence || "edit"
+    raise ArgumentError,"Choose an available production workspace" unless %w[media color stage edit cast scene camera deliver performance 3d timeline script publish music].include?(mode)
     @workspace_mode=mode
   end
   # Native Dashboard transport; user, site and origin are always server supplied.

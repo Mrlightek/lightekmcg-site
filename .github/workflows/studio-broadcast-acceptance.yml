@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'app/**/studio/**'
+      - 'app/jobs/studio_ai_generation_job.rb'
+      - 'config/studio_ai/**'
+      - 'db/migrate/20261112030000_register_studio_ai.rb'
       - 'app/**/studio_workstation*'
       - 'app/views/dashboard/studio_workstations/**'
       - 'docker/studio-workstation/**'
@@ -21,6 +24,7 @@ on:
       - 'public/lightek/studio-visual.*'
       - 'public/lightek/studio-dashboard.*'
       - 'public/lightek/studio-production.js'
+      - 'public/lightek/studio-ai.js'
       - 'public/lightek/studio-edit-workbench.*'
       - 'public/lightek/media-control.css'
       - 'app/services/lightek_sessions/media_setup.rb'
@@ -119,6 +123,7 @@ jobs:
         run: bundle exec ruby test/standalone/studio_performance_checks.rb --name /test_performance_/
       - name: Completed render to episode edit handoff
         run: bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
+          bundle exec ruby test/standalone/studio_ai_checks.rb --name /test_ai_/
       - name: Guided media runtime connection
         run: bundle exec ruby test/standalone/session_media_setup_checks.rb --name /test_media_setup_/
       - name: Local media helper authorization

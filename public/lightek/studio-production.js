@@ -1,7 +1,7 @@
 /* Production navigation and handoffs shared by every native Dashboard workspace. */
 (() => {
   if (!document.querySelector('#lightek-studio-dashboard')) return;
-  const modes = [['media','Media'],['edit','Edit'],['color','Color'],['stage','Stage & FX'],['cast','Cast'],['music','Music'],['deliver','Deliver']];
+  const modes = [['media','Media'],['edit','Edit'],['color','Color'],['stage','Stage & FX'],['cast','Animation'],['ai','AI Studio'],['music','Music'],['deliver','Deliver']];
   const aliases = {'3d':'scene',timeline:'edit',performance:'cast',visual:'camera',publish:'deliver'};
   const allowed = new Set([...modes.map(([key])=>key),'scene','camera','assets','script']);
   const state = {scene:null,hash:null,busy:false,jobs:[],project:null,jobError:'',jobLoading:false,timer:null};
@@ -9,7 +9,7 @@
   const mode = () => { const key=location.hash.split('/')[3]||'edit';return aliases[key]|| (allowed.has(key)?key:'stage'); };
   const current = () => studioSceneRecord(studioCurrentSceneId());
   const call = async(action,payload)=>(await nevaeh.execute({capability:'studio.workspace.'+action,payload})).result;
-  const busy = () => state.busy || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
+  const busy = () => state.busy || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
   function go(key,sceneId=studioCurrentSceneId(),internal=false) {
     if(busy()&&!internal){toast('Finish the current save or render request before switching.');return;}
     const target=aliases[key]||key;
@@ -35,6 +35,7 @@
     return `<header class="production-header"><a class="production-brand" href="${home}">LIGHTEK<span>STUDIO</span></a><div class="production-title"><a href="${home}" class="production-breadcrumb">Productions</a><h1>${E(record.project.name)}</h1></div><label class="production-scene"><span>Scene</span><select aria-label="Production scene" data-production-scene>${scenes.map(r=>`<option value="${r.scene.id}" ${r.scene.id===scene.id?'selected':''}>${E(r.scene.name)}</option>`).join('')}</select></label><span class="production-save" role="status" data-production-status>${E(status())}</span><a class="vw-btn" href="#/studio/${scene.id}/script" data-production-mode="script">Script</a><button class="vw-btn" data-production="save">Save changes</button></header><div class="production-toolbar"><nav aria-label="Production workspaces">${modes.map(([key,label])=>`<a href="#/studio/${scene.id}/${key}" data-production-mode="${key}">${label}</a>`).join('')}</nav><div class="production-tools"><a href="#/studio/${scene.id}/assets" data-production-mode="assets">Assets</a><button class="vw-btn" data-vw="save-template">Save show template</button></div></div><div class="production-context"><div><strong data-production-mode-title></strong><span data-production-description></span></div><nav aria-label="Scene tools"><a href="#/studio/${scene.id}/scene" data-production-mode="scene">Model & animate</a><a href="#/studio/${scene.id}/camera" data-production-mode="camera">Camera & lighting</a></nav></div>`;
   }
   const descriptions = {
+    ai:['AI Studio','Generate on your own worker, then use the result in this production.'],
     media:['Media pool','Import and organize source media for this production.'],
     color:['Color & finish','Adjust the selected shot while watching the program image.'],
     stage:['Stage your scene','Cast, sets and camera share this scene with your edit.'],
@@ -54,6 +55,7 @@
     if(key!=='cast')LightekStudioPerformance?.leave?.();
     if(['edit','color','media'].includes(key)&&window.LightekStudioEdit)return LightekStudioEdit.view(record,key);
     if(key==='stage')return LightekStudioVisual.view(record);
+    if(key==='ai')return window.LightekStudioAI?.view(record)||'<p>Opening AI Studio…</p>';
     if(key==='music')return LightekStudioMusic.view(record);
     if(key==='assets')return `<div class="production-panel studio-dashboard-advanced">${R.studio('library')}</div>`;
     let content;
@@ -80,6 +82,7 @@
     }
     const changedProject=state.project!==record.project.id;
     if(changedProject){state.project=record.project.id;state.jobs=[];state.jobError='';clearTimeout(state.timer);}
+    window.LightekStudioEdit?.beforeRender();
     const html=panel(record,key);
     let shell=app.querySelector('[data-production-shell]');
     if(!shell){app.innerHTML='<section class="production-workspace" data-production-shell><div data-production-heading></div><div data-production-content></div><details class="production-jobs" data-production-jobs><summary>Renders & handoffs <span data-production-job-count></span></summary><div data-production-job-list></div></details></section>';shell=app.querySelector('[data-production-shell]');}
@@ -90,10 +93,12 @@
     heading.querySelectorAll('[data-production-mode]').forEach(el=>{const selected=el.dataset.productionMode===key;if(selected)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     heading.querySelector('[data-production-mode-title]').textContent=descriptions[key][0];
     heading.querySelector('[data-production-description]').textContent=descriptions[key][1];
-    shell.querySelector('[data-production-content]').innerHTML=html;
+    const content=shell.querySelector('[data-production-content]');
+    if(!window.LightekStudioEdit?.renderInto(content,html))content.innerHTML=html;
     shell.querySelectorAll('a[href="#/studio/library"]').forEach(a=>a.href=`#/studio/${record.scene.id}/assets`);
     shell.querySelectorAll('a[href^="#/create"]').forEach(a=>a.hidden=true);
     shell.querySelectorAll('[data-vw=advanced]').forEach(b=>b.textContent='Model & animate');
+    window.LightekStudioEdit?.mount();
     state.hash=location.hash;updateStatus();renderJobs();
     return true;
   }
@@ -136,6 +141,6 @@
   app.addEventListener('change',event=>{if(event.target.matches('[data-production-scene]')){go(mode(),Number(event.target.value));if(busy())event.target.value=state.scene;}queueMicrotask(updateStatus);});
   app.addEventListener('input',()=>queueMicrotask(updateStatus));
   app.addEventListener('toggle',event=>{if(event.target.matches('[data-production-jobs]')){if(event.target.open)loadJobs();else clearTimeout(state.timer);}},true);
-  window.addEventListener('beforeunload',event=>{if(LightekStudioApp.hasDrafts()||LightekStudioTimeline?.hasDrafts()||LightekStudioPerformance?.hasDrafts()){event.preventDefault();event.returnValue='';}});
+  window.addEventListener('beforeunload',event=>{if(window.LightekStudioEdit?.busy()||LightekStudioApp.hasDrafts()||LightekStudioTimeline?.hasDrafts()||LightekStudioPerformance?.hasDrafts()){event.preventDefault();event.returnValue='';}});
   window.LightekStudioProduction={render:renderProduction,go,mode};
 })();

@@ -2,7 +2,7 @@
 module Studio
   module Editing
     class Timeline
-      def self.normalize(raw, assets:)
+      def self.normalize(raw, assets:, allow_empty: false)
         data=raw.to_h.deep_stringify_keys
         output=data.fetch("output","video")
         raise ArgumentError,"Choose video or audio output" unless %w[video audio].include?(output)
@@ -18,7 +18,7 @@ module Studio
         end
         raise ArgumentError,"Use at most sixteen unique tracks" if tracks.length>16 || tracks.map{|t|t["id"]}.uniq.length!=tracks.length
         clips=Array(data.fetch("clips"))
-        raise ArgumentError,"Add between one and sixty-four clips" unless clips.length.between?(1,64)
+        raise ArgumentError,"Add between one and sixty-four clips" unless clips.length.between?(allow_empty ? 0 : 1,64)
         normalized=clips.map do |value|
           clip=value.to_h.deep_stringify_keys
           asset=assets.fetch(Integer(clip.fetch("asset_id"))) { raise ArgumentError,"Media asset is unavailable" }
@@ -45,7 +45,7 @@ module Studio
            "gain"=>number(clip.fetch("gain",1),0,4),"x"=>number(clip.fetch("x",0),-4096,4096),"y"=>number(clip.fetch("y",0),-4096,4096),
            "muted"=>ActiveModel::Type::Boolean.new.cast(clip["muted"]),"keyframes"=>frames,"has_audio"=>asset.metadata["has_audio"]==true||asset.kind=="audio"}
         end
-        duration=normalized.map{|c|c["start"]+(c["out"]-c["in"])/c["speed"]}.max
+        duration=normalized.map{|c|c["start"]+(c["out"]-c["in"])/c["speed"]}.max || 0
         titles=Array(data.fetch("titles",[]))
         raise ArgumentError,"Use at most thirty-two titles" if titles.length>32
         titles=titles.map do |title|

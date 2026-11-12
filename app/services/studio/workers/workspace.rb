@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -13,6 +13,17 @@ module Studio
         LightekPwa::Policy.new(user: @access.user, site: DymondSite::Site.find(@access.site_id)).authorize!("studio") if @access.site_id
         raise ArgumentError, "Unsupported Studio workspace action" unless ACTIONS.include?(@action)
         public_send(@action)
+      end
+
+      def ai_status
+        @access.scene!(@payload.fetch("scene_id"))
+        Studio::Ai::Runtime.new.inventory
+      end
+      def ai_generate
+        Studio::Ai::Generation.start(access:@access,payload:@payload)
+      end
+      def ai_jobs
+        Studio::Ai::Generation.list(access:@access,scene_id:@payload.fetch("scene_id"))
       end
 
       def project_create
@@ -251,7 +262,7 @@ module Studio
         raw=@payload.fetch("timeline").to_h.deep_stringify_keys
         ids=Array(raw["clips"]).map{|c|Integer(c.fetch("asset_id"))}
         assets=StudioAsset.for_actor(@access).where(id:ids).index_by(&:id)
-        timeline=Studio::Editing::Timeline.normalize(raw,assets:assets)
+        timeline=Studio::Editing::Timeline.normalize(raw,assets:assets,allow_empty:true)
         scene.lock_version=Integer(@payload.fetch("lock_version"))
         scene.update!(settings:scene.settings.to_h.merge("timeline"=>timeline))
         {timeline:timeline,scene_id:scene.id,lock_version:scene.lock_version}

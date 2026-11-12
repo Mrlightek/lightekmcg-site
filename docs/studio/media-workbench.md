@@ -39,3 +39,13 @@ The real-browser workbench test decodes generated test media and checks source/p
 This is a native editor UX and setup-flow change over the existing engines. Neural face replacement/lip sync, full Resolve/Blender feature parity, professional color scopes and automatic assembly across separate scenes remain outside this change. The footage in browser-test screenshots is generated test material, not a finished production.
 
 Deploy through the normal release pipeline, including migrations and worker restart. Migration `RegisterMediaStudioProjectCreate` registers the project-creation capability. The deploy step installs the fixed local setup helper. Dashboard assets and the shared PWA cache advance to version 61.
+
+## Import and editing workflow repair
+
+Uploads now have per-file progress and failures. Retry repeats only the failed step: a successful upload is reused if asset registration fails, with the same idempotency key. Other files can finish while one fails. Drop files into the editor or use Import media; preparation progresses into ready media in the pool. Leaving with active uploads triggers the browser's leave-page guard.
+
+Review a source and use Mark in / Mark out, or enter the source range. Append selected clip adds that range after the last clip on its picture/audio track. Drag onto a lane to choose its position. Drag either clip edge to trim; undo restores the edit. Click the ruler or an empty lane to seek, select a clip to preview its beginning, and split inside the selected clip. Empty sequences can be saved, while export still requires media.
+
+Pool updates and inspector edits preserve the source media element, program canvas and inspector focus. Reopening a saved edit draws its program image once prepared media loads. Browser tests exercise actual MP4 decoding and multipart uploads through HTTP fixtures, including upload and registration recovery, preparation, source marks, pointer trims, uninterrupted playback, save/reopen and mobile layout.
+
+See [AI Studio](ai-studio.md) for the self-hosted generation integration and its current boundaries.

@@ -6,6 +6,8 @@ The full Studio lives natively in Dashboard. The PWA is a separate client of the
 
 The intended product combines professional editing, audio/music production, color, compositing and animation with approachable creation workflows and Lightek's visual identity. Blender supplies 3D authoring, animation, rigs, simulation, physics and rendering. It is one engine in the application. Adding an engine or changing the layout does not establish a complete production workflow by itself.
 
+The character target is film-style animation: recurring identities, editable rigs, body motion, expressive facial performances, dialogue/lip sync, scene staging and finished shots. AI generation belongs inside the same production and should execute on Lightek-managed infrastructure. A prettier viewport or basic toon starter does not satisfy those acceptance criteria. See [AI Studio status](ai-studio.md) for what is and is not implemented.
+
 ## UX rules
 
 - Keep the work visible: picture and timeline in editing, instrument notes and arrangement in music.

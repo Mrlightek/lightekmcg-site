@@ -1357,7 +1357,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_083000) do
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["gatekeeper_installation_id"], name: "index_fleet_active_installation", unique: true, where: "((status)::text = ANY (ARRAY[('reserved'::character varying)::text, ('queued'::character varying)::text, ('running'::character varying)::text, ('failed'::character varying)::text]))"
+    t.index ["gatekeeper_installation_id"], name: "index_fleet_active_installation", unique: true, where: "((status)::text = ANY ((ARRAY['reserved'::character varying, 'queued'::character varying, 'running'::character varying, 'failed'::character varying])::text[]))"
     t.index ["gatekeeper_installation_id"], name: "index_gatekeeper_update_targets_on_gatekeeper_installation_id"
     t.index ["gatekeeper_operation_id"], name: "index_gatekeeper_update_targets_on_gatekeeper_operation_id"
     t.index ["gatekeeper_rollout_id", "gatekeeper_installation_id"], name: "index_fleet_target_once", unique: true
@@ -1937,7 +1937,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_083000) do
     t.index ["kind", "updated_at"], name: "index_lightek_messaging_conversations_on_kind_and_updated_at"
     t.check_constraint "kind::text <> 'group'::text OR title IS NOT NULL AND btrim(title::text) <> ''::text", name: "lightek_messaging_conversations_group_title_check"
     t.check_constraint "kind::text = 'direct'::text AND direct_key IS NOT NULL OR kind::text <> 'direct'::text AND direct_key IS NULL", name: "lightek_messaging_conversations_direct_key_check"
-    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying::text, 'group'::character varying::text, 'community'::character varying::text, 'watch_party'::character varying::text])", name: "lightek_messaging_conversations_kind_check"
+    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying, 'group'::character varying, 'community'::character varying, 'watch_party'::character varying]::text[])", name: "lightek_messaging_conversations_kind_check"
   end
 
   create_table "lightek_messaging_messages", force: :cascade do |t|
@@ -1955,7 +1955,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_083000) do
     t.index ["reply_to_message_id"], name: "index_lightek_messaging_messages_on_reply_to_message_id"
     t.index ["sender_profile_id"], name: "index_lightek_messaging_messages_on_sender_profile_id"
     t.check_constraint "char_length(btrim(body)) > 0", name: "lightek_messaging_messages_body_check"
-    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying::text, 'system'::character varying::text])", name: "lightek_messaging_messages_type_check"
+    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying, 'system'::character varying]::text[])", name: "lightek_messaging_messages_type_check"
   end
 
   create_table "lightek_messaging_participants", force: :cascade do |t|
@@ -1973,7 +1973,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_083000) do
     t.index ["profile_id", "left_at"], name: "idx_lightek_messaging_participants_active"
     t.index ["profile_id"], name: "index_lightek_messaging_participants_on_profile_id"
     t.check_constraint "left_at IS NULL OR left_at >= joined_at", name: "lightek_messaging_participants_left_at_check"
-    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying::text, 'admin'::character varying::text, 'member'::character varying::text])", name: "lightek_messaging_participants_role_check"
+    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
   end
 
   create_table "lightek_pwa_admin_events", force: :cascade do |t|

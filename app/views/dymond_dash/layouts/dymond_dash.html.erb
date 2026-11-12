@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= content_for?(:title) ? yield(:title) + " — " : "" %><%= dymond_app_name %></title>
+  <title><%= content_for?(:title) ? yield(:title) + " — " : "" %><%= agency_branding&.brand_name || dymond_app_name %></title>
   <%= csrf_meta_tags %>
 
   <%# Tabler icons — outline only %>
@@ -156,6 +156,7 @@
 
   <%= dymond_theme_styles %>
   
+  <% if agency_branding %><style>:root { --dd-accent: <%= agency_branding.accent_color %>; }</style><% end %>
   <%= yield :head %>
   <%= render "dymond_dash/shared/theme_forms" %>
 </head>
@@ -172,6 +173,7 @@
     <div class="dd-topbar">
       <div class="dd-topbar-title" style="display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap">
         <%= link_to dymond_dash.root_path, class: "dd-topbar-btn dd-btn-ghost", aria: {label: "Dashboard home"} do %><i class="ti ti-home"></i> Home<% end %>
+        <% if current_user&.role.in?(%w[super_admin admin white_label]) %><%= link_to "Commerce", main_app.dashboard_commerce_path, class: "dd-topbar-btn dd-btn-ghost" %><% end %>
         <%= link_to "Business", main_app.dashboard_business_hub_path, class: "dd-topbar-btn dd-btn-ghost" %>
         <%= link_to "My Applications", main_app.installations_path, class: "dd-topbar-btn dd-btn-ghost" %>
         <% if current_user&.role.in?(%w[admin super_admin]) %><%= link_to "Installations", main_app.dashboard_installations_path, class: "dd-topbar-btn dd-btn-ghost" %><% end %>

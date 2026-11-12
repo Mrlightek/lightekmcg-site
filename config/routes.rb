@@ -41,6 +41,7 @@ Rails.application.routes.draw do
   get "/api/lightek/pwa/manifest", to: "api/lightek_pwa#manifest"
   resources :installations, path: "/my/installations", only: %i[index show create] do
     post :access, on: :member
+    post :cancel_subscription, on: :member
     post :retry_installation, on: :member, path: "resume"
   end
   get "/dashboard/installations", to: "dashboard/installations#index", as: :dashboard_installations
@@ -91,6 +92,7 @@ Rails.application.routes.draw do
   post "/dashboard/network/provisioning/:id/retry", to: "dashboard/network#retry_provisioning", as: :dashboard_network_retry_provisioning
   post "/dashboard/commerce/orders/:order_id/retry_provisioning", to: "dashboard/commerce_orders#retry_provisioning", as: :dashboard_commerce_retry_provisioning
   get "/commerce/shop", to: "commerce#index", as: :commerce_shop
+  post "/commerce/shipping/quotes", to: "commerce_shipping_quotes#create", as: :commerce_shipping_quotes
   post "/commerce/cart", to: "commerce#add", as: :commerce_cart_add
   delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
@@ -387,6 +389,39 @@ resources :dashboard_compute_providers, path: "/dashboard/infrastructure/provide
 end
 
 post "/gatekeeper/application-images", to: "gatekeeper/application_images#create", as: :gatekeeper_application_images
+get "/dashboard/customers", to: "dashboard/customers#index", as: :dashboard_customers
+get "/dashboard/customers/history", to: "dashboard/customers#history", as: :history_dashboard_customers
+get "/dashboard/shipping", to: "dashboard/shipping#index", as: :dashboard_shipping
+post "/dashboard/shipping/profile", to: "dashboard/shipping#profile", as: :dashboard_shipping_profile
+post "/dashboard/shipping/quotes", to: "dashboard/shipping#quote", as: :dashboard_shipping_quotes
+post "/dashboard/shipping/carrier", to: "dashboard/shipping#configure_carrier", as: :dashboard_shipping_carrier
+post "/dashboard/shipping/:key/purchase", to: "dashboard/shipping#purchase", as: :purchase_dashboard_shipping
+post "/dashboard/shipping/:key/refresh", to: "dashboard/shipping#refresh", as: :refresh_dashboard_shipping
+post "/dashboard/shipping/:key/cancel", to: "dashboard/shipping#cancel", as: :cancel_dashboard_shipping
+get "/dashboard/shipping/:key/label/:index", to: "dashboard/shipping#label", as: :label_dashboard_shipping
+post "/api/reservations/federation/commerce/checkouts", to: "api/commerce_network#checkout"
+get "/api/reservations/federation/commerce/orders/:key", to: "api/commerce_network#receipt"
+post "/api/reservations/federation/commerce/orders/:key/fulfill", to: "api/commerce_network#fulfill"
+post "/api/reservations/federation/commerce/orders/:key/refund", to: "api/commerce_network#refund"
+post "/api/reservations/federation/commerce/orders/:key/payout", to: "api/commerce_network#payout"
+post "/api/reservations/federation/commerce/orders/:key/cancel-subscription", to: "api/commerce_network#cancel_subscription"
+post "/api/reservations/federation/commerce/connect", to: "api/commerce_network#connect"
+post "/api/reservations/federation/commerce/summary", to: "api/commerce_network#summary"
+post "/api/reservations/federation/shipping/quotes", to: "api/shipping_broker#quotes"
+post "/api/reservations/federation/shipping/quotes/:key/purchase", to: "api/shipping_broker#purchase"
+get "/api/reservations/federation/shipping/quotes/:key/status", to: "api/shipping_broker#status"
+get "/api/reservations/federation/shipping/quotes/:key/labels/:index", to: "api/shipping_broker#label"
+post "/api/reservations/federation/shipping/quotes/:key/cancel", to: "api/shipping_broker#cancel"
+get "/dashboard/commerce", to: "dashboard/commerce#index", as: :dashboard_commerce
+post "/dashboard/commerce/subscriptions/:id/cancel", to: "dashboard/commerce#cancel_subscription", as: :cancel_subscription_dashboard_commerce
+resources :dashboard_agencies, path: "/dashboard/agencies", controller: "dashboard/agencies", only: %i[index create update] do
+  member do
+    post :create_client
+    patch :update_terms
+  end
+end
+resources :dashboard_hosting_packages, path: "/dashboard/hosting/packages", controller: "dashboard/hosting_packages", only: %i[index create update]
+post "/dashboard/hosting/purchase", to: "dashboard/hosting_purchases#create", as: :dashboard_hosting_purchase
 resources :dashboard_application_launches, path: "/dashboard/applications/install", controller: "dashboard/application_launches", only: %i[new create] do
   collection do
     post :create_template

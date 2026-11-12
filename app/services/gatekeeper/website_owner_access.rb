@@ -22,7 +22,7 @@ module Gatekeeper
       raise WebsiteDeployment::Invalid, "Installation access denied" unless policy.can_manage_access?(actor, order) && policy.ready?(order)
       request = ProvisioningRequest.find(order.provisioning_request_id)
       node = request.gatekeeper_node
-      raise WebsiteDeployment::Invalid, "Installation ownership mismatch" unless node && request.owner == node.owner && request.owner.email_address == order.customer_email
+      raise WebsiteDeployment::Invalid, "Installation ownership mismatch" unless node && request.owner == node.owner && (order.hosting_owner ? request.owner == order.hosting_owner : request.owner.email_address == order.customer_email)
       domain = policy.hostname(order)
       config = preview_for_owner_access(node: node, domain: domain, owner: request.owner)
       Gatekeeper::Compute::NodeVerificationService.call(request: request, requested_by: actor.email_address)
@@ -30,6 +30,16 @@ module Gatekeeper
         parameters: {order_id: order.id, owner_id: request.owner.id}, status: "running", started_at: Time.current)
       secret = LightekVault::Service.checkout!(slug: node.metadata.fetch("node_credential_secret_slug"),
         consumer: WebsiteDeployment::CONSUMER, purpose: "node_bootstrap", requested_by: actor.email_address, gatekeeper_operation_id: operation.id)
+      launch = order.gatekeeper_application_launch
+      if launch && launch.template_snapshot["kind"] == "docker"
+        response = Gatekeeper::Fleet::Transport.run!(node: node, domain: domain,
+          requested_by: actor.email_address, operation_id: operation.id, script_name: "container_owner_access.py",
+          payload: {domain: domain, launch_id: launch.id, owner_email: request.owner.email_address})
+        token = response.fetch("token")
+        raise WebsiteDeployment::Invalid, "Invalid password setup response" unless response["domain"] == domain && token.is_a?(String) && token.bytesize.between?(32, 4096) && !token.match?(/[\r\n]/)
+        operation.update!(status: "succeeded", completed_at: Time.current, exit_status: 0, result: {link_issued: true})
+        return "https://#{domain}/passwords/#{URI.encode_www_form_component(token)}/edit"
+      end
       require "net/ssh"
       root = "/opt/lightek-sites/#{domain}"
       project = "lt_#{Digest::SHA256.hexdigest(domain)[0, 16]}"
@@ -75,7 +85,7 @@ module Gatekeeper
     end
 
     def preview_for_owner_access(node:, domain:, owner:)
-      receipt = node.metadata.to_h.fetch("website_deployment", {})
+      receipt = node.metadata.to_h.fetch("website_deployment_receipts", {})[domain] || node.metadata.to_h.fetch("website_deployment", {})
       config = node.metadata.to_h.fetch("website_deployments", {}).fetch(domain)
       raise WebsiteDeployment::Invalid, "Installation receipt mismatch" unless config.fetch("owner_id") == owner.id &&
         receipt["url"] == "https://#{domain}" && receipt["public_https_verified"] == true && receipt["owner_login_verified"] == true &&

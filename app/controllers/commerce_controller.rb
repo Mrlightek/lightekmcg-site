@@ -6,8 +6,15 @@ class CommerceController < ApplicationController
   skip_authorization_check
   before_action :set_site
   def index
+    if params[:order_id].present?
+      order = LightekCommerce::Order.where(site: @site).find_by(id: params[:order_id])
+      LightekCommerce::NetworkCheckout.synchronize!(order) if order&.payment_provider == "network"
+    end
     @products = LightekCommerce::Product.visible.where(site: @site)
     @cart = cart
+    keys = Array(session["lightek_shipping_quotes_#{@site.id}"]).first(10)
+    @shipping_quotes = LightekShipping::Quote.where(site: @site, public_key: keys).where("expires_at > ?", Time.current)
+      .where(cart_fingerprint: LightekShipping::Quotes.fingerprint(@site, @cart))
     page_id = @site.manifest.to_h["lightek_commerce_starter_page_id"]
     @page = @site.pages.find_by(id: page_id, published: true) if page_id
     design_key = @site.manifest.to_h["lightek_commerce_design_key"]
@@ -48,7 +55,12 @@ class CommerceController < ApplicationController
   def checkout
     instance_cart = LightekCommerce::Product.where(site: @site, id: cart.keys.map { |key| key.split(":").first }, product_type: "lightek_instance").exists?
     email = instance_cart ? current_user.email_address : params.require(:customer_email)
-    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: cart)
+    quote = LightekShipping::Quote.where(site: @site).find_by!(public_key: params[:shipping_quote_key]) if params[:shipping_quote_key].present?
+    physical = LightekCommerce::Product.where(site: @site, id: cart.keys.map { |key| key.split(":").first }, product_type: "physical").exists?
+    if physical && LightekShipping::Profile.exists?(site: @site) && !quote
+      raise LightekCommerce::OrderPlacement::Invalid, "Choose a shipping quote before payment"
+    end
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: cart, shipping_quote: quote)
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
       success_url: instance_cart ? installation_url(order) : commerce_shop_url(site_id: @site.id, order_id: order.id),
       cancel_url: commerce_shop_url(site_id: @site.id))

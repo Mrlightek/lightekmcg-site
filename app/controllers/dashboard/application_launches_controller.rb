@@ -1,7 +1,8 @@
 class Dashboard::ApplicationLaunchesController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
+  protect_from_forgery with: :exception
   helper InfrastructureDashboardHelper
-  before_action :require_operator!
+  before_action :require_operator!, except: %i[new create retry]
   rescue_from Gatekeeper::Hosting::Access::Denied, ActiveRecord::RecordInvalid, ArgumentError, KeyError, Gatekeeper::Hosting::GithubClient::Error, LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError, LightekVault::Service::AccessDenied, with: :invalid_action
 
   rescue_from ActiveRecord::RecordNotUnique do
@@ -9,6 +10,13 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
   end
 
   def new
+    unless Gatekeeper::Hosting::Access.super_admin?(current_user)
+      @node = Gatekeeper::Hosting::Access.nodes(current_user).find(params.require(:node_id))
+      Gatekeeper::Hosting::Access.active!(@node)
+      @templates = GatekeeperApplicationTemplate.available.where("kind = ? OR lightek_application = ?", "native_rails", true)
+      @owners = User.where(id: Gatekeeper::Hosting::Access.account_ids(current_user)).order(:email_address)
+      return render :customer
+    end
     @registry_credentials = LightekVault::Secret.active.where("LOWER(provider) IN (?)", %w[github ghcr docker]).order(:name)
     @github_credentials = LightekVault::Secret.active.where("LOWER(provider) = ?", "github").where.not(slug: [Gatekeeper::Hosting::BuildSetup::SETTINGS_SLUG, Gatekeeper::Hosting::BuildSetup::REGISTRY_SLUG]).order(:name)
     begin
@@ -16,6 +24,7 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
     rescue LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError, LightekVault::Service::AccessDenied
       @build_setup = {}
     end
+    GatekeeperApplicationTemplate.ensure_native!
     @templates = GatekeeperApplicationTemplate.available
     @builds = GatekeeperApplicationTemplate.where(build_status: %w[queued failed]).order(id: :desc).limit(20)
     @nodes = Gatekeeper::Hosting::Access.nodes(current_user).where.not(status: %w[deleting delete_failed decommissioned provisioning]).order(:name)
@@ -42,7 +51,7 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
 
   def create
     launch = Gatekeeper::Hosting::Launches.create!(actor: current_user,
-      attributes: params.require(:launch).permit(:template_id, :owner_id, :name, :host, :node_id, :compute_provider_id, :region, :plan, :server_name).to_h)
+      attributes: params.require(:launch).permit(:template_id, :owner_id, :name, :domain, :node_id, :compute_provider_id, :region, :plan, :server_name).to_h)
     redirect_to dashboard_servers_path, notice: "#{launch.name} queued. Track installation below; new servers incur provider charges."
   end
 
@@ -60,7 +69,7 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
   end
 
   def create_template
-    GatekeeperApplicationTemplate.create!(params.require(:template).permit(:name, :preview_domain, :kind, :image, :container_port, :credential_slug, :rails_database, :rails_worker))
+    GatekeeperApplicationTemplate.create!(params.require(:template).permit(:name, :preview_domain, :kind, :image, :container_port, :credential_slug, :rails_database, :rails_worker, :lightek_application))
     redirect_to new_dashboard_application_launch_path, notice: "Application template saved."
   end
 
@@ -70,7 +79,9 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
   end
 
   def retry
-    launch = GatekeeperApplicationLaunch.find(params[:id])
+    scope = GatekeeperApplicationLaunch.all
+    scope = scope.where(owner_id: Gatekeeper::Hosting::Access.account_ids(current_user)) unless Gatekeeper::Hosting::Access.super_admin?(current_user)
+    launch = scope.find(params[:id])
     launch.with_lock do
       raise Gatekeeper::Hosting::Access::Denied, "Only failed installations can be retried" unless launch.status == "failed"
       launch.update!(status: "queued")
@@ -84,6 +95,6 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
     redirect_to dashboard_servers_path, alert: "A super admin installs new applications and servers. Use Add website for your existing runtime." unless Gatekeeper::Hosting::Access.super_admin?(current_user)
   end
   def invalid_action(error)
-    redirect_to new_dashboard_application_launch_path, alert: error.message
+    redirect_to hosting_dashboard_servers_path, alert: error.message
   end
 end

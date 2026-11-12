@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_12_083000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -54,6 +54,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "agency_profiles", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "brand_name", null: false
+    t.string "logo_url"
+    t.string "support_email"
+    t.string "accent_color", default: "#d4af37", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_agency_profiles_on_user_id", unique: true
   end
 
   create_table "architectures", force: :cascade do |t|
@@ -1160,6 +1171,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "build_identity", default: {}, null: false
+    t.boolean "lightek_application", default: false, null: false
   end
 
   create_table "gatekeeper_hosted_applications", force: :cascade do |t|
@@ -1345,7 +1357,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["gatekeeper_installation_id"], name: "index_fleet_active_installation", unique: true, where: "((status)::text = ANY ((ARRAY['reserved'::character varying, 'queued'::character varying, 'running'::character varying, 'failed'::character varying])::text[]))"
+    t.index ["gatekeeper_installation_id"], name: "index_fleet_active_installation", unique: true, where: "((status)::text = ANY (ARRAY[('reserved'::character varying)::text, ('queued'::character varying)::text, ('running'::character varying)::text, ('failed'::character varying)::text]))"
     t.index ["gatekeeper_installation_id"], name: "index_gatekeeper_update_targets_on_gatekeeper_installation_id"
     t.index ["gatekeeper_operation_id"], name: "index_gatekeeper_update_targets_on_gatekeeper_operation_id"
     t.index ["gatekeeper_rollout_id", "gatekeeper_installation_id"], name: "index_fleet_target_once", unique: true
@@ -1356,6 +1368,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
   create_table "homes", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "hosting_packages", force: :cascade do |t|
+    t.bigint "product_id", null: false
+    t.bigint "compute_provider_id", null: false
+    t.bigint "gatekeeper_application_template_id", null: false
+    t.string "region", null: false
+    t.string "provider_plan", null: false
+    t.integer "monthly_cost_ceiling_cents", null: false
+    t.integer "minimum_margin_cents", default: 1, null: false
+    t.boolean "active", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["compute_provider_id"], name: "index_hosting_packages_on_compute_provider_id"
+    t.index ["gatekeeper_application_template_id"], name: "idx_hosting_package_template"
+    t.index ["product_id"], name: "index_hosting_packages_on_product_id", unique: true
   end
 
   create_table "job_items", force: :cascade do |t|
@@ -1388,6 +1416,50 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.index ["user_id"], name: "index_lightek_audience_leases_on_user_id"
   end
 
+  create_table "lightek_commerce_billing_invoices", force: :cascade do |t|
+    t.bigint "subscription_id", null: false
+    t.string "processor_reference", null: false
+    t.bigint "settlement_order_id"
+    t.integer "amount_paid_cents", null: false
+    t.string "currency", null: false
+    t.datetime "paid_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["processor_reference"], name: "index_lightek_commerce_billing_invoices_on_processor_reference", unique: true
+    t.index ["settlement_order_id"], name: "idx_billing_invoice_settlement", unique: true
+    t.index ["subscription_id"], name: "idx_billing_invoice_subscription"
+  end
+
+  create_table "lightek_commerce_network_accounts", force: :cascade do |t|
+    t.bigint "peer_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "site_id", null: false
+    t.string "source_subject", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["peer_id", "source_subject"], name: "idx_commerce_network_account", unique: true
+    t.index ["peer_id"], name: "index_lightek_commerce_network_accounts_on_peer_id"
+    t.index ["site_id"], name: "index_lightek_commerce_network_accounts_on_site_id"
+    t.index ["user_id"], name: "index_lightek_commerce_network_accounts_on_user_id"
+  end
+
+  create_table "lightek_commerce_network_sales", force: :cascade do |t|
+    t.bigint "peer_id", null: false
+    t.bigint "order_id", null: false
+    t.bigint "source_shipping_quote_id"
+    t.string "public_key", null: false
+    t.string "source_key", null: false
+    t.jsonb "source_snapshot", default: {}, null: false
+    t.string "return_url", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_id"], name: "index_lightek_commerce_network_sales_on_order_id", unique: true
+    t.index ["peer_id", "source_key"], name: "idx_commerce_network_sale", unique: true
+    t.index ["peer_id"], name: "index_lightek_commerce_network_sales_on_peer_id"
+    t.index ["public_key"], name: "index_lightek_commerce_network_sales_on_public_key", unique: true
+    t.index ["source_shipping_quote_id"], name: "idx_network_shipping_source", unique: true
+  end
+
   create_table "lightek_commerce_order_items", force: :cascade do |t|
     t.bigint "order_id", null: false
     t.bigint "product_id", null: false
@@ -1398,6 +1470,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "variant_id"
+    t.jsonb "purchase_snapshot", default: {}, null: false
     t.index ["order_id"], name: "index_lightek_commerce_order_items_on_order_id"
     t.index ["product_id"], name: "index_lightek_commerce_order_items_on_product_id"
     t.index ["variant_id"], name: "index_lightek_commerce_order_items_on_variant_id"
@@ -1438,9 +1511,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.string "payment_namespace"
     t.string "purpose", default: "purchase", null: false
     t.boolean "stock_reserved", default: true, null: false
+    t.string "hosting_domain"
+    t.bigint "hosting_owner_id"
+    t.bigint "gatekeeper_application_launch_id"
+    t.jsonb "revenue_share_snapshot", default: [], null: false
+    t.bigint "shipping_quote_id"
+    t.string "network_reference"
+    t.string "network_invoice_reference"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
+    t.index ["gatekeeper_application_launch_id"], name: "idx_on_gatekeeper_application_launch_id_aa7421ca02"
+    t.index ["hosting_owner_id"], name: "index_lightek_commerce_orders_on_hosting_owner_id"
     t.index ["merchant_transfer_ref"], name: "index_lightek_commerce_orders_on_merchant_transfer_ref", unique: true
+    t.index ["network_reference", "network_invoice_reference"], name: "idx_commerce_network_receipt", unique: true
     t.index ["provisioning_request_id"], name: "index_lightek_commerce_orders_on_provisioning_request_id"
+    t.index ["shipping_quote_id"], name: "idx_shipping_quote_checkout", unique: true, where: "((shipping_quote_id IS NOT NULL) AND ((purpose IS NULL) OR ((purpose)::text <> 'shipping_label'::text)))"
+    t.index ["shipping_quote_id"], name: "index_lightek_commerce_orders_on_shipping_quote_id"
     t.index ["site_id", "payment_reference"], name: "idx_commerce_payment_reference", unique: true, where: "(payment_reference IS NOT NULL)"
     t.index ["site_id"], name: "index_lightek_commerce_orders_on_site_id"
     t.check_constraint "refunded_cents >= 0 AND refunded_cents <= total_cents", name: "commerce_refunded_amount_valid"
@@ -1479,6 +1564,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.integer "compare_at_cents"
     t.boolean "featured", default: false, null: false
     t.bigint "subscription_plan_id"
+    t.string "billing_interval", default: "one_time", null: false
+    t.boolean "track_inventory", default: true, null: false
+    t.decimal "shipping_weight_lb", precision: 10, scale: 3
+    t.integer "shipping_length_in"
+    t.integer "shipping_width_in"
+    t.integer "shipping_height_in"
     t.index ["site_id", "sku"], name: "idx_commerce_site_sku", unique: true, where: "(sku IS NOT NULL)"
     t.index ["site_id", "slug"], name: "index_lightek_commerce_products_on_site_id_and_slug", unique: true
     t.index ["site_id"], name: "index_lightek_commerce_products_on_site_id"
@@ -1500,6 +1591,43 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.index ["order_id"], name: "index_lightek_commerce_refunds_on_order_id"
     t.index ["processor_ref"], name: "index_lightek_commerce_refunds_on_processor_ref", unique: true
     t.check_constraint "amount_cents > 0", name: "commerce_refund_positive"
+  end
+
+  create_table "lightek_commerce_revenue_allocations", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.bigint "beneficiary_id", null: false
+    t.integer "basis_points", null: false
+    t.integer "amount_cents", null: false
+    t.integer "reversed_cents", default: 0, null: false
+    t.string "currency", default: "usd", null: false
+    t.string "status", default: "pending", null: false
+    t.string "transfer_reference"
+    t.datetime "settled_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["beneficiary_id"], name: "index_lightek_commerce_revenue_allocations_on_beneficiary_id"
+    t.index ["order_id", "beneficiary_id"], name: "idx_revenue_order_beneficiary", unique: true
+    t.index ["order_id"], name: "index_lightek_commerce_revenue_allocations_on_order_id"
+    t.check_constraint "amount_cents >= 0 AND basis_points >= 0 AND basis_points <= 10000", name: "revenue_allocation_amount_valid"
+  end
+
+  create_table "lightek_commerce_subscriptions", force: :cascade do |t|
+    t.bigint "order_id", null: false
+    t.string "processor_reference", null: false
+    t.string "customer_reference"
+    t.string "status", default: "incomplete", null: false
+    t.string "billing_interval", null: false
+    t.boolean "cancel_at_period_end", default: false, null: false
+    t.integer "amount_cents", null: false
+    t.string "currency", default: "usd", null: false
+    t.datetime "current_period_end"
+    t.datetime "last_event_at"
+    t.bigint "bank_subscription_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["bank_subscription_id"], name: "idx_commerce_bank_subscription"
+    t.index ["order_id"], name: "index_lightek_commerce_subscriptions_on_order_id", unique: true
+    t.index ["processor_reference"], name: "index_lightek_commerce_subscriptions_on_processor_reference", unique: true
   end
 
   create_table "lightek_community_engagements", force: :cascade do |t|
@@ -1809,7 +1937,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.index ["kind", "updated_at"], name: "index_lightek_messaging_conversations_on_kind_and_updated_at"
     t.check_constraint "kind::text <> 'group'::text OR title IS NOT NULL AND btrim(title::text) <> ''::text", name: "lightek_messaging_conversations_group_title_check"
     t.check_constraint "kind::text = 'direct'::text AND direct_key IS NOT NULL OR kind::text <> 'direct'::text AND direct_key IS NULL", name: "lightek_messaging_conversations_direct_key_check"
-    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying, 'group'::character varying, 'community'::character varying, 'watch_party'::character varying]::text[])", name: "lightek_messaging_conversations_kind_check"
+    t.check_constraint "kind::text = ANY (ARRAY['direct'::character varying::text, 'group'::character varying::text, 'community'::character varying::text, 'watch_party'::character varying::text])", name: "lightek_messaging_conversations_kind_check"
   end
 
   create_table "lightek_messaging_messages", force: :cascade do |t|
@@ -1827,7 +1955,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.index ["reply_to_message_id"], name: "index_lightek_messaging_messages_on_reply_to_message_id"
     t.index ["sender_profile_id"], name: "index_lightek_messaging_messages_on_sender_profile_id"
     t.check_constraint "char_length(btrim(body)) > 0", name: "lightek_messaging_messages_body_check"
-    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying, 'system'::character varying]::text[])", name: "lightek_messaging_messages_type_check"
+    t.check_constraint "message_type::text = ANY (ARRAY['text'::character varying::text, 'system'::character varying::text])", name: "lightek_messaging_messages_type_check"
   end
 
   create_table "lightek_messaging_participants", force: :cascade do |t|
@@ -1845,7 +1973,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.index ["profile_id", "left_at"], name: "idx_lightek_messaging_participants_active"
     t.index ["profile_id"], name: "index_lightek_messaging_participants_on_profile_id"
     t.check_constraint "left_at IS NULL OR left_at >= joined_at", name: "lightek_messaging_participants_left_at_check"
-    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
+    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying::text, 'admin'::character varying::text, 'member'::character varying::text])", name: "lightek_messaging_participants_role_check"
   end
 
   create_table "lightek_pwa_admin_events", force: :cascade do |t|
@@ -2090,6 +2218,70 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.index ["key"], name: "index_lightek_session_rooms_on_key", unique: true
     t.index ["resource_id", "starts_at", "ends_at"], name: "idx_lightek_room_slot", unique: true
     t.index ["resource_id"], name: "index_lightek_session_rooms_on_resource_id"
+  end
+
+  create_table "lightek_shipping_accounts", force: :cascade do |t|
+    t.string "provider", default: "fedex", null: false
+    t.string "credential_slug", null: false
+    t.boolean "sandbox", default: true, null: false
+    t.boolean "enabled", default: false, null: false
+    t.boolean "production_approved", default: false, null: false
+    t.integer "markup_bps", default: 0, null: false
+    t.integer "fixed_markup_cents", default: 0, null: false
+    t.integer "minimum_margin_cents", default: 100, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider"], name: "index_lightek_shipping_accounts_on_provider", unique: true
+  end
+
+  create_table "lightek_shipping_profiles", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.jsonb "origin", default: {}, null: false
+    t.jsonb "default_package", default: {}, null: false
+    t.integer "customer_markup_bps", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_lightek_shipping_profiles_on_site_id", unique: true
+  end
+
+  create_table "lightek_shipping_quotes", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "public_key", null: false
+    t.string "broker_reference"
+    t.string "service_code", null: false
+    t.string "service_name", null: false
+    t.string "currency", default: "usd", null: false
+    t.integer "carrier_cost_cents"
+    t.integer "platform_price_cents", null: false
+    t.integer "customer_price_cents", null: false
+    t.boolean "sandbox", default: true, null: false
+    t.jsonb "shipment_payload", default: {}, null: false
+    t.string "cart_fingerprint"
+    t.datetime "expires_at", null: false
+    t.bigint "purchase_order_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["broker_reference"], name: "index_lightek_shipping_quotes_on_broker_reference"
+    t.index ["public_key"], name: "index_lightek_shipping_quotes_on_public_key", unique: true
+    t.index ["purchase_order_id"], name: "index_lightek_shipping_quotes_on_purchase_order_id", unique: true
+    t.index ["site_id"], name: "index_lightek_shipping_quotes_on_site_id"
+    t.check_constraint "platform_price_cents > 0 AND customer_price_cents >= platform_price_cents AND (carrier_cost_cents IS NULL OR platform_price_cents > carrier_cost_cents)", name: "shipping_retail_price_valid"
+  end
+
+  create_table "lightek_shipping_shipments", force: :cascade do |t|
+    t.bigint "quote_id", null: false
+    t.string "public_key", null: false
+    t.string "status", default: "queued", null: false
+    t.string "tracking_number"
+    t.string "carrier_status"
+    t.datetime "submitted_at"
+    t.datetime "completed_at"
+    t.integer "actual_carrier_cost_cents"
+    t.string "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["public_key"], name: "index_lightek_shipping_shipments_on_public_key", unique: true
+    t.index ["quote_id"], name: "index_lightek_shipping_shipments_on_quote_id", unique: true
   end
 
   create_table "lightek_social_blocks", force: :cascade do |t|
@@ -2834,6 +3026,52 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.index ["status"], name: "idx_single_neural_training_lease", unique: true, where: "((status)::text = 'running'::text)"
   end
 
+  create_table "nevaeh_watch_events", force: :cascade do |t|
+    t.bigint "nevaeh_watcher_id", null: false
+    t.bigint "nevaeh_agent_run_id"
+    t.string "event_key", null: false
+    t.string "entity", null: false
+    t.string "change", null: false
+    t.jsonb "before_value", default: {}, null: false
+    t.jsonb "after_value", default: {}, null: false
+    t.jsonb "plan", default: {}, null: false
+    t.string "status", default: "detected", null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_agent_run_id"], name: "index_nevaeh_watch_events_on_nevaeh_agent_run_id"
+    t.index ["nevaeh_watcher_id", "event_key"], name: "idx_nevaeh_watch_event_identity", unique: true
+    t.index ["nevaeh_watcher_id"], name: "index_nevaeh_watch_events_on_nevaeh_watcher_id"
+  end
+
+  create_table "nevaeh_watchers", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "nevaeh_os_agent_id", null: false
+    t.string "name", null: false
+    t.string "kind", null: false
+    t.jsonb "target", default: {}, null: false
+    t.string "condition", default: "updated", null: false
+    t.string "response", default: "prepare", null: false
+    t.jsonb "command_template", default: {}, null: false
+    t.string "status", default: "active", null: false
+    t.integer "interval_minutes", default: 60, null: false
+    t.jsonb "baseline", default: {}, null: false
+    t.boolean "initialized", default: false, null: false
+    t.datetime "next_poll_at"
+    t.datetime "last_polled_at"
+    t.string "lease_token"
+    t.datetime "lease_expires_at"
+    t.integer "poll_sequence", default: 0, null: false
+    t.integer "failures", default: 0, null: false
+    t.text "error"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_os_agent_id"], name: "index_nevaeh_watchers_on_nevaeh_os_agent_id"
+    t.index ["status", "next_poll_at"], name: "index_nevaeh_watchers_on_status_and_next_poll_at"
+    t.index ["user_id"], name: "index_nevaeh_watchers_on_user_id"
+  end
+
   create_table "nevaeh_workflow_runs", force: :cascade do |t|
     t.bigint "nevaeh_workflow_id", null: false
     t.bigint "actor_id", null: false
@@ -3482,11 +3720,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
     t.boolean "stripe_connect_details_submitted", default: false, null: false
     t.boolean "stripe_connect_payouts_enabled", default: false, null: false
     t.datetime "stripe_connect_onboarded_at"
+    t.bigint "agency_id"
+    t.integer "upstream_share_bps", default: 0, null: false
+    t.index ["agency_id"], name: "index_users_on_agency_id"
     t.index ["api_token"], name: "index_users_on_api_token", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
     t.index ["lightek_email_address"], name: "index_users_on_lightek_email_address", unique: true
     t.index ["role"], name: "index_users_on_role"
     t.index ["stripe_connect_account_id"], name: "index_users_on_stripe_connect_account_id", unique: true
+    t.check_constraint "upstream_share_bps >= 0 AND upstream_share_bps <= 10000", name: "account_upstream_share_valid"
   end
 
   create_table "website_template_inquiries", force: :cascade do |t|
@@ -3501,6 +3743,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "agency_profiles", "users"
   add_foreign_key "artifacts", "creation_jobs"
   add_foreign_key "artifacts", "studio_operations"
   add_foreign_key "channels", "shows"
@@ -3568,17 +3811,35 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
   add_foreign_key "gatekeeper_update_targets", "gatekeeper_installations"
   add_foreign_key "gatekeeper_update_targets", "gatekeeper_operations"
   add_foreign_key "gatekeeper_update_targets", "gatekeeper_rollouts"
+  add_foreign_key "hosting_packages", "compute_providers"
+  add_foreign_key "hosting_packages", "gatekeeper_application_templates"
+  add_foreign_key "hosting_packages", "lightek_commerce_products", column: "product_id"
   add_foreign_key "lightek_agency_site_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_agency_site_memberships", "users"
   add_foreign_key "lightek_agency_site_memberships", "users", column: "granted_by_id"
   add_foreign_key "lightek_audience_leases", "users"
+  add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_orders", column: "settlement_order_id"
+  add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_subscriptions", column: "subscription_id"
+  add_foreign_key "lightek_commerce_network_accounts", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_network_accounts", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "lightek_commerce_network_accounts", "users"
+  add_foreign_key "lightek_commerce_network_sales", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_network_sales", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "lightek_commerce_network_sales", "lightek_shipping_quotes", column: "source_shipping_quote_id"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_product_variants", column: "variant_id"
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_products", column: "product_id"
   add_foreign_key "lightek_commerce_orders", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_orders", "gatekeeper_application_launches"
+  add_foreign_key "lightek_commerce_orders", "lightek_shipping_quotes", column: "shipping_quote_id"
+  add_foreign_key "lightek_commerce_orders", "users", column: "hosting_owner_id"
   add_foreign_key "lightek_commerce_product_variants", "lightek_commerce_products", column: "product_id"
   add_foreign_key "lightek_commerce_products", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_revenue_allocations", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_commerce_revenue_allocations", "users", column: "beneficiary_id"
+  add_foreign_key "lightek_commerce_subscriptions", "dymond_bank_subscriptions", column: "bank_subscription_id"
+  add_foreign_key "lightek_commerce_subscriptions", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_community_engagements", "posts"
   add_foreign_key "lightek_community_engagements", "profiles"
   add_foreign_key "lightek_community_memberships", "communities"
@@ -3640,6 +3901,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
   add_foreign_key "lightek_session_members", "lightek_session_rooms", column: "room_id"
   add_foreign_key "lightek_session_members", "users"
   add_foreign_key "lightek_session_rooms", "lightek_reservation_resources", column: "resource_id"
+  add_foreign_key "lightek_shipping_profiles", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_shipping_quotes", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_shipping_quotes", "lightek_commerce_orders", column: "purchase_order_id"
+  add_foreign_key "lightek_shipping_shipments", "lightek_shipping_quotes", column: "quote_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocked_profile_id"
   add_foreign_key "lightek_social_blocks", "profiles", column: "blocker_profile_id"
   add_foreign_key "lightek_social_circle_memberships", "lightek_social_circles", column: "circle_id"
@@ -3693,6 +3958,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
   add_foreign_key "nevaeh_training_runs", "nevaeh_language_models"
   add_foreign_key "nevaeh_training_runs", "nevaeh_training_datasets"
   add_foreign_key "nevaeh_training_runs", "users", column: "actor_id"
+  add_foreign_key "nevaeh_watch_events", "nevaeh_agent_runs"
+  add_foreign_key "nevaeh_watch_events", "nevaeh_watchers"
+  add_foreign_key "nevaeh_watchers", "nevaeh_os_agents"
+  add_foreign_key "nevaeh_watchers", "users"
   add_foreign_key "nevaeh_workflow_runs", "nevaeh_workflows"
   add_foreign_key "nevaeh_workflow_runs", "users", column: "actor_id"
   add_foreign_key "nevaeh_workflows", "users", column: "creator_id"
@@ -3761,5 +4030,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_09_141000) do
   add_foreign_key "susu_rounds", "susu_memberships", column: "recipient_membership_id"
   add_foreign_key "system_jobs", "job_items"
   add_foreign_key "user_feature_entitlements", "users"
+  add_foreign_key "users", "users", column: "agency_id"
   add_foreign_key "website_template_inquiries", "dymond_site_sites", column: "site_id"
 end

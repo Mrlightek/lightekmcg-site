@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::CommerceFulfillmentsController < Dashboard::SettingsHomeController
+class Dashboard::CommerceFulfillmentsController < Dashboard::CommerceBaseController
   def create
     site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
     order = LightekCommerce::Order.where(site: site).find(params.require(:order_id))

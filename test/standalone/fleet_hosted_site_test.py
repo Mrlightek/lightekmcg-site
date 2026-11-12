@@ -103,7 +103,8 @@ class FleetHostedSiteTest(unittest.TestCase):
                 site.execute()
 
     def test_bootstrap_uses_existing_account_and_dymond_site_ownership_transaction(self):
-        self.assertIn('User.find_by!(email_address:', hosted.BOOTSTRAP)
+        self.assertIn('User.find_or_initialize_by(email_address:', hosted.BOOTSTRAP)
+        self.assertIn('role: "client"', hosted.BOOTSTRAP)
         self.assertIn("DymondSite::Site.transaction", hosted.BOOTSTRAP)
         self.assertIn("site.tenant == owner", hosted.BOOTSTRAP)
         self.assertNotIn("owner.update!", hosted.BOOTSTRAP)

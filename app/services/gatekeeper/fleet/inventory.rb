@@ -1,3 +1,4 @@
+require "digest"
 module Gatekeeper
   module Fleet
     class Inventory
@@ -7,8 +8,18 @@ module Gatekeeper
       end
 
       def self.sync_node!(node)
-        return if node.local? || %w[decommissioned deleting delete_failed].include?(node.status)
+        return if %w[decommissioned deleting delete_failed].include?(node.status)
         metadata = node.metadata.to_h
+        metadata.fetch("website_deployments", {}).each do |domain, deployment|
+          next unless deployment["deployment_adapter"] == "native_rails" && deployment["fleet_config"].present?
+          next if GatekeeperProject.exists?(domain: domain)
+          config = deployment.fetch("fleet_config")
+          GatekeeperProject.create!(gatekeeper_node: node, name: "site-#{Digest::SHA256.hexdigest(domain).first(16)}",
+            domain: domain, repository: Adapters::MAIN_REPOSITORY, app_root: config.fetch("app_root"),
+            app_user: config.fetch("app_user"), ruby_version: "3.3.6", status: "healthy",
+            metadata: {"fleet_deployment" => {"adapter" => "native_rails", "config" => config}})
+        end
+        return if node.local?
         node.gatekeeper_projects.find_each do |project|
           profile = project.metadata.to_h.fetch("fleet_deployment", {})
           adapter = profile.fetch("adapter", "native_rails")

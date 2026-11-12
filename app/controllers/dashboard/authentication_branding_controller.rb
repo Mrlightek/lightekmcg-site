@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::AuthenticationBrandingController < Dashboard::SettingsHomeController
+class Dashboard::AuthenticationBrandingController < Dashboard::CommerceBaseController
   helper DymondDash::TemplateSchemaHelper
   before_action :set_site
   protect_from_forgery with: :exception

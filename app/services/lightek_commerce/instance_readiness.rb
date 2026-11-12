@@ -18,6 +18,17 @@ module LightekCommerce
         item.product.subscription_plan_id.blank?
       raise Unavailable, "Installation plan is unavailable" unless
         DymondBank::SubscriptionPlan.exists?(id: item.product.subscription_plan_id)
+      snapshot = item.purchase_snapshot.to_h["hosting"]
+      if snapshot.present?
+        actor = User.find_by(role: "super_admin") || raise(Unavailable, "Hosting operator is unavailable")
+        begin
+          Gatekeeper::Hosting::PackagePurchase.validate!(snapshot: snapshot, retail_cents: item.unit_price_cents, actor: actor)
+          Gatekeeper::WebsiteDnsPublication.preflight!(hostname: Installations.hostname(order))
+        rescue Gatekeeper::Hosting::Access::Denied => error
+          raise Unavailable, error.message
+        end
+        return true
+      end
       reservation = LightekReservations::Reservation.find_by(order_id: order.id)
       change = LightekReservations::Change.find_by(order_id: order.id)
       snapshot = reservation&.package_snapshot || change&.quote&.fetch('target', nil)

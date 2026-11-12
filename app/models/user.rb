@@ -16,8 +16,14 @@ class User < ApplicationRecord
   validates :first_name, presence: true
   validates :last_name,  presence: true
 
-  ROLES = %w[client employee contractor admin super_admin].freeze
+  ROLES = %w[client white_label employee contractor admin super_admin].freeze
   validates :role, inclusion: { in: ROLES }
+
+  belongs_to :agency, class_name: "User", optional: true
+  has_many :agency_clients, class_name: "User", foreign_key: :agency_id, dependent: :restrict_with_error
+  has_one :agency_profile, dependent: :destroy
+  include AccountHierarchy
+  def white_label? = role == "white_label"
 
   # ── Associations — DymondBank ─────────────────────────────────────────────────
   # A user's internal DymondBank ledger accounts
@@ -83,7 +89,9 @@ class User < ApplicationRecord
   # ── DymondDash product entitlements ────────────────────────────────────────
   def can_access_feature?(feature_slug)
     feature_slug = feature_slug.to_s
-    return role == "super_admin" || GatekeeperNode.where(owner: self).exists? if feature_slug == "server_instances"
+    return persisted? if feature_slug == "server_instances"
+    return role.in?(%w[super_admin white_label]) if feature_slug == "agency_workspace"
+    return role.in?(%w[super_admin admin white_label]) || DymondSite::Site.where(tenant: self).exists? if feature_slug == "commerce_workspace"
 
     # Network and DNS mutation is narrower than ordinary admin access.
     return role == "super_admin" if %w[

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::CommerceVariantsController < Dashboard::SettingsHomeController
+class Dashboard::CommerceVariantsController < Dashboard::CommerceBaseController
   before_action :load_product
   def create
     @product.variants.create!(variant_params)

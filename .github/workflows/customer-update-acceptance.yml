@@ -24,6 +24,23 @@ on:
       - 'db/migrate/*native_fleet*'
       - 'script/lightek/build_fleet_release.py'
       - 'test/standalone/fleet*'
+      - 'test/standalone/commerce_hosting_test.rb'
+      - 'test/standalone/commerce_network_test.rb'
+      - 'app/services/lightek_shipping/**'
+      - 'app/models/lightek_shipping/**'
+      - 'app/controllers/api/*commerce*'
+      - 'app/controllers/api/shipping_broker_controller.rb'
+      - 'db/migrate/*platform_shipping*'
+      - 'db/migrate/*reseller*'
+      - 'db/migrate/*federated_commerce*'
+      - 'test/standalone/website_deployment_dispatch_test.rb'
+      - 'app/services/gatekeeper/website_deployment.rb'
+      - 'app/controllers/dashboard/agencies_controller.rb'
+      - 'app/controllers/dashboard/hosting*_controller.rb'
+      - 'app/services/lightek_commerce/**'
+      - 'app/models/hosting_package.rb'
+      - 'app/models/agency_profile.rb'
+      - 'db/migrate/*hosting*'
       - 'test/standalone/hosting_bootstrap_test.rb'
       - 'app/services/lightek_vault/**'
       - 'app/controllers/dashboard/vault_controller.rb'
@@ -50,6 +67,10 @@ jobs:
         run: gem install activerecord:8.0.4 activejob:8.0.4 sqlite3:2.7.4 minitest:5.25.5 jwt:2.10.3 --no-document
       - name: Test fleet persistence, batching, retries and recovery
         run: ruby test/standalone/fleet_updates_test.rb
+      - name: Test commerce, agency isolation and hosting retail contracts
+        run: |
+          ruby test/standalone/commerce_network_test.rb
+          ruby test/standalone/website_deployment_dispatch_test.rb
       - name: Verify Vault recovery and automatic build setup
         run: ruby test/standalone/hosting_bootstrap_test.rb
       - name: Test remote installation updates and release packaging

@@ -1,4 +1,5 @@
 require "json"
+require "base64"
 require "timeout"
 require "shellwords"
 require "open3"
@@ -32,7 +33,7 @@ module Gatekeeper
       end
 
       def self.run!(node:, domain:, requested_by:, operation_id:, payload:, script_name:, registry: false)
-        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py].include?(script_name)
+        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py].include?(script_name)
         script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
         if node.local?
           stdout, _, status = Timeout.timeout(1900) do
@@ -79,6 +80,10 @@ module Gatekeeper
         Timeout.timeout(1900) do
           Net::SSH.start(node.ip_address, node.ssh_user, **options) do |ssh|
             script = script_path.read
+            if script_name == "install_container_application.py"
+              verifier = Base64.strict_encode64(Rails.root.join("script/lightek/verify_paid_instance.py").read)
+              script = "import base64\n_lightek_verifier = {'__name__': 'lightek_verifier'}\nexec(base64.b64decode('#{verifier}'), _lightek_verifier)\n" + script
+            end
             command = "timeout --signal=TERM --kill-after=30s 1800s python3 -c #{Shellwords.escape(script)}"
             stdout = +""
             exit_status = nil

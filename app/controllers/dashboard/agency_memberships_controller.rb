@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::AgencyMembershipsController < Dashboard::SettingsHomeController
+class Dashboard::AgencyMembershipsController < Dashboard::CommerceBaseController
   before_action :set_site
   def index
     @memberships = LightekAgency::SiteMembership.where(site: @site).includes(:user)

@@ -36,6 +36,8 @@ def validate(config):
     environment = config.get("environment", {})
     if not isinstance(environment, dict) or any(not re.fullmatch(r"[A-Z][A-Z0-9_]*", k) or not isinstance(v, str) or "\x00" in v for k, v in environment.items()):
         raise ValueError("Environment must contain named string values")
+    if config.get("lightek_application") and not config["rails_database"]:
+        raise ValueError("Lightek requires its database stack")
     return config
 
 
@@ -62,6 +64,9 @@ def compose_config(config, state):
                            SECRET_KEY_BASE=state["secret_key_base"],
                            DATABASE_URL=f"postgresql://lightek:{state['database_password']}@db:5432/application",
                            REDIS_URL="redis://redis:6379/0")
+        if config.get("lightek_application"):
+            environment.update(APP_HOST=config["domain"], LIGHTEK_DEPLOYED_SITE_HOST=config["domain"],
+                               LIGHTEK_RELEASE=config["image"].split("@sha256:")[1])
         web["command"] = ["bin/rails", "server", "-b", "0.0.0.0", "-p", str(config["container_port"])]
         web["depends_on"] = {"db": {"condition": "service_healthy"}, "redis": {"condition": "service_started"}}
         services["db"] = {"image": "postgres:16-bookworm", "restart": "unless-stopped",
@@ -123,6 +128,9 @@ def install_locked(config):
         state = {"launch_id": config["launch_id"], "port": port,
                  "secret_key_base": secrets.token_hex(64), "database_password": secrets.token_hex(32)}
         write_json(state_path, state)
+    if config.get("lightek_application") and not state.get("owner_password"):
+        state["owner_password"] = secrets.token_urlsafe(36)
+        write_json(state_path, state)
     packages = []
     if not shutil.which("docker"):
         packages.extend(["docker.io", "docker-compose-v2"])
@@ -152,6 +160,13 @@ def install_locked(config):
         if config["rails_database"]:
             run(compose + ["up", "-d", "--wait", "db", "redis"])
             run(compose + ["run", "--rm", "--no-deps", "web", "bin/rails", "db:prepare"])
+            if config.get("lightek_application"):
+                bootstrap = {"domain": domain, "owner_email": config["email"], "owner_password": state["owner_password"],
+                             "owner_role": "admin", "site_name": config.get("name", domain), "headline": "Welcome",
+                             "description": config.get("name", domain), "branding": config.get("branding"),
+                             "reservation_federation": config.get("reservation_federation")}
+                runner = 'require "json"; LightekWebsite::Bootstrap.call(JSON.parse(STDIN.read))'
+                run(compose + ["run", "--rm", "--no-deps", "-T", "web", "bin/rails", "runner", runner], input=json.dumps(bootstrap).encode())
             tasks = subprocess.check_output(compose + ["run", "--rm", "--no-deps", "web", "bin/rails", "-T"], stderr=subprocess.DEVNULL, timeout=180).decode()
             if "assets:precompile" in tasks:
                 run(compose + ["run", "--rm", "--no-deps", "web", "bin/rails", "assets:precompile"])
@@ -185,7 +200,18 @@ def install_locked(config):
         actual = subprocess.check_output(["docker", "inspect", "--format", "{{.Config.Image}} {{.State.Running}}", container], timeout=30).decode().strip()
         if actual != config["image"] + " true":
             raise ValueError("Running image differs from template for " + service)
-    return {"status": "succeeded", "domain": domain, "image": config["image"], "url": f"https://{domain}", "compose_project": project, "launch_id": config["launch_id"]}
+    health = {}
+    if config.get("lightek_application"):
+        verifier = globals().get("_lightek_verifier")
+        if verifier is None:
+            import runpy
+            verifier = runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "script/lightek/verify_paid_instance.py"))
+        health = verifier["verify_public"]({"domain": domain, "release": config["image"].split("@sha256:")[1],
+                                            "owner_email": config["email"], "owner_password": state["owner_password"]})
+    fleet_config = {"compose_file": str(root / "compose.json"), "compose_project": project, "db_service": "db",
+                    "health_url": f"https://{domain}/up", "revision_url": f"https://{domain}/__lightek/release"}
+    return {"public_https_verified": True, "owner_login_verified": bool(health), "health": health, "fleet_config": fleet_config,
+            "status": "succeeded", "domain": domain, "image": config["image"], "url": f"https://{domain}", "compose_project": project, "launch_id": config["launch_id"]}
 
 
 if __name__ == "__main__":

@@ -12,6 +12,9 @@ module LightekCommerce
       reservation = LightekReservations::Reservation.find_by(order_id: order.id)
       product_items = order.items.select { |item| item.product.product_type == "lightek_instance" }
       return if product_items.empty?
+      if product_items.one? && product_items.first.purchase_snapshot.to_h["hosting"].present?
+        return Gatekeeper::Hosting::PackagePurchase.provision!(order: order)
+      end
       raise NotReady, "One installation per checkout" unless product_items.size == 1 && product_items.first.quantity == 1
       item = product_items.first
       product = item.product

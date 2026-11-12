@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::CommerceOrdersController < Dashboard::SettingsHomeController
+class Dashboard::CommerceOrdersController < Dashboard::CommerceBaseController
   def retry_provisioning
     site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
     order = LightekCommerce::Order.where(site: site).find(params.require(:order_id))

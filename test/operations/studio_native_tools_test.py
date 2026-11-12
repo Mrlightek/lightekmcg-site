@@ -49,7 +49,10 @@ def proof():
         {'kind':'node_link','scope':'compositor','from':'Render Layers','output':0,'to':'Studio Glow','input':0},
         {'kind':'node_link','scope':'compositor','from':'Studio Glow','output':0,'to':'Composite','input':0},
     ])
-    assert len(bpy.context.scene.node_tree.links) == 2
+    links={(link.from_node.name,link.to_node.name) for link in bpy.context.scene.node_tree.links}
+    assert ('Render Layers','Studio Glow') in links
+    assert ('Studio Glow','Composite') in links
+    assert bpy.context.scene.node_tree.nodes['Composite'].inputs[0].links[0].from_node.name=='Studio Glow'
     inventory = authoring.inventory(obj)
     assert inventory['shape_keys'][1]['name'] == 'Smile'
     assert inventory['graphs'][0]['scope'] == 'geometry'

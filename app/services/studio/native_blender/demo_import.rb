@@ -7,15 +7,18 @@ module Studio
   module NativeBlender
     class DemoImport
       MAX_BYTES=512*1024*1024
-      HOSTS=%w[download.blender.org mirror.blender.org].freeze
+      HOSTS=%w[download.blender.org mirror.blender.org studio.blender.org].freeze
       def self.call(asset) = new(asset).call
       def initialize(asset) = @asset=asset
       def call
         demo=DemoCatalog.fetch(@asset.metadata.fetch("demo_key"))
         @asset.update!(status:"processing",error_message:nil)
-        Dir.mktmpdir("blender-demo-") do |root|
+        Studio::MediaProcess.temporary_directory("blender-demo-") do |root|
           archive=File.join(root,"download#{File.extname(URI.parse(demo.fetch('url')).path)}")
-          self.class.download(demo.fetch("url"),archive)
+          self.class.download(demo.fetch("url"),archive,referer:demo["source_page"])
+          if demo["sha256"] && Digest::SHA256.file(archive).hexdigest!=demo["sha256"]
+            raise ArgumentError,"The character download changed. Update its verified catalog entry before importing."
+          end
           bundle_root=File.join(root,"bundle")
           paths=if archive.end_with?(".zip")
             JSON.parse(Studio::MediaProcess.run!(["python3",Rails.root.join("blender/extract_demo.py").to_s,archive,bundle_root],timeout:90))
@@ -45,14 +48,17 @@ module Studio
           asset.assign_attributes(site_id:@asset.site_id,name:"#{demo['name']} · #{File.basename(path,'.blend')}".first(160),kind:"blend",status:"processing",metadata:{"demo_key"=>demo["key"],"source"=>demo})
         end
       end
-      def self.download(url,path,redirects:3)
+      def self.download(url,path,redirects:3,referer:nil)
         uri=URI.parse(url)
         raise ArgumentError,"Use an official Blender demo download" unless uri.scheme=="https" && HOSTS.include?(uri.host) && uri.userinfo.nil? && uri.port==443
         Net::HTTP.start(uri.host,uri.port,use_ssl:true,open_timeout:15,read_timeout:60) do |http|
-          http.request(Net::HTTP::Get.new(uri.request_uri)) do |response|
+          request=Net::HTTP::Get.new(uri.request_uri)
+          request["Referer"]=referer if referer
+          request["User-Agent"]="LightekStudio/1.0"
+          http.request(request) do |response|
             if response.is_a?(Net::HTTPRedirection)
               raise ArgumentError,"Too many demo download redirects" if redirects<=0
-              return download(URI.join(url,response.fetch('location')).to_s,path,redirects:redirects-1)
+              return download(URI.join(url,response.fetch('location')).to_s,path,redirects:redirects-1,referer:referer)
             end
             raise "Blender download returned HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
             raise "Blender demo exceeds the 512 MB download limit" if response['content-length'].to_i>MAX_BYTES

@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v63-studio-input-import"
+const CACHE = "lightek-shell-v64-starter-cast"
 
 const SHELL = [
   "/lightek/index.html",

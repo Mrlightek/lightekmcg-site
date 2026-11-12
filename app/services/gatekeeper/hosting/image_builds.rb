@@ -14,7 +14,7 @@ module Gatekeeper
         sha = commit.fetch("sha")
         raise Access::Denied, "GitHub did not return a source commit" unless sha.match?(/\A[0-9a-f]{40}\z/)
         template = GatekeeperApplicationTemplate.create!(name: attributes.fetch("name"), preview_domain: attributes["preview_domain"],
-          kind: "docker", build_status: "queued", source_ref: ref, enabled: false, rails_database: true, rails_worker: true,
+          kind: "docker", lightek_application: true, build_status: "queued", source_ref: ref, enabled: false, rails_database: true, rails_worker: true,
           credential_slug: attributes["credential_slug"], container_port: 3000)
         identity = {"source_sha" => sha, "repository_id" => config.fetch("repository_id"),
           "audience" => "#{config.fetch('callback_url')}/#{template.id}/#{SecureRandom.hex(16)}"}

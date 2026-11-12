@@ -4,7 +4,7 @@ module Gatekeeper
       def self.create!(actor:, node:, project:, owner:, name:, domain:)
         Access.authorize!(actor, node)
         raise Access::Denied, "Runtime is not installed on this server" unless project.gatekeeper_node_id == node.id
-        raise Access::Denied, "Only super admins may assign another account" unless Access.super_admin?(actor) || actor == owner
+        raise Access::Denied, "Only super admins may assign another account" unless Access.manages?(actor, owner)
         Runtime.resolve(project)
         begin
           hostname = LightekSettings::SiteDomain.public_hostname!(domain)
@@ -12,12 +12,13 @@ module Gatekeeper
           raise Access::Denied, error.message
         end
         app = nil
-        owner.with_lock do
+        capacity_owner = actor.respond_to?(:white_label?) && actor.white_label? ? actor : owner
+        capacity_owner.with_lock do
           node.with_lock do
             Access.active!(node)
             Access.enforce_limit!(actor: actor, owner: owner, additional: 1)
             host = hostname
-            raise Access::Denied, "Hostname is already assigned to an application" if GatekeeperProject.exists?(domain: host)
+            raise Access::Denied, "Hostname is already assigned to an application" if GatekeeperProject.exists?(domain: host) || GatekeeperApplicationLaunch.where.not(status: "deleted").exists?(domain: host)
             app = GatekeeperHostedApplication.create!(gatekeeper_node: node, gatekeeper_project: project,
               owner: owner, requested_by: actor, name: name, domain: host)
           end
@@ -44,7 +45,10 @@ module Gatekeeper
         runtime = Runtime.resolve(app.gatekeeper_project)
         Dns.prepare!(domain: app.domain, ip_address: app.gatekeeper_node.ip_address)
         payload = {domain: app.domain, name: app.name, application_key: app.public_key, owner_email: app.owner.email_address,
-          certificate_email: app.owner.email_address, deployment: runtime.deployment_config}
+          branding: (app.owner.account_branding_profile || app.requested_by.account_branding_profile)&.attributes&.slice("brand_name", "logo_url", "support_email", "accent_color"),
+          certificate_email: app.owner.email_address, deployment: runtime.deployment_config,
+          owner: {first_name: app.owner.respond_to?(:first_name) ? app.owner.first_name : "Site",
+            last_name: app.owner.respond_to?(:last_name) ? app.owner.last_name : "Owner"}}
         receipt = Fleet::Transport.run!(node: app.gatekeeper_node, domain: runtime.domain,
           requested_by: app.requested_by.email_address, operation_id: operation.id,
           payload: payload, script_name: "create_hosted_site.py")

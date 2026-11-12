@@ -8,5 +8,15 @@ class GatekeeperApplicationTemplate < ApplicationRecord
   validate do
     errors.add(:rails_worker, "requires the Rails PostgreSQL/Redis stack") if kind == "docker" && rails_worker? && !rails_database?
   end
+  def self.ensure_native!
+    find_or_create_by!(kind: "native_rails", name: "LightekMCG · Rails with Docker dependencies") do |template|
+      template.container_port = 3000
+      template.enabled = true
+      template.build_status = "ready"
+    end
+  rescue ActiveRecord::RecordNotUnique
+    find_by!(kind: "native_rails", name: "LightekMCG · Rails with Docker dependencies")
+  end
+
   scope :available, -> { where(enabled: true, build_status: "ready").order(:name) }
 end

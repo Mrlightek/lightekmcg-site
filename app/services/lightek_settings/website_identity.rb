@@ -3,8 +3,9 @@ module LightekSettings
   class WebsiteIdentity
     def self.sites_for(user)
       if user&.role == 'client'
-        return DymondSite::Site.where(id: LightekReservations::Peer.where(merchant: user).select(:site_id))
+        return DymondSite::Site.where(tenant: user).or(DymondSite::Site.where(id: LightekReservations::Peer.where(merchant: user).select(:site_id)))
       end
+      return DymondSite::Site.where(tenant_type: "User", tenant_id: user.managed_account_ids) if user&.role == "white_label"
       return DymondSite::Site.none unless user&.role.to_s.in?(%w[admin super_admin])
       return DymondSite::Site.all if user.role == "super_admin"
       DymondSite::Site.where(tenant: user)

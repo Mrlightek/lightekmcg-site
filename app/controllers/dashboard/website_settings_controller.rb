@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::WebsiteSettingsController < Dashboard::SettingsHomeController
+class Dashboard::WebsiteSettingsController < Dashboard::CommerceBaseController
   before_action :set_website
   def show; end
 

@@ -7,12 +7,20 @@ module Gatekeeper
       def self.nodes(actor)
         raise Denied, "Sign in to manage servers" unless actor&.persisted?
         return GatekeeperNode.all if super_admin?(actor)
-        GatekeeperNode.where(owner: actor)
+        GatekeeperNode.where(owner_type: "User", owner_id: account_ids(actor))
       end
 
       def self.authorize!(actor, node)
         raise Denied, "This server belongs to another account" unless super_admin?(actor) ||
-          (actor&.persisted? && node.owner_type == "User" && node.owner_id == actor.id)
+          (actor&.persisted? && node.owner_type == "User" && account_ids(actor).include?(node.owner_id))
+      end
+
+      def self.account_ids(actor)
+        actor.respond_to?(:managed_account_ids) ? actor.managed_account_ids : [actor.id]
+      end
+
+      def self.manages?(actor, owner)
+        super_admin?(actor) || (actor&.persisted? && account_ids(actor).include?(owner.id))
       end
 
       def self.active!(node)
@@ -21,27 +29,32 @@ module Gatekeeper
 
       def self.site_limit(owner)
         return Float::INFINITY if super_admin?(owner)
-        subscriptions = DymondBank::Subscription.where(subscriber: owner, status: %w[active trialing])
+        subscriptions = DymondBank::Subscription.where(subscriber_type: "User", subscriber_id: account_ids(owner), status: %w[active trialing])
           .where("current_period_start <= ? AND current_period_end > ?", Time.current, Time.current)
         subscriptions = subscriptions.select { |subscription| subscription.status != "trialing" ||
           (subscription.trial_ends_at && subscription.trial_ends_at > Time.current) }
-        SubscriptionInfrastructureEntitlement.where(subscription_plan_id: subscriptions.map(&:plan_id)).maximum(:max_sites).to_i
+        allowances = SubscriptionInfrastructureEntitlement.where(subscription_plan_id: subscriptions.map(&:plan_id)).pluck(:subscription_plan_id, :max_sites).to_h
+        subscriptions.sum { |subscription| allowances.fetch(subscription.plan_id, 0).to_i }
       end
 
       def self.site_domains(owner)
-        nodes = GatekeeperNode.where(owner: owner).where.not(status: "decommissioned")
+        ids = account_ids(owner)
+        nodes = GatekeeperNode.where(owner_type: "User", owner_id: ids).where.not(status: "decommissioned")
         values = GatekeeperProject.where(gatekeeper_node_id: nodes.select(:id)).pluck(:domain)
-        values += GatekeeperApplicationLaunch.where(owner: owner).where.not(status: "deleted").pluck(:domain)
-        values += GatekeeperHostedApplication.where(owner: owner).where.not(status: "deleted").pluck(:domain)
-        values += DymondSite::Site.where(tenant: owner).pluck(:host) if defined?(DymondSite::Site)
+        values += GatekeeperApplicationLaunch.where(owner_id: ids).where.not(status: "deleted").pluck(:domain)
+        values += GatekeeperHostedApplication.where(owner_id: ids).where.not(status: "deleted").pluck(:domain)
+        if defined?(DymondSite::Site)
+          values += DymondSite::Site.where(tenant_type: "User", tenant_id: ids).pluck(:host, :manifest).reject { |_, manifest| manifest.to_h["network_ledger"] == true }.map(&:first)
+        end
         values.compact.map(&:downcase).uniq
       end
 
       def self.enforce_limit!(actor:, owner:, additional:)
         return if super_admin?(actor)
-        raise Denied, "Choose an account you own" unless actor == owner
-        limit = site_limit(owner)
-        raise Denied, "Your plan allows #{limit} sites. Change your plan to add another application." if site_domains(owner).size + additional > limit
+        raise Denied, "Choose an account you manage" unless manages?(actor, owner)
+        account = actor.respond_to?(:white_label?) && actor.white_label? ? actor : owner
+        limit = site_limit(account)
+        raise Denied, "Your plan allows #{limit} sites. Change your plan to add another application." if site_domains(account).size + additional > limit
       end
     end
   end

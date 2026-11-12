@@ -1,18 +1,27 @@
 module Gatekeeper
   module Hosting
     class Launches
-      def self.create!(actor:, attributes:)
-        # Installing arbitrary software and allocating provider resources require an operator.
-        raise Access::Denied, "A super admin installs application templates; additional websites use your plan allowance." unless Access.super_admin?(actor)
+      def self.create!(actor:, attributes:, enqueue: true)
+        raise Access::Denied, "Sign in to install an application" unless actor&.persisted?
+        attributes = attributes.to_h.with_indifferent_access
+        if !Access.super_admin?(actor) && attributes["node_id"].blank?
+          raise Access::Denied, "Buy a hosting package to create a server"
+        end
         template = GatekeeperApplicationTemplate.available.find(attributes.fetch("template_id"))
         owner = User.find(attributes["owner_id"].presence || actor.id)
+        raise Access::Denied, "Choose an account you manage" unless Access.manages?(actor, owner)
+        unless Access.super_admin?(actor)
+          raise Access::Denied, "Select a Lightek application template" unless template.kind == "native_rails" || template.lightek_application?
+        end
         attrs = attributes.to_h.with_indifferent_access
         raw_domain = attrs[:domain].presence || attrs[:subdomain].presence || "#{attrs[:site_name].presence || "app"}.lightekmcg.com"
         domain = LightekSettings::SiteDomain.public_hostname!(raw_domain)
         node = Access.nodes(actor).find(attributes["node_id"]) if attributes["node_id"].present?
         Access.active!(node) if node
         launch = nil
-        owner.with_lock do
+        capacity_owner = !Access.super_admin?(actor) && actor.respond_to?(:white_label?) && actor.white_label? ? actor : owner
+        capacity_owner.with_lock do
+          Access.enforce_limit!(actor: actor, owner: owner, additional: 1)
           raise Access::Denied, "Hostname is already assigned" if Access.site_domains(owner).include?(domain) ||
             GatekeeperProject.exists?(domain: domain) || GatekeeperHostedApplication.exists?(domain: domain)
           GatekeeperApplicationLaunch.transaction do
@@ -25,6 +34,9 @@ module Gatekeeper
               raise Access::Denied, "Select a provider region" unless catalog.fetch("regions").any? { |r| r["id"] == attributes["region"] }
               raise Access::Denied, "Use Ubuntu 24.04 for automated application installation" unless catalog.fetch("images").any? { |i| i["id"] == "linode/ubuntu24.04" }
               raise Access::Denied, "Provider did not return a monthly price" unless plan["monthly_cents"].to_i.positive?
+              if attributes["monthly_cost_ceiling_cents"].present? && plan["monthly_cents"].to_i > attributes["monthly_cost_ceiling_cents"].to_i
+                raise Access::Denied, "Provider price exceeds the purchased package budget"
+              end
               label = attributes["server_name"].presence || "#{attributes.fetch('name').parameterize.first(40)}-#{SecureRandom.hex(4)}"
               raise Access::Denied, "Server name must be 3–64 letters, numbers, hyphens or underscores" unless label.match?(/\A[a-zA-Z0-9][a-zA-Z0-9_-]{2,63}\z/)
               request = ProvisioningRequest.create!(owner: owner, compute_provider: provider, requested_node_count: 1,
@@ -36,10 +48,10 @@ module Gatekeeper
             Access.active!(node) if node
             launch = GatekeeperApplicationLaunch.create!(gatekeeper_application_template: template, owner: owner,
               requested_by: actor, name: attributes.fetch("name"), domain: domain, gatekeeper_node: node,
-              provisioning_request: request, template_snapshot: template.attributes.slice("kind", "image", "container_port", "credential_slug", "rails_database", "rails_worker"))
+              provisioning_request: request, template_snapshot: attributes["template_configuration"].presence || template.attributes.slice("kind", "image", "container_port", "credential_slug", "rails_database", "rails_worker", "lightek_application"))
           end
         end
-        LaunchApplicationJob.perform_later(launch.id)
+        LaunchApplicationJob.perform_later(launch.id) if enqueue
         launch
       rescue LightekSettings::SiteDomain::Invalid => error
         raise Access::Denied, error.message
@@ -62,7 +74,10 @@ module Gatekeeper
       def self.perform!(launch)
         launch.with_lock do
           return if %w[ready deleted provisioning].include?(launch.status)
-          raise Access::Denied, "The requesting account is no longer an operator" unless Access.super_admin?(launch.requested_by)
+          unless Access.super_admin?(launch.requested_by)
+            raise Access::Denied, "Installation access has changed" unless launch.gatekeeper_node && Access.manages?(launch.requested_by, launch.owner)
+            Access.enforce_limit!(actor: launch.requested_by, owner: launch.owner, additional: 0)
+          end
           if launch.gatekeeper_node
             launch.gatekeeper_node.with_lock do
               Access.authorize!(launch.requested_by, launch.gatekeeper_node)
@@ -73,7 +88,8 @@ module Gatekeeper
             launch.update!(status: "provisioning", error_message: nil)
           end
         end
-        actor, domain = launch.requested_by, launch.domain
+        actor = Access.super_admin?(launch.requested_by) ? launch.requested_by : User.find_by!(role: "super_admin")
+        domain = launch.domain
         config = launch.template_snapshot
         request = launch.provisioning_request
         if request && !request.gatekeeper_node_id && request.approved? && request.execution_status == "failed"
@@ -87,6 +103,7 @@ module Gatekeeper
               access_policy: {"consumers" => [WebsiteDeployment::CONSUMER], "purposes" => ["website_deploy"]}, requested_by: actor.email_address)
             site = WebsiteDeployment.configuration(owner: launch.owner, domain: domain, site_name: launch.name,
               headline: "Welcome", description: launch.name, certificate_email: launch.owner.email_address, credential_slug: slug)
+            site["reservation_federation"] = config["reservation_federation"] if config["reservation_federation"]
             WebsiteDeployment.register!(actor: actor, record: launch.gatekeeper_node || request, config: site)
           end
           receipt = request ? WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain) :
@@ -106,17 +123,35 @@ module Gatekeeper
             secrets = LightekVault::Service.checkout!(slug: config["credential_slug"], consumer: name,
               purpose: "application_install", requested_by: actor.email_address)
           end
+          federation = config["reservation_federation"]
+          if federation
+            federation_secret = LightekVault::Service.checkout!(slug: federation.fetch("credential_slug"), consumer: WebsiteDeployment::CONSUMER,
+              purpose: "reservation_federation", requested_by: actor.email_address)
+            federation = federation.merge("token" => federation_secret.fetch("token"))
+          end
           operation = GatekeeperOperation.create!(gatekeeper_node: node, capability: "install_container_application",
             requested_by: actor.email_address, status: "running", started_at: Time.current, parameters: {launch_id: launch.id, domain: domain})
           receipt = Fleet::Transport.run!(node: node, domain: domain, requested_by: actor.email_address,
             operation_id: operation.id, script_name: "install_container_application.py", registry: true,
             payload: {domain: domain, launch_id: launch.id, image: config.fetch("image"),
               container_port: config.fetch("container_port"), rails_database: config.fetch("rails_database"), rails_worker: config.fetch("rails_worker", false),
-              email: launch.owner.email_address, environment: secrets.fetch("environment", {})})
+              email: launch.owner.email_address, environment: secrets.fetch("environment", {}),
+              lightek_application: config.fetch("lightek_application", false), name: launch.name, reservation_federation: federation,
+              branding: launch.owner.account_branding_profile&.attributes&.slice("brand_name", "logo_url", "support_email", "accent_color")})
           raise Access::Denied, "Container HTTPS verification failed" unless receipt["status"] == "succeeded" && receipt["domain"] == domain && receipt["image"] == config["image"]
+          if config["lightek_application"]
+            raise Access::Denied, "Lightek owner dashboard verification failed" unless receipt["owner_login_verified"] == true && receipt.dig("health", "full_application_dashboard_verified") == true
+          end
           operation.update!(status: "succeeded", completed_at: Time.current, result: receipt, exit_status: 0)
           launch.update!(status: "ready", receipt: receipt)
-          node.update!(status: "healthy")
+          node.with_lock do
+            deployments = node.metadata.to_h.fetch("website_deployments", {}).merge(domain => {
+              "owner_id" => launch.owner_id, "owner_email" => launch.owner.email_address,
+              "deployment_adapter" => "docker_compose", "fleet_config" => receipt["fleet_config"]})
+            node.update!(status: "healthy", metadata: node.metadata.to_h.merge("website_deployments" => deployments, "website_deployment" => receipt,
+              "website_deployment_receipts" => node.metadata.to_h.fetch("website_deployment_receipts", {}).merge(domain => receipt)))
+          end
+          Fleet::Inventory.sync_node!(node) if config["lightek_application"]
         end
         begin
           MailPortRequest.submit!(request: request.reload, actor: actor, domain: domain) if request
@@ -134,6 +169,7 @@ module Gatekeeper
           status: "failed", error_message: error.is_a?(Access::Denied) ? error.message : "Installation failed (#{error.class}). Retry reuses the same server and domain.")
         raise
       ensure
+        federation_secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
         secrets&.each_value { |value| value.clear if value.respond_to?(:clear) && !value.frozen? }
       end
     end

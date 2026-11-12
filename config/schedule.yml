@@ -59,3 +59,15 @@ lightek_session_media_reconciliation:
   class: "LightekSessions::SweepJob"
   queue: default
   active_job: true
+
+lightek_shipping_recovery:
+  cron: "*/5 * * * *"
+  class: "LightekShipping::RecoveryJob"
+  queue: default
+  active_job: true
+
+lightek_commerce_network_sync:
+  cron: "* * * * *"
+  class: "LightekCommerce::NetworkSyncJob"
+  queue: default
+  active_job: true

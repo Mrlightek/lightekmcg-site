@@ -8,7 +8,14 @@ module LightekCommerce
     def perform(order_id)
       order = Order.find_by(id: order_id)
       return unless order&.status == "pending_payment"
-      return if order.created_at > 35.minutes.ago
+      if order.created_at > 35.minutes.ago
+        self.class.set(wait_until: order.created_at + 35.minutes).perform_later(order.id)
+        return
+      end
+      if order.payment_provider == "network"
+        NetworkCheckout.synchronize!(order)
+        return
+      end
 
       unless order.payment_reference.present?
         OrderPlacement.cancel!(order)

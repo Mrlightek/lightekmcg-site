@@ -65,7 +65,11 @@ ActiveRecord::Schema.define do
     t.string :status; t.datetime :last_deployed_at; t.datetime :last_healthcheck_at
   end
 end
-class User < ApplicationRecord; end
+class User < ApplicationRecord
+  def account_branding_profile = nil
+  def agency_profile = nil
+  def agency = nil
+end
 class ComputeProvider < ApplicationRecord
   class_attribute :test_adapter
   def self.active = all
@@ -99,6 +103,7 @@ AddServerApplicationManagement.new.migrate(:up)
 source = File.read(Rails.root.join("db/migrate/20261107140000_create_application_launches.rb"))
 eval(source.sub("Migration[8.0]", "Migration[7.2]"), TOPLEVEL_BINDING, "application_launches_migration")
 CreateApplicationLaunches.new.migrate(:up)
+ActiveRecord::Migration.add_column(:gatekeeper_application_templates, :lightek_application, :boolean, default: false, null: false)
 %w[gatekeeper_application_template gatekeeper_application_launch].each { |file| require Rails.root.join("app/models", file).to_s }
 require Rails.root.join("app/services/gatekeeper/fleet/adapters").to_s
 %w[gatekeeper_node gatekeeper_operation gatekeeper_installation gatekeeper_release gatekeeper_rollout gatekeeper_update_target].each do |file|

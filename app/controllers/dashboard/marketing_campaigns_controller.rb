@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeController
+class Dashboard::MarketingCampaignsController < Dashboard::CommerceBaseController
   before_action :set_site
   before_action :set_campaign, only: %i[edit update destroy send_email send_audience schedule]
   def index

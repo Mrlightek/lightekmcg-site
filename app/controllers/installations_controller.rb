@@ -40,6 +40,15 @@ class InstallationsController < ApplicationController
     redirect_to installations_path, alert: "Payment must be confirmed before installation can resume."
   end
 
+  def cancel_subscription
+    order = customer_order
+    raise ActiveRecord::RecordNotFound unless order.customer_email == current_user.email_address
+    LightekCommerce::SubscriptionCancellation.schedule!(subscription: order.commerce_subscription || raise(ActiveRecord::RecordNotFound))
+    redirect_to installation_path(order), notice: "Subscription cancellation scheduled for the end of the paid period."
+  rescue Stripe::StripeError
+    redirect_to installation_path(order), alert: "Cancellation could not be confirmed. Please retry."
+  end
+
   def access
     order = customer_order
     url = Gatekeeper::WebsiteDeployment.owner_password_setup_url!(actor: current_user, order: order)

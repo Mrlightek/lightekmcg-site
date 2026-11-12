@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::CommerceRefundsController < Dashboard::SettingsHomeController
+class Dashboard::CommerceRefundsController < Dashboard::CommerceBaseController
   def create
     site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
     order = LightekCommerce::Order.where(site: site).find(params[:order_id])

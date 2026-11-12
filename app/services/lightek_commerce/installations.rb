@@ -2,15 +2,23 @@
 module LightekCommerce
   module Installations
     def self.scope_for(actor, operator: false)
-      scope = Order.joins(items: :product).where(lightek_commerce_products: {product_type: "lightek_instance"}).distinct
-      return scope.where(customer_email: actor.email_address) unless operator
+      scope = Order.where.not(purpose: "subscription_renewal").or(Order.where(purpose: nil)).joins(items: :product).where(lightek_commerce_products: {product_type: "lightek_instance"}).distinct
+      unless operator
+        return scope.where(customer_email: actor.email_address).or(scope.where(hosting_owner_id: actor.id))
+      end
       return scope if actor.role == "super_admin"
       return scope.where(site_id: LightekSettings::WebsiteIdentity.sites_for(actor).select(:id)) if actor.role == "admin"
       scope.none
     end
 
     def self.can_manage_access?(actor, order)
-      actor&.persisted? && (actor.role == "super_admin" || actor.email_address == order.customer_email)
+      return false unless actor&.persisted?
+      return true if actor.role == "super_admin"
+      if order.hosting_owner
+        Gatekeeper::Hosting::Access.manages?(actor, order.hosting_owner)
+      else
+        actor.email_address == order.customer_email
+      end
     end
 
     def self.ready?(order)
@@ -18,6 +26,7 @@ module LightekCommerce
     end
 
     def self.hostname(order)
+      return order.hosting_domain if order.hosting_domain.present?
       "client-#{order.id}.#{ENV.fetch('LIGHTEK_AUTO_CLIENT_BASE_DOMAIN', 'lightekmcg.com')}".downcase
     end
 

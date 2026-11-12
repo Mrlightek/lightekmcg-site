@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::CommercePayoutsController < Dashboard::SettingsHomeController
+class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
   def index
     @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
     if LightekReservations::Federation::Client.config(@site) && @site.tenant == current_user

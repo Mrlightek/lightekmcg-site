@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::BusinessHubController < Dashboard::SettingsHomeController
+class Dashboard::BusinessHubController < Dashboard::CommerceBaseController
   def index
     @sites = LightekAgency::Access.sites_for(current_user).order(:name, :id)
     @site = params[:site_id].present? ? @sites.find(params[:site_id]) : @sites.first
@@ -11,7 +11,7 @@ class Dashboard::BusinessHubController < Dashboard::SettingsHomeController
     @metrics = {
       products: products.count,
       published_products: products.where(published: true).count,
-      low_stock_products: products.where(inventory_quantity: 0..5).count,
+      low_stock_products: products.where(track_inventory: true, product_type: "physical", inventory_quantity: 0..5).count,
       orders: orders.count,
       pending_orders: orders.where(status: "pending_payment").count,
       paid_orders: orders.where(status: %w[paid fulfilled partially_refunded]).count,

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-class Dashboard::MarketingContactsController < Dashboard::SettingsHomeController
+class Dashboard::MarketingContactsController < Dashboard::CommerceBaseController
   before_action :set_site
   def index
     @contacts = LightekMarketing::Contact.where(site: @site).order(created_at: :desc).limit(300)

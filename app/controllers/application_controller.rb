@@ -24,6 +24,7 @@ class ApplicationController < ActionController::Base
 
   # ── DymondDash helpers — exposed to engine controllers ────────────────────────
   # The DymondDash engine calls main_app.current_user via this method
+  helper AgencyBrandingHelper
   helper_method :current_user
 
   def current_user

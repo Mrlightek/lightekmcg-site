@@ -9,6 +9,7 @@ module NevaehControlCenterHelper
       item.call("my-reservations", "My Reservations", main_app.my_reservations_path, "ti-ticket"),
       item.call("agency", "Agency & Marketing", main_app.dashboard_agency_reports_path, "ti-chart-dots"),
       item.call("design", "Design & Content", main_app.dashboard_website_designs_path, "ti-palette"),
+      item.call("journal", "Journal & Articles", main_app.dashboard_blog_index_path, "ti-article"),
       item.call("mail", "Communications", main_app.dashboard_mail_path, "ti-mail")]
     if current_user.role.in?(%w[admin super_admin]) || current_user.can_access_feature?("studio")
       rows << item.call("studio", "Studio & Broadcasting", main_app.dashboard_media_studio_path, "ti-video")

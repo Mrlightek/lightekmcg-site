@@ -4,8 +4,8 @@
     <% source["font_stylesheets"].lines.map(&:strip).each do |url| %><link rel="stylesheet" href="<%= url %>"><% end %>
     <style>:host{display:block} .li-body{display:flow-root;margin:0} <%= LightekDesign::HtmlDocument.shadow_css(source["css"]).html_safe %>
     /* Imported content must remain visible without its original JS effects. */
-    .rv{opacity:1!important;transform:none!important}
+    .rv{opacity:1!important;transform:none!important} nav .lt-bound-links{display:flex;flex-wrap:wrap;align-items:center;gap:18px;list-style:none;margin:0;padding:0} nav .lt-bound-links a{color:inherit} nav .lt-bound-links .lt-nav-panel{list-style:none;padding:12px} @media(max-width:650px){header .bar{height:auto!important;flex-wrap:wrap;padding-top:16px;padding-bottom:16px}header nav{display:block!important;width:100%}nav .lt-bound-links{gap:12px;font-size:12px}}
     </style>
-    <div class="li-body <%= source['body_class'] %>"><%= LightekDesign::HtmlDocument.render_html(source).html_safe %></div>
+    <div class="li-body <%= source['body_class'] %>"><%= studio_bound_html(source).html_safe %></div>
   </template>
 </lightek-html>

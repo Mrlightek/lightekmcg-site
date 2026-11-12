@@ -26,6 +26,9 @@ class CommerceController < ApplicationController
     if @page && design_key.present?
       @design_key = design_key
       render "commerce/styled", layout: "lightek_design/website"
+    elsif LightekDesign::Catalog.active?(@site)
+      @page = Struct.new(:title,:theme,:sections).new("Shop",nil,[])
+      render "commerce/index", layout: "lightek_design/website"
     end
   end
   def add

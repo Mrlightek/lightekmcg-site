@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 class Dashboard::DesignStudioController < Dashboard::SettingsHomeController
+  skip_before_action :require_settings_operator!
+  before_action :require_design_editor!
   helper LightekDesign::StudioHelper
   helper DymondDash::TemplateSchemaHelper
   before_action :set_document, only: %i[edit update preview publish upload destroy]
@@ -72,6 +74,9 @@ class Dashboard::DesignStudioController < Dashboard::SettingsHomeController
   end
 
   private
+  def require_design_editor!
+    head :forbidden unless current_user&.role.to_s.in?(%w[admin super_admin]) || LightekSettings::WebsiteIdentity.sites_for(current_user).exists?
+  end
   def set_document
     @record = LightekDesign::StudioDocument.find_for!(params[:id], current_user)
   end

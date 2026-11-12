@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_12_150000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_12_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1414,6 +1414,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_150000) do
     t.index ["expires_at"], name: "index_lightek_audience_leases_on_expires_at"
     t.index ["key"], name: "index_lightek_audience_leases_on_key", unique: true
     t.index ["user_id"], name: "index_lightek_audience_leases_on_user_id"
+  end
+
+  create_table "lightek_blog_entries", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "post_id", null: false
+    t.string "slug", limit: 160, null: false
+    t.string "status", default: "draft", null: false
+    t.text "excerpt"
+    t.string "category", limit: 80
+    t.datetime "published_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["post_id"], name: "index_lightek_blog_entries_on_post_id", unique: true
+    t.index ["site_id", "slug"], name: "index_lightek_blog_entries_on_site_id_and_slug", unique: true
+    t.index ["site_id", "status", "published_at"], name: "idx_blog_publication_feed"
+    t.index ["site_id"], name: "index_lightek_blog_entries_on_site_id"
+    t.check_constraint "(status::text = ANY (ARRAY['draft'::character varying, 'published'::character varying, 'archived'::character varying]::text[])) AND (status::text <> 'published'::text OR published_at IS NOT NULL)", name: "blog_publication_state_valid"
   end
 
   create_table "lightek_commerce_billing_invoices", force: :cascade do |t|
@@ -3822,6 +3840,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_150000) do
   add_foreign_key "lightek_agency_site_memberships", "users"
   add_foreign_key "lightek_agency_site_memberships", "users", column: "granted_by_id"
   add_foreign_key "lightek_audience_leases", "users"
+  add_foreign_key "lightek_blog_entries", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_blog_entries", "posts", on_delete: :cascade
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_orders", column: "settlement_order_id"
   add_foreign_key "lightek_commerce_billing_invoices", "lightek_commerce_subscriptions", column: "subscription_id"
   add_foreign_key "lightek_commerce_network_accounts", "dymond_site_sites", column: "site_id"

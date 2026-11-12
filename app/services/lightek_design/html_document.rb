@@ -8,7 +8,7 @@ module LightekDesign
   class HtmlDocument
     MAX_BYTES = 500_000
     TAGS = %w[a abbr article aside b blockquote br button caption code col colgroup dd details div dl dt em figcaption figure footer h1 h2 h3 h4 h5 h6 header hr i img label li main nav ol p picture pre s section small source span strong sub summary sup table tbody td th thead time tr u ul video audio svg g path circle ellipse rect line polygon polyline defs symbol use linearGradient radialGradient stop title].freeze
-    ATTRIBUTES = %w[id class style href src srcset alt title width height viewBox viewbox fill stroke stroke-width stroke-opacity stroke-linejoin d points cx cy r rx ry x y x1 x2 y1 y2 offset stop-color opacity role aria-label aria-hidden aria-expanded aria-controls loading controls poster type media sizes target rel colspan rowspan datetime hidden data-section data-icon data-img].freeze
+    ATTRIBUTES = %w[id class style href src srcset alt title width height viewBox viewbox fill stroke stroke-width stroke-opacity stroke-linejoin d points cx cy r rx ry x y x1 x2 y1 y2 offset stop-color opacity role aria-label aria-hidden aria-current aria-expanded aria-controls loading controls poster type media sizes target rel colspan rowspan datetime hidden data-section data-icon data-img data-l data-h data-lightek-route data-lightek-navigation data-lightek-products data-lightek-blog].freeze
 
     def self.normalize_data(raw)
       raise ArgumentError, "Invalid HTML section." unless raw.is_a?(Hash)
@@ -122,7 +122,19 @@ module LightekDesign
       end.to_h)
     end
 
-    def self.convert(html:, css: "", name: nil, product_selector: nil)
+    def self.typography(css)
+      rules=Crass.parse(css).select{|rule|rule[:node]==:style_rule}
+      extract=->(pattern) do
+        rule=rules.find{|candidate|candidate.dig(:selector,:value).match?(pattern)}
+        properties=Array(rule&.dig(:children)).select{|node|node[:node]==:property}
+        family=properties.find{|node|node[:name]=='font-family'}&.dig(:value)
+        family ||= properties.find{|node|node[:name]=='font'}&.dig(:value)&.match(/(['"])([^'"]+)\1/)&.[](2)
+        family.to_s.strip if family.present? && Fonts.valid_stack?(family.to_s.strip)
+      end
+      StudioDocument::FONT_DEFAULTS.merge({"font_sans"=>extract.call(/(?:\A|,)\s*body(?:\s|,|\z)/),"font_heading"=>extract.call(/(?:\A|,)\s*h[1-6](?:\s|,|\z)/)}.compact)
+    end
+
+    def self.convert(html:, css: "", name: nil, product_selector: nil, blog_selector: nil)
       raise ArgumentError, "Choose an HTML file up to 500 KB." unless html.to_s.bytesize.between?(1, MAX_BYTES)
       raise ArgumentError, "Choose a CSS file up to 500 KB." if css.to_s.bytesize > MAX_BYTES
       doc = Nokogiri::HTML5.parse(html)
@@ -134,13 +146,15 @@ module LightekDesign
       fonts = doc.css('link[rel="stylesheet"]').filter_map { |link| link['href'] if link['href'].to_s.start_with?("https://fonts.googleapis.com/css") }.join("\n")
       body = doc.at_css("body")
       body.css("script,style,link,meta").each(&:remove)
-      roots = body.element_children.flat_map { |node| node.name == "main" ? node.element_children.to_a : [node] }
+      roots = body.element_children.flat_map { |node| node.name == "main" && !(blog_selector.present? && node.matches?(blog_selector)) ? node.element_children.to_a : [node] }
       roots.reject! { |node| node.name == "svg" && node['height'] == "0" }
       raise ArgumentError, "No visible HTML sections found." if roots.empty?
       raise ArgumentError, "Split this design into at most 30 top-level sections." if roots.length > 30
       symbols = doc.css("svg").select { |node| node.at_css("symbol,defs") }.map(&:to_html).join
       sections = roots.map do |node|
-        if product_selector.present? && (node.matches?(product_selector) || node.at_css(product_selector))
+        if blog_selector.present? && (node.matches?(blog_selector) || node.at_css(blog_selector))
+          {"id"=>SecureRandom.hex(6),"title"=>"Journal", "anchor"=>"journal", "source_kind"=>"lightek_blog_index", "data"=>ContentSections.definitions.first["data"].deep_dup, "style"=>StudioDocument::STYLE_DEFAULTS.deep_dup}
+        elsif product_selector.present? && (node.matches?(product_selector) || node.at_css(product_selector))
           warnings << "The product area uses this website's published products and Lightek checkout."
           {"id" => SecureRandom.hex(6), "title" => "Live products", "anchor" => "products", "source_kind" => "lightek_product_grid", "data" => CommerceSections.definitions.first["data"].deep_dup, "style" => StudioDocument::STYLE_DEFAULTS.deep_dup}
         else
@@ -158,9 +172,12 @@ module LightekDesign
       if product_selector.present? && sections.count { |section| section["source_kind"] == "lightek_product_grid" } != 1
         raise ArgumentError, "Choose a selector matching exactly one visible product container."
       end
+      if blog_selector.present? && sections.count { |section| section["source_kind"] == "lightek_blog_index" } != 1
+        raise ArgumentError, "Choose a blog layout with exactly one main content area."
+      end
       # Dynamic visibility effects cannot leave content invisible without scripts.
       warnings << "Review script-generated areas in preview; HTML import does not execute JavaScript to generate missing content."
-      document = {"name" => name.to_s.strip.presence || doc.at_css("title")&.text.to_s.first(120).presence || "Imported website", "description" => "Imported HTML/CSS design", "base_design" => "plain", "fonts" => StudioDocument::FONT_DEFAULTS, "tokens" => palette(styles), "sections" => sections}
+      document = {"name" => name.to_s.strip.presence || doc.at_css("title")&.text.to_s.first(120).presence || "Imported website", "description" => "Imported HTML/CSS design", "base_design" => "plain", "fonts" => typography(styles), "tokens" => palette(styles), "sections" => sections}
       [StudioDocument.normalize(document), warnings.uniq]
     rescue Nokogiri::CSS::SyntaxError
       raise ArgumentError, "Enter a valid product area CSS selector."

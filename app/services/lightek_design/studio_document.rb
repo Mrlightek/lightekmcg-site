@@ -33,7 +33,7 @@ module LightekDesign
       def draft(record) = metadata(record).fetch("draft").deep_dup
       def revision(record) = metadata(record).fetch("revision", 1)
       def create!(user:, name:, source: nil)
-        raise ArgumentError, "Administrator access is required." unless user&.role.to_s.in?(%w[admin super_admin])
+        raise ArgumentError, "Workspace editor access is required." unless user&.role.to_s.in?(%w[admin super_admin client white_label])
         document = if source.present?
           definition = Catalog.fetch(source)
           if definition["designer"] && user.role.to_s != "super_admin" && definition["owner_id"].to_s != user.id.to_s

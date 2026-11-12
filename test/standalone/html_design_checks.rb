@@ -10,6 +10,7 @@ require_relative "../../app/services/lightek_design/fonts"
 require_relative "../../app/services/lightek_design/studio_blocks"
 require_relative "../../app/services/lightek_design/studio_document"
 require_relative "../../app/services/lightek_design/commerce_sections"
+require_relative "../../app/services/lightek_design/content_sections"
 require_relative "../../app/services/lightek_design/html_document"
 require_relative "../../app/services/lightek_commerce/industry_starters"
 module LightekDesign
@@ -20,8 +21,8 @@ end
 module DymondSite
   module SectionRegistry
     def self.find(key)
-      return unless key == "lightek_product_grid"
-      Struct.new(:schema).new(LightekDesign::CommerceSections.definitions.first["fields"])
+      data=(LightekDesign::CommerceSections.definitions+LightekDesign::ContentSections.definitions).find{|entry|entry["kind"]==key}
+      Struct.new(:schema).new(data["fields"]) if data
     end
   end
 end
@@ -29,6 +30,11 @@ end
 class HtmlDesignChecks < Minitest::Test
   def fixture(name)
     File.read(File.expand_path("../fixtures/files/website_designs/#{name}.html", __dir__))
+  end
+  def test_uploaded_body_and_heading_fonts_become_site_theme_tokens
+    doc,=LightekDesign::HtmlDocument.convert(html:'<style>body{font:400 16px/1.7 "Space Mono",monospace}h1,h2{font-family:"Barlow Condensed",sans-serif}</style><main><h1>Our journal</h1></main>')
+    assert_equal 'Space Mono',doc['fonts']['font_sans']
+    assert_equal '"Barlow Condensed",sans-serif',doc['fonts']['font_heading']
   end
   def test_attached_corporate_design_becomes_editable_sections
     document, warnings = LightekDesign::HtmlDocument.convert(html: fixture("lightek_website"))

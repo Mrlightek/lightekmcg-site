@@ -11,7 +11,7 @@ module LightekDesign
     end
 
     def self.enqueue!(user:, site:, html_file:, css_file: nil, name: nil, create_page: false, product_selector: nil, background: false)
-      raise ArgumentError, "Administrator access is required." unless user&.role.to_s.in?(%w[admin super_admin])
+      raise ArgumentError, "Workspace editor access is required." unless user&.role.to_s.in?(%w[admin super_admin client white_label])
       html = read_file!(html_file, %w[.html .htm])
       css = css_file.present? ? read_file!(css_file, %w[.css]) : ""
       record = DymondSite::SiteTemplate.create!(key: "ld_html_import_#{SecureRandom.hex(10)}", name: name.to_s.strip.presence || html_file.original_filename.first(120),

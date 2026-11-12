@@ -120,7 +120,7 @@ class StudioPerformanceTest < StudioAuthoringTest
       assert_equal actor.metadata["character_profile"],record[:metadata]["character_profile"]
     end
   end
-  def test_performance_dashboard_lists_productions_cast_and_embeds_authorized_workspace
+  def test_performance_dashboard_lists_productions_cast_and_opens_native_workspace
     actor=ready_actor
     client=session_for
     client.get "/dashboard/studio-broadcasting",headers:headers.merge("Accept"=>"text/html")
@@ -129,8 +129,9 @@ class StudioPerformanceTest < StudioAuthoringTest
     assert_includes client.response.body,actor.name
     client.get "/dashboard/studio-broadcasting/workspace/#{@scene.id}",params:{workspace:"performance"},headers:headers.merge("Accept"=>"text/html")
     assert_equal 200,client.response.status,client.response.body
-    assert_includes client.response.body,"<iframe"
-    assert_includes client.response.body,"/lightek/index.html?workspace=performance#/studio/#{@scene.id}"
+    refute_includes client.response.body,"<iframe"
+    assert_includes client.response.body,"lightek-studio-dashboard"
+    assert_includes client.response.body,"studio-dashboard.js"
     foreign=StudioProject.create!(owner:@bob,site:@other_site,name:"Private").studio_scenes.first
     client.get "/dashboard/studio-broadcasting/workspace/#{foreign.id}",headers:headers.merge("Accept"=>"text/html")
     assert_equal 404,client.response.status

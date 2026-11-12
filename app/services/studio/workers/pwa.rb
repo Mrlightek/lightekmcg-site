@@ -47,8 +47,9 @@ module Studio
       end
 
       def bootstrap
-        projects =
-          Studio::PwaAccess.new(payload).projects.order(:id).to_a
+        scope=Studio::PwaAccess.new(payload).projects
+        scope=scope.where(site_id:payload["site_id"]) if payload["scope_site"]
+        projects=scope.order(:id).to_a
 
         project_payloads =
           projects.map do |project|

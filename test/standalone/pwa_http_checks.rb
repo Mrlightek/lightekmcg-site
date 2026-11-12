@@ -72,6 +72,7 @@ end
 Rails.application.reload_routes!
 Rails.application.env_config["action_dispatch.show_exceptions"] = :none if ENV["PWA_HTTP_DEBUG"]
 
+require File.join(ROOT,"app/services/studio/assets/upload")
 class PwaHttpIntegrationTest < LightekCommunityIntegrationTest
   LightekCommunityIntegrationTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
   def session_for(user = @alice)

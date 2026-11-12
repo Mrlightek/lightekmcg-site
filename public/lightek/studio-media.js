@@ -154,7 +154,7 @@
       if(action==='import'){
         const file=form.elements.file.files[0];if(!file||file.size>250*1024*1024)throw Error('Choose a file smaller than 250 MB.');
         const body=new FormData();body.append('file',file);body.append('purpose','studio_asset');
-        const response=await fetch('/api/lightek/pwa/uploads',{method:'POST',credentials:'same-origin',headers:nevaeh.csrfHeaders(),body});const upload=await nevaeh.parseResponse(response);
+        const response=await fetch(window.LightekStudioUploadUrl||'/api/lightek/pwa/uploads',{method:'POST',credentials:'same-origin',headers:nevaeh.csrfHeaders(),body});const upload=await nevaeh.parseResponse(response);
         await call('asset.import',{signed_id:upload.signed_id,name:form.elements.name.value.trim()||file.name,request_key:form.dataset.requestKey||=crypto.randomUUID()});
         await loadAssets(true);toast('Import queued');
       }else if(action==='json-preset'){

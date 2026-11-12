@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -14,6 +14,9 @@ module Studio
         raise ArgumentError, "Unsupported Studio workspace action" unless ACTIONS.include?(@action)
         public_send(@action)
       end
+
+      def music_place = Studio::Music::Composition.place(access:@access,payload:@payload)
+      def music_save = Studio::Music::Composition.save(access:@access,payload:@payload)
 
       def cast_retry = Studio::Performance::Cast.retry(access:@access,payload:@payload)
       def cast_create = Studio::Performance::Cast.create(access:@access,payload:@payload)
@@ -242,6 +245,7 @@ module Studio
       def assets_list
         scope=StudioAsset.for_actor(@access).order(id: :desc)
         scope=scope.where("id < ?",Integer(@payload["before"])) if @payload["before"].present?
+        scope=scope.where(site_id:@access.site_id) if @payload["scope_site"]
         scope=scope.where(kind:%w[blend audio video]) if @payload["surface"]=="performance"
         records=scope.limit(101).to_a
         more=records.length>100

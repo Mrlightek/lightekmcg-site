@@ -10,11 +10,11 @@
 
     <details><summary>Broadcast overview</summary><section class="ms-metrics" id="overview"><% @stats.each do |label,value| %><article><span><%= label %></span><strong><%= value %></strong><small><%= @site.name %></small></article><% end %></section></details>
     <section class="ms-card" id="productions">
-      <div class="ms-section-heading"><div><p class="ms-eyebrow">PRODUCTION COMPANY</p><h2>Shows & episodes</h2></div><%= link_to "Create a production", dashboard_production_workspace_path(site_id:@site.id,workspace:"3d"), class:"ms-button ms-primary" %></div>
+      <div class="ms-section-heading"><div><p class="ms-eyebrow">PRODUCTION COMPANY</p><h2>Shows & episodes</h2></div><%= link_to "Create a production", dashboard_production_workspace_path(site_id:@site.id,workspace:"3d"), class:"ms-button ms-primary",data:{turbo:false} %></div>
       <p>Develop a show, reuse its cast and sets, direct performances, finish the episode and manage its release from this control room.</p>
       <% @production_projects.each do |project| %><details class="ms-editor" open><summary><strong><%= project.name %></strong><span class="ms-pill"><%= project.is_template ? "Show template" : "Production" %></span></summary>
         <% scenes=@production_scenes.fetch(project.id,[]) %><p><%= scenes.length %> scenes</p>
-        <% scenes.first(12).each do |scene| %><div class="ms-activity"><strong><%= scene.name %></strong><div><%= link_to "Open studio →", dashboard_production_workspace_path(scene_id:scene.id,site_id:@site.id), class:"ms-button ms-primary" %> </div></div><% end %>
+        <% scenes.first(12).each do |scene| %><div class="ms-activity"><strong><%= scene.name %></strong><div><%= link_to "Open studio →", dashboard_production_workspace_path(scene_id:scene.id,site_id:@site.id), class:"ms-button ms-primary",data:{turbo:false} %> </div></div><% end %>
         <% if scenes.length>12 %><p>Open the production workspace to browse all scenes.</p><% end %>
       </details><% end %>
       <% if @production_projects.empty? %><p class="ms-empty">Create your first show from a production template, then save the recurring cast and set for future episodes.</p><% end %>
@@ -22,7 +22,7 @@
     <details class="ms-card"><summary><strong>Manage cast, releases, channels & OTT apps</strong></summary>
     <section class="ms-card" id="cast"><div class="ms-section-heading"><div><p class="ms-eyebrow">RECURRING TALENT</p><h2>Cast library</h2></div></div><p>Open a scene in Studio to add a character and give it a recording. The same character can play independent roles in one scene.</p><div class="ms-pipeline"><% @cast_members.each do |actor| %><div><strong><%= actor.name %></strong><p>Reusable native character</p></div><% end %></div><% if @cast_members.empty? %><p class="ms-muted">Your saved performers will appear here.</p><% end %></section>
 
-    <section class="ms-card"><p class="ms-eyebrow">ASSET WORKSHOP</p><h2>Build your own production assets.</h2><p>Create shapes, sets, stages, lights and effects in Studio. Import and edit native Blender files, save reusable scene assets, then export for your community, channels and live productions.</p><div class="ms-section-heading"><%= link_to "Create in Studio ↗", "https://#{@site.host}/lightek/index.html#/studio/workshop", class: "ms-button ms-primary" %><%= link_to "Blender files & asset library ↗", "https://#{@site.host}/lightek/index.html#/studio/library", class: "ms-button" %></div></section>
+    <section class="ms-card"><p class="ms-eyebrow">ASSET WORKSHOP</p><h2>Build your own production assets.</h2><p>Create shapes, sets, stages, lights and effects in Studio. Import and edit native Blender files, save reusable scene assets, then export for your community, channels and live productions.</p><div class="ms-section-heading"><%= link_to "Create in Studio ↗", dashboard_production_workspace_path(site_id:@site.id,anchor:"/studio/workshop"), class: "ms-button ms-primary" %><%= link_to "Blender files & asset library ↗", dashboard_production_workspace_path(site_id:@site.id,anchor:"/studio/library"), class: "ms-button" %></div></section>
     <section class="ms-card" id="releases"><div class="ms-section-heading"><div><p class="ms-eyebrow">DISTRIBUTION</p><h2>Media & releases</h2></div><span class="ms-pill">Lightek · Octavia</span></div>
       <%= form_with url: dashboard_broadcast_publications_path(site_id: @site.id), scope: :publication, local: true, class: "ms-form" do |f| %>
         <%= f.hidden_field :request_key, value: SecureRandom.hex(16) %>

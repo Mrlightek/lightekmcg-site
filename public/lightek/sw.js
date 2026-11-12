@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v58-visual-studio"
+const CACHE = "lightek-shell-v59-music-workstation"
 
 const SHELL = [
   "/lightek/index.html",
@@ -33,6 +33,13 @@ const SHELL = [
   "/lightek/studio-performance.js",
   "/lightek/studio-visual.js",
   "/lightek/studio-visual.css",
+  "/lightek/studio-music-core.js",
+  "/lightek/studio-music-audio.js",
+  "/lightek/studio-music.js",
+  "/lightek/studio-music.css",
+  "/lightek/vendor/tone/Tone-15.1.22.js",
+  "/lightek/vendor/tone/Midi-2.0.28.js",
+
   "/lightek/studio-authoring.css",
   "/lightek/asset-preview.js",
   "/lightek/vendor/hls/hls.light.min.js",

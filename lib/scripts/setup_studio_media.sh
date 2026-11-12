@@ -11,7 +11,8 @@ if ! STUDIO_DOCKER_STATUS="$(docker info 2>&1)"; then
   exit 1
 fi
 if [[ -z "${STUDIO_ASSET_WORKER_IMAGE:-}" ]]; then
-  docker build --tag "$STUDIO_RUNTIME_IMAGE" "$STUDIO_RUNTIME_ROOT/docker/studio-media"
+  python3 "$STUDIO_RUNTIME_ROOT/lib/scripts/deployment_storage.py" --app-root "$STUDIO_RUNTIME_ROOT" \
+    --image "$STUDIO_RUNTIME_IMAGE" --context "$STUDIO_RUNTIME_ROOT/docker/studio-media" --minimum-free-mib 4096
 else
   docker image inspect "$STUDIO_RUNTIME_IMAGE" >/dev/null || docker pull "$STUDIO_RUNTIME_IMAGE"
 fi

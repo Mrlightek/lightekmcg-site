@@ -130,5 +130,33 @@
     "minimum_blender": "3.0",
     "description": "Native material and procedural modeling",
     "source_page": "https://www.blender.org/download/demo-files/"
+  },
+  {
+    "key": "rain_v3",
+    "name": "Rain",
+    "author": "Blender Foundation / Blender Studio",
+    "license": "CC-BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "credit": "Rain Rig (CC) Blender Foundation | studio.blender.org",
+    "url": "https://studio.blender.org/download-source/files/ee/a7/eea73e55dba1cea31c09848df6a794b2-4.zip",
+    "source_page": "https://studio.blender.org/characters/rain/v3/",
+    "minimum_blender": "4.4",
+    "category": "character",
+    "description": "Editable production character rig with native facial and body controls.",
+    "sha256": "80217f163f6392dc829233d63c2cfb5e1376775bc34101ad14f39631fea70d24"
+  },
+  {
+    "key": "snow_v4",
+    "name": "Snow",
+    "author": "Blender Foundation / Blender Studio",
+    "license": "CC-BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "credit": "Snow Rig (CC) Blender Foundation | studio.blender.org",
+    "url": "https://studio.blender.org/download-source/files/ba/0f/ba0fe6d810333b1d73c1c359e4dc03cb-6.zip",
+    "source_page": "https://studio.blender.org/characters/snow/v4/",
+    "minimum_blender": "4.4",
+    "category": "character",
+    "description": "Editable production character rig with native facial and body controls.",
+    "sha256": "98d58ef3a07083ede14140bc462cccb55d317062846aa0eb652d2e4a7ac422a6"
   }
 ]

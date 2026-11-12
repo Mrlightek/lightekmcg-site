@@ -8,6 +8,10 @@ The intended product combines professional editing, audio/music production, colo
 
 The character target is film-style animation: recurring identities, editable rigs, body motion, expressive facial performances, dialogue/lip sync, scene staging and finished shots. AI generation belongs inside the same production and should execute on Lightek-managed infrastructure. A prettier viewport or basic toon starter does not satisfy those acceptance criteria. See [AI Studio status](ai-studio.md) for what is and is not implemented.
 
+The interaction model is Photoshop-style layers and compositing, After Effects-style timeline/motion, and Illustrator-style drawing and shape manipulation controlling Blender underneath. Users select and manipulate elements on the canvas; the inspector follows selection and the timeline shows animation. Reusable ready-made characters, sets and effects are first-class starting assets. A client must be able to complete a basic scene without understanding how the engines connect.
+
+The creator's additional content reference is [thememecausus](https://www.instagram.com/thememecausus/), whose public profile describes cinematic 3D animation and political satire. Individual reels were behind Instagram sign-in during review, so their exact visuals and timing have not been assessed. The product acceptance target is a complete original character-led short: reusable cast, staged shots, directed movement and expressions, synchronized dialogue, composited graphics, music, captions and an export, all from the same Lightek production. The [Rain and Snow starter](starter-cast.md) supplies the initial native cast and scene; it does not establish completion of that production target.
+
 ## UX rules
 
 - Keep the work visible: picture and timeline in editing, instrument notes and arrangement in music.

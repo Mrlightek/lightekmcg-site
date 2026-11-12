@@ -106,8 +106,20 @@ def main():
             path = bpy.path.abspath(image.filepath, library=image.library)
             if not os.path.isfile(path):
                 missing.append(os.path.basename(image.filepath))
+    # Appended local IDs retain a weak origin reference to the old .blend.
+    # It is provenance, not a dependency: the local mesh/rig data is already
+    # saved here. Keep checking real linked libraries and external textures.
+    weak_origins = set()
+    for block in bpy.data.user_map():
+        reference = getattr(block, 'library_weak_reference', None)
+        if reference and not block.library:
+            weak_origins.add(os.path.normpath(bpy.path.abspath(reference.filepath)))
+    linked_libraries = {os.path.normpath(bpy.path.abspath(lib.filepath)) for lib in bpy.data.libraries if not lib.packed_file}
     for path in bpy.utils.blend_paths(absolute=True, packed=False):
         if path and not os.path.exists(path):
+            normalized = os.path.normpath(path)
+            if normalized in weak_origins and normalized not in linked_libraries:
+                continue
             missing.append(os.path.basename(path))
     missing = sorted(set(missing))
     readmes = [{"name": text.name, "text": text.as_string()[:16000]} for text in bpy.data.texts if 'readme' in text.name.lower() or 'license' in text.name.lower() or 'credit' in text.name.lower()]
@@ -130,7 +142,7 @@ def main():
     try:
         for obj in scene.objects:
             obj['lightek_object_name'] = obj.name
-        bpy.ops.export_scene.gltf(filepath=os.path.join(output, 'asset.glb'), export_format='GLB', export_cameras=True, export_extras=True)
+        bpy.ops.export_scene.gltf(filepath=os.path.join(output, 'asset.glb'), export_format='GLB', export_cameras=True, export_extras=True, export_animations=False, use_renderable=True)
     except Exception as error:
         warnings.append('Viewport proxy is unavailable: ' + str(error)[:400])
     # Thumbnail settings affect only the process after native.blend was saved.

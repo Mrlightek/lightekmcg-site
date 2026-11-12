@@ -38,7 +38,7 @@ def plan(root,user,domain,previous=None,environment=None):
     config={
       'STUDIO_SPATIAL_ROOT':str(base/'sessions'),'STUDIO_SPATIAL_SECRET':value('STUDIO_SPATIAL_SECRET',secrets.token_hex(32)),
       'STUDIO_SPATIAL_URL':f'http://127.0.0.1:{port}','STUDIO_SPATIAL_PORT':str(port),
-      'SPATIAL_CONTAINER_IMAGE':value('SPATIAL_CONTAINER_IMAGE',environment.get('STUDIO_RENDER_WORKER_IMAGE') or environment.get('STUDIO_ASSET_WORKER_IMAGE') or 'lightek/studio-media:20261111'),
+      'SPATIAL_CONTAINER_IMAGE':value('SPATIAL_CONTAINER_IMAGE',environment.get('STUDIO_RENDER_WORKER_IMAGE') or environment.get('STUDIO_ASSET_WORKER_IMAGE') or 'lightek/studio-media:20261112'),
       'SPATIAL_BACKEND':value('SPATIAL_BACKEND','render'),'SPATIAL_RENDER_ENGINE':value('SPATIAL_RENDER_ENGINE','CYCLES'),
       'SPATIAL_ENCODER':value('SPATIAL_ENCODER','libx264'),'SPATIAL_WIDTH':value('SPATIAL_WIDTH','640'),'SPATIAL_HEIGHT':value('SPATIAL_HEIGHT','360'),'SPATIAL_FPS':value('SPATIAL_FPS','60'),
       'SPATIAL_MAX_SESSIONS':value('SPATIAL_MAX_SESSIONS','2'),'SPATIAL_ORIGINS':json.dumps([f'https://{domain}']),

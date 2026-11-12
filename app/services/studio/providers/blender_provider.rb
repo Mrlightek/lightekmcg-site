@@ -23,7 +23,7 @@ module Studio
           raise ArgumentError, "Blender provider does not support #{operation.operation_type.inspect} yet"
         end
 
-        Dir.mktmpdir("lightek-scene-assets-") do |root|
+        Studio::MediaProcess.temporary_directory("lightek-scene-assets-") do |root|
           actor_id=operation.intent["user_id"] || operation.studio_project.owner_id
           access=Studio::PwaAccess.new("user_id"=>actor_id,"site_id"=>operation.studio_project.site_id)
           access.projects.find(operation.studio_project_id)

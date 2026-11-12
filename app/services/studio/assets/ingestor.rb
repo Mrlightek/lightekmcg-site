@@ -15,7 +15,7 @@ module Studio
         return BundleImport.call(@asset) if !@source_path && @asset.kind=="blend" && @asset.file.filename.extension.to_s.downcase=="zip"
         @asset.update!(status: "processing", error_message: nil)
         with_source do |source|
-          Dir.mktmpdir("lightek-asset-") do |root|
+          Studio::MediaProcess.temporary_directory("lightek-asset-") do |root|
             input = @source_path || File.join(root,"source#{File.extname(@asset.file.filename.to_s)}")
             FileUtils.cp(source.path,input) unless @source_path
             if %w[blend glb].include?(@asset.kind)
@@ -54,7 +54,7 @@ module Studio
           yield Struct.new(:path).new(@source_path)
         else
           attachment=@asset.kind=="blend" && @asset.native.attached? ? @asset.native : @asset.file
-          attachment.blob.open { |source| yield source }
+          attachment.blob.open(tmpdir:Studio::MediaProcess.temp_root) { |source| yield source }
         end
       end
       def convert_model(input, root)

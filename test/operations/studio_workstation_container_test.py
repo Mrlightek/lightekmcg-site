@@ -8,7 +8,7 @@ gateway=importlib.util.module_from_spec(spec);spec.loader.exec_module(gateway)
 class DesktopAcceptance(unittest.TestCase):
     def test_real_desktop_connect_switch_save_and_revoke(self):
         def run(*args):return subprocess.check_output(args,text=True,stderr=subprocess.STDOUT).strip()
-        image=os.environ.get('STUDIO_WORKSTATION_IMAGE','lightek/studio-workstation:20261107')
+        image=os.environ.get('STUDIO_WORKSTATION_IMAGE','lightek/studio-workstation:20261112')
         with tempfile.TemporaryDirectory(prefix='lightek-desktop-') as temp:
             root=pathlib.Path(temp)/('native-application-root-'+'x'*65);root.mkdir();key='a'*32;session=root/'sessions'/key;work=session/'work';work.mkdir(parents=True)
             run('blender','--background','--factory-startup','--disable-autoexec','--python-exit-code','1','--python-expr',f"import bpy; bpy.ops.wm.save_as_mainfile(filepath={str(work/'scene.blend')!r})")

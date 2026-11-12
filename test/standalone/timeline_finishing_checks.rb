@@ -13,6 +13,13 @@ class TimelineFinishingTest < Minitest::Test
   def normalized(**values)
     Studio::Editing::Timeline.normalize({"width"=>160,"height"=>90,"clips"=>[{"asset_id"=>1,"out"=>2}]}.merge(values.stringify_keys),assets:assets)
   end
+  def test_empty_edit_is_saveable_but_not_exportable
+    empty={"clips"=>[]}
+    normalized=Studio::Editing::Timeline.normalize(empty,assets:{},allow_empty:true)
+    assert_empty normalized["clips"]
+    assert_equal 0,normalized["duration"]
+    assert_raises(ArgumentError){Studio::Editing::Timeline.normalize(normalized,assets:{})}
+  end
   def render(timeline,dir)
     source=File.join(dir,"source.mp4")
     run!(["ffmpeg","-v","error","-y","-f","lavfi","-i","color=c=red:s=160x90:r=30:d=2","-f","lavfi","-i","sine=frequency=440:duration=2","-c:v","libx264","-threads","1","-c:a","aac","-shortest",source])

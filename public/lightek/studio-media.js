@@ -10,11 +10,12 @@
   const previousPrepare=LightekStudioApp.prepare;
   LightekStudioApp.prepare=record=>{previousPrepare(record);if(sceneId!==record.scene.id){if(sceneId&&timeline)timelineDrafts.set(sceneId,{timeline:JSON.parse(JSON.stringify(timeline)),edit:JSON.parse(JSON.stringify(edit))});sceneId=record.scene.id;timeline=JSON.parse(JSON.stringify(timelineDrafts.get(sceneId)?.timeline||record.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]}));stopPreview();}};
   async function loadAssets(force=false,before=null){
-    if(library.loading||library.loaded&&!force&&!before)return;
+    if(library.loading){if(force)library.reloadPending=true;return;}
+    if(library.loaded&&!force&&!before)return;
     library.loading=true;
     try{const data=await call('assets.list',before?{before}:{});if(!Array.isArray(data.assets))throw Error('The asset library response was incomplete.');library.items=before?[...library.items,...data.assets.filter(item=>!library.items.some(existing=>existing.id===item.id))]:data.assets;library.nextBefore=data.next_before;library.builtins=data.builtins||[];library.cameras=data.camera_presets||[];library.demos=data.blender_demos||[];library.presets=data.media_presets||[];library.loaded=true;library.error='';if(!library.runtime)call('blender.runtime.status').then(value=>{if(typeof value?.ready==='boolean'){library.runtime=value;if(location.hash==='#/studio/library')render(1);}}).catch(()=>{});}
     catch(error){library.error=error.message;library.loaded=true;}
-    finally{library.loading=false;if(location.hash.startsWith('#/studio'))render(1);}
+    finally{library.loading=false;if(location.hash.startsWith('#/studio'))render(1);if(library.reloadPending){library.reloadPending=false;queueMicrotask(()=>loadAssets(true));}}
     if(library.items.some(a=>a.status==='uploaded'||a.status==='processing'))setTimeout(()=>{if(location.hash.startsWith('#/studio'))loadAssets(true)},3000);
   }
   A.studioLibraryTab=button=>{library.tab=button.dataset.tab;library.query='';library.category='all';render(1);};
@@ -110,7 +111,7 @@
     const clipFields=clip?`<details class="pwa-post" open><summary>Clip ${i+1} · ${esc(library.items.find(a=>a.id===clip.asset_id)?.name||'Media')}</summary><div class="pwa-editor-fields">${[['in','Source in · seconds',0],['out','Source out · seconds',5],['start','Timeline start · seconds',0],['track','Track · 0–15',0],['speed','Playback speed · 0.25–4',1],['gain','Volume · 1 = original',1],['fade_in','Fade in · seconds',0],['fade_out','Fade out · seconds',0],['x','Horizontal position',0],['y','Vertical position',0],['scale','Picture scale',1],['opacity','Opacity · 0–1',1],['brightness','Brightness · -1–1',0],['contrast','Contrast · 0–2',1],['saturation','Saturation · 0–3',1],['highpass','Low cut · Hz, 0 disables',0]].map(([key,label,fallback])=>field(label,clip[key]??fallback,`data-clip="${i}" data-clip-field="${key}"`)).join('')}<label><input type="checkbox" data-clip="${i}" data-clip-field="muted" ${clip.muted?'checked':''}> Mute clip audio</label><label><input type="checkbox" data-clip="${i}" data-clip-field="denoise" ${clip.denoise?'checked':''}> Export noise reduction</label></div><h4>Position and volume keyframes</h4>${(clip.keyframes||[]).map((frame,j)=>`<div class="pwa-editor-fields">${[['time','Time · seconds from clip start'],['x','X'],['y','Y'],['gain','Volume']].map(([key,label])=>field(label,frame[key],`data-clip="${i}" data-keyframe="${j}" data-frame-field="${key}"`)).join('')}<button class="btn sm" data-a="studioTimelineFrameRemove" data-index="${i}" data-frame="${j}">Remove keyframe</button></div>`).join('')}<div class="pwa-post-actions"><button class="btn sm" data-a="studioTimelineFrame" data-index="${i}">Keyframe at playhead</button><button class="btn sm" data-a="studioTimelineSplit">Split at playhead</button><button class="btn sm" data-a="studioTimelineDuplicate">Duplicate after clip</button><button class="btn sm" data-a="studioTimelineRemove" data-index="${i}">Remove clip</button></div></details>`:'<p>Import or select media to start your sequence.</p>';
     return `<section class="studio-wave2 studio-finish"><span class="eb">${mode==='audio'?'Audio & mix':'Editing & finishing'}</span><h2>Shape the sequence.</h2><div class="pwa-post-actions"><select id="timeline-asset" aria-label="Asset">${assets.map(a=>`<option value="${a.id}">${esc(a.name)} · ${esc(a.kind)}</option>`).join('')}</select><button class="btn sm" data-a="studioTimelineAdd">Add clip</button><a class="btn sm" href="#/studio/library">Import media</a><button class="btn sm" data-a="studioTimelineUndo" ${edit.undo.length?'':'disabled'}>Undo</button><button class="btn sm" data-a="studioTimelineRedo" ${edit.redo.length?'':'disabled'}>Redo</button><button class="btn sm" data-a="studioTimelineSave">Save timeline</button><button class="btn sm" data-a="studioTimelinePreview">Play preview</button><button class="btn sm" data-a="studioTimelineStop">Stop preview</button><button class="btn p sm" data-a="studioTimelineQuote">Export quote</button></div><div class="pwa-editor-fields"><label>Output ${choice('output',[['video','Video + mixed audio'],['audio','WAV audio mix']],timeline.output)}</label><label>Delivery ${choice('export_preset',[['review','H.264 MP4 / 16-bit WAV'],['master','ProRes 422 HQ MOV / 24-bit WAV']],timeline.export_preset||'review')}</label><label>Frame rate ${choice('fps',[24,25,30,48,50,60].map(v=>[v,`${v} fps`]),timeline.fps||24)}</label>${field('Width',timeline.width,'data-timeline-setting="width"')}${field('Height',timeline.height,'data-timeline-setting="height"')}</div><canvas class="pwa-timeline-preview" width="${Math.min(960,Number(timeline.width))}" height="${Math.round(Number(timeline.height)*Math.min(1,960/Number(timeline.width)))}" data-timeline-preview></canvas><p role="status" data-timeline-status>64 clips · 16 tracks · up to 10 minutes per assembly. Browser preview is a proxy; export applies final color, noise reduction and limiting.</p><label class="fld"><span>Playhead · ${edit.playhead.toFixed(3)} s / ${duration.toFixed(3)} s</span><input aria-label="Playhead" type="range" min="0" max="${duration}" step="${1/(timeline.fps||24)}" value="${edit.playhead}" data-timeline-playhead></label><div class="pwa-timeline">${trackIds.map(track=>`<div class="pwa-timeline-track"><small>${esc((timeline.tracks||[]).find(t=>t.id===track)?.name||`Track ${track+1}`)}</small>${timeline.clips.map((c,index)=>c.track===track?`<button type="button" aria-pressed="${index===i}" class="pwa-timeline-bar ${index===i?'is-selected':''}" data-a="studioTimelineSelect" data-index="${index}" style="left:${c.start/duration*100}%;width:${Math.max(1,lengthOf(c)/duration*100)}%">${esc(library.items.find(a=>a.id===c.asset_id)?.name||'Clip')} · ${index+1}</button>`:'').join('')}</div>`).join('')}</div>${clipFields}<details class="pwa-post" open><summary>Track mixer · 48 kHz stereo</summary><p>Solo and mute affect audio. Use clip opacity for picture visibility.</p><div class="studio-mixer">${trackIds.map(id=>{const t=(timeline.tracks||[]).find(t=>t.id===id)||{name:`Track ${id+1}`,gain:1,pan:0};return `<fieldset><legend>Track ${id+1}</legend>${field('Name',t.name,`data-track="${id}" data-track-field="name"`,'text')}${field('Gain · 0–4',t.gain,`data-track="${id}" data-track-field="gain"`)}${field('Pan · -1 left / 1 right',t.pan,`data-track="${id}" data-track-field="pan"`)}${['muted','solo'].map(key=>`<label><input type="checkbox" data-track="${id}" data-track-field="${key}" ${t[key]?'checked':''}> ${key==='muted'?'Mute':'Solo'}</label>`).join('')}</fieldset>`;}).join('')}</div></details><details class="pwa-post" open><summary>Titles & captions</summary><button class="btn sm" data-a="studioTimelineTitleAdd">Add title at playhead</button>${(timeline.titles||[]).map((title,index)=>`<fieldset><legend>Title ${index+1}</legend><label class="fld"><span>Text</span><textarea maxlength="500" data-title="${index}" data-title-field="text">${esc(title.text)}</textarea></label><div class="pwa-editor-fields">${[['start','Start'],['end','End'],['x','X'],['y','Y'],['size','Font size']].map(([key,label])=>field(label,title[key],`data-title="${index}" data-title-field="${key}"`)).join('')}</div><button class="btn sm" data-a="studioTimelineTitleRemove" data-index="${index}">Remove title</button></fieldset>`).join('')}</details></section>`;
   };
-  A.studioTimelineSelect=b=>{stopPreview();edit.selected=Number(b.dataset.index);render(1);};
+  A.studioTimelineSelect=b=>{stopPreview();edit.selected=Number(b.dataset.index);edit.playhead=timeline.clips[edit.selected]?.start||0;render(1);};
   A.studioTimelineUndo=()=>{if(!edit.undo.length)return;stopPreview();edit.redo.push(clone(timeline));timeline=edit.undo.pop();edit.selected=0;render(1);};
   A.studioTimelineRedo=()=>{if(!edit.redo.length)return;stopPreview();edit.undo.push(clone(timeline));timeline=edit.redo.pop();edit.selected=0;render(1);};
   A.studioTimelineAdd=()=>{const asset=library.items.find(a=>a.id===Number(document.getElementById('timeline-asset').value));if(!asset)return;checkpoint();timeline.clips.push({asset_id:asset.id,kind:asset.kind,in:0,out:asset.kind==='image'?5:Math.min(asset.metadata.duration||5,5),start:snap(sequenceDuration()),track:0,gain:1,x:0,y:0,muted:false,keyframes:[]});edit.selected=timeline.clips.length-1;render(1);};
@@ -186,10 +187,11 @@
   A.studioTimelinePreview=singleFrame=>run(async()=>{
     singleFrame=singleFrame===true;
     stopPreview();const canvas=app.querySelector('[data-timeline-preview]');if(!canvas||!timeline.clips.length)return;
-    const audio=new AudioContext();await audio.resume();const items=[],state={audio,items,frame:0,canvas};preview=state;
+    const audio=new AudioContext();await audio.resume();const items=[],state={audio,items,frame:0,canvas,singleFrame};preview=state;
     const offset=edit.playhead>=sequenceDuration()?0:edit.playhead;
     try{
       for(const clip of [...timeline.clips].sort((a,b)=>a.track-b.track||a.start-b.start)){
+        if(singleFrame&&(offset<clip.start||offset>=clip.start+lengthOf(clip)))continue;
         if(preview!==state)return;
         const asset=library.items.find(a=>a.id===clip.asset_id);if(!asset)throw Error('Reload the media library first.');
         const el=document.createElement(asset.kind==='image'?'img':asset.kind==='audio'?'audio':'video');el.preload='auto';el.playsInline=true;
@@ -229,11 +231,40 @@
   new MutationObserver(()=>{if(preview&&!preview.canvas?.isConnected)stopPreview();}).observe(app,{childList:true,subtree:true});
   const timelineDirty=()=>!!timeline&&JSON.stringify(timeline)!==JSON.stringify(current()?.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]});
   window.LightekStudioTimeline={
-    editor:()=>({selected:edit.selected,playhead:edit.playhead,undo:edit.undo.length,redo:edit.redo.length,assets:clone(library.items),loading:library.loading,error:library.error}),
-    insert:(id,start,track)=>{const asset=library.items.find(a=>a.id===Number(id)&&a.status==='ready'&&['image','video','audio'].includes(a.kind));if(!asset)throw Error('Choose prepared video, audio or an image.');if(timeline.clips.length>=64)throw Error('This sequence supports up to 64 clips.');checkpoint();const ending=Math.max(0,...timeline.clips.filter(c=>library.items.find(a=>a.id===c.asset_id)?.kind!=='audio').map(c=>c.start+lengthOf(c)));const lane=track??(asset.kind==='audio'?1:0);timeline.clips.push({asset_id:asset.id,in:0,out:asset.kind==='image'?5:Math.min(asset.metadata.duration||5,600),start:snap(start??ending),track:lane,gain:1,x:0,y:0,muted:false,keyframes:[]});edit.selected=timeline.clips.length-1;render(1);},
-    move:(index,start,track)=>{if(!timeline.clips[index])return;checkpoint();Object.assign(timeline.clips[index],{start:snap(Math.max(0,start)),track:Math.max(0,Math.min(15,Number(track)))});edit.selected=index;render(1);},
+    editor:()=>({nextBefore:library.nextBefore,selected:edit.selected,playhead:edit.playhead,undo:edit.undo.length,redo:edit.redo.length,assets:clone(library.items),loading:library.loading,error:library.error}),
+    insert:(id,start,track,range={})=>{
+      const asset=library.items.find(a=>a.id===Number(id)&&a.status==='ready'&&['image','video','audio'].includes(a.kind));
+      if(!asset)throw Error('Choose prepared video, audio or an image.');
+      if(timeline.clips.length>=64)throw Error('This sequence supports up to 64 clips.');
+      const sourceEnd=Math.min(Number(asset.metadata?.duration)||5,600);
+      const first=Number(range.in??0),last=Number(range.out??sourceEnd);
+      const lane=track??(asset.kind==='audio'?1:0);
+      const ending=Math.max(0,...timeline.clips.filter(c=>c.track===lane).map(c=>c.start+lengthOf(c)));
+      const at=snap(start??ending);
+      if(!Number.isFinite(first)||!Number.isFinite(last)||first<0||last<=first||last>sourceEnd+.001)throw Error('Choose an out point after the in point within this source.');
+      if(at+last-first>600)throw Error('This sequence supports ten minutes. Trim the source or use a shorter range.');
+      checkpoint();timeline.clips.push({asset_id:asset.id,in:first,out:last,start:at,track:lane,gain:1,x:0,y:0,muted:false,keyframes:[]});
+      edit.selected=timeline.clips.length-1;edit.playhead=at;render(1);
+    },
+    trim:(index,edge,seconds)=>{
+      const clip=timeline.clips[index];if(!clip)return;
+      const asset=library.items.find(a=>a.id===clip.asset_id),speed=clip.speed||1,frame=1/(timeline.fps||24);
+      const next=clone(clip),oldLength=lengthOf(clip);
+      if(edge==='in'){
+        const shift=snap(Math.max(-clip.in/speed,-clip.start,Math.min(oldLength-frame,seconds)));
+        next.in=clip.in+shift*speed;next.start=clip.start+shift;
+        next.keyframes=(clip.keyframes||[]).map(f=>({...f,time:f.time-shift})).filter(f=>f.time>=0&&f.time<=oldLength-shift);
+      }else{
+        const maxSource=Math.min(600,Number(asset?.metadata?.duration)||600);
+        next.out=Math.max(clip.in+frame*speed,Math.min(maxSource,clip.out+snap(seconds)*speed,clip.in+(600-clip.start)*speed));
+        next.keyframes=(clip.keyframes||[]).filter(f=>f.time<=(next.out-next.in)/speed);
+      }
+      const len=lengthOf(next);next.fade_in=Math.min(next.fade_in||0,len);next.fade_out=Math.min(next.fade_out||0,len);
+      checkpoint();Object.assign(clip,next);edit.selected=index;edit.playhead=clip.start;render(1);
+    },
+    move:(index,start,track)=>{if(!timeline.clips[index])return;if(start+lengthOf(timeline.clips[index])>600)throw Error('This sequence supports ten minutes.');checkpoint();Object.assign(timeline.clips[index],{start:snap(Math.max(0,start)),track:Math.max(0,Math.min(15,Number(track)))});edit.selected=index;render(1);},
     playhead:seconds=>{stopPreview();edit.playhead=snap(Math.max(0,Number(seconds)||0));},
-    playing:()=>!!preview,
+    playing:()=>!!preview&&!preview.singleFrame,
     time:()=>edit.playhead,dirty:timelineDirty,hasDrafts:()=>timelineDirty()||[...timelineDrafts.entries()].some(([id,d])=>JSON.stringify(d.timeline)!==JSON.stringify(studioSceneRecord(id)?.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]})),
     get:()=>timeline?JSON.parse(JSON.stringify(timeline)):null,
     set:value=>{stopPreview();timeline=JSON.parse(JSON.stringify(value));},

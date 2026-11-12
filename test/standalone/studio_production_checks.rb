@@ -15,6 +15,12 @@ class StudioProductionTest < StudioMusicTest
     assert_equal result,action("project_create",name:"New movie",request_key:key)
     assert_raises(ArgumentError){action("project_create",name:"Foreign",request_key:key,site_id:@other_site.id)}
   end
+  def test_production_empty_timeline_can_be_saved_but_not_exported
+    result=action("timeline_save",scene_id:@scene.id,lock_version:@scene.lock_version,timeline:{"clips"=>[]})
+    assert_empty result[:timeline]["clips"]
+    assert_equal 0,@scene.reload.settings["timeline"]["duration"]
+    assert_raises(ArgumentError){action("timeline_quote",scene_id:@scene.id)}
+  end
   def completed_shot(project=@project,draft:false)
     op=project.studio_operations.create!(studio_scene:project.studio_scenes.first,operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"completed",metadata:{"draft_preview"=>draft})
     artifact=op.artifacts.create!(kind:"video",filename:"shot.mp4")

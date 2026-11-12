@@ -56,3 +56,25 @@ Connector release workflow: change shared UI/API → run checks → bump connect
 - `NODE_PATH=/path/to/jsdom/node_modules node test/standalone/lightek_connect_ui_test.cjs`: shared UI pairing, text-safe rendering, save feedback, authenticated requests, and handoff for both platforms.
 
 Tests do not load the full private engine dependency stack or contact payment, hosting or platform services. The GitHub workflow runs these checks independently of the existing Rails suite.
+
+## Disposable WordPress testing from Dashboard
+
+After deployment and both migrations, super admins can open **Dashboard → Lightek Connect → Disposable WordPress test environment**, select a managed server, and click **Create WordPress test environment**. The selected server must already have Docker Compose, Apache, and Certbot, at least 384 MB available memory and 3 GB free disk. Existing deployment/native-update scripts install a root-owned helper and its scoped sudo rule automatically. The web account does not execute a mutable checkout script as root for this operation.
+
+A generated `wp-test-<random-key>.lightekmcg.com` hostname is used. Set `LIGHTEK_CONNECT_TEST_ZONE` to another configured GoDaddy zone if needed. Setup creates its own DNS record, bounded WordPress/MariaDB Compose project, local-only backend port, HTTPS virtual host, certificate, WordPress administrator, and installed/activated Connect plugin. Secrets are generated and encrypted in Vault. **Show test login** retrieves only the WordPress administrator credentials for the super admin over a non-cacheable response; the Vault access is audited. The public installer is never exposed before WordPress bootstrap completes.
+
+When ready, open the test WordPress admin, sign in, open Lightek, and paste a WordPress connection code. This environment hosts WordPress only; the Lightek API still runs at its configured central origin. The resource checks are prerequisites, not a guarantee that existing production workloads have spare capacity.
+
+After testing, type the exact sandbox hostname and select **Delete test environment**. Cleanup removes only its marked virtual host, Compose containers/volumes, dedicated certificate and unchanged recorded DNS record, then disables its Vault credential. It does not delete the server or prune shared images. The status/history row remains. Changed resource ownership stops cleanup for review. Interrupted jobs can be cleaned up after 40 minutes, beyond the remote execution timeout. Failed installs expose the same cleanup action.
+
+This implementation has isolated lifecycle/ownership tests. No real server has been provisioned or deleted by this change; live WordPress installation and authentication remain acceptance work.
+
+## Shopify development store: first steps
+
+1. Open https://dev.shopify.com/ and sign in or create your Shopify developer/Partner organization.
+2. Select **Stores → Create store → Dev**. Create a test store named **Lightek Connect Test** (or an available variation), choose a development plan, and complete creation. Use a dev store rather than a live merchant trial.
+3. Open that store's admin and record its `myshopify.com` hostname. This is not a secret.
+4. Next, register/link **Lightek Connect** to the organization and its configuration using Shopify CLI for the eventual App Store workflow. The app URL is `https://lightekmcg.com/connect/shopify` after this revision is deployed. Preserve the existing Rails backend rather than replacing it with a new generated backend.
+5. Configure client ID/secret securely on the central server; do not paste the secret into chat or commit it. Install the development app, then connect a Shopify-specific agency code.
+
+Official references: https://shopify.dev/docs/apps/build/stores/development-stores and https://shopify.dev/docs/apps/build/dev-dashboard/create-apps-using-dev-dashboard. Public distribution and commercial billing approval remain separate from development-store testing.

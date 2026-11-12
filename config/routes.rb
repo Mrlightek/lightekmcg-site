@@ -1,4 +1,7 @@
 Rails.application.routes.draw do
+  post "/dashboard/connect/sandboxes/:id/credentials", to: "dashboard/connect_sandboxes#credentials", as: :dashboard_connect_sandbox_credentials
+  post "/dashboard/connect/sandboxes", to: "dashboard/connect_sandboxes#create", as: :dashboard_connect_sandboxes
+  delete "/dashboard/connect/sandboxes/:id", to: "dashboard/connect_sandboxes#destroy", as: :dashboard_connect_sandbox
   get "/dashboard/connect", to: "dashboard/connect#index", as: :dashboard_connect
   post "/dashboard/connect", to: "dashboard/connect#create"
   delete "/dashboard/connect/:id", to: "dashboard/connect#destroy", as: :dashboard_connect_connection

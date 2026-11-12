@@ -10,6 +10,9 @@ on:
       - 'integrations/**'
       - 'test/standalone/lightek_connect*'
       - 'db/migrate/*create_lightek_connect*'
+      - 'lib/scripts/gatekeeper/wordpress_sandbox.py'
+      - 'lib/scripts/setup_wordpress_sandbox_access.py'
+      - 'test/standalone/wordpress_sandbox_test.py'
       - '.github/workflows/lightek-connect.yml'
   workflow_dispatch:
 permissions:
@@ -30,7 +33,10 @@ jobs:
           gem install activerecord:8.0.5.1 actionpack:8.0.5.1 jwt:2.10.3 sqlite3:2.7.4 minitest:5.25.4 --no-document
           npm install --prefix /tmp/connect-qa jsdom@26.1.0
       - name: Test backend and HTTP authorization
-        run: ruby test/standalone/lightek_connect_api_test.rb
+        run: |
+          ruby test/standalone/lightek_connect_api_test.rb
+          ruby test/standalone/lightek_connect_sandbox_test.rb
+          python3 test/standalone/wordpress_sandbox_test.py
       - name: Test WordPress connector
         run: |
           php -l integrations/wordpress/lightek-connect/lightek-connect.php

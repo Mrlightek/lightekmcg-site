@@ -9,3 +9,17 @@
 <% @connections.each do |connection| %><article><strong><%= connection.label %></strong> · <%= connection.platform %> · <%= connection.revoked_at? ? "Revoked" : connection.token_digest? ? "Connected" : "Awaiting connection" %>
 <%= button_to "Revoke", dashboard_connect_connection_path(connection), method: :delete unless connection.revoked_at? %></article><% end %>
 </section>
+
+<% if current_user.role == "super_admin" %>
+<section class="dd-card"><h2>Disposable WordPress test environment</h2><p>Install WordPress and Lightek Connect on a temporary subdomain of the configured test zone. Each environment has its own database, files, and generated credentials. This uses resources on the selected server.</p>
+<%= form_with url: dashboard_connect_sandboxes_path do |f| %>
+  <%= label_tag :node_id, "Test server" %> <%= select_tag :node_id, options_from_collection_for_select(@sandbox_nodes, :id, :name), required: true %>
+  <%= f.submit "Create WordPress test environment" %>
+<% end %>
+<% @sandboxes.each do |sandbox| %><article><h3><%= sandbox.domain %></h3><p><%= sandbox.status.humanize %> · <%= sandbox.gatekeeper_node.name %></p>
+<% if sandbox.status == "ready" %><%= link_to "Open WordPress admin", "https://#{sandbox.domain}/wp-admin/", target: "_blank", rel: "noopener noreferrer" %><p>Admin username: lightek_test. Use Show test login to retrieve its generated password.</p><%= button_to "Show test login", dashboard_connect_sandbox_credentials_path(sandbox), method: :post %><% end %>
+<% if sandbox.error_message.present? %><p role="alert"><%= sandbox.error_message %></p><% end %>
+<% if (%w[ready failed delete_failed].include?(sandbox.status) || (%w[queued installing destroying].include?(sandbox.status) && sandbox.updated_at < 40.minutes.ago)) %>
+<%= form_with url: dashboard_connect_sandbox_path(sandbox), method: :delete do |f| %><p>Delete this test environment's files, database, routing, certificate, and its unchanged DNS record. Type <strong><%= sandbox.domain %></strong> to confirm.</p><%= text_field_tag :confirmation, nil, required: true, aria: {label: "Hostname confirmation"} %><%= f.submit "Delete test environment" %><% end %>
+<% end %></article><% end %></section>
+<% end %>

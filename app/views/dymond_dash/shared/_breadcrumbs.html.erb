@@ -1,0 +1,1 @@
+<nav aria-label="Breadcrumb"><ol class="dd-breadcrumbs"><% nevaeh_dashboard_breadcrumbs(page_label: page_label).each do |crumb| %><li <%= 'aria-current=page' unless crumb[:path] %>><% if crumb[:path] %><%= link_to crumb[:label], crumb[:path] %><% else %><%= crumb[:label] %><% end %></li><% end %></ol></nav>

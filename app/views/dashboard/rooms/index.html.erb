@@ -1,0 +1,17 @@
+<% content_for :page_title, 'Rooms & guests' %>
+<%= stylesheet_link_tag '/lightek/production-workflow.css?v=1' %>
+<main class="production-hub"><%= render 'shared/production_navigation', site: @site, section: 'Rooms & guests' %>
+<header class="production-heading"><div><span>LIGHTEK / TOGETHER</span><h1>Bring your people together.</h1><p>Start a private video or audio room for <strong><%= @site.name %></strong>. Invite guests and take the conversation into Live Studio when you’re ready.</p></div><%= link_to 'Manage bookable rooms', dashboard_reservations_path(site_id: @site.id, anchor: 'resource-editor'), class: 'production-button' %></header>
+<%= form_with url: dashboard_rooms_path, method: :get, class: 'production-site' do %><label>Website<%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %></label><%= submit_tag 'Switch website' %><% end %>
+<% unless @media_ready %><aside class="production-callout"><h2>Connect voice & video</h2><p>You can prepare your room now. Connect this website’s room service before anyone joins with a camera or microphone.</p><%= link_to 'Set up room service', dashboard_session_media_path(site_id: @site.id), class: 'production-button primary' %></aside><% end %>
+<div class="production-columns"><section class="production-card"><h2>Create a room</h2><p>No reservation or purchase is needed for a private production room. For appointments customers book, use Reservations.</p>
+<% if @error %><p role="alert" class="production-error"><%= @error %></p><% end %>
+<%= form_with scope: :room, url: dashboard_rooms_path(site_id: @site.id), class: 'production-form', local: true do |f| %>
+<label>Room name<%= f.text_field :name, value: @creation['name'], placeholder: 'The Lightek conversation', required: true, maxlength: 160 %></label>
+<label>Room type<%= f.select :kind, [['Video & screen sharing', 'video'], ['Audio conversation', 'voice']], selected: @creation['kind'] %></label>
+<div class="production-fields"><label>Guest places<%= f.number_field :capacity, value: @creation.fetch('capacity', 8), min: 1, max: 50, required: true %></label><label>Length in minutes<%= f.number_field :duration_minutes, value: @creation.fetch('duration_minutes', 60), min: 15, max: 480, required: true %></label></div>
+<details><summary>Schedule for later</summary><label>Starts · <%= Time.zone.name %><%= f.datetime_local_field :starts_at, value: @creation['starts_at'] %></label><p>Leave blank to start now. The host opens the room before guests join.</p></details>
+<%= f.submit 'Create room', class: 'production-button primary', data: {turbo_submits_with: 'Creating room…'} %><% end %></section>
+<section class="production-card"><h2>Your rooms</h2><% if @rooms.empty? %><div class="production-empty"><h3>Your first room starts here.</h3><p>Create a room on the left, or open a confirmed booking from Reservations.</p></div><% end %>
+<% @rooms.each do |room| %><article class="production-room"><span><%= room.resource.kind == 'voice' ? 'Audio room' : 'Video room' %> · <%= room.status.humanize %></span><h3><%= room.resource.name %></h3><p><%= room.starts_at.in_time_zone(room.resource.timezone).strftime('%b %-d · %-I:%M %p %Z') %> · <%= room.resource.capacity %> guest places</p><div class="production-actions"><%= link_to 'Open room', session_room_path(room.key), class: 'production-button primary' %><%= link_to 'Use in Live Studio', dashboard_live_path(site_id: @site.id, session_room: room.key), class: 'production-button' %></div></article><% end %>
+</section></div></main>

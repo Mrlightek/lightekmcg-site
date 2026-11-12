@@ -9,7 +9,7 @@ module LightekSessions
       host = room.host?(user)
       member = room.members.find_by(user: user)
       raise Denied, 'The host has removed you from this session.' if !host && member&.status == 'blocked'
-      unless host
+      unless host || (room.production? && member && member.reservation_id.nil?)
         booking = room.bookings.find_by(customer: user) || member&.reservation
         raise Denied, 'A confirmed, paid reservation is required.' unless booking &&
           room.bookings.where(id: booking.id).exists? && booking.access_ready?
@@ -43,6 +43,16 @@ module LightekSessions
     end
     def invite!(room, actor, email)
       authorize!(room, actor)
+      if room.production?
+        host!(room, actor)
+        return room.with_lock do
+          user = User.find_by!(email_address: email.to_s.strip.downcase)
+          raise Denied, 'This account already has a place in the room.' if room.members.exists?(user: user) || room.host?(user)
+          guests = room.members.where(reservation_id: nil).where.not(user_id: [room.host_user_id, (room.resource.site.tenant_id if room.resource.site.tenant_type == 'User')].compact)
+          raise Denied, 'All guest places are assigned.' if guests.where.not(status: 'blocked').count >= room.resource.capacity
+          room.members.create!(user: user)
+        end
+      end
       reservation = room.bookings.find_by!(customer: actor)
       reservation.with_lock do
         user = User.find_by!(email_address: email.to_s.strip.downcase)

@@ -10,7 +10,7 @@ end
 %w[20261028101500_create_lightek_commerce_products 20261028113000_create_lightek_commerce_orders
    20261108190000_create_lightek_resort_reservations 20261109000000_create_lightek_session_rooms
    20261109001000_create_lightek_live_viewers 20261109002000_create_lightek_audience_leases
-   20261109003000_add_session_presentation].each { |name| migrate_session_fixture(name) }
+   20261109003000_add_session_presentation 20261112150000_add_direct_production_rooms].each { |name| migrate_session_fixture(name) }
 ActiveRecord::Schema.define do
   add_column :users,:first_name,:string unless column_exists?(:users,:first_name)
   create_table(:lightek_vault_secrets) { |t| t.string :slug; t.string :status; t.json :payload; t.datetime :expires_at }

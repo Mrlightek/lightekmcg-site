@@ -3,7 +3,13 @@ require 'base64'
 require 'openssl'
 require ROOT.join('app/services/studio/live/log_redaction').to_s
 require ROOT.join('app/services/gatekeeper/studio_live_policy').to_s
+ActiveRecord::Schema.define do
+  create_table(:lightek_vault_secrets) { |t| t.string :slug; t.string :status; t.datetime :expires_at }
+end
 module LightekVault
+  class Secret < ApplicationRecord
+    self.table_name = 'lightek_vault_secrets'
+  end
   class Service
     class AccessDenied < StandardError; end
     class << self; attr_accessor :secrets; end
@@ -12,12 +18,6 @@ module LightekVault
     def self.checkout!(slug:, **) = secrets.fetch(slug).deep_dup
   end
 end
-path = ROOT.join('db/migrate/20261109000000_create_lightek_session_rooms.rb')
-eval(path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]"), TOPLEVEL_BINDING, path.to_s)
-CreateLightekSessionRooms.new.migrate(:up)
-path = ROOT.join('db/migrate/20261109003000_add_session_presentation.rb')
-eval(path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]"), TOPLEVEL_BINDING, path.to_s)
-AddSessionPresentation.new.migrate(:up)
 %w[models/lightek_sessions/room models/lightek_sessions/member services/lightek_sessions/access services/lightek_sessions/presentation services/lightek_sessions/media services/studio/live/audience jobs/lightek_sessions/close_room_job jobs/lightek_sessions/retire_media_room_job controllers/session_rooms_controller].each { |file| require ROOT.join("app/#{file}").to_s }
 module SessionCleanup
   def setup
@@ -27,7 +27,6 @@ module SessionCleanup
   end
 end
 ReservationsChecks.prepend(SessionCleanup)
-ApplicationController.helper(Module.new { def dashboard_live_path(**) = '/dashboard/live' })
 class SessionRoomsChecks < ActionDispatch::IntegrationTest
   def app = ReservationHarness
   def setup

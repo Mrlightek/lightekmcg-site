@@ -5,6 +5,14 @@ on:
       - 'app/**'
       - 'config/routes/**'
       - 'db/migrate/*reservations*'
+      - 'db/migrate/*production_rooms*'
+      - 'public/lightek/production-workflow.*'
+      - 'public/lightek/live/**'
+      - 'public/lightek/sessions/**'
+      - 'test/standalone/production_rooms*'
+      - 'test/standalone/session*'
+      - 'test/standalone/dashboard_breadcrumbs*'
+      - 'test/javascript/production_workflow*'
       - 'lib/scripts/gatekeeper/sync_reservation.py'
       - 'test/standalone/reservations*'
       - 'test/standalone/reservation_federation*'
@@ -37,10 +45,28 @@ jobs:
           bundler-cache: false
       - name: Install isolated test dependencies
         run: |
-          gem install 'activerecord:8.0.4' 'actionpack:8.0.4' 'railties:8.0.4' 'minitest:~>5.25' pg webrick 'sqlite3:~>2.7' 'stripe:19.6.2' --no-document
+          gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'minitest:~>5.25' pg webrick 'sqlite3:~>2.7' 'stripe:19.6.2' --no-document
       - name: Exercise booking, payments, payouts, HTTP ownership and PostgreSQL races
         run: ruby test/standalone/reservations_concurrency_checks.rb
       - name: Verify cross-database reseller federation over HTTPS
         run: env -u RESERVATIONS_DATABASE_URL ruby test/standalone/reservation_federation_checks.rb
       - name: Validate remote package synchronizer
         run: python3 -m py_compile lib/scripts/gatekeeper/sync_reservation.py
+      - name: Verify private rooms, paid bookings and contextual navigation
+        env:
+          PRODUCTION_PREVIEW_DIR: ${{ runner.temp }}/production-workflow
+        run: |
+          env -u RESERVATIONS_DATABASE_URL MT_NO_PLUGINS=1 ruby test/standalone/production_rooms_checks.rb
+          MT_NO_PLUGINS=1 ruby test/standalone/dashboard_breadcrumbs_test.rb
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser checks
+        run: |
+          npm install --prefix "$RUNNER_TEMP/production-browser" playwright@1.51.1
+          "$RUNNER_TEMP/production-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify responsive room and live workflows
+        env:
+          PRODUCTION_PREVIEW_DIR: ${{ runner.temp }}/production-workflow
+          NODE_PATH: ${{ runner.temp }}/production-browser/node_modules
+        run: node test/javascript/production_workflow_browser_test.cjs

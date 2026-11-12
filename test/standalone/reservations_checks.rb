@@ -44,7 +44,23 @@ ActiveRecord::Schema.define do
   add_column :lightek_commerce_orders, :provisioning_request_id, :integer
   add_column :lightek_commerce_order_items, :variant_id, :integer
 end
+ActiveRecord::Schema.define do
+  create_table(:gatekeeper_application_templates) { |t| t.string :kind }
+  create_table(:gatekeeper_application_launches) { |t| t.string :status }
+  create_table(:compute_providers) { |t| t.string :slug }
+  create_table(:dymond_bank_subscriptions) { |t| t.string :status }
+end
+%w[20261112070000_connect_hosting_agencies_and_commerce 20261112073000_add_nested_reseller_sale_shares 20261112080000_create_platform_shipping 20261112083000_connect_federated_commerce_settlement].each do |name|
+  path = ROOT.join("db/migrate/#{name}.rb")
+  source = path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
+  eval(source, TOPLEVEL_BINDING, path.to_s)
+  source.match(/class (\w+) </)[1].constantize.new.migrate(:up)
+end
+require ROOT.join('app/models/concerns/account_hierarchy').to_s
 class User < ApplicationRecord
+  belongs_to :agency, class_name: 'User', optional: true
+  has_many :agency_clients, class_name: 'User', foreign_key: :agency_id
+  include AccountHierarchy
   def full_name = email_address
   def stripe_connect_ready? = stripe_connect_account_id.present?
 end
@@ -62,7 +78,8 @@ end
 module LightekSettings
   module WebsiteIdentity
     def self.sites_for(actor)
-      return DymondSite::Site.where(id: LightekReservations::Peer.where(merchant: actor).select(:site_id)) if actor&.role == 'client'
+      return DymondSite::Site.where(tenant: actor).or(DymondSite::Site.where(id: LightekReservations::Peer.where(merchant: actor).select(:site_id))) if actor&.role == 'client'
+      return DymondSite::Site.where(tenant_type: 'User', tenant_id: actor.managed_account_ids) if actor&.role == 'white_label'
       return DymondSite::Site.all if actor&.role == 'super_admin'
       return DymondSite::Site.where(tenant: actor) if actor&.role == 'admin'
       DymondSite::Site.none
@@ -89,6 +106,7 @@ module LightekCommerce
     self.table_name = 'lightek_commerce_products'
     belongs_to :site, class_name: 'DymondSite::Site'
     has_many :variants, class_name: 'LightekCommerce::ProductVariant'
+    has_one :hosting_package
   end
   class ProductVariant < ApplicationRecord
     self.table_name = 'lightek_commerce_product_variants'
@@ -97,10 +115,10 @@ module LightekCommerce
   class PaidInstanceProvisioningJob < ApplicationJob; end
   class FulfillmentNotificationJob < ApplicationJob; end
 end
-%w[lightek_commerce/order lightek_commerce/order_item lightek_commerce/refund
+%w[hosting_package lightek_commerce/network_sale lightek_commerce/subscription lightek_commerce/billing_invoice lightek_commerce/revenue_allocation lightek_shipping/quote lightek_commerce/order lightek_commerce/order_item lightek_commerce/refund
   lightek_reservations/resource lightek_reservations/reservation lightek_reservations/blackout
   lightek_reservations/change lightek_reservations/peer lightek_reservations/intent lightek_commerce/payout_schedule].each { |file| require ROOT.join('app/models', file).to_s }
-%w[lightek_reservations/availability lightek_reservations/booking lightek_reservations/package_changes
+%w[lightek_commerce/revenue_sharing lightek_commerce/subscription_events lightek_commerce/processor_payment lightek_commerce/network_checkout lightek_shipping/quotes lightek_reservations/availability lightek_reservations/booking lightek_reservations/package_changes
   lightek_reservations/settlement lightek_reservations/federation/client lightek_reservations/federation/catalog lightek_reservations/federation/issuer lightek_commerce/payment_identity lightek_commerce/order_placement lightek_commerce/installation_checkout
   lightek_commerce/stripe_events lightek_commerce/merchant_payouts lightek_commerce/fulfillment].each { |file| require ROOT.join('app/services', file).to_s }
 %w[lightek_commerce/reservation_expiry_job lightek_reservations/sweep_job lightek_commerce/scheduled_payouts_job].each { |file| require ROOT.join('app/jobs', file).to_s }

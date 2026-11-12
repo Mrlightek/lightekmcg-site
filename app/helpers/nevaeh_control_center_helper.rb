@@ -4,11 +4,15 @@ module NevaehControlCenterHelper
     item = ->(id, label, path, icon, group = "Workspaces") { {"id" => id, "label" => label, "path" => path, "icon" => icon, "group" => group} }
     rows = [item.call("overview", "Overview", dymond_dash.root_path, "ti-layout-dashboard"),
       item.call("business", "Business", main_app.dashboard_business_hub_path, "ti-building-store"),
-      item.call("reservations", "Reservations & Experiences", main_app.dashboard_reservations_path, "ti-calendar-event"),
+      item.call("reservations", "Reservations", main_app.dashboard_reservations_path, "ti-calendar-event"),
+      item.call("rooms", "Rooms & Guests", main_app.dashboard_rooms_path, "ti-users"),
       item.call("my-reservations", "My Reservations", main_app.my_reservations_path, "ti-ticket"),
       item.call("agency", "Agency & Marketing", main_app.dashboard_agency_reports_path, "ti-chart-dots"),
       item.call("design", "Design & Content", main_app.dashboard_website_designs_path, "ti-palette"),
       item.call("mail", "Communications", main_app.dashboard_mail_path, "ti-mail")]
+    if current_user.role.in?(%w[admin super_admin]) || current_user.can_access_feature?("studio")
+      rows << item.call("studio", "Studio & Broadcasting", main_app.dashboard_media_studio_path, "ti-video")
+    end
     rows << item.call("servers", "Servers & Applications", main_app.dashboard_servers_path, "ti-server")
     if current_user.can_access_feature?("commerce_workspace")
       rows << item.call("commerce", "Commerce", main_app.dashboard_commerce_path, "ti-shopping-cart")
@@ -36,6 +40,29 @@ module NevaehControlCenterHelper
       rows << item.call("new-ticket", "New Ticket", main_app.new_employee_ticket_path, "ti-plus", "Nevaeh") if can?(:create, Marlon::Ticket)
     end
     rows << item.call("settings", "Settings", main_app.dashboard_settings_home_path, "ti-settings", "System")
+    rows
+  end
+
+  def nevaeh_dashboard_breadcrumbs(page_label:)
+    home = dymond_dash.root_path
+    entries = nevaeh_sidebar_entries.reject { |entry| entry['hidden'] }
+    entries += [{"path" => main_app.dashboard_live_path, "label" => "Live Studio"},
+      {"path" => main_app.dashboard_session_media_path, "label" => "Room service"}]
+    current = request.path.sub(%r{/+$}, '')
+    selected = entries.select do |entry|
+      path = entry['path'].to_s.split('?').first.to_s.sub(%r{/+$}, '')
+      path.start_with?('/') && !path.start_with?('//') && path != home.sub(%r{/+$}, '') &&
+        (current == path || current.start_with?(path + '/'))
+    end.max_by { |entry| entry['path'].to_s.split('?').first.length }
+    rows = [{label: 'Dashboard', path: home}]
+    if selected
+      target = selected['path'].to_s
+      if defined?(@site) && @site&.id
+        target += (target.include?('?') ? '&' : '?') + 'site_id=' + ERB::Util.url_encode(@site.id.to_s)
+      end
+      rows << {label: selected['label'], path: current == selected['path'].to_s.split('?').first.sub(%r{/+$}, '') ? nil : target}
+    end
+    rows << {label: page_label, path: nil} unless rows.last[:path].nil?
     rows
   end
 

@@ -17,7 +17,8 @@ class SessionRoomsController < ApplicationController
   def show
     @site = @room.resource.site
     @host = @room.host?(current_user)
-    @can_invite = @room.bookings.where(customer: current_user).where('quantity > 1').exists?
+    @media_ready = LightekSessions::Media.configured?(@site)
+    @can_invite = (@host && @room.production?) || @room.bookings.where(customer: current_user).where('quantity > 1').exists?
   end
   def state
     member = LightekSessions::Access.request!(@room, current_user)
@@ -86,6 +87,8 @@ class SessionRoomsController < ApplicationController
   def invite
     member = LightekSessions::Access.invite!(@room, current_user, params.require(:email_address))
     render json: {message: 'Place assigned. Ask your guest to sign in and open this room link.', room_path: session_room_path(@room.key)}, status: :created
+  rescue ActiveRecord::RecordNotFound
+    render json: {error: 'Your guest needs a Lightek account with that email. Ask them to sign in first.'}, status: :unprocessable_entity
   end
   private
   def load_room

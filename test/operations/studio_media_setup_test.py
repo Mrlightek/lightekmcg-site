@@ -20,13 +20,41 @@ class StudioMediaSetupTest(unittest.TestCase):
             output=subprocess.check_output(['bash',str(ROOT/'lib/scripts/setup_studio_media.sh')],env=env,text=True)
             commands=[json.loads(line) for line in (folder/'trace').read_text().splitlines()]
             self.assertEqual(commands[0],['info'])
-            self.assertIn(['build','--tag','lightek/studio-media:20261111',str(ROOT/'docker/studio-media')],commands)
+            build=next(command for command in commands if command[0]=='build')
+            self.assertEqual(build[build.index('--tag')+1],'lightek/studio-media:20261111')
+            self.assertEqual(build[-1],str(ROOT/'docker/studio-media'))
+            self.assertIn('--label',build)
             probe=next(command for command in commands if command[0]=='run')
             self.assertIn('--disable-autoexec',probe)
             self.assertIn('--read-only',probe)
             self.assertEqual('1',probe[probe.index('--cpus')+1])
             self.assertEqual(probe[probe.index('--network')+1],'none')
             self.assertIn('LIGHTEK_BLENDER_RUNTIME_READY=',output)
+    def test_reused_image_still_runs_the_restricted_engine_probe(self):
+        import importlib.util
+        spec=importlib.util.spec_from_file_location("deployment_storage",ROOT/'lib/scripts/deployment_storage.py')
+        helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
+        fingerprint=helper.source_digest(ROOT/'docker/studio-media')
+        with tempfile.TemporaryDirectory() as directory:
+            folder=Path(directory);trace=folder/'trace';binary=folder/'docker'
+            binary.write_text('''#!/usr/bin/env python3
+import json,os,sys
+args=sys.argv[1:]
+with open(os.environ['STUDIO_SETUP_TRACE'],'a') as f:f.write(json.dumps(args)+'\\n')
+if args[:2]==['image','inspect']:print(json.dumps([{'Config':{'Labels':{'io.lightek.source-sha256':os.environ['TEST_FINGERPRINT']}}}]))
+if args==['info','--format','{{.NCPU}}']:print('1')
+if '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.0.2')
+''')
+            binary.chmod(0o755)
+            env=dict(os.environ,PATH=str(folder)+os.pathsep+os.environ['PATH'],STUDIO_SETUP_TRACE=str(trace),TEST_FINGERPRINT=fingerprint)
+            for key in ['STUDIO_ASSET_WORKER_IMAGE','STUDIO_RENDER_WORKER_IMAGE','STUDIO_MEDIA_WORKER_IMAGE']:env.pop(key,None)
+            result=subprocess.run(['bash',str(ROOT/'lib/scripts/setup_studio_media.sh')],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            calls=[json.loads(line) for line in trace.read_text().splitlines()]
+            self.assertFalse(any(c[0]=='build' for c in calls))
+            self.assertTrue(any(c[0]=='run' and '--read-only' in c for c in calls))
+            self.assertIn('LIGHTEK_BLENDER_RUNTIME_READY',result.stdout)
+
     def test_normal_deployment_installs_engine_before_starting_workers(self):
         deploy=(ROOT/'lib/scripts/gatekeeper/deploy_project.sh').read_text()
         self.assertLess(deploy.index('bash lib/scripts/setup_studio_media.sh'),deploy.index('systemctl restart "${SIDEKIQ_SERVICE}"'))

@@ -51,7 +51,7 @@ class ExactCheckoutTest(unittest.TestCase):
             (source/'version').write_text('requested');git(source,'commit','-qam','Requested release');requested=git(source,'rev-parse','HEAD');git(source,'push','origin','main')
             (source/'version').write_text('later');git(source,'commit','-qam','Later release');git(source,'push','origin','main')
             # Exercise the production checkout code without root-only host directories.
-            prefix=DEPLOY.read_text().split('echo "[2/8] Bundle"',1)[0]
+            prefix=DEPLOY.read_text().split('echo "[storage] Check application',1)[0]
             prefix=prefix.replace('[[ "$EUID" -eq 0 ]] || { echo "ERROR: run as root"; exit 1; }','# Root privilege is not needed for this isolated Git fixture.')
             prefix=prefix.replace('/var/lib/lightek/fleet/',str(root/'locks')+'/')
             sudo=binary/'sudo';sudo.write_text('#!/bin/bash\nwhile [[ "$1" = -u || "$1" = -H ]];do if [[ "$1" = -u ]];then shift 2;else shift;fi;done\nexec "$@"\n');sudo.chmod(0o755)

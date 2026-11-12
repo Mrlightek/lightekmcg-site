@@ -8,7 +8,8 @@ STUDIO_WORKSTATION_IMAGE_NAME="${STUDIO_WORKSTATION_IMAGE:-lightek/studio-workst
 command -v docker >/dev/null || { echo 'Docker is required for native workstations.' >&2; exit 1; }
 docker info >/dev/null
 if [[ -z "${STUDIO_WORKSTATION_IMAGE:-}" ]]; then
-  docker build --tag "$STUDIO_WORKSTATION_IMAGE_NAME" "$STUDIO_WORKSTATION_CHECKOUT/docker/studio-workstation"
+  python3 "$STUDIO_WORKSTATION_CHECKOUT/lib/scripts/deployment_storage.py" --app-root "$STUDIO_WORKSTATION_CHECKOUT" \
+    --image "$STUDIO_WORKSTATION_IMAGE_NAME" --context "$STUDIO_WORKSTATION_CHECKOUT/docker/studio-workstation" --minimum-free-mib 4096
 else
   docker image inspect "$STUDIO_WORKSTATION_IMAGE_NAME" >/dev/null || docker pull "$STUDIO_WORKSTATION_IMAGE_NAME"
 fi

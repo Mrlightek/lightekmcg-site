@@ -78,5 +78,5 @@
   });
   document.addEventListener('turbo:before-visit',event=>{if(!active())return;if(state.dirty&&!window.confirm('Leave without saving your music?')){event.preventDefault();return;}stop();});
   window.addEventListener('hashchange',()=>{if(!active())stop();});window.addEventListener('beforeunload',e=>{if(state.dirty||[...drafts.values()].some(d=>d.dirty)){e.preventDefault();e.returnValue='';}});
-  window.LightekStudioMusic={active,view};
+  window.LightekStudioMusic={active,view,save,stop,busy:()=>state.busy,dirty:(sceneId=state.scene)=>sceneId===state.scene?state.dirty:!!drafts.get(sceneId)?.dirty,hasDrafts:()=>state.dirty||[...drafts.values()].some(d=>d.dirty)};
 })();

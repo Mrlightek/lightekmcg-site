@@ -1,6 +1,8 @@
 /* Persisted authoring controls over the existing Studio workspace. */
 (() => {
   let currentScene = null;
+  const sceneDrafts = new Map();
+  const copy = value => JSON.parse(JSON.stringify(value));
   let operationRows = [];
   let publicationRows = [];
   let operationProject = null;
@@ -14,14 +16,19 @@
   const current = () => studioSceneRecord(studioCurrentSceneId());
   function prepare(record) {
     if (currentScene === record.scene.id) return;
+    if(currentScene)sceneDrafts.set(currentScene,copy({story:STUDIO_WAVE2_STATE,visual:STUDIO_V3_STATE,delivery:STUDIO_W4_STATE,layout:STUDIO_WORKSPACE_LAYOUT,presets:STUDIO_W5_STATE.presets,dirty,writingDraft}));
     currentScene = record.scene.id;
     const workspace = record.scene.settings?.workspace || {};
+    for(const key of Object.keys(STUDIO_WAVE2_STATE))delete STUDIO_WAVE2_STATE[key];
     Object.assign(STUDIO_WAVE2_STATE, { scriptDraft: '', beats: [], checks: [], muted: [], storyboard: [] }, workspace.story || {});
+    for(const state of [STUDIO_V3_STATE,STUDIO_W4_STATE,STUDIO_WORKSPACE_LAYOUT])for(const key of Object.keys(state))delete state[key];
     if (workspace.visual) Object.assign(STUDIO_V3_STATE, workspace.visual);
     if (workspace.delivery) Object.assign(STUDIO_W4_STATE, workspace.delivery);
     if (workspace.layout) Object.assign(STUDIO_WORKSPACE_LAYOUT, workspace.layout);
     STUDIO_W5_STATE.presets = workspace.presets || [];
-    dirty = false; writingDraft = null;
+    const draft=sceneDrafts.get(currentScene);
+    if(draft){Object.assign(STUDIO_WAVE2_STATE,draft.story);Object.assign(STUDIO_V3_STATE,draft.visual);Object.assign(STUDIO_W4_STATE,draft.delivery);Object.assign(STUDIO_WORKSPACE_LAYOUT,draft.layout);STUDIO_W5_STATE.presets=draft.presets;}
+    dirty = draft?.dirty||false; writingDraft = draft?.writingDraft||null;
     operationRows = []; publicationRows = []; operationProject = null; quote = null;
   }
   function inspector(scene) {
@@ -33,7 +40,7 @@
   function story(record, mode) {
     if (!['script', 'storyboard', 'audio', 'planning'].includes(mode)) return null;
     const state = STUDIO_WAVE2_STATE;
-    if (mode === 'script') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Script</h2><label class="fld"><span>${E(record.scene.name)} · Scene script</span><textarea data-studio-script rows="18" placeholder="Write the scene…">${E(state.scriptDraft)}</textarea></label><p>Save workspace to persist your script with this scene.</p>${writingPanel(record)}</section>`;
+    if (mode === 'script') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Script</h2><label class="fld"><span>${E(record.scene.name)} · Scene script</span><textarea data-studio-script rows="18" placeholder="Write the scene…">${E(state.scriptDraft)}</textarea></label><p>Save workspace to persist your script with this scene.</p><details><summary>Write with Nevaeh</summary>${writingPanel(record)}</details></section>`;
     if (mode === 'storyboard') return `<section class="studio-wave2"><span class="eb">Story & Production</span><h2>Storyboard</h2><div class="g2">${(state.storyboard || []).map((shot, i) => `<div class="studio-wave2-panel"><h3>Shot ${i + 1}</h3><label class="fld"><span>Framing & action</span><textarea data-studio-shot="${i}" rows="5">${E(shot)}</textarea></label>${button('Remove shot', 'studioShotRemove', `data-index="${i}"`)}</div>`).join('')}</div>${button('Add shot', 'studioShotAdd')}</section>`;
     if (mode === 'planning') return `<section class="studio-wave2"><span class="eb">Production Planning</span><h2>Readiness</h2>${STUDIO_WAVE2_TASKS.map((task, i) => `<label class="studio-wave2-check"><input type="checkbox" data-studio-wave2-task="${i}" ${state.checks.includes(i) ? 'checked' : ''}><span>${E(task)}</span></label>`).join('')}<p>Readiness is saved with the scene.</p></section>`;
     return `<section class="studio-wave2"><span class="eb">Audio</span><h2>Scene sound</h2><p>Publish or upload audio through Create, then reference its post ID in your scene notes.</p><label class="fld"><span>Dialogue, ambience, music & cues</span><textarea data-studio-audio rows="10">${E(state.audioNotes || '')}</textarea></label><a class="btn sm" href="#/create/audio">Upload audio</a></section>`;
@@ -69,7 +76,7 @@
     finally { ST.busy = false; }
   }
   const run = fn => Promise.resolve().then(fn).catch(error => toast(error.message));
-  A.studioWorkspaceSave = () => run(async () => {
+  async function saveWorkspace() {
     const record = current();
     if (!record) return;
     const result = await execute('studio.workspace.scene.save', { scene_id: record.scene.id, lock_version: record.scene.lock_version,
@@ -77,9 +84,10 @@
     if (!result) return;
     record.scene.lock_version = result.lock_version;
     record.scene.settings.workspace = result.workspace;
-    dirty = false;
+    dirty = false;sceneDrafts.delete(record.scene.id);
     const status = document.getElementById('studio-save-status'); if (status) status.textContent = 'Saved to your account';
-  });
+  }
+  A.studioWorkspaceSave=()=>run(saveWorkspace);
   A.studioShotAdd = () => { STUDIO_WAVE2_STATE.storyboard ||= []; STUDIO_WAVE2_STATE.storyboard.push(''); dirty = true; render(1); };
   A.studioShotRemove = b => { STUDIO_WAVE2_STATE.storyboard.splice(Number(b.dataset.index), 1); dirty = true; render(1); };
   A.studioProjectDelete = b => run(async () => { if (!confirm('Delete this project, its scenes and artifacts?')) return; await execute('studio.workspace.project.delete', { project_id: Number(b.dataset.project) }); location.hash = '#/studio'; await A.studioLoad(true); });
@@ -95,7 +103,7 @@
     if (result) { await A.studioLoad(true); location.hash = `#/studio/${result.scene_id}`; }
   });
   A.studioRenderQuote = () => run(async () => { const record = current(); quote = await execute('studio.workspace.render.quote', { scene_id: record.scene.id }); render(1); });
-  A.studioCameraRenderQuote=()=>run(async()=>{await A.studioRenderQuote();ST.workspaceMode='publish';render(1);});
+  A.studioCameraRenderQuote=()=>run(async()=>{await A.studioRenderQuote();if(window.LightekStudioProduction)LightekStudioProduction.go('deliver');else{ST.workspaceMode='publish';render(1);}});
   A.studioRenderCheckout = () => run(async () => {
     if (!quote) return;
     const result = await execute('studio.workspace.render.checkout', { operation_id: quote.operation_id });
@@ -199,5 +207,5 @@
     const content = id === 'library' ? ST.projects.map(project => `<section class="studio-panel"><h2>${E(project.name)}</h2>${project.scenes.map(scene => `<a class="btn sm" href="#/studio/${scene.id}">${E(scene.name)} · ${scene.object_count} elements</a>`).join(' ')}</section>`).join('') : templates.map(project => `<section class="studio-panel"><h2>${E(project.name)}</h2><p>${E(project.description || '')}</p>${input('episode_name','Episode / project name',(project.name+' — Episode 1').slice(0,120)).replace('name="episode_name"','name="episode_name" data-studio-episode-name maxlength="120"')}${button('Create from template', 'studioTemplateUsePersisted', `data-project="${project.id}"`)}</section>`).join('');
     return `<div class="wrap pwa-page"><span class="eb">Lightek Studio</span><h1>${id === 'library' ? 'Library' : 'Templates'}</h1><p>${id === 'library' ? 'Saved projects, scenes and scene elements.' : 'Save a project as a template from its workspace, then create a new independent project from it.'}</p><a class="btn sm" href="#/studio">Back to Studio</a><div class="g2" style="margin-top:24px">${content || '<p>Your library is empty. Create a project to get started.</p>'}</div></div>`;
   };
-  window.LightekStudioApp = { prepare, inspector, story, delivery, tools, director, visual, setQuote(value){quote=value;} };
+  window.LightekStudioApp = { save:saveWorkspace, dirty:()=>dirty,hasDrafts:()=>dirty||[...sceneDrafts.values()].some(d=>d.dirty), prepare, inspector, story, delivery, tools, director, visual, setQuote(value){quote=value;} };
 })();

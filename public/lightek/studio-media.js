@@ -1,13 +1,14 @@
 (() => {
   const library={loaded:false,loading:false,items:[],builtins:[],cameras:[],demos:[],presets:[],error:'',query:'',category:'all',tab:'blender',presetLimit:18,runtime:null,nextBefore:null};
   let sceneId=null,timeline=null,preview=null;
+  const timelineDrafts=new Map();
   const esc=v=>E(String(v??''));
   const current=()=>studioSceneRecord(studioCurrentSceneId());
   const call=async(action,payload={})=>(await nevaeh.execute({capability:'studio.workspace.'+action,payload})).result;
   const run=fn=>Promise.resolve().then(fn).catch(error=>toast(error.message));
   const field=(label,value,attrs,type='number')=>`<label class="fld"><span>${esc(label)}</span><input type="${type}" step="any" value="${esc(value)}" ${attrs}></label>`;
   const previousPrepare=LightekStudioApp.prepare;
-  LightekStudioApp.prepare=record=>{previousPrepare(record);if(sceneId!==record.scene.id){sceneId=record.scene.id;timeline=JSON.parse(JSON.stringify(record.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]}));stopPreview();}};
+  LightekStudioApp.prepare=record=>{previousPrepare(record);if(sceneId!==record.scene.id){if(sceneId&&timeline)timelineDrafts.set(sceneId,{timeline:JSON.parse(JSON.stringify(timeline)),edit:JSON.parse(JSON.stringify(edit))});sceneId=record.scene.id;timeline=JSON.parse(JSON.stringify(timelineDrafts.get(sceneId)?.timeline||record.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]}));stopPreview();}};
   async function loadAssets(force=false,before=null){
     if(library.loading||library.loaded&&!force&&!before)return;
     library.loading=true;
@@ -24,7 +25,7 @@
   A.studioAssetsMore=()=>run(()=>loadAssets(false,library.nextBefore));
   const previousAfter=AF.studio;
   AF.studio=id=>{previousAfter(id);if(me()&&!app.querySelector('.visual-workbench'))loadAssets();};
-  const sceneOptions=()=>studioSceneRecords().map(record=>`<option value="${record.scene.id}">${esc(record.project.name)} · ${esc(record.scene.name)}</option>`).join('');
+  const sceneOptions=()=>studioSceneRecords().filter(record=>!window.LightekStudioProduction||!current()||record.scene.id===current().scene.id).map(record=>`<option value="${record.scene.id}">${esc(record.project.name)} · ${esc(record.scene.name)}</option>`).join('');
   const objectOptions=(id,category)=>(studioSceneRecord(Number(id))?.scene.objects||[]).filter(object=>category!=='materials'||['cube','sphere','cylinder','plane'].includes(object.object_type||object.type)).map(object=>`<option value="${object.id}">${esc(object.name)}</option>`).join('');
   const targetScene=()=>`<label class="fld"><span>Use in scene</span><select name="scene_id" required data-library-scene>${sceneOptions()}</select></label>`;
   const noScenes=()=>!studioSceneRecords().length;
@@ -65,8 +66,8 @@
   A.studioBlenderDemoImport=button=>run(async()=>{button.disabled=true;try{const result=await call('blender.demo.import',{demo_key:button.dataset.key});await loadAssets(true);toast(`Blender import ${result.status}`);}finally{button.disabled=false;}});
   A.studioBlenderPrepare=button=>run(async()=>{await call('blender.prepare',{asset_id:Number(button.dataset.id)});await loadAssets(true);toast('Native Blender preparation queued');});
   A.studioAssetRetry=button=>run(async()=>{await call('asset.retry',{asset_id:Number(button.dataset.id)});await loadAssets(true);toast('Processing queued');});
-  A.studioBuiltinQuick=button=>run(async()=>{const record=current();if(!record)throw Error('Open a saved scene first.');const result=await call('library.apply',{key:button.dataset.key,scene_id:record.scene.id,lock_version:record.scene.lock_version,object_id:studioWorkspaceSelectedObject(record.scene)?.id,request_key:crypto.randomUUID()});sceneId=null;await A.studioLoad(true);LightekStudioApp.applied?.(result,{key:button.dataset.key});});
-  A.studioJsonPresetQuick=button=>run(async()=>{const record=current();if(!record)throw Error('Open a saved scene first.');const key=document.getElementById('studio-json-preset-select').value,beforeIds=record.scene.objects.map(object=>object.id);const result=await call('blender.preset.use',{key,mode:'apply',scene_id:record.scene.id,lock_version:record.scene.lock_version,object_id:studioWorkspaceSelectedObject(record.scene)?.id,request_key:crypto.randomUUID()});sceneId=null;await A.studioLoad(true);LightekStudioApp.applied?.(result,{key,preset:true,beforeIds});});
+  A.studioBuiltinQuick=button=>run(async()=>{const record=current();if(!record)throw Error('Open a saved scene first.');const result=await call('library.apply',{key:button.dataset.key,scene_id:record.scene.id,lock_version:record.scene.lock_version,object_id:studioWorkspaceSelectedObject(record.scene)?.id,request_key:crypto.randomUUID()});timelineDrafts.delete(result.scene_id);sceneId=null;await A.studioLoad(true);LightekStudioApp.applied?.(result,{key:button.dataset.key});});
+  A.studioJsonPresetQuick=button=>run(async()=>{const record=current();if(!record)throw Error('Open a saved scene first.');const key=document.getElementById('studio-json-preset-select').value,beforeIds=record.scene.objects.map(object=>object.id);const result=await call('blender.preset.use',{key,mode:'apply',scene_id:record.scene.id,lock_version:record.scene.lock_version,object_id:studioWorkspaceSelectedObject(record.scene)?.id,request_key:crypto.randomUUID()});timelineDrafts.delete(result.scene_id);sceneId=null;await A.studioLoad(true);LightekStudioApp.applied?.(result,{key,preset:true,beforeIds});});
   const previousShelf=LightekStudioApp.tools;
   LightekStudioApp.tools=(...args)=>`${previousShelf?previousShelf(...args):''}<section class="pwa-post"><h3>Blender JSON presets</h3><select id="studio-json-preset-select" aria-label="Blender JSON preset">${library.presets.filter(item=>!item.requires_asset).map(item=>`<option value="${esc(item.key)}">${esc(item.name)}</option>`).join('')}</select><button class="btn sm" data-a="studioJsonPresetQuick">Apply to this scene / selected element</button><a class="btn sm" href="#/studio/library">All project templates</a></section>`;
   const productionTools=LightekStudioApp.tools;
@@ -96,7 +97,7 @@
   const checkpoint=()=>{stopPreview();edit.undo.push(clone(timeline));if(edit.undo.length>60)edit.undo.shift();edit.redo=[];};
   const trackFor=id=>{timeline.tracks||=[];let track=timeline.tracks.find(t=>t.id===id);if(!track){track={id,name:`Track ${id+1}`,gain:1,pan:0,muted:false,solo:false};timeline.tracks.push(track);}return track;};
   const priorMediaPrepare=LightekStudioApp.prepare;
-  LightekStudioApp.prepare=record=>{const changed=sceneId!==record.scene.id;priorMediaPrepare(record);if(changed)Object.assign(edit,{selected:0,playhead:0,undo:[],redo:[]});};
+  LightekStudioApp.prepare=record=>{const changed=sceneId!==record.scene.id;priorMediaPrepare(record);if(changed)Object.assign(edit,{selected:0,playhead:0,undo:[],redo:[]},timelineDrafts.get(sceneId)?.edit||{});};
   if(!STUDIO_WORKSPACE_MODES.some(mode=>mode.key==='timeline'))STUDIO_WORKSPACE_MODES.splice(5,0,{key:'timeline',label:'Timeline',description:'Edit footage, finish color, title and mix a production.'});
   const previousStory=LightekStudioApp.story;
   const choice=(key,values,selected)=>`<select data-timeline-setting="${key}">${values.map(([value,label])=>`<option value="${value}" ${String(value)===String(selected)?'selected':''}>${label}</option>`).join('')}</select>`;
@@ -132,9 +133,9 @@
   A.studioTimelineFrameRemove=b=>{checkpoint();timeline.clips[Number(b.dataset.index)].keyframes.splice(Number(b.dataset.frame),1);render(1);};
   A.studioTimelineTitleAdd=()=>{const end=sequenceDuration(),start=snap(edit.playhead);if(start>=end)return toast('Place the playhead before the sequence end.');checkpoint();timeline.titles||=[];timeline.titles.push({text:'Your title',start,end:Math.min(end,start+3),x:40,y:40,size:48});render(1);};
   A.studioTimelineTitleRemove=b=>{checkpoint();timeline.titles.splice(Number(b.dataset.index),1);render(1);};
-  async function saveTimeline(){const record=current();const snapshot=clone(timeline),savingScene=sceneId;const result=await call('timeline.save',{scene_id:record.scene.id,lock_version:record.scene.lock_version,timeline:snapshot});record.scene.lock_version=result.lock_version;record.scene.settings.timeline=result.timeline;if(sceneId===savingScene&&JSON.stringify(timeline)===JSON.stringify(snapshot))timeline=result.timeline;return result;}
+  async function saveTimeline(){const record=current();const snapshot=clone(timeline),savingScene=sceneId;const result=await call('timeline.save',{scene_id:record.scene.id,lock_version:record.scene.lock_version,timeline:snapshot});record.scene.lock_version=result.lock_version;record.scene.settings.timeline=result.timeline;if(sceneId===savingScene&&JSON.stringify(timeline)===JSON.stringify(snapshot)){timeline=result.timeline;timelineDrafts.delete(savingScene);}return result;}
   A.studioTimelineSave=()=>run(async()=>{await saveTimeline();toast('Timeline saved');});
-  A.studioTimelineQuote=()=>run(async()=>{const record=current();await saveTimeline();const result=await call('timeline.quote',{scene_id:record.scene.id});if(current()?.scene.id!==record.scene.id)return;LightekStudioApp.setQuote(result);ST.workspaceMode='publish';render(1);});
+  A.studioTimelineQuote=()=>run(async()=>{const record=current();await saveTimeline();const result=await call('timeline.quote',{scene_id:record.scene.id});if(current()?.scene.id!==record.scene.id)return;LightekStudioApp.setQuote(result);if(window.LightekStudioProduction)LightekStudioProduction.go('deliver');else{ST.workspaceMode='publish';render(1);}});
   app.addEventListener('change',e=>{
     const el=e.target;if(el.matches('[data-library-scene]')){const select=el.closest('form').querySelector('[data-library-object]');if(select)select.innerHTML=objectOptions(el.value,el.closest('form').dataset.key?.startsWith('mat_')?'materials':null);}
     if(el.hasAttribute('data-timeline-playhead')){stopPreview();edit.playhead=snap(Number(el.value));render(1);A.studioTimelinePreview(true);return;}
@@ -151,6 +152,7 @@
     if(form.dataset.busy)return;form.dataset.busy='true';const submit=form.querySelector('button:not([type="button"])');if(submit)submit.disabled=true;
     const notice=form.querySelector('[data-library-status],[data-import-status]');if(notice)notice.textContent='Working…';
     Promise.resolve().then(async()=>{
+      if(window.LightekStudioProduction&&current()&&timelineDirty())await saveTimeline();
       if(action==='import'){
         const file=form.elements.file.files[0];if(!file||file.size>250*1024*1024)throw Error('Choose a file smaller than 250 MB.');
         const body=new FormData();body.append('file',file);body.append('purpose','studio_asset');
@@ -159,9 +161,9 @@
         await loadAssets(true);toast('Import queued');
       }else if(action==='json-preset'){
         const mode=form.elements.mode.value,record=studioSceneRecord(Number(form.elements.scene_id?.value)),beforeIds=record?.scene.objects.map(object=>object.id)||[];
-        const result=await call('blender.preset.use',{key:form.dataset.key,mode,name:form.elements.name.value,title:form.elements.name.value,scene_id:record?.scene.id,lock_version:record?.scene.lock_version,object_id:form.elements.object_id?.value||undefined,asset_id:form.elements.asset_id?.value?Number(form.elements.asset_id.value):undefined,request_key:form.dataset.requestKey||=crypto.randomUUID()});sceneId=null;await A.studioLoad(true);ST.workspaceMode='3d';location.hash='#/studio/'+result.scene_id;LightekStudioApp.applied?.(result,{key:form.dataset.key,preset:true,beforeIds});render(1);toast('Blender template ready');
+        const result=await call('blender.preset.use',{key:form.dataset.key,mode,name:form.elements.name.value,title:form.elements.name.value,scene_id:record?.scene.id,lock_version:record?.scene.lock_version,object_id:form.elements.object_id?.value||undefined,asset_id:form.elements.asset_id?.value?Number(form.elements.asset_id.value):undefined,request_key:form.dataset.requestKey||=crypto.randomUUID()});timelineDrafts.delete(result.scene_id);sceneId=null;await A.studioLoad(true);ST.workspaceMode='3d';location.hash='#/studio/'+result.scene_id;LightekStudioApp.applied?.(result,{key:form.dataset.key,preset:true,beforeIds});render(1);toast('Blender template ready');
       }else if(action==='native-template'){
-        const result=await call('blender.template.use',{asset_id:Number(form.dataset.id),name:form.elements.name.value,source_scene:form.elements.source_scene.value||null,request_key:form.dataset.requestKey||=crypto.randomUUID()});sceneId=null;await A.studioLoad(true);ST.workspaceMode='3d';location.hash='#/studio/'+result.scene_id;render(1);toast('Native Blender production created');
+        const result=await call('blender.template.use',{asset_id:Number(form.dataset.id),name:form.elements.name.value,source_scene:form.elements.source_scene.value||null,request_key:form.dataset.requestKey||=crypto.randomUUID()});timelineDrafts.delete(result.scene_id);sceneId=null;await A.studioLoad(true);ST.workspaceMode='3d';location.hash='#/studio/'+result.scene_id;render(1);toast('Native Blender production created');
       }else if(action==='publish'){
         const result=await call('asset.publish',{asset_id:Number(form.dataset.id),scene_id:Number(form.dataset.scene),spatial:form.elements.spatial.checked,spatial_rights:form.elements.spatial_rights.checked,allow_remix:form.elements.allow_remix.checked,community_slug:form.elements.community_slug.value,title:form.elements.title.value,platform:form.elements.platform.value,audience:form.elements.audience.value,publish_at:form.elements.publish_at.value?new Date(form.elements.publish_at.value).toISOString():null,request_key:form.dataset.requestKey||=crypto.randomUUID()});
         form.closest('dialog').close();toast(`Publication #${result.publication_id} queued`);
@@ -174,7 +176,7 @@
         if(action==='builtin')Object.assign(payload,{key:form.dataset.key,object_id:form.elements.object_id?.value,title:form.elements.title?.value,subtitle:form.elements.subtitle?.value});
         const result=await call(action==='camera-create'?'blender.camera.create':action==='builtin'?'library.apply':action==='place'?'asset.place':'asset.use',payload);
         if(result.object_id||result.object_ids?.length)ST.selectedObjectId=result.object_id||result.object_ids[0];
-        sceneId=null;await A.studioLoad(true);await loadAssets(true);if(action==='camera-create')ST.workspaceMode='visual';else if(action==='use'||(result.asset_ids?.length&&!result.object_ids?.length))ST.workspaceMode='timeline';else ST.workspaceMode='3d';location.hash='#/studio/'+result.scene_id;LightekStudioApp.applied?.(result,{key:form.dataset.key,mode:ST.workspaceMode});render(1);toast('Library item ready in your production');
+        sceneId=null;await A.studioLoad(true);await loadAssets(true);if(action==='camera-create')ST.workspaceMode='visual';else if(action==='use'||(result.asset_ids?.length&&!result.object_ids?.length))ST.workspaceMode='timeline';else ST.workspaceMode='3d';location.hash='#/studio/'+result.scene_id+(window.LightekStudioProduction?'/'+({visual:'camera',timeline:'edit','3d':'stage'}[ST.workspaceMode]||'stage'):'');LightekStudioApp.applied?.(result,{key:form.dataset.key,mode:ST.workspaceMode});render(1);toast('Library item ready in your production');
       }
     }).catch(error=>{if(notice)notice.textContent=error.message;toast(error.message);}).finally(()=>{delete form.dataset.busy;if(submit)submit.disabled=false;});
   });
@@ -225,7 +227,9 @@
     }catch(error){if(preview===state)stopPreview();throw error;}
   });
   new MutationObserver(()=>{if(preview&&!preview.canvas?.isConnected)stopPreview();}).observe(app,{childList:true,subtree:true});
+  const timelineDirty=()=>!!timeline&&JSON.stringify(timeline)!==JSON.stringify(current()?.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]});
   window.LightekStudioTimeline={
+    time:()=>edit.playhead,dirty:timelineDirty,hasDrafts:()=>timelineDirty()||[...timelineDrafts.entries()].some(([id,d])=>JSON.stringify(d.timeline)!==JSON.stringify(studioSceneRecord(id)?.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]})),
     get:()=>timeline?JSON.parse(JSON.stringify(timeline)):null,
     set:value=>{stopPreview();timeline=JSON.parse(JSON.stringify(value));},
     save:saveTimeline,

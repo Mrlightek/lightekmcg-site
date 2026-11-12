@@ -1798,8 +1798,10 @@ const mount = (
     orbit.update();
   }
 
+  const mountedViewport=active;
+  let viewportWidth=0,viewportHeight=0;
   const resize = () => {
-    if (!active) return;
+    if (active!==mountedViewport) return;
 
     const width =
       Math.max(
@@ -1815,6 +1817,8 @@ const mount = (
         1
       );
 
+    if(width===viewportWidth&&height===viewportHeight)return;
+    viewportWidth=width;viewportHeight=height;
     active.camera.aspect =
       width / height;
 
@@ -1829,9 +1833,10 @@ const mount = (
   };
 
   active.resize =
-    new ResizeObserver(
-      resize
-    );
+    new ResizeObserver(() => {
+      if(active!==mountedViewport||active.resizeFrame)return;
+      active.resizeFrame=requestAnimationFrame(()=>{mountedViewport.resizeFrame=null;resize();});
+    });
 
   active.resize.observe(
     dom.canvasHost
@@ -1933,6 +1938,7 @@ function destroyActive() {
 
   active.resize
     ?.disconnect?.();
+  if(active.resizeFrame)cancelAnimationFrame(active.resizeFrame);
 
   active.transform
     ?.detach?.();

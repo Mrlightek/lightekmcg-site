@@ -125,7 +125,7 @@ class StudioPerformanceTest < StudioAuthoringTest
     client=session_for
     client.get "/dashboard/studio-broadcasting",headers:headers.merge("Accept"=>"text/html")
     assert_equal 200,client.response.status,client.response.body
-    assert_includes client.response.body,"Shows & episodes"
+    assert_includes client.response.body,"Production library"
     assert_includes client.response.body,actor.name
     client.get "/dashboard/studio-broadcasting/workspace/#{@scene.id}",params:{workspace:"performance"},headers:headers.merge("Accept"=>"text/html")
     assert_equal 200,client.response.status,client.response.body

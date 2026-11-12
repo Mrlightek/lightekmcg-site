@@ -43,6 +43,7 @@ class ApplicationController < ActionController::Base
   end
 end
 require File.join(ROOT, "app/controllers/api/lightek_pwa_controller")
+require File.join(ROOT, "app/services/nevaeh_orchestration/native_contracts")
 require File.join(ROOT, "app/controllers/api/nevaeh_controller")
 require File.join(ROOT,"app/controllers/posts_controller")
 require File.join(ROOT,"app/controllers/communities_controller")

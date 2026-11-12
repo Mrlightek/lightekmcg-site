@@ -38,6 +38,7 @@ module Studio
         name=@payload.fetch("name").to_s.strip
         raise ArgumentError,"Name your production (up to 120 characters)" unless name.present? && name.length<=120
         raise ArgumentError,"A project request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        format=Studio::Editing::Timeline.format(@payload.fetch("format","landscape"))
         @access.user.with_lock do
           project=StudioProject.find_by(owner:@access.user,request_key:key)
           if project
@@ -45,7 +46,7 @@ module Studio
           else
             project=StudioProject.create!(owner:@access.user,site_id:@access.site_id,name:name,request_key:key)
             scene=project.studio_scenes.first!
-            scene.update!(name:"Sequence 01",settings:scene.settings.merge("timeline"=>{"output"=>"video","width"=>1920,"height"=>1080,"fps"=>24,"clips"=>[]}))
+            scene.update!(name:"Sequence 01",settings:scene.settings.merge("timeline"=>format.merge("export_preset"=>"review","clips"=>[])))
           end
           {project_id:project.id,scene_id:project.studio_scenes.first!.id}
         end
@@ -183,14 +184,20 @@ module Studio
           operation_type: "build_scene", provider: "blender", capability: "studio.render.preview", status: "awaiting_payment", intent: {"user_id"=>@access.user.id},
           manifest: manifest)
         Studio::Billing::Quote.call(operation: operation, rail: :stripe_card)
-        { operation_id: operation.id, quote: operation.reload.cost_quote, status: operation.status }
+        { operation_id: operation.id, quote: operation.reload.cost_quote, status: operation.status, operation_type: operation.operation_type }
       end
 
       def render_checkout
-        operation = StudioOperation.where(studio_project_id: @access.projects.select(:id)).find(@payload.fetch("operation_id"))
+        projects = @access.projects
+        projects = projects.where(site_id: @access.site_id) if @payload["scope_site"]
+        operation = StudioOperation.where(studio_project_id: projects.select(:id)).find(@payload.fetch("operation_id"))
         raise ArgumentError, "Render is not awaiting payment" unless operation.status == "awaiting_payment"
         # Origin is injected by the controller; the client cannot choose redirects.
-        return_url = "#{@payload.fetch('origin')}/lightek/index.html#/studio/#{operation.studio_scene_id}"
+        return_url = if @payload["scope_site"]
+          "#{@payload.fetch('origin')}/dashboard/studio-broadcasting/workspace/#{operation.studio_scene_id}?site_id=#{@access.site_id}#/studio/#{operation.studio_scene_id}/deliver"
+        else
+          "#{@payload.fetch('origin')}/lightek/index.html#/studio/#{operation.studio_scene_id}"
+        end
         checkout = Studio::Billing::Checkout.call(operation: operation, payer: @access.user, success_url: return_url, cancel_url: return_url)
         { checkout_url: checkout.respond_to?(:url) ? checkout.url : checkout.fetch(:url) }
       end
@@ -284,7 +291,7 @@ module Studio
         timeline=Studio::Editing::Timeline.normalize(timeline,assets:assets)
         operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"edit_media",provider:"ffmpeg",capability:"studio.workspace.timeline.quote",status:"awaiting_payment",intent:{"user_id"=>@access.user.id},manifest:{"timeline"=>timeline})
         Studio::Billing::Quote.call(operation:operation,rail: :stripe_card)
-        {operation_id:operation.id,quote:operation.reload.cost_quote,status:operation.status}
+        {operation_id:operation.id,quote:operation.reload.cost_quote,status:operation.status,operation_type:operation.operation_type}
       end
 
       def asset_place
@@ -606,6 +613,8 @@ module Studio
               error: publication.error_message, post_id: publication.metadata.to_h["post_id"] } },
           operations: project.studio_operations.order(id: :desc).limit(30).map do |operation|
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
+            quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,
+            output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset"),
             scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
             artifacts: operation.artifacts.select { |artifact| artifact.file.attached? }.map do |artifact|
               { id: artifact.id, kind: artifact.kind, filename: artifact.filename,

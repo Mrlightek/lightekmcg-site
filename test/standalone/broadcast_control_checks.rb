@@ -27,6 +27,10 @@ Dashboard::LiveBroadcastsController.prepend_view_path(File.join(ROOT, "app/views
 Dashboard::MediaStudioController.layout false
 Dashboard::LiveBroadcastsController.layout false
 Rails.application.routes.append do
+  get "/dashboard/business", to: "dashboard/media_studio#index", as: :dashboard_business_hub
+  get "/dashboard/rooms", to: "dashboard/media_studio#index", as: :dashboard_rooms
+  get "/dashboard/reservations", to: "dashboard/media_studio#index", as: :dashboard_reservations
+  get "/dashboard/session-media", to: "dashboard/media_studio#index", as: :dashboard_session_media
   get "/dashboard/studio-broadcasting/workspace(/:scene_id)", to: "dashboard/media_studio#workspace", as: :dashboard_production_workspace
   get "/dashboard/studio-broadcasting", to: "dashboard/media_studio#index", as: :dashboard_media_studio
   post "/dashboard/studio-broadcasting/generation-provider", to: "dashboard/media_studio#save_generation_provider", as: :dashboard_studio_generation_provider
@@ -190,7 +194,7 @@ class BroadcastControlTest < PwaHttpIntegrationTest
       assert_equal 200,client.response.status,client.response.body.first(1000)
       assert_includes client.response.body,'Our presentation'
       refute_includes client.response.body,'Private foreign conference'
-      assert_includes client.response.body,'Presentation director'
+      assert_includes client.response.body,'Choose your program layout'
     end
   end
   def test_audience_desk_uses_authorized_live_viewers_and_community_replies
@@ -209,7 +213,7 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     client.get "/dashboard/live/#{operation.id}/audience",headers:headers(@bob)
     assert_equal 403,client.response.status
   end
-  def test_live_studio_keeps_hostname_based_site_resolution
+  def test_live_studio_defaults_to_hostname_and_accepts_an_authorized_selected_site
     client = session_for
     Studio::Live::Destination.stub(:configured?, false) do
       client.get "/dashboard/live", headers: headers.merge("Accept"=>"text/html")
@@ -222,7 +226,7 @@ class BroadcastControlTest < PwaHttpIntegrationTest
       params: {title: "Host-bound broadcast", destination: "lightek", site_id: @other_site.id}, as: :json
     assert_equal 201, client.response.status, client.response.body
     operation = StudioLiveOperation.find(body(client).fetch("id"))
-    assert_equal @site.id, operation.studio_project.site_id
+    assert_equal @other_site.id, operation.studio_project.site_id
   ensure
     Dashboard::LiveBroadcastsController.allow_forgery_protection = true
   end

@@ -8,6 +8,8 @@ The intended product combines professional editing, audio/music production, colo
 
 The character target is film-style animation: recurring identities, editable rigs, body motion, expressive facial performances, dialogue/lip sync, scene staging and finished shots. AI generation belongs inside the same production and should execute on Lightek-managed infrastructure. A prettier viewport or basic toon starter does not satisfy those acceptance criteria. See [AI Studio status](ai-studio.md) for what is and is not implemented.
 
+The interaction model is Photoshop-style layers and compositing, After Effects-style timeline/motion, and Illustrator-style drawing and shape manipulation controlling Blender underneath. Users select and manipulate elements on the canvas; the inspector follows selection and the timeline shows animation. Reusable ready-made characters, sets and effects are first-class starting assets. A client must be able to complete a basic scene without understanding how the engines connect.
+
 ## UX rules
 
 - Keep the work visible: picture and timeline in editing, instrument notes and arrangement in music.

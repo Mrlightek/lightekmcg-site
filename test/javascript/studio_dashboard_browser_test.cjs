@@ -30,7 +30,22 @@ const artifacts=path.join(repo,'tmp/studio-dashboard-browser');fs.mkdirSync(arti
  if(!await page.locator('[data-production-jobs]').evaluate(el=>el.open))await page.locator('[data-production-jobs]>summary').click();await page.locator('[data-production=use-render]').waitFor();assert.equal(await page.locator('[data-production=use-render]').count(),1,'draft previews cannot be added as finished shots');await page.locator('[data-production=use-render]').click();await page.waitForFunction(()=>document.querySelector('[data-dashboard-studio-notice]').textContent.includes('Preparing'));await page.locator('[data-production=use-render]').click();await page.waitForFunction(()=>document.querySelector('[data-production-shell]').dataset.mode==='edit');assert.equal(await page.evaluate(()=>LightekStudioTimeline.get().clips[0].asset_id),7);await page.locator('[data-production-mode=script]').click();assert.equal(await page.locator('[data-studio-script]').inputValue(),'Keep this scene draft');
  await page.locator('[data-production-mode=stage]').click();await page.locator('[data-studio-viewport-mounted]').waitFor();await page.screenshot({path:`${artifacts}/studio-${width}.png`,fullPage:true});
  }
- await page.goto('http://localhost:18447/dashboard/studio-broadcasting/workspace/1?site_id=2#/studio');await page.locator('[data-vw-form=new]').waitFor();await page.locator('[data-vw-form=new] input').fill('New production');await page.locator('[data-vw-form=new] button').click();await page.locator('.edit-workbench').waitFor();assert.equal(projectCreations,1,'new production opens an edit without Blender creation');
+ await page.goto('http://localhost:18447/dashboard/studio-broadcasting/workspace/1?site_id=2#/studio');await page.locator('[data-vw-form=new]').waitFor();
+ const projectName=page.locator('[aria-label="Project name"]');await projectName.focus();
+ for(const letter of 'New production'){
+   await page.keyboard.type(letter);await page.evaluate(()=>A.studioAssetsReload());
+   assert.equal(await projectName.evaluate(el=>document.activeElement===el),true,'asset refresh must not remove project-name focus');
+ }
+ assert.equal(await projectName.inputValue(),'New production');
+ await projectName.evaluate(el=>el.setSelectionRange(4,14));await page.evaluate(()=>A.studioAssetsReload());
+ assert.deepEqual(await projectName.evaluate(el=>[el.selectionStart,el.selectionEnd]),[4,14],'refresh preserves text selection');
+ await page.keyboard.type('film');assert.equal(await projectName.inputValue(),'New film');
+ await projectName.dispatchEvent('compositionstart');await page.evaluate(()=>window.focusTestName=document.querySelector('[aria-label="Project name"]'));await page.evaluate(()=>A.studioAssetsReload());assert(await page.evaluate(()=>window.focusTestName.isConnected),'composition keeps the original input connected');await projectName.dispatchEvent('compositionend');
+ await page.locator('[data-vw-form=new] button').click();await page.locator('.edit-workbench').waitFor();assert.equal(projectCreations,1,'new production opens an edit without Blender creation');
+ await page.locator('[data-production-mode=script]').click();await page.locator('[data-studio-script]').fill('');await page.locator('[data-studio-script]').focus();
+ await page.keyboard.type('Writing through background updates');await page.evaluate(()=>A.studioAssetsReload());
+ assert.equal(await page.locator('[data-studio-script]').evaluate(el=>document.activeElement===el),true,'script refresh must preserve focus');
+ await page.keyboard.type(' without clicking');assert.equal(await page.locator('[data-studio-script]').inputValue(),'Writing through background updates without clicking');
  assert.deepEqual(errors,[]);console.log('STUDIO_BROWSER_PASS unified navigation, persistent heading, independent scene drafts, note and script saving at 1440/1024/390; no overflow or JavaScript errors');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

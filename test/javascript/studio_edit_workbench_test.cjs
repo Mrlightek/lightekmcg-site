@@ -38,7 +38,10 @@ execFileSync('ffmpeg',['-v','error','-y','-i',path.join(out,'take.mp4'),'-frames
  assert.equal(await page.evaluate(()=>LightekStudioTimeline.get().clips.length),4,'AI result is added to the same production edit');
  // Start from an empty production and exercise the actual file-input/XHR/import flow.
  await page.setViewportSize({width:1600,height:1000});importMode=true;scene.settings.timeline={output:'video',width:1280,height:720,fps:24,clips:[]};
- await page.reload();await page.waitForFunction(()=>window.LightekStudioTimeline?.editor().loading===false&&document.querySelector('[data-ew-upload]'));await page.locator('[data-ew-upload]').setInputFiles(path.join(out,'take.mp4'));
+ await page.reload();await page.waitForFunction(()=>window.LightekStudioTimeline?.editor().loading===false&&document.querySelector('[data-ew-upload]'));await page.setViewportSize({width:1440,height:740});
+ const importBox=await page.locator('[data-ew=import]').first().boundingBox(),poolBox=await page.locator('.ew-bin').boundingBox();assert(importBox.y+importBox.height<=poolBox.y+poolBox.height,'Import media stays inside the visible pool');
+ const emptyPicker=page.waitForEvent('filechooser');await page.locator('.ew-empty-import').click();await (await emptyPicker).setFiles([]);
+ const picker=page.waitForEvent('filechooser');await page.locator('[data-ew=import]').first().click();const chooser=await picker;await page.evaluate(()=>A.studioAssetsReload());await chooser.setFiles(path.join(out,'take.mp4'));
  await page.getByText('Upload interrupted. Retry this file.').waitFor();assert.equal(registrations,0);await page.locator('[data-ew=retry-upload]').click();
  await page.getByText('Registration interrupted. Retry this file.').waitFor({timeout:10000}).catch(async error=>{console.log({uploads,registrations,polls,errors,text:await page.locator('.ew-bin').innerText()});throw error;});
  assert.equal(uploads,2);assert.equal(registrations,1);

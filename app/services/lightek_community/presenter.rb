@@ -21,14 +21,21 @@ module LightekCommunity
 
     def post(record)
       engagements = @access.profile ? record.engagements.where(profile_id: @access.profile.id).pluck(:kind) : []
+      article = if record.kind == "article" && record.metadata["website_article"].is_a?(Hash)
+        LightekBlog::Entry.publicly_visible.find_by(post_id: record.id)
+      end
+      manage_article = article && @access.user && LightekSettings::WebsiteIdentity.sites_for(@access.user).exists?(id: record.site_id)
       { id: record.id, title: record.title, content: record.content, kind: record.kind,
+        website_article_edit_url: manage_article ? "/dashboard/blog?site_id=#{record.site_id}&entry_id=#{article.id}" : nil,
+        website_article_url: article && "/blog/#{article.slug}",
+        website_article_excerpt: article && (article.excerpt.presence || ActionController::Base.helpers.strip_tags(record.content).truncate(600)),
         audience: record.audience, visibility: record.visibility, parent_id: record.parent_id, author: profile(record.user.profile),
         community: record.community && { slug: record.community.slug, name: record.community.name },
         live_status: record.kind=="live" ? StudioLiveOperation.find_by(id:record.metadata["live_operation_id"])&.status : nil,
         live_url: record.kind=="live" ? "/api/lightek/pwa/live/#{record.id}/index.m3u8" : nil,
         metadata: record.metadata, created_at: record.created_at.iso8601, expires_at: record.expires_at&.iso8601,
-        can_edit: !!(@access.super_admin? || record.user_id == @access.user&.id),
-        can_delete: !!(@access.super_admin? || record.user_id == @access.user&.id || record.community&.manager?(@access.profile)),
+        can_edit: !article && !!(@access.super_admin? || record.user_id == @access.user&.id),
+        can_delete: !article && !!(@access.super_admin? || record.user_id == @access.user&.id || record.community&.manager?(@access.profile)),
         reply_count: @access.posts.where(parent_id: record.id).count,
         like_count: record.engagements.where(kind: "like").count,
         rsvp_count: record.engagements.where(kind: "rsvp").count,

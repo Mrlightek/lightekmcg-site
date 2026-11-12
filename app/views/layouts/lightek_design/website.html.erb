@@ -4,7 +4,7 @@
   base_style = definition["base_design"] || design_key
   navigation_style = base_style == "plain" ? "vinylctrl" : base_style
   tokens = definition.fetch("tokens").merge(definition.fetch("fonts"))
-  tokens.merge!(@site.active_template.tokens) if !@preview && @site.active_template && !@design_key
+  tokens.merge!(@site.active_template.tokens) if !@preview && @site.active_template && (!@design_key || LightekDesign::SiteTheme.current(@site))
   stacks = %w[font_sans font_heading font_mono].each_with_object({}) do |key, result|
     result[key] = LightekDesign::Fonts.css_stack(tokens[key].presence || definition.fetch("fonts")[key], fallback: key == "font_mono" ? "monospace" : "sans-serif")
   end
@@ -15,6 +15,7 @@
 <title><%= @page.title %> · <%= @site.name %></title>
 <% if !@preview && @site.respond_to?(:manifest) && @site.manifest.to_h["hosted_application_key"].present? %><meta name="lightek-application-key" content="<%= @site.manifest["hosted_application_key"] %>"><% end %>
 <%= csrf_meta_tags %>
+<%= yield :website_meta %>
 <% if @preview %><meta name="robots" content="noindex,nofollow"><% end %>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <% if google_url %><%= stylesheet_link_tag google_url %><% end %>
@@ -35,7 +36,8 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
 <a class="lt-skip" href="#main-content">Skip to content</a>
 <% if @preview && !@studio_preview_definition %><aside class="lt-preview-banner">Design preview · <%= link_to "Back to website designs", dashboard_website_designs_path(site_id: @site.id) %></aside><% end %>
 <% content_has_header = @preview ? definition["sections"].any? { |entry| entry["chrome_header"] } : @page.sections.any? { |record| LightekDesign::Catalog.section_definition(record.kind)&.fetch("chrome_header", false) } %>
-<% unless content_has_header %>
+<% theme_header = !@preview && studio_theme_chrome("header") %>
+<% if theme_header %><%= studio_render_section(theme_header, theme_header.fetch("data")) %><% elsif !content_has_header %>
 <header class="lt-design-<%= navigation_style %>">
 <% if !@preview && @site.nav_menu && @site.nav_menu.roots.any? %>
   <%= render "lightek_design/site_navigation", design_key: navigation_style %>
@@ -47,7 +49,9 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
 </header>
 <% end %>
 <main id="main-content"><%= yield %></main>
-<% unless @preview || @page.sections.any? { |section| %w[vinylctrl_waitlist ybnc_footer].include?(section.kind) || LightekDesign::Catalog.section_definition(section.kind)&.fetch("chrome_footer", false) } %>
+<% theme_footer = !@preview && studio_theme_chrome("footer") %>
+<% if theme_footer %><%= studio_render_section(theme_footer, theme_footer.fetch("data")) %><% end %>
+<% unless theme_footer || @preview || @page.sections.any? { |section| %w[vinylctrl_waitlist ybnc_footer].include?(section.kind) || LightekDesign::Catalog.section_definition(section.kind)&.fetch("chrome_footer", false) } %>
   <div class="lt-design-<%= navigation_style %>">
   <% if @site.footer %>
     <%= render "dymond_site/themes/default/chrome/chrome_styles" %>
@@ -60,7 +64,7 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
   </div>
 <% end %>
 <% starter_data = @preview ? definition.fetch("sections").filter_map { |entry| entry["data"] if entry["block"] == "starter" } : @page.sections.filter_map { |record| record.data if LightekDesign::Catalog.section_definition(record.kind)&.fetch("block", nil) == "starter" } %>
-<% if starter_data.any? && starter_data.none? { |data| data["section_key"] == "footer" } %>
+<% if !theme_footer && starter_data.any? && starter_data.none? { |data| data["section_key"] == "footer" } %>
   <footer class="ld-default-footer" data-template-credit><%= LightekDesign::TemplateBranding.new(@site).credit %></footer>
 <% end %>
 </body></html>

@@ -128,6 +128,9 @@ module LightekCommunity
       def post_update
         record = @access.posts.find(@payload.fetch("post_id"))
         raise AccessDenied, "Only the author can edit this post" unless @access.super_admin? || record.user_id == @user.id
+        if record.metadata["website_article"].is_a?(Hash) && LightekBlog::Entry.exists?(post_id: record.id)
+          raise AccessDenied, "Edit this website article in Dashboard → Journal & Articles to preserve its publication state and revision."
+        end
         audience = @payload.fetch("audience", record.audience)
         if record.parent_id
           raise ArgumentError, "Replies inherit the conversation audience" if audience != record.audience
@@ -141,6 +144,9 @@ module LightekCommunity
       def post_delete
         record = @access.posts.find(@payload.fetch("post_id"))
         raise AccessDenied, "Only the author or a community administrator can delete this post" unless @access.super_admin? || record.user_id == @user.id || record.community&.manager?(@profile)
+        if record.metadata["website_article"].is_a?(Hash) && LightekBlog::Entry.exists?(post_id: record.id)
+          raise AccessDenied, "Archive this website article in Dashboard → Journal & Articles."
+        end
         record.destroy!
         { deleted_id: record.id }
       end

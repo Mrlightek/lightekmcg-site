@@ -63,6 +63,16 @@ const server=http.createServer((req,res)=>{
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/lightek/index.html#/home`);
   await page.getByText('The first production',{exact:true}).waitFor();
+  posts[0].website_article_url='/blog/connected-business';posts[0].website_article_excerpt='A clean article excerpt';posts[0].website_article_edit_url='/dashboard/blog?site_id=1&entry_id=77';
+  await page.goto(`http://127.0.0.1:${server.address().port}/lightek/index.html#/home`);await page.reload();
+  await page.getByRole('link',{name:'Read full article →',exact:true}).waitFor();assert.equal(await page.getByRole('link',{name:'Read full article →',exact:true}).getAttribute('href'),'/blog/connected-business');
+  assert(await page.getByText('A clean article excerpt',{exact:true}).isVisible());
+  await page.getByText(posts[0].title,{exact:true}).click();await page.getByRole('link',{name:'Edit article in Dashboard',exact:true}).waitFor();assert.equal(await page.getByRole('link',{name:'Edit article in Dashboard',exact:true}).getAttribute('href'),'/dashboard/blog?site_id=1&entry_id=77');
+  await page.goto(`http://127.0.0.1:${server.address().port}/lightek/index.html#/home`);
+  posts[0].website_article_url='javascript:alert(1)';await page.reload();await page.getByText('A clean article excerpt',{exact:true}).waitFor();assert.equal(await page.getByRole('link',{name:'Read full article →',exact:true}).count(),0);
+  delete posts[0].website_article_url;delete posts[0].website_article_excerpt;delete posts[0].website_article_edit_url;
+  if(process.env.SITE_CONTENT_PWA_ONLY==='1'){assert.deepEqual(errors,[]);console.log('SITE_CONTENT_PWA_PASS shared article excerpt, canonical journal link and unsafe URL rejection');await browser.close();server.close();return;}
+
   assert.equal(await page.getByText('Diaspora Kitchens',{exact:true}).count(),0);
   await page.getByRole('link',{name:'Create',exact:true}).click();
   await page.getByRole('textbox',{name:'Title',exact:true}).fill('A real post');

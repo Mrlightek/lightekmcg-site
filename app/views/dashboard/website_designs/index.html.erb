@@ -1,19 +1,25 @@
-<% content_for :page_title, "Website designs" %>
+<% content_for :page_title, "Design & Content" %>
 <%= render "dashboard/settings_home/style" %>
-<main class="lt-settings"><div class="tl-page-heading"><h1>Website designs & fonts</h1></div>
-<p><%= link_to "Open Design Studio →", dashboard_design_studio_index_path %></p>
+<%= stylesheet_link_tag "/lightek/site-content.css?v=1" %>
+<%= javascript_include_tag "/lightek/site-content.js?v=1",defer:true %>
+<main class="lt-settings content-hub"><div class="tl-page-heading"><h1>Design & Content</h1></div>
+
 <p class="intro">Choose a website, preview a design, then apply its appearance or add an editable starter page.</p>
 <%= form_with url: dashboard_website_designs_path, method: :get, local: true, class: "tl-site-picker" do %>
   <div>
   <%= label_tag :site_id, "Website" %>
   <%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site&.id), include_blank: "Choose a website", required: true %>
   </div>
-  <%= submit_tag "Choose website" %>
+  <%= submit_tag "Choose website",class:"content-button" %>
 <% end %>
 <% if @site %>
+<nav class="content-actions" aria-label="Website editing"><%= link_to "Open Pages & Sections",dymond_dash.pages_path(site_id:@site.id),class:"content-button primary" %><%= link_to "Open Design Studio",dashboard_design_studio_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Write & manage articles",dashboard_blog_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Manage store",dashboard_commerce_path(site_id:@site.id),class:"content-button" %></nav>
+<%= render "site_themes" %>
 <p><%= link_to "Sign-in & account branding →", dashboard_authentication_branding_path(site_id: @site.id) %></p>
 <p>Editing <strong><%= @site.name %></strong> · <%= @site.host %></p>
+<details class="content-library"><summary>Browse page designs & starter layouts</summary>
 <%= render "template_library", designs: LightekDesign::Catalog.selectable_designs(user: current_user, active: LightekDesign::Catalog.design_for(@site)) %>
+</details>
 <details class="tl-upload"><summary>Import your own HTML & CSS</summary><%= render "html_upload" %></details>
 <details class="tl-commerce"><summary>Shop templates with live checkout</summary><%= render "industry_designs" %></details>
 <%= render "template_branding" %>
@@ -27,7 +33,5 @@
   <%= submit_tag "Save website fonts" %>
 <% end %></section>
 <% end %>
-<% if current_user.role.to_s == "super_admin" || DymondSite::Site.count == 1 %>
-  <p><%= link_to "Open Pages & Sections", dymond_dash.pages_path(site_id: @site.id) %></p>
-<% end %>
+
 <% end %></main>

@@ -1,0 +1,1 @@
+<ul class="lt-bound-links"><% site.nav_menu.roots.each do |item| %><% next if item.page_id && !site.pages.where(id:item.page_id,published:true).exists? %><%= render "lightek_design/bound_navigation_item", item:item, site:site %><% end %></ul>

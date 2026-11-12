@@ -35,3 +35,7 @@ The intended distribution loop is Studio → CMS page/campaign → the business'
 A PWA belongs to a provisioned website/application. The hosted-site installer currently creates its `LightekPwa::Application` record, and Dashboard PWA Administration manages the selected site's brand, navigation, content and features. Creating a user login alone does not provision an independent website/PWA. The business-account onboarding goal must include that application lifecycle explicitly.
 
 Reference: https://www.blackmagicdesign.com/products/davinciresolve
+
+## CMS and journal delivery
+
+Design & Content now puts Pages & Sections first and separates the working tools from the collapsed design library. Site-theme bundles coordinate installed designs or multiple HTML uploads, shared chrome, real navigation, native store/cart/checkout sections and the website journal. Website articles share their canonical `Post` body/author with PWA/community publication; draft/archive state, per-site URLs and editor conflicts remain explicit. See `docs/cms/site-themes-and-journal.md` for workflows, deployment and acceptance boundaries.

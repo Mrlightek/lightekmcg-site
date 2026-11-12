@@ -63,7 +63,7 @@ module LightekDesign
       site.with_lock do
         design = Catalog.design_for(site)
         raise ArgumentError, "Choose a design first." unless Catalog.designs.key?(design)
-        template = template_for!(site: site, design: design)
+        template = site.active_template&.settings.to_h["lightek_site_theme"] ? site.active_template : template_for!(site: site, design: design)
         settings = template.settings.deep_dup
         settings["tokens"] = settings.fetch("tokens", {}).merge(supplied)
         template.update!(settings: settings)

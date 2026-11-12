@@ -1,6 +1,6 @@
 # Visual Studio
 
-Dashboard → Studio → Open studio opens one scene around a live 3D stage.
+Dashboard → Studio → Open studio opens one scene around a live 3D stage. The current host renders natively in Dashboard; it does not embed the PWA. The PWA has a separate entry using the shared engines. See [production workstation](production-workstation.md) for the music workspace and remaining suite scope.
 
 1. Create a scene with a project name, or open an existing scene. Production templates are under **Start from a production template** on the Studio home screen. They create scene structure and camera coverage; add your own cast and recordings.
 Use **Save show template** to copy the current project into a reusable show setup. On the home screen, open production templates and choose **Create episode** on a saved setup to make an independent copy.

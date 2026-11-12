@@ -7225,6 +7225,7 @@ const studio3DWorkspace=record=>{
 
 const studioSceneView=record=>{
   window.LightekStudioApp?.prepare(record);
+  if(window.LightekStudioMusic?.active())return window.LightekStudioMusic.view(record);
   if(window.LightekStudioVisual?.enabled())return window.LightekStudioVisual.view(record);
   const {
     project,
@@ -13398,6 +13399,12 @@ addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)loc
 <script src="/lightek/studio-performance.js"></script>
 <link rel="stylesheet" href="/lightek/studio-visual.css">
 <script src="/lightek/studio-visual.js"></script>
+<link rel="stylesheet" href="/lightek/studio-music.css">
+<script src="/lightek/vendor/tone/Tone-15.1.22.js"></script>
+<script src="/lightek/vendor/tone/Midi-2.0.28.js"></script>
+<script src="/lightek/studio-music-core.js"></script>
+<script src="/lightek/studio-music-audio.js"></script>
+<script src="/lightek/studio-music.js"></script>
 <script type="module" src="/lightek/asset-preview.js"></script>
 <script src="/lightek/bootstrap-adapter.js"></script>
 <script src="/lightek/application-settings.js"></script>

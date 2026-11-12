@@ -2,6 +2,16 @@
 module Studio
   module Editing
     class Timeline
+      FORMATS = {
+        "landscape" => {"output" => "video", "width" => 1920, "height" => 1080, "fps" => 30},
+        "portrait" => {"output" => "video", "width" => 1080, "height" => 1920, "fps" => 30},
+        "square" => {"output" => "video", "width" => 1080, "height" => 1080, "fps" => 30},
+        "audio" => {"output" => "audio", "width" => 1920, "height" => 1080, "fps" => 30}
+      }.transform_values(&:freeze).freeze
+
+      def self.format(key)
+        FORMATS.fetch(key.to_s) { raise ArgumentError, "Choose landscape, portrait, square or audio" }.dup
+      end
       def self.normalize(raw, assets:, allow_empty: false)
         data=raw.to_h.deep_stringify_keys
         output=data.fetch("output","video")

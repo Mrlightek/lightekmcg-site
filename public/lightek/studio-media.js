@@ -134,7 +134,7 @@
   A.studioTimelineFrameRemove=b=>{checkpoint();timeline.clips[Number(b.dataset.index)].keyframes.splice(Number(b.dataset.frame),1);render(1);};
   A.studioTimelineTitleAdd=()=>{const end=sequenceDuration(),start=snap(edit.playhead);if(start>=end)return toast('Place the playhead before the sequence end.');checkpoint();timeline.titles||=[];timeline.titles.push({text:'Your title',start,end:Math.min(end,start+3),x:40,y:40,size:48});render(1);};
   A.studioTimelineTitleRemove=b=>{checkpoint();timeline.titles.splice(Number(b.dataset.index),1);render(1);};
-  async function saveTimeline(){const record=current();const snapshot=clone(timeline),savingScene=sceneId;const result=await call('timeline.save',{scene_id:record.scene.id,lock_version:record.scene.lock_version,timeline:snapshot});record.scene.lock_version=result.lock_version;record.scene.settings.timeline=result.timeline;if(sceneId===savingScene&&JSON.stringify(timeline)===JSON.stringify(snapshot)){timeline=result.timeline;timelineDrafts.delete(savingScene);}return result;}
+  async function saveTimeline(){const record=current();const snapshot=clone(timeline),savingScene=sceneId;const result=await call('timeline.save',{scene_id:record.scene.id,lock_version:record.scene.lock_version,timeline:snapshot});record.scene.lock_version=result.lock_version;record.scene.settings.timeline=clone(result.timeline);if(sceneId===savingScene&&JSON.stringify(timeline)===JSON.stringify(snapshot)){timeline=clone(result.timeline);timelineDrafts.delete(savingScene);}return result;}
   A.studioTimelineSave=()=>run(async()=>{await saveTimeline();toast('Timeline saved');});
   A.studioTimelineQuote=()=>run(async()=>{const record=current();await saveTimeline();const result=await call('timeline.quote',{scene_id:record.scene.id});if(current()?.scene.id!==record.scene.id)return;LightekStudioApp.setQuote(result);if(window.LightekStudioProduction)LightekStudioProduction.go('deliver');else{ST.workspaceMode='publish';render(1);}});
   app.addEventListener('change',e=>{
@@ -268,6 +268,7 @@
     time:()=>edit.playhead,dirty:timelineDirty,hasDrafts:()=>timelineDirty()||[...timelineDrafts.entries()].some(([id,d])=>JSON.stringify(d.timeline)!==JSON.stringify(studioSceneRecord(id)?.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]})),
     get:()=>timeline?JSON.parse(JSON.stringify(timeline)):null,
     set:value=>{stopPreview();timeline=JSON.parse(JSON.stringify(value));},
+    configure:attributes=>{checkpoint();Object.assign(timeline,attributes);},
     save:saveTimeline,
     assets:items=>{library.items=[...items,...library.items.filter(a=>!items.some(b=>b.id===a.id))];},
     seek:seconds=>{edit.playhead=Number(seconds)||0;return A.studioTimelinePreview(true);},

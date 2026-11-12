@@ -32,6 +32,18 @@ class TimelineFinishingTest < Minitest::Test
   def run!(command)
     out,err,status=Open3.capture3(*command);assert status.success?,err;out
   end
+  def test_business_formats_export_at_the_selected_dimensions
+    %w[landscape portrait square].each do |key|
+      format=Studio::Editing::Timeline.format(key)
+      timeline=normalized(**format.symbolize_keys,clips:[{asset_id:1,out:0.2}])
+      Dir.mktmpdir("business-format-") do |dir|
+        probe=render(timeline,dir);video=probe["streams"].find{|stream|stream["codec_type"]=="video"}
+        assert_equal format["width"],video["width"]
+        assert_equal format["height"],video["height"]
+        assert_equal "h264",video["codec_name"]
+      end
+    end
+  end
   def test_real_speed_color_fades_title_and_track_mix
     timeline=normalized(fps:30,clips:[{asset_id:1,out:2,speed:2,fade_in:0.1,fade_out:0.2,brightness:0.1,saturation:0.6,scale:0.8,opacity:0.8,highpass:80,denoise:true}],tracks:[{id:0,name:"Dialogue",gain:0.7,pan:-0.25}],titles:[{text:"LIGHTEK: 100% {literal}\nEpisode 1",start:0.1,end:0.9,size:12,x:4,y:4}])
     assert_equal 1,timeline["duration"]

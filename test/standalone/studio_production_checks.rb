@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require_relative "studio_music_checks"
+require File.join(ROOT,"app/services/studio/billing/checkout")
 class StudioProductionTest < StudioMusicTest
   StudioMusicTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
   def test_production_new_edit_is_idempotent_scoped_and_needs_no_blender_job
@@ -20,6 +21,48 @@ class StudioProductionTest < StudioMusicTest
     assert_empty result[:timeline]["clips"]
     assert_equal 0,@scene.reload.settings["timeline"]["duration"]
     assert_raises(ArgumentError){action("timeline_quote",scene_id:@scene.id)}
+  end
+  def test_production_formats_initialize_actual_edit_without_changing_a_retried_project
+    %w[landscape portrait square audio].each do |format|
+      key=SecureRandom.uuid
+      created=action("project_create",name:"Campaign #{format}",format:format,request_key:key)
+      timeline=StudioScene.find(created[:scene_id]).settings.fetch("timeline")
+      assert_equal Studio::Editing::Timeline.format(format),timeline.slice("output","width","height","fps")
+      assert_equal created,action("project_create",name:"Retry",format:"square",request_key:key)
+      assert_equal timeline,StudioScene.find(created[:scene_id]).settings.fetch("timeline")
+    end
+    assert_raises(ArgumentError){action("project_create",name:"Bad",format:"unknown",request_key:SecureRandom.uuid)}
+  end
+  def test_production_checkout_returns_to_dashboard_and_legacy_pwa_stays_on_pwa
+    operation=@project.studio_operations.create!(studio_scene:@scene,operation_type:"edit_media",provider:"ffmpeg",capability:"studio.workspace.timeline.quote",status:"awaiting_payment",cost_quote:{"total_cents"=>125})
+    calls=[]
+    Studio::Billing::Checkout.stub(:call,->(**args){calls<<args;{url:"https://checkout.stripe.com/test"}}) do
+      result=action("render_checkout",operation_id:operation.id,origin:"https://business.example",scope_site:true)
+      assert_equal "https://checkout.stripe.com/test",result[:checkout_url]
+      assert_equal "https://business.example/dashboard/studio-broadcasting/workspace/#{@scene.id}?site_id=#{@site.id}#/studio/#{@scene.id}/deliver",calls.last[:success_url]
+      assert_equal calls.last[:success_url],calls.last[:cancel_url]
+      assert_raises(ActiveRecord::RecordNotFound){action("render_checkout",operation_id:operation.id,site_id:@other_site.id,origin:"https://other.example",scope_site:true)}
+      action("render_checkout",operation_id:operation.id,origin:"https://business.example")
+      assert_equal "https://business.example/lightek/index.html#/studio/#{@scene.id}",calls.last[:success_url]
+      assert_raises(ActiveRecord::RecordNotFound){action("render_checkout",operation_id:operation.id,user_id:@bob.id,site_id:@other_site.id,origin:"https://other.example",scope_site:true)}
+    end
+  end
+  def test_production_export_snapshot_quotes_the_edit_and_survives_further_changes
+    asset=recording
+    format=Studio::Editing::Timeline.format("portrait")
+    action("timeline_save",scene_id:@scene.id,lock_version:@scene.lock_version,timeline:format.merge("clips"=>[{"asset_id"=>asset.id,"out"=>1}]))
+    Studio::Billing::Quote.stub(:call,->(operation:,**_){operation.update!(cost_quote:{"total_cents"=>125,"currency"=>"USD"})}) do
+      result=action("timeline_quote",scene_id:@scene.id)
+      assert_equal "edit_media",result[:operation_type]
+      op=StudioOperation.find(result[:operation_id])
+      assert_equal 1080,op.manifest.dig("timeline","width")
+      assert_equal 1920,op.manifest.dig("timeline","height")
+      @scene.reload.update!(settings:@scene.settings.merge("timeline"=>format.merge("clips"=>[])))
+      row=action("operations_list",project_id:@project.id)[:operations].find{|r|r[:id]==op.id}
+      assert_equal 125,row[:quote]["total_cents"]
+      assert_equal 1920,row[:output]["height"]
+      assert_equal 1,op.reload.manifest["timeline"]["clips"].size
+    end
   end
   def completed_shot(project=@project,draft:false)
     op=project.studio_operations.create!(studio_scene:project.studio_scenes.first,operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"completed",metadata:{"draft_preview"=>draft})

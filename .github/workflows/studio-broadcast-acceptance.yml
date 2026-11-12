@@ -29,6 +29,8 @@ on:
       - 'public/lightek/studio-visual.*'
       - 'public/lightek/studio-dashboard.*'
       - 'public/lightek/studio-production.js'
+      - 'public/lightek/studio-delivery.*'
+      - 'test/javascript/studio_delivery_test.cjs'
       - 'public/lightek/studio-ai.js'
       - 'public/lightek/studio-edit-workbench.*'
       - 'public/lightek/media-control.css'
@@ -192,6 +194,7 @@ jobs:
           node test/javascript/studio_visual_test.cjs
           node test/javascript/studio_dashboard_browser_test.cjs
           node test/javascript/studio_edit_workbench_test.cjs
+          node test/javascript/studio_delivery_test.cjs
           node test/javascript/studio_music_ui_test.cjs
           node test/javascript/studio_music_audio_test.cjs
           node test/javascript/studio_live_library_test.cjs

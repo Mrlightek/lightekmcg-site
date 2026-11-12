@@ -1,6 +1,7 @@
 class Dashboard::SessionMediaController < Dashboard::SettingsHomeController
   layout 'dymond_dash/layouts/dymond_dash'
   protect_from_forgery with: :exception
+  skip_before_action :require_settings_operator!
   before_action :load_site
   def show
     @ready = LightekSessions::Media.configured?(@site)

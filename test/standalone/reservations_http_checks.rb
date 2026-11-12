@@ -2,6 +2,14 @@ require_relative 'reservations_checks'
 require 'action_controller/railtie'
 require 'action_dispatch/testing/integration'
 require 'tmpdir'
+%w[20261109000000_create_lightek_session_rooms 20261109003000_add_session_presentation 20261112150000_add_direct_production_rooms].each do |name|
+  path = ROOT.join("db/migrate/#{name}.rb")
+  source = path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
+  eval(source, TOPLEVEL_BINDING, path.to_s)
+  source.match(/class (\w+) </)[1].constantize.new.migrate(:up)
+end
+require ROOT.join('app/models/lightek_sessions/room').to_s
+require ROOT.join('app/models/lightek_sessions/member').to_s
 class ReservationHarness < Rails::Application
   config.root = Dir.mktmpdir('reservation-http-')
   config.eager_load = false
@@ -24,7 +32,10 @@ class ApplicationController < ActionController::Base
 end
 module Dashboard
   class SettingsHomeController < ApplicationController
-    before_action { head :forbidden unless current_user&.role.in?(%w[admin super_admin]) }
+    before_action :require_settings_operator!
+    def require_settings_operator!
+      head :forbidden unless current_user&.role.in?(%w[admin super_admin])
+    end
   end
 end
 module DymondDash
@@ -41,6 +52,7 @@ require ROOT.join('app/controllers/api/reservation_federation_controller').to_s
 require ROOT.join('app/controllers/network_reservations_controller').to_s
 require ROOT.join('app/controllers/reservations_controller').to_s
 require ROOT.join('app/controllers/dashboard/reservations_controller').to_s
+require ROOT.join('app/controllers/dashboard/commerce_base_controller').to_s
 require ROOT.join('app/controllers/dashboard/commerce_payouts_controller').to_s
 ReservationHarness.routes.draw do
   eval(ROOT.join('config/routes/reservations.rb').read, binding)
@@ -48,6 +60,13 @@ ReservationHarness.routes.draw do
   get '/my/installations/:id', to: 'reservations#show', as: :installation
   get '/dashboard/commerce/orders', to: 'reservations#index', as: :dashboard_commerce_orders
   get '/dashboard/commerce/payouts', to: 'dashboard/commerce_payouts#index', as: :dashboard_commerce_payouts
+  get '/dashboard/business', to: 'reservations#index', as: :dashboard_business_hub
+  get '/dashboard/studio-broadcasting', to: 'reservations#index', as: :dashboard_media_studio
+  get '/dashboard/live', to: 'reservations#index', as: :dashboard_live
+  get '/preview/live', to: 'production_live_preview#index'
+  post '/dashboard/live', to: 'production_live_preview#index', as: :dashboard_live_sessions
+  post '/dashboard/live/destination', to: 'production_live_preview#index', as: :dashboard_live_destination
+  get '/dashboard/live/:id/recording', to: 'production_live_preview#index', as: :dashboard_live_recording
   get '/dashboard/susu/payout-account', to: 'reservations#index', as: :dashboard_susu_payout_account
 end
 ApplicationController.prepend_view_path ROOT.join('app/views')
@@ -103,15 +122,15 @@ class ReservationsHttpChecks < ActionDispatch::IntegrationTest
   def test_guest_catalog_cannot_select_someone_elses_site
     assert_raises(ActiveRecord::RecordNotFound) { get '/reservations', params: {site_id: @fixtures.instance_variable_get(:@foreign_site).id} }
   end
-  def test_client_cannot_open_operator_dashboard
+  def test_guest_without_a_managed_site_cannot_open_dashboard
     get '/dashboard/reservations', headers: as(@guest)
-    assert_response :forbidden
+    assert_response :unprocessable_entity
   end
   def test_dashboard_renders_real_calendar_and_form
     get '/dashboard/reservations', params: {site_id: @site.id}, headers: as(@owner)
     assert_response :success
     assert_includes response.body, 'Front desk'
-    assert_includes response.body, 'Server resort packages'
+    assert_includes response.body, 'Server packages'
     assert_includes response.body, 'Time off & maintenance'
   end
   def test_white_label_admin_cannot_edit_other_site

@@ -1,0 +1,7 @@
+<%= stylesheet_link_tag '/lightek/production-workflow.css?v=1' %>
+<%= javascript_include_tag '/lightek/production-workflow.js?v=1', defer: true %>
+<% site_id = local_assigns[:site]&.id; section = local_assigns.fetch(:section, 'Production') %>
+<nav class="production-navigation" aria-label="Production navigation">
+  <ol class="production-breadcrumbs"><li><%= link_to 'Dashboard', main_app.dashboard_business_hub_path %></li><li><%= link_to 'Studio & broadcasting', main_app.dashboard_media_studio_path(site_id: site_id) %></li><li aria-current="page"><%= section %></li></ol>
+  <div class="production-links"><%= link_to 'Reservations', main_app.dashboard_reservations_path(site_id: site_id), aria: {current: section == 'Reservations' ? 'page' : nil} %><%= link_to 'Rooms & guests', main_app.dashboard_rooms_path(site_id: site_id), aria: {current: section == 'Rooms & guests' ? 'page' : nil} %><%= link_to 'Live Studio', main_app.dashboard_live_path(site_id: site_id), aria: {current: section == 'Live Studio' ? 'page' : nil} %><%= link_to 'Room service', main_app.dashboard_session_media_path(site_id: site_id), aria: {current: section == 'Room service' ? 'page' : nil} %></div>
+</nav>

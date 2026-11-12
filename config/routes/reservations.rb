@@ -1,3 +1,4 @@
+  resources :dashboard_rooms, path: '/dashboard/rooms', controller: 'dashboard/rooms', only: %i[index create]
   get '/reservations', to: 'reservations#catalog', as: :reservations_catalog
   get '/reservations/slots', to: 'reservations#slots'
   resources :my_reservations, path: '/my/reservations', controller: 'reservations', only: %i[index show create] do

@@ -18,6 +18,7 @@ require_relative "../../app/services/gatekeeper/website_owner_access"
 require_relative "../../app/services/gatekeeper/website_deployment"
 require_relative "../../app/services/lightek_commerce/paid_instance_provisioning"
 require_relative "../../app/services/lightek_commerce/installations"
+require_relative "../../app/services/gatekeeper/hosting/access"
 
 module DymondDash
   class Notification
@@ -272,7 +273,7 @@ class PaidDnsRecoveryStandaloneTest < Minitest::Test
 
   def test_buyer_access_is_explicit_and_merchant_admin_is_not_a_buyer
     account = Struct.new(:email_address, :role, :persisted?).new("owner@example.test", "client", true)
-    order = Struct.new(:customer_email).new("owner@example.test")
+    order = Struct.new(:customer_email, :hosting_owner).new("owner@example.test", nil)
     assert LightekCommerce::Installations.can_manage_access?(account, order)
     account.email_address = "someone-else@example.test"
     account.role = "admin"
@@ -281,9 +282,34 @@ class PaidDnsRecoveryStandaloneTest < Minitest::Test
     assert LightekCommerce::Installations.can_manage_access?(account, order)
   end
 
+  def test_assigned_hosting_owner_controls_access_instead_of_payer_email
+    account_class = Struct.new(:id, :email_address, :role, :persisted?)
+    owner = account_class.new(11, "installed-owner@example.test", "client", true)
+    payer = account_class.new(22, "payer@example.test", "client", true)
+    order = Struct.new(:customer_email, :hosting_owner).new(payer.email_address, owner)
+    assert LightekCommerce::Installations.can_manage_access?(owner, order)
+    refute LightekCommerce::Installations.can_manage_access?(payer, order)
+    refute LightekCommerce::Installations.can_manage_access?(nil, order)
+  end
+
+  def test_upstream_agency_can_manage_assigned_owner_but_unrelated_admin_cannot
+    account_class = Struct.new(:id, :email_address, :role, :persisted?)
+    owner = account_class.new(11, "installed-owner@example.test", "client", true)
+    agency = account_class.new(10, "agency@example.test", "white_label", true)
+    agency.define_singleton_method(:managed_account_ids) { [10, 11] }
+    outsider = account_class.new(33, "admin@example.test", "admin", true)
+    order = Struct.new(:customer_email, :hosting_owner).new("buyer@example.test", owner)
+    assert LightekCommerce::Installations.can_manage_access?(agency, order)
+    refute LightekCommerce::Installations.can_manage_access?(outsider, order)
+    outsider.role = "super_admin"
+    assert LightekCommerce::Installations.can_manage_access?(outsider, order)
+    outsider["persisted?"] = false
+    refute LightekCommerce::Installations.can_manage_access?(outsider, order)
+  end
+
   def test_unauthorized_password_setup_never_reads_vault_or_provider
     account = Struct.new(:email_address, :role, :persisted?).new("other@example.test", "client", true)
-    order = Struct.new(:customer_email).new("owner@example.test")
+    order = Struct.new(:customer_email, :hosting_owner).new("owner@example.test", nil)
     checked_out = false
     LightekVault::Service.stub(:checkout!, ->(**) { checked_out = true }) do
       assert_raises(Gatekeeper::WebsiteDeployment::Invalid) do

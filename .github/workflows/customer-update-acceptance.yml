@@ -34,6 +34,7 @@ on:
       - 'db/migrate/*reseller*'
       - 'db/migrate/*federated_commerce*'
       - 'test/standalone/website_deployment_dispatch_test.rb'
+      - 'test/scripts/paid_dns_recovery_standalone.rb'
       - 'app/services/gatekeeper/website_deployment.rb'
       - 'app/controllers/dashboard/agencies_controller.rb'
       - 'app/controllers/dashboard/hosting*_controller.rb'
@@ -71,6 +72,7 @@ jobs:
         run: |
           ruby test/standalone/commerce_network_test.rb
           ruby test/standalone/website_deployment_dispatch_test.rb
+          ruby test/scripts/paid_dns_recovery_standalone.rb
       - name: Verify Vault recovery and automatic build setup
         run: ruby test/standalone/hosting_bootstrap_test.rb
       - name: Test remote installation updates and release packaging

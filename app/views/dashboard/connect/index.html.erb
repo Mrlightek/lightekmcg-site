@@ -1,0 +1,11 @@
+<section class="dd-card"><h1>Lightek Connect</h1><p>Connect your agency to WordPress or Shopify. Manage clients and open their Lightek environments.</p>
+<% if @code %><div role="status"><h2>Connection code</h2><p>Paste this once into your connector. It expires in ten minutes. Treat it as a password.</p><code><%= @code %></code></div><% end %>
+<%= form_with url: dashboard_connect_path do |f| %>
+  <p><%= label_tag :platform, "Platform" %> <%= select_tag :platform, options_for_select([["WordPress", "wordpress"], ["Shopify", "shopify"]]) %></p>
+  <p><%= label_tag :label, "Connection name" %> <%= text_field_tag :label, nil, required: true, maxlength: 120, placeholder: "Agency WordPress" %></p>
+  <%= f.submit "Create connection code" %>
+<% end %>
+<h2>Your connections</h2>
+<% @connections.each do |connection| %><article><strong><%= connection.label %></strong> · <%= connection.platform %> · <%= connection.revoked_at? ? "Revoked" : connection.token_digest? ? "Connected" : "Awaiting connection" %>
+<%= button_to "Revoke", dashboard_connect_connection_path(connection), method: :delete unless connection.revoked_at? %></article><% end %>
+</section>

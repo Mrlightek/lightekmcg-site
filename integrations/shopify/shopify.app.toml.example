@@ -1,0 +1,17 @@
+# Copy to shopify.app.toml and fill in the registered client ID and deployed origin.
+client_id = "REPLACE_WITH_CLIENT_ID"
+name = "Lightek Connect"
+application_url = "https://lightekmcg.com/connect/shopify"
+embedded = true
+[access_scopes]
+scopes = ""
+[auth]
+redirect_urls = ["https://lightekmcg.com/connect/shopify"]
+[webhooks]
+api_version = "2026-10"
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/connect/shopify/webhooks"
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/connect/shopify/webhooks"

@@ -1,0 +1,58 @@
+# Lightek Connect
+
+Lightek Connect adds an agency workspace to WordPress and an embedded app to Shopify. Both use the same Rails API, Dashboard navigation, agency hierarchy, Gatekeeper provisioning, and client-instance connection. Client sign-in remains unchanged.
+
+## Delivered behavior
+
+- Agency creates a platform-bound, ten-minute, single-use connection code in **Dashboard → Lightek Connect**.
+- WordPress stores the resulting credential encrypted, per administrator. Browser JavaScript never receives that credential.
+- Shopify verifies a fresh App Bridge ID token for each request and binds the Lightek connection to both shop and staff member. Connecting one staff member does not authorize other staff members.
+- Both interfaces show client websites and recent application deployments. Navigation is derived from the actual permission-filtered Dashboard defaults, rather than a separate list of modules.
+- Full tools open through a sixty-second, single-use management handoff. This first version uses a top-level Dashboard tab for full workflows; it does not reproduce every Dashboard form inside WordPress or Shopify.
+- Website rename is available directly in the connector. For a federated client, Rails calls that client's actual HTTPS instance, checks current agency authority, saves there, and validates the returned hostname/name. The central ledger is not substituted for a remote save.
+- Existing hosting purchases and payment-confirmed provisioning remain the route to a new client server. The connectors do not allocate a free server or bypass infrastructure entitlements.
+- Revocation disables connection credentials and pending grants. Delegated client sessions expire after one hour and check central authorization on each request; network failures deny access. Client sessions created through normal login are unaffected.
+- Remote management runs under the client's local owner permissions, attributed to the originating agency connection. It never creates a super-admin on the destination instance.
+
+## Deployment and installation
+
+1. Deploy this application revision and run `bin/rails db:migrate` centrally and on managed client instances using the existing fleet update workflow. Remote management/edit endpoints require the new revision on both ends.
+2. Paid native/container installations already receive their peer configuration through the existing provisioning pipeline. Existing installations need a working, active reservation-federation connection, or need that existing connection workflow applied first. No additional plaintext credential or shared master signing key is introduced.
+3. Set `LIGHTEK_RESERVATION_ORIGIN` to the canonical central HTTPS origin if different from `https://lightekmcg.com`. Client websites must resolve to public addresses with valid TLS certificates.
+4. Run `python3 script/package_lightek_connect.py`. Upload `tmp/lightek-connect-wordpress.zip` to WordPress and activate it. Each administrator opens **Lightek**, then enters their WordPress connection code.
+5. Register the Shopify app. Set `LIGHTEK_SHOPIFY_CLIENT_ID` and `LIGHTEK_SHOPIFY_CLIENT_SECRET` on the central server; use the existing secure credential/deployment workflow rather than committing either value. Fill `integrations/shopify/shopify.app.toml.example` with the actual application URL and client ID and configure managed installation. The app requires no Shopify customer/order data scopes and makes no Shopify Admin API calls.
+6. Install on a development shop, open the embedded app, and enter a Shopify connection code. Every staff member who needs access pairs their own Lightek identity.
+
+`integrations/wordpress/.../assets` is generated from `public/lightek-connect`, so both clients ship the same UI. Re-run packaging after shared UI changes. Do not load remote plugin scripts into WordPress.
+
+## Acceptance walkthrough
+
+1. Sign in as an agency with an active hosting allowance. Connect its WordPress administrator or Shopify staff member.
+2. Open the hosting workspace using its navigation action. Create/select the client and purchase an eligible package through the existing checkout. This step uses the full Dashboard handoff in this release.
+3. Confirm payment and the provisioning job succeed; refresh Connect to see the ready launch.
+4. Select **Manage client instance**, then confirm the handoff. Verify the destination is the client's hostname and its full Dashboard opens.
+5. Save a website name directly in Connect. Reload the destination website settings independently and verify that name. For federated sites, the connector only reports success after the destination confirms it.
+6. Revoke the connection centrally. Confirm the plugin can no longer save and the delegated client session is rejected on its next request. Verify normal client login still works.
+7. Repeat with an unrelated agency, a reassigned client, expired/replayed codes, and a second Shopify staff member. All unauthorized access must fail.
+
+## Submission and commercial gates
+
+These are development integrations, not approved marketplace listings. No platform registration, submission, live billing change, or production deployment is performed by this commit.
+
+- WordPress: publish actual service terms/privacy URLs and put those exact links in the plugin readme; supply listing metadata and test against the submission target WordPress/PHP versions. The external service is disclosed; no WordPress customer/order synchronization is implemented.
+- Shopify: complete public-distribution registration, configuration, development-store acceptance and review. The shared Dashboard currently includes external commerce workflows. Before distributing commercially, implement Shopify-supported app billing or obtain Shopify's explicit approval for the applicable external-service billing arrangement. Do not submit or market this build as billing-compliant or route Shopify app charges to external checkout without that resolution.
+- Live paid provisioning, real WordPress/Shopify installation, and cross-server acceptance require deployed accounts/instances. Isolated tests do not establish those outcomes.
+
+## Extending and updating
+
+Backend modules added to Dashboard navigation become visible to both connectors, subject to the existing account permissions. A new native connector interaction still needs a UI update; it does not duplicate business logic. Apple/Google/mobile/OTT deployment services should be implemented centrally with that same account/client authorization. This change does not implement those future deployment providers.
+
+Connector release workflow: change shared UI/API → run checks → bump connector version if its bundle changes → package WordPress assets → test supported WordPress and a Shopify development shop → review API compatibility → submit/release through each platform. Update client fleet instances before advertising newly required remote capabilities. Keep older API versions supported during connector review windows.
+
+## Verification
+
+- `ruby test/standalone/lightek_connect_api_test.rb`: real Active Record migrations/models and Action Controller HTTP tests, with private engine boundaries replaced by minimal fixtures. Includes hierarchy authorization, connection/grant expiry/replay, revocation, local persistence, remote-authority boundary, JWT validation, webhook signatures, and private-address exclusions.
+- `php test/standalone/lightek_connect_wordpress_test.php`: executes the plugin against WordPress API boundaries; verifies permissions/nonces, credential encryption, per-user isolation, fixed upstream, no redirects and disconnect behavior.
+- `NODE_PATH=/path/to/jsdom/node_modules node test/standalone/lightek_connect_ui_test.cjs`: shared UI pairing, text-safe rendering, save feedback, authenticated requests, and handoff for both platforms.
+
+Tests do not load the full private engine dependency stack or contact payment, hosting or platform services. The GitHub workflow runs these checks independently of the existing Rails suite.

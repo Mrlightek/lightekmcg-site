@@ -424,7 +424,7 @@ const buildObject = object => {
     case "imported_asset": {
       root = markRoot(new THREE.Group(),object);
       const url=String(object.definition?.asset_proxy_url||'');
-      if((/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url)||/^\/rails\/active_storage\/blobs\/(redirect|proxy)\//.test(url)))new GLTFLoader().setWithCredentials(true).load(url,gltf=>{
+      if((/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url)||/^\/dashboard\/studio-broadcasting\/assets\/\d+\/proxy\?site_id=\d+$/.test(url)||/^\/rails\/active_storage\/blobs\/(redirect|proxy)\//.test(url)))new GLTFLoader().setWithCredentials(true).load(url,gltf=>{
         if(!active||active.sceneId!==Number(studioRouteSceneId())||active.objects.get(object.id)!==root)return;
         gltf.scene.rotation.x=Math.PI/2;root.add(gltf.scene);active.scene.updateMatrixWorld(true);
         const mixer=new THREE.AnimationMixer(active.scene);for(const clip of gltf.animations)mixer.clipAction(clip).play();active.mixers.push(mixer);

@@ -32,10 +32,59 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
       raise ActiveRecord::RecordNotFound unless @scene.studio_project.site_id==@site.id
     end
     mode=params[:workspace].presence || "performance"
-    raise ArgumentError,"Choose an available production workspace" unless %w[performance 3d timeline script publish].include?(mode)
-    @studio_path="/lightek/index.html?workspace=#{mode}#/studio#{@scene ? "/#{@scene.id}" : ""}"
-    @same_site=request.host.casecmp?(@site.host.to_s)
+    raise ArgumentError,"Choose an available production workspace" unless %w[performance 3d timeline script publish music].include?(mode)
+    @workspace_mode=mode
   end
+  # Native Dashboard transport; user, site and origin are always server supplied.
+  def workspace_execute
+    slug=params.require(:capability).to_s
+    LightekPwa::Policy.new(user:current_user,site:@site).authorize_capability!(slug)
+    raw=params.fetch(:payload,ActionController::Parameters.new)
+    raise ArgumentError,"Studio payload must be an object" unless raw.respond_to?(:to_unsafe_h)
+    payload=raw.to_unsafe_h.deep_stringify_keys
+    %w[scene_id project_id].each { |field| payload[field]=Integer(payload[field]) if payload[field].present? }
+    payload.merge!("user_id"=>current_user.id,"site_id"=>@site.id,"origin"=>request.base_url,"scope_site"=>true)
+    result=if slug=="studio.pwa.bootstrap"
+      Studio::Workers::Pwa.perform("bootstrap",payload.merge("scope_site"=>true))
+    elsif slug=="studio.scene_object.transform"
+      scene=Studio::PwaAccess.new(payload).scene!(payload.fetch("scene_id"))
+      raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id==@site.id
+      Studio::Workers::SceneObjectMutation.perform("transform",payload)
+    else
+      action=Studio::Workers::Workspace::ACTIONS.find { |name| slug=="studio.workspace.#{name.tr('_','.')}" }
+      raise ArgumentError,"Unsupported Studio operation" unless action
+      if payload["scene_id"].present?
+        scene=Studio::PwaAccess.new(payload).scene!(payload["scene_id"])
+        raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id==@site.id
+      end
+      if payload["project_id"].present?
+        Studio::PwaAccess.new(payload).projects.where(site_id:@site.id).find(payload["project_id"])
+      end
+      Studio::Workers::Workspace.perform(action,payload)
+    end
+    render json:{status:"completed",result:result}
+  rescue ArgumentError, KeyError, TypeError, ActiveRecord::RecordInvalid, ActiveRecord::StaleObjectError => error
+    render json:{status:"failed",error:error.message},status: :unprocessable_entity
+  end
+
+  def workspace_upload
+    LightekPwa::Policy.new(user:current_user,site:@site).authorize!("studio")
+    result=Studio::Assets::Upload.call(file:params.require(:file),user:current_user,site:@site,purpose:"studio_asset")
+    render json:result,status: :created
+  rescue ArgumentError => error
+    render json:{error:error.message},status: :unprocessable_entity
+  end
+
+  def workspace_asset
+    LightekPwa::Policy.new(user:current_user,site:@site).authorize!("studio")
+    access=Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
+    asset=StudioAsset.for_actor(access).where(site_id:@site.id).find(params[:id])
+    flavor={"original"=>:file,"native"=>:native,"bundle"=>:bundle,"proxy"=>:proxy,"thumbnail"=>:thumbnail}.fetch(params[:flavor]) { raise ActiveRecord::RecordNotFound }
+    attachment=asset.public_send(flavor)
+    raise ActiveRecord::RecordNotFound unless attachment.attached?
+    redirect_to Rails.application.routes.url_helpers.rails_blob_path(attachment,only_path:true)
+  end
+
   def save_generation_provider
     Studio::Spatial::Generation.save_provider!(site:@site,user:current_user,key:params.require(:api_key))
     back("Text-to-3D provider saved securely. Studio can now generate and stage assets.")

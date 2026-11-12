@@ -19,6 +19,9 @@ on:
       - 'public/lightek/live/**'
       - 'public/lightek/broadcast/**'
       - 'public/lightek/studio-visual.*'
+      - 'public/lightek/studio-dashboard.*'
+      - 'public/lightek/studio-music*'
+      - 'public/lightek/vendor/tone/**'
       - 'public/lightek/studio-viewport.js'
       - 'public/lightek/studio-media.js'
       - 'test/standalone/**'
@@ -27,6 +30,8 @@ on:
       - 'test/javascript/studio_finishing_test.cjs'
       - 'test/javascript/studio_performance_test.cjs'
       - 'test/javascript/studio_visual_test.cjs'
+      - 'test/javascript/studio_music_ui_test.cjs'
+      - 'test/javascript/studio_music_audio_test.cjs'
       - 'db/migrate/20261111190000_register_studio_character_performance.rb'
       - 'app/jobs/studio_character_create_job.rb'
       - 'config/studio/packs/**'
@@ -106,6 +111,8 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/studio_performance_checks.rb --name /test_performance_/
+      - name: Native Dashboard music source and isolation
+        run: bundle exec ruby test/standalone/studio_music_checks.rb --name /test_music_/
       - name: Production scores and native camera-cut acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -131,7 +138,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0
+      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0 node-web-audio-api@2.2.0
       - run: "$RUNNER_TEMP/studio-browser/node_modules/.bin/playwright install --with-deps chromium"
       - name: Browser capture transport regression
         env:
@@ -150,6 +157,9 @@ jobs:
           node test/javascript/studio_finishing_test.cjs
           node test/javascript/studio_performance_test.cjs
           node test/javascript/studio_visual_test.cjs
+          node test/javascript/studio_dashboard_browser_test.cjs
+          node test/javascript/studio_music_ui_test.cjs
+          node test/javascript/studio_music_audio_test.cjs
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_stage_test.cjs
           node test/javascript/studio_native_camera_test.cjs
@@ -200,7 +210,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0
+      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0 node-web-audio-api@2.2.0
       - run: "$RUNNER_TEMP/studio-browser/node_modules/.bin/playwright install --with-deps chromium"
       - name: Native workstation access, save, render and publication
         env:

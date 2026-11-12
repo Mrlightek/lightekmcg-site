@@ -14,7 +14,7 @@ var toast=message=>{let el=document.querySelector('[data-dashboard-studio-notice
 var studioExecuteMutation=async(capability,payload)=>{const result=await nevaeh.execute({capability,payload});await A.studioLoad(true);return result.result;};
 var render=()=>{
   if(!ST.loaded){app.innerHTML=`<section class="studio-dashboard-empty"><h1>Lightek Studio</h1><p role="status">${E(ST.error||'Opening your productions…')}</p>${ST.error?'<button class="vw-btn" data-a="studioReload">Try again</button>':''}</section>`;return;}
-  const id=location.hash.split('/')[2];app.innerHTML=R.studio(id);app.classList.toggle('studio-dashboard-auxiliary',!app.querySelector('.visual-workbench,.studio-dashboard-advanced'));AF.studio?.(id);
+  const id=location.hash.split('/')[2];if(!window.LightekStudioProduction?.render(id))app.innerHTML=R.studio(id);app.classList.toggle('studio-dashboard-auxiliary',!app.querySelector('.visual-workbench,.studio-dashboard-advanced'));AF.studio?.(id);
   window.dispatchEvent(new CustomEvent('lightek:bootstrap'));
 };
 R.studio=id=>{
@@ -35,10 +35,10 @@ R.studio=id=>{
   nevaeh.execute=async request=>{const response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{...nevaeh.csrfHeaders(),'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(request)});const data=await nevaeh.parseResponse(response);if(data.status!=='completed')throw Error(data.error||'Studio did not complete the operation.');return surfaceUrls(data);};
   A.studioLoad=async()=>{if(ST.loading)return;ST.loading=true;try{const data=await nevaeh.execute({capability:'studio.pwa.bootstrap',payload:{}});ST.projects=data.result.projects||[];ST.loaded=true;ST.error='';}catch(e){ST.error=e.message;toast(e.message);}finally{ST.loading=false;render();}};
   A.studioReload=()=>A.studioLoad();A.studioSelectObject=b=>window.LightekStudioViewportBridge.selectObject(Number(b.dataset.id));
-  A.studioWorkspaceMode=b=>{ST.workspaceMode=b.dataset.mode;render();};
+  A.studioWorkspaceMode=b=>{if(window.LightekStudioProduction)return LightekStudioProduction.go(b.dataset.mode);ST.workspaceMode=b.dataset.mode;render();};
   window.LightekStudioViewportBridge={snapshot:()=>{const r=studioSceneRecord(studioCurrentSceneId());return r?{sceneId:r.scene.id,sceneName:r.scene.name,objects:JSON.parse(JSON.stringify(r.scene.objects)),selectedObjectId:ST.selectedObjectId,workspaceMode:ST.workspaceMode,busy:ST.busy,settings:r.scene.settings}:null;},selectObject:id=>{ST.selectedObjectId=id;render();},commitTransform:async(id,attributes)=>{const result=await nevaeh.execute({capability:'studio.scene_object.transform',payload:{scene_id:studioCurrentSceneId(),object_id:id,attributes}});const record=studioSceneRecord(studioCurrentSceneId()),o=record?.scene.objects.find(o=>o.id===id);if(o){if(result.result.object?.definition)o.definition=result.result.object.definition;else Object.assign(o.definition,attributes);if(result.result.object?.name)o.name=result.result.object.name;}if(result.result.lock_version!==undefined)record.scene.lock_version=result.result.lock_version;return result.result;}};
   app.addEventListener('click',e=>{const button=e.target.closest('[data-a]');if(button&&A[button.dataset.a]){e.preventDefault();Promise.resolve(A[button.dataset.a](button)).catch(error=>toast(error.message));}});
   window.addEventListener('hashchange',()=>{if(location.hash.startsWith('#/studio'))render();});
   document.addEventListener('turbo:before-cache',()=>{window.LightekMusicAudio?.stop();window.LightekStudioTimeline?.stop();});
-  document.addEventListener('DOMContentLoaded',()=>{if(!location.hash.startsWith('#/studio'))history.replaceState(null,'',location.pathname+location.search+'#/studio'+(root.dataset.sceneId?'/'+root.dataset.sceneId+(root.dataset.workspace==='music'?'/music':''):''));A.studioLoad();},{once:true});
+  document.addEventListener('DOMContentLoaded',()=>{if(!location.hash.startsWith('#/studio'))history.replaceState(null,'',location.pathname+location.search+'#/studio'+(root.dataset.sceneId?'/'+root.dataset.sceneId+(root.dataset.workspace&&root.dataset.workspace!=='stage'?'/'+root.dataset.workspace:''):''));A.studioLoad();},{once:true});
 })();

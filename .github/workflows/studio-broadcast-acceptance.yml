@@ -20,6 +20,7 @@ on:
       - 'public/lightek/broadcast/**'
       - 'public/lightek/studio-visual.*'
       - 'public/lightek/studio-dashboard.*'
+      - 'public/lightek/studio-production.js'
       - 'public/lightek/studio-music*'
       - 'public/lightek/vendor/tone/**'
       - 'public/lightek/studio-viewport.js'
@@ -111,6 +112,8 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/studio_performance_checks.rb --name /test_performance_/
+      - name: Completed render to episode edit handoff
+        run: bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
       - name: Native Dashboard music source and isolation
         run: bundle exec ruby test/standalone/studio_music_checks.rb --name /test_music_/
       - name: Production scores and native camera-cut acceptance

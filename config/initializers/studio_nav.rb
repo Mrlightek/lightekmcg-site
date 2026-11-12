@@ -3,14 +3,8 @@ Rails.application.config.after_initialize do
   next unless defined?(DymondDash::FeatureRegistry)
   DymondDash::FeatureRegistry.register do |f|
     f.slug = :studio; f.label = "Studio"; f.icon = "box"
-    f.gem_source = "studio"; f.nav_section = :platform; f.min_plan = :starter
-    f.nav_items = [
-      { label: "Studio",         icon: "box",    path: "dymond_dash.studio_dashboard_path" },
-      { label: "Scripts",        icon: "script", path: "dymond_dash.studio_scripts_path" },
-      { label: "Storyboards",    icon: "layout", path: "dymond_dash.studio_storyboards_path" },
-      { label: "Timelines",      icon: "movie",  path: "dymond_dash.studio_timelines_path" },
-      { label: "Blender Scenes", icon: "cube",   path: "dymond_dash.studio_blender_scenes_path" }
-    ]
+    f.gem_source = "lightekmcg-site"; f.nav_section = :services; f.min_plan = :starter
+    f.nav_items = [{label:"Studio",icon:"movie",path:"main_app.dashboard_media_studio_path"}]
   end
 rescue StandardError => e
   Rails.logger.warn "[Studio] nav registration skipped: #{e.message}"

@@ -1,0 +1,12 @@
+<% if @site %>
+  <%= stylesheet_link_tag "/lightek/business-workspace.css?v=1" %>
+  <nav class="business-workspace" aria-label="Business workspaces">
+    <div class="business-workspace-identity"><strong><%= @site.name %></strong><span><%= @site.host %></span></div>
+    <div class="business-workspace-links">
+      <% [["Business", dashboard_business_hub_path(site_id: @site.id)], ["Design & Content", dashboard_website_designs_path(site_id: @site.id)], ["Studio", dashboard_media_studio_path(site_id: @site.id)], ["Campaigns", dashboard_marketing_campaigns_path(site_id: @site.id)], ["Commerce", dashboard_commerce_path(site_id: @site.id)], ["Customers", dashboard_customers_path(site_id: @site.id)], ["PWA", dashboard_pwa_path(site_id: @site.id)]].each do |label, path| %>
+        <%= link_to label, path, aria: {current: (local_assigns[:active] == label ? "page" : nil)} %>
+      <% end %>
+    </div>
+    <% if local_assigns[:studio] %><button type="button" class="business-workspace-focus" data-studio-focus aria-pressed="false">Focus mode</button><% end %>
+  </nav>
+<% end %>

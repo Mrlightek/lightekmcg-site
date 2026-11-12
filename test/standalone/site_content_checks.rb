@@ -146,7 +146,7 @@ Rails.application.routes.append do
   post '/dashboard/website/designs/themes',to:'dashboard/website_designs#install_theme',as: :dashboard_website_themes
   post '/dashboard/website/designs/themes/:template_id/activate',to:'dashboard/website_designs#activate_theme',as: :activate_dashboard_website_theme
 end
-paths=(Dir[Rails.root.join('app/views/dashboard/website_designs/*.erb')]+Dir[Rails.root.join('app/views/dashboard/design_studio/*.erb')]).flat_map{|p|File.read(p).scan(/\b([a-z_]+)_path\b/).flatten}.uniq
+paths=(Dir[Rails.root.join('app/views/dashboard/website_designs/*.erb')]+Dir[Rails.root.join('app/views/dashboard/shared/_business_workspace.html.erb')]+Dir[Rails.root.join('app/views/dashboard/design_studio/*.erb')]).flat_map{|p|File.read(p).scan(/\b([a-z_]+)_path\b/).flatten}.uniq
 Rails.application.routes.append do
   paths.each do |name|
     next if Rails.application.routes.named_routes.names.include?(name.to_sym)

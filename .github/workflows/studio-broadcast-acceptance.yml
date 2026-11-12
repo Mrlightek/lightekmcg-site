@@ -21,6 +21,11 @@ on:
       - 'public/lightek/studio-visual.*'
       - 'public/lightek/studio-dashboard.*'
       - 'public/lightek/studio-production.js'
+      - 'public/lightek/studio-edit-workbench.*'
+      - 'public/lightek/media-control.css'
+      - 'app/services/lightek_sessions/media_setup.rb'
+      - 'app/controllers/dashboard/session_media_controller.rb'
+      - 'lib/scripts/setup_session_media_access.py'
       - 'public/lightek/studio-music*'
       - 'public/lightek/vendor/tone/**'
       - 'public/lightek/studio-viewport.js'
@@ -114,6 +119,10 @@ jobs:
         run: bundle exec ruby test/standalone/studio_performance_checks.rb --name /test_performance_/
       - name: Completed render to episode edit handoff
         run: bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
+      - name: Guided media runtime connection
+        run: bundle exec ruby test/standalone/session_media_setup_checks.rb --name /test_media_setup_/
+      - name: Local media helper authorization
+        run: python3 -m unittest test.operations.session_media_access_test
       - name: Native Dashboard music source and isolation
         run: bundle exec ruby test/standalone/studio_music_checks.rb --name /test_music_/
       - name: Production scores and native camera-cut acceptance
@@ -161,6 +170,7 @@ jobs:
           node test/javascript/studio_performance_test.cjs
           node test/javascript/studio_visual_test.cjs
           node test/javascript/studio_dashboard_browser_test.cjs
+          node test/javascript/studio_edit_workbench_test.cjs
           node test/javascript/studio_music_ui_test.cjs
           node test/javascript/studio_music_audio_test.cjs
           node test/javascript/studio_live_library_test.cjs

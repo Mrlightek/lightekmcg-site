@@ -11,6 +11,9 @@ module Gatekeeper
         def initialize(receipt)
           @receipt = receipt.slice("domain", "source_sha", "image", "target_id", "attempt", "previous_version",
             "database_backup", "status", "migration_started", "code_restored", "error_class", "adapter", "component", "repository", "log_path")
+          if ["Use a server with at least 2 GB RAM", "Find exactly one active HTTPS virtual host for this website"].include?(receipt["reason"])
+            @receipt["reason"]=receipt["reason"]
+          end
           super("Remote update failed")
         end
       end
@@ -33,7 +36,10 @@ module Gatekeeper
         script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
         if node.local?
           stdout, _, status = Timeout.timeout(1900) do
-            Open3.capture3("sudo", "-n", "timeout", "--signal=TERM", "--kill-after=30s", "1800s", "python3", script_path.to_s,
+            local_script=script_name=="install_session_media.py" ? "/usr/local/lib/lightek/install_session_media.py" : script_path.to_s
+            timer=script_name=="install_session_media.py" ? "/usr/bin/timeout" : "timeout"
+            python=script_name=="install_session_media.py" ? "/usr/bin/python3" : "python3"
+            Open3.capture3("sudo", "-n", timer, "--signal=TERM", "--kill-after=30s", "1800s", python, local_script,
               stdin_data: JSON.generate(payload))
           end
           receipt = JSON.parse(stdout)

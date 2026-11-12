@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -13,6 +13,24 @@ module Studio
         LightekPwa::Policy.new(user: @access.user, site: DymondSite::Site.find(@access.site_id)).authorize!("studio") if @access.site_id
         raise ArgumentError, "Unsupported Studio workspace action" unless ACTIONS.include?(@action)
         public_send(@action)
+      end
+
+      def project_create
+        key=@payload.fetch("request_key").to_s
+        name=@payload.fetch("name").to_s.strip
+        raise ArgumentError,"Name your production (up to 120 characters)" unless name.present? && name.length<=120
+        raise ArgumentError,"A project request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        @access.user.with_lock do
+          project=StudioProject.find_by(owner:@access.user,request_key:key)
+          if project
+            raise ArgumentError,"This creation request belongs to another workspace" unless project.site_id==@access.site_id.to_i
+          else
+            project=StudioProject.create!(owner:@access.user,site_id:@access.site_id,name:name,request_key:key)
+            scene=project.studio_scenes.first!
+            scene.update!(name:"Sequence 01",settings:scene.settings.merge("timeline"=>{"output"=>"video","width"=>1920,"height"=>1080,"fps"=>24,"clips"=>[]}))
+          end
+          {project_id:project.id,scene_id:project.studio_scenes.first!.id}
+        end
       end
 
       def music_place = Studio::Music::Composition.place(access:@access,payload:@payload)

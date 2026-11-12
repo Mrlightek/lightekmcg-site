@@ -64,6 +64,9 @@ run_rails() {
   "
 }
 
+echo "[storage] Check application and Docker headroom before installing dependencies"
+python3 "${APP_ROOT}/lib/scripts/deployment_storage.py" --app-root "$APP_ROOT"
+
 echo "[2/8] Bundle"
 run_rails "bundle install --jobs 1"
 
@@ -82,6 +85,9 @@ if ! python3 -c 'import ctypes.util,sys; sys.exit(0 if ctypes.util.find_library(
 fi
 
 python3 "${APP_ROOT}/lib/scripts/setup_studio_spatial.py" --app-root "$APP_ROOT" --app-user "$APP_USER" --domain "$APP_DOMAIN" --env-file "$ENV_FILE"
+
+echo "[storage] Retain space for migrations, assets and application startup"
+python3 "${APP_ROOT}/lib/scripts/deployment_storage.py" --app-root "$APP_ROOT"
 
 echo "[3/8] Migrate"
 run_rails "bundle exec rails db:migrate"

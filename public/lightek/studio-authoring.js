@@ -472,8 +472,8 @@
         payload: { scene_id: current().scene.id, output: "movie" },
       });
       ui.setQuote(result.result);
-      ST.workspaceMode = "publish";
-      render(1);
+      if(window.LightekStudioProduction)LightekStudioProduction.go("deliver",undefined,true);
+      else{ST.workspaceMode = "publish";render(1);}
     });
   A.studioAuthorSync = () =>
     run(async () => {

@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -177,6 +177,25 @@ module Studio
           end
         end
         {asset_id:asset.id,status:asset.status}
+      end
+
+      # A single retryable handoff from a completed production shot to its scene edit.
+      def artifact_use
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        project=scene.studio_project
+        operation=project.studio_operations.where(status:"completed").joins(:artifacts).where(artifacts:{id:@payload.fetch("artifact_id")}).first!
+        raise ArgumentError,"Draft previews are for review. Export the full shot before adding it to the episode." if operation.metadata["draft_preview"]
+        key=@payload.fetch("request_key").to_s
+        raise ArgumentError,"A render handoff request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        @payload["project_id"]=project.id
+        result=artifact_reuse
+        asset=StudioAsset.for_actor(@access).where(site_id:@access.site_id).find(result.fetch(:asset_id))
+        return result.merge(error:asset.error_message) if asset.status=="failed"
+        return result unless asset.status=="ready"
+        @payload.merge!("asset_id"=>asset.id,"placement"=>"append")
+        asset_use(append_picture:asset.kind!="audio")
+        # The idempotency receipt omits the timeline; return the current edit on retries.
+        {status:"ready",asset_id:asset.id,scene_id:scene.id,lock_version:scene.reload.lock_version,timeline:scene.settings.fetch("timeline")}
       end
 
       def artifact_publish
@@ -448,7 +467,7 @@ module Studio
         {asset_id:asset.id,status:asset.status}
       end
 
-      def asset_use
+      def asset_use(append_picture:false)
         scene=@access.scene!(@payload.fetch("scene_id"))
         asset=StudioAsset.for_actor(@access).where(status:"ready",kind:%w[image audio video]).find(@payload.fetch("asset_id"))
         key=@payload.fetch("request_key").to_s
@@ -461,11 +480,19 @@ module Studio
           timeline=scene.settings.fetch("timeline",{"output"=>"video","width"=>1280,"height"=>720,"clips"=>[]}).deep_dup
           placement=@payload.fetch("placement","append")
           raise ArgumentError,"Choose append or overlay placement" unless %w[append overlay].include?(placement)
-          ending=timeline["clips"].map { |clip| clip.fetch("start",0)+(clip.fetch("out")-clip.fetch("in",0))/clip.fetch("speed",1) }.max || 0
+          ending_clips=timeline["clips"]
+          if append_picture
+            picture_ids=StudioAsset.for_actor(@access).where(id:ending_clips.map { |clip|clip["asset_id"] },kind:%w[video image]).pluck(:id)
+            ending_clips=ending_clips.select { |clip|picture_ids.include?(clip["asset_id"]) }
+            occupied=timeline["clips"].map { |clip|clip.fetch("track",0) }
+            picture_track=ending_clips.last&.fetch("track",0) || (0..15).find { |track|!occupied.include?(track) }
+            raise ArgumentError,"Free a picture track before adding this shot" unless picture_track
+          end
+          ending=ending_clips.map { |clip| clip.fetch("start",0)+(clip.fetch("out")-clip.fetch("in",0))/clip.fetch("speed",1) }.max || 0
           duration=asset.kind=="image" ? 5 : [asset.metadata["duration"].to_f,600].min
           raise ArgumentError,"This media has no usable duration. Retry its import." unless duration>0
           timeline["clips"]<<{"asset_id"=>asset.id,"in"=>0,"out"=>duration,"start"=>placement=="overlay" ? 0 : ending,
-            "track"=>placement=="overlay" ? timeline["clips"].map { |clip| clip.fetch("track",0) }.max.to_i+1 : 0,"gain"=>1}
+            "track"=>placement=="overlay" ? timeline["clips"].map { |clip| clip.fetch("track",0) }.max.to_i+1 : append_picture ? picture_track : 0,"gain"=>1}
           assets=StudioAsset.for_actor(@access).where(id:timeline["clips"].map { |clip| clip["asset_id"] }).index_by(&:id)
           normalized=Studio::Editing::Timeline.normalize(timeline,assets:assets)
           result={"scene_id"=>scene.id,"lock_version"=>scene.lock_version+1,"timeline"=>normalized}
@@ -543,6 +570,7 @@ module Studio
               error: publication.error_message, post_id: publication.metadata.to_h["post_id"] } },
           operations: project.studio_operations.order(id: :desc).limit(30).map do |operation|
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
+            scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
             artifacts: operation.artifacts.select { |artifact| artifact.file.attached? }.map do |artifact|
               { id: artifact.id, kind: artifact.kind, filename: artifact.filename,
                 url: Rails.application.routes.url_helpers.rails_blob_path(artifact.file, only_path: true) }

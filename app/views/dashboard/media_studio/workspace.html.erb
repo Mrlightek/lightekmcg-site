@@ -1,21 +1,22 @@
 <% content_for :page_title, "Lightek Studio" %>
 <% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
-<%= stylesheet_link_tag "/lightek/studio-visual.css?v=59" %>
-<%= stylesheet_link_tag "/lightek/studio-authoring.css?v=59" %>
-<%= stylesheet_link_tag "/lightek/studio-music.css?v=59" %>
-<%= stylesheet_link_tag "/lightek/studio-dashboard.css?v=59" %>
+<%= stylesheet_link_tag "/lightek/studio-visual.css?v=60" %>
+<%= stylesheet_link_tag "/lightek/studio-authoring.css?v=60" %>
+<%= stylesheet_link_tag "/lightek/studio-music.css?v=60" %>
+<%= stylesheet_link_tag "/lightek/studio-dashboard.css?v=60" %>
 <main id="lightek-studio-dashboard" data-turbo="false" data-site-id="<%= @site.id %>" data-user-id="<%= current_user.id %>" data-scene-id="<%= @scene&.id %>" data-workspace="<%= @workspace_mode %>" data-csrf-token="<%= form_authenticity_token %>">
   <div id="studio-root" role="region" aria-label="Lightek production studio"><p role="status">Opening your studio…</p></div>
 </main>
-<%= javascript_include_tag "/lightek/nevaeh-client.js?v=59", defer:true %>
-<%= javascript_include_tag "/lightek/studio-dashboard.js?v=59", defer:true %>
+<%= javascript_include_tag "/lightek/nevaeh-client.js?v=60", defer:true %>
+<%= javascript_include_tag "/lightek/studio-dashboard.js?v=60", defer:true %>
 <% %w[studio-app studio-native studio-authoring studio-media studio-create studio-performance studio-visual].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=59", defer:true %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=60", defer:true %>
 <% end %>
 <%= javascript_include_tag "/lightek/vendor/tone/Tone-15.1.22.js", defer:true %>
 <%= javascript_include_tag "/lightek/vendor/tone/Midi-2.0.28.js", defer:true %>
 <% %w[studio-music-core studio-music-audio studio-music].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=59", defer:true %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=60", defer:true %>
 <% end %>
+<%= javascript_include_tag "/lightek/studio-production.js?v=60", defer:true %>
 <script type="importmap">{"imports":{"three":"/lightek/vendor/three/three.module.js"}}</script>
-<script type="module" src="/lightek/studio-viewport.js?v=59"></script>
+<script type="module" src="/lightek/studio-viewport.js?v=60"></script>

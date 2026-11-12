@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= content_for?(:title) ? yield(:title) + " — " : "" %><%= agency_branding&.brand_name || dymond_app_name %></title>
+  <title><%= content_for?(:page_title) ? yield(:page_title) + " — " : content_for?(:title) ? yield(:title) + " — " : "" %><%= agency_branding&.brand_name || dymond_app_name %></title>
   <%= csrf_meta_tags %>
 
   <%# Tabler icons — outline only %>
@@ -104,6 +104,11 @@
                      border-radius: 8px; min-width: 16px; text-align: center; }
 
     /* ── Topbar ──────────────────────────────────────────────────────── */
+    .dd-breadcrumbs { display:flex;align-items:center;flex-wrap:wrap;gap:9px;list-style:none;font-size:12px;min-width:0; }
+    .dd-breadcrumbs a { color:var(--dd-text-secondary);text-decoration:none; }
+    .dd-breadcrumbs a:hover { color:var(--dd-accent);text-decoration:underline; }
+    .dd-breadcrumbs li+li::before { content:"›";margin-right:9px;color:var(--dd-text-muted); }
+    .dd-breadcrumbs [aria-current=page] { color:var(--dd-text-primary);overflow-wrap:anywhere; }
     .dd-topbar-title { font-size: 14px; font-weight: 600; }
     .dd-topbar-right { display: flex; align-items: center; gap: 8px; }
     .dd-topbar-btn   { display: flex; align-items: center; gap: 5px; padding: 6px 12px;
@@ -172,12 +177,7 @@
     <%# Topbar %>
     <div class="dd-topbar">
       <div class="dd-topbar-title" style="display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap">
-        <%= link_to dymond_dash.root_path, class: "dd-topbar-btn dd-btn-ghost", aria: {label: "Dashboard home"} do %><i class="ti ti-home"></i> Home<% end %>
-        <% if current_user&.role.in?(%w[super_admin admin white_label]) %><%= link_to "Commerce", main_app.dashboard_commerce_path, class: "dd-topbar-btn dd-btn-ghost" %><% end %>
-        <%= link_to "Business", main_app.dashboard_business_hub_path, class: "dd-topbar-btn dd-btn-ghost" %>
-        <%= link_to "My Applications", main_app.installations_path, class: "dd-topbar-btn dd-btn-ghost" %>
-        <% if current_user&.role.in?(%w[admin super_admin]) %><%= link_to "Installations", main_app.dashboard_installations_path, class: "dd-topbar-btn dd-btn-ghost" %><% end %>
-        <span><%= content_for?(:page_title) ? yield(:page_title) : dymond_app_name %></span>
+        <%= render 'dymond_dash/shared/breadcrumbs', page_label: (content_for?(:page_title) ? yield(:page_title) : controller.controller_name.humanize) %>
       </div>
       <div class="dd-topbar-right">
   <% unread = DymondDash::Notification.for_recipient(current_user).unread.recent %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_12_083000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_12_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2215,9 +2215,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_083000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "presentation", default: {}, null: false
+    t.string "purpose", default: "booking", null: false
+    t.bigint "host_user_id"
+    t.index ["host_user_id"], name: "index_lightek_session_rooms_on_host_user_id"
     t.index ["key"], name: "index_lightek_session_rooms_on_key", unique: true
     t.index ["resource_id", "starts_at", "ends_at"], name: "idx_lightek_room_slot", unique: true
     t.index ["resource_id"], name: "index_lightek_session_rooms_on_resource_id"
+    t.check_constraint "(purpose::text = ANY (ARRAY['booking'::character varying, 'production'::character varying]::text[])) AND (purpose::text <> 'production'::text OR host_user_id IS NOT NULL)", name: "session_room_purpose_valid"
   end
 
   create_table "lightek_shipping_accounts", force: :cascade do |t|
@@ -3901,6 +3905,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_083000) do
   add_foreign_key "lightek_session_members", "lightek_session_rooms", column: "room_id"
   add_foreign_key "lightek_session_members", "users"
   add_foreign_key "lightek_session_rooms", "lightek_reservation_resources", column: "resource_id"
+  add_foreign_key "lightek_session_rooms", "users", column: "host_user_id"
   add_foreign_key "lightek_shipping_profiles", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_shipping_quotes", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_shipping_quotes", "lightek_commerce_orders", column: "purchase_order_id"

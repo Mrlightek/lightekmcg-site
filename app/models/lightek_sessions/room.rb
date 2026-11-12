@@ -2,6 +2,10 @@ module LightekSessions
   class Room < ApplicationRecord
     self.table_name = 'lightek_session_rooms'
     belongs_to :resource, class_name: 'LightekReservations::Resource'
+    belongs_to :host_user, class_name: 'User', optional: true
+    validates :purpose, inclusion: {in: %w[booking production]}
+    validates :host_user, presence: true, if: :production?
+    def production? = purpose == 'production'
     has_many :members, class_name: 'LightekSessions::Member', dependent: :destroy
     validates :key, :media_name, :starts_at, :ends_at, presence: true
     validates :status, inclusion: {in: %w[scheduled open ended]}
@@ -16,7 +20,7 @@ module LightekSessions
       end
     end
     def live? = resource.kind == 'live'
-    def host?(user) = user && (user.role == 'super_admin' || resource.site.tenant == user)
+    def host?(user) = user&.persisted? && (user.role == 'super_admin' || resource.site.tenant == user || host_user_id == user.id)
     def bookings = LightekReservations::Reservation.where(resource: resource, starts_at: starts_at, ends_at: ends_at)
   end
 end

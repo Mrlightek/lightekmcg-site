@@ -50,8 +50,8 @@ module LightekReservations
         errors.add(:compute, 'requires region, plan, image and positive monthly_cost_cents') unless compute.is_a?(Hash) && %w[region plan image].all? { |k| compute[k].present? } && compute['monthly_cost_cents'].to_i.positive?
         months = billing_interval == 'annual' ? 12 : 1
         errors.add(:cost_floor_cents, 'must cover the full term infrastructure cost') if compute.is_a?(Hash) && cost_floor_cents.to_i < compute['monthly_cost_cents'].to_i * months
-      elsif product && product.product_type != 'digital'
-        errors.add(:product, 'must be a digital service product')
+      elsif product && !(product.product_type == 'digital' || (product.product_type == 'service' && product.billing_interval == 'one_time'))
+        errors.add(:product, 'must be a digital product or one-time service product')
       end
       if template_key.present? && !LightekDesign::StarterLibrary.designs.key?(template_key)
         errors.add(:template_key, 'must be an installed industry experience')

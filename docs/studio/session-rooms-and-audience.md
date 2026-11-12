@@ -50,3 +50,15 @@ Run migrations and restart Sidekiq and the Cable service after deployment. Added
 The dedicated CI exercises booking/controller ownership, permission grants, presentation persistence, installer safeguards, normalization, existing capture transport, canvas layouts, and an actual local self-hosted LiveKit multiparty/media/compositor smoke test. The local workspace cannot start LiveKit because its network interfaces are restricted; that media test runs on the Ubuntu CI runner.
 
 References: https://docs.livekit.io/reference/other/roomservice-api/ ; https://docs.livekit.io/transport/self-hosting/deployment/ ; https://github.com/zerodytrash/TikTok-Live-Connector ; https://github.com/steveseguin/social_stream/blob/main/api.md ; https://support.restream.io/en/articles/2388185-read-incoming-chat-messages .
+
+## Unified Reservations → Rooms → Live workflow
+
+Use **Dashboard → Rooms & guests** to create a private video or audio production room immediately or for a scheduled time. It uses the existing site, resource, room, guest membership, media and moderation services. Its resource stays unpublished, and it creates no synthetic booking, order or payment. The creating host and site owner can manage it; invited account holders wait for admission. Guest places are bounded, removed guests remain blocked, and scheduled start/end rules still apply.
+
+Use **Reservations → Create a bookable room** for services customers reserve. Choose Video room, Audio room, Meeting or Appointment, set availability and optionally select an existing digital or one-time service product from Commerce. Native Lightek rooms need no external join URL. Available-for-booking controls catalog visibility. Validation errors keep entered values and show the actual problem. Server package fields are separate from ordinary room setup.
+
+**Room service** activates the shared managed LiveKit infrastructure for the selected website. Room creation and service activation are distinct: a prepared room shows the setup action when voice/video credentials are missing. Successful media setup is still subject to network/device acceptance.
+
+The shared production navigation retains website context between Reservations, Rooms & guests, Live Studio and Room service. Live Studio offers Panel, Presenter, Interview and Featured guest layouts through the existing presentation/compositor controls. Advanced virtual-production settings remain available separately. The Audience desk shows whether a TikTok username or Restream/SSN chat configuration has been saved. Video destinations and audience readers remain separate connections; saved settings alone do not mean an external account is live or its reader is connected.
+
+Apply migration `20261112150000_add_direct_production_rooms` and restart Rails/Studio workers. Run `test/standalone/production_rooms_checks.rb` and the production-workflow browser checks before release. Live guests, camera/mic permissions, external-network traversal and actual social events require separate live acceptance.

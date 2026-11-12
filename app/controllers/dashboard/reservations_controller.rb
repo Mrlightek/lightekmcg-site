@@ -2,6 +2,7 @@
 class Dashboard::ReservationsController < Dashboard::SettingsHomeController
   layout 'dymond_dash/layouts/dymond_dash'
   protect_from_forgery with: :exception
+  skip_before_action :require_settings_operator!
   before_action :load_site
   rescue_from ActiveRecord::RecordInvalid, LightekReservations::Booking::Invalid,
     LightekReservations::Availability::Invalid, JSON::ParserError, ArgumentError, with: :invalid_booking
@@ -26,10 +27,11 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
     redirect_to network_dashboard_reservations_path(site_id: @site.id), alert: error.message
   end
   def index
-    @resources = LightekReservations::Resource.where(site: @site).includes(:product).order(:name)
-    @resource = params[:resource_id].present? ? @resources.find(params[:resource_id]) : LightekReservations::Resource.new(site: @site)
+    @resources = bookable_resources.includes(:product).order(:name)
+    kind = LightekReservations::Resource::KINDS.include?(params[:kind]) ? params[:kind] : 'video'
+    @resource ||= params[:resource_id].present? ? @resources.find(params[:resource_id]) : LightekReservations::Resource.new(site: @site, kind: kind, published: true, capacity: %w[video voice live meeting].include?(kind) ? 8 : 1)
     @server_packages = LightekReservations::Resource.available.where(kind: 'server', source_resource_id: nil).where(site_id: DymondSite::Site.where(tenant: User.where(role: 'super_admin')).select(:id))
-    @products = LightekCommerce::Product.where(site: @site, product_type: %w[digital lightek_instance]).order(:name)
+    @products = LightekCommerce::Product.where(site: @site, product_type: %w[digital service lightek_instance]).order(:name)
     @reservations = LightekReservations::Reservation.joins(:resource).where(lightek_reservation_resources: {site_id: @site.id})
     @metrics = {upcoming: @reservations.where(status: %w[confirmed checked_in]).where('starts_at >= ?', Time.current).count,
       held: @reservations.where(status: 'held').count, resources: @resources.count,
@@ -40,7 +42,7 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
     @blackouts = LightekReservations::Blackout.where(resource_id: @resources.select(:id)).order(starts_at: :desc).limit(20)
   end
   def save_resource
-    resource = params[:id].present? ? LightekReservations::Resource.where(site: @site).find(params[:id]) : LightekReservations::Resource.new(site: @site)
+    resource = params[:id].present? ? bookable_resources.find(params[:id]) : LightekReservations::Resource.new(site: @site)
     attributes = params.require(:resource).permit(:name, :description, :kind, :timezone, :capacity, :duration_minutes,
       :buffer_minutes, :notice_minutes, :cancellation_hours, :published, :product_id, :location, :join_url, :template_key,
       :billing_interval, :cost_floor_cents, :accommodations_text, compute: %i[region plan image monthly_cost_cents], opening_hours: Date::DAYNAMES.each_index.to_h { |i| [i.to_s, %i[open close]] }).to_h
@@ -114,6 +116,9 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
     redirect_to dashboard_reservations_path(site_id: @site.id), notice: 'Reservation updated.'
   end
   private
+  def bookable_resources
+    LightekReservations::Resource.where(site: @site).where.not(id: LightekSessions::Room.where(purpose: 'production').select(:resource_id))
+  end
   def network_client = LightekReservations::Federation::Client.new(@site)
   def load_site
     @sites = LightekSettings::WebsiteIdentity.sites_for(current_user)
@@ -121,6 +126,12 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
     render plain: 'Create a website before adding reservation experiences.', status: :unprocessable_entity unless @site
   end
   def invalid_booking(error)
-    redirect_to dashboard_reservations_path(site_id: @site.id), alert: error.message
+    if action_name == 'save_resource' && error.is_a?(ActiveRecord::RecordInvalid) && error.record.is_a?(LightekReservations::Resource)
+      @resource = error.record
+      index
+      render :index, status: :unprocessable_entity
+    else
+      redirect_to dashboard_reservations_path(site_id: @site.id), alert: error.message
+    end
   end
 end

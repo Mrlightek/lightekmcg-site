@@ -9,7 +9,7 @@
   const mode = () => { const key=location.hash.split('/')[3]||'edit';return aliases[key]|| (allowed.has(key)?key:'stage'); };
   const current = () => studioSceneRecord(studioCurrentSceneId());
   const call = async(action,payload)=>(await nevaeh.execute({capability:'studio.workspace.'+action,payload})).result;
-  const busy = () => state.busy || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
+  const busy = () => state.busy || window.LightekStudioDelivery?.busy() || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
   function go(key,sceneId=studioCurrentSceneId(),internal=false) {
     if(busy()&&!internal){toast('Finish the current save or render request before switching.');return;}
     const target=aliases[key]||key;

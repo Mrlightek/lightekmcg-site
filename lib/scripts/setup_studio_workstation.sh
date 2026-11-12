@@ -4,7 +4,7 @@ set -euo pipefail
 # install_studio_workstation.py from the root deployment/update pipeline.
 STUDIO_WORKSTATION_CHECKOUT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STUDIO_WORKSTATION_STATE="${STUDIO_WORKSTATION_ROOT:-${STUDIO_WORKSTATION_CHECKOUT}/storage/studio-workstations}"
-STUDIO_WORKSTATION_IMAGE_NAME="${STUDIO_WORKSTATION_IMAGE:-lightek/studio-workstation:20261107}"
+STUDIO_WORKSTATION_IMAGE_NAME="${STUDIO_WORKSTATION_IMAGE:-lightek/studio-workstation:20261112}"
 command -v docker >/dev/null || { echo 'Docker is required for native workstations.' >&2; exit 1; }
 docker info >/dev/null
 if [[ -z "${STUDIO_WORKSTATION_IMAGE:-}" ]]; then

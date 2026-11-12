@@ -1,25 +1,25 @@
 <% content_for :page_title, "Lightek Studio" %>
 <% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
-<%= stylesheet_link_tag "/lightek/studio-visual.css?v=63" %>
-<%= stylesheet_link_tag "/lightek/studio-authoring.css?v=63" %>
-<%= stylesheet_link_tag "/lightek/studio-music.css?v=63" %>
-<%= stylesheet_link_tag "/lightek/studio-dashboard.css?v=63" %>
+<%= stylesheet_link_tag "/lightek/studio-visual.css?v=64" %>
+<%= stylesheet_link_tag "/lightek/studio-authoring.css?v=64" %>
+<%= stylesheet_link_tag "/lightek/studio-music.css?v=64" %>
+<%= stylesheet_link_tag "/lightek/studio-dashboard.css?v=64" %>
 <main id="lightek-studio-dashboard" class="media-studio-focus" data-turbo="false" data-site-id="<%= @site.id %>" data-user-id="<%= current_user.id %>" data-scene-id="<%= @scene&.id %>" data-workspace="<%= @workspace_mode %>" data-csrf-token="<%= form_authenticity_token %>">
   <div id="studio-root" role="region" aria-label="Lightek production studio"><p role="status">Opening your studio…</p></div>
 </main>
-<%= javascript_include_tag "/lightek/nevaeh-client.js?v=63", defer:true %>
-<%= javascript_include_tag "/lightek/studio-dashboard.js?v=63", defer:true %>
+<%= javascript_include_tag "/lightek/nevaeh-client.js?v=64", defer:true %>
+<%= javascript_include_tag "/lightek/studio-dashboard.js?v=64", defer:true %>
 <% %w[studio-app studio-native studio-authoring studio-media studio-create studio-performance studio-visual].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=63", defer:true %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=64", defer:true %>
 <% end %>
 <%= javascript_include_tag "/lightek/vendor/tone/Tone-15.1.22.js", defer:true %>
 <%= javascript_include_tag "/lightek/vendor/tone/Midi-2.0.28.js", defer:true %>
 <% %w[studio-music-core studio-music-audio studio-music].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=63", defer:true %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=64", defer:true %>
 <% end %>
-<%= javascript_include_tag "/lightek/studio-production.js?v=63", defer:true %>
-<%= javascript_include_tag "/lightek/studio-edit-workbench.js?v=63", defer:true %>
-<%= javascript_include_tag "/lightek/studio-ai.js?v=63", defer:true %>
-<%= stylesheet_link_tag "/lightek/studio-edit-workbench.css?v=63" %>
+<%= javascript_include_tag "/lightek/studio-production.js?v=64", defer:true %>
+<%= javascript_include_tag "/lightek/studio-edit-workbench.js?v=64", defer:true %>
+<%= javascript_include_tag "/lightek/studio-ai.js?v=64", defer:true %>
+<%= stylesheet_link_tag "/lightek/studio-edit-workbench.css?v=64" %>
 <script type="importmap">{"imports":{"three":"/lightek/vendor/three/three.module.js"}}</script>
-<script type="module" src="/lightek/studio-viewport.js?v=63"></script>
+<script type="module" src="/lightek/studio-viewport.js?v=64"></script>

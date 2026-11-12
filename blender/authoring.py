@@ -41,7 +41,7 @@ def inventory(obj):
     if obj.type == 'ARMATURE':
         data['bones'] = [{'name': b.name, 'parent': b.parent.name if b.parent else None,
                          'head': list(b.head), 'tail': list(b.tail), 'location': list(b.location),
-                         'rotation': list(b.rotation_euler), 'scale': list(b.scale)} for b in list(obj.pose.bones)[:512]]
+                         'rotation': list(b.rotation_euler), 'scale': list(b.scale)} for b in list(obj.pose.bones)[:4096]]
     for i, slot in enumerate(obj.material_slots):
         if slot.material and slot.material.use_nodes:
             data['graphs'].append({'scope': 'material', 'slot': i, 'graph': graph_payload(slot.material.node_tree)})

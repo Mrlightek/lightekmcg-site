@@ -21,7 +21,7 @@ class StudioMediaSetupTest(unittest.TestCase):
             commands=[json.loads(line) for line in (folder/'trace').read_text().splitlines()]
             self.assertEqual(commands[0],['info'])
             build=next(command for command in commands if command[0]=='build')
-            self.assertEqual(build[build.index('--tag')+1],'lightek/studio-media:20261111')
+            self.assertEqual(build[build.index('--tag')+1],'lightek/studio-media:20261112')
             self.assertEqual(build[-1],str(ROOT/'docker/studio-media'))
             self.assertIn('--label',build)
             probe=next(command for command in commands if command[0]=='run')

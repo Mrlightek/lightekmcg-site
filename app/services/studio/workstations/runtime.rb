@@ -7,7 +7,7 @@ require "digest"
 module Studio
   module Workstations
     class Runtime
-      IMAGE="lightek/studio-workstation:20261107"
+      IMAGE="lightek/studio-workstation:20261112"
       def self.root = Pathname(ENV.fetch("STUDIO_WORKSTATION_ROOT",Rails.root.join("storage/studio-workstations").to_s))
       def self.directory(session) = root.join("sessions",session.session_key)
       def self.work(session) = directory(session).join("work")

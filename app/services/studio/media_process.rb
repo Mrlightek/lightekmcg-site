@@ -1,8 +1,18 @@
 require "open3"
 require "timeout"
+require "tmpdir"
+require "fileutils"
 module Studio
   class MediaProcess
     class Cancelled < StandardError; end
+    def self.temp_root
+      root=Rails.root.join("storage/studio-tmp").to_s
+      FileUtils.mkdir_p(root,mode:0700)
+      root
+    end
+    def self.temporary_directory(prefix,&block)
+      Dir.mktmpdir(prefix,temp_root,&block)
+    end
     def self.run!(command, timeout:90, cancel_if:nil, stdin_data:nil, cleanup_container:true)
       output="";errors="";status=nil
       Open3.popen3(*command,pgroup:true) do |input,stdout,stderr,wait|

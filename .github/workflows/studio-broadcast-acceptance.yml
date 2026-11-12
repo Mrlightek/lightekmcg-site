@@ -5,6 +5,11 @@ on:
       - 'app/**/studio/**'
       - 'app/jobs/studio_ai_generation_job.rb'
       - 'config/studio_ai/**'
+      - 'config/studio/blender_demos.json'
+      - 'app/jobs/studio_starter_cast_job.rb'
+      - 'blender/starter_cast.py'
+      - 'docker/studio-media/**'
+      - 'db/migrate/20261112040000_register_studio_starter_cast.rb'
       - 'db/migrate/20261112030000_register_studio_ai.rb'
       - 'app/**/studio_workstation*'
       - 'app/views/dashboard/studio_workstations/**'
@@ -110,6 +115,16 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: true
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender python3-numpy python3-venv
+      - name: Install the pinned character-compatible Blender runtime
+        run: |
+          curl --fail --location --retry 2 https://download.blender.org/release/Blender4.5/blender-4.5.16-linux-x64.tar.xz -o "$RUNNER_TEMP/blender.tar.xz"
+          echo "23432b064977908beb1ab4b7f32f024e7331105c875c187dce002aff84b10c11  $RUNNER_TEMP/blender.tar.xz" | sha256sum --check -
+          tar -xJf "$RUNNER_TEMP/blender.tar.xz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/blender-4.5.16-linux-x64" >> "$GITHUB_PATH"
+      - name: Official Rain and Snow download, native import and starter scene
+        env:
+          STUDIO_STARTER_LIVE_DOWNLOAD: '1'
+        run: bundle exec ruby test/standalone/studio_starter_cast_checks.rb --name /test_starter_cast_/
       - name: Library, HTTP, Gatekeeper, publication and native Blender acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -122,7 +137,8 @@ jobs:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/studio_performance_checks.rb --name /test_performance_/
       - name: Completed render to episode edit handoff
-        run: bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
+        run: |
+          bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
           bundle exec ruby test/standalone/studio_ai_checks.rb --name /test_ai_/
       - name: Guided media runtime connection
         run: bundle exec ruby test/standalone/session_media_setup_checks.rb --name /test_media_setup_/
@@ -241,7 +257,7 @@ jobs:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
         run: node test/javascript/studio_workstation_test.cjs
       - name: Build isolated native desktop
-        run: docker build -t lightek/studio-workstation:20261107 docker/studio-workstation
+        run: docker build -t lightek/studio-workstation:20261112 docker/studio-workstation
       - name: Real native Blender desktop and save receipt
         env:
           LIGHTEK_TEST_WORKSTATION: '1'

@@ -133,7 +133,7 @@ class NativeBlenderTest < StudioLibraryTest
   end
   def test_official_demo_catalog_can_be_queued_without_accepting_arbitrary_download_urls
     data=action("assets_list")
-    assert_equal 12,data[:blender_demos].length
+    assert_equal 14,data[:blender_demos].length
     assert_equal 7,data[:camera_presets].length
     data[:blender_demos].each { |demo| assert_includes Studio::NativeBlender::DemoImport::HOSTS,URI.parse(demo["url"]).host;assert demo["author"].present?;assert demo["license"].present? }
     first=action("blender_demo_import",demo_key:"pebble_scattering")

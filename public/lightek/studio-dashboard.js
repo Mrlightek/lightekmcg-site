@@ -12,15 +12,40 @@ var studioWorkspaceSelectedObject=scene=>scene?.objects.find(o=>Number(o.id)===N
 var meProfile=()=>({id:Number(document.querySelector('#lightek-studio-dashboard').dataset.userId)}),me=meProfile;
 var toast=message=>{let el=document.querySelector('[data-dashboard-studio-notice]');if(!el){el=document.createElement('div');el.dataset.dashboardStudioNotice='';el.role='status';el.className='studio-dashboard-notice';app.before(el);}el.textContent=message;};
 var studioExecuteMutation=async(capability,payload)=>{const result=await nevaeh.execute({capability,payload});await A.studioLoad(true);return result.result;};
+// Background library/job updates must not interrupt editing a field.
+var studioRenderedView=null,studioComposing=false,studioCompositionPending=false;
+var studioViewKey=()=>JSON.stringify([location.hash,ST.selectedObjectId]);
+var studioFieldKey=el=>JSON.stringify([el.tagName,el.type,el.id,el.getAttribute('name'),Array.from(el.attributes).filter(a=>/^data-(studio|native|media|performance|music|clip|track|title|frame|ew|vw|ai|blender)(-|$)/.test(a.name)&&!['data-busy','data-request-key'].includes(a.name)).map(a=>[a.name,a.value]).sort()]);
+var studioFormKey=el=>{const form=el.closest('form');return form?JSON.stringify([form.id,Array.from(form.attributes).filter(a=>/^data-(studio|native|media|performance|music|clip|track|title|frame|ew|vw|ai|blender)(-|$)/.test(a.name)&&!['data-busy','data-request-key'].includes(a.name)).map(a=>[a.name,a.value]).sort()]):null;};
+var studioEditingCapture=()=>{
+  const el=document.activeElement;
+  if(!el||!app.contains(el)||!el.matches('textarea,input:not([type=file]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=submit]):not([type=button])'))return null;
+  const key=studioFieldKey(el),form=studioFormKey(el),matches=Array.from(app.querySelectorAll('input,textarea')).filter(field=>studioFieldKey(field)===key&&studioFormKey(field)===form);
+  return {el,key,form,index:matches.indexOf(el),value:el.value,start:el.selectionStart,end:el.selectionEnd,direction:el.selectionDirection,scroll:el.scrollTop,view:studioViewKey()};
+};
+var studioEditingRestore=snapshot=>{
+  if(!snapshot||snapshot.el.isConnected||snapshot.view!==studioViewKey())return;
+  if(document.activeElement!==document.body&&document.activeElement!==app&&app.contains(document.activeElement))return;
+  const field=Array.from(app.querySelectorAll('input,textarea')).filter(el=>studioFieldKey(el)===snapshot.key&&studioFormKey(el)===snapshot.form)[snapshot.index];
+  if(!field||field.disabled||!field.getClientRects().length)return;
+  field.value=snapshot.value;field.focus({preventScroll:true});
+  if(snapshot.start!==null)field.setSelectionRange(snapshot.start,snapshot.end,snapshot.direction);
+  field.scrollTop=snapshot.scroll;
+};
+window.LightekStudioForms={capture:studioEditingCapture,restore:studioEditingRestore,composing:()=>studioComposing,defer:()=>{studioCompositionPending=true;}};
+app.addEventListener('compositionstart',()=>{studioComposing=true;});
+app.addEventListener('compositionend',()=>{studioComposing=false;if(studioCompositionPending){studioCompositionPending=false;queueMicrotask(()=>render());}});
 var studioRendering=false,studioRenderQueued=false;
 var render=()=>{
+  if(studioComposing&&studioRenderedView===studioViewKey()){studioCompositionPending=true;return;}
   if(studioRendering){if(!studioRenderQueued){studioRenderQueued=true;queueMicrotask(()=>{studioRenderQueued=false;render();});}return;}
+  const editing=studioRenderedView===studioViewKey()?studioEditingCapture():null;
   studioRendering=true;
   try{
   if(!ST.loaded){app.innerHTML=`<section class="studio-dashboard-empty"><h1>Lightek Studio</h1><p role="status">${E(ST.error||'Opening your productions…')}</p>${ST.error?'<button class="vw-btn" data-a="studioReload">Try again</button>':''}</section>`;return;}
-  const id=location.hash.split('/')[2];if(!window.LightekStudioProduction?.render(id))app.innerHTML=R.studio(id);app.classList.toggle('studio-dashboard-auxiliary',!app.querySelector('.visual-workbench,.studio-dashboard-advanced,.edit-workbench'));AF.studio?.(id);
+  const id=location.hash.split('/')[2];if(!window.LightekStudioProduction?.render(id)){const html=R.studio(id);if(!window.LightekStudioVisual?.renderHomeInto?.(app,html))app.innerHTML=html;}app.classList.toggle('studio-dashboard-auxiliary',!app.querySelector('.visual-workbench,.studio-dashboard-advanced,.edit-workbench'));AF.studio?.(id);
   window.dispatchEvent(new CustomEvent('lightek:bootstrap'));
-  }finally{studioRendering=false;}
+  }finally{studioEditingRestore(editing);studioRenderedView=studioViewKey();studioRendering=false;}
 };
 R.studio=id=>{
   const record=studioSceneRecord(Number(id));if(!record)return '<section class="studio-dashboard-empty"><h1>Choose a production</h1><a href="#/studio">Studio home</a></section>';

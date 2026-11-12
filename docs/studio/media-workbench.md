@@ -49,3 +49,11 @@ Review a source and use Mark in / Mark out, or enter the source range. Append se
 Pool updates and inspector edits preserve the source media element, program canvas and inspector focus. Reopening a saved edit draws its program image once prepared media loads. Browser tests exercise actual MP4 decoding and multipart uploads through HTTP fixtures, including upload and registration recovery, preparation, source marks, pointer trims, uninterrupted playback, save/reopen and mobile layout.
 
 See [AI Studio](ai-studio.md) for the self-hosted generation integration and its current boundaries.
+
+## Input and import access repair
+
+The project-name form now stays connected while asset/template lists refresh. Shared Dashboard text-field handling preserves a replaced active field's value, caret and selection within the same scene/view; it does not steal focus across scene changes. Composition input defers background redraws until composition ends. Native inspector background refreshes use the same focus preservation.
+
+Import media is a button at the top of the pool. The empty-state plus is also a working import button. A persistent file input survives background redraws while the operating system's picker is open; it is opened synchronously from the button click for browser user-activation compatibility. Secondary pool controls scroll independently in short workspaces.
+
+Browser regression checks type project names one letter at a time through real asset-list refresh requests, preserve selection and composition, continue writing a script after refresh, and open both file-picker buttons. The import test refreshes the pool while the picker is open before selecting the real test media.

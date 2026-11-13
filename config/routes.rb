@@ -43,6 +43,7 @@ Rails.application.routes.draw do
     end
   end
   draw :reservations
+  draw :people
   post "/website/template-inquiries", to: "website_template_inquiries#create", as: :website_template_inquiries
   get "/dashboard/website/designs/manifest", to: "dashboard/website_designs#manifest", as: :dashboard_website_design_manifest
   get "/dashboard/website/designs/starter-preview", to: "dashboard/website_designs#starter_preview", as: :dashboard_website_starter_preview

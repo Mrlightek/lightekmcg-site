@@ -88,8 +88,7 @@ module Gatekeeper
       receipt = node.metadata.to_h.fetch("website_deployment_receipts", {})[domain] || node.metadata.to_h.fetch("website_deployment", {})
       config = node.metadata.to_h.fetch("website_deployments", {}).fetch(domain)
       raise WebsiteDeployment::Invalid, "Installation receipt mismatch" unless config.fetch("owner_id") == owner.id &&
-        receipt["url"] == "https://#{domain}" && receipt["public_https_verified"] == true && receipt["owner_login_verified"] == true &&
-        receipt.dig("health", "full_application_dashboard_verified") == true
+        Gatekeeper::WebsiteReadiness.verified?(receipt, domain: domain, owner_email: config["owner_email"] || owner.email_address)
       config
     end
   end

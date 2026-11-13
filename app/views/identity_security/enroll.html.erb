@@ -1,1 +1,27 @@
-<%= stylesheet_link_tag '/lightek/people-workspace.css' %><main class="lp-workspace"><section class="lp-card"><h1>Set up your authenticator</h1><p>Add a time-based six-digit account to your authenticator. Keep this setup key private.</p><p><strong>Setup key:</strong> <code><%= @secret %></code></p><%= link_to 'Open in authenticator', @uri, class: 'lp-button secondary' %><%= form_with url: confirm_identity_security_path, class: 'lp-form' do |f| %><label>Six-digit code<%= f.text_field :otp, required: true, inputmode: 'numeric', pattern: '[0-9]{6}', autocomplete: 'one-time-code' %></label><%= f.submit 'Verify & enable', class: 'lp-button' %><% end %><p>The setup expires in ten minutes.</p></section></main>
+<%= stylesheet_link_tag '/lightek/people-workspace.css', '/lightek/mfa-enrollment.css' %>
+<%= javascript_include_tag '/lightek/vendor/qrcode-generator/qrcode.js', defer: true %>
+<%= javascript_include_tag '/lightek/mfa-enrollment.js', defer: true %>
+<main class="lp-workspace"><section class="lp-card mfa-enrollment" data-mfa-enrollment="<%= @uri %>">
+  <h1>Scan with your authenticator</h1>
+  <ol class="mfa-steps">
+    <li>On your phone, open your authenticator app and choose <strong>Add account → Scan QR code</strong>.</li>
+    <li>Scan the code below. Your app will add <strong>Lightek: <%= current_user.email_address %></strong>.</li>
+    <li>Enter the six-digit code shown on your phone, then choose <strong>Verify & enable</strong>.</li>
+  </ol>
+  <div class="mfa-qr-box"><canvas data-mfa-qr hidden role="img" aria-label="Scan to add your Lightek authenticator account"></canvas></div>
+  <p data-mfa-qr-status role="status">Preparing your QR code…</p>
+  <noscript><p>Enable JavaScript to display the QR code, or use manual setup below.</p></noscript>
+  <%= form_with url: confirm_identity_security_path, class: 'lp-form', data: {turbo: false} do |form| %>
+    <%= form.label :otp, 'Six-digit code from your phone' %>
+    <%= form.text_field :otp, required: true, inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: 6, autocomplete: 'one-time-code', class: 'mfa-code', placeholder: '000000' %>
+    <%= form.submit 'Verify & enable', class: 'lp-button' %>
+  <% end %>
+  <p class="mfa-note">Next, save your recovery codes privately. This setup expires after ten minutes. Keep this QR code and its setup key private.</p>
+  <details data-mfa-manual><summary>Can’t scan? Enter a setup key manually</summary>
+    <p>In your phone’s authenticator, choose manual entry. Copy only this setup key—not a website address.</p>
+    <label for="mfa-setup-key">Setup key</label>
+    <%= text_field_tag :setup_key, @secret, id: 'mfa-setup-key', readonly: true, autocomplete: 'off', spellcheck: false, class: 'mfa-key', data: {mfa_setup_key: true} %>
+    <button type="button" class="lp-button secondary" data-mfa-copy>Copy setup key</button>
+    <p class="mfa-note">Account: <%= current_user.email_address %>. Type: time-based (TOTP), six digits, 30 seconds, SHA-1 if requested. Enter the generated code in the form above.</p>
+  </details>
+</section></main>

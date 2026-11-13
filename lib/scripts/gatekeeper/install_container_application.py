@@ -210,7 +210,7 @@ def install_locked(config):
                                             "owner_email": config["email"], "owner_password": state["owner_password"]})
     fleet_config = {"compose_file": str(root / "compose.json"), "compose_project": project, "db_service": "db",
                     "health_url": f"https://{domain}/up", "revision_url": f"https://{domain}/__lightek/release"}
-    return {"public_https_verified": True, "owner_login_verified": bool(health), "health": health, "fleet_config": fleet_config,
+    return {"public_https_verified": True, "owner_login_verified": bool(health), "health": health, "release": health.get("release"), "fleet_config": fleet_config,
             "status": "succeeded", "domain": domain, "image": config["image"], "url": f"https://{domain}", "compose_project": project, "launch_id": config["launch_id"]}
 
 

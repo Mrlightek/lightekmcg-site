@@ -464,6 +464,7 @@ post "/dashboard/commerce/subscriptions/:id/cancel", to: "dashboard/commerce#can
 resources :dashboard_agencies, path: "/dashboard/agencies", controller: "dashboard/agencies", only: %i[index create update] do
   member do
     post :create_client
+    post :send_setup_invitation
     patch :update_terms
   end
 end

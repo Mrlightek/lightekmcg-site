@@ -21,7 +21,7 @@ DymondSite::Site.transaction do
   owner = User.find_or_initialize_by(email_address: c.fetch("owner_email"))
   if owner.new_record?
     owner.assign_attributes(first_name: c.fetch("owner").fetch("first_name"), last_name: c.fetch("owner").fetch("last_name"),
-      role: "client", password: SecureRandom.urlsafe_base64(36))
+      role: "client", password_setup_required: true, password: SecureRandom.urlsafe_base64(36))
     owner.save!
   end
   host = LightekSettings::SiteDomain.public_hostname!(c.fetch("domain"))

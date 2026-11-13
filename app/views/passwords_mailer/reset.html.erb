@@ -1,4 +1,4 @@
-<p>
-  You can reset your password within the next 15 minutes on
-  <%= link_to "this password reset page", edit_password_url(@user.password_reset_token) %>.
-</p>
+<p><%= @first_use ? 'Welcome to Lightek. Choose your first password to get started.' : 'Choose a new password for your Lightek account.' %></p>
+<p><%= link_to(@first_use ? 'Set up my account' : 'Choose a new password', @password_url) %></p>
+<p>This private link expires after 20 minutes and stops working after your password is saved. No previous or temporary password is needed for setup.</p>
+<p>Sign in with your saved password, then set up an authenticator if your account requires it. If this link expires, use Forgot password on the same website to request a new link.</p>

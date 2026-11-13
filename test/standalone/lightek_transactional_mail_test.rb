@@ -20,7 +20,7 @@ ActionMailer::Base.delivery_method = :lightek_smtp
 ActionMailer::Base.perform_deliveries = true
 ActionMailer::Base.raise_delivery_errors = true
 ActionMailer::Base.view_paths = [ROOT+'/app/views']
-PasswordsMailer.helper do
+PasswordsMailer.class_eval do
   def edit_password_url(token) = "https://example.test/passwords/#{token}/edit"
 end
 module Rails

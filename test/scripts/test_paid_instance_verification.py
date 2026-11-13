@@ -27,8 +27,8 @@ class Response:
     def geturl(self):
         return self.url
 
-    def read(self):
-        return self.body.encode()
+    def read(self, size=-1):
+        return self.body.encode() if size < 0 else self.body.encode()[:size]
 
 
 class VerificationTest(unittest.TestCase):
@@ -88,6 +88,47 @@ class VerificationTest(unittest.TestCase):
         with self.assertRaises(verifier.PublicVerificationError):
             self.verify()
         self.assertNotIn("/session", [path for path, _ in self.calls])
+
+    def gate(self, **overrides):
+        for path in ('/dashboard/pages', '/dashboard/business', '/dashboard/settings', '/dashboard/commerce/orders'):
+            self.overrides[path] = Response('https://client-1.example.test/identity/security', 'MFA enrollment')
+        proof = dict(version=1, domain=self.config['domain'], release=self.config['release'], site_id=1,
+                     owner_email=self.config['owner_email'], password_authenticated=True, mfa_required=True,
+                     mfa_enabled=False, mfa_verified=False, session_scope='mfa_enrollment_only')
+        proof.update(overrides)
+        self.overrides['/identity/onboarding-status'] = Response('https://client-1.example.test/identity/onboarding-status', json.dumps(proof))
+
+    def test_new_owner_pending_mfa_is_installation_evidence_not_full_access(self):
+        self.gate()
+        result = self.verify()
+        self.assertTrue(result['owner_authentication_verified'])
+        self.assertTrue(result['owner_onboarding_required'])
+        self.assertFalse(result['full_application_dashboard_verified'])
+        self.assertEqual('enrollment_required', result['owner_mfa_state'])
+        self.assertEqual(4, len(result['verified_dashboard_paths']))
+
+    def test_fake_enrollment_redirect_without_owner_proof_fails(self):
+        self.gate(owner_email='other@example.test')
+        with self.assertRaises(verifier.PublicVerificationError): self.verify()
+
+    def test_wrong_release_site_or_session_scope_fails(self):
+        for changes in [dict(release='stale'), dict(site_id=8), dict(domain='other.test'),
+                        dict(password_authenticated=False), dict(mfa_required=False), dict(mfa_enabled=True),
+                        dict(mfa_verified=True), dict(session_scope='full')]:
+            with self.subTest(changes=changes):
+                self.gate(**changes)
+                with self.assertRaises(verifier.PublicVerificationError): self.verify()
+
+    def test_partially_unprotected_dashboard_fails(self):
+        self.gate()
+        self.overrides['/dashboard/settings'] = Response('https://client-1.example.test/dashboard/settings', 'Settings')
+        with self.assertRaises(verifier.PublicVerificationError): self.verify()
+
+    def test_same_origin_redirect_guard_rejects_other_hosts(self):
+        guard = verifier.SameOriginRedirect(self.config['domain'])
+        for url in ['https://other.test/path', 'http://client-1.example.test/path']:
+            with self.assertRaises(verifier.PublicVerificationError):
+                guard.redirect_request(None, None, 302, '', {}, url)
 
     def test_tls_failure_is_not_accepted(self):
         with patch.object(verifier.urllib.request, "build_opener") as build:

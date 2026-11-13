@@ -93,6 +93,9 @@ python3 "${APP_ROOT}/lib/scripts/deployment_storage.py" --app-root "$APP_ROOT"
 
 echo "[3/8] Migrate"
 run_rails "bundle exec rails db:migrate"
+if [[ -f "$APP_ROOT/lib/scripts/refresh_lightek_mail_helpers.sh" ]]; then
+  bash "$APP_ROOT/lib/scripts/refresh_lightek_mail_helpers.sh"
+fi
 run_rails "bundle exec rails lightek_vault:bootstrap"
 
 echo "[nav] Register dashboard control-plane navigation"

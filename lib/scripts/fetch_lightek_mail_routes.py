@@ -29,11 +29,12 @@ def fetch(config):
         raw = response.read(4 * 1024 * 1024 + 1)
     if len(raw) > 4 * 1024 * 1024:
         raise ValueError('Recipient export too large')
-    recipients = json.loads(raw)['recipients']
+    payload = json.loads(raw)
+    recipients = payload['recipients']
     if not isinstance(recipients, list) or not all(isinstance(item, str) and not any(char.isspace() for char in item) for item in recipients):
         raise ValueError('Invalid recipient export')
     # Validate the complete export before printing any records or changing maps.
-    build('\n'.join(f'{address} lightek' for address in recipients), '')
+    build('\n'.join(f'{address} lightek' for address in recipients), '', allow_empty=(payload.get('version') == 2 and payload.get('authoritative') is True))
     return sorted(set(recipients))
 
 
@@ -43,6 +44,7 @@ def main():
     args = parser.parse_args()
     for address in fetch(json.loads(args.config.read_text())):
         print('LIGHTEK_RECIPIENT ' + address)
+    print('LIGHTEK_RECIPIENT_EXPORT_COMPLETE')
 
 
 if __name__ == '__main__':

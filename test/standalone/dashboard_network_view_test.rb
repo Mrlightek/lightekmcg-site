@@ -48,6 +48,8 @@ class DashboardNetworkViewTest < Minitest::Test
   def test_dns_edit_keeps_zone_record_identity_and_extended_mx_attributes
     form = form_for('dashboard_network_dns','put')
     refute_nil form
+    assert_equal '5', form.ancestors('td').first['colspan']
+    assert form.ancestors('details').first['class'].include?('net-dns-editor')
     %w[zone record_id dns_record[type] dns_record[name] dns_record[data] dns_record[ttl] dns_record[priority]].each { |name| assert form.css('[name]').any? { |field| field['name'] == name }, name }
     assert_equal '10', form.css('input').find { |field| field['name'] == 'dns_record[priority]' }['value']
     assert form_for('dashboard_network_dns','post')

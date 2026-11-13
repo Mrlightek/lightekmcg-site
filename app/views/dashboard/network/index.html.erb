@@ -38,8 +38,16 @@
             <td><%= record["ttl"] %></td>
             <td>
               <% if record["recordId"].present? %>
-                <details>
-                  <summary style="cursor:pointer">Edit</summary>
+                <a href="#dns-editor-<%= record["recordId"] %>" data-dns-edit="dns-editor-<%= record["recordId"] %>" class="dd-button" aria-expanded="false" aria-controls="dns-editor-<%= record["recordId"] %>">Edit</a>
+                <%= button_to "Delete", dashboard_network_dns_path, method: :delete,
+                      params:{zone:@zone,record_id:record["recordId"]}, class: "dd-button dd-button-danger",
+                      data:{turbo_confirm:"Delete this DNS record?"} %>
+              <% end %>
+            </td>
+          </tr>
+          <% if record["recordId"].present? %><tr class="net-dns-editor-row"><td colspan="5">
+                <details id="dns-editor-<%= record["recordId"] %>" class="net-dns-editor">
+                  <summary>Edit <%= record["type"] %> record · <%= record["name"] %></summary>
                   <%= form_with url: dashboard_network_dns_path, method: :put, class: "dd-form-grid net-form" do %>
                     <%= hidden_field_tag :zone, @zone, id: nil %>
                     <%= hidden_field_tag :record_id, record["recordId"], id: nil %>
@@ -53,12 +61,7 @@
                     <%= submit_tag "Update", class: "dd-button dd-btn-primary" %>
                   <% end %>
                 </details>
-                <%= button_to "Delete", dashboard_network_dns_path, method: :delete,
-                      params:{zone:@zone,record_id:record["recordId"]}, class: "dd-button dd-button-danger",
-                      data:{turbo_confirm:"Delete this DNS record?"} %>
-              <% end %>
-            </td>
-          </tr>
+          </td></tr><% end %>
         <% end %>
       <% if Array(@records).none? { |record| record.is_a?(Hash) } %><tr><td colspan="5" class="dd-empty">No records in this zone.</td></tr><% end %>
     </tbody>

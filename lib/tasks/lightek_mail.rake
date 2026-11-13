@@ -32,7 +32,7 @@ namespace :lightek_mail do
   end
   desc "Export verified enabled recipient routes for the SMTP administrator"
   task routes: :environment do
-    addresses = LightekMail::Account.joins(:domain).where(enabled: true).where.not(lightek_mail_domains: {verified_at: nil}).order(:address).pluck(:address)
+    addresses = LightekMail::RecipientDirectory.addresses
     puts "LIGHTEK_MAIL_ROUTES=#{JSON.generate(addresses)}"
   end
   desc "Check mail application and local SMTP availability; does not send a message"

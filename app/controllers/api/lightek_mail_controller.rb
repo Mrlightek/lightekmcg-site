@@ -41,9 +41,7 @@ class Api::LightekMailController < ActionController::API
   end
   def routes
     return unless ingress_authenticated?
-    addresses = LightekMail::Account.joins(:domain).where(enabled: true)
-      .where.not(lightek_mail_domains: {verified_at: nil}).order(:address).pluck(:address)
-    render json: {recipients: addresses}
+    render json: {version: 2, authoritative: true, recipients: LightekMail::RecipientDirectory.addresses}
   end
   def feedback
     secret = ENV["LIGHTEK_MAIL_FEEDBACK_TOKEN"].to_s

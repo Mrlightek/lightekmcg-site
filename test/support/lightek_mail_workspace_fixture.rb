@@ -18,6 +18,7 @@ class FixtureSessionsController < ActionController::Base
 end
 routes = File.read("#{source}/config/routes.rb").split('scope "/dashboard/mail", controller: "dashboard/mail_studio" do', 2).last.split('get "/dashboard/live"', 2).first
 Rails.application.routes.draw do
+  get '/dashboard/mail-transport', to: 'dashboard/mail_transport#show', as: :dashboard_mail_transport
   post '/session', to: 'fixture_sessions#create'
   instance_eval('scope "/dashboard/mail", controller: "dashboard/mail_studio" do' + routes)
 end
@@ -26,3 +27,5 @@ require "#{source}/test/integration/lightek_mail_test"
 require "#{source}/test/integration/lightek_mail_conversations_test"
 
 require "#{source}/test/integration/lightek_mail_desk_test"
+
+require "#{source}/test/integration/lightek_mail_management_test"

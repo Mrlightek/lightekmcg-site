@@ -1,4 +1,5 @@
 (() => {
+  document.documentElement.classList.add("dd-enhanced");
   function setupDashboardNavigation() {
     const button = document.querySelector('[data-dashboard-menu]');
     const sidebar = document.getElementById('dd-primary-navigation');
@@ -42,6 +43,22 @@
     }, {once: true});
     setOpen(false);
   }
+  document.addEventListener('click', event => {
+    const link = event.target.closest('[data-dns-edit]');
+    if (!link) return;
+    const editor = document.getElementById(link.dataset.dnsEdit);
+    if (!editor) return;
+    event.preventDefault();
+    editor.open = !editor.open;
+    link.setAttribute('aria-expanded', String(editor.open));
+    if (editor.open) editor.querySelector('input:not([type=hidden])')?.focus();
+  });
+  document.addEventListener('toggle', event => {
+    if (!event.target.matches('.net-dns-editor')) return;
+    for (const link of document.querySelectorAll('[data-dns-edit]')) {
+      if (link.dataset.dnsEdit === event.target.id) link.setAttribute('aria-expanded', String(event.target.open));
+    }
+  }, true);
   document.addEventListener('input', event => {
     if (!event.target.matches('.dd-color-field input[type=color]')) return;
     const label = event.target.parentElement.querySelector('[data-color-value]');

@@ -159,3 +159,28 @@ body.dd-dashboard {
 .dd-dashboard .infra .infra-warning { color: var(--dd-accent); background: color-mix(in srgb,var(--dd-accent) 10%,transparent); }
 .dd-dashboard .infra .infra-note { background: color-mix(in srgb,var(--dd-accent) 7%,transparent); border-color: color-mix(in srgb,var(--dd-accent) 20%,transparent); }
 .dd-dashboard .dd-nav-item:hover, .dd-dashboard .dd-btn-ghost:hover { background: color-mix(in srgb,var(--dd-text-primary) 5%,transparent); }
+
+/* Network operations: useful overview first, then clearly separated controls. */
+.dd-network .net-navigation { display:flex; flex-wrap:wrap; gap:6px; padding-bottom:16px; border-bottom:1px solid var(--dd-border); }
+.dd-network .net-navigation a { padding:7px 11px; border-radius:6px; font-size:12px; text-decoration:none; color:var(--dd-text-secondary); background:var(--dd-sidebar-bg); border:1px solid var(--dd-border); }
+.dd-network .net-navigation a:hover { color:var(--dd-accent); border-color:var(--dd-accent); }
+.net-overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.net-overview > div { padding:16px 18px; background:var(--dd-sidebar-bg); border:1px solid var(--dd-border); border-radius:10px; min-width:0; }
+.net-overview span { display:block; color:var(--dd-text-secondary); font-size:11px; margin-bottom:6px; }
+.net-overview strong { font-size:20px; font-weight:600; letter-spacing:-.025em; overflow-wrap:anywhere; }
+.dd-network .net-panel { scroll-margin-top:80px; }
+.dd-network .net-title { margin-bottom:6px; }
+.dd-network .net-panel > p, .dd-network .net-description { font-size:12px; color:var(--dd-text-secondary); line-height:1.7; margin-bottom:18px; }
+.dd-network .net-field { display:grid; gap:6px; font-size:12px; font-weight:500; min-width:0; }
+.dd-network .net-form { margin:18px 0; align-items:end; }
+.dd-network .net-form input[type=submit] { grid-column:1/-1; }
+.dd-network .net-zone-form { max-width:320px; margin:18px 0; }
+.dd-network .dd-table td:last-child > form { margin:4px 4px 4px 0; }
+.dd-network .net-row-editor { min-width:130px; margin:8px 0; }
+.dd-network summary { font-size:12px; cursor:pointer; color:var(--dd-text-secondary); }
+.dd-network .net-row-editor[open] { min-width:280px; }
+.dd-network .net-row-editor form { display:grid; gap:12px; margin:12px 0; }
+.dd-network .net-code { white-space:pre-wrap; overflow-wrap:anywhere; max-height:240px; overflow:auto; font:12px/1.7 monospace; padding:14px; background:var(--dd-card-bg); border:1px solid var(--dd-border); border-radius:7px; margin-bottom:18px; }
+.dd-network .dd-table th[align] { text-align:left; }
+.dd-network ul { padding-left:18px; font-size:12px; line-height:1.8; }
+@media(max-width:768px) { .net-overview { grid-template-columns:repeat(2,minmax(0,1fr)); } .net-overview strong {font-size:17px;} }

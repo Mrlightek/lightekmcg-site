@@ -214,8 +214,10 @@
       <%= link_to dymond_dash.settings_path, class: "dd-notif-item" do %>
         <i class="ti ti-settings"></i> Settings
       <% end %>
-      <%= link_to dymond_dash.appearance_path, class: "dd-notif-item" do %>
+      <% if current_user.role == "super_admin" %>
+      <%= link_to main_app.dashboard_appearance_colors_path, class: "dd-notif-item" do %>
         <i class="ti ti-palette"></i> Appearance
+      <% end %>
       <% end %>
 
       <%= button_to main_app.sign_out_path,
@@ -245,7 +247,6 @@
 
     <%# Page content %>
     <div class="dd-content">
-      <%= render "shared/lightek_marketplace_dashboard_link" %>
 <%= yield %>
     </div>
 

@@ -9,6 +9,7 @@ on:
       - 'public/lightek/dashboard.*'
       - 'public/lightek/business-workspace.css'
       - 'test/standalone/dashboard_appearance_test.rb'
+      - 'test/standalone/dashboard_network_view_test.rb'
       - '.github/workflows/dashboard-appearance.yml'
   workflow_dispatch:
 permissions:
@@ -27,6 +28,8 @@ jobs:
           gem install --no-document activerecord:8.0.5.1 actionpack:8.0.5.1 sqlite3:2.7.4 minitest:5.25.4
       - name: Verify theme persistence and operator permissions
         run: ruby test/standalone/dashboard_appearance_test.rb
+      - name: Verify Network form actions and DNS fields
+        run: ruby test/standalone/dashboard_network_view_test.rb
       - name: Verify shared navigation
         run: ruby test/standalone/dashboard_breadcrumbs_test.rb
       - name: Check navigation script

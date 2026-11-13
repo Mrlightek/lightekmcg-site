@@ -76,6 +76,7 @@ EnterpriseHarness.routes.draw do
   eval(ROOT.join('config/routes/enterprise_identity.rb').read,binding)
   eval(ROOT.join('config/routes/accounting.rb').read,binding)
   get '/after-login',to: 'identity_protected#index'
+  get '/dashboard',to: 'identity_protected#index'
   get '/after-login/servers',to: 'identity_protected#index',as: :dashboard_servers
   get '/after-login/employee',to: 'identity_protected#index',as: :dashboard_nevaeh_os
   eval(ROOT.join('config/routes/people.rb').read,binding)

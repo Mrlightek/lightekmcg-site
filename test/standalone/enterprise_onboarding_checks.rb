@@ -302,7 +302,7 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
     capture_page('client-home.html')
     get dashboard_settings_home_path
     assert_response :success
-    assert_select 'a[href="/identity/security"]', text: 'Sign-in security'
+    assert_select 'a[href="/identity/security"] strong', text: 'Sign-in security'
     refute_includes response.body, 'Compute providers'
     refute_includes response.body, 'Credential vault'
     assert_equal 'no-store, private', response.headers['Cache-Control']
@@ -380,6 +380,19 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
     assert_redirected_to new_session_path
     post session_path, params: {email_address: @other.email_address, password: 'fixture-password'}
     assert_redirected_to 'https://example.test/after-login/servers'
+  end
+
+  def test_onboarding_generic_dashboard_request_returns_clients_to_their_home
+    get '/dashboard'
+    assert_redirected_to new_session_path
+    post session_path, params: {email_address: @other.email_address, password: 'fixture-password'}
+    assert_redirected_to dashboard_client_home_url
+  end
+
+  def test_onboarding_installed_owner_admin_keeps_the_admin_dashboard_landing
+    @employer.update!(role: 'admin')
+    login(@employer)
+    assert_redirected_to dashboard_nevaeh_os_url
   end
 
 end

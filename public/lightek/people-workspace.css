@@ -3,3 +3,4 @@
 .lp-quote{display:grid;gap:8px;max-width:360px;margin:10px 0}.lp-quote-amount{display:flex;gap:14px;justify-content:space-between;align-items:baseline;font-size:12px}.lp-quote-amount span{color:var(--dd-text-secondary)}
 
 [data-mfa-recovery-download][hidden]{display:none}
+[data-client-home] h3,[data-client-home] .lp-eyebrow{overflow-wrap:anywhere}

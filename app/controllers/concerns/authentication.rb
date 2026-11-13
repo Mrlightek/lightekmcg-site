@@ -69,7 +69,13 @@ module Authentication
 end
 
     def after_authentication_url
-  session.delete(:return_to_after_authenticating) || case Current.session&.user&.role
+  destination = session.delete(:return_to_after_authenticating)
+  # A request for the generic Dashboard means this account's own home. Keep
+  # explicit workspace links (including server management) as return targets.
+  if Current.session&.user&.role == "client" && destination.to_s.match?(%r{\A(?:https?://[^/]+)?/dashboard/?(?:\?[^#]*)?\z})
+    destination = nil
+  end
+  destination || case Current.session&.user&.role
   when "white_label" then main_app.dashboard_agencies_url
   when "client" then main_app.dashboard_client_home_url
   else main_app.dashboard_nevaeh_os_url

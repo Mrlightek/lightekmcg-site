@@ -42,7 +42,7 @@ const server = http.createServer((req, res) => {
           assert.equal(await page.getByRole('heading', {name: 'Your workspace', exact: true}).count(), 1);
           assert.equal(await page.getByRole('link', {name: 'All my applications'}).count(), 1);
           await page.goto(`${origin}/client-settings.html`);
-          assert.equal(await page.getByRole('link', {name: 'Sign-in security', exact: true}).getAttribute('href'), '/identity/security');
+          assert.equal(await page.getByRole('link', {name: /^Sign-in security/}).getAttribute('href'), '/identity/security');
           assert.equal(await page.getByText('Compute providers', {exact: true}).count(), 0);
           assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
           await page.goto(`${origin}/password-setup.html`);

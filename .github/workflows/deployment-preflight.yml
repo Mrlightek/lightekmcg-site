@@ -1,0 +1,20 @@
+name: Deployment preflight
+on:
+  pull_request:
+    paths:
+      - 'lib/scripts/**'
+      - 'test/operations/**'
+      - '.github/workflows/deploy-production.yml'
+      - '.github/workflows/deployment-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-operations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify deployment operation regressions before merge
+        run: |
+          python3 -m unittest test.operations.deploy_checkout_test test.operations.deployment_storage_test test.operations.session_media_access_test test.operations.deploy_release_bootstrap_test test.operations.studio_docker_access_test test.operations.studio_worker_limits_test test.operations.studio_media_setup_test test.operations.studio_workstation_units_test test.operations.studio_spatial_setup_test test.operations.studio_spatial_packages_test

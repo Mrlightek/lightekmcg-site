@@ -1,111 +1,45 @@
-<% content_for :page_title, "Lightek Vault" %>
-<div style="margin-bottom:20px">
-  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Gatekeeper · Secure Control Plane</div>
-  <h2 style="font-size:22px;margin:6px 0 0">Lightek Vault</h2>
-  <p style="color:var(--dd-text-secondary);font-size:13px">Encrypted credentials, keys, certificates and service secrets. Secret values are never redisplayed.</p>
-</div>
-
-<section class="dd-card" style="padding:20px;margin-bottom:18px">
-  <h3>Vault access</h3><p role="status"><%= @vault_readiness[:message] %></p>
-  <% unless @vault_readiness[:ready] %>
-    <p>Saved credentials remain encrypted. Check existing key sources automatically, or restore the original master key if this environment does not have it. A new key cannot unlock existing credentials.</p>
-    <%= form_with url: repair_access_dashboard_vault_path, method: :post do %>
-      <%= password_field_tag :master_key, nil, placeholder: "Original Vault master key (only if restoring it)", autocomplete: "off" %>
-      <%= submit_tag "Repair & verify Vault access" %>
+<% content_for :page_title, "Vault" %>
+<main class="dd-workspace">
+  <header class="dd-page-header"><div><span class="dd-eyebrow">Gatekeeper / Secure control plane</span><h1>Vault</h1><p>Credentials, keys, and certificates. Encrypted at rest, with audited access and explicit service permissions.</p></div><span class="dd-status"><%= @active_count %> active secrets</span></header>
+  <section class="dd-panel">
+    <header class="dd-panel-header"><div><h2>Vault access</h2><p role="status"><%= @vault_readiness[:message] %></p></div></header>
+    <% unless @vault_readiness[:ready] %>
+      <p class="dd-note">Saved credentials remain encrypted. Restore the original master key if this environment does not have it; a new key cannot unlock existing credentials.</p>
+      <%= form_with url: repair_access_dashboard_vault_path, method: :post do |form| %><div class="dd-form-actions"><div class="dd-field"><%= label_tag :master_key, "Original master key (only if restoring)" %><%= password_field_tag :master_key, nil, autocomplete: "new-password" %></div><%= form.submit "Repair & verify access" %></div><% end %>
     <% end %>
-  <% end %>
-</section>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px">
-  <% [["Active secrets", @active_count], ["Expiring ≤30d", @expiring_count], ["Audit events", LightekVault::AuditEvent.count], ["Key version", ENV.fetch("LIGHTEK_VAULT_KEY_VERSION", "1")]].each do |label, value| %>
-    <div class="dd-card" style="padding:18px"><div style="font-size:28px;font-weight:700"><%= value %></div><div style="color:var(--dd-text-secondary);font-size:12px"><%= label %></div></div>
-  <% end %>
-</div>
-
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
-  <div class="dd-card" style="padding:20px">
-    <h3>Store Secret</h3>
-
-    <details style="margin:10px 0 14px;font-size:12px;color:var(--dd-text-secondary)">
-      <summary style="cursor:pointer;color:var(--dd-accent)">How do I store a credential?</summary>
-      <p style="margin-top:8px">The <strong>slug</strong> is the lookup name used by the service. A <strong>single secret value</strong> is stored with the field name <code>value</code>. For services that require named fields, use <strong>Structured fields</strong>: the left box is the key (such as <code>token</code>), and the right box is the private value.</p>
-      <p style="margin-top:6px"><strong>Allowed consumers</strong> are service class names permitted to read the secret. <strong>Allowed purposes</strong> are the uses they can request. Reusing a slug replaces and reactivates the existing secret when the form is submitted.</p>
-    </details>
-    <label for="vault-template" style="display:block;font-size:12px;margin-bottom:6px">Credential template (optional)</label>
-    <select id="vault-template" style="width:100%;margin-bottom:8px">
-      <option value="">Custom credential</option>
-      <option value="godaddy">GoDaddy DNS — Personal Access Token</option>
-      <option value="github">GitHub — repository access token</option>
-      <option value="github_app">GitHub App — existing app credentials</option>
-    </select>
-    <p id="vault-template-note" role="status" style="font-size:11px;color:var(--dd-text-secondary);margin-bottom:12px">Select a template to fill suggested field names and access policies. It will never fill, reveal, or save a secret value automatically.</p>
-    <%= form_with url: dashboard_vault_path, method: :post do %>
-      <div style="display:grid;gap:10px">
-        <%= text_field_tag "vault_secret[name]", nil, placeholder:"Display name", required:true %>
-        <%= text_field_tag "vault_secret[slug]", nil, placeholder:"slug, e.g. ovh-production", required:true %>
-        <%= select_tag "vault_secret[secret_type]", options_for_select(LightekVault::Secret::TYPES.map { |x| [x.humanize, x] }) %>
-        <%= text_field_tag "vault_secret[provider]", nil, placeholder:"Provider, e.g. ovh" %>
-        <%= text_field_tag "vault_secret[purpose]", nil, placeholder:"Purpose, e.g. compute_management" %>
-        <%= select_tag "vault_secret[environment]", options_for_select([["Production","production"],["Development","development"],["Test","test"]], "production") %>
-        <div style="padding:12px;border:1px solid var(--dd-border-color);border-radius:8px">
-          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
-            Secret payload
-          </div>
-
-          <p style="font-size:11px;color:var(--dd-text-secondary);margin-top:0">
-            Use the single value field for simple secrets, or define structured
-            credential fields below. Secret values are encrypted and are never
-            redisplayed.
-          </p>
-
-          <%= password_field_tag "vault_secret[payload]",
-                nil,
-                placeholder:"Single secret value (optional when using structured fields)",
-                autocomplete:"new-password",
-                style:"width:100%;margin-bottom:12px" %>
-
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dd-text-muted);margin-bottom:8px">
-            Structured fields
-          </div>
-
-          <p style="font-size:11px;color:var(--dd-text-secondary);margin:0 0 8px">Example: for GoDaddy, type <code>token</code> in the left field and paste the new PAT into the right field. Leave the single secret value field empty.</p>
-          <% 6.times do |index| %>
-            <div style="display:grid;grid-template-columns:minmax(120px,.8fr) minmax(180px,1.2fr);gap:8px;margin-bottom:8px">
-              <%= text_field_tag "vault_secret[payload_keys][]",
-                    nil,
-                    placeholder:"Field name",
-                    autocomplete:"off" %>
-
-              <%= password_field_tag "vault_secret[payload_values][]",
-                    nil,
-                    placeholder:"Secret value",
-                    autocomplete:"new-password" %>
-            </div>
-          <% end %>
+  </section>
+  <div class="dd-workspace-grid">
+    <section class="dd-panel">
+      <header class="dd-panel-header"><div><h2>Store a credential</h2><p>Use a template or configure a service credential. Secret values are never redisplayed.</p></div></header>
+      <div class="dd-field"><label for="vault-template">Credential template</label><select id="vault-template"><option value="">Custom credential</option><option value="godaddy">GoDaddy DNS · Personal Access Token</option><option value="github">GitHub · Repository access token</option><option value="github_app">GitHub App · App credentials</option></select><small id="vault-template-note" role="status">A template suggests field names and access policies. Review everything before saving.</small></div>
+      <%= form_with url: dashboard_vault_path, method: :post do |form| %>
+        <div class="dd-form-grid" style="margin-top:18px">
+          <div class="dd-field"><%= label_tag "vault_secret_name", "Display name" %><%= text_field_tag "vault_secret[name]", nil, placeholder: "Production mail", required: true %></div>
+          <div class="dd-field"><%= label_tag "vault_secret_slug", "Lookup slug" %><%= text_field_tag "vault_secret[slug]", nil, placeholder: "production-mail", required: true %></div>
+          <div class="dd-field"><%= label_tag "vault_secret_secret_type", "Secret type" %><%= select_tag "vault_secret[secret_type]", options_for_select(LightekVault::Secret::TYPES.map { |type| [type.humanize, type] }) %></div>
+          <div class="dd-field"><%= label_tag "vault_secret_provider", "Provider" %><%= text_field_tag "vault_secret[provider]", nil, placeholder: "e.g. GoDaddy" %></div>
+          <div class="dd-field"><%= label_tag "vault_secret_environment", "Environment" %><%= select_tag "vault_secret[environment]", options_for_select([["Production", "production"], ["Development", "development"], ["Test", "test"]], "production") %></div>
+          <div class="dd-field"><%= label_tag "vault_secret_purpose", "Purpose" %><%= text_field_tag "vault_secret[purpose]", nil, placeholder: "e.g. dns_management" %></div>
+          <div class="dd-field dd-field-wide"><%= label_tag "vault_secret_payload", "Single secret value" %><%= password_field_tag "vault_secret[payload]", nil, autocomplete: "new-password" %><small>Stored as the field <code>value</code>. For named credentials, leave this empty and use structured fields below.</small></div>
         </div>
-
-        <%= text_field_tag "vault_secret[allowed_consumers]", nil, placeholder:"Allowed consumers, comma-separated" %>
-        <%= text_field_tag "vault_secret[allowed_purposes]", nil, placeholder:"Allowed purposes, comma-separated" %>
-        <%= submit_tag "Store encrypted secret", class:"dd-topbar-btn dd-btn-primary" %>
-      </div>
-    <% end %>
+        <details class="dd-detail"><summary>Structured fields</summary><p style="font-size:12px;color:var(--dd-text-secondary);margin-bottom:12px">For credentials such as <code>token</code>, or <code>app_id</code> and <code>private_key</code>.</p>
+          <% 6.times do |index| %><div class="dd-form-grid" style="margin-bottom:10px"><div class="dd-field"><%= label_tag "vault_key_#{index}", "Field #{index + 1} name" %><%= text_field_tag "vault_secret[payload_keys][]", nil, id: "vault_key_#{index}", placeholder: "Field name", autocomplete: "off" %></div><div class="dd-field"><%= label_tag "vault_value_#{index}", "Field #{index + 1} value" %><%= password_field_tag "vault_secret[payload_values][]", nil, id: "vault_value_#{index}", placeholder: "Secret value", autocomplete: "new-password" %></div></div><% end %>
+        </details>
+        <details class="dd-detail" open><summary>Access policy</summary><div class="dd-form-stack"><div class="dd-field"><%= label_tag "vault_secret_allowed_consumers", "Allowed consumers" %><%= text_field_tag "vault_secret[allowed_consumers]", nil, placeholder: "Service class names, comma-separated" %></div><div class="dd-field"><%= label_tag "vault_secret_allowed_purposes", "Allowed purposes" %><%= text_field_tag "vault_secret[allowed_purposes]", nil, placeholder: "Purposes, comma-separated" %></div></div></details>
+        <div class="dd-form-actions"><%= form.submit "Store encrypted secret" %></div>
+      <% end %>
+    </section>
+    <section class="dd-panel">
+      <header class="dd-panel-header"><div><h2>Stored secrets</h2><p>Manage credential availability without exposing secret values.</p></div><span class="dd-status"><%= @expiring_count %> expiring soon</span></header>
+      <% if @secrets.empty? %><p class="dd-empty">No credentials stored yet.</p><% else %><div class="dd-table-scroll"><table class="dd-table"><thead><tr><th>Credential</th><th>Status</th><th>Access</th></tr></thead><tbody>
+        <% @secrets.each do |secret| %><tr><td><strong><%= secret.name %></strong><small><%= secret.display_provider %> · <%= secret.environment %></small><small><code><%= secret.slug %></code></small><% if secret.last_used_at %><small>Used <%= time_ago_in_words(secret.last_used_at) %> ago</small><% end %></td><td><span class="dd-status" data-tone="<%= secret.status == 'active' ? 'success' : 'neutral' %>"><%= secret.status.humanize %></span></td><td><%= button_to "Disable", dashboard_vault_disable_path, method: :post, params: {slug: secret.slug}, class: "dd-button dd-button-danger", data: {turbo_confirm: "Disable this secret?"} if secret.status == "active" %></td></tr><% end %>
+      </tbody></table></div><% end %>
+    </section>
   </div>
-
-  <div class="dd-card" style="padding:20px">
-    <h3>Secrets</h3>
-    <% @secrets.each do |secret| %>
-      <div style="padding:12px 0;border-bottom:1px solid var(--dd-border-color)">
-        <strong><%= secret.name %></strong>
-        <div style="font-size:12px;color:var(--dd-text-secondary)"><%= secret.secret_type.humanize %> · <%= secret.display_provider %> · <%= secret.environment %> · <%= secret.status %></div>
-        <div style="font-size:11px;color:var(--dd-text-muted)"><%= secret.slug %><% if secret.last_used_at %> · last used <%= time_ago_in_words(secret.last_used_at) %> ago<% end %></div>
-        <% if secret.status == "active" %>
-          <%= button_to "Disable", dashboard_vault_disable_path, method: :post, params:{slug:secret.slug}, class:"dd-topbar-btn", data:{turbo_confirm:"Disable this secret?"} %>
-        <% end %>
-      </div>
-    <% end %>
-  </div>
-</div>
-
-
+  <section class="dd-panel"><header class="dd-panel-header"><div><h2>Recent access</h2><p>Service credential activity and policy decisions.</p></div></header>
+    <% if @audit_events.empty? %><p class="dd-empty">No access events recorded yet.</p><% else %><div class="dd-table-scroll"><table class="dd-table"><thead><tr><th>Action</th><th>Credential</th><th>Consumer / purpose</th><th>Decision</th></tr></thead><tbody><% @audit_events.each do |event| %><tr><td><%= event.action.humanize %></td><td><%= event.secret.name %></td><td><%= event.consumer.presence || "—" %><small><%= event.purpose.presence || "—" %></small></td><td><span class="dd-status" data-tone="<%= event.allowed? ? 'success' : 'warning' %>"><%= event.allowed? ? "Allowed" : "Denied" %></span></td></tr><% end %></tbody></table></div><% end %>
+  </section>
+</main>
 <script>
 (function() {
   function setupVaultHelp() {
@@ -130,6 +64,8 @@
         const input = form.elements["vault_secret[" + entry[0] + "]"];
         if (input && !input.value.trim()) input.value = entry[1];
       });
+      const structured = document.getElementById("vault_key_0")?.closest("details");
+      if (structured) structured.open = true;
       const keys = form.querySelectorAll('input[name="vault_secret[payload_keys][]"]');
       const fields = selector.value === "github_app" ? ["app_id", "private_key"] : ["token"];
       fields.forEach(function(field, index) { if (keys[index] && !keys[index].value.trim()) keys[index].value = field; });
@@ -142,14 +78,3 @@
   setupVaultHelp();
 })();
 </script>
-
-<div class="dd-card" style="padding:20px;margin-top:16px">
-  <h3>Recent Access Audit</h3>
-  <% @audit_events.each do |event| %>
-    <div style="padding:10px 0;border-bottom:1px solid var(--dd-border-color);font-size:12px">
-      <strong><%= event.action.humanize %></strong> · <%= event.secret.name %> · <%= event.allowed? ? "allowed" : "denied" %>
-      <% if event.consumer.present? %> · <%= event.consumer %><% end %>
-      <% if event.purpose.present? %> · <%= event.purpose %><% end %>
-    </div>
-  <% end %>
-</div>

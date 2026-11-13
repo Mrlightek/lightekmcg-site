@@ -20,8 +20,8 @@
       /* Fallback values — overridden by theme CSS variables above */
       --dd-sidebar-bg:     #111318;
       --dd-topbar-bg:      #111318;
-      --dd-accent:         #C4952A;
-      --dd-accent-hover:   #E8B84B;
+      --dd-accent:         #2563eb;
+      --dd-accent-hover:   #1d4ed8;
       --dd-text-primary:   #F0EEE8;
       --dd-text-secondary: #9A9890;
       --dd-text-muted:     #4E4E5A;
@@ -35,7 +35,7 @@
     }
 
     body {
-      background: var(--dd-card-bg);
+      background: var(--dd-page-bg, var(--dd-card-bg));
       color: var(--dd-text-primary);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
       font-size: 14px;
@@ -51,7 +51,7 @@
                      height: 100vh; overflow-y: auto; z-index: 100; }
     .dd-body       { flex: 1; margin-left: var(--dd-sidebar-w);
                      display: flex; flex-direction: column; min-width: 0; }
-    .dd-topbar     { min-height: var(--dd-topbar-h); height: auto; flex: 0 0 auto; gap: 12px; flex-wrap: wrap; background: var(--dd-sidebar-bg);
+    .dd-topbar     { min-height: var(--dd-topbar-h); height: auto; flex: 0 0 auto; gap: 12px; flex-wrap: wrap; background: var(--dd-topbar-bg);
                      border-bottom: 1px solid var(--dd-border);
                      display: flex; align-items: center; justify-content: space-between;
                      padding: 12px 20px; position: sticky; top: 0; z-index: 90; }
@@ -68,15 +68,15 @@
     .dd-user       { padding: 12px 14px; border-bottom: 1px solid var(--dd-border);
                      display: flex; align-items: center; gap: 9px; }
     .dd-avatar     { width: 30px; height: 30px; border-radius: 7px;
-                     background: linear-gradient(135deg, var(--dd-accent), #5a3c10);
+                     background: var(--dd-accent);
                      display: flex; align-items: center; justify-content: center;
                      font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
     .dd-user-name  { font-size: 12px; font-weight: 500; color: var(--dd-text-primary);
                      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dd-plan-badge { font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
                      text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
-                     background: rgba(196,149,42,0.13); color: var(--dd-accent);
-                     border: 1px solid rgba(196,149,42,0.25); display: inline-block;
+                     background: color-mix(in srgb, var(--dd-accent) 12%, transparent); color: var(--dd-accent);
+                     border: 1px solid color-mix(in srgb, var(--dd-accent) 25%, transparent); display: inline-block;
                      margin-top: 2px; }
 
     /* ── Nav ─────────────────────────────────────────────────────────── */
@@ -96,7 +96,7 @@
                      text-decoration: none; transition: all 0.12s; font-size: 12px;
                      cursor: pointer; }
     .dd-nav-item:hover  { background: rgba(255,255,255,0.05); color: var(--dd-text-primary); }
-    .dd-nav-item.active { background: rgba(196,149,42,0.12); color: var(--dd-accent);
+    .dd-nav-item.active { background: color-mix(in srgb, var(--dd-accent) 12%, transparent); color: var(--dd-accent);
                           font-weight: 500; }
     .dd-nav-item i { font-size: 15px; flex-shrink: 0; }
     .dd-badge      { margin-left: auto; background: var(--dd-accent); color: #000;
@@ -161,15 +161,19 @@
 
   <%= dymond_theme_styles %>
   
-  <% if agency_branding %><style>:root { --dd-accent: <%= agency_branding.accent_color %>; }</style><% end %>
+  <%# Dashboard colors come from its admin theme; client website branding is separate. %>
   <%= yield :head %>
   <%= render "dymond_dash/shared/theme_forms" %>
+  <link rel="stylesheet" href="/lightek/dashboard.css?v=20261113">
+  <script src="/lightek/dashboard.js?v=20261113" defer></script>
 </head>
-<body>
+<body class="dd-dashboard">
 <div class="dd-shell">
 
   <%# Sidebar %>
   <%= render "dymond_dash/shared/sidebar" %>
+
+  <button type="button" class="dd-nav-scrim" data-dashboard-menu-close aria-label="Close navigation" hidden></button>
 
   <%# Main body %>
   <div class="dd-body">
@@ -177,6 +181,7 @@
     <%# Topbar %>
     <div class="dd-topbar">
       <div class="dd-topbar-title" style="display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap">
+        <button type="button" class="dd-nav-toggle" data-dashboard-menu aria-controls="dd-primary-navigation" aria-expanded="false" aria-label="Open navigation"><i class="ti ti-menu-2" aria-hidden="true"></i></button>
         <%= render 'dymond_dash/shared/breadcrumbs', page_label: (content_for?(:page_title) ? yield(:page_title) : controller.controller_name.humanize) %>
       </div>
       <div class="dd-topbar-right">
@@ -209,8 +214,10 @@
       <%= link_to dymond_dash.settings_path, class: "dd-notif-item" do %>
         <i class="ti ti-settings"></i> Settings
       <% end %>
-      <%= link_to dymond_dash.appearance_path, class: "dd-notif-item" do %>
+      <% if current_user.role == "super_admin" %>
+      <%= link_to main_app.dashboard_appearance_colors_path, class: "dd-notif-item" do %>
         <i class="ti ti-palette"></i> Appearance
+      <% end %>
       <% end %>
 
       <%= button_to main_app.sign_out_path,
@@ -240,7 +247,6 @@
 
     <%# Page content %>
     <div class="dd-content">
-      <%= render "shared/lightek_marketplace_dashboard_link" %>
 <%= yield %>
     </div>
 

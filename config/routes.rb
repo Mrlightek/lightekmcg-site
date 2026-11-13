@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  get "/dashboard/appearance/colors", to: "dashboard/appearance_colors#show", as: :dashboard_appearance_colors
+  patch "/dashboard/appearance/colors", to: "dashboard/appearance_colors#update"
   patch "/dashboard/connect/shopify", to: "dashboard/connect_shopify_settings#update", as: :dashboard_connect_shopify_settings
   post "/dashboard/connect/sandboxes/:id/credentials", to: "dashboard/connect_sandboxes#credentials", as: :dashboard_connect_sandbox_credentials
   post "/dashboard/connect/sandboxes", to: "dashboard/connect_sandboxes#create", as: :dashboard_connect_sandboxes

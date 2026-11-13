@@ -1,0 +1,15 @@
+<% content_for :page_title, "Dashboard colors" %>
+<main class="dd-workspace">
+  <header class="dd-page-header"><div><span class="dd-eyebrow">Dashboard appearance</span><h1>Your workspace, your colors</h1><p>Control the Dashboard palette. These settings apply to administration screens; your PWA and public website keep their own appearance.</p></div><%= link_to "Theme presets", dymond_dash.appearance_path, class: "dd-button" %></header>
+  <section class="dd-panel">
+    <div class="dd-panel-header"><div><h2>Dashboard palette</h2><p>Choose any color. Primary button labels automatically use black or white for contrast. Save to apply across the Dashboard.</p></div></div>
+    <%= form_with url: dashboard_appearance_colors_path, method: :patch do %>
+      <div class="dd-color-grid">
+        <% LightekDashboard::AppearancePalette::COLORS.each do |key, (label, _)| %>
+          <div class="dd-color-field"><%= label_tag "colors_#{key}", label %><div><%= color_field_tag "colors[#{key}]", @colors.fetch(key), id: "colors_#{key}", aria: {describedby: "color_value_#{key}"} %><code id="color_value_<%= key %>" data-color-value><%= @colors.fetch(key) %></code></div></div>
+        <% end %>
+      </div>
+      <div class="dd-form-actions"><%= submit_tag "Save Dashboard colors" %><small>Built-in presets stay available. Choose readable text and surface combinations.</small></div>
+    <% end %>
+  </section>
+</main>

@@ -1,4 +1,4 @@
-<main><h1>Open Lightek management</h1><p>This grants management access using the connected agency account. Continue only if you requested this from Lightek Connect.</p>
+<main><h1>Open Lightek management</h1><p>Continue with your connected agency account. Lightek verifies your authenticator before opening management, and the client’s access rules still apply. Continue only if you requested this from Lightek Connect.</p>
 <%= form_with url: "/connect/management", method: :post do |form| %>
   <%= hidden_field_tag :code, @code %><%= form.submit "Continue to Dashboard" %>
 <% end %></main>

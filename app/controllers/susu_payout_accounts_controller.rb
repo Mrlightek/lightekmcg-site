@@ -1,4 +1,6 @@
 class SusuPayoutAccountsController < DymondDash::ApplicationController
+  include LightekIdentity::SensitiveSession
+  before_action :require_sensitive_session!
   layout "dymond_dash/layouts/dymond_dash"
 
   before_action :redirect_network_payouts

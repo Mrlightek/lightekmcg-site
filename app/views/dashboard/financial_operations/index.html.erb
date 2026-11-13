@@ -29,7 +29,7 @@
 </style>
 <main class="bank-ops">
   <header class="top">
-    <div><div class="eyebrow">Lightek / Dymond Bank / Control Plane</div><h1>Financial Operations</h1><p>One place to manage plans, subscriptions, Susu and paid-service fulfillment.</p></div>
+    <div><div class="eyebrow">Lightek / Dymond Bank / Control Plane</div><h1>Financial Operations</h1><p><%= link_to "Books & accounting →", dashboard_accounting_path %> · <%= link_to "People & payroll →", dashboard_people_path %></p><p>One place to manage plans, subscriptions, Susu and paid-service fulfillment.</p></div>
     <div class="actions">
       <%= link_to "Manage plans", dashboard_subscription_plans_path, class: "button" %>
       <%= link_to "All subscriptions", dashboard_subscriptions_path, class: "button outline" %>

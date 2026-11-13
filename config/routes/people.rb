@@ -13,3 +13,5 @@ post '/dashboard/people/sender', to: 'dashboard/people#sender', as: :dashboard_p
 post '/dashboard/people/bank-setup', to: 'dashboard/people#bank_setup', as: :dashboard_people_bank_setup
 get '/dashboard/people/bank-return', to: 'dashboard/people#bank_return', as: :dashboard_people_bank_return
 get '/dashboard/people/bank-refresh', to: 'dashboard/people#bank_refresh', as: :dashboard_people_bank_refresh
+
+post '/dashboard/people/pay-runs/:id/schedule',to: 'dashboard/people#schedule',as: :schedule_dashboard_people_pay_run

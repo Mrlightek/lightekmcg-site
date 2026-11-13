@@ -25,7 +25,11 @@ module Dashboard
     def require_settings_operator! = head(:forbidden)
   end
 end
+require ROOT.join('app/controllers/concerns/lightek_identity/sensitive_session')
 require ROOT.join('app/controllers/dashboard/people_controller')
+# This older header-auth fixture covers People workflows; enterprise_http_checks
+# exercises the real session, MFA and enrollment boundary.
+Dashboard::PeopleController.skip_before_action :sensitive_people!
 Dashboard::PeopleController.layout false
 PeopleHarness.routes.draw { eval(ROOT.join('config/routes/people.rb').read, binding) }
 ApplicationController.prepend_view_path ROOT.join('app/views')
@@ -47,12 +51,13 @@ class PeopleHttpChecks < ActionDispatch::IntegrationTest
     assert_includes response.body, 'Reports to'
     assert_includes response.body, 'Payroll responsibility'
     assert_equal 'no-store', response.headers['Cache-Control']
-    post dashboard_people_departments_path, params: {employer_id: @employer.id, department: {name: 'Accounting', code: 'acct'}}, headers: as(@worker.worker)
+    default_count = LightekPeople::Department.count
+    post dashboard_people_departments_path, params: {employer_id: @employer.id, department: {name: 'Research', code: 'research'}}, headers: as(@worker.worker)
     assert_response :forbidden
-    assert_equal 0, LightekPeople::Department.count
-    post dashboard_people_departments_path, params: {employer_id: @employer.id, department: {name: 'Accounting', code: 'acct'}}, headers: as(@employer)
+    assert_equal default_count, LightekPeople::Department.count
+    post dashboard_people_departments_path, params: {employer_id: @employer.id, department: {name: 'Research', code: 'research'}}, headers: as(@employer)
     assert_response :redirect
-    assert_equal 'ACCT', LightekPeople::Department.first.code
+    assert_equal 'RESEARCH', LightekPeople::Department.find_by!(name: 'Research').code
     get dashboard_people_path
     assert_response :unauthorized
   end

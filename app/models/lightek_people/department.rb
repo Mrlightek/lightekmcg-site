@@ -8,6 +8,14 @@ module LightekPeople
     validates :code, uniqueness: {scope: :employer_id}
     before_validation { self.code = code.to_s.strip.upcase }
     validate :parent_is_local_and_acyclic
+    after_save do
+      if saved_change_to_active? && !saved_change_to_active.first.nil? && defined?(LightekIdentity::DirectoryPolicy)
+        LightekIdentity::DirectoryPolicy.changed!(employer_id)
+      end
+    end
+    after_commit do
+      DirectorySyncJob.perform_later(employer_id) if previous_changes['active'] && !previous_changes['active'].first.nil? && defined?(DirectorySyncJob)
+    end
     private
     def parent_is_local_and_acyclic
       seen = [id].compact

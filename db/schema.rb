@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_12_170000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1668,6 +1668,63 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_170000) do
     t.index ["community_id", "profile_id"], name: "idx_community_member_unique", unique: true
     t.index ["community_id"], name: "index_lightek_community_memberships_on_community_id"
     t.index ["profile_id"], name: "index_lightek_community_memberships_on_profile_id"
+  end
+
+  create_table "lightek_connect_connections", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "platform", null: false
+    t.string "label", null: false
+    t.string "code_digest"
+    t.datetime "code_expires_at"
+    t.string "token_digest"
+    t.string "external_identity"
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code_digest"], name: "index_lightek_connect_connections_on_code_digest", unique: true
+    t.index ["token_digest"], name: "index_lightek_connect_connections_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_lightek_connect_connections_on_user_id"
+  end
+
+  create_table "lightek_connect_events", force: :cascade do |t|
+    t.bigint "connection_id"
+    t.string "action", null: false
+    t.string "resource"
+    t.jsonb "details", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["connection_id"], name: "index_lightek_connect_events_on_connection_id"
+  end
+
+  create_table "lightek_connect_grants", force: :cascade do |t|
+    t.bigint "connection_id", null: false
+    t.string "destination", default: "/dashboard", null: false
+    t.bigint "site_id"
+    t.string "code_digest", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "consumed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code_digest"], name: "index_lightek_connect_grants_on_code_digest", unique: true
+    t.index ["connection_id"], name: "index_lightek_connect_grants_on_connection_id"
+    t.index ["site_id"], name: "index_lightek_connect_grants_on_site_id"
+  end
+
+  create_table "lightek_connect_sandboxes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "gatekeeper_node_id", null: false
+    t.string "key", null: false
+    t.string "domain", null: false
+    t.string "status", default: "queued", null: false
+    t.string "credential_slug", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["domain"], name: "index_lightek_connect_sandboxes_on_domain", unique: true
+    t.index ["gatekeeper_node_id"], name: "index_lightek_connect_sandboxes_on_gatekeeper_node_id"
+    t.index ["key"], name: "index_lightek_connect_sandboxes_on_key", unique: true
+    t.index ["user_id"], name: "index_lightek_connect_sandboxes_on_user_id"
   end
 
   create_table "lightek_live_viewers", force: :cascade do |t|
@@ -3331,6 +3388,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_170000) do
     t.string "user_agent"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "connect_delegation", default: {}, null: false
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
@@ -3868,6 +3926,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_170000) do
   add_foreign_key "lightek_community_engagements", "profiles"
   add_foreign_key "lightek_community_memberships", "communities"
   add_foreign_key "lightek_community_memberships", "profiles"
+  add_foreign_key "lightek_connect_connections", "users"
+  add_foreign_key "lightek_connect_events", "lightek_connect_connections", column: "connection_id"
+  add_foreign_key "lightek_connect_grants", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_connect_grants", "lightek_connect_connections", column: "connection_id"
+  add_foreign_key "lightek_connect_sandboxes", "gatekeeper_nodes"
+  add_foreign_key "lightek_connect_sandboxes", "users"
   add_foreign_key "lightek_live_viewers", "studio_live_operations"
   add_foreign_key "lightek_live_viewers", "users"
   add_foreign_key "lightek_mail_accounts", "lightek_mail_domains", column: "domain_id"

@@ -28,7 +28,7 @@ class Api::ConnectController < ActionController::Base
     path = params[:path].presence || allowed.first
     raise ArgumentError unless allowed.include?(path)
     code = LightekConnect::Grant.issue!(connection: @connection, site: nil, destination: path)
-    render json: {url: "#{LightekReservations::Federation::Issuer.origin}/connect/management?code=#{code}", expires_in: 60, external: true}
+    render json: {url: "#{LightekReservations::Federation::Issuer.origin}/connect/management?code=#{code}", expires_in: 600, external: true}
   end
   def disconnect
     @connection.revoke!

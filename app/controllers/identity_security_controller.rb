@@ -18,6 +18,8 @@ class IdentitySecurityController < ApplicationController
     @recovery_codes = LightekIdentity::Mfa.verify!(current_user,params[:otp],enrolling: true)
     Current.session.update!(mfa_verified_at: Time.current,mfa_enrollment_only: false)
     current_user.sessions.where.not(id: Current.session.id).delete_all
+    target = session[:return_to_after_authenticating].to_s
+    @connect_return_to = session.delete(:return_to_after_authenticating) if target.match?(%r{\A/connect/management\?code=[0-9a-f]{64}\z})
     render :recovery
   end
   def disable

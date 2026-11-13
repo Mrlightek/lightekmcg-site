@@ -6,6 +6,7 @@ on:
       - 'config/routes/**'
       - 'config/routes.rb'
       - 'db/migrate/*enterprise_identity*'
+      - 'db/migrate/*connect_mfa_handoff*'
       - 'db/migrate/*dymond_bookkeeping*'
       - 'db/migrate/*jurisdiction_monitoring*'
       - 'lib/scripts/gatekeeper/directory_membership.py'
@@ -44,7 +45,7 @@ jobs:
       - name: Install public test dependencies
         run: gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'minitest:~>5.25' pg 'sqlite3:~>2.7' 'jwt:2.10.3' 'rubyzip:3.4.1' nokogiri --no-document
       - name: Verify authentication, tenant permissions and bookkeeping workflows
-        run: ruby test/standalone/enterprise_http_checks.rb
+        run: ruby test/standalone/enterprise_connect_mfa_checks.rb
       - name: Verify domain allowlists and stale revocation handling
         run: python3 -m unittest test/operations/directory_membership_test.py
       - name: Verify reconciliation client syntax

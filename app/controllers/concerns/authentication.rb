@@ -19,6 +19,14 @@ module Authentication
 
     def require_authentication
       if resume_session
+        # Validate delegated MFA before considering the target owner's factors.
+        # An expired delegation must never become an owner's MFA challenge.
+        if Current.session.connect_delegation.present?
+          validate_connect_delegation!
+          return if performed?
+          return if connect_mfa_verified?
+          return head(:unauthorized)
+        end
         return if controller_name == 'sessions' && action_name == 'destroy'
         enrollment_route = controller_name == 'identity_security' || (controller_name == 'sessions' && action_name == 'destroy')
         if LightekIdentity::Mfa.required?(Current.session.user) && !LightekIdentity::Mfa.enabled?(Current.session.user)

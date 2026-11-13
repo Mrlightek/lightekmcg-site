@@ -25,6 +25,20 @@ end
 migration = Rails.root.join("db/migrate/20261112190000_create_lightek_connect.rb").read.sub("Migration[8.0]", "Migration[7.2]")
 eval(migration, TOPLEVEL_BINDING)
 CreateLightekConnect.new.migrate(:up)
+%w[20261113160000_create_lightek_people_and_payroll 20261113200000_add_enterprise_identity 20261113230000_add_connect_mfa_handoff].each do |file|
+  source = Rails.root.join("db/migrate/#{file}.rb").read.sub("Migration[8.0]", "Migration[7.2]")
+  eval(source, TOPLEVEL_BINDING)
+end
+CreateLightekPeopleAndPayroll.new.migrate(:up)
+AddEnterpriseIdentity.new.migrate(:up)
+AddConnectMfaHandoff.new.migrate(:up)
+class Session < ApplicationRecord
+  belongs_to :user
+end
+require Rails.root.join('app/models/lightek_people/employment')
+%w[factor organization_policy connection].each { |name| require Rails.root.join("app/models/lightek_identity/#{name}") }
+require Rails.root.join('app/services/lightek_identity/mfa')
+require Rails.root.join('app/services/lightek_connect/mfa_handoff')
 require Rails.root.join("app/models/concerns/account_hierarchy")
 class User < ApplicationRecord
   include AccountHierarchy
@@ -57,6 +71,9 @@ class LightekConnectTest < Minitest::Test
     LightekConnect::Grant.delete_all
     LightekConnect::Connection.delete_all
     DymondSite::Site.delete_all
+    Session.delete_all
+    LightekIdentity::Factor.delete_all
+    LightekIdentity::OrganizationPolicy.delete_all
     User.delete_all
     @agency = User.create!(role: "white_label", email_address: "agency@example.test")
     @client = User.create!(role: "client", email_address: "client@example.test", agency: @agency)
@@ -65,6 +82,11 @@ class LightekConnectTest < Minitest::Test
     @foreign_site = DymondSite::Site.create!(name: "Other", host: "other.example.test", tenant: @other)
     @connection, @code = LightekConnect::Connection.issue!(user: @agency, platform: "wordpress", label: "Agency WP")
     reset_shopify_vault!
+  end
+  def approve_grant(code)
+    LightekIdentity::Factor.create!(user: @agency, enabled_at: Time.current)
+    source = Session.create!(user: @agency, mfa_verified_at: Time.current)
+    LightekConnect::Grant.find_by!(code_digest: LightekConnect::Connection.digest(code)).approve!(source)
   end
   def pair
     LightekConnect::Connection.redeem!(code: @code, platform: "wordpress", identity: nil)
@@ -102,6 +124,7 @@ class LightekConnectTest < Minitest::Test
     pair
     code = LightekConnect::Grant.issue!(connection: @connection, site: @site)
     assert_raises(ActiveRecord::RecordNotFound) { LightekConnect::Grant.consume!(code: code, site: @foreign_site) }
+    approve_grant(code)
     assert LightekConnect::Grant.consume!(code: code, site: @site).consumed_at
     assert_raises(Gatekeeper::Hosting::Access::Denied) { LightekConnect::Grant.consume!(code: code, site: @site) }
   end
@@ -120,6 +143,7 @@ class LightekConnectTest < Minitest::Test
   def test_dashboard_grant_supports_no_site
     pair
     code = LightekConnect::Grant.issue!(connection: @connection, site: nil, destination: "/dashboard/servers")
+    approve_grant(code)
     assert_equal "/dashboard/servers", LightekConnect::Grant.consume!(code: code, site: nil).destination
   end
   def test_external_and_traversal_destinations_are_rejected

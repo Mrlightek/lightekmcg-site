@@ -2,6 +2,22 @@ require_relative 'people_payroll_checks'
 require 'minitest/mock'
 require 'base64'
 require 'openssl'
+# Connect and enterprise identity share the real session/MFA tables in this harness.
+ActiveRecord::Schema.define do
+  add_column :users, :agency_id, :bigint
+  add_column :users, :upstream_share_bps, :integer, default: 0
+  create_table(:dymond_site_sites) do |t|
+    t.string :name; t.string :host; t.references :tenant, polymorphic: true; t.json :manifest, default: {}
+  end
+end
+%w[20261112190000_create_lightek_connect 20261113230000_add_connect_mfa_handoff].each do |file|
+  source = ROOT.join("db/migrate/#{file}.rb").read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
+  source = source.lines.reject { |line| line.include?('add_column :sessions, :connect_delegation') }.join
+  eval(source, TOPLEVEL_BINDING)
+end
+CreateLightekConnect.new.migrate(:up)
+AddConnectMfaHandoff.new.migrate(:up)
+
 module LightekVault
   class MasterKey
     class ConfigurationError < StandardError; end

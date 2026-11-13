@@ -1,4 +1,5 @@
 class Dashboard::DirectoryController < Dashboard::SettingsHomeController
+  include LightekIdentity::SensitiveSession
   skip_before_action :require_settings_operator!
   protect_from_forgery with: :exception
   before_action :context!
@@ -19,7 +20,7 @@ class Dashboard::DirectoryController < Dashboard::SettingsHomeController
   def policy
     it_admin!
     record = LightekIdentity::OrganizationPolicy.find_or_initialize_by(employer: @employer)
-    record.update!(mfa_required: params[:mfa_required] == '1')
+    record.update!(mfa_required: params[:mfa_required] == '1', connect_mfa_allowed: params[:connect_mfa_allowed] == '1')
     audit!('organization_mfa_policy_changed',record)
     back!('Company MFA policy saved. Financial access and privileged staff retain mandatory protection.')
   end
@@ -121,7 +122,8 @@ class Dashboard::DirectoryController < Dashboard::SettingsHomeController
   private
   def context!
     response.headers['Cache-Control'] = 'no-store'
-    head(:forbidden) and return if Current.session&.connect_delegation.present?
+    require_sensitive_session!
+    return if performed?
     @employers = LightekPeople::Access.employers_for(current_user)
     @employer = params[:employer_id].present? ? @employers.find(params[:employer_id]) : @employers.first
     return redirect_to(dashboard_people_path) unless @employer
@@ -129,6 +131,7 @@ class Dashboard::DirectoryController < Dashboard::SettingsHomeController
     LightekPeople::StarterDepartments.ensure!(@employer) if @access.directory_admin?
   end
   def it_admin!
+    raise LightekPeople::Access::Denied, 'Sign in directly before changing identity or access policy' if Current.session.connect_delegation.present?
     @access.require!(:directory)
     raise LightekPeople::Access::Denied unless current_user.authenticate(params[:password].to_s) && LightekIdentity::Mfa.fresh?(Current.session)
   end

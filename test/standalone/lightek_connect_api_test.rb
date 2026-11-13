@@ -89,9 +89,15 @@ class LightekConnectDelegatedSessionTest < ActionController::TestCase
   def setup
     @routes = ActionDispatch::Routing::RouteSet.new
     @routes.draw { get "/probe", to: "connect_session_probe#index" }
-    @actor = User.create!(role: "white_label")
+    @actor = User.create!(role: "white_label", email_address: "delegate@example.test")
     @connection, = LightekConnect::Connection.issue!(user: @actor, platform: "wordpress", label: "Session test")
-    @session = Session.create!(user: @actor, connect_delegation: {"connection_id" => @connection.id, "local" => true})
+    LightekIdentity::Factor.create!(user: @actor, enabled_at: Time.current)
+    @source = Session.create!(user: @actor, mfa_verified_at: Time.current)
+    code = LightekConnect::Grant.issue!(connection: @connection, site: nil)
+    grant = LightekConnect::Grant.find_by!(code_digest: LightekConnect::Connection.digest(code))
+    grant.approve!(@source)
+    grant = LightekConnect::Grant.consume!(code: code, site: nil)
+    @session = Session.create!(user: @actor, connect_delegation: grant.mfa_context!.merge('local' => true))
     Current.session = @session
   end
   def teardown

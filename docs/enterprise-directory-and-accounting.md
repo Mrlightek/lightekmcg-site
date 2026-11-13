@@ -96,3 +96,9 @@ Primary references:
 - https://v3.openstates.org/openapi.json
 - https://legislation.nysenate.gov/static/docs/html/
 - https://support.microsoft.com/en-us/excel/calculation-operators-and-precedence-in-excel
+
+## Agency-to-client MFA
+
+Lightek Connect now verifies the connected agency's browser at the central origin and binds the handoff to that direct MFA session. Local and remote delegated requests revalidate the grant and revocation state before opening sensitive workspaces. The client's Company MFA policy can reject delegated MFA and require direct sign-in. Verified delegation satisfies the MFA check; existing employer, accounting, payroll and resource permissions still apply. Authenticator management, SSO linking and directory/security mutations retain direct sign-in requirements.
+
+Deploy the Connect MFA migration and code on both sides using the existing fleet update process. See [Lightek Connect setup and acceptance](integrations/lightek-connect.md#verified-agency-mfa-handoff) for lifetimes, operator controls and test steps.

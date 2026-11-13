@@ -1,5 +1,6 @@
 require 'csv'
 class Dashboard::AccountingController < ApplicationController
+  include LightekIdentity::SensitiveSession
   layout 'dymond_dash/layouts/dymond_dash'
   helper AccountingWorkspaceHelper
   protect_from_forgery with: :exception
@@ -210,9 +211,8 @@ class Dashboard::AccountingController < ApplicationController
   def context!
     response.headers['Cache-Control'] = 'no-store'
     response.headers['Referrer-Policy'] = 'no-referrer'
-    return head(:forbidden) if Current.session&.connect_delegation.present?
-    return redirect_to(identity_security_path,alert: 'Enable an authenticator to access confidential accounting records.') unless LightekIdentity::Mfa.enabled?(current_user)
-    return head(:forbidden) unless LightekIdentity::Mfa.fresh?(Current.session)
+    require_sensitive_session!
+    return if performed?
     @employers = LightekPeople::Access.employers_for(current_user)
     @employer = params[:employer_id].present? ? @employers.find(params[:employer_id]) : @employers.first!
     @access = LightekAccounting::Access.new(actor: current_user,employer: @employer).require!

@@ -40,8 +40,9 @@ module LightekConnect
       peer = remote_peer(site)
       raise Gatekeeper::Hosting::Access::Denied, "Client instance is unavailable" if peer && !peer.active?
       code = Grant.issue!(connection: @connection, site: site)
-      origin = peer ? "https://#{LightekSettings::SiteDomain.public_hostname!(site.host)}" : LightekReservations::Federation::Issuer.origin
-      {url: "#{origin}/connect/management?code=#{code}", expires_in: 60, external: true}
+      # Always verify the agency browser at the issuer before visiting a client.
+      origin = LightekReservations::Federation::Issuer.origin
+      {url: "#{origin}/connect/management?code=#{code}", expires_in: 600, external: true}
     end
     def remote_peer(site)
       LightekReservations::Peer.find_by(site: site)

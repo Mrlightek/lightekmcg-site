@@ -1,4 +1,5 @@
 class Dashboard::ComplianceController < ApplicationController
+  include LightekIdentity::SensitiveSession
   layout 'dymond_dash/layouts/dymond_dash'
   protect_from_forgery with: :exception
   before_action :context!
@@ -19,6 +20,7 @@ class Dashboard::ComplianceController < ApplicationController
     redirect_to dashboard_compliance_path(employer_id: @employer.id),notice: 'Jurisdiction monitor created; results remain marked for legal review.'
   end
   def credentials
+    return head(:forbidden) if Current.session.connect_delegation.present?
     people = LightekPeople::Access.new(actor: current_user,employer: @employer)
     people.require!(:owner)
     raise LightekPeople::Access::Denied unless current_user.authenticate(params[:password].to_s)
@@ -49,8 +51,8 @@ class Dashboard::ComplianceController < ApplicationController
   private
   def context!
     response.headers['Cache-Control']='no-store'
-    return head(:forbidden) if Current.session&.connect_delegation.present?
-    return redirect_to(identity_security_path,alert: 'Verify an authenticator to access organization compliance settings.') unless LightekIdentity::Mfa.fresh?(Current.session)
+    require_sensitive_session!
+    return if performed?
     @employers = LightekPeople::Access.employers_for(current_user)
     @employer = params[:employer_id].present? ? @employers.find(params[:employer_id]) : @employers.first!
     LightekCompliance::Access.authorize!(current_user,@employer)

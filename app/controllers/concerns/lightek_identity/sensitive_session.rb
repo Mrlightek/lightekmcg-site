@@ -3,7 +3,11 @@ module LightekIdentity
     extend ActiveSupport::Concern
     private
     def require_sensitive_session!
-      return head(:forbidden) unless current_user && Current.session && Current.session.connect_delegation.blank?
+      return head(:forbidden) unless current_user && Current.session
+      if Current.session.connect_delegation.present?
+        return head(:forbidden) unless connect_mfa_verified?
+        return
+      end
       unless Mfa.enabled?(current_user)
         return redirect_to(main_app.identity_security_path,alert: 'Enable an authenticator before accessing financial or security-sensitive features.')
       end

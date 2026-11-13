@@ -54,6 +54,10 @@ require ROOT.join('app/services/lightek_compliance/sources')
 %w[accounting_import accounting_refresh jurisdiction_monitor].each { |f| require ROOT.join("app/jobs/#{f}_job") }
 [IdentitySecurityController,IdentityChallengesController,Dashboard::AccountingController,Dashboard::DirectoryController,Dashboard::ComplianceController,Dashboard::PeopleController].each { |klass| klass.layout false }
 EnterpriseHarness.routes.draw do
+  get '/connect/management', to: 'connect_management#show'
+  post '/connect/management', to: 'connect_management#create'
+  post '/api/reservations/federation/connect/redeem', to: 'api/connect_federation#redeem'
+  post '/api/reservations/federation/connect/validate', to: 'api/connect_federation#validate_session'
   resource :session,only: %i[new create destroy]
   eval(ROOT.join('config/routes/enterprise_identity.rb').read,binding)
   eval(ROOT.join('config/routes/accounting.rb').read,binding)

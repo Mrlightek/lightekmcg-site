@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_13_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2072,6 +2072,147 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_140000) do
     t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
   end
 
+  create_table "lightek_people_audit_events", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "action", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_people_audit_events_on_actor_id"
+    t.index ["employer_id"], name: "index_lightek_people_audit_events_on_employer_id"
+  end
+
+  create_table "lightek_people_benefit_enrollments", force: :cascade do |t|
+    t.bigint "employment_id", null: false
+    t.bigint "benefit_plan_id", null: false
+    t.date "starts_on", null: false
+    t.date "ends_on"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["benefit_plan_id"], name: "index_lightek_people_benefit_enrollments_on_benefit_plan_id"
+    t.index ["employment_id", "benefit_plan_id"], name: "idx_people_benefit_election", unique: true, where: "(ends_on IS NULL)"
+    t.index ["employment_id"], name: "index_lightek_people_benefit_enrollments_on_employment_id"
+  end
+
+  create_table "lightek_people_benefit_plans", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "name", null: false
+    t.string "category", null: false
+    t.string "currency", default: "USD", null: false
+    t.string "deduction_treatment", default: "post_tax", null: false
+    t.bigint "employee_cents", default: 0, null: false
+    t.bigint "employer_cents", default: 0, null: false
+    t.boolean "published", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employer_id"], name: "index_lightek_people_benefit_plans_on_employer_id"
+  end
+
+  create_table "lightek_people_departments", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.bigint "parent_id"
+    t.string "name", null: false
+    t.string "code", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employer_id", "code"], name: "index_lightek_people_departments_on_employer_id_and_code", unique: true
+    t.index ["employer_id"], name: "index_lightek_people_departments_on_employer_id"
+    t.index ["parent_id"], name: "index_lightek_people_departments_on_parent_id"
+  end
+
+  create_table "lightek_people_employments", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.bigint "worker_id", null: false
+    t.bigint "department_id"
+    t.bigint "manager_id"
+    t.string "title", null: false
+    t.string "level", default: "individual_contributor", null: false
+    t.string "worker_kind", default: "employee", null: false
+    t.boolean "active", default: true, null: false
+    t.boolean "people_admin", default: false, null: false
+    t.string "payroll_access", default: "none", null: false
+    t.date "starts_on", null: false
+    t.date "ends_on"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["department_id"], name: "index_lightek_people_employments_on_department_id"
+    t.index ["employer_id", "worker_id"], name: "idx_people_employer_worker", unique: true
+    t.index ["employer_id"], name: "index_lightek_people_employments_on_employer_id"
+    t.index ["manager_id"], name: "index_lightek_people_employments_on_manager_id"
+    t.index ["worker_id"], name: "index_lightek_people_employments_on_worker_id"
+  end
+
+  create_table "lightek_people_pay_runs", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.bigint "prepared_by_id", null: false
+    t.bigint "approved_by_id"
+    t.date "period_start", null: false
+    t.date "period_end", null: false
+    t.date "pay_date", null: false
+    t.string "currency", default: "USD", null: false
+    t.string "status", default: "draft", null: false
+    t.string "financial_account_ref"
+    t.datetime "approved_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approved_by_id"], name: "index_lightek_people_pay_runs_on_approved_by_id"
+    t.index ["employer_id", "period_start", "period_end", "pay_date"], name: "idx_people_pay_period", unique: true, where: "((status)::text <> 'canceled'::text)"
+    t.index ["employer_id"], name: "index_lightek_people_pay_runs_on_employer_id"
+    t.index ["prepared_by_id"], name: "index_lightek_people_pay_runs_on_prepared_by_id"
+  end
+
+  create_table "lightek_people_pay_statements", force: :cascade do |t|
+    t.bigint "pay_run_id", null: false
+    t.bigint "employment_id", null: false
+    t.bigint "prepared_by_id", null: false
+    t.bigint "gross_cents", null: false
+    t.bigint "tax_cents", default: 0, null: false
+    t.bigint "employer_tax_cents", default: 0, null: false
+    t.bigint "other_deductions_cents", default: 0, null: false
+    t.bigint "benefit_cents", default: 0, null: false
+    t.bigint "employer_benefit_cents", default: 0, null: false
+    t.bigint "net_cents", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.string "tax_reference", null: false
+    t.string "status", default: "draft", null: false
+    t.string "provider_ref"
+    t.string "provider_status"
+    t.datetime "attempted_at"
+    t.string "error_code"
+    t.jsonb "quote", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employment_id"], name: "index_lightek_people_pay_statements_on_employment_id"
+    t.index ["pay_run_id", "employment_id"], name: "idx_people_run_worker", unique: true
+    t.index ["pay_run_id"], name: "index_lightek_people_pay_statements_on_pay_run_id"
+    t.index ["prepared_by_id"], name: "index_lightek_people_pay_statements_on_prepared_by_id"
+    t.index ["provider_ref"], name: "index_lightek_people_pay_statements_on_provider_ref", unique: true
+    t.check_constraint "gross_cents >= 0 AND tax_cents >= 0 AND employer_tax_cents >= 0 AND other_deductions_cents >= 0 AND benefit_cents >= 0 AND employer_benefit_cents >= 0 AND net_cents >= 0", name: "people_payroll_nonnegative"
+    t.check_constraint "net_cents = (gross_cents - tax_cents - other_deductions_cents - benefit_cents)", name: "people_payroll_net_matches"
+  end
+
+  create_table "lightek_people_payout_destinations", force: :cascade do |t|
+    t.bigint "employment_id", null: false
+    t.string "provider", default: "stripe_global", null: false
+    t.string "recipient_ref"
+    t.string "capability_status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employment_id"], name: "index_lightek_people_payout_destinations_on_employment_id", unique: true
+  end
+
+  create_table "lightek_people_payout_senders", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "financial_account_ref", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employer_id"], name: "index_lightek_people_payout_senders_on_employer_id", unique: true
+    t.index ["financial_account_ref"], name: "index_lightek_people_payout_senders_on_financial_account_ref", unique: true
+  end
+
   create_table "lightek_pwa_admin_events", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "actor_id", null: false
@@ -3985,6 +4126,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_140000) do
   add_foreign_key "lightek_messaging_messages", "profiles", column: "sender_profile_id"
   add_foreign_key "lightek_messaging_participants", "lightek_messaging_conversations", column: "conversation_id"
   add_foreign_key "lightek_messaging_participants", "profiles"
+  add_foreign_key "lightek_people_audit_events", "users", column: "actor_id"
+  add_foreign_key "lightek_people_audit_events", "users", column: "employer_id"
+  add_foreign_key "lightek_people_benefit_enrollments", "lightek_people_benefit_plans", column: "benefit_plan_id"
+  add_foreign_key "lightek_people_benefit_enrollments", "lightek_people_employments", column: "employment_id"
+  add_foreign_key "lightek_people_benefit_plans", "users", column: "employer_id"
+  add_foreign_key "lightek_people_departments", "lightek_people_departments", column: "parent_id"
+  add_foreign_key "lightek_people_departments", "users", column: "employer_id"
+  add_foreign_key "lightek_people_employments", "lightek_people_departments", column: "department_id"
+  add_foreign_key "lightek_people_employments", "lightek_people_employments", column: "manager_id"
+  add_foreign_key "lightek_people_employments", "users", column: "employer_id"
+  add_foreign_key "lightek_people_employments", "users", column: "worker_id"
+  add_foreign_key "lightek_people_pay_runs", "users", column: "approved_by_id"
+  add_foreign_key "lightek_people_pay_runs", "users", column: "employer_id"
+  add_foreign_key "lightek_people_pay_runs", "users", column: "prepared_by_id"
+  add_foreign_key "lightek_people_pay_statements", "lightek_people_employments", column: "employment_id"
+  add_foreign_key "lightek_people_pay_statements", "lightek_people_pay_runs", column: "pay_run_id"
+  add_foreign_key "lightek_people_pay_statements", "users", column: "prepared_by_id"
+  add_foreign_key "lightek_people_payout_destinations", "lightek_people_employments", column: "employment_id"
+  add_foreign_key "lightek_people_payout_senders", "users", column: "employer_id"
   add_foreign_key "lightek_pwa_admin_events", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_pwa_admin_events", "users", column: "actor_id"
   add_foreign_key "lightek_pwa_applications", "dymond_site_sites", column: "site_id"

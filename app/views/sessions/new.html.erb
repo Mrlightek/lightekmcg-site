@@ -138,6 +138,8 @@
         ) %>
       <% end %>
 
+      <details class="auth-meta"><summary>Organization sign-in</summary><%= form_with url: identity_sso_path, class: 'auth-form', data: {turbo: false} do |f| %><%= f.label :organization, 'Organization code' %><%= f.text_field :organization, class: "auth-input", required: true, autocomplete: 'organization' %><%= f.submit 'Continue with organization', class: 'auth-submit' %><% end %></details>
+
       <div class="auth-divider">
         New to <%= authentication_branding.name %>?
       </div>

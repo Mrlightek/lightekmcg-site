@@ -4,6 +4,9 @@ module NevaehControlCenterHelper
     item = ->(id, label, path, icon, group = "Workspaces") { {"id" => id, "label" => label, "path" => path, "icon" => icon, "group" => group} }
     rows = [item.call("overview", "Overview", dymond_dash.root_path, "ti-layout-dashboard"),
       item.call("business", "Business", main_app.dashboard_business_hub_path, "ti-building-store"),
+      item.call("compliance", "Legal & Compliance", main_app.dashboard_compliance_path, "ti-scale"),
+      item.call("accounting", "Books & Accounting", main_app.dashboard_accounting_path, "ti-report-money"),
+      item.call("directory", "Directory & Access", main_app.dashboard_directory_path, "ti-shield-lock"),
       item.call("people", "People & Access", main_app.dashboard_people_path, "ti-users-group"),
       item.call("reservations", "Reservations", main_app.dashboard_reservations_path, "ti-calendar-event"),
       item.call("rooms", "Rooms & Guests", main_app.dashboard_rooms_path, "ti-users"),

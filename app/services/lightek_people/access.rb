@@ -15,6 +15,7 @@ module LightekPeople
     end
     def owner? = actor.id == employer.id && BUSINESS_ROLES.include?(actor.role)
     def people_admin? = owner? || (membership&.active_on?(Date.current) && membership.people_admin?)
+    def directory_admin? = owner? || (membership&.active_on?(Date.current) && membership.directory_admin?)
     def payroll?(action = :read)
       return true if owner?
       return false unless membership&.active_on?(Date.current)
@@ -36,6 +37,7 @@ module LightekPeople
       allowed = case permission
       when :people then people_admin?
       when :owner then owner?
+      when :directory then directory_admin?
       else payroll?(permission)
       end
       raise Denied, 'Your employer has not granted this permission' unless allowed

@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+  include LightekIdentity::SensitiveSession
+  before_action :require_sensitive_session!
 class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
   def index
     @site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))

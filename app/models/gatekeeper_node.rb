@@ -14,6 +14,15 @@ class GatekeeperNode < ApplicationRecord
   validates :ssh_port, numericality: { only_integer: true, greater_than: 0 }
   validates :status, inclusion: { in: STATUSES }
 
+  after_commit do
+    DirectorySyncJob.perform_later(owner_id) if owner_type == 'User' && status == 'healthy' && defined?(DirectorySyncJob)
+  end
+  validate do
+    if persisted? && (will_save_change_to_owner_id? || will_save_change_to_owner_type?) && defined?(LightekIdentity::NodeBinding) && LightekIdentity::NodeBinding.table_exists? && LightekIdentity::NodeBinding.exists?(gatekeeper_node_id: id)
+      errors.add(:owner, 'requires a reviewed domain offboarding before transferring a directory-bound server')
+    end
+  end
+
   def local?
     %w[127.0.0.1 ::1 localhost].include?(ip_address.to_s) ||
       ip_address.to_s == ENV["GATEKEEPER_LOCAL_NODE_IP"].to_s

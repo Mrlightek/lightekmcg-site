@@ -13,11 +13,22 @@ if ActiveRecord::Base.connection.adapter_name == 'SQLite'
   ActiveRecord::ConnectionAdapters::TableDefinition.class_eval { alias_method :jsonb, :json }
 end
 ActiveRecord::Schema.define do
+  create_table(:sessions) { |t| t.integer :user_id; t.string :user_agent; t.string :ip_address; t.json :connect_delegation; t.timestamps }
+  create_table(:gatekeeper_nodes) { |t| t.string :name; t.string :ip_address; t.string :ssh_user; t.string :owner_type; t.integer :owner_id; t.string :status }
   create_table(:users) { |t| t.string :email_address; t.string :role; t.string :first_name }
 end
 source = ROOT.join('db/migrate/20261113160000_create_lightek_people_and_payroll.rb').read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
 eval(source, TOPLEVEL_BINDING)
 CreateLightekPeopleAndPayroll.new.migrate(:up)
+identity_path = ROOT.join('db/migrate/20261113200000_add_enterprise_identity.rb')
+if identity_path.exist?
+  identity_source = identity_path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
+  eval(identity_source, TOPLEVEL_BINDING)
+  AddEnterpriseIdentity.new.migrate(:up)
+  compliance_source = ROOT.join('db/migrate/20261113220000_add_jurisdiction_monitoring.rb').read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
+  eval(compliance_source,TOPLEVEL_BINDING)
+  AddJurisdictionMonitoring.new.migrate(:up)
+end
 class User < ApplicationRecord
   def full_name = first_name.presence || email_address
 end
@@ -47,9 +58,13 @@ module LightekVault
   end
 end
 require ROOT.join('app/services/dymond_bank/workforce_payouts')
-%w[access payroll disbursements].each { |f| require ROOT.join("app/services/lightek_people/#{f}") }
+%w[access payroll disbursements starter_departments].each { |f| require ROOT.join("app/services/lightek_people/#{f}") }
 class PeoplePayrollChecks < Minitest::Test
   def setup
+    %w[lightek_compliance_monitors lightek_accounting_audit_events lightek_accounting_automations lightek_accounting_workbooks lightek_accounting_rules lightek_accounting_transactions lightek_accounting_reconciliations lightek_accounting_imports lightek_accounting_categories lightek_accounting_bank_accounts lightek_accounting_books lightek_identity_resource_grants lightek_identity_subjects lightek_identity_login_attempts lightek_identity_node_bindings lightek_identity_realms sessions lightek_identity_connections lightek_identity_factors lightek_identity_organization_policies].each do |table|
+      connection = ActiveRecord::Base.connection
+      connection.execute("DELETE FROM #{connection.quote_table_name(table)}") if connection.table_exists?(table)
+    end
     [LightekPeople::AuditEvent, LightekPeople::PayStatement, LightekPeople::PayRun, LightekPeople::BenefitEnrollment,
       LightekPeople::BenefitPlan, LightekPeople::PayoutDestination, LightekPeople::PayoutSender].each(&:delete_all)
     LightekPeople::Employment.update_all(manager_id: nil)

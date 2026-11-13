@@ -1,0 +1,51 @@
+name: Enterprise identity and bookkeeping acceptance
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'config/routes/**'
+      - 'config/routes.rb'
+      - 'db/migrate/*enterprise_identity*'
+      - 'db/migrate/*dymond_bookkeeping*'
+      - 'db/migrate/*jurisdiction_monitoring*'
+      - 'lib/scripts/gatekeeper/directory_membership.py'
+      - 'public/lightek/accounting-live.js'
+      - 'test/standalone/enterprise*'
+      - 'test/standalone/people*'
+      - 'test/operations/directory_membership_test.py'
+      - '.github/workflows/enterprise-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  enterprise:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: enterprise
+          POSTGRES_DB: enterprise_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PEOPLE_DATABASE_URL: postgres://postgres:enterprise@localhost:5432/enterprise_test?pool=8
+      MT_NO_PLUGINS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - name: Install public test dependencies
+        run: gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'minitest:~>5.25' pg 'sqlite3:~>2.7' 'jwt:2.10.3' 'rubyzip:3.4.1' nokogiri --no-document
+      - name: Verify authentication, tenant permissions and bookkeeping workflows
+        run: ruby test/standalone/enterprise_http_checks.rb
+      - name: Verify domain allowlists and stale revocation handling
+        run: python3 -m unittest test/operations/directory_membership_test.py
+      - name: Verify reconciliation client syntax
+        run: node --check public/lightek/accounting-live.js

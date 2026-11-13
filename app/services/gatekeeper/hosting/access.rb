@@ -7,12 +7,16 @@ module Gatekeeper
       def self.nodes(actor)
         raise Denied, "Sign in to manage servers" unless actor&.persisted?
         return GatekeeperNode.all if super_admin?(actor)
-        GatekeeperNode.where(owner_type: "User", owner_id: account_ids(actor))
+        GatekeeperNode.where(owner_type: "User", owner_id: account_ids(actor)).or(GatekeeperNode.where(id: directory_node_ids(actor,"read")))
       end
 
       def self.authorize!(actor, node)
         raise Denied, "This server belongs to another account" unless super_admin?(actor) ||
-          (actor&.persisted? && node.owner_type == "User" && account_ids(actor).include?(node.owner_id))
+          (actor&.persisted? && node.owner_type == "User" && (account_ids(actor).include?(node.owner_id) || directory_node_ids(actor,"manage").include?(node.id)))
+      end
+
+      def self.directory_node_ids(actor, permission)
+        defined?(LightekIdentity::ResourceGrant) ? LightekIdentity::Permissions.ids(actor,'GatekeeperNode',permission) : []
       end
 
       def self.account_ids(actor)

@@ -4,20 +4,22 @@ require "base64"
 class Dashboard::MailStudioController < DymondDash::ApplicationController
   protect_from_forgery with: :exception
   before_action :mail_access
-  before_action :set_account, except: %i[index create_domain verify_domain create_account]
+  before_action :set_account, except: %i[index create_domain verify_domain create_account create_group update_group destroy_group]
   rescue_from LightekMail::Access::Denied, with: :denied
   rescue_from ArgumentError, ActiveRecord::RecordInvalid, LightekMail::Submission::Unavailable, ActiveRecord::StaleObjectError, with: :invalid
 
   def index
     @accounts = LightekMail::Access.accounts(current_user).includes(:domain).order(:address)
     @domains = LightekMail::Access.domains(current_user).order(:name)
+    @groups = LightekMail::Access.groups(current_user).includes(:members, :domain).order(:address)
     @account = params[:account_id].present? ? @accounts.find(params[:account_id]) : @accounts.first
-    @folder = params[:folder].to_s.in?(%w[inbox unread starred sent draft outbox archived all trash]) ? params[:folder] : "inbox"
+    @folder = params[:folder].to_s.in?(%w[inbox unread junk starred sent draft outbox archived all trash]) ? params[:folder] : "inbox"
     return unless @account
     visible = @account.messages.where(trashed: false)
     @folder_counts = {
-      "inbox" => visible.where(direction: "inbound", archived: false).count,
-      "unread" => visible.where(direction: "inbound", archived: false, read_at: nil).count,
+      "inbox" => visible.where(direction: "inbound", archived: false, junk: false).count,
+      "unread" => visible.where(direction: "inbound", archived: false, junk: false, read_at: nil).count,
+      "junk" => visible.where(junk: true).count,
       "starred" => visible.where(starred: true).count,
       "archived" => visible.where(archived: true).count,
       "sent" => visible.where(state: "sent").count,
@@ -26,13 +28,14 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
       "all" => visible.count,
       "trash" => @account.messages.where(trashed: true).count
     }
-    @unread_count = visible.where(direction: "inbound", archived: false, read_at: nil).count
+    @unread_count = visible.where(direction: "inbound", archived: false, junk: false, read_at: nil).count
     @storage_used = @account.messages.sum(:bytesize)
     @last_received_at = @account.messages.where(direction: "inbound").maximum(:created_at)
     @templates = @account.templates.order(:name)
     @messages = @account.messages.where(trashed: @folder == "trash")
-    @messages = @messages.where(direction: "inbound", archived: false) if @folder == "inbox"
-    @messages = @messages.where(direction: "inbound", archived: false, read_at: nil) if @folder == "unread"
+    @messages = @messages.where(direction: "inbound", archived: false, junk: false) if @folder == "inbox"
+    @messages = @messages.where(direction: "inbound", archived: false, junk: false, read_at: nil) if @folder == "unread"
+    @messages = @messages.where(junk: true) if @folder == "junk"
     @messages = @messages.where(starred: true) if @folder == "starred"
     @messages = @messages.where(archived: true) if @folder == "archived"
     @messages = @messages.where(state: @folder) if %w[sent draft].include?(@folder)
@@ -64,17 +67,48 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
 
   def create_account
     domain = LightekMail::Access.domains(current_user).find(params[:domain_id])
-    account = LightekMail::Account.create!(user_id: domain.user_id, domain: domain, address: "#{params[:local_part]}@#{domain.name}", display_name: params[:display_name])
+    account = LightekMail::MailboxManagement.create!(user: current_user, domain: domain, local_part: params[:local_part], display_name: params[:display_name])
     account.templates.create!(name: "Thank you / acknowledgment", subject: "We received your message", document: {heading: "Thanks for reaching out.", body: "Hi {{name}},\n\nWe received your message about {{subject}}. Our team will get back to you shortly.", footer: account.display_name})
     account.templates.create!(name: "Away / vacation", subject: "Thanks — I’m currently away", document: {heading: "I’m away from my inbox.", body: "Hi {{name}},\n\nThank you for your message. I’ll respond when I return. For urgent requests, please use our usual support channel.", footer: account.display_name})
     redirect_to dashboard_mail_path(account_id: account.id), notice: "Mailbox created, sending paused until the mail administrator enables it."
   end
 
+  def destroy_account
+    raise ArgumentError, "Type the mailbox address to confirm deletion." unless params[:confirmation].to_s.strip.downcase == @account.address
+    @account.retire!
+    redirect_to dashboard_mail_path(view: "settings"), notice: "Mailbox deleted. Incoming routes and application keys are disabled; retained message history is preserved."
+  end
+
+  def create_group
+    domain = LightekMail::Access.domains(current_user).find(params[:domain_id])
+    LightekMail::MailboxManagement.save_group!(domain: domain, local_part: params[:local_part], display_name: params[:display_name], member_ids: params[:member_ids])
+    redirect_to dashboard_mail_path(view: "settings"), notice: "Distribution group created. Receiving routes synchronize automatically within a minute."
+  end
+
+  def update_group
+    group = LightekMail::Access.groups(current_user).find(params[:group_id])
+    LightekMail::MailboxManagement.save_group!(group: group, domain: group.domain, local_part: group.address.split("@").first, display_name: params[:display_name], member_ids: params[:member_ids])
+    redirect_to dashboard_mail_path(view: "settings"), notice: "Distribution group updated."
+  end
+
+  def destroy_group
+    group = LightekMail::Access.groups(current_user).find(params[:group_id])
+    raise ArgumentError, "Type the group address to confirm deletion." unless params[:confirmation].to_s.strip.downcase == group.address
+    group.retire!
+    redirect_to dashboard_mail_path(view: "settings"), notice: "Distribution group deleted."
+  end
+
   def configure_account
-    attributes = {auto_reply_enabled: params[:auto_reply_enabled] == "1", auto_template_id: params[:auto_template_id].presence}
+    attributes = params.permit(:display_name).to_h
+    attributes[:auto_reply_enabled] = params[:auto_reply_enabled] == "1" if params.key?(:auto_reply_enabled)
+    attributes[:auto_template_id] = params[:auto_template_id].presence if params.key?(:auto_template_id)
     if current_user.role == "super_admin"
-      attributes.merge!(enabled: params[:enabled] == "1", daily_limit: params[:daily_limit], storage_limit: params[:storage_limit])
-      attributes.merge!(params.permit(:minute_limit, :hour_limit).to_h)
+      attributes[:enabled] = params[:enabled] == "1" if params.key?(:enabled)
+      attributes.merge!(params.permit(:daily_limit, :storage_limit, :minute_limit, :hour_limit).to_h)
+    end
+    attributes[:spam_filter_level] = params[:spam_filter_level] if params.key?(:spam_filter_level)
+    %i[allowed_senders blocked_senders].each do |field|
+      attributes[field] = params[field].to_s.downcase.split(/[\s,]+/).reject(&:blank?).uniq if params.key?(field)
     end
     @account.update!(attributes)
     redirect_to dashboard_mail_path(account_id: @account.id), notice: "Mailbox settings saved."
@@ -127,8 +161,9 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
 
   def flag_message
     message = @account.messages.find(params[:id])
-    raise ArgumentError, "Choose archive, trash, star or unread." unless params[:flag].to_s.in?(%w[archived trashed starred unread])
+    raise ArgumentError, "Choose archive, trash, star, unread or junk." unless params[:flag].to_s.in?(%w[archived trashed starred unread junk])
     attrs = params[:flag] == "unread" ? {read_at: nil} : {params[:flag] => params[:value] == "1"}
+    attrs = {junk: params[:value] == "1", archived: false, trashed: false} if params[:flag] == "junk"
     message.update!(attrs)
     if params[:return_to] == "message" && params[:flag] == "starred"
       redirect_to dashboard_mail_message_path(account_id: @account.id, id: message.id, workspace: params[:workspace].presence)
@@ -140,12 +175,15 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
   def bulk_messages
     ids = Array(params[:message_ids]).map(&:to_s).reject(&:blank?).uniq
     raise ArgumentError, "Select between 1 and 100 messages." unless ids.size.between?(1, 100)
-    changes = {"archive" => {archived: true}, "inbox" => {archived: false, trashed: false}, "trash" => {trashed: true},
+    changes = {"archive" => {archived: true}, "inbox" => {archived: false, trashed: false, junk: false}, "spam" => {junk: true, archived: false}, "not_spam" => {junk: false, archived: false}, "trash" => {trashed: true},
       "read" => {read_at: Time.current}, "unread" => {read_at: nil}, "star" => {starred: true}, "unstar" => {starred: false}}.fetch(params[:operation].to_s) { raise ArgumentError, "Choose a message action." }
     previous = []
     @account.with_lock do
       records = @account.messages.where(id: ids).lock.to_a
       raise ActiveRecord::RecordNotFound unless records.size == ids.size
+      if params[:operation].to_s.in?(%w[spam not_spam]) && records.any? { |record| record.direction != "inbound" }
+        raise ArgumentError, "Junk actions apply to received messages."
+      end
       records.each do |record|
         previous << {id: record.id, before: record.attributes.slice(*changes.keys.map(&:to_s))}
         record.update!(changes)

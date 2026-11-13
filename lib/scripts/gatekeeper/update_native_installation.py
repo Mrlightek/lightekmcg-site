@@ -297,6 +297,8 @@ class NativeUpdater:
             if self.config["adapter"] == "native_rails":
                 self.as_user(["bundle", "install", "--jobs", "1"])
                 if self.config["component"] == "lightek_app":
+                    if (self.root / "lib/scripts/refresh_lightek_mail_helpers.sh").is_file():
+                        self.command(["bash", str(self.root / "lib/scripts/refresh_lightek_mail_helpers.sh")])
                     if (self.root / "lib/scripts/setup_session_media_access.py").is_file():
                         self.command(["python3", str(self.root / "lib/scripts/setup_session_media_access.py"), "--app-root", self.profile["app_root"], "--app-user", self.user.pw_name])
                     if (self.root / "lib/scripts/setup_wordpress_sandbox_access.py").is_file():

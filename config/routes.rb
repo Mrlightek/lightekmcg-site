@@ -1,4 +1,7 @@
 Rails.application.routes.draw do
+  get "/dashboard/mail-transport", to: "dashboard/mail_transport#show", as: :dashboard_mail_transport
+  post "/dashboard/mail-transport/test", to: "dashboard/mail_transport#test_delivery", as: :test_dashboard_mail_transport
+  post "/dashboard/mail-transport/retire-gmail", to: "dashboard/mail_transport#retire_gmail", as: :retire_gmail_dashboard_mail_transport
   get "/dashboard/appearance/colors", to: "dashboard/appearance_colors#show", as: :dashboard_appearance_colors
   patch "/dashboard/appearance/colors", to: "dashboard/appearance_colors#update"
   patch "/dashboard/connect/shopify", to: "dashboard/connect_shopify_settings#update", as: :dashboard_connect_shopify_settings
@@ -574,6 +577,10 @@ scope "/dashboard/mail", controller: "dashboard/mail_studio" do
   post "/domains", action: :create_domain, as: :dashboard_mail_domains
   post "/domains/:id/verify", action: :verify_domain, as: :verify_dashboard_mail_domain
   post "/accounts", action: :create_account, as: :dashboard_mail_accounts
+  delete "/accounts/:account_id", action: :destroy_account
+  post "/groups", action: :create_group, as: :dashboard_mail_groups
+  patch "/groups/:group_id", action: :update_group, as: :dashboard_mail_group
+  delete "/groups/:group_id", action: :destroy_group
   patch "/accounts/:account_id", action: :configure_account, as: :dashboard_mail_account
   post "/accounts/:account_id/receiving-check", action: :check_receiving, as: :check_receiving_dashboard_mail
   post "/accounts/:account_id/token", action: :token, as: :dashboard_mail_token

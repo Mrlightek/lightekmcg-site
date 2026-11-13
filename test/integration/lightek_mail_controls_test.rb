@@ -52,7 +52,9 @@ class LightekMailRecipientExportTest < ActionDispatch::IntegrationTest
     assert_includes recipients, ready.address
     refute_includes recipients, paused.address
     refute_includes recipients, unknown.address
-    assert_equal ["recipients"], response.parsed_body.keys
+    assert_equal %w[authoritative recipients version], response.parsed_body.keys.sort
+    assert_equal 2, response.parsed_body["version"]
+    assert_equal true, response.parsed_body["authoritative"]
   ensure
     old.nil? ? ENV.delete("LIGHTEK_MAIL_INGRESS_TOKEN") : ENV["LIGHTEK_MAIL_INGRESS_TOKEN"] = old
   end

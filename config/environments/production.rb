@@ -101,11 +101,13 @@ config.action_mailbox.ingress = :postfix
 
   # SUSU / TRANSACTIONAL MAIL DELIVERY
   #
-  # Secret material is retrieved by the delivery adapter from Lightek Vault.
+  # Native SMTP reuses Lightek Mail transport; the HTTPS client relay uses Vault.
   # MAIL_DELIVERY_METHOD is configuration only; it contains no credentials.
-  case ENV.fetch("MAIL_DELIVERY_METHOD", "gmail_api")
-  when "gmail_api"
-    config.action_mailer.delivery_method = :gmail_api
+  # Legacy gmail_api selections migrate to the existing Lightek SMTP transport.
+  # Keep explicit HTTPS client relay and custom SMTP installations supported.
+  case ENV.fetch("MAIL_DELIVERY_METHOD", "lightek_smtp")
+  when "lightek_smtp", "gmail_api"
+    config.action_mailer.delivery_method = :lightek_smtp
     config.action_mailer.perform_deliveries = true
     config.action_mailer.raise_delivery_errors = true
   when "lightek_https"

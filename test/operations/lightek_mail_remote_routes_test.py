@@ -37,6 +37,12 @@ class RemoteRoutesTest(unittest.TestCase):
             with self.subTest(payload=payload[:80]), self.assertRaises((ValueError, KeyError)):
                 self.fetch(payload)
 
+    def test_authoritative_v2_can_remove_the_last_mailbox(self):
+        self.assertEqual([], self.fetch(b'{"version":2,"authoritative":true,"recipients":[]}'))
+        for payload in (b'{"version":2,"authoritative":false,"recipients":[]}', b'{"version":2,"authoritative":"true","recipients":[]}'):
+            with self.assertRaises(ValueError):
+                self.fetch(payload)
+
     def test_rejects_non_200_response(self):
         with self.assertRaises(ValueError):
             self.fetch(b'{"recipients": ["a@client.test"]}', status=503)

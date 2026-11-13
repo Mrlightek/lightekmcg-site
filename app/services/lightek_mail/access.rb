@@ -6,7 +6,11 @@ module LightekMail
     end
     def self.accounts(user)
       authorize!(user)
-      user.role == "super_admin" ? Account.all : Account.where(user_id: user.id)
+      user.role == "super_admin" ? Account.mailboxes : Account.mailboxes.where(user_id: user.id)
+    end
+    def self.groups(user)
+      authorize!(user)
+      user.role == "super_admin" ? Account.groups : Account.groups.where(user_id: user.id)
     end
     def self.domains(user)
       authorize!(user)

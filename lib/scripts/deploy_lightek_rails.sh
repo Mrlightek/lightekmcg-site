@@ -60,6 +60,9 @@ sudo -u "${APP_USER}" -H bash -lc "
 
 echo
 echo "=== Restart ==="
+if [[ -f "$APP_ROOT/lib/scripts/refresh_lightek_mail_helpers.sh" ]]; then
+  bash "$APP_ROOT/lib/scripts/refresh_lightek_mail_helpers.sh"
+fi
 systemctl restart "${APP_NAME}-sidekiq.service"
 systemctl reload apache2
 

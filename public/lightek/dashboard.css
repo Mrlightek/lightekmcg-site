@@ -184,3 +184,14 @@ body.dd-dashboard {
 .dd-network .dd-table th[align] { text-align:left; }
 .dd-network ul { padding-left:18px; font-size:12px; line-height:1.8; }
 @media(max-width:768px) { .net-overview { grid-template-columns:repeat(2,minmax(0,1fr)); } .net-overview strong {font-size:17px;} }
+
+/* DNS forms use a full-width editor row, outside the narrow action column. */
+.dd-network .net-dns-editor-row > td { padding:0; border:0; }
+.dd-network .net-dns-editor { padding:0 12px; }
+.dd-network .net-dns-editor > summary { padding:8px 0; font-size:11px; }
+.dd-network .net-dns-editor[open] { padding:16px 20px; background:var(--dd-card-bg); border-bottom:1px solid var(--dd-border); }
+.dd-network .net-dns-editor .net-form { grid-template-columns:minmax(160px,1fr) minmax(240px,2fr) minmax(140px,.6fr); max-width:960px; }
+.dd-network .net-dns-editor .net-field > input { max-width:100%; }
+@media(max-width:768px) { .dd-network .net-dns-editor .net-form { grid-template-columns:minmax(0,1fr); } }
+
+html.dd-enhanced .net-dns-editor-row:not(:has(details[open])) { display:none; }

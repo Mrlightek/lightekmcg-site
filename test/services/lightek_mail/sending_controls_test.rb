@@ -76,9 +76,13 @@ class LightekMailSendingControlsTest < ActiveSupport::TestCase
     end
     assert_equal "queued", queued.reload.state
     assert_equal "draft", draft.reload.state
+  end
+
+  test "fresh sending policy enables automatic mailbox activation" do
+    account = mailbox
     LightekMail::SendingPolicy.delete_all
-    assert_raises(LightekMail::Submission::Unavailable) { send_message(account) }
-    refute LightekMail::SendingPolicy.find(1).sending_enabled?
+    assert LightekMail::SendingPolicy.current.sending_enabled?
+    assert_equal "queued", send_message(account).state
   end
 
   test "Cc Bcc and attachments are supported with full recipient accounting" do

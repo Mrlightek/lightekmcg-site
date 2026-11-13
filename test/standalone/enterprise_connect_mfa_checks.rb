@@ -376,13 +376,32 @@ class EnterpriseConnectMfaChecks < EnterpriseHttpChecks
       assert_equal 0, @other.sessions.count
     end
   end
-  def test_connect_delegated_session_cannot_approve_another_handoff
+  def test_connect_local_agency_dashboard_reuses_original_verified_source_for_client
     approve_local
-    grant
+    grant(site: @site)
     post '/connect/management', params: {code: @code}
-    assert_redirected_to new_session_path
+    assert_redirected_to "https://client.example.test/connect/management?code=#{@code}"
+    assert @grant.reload.approved_at
+    assert_equal @source.id, @grant.authorization_session_id
+    assert_nil @delegated.reload.mfa_verified_at
+  end
+  def test_connect_unverified_delegated_session_cannot_approve_a_handoff
+    approve_local
+    @delegated.update!(connect_delegation: {'local' => true, 'connection_id' => @connection.id})
+    grant(site: @site)
+    post '/connect/management', params: {code: @code}
+    assert_response :unauthorized
     assert_nil @grant.reload.approved_at
     assert_nil @grant.authorization_session_id
+  end
+  def test_connect_local_source_cannot_cross_to_a_different_agency
+    approve_local
+    stranger = User.create!(role: 'white_label', email_address: 'other-agency@example.test')
+    foreign_connection, = LightekConnect::Connection.issue!(user: stranger, platform: 'shopify', label: 'Foreign')
+    code = LightekConnect::Grant.issue!(connection: foreign_connection, site: nil)
+    post '/connect/management', params: {code: code}
+    assert_response :forbidden
+    assert_nil LightekConnect::Grant.find_by!(code_digest: LightekConnect::Connection.digest(code)).approved_at
   end
   def test_connect_disabled_source_sso_revokes_existing_handoff
     approve_local

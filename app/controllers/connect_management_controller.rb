@@ -31,8 +31,9 @@ class ConnectManagementController < ApplicationController
       candidate = LightekConnect::Grant.find_by!(code_digest: LightekConnect::Connection.digest(params.require(:code)))
       candidate.authorize_connection!
       raise Gatekeeper::Hosting::Access::Denied, 'Management grant expired' if candidate.consumed_at? || candidate.expires_at <= Time.current
-      return unless verify_agency_browser!(candidate)
-      candidate.approve!(Current.session)
+      source = verify_agency_browser!(candidate)
+      return unless source
+      candidate.approve!(source)
       if candidate.site && (peer = LightekConnect::Workspace.new(candidate.connection).remote_peer(candidate.site))
         raise Gatekeeper::Hosting::Access::Denied, 'Client instance unavailable' unless peer.active?
         host = LightekSettings::SiteDomain.public_hostname!(candidate.site.host)
@@ -50,6 +51,17 @@ class ConnectManagementController < ApplicationController
   def verify_agency_browser!(grant)
     resume_session
     return_to = "/connect/management?code=#{params.require(:code)}"
+    # A local agency Dashboard handoff keeps the original direct session in the
+    # issuer database. Reuse that verified source, never the delegated session's
+    # own MFA fields, so opening a client does not repeat a just-completed login.
+    if Current.session&.connect_delegation.to_h['local'] == true
+      validate_connect_delegation!
+      return false if performed?
+      prior = LightekConnect::Grant.find(Current.session.connect_delegation.fetch('grant_id'))
+      source = prior.authorization_session
+      raise Gatekeeper::Hosting::Access::Denied, 'Sign in as the connected agency account' unless source&.user_id == grant.connection.user_id
+      return source if LightekConnect::MfaHandoff.source_verified?(source, grant.connection.user)
+    end
     unless Current.session && Current.session.connect_delegation.blank?
       session[:return_to_after_authenticating] = return_to
       # Do not let Sessions#new reuse an existing delegated identity as primary auth.
@@ -59,7 +71,7 @@ class ConnectManagementController < ApplicationController
       return false
     end
     raise Gatekeeper::Hosting::Access::Denied, 'Sign in as the connected agency account' unless Current.session.user_id == grant.connection.user_id
-    return true if LightekConnect::MfaHandoff.source_verified?(Current.session, grant.connection.user)
+    return Current.session if LightekConnect::MfaHandoff.source_verified?(Current.session, grant.connection.user)
     session[:return_to_after_authenticating] = return_to
     if LightekIdentity::Mfa.enabled?(current_user)
       session[:mfa_pending] = {'user_id' => current_user.id, 'connection_id' => Current.session.identity_connection_id, 'expires_at' => 5.minutes.from_now.to_i}

@@ -36,7 +36,12 @@ class DirectoryNodeSyncJob < ApplicationJob
     binding.update!(status: receipt['joined'] == false ? 'disabled' : 'joined', synced_at: Time.current, error_code: nil, synced_revision: revision, policy_digest: digest)
     operation.update!(status: 'succeeded', result: receipt, completed_at: Time.current, exit_status: 0)
   rescue StandardError => error
-    binding&.update_columns(status: 'failed', error_code: error.class.name.demodulize)
+    binding&.with_lock do
+      # An older failure must not overwrite a newer successful reconciliation.
+      if revision && binding.synced_revision <= revision && binding.realm.reload.directory_revision == revision
+        binding.update_columns(status: 'failed', error_code: error.class.name.demodulize)
+      end
+    end
     operation&.update_columns(status: 'failed', error_class: error.class.name, error_message: 'Directory reconciliation failed; credentials and subprocess output were suppressed.', completed_at: Time.current)
     raise
   ensure

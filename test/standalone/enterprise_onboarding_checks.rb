@@ -305,7 +305,7 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
     assert_select 'a[href="/identity/security"] strong', text: 'Sign-in security'
     refute_includes response.body, 'Compute providers'
     refute_includes response.body, 'Credential vault'
-    assert_equal 'no-store, private', response.headers['Cache-Control']
+    assert_equal %w[no-store private], response.headers['Cache-Control'].split(',').map(&:strip).sort
     capture_page('client-settings.html')
   end
 

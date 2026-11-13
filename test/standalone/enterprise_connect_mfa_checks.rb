@@ -188,6 +188,14 @@ class EnterpriseConnectMfaChecks < EnterpriseHttpChecks
     refute Session.exists?(@delegated.id)
     assert_nil @grant.reload.authorization_session_id
   end
+  def test_connect_sign_out_from_agency_dashboard_revokes_retained_source
+    approve_local
+    delete session_path
+    assert_redirected_to new_session_path
+    refute Session.exists?(@source.id)
+    refute Session.exists?(@delegated.id)
+    assert_nil @grant.reload.authorization_session_id
+  end
   def test_connect_local_legacy_delegation_cannot_become_owner_mfa
     approve_local
     @delegated.update!(connect_delegation: {'local' => true, 'connection_id' => @connection.id})

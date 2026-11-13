@@ -12,6 +12,8 @@ on:
       - 'db/migrate/*create_lightek_connect*'
       - 'db/migrate/*connect_mfa_handoff*'
       - 'app/controllers/concerns/authentication.rb'
+      - 'app/controllers/sessions_controller.rb'
+      - 'app/controllers/identity*'
       - 'app/controllers/concerns/lightek_identity/**'
       - 'app/services/lightek_identity/**'
       - 'lib/scripts/gatekeeper/wordpress_sandbox.py'

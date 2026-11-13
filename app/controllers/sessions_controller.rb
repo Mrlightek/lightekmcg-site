@@ -20,7 +20,16 @@ class SessionsController < ApplicationController
   end
 
   def destroy
+    # The local Connect Dashboard replaced this browser's direct agency cookie.
+    # Signing out there must also revoke the retained source and its handoffs.
+    data = Current.session.connect_delegation.to_h
+    if data['local'] == true
+      grant = LightekConnect::Grant.find_by(id: data['grant_id'], connection_id: data['connection_id'])
+      source = grant&.authorization_session
+      source.destroy! if source && source.user_id == Current.session.user_id
+    end
     terminate_session
+    reset_session
     redirect_to new_session_path
   end
 

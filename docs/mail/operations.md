@@ -4,7 +4,7 @@ See [sending-controls.md](sending-controls.md) for the current recipient-based r
 
 ## Deployment boundary
 
-This change supplies the Rails mail product and authenticated HTTP submission/ingress. It does not claim that the live VPS already has a working mail transfer agent, DKIM signer, spam filter, correct DNS or working external delivery. It does not install or replace an existing mail daemon. Inspect the central server first with `bash lib/scripts/audit_lightek_mail.sh`; use that output to integrate with the actual Postfix/other MTA configuration. Existing Gmail delivery stays selected unless the operator changes `MAIL_DELIVERY_METHOD`.
+This change supplies the Rails mail product and authenticated HTTP submission/ingress. It does not claim that the live VPS already has a working mail transfer agent, DKIM signer, spam filter, correct DNS or working external delivery. It does not install or replace an existing mail daemon. Inspect the central server first with `bash lib/scripts/audit_lightek_mail.sh`; use that output to integrate with the actual Postfix/other MTA configuration. Automated mail now defaults to `lightek_smtp`, which uses the same `LightekMail::Transport` settings as inbox mail. An existing `MAIL_DELIVERY_METHOD=gmail_api` selection is migrated to `lightek_smtp`; there is no automatic Google fallback. Explicit `smtp` and `lightek_https` selections remain supported.
 
 Deploy through the existing deploy script; this adds database tables and uses the existing Active Storage and Sidekiq services. There are no new gems, containers, DNS mutations or public SMTP listeners. Open **Settings → Email & communications → Lightek Mail**, `/dashboard/mail`, or the email designer link in Design Studio.
 
@@ -253,3 +253,16 @@ messages, `R` replies, `X` selects the active message, and `?` opens shortcut he
 On smaller screens, the reader replaces the list and a Messages button returns
 to it. Templates, auto replies, domain management, API keys and mailbox controls
 are in Settings. No database migrations or SMTP changes are required.
+
+
+## Verify automated mail and retire the legacy Gmail credential
+
+After deploying and restarting the web and worker processes, open **Dashboard → Settings → Email & communications → Automated mail delivery** as a super admin. The same page is linked from Mail settings.
+
+1. Confirm **Lightek SMTP active** and the expected SMTP endpoint. Defaults use the existing local Lightek mail server on `127.0.0.1:25`; no new credentials are required for that local path.
+2. Choose **Send delivery check to me**. It uses the real transactional mail adapter and sends only to the signed-in operator's email address. SMTP acceptance is submission evidence, not inbox delivery evidence.
+3. Find the email and check its reference. Mark the receipt checkbox on the same Dashboard session and choose **Confirm receipt & disable Gmail credential**. The check must be less than 24 hours old and match the operator and current route.
+
+Retirement disables the Vault entry selected by the existing `GMAIL_API_VAULT_SLUG` setting (default `gmail-api-production`) through the audited Vault service. It does not delete the secret or revoke the OAuth grant at Google. The status page never checks out Google secrets. Failure, missing proof, changed routes and stale proof cannot retire the credential.
+
+The release's local SMTP fixture checks the real password-reset and delivery-check mailers, MIME text/HTML, envelope/Bcc behavior, SMTP rejection, operator authorization and retirement guards. It does not establish live VPS health, external deliverability, SPF/DKIM/DMARC or recipient inbox placement. Check the actual host and received message before confirming retirement. This change preserves the sender configured through the application's existing `MAIL_FROM` setting.

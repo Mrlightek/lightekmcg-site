@@ -1,4 +1,7 @@
 Rails.application.routes.draw do
+  get "/dashboard/mail-transport", to: "dashboard/mail_transport#show", as: :dashboard_mail_transport
+  post "/dashboard/mail-transport/test", to: "dashboard/mail_transport#test_delivery", as: :test_dashboard_mail_transport
+  post "/dashboard/mail-transport/retire-gmail", to: "dashboard/mail_transport#retire_gmail", as: :retire_gmail_dashboard_mail_transport
   get "/dashboard/appearance/colors", to: "dashboard/appearance_colors#show", as: :dashboard_appearance_colors
   patch "/dashboard/appearance/colors", to: "dashboard/appearance_colors#update"
   patch "/dashboard/connect/shopify", to: "dashboard/connect_shopify_settings#update", as: :dashboard_connect_shopify_settings

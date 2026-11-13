@@ -1,0 +1,38 @@
+<% content_for :page_title, "Your workspace" %>
+<%= stylesheet_link_tag '/lightek/people-workspace.css' %>
+<main class="lp-workspace">
+  <header class="lp-heading">
+    <div><span class="lp-eyebrow"><%= @agency_profile&.brand_name.presence || 'Lightek' %></span>
+      <h1>Your workspace</h1><p>Your websites, services and account, together in one place.</p></div>
+  </header>
+  <section class="lp-card">
+    <h2>Your websites</h2>
+    <% if @sites.any? %>
+      <% @sites.each do |site| %>
+        <div><h3><%= site.name %></h3><p><%= site.host %></p>
+          <%= link_to 'Open business workspace', dashboard_business_hub_path(site_id: site.id), class: 'lp-button' %></div>
+      <% end %>
+    <% else %>
+      <p>No websites have been assigned to your account yet. Your agency can help you get started.</p>
+    <% end %>
+    <% if @agency_profile&.support_email.present? %><p><%= mail_to @agency_profile.support_email, 'Contact your agency' %></p><% end %>
+  </section>
+  <section class="lp-card">
+    <h2>Your services</h2><p>View purchased applications and their installation status.</p>
+    <% @installations.each do |order, installation| %>
+      <div><h3><%= installation[:hostname] %></h3><p><%= installation[:state].to_s.humanize %></p>
+        <% if installation[:ready] %><%= link_to 'Launch admin dashboard', "#{installation[:url]}/dashboard/", class: 'lp-button', target: '_blank', rel: 'noopener' %><% end %>
+        <%= link_to 'Application details & setup', installation_path(order), class: 'lp-button secondary' %>
+      </div>
+    <% end %>
+    <% if @installations.empty? %><p>No installed applications are linked to this account yet.</p><% end %>
+    <%= link_to 'All my applications', installations_path, class: 'lp-button' %>
+    <%= link_to 'My reservations', my_reservations_path, class: 'lp-button secondary' %>
+  </section>
+  <section class="lp-card">
+    <h2>Your account</h2>
+    <p><%= @mfa_enabled ? 'Authenticator protection is enabled for your account.' : 'Protect your sign-in by setting up an authenticator.' %></p>
+    <%= link_to 'Sign-in security', identity_security_path, class: 'lp-button' %>
+    <%= link_to 'Settings', dashboard_settings_home_path, class: 'lp-button secondary' %>
+  </section>
+</main>

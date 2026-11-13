@@ -1,8 +1,12 @@
 # frozen_string_literal: true
 module NevaehControlCenterHelper
+  def nevaeh_home_path
+    current_user.role == "client" ? main_app.dashboard_client_home_path : dymond_dash.root_path
+  end
+
   def nevaeh_navigation_defaults
     item = ->(id, label, path, icon, group = "Workspaces") { {"id" => id, "label" => label, "path" => path, "icon" => icon, "group" => group} }
-    rows = [item.call("overview", "Overview", dymond_dash.root_path, "ti-layout-dashboard"),
+    rows = [item.call("overview", "Overview", nevaeh_home_path, "ti-layout-dashboard"),
       item.call("business", "Business", main_app.dashboard_business_hub_path, "ti-building-store"),
       item.call("compliance", "Legal & Compliance", main_app.dashboard_compliance_path, "ti-scale"),
       item.call("accounting", "Books & Accounting", main_app.dashboard_accounting_path, "ti-report-money"),
@@ -50,7 +54,7 @@ module NevaehControlCenterHelper
   end
 
   def nevaeh_dashboard_breadcrumbs(page_label:)
-    home = dymond_dash.root_path
+    home = nevaeh_home_path
     entries = nevaeh_sidebar_entries.reject { |entry| entry['hidden'] }
     entries += [{"path" => main_app.dashboard_live_path, "label" => "Live Studio"},
       {"path" => main_app.dashboard_session_media_path, "label" => "Room service"}]
@@ -74,6 +78,7 @@ module NevaehControlCenterHelper
 
   def nevaeh_sidebar_entries
     return nevaeh_navigation_defaults unless NevaehWorkspacePreference.table_exists?
-    NevaehIntelligences::WorkspaceNavigation.entries(user: current_user, defaults: nevaeh_navigation_defaults)
+    entries = NevaehIntelligences::WorkspaceNavigation.entries(user: current_user, defaults: nevaeh_navigation_defaults)
+    entries.map { |entry| entry['id'] == 'overview' && current_user.role == 'client' ? entry.merge('path' => nevaeh_home_path) : entry }
   end
 end

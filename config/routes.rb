@@ -545,7 +545,8 @@ post "/dashboard/infrastructure/providers/:compute_provider_id/linode_smoke_test
 get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboard_bank
 
   # BEGIN LIGHTEK ORGANIZED SETTINGS
-  get "/dashboard/settings", to: "dashboard/settings_home#index", as: :dashboard_settings_home
+  get "/dashboard/settings", to: "dashboard/account_settings#index", as: :dashboard_settings_home
+  get "/dashboard/home", to: "dashboard/client_home#index", as: :dashboard_client_home
   get "/dashboard/settings/general", to: "dashboard/platform_settings#index", as: :dashboard_platform_settings
   patch "/dashboard/settings/general", to: "dashboard/platform_settings#update"
   patch "/dashboard/settings", to: "dashboard/platform_settings#update"

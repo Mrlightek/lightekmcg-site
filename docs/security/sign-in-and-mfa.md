@@ -21,10 +21,14 @@ After choosing the installed application's password, sign in and complete MFA if
 3. The authenticator adds the Lightek account and displays a six-digit code. Scanning carries the setup key, time-based mode, six digits and 30-second period automatically. There is no Safari app-opening step on your Mac.
 4. If scanning is unavailable, expand **Can’t scan? Enter a setup key manually**. Choose manual entry in the phone app and copy only the **Setup key**, not a website address. Use **time-based / TOTP**, **six digits**, **30 seconds**, and **SHA-1** if requested.
 5. Back in Lightek, enter the current six-digit code and choose **Verify & enable**. Enrollment must finish within ten minutes.
-6. Save the **ten recovery codes** in private storage you can access if the authenticator device is lost. Each works once; the clear-text list is shown only at enrollment.
+6. Save the **ten recovery codes** in private storage you can access if the authenticator device is lost. Choose **Download recovery codes (.txt)** or copy them into your password manager. The download is created locally from the codes on this page; it is not sent to a download service. Each works once; the clear-text list is shown only at enrollment. If your browser cannot download the file, copy the displayed list before leaving.
 7. Choose **Continue to security settings**, then open the intended Dashboard workspace. If enrollment started during a Connect handoff, choose **Continue to connected management** instead.
 
 QR generation uses a locally served encoder in your browser; no external QR service receives the secret. If the encoder cannot load, the manual setup section opens with an explanation.
+
+Any signed-in account can open **Settings → Your account → Sign-in security**, or use **Sign-in security** directly in the top-right Settings menu. Clients see personal settings without receiving platform administration permissions. Books & Accounting requires an eligible business and its existing accounting permissions; unavailable workspaces explain the missing access instead of showing an empty page.
+
+Client accounts land on **Your workspace** after sign-in when no explicit return destination was requested. On the agency instance, this shows only their own/delegated websites and their purchased or assigned application installations. Ready applications offer **Launch admin dashboard**, which opens that installation's `/dashboard/` and uses its own sign-in and MFA requirements. The installed application owner remains an admin on that separate instance. **Servers & Applications** remains available as a hosting tool rather than the client's default home.
 
 Do not share the QR code, setup key, password, verification codes or recovery codes in chat, tickets or screenshots. Lightek does not need you to send those to support to explain this screen.
 

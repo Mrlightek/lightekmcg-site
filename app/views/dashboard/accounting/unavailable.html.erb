@@ -1,0 +1,10 @@
+<% content_for :page_title, "Books & Accounting" %>
+<%= stylesheet_link_tag '/lightek/people-workspace.css' %>
+<main class="lp-workspace">
+  <section class="lp-card">
+    <h1>Books & Accounting is unavailable</h1>
+    <p role="alert"><%= @workspace_message %></p>
+    <%= link_to "Back to Servers & Applications", dashboard_servers_path, class: "lp-button" %>
+    <%= link_to "Sign-in security", identity_security_path, class: "lp-button secondary" %>
+  </section>
+</main>

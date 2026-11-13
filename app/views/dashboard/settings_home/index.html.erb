@@ -1,10 +1,14 @@
-<p style="padding:12px 24px"><%= link_to "PWA Administration", dashboard_pwa_path %></p>
+<% if @settings_operator %><p style="padding:12px 24px"><%= link_to "PWA Administration", dashboard_pwa_path %></p><% end %>
 <% content_for :page_title, "Settings" %>
 <%= render "dashboard/settings_home/style" %>
 <main class="lt-settings">
 <h1>Settings</h1>
 <p class="intro">Choose what you want to change. Each group explains what its settings control.</p>
 <div class="grid">
+<section class="card"><h2>Your account</h2><p>Manage security for your own Lightek sign-in.</p>
+  <%= link_to identity_security_path, class: "setting-link" do %><strong>Sign-in security</strong><small>Set up your authenticator and manage two-step verification.</small><% end %>
+</section>
+<% if @settings_operator %>
 <%
   groups = [
     ["Website", "Your public website’s name and presentation.", [
@@ -56,5 +60,6 @@
   <% links.each do |label, detail, path| %>
     <%= link_to path, class: "setting-link" do %><strong><%= label %></strong><small><%= detail %></small><% end %>
   <% end %></section>
+<% end %>
 <% end %>
 </div></main>

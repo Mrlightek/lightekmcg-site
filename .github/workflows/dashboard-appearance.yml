@@ -1,0 +1,36 @@
+name: Dashboard appearance
+on:
+  pull_request:
+    paths:
+      - 'app/controllers/dashboard/appearance_colors_controller.rb'
+      - 'app/services/lightek_dashboard/**'
+      - 'app/views/dashboard/**'
+      - 'app/views/dymond_dash/**'
+      - 'public/lightek/dashboard.*'
+      - 'public/lightek/business-workspace.css'
+      - 'test/standalone/dashboard_appearance_test.rb'
+      - 'test/standalone/dashboard_network_view_test.rb'
+      - '.github/workflows/dashboard-appearance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  appearance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Install public Rails fixture dependencies
+        run: |
+          gem install --no-document activerecord:8.0.5.1 actionpack:8.0.5.1 sqlite3:2.7.4 minitest:5.25.4
+      - name: Verify theme persistence and operator permissions
+        run: ruby test/standalone/dashboard_appearance_test.rb
+      - name: Verify Network form actions and DNS fields
+        run: ruby test/standalone/dashboard_network_view_test.rb
+      - name: Verify shared navigation
+        run: ruby test/standalone/dashboard_breadcrumbs_test.rb
+      - name: Check navigation script
+        run: node --check public/lightek/dashboard.js

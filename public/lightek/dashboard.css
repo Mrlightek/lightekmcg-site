@@ -1,0 +1,186 @@
+/* Shared administration chrome. Theme colors remain supplied by Dymond Theme. */
+body.dd-dashboard {
+  --dd-control-h: 36px;
+  --dd-control-radius: 7px;
+  --dd-field-max: 28rem;
+  --dd-border-color: var(--dd-border);
+  -webkit-font-smoothing: antialiased;
+}
+.dd-dashboard .dd-content { padding: 28px 32px 48px; min-width: 0; }
+.dd-dashboard .dd-content > :where(main, section, .dd-card, .dd-workspace) { min-width: 0; }
+.dd-dashboard .dd-content :where(h1) { font-size: clamp(22px, 2vw, 28px); line-height: 1.2; letter-spacing: -.035em; font-weight: 650; }
+.dd-dashboard .dd-content :where(h2) { font-size: 16px; line-height: 1.4; letter-spacing: -.015em; font-weight: 600; }
+.dd-dashboard .dd-content :where(h3) { font-size: 14px; line-height: 1.5; font-weight: 600; }
+.dd-dashboard .dd-content :where(p, small) { overflow-wrap: anywhere; }
+.dd-dashboard .dd-content :where(code) { overflow-wrap: anywhere; }
+.dd-dashboard .dd-content > .dd-card + .dd-card { margin-top: 18px; }
+.dd-dashboard .dd-card { border-radius: 12px; }
+/* Ordinary Rails forms: buttons size to their label, never their grid track. */
+.dd-dashboard .dd-content :where(form) { min-width: 0; }
+.dd-dashboard .dd-content :where(form.button_to) { display: inline-flex; width: auto; max-width: 100%; margin: 0; vertical-align: middle; }
+.dd-dashboard .dd-content :is(input[type=submit], input[type=button]):not(:where(#lightek-studio-dashboard *, #n *, [data-dashboard-controls="custom"] *)) {
+  display: inline-flex; width: auto; max-width: 100%; min-height: var(--dd-control-h);
+  justify-self: start; align-self: start; flex: 0 1 auto;
+  padding: 7px 13px; border: 1px solid var(--dd-border); border-radius: var(--dd-control-radius);
+  font: 600 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; cursor: pointer;
+  white-space: normal;
+}
+.dd-dashboard .dd-content :where(button:not([class]), .dd-button, .dd-topbar-btn, .infra-button):not(:where(#lightek-studio-dashboard *, #n *, [data-dashboard-controls="custom"] *)) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto;
+  min-height: var(--dd-control-h); padding: 7px 13px; border: 1px solid var(--dd-border);
+  border-radius: var(--dd-control-radius); background: var(--dd-card-bg); color: var(--dd-text-primary);
+  font: 600 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-decoration: none; cursor: pointer; justify-self: start; flex: 0 1 auto;
+  transition: border-color .15s, background-color .15s;
+}
+.dd-dashboard .dd-content :where(button:not([class]), .dd-button, .infra-button):hover { border-color: var(--dd-accent); }
+.dd-dashboard .dd-content :where(button, input[type=submit]):disabled { cursor: not-allowed; opacity: .5; }
+.dd-dashboard .dd-content :is(input:not([type]), input[type=text], input[type=email], input[type=password], input[type=search], input[type=url], input[type=tel], input[type=number], input[type=date], input[type=datetime-local], input[type=time], input[type=month], input[type=week], select):not(:where(#lightek-studio-dashboard *, #n *, [data-dashboard-controls="custom"] *)) {
+  width: 100%; max-width: var(--dd-field-max); min-width: 0; min-height: var(--dd-control-h);
+  height: var(--dd-control-h); padding: 7px 10px; border-radius: var(--dd-control-radius);
+  font-size: 13px; line-height: 1.45;
+}
+.dd-dashboard .dd-content select[multiple] { height: auto; min-height: 112px; }
+.dd-dashboard .dd-content :where(textarea, trix-editor):not(:where(#lightek-studio-dashboard *, #n *, [data-dashboard-controls="custom"] *)) { min-height: 112px; padding: 10px 12px; font-size: 13px; }
+.dd-dashboard .dd-content input[type=file] { font-size: 12px; }
+.dd-dashboard .dd-content input[type=file]::file-selector-button { padding: 7px 10px; border-radius: 6px; }
+.dd-dashboard .dd-content :where(form > p) { margin: 0 0 14px; }
+.dd-dashboard .dd-content :where(form > p > label) { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 550; }
+/* Dense forms can use the available track; editors retain their own control geometry. */
+.dd-dashboard .dd-content :where(.dd-field, .infra-field) { min-width: 0; }
+.dd-dashboard .dd-content :where(.dd-field, .infra-field) > :where(input, select):not(:where(#lightek-studio-dashboard *, #n *, [data-dashboard-controls="custom"] *)) { max-width: 100%; }
+.dd-dashboard .dd-content :where(.dd-field) > :where(label) { display: block; margin: 0 0 6px; font-size: 12px; font-weight: 550; }
+.dd-dashboard .dd-content .dd-field :where(small) { display: block; margin-top: 6px; color: var(--dd-text-secondary); font-size: 11px; line-height: 1.5; }
+.dd-dashboard .dd-content :where(.dd-field-wide) { grid-column: 1 / -1; }
+.dd-workspace { max-width: 1360px; margin-inline: auto; display: grid; gap: 20px; }
+.dd-page-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 3px 0 6px; }
+.dd-page-header h1 { margin: 6px 0 8px; }
+.dd-page-header p { max-width: 65ch; font-size: 13px; color: var(--dd-text-secondary); line-height: 1.65; }
+.dd-eyebrow { color: var(--dd-accent); font-size: 10px; text-transform: uppercase; letter-spacing: .14em; font-weight: 650; }
+.dd-panel { background: var(--dd-sidebar-bg); border: 1px solid var(--dd-border); border-radius: 12px; padding: 22px; min-width: 0; }
+.dd-panel-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.dd-panel-header p { margin-top: 5px; max-width: 65ch; color: var(--dd-text-secondary); font-size: 12px; line-height: 1.6; }
+.dd-panel-header h2 { margin: 0; }
+.dd-workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.dd-workspace-grid > :only-child { grid-column: 1 / -1; }
+.dd-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 18px; max-width: 760px; }
+.dd-form-stack { display: grid; gap: 15px; max-width: 620px; }
+.dd-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--dd-border); }
+.dd-form-actions small { color: var(--dd-text-secondary); font-size: 11px; }
+.dd-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 5px; background: var(--dd-card-bg); color: var(--dd-text-secondary); border: 1px solid var(--dd-border); font-size: 10px; font-weight: 600; white-space: nowrap; }
+.dd-status:before { content: ""; width: 5px; height: 5px; background: currentColor; border-radius: 50%; }
+.dd-status[data-tone=success] { color: var(--dd-success); }
+.dd-status[data-tone=warning] { color: var(--dd-accent); }
+.dd-table-scroll { max-width: 100%; overflow-x: auto; }
+.dd-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.dd-table th { padding: 10px 12px; color: var(--dd-text-secondary); border-bottom: 1px solid var(--dd-border); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.dd-table td { padding: 13px 12px; vertical-align: middle; border-bottom: 1px solid var(--dd-border); }
+.dd-table tr:last-child td { border-bottom: 0; }
+.dd-table td small { display: block; margin-top: 4px; color: var(--dd-text-secondary); font-size: 11px; }
+.dd-table td code { font-size: 11px; }
+.dd-empty { padding: 24px 10px; color: var(--dd-text-secondary); font-size: 12px; text-align: center; }
+.dd-note { padding: 12px 14px; border: 1px solid var(--dd-border); border-left: 2px solid var(--dd-accent); background: var(--dd-card-bg); border-radius: 7px; font-size: 12px; line-height: 1.6; }
+.dd-note code { display: block; margin-top: 8px; }
+.dd-detail { border-top: 1px solid var(--dd-border); padding-top: 16px; margin-top: 16px; }
+.dd-detail summary { color: var(--dd-text-secondary); cursor: pointer; font-size: 12px; font-weight: 600; }
+.dd-detail[open] summary { margin-bottom: 14px; }
+.dd-dashboard .dd-subnav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0 0 18px; margin-bottom: 16px; border-bottom: 1px solid var(--dd-border); font-size: 12px; }
+.dd-subnav a { color: var(--dd-text-secondary); padding: 5px 8px; text-decoration: none; border-radius: 5px; }
+.dd-subnav a:hover { color: var(--dd-accent); background: var(--dd-sidebar-bg); }
+.dd-dashboard .dd-nav-toggle, .dd-dashboard .dd-nav-scrim { display: none; }
+.dd-dashboard .dd-topbar { padding: 11px 28px; background: var(--dd-topbar-bg); }
+.dd-dashboard .dd-avatar, .dd-dashboard .dd-badge { color: var(--dd-button-text); }
+.dd-dashboard .dd-btn-primary { color: var(--dd-button-text); }
+.dd-dashboard .dd-brand-name { letter-spacing: .09em; }
+.dd-dashboard .dd-nav-item { min-height: 35px; padding: 8px 10px; }
+.dd-dashboard .dd-nav-label { color: var(--dd-text-secondary); font-size: 9px; opacity: .8; }
+.dd-dashboard .dd-sidebar { scrollbar-width: thin; }
+/* Deliberately scoped to the infrastructure/business component family. */
+.dd-dashboard .infra { gap: 18px; }
+.dd-dashboard .infra .infra-hero { padding: 22px 24px; border-radius: 12px; gap: 18px; }
+.dd-dashboard .infra h1 { font-size: clamp(23px, 2vw, 28px); margin: 6px 0 9px; }
+.dd-dashboard .infra .infra-panel, .dd-dashboard .infra .infra-stat { padding: 20px; }
+.dd-dashboard .infra .infra-panel-header { margin-bottom: 18px; }
+.dd-dashboard .infra .infra-form { gap: 16px; }
+.dd-dashboard .infra .infra-fields { gap: 16px 18px; max-width: 800px; }
+.dd-dashboard .infra .infra-field { gap: 6px; }
+.dd-dashboard .infra .infra-table td { padding-top: 12px; padding-bottom: 12px; }
+.dd-dashboard .infra .infra-form-footer { padding-top: 16px; }
+.dd-dashboard .lt-settings { padding: 0; }
+.dd-dashboard .lt-settings h1 { font-size: 26px; }
+/* Application workbenches own their control dimensions; shared field colors still apply. */
+
+@media (max-width: 1050px) {
+  .dd-dashboard .dd-content { padding: 22px; }
+  .dd-workspace-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 768px) {
+  .dd-dashboard .dd-content { padding: 18px 14px 32px; }
+  .dd-dashboard .dd-topbar { padding: 10px 14px; }
+  .dd-dashboard .dd-nav-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--dd-border); border-radius: 7px; background: var(--dd-card-bg); color: var(--dd-text-primary); cursor: pointer; }
+  .dd-dashboard .dd-sidebar.open { box-shadow: 16px 0 48px rgba(0,0,0,.35); }
+  .dd-dashboard .dd-nav-scrim:not([hidden]) { display: block; position: fixed; inset: 0; border: 0; background: rgba(0,0,0,.55); z-index: 95; }
+  .dd-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .dd-panel { padding: 18px; }
+  .dd-dashboard .dd-content :is(input:not([type]), input[type=text], input[type=email], input[type=password], input[type=search], input[type=url], input[type=tel], input[type=number], select, textarea) { font-size: 16px; }
+  .dd-table { min-width: 540px; }
+  .dd-dashboard .infra .infra-hero { align-items: flex-start; padding: 20px; }
+  .dd-dashboard .dd-content :is(input[type=submit], input[type=button]):not(:where(#lightek-studio-dashboard *, #n *, [data-dashboard-controls="custom"] *)) { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dd-dashboard *, .dd-dashboard *:before, .dd-dashboard *:after { scroll-behavior: auto !important; transition: none !important; }
+}
+
+/* Business overview shares the same compact, theme-driven administration scale. */
+.dd-dashboard .lbh { padding: 0; }
+.dd-dashboard .lbh-top > form { width: min(100%, 300px); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 8px; align-items: end; }
+.dd-dashboard .lbh-top > form label { grid-column: 1 / -1; font-size: 11px; color: var(--dd-text-secondary); }
+.dd-dashboard .lbh-actions { gap: 7px; }
+.dd-dashboard .lbh-button { min-height: 34px; display: inline-flex; align-items: center; padding: 7px 12px; font-size: 12px; border-radius: 7px; }
+.dd-dashboard .lbh .lbh-sub { font-size: 12px; }
+.dd-dashboard .lbh-metric { padding: 16px; border-radius: 10px; }
+.dd-dashboard .lbh-value { margin: 7px 0 0; font-size: 26px; letter-spacing: -.03em; }
+.dd-dashboard .lbh-panel { border-radius: 12px; }
+.dd-color-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 22px 30px; }
+.dd-color-field label { display: block; font-size: 12px; margin-bottom: 8px; }
+.dd-color-field > div { display: flex; align-items: center; gap: 12px; }
+.dd-color-field input[type=color] { width: 44px; height: 34px; padding: 3px; border: 1px solid var(--dd-border); border-radius: 6px; background: var(--dd-card-bg); cursor: pointer; }
+.dd-color-field code { font-size: 12px; color: var(--dd-text-secondary); }
+
+.dd-dashboard .dd-content .dd-button-danger:is(button,input[type=submit]) { background: transparent !important; color: var(--dd-danger) !important; border-color: var(--dd-border) !important; }
+.dd-dashboard .dd-content .dd-button-danger:is(button,input[type=submit]):hover { background: color-mix(in srgb,var(--dd-danger) 8%,transparent) !important; border-color: var(--dd-danger) !important; }
+.dd-dashboard .dd-flash.notice { background: color-mix(in srgb,var(--dd-success) 10%,transparent); border-color: color-mix(in srgb,var(--dd-success) 25%,transparent); }
+.dd-dashboard .dd-flash.alert { background: color-mix(in srgb,var(--dd-danger) 10%,transparent); border-color: color-mix(in srgb,var(--dd-danger) 25%,transparent); }
+@media(max-width:768px) { .dd-dashboard .lbh-button { min-height: 40px; } }
+
+.dd-dashboard .infra .infra-hero { background: radial-gradient(ellipse at top right,color-mix(in srgb,var(--dd-accent) 8%,transparent),transparent 65%),var(--infra-surface); }
+.dd-dashboard .infra .infra-button { min-height: 36px; padding: 7px 13px; border-radius: 7px; }
+.dd-dashboard .infra .infra-danger, .dd-dashboard .infra .infra-delete summary { color: var(--dd-danger); }
+.dd-dashboard .infra .infra-warning { color: var(--dd-accent); background: color-mix(in srgb,var(--dd-accent) 10%,transparent); }
+.dd-dashboard .infra .infra-note { background: color-mix(in srgb,var(--dd-accent) 7%,transparent); border-color: color-mix(in srgb,var(--dd-accent) 20%,transparent); }
+.dd-dashboard .dd-nav-item:hover, .dd-dashboard .dd-btn-ghost:hover { background: color-mix(in srgb,var(--dd-text-primary) 5%,transparent); }
+
+/* Network operations: useful overview first, then clearly separated controls. */
+.dd-network .net-navigation { display:flex; flex-wrap:wrap; gap:6px; padding-bottom:16px; border-bottom:1px solid var(--dd-border); }
+.dd-network .net-navigation a { padding:7px 11px; border-radius:6px; font-size:12px; text-decoration:none; color:var(--dd-text-secondary); background:var(--dd-sidebar-bg); border:1px solid var(--dd-border); }
+.dd-network .net-navigation a:hover { color:var(--dd-accent); border-color:var(--dd-accent); }
+.net-overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.net-overview > div { padding:16px 18px; background:var(--dd-sidebar-bg); border:1px solid var(--dd-border); border-radius:10px; min-width:0; }
+.net-overview span { display:block; color:var(--dd-text-secondary); font-size:11px; margin-bottom:6px; }
+.net-overview strong { font-size:20px; font-weight:600; letter-spacing:-.025em; overflow-wrap:anywhere; }
+.dd-network .net-panel { scroll-margin-top:80px; }
+.dd-network .net-title { margin-bottom:6px; }
+.dd-network .net-panel > p, .dd-network .net-description { font-size:12px; color:var(--dd-text-secondary); line-height:1.7; margin-bottom:18px; }
+.dd-network .net-field { display:grid; gap:6px; font-size:12px; font-weight:500; min-width:0; }
+.dd-network .net-form { margin:18px 0; align-items:end; }
+.dd-network .net-form input[type=submit] { grid-column:1/-1; }
+.dd-network .net-zone-form { max-width:320px; margin:18px 0; }
+.dd-network .dd-table td:last-child > form { margin:4px 4px 4px 0; }
+.dd-network .net-row-editor { min-width:130px; margin:8px 0; }
+.dd-network summary { font-size:12px; cursor:pointer; color:var(--dd-text-secondary); }
+.dd-network .net-row-editor[open] { min-width:280px; }
+.dd-network .net-row-editor form { display:grid; gap:12px; margin:12px 0; }
+.dd-network .net-code { white-space:pre-wrap; overflow-wrap:anywhere; max-height:240px; overflow:auto; font:12px/1.7 monospace; padding:14px; background:var(--dd-card-bg); border:1px solid var(--dd-border); border-radius:7px; margin-bottom:18px; }
+.dd-network .dd-table th[align] { text-align:left; }
+.dd-network ul { padding-left:18px; font-size:12px; line-height:1.8; }
+@media(max-width:768px) { .net-overview { grid-template-columns:repeat(2,minmax(0,1fr)); } .net-overview strong {font-size:17px;} }

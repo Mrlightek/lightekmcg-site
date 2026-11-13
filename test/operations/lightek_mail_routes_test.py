@@ -26,6 +26,11 @@ class ReceivingRoutesTest(unittest.TestCase):
             with self.subTest(recipients=recipients), self.assertRaises(ValueError):
                 routes.build(recipients, 'client.test OK')
 
+    def test_explicit_empty_export_removes_final_route_but_keeps_domains(self):
+        domains, routes_text = routes.build('', 'client.test OK\n', allow_empty=True)
+        self.assertEqual('client.test OK\n', domains)
+        self.assertEqual('', routes_text)
+
     def test_deduplicates_and_produces_stable_maps(self):
         source = '# accounts\nb@client.test lightek\na@client.test lightek\nb@client.test lightek\n'
         first = routes.build(source, '# domains\nclient.test OK\n')

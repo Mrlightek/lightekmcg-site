@@ -43,12 +43,10 @@ sudo -u lightek -H bash -c '
   cd "'"$APP_DIR"'"
   RAILS_ENV=production bundle exec rails runner -
 ' > "$work/runner.out" <<'RUBY'
-LightekMail::Account.joins(:domain)
-  .where(enabled: true)
-  .where.not(lightek_mail_domains: { verified_at: nil })
-  .order(:address).pluck(:address).each do |address|
-    puts "LIGHTEK_RECIPIENT #{address}"
-  end
+LightekMail::RecipientDirectory.addresses.each do |address|
+  puts "LIGHTEK_RECIPIENT #{address}"
+end
+puts "LIGHTEK_RECIPIENT_EXPORT_COMPLETE"
 RUBY
 fi
 
@@ -65,17 +63,17 @@ awk '
 ' "$work/runner.out" | LC_ALL=C sort -u > "$work/lightek_recipients"
 
 count="$(wc -l < "$work/lightek_recipients")"
-# Refuse a surprise all-mailbox deletion. An intentional empty list requires
-# an operator-approved migration, not an unattended timer run.
+# Only a successful authoritative export may intentionally remove the last route.
+empty_flag=()
 if [[ "$count" -lt 1 ]]; then
-  echo "No eligible mailboxes returned; keeping current map unchanged." >&2
-  exit 1
+  grep -qx 'LIGHTEK_RECIPIENT_EXPORT_COMPLETE' "$work/runner.out" || { echo "Incomplete export; retaining existing maps." >&2; exit 1; }
+  empty_flag=(--allow-empty)
 fi
 postmap "hash:$work/lightek_recipients"
 
 # Keep existing authorized domains, including independently provisioned mailboxes.
 # Rebuild exact recipient transports only once the receiving installer opts in.
-python3 "$SCRIPT_DIR/lightek_mail_route_maps.py" --recipients "$work/lightek_recipients" --domains /etc/postfix/lightek_domains --output "$work"
+python3 "$SCRIPT_DIR/lightek_mail_route_maps.py" --recipients "$work/lightek_recipients" --domains /etc/postfix/lightek_domains --output "$work" "${empty_flag[@]}"
 postmap "hash:$work/lightek_domains"
 if [[ -f /etc/postfix/lightek_transports ]]; then
   postmap "hash:$work/lightek_transports"

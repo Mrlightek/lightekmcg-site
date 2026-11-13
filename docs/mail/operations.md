@@ -266,3 +266,22 @@ After deploying and restarting the web and worker processes, open **Dashboard â†
 Retirement disables the Vault entry selected by the existing `GMAIL_API_VAULT_SLUG` setting (default `gmail-api-production`) through the audited Vault service. It does not delete the secret or revoke the OAuth grant at Google. The status page never checks out Google secrets. Failure, missing proof, changed routes and stale proof cannot retire the credential.
 
 The release's local SMTP fixture checks the real password-reset and delivery-check mailers, MIME text/HTML, envelope/Bcc behavior, SMTP rejection, operator authorization and retirement guards. It does not establish live VPS health, external deliverability, SPF/DKIM/DMARC or recipient inbox placement. Check the actual host and received message before confirming retirement. This change preserves the sender configured through the application's existing `MAIL_FROM` setting.
+
+
+## Mailbox management, automatic activation and distribution groups
+
+Mail Settings lets an owner rename a mailbox's display name and delete a mailbox by confirming its address. Deletion removes access, receiving eligibility and application tokens. History is retained on a retired record, and a later mailbox created at the same address gets a new ID and no old history.
+
+New mailboxes start enabled. Verified-domain addresses are published to the existing Postfix recipient-sync timer automatically (normally within one minute); a user does not need an administrator to enable each mailbox. Existing explicit operator/abuse stops remain in force. The upgrade removes the previous unexplained bootstrap sending pause; stops with a recorded reason are preserved. Domain ownership, SMTP service, DNS and scanner availability still determine actual service readiness.
+
+Distribution groups are managed in Mail Settings. A group address such as `it@example.com` delivers one copy to each selected customer-owned Lightek mailbox, with up to 100 members. Group members must be ordinary mailboxes belonging to that domain's customer. Nested groups and cross-customer membership are rejected. Incoming processing uses authenticated envelope recipients, snapshots recipient IDs and deduplicates copies; membership changes or address reuse do not expose an older message on retry.
+
+Authoritative v2 route exports permit an intentionally empty recipient list, so deletion of the last mailbox can revoke the final route. Invalid, partial and unauthenticated exports still retain existing MTA maps. Production/native updates refresh an already-installed receiving integration's helper scripts automatically; the existing timer applies the next export. The helper refresh does not change listeners, firewall policy, DNS or credentials. A separate mail-only VM must receive the same helper update through its own normal update pipeline.
+
+## Junk and spam controls
+
+Incoming mail is scanned by the existing loopback Rspamd service before inbox classification; untrusted MIME `X-Spam-*` headers are not used as verdicts. Standard filtering uses score 6 and strict filtering uses score 4. Server spam verdicts can also place mail in Junk. A scanner outage holds mail in Junk with an explanation and suppresses automatic replies. High-risk mail rejected by the MTA never reaches the application.
+
+Mailbox settings expose standard/strict filtering plus up to 200 allowed and blocked sender addresses or domains. Blocked entries win. Allowed entries cannot bypass a missing scan, a score of 6 or higher, or a reject/discard/quarantine/deferral verdict. Junk has its own folder; message and bulk actions support spam/not-spam moves. These moves do not train a global spam model or change sender lists automatically.
+
+This release requires the `AddLightekMailboxManagement` database migration. Focused fixtures cover mailbox lifecycle, group isolation, snapshot delivery, spam classification, user controls and safe empty-route exports. Recipient inbox placement and live Rspamd/DNS/MTA readiness still require host verification.

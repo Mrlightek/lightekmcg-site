@@ -4,7 +4,7 @@ class IdentityChallengesController < ApplicationController
   layout 'auth'
   protect_from_forgery with: :exception
   rate_limit to: 8, within: 3.minutes, only: :create
-  before_action { response.headers['Cache-Control'] = 'no-store'; response.headers['Referrer-Policy'] = 'no-referrer' }
+  before_action { response.headers['Cache-Control'] = 'no-store'; response.headers['Referrer-Policy'] = 'same-origin' }
   def show
     pending!
   rescue LightekIdentity::Mfa::Invalid

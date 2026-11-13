@@ -36,6 +36,11 @@ class EnterpriseFormOriginChecks < EnterpriseHttpChecks
     post enroll_identity_security_path, params: {password: 'fixture-password', authenticity_token: csrf}, headers: {'Origin' => 'https://example.test'}
     assert_response :success
     assert_equal 'same-origin', response.headers['Referrer-Policy']
+    assert_includes response.body, 'Scan with your authenticator'
+    if (directory = ENV['MFA_QR_CAPTURE_DIR'])
+      FileUtils.mkdir_p(directory)
+      File.write(File.join(directory, 'enroll.html'), response.body)
+    end
     factor = LightekIdentity::Factor.find_by!(user: @employer)
     secret = LightekIdentity::Sealed.open(factor.secret_box, context: "mfa:#{@employer.id}")['secret']
     post confirm_identity_security_path, params: {otp: LightekIdentity::Mfa.code(secret, Time.current.to_i / 30), authenticity_token: token}, headers: {'Origin' => 'https://example.test'}

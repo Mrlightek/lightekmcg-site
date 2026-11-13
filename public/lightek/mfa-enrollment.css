@@ -1,0 +1,10 @@
+.mfa-enrollment { max-width: 640px; }
+.mfa-enrollment .mfa-steps { padding-left: 1.35rem; line-height: 1.7; }
+.mfa-qr-box { width: fit-content; max-width: 100%; margin: 1rem 0; padding: 12px; background: #fff; border: 1px solid #d9dee7; border-radius: 12px; }
+.mfa-qr-box canvas { display: block; width: 264px; max-width: 100%; height: auto; image-rendering: pixelated; }
+.mfa-qr-box canvas[hidden] { display: none; }
+.mfa-enrollment .mfa-note { font-size: .9rem; line-height: 1.6; }
+.mfa-enrollment details { margin-top: 1.5rem; }
+.mfa-enrollment summary { cursor: pointer; font-weight: 600; }
+.mfa-enrollment .mfa-key { font-family: ui-monospace, monospace; font-size: .85rem; width: 100%; box-sizing: border-box; }
+.mfa-enrollment .mfa-code { max-width: 240px; font-family: ui-monospace, monospace; font-size: 1.3rem; letter-spacing: .15em; }

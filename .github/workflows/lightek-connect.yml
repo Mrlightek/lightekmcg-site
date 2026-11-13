@@ -36,6 +36,7 @@ jobs:
         run: |
           ruby test/standalone/lightek_connect_api_test.rb
           ruby test/standalone/lightek_connect_sandbox_test.rb
+          ruby test/standalone/lightek_connect_vault_test.rb
           python3 test/standalone/wordpress_sandbox_test.py
       - name: Test WordPress connector
         run: |

@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  patch "/dashboard/connect/shopify", to: "dashboard/connect_shopify_settings#update", as: :dashboard_connect_shopify_settings
   post "/dashboard/connect/sandboxes/:id/credentials", to: "dashboard/connect_sandboxes#credentials", as: :dashboard_connect_sandbox_credentials
   post "/dashboard/connect/sandboxes", to: "dashboard/connect_sandboxes#create", as: :dashboard_connect_sandboxes
   delete "/dashboard/connect/sandboxes/:id", to: "dashboard/connect_sandboxes#destroy", as: :dashboard_connect_sandbox

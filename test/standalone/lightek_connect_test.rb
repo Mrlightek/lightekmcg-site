@@ -47,9 +47,11 @@ module NevaehControlCenterHelper; end
 require Rails.root.join("app/services/gatekeeper/hosting/access")
 require Rails.root.join("app/services/lightek_settings/website_identity")
 %w[connection event grant].each { |name| require Rails.root.join("app/models/lightek_connect/#{name}") }
+require_relative "lightek_connect_vault_support"
 %w[shopify workspace instance_transport].each { |name| require Rails.root.join("app/services/lightek_connect/#{name}") }
 
 class LightekConnectTest < Minitest::Test
+  include ConnectVaultFixtures
   def setup
     LightekConnect::Event.delete_all
     LightekConnect::Grant.delete_all
@@ -62,8 +64,7 @@ class LightekConnectTest < Minitest::Test
     @site = DymondSite::Site.create!(name: "Client", host: "client.example.test", tenant: @client)
     @foreign_site = DymondSite::Site.create!(name: "Other", host: "other.example.test", tenant: @other)
     @connection, @code = LightekConnect::Connection.issue!(user: @agency, platform: "wordpress", label: "Agency WP")
-    ENV["LIGHTEK_SHOPIFY_CLIENT_ID"] = "test-client"
-    ENV["LIGHTEK_SHOPIFY_CLIENT_SECRET"] = "test-secret"
+    reset_shopify_vault!
   end
   def pair
     LightekConnect::Connection.redeem!(code: @code, platform: "wordpress", identity: nil)

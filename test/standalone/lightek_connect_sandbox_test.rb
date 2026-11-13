@@ -16,12 +16,6 @@ module Godaddy
     def self.zones = ["lightekmcg.com"]
   end
 end
-module LightekVault
-  class Service
-    def self.checkout!(**) = {}
-    def self.disable!(**) = true
-  end
-end
 module Gatekeeper
   module Fleet
     class Transport

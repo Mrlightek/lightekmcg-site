@@ -1,7 +1,8 @@
 class ConnectShopifyController < ActionController::Base
+  rescue_from LightekConnect::ShopifyCredentials::Unavailable, with: -> { head :service_unavailable }
   skip_forgery_protection
   def index
-    @client_id = ENV.fetch("LIGHTEK_SHOPIFY_CLIENT_ID", "")
+    @client_id = LightekConnect::ShopifyCredentials.client_id
     return head :service_unavailable if @client_id.blank?
     response.headers.delete("X-Frame-Options")
     response.headers["Content-Security-Policy"] = "frame-ancestors https://admin.shopify.com https://*.myshopify.com;"

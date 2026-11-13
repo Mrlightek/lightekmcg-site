@@ -1,4 +1,5 @@
 class Api::ConnectController < ActionController::Base
+  rescue_from LightekConnect::ShopifyCredentials::Unavailable, with: ->(error) { render json: {error: error.message}, status: :service_unavailable }
   skip_forgery_protection
   before_action :secure_transport!
   before_action :authenticate_connection!, except: :pair

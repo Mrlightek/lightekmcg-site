@@ -9,6 +9,7 @@ end
 module Api; end
 require Rails.root.join("app/controllers/api/connect_controller")
 class LightekConnectApiTest < ActionController::TestCase
+  include ConnectVaultFixtures
   tests Api::ConnectController
   def setup
     @routes = ActionDispatch::Routing::RouteSet.new
@@ -23,6 +24,7 @@ class LightekConnectApiTest < ActionController::TestCase
     @site = DymondSite::Site.create!(name: "HTTP client", host: "http.example.test", tenant: @client)
     @connection, @code = LightekConnect::Connection.issue!(user: @agency, platform: "wordpress", label: "HTTP")
     @request.host = "lightekmcg.com"
+    reset_shopify_vault!
   end
   def test_cookie_without_connector_credential_is_rejected
     get :show, format: :json
@@ -51,6 +53,13 @@ class LightekConnectApiTest < ActionController::TestCase
     patch :update_site, params: {id: site.id, name: "Hijack"}, format: :json
     assert_response :not_found
     assert_equal "Foreign", site.reload.name
+  end
+  def test_shopify_returns_unavailable_when_vault_credentials_are_disabled
+    LightekVault::Service.disable!(slug: LightekConnect::ShopifyCredentials::SLUG, requested_by: "test-operator")
+    @request.headers["Authorization"] = "Bearer invalid.jwt.signature"
+    post :pair, params: {platform: "shopify", code: @code}, format: :json
+    assert_response :service_unavailable
+    refute response.body.include?("test-secret")
   end
   def test_invalid_shopify_pairing_is_unauthorized
     @request.headers["Authorization"] = "Bearer invalid.jwt.signature"

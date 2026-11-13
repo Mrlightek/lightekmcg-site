@@ -21,6 +21,7 @@ class Dashboard::ConnectController < ApplicationController
   private
   def load_sandboxes
     return unless current_user.role == "super_admin"
+    @shopify_credentials_status = LightekConnect::ShopifyCredentials.status
     @sandbox_nodes = Gatekeeper::Hosting::Access.nodes(current_user).where.not(status: %w[provisioning deleting delete_failed decommissioned]).order(:name)
     @sandboxes = LightekConnect::Sandbox.order(id: :desc).limit(30)
   end

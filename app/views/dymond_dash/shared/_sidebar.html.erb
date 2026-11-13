@@ -1,4 +1,4 @@
-<aside class="dd-sidebar" aria-label="Main application navigation">
+<aside id="dd-primary-navigation" class="dd-sidebar" aria-label="Main application navigation">
   <div class="dd-brand"><% if agency_branding&.logo_url.present? %><%= image_tag agency_branding.logo_url, alt: agency_branding.brand_name, style: "max-width:160px;max-height:50px" %><% end %><%= link_to(agency_branding&.brand_name || "LIGHTEK", dymond_dash.root_path, class: "dd-brand-name") %><div class="dd-brand-sub">Business operating system</div></div>
   <div class="dd-user"><div class="dd-avatar"><%= current_user.email_address.to_s.first.upcase %></div><div><div class="dd-user-name"><%= current_user.email_address %></div><small class="dd-brand-sub"><%= current_user.role.to_s.humanize %></small></div></div>
   <% if agency_branding&.support_email.present? %><div class="dd-user"><%= mail_to agency_branding.support_email, "Contact support", class: "dd-nav-item" %></div><% end %>

@@ -123,3 +123,6 @@ gem "google-apis-gmail_v1", "~> 0.53.0"
 gem "googleauth", "~> 1.17"
 
 gem "webrick", "~> 1.9"
+
+# OpenXML ingestion is a production capability, not only a browser-test dependency.
+gem "rubyzip", "~> 3.4"

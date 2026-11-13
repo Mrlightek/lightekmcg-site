@@ -722,6 +722,7 @@ DEPENDENCIES
   rails (~> 8.0.4)
   redis (~> 5.0)
   rspec-rails (~> 6.0)
+  rubyzip (~> 3.4)
   rubocop-rails-omakase
   selenium-webdriver
   shoulda-matchers

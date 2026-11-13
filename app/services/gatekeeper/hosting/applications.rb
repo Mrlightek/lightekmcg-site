@@ -33,9 +33,10 @@ module Gatekeeper
           app.gatekeeper_node.with_lock do
             app.reload
             return if app.status == "ready" || app.status == "deleted" || app.status == "provisioning"
-            Access.authorize!(app.requested_by, app.gatekeeper_node)
+            LightekIdentity::Permissions.application!(app.requested_by,app,"manage")
             Access.active!(app.gatekeeper_node)
-            Access.enforce_limit!(actor: app.requested_by, owner: app.owner, additional: 0)
+            quota_actor = Access.manages?(app.requested_by,app.owner) ? app.requested_by : app.owner
+            Access.enforce_limit!(actor: quota_actor, owner: app.owner, additional: 0)
             operation = GatekeeperOperation.create!(gatekeeper_node: app.gatekeeper_node, gatekeeper_project: app.gatekeeper_project,
               capability: "create_hosted_application", requested_by: app.requested_by.email_address,
               status: "running", started_at: Time.current, parameters: {hosted_application_id: app.id, domain: app.domain})
@@ -63,8 +64,9 @@ module Gatekeeper
       end
 
       def self.retry!(actor:, app:)
-        Access.authorize!(actor, app.gatekeeper_node)
+        LightekIdentity::Permissions.application!(actor,app,"manage")
         raise Access::Denied, "Only failed applications can be retried" unless app.status == "failed"
+        app.update!(requested_by: actor)
         ProvisionApplicationJob.perform_later(app.id)
       end
     end

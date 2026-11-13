@@ -15,6 +15,14 @@ module LightekPeople
     validates :starts_on, presence: true
     validates :level, inclusion: {in: LEVELS}
     validates :worker_kind, inclusion: {in: KINDS}
+    validates :compliance_access, inclusion: {in: %w[none reviewer administrator]}
+    validates :accounting_access, inclusion: {in: %w[none bookkeeper reviewer administrator]}
+    before_validation { self.directory_principal = directory_principal.to_s.strip.downcase.presence }
+    validates :directory_principal, uniqueness: {scope: :employer_id}, allow_blank: true
+    validates :directory_principal, format: {with: /\A[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\z/}, allow_blank: true
+    after_save { LightekIdentity::DirectoryPolicy.changed!(employer_id) if defined?(LightekIdentity::DirectoryPolicy) }
+    after_destroy { LightekIdentity::DirectoryPolicy.changed!(employer_id) if defined?(LightekIdentity::DirectoryPolicy) }
+    after_commit { DirectorySyncJob.perform_later(employer_id) if defined?(DirectorySyncJob) }
     validates :payroll_access, inclusion: {in: %w[none preparer approver administrator]}
     validate :organization_and_reporting
     scope :active, -> { where(active: true).where('starts_on <= ?', Date.current).where('ends_on IS NULL OR ends_on >= ?', Date.current) }

@@ -1,162 +1,95 @@
-<!-- LIGHTEK README V2 -->
 # Lightek Media & Communications Group
 
-**Lightek is a database-centered operating ecosystem for media, software, infrastructure, business operations, and the production of new capabilities.** This repository is the Rails host for its shared services and client-facing experiences.
+**Lightek is a business operating system connecting websites, commerce, finance, people, communications, media production, infrastructure and automation in one Dashboard.** This repository is the Rails host application for that ecosystem and its client-facing experiences.
 
-> **Nevaeh's intelligence is the database knowing what capability to dispatch for the intent Lightek receives.**
-
-The canonical database represents live operational state. Nevaeh resolves intent and available intelligence; Gatekeeper authorizes the requested operation; DymondDispatch executes work; results, tickets, artifacts, and tests provide evidence for subsequent decisions.
-
-```text
-Human / system / client intent
-          |
-          v
-Nevaeh -> intelligence records + capability registry + Knowledge Base
-          |
-          v
-Gatekeeper authorization
-          |
-          v
-DymondDispatch -> registered Rails worker / production runtime
-          |
-          v
-Database state + artifacts + receipts + tests + tickets
-          |
-          +-------> Nevaeh observes and improves subsequent execution
-```
+A business can build its website, sell products or book services, manage customer communications, produce media, run its own applications and delegate supported work to Nevaeh using the same accounts and operational records. Agencies can manage nested client businesses and independently provisioned client instances through the existing account, billing and Gatekeeper boundaries.
 
 ## Start here
 
-| Area | Responsibility | Entry points |
-| --- | --- | --- |
-| Nevaeh | Interpret intent and select registered intelligence/capabilities | `app/models/nevaeh.rb`, `app/models/nevaeh_intelligence.rb`, `app/services/nevaeh_orchestration/`, `app/services/nevaeh_intelligences/` |
-| Gatekeeper | Authorization and policy boundary | `app/services/gatekeeper/` |
-| DymondDispatch | Work-item execution and lifecycle | `app/services/nevaeh_orchestration/dispatch_service.rb` and the DymondDispatch integration |
-| Lightek CRUD | Capability lifecycle and execution evidence | `app/services/studio/factory/` |
-| Lightek Studio | Intent-first creation of projects, productions, scenes, assets, and capabilities | `app/services/studio/`, `public/lightek/` |
-| Tickets and knowledge | Escalation, unresolved work, procedures and validated resolutions | `app/models/marlon/ticket.rb`, KB integrations |
-| Test history | Record, import and compare test evidence | `bin/nevaeh-test`, `app/models/nevaeh_test_run.rb`, `app/services/nevaeh_intelligences/test_history.rb` |
+| What you need | Where to go |
+| --- | --- |
+| The full current feature list | [Lightek feature catalog](FEATURES.md) |
+| Production is asking you to set up an authenticator | [First sign-in, MFA and recovery](docs/security/sign-in-and-mfa.md) |
+| Learn Nevaeh, agents, workers, watchers and commands | [Operating workspace and Guide](docs/nevaeh_operating_system.md) · [Tutorials](docs/nevaeh/tutorials/commands.md) |
+| Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
+| Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
+| Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
+| Operate a server or update client installations | [Servers & applications](docs/server-application-management.md) · [Customer Updates](docs/customer_fleet_updates.md) |
 
-This table includes **local in-progress files** and may describe features not yet merged or deployed. Consult the status section before treating a feature as available in production.
+These guides are also discoverable in **Dashboard → Software Library** after the updated repository is deployed. **Nevaeh → Guide** describes installed commands and capability availability. Access to each workspace still follows the signed-in account's permissions and feature entitlements.
 
-## Architecture principles
+## What is in the platform now
 
-1. **Database as operational truth.** The live state, relationships and registered capabilities are queryable; documentation is not a replacement for the database.
-2. **Intelligence is dispatch.** `NevaehIntelligence` associates an intent and operating instructions with a registered `NevaehCapability`; the associated handler performs the work.
-3. **Govern every effect.** Gatekeeper authorization precedes execution. Descriptive JSON or database access does not grant authority to execute arbitrary code or SQL.
-4. **One factory, many products.** Studio is the creation surface for creative outputs and new technical capabilities; don't introduce a separate product for each creation type.
-5. **Show the work.** Correlation IDs, work items, artifacts, test runs, and tickets make outcomes inspectable.
-6. **Learning requires evidence.** Retain failures and compare subsequent runs; a recorded test is not, by itself, an autonomous self-repair system.
+*Source snapshot: November 13, 2026, including merged PR #230. This describes implemented host workflows; it is not a claim that every external provider or every deployed client instance has passed live acceptance.*
 
-## Nevaeh: database-driven dispatch
+| Workspace | Current capabilities |
+| --- | --- |
+| Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
+| Commerce and shipping | Site-scoped catalogs and variants, cart/checkout, orders, subscriptions, fulfillment, refunds, merchant payouts, upstream revenue terms, federated client sales and FedEx shipping integration |
+| Books & accounting | Encrypted books, statement mapping/import, categorization, reconciliation and period controls, cash-basis P&L, Schedule C workpapers, supported native workbooks and reviewed-input federal estimates |
+| People & Access | 26 default enterprise departments, reporting chains, HR/IT/finance separation, benefits elections, reviewed payroll statements, independent approval and employer-funded net-pay payout workflows |
+| Identity and compliance | Authenticator MFA and recovery codes, OIDC linking, verified agency-to-client MFA, explicit resource grants, remote joining to existing AD/Samba AD domains and jurisdiction-source monitoring |
+| Websites and community | Pages/sections, HTML design imports, starter designs, coordinated site themes, native store/journal integration, articles/RSS and per-site PWA branding, navigation and moderation |
+| Communications | Lightek webmail, conversation replies, rich composition, mailbox management, distribution addresses, Junk/spam controls, mail templates and native transactional SMTP routing |
+| Reservations and live rooms | Bookable resources, availability/capacity, paid reservations, calendar downloads, private guest rooms, host moderation and Studio program composition |
+| Studio | Integrated miniPaint photo and Movie Masher video editors; saved projects and PNG/MP4 exports; advanced Blender, cast/performance, music, finishing, live production and delivery workspaces |
+| Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
+| Nevaeh | Conversational operating workspace, typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |
+| Platform security and operations | Gatekeeper authorization, scoped Vault credentials, tenant ownership checks, background execution, audit history, retry/recovery paths and configurable Dashboard appearance |
 
-```text
-Intent
-  -> published NevaehIntelligence
-  -> enabled NevaehCapability + executable binding
-  -> Nevaeh.handle(...)
-  -> intent / knowledge / plan
-  -> Gatekeeper authorization
-  -> DymondDispatch work item
-  -> worker / runtime output
-  -> evidence, tickets, test history
-```
+See [FEATURES.md](FEATURES.md) for the detailed inventory, setup dependencies, current limits and module-specific evidence. Basic photo/video editing and advanced production paths use different editors and export contracts; their limits and payment requirements are documented separately.
 
-Capability registration and intelligence synchronization are designed to share one transaction. Draft and archived intelligence should not be dispatchable. Handler readiness is required before a published capability is treated as executable. Test and ticket evidence should preserve *what ran*, *what happened*, and *what remains unresolved*.
+## First production sign-in
 
-### Lightek CRUD
+A super admin without an enrolled authenticator is directed to **Sign-in security**. This is the expected enrollment step:
 
-Create, Read, Update, and Delete/Retire apply to more than database rows. For a capability, the complete lifecycle also includes generating an implementation, validating it, registering its execution contract, and demonstrating a working instance. Retire/Archive withdraws availability without destroying historical evidence.
+1. Enter the current Lightek password and choose **Set up authenticator**.
+2. Add the displayed setup key to a time-based authenticator: six digits, 30-second period, SHA-1 if requested. **Open in authenticator** works when a compatible handler is installed on that device.
+3. Enter the current code and choose **Verify & enable**.
+4. Save the ten one-time recovery codes privately, then continue to Dashboard. **Link organization sign-in** is optional and requires a separately configured organization provider.
 
-### Lightek Studio
+The [sign-in guide](docs/security/sign-in-and-mfa.md) covers phone/desktop setup, subsequent login, failed codes, recovery and Connect handoffs. Keep setup keys, codes and passwords out of support tickets and screenshots.
 
-Studio is the intent-first creation interface and digital factory, not an isolated application. Its project-creation worker constructs a project, production and scene together; blueprint contracts describe generated capabilities and production plans. The browser provides an accessible control surface; Rails and registered production runtimes perform canonical operations. Some Studio panels remain visual/fixture-first pending further backend wiring.
+## How the system works
 
-## Current implementation status
+The database holds operational state, ownership, registered capabilities and execution evidence. **Nevaeh** selects supported intelligence and operations; **Gatekeeper** enforces authority; **DymondDispatch** and registered workers execute; **Studio** is the creative and capability-construction workspace; **Dymond Bank** supplies the existing billing/payment integration. Tickets, KB procedures, receipts and artifacts make the work inspectable.
 
-*Snapshot: 2026-10-10. Source: local development test output and the earlier deployed UI milestone. **Local validation is not production deployment.***
+- Extend shared identity, sites, orders, billing and provisioning instead of adding parallel systems.
+- Recheck ownership and permissions at execution, including delegated and scheduled work.
+- Separate job submission, verified output, external settlement and actual deployment in receipts and documentation.
+- Treat model-generated prose and imported documentation as reference/draft material; execution requires an authorized capability contract.
+- Preserve historical evidence and surface blocked work rather than recording a success without an accepted result.
 
-| Capability | Status | Evidence / limitation |
-| --- | --- | --- |
-| Studio UI waves 1–5 | **Deployed UI milestone** | Release `4744044` / Deploy Production #62 previously verified; many panels are not fully wired |
-| Blueprint compile, generate, registrar | **Validated locally** | Registrar and compiler tests passed; generated runtime still needs a real registered handler |
-| Capability CRUD | **Validated locally** | 3 tests / 13 assertions; does not establish autonomous construction |
-| Nevaeh Intelligence dispatch | **Validated locally** | 5 tests / 14 assertions |
-| Registrar → Intelligence synchronization | **Validated locally** | Combined 14 tests / 47 assertions |
-| Project → production → scene execution proof | **Validated in test** | 1 test / 13 assertions; inline dispatch boundary, test records rolled back; not a live queued job |
-| Test recorder | **Validated locally** | `bin/nevaeh-test` wrote a JSON report and log for a passing 5-test run |
-| PostgreSQL test history importer | **Validated in test** | 4 tests / 8 assertions; migration applied to test database only, development ingestion not yet confirmed |
-| Asynchronous task groups | **Contract tested** | Dependency/fan-out planning validated; durable grouped dispatch not established |
-| Independent ticket implementation, repair, approval and deployment | **Not yet demonstrated** | Requires an actual queue-driven, authorized, observable end-to-end run |
+Architecture and target scope: [Product contract](docs/platform/product-contract.md), [Dymond control plane](docs/architecture/dymond-control-plane-v8.md), [ERP completion workstreams](docs/platform/erp-completion.md) and [historical architecture](docs/architecture/legacy-readme.md).
 
-**Release boundary:** the newer Nevaeh and Studio features listed above are present in the *local working tree* and should not be represented as committed or deployed merely because their tests pass. Production migrations and deploys require a deliberate release step.
+## Development and deployment
 
-## Developer setup
+Use the versions and sources pinned by `.ruby-version`, `Gemfile` and `Gemfile.lock`: Ruby 3.3.6, Rails 8, PostgreSQL, Redis, Sidekiq, Active Storage/MinIO and the private ecosystem gems.
 
-Use the versions and dependency sources pinned by the repository (`.ruby-version`, `Gemfile`, lockfile, environment configuration). The host application uses Rails 8, Ruby 3.3, PostgreSQL, Redis, Sidekiq, Docker Compose and ecosystem gems. Object storage and Studio runtimes depend on deployment-specific configuration.
-
-```bash
+```sh
 bundle install
 bin/rails db:prepare
 bin/rails zeitwerk:check
 ```
 
-For the configured container stack, inspect `docker-compose.yml` and the applicable environment files before starting services:
+The standard production topology runs Rails natively under Apache Passenger. Docker supplies configured dependencies and isolated media runtimes; explicitly containerized application installations also have a supported adapter. Inspect `docker-compose.yml`, the deployment profile and existing environment before starting or rebuilding services.
 
-```bash
-docker compose up --build
-```
+Use **develop → release → main** for promotion. Run migrations and restart the relevant Rails, Sidekiq and Cable processes through the existing deployment pipeline. Use Customer Updates for selected installations, one account or a matching fleet; an update to the central app does not automatically prove that every independent client has received it. Preserve persistent data, environment settings and the original Vault wrapping key.
 
-### Run tests with evidence
+Operator references: [deployment integration](docs/lightek_deployment_integration.md), [fleet updates](docs/customer_fleet_updates.md), [storage](docs/deployment-storage.md), [mail operations](docs/mail/operations.md), [room activation](docs/studio/session-rooms-and-audience.md) and [Connect rollout](docs/integrations/lightek-connect.md).
 
-Prefer the local recorder when available:
+## Validation and release evidence
 
-```bash
-bin/nevaeh-test test/services/nevaeh_intelligences/dispatch_test.rb
-bin/nevaeh-test
-```
+Run the relevant module's acceptance commands from its guide. The installed application's standard Rails checks remain available:
 
-Reports and full logs are retained under `tmp/nevaeh/test_runs/`. The runner records only invocations made through `bin/nevaeh-test`; direct `bin/rails test` invocations are not automatically captured. A separate importer (`NevaehIntelligences::TestHistory`) can ingest and verify saved reports into PostgreSQL **after the target database has been migrated explicitly**. Avoid importing test artifacts into production by accident.
-
-Alternatively, standard Rails tests remain available:
-
-```bash
+```sh
 bin/rails test
 ```
 
-### Schema and deployments
+Where installed, `bin/nevaeh-test` records invocation logs and JSON reports under `tmp/nevaeh/test_runs/`. Direct Rails invocations are not automatically recorded by that wrapper. Many standalone harnesses exercise real host models/controllers with explicit private-engine or external-provider boundaries; their scope is described in the corresponding guide.
 
-Use Rails migrations for schema changes; never edit `db/schema.rb` as the sole migration mechanism. Run migrations in the intended environment and validate test results before promotion. This README does not assume any CI failure or deployment check is automatically blocking.
+The final PR #230 identity/bookkeeping/Connect acceptance passed **80 tests / 743 assertions on Rails 8.0.5 and PostgreSQL 16**. [Recorded CI run](https://github.com/Mrlightek/lightekmcg-site/actions/runs/43491056481). This is a specific release record, not a promise that all repository workflows or live providers are healthy. After deployment, repeat the workflow with the actual account, workers, runtime and provider configuration.
 
-## Project tracking and evidence
+## Keeping the documentation current
 
-`config/project_tracking/lightek_studio.json` is the Studio roadmap source and projects to tracking integrations and `Marlon::Ticket` records. A ticket should distinguish the request, work-item execution, tests, artifacts, approval, and actual release state. A passing inline unit/integration test is not proof that Sidekiq processed a job in production.
-
-## Documentation
-
-- [Full prior architecture and vision](docs/architecture/legacy-readme.md) — preserved from the previous README without edits, including narrative-state, audience-intelligence, projection, product laws, technology and terminology.
-- `docs/nevaeh/` — development lineage and Nevaeh-specific documentation (where present).
-- `config/nevaeh/` — self-model and development history configuration (where present).
-- `config/project_tracking/lightek_studio.json` — active Studio planning manifest.
-
-When a new capability is built, update its executable contract and tests first, then keep the relevant Knowledge Base documentation in sync. Documentation should describe validated behavior, not confer it.
-
----
-
-**Lightek is the ecosystem. Nevaeh is the intelligence. Gatekeeper is the boundary. DymondDispatch is the execution plane. Studio is the factory. The database records reality.**
-
-## Dymond V8 control-plane and commercial roadmap (2026-10-23)
-
-- [Unified Dymond service-provider control plane](docs/architecture/dymond-control-plane-v8.md) — established system boundaries, roles, subscription lifecycle, current verification limits.
-- [Revenue activation and live production roadmap](docs/roadmap/revenue-and-live-production.md) — website/domain/app commercialization and social LIVE production priorities.
-
-These roadmap documents distinguish intended features from verified, deployed behavior. They do not change authorization or activate provisioning.
-
-## Dymond V8 control-plane and commercial roadmap (2026-10-23)
-
-- [Unified Dymond service-provider control plane](docs/architecture/dymond-control-plane-v8.md) — established system boundaries, roles, subscription lifecycle, current verification limits.
-- [Revenue activation and live production roadmap](docs/roadmap/revenue-and-live-production.md) — website/domain/app commercialization and social LIVE production priorities.
-
-These roadmap documents distinguish intended features from verified, deployed behavior. They do not change authorization or activate provisioning.
-
-Design Studio: see [docs/lightek_design_studio.md](docs/lightek_design_studio.md).
+Update [FEATURES.md](FEATURES.md) and the relevant operating guide when a feature or its acceptance boundary changes. Keep README as the entry point. Preserve older architecture/history as historical references; use the current feature catalog for product scope and the installed Nevaeh registry for executable command availability. Store capability contracts and verified procedures in the existing registry/KB alongside the documentation.

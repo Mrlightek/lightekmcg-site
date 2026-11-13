@@ -12,6 +12,8 @@ This release extends the existing Rails Dashboard, Gatekeeper fleet, Vault and D
 
 ## Sign-in and recovery
 
+For the exact first-login screens, manual authenticator setup, recovery and troubleshooting, see [First sign-in, MFA and recovery](security/sign-in-and-mfa.md).
+
 Authenticator codes follow RFC 6238 (six digits, 30 seconds), reject replay, and use row locking. Ten one-time recovery codes are stored as hashes. Authenticator secrets and pending enrollment are Vault-envelope encrypted. Enrollment expires after ten minutes; a verified MFA session is fresh for twelve hours. Disabling a factor requires a current password, fresh MFA, and company policy permitting it. Other sessions are invalidated when security changes.
 
 OIDC supports authorization code plus PKCE S256, exact configured issuer/audience, RS256 signing keys, nonce, browser-bound state and five-minute single-use attempts. Configure public HTTPS endpoints and register the callback shown by Dashboard. Client secrets go directly to Vault with the organization-specific consumer policy. Users first link their immutable provider subject from an authenticated local account protected by an independent authenticator; email matching never links accounts automatically. An organization-controlled IdP alone cannot authenticate as another local account without that account's independent factor. Disabling the connection or employment invalidates its SSO sessions. Local login remains available.

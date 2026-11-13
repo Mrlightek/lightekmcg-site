@@ -162,7 +162,7 @@ Guides: [People and payroll](docs/people/organization-benefits-payroll.md), [ent
 
 | Capability | Implemented behavior |
 | --- | --- |
-| Authenticator MFA | Time-based six-digit codes, protected enrollment, replay rejection, recovery codes and enrollment-only sessions. |
+| Authenticator MFA | Phone-scannable QR setup, manual-key fallback, time-based six-digit codes, protected enrollment, replay rejection, recovery codes and enrollment-only sessions. |
 | Company policy | Required MFA and client acceptance of verified Connect MFA, while privileged/sensitive checks remain enforced. |
 | Organization SSO | OIDC code/PKCE flow, explicit immutable-subject linking, local MFA and current membership checks. |
 | Verified Connect handoff | Bind an agency's direct MFA session to the connection/client site, revalidate per request, preserve scope and enforce revocation/expiry. |

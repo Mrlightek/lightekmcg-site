@@ -9,14 +9,16 @@ Super admins, admins and employees have mandatory MFA. IT administration also re
 ## Set up an authenticator from a desktop or phone
 
 1. In **Sign-in security → Authenticator**, enter the password used for this Lightek account. Choose **Set up authenticator**.
-2. The next page displays a **Setup key**. In your authenticator app, add an account manually using that key. Label it with your Lightek email address so you can identify the right code later.
-3. Choose **time-based / TOTP**, **six digits**, **30 seconds**, and **SHA-1** if the app asks for those settings.
-4. Alternatively, choose **Open in authenticator** on a device with a compatible app registered for `otpauth://` links. On a desktop without that handler, add the setup key manually in the authenticator on your phone. The current setup page supplies a key and link, not a QR code.
+2. The next page shows a **QR code**. On your phone, open your authenticator and choose **Add account → Scan QR code**. Point the camera at the code on your computer's screen.
+3. The authenticator adds the Lightek account and displays a six-digit code. Scanning carries the setup key, time-based mode, six digits and 30-second period automatically. There is no Safari app-opening step on your Mac.
+4. If scanning is unavailable, expand **Can’t scan? Enter a setup key manually**. Choose manual entry in the phone app and copy only the **Setup key**, not a website address. Use **time-based / TOTP**, **six digits**, **30 seconds**, and **SHA-1** if requested.
 5. Back in Lightek, enter the current six-digit code and choose **Verify & enable**. Enrollment must finish within ten minutes.
 6. Save the **ten recovery codes** in private storage you can access if the authenticator device is lost. Each works once; the clear-text list is shown only at enrollment.
 7. Choose **Continue to security settings**, then open the intended Dashboard workspace. If enrollment started during a Connect handoff, choose **Continue to connected management** instead.
 
-Do not share the setup key, password, verification codes or recovery codes in chat, tickets or screenshots. Lightek does not need you to send those to support to explain this screen.
+QR generation uses a locally served encoder in your browser; no external QR service receives the secret. If the encoder cannot load, the manual setup section opens with an explanation.
+
+Do not share the QR code, setup key, password, verification codes or recovery codes in chat, tickets or screenshots. Lightek does not need you to send those to support to explain this screen.
 
 ## What the organization sign-in section means
 

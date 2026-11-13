@@ -1,0 +1,53 @@
+name: Lightek Connect
+on:
+  pull_request:
+    paths:
+      - 'app/**/lightek_connect/**'
+      - 'app/controllers/*connect*'
+      - 'app/controllers/api/connect*'
+      - 'app/controllers/dashboard/connect*'
+      - 'public/lightek-connect/**'
+      - 'integrations/**'
+      - 'test/standalone/lightek_connect*'
+      - 'db/migrate/*create_lightek_connect*'
+      - 'lib/scripts/gatekeeper/wordpress_sandbox.py'
+      - 'lib/scripts/setup_wordpress_sandbox_access.py'
+      - 'test/standalone/wordpress_sandbox_test.py'
+      - '.github/workflows/lightek-connect.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  connectors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated test dependencies
+        run: |
+          gem install activerecord:8.0.5.1 actionpack:8.0.5.1 jwt:2.10.3 sqlite3:2.7.4 minitest:5.25.4 --no-document
+          npm install --prefix /tmp/connect-qa jsdom@26.1.0
+      - name: Test backend and HTTP authorization
+        run: |
+          ruby test/standalone/lightek_connect_api_test.rb
+          ruby test/standalone/lightek_connect_sandbox_test.rb
+          ruby test/standalone/lightek_connect_vault_test.rb
+          python3 test/standalone/wordpress_sandbox_test.py
+      - name: Test WordPress connector
+        run: |
+          php -l integrations/wordpress/lightek-connect/lightek-connect.php
+          php test/standalone/lightek_connect_wordpress_test.php
+      - name: Test shared UI and package WordPress
+        run: |
+          NODE_PATH=/tmp/connect-qa/node_modules node test/standalone/lightek_connect_ui_test.cjs
+          python3 script/package_lightek_connect.py
+          git diff --exit-code -- integrations/wordpress/lightek-connect/assets
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lightek-connect-wordpress
+          path: tmp/lightek-connect-wordpress.zip

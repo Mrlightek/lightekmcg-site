@@ -1,0 +1,33 @@
+<section class="dd-card"><h1>Lightek Connect</h1><p>Connect your agency to WordPress or Shopify. Manage clients and open their Lightek environments.</p>
+<% if @code %><div role="status"><h2>Connection code</h2><p>Paste this once into your connector. It expires in ten minutes. Treat it as a password.</p><code><%= @code %></code></div><% end %>
+<%= form_with url: dashboard_connect_path do |f| %>
+  <p><%= label_tag :platform, "Platform" %> <%= select_tag :platform, options_for_select([["WordPress", "wordpress"], ["Shopify", "shopify"]]) %></p>
+  <p><%= label_tag :label, "Connection name" %> <%= text_field_tag :label, nil, required: true, maxlength: 120, placeholder: "Agency WordPress" %></p>
+  <%= f.submit "Create connection code" %>
+<% end %>
+<h2>Your connections</h2>
+<% @connections.each do |connection| %><article><strong><%= connection.label %></strong> · <%= connection.platform %> · <%= connection.revoked_at? ? "Revoked" : connection.token_digest? ? "Connected" : "Awaiting connection" %>
+<%= button_to "Revoke", dashboard_connect_connection_path(connection), method: :delete unless connection.revoked_at? %></article><% end %>
+</section>
+
+<% if current_user.role == "super_admin" %>
+<section class="dd-card"><h2>Shopify app credentials</h2>
+<p><%= @shopify_credentials_status[:stored] ? "Credentials stored in Vault. Live Shopify authentication still needs verification." : "Shopify credentials are not configured or are disabled." %></p>
+<p>Use the Client ID and Client secret from Shopify Dev Dashboard → Lightek Connect → Settings. Saving replaces this installation's app credentials. The secret is encrypted in Vault and is never redisplayed.</p>
+<%= form_with url: dashboard_connect_shopify_settings_path, method: :patch do |form| %>
+  <p><%= label_tag "shopify_client_id", "Client ID" %> <%= text_field_tag "shopify[client_id]", @shopify_credentials_status[:client_id], required: true, maxlength: 200, autocomplete: "off" %></p>
+  <p><%= label_tag "shopify_client_secret", "Client secret" %> <%= password_field_tag "shopify[client_secret]", nil, required: true, maxlength: 4096, autocomplete: "new-password" %></p>
+  <%= form.submit "Save Shopify credentials in Vault" %>
+<% end %></section>
+<section class="dd-card"><h2>Disposable WordPress test environment</h2><p>Install WordPress and Lightek Connect on a temporary subdomain of the configured test zone. Each environment has its own database, files, and generated credentials. This uses resources on the selected server.</p>
+<%= form_with url: dashboard_connect_sandboxes_path do |f| %>
+  <%= label_tag :node_id, "Test server" %> <%= select_tag :node_id, options_from_collection_for_select(@sandbox_nodes, :id, :name), required: true %>
+  <%= f.submit "Create WordPress test environment" %>
+<% end %>
+<% @sandboxes.each do |sandbox| %><article><h3><%= sandbox.domain %></h3><p><%= sandbox.status.humanize %> · <%= sandbox.gatekeeper_node.name %></p>
+<% if sandbox.status == "ready" %><%= link_to "Open WordPress admin", "https://#{sandbox.domain}/wp-admin/", target: "_blank", rel: "noopener noreferrer" %><p>Admin username: lightek_test. Use Show test login to retrieve its generated password.</p><%= button_to "Show test login", dashboard_connect_sandbox_credentials_path(sandbox), method: :post %><% end %>
+<% if sandbox.error_message.present? %><p role="alert"><%= sandbox.error_message %></p><% end %>
+<% if (%w[ready failed delete_failed].include?(sandbox.status) || (%w[queued installing destroying].include?(sandbox.status) && sandbox.updated_at < 40.minutes.ago)) %>
+<%= form_with url: dashboard_connect_sandbox_path(sandbox), method: :delete do |f| %><p>Delete this test environment's files, database, routing, certificate, and its unchanged DNS record. Type <strong><%= sandbox.domain %></strong> to confirm.</p><%= text_field_tag :confirmation, nil, required: true, aria: {label: "Hostname confirmation"} %><%= f.submit "Delete test environment" %><% end %>
+<% end %></article><% end %></section>
+<% end %>

@@ -12,7 +12,7 @@ module Gatekeeper
         def initialize(receipt)
           @receipt = receipt.slice("domain", "source_sha", "image", "target_id", "attempt", "previous_version",
             "database_backup", "status", "migration_started", "code_restored", "error_class", "adapter", "component", "repository", "log_path")
-          if ["Use a server with at least 2 GB RAM", "Find exactly one active HTTPS virtual host for this website"].include?(receipt["reason"])
+          if ["Use a server with at least 2 GB RAM", "Find exactly one active HTTPS virtual host for this website", "WordPress test needs 384 MB available RAM and 3 GB free disk", "Docker Compose, Apache and Certbot must be installed first"].include?(receipt["reason"])
             @receipt["reason"]=receipt["reason"]
           end
           super("Remote update failed")
@@ -33,13 +33,14 @@ module Gatekeeper
       end
 
       def self.run!(node:, domain:, requested_by:, operation_id:, payload:, script_name:, registry: false)
-        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py].include?(script_name)
+        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py wordpress_sandbox.py].include?(script_name)
         script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
         if node.local?
           stdout, _, status = Timeout.timeout(1900) do
-            local_script=script_name=="install_session_media.py" ? "/usr/local/lib/lightek/install_session_media.py" : script_path.to_s
-            timer=script_name=="install_session_media.py" ? "/usr/bin/timeout" : "timeout"
-            python=script_name=="install_session_media.py" ? "/usr/bin/python3" : "python3"
+            privileged = %w[install_session_media.py wordpress_sandbox.py].include?(script_name)
+            local_script=privileged ? "/usr/local/lib/lightek/#{script_name}" : script_path.to_s
+            timer=privileged ? "/usr/bin/timeout" : "timeout"
+            python=privileged ? "/usr/bin/python3" : "python3"
             Open3.capture3("sudo", "-n", timer, "--signal=TERM", "--kill-after=30s", "1800s", python, local_script,
               stdin_data: JSON.generate(payload))
           end

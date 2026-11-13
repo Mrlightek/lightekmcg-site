@@ -1,4 +1,24 @@
 Rails.application.routes.draw do
+  patch "/dashboard/connect/shopify", to: "dashboard/connect_shopify_settings#update", as: :dashboard_connect_shopify_settings
+  post "/dashboard/connect/sandboxes/:id/credentials", to: "dashboard/connect_sandboxes#credentials", as: :dashboard_connect_sandbox_credentials
+  post "/dashboard/connect/sandboxes", to: "dashboard/connect_sandboxes#create", as: :dashboard_connect_sandboxes
+  delete "/dashboard/connect/sandboxes/:id", to: "dashboard/connect_sandboxes#destroy", as: :dashboard_connect_sandbox
+  get "/dashboard/connect", to: "dashboard/connect#index", as: :dashboard_connect
+  post "/dashboard/connect", to: "dashboard/connect#create"
+  delete "/dashboard/connect/:id", to: "dashboard/connect#destroy", as: :dashboard_connect_connection
+  get "/connect/management", to: "connect_management#show"
+  post "/connect/management", to: "connect_management#create"
+  get "/connect/shopify", to: "connect_shopify#index"
+  post "/connect/shopify/webhooks", to: "connect_shopify#webhook"
+  patch "/api/connect/instance/site", to: "api/connect_instance#update"
+  post "/api/connect/pair", to: "api/connect#pair"
+  get "/api/connect/workspace", to: "api/connect#show"
+  patch "/api/connect/sites/:id", to: "api/connect#update_site"
+  post "/api/connect/sites/:id/management", to: "api/connect#management"
+  post "/api/connect/dashboard", to: "api/connect#dashboard"
+  delete "/api/connect", to: "api/connect#disconnect"
+  post "/api/reservations/federation/connect/redeem", to: "api/connect_federation#redeem"
+  post "/api/reservations/federation/connect/validate", to: "api/connect_federation#validate_session"
   scope "/dashboard/studio/editors/:kind", controller: "dashboard/studio_editors", as: :dashboard_studio_editor do
     get "/new", action: :new, as: :new
     post "/", action: :create, as: :create

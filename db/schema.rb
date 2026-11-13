@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_13_230000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1393,6 +1393,145 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "lightek_accounting_audit_events", force: :cascade do |t|
+    t.bigint "book_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "action", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.string "proof_digest"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_accounting_audit_events_on_actor_id"
+    t.index ["book_id"], name: "index_lightek_accounting_audit_events_on_book_id"
+  end
+
+  create_table "lightek_accounting_automations", force: :cascade do |t|
+    t.bigint "book_id", null: false
+    t.bigint "actor_id", null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "next_run_at", null: false
+    t.datetime "last_run_at"
+    t.string "error_code"
+    t.string "record_key", null: false
+    t.jsonb "sealed_data", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_accounting_automations_on_actor_id"
+    t.index ["book_id"], name: "index_lightek_accounting_automations_on_book_id"
+  end
+
+  create_table "lightek_accounting_bank_accounts", force: :cascade do |t|
+    t.bigint "book_id", null: false
+    t.string "name", null: false
+    t.date "opening_on", null: false
+    t.string "record_key", null: false
+    t.jsonb "sealed_data", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["book_id"], name: "index_lightek_accounting_bank_accounts_on_book_id"
+  end
+
+  create_table "lightek_accounting_books", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "name", null: false
+    t.string "currency", default: "USD", null: false
+    t.string "timezone", default: "America/New_York", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employer_id"], name: "index_lightek_accounting_books_on_employer_id"
+  end
+
+  create_table "lightek_accounting_categories", force: :cascade do |t|
+    t.bigint "book_id", null: false
+    t.string "name", null: false
+    t.string "kind", null: false
+    t.string "schedule_code"
+    t.integer "deduction_bps", default: 10000, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["book_id"], name: "index_lightek_accounting_categories_on_book_id"
+  end
+
+  create_table "lightek_accounting_imports", force: :cascade do |t|
+    t.bigint "bank_account_id", null: false
+    t.bigint "book_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "record_key", null: false
+    t.jsonb "sealed_data", null: false
+    t.string "status", default: "preview", null: false
+    t.string "source_digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_accounting_imports_on_actor_id"
+    t.index ["bank_account_id"], name: "index_lightek_accounting_imports_on_bank_account_id"
+    t.index ["book_id"], name: "index_lightek_accounting_imports_on_book_id"
+  end
+
+  create_table "lightek_accounting_reconciliations", force: :cascade do |t|
+    t.bigint "bank_account_id", null: false
+    t.bigint "book_id", null: false
+    t.bigint "actor_id", null: false
+    t.date "starts_on", null: false
+    t.date "ends_on", null: false
+    t.string "status", default: "draft", null: false
+    t.string "record_key", null: false
+    t.jsonb "sealed_data", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_accounting_reconciliations_on_actor_id"
+    t.index ["bank_account_id", "starts_on", "ends_on"], name: "idx_accounting_final_period", unique: true, where: "((status)::text = 'final'::text)"
+    t.index ["bank_account_id"], name: "index_lightek_accounting_reconciliations_on_bank_account_id"
+    t.index ["book_id"], name: "index_lightek_accounting_reconciliations_on_book_id"
+  end
+
+  create_table "lightek_accounting_rules", force: :cascade do |t|
+    t.bigint "book_id", null: false
+    t.bigint "category_id", null: false
+    t.integer "priority", default: 100, null: false
+    t.string "record_key", null: false
+    t.jsonb "sealed_data", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["book_id"], name: "index_lightek_accounting_rules_on_book_id"
+    t.index ["category_id"], name: "index_lightek_accounting_rules_on_category_id"
+  end
+
+  create_table "lightek_accounting_transactions", force: :cascade do |t|
+    t.bigint "book_id", null: false
+    t.bigint "bank_account_id", null: false
+    t.bigint "category_id"
+    t.bigint "statement_import_id"
+    t.bigint "reconciliation_id"
+    t.date "posted_on", null: false
+    t.string "source_key", null: false
+    t.string "record_key", null: false
+    t.jsonb "sealed_data", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["bank_account_id", "posted_on"], name: "idx_accounting_account_date"
+    t.index ["bank_account_id", "reconciliation_id"], name: "idx_accounting_uncleared"
+    t.index ["bank_account_id", "source_key"], name: "idx_accounting_source_key", unique: true
+    t.index ["bank_account_id"], name: "index_lightek_accounting_transactions_on_bank_account_id"
+    t.index ["book_id", "posted_on", "id"], name: "idx_accounting_book_date"
+    t.index ["book_id"], name: "index_lightek_accounting_transactions_on_book_id"
+    t.index ["category_id"], name: "index_lightek_accounting_transactions_on_category_id"
+    t.index ["reconciliation_id"], name: "index_lightek_accounting_transactions_on_reconciliation_id"
+    t.index ["statement_import_id"], name: "index_lightek_accounting_transactions_on_statement_import_id"
+  end
+
+  create_table "lightek_accounting_workbooks", force: :cascade do |t|
+    t.bigint "book_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "name", null: false
+    t.string "record_key", null: false
+    t.jsonb "sealed_data", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_accounting_workbooks_on_actor_id"
+    t.index ["book_id"], name: "index_lightek_accounting_workbooks_on_book_id"
+  end
+
   create_table "lightek_agency_site_memberships", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "user_id", null: false
@@ -1670,6 +1809,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
     t.index ["profile_id"], name: "index_lightek_community_memberships_on_profile_id"
   end
 
+  create_table "lightek_compliance_monitors", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "state", null: false
+    t.string "provider", null: false
+    t.string "query", null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "next_run_at", null: false
+    t.datetime "last_checked_at"
+    t.string "error_code"
+    t.jsonb "snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_compliance_monitors_on_actor_id"
+    t.index ["employer_id"], name: "index_lightek_compliance_monitors_on_employer_id"
+  end
+
   create_table "lightek_connect_connections", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "platform", null: false
@@ -1705,6 +1861,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
     t.datetime "consumed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "authorization_session_id"
+    t.datetime "approved_at"
+    t.datetime "delegation_expires_at"
+    t.index ["authorization_session_id"], name: "index_lightek_connect_grants_on_authorization_session_id"
     t.index ["code_digest"], name: "index_lightek_connect_grants_on_code_digest", unique: true
     t.index ["connection_id"], name: "index_lightek_connect_grants_on_connection_id"
     t.index ["site_id"], name: "index_lightek_connect_grants_on_site_id"
@@ -1725,6 +1885,109 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
     t.index ["gatekeeper_node_id"], name: "index_lightek_connect_sandboxes_on_gatekeeper_node_id"
     t.index ["key"], name: "index_lightek_connect_sandboxes_on_key", unique: true
     t.index ["user_id"], name: "index_lightek_connect_sandboxes_on_user_id"
+  end
+
+  create_table "lightek_identity_connections", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "slug", null: false
+    t.string "issuer", null: false
+    t.string "authorization_endpoint", null: false
+    t.string "token_endpoint", null: false
+    t.string "jwks_uri", null: false
+    t.string "client_id", null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employer_id"], name: "index_lightek_identity_connections_on_employer_id", unique: true
+    t.index ["slug"], name: "index_lightek_identity_connections_on_slug", unique: true
+  end
+
+  create_table "lightek_identity_factors", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.jsonb "secret_box", default: {}, null: false
+    t.jsonb "recovery_digests", default: [], null: false
+    t.datetime "enabled_at"
+    t.datetime "expires_at"
+    t.bigint "last_counter", default: -1, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_lightek_identity_factors_on_user_id", unique: true
+  end
+
+  create_table "lightek_identity_login_attempts", force: :cascade do |t|
+    t.bigint "connection_id", null: false
+    t.bigint "user_id"
+    t.string "state_digest", null: false
+    t.string "browser_digest", null: false
+    t.jsonb "secret_box", default: {}, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "consumed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["connection_id"], name: "index_lightek_identity_login_attempts_on_connection_id"
+    t.index ["state_digest"], name: "index_lightek_identity_login_attempts_on_state_digest", unique: true
+    t.index ["user_id"], name: "index_lightek_identity_login_attempts_on_user_id"
+  end
+
+  create_table "lightek_identity_node_bindings", force: :cascade do |t|
+    t.bigint "realm_id", null: false
+    t.bigint "gatekeeper_node_id", null: false
+    t.bigint "synced_revision", default: -1, null: false
+    t.string "policy_digest"
+    t.string "status", default: "pending", null: false
+    t.string "error_code"
+    t.datetime "synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["gatekeeper_node_id"], name: "index_lightek_identity_node_bindings_on_gatekeeper_node_id", unique: true
+    t.index ["realm_id"], name: "index_lightek_identity_node_bindings_on_realm_id"
+  end
+
+  create_table "lightek_identity_organization_policies", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.boolean "mfa_required", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "connect_mfa_allowed", default: true, null: false
+    t.index ["employer_id"], name: "index_lightek_identity_organization_policies_on_employer_id", unique: true
+  end
+
+  create_table "lightek_identity_realms", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "domain", null: false
+    t.boolean "enabled", default: true, null: false
+    t.boolean "auto_join", default: false, null: false
+    t.bigint "directory_revision", default: 0, null: false
+    t.date "calendar_on"
+    t.datetime "next_sync_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employer_id"], name: "index_lightek_identity_realms_on_employer_id", unique: true
+  end
+
+  create_table "lightek_identity_resource_grants", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "subject_type", null: false
+    t.bigint "subject_id", null: false
+    t.string "resource_type", null: false
+    t.bigint "resource_id", null: false
+    t.string "permission", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employer_id", "subject_type", "subject_id", "resource_type", "resource_id", "permission"], name: "idx_directory_grant", unique: true
+    t.index ["employer_id"], name: "index_lightek_identity_resource_grants_on_employer_id"
+  end
+
+  create_table "lightek_identity_subjects", force: :cascade do |t|
+    t.bigint "connection_id", null: false
+    t.bigint "user_id", null: false
+    t.string "subject", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["connection_id", "subject"], name: "idx_identity_subject", unique: true
+    t.index ["connection_id", "user_id"], name: "idx_identity_user", unique: true
+    t.index ["connection_id"], name: "index_lightek_identity_subjects_on_connection_id"
+    t.index ["user_id"], name: "index_lightek_identity_subjects_on_user_id"
   end
 
   create_table "lightek_live_viewers", force: :cascade do |t|
@@ -2138,7 +2401,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
     t.date "ends_on"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "directory_admin", default: false, null: false
+    t.string "directory_principal"
+    t.string "accounting_access", default: "none", null: false
+    t.string "compliance_access", default: "none", null: false
     t.index ["department_id"], name: "index_lightek_people_employments_on_department_id"
+    t.index ["employer_id", "directory_principal"], name: "idx_employer_directory_principal", unique: true, where: "(directory_principal IS NOT NULL)"
     t.index ["employer_id", "worker_id"], name: "idx_people_employer_worker", unique: true
     t.index ["employer_id"], name: "index_lightek_people_employments_on_employer_id"
     t.index ["manager_id"], name: "index_lightek_people_employments_on_manager_id"
@@ -2158,9 +2426,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
     t.datetime "approved_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "preparation_scheduled_at"
+    t.bigint "preparation_actor_id"
+    t.string "preparation_token"
+    t.string "preparation_state"
+    t.string "preparation_error_code"
     t.index ["approved_by_id"], name: "index_lightek_people_pay_runs_on_approved_by_id"
     t.index ["employer_id", "period_start", "period_end", "pay_date"], name: "idx_people_pay_period", unique: true, where: "((status)::text <> 'canceled'::text)"
     t.index ["employer_id"], name: "index_lightek_people_pay_runs_on_employer_id"
+    t.index ["preparation_actor_id"], name: "index_lightek_people_pay_runs_on_preparation_actor_id"
     t.index ["prepared_by_id"], name: "index_lightek_people_pay_runs_on_prepared_by_id"
   end
 
@@ -3551,6 +3825,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "connect_delegation", default: {}, null: false
+    t.datetime "mfa_verified_at"
+    t.boolean "mfa_enrollment_only", default: false, null: false
+    t.bigint "identity_connection_id"
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
@@ -3964,6 +4241,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
     t.datetime "stripe_connect_onboarded_at"
     t.bigint "agency_id"
     t.integer "upstream_share_bps", default: 0, null: false
+    t.integer "people_template_version", default: 0, null: false
     t.index ["agency_id"], name: "index_users_on_agency_id"
     t.index ["api_token"], name: "index_users_on_api_token", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
@@ -4056,6 +4334,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
   add_foreign_key "hosting_packages", "compute_providers"
   add_foreign_key "hosting_packages", "gatekeeper_application_templates"
   add_foreign_key "hosting_packages", "lightek_commerce_products", column: "product_id"
+  add_foreign_key "lightek_accounting_audit_events", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_audit_events", "users", column: "actor_id"
+  add_foreign_key "lightek_accounting_automations", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_automations", "users", column: "actor_id"
+  add_foreign_key "lightek_accounting_bank_accounts", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_books", "users", column: "employer_id"
+  add_foreign_key "lightek_accounting_categories", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_imports", "lightek_accounting_bank_accounts", column: "bank_account_id"
+  add_foreign_key "lightek_accounting_imports", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_imports", "users", column: "actor_id"
+  add_foreign_key "lightek_accounting_reconciliations", "lightek_accounting_bank_accounts", column: "bank_account_id"
+  add_foreign_key "lightek_accounting_reconciliations", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_reconciliations", "users", column: "actor_id"
+  add_foreign_key "lightek_accounting_rules", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_rules", "lightek_accounting_categories", column: "category_id"
+  add_foreign_key "lightek_accounting_transactions", "lightek_accounting_bank_accounts", column: "bank_account_id"
+  add_foreign_key "lightek_accounting_transactions", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_transactions", "lightek_accounting_categories", column: "category_id"
+  add_foreign_key "lightek_accounting_transactions", "lightek_accounting_imports", column: "statement_import_id"
+  add_foreign_key "lightek_accounting_transactions", "lightek_accounting_reconciliations", column: "reconciliation_id"
+  add_foreign_key "lightek_accounting_workbooks", "lightek_accounting_books", column: "book_id"
+  add_foreign_key "lightek_accounting_workbooks", "users", column: "actor_id"
   add_foreign_key "lightek_agency_site_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_agency_site_memberships", "users"
   add_foreign_key "lightek_agency_site_memberships", "users", column: "granted_by_id"
@@ -4088,12 +4388,26 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
   add_foreign_key "lightek_community_engagements", "profiles"
   add_foreign_key "lightek_community_memberships", "communities"
   add_foreign_key "lightek_community_memberships", "profiles"
+  add_foreign_key "lightek_compliance_monitors", "users", column: "actor_id"
+  add_foreign_key "lightek_compliance_monitors", "users", column: "employer_id"
   add_foreign_key "lightek_connect_connections", "users"
   add_foreign_key "lightek_connect_events", "lightek_connect_connections", column: "connection_id"
   add_foreign_key "lightek_connect_grants", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_connect_grants", "lightek_connect_connections", column: "connection_id"
+  add_foreign_key "lightek_connect_grants", "sessions", column: "authorization_session_id", on_delete: :nullify
   add_foreign_key "lightek_connect_sandboxes", "gatekeeper_nodes"
   add_foreign_key "lightek_connect_sandboxes", "users"
+  add_foreign_key "lightek_identity_connections", "users", column: "employer_id"
+  add_foreign_key "lightek_identity_factors", "users"
+  add_foreign_key "lightek_identity_login_attempts", "lightek_identity_connections", column: "connection_id"
+  add_foreign_key "lightek_identity_login_attempts", "users"
+  add_foreign_key "lightek_identity_node_bindings", "gatekeeper_nodes"
+  add_foreign_key "lightek_identity_node_bindings", "lightek_identity_realms", column: "realm_id"
+  add_foreign_key "lightek_identity_organization_policies", "users", column: "employer_id"
+  add_foreign_key "lightek_identity_realms", "users", column: "employer_id"
+  add_foreign_key "lightek_identity_resource_grants", "users", column: "employer_id"
+  add_foreign_key "lightek_identity_subjects", "lightek_identity_connections", column: "connection_id"
+  add_foreign_key "lightek_identity_subjects", "users"
   add_foreign_key "lightek_live_viewers", "studio_live_operations"
   add_foreign_key "lightek_live_viewers", "users"
   add_foreign_key "lightek_mail_accounts", "lightek_mail_domains", column: "domain_id"
@@ -4139,6 +4453,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
   add_foreign_key "lightek_people_employments", "users", column: "worker_id"
   add_foreign_key "lightek_people_pay_runs", "users", column: "approved_by_id"
   add_foreign_key "lightek_people_pay_runs", "users", column: "employer_id"
+  add_foreign_key "lightek_people_pay_runs", "users", column: "preparation_actor_id"
   add_foreign_key "lightek_people_pay_runs", "users", column: "prepared_by_id"
   add_foreign_key "lightek_people_pay_statements", "lightek_people_employments", column: "employment_id"
   add_foreign_key "lightek_people_pay_statements", "lightek_people_pay_runs", column: "pay_run_id"
@@ -4259,6 +4574,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_13_160000) do
   add_foreign_key "provisioning_requests", "provisioning_profiles"
   add_foreign_key "provisioning_requests", "subscription_infrastructure_entitlements"
   add_foreign_key "scene_objects", "studio_scenes"
+  add_foreign_key "sessions", "lightek_identity_connections", column: "identity_connection_id"
   add_foreign_key "sessions", "users"
   add_foreign_key "shows", "episodes"
   add_foreign_key "studio_assets", "dymond_site_sites", column: "site_id"

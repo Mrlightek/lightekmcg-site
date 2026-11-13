@@ -4,7 +4,10 @@
 # Use this to limit dissemination of sensitive information.
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += [
-  :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
+  :account_number, :routing_number, :iban, :sender, :statement, :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
 ]
 
 Rails.application.config.filter_redirect += [%r{/passwords/}]
+
+# Single-use provider onboarding URLs must not appear in redirect logs.
+Rails.application.config.filter_redirect += ["accounts.stripe.com", "connect.stripe.com"]

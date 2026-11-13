@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_13_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1742,7 +1742,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
     t.bigint "domain_id", null: false
     t.string "address", null: false
     t.string "display_name", null: false
-    t.boolean "enabled", default: false, null: false
+    t.boolean "enabled", default: true, null: false
     t.integer "daily_limit", default: 100, null: false
     t.date "send_day"
     t.integer "send_count", default: 0, null: false
@@ -1757,6 +1757,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
     t.integer "hour_limit", default: 25, null: false
     t.datetime "suspended_at"
     t.string "suspension_reason"
+    t.string "mailbox_kind", default: "mailbox", null: false
+    t.datetime "deleted_at"
+    t.string "original_address"
+    t.string "spam_filter_level", default: "standard", null: false
+    t.json "allowed_senders", default: [], null: false
+    t.json "blocked_senders", default: [], null: false
     t.index ["address"], name: "index_lightek_mail_accounts_on_address", unique: true
     t.index ["domain_id"], name: "index_lightek_mail_accounts_on_domain_id"
     t.index ["token_digest"], name: "index_lightek_mail_accounts_on_token_digest", unique: true
@@ -1797,6 +1803,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
     t.json "recipients", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.json "recipient_snapshots", default: {}, null: false
     t.index ["inbound_email_id"], name: "index_lightek_mail_envelopes_on_inbound_email_id", unique: true
   end
 
@@ -1810,6 +1817,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
     t.index ["account_id", "created_at"], name: "idx_mail_recent_feedback"
     t.index ["account_id"], name: "index_lightek_mail_feedback_events_on_account_id"
     t.index ["event_key"], name: "index_lightek_mail_feedback_events_on_event_key", unique: true
+  end
+
+  create_table "lightek_mail_group_members", force: :cascade do |t|
+    t.bigint "group_id", null: false
+    t.bigint "member_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["group_id", "member_id"], name: "idx_mail_group_members_unique", unique: true
+    t.index ["group_id"], name: "index_lightek_mail_group_members_on_group_id"
+    t.index ["member_id"], name: "index_lightek_mail_group_members_on_member_id"
   end
 
   create_table "lightek_mail_messages", force: :cascade do |t|
@@ -1835,6 +1852,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
     t.bigint "bytesize", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "junk", default: false, null: false
+    t.float "spam_score"
+    t.string "spam_reason"
+    t.datetime "spam_scanned_at"
     t.index ["account_id", "created_at"], name: "idx_mail_recent"
     t.index ["account_id", "idempotency_key"], name: "idx_mail_idempotency", unique: true
     t.index ["account_id"], name: "index_lightek_mail_messages_on_account_id"
@@ -1858,7 +1879,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
   end
 
   create_table "lightek_mail_sending_policies", force: :cascade do |t|
-    t.boolean "sending_enabled", default: false, null: false
+    t.boolean "sending_enabled", default: true, null: false
     t.string "stop_reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -3942,6 +3963,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_12_210000) do
   add_foreign_key "lightek_mail_domains", "users"
   add_foreign_key "lightek_mail_envelopes", "action_mailbox_inbound_emails", column: "inbound_email_id", on_delete: :cascade
   add_foreign_key "lightek_mail_feedback_events", "lightek_mail_accounts", column: "account_id"
+  add_foreign_key "lightek_mail_group_members", "lightek_mail_accounts", column: "group_id"
+  add_foreign_key "lightek_mail_group_members", "lightek_mail_accounts", column: "member_id"
   add_foreign_key "lightek_mail_messages", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_mail_send_reservations", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_mail_send_reservations", "users"

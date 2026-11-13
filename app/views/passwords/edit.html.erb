@@ -5,9 +5,10 @@
     <div class="auth-card">
       <p class="auth-card-kicker">Secure account access</p>
       <h1 id="password-title">Make it<br><span>yours.</span></h1>
-      <p class="auth-intro">Set a new password to sign in to your application. Your email address stays the same.</p>
+      <p class="auth-intro"><%= @first_use ? 'Welcome. Choose your first password—no temporary or previous password is needed. After signing in, you will set up an authenticator if your account requires it.' : 'Set a new password to sign in to your application. Your email address stays the same.' %></p>
+      <% if @user&.errors&.any? %><p role="alert"><%= @user.errors.full_messages.to_sentence %></p><% end %>
       <% if flash[:alert].present? %><div class="auth-flash" role="alert"><%= flash[:alert] %></div><% end %>
-      <%= form_with url: password_path(params[:token]), method: :put, class: "auth-form", data: {turbo: false} do |form| %>
+      <%= form_with url: (@password_form_url || password_path(params[:token])), method: :put, class: "auth-form", data: {turbo: false} do |form| %>
         <div class="auth-field">
           <%= form.label :password, "New password" %>
           <%= form.password_field :password, class: "auth-input auth-input-plain", required: true, autocomplete: "new-password", placeholder: "Choose a strong password", maxlength: 72, aria: {describedby: "password-guidance"} %>

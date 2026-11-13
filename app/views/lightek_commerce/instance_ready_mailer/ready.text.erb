@@ -1,6 +1,14 @@
 Your Lightek installation is ready.
 
-Choose a password and open your dashboard:
+<% if @account_setup_url %>
+First, choose the password for your Lightek purchasing account (no existing password needed):
+<%= @account_setup_url %>
+This private account link expires after 20 minutes. If it expires, use Forgot password on Lightek to request another.
+<% end %>
+Open My Applications, then choose Set or reset my password to choose the password for your installed application:
 <%= installation_url(@order, host: ENV.fetch('APP_HOST', 'lightekmcg.com'), protocol: 'https') %>
 
-Sign in using the account that purchased this application.
+Sign in using the purchasing account. Your installed application has its own sign-in and password. After signing in there, complete authenticator setup if prompted.
+
+If you have never chosen a password for the purchasing account and have no valid setup link, request one here:
+<%= new_password_url(host: ENV.fetch('APP_HOST', 'lightekmcg.com'), protocol: 'https') %>

@@ -1,3 +1,8 @@
+<% if @account_setup_url %><p>First, <%= link_to 'choose your Lightek account password', @account_setup_url %>. No existing password is needed. This private link expires after 20 minutes; use Forgot password on Lightek for a fresh link.</p><% end %>
 <h1>Your Lightek installation is ready</h1>
 <p>Open <a href="<%= installation_url(@order, host: ENV.fetch('APP_HOST', 'lightekmcg.com'), protocol: 'https') %>">your application setup</a> to choose a password and open your dashboard.</p>
 <p>Sign in using the account that purchased this application.</p>
+
+<p>In My Applications, choose Set or reset my password to choose the installed application's password. Its sign-in is separate from your purchasing account. After signing in there, complete authenticator setup if prompted.</p>
+
+<p>Never chosen a purchasing-account password, or setup link expired? <%= link_to 'Request a fresh password setup link', new_password_url(host: ENV.fetch('APP_HOST', 'lightekmcg.com'), protocol: 'https') %>.</p>

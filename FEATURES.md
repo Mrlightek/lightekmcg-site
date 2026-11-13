@@ -162,6 +162,7 @@ Guides: [People and payroll](docs/people/organization-benefits-payroll.md), [ent
 
 | Capability | Implemented behavior |
 | --- | --- |
+| First-use accounts | Expiring first-password invitations, scoped resend, and an installed-application password handoff before MFA enrollment. |
 | Authenticator MFA | Time-based six-digit codes, protected enrollment, replay rejection, recovery codes and enrollment-only sessions. |
 | Company policy | Required MFA and client acceptance of verified Connect MFA, while privileged/sensitive checks remain enforced. |
 | Organization SSO | OIDC code/PKCE flow, explicit immutable-subject linking, local MFA and current membership checks. |

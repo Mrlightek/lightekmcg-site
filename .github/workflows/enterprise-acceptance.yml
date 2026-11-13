@@ -7,6 +7,12 @@ on:
       - 'config/routes.rb'
       - 'db/migrate/*enterprise_identity*'
       - 'db/migrate/*connect_mfa_handoff*'
+      - 'db/migrate/*first_use_password_setup*'
+      - 'script/lightek/verify_paid_instance.py'
+      - 'script/lightek/website_deploy.sh'
+      - 'lib/scripts/gatekeeper/install_container_application.py'
+      - 'test/scripts/test_paid_instance_verification.py'
+      - 'test/standalone/website_deployment_dispatch_test.rb'
       - 'db/migrate/*dymond_bookkeeping*'
       - 'db/migrate/*jurisdiction_monitoring*'
       - 'lib/scripts/gatekeeper/directory_membership.py'
@@ -43,9 +49,14 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: false
       - name: Install public test dependencies
-        run: gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'minitest:~>5.25' pg 'sqlite3:~>2.7' 'jwt:2.10.3' 'rubyzip:3.4.1' nokogiri --no-document
+        run: gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'actionmailer:8.0.5' bcrypt 'minitest:~>5.25' pg 'sqlite3:~>2.7' 'jwt:2.10.3' 'rubyzip:3.4.1' nokogiri --no-document
       - name: Verify authentication, tenant permissions and bookkeeping workflows
-        run: ruby test/standalone/enterprise_form_origin_checks.rb
+        run: ruby test/standalone/enterprise_onboarding_checks.rb
+      - name: Verify staged provisioning acceptance and invitation mail
+        run: |
+          python3 -m unittest test.scripts.test_paid_instance_verification
+          ruby test/standalone/website_deployment_dispatch_test.rb
+          ruby test/standalone/lightek_transactional_mail_test.rb
       - name: Verify domain allowlists and stale revocation handling
         run: python3 -m unittest test/operations/directory_membership_test.py
       - name: Verify reconciliation client syntax

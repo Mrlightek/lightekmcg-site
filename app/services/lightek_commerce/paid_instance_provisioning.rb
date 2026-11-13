@@ -37,7 +37,7 @@ module LightekCommerce
           customer = User.create!(email_address: order.customer_email,
             first_name: order.customer_email.split("@").first.to_s.first(40),
             last_name: "Customer", role: "client",
-            password: SecureRandom.urlsafe_base64(36))
+            password_setup_required: true, password: SecureRandom.urlsafe_base64(36))
         rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
           customer = User.find_by!(email_address: order.customer_email)
         end
@@ -119,9 +119,7 @@ module LightekCommerce
       node = request.reload.gatekeeper_node || raise(NotReady, "Paid installation has no allocated server")
       receipt = node.metadata.to_h.fetch("website_deployment", {})
       unless deployment[:verified] == true && deployment[:url] == "https://#{domain}" &&
-          receipt["url"] == deployment[:url] && receipt["public_https_verified"] == true &&
-          receipt["owner_login_verified"] == true &&
-          receipt.dig("health", "full_application_dashboard_verified") == true
+          Gatekeeper::WebsiteReadiness.verified?(receipt, domain: domain, owner_email: config["owner_email"])
         raise NotReady, "Paid installation missing verified HTTPS, owner login or application dashboard receipt"
       end
       # The packager acceptance receipt has passed before the order is marked ready.

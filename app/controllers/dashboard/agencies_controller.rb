@@ -2,6 +2,7 @@ class Dashboard::AgenciesController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
   before_action :require_agency_access!
+  rate_limit to: 5, within: 3.minutes, only: :send_setup_invitation
   def index
     @agencies = agency_scope.includes(:agency_profile, :agency).order(:email_address)
   end
@@ -41,10 +42,29 @@ class Dashboard::AgenciesController < ApplicationController
   def create_client
     agency = agency_scope.find(params[:id])
     values = params.require(:client).permit(:first_name, :last_name, :email_address)
-    agency.agency_clients.create!(values.merge(role: "client", password: SecureRandom.urlsafe_base64(36)))
-    redirect_to dashboard_agencies_path, notice: "Client account created. The client can use Forgot password to set their password."
+    client = agency.agency_clients.create!(values.merge(role: "client", password_setup_required: true, password: SecureRandom.urlsafe_base64(36)))
+    if client.password_setup_invitation_error
+      redirect_to dashboard_agencies_path, alert: 'Client account created, but invitation could not be queued. Use Send setup invitation to retry.'
+    else
+      redirect_to dashboard_agencies_path, notice: 'Client account created. A first-password invitation is queued for the client.'
+    end
   rescue ActiveRecord::RecordInvalid => error
     redirect_to dashboard_agencies_path, alert: error.record.errors.full_messages.to_sentence
+  end
+  def send_setup_invitation
+    agency = agency_scope.find(params[:id])
+    client = agency.agency_clients.find(params.require(:client_id))
+    begin
+      client.send_password_setup_invitation!
+    rescue ArgumentError
+      raise
+    rescue StandardError => error
+      Rails.logger.warn("[Account setup] resend failed user=#{client.id} #{error.class}")
+      return redirect_to dashboard_agencies_path, alert: 'Invitation could not be queued. The account is preserved; retry when mail workers are available.'
+    end
+    redirect_to dashboard_agencies_path, notice: 'Password setup invitation queued for the client.'
+  rescue ArgumentError
+    redirect_to dashboard_agencies_path, alert: 'This account already has a chosen password. Its owner can use Forgot password.'
   end
   private
   def require_agency_access!

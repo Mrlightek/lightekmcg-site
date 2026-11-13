@@ -6,6 +6,14 @@ After the enterprise identity update, privileged platform accounts and accounts 
 
 Super admins, admins and employees have mandatory MFA. IT administration also requires it. An employer can configure its general MFA policy, while financial workspaces keep their sensitive-session checks.
 
+## New clients choose a password first
+
+A new client does not need to know a generated installation password. Self-registration asks them to choose a password. Accounts created on a client's behalf are marked for first-password setup and receive a private account-setup email through the existing mail queue. That link opens a new-password/confirmation form without asking for an old password. It expires after twenty minutes and becomes invalid after a successful password save. Agency administrators can resend a pending client's invitation from the client's own agency row. A queue failure preserves the account and exposes a retry notice.
+
+The purchasing Lightek account and an independently installed application are separate accounts/databases. The ready email includes first-password setup when the purchasing account needs it, followed by **My Applications → Set or reset my password** for the installed application. A deferred installed-owner bootstrap does not email a link before installation is verified. Accounts on deployed client servers still send their own agency-client invitations normally.
+
+After choosing the installed application's password, sign in and complete MFA if required. The MFA screen's **Current password** is then the password just chosen. A password reset invalidates existing sessions but keeps any enrolled authenticator; it cannot bypass an existing MFA challenge. Legacy accounts are not forced into password reset by migration. Their owners can use Forgot password when they have never chosen a password or a link expired.
+
 ## Set up an authenticator from a desktop or phone
 
 1. In **Sign-in security → Authenticator**, enter the password used for this Lightek account. Choose **Set up authenticator**.
@@ -60,4 +68,4 @@ Authenticator management, SSO linking and directory/access-policy changes retain
 
 The UI routes are `/identity/security` and `/identity/challenge`. Setup, confirmation and disabling are CSRF-protected POST actions. Authenticator secrets use existing Vault encryption, recovery codes are stored as hashes, and code verification is serialized with row locking.
 
-See [enterprise identity and accounting](../enterprise-directory-and-accounting.md) for IT/HR separation, company policy, OIDC setup and directory joining. The current release's combined HTTP acceptance entry point is `test/standalone/enterprise_connect_mfa_checks.rb`; production setup should use the ordinary authenticated UI.
+See [enterprise identity and accounting](../enterprise-directory-and-accounting.md) for IT/HR separation, company policy, OIDC setup and directory joining. The current release's combined HTTP acceptance entry point is `test/standalone/enterprise_onboarding_checks.rb`; production setup should use the ordinary authenticated UI.

@@ -27,7 +27,7 @@ ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"
 ActiveRecord::Migration.verbose = false
 ActiveRecord::ConnectionAdapters::TableDefinition.class_eval { alias_method :jsonb, :json }
 ActiveRecord::Schema.define do
-  create_table(:users) { |t| t.string :role; t.string :email_address; t.string :stripe_connect_account_id; t.string :first_name; t.string :last_name; t.string :password }
+  create_table(:users) { |t| t.string :role; t.string :email_address; t.string :stripe_connect_account_id; t.string :first_name; t.string :last_name; t.string :password; t.boolean :password_setup_required, default: false }
   create_table(:dymond_site_sites) { |t| t.string :host; t.string :name; t.references :tenant, polymorphic: true; t.json :manifest, default: {} }
   create_table(:gatekeeper_nodes) { |t| t.references :owner, polymorphic: true; t.string :status }
   create_table(:lightek_reservation_peers) { |t| t.references :site; t.references :merchant; t.string :key }

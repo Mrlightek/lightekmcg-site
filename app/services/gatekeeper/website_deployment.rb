@@ -280,8 +280,7 @@ module Gatekeeper
       raise Invalid, "Invalid deployment receipt path" unless path.parent == expected
       receipt = JSON.parse(path.read)
       raise Invalid, "Acceptance receipt is incomplete" unless receipt["url"] == "https://#{@domain}" &&
-        receipt["public_https_verified"] == true && receipt["owner_login_verified"] == true &&
-        receipt.dig("health", "full_application_dashboard_verified") == true
+        Gatekeeper::WebsiteReadiness.verified?(receipt, domain: @domain, owner_email: config["owner_email"])
       receipt
     end
   end

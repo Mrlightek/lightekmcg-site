@@ -33,6 +33,8 @@ module LightekCommerce
     def self.summary(order)
       request = ProvisioningRequest.find_by(id: order.provisioning_request_id)
       node = request&.gatekeeper_node
+      receipt = node&.metadata.to_h&.fetch('website_deployment_receipts', {})&.fetch(hostname(order), nil) ||
+        node&.metadata.to_h&.fetch('website_deployment', {}) || {}
       state = if !order.paid_at? || !%w[paid fulfilled].include?(order.status)
         order.status == "pending_payment" ? "awaiting_payment" : order.status
       else
@@ -42,6 +44,7 @@ module LightekCommerce
         id: order.id, payment_status: order.status, state: state, ready: ready?(order),
         hostname: hostname(order), url: ready?(order) ? "https://#{hostname(order)}" : nil,
         allocated: node.present?, provisioned_at: order.provisioned_at&.iso8601,
+        owner_onboarding_required_at_install: receipt.dig('health', 'owner_onboarding_required') == true,
         retryable: order.paid_at? && %w[paid fulfilled].include?(order.status) && !order.provisioned_at? && state == "failed"
       }
     end

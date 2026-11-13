@@ -42,3 +42,13 @@ Both paid-order provisioning and Dashboard-created servers use the approved SMTP
 ## Verification
 
 `ruby test/standalone/hosting_bootstrap_test.rb` verifies real Vault encryption/recovery, setup persistence and signed callback rejection. `ruby test/standalone/fleet_updates_test.rb` exercises actual models/services with an isolated SQLite database. `python3 -m unittest discover -s test/standalone -p 'fleet*_test.py'` covers managed scripts and packaging. Full Rails boot requires the private ecosystem gems. Actual provider allocation, Docker startup, public certificate issuance and image-build callbacks require the deployment's configured credentials and must be verified in develop before release.
+
+## First-use readiness and account setup
+
+A new administrator must choose a password and enroll an authenticator. Installation verification no longer demands that a password-only session bypass that enrollment. It checks HTTPS/site/release identity, primary owner authentication, all four protected Dashboard entry points, and the deployed owner's read-only `/identity/onboarding-status` proof. A public page or redirect that merely looks like MFA is insufficient.
+
+A pending-MFA receipt records `owner_onboarding_required: true`, `owner_mfa_state: enrollment_required` and `full_application_dashboard_verified: false`. This qualifies the **installation** for its password-setup handoff, not the owner for business access. The shared readiness check is used by native installs, explicitly containerized Lightek installs, paid provisioning and owner-access links. My Applications identifies first-sign-in setup separately. These fields are installation-time evidence, not a live assertion that the user has or has not subsequently enrolled.
+
+The full production acceptance audit retains its stricter full-Dashboard requirement; it does not mark the owner's unfinished onboarding as a successful end-to-end acceptance. Existing enrolled owners are not given a fabricated factor or an automated MFA bypass. Normal fleet updates remain the path for already-running applications.
+
+Apply `20261114000000_add_first_use_password_setup` centrally and in new/client application releases. Existing users retain their password/factor state. New generated-account paths mark password setup explicitly. Protect the deployment's existing Vault key and keep the existing mail workers running for invitations. See [client password and MFA setup](security/sign-in-and-mfa.md).

@@ -1,3 +1,6 @@
+get '/account/setup/:token/edit', to: 'account_setups#edit', as: :edit_account_setup
+put '/account/setup/:token', to: 'account_setups#update', as: :account_setup
+get '/identity/onboarding-status', to: 'identity_onboarding#show'
 get '/identity/security', to: 'identity_security#show', as: :identity_security
 post '/identity/security/enroll', to: 'identity_security#enroll', as: :enroll_identity_security
 post '/identity/security/confirm', to: 'identity_security#confirm', as: :confirm_identity_security

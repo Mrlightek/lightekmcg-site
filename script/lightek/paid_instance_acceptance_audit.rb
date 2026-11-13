@@ -26,6 +26,7 @@ results = orders.map do |order|
     hostname: receipt["url"], public_https_verified: false,
     owner_login_verified: false, dashboard_verified: false, dns_verified: false,
     provider_running: false, installation_receipt_verified: false,
+    owner_onboarding_required: false, installation_ready: false,
     mail_setup_status: receipt["mail_setup_status"],
     mail_registration_status: receipt["mail_registration_status"], acceptance_pass: false
   }
@@ -57,8 +58,9 @@ results = orders.map do |order|
     result[:public_https_verified] = true
     result[:owner_login_verified] = true
     result[:dashboard_verified] = health["full_application_dashboard_verified"] == true
-    result[:installation_receipt_verified] = receipt["public_https_verified"] == true &&
-      receipt["owner_login_verified"] == true && receipt.dig("health", "full_application_dashboard_verified") == true
+    result[:owner_onboarding_required] = health["owner_onboarding_required"] == true
+    result[:installation_receipt_verified] = Gatekeeper::WebsiteReadiness.verified?(receipt, domain: domain, owner_email: config["owner_email"])
+    result[:installation_ready] = result[:installation_receipt_verified] && result[:owner_login_verified] && order.provisioned_at.present?
     result[:acceptance_pass] = result[:paid] && result[:provider_running] && result[:dns_verified] &&
       result[:public_https_verified] && result[:owner_login_verified] && result[:dashboard_verified] &&
       result[:installation_receipt_verified] && order.provisioning_state == "ready" && order.provisioned_at.present?

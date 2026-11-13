@@ -11,6 +11,8 @@ The target is a complete ERP and accounting suite centered on Dymond Bank. Use t
 
 ## Accounting work to close
 
+The current release adds encrypted cash-basis books, statement imports, categorization, proof-based reconciliation, period controls, native workbooks, P&L/Schedule C workpapers and reviewed-input estimates. See [enterprise bookkeeping](../enterprise-directory-and-accounting.md) for those delivered workflows and [the feature catalog](../../FEATURES.md) for the full platform inventory. The workstreams below describe the broader general-ledger/ERP acceptance still to complete; they do not mean the new bookkeeping workspace is absent.
+
 This inventory describes **host integration evidence**, not the full capabilities of the private Bank gem. `Gemfile.lock` pins Dymond Bank to `06153f7c90583c06005c08d153cd1978e77d8b35`. Its source must be checked before implementing or duplicating financial primitives. The connected GitHub source lookup returned 404 during this change, so ledger APIs have not been verified from that dependency.
 
 | Workstream | Existing integration to extend | Acceptance required for completion |

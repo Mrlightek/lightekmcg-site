@@ -4,12 +4,12 @@ Open **People & Access** in the dashboard sidebar. Settings → People & access 
 
 ## Build the organization
 
-1. Add departments such as IT, Customer Service, Accounting, HR and Executive. A department can have a parent (for example Technology → IT). Department codes provide stable cost-center identifiers.
+1. The enterprise starter adds 26 default departments/subdepartments on first use, including IT, Accounting, Payroll, Shipping, Receiving and Legal & Compliance. Add or adapt departments for the business; existing custom and archived departments are preserved. Department codes provide stable cost-center identifiers.
 2. Add existing Lightek accounts as team members. Select employee, freelancer or agency, a title, department, job level and start/end dates.
 3. Set **Reports to**. Managers can supervise managers, team leads and individual contributors; team leads supervise individual contributors. Reporting relationships can cross departments within the employer. Circular and cross-employer reporting are rejected.
 4. Assign access independently. Only the employer owner can grant people administration or payroll responsibility. Managers and leads can view their reporting chains; that title does not grant compensation access. An HR administrator cannot promote themselves into payroll.
 
-This is Lightek's business directory. The legacy top-level `Department` scaffold belongs to `SystemJob`; business departments use `LightekPeople::Department` so HR data does not leak through that legacy generic CRUD surface. Employment memberships do not change `User.role`, reseller `agency_id`, or existing server privileges. This release does not implement Active Directory domain joining, LDAP/Kerberos, SSO or automatic Gatekeeper server/application grants. Those boundaries must consume explicit resource permissions rather than treating a management title as infrastructure authority.
+This is Lightek's business directory. The legacy top-level `Department` scaffold belongs to `SystemJob`; business departments use `LightekPeople::Department` so HR data does not leak through that legacy generic CRUD surface. Employment memberships do not change `User.role`, reseller `agency_id`, or existing server privileges. Enterprise identity adds OIDC sign-in, remote joining to existing AD/Samba AD domains and explicit Gatekeeper resource permissions through the separate IT Directory & Access workspace. Those controls consume explicit permissions rather than treating a management title as infrastructure authority. See [enterprise identity](../enterprise-directory-and-accounting.md) and [first sign-in/MFA](../security/sign-in-and-mfa.md).
 
 ## Employer boundaries and delegation
 

@@ -36,7 +36,9 @@ class IdentitySecurityController < ApplicationController
   end
   def private_page
     response.headers['Cache-Control'] = 'no-store'
-    response.headers['Referrer-Policy'] = 'no-referrer'
+    # no-referrer makes browser form POSTs send Origin: null and fail Rails CSRF.
+    # Keep same-site forms working while suppressing cross-site referrers.
+    response.headers['Referrer-Policy'] = 'same-origin'
     head :forbidden if Current.session&.connect_delegation.present?
   end
 end

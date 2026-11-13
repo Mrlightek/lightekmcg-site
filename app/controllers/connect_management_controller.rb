@@ -3,7 +3,7 @@ class ConnectManagementController < ApplicationController
   protect_from_forgery with: :exception
   def show
     response.headers["Cache-Control"] = "no-store"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Referrer-Policy"] = "same-origin"
     @code = params.require(:code)
     raise ArgumentError unless @code.match?(/\A[0-9a-f]{64}\z/)
     # GET previews only. Browser prefetch must never consume a grant or establish a session.
@@ -12,7 +12,7 @@ class ConnectManagementController < ApplicationController
   end
   def create
     response.headers["Cache-Control"] = "no-store"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Referrer-Policy"] = "same-origin"
     site = DymondSite::Site.find_by(host: request.host)
     remote = LightekReservations::Federation::Client.config(site)
     if remote && remote["origin"].to_s.delete_suffix("/") != request.base_url

@@ -210,7 +210,7 @@ class Dashboard::AccountingController < ApplicationController
   private
   def context!
     response.headers['Cache-Control'] = 'no-store'
-    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['Referrer-Policy'] = 'same-origin'
     require_sensitive_session!
     return if performed?
     @employers = LightekPeople::Access.employers_for(current_user)

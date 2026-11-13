@@ -7,11 +7,20 @@ on:
       - 'config/routes.rb'
       - 'db/migrate/*enterprise_identity*'
       - 'db/migrate/*connect_mfa_handoff*'
+      - 'db/migrate/*first_use_password_setup*'
+      - 'script/lightek/verify_paid_instance.py'
+      - 'script/lightek/website_deploy.sh'
+      - 'lib/scripts/gatekeeper/install_container_application.py'
+      - 'test/scripts/test_paid_instance_verification.py'
+      - 'test/standalone/website_deployment_dispatch_test.rb'
       - 'db/migrate/*dymond_bookkeeping*'
       - 'db/migrate/*jurisdiction_monitoring*'
       - 'lib/scripts/gatekeeper/directory_membership.py'
       - 'public/lightek/accounting-live.js'
       - 'test/standalone/enterprise*'
+      - 'public/lightek/mfa-enrollment*'
+      - 'public/lightek/vendor/qrcode-generator/**'
+      - 'test/javascript/mfa_qr*'
       - 'test/standalone/people*'
       - 'test/operations/directory_membership_test.py'
       - '.github/workflows/enterprise-acceptance.yml'
@@ -43,9 +52,30 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: false
       - name: Install public test dependencies
-        run: gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'minitest:~>5.25' pg 'sqlite3:~>2.7' 'jwt:2.10.3' 'rubyzip:3.4.1' nokogiri --no-document
+        run: gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'actionmailer:8.0.5' bcrypt 'minitest:~>5.25' pg 'sqlite3:~>2.7' 'jwt:2.10.3' 'rubyzip:3.4.1' nokogiri --no-document
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install QR browser acceptance dependencies
+        run: |
+          npm install --prefix /tmp/mfa-qr-ci playwright@1.56.1 jsqr@1.4.0 pngjs@7.0.0 jsdom@26.1.0
+          /tmp/mfa-qr-ci/node_modules/.bin/playwright install --with-deps chromium
       - name: Verify authentication, tenant permissions and bookkeeping workflows
-        run: ruby test/standalone/enterprise_form_origin_checks.rb
+        env:
+          MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render
+        run: ruby test/standalone/enterprise_onboarding_checks.rb
+      - name: Decode actual enrollment QR and verify desktop/phone rendering
+        env:
+          NODE_PATH: /tmp/mfa-qr-ci/node_modules
+          MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render
+        run: |
+          node test/javascript/mfa_qr_encoding_test.cjs
+          node test/javascript/mfa_qr_browser_test.cjs
+      - name: Verify staged provisioning acceptance and invitation mail
+        run: |
+          python3 -m unittest test.scripts.test_paid_instance_verification
+          ruby test/standalone/website_deployment_dispatch_test.rb
+          ruby test/standalone/lightek_transactional_mail_test.rb
       - name: Verify domain allowlists and stale revocation handling
         run: python3 -m unittest test/operations/directory_membership_test.py
       - name: Verify reconciliation client syntax

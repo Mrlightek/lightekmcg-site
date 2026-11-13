@@ -58,10 +58,19 @@ EnterpriseHarness.routes.draw do
   post '/connect/management', to: 'connect_management#create'
   post '/api/reservations/federation/connect/redeem', to: 'api/connect_federation#redeem'
   post '/api/reservations/federation/connect/validate', to: 'api/connect_federation#validate_session'
+  resources :dashboard_agencies, path: '/dashboard/agencies', controller: 'dashboard/agencies', only: %i[index create update] do
+    member do
+      post :create_client
+      post :send_setup_invitation
+      patch :update_terms
+    end
+  end
+  get '/my/installations/:id', to: 'installations#show', as: :installation
+  resources :passwords, param: :token
   resource :session,only: %i[new create destroy]
   eval(ROOT.join('config/routes/enterprise_identity.rb').read,binding)
   eval(ROOT.join('config/routes/accounting.rb').read,binding)
-  get '/after-login',to: 'identity_protected#index',as: :dashboard_agencies
+  get '/after-login',to: 'identity_protected#index'
   get '/after-login/servers',to: 'identity_protected#index',as: :dashboard_servers
   get '/after-login/employee',to: 'identity_protected#index',as: :dashboard_nevaeh_os
   eval(ROOT.join('config/routes/people.rb').read,binding)

@@ -18,7 +18,7 @@ module LightekCommerce
             raise ArgumentError, "Existing account is outside this reseller branch" unless candidate.agency_id == user.id && candidate.role.in?(%w[client white_label])
           else
             candidate = User.create!(agency: user, email_address: entry.fetch("email"), first_name: entry["first_name"].presence || "Business",
-              last_name: entry["last_name"].presence || "Owner", role: entry["role"] == "white_label" ? "white_label" : "client", password: SecureRandom.urlsafe_base64(36))
+              last_name: entry["last_name"].presence || "Owner", role: entry["role"] == "white_label" ? "white_label" : "client", password_setup_required: true, password: SecureRandom.urlsafe_base64(36))
           end
           host = "network-#{Digest::SHA256.hexdigest("#{peer.key}:#{subject}").first(24)}.lightekmcg.com"
           site = DymondSite::Site.create!(tenant: candidate, name: store_name.to_s.first(160), host: host, manifest: {"network_ledger" => true})

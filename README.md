@@ -44,7 +44,7 @@ See [FEATURES.md](FEATURES.md) for the detailed inventory, setup dependencies, c
 A super admin without an enrolled authenticator is directed to **Sign-in security**. This is the expected enrollment step:
 
 1. Enter the current Lightek password and choose **Set up authenticator**.
-2. Add the displayed setup key to a time-based authenticator: six digits, 30-second period, SHA-1 if requested. **Open in authenticator** works when a compatible handler is installed on that device.
+2. On your phone, open your authenticator and choose **Add account → Scan QR code**, then scan the QR shown by Lightek. No app needs to open on your Mac. If scanning is unavailable, expand **Can’t scan? Enter a setup key manually** for the time-based setup key.
 3. Enter the current code and choose **Verify & enable**.
 4. Save the ten one-time recovery codes privately, then continue to Dashboard. **Link organization sign-in** is optional and requires a separately configured organization provider.
 

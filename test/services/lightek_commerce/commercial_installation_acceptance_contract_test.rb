@@ -9,7 +9,7 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
     assert_includes script, "'/dashboard/commerce/orders?site_id='"
     assert_includes script, "'/dashboard/settings'"
     assert_includes script, "h['full_application_dashboard_verified']=True"
-    assert_includes script, "dest.rstrip('/')!=expected"
+    assert_includes script, "dest!=expected and not this_gated"
   end
 
   test "private mail server uses the existing installer only with explicit opt in" do
@@ -118,6 +118,6 @@ class CommercialInstallationAcceptanceContractTest < ActiveSupport::TestCase
 
   test "Gatekeeper requires full application acceptance before returning success" do
     source = Rails.root.join("app/services/gatekeeper/website_deployment.rb").read
-    assert_includes source, 'receipt.dig("health", "full_application_dashboard_verified") == true'
+    assert_includes source, 'Gatekeeper::WebsiteReadiness.verified?'
   end
 end

@@ -3,6 +3,7 @@
 class User < ApplicationRecord
   # ── Rails 8 native authentication ─────────────────────────────────────────────
   has_secure_password
+  include FirstUsePassword
 
   # ── Automatically handles generating and regenerating the 'api_token' ─────────────────────────────────────────────
   has_secure_token :api_token

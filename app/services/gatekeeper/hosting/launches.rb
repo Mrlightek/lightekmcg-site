@@ -140,7 +140,7 @@ module Gatekeeper
               branding: launch.owner.account_branding_profile&.attributes&.slice("brand_name", "logo_url", "support_email", "accent_color")})
           raise Access::Denied, "Container HTTPS verification failed" unless receipt["status"] == "succeeded" && receipt["domain"] == domain && receipt["image"] == config["image"]
           if config["lightek_application"]
-            raise Access::Denied, "Lightek owner dashboard verification failed" unless receipt["owner_login_verified"] == true && receipt.dig("health", "full_application_dashboard_verified") == true
+            raise Access::Denied, "Lightek owner dashboard verification failed" unless Gatekeeper::WebsiteReadiness.verified?(receipt, domain: domain, owner_email: launch.owner.email_address)
           end
           operation.update!(status: "succeeded", completed_at: Time.current, result: receipt, exit_status: 0)
           launch.update!(status: "ready", receipt: receipt)

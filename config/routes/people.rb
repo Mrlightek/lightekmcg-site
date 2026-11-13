@@ -1,0 +1,15 @@
+get '/dashboard/people', to: 'dashboard/people#index', as: :dashboard_people
+post '/dashboard/people/departments', to: 'dashboard/people#department', as: :dashboard_people_departments
+post '/dashboard/people/employments', to: 'dashboard/people#employment', as: :dashboard_people_employments
+post '/dashboard/people/benefits', to: 'dashboard/people#benefit', as: :dashboard_people_benefits
+post '/dashboard/people/enrollments', to: 'dashboard/people#enrollment', as: :dashboard_people_enrollments
+post '/dashboard/people/pay-runs', to: 'dashboard/people#pay_run', as: :dashboard_people_pay_runs
+post '/dashboard/people/pay-runs/:id/statement', to: 'dashboard/people#statement', as: :dashboard_people_pay_statement
+post '/dashboard/people/pay-runs/:id/approve', to: 'dashboard/people#approve', as: :approve_dashboard_people_pay_run
+post '/dashboard/people/pay-runs/:id/cancel', to: 'dashboard/people#cancel', as: :cancel_dashboard_people_pay_run
+get '/dashboard/people/pay-runs/:id/export', to: 'dashboard/people#export', as: :export_dashboard_people_pay_run
+post '/dashboard/people/statements/:id/payout', to: 'dashboard/people#payout', as: :dashboard_people_payout
+post '/dashboard/people/sender', to: 'dashboard/people#sender', as: :dashboard_people_sender
+post '/dashboard/people/bank-setup', to: 'dashboard/people#bank_setup', as: :dashboard_people_bank_setup
+get '/dashboard/people/bank-return', to: 'dashboard/people#bank_return', as: :dashboard_people_bank_return
+get '/dashboard/people/bank-refresh', to: 'dashboard/people#bank_refresh', as: :dashboard_people_bank_refresh

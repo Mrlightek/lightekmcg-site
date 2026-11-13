@@ -1,0 +1,44 @@
+name: People, organization and payroll acceptance
+on:
+  pull_request:
+    paths:
+      - 'app/models/lightek_people/**'
+      - 'app/services/lightek_people/**'
+      - 'app/services/dymond_bank/workforce_payouts.rb'
+      - 'app/controllers/dashboard/people_controller.rb'
+      - 'app/views/dashboard/people/**'
+      - 'config/routes/people.rb'
+      - 'db/migrate/*people_and_payroll*'
+      - 'test/standalone/people*'
+      - '.github/workflows/people-payroll.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  workforce:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: people
+          POSTGRES_DB: people_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PEOPLE_DATABASE_URL: postgres://postgres:people@localhost:5432/people_test?pool=8
+      MT_NO_PLUGINS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - name: Install public test dependencies
+        run: gem install 'activerecord:8.0.5' 'actionpack:8.0.5' 'railties:8.0.5' 'minitest:~>5.25' pg 'sqlite3:~>2.7' --no-document
+      - name: Verify real PostgreSQL ownership, HTTP flows and payout races
+        run: ruby test/standalone/people_http_checks.rb

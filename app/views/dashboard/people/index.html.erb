@@ -1,0 +1,14 @@
+<% content_for :page_title, 'People & access' %>
+<%= stylesheet_link_tag '/lightek/people-workspace.css?v=20261113' %>
+<main class="lp-workspace">
+<header class="lp-heading"><div><span class="lp-eyebrow">LIGHTEK / PEOPLE</span><h1>People & access</h1><p>Your organization, reporting relationships, benefits and payroll.</p></div><% if @employer %><%= form_with url: dashboard_people_path, method: :get, class: 'lp-switch' do %><label for="employer_id">Employer account</label><%= select_tag :employer_id, options_from_collection_for_select(@employers, :id, :email_address, @employer.id) %><%= submit_tag 'Switch', class: 'lp-button secondary' %><% end %><% end %></header>
+<% if @employer %>
+<nav class="lp-tabs" aria-label="People workspace"><% [['directory','Directory'],['benefits','Benefit plans'],['self','My employment']].each do |key,label| %><%= link_to label, dashboard_people_path(employer_id: @employer.id, tab: key), aria: {current: (params[:tab].presence || 'directory') == key ? 'page' : nil} %><% end %><% if @access.payroll? %><%= link_to 'Payroll', dashboard_people_path(employer_id: @employer.id, tab: 'payroll'), aria: {current: params[:tab] == 'payroll' ? 'page' : nil} %><% end %></nav>
+<% case params[:tab] %>
+<% when 'payroll' %><% if @access.payroll? %><%= render 'payroll' %><% else %><p role="alert">Payroll access is assigned by your employer.</p><% end %>
+<% when 'benefits' %><%= render 'benefits' %>
+<% when 'self' %><%= render 'self' %>
+<% else %><%= render 'directory' %>
+<% end %>
+<% else %><section class="lp-card"><h2>No employer membership yet</h2><p>Your employer can add your existing Lightek account to their directory. Business account owners can manage their own organization here.</p></section><% end %>
+</main>

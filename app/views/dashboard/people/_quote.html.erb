@@ -1,0 +1,5 @@
+<% if value.is_a?(Hash) && (value['value'].is_a?(Numeric) || value['amount'].is_a?(Numeric)) && value['currency'].is_a?(String) %>
+<div class="lp-quote-amount"><span><%= label.humanize %></span><strong><%= number_to_currency((value['value'] || value['amount']) / 100.0, unit: "#{value['currency'].upcase} ") %></strong></div>
+<% elsif value.is_a?(Hash) %><div class="lp-quote"><% value.each do |key,item| %><% next if key == 'next_action' %><%= render 'quote', value: item, label: key.to_s %><% end %></div>
+<% elsif value.is_a?(Array) %><div class="lp-quote"><% if value.empty? %><p><%= label.humanize %>: none quoted</p><% end %><% value.each_with_index do |item,index| %><%= render 'quote', value: item, label: "#{label.humanize} #{index + 1}" %><% end %></div>
+<% elsif value.present? %><div class="lp-quote-amount"><span><%= label.humanize %></span><strong><%= value.to_s.humanize %></strong></div><% end %>

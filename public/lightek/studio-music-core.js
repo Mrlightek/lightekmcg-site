@@ -6,7 +6,7 @@
   const empty=()=>({version:1,name:'Untitled music',tempo:100,bars:4,swing:0,tracks:[track('kick','Kick'),track('snare','Snare'),track('hat','Hi-hat'),track('bass','Bass'),track('keys','Keys')]});
   function number(v,min,max,label){const n=Number(v);if(!Number.isFinite(n)||n<min||n>max)throw Error(`${label} must be between ${min} and ${max}.`);return n;}
   function validate(score){
-    if(![1,2,3,4,5,6].includes(score.version))throw Error('Unsupported music project version.');
+    if(![1,2,3,4,5,6,7].includes(score.version))throw Error('Unsupported music project version.');
     number(score.tempo,40,240,'Tempo');number(score.bars,1,128,'Bars');if(!Number.isInteger(score.bars))throw Error('Use a whole number of bars.');
     if(seconds(score)>600)throw Error('Keep this composition within ten minutes.');number(score.swing,0,0.5,'Swing');
     if(!Array.isArray(score.tracks)||score.tracks.length<1||score.tracks.length>16)throw Error('Use 1–16 instrument tracks.');
@@ -54,15 +54,21 @@
     return tracks;
   }
   const automationParameters={gain:{label:'Volume',min:0,max:1.5,step:.01},pan:{label:'Pan',min:-1,max:1,step:.05},cutoff:{label:'Low-pass · Hz',min:100,max:18000,step:100},delay:{label:'Delay amount',min:0,max:.6,step:.01}};
+  const automationTarget=target=>typeof target==='string'?{track_id:target}:target;
+  function automationKey(target){const t=automationTarget(target);return Object.hasOwn(t,'track_id')?'track:'+t.track_id:Object.hasOwn(t,'bus_id')?'bus:'+t.bus_id:'master';}
+  function automationSpecs(target){const t=automationTarget(target);return Object.hasOwn(t,'track_id')?automationParameters:Object.hasOwn(t,'bus_id')?{gain:automationParameters.gain,pan:automationParameters.pan}:{gain:automationParameters.gain};}
   function validateAutomation(score){
     const lanes=score.automation??[];
     if(!Array.isArray(lanes)||lanes.length>64)throw Error('Use at most 64 automation lanes.');
     if(score.version<3&&lanes.length)throw Error('Music automation requires source version 3.');
     const keys=new Set();let total=0;
     for(const lane of lanes){
-      if(!score.tracks.some(t=>t.id===lane.track_id))throw Error('Automation references a missing channel.');
-      const spec=automationParameters[lane.parameter],key=lane.track_id+':'+lane.parameter;
-      if(!spec||keys.has(key))throw Error('Use one supported automation lane per channel and parameter.');keys.add(key);
+      const targets=['track_id','bus_id','master'].filter(key=>Object.hasOwn(lane,key));
+      if(targets.length!==1)throw Error('Choose exactly one automation target.');
+      if(targets[0]==='track_id'){if(!score.tracks.some(t=>t.id===lane.track_id))throw Error('Automation references a missing channel.');}
+      else{if(score.version<7)throw Error('Bus and master automation require music source version 7.');if(targets[0]==='bus_id'&&!mixerState(score).buses.some(b=>b.id===lane.bus_id))throw Error('Automation references a missing bus.');if(targets[0]==='master'&&lane.master!==true)throw Error('Master automation target must be true.');}
+      const spec=automationSpecs(lane)[lane.parameter],key=automationKey(lane)+':'+lane.parameter;
+      if(!spec||keys.has(key))throw Error('Use one supported automation lane per target and parameter.');keys.add(key);
       if(typeof lane.enabled!=='boolean')throw Error('Automation enabled must be true or false.');
       if(!Array.isArray(lane.points)||lane.points.length>128)throw Error('Use at most 128 points per automation lane.');
       if((total+=lane.points.length)>2048)throw Error('Use at most 2048 automation points per song.');
@@ -72,9 +78,9 @@
       }
     }
   }
-  function automationLane(score,trackId,parameter){return score.automation?.find(l=>l.track_id===trackId&&l.parameter===parameter);}
-  function automationValue(score,track,parameter,beat){
-    const lane=automationLane(score,track.id,parameter);if(!lane?.enabled)return track[parameter];
+  function automationLane(score,target,parameter){return score.automation?.find(l=>automationKey(l)===automationKey(target)&&l.parameter===parameter);}
+  function automationValue(score,track,parameter,beat,target=track.id){
+    const lane=automationLane(score,target,parameter);if(!lane?.enabled)return track[parameter];
     let previous={beat:0,value:track[parameter]};
     for(const point of [...lane.points].sort((a,b)=>a.beat-b.beat)){
       if(point.beat>beat)return point.curve==='hold'?previous.value:previous.value+(point.value-previous.value)*(beat-previous.beat)/(point.beat-previous.beat);
@@ -171,5 +177,5 @@
   function toMidi(score){validate(score);const midi=new window.Midi();midi.name=score.name;midi.header.setTempo(score.tempo);midi.header.timeSignatures.push({ticks:0,timeSignature:[4,4]});let channel=0;for(const t of expanded(score)){if(t.instrument==='recording')continue;const dest=midi.addTrack();dest.name=t.name;if(drums.includes(t.instrument))dest.channel=9;else{if(channel===9)channel++;if(channel>15)throw Error('MIDI supports fifteen melodic channels plus a drum channel. Export some tracks as audio stems.');dest.channel=channel++;};dest.instrument.number={bass:32,keys:0,pad:88,lead:80}[t.instrument]||0;for(const n of t.notes)dest.addNote({midi:drums.includes(t.instrument)?{kick:36,snare:38,hat:42,clap:39}[t.instrument]:n.pitch,ticks:Math.round(n.beat*midi.header.ppq),durationTicks:Math.max(1,Math.round(n.length*midi.header.ppq)),velocity:n.velocity});}return midi.toArray();}
   function fromMidi(bytes,name){const midi=new window.Midi(bytes),tempos=midi.header.tempos;if(tempos.some(t=>Math.abs(t.bpm-(tempos[0]?.bpm||120))>0.001)||midi.header.timeSignatures.some(t=>t.timeSignature[0]!==4||t.timeSignature[1]!==4))throw Error('This music editor currently imports a constant tempo and 4/4 meter.');const score={version:1,name:name||midi.name||'Imported MIDI',tempo:tempos[0]?.bpm||120,bars:1,swing:0,tracks:[]};for(const source of midi.tracks){if(!source.notes.length)continue;const groups=new Map();for(const n of source.notes){const instrument=source.channel===9?([35,36].includes(n.midi)?'kick':[38,40].includes(n.midi)?'snare':[42,44,46].includes(n.midi)?'hat':n.midi===39?'clap':null):source.instrument.family==='bass'?'bass':source.instrument.family==='synth pad'?'pad':'keys';if(!instrument)throw Error('This MIDI drum kit includes sounds that need custom sample mapping.');if(!groups.has(instrument))groups.set(instrument,track(instrument,source.name||instrument));const dest=groups.get(instrument),note={beat:n.ticks/midi.header.ppq,length:n.durationTicks/midi.header.ppq,pitch:drums.includes(instrument)?60:n.midi,velocity:n.velocity};if(dest.notes.some(a=>a.beat===note.beat&&a.pitch===note.pitch))continue;dest.notes.push(note);score.bars=Math.max(score.bars,Math.ceil((note.beat+note.length)/4));}score.tracks.push(...groups.values());}return validate(score);}
   function wav(buffer){const channels=Math.min(2,buffer.numberOfChannels),length=buffer.length,rate=buffer.sampleRate,bytes=new ArrayBuffer(44+length*channels*2),view=new DataView(bytes);const text=(at,s)=>{for(let i=0;i<s.length;i++)view.setUint8(at+i,s.charCodeAt(i));};text(0,'RIFF');view.setUint32(4,36+length*channels*2,true);text(8,'WAVE');text(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,channels,true);view.setUint32(24,rate,true);view.setUint32(28,rate*channels*2,true);view.setUint16(32,channels*2,true);view.setUint16(34,16,true);text(36,'data');view.setUint32(40,length*channels*2,true);const planes=Array.from({length:channels},(_,i)=>buffer.getChannelData(i));for(let i=0;i<length;i++)for(let c=0;c<channels;c++){const sample=Math.max(-1,Math.min(1,Number.isFinite(planes[c][i])?planes[c][i]:0));view.setInt16(44+(i*channels+c)*2,sample<0?sample*32768:sample*32767,true);}return bytes;}
-  window.LightekMusicCore={instruments,drums,track,empty,clone,validate,validatePatterns,automationParameters,validateAutomation,automationLane,automationValue,effectSpecs,effectParams,newEffect,mixerState,validateMixer,audible,mixerTopology,mixerTail,expanded,makePattern,editor,validateScoring,scoreStart,syncRecordings,addRecording,overdubPlacement,applyPerformance,seconds,events,toggle,copyBar,toMidi,fromMidi,wav};
+  window.LightekMusicCore={instruments,drums,track,empty,clone,validate,validatePatterns,automationParameters,automationKey,automationSpecs,validateAutomation,automationLane,automationValue,effectSpecs,effectParams,newEffect,mixerState,validateMixer,audible,mixerTopology,mixerTail,expanded,makePattern,editor,validateScoring,scoreStart,syncRecordings,addRecording,overdubPlacement,applyPerformance,seconds,events,toggle,copyBar,toMidi,fromMidi,wav};
 })();

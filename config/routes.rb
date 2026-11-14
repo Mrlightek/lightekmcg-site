@@ -45,6 +45,7 @@ Rails.application.routes.draw do
   draw :reservations
   draw :people
   draw :enterprise_identity
+  draw :agency_demos
   draw :accounting
   post "/website/template-inquiries", to: "website_template_inquiries#create", as: :website_template_inquiries
   get "/dashboard/website/designs/manifest", to: "dashboard/website_designs#manifest", as: :dashboard_website_design_manifest

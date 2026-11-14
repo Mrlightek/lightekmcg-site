@@ -1,0 +1,26 @@
+<% content_for :page_title, 'Client demos' %><%= stylesheet_link_tag '/lightek/people-workspace.css' %>
+<main class="lp-workspace"><header class="lp-heading"><div><span class="lp-eyebrow">AGENCY / DEMOS</span><h1>Let clients try it.</h1><p>Create a temporary workspace here. Clients can upgrade to their own instance from their demo.</p></div></header>
+<%= form_with url: dashboard_demos_path, method: :get do |f| %><%= f.label :agency_id, 'Agency' %><%= f.collection_select :agency_id, @agencies, :id, :email_address, selected: @agency.id %><%= f.submit 'Switch', class: 'lp-button secondary' %><% end %>
+<section class="lp-card"><h2>Demo settings</h2>
+<%= form_with scope: :demo_setting, url: settings_dashboard_demos_path, method: :patch, class: 'lp-form' do |f| %>
+  <%= hidden_field_tag :agency_id, @agency.id %>
+  <label>Duration (days)<%= f.number_field :duration_days, value: @setting.duration_days, min: 1, max: 90, required: true %></label>
+  <label>Maximum active demos<%= f.number_field :max_active, value: @setting.max_active, min: 1, max: 100, required: true %></label>
+  <label>Paid upgrade package<%= f.collection_select :upgrade_product_id, @products, :id, :name, selected: @setting.upgrade_product_id, include_blank: 'Choose a package' %></label>
+  <label>Public website<%= f.collection_select :public_site_id, @sites, :id, :name, selected: @setting.public_site_id, include_blank: 'Choose an agency website' %></label>
+  <label><%= f.check_box :public_enabled, checked: @setting.public_enabled? %> Allow public demo requests on this website</label>
+  <%= f.submit 'Save demo settings', class: 'lp-button' %>
+<% end %>
+<% if @setting.public_enabled? && @setting.public_site %><p>Your public demo form: <%= link_to "https://#{@setting.public_site.host}/request-demo", "https://#{@setting.public_site.host}/request-demo" %>. Link this from your website’s “Request a demo” button.</p><% end %>
+</section>
+<section class="lp-card"><h2>Create a client demo</h2>
+<%= form_with scope: :demo, url: dashboard_demos_path, class: 'lp-form' do |f| %><%= hidden_field_tag :agency_id, @agency.id %>
+  <label>Demo name<%= f.text_field :name, maxlength: 150 %></label>
+  <label>Existing client (optional)<%= f.collection_select :client_id, @clients, :id, :email_address, include_blank: 'Create a new client below' %></label>
+  <label>First name<%= f.text_field :first_name, maxlength: 100 %></label><label>Last name<%= f.text_field :last_name, maxlength: 100 %></label>
+  <label>Email<%= f.email_field :email_address %></label><%= f.submit 'Create demo', class: 'lp-button' %>
+<% end %></section>
+<section class="lp-card"><h2>Your demos</h2>
+<% @demos.each do |demo| %><p><%= link_to demo.name, dashboard_demo_path(demo) %> · <%= demo.status.humanize %> · expires <%= demo.expires_at.to_fs(:long) %><% if demo.cleanup_error %> · Cleanup needs review<% end %></p><% end %>
+<% if @demos.empty? %><p>No demos yet.</p><% end %>
+</section></main>

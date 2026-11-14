@@ -22,7 +22,10 @@ module LightekCommerce
         return if order.purpose == "reservation_change"
         return unless order.paid_at? && %w[paid fulfilled].include?(order.status)
         return unless order.items.any? { |item| item.product.product_type == "lightek_instance" }
-        return if order.provisioned_at?
+        if order.provisioned_at?
+          LightekAgency::DemoUpgrade.complete!(order) if order.respond_to?(:agency_demo_id) && order.agency_demo_id
+          return
+        end
         reservation = LightekReservations::Reservation.find_by(order_id: order.id)
         if reservation
           return unless reservation.status == 'confirmed'

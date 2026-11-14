@@ -164,8 +164,11 @@ def install_locked(config):
                 bootstrap = {"domain": domain, "owner_email": config["email"], "owner_password": state["owner_password"],
                              "owner_role": "admin", "site_name": config.get("name", domain), "headline": "Welcome",
                              "description": config.get("name", domain), "branding": config.get("branding"),
-                             "reservation_federation": config.get("reservation_federation")}
-                runner = 'require "json"; LightekWebsite::Bootstrap.call(JSON.parse(STDIN.read))'
+                             "reservation_federation": config.get("reservation_federation"), "demo_content": config.get("demo_content")}
+                runner = ('require "json"; c=JSON.parse(STDIN.read); '
+                          'raise "Rebuild this application image with demo upgrade support" if c["demo_content"] && !defined?(LightekAgency::DemoContent); '
+                          'LightekWebsite::Bootstrap.call(c); '
+                          'LightekAgency::DemoContent.install!(site: DymondSite::Site.find_by!(host: c.fetch("domain")), content: c["demo_content"]) if c["demo_content"]')
                 run(compose + ["run", "--rm", "--no-deps", "-T", "web", "bin/rails", "runner", runner], input=json.dumps(bootstrap).encode())
             tasks = subprocess.check_output(compose + ["run", "--rm", "--no-deps", "web", "bin/rails", "-T"], stderr=subprocess.DEVNULL, timeout=180).decode()
             if "assets:precompile" in tasks:

@@ -2,6 +2,7 @@
 module LightekMarketing
   class AudienceDispatch
     def self.call!(campaign:)
+      LightekAgency::Demos.ensure_live_site!(campaign.site, error: ArgumentError) if defined?(LightekAgency::Demos)
       campaign.with_lock do
         raise ArgumentError, "Campaign must be reviewed and ready" unless campaign.channel == "email" && campaign.status == "ready"
         raise ArgumentError, "Campaign not in its sending window" if (campaign.starts_at && campaign.starts_at.future?) || (campaign.ends_at && campaign.ends_at.past?)

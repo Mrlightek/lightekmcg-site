@@ -9,5 +9,6 @@ class Dashboard::ClientHomeController < ApplicationController
     @installations = LightekCommerce::Installations.scope_for(current_user)
       .order(created_at: :desc).limit(20).map { |order| [order, LightekCommerce::Installations.summary(order)] }
     @mfa_enabled = LightekIdentity::Mfa.enabled?(current_user)
+    @demos = LightekAgency::Demo.where(client: current_user).order(created_at: :desc).limit(10)
   end
 end

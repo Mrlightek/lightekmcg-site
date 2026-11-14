@@ -92,7 +92,9 @@ class User < ApplicationRecord
     feature_slug = feature_slug.to_s
     return persisted? if feature_slug == "server_instances"
     return role.in?(%w[super_admin white_label]) if feature_slug == "agency_workspace"
-    return role.in?(%w[super_admin admin white_label]) || DymondSite::Site.where(tenant: self).exists? if feature_slug == "commerce_workspace"
+    return role.in?(%w[super_admin admin white_label]) || LightekSettings::WebsiteIdentity.sites_for(self).exists? if feature_slug == "commerce_workspace"
+
+    return true if defined?(LightekAgency::Demos) && LightekAgency::Demos.feature_available?(self, feature_slug)
 
     # Network and DNS mutation is narrower than ordinary admin access.
     return role == "super_admin" if %w[

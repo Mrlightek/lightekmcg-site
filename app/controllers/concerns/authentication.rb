@@ -19,6 +19,10 @@ module Authentication
 
     def require_authentication
       if resume_session
+        if defined?(LightekAgency::Demos) && LightekAgency::Demos.expired_demo_account?(Current.session.user) &&
+            !controller_path.in?(%w[dashboard/client_home dashboard/account_settings dashboard/demos installations identity_security identity_challenges sessions])
+          return redirect_to(main_app.dashboard_client_home_path, alert: 'Your demo has finished. Your purchased services and account settings remain available here.')
+        end
         # Validate delegated MFA before considering the target owner's factors.
         # An expired delegation must never become an owner's MFA challenge.
         if Current.session.connect_delegation.present?

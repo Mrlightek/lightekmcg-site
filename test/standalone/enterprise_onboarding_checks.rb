@@ -57,6 +57,12 @@ require ROOT.join('app/controllers/dashboard/account_settings_controller')
 require ROOT.join('app/controllers/dashboard/client_home_controller')
 require ROOT.join('app/models/lightek_agency/site_membership')
 require ROOT.join('app/services/lightek_agency/access')
+source = ROOT.join('db/migrate/20261114010000_create_agency_demos.rb').read
+source = source.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
+eval(source, TOPLEVEL_BINDING)
+CreateAgencyDemos.new.migrate(:up)
+require ROOT.join('app/models/lightek_agency/demo')
+require ROOT.join('app/services/lightek_agency/demos')
 require ROOT.join('app/services/lightek_commerce/installations')
 ActiveRecord::Schema.define do
   add_column :lightek_commerce_orders, :created_at, :datetime

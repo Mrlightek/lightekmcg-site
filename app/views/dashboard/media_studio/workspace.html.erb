@@ -2,7 +2,7 @@
 <% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
 <%= stylesheet_link_tag "/lightek/studio-visual.css?v=65" %>
 <%= stylesheet_link_tag "/lightek/studio-authoring.css?v=66" %>
-<%= stylesheet_link_tag "/lightek/studio-music.css?v=73" %>
+<%= stylesheet_link_tag "/lightek/studio-music.css?v=74" %>
 <%= stylesheet_link_tag "/lightek/studio-dashboard.css?v=65" %>
 <main id="lightek-studio-dashboard" class="media-studio-focus" data-turbo="false" data-site-id="<%= @site.id %>" data-user-id="<%= current_user.id %>" data-scene-id="<%= @scene&.id %>" data-workspace="<%= @workspace_mode %>" data-pwa-url="<%= "https://#{@site.host}/lightek/index.html" %>" data-csrf-token="<%= form_authenticity_token %>">
   <%= render "dashboard/shared/business_workspace", active: "Studio", studio: true %>
@@ -16,7 +16,7 @@
 <%= javascript_include_tag "/lightek/vendor/tone/Tone-15.1.22.js", defer:true %>
 <%= javascript_include_tag "/lightek/vendor/tone/Midi-2.0.28.js", defer:true %>
 <% %w[studio-music-core studio-music-audio studio-music].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=73", defer:true %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=74", defer:true %>
 <% end %>
 <%= javascript_include_tag "/lightek/studio-production.js?v=71", defer:true %>
 <%= javascript_include_tag "/lightek/studio-dashboard-context.js?v=1", defer:true %>

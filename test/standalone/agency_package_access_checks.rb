@@ -105,6 +105,11 @@ class AgencyPackageAccessChecks < BroadcastControlTest
       ActiveStorage::Blob.create_before_direct_upload!(filename: 'another.txt', byte_size: 3, checksum: 'fixture', content_type: 'text/plain')
     end
   end
+  def test_package_public_health_remains_available_without_unlocking_website_delivery
+    assert_nil LightekAgency::PackageFeatures.for_controller('lightek_website_delivery', action: 'health')
+    assert_equal 'website', LightekAgency::PackageFeatures.for_controller('lightek_website_delivery', action: 'show')
+    assert_nil LightekAgency::PackageFeatures.for_controller('dashboard/settings_home', action: 'show')
+  end
   def test_package_installation_is_idempotent_and_rejects_another_source_order
     install('features' => {'mail' => {'enabled' => false}})
     assert_equal 1, LightekAgency::InstalledPackage.count

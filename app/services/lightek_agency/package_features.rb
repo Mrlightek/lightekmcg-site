@@ -1,7 +1,7 @@
 require 'uri'
 module LightekAgency
   class PackageFeatures
-    PUBLIC_BASELINE = %w[sessions passwords account_setups identity_security identity_challenges identity_onboarding identity_sso installations dashboard/installations dashboard/client_home dashboard/account_settings dashboard/settings_home dashboard/appearance_colors lightek_website_delivery supports commerce_stripe_webhooks api/reservation_federation api/commerce_network api/connect_instance gatekeeper/callbacks gatekeeper/fleet_health].freeze
+    PUBLIC_BASELINE = %w[sessions passwords account_setups identity_security identity_challenges identity_onboarding identity_sso installations dashboard/installations dashboard/client_home dashboard/account_settings dashboard/settings_home dashboard/appearance_colors supports commerce_stripe_webhooks api/reservation_federation api/commerce_network api/connect_instance gatekeeper/callbacks gatekeeper/fleet_health].freeze
     PREFIXES = {
       'studio' => %w[dymond_studio dashboard/media_studio dashboard/studio_ api/studio],
       'live' => %w[dashboard/live_broadcasts], 'rooms' => %w[dashboard/rooms dashboard/session_media session_rooms],
@@ -31,6 +31,7 @@ module LightekAgency
     def self.for_controller(controller, params = {})
       controller = controller.to_s
       return nil if PUBLIC_BASELINE.include?(controller)
+      return nil if controller == 'lightek_website_delivery' && %w[health release].include?((params[:action] || params['action']).to_s)
       return 'pwa' if controller == 'api/nevaeh' && (params[:action] || params['action']).to_s == 'bootstrap'
       if controller == 'dashboard/media_studio' && %w[save_application save_channel schedule remove_program].include?((params[:action] || params['action']).to_s)
         return 'ott'

@@ -24,6 +24,8 @@ jobs:
           bundler-cache: false
       - name: Install public test dependencies
         run: gem install 'activerecord:8.0.4' 'activestorage:8.0.4' 'actionpack:8.0.4' 'railties:8.0.4' 'minitest:~>5.25' 'uri:~>1.1' 'sqlite3:~>2.7' 'faker:~>3.8' bcrypt stripe jwt rubyzip webrick --no-document
+      - name: Install media dependency for inherited broadcast regressions
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Wholesale catalog, immutable pricing and package inheritance
         run: ruby test/standalone/agency_reseller_checks.rb
       - name: Installed permissions, request quotas and shared storage accounting

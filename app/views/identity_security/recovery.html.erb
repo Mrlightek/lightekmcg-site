@@ -1,1 +1,12 @@
-<%= stylesheet_link_tag '/lightek/people-workspace.css' %><main class="lp-workspace"><section class="lp-card"><h1>Save your recovery codes</h1><p>Store these privately. Each code works once and these values will not be displayed again.</p><ul><% @recovery_codes.each do |code| %><li><code><%= code %></code></li><% end %></ul><%= link_to(@connect_return_to ? 'Continue to connected management' : 'Continue to security settings', @connect_return_to || identity_security_path, class: 'lp-button') %></section></main>
+<%= stylesheet_link_tag '/lightek/people-workspace.css' %>
+<%= javascript_include_tag '/lightek/mfa-recovery.js', defer: true %>
+<main class="lp-workspace">
+  <section class="lp-card" data-mfa-recovery>
+    <h1>Save your recovery codes</h1>
+    <p>Store these privately. Each code works once and these values will not be displayed again.</p>
+    <ul data-mfa-recovery-codes><% @recovery_codes.each do |code| %><li><code><%= code %></code></li><% end %></ul>
+    <button type="button" class="lp-button secondary" data-mfa-recovery-download hidden>Download recovery codes (.txt)</button>
+    <p data-mfa-recovery-status role="status">Copy these codes into your password manager or another safe place before continuing.</p>
+    <%= link_to(@connect_return_to ? 'Continue to connected management' : 'Continue to security settings', @connect_return_to || identity_security_path, class: 'lp-button') %>
+  </section>
+</main>

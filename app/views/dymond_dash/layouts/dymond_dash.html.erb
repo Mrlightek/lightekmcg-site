@@ -211,8 +211,11 @@
       <i class="ti ti-settings"></i>
     </summary>
     <div class="dd-notif-panel" style="width:180px;">
-      <%= link_to dymond_dash.settings_path, class: "dd-notif-item" do %>
+      <%= link_to main_app.dashboard_settings_home_path, class: "dd-notif-item" do %>
         <i class="ti ti-settings"></i> Settings
+      <% end %>
+      <%= link_to main_app.identity_security_path, class: "dd-notif-item" do %>
+        <i class="ti ti-shield-lock"></i> Sign-in security
       <% end %>
       <% if current_user.role == "super_admin" %>
       <%= link_to main_app.dashboard_appearance_colors_path, class: "dd-notif-item" do %>

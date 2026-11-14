@@ -5,8 +5,8 @@ class Dashboard::AccountingController < ApplicationController
   helper AccountingWorkspaceHelper
   protect_from_forgery with: :exception
   before_action :context!
-  rescue_from LightekAccounting::Access::Denied, LightekPeople::Access::Denied, with: ->(_) { head :forbidden }
-  rescue_from ActiveRecord::RecordNotFound, with: ->(_) { head :not_found }
+  rescue_from LightekAccounting::Access::Denied, LightekPeople::Access::Denied, with: :access_unavailable!
+  rescue_from ActiveRecord::RecordNotFound, with: :workspace_not_found!
   rescue_from ArgumentError, ActiveRecord::RecordInvalid, with: :invalid!
   def index
     load_workspace
@@ -217,10 +217,31 @@ class Dashboard::AccountingController < ApplicationController
     @employer = params[:employer_id].present? ? @employers.find(params[:employer_id]) : @employers.first!
     @access = LightekAccounting::Access.new(actor: current_user,employer: @employer).require!
     # Existing business workspace eligibility and billing remain authoritative.
-    raise LightekAccounting::Access::Denied unless @employer.can_access_feature?('commerce_workspace') || @employer.can_access_feature?('bookkeeping_workspace')
+    unless @employer.can_access_feature?('commerce_workspace') || @employer.can_access_feature?('bookkeeping_workspace')
+      @bookkeeping_entitlement_missing = true
+      raise LightekAccounting::Access::Denied
+    end
     @can_write, @can_review, @can_admin = @access.allowed?(:write), @access.allowed?(:review), @access.allowed?(:admin)
     @books = @access.books.order(:name)
     @book = params[:book_id].present? ? @books.find(params[:book_id]) : @books.first
+  end
+  def access_unavailable!
+    @workspace_message = if @bookkeeping_entitlement_missing
+      'This business needs its own website or an active bookkeeping entitlement to use Books & Accounting. Contact your agency or account administrator to arrange access.'
+    else
+      'Your account does not currently have accounting access for this business. Ask its owner to review your active membership and accounting permissions.'
+    end
+    unavailable_response!(:forbidden)
+  end
+  def workspace_not_found!
+    @workspace_message = 'The requested accounting workspace or record could not be found for your account. Return to your applications or choose a business you can access.'
+    unavailable_response!(:not_found)
+  end
+  def unavailable_response!(status)
+    respond_to do |format|
+      format.html { render 'dashboard/accounting/unavailable', status: status }
+      format.any { head status }
+    end
   end
   def load_workspace(tab: nil)
     @tab = tab || params[:tab].presence || 'ledger'

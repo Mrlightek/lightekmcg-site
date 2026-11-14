@@ -1,6 +1,6 @@
 # Play and record instruments
 
-Open **Studio → Music → Play & record instruments**. A performance records editable musical notes into an existing instrument channel or reusable pattern. It uses the same Tone.js instrument, channel processing and group/master graph as regular song playback. Microphone waveform recording remains in [Record & place audio takes](music-recording.md).
+Open **Studio → Music → Play & record instruments**. A performance records editable musical notes into an existing instrument channel or reusable pattern. It uses the same Tone.js instrument, channel processing and group/master graph as regular song playback. Microphone waveform recording is available through [Record & place audio takes](music-recording.md) and [Record with song](music-overdub.md).
 
 ## Capture a pass
 
@@ -27,7 +27,7 @@ Pitch bend, modulation/expression mapping, program changes, MIDI output, control
 
 Capture uses the music transport position and recent browser event timestamps, not animation-frame counts. The pass fixes its tempo, target, correction and bar window while recording; source edits and exports are locked until Finish. Notes held at the end are closed at the pass boundary. MIDI sustain is reflected in both live note release and captured note length.
 
-There are at most 32 held input notes and 4096 captured events. Additional notes skipped at those limits are counted in the review. Existing source limits still apply across all song and pattern notes; if Apply would exceed them or target a missing channel, the edit rolls back and the review is retained. Long passes beyond sixteen bars, count-in/metronome, arbitrary record start positions, audio overdub, device calibration and advanced expression remain further production work.
+There are at most 32 held input notes and 4096 captured events. Additional notes skipped at those limits are counted in the review. Existing source limits still apply across all song and pattern notes; if Apply would exceed them or target a missing channel, the edit rolls back and the review is retained. Long passes beyond sixteen bars, count-in/metronome, arbitrary record start positions, loop/punch audio recording, automatic device calibration and advanced expression remain further production work.
 
 The instrument channel's existing mute/solo, processing, automation and bus/master mix remain authoritative for monitoring. Recorded source notes subsequently use regular playback, MIDI interchange, WAV/stem rendering and Add mix to edit. Monitor timing depends on browser/device scheduling; no sample-accurate hardware-latency guarantee is claimed.
 

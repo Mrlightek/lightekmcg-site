@@ -21,6 +21,9 @@ module Studio
         scene=scene!(id)
         normalized=normalize(preset)
         scene.with_lock do
+          if scene.settings.dig("live_preset","version")==2 && normalized["version"]<2
+            raise ArgumentError,"This setup includes show styling. Reload the updated Live Studio before saving."
+          end
           scene.lock_version=Integer(lock_version.to_s,10)
           scene.update!(settings:scene.settings.merge("live_preset"=>normalized))
         end
@@ -31,11 +34,12 @@ module Studio
       def normalize(raw)
         raise ArgumentError,"Live setup must be an object" unless raw.is_a?(Hash)
         data=raw.deep_stringify_keys
-        raise ArgumentError,"Unsupported live setup fields" unless (data.keys-(%w[version layout loop volume camera subject]+ASSETS.keys)).empty?
-        raise ArgumentError,"Unsupported live setup version" unless data.fetch("version",1)==1
+        raise ArgumentError,"Unsupported live setup fields" unless (data.keys-(%w[version layout loop volume camera subject presentation]+ASSETS.keys)).empty?
+        version=data.fetch("version",1)
+        raise ArgumentError,"Unsupported live setup version" unless [1,2].include?(version)
         layout=data.fetch("layout","camera")
         raise ArgumentError,"Choose a supported live layout" unless %w[camera screen combined library stage session].include?(layout)
-        result={"version"=>1,"layout"=>layout,"loop"=>boolean(data.fetch("loop",false)),"volume"=>number(data.fetch("volume",0.25),0,1),"camera"=>data.fetch("camera","").to_s}
+        result={"version"=>version,"layout"=>layout,"loop"=>boolean(data.fetch("loop",false)),"volume"=>number(data.fetch("volume",0.25),0,1),"camera"=>data.fetch("camera","").to_s}
         raise ArgumentError,"Choose an imported camera index" unless result["camera"].empty? || /\A\d{1,3}\z/.match?(result["camera"])
         ASSETS.each do |key,kinds|
           next if data[key].blank?
@@ -54,6 +58,13 @@ module Studio
         raise ArgumentError,"Choose camera or session as stage subject" unless %w[camera session].include?(source)
         result["subject"]={"enabled"=>boolean(subject.fetch("enabled",true)),"key"=>boolean(subject.fetch("key",true)),"color"=>color,"source"=>source,
           "threshold"=>number(subject.fetch("threshold",0.4),0.05,1),"x"=>number(subject.fetch("x",0),-100,100),"depth"=>number(subject.fetch("depth",0),-100,100),"z"=>number(subject.fetch("z",1.5),-100,100),"height"=>number(subject.fetch("height",3),0.1,100)}
+        if data.key?("presentation") || version==2
+          raise ArgumentError,"Show presentation requires live setup version 2" if version<2
+          values=data.fetch("presentation",{})
+          keys=%w[layout title subtitle brand ticker background accent]
+          raise ArgumentError,"Show styling must contain only portable presentation fields" unless values.is_a?(Hash) && (values.keys-keys).empty?
+          result["presentation"]=LightekSessions::Presentation.normalize!(values).slice(*keys)
+        end
         result
       end
       private

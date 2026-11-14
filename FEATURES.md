@@ -256,7 +256,7 @@ Guides: [basic editors](docs/studio/open-source-editors.md), [Blender engine](do
 
 | Capability | Implemented behavior |
 | --- | --- |
-| Saved production setups | Scene-bound prepared stage/media references, imported camera and subject settings; optimistic saves, explicit local preview loading and independent template/episode controls. |
+| Saved production setups | Scene-bound prepared stage/media references, imported camera/subject settings and portable show layouts, titles, colors and ticker; room identities stay separate, with local room-style restore and optimistic saves, explicit local preview loading and independent template/episode controls. |
 | Live production sources | Existing camera/capture and prepared scene/library sources plus subscribed room media. |
 | Professional presentation | Panel/gallery, presenter/sidebar, interview/side-by-side and featured layouts with names/roles, brand colors, lower thirds and scrolling banner. |
 | Program composition | Combined presentation canvas and audio mix, holding-screen behavior and prepared Blender/GLB-stage presentation surfaces. |

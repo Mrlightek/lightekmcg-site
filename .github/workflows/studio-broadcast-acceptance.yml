@@ -285,6 +285,9 @@ jobs:
           node test/javascript/studio_music_automation_test.cjs
           node test/javascript/studio_music_mixer_test.cjs
           node test/javascript/studio_music_mixer_audio_test.cjs
+          node test/javascript/studio_music_performance_capture_test.cjs
+          node test/javascript/studio_music_performance_test.cjs
+          node test/javascript/studio_music_performance_audio_test.cjs
           node test/javascript/studio_music_capture_test.cjs
           node test/javascript/studio_music_recording_test.cjs
           node test/javascript/studio_music_recording_audio_test.cjs

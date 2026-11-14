@@ -24,7 +24,7 @@
     }return input;
   }
   function graph(score,assets,onlyTrack=null,monitor=false,prepared=buffers){
-    const nodes=[],keep=n=>(nodes.push(n),n),voices=new Map(),controls=new Map(),busControls=new Map(),mix=core.mixerState(score);
+    const nodes=[],keep=n=>(nodes.push(n),n),voices=new Map(),inputs=new Map(),controls=new Map(),busControls=new Map(),mix=core.mixerState(score);
     try{const limiter=keep(new Tone.Limiter(-1)).toDestination(),masterGain=keep(new Tone.Gain(mix.master.gain)).connect(limiter),master=inserts(mix.master.effects,masterGain,keep);
       for(const bus of mix.buses){const gate=keep(new Tone.Gain(onlyTrack||!bus.muted&&(!mix.buses.some(b=>b.solo)||bus.solo)?1:0)).connect(master),gain=keep(new Tone.Gain(bus.gain)).connect(gate),pan=keep(new Tone.Panner(bus.pan)).connect(gain),input=inserts(bus.effects,pan,keep);busControls.set(bus.id,{gate,gain,pan,input});}
     for(const t of score.tracks){if(!monitor&&(onlyTrack?t.id!==onlyTrack:!core.audible(score,t)))continue;const output=busControls.get(t.bus_id)?.input||master,gate=keep(new Tone.Gain(onlyTrack||core.audible(score,t)?1:0)).connect(output),gain=keep(new Tone.Gain(t.gain)).connect(gate),pan=keep(new Tone.Panner(t.pan)).connect(gain),input=inserts(t.effects,pan,keep),delay=keep(new Tone.FeedbackDelay({delayTime:60/score.tempo/2,feedback:0.25,wet:t.delay})).connect(input),filter=keep(new Tone.Filter(t.cutoff,'lowpass')).connect(delay);let instrument;
@@ -33,8 +33,9 @@
       else if(['sample','recording'].includes(t.instrument)){const a=assets.find(a=>a.id===t.asset_id),raw=prepared.get(`${a.id}:${a.proxy_url}`),first=Math.floor(t.sample_in*raw.sampleRate),last=Math.min(raw.length,Math.ceil(t.sample_out*raw.sampleRate)),slice=Tone.getContext().createBuffer(raw.numberOfChannels,last-first,raw.sampleRate);for(let i=0;i<raw.numberOfChannels;i++)slice.copyToChannel(raw.getChannelData(i).subarray(first,last),i);instrument=t.instrument==='recording'?keep(new Tone.Player({url:slice,fadeIn:.005,fadeOut:.005})):keep(new Tone.Sampler({urls:{[t.root]:slice},attack:0.005,release:0.04}));}
       else instrument=keep(new Tone.PolySynth({voice:Tone.Synth,maxPolyphony:32,options:{oscillator:{type:t.instrument==='bass'||t.instrument==='lead'?'sawtooth':t.instrument==='pad'?'sine':'triangle'},envelope:{attack:t.instrument==='pad'?0.15:0.005,decay:0.15,sustain:t.instrument==='keys'?0.2:0.65,release:t.instrument==='pad'?0.8:0.12}}}));
       if(!['snare','hat','clap'].includes(t.instrument))instrument.connect(filter);
+      if(t.instrument!=='recording')inputs.set(t.id,{attack:(pitch,velocity,time)=>{const frequency=t.instrument==='kick'?'C1':Tone.Frequency(pitch,'midi').toFrequency();if(['snare','hat','clap'].includes(t.instrument))instrument.triggerAttack(time,velocity);else instrument.triggerAttack(frequency,time,velocity);},release:(pitch,time)=>{if(['kick','snare','hat','clap'].includes(t.instrument))instrument.triggerRelease(time);else instrument.triggerRelease(Tone.Frequency(pitch,'midi').toFrequency(),time);}});
       controls.set(t.id,{pan,gain,gate,delay,filter});voices.set(t.id,event=>{const length=Math.max(0.01,event.duration);if(t.instrument==='recording'){instrument.volume.setValueAtTime(20*Math.log10(event.velocity),event.time);instrument.start(event.time,0,length);}else if(['snare','hat','clap'].includes(t.instrument))instrument.triggerAttackRelease(Math.min(length,0.1),event.time,event.velocity);else instrument.triggerAttackRelease(t.instrument==='kick'?'C1':Tone.Frequency(event.pitch,'midi').toFrequency(),length,event.time,event.velocity);});
-    }return{nodes,voices,controls,busControls,masterGain};}catch(error){nodes.reverse().forEach(n=>n.dispose());throw error;}
+    }return{nodes,voices,inputs,controls,busControls,masterGain};}catch(error){nodes.reverse().forEach(n=>n.dispose());throw error;}
   }
   // Use AudioParam timing for continuous ramps; mute/solo has a separate gate.
   function automate(g,score,time,beat=0,smooth=false){
@@ -62,5 +63,5 @@
     live.noteIds.forEach(id=>live.transport.clear(id));live.noteIds=core.events(score).map(event=>live.transport.schedule(time=>live?.voices.get(event.track)?.({...event,time}),event.time));return true;
   }
   async function render(score,assets,onlyTrack=null){stop();core.validate(score);await Tone.start();const prepared=await samples(score,assets);let g;try{const result=await Tone.Offline(()=>{g=graph(score,assets,onlyTrack,false,prepared);automate(g,score,0);for(const event of core.events(score,onlyTrack))g.voices.get(event.track)?.(event);},Math.min(600,core.seconds(score)+core.mixerTail(score)),2,48000);return result.get();}finally{g?.nodes.reverse().forEach(n=>n.dispose());}}
-  window.LightekMusicAudio={play,stop,render,update,position:()=>live?live.transport.seconds:null,unlock:()=>Tone.start()};
+  window.LightekMusicAudio={play,stop,render,update,inputOn:(id,pitch,velocity=.8,time=Tone.now())=>live?.inputs.get(id)?.attack(pitch,velocity,time),inputOff:(id,pitch,time=Tone.now())=>live?.inputs.get(id)?.release(pitch,time),position:()=>live?live.transport.seconds:null,unlock:()=>Tone.start()};
 })();

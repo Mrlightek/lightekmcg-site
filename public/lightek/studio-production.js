@@ -1,7 +1,7 @@
 /* Production navigation and handoffs shared by every native Dashboard workspace. */
 (() => {
   if (!document.querySelector('#lightek-studio-dashboard')) return;
-  const modes = [['media','Media'],['edit','Edit'],['color','Color'],['stage','Stage & FX'],['cast','Animation'],['ai','AI Studio'],['music','Music'],['deliver','Deliver']];
+  const modes = [['shots','Shots'],['media','Media'],['edit','Edit'],['color','Color'],['stage','Stage & FX'],['cast','Animation'],['ai','AI Studio'],['music','Music'],['deliver','Deliver']];
   const aliases = {'3d':'scene',timeline:'edit',performance:'cast',visual:'camera',publish:'deliver'};
   const allowed = new Set([...modes.map(([key])=>key),'scene','camera','assets','script']);
   const state = {scene:null,hash:null,busy:false,jobs:[],project:null,jobError:'',jobLoading:false,timer:null};
@@ -9,7 +9,7 @@
   const mode = () => { const key=location.hash.split('/')[3]||'edit';return aliases[key]|| (allowed.has(key)?key:'stage'); };
   const current = () => studioSceneRecord(studioCurrentSceneId());
   const call = async(action,payload)=>(await nevaeh.execute({capability:'studio.workspace.'+action,payload})).result;
-  const busy = () => state.busy || window.LightekStudioDelivery?.busy() || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
+  const busy = () => state.busy || window.LightekStudioShots?.busy() || window.LightekStudioDelivery?.busy() || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
   function go(key,sceneId=studioCurrentSceneId(),internal=false) {
     if(busy()&&!internal){toast('Finish the current save or render request before switching.');return;}
     const target=aliases[key]||key;
@@ -20,6 +20,7 @@
   }
   function status() {
     const dirty=[];
+    if(window.LightekStudioShots?.dirty())dirty.push('storyboard');
     if(LightekStudioApp.dirty())dirty.push('scene notes');
     if(LightekStudioPerformance?.dirty())dirty.push('cast direction');
     if(LightekStudioTimeline?.dirty())dirty.push('edit');
@@ -37,6 +38,7 @@
     return `<header class="production-header"><a class="production-brand" href="${home}">LIGHTEK<span>STUDIO</span></a><div class="production-title"><a href="${home}" class="production-breadcrumb">Productions</a><h1>${E(record.project.name)}</h1>${campaignLink}</div><label class="production-scene"><span>Scene</span><select aria-label="Production scene" data-production-scene>${scenes.map(r=>`<option value="${r.scene.id}" ${r.scene.id===scene.id?'selected':''}>${E(r.scene.name)}</option>`).join('')}</select></label><span class="production-save" role="status" data-production-status>${E(status())}</span><a class="vw-btn" href="#/studio/${scene.id}/script" data-production-mode="script">Script</a><button class="vw-btn" data-production="save">Save changes</button></header><div class="production-toolbar"><nav aria-label="Production workspaces">${modes.map(([key,label])=>`<a href="#/studio/${scene.id}/${key}" data-production-mode="${key}">${label}</a>`).join('')}</nav><div class="production-tools"><a href="#/studio/${scene.id}/assets" data-production-mode="assets">Assets</a><button class="vw-btn" data-vw="save-template">Save show template</button></div></div><div class="production-context"><div><strong data-production-mode-title></strong><span data-production-description></span></div><nav aria-label="Scene tools"><a href="#/studio/${scene.id}/scene" data-production-mode="scene">Model & animate</a><a href="#/studio/${scene.id}/camera" data-production-mode="camera">Camera & lighting</a></nav></div>`;
   }
   const descriptions = {
+    shots:['Direct the sequence','Order shots, choose cameras and timing, then render into your edit.'],
     ai:['AI Studio','Generate on your own worker, then use the result in this production.'],
     media:['Media pool','Import and organize source media for this production.'],
     color:['Color & finish','Adjust the selected shot while watching the program image.'],
@@ -57,6 +59,7 @@
     if(key!=='cast')LightekStudioPerformance?.leave?.();
     if(['edit','color','media'].includes(key)&&window.LightekStudioEdit)return LightekStudioEdit.view(record,key);
     if(key==='stage')return LightekStudioVisual.view(record);
+    if(key==='shots')return window.LightekStudioShots?.view(record)||'<p>Opening storyboard…</p>';
     if(key==='ai')return window.LightekStudioAI?.view(record)||'<p>Opening AI Studio…</p>';
     if(key==='music')return LightekStudioMusic.view(record);
     if(key==='assets')return `<div class="production-panel studio-dashboard-advanced">${R.studio('library')}</div>`;
@@ -91,7 +94,7 @@
     const heading=shell.querySelector('[data-production-heading]');
     if(heading.dataset.scene!==String(record.scene.id)){heading.innerHTML=header(record);heading.dataset.scene=record.scene.id;}
     shell.dataset.mode=key;
-    heading.querySelector('[data-production=save]').hidden=!['edit','color','media','music','script'].includes(key);
+    heading.querySelector('[data-production=save]').hidden=!['shots','edit','color','media','music','script'].includes(key);
     heading.querySelectorAll('[data-production-mode]').forEach(el=>{const selected=el.dataset.productionMode===key;if(selected)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
     heading.querySelector('[data-production-mode-title]').textContent=descriptions[key][0];
     heading.querySelector('[data-production-description]').textContent=descriptions[key][1];
@@ -107,7 +110,7 @@
   function renderJobs() {
     const el=app.querySelector('[data-production-job-list]');if(!el)return;
     const count=app.querySelector('[data-production-job-count]');if(count)count.textContent=state.jobs.length?`· ${state.jobs.length}`:'';
-    el.innerHTML=`<div class="production-job-toolbar"><p>Finished shots move into the same scene’s edit. Draft previews stay marked as previews.</p><button class="vw-btn" data-production="refresh-jobs" ${state.jobLoading?'disabled':''}>${state.jobLoading?'Checking…':'Refresh renders'}</button></div>${state.jobError?`<p role="alert">${E(state.jobError)}</p>`:''}${state.jobs.map(job=>`<article class="production-job"><div><strong>${job.type==='edit_media'?'Episode master':'Scene render'} #${job.id}</strong><span>${E(job.status)}${job.draft_preview?' · Draft preview':''}</span>${job.error?`<p role="alert">${E(job.error)}</p>`:''}</div><div>${job.artifacts.map(a=>`<div class="production-artifact"><a href="${E(a.url)}" target="_blank" rel="noopener">${E(a.filename)}</a>${job.status==='completed'&&!job.draft_preview&&['video','audio','image','preview'].includes(a.kind)?`<button class="vw-btn" data-production="use-render" data-artifact="${a.id}">Add to edit</button>`:''}</div>`).join('')}</div></article>`).join('')||'<p class="production-job-empty">No renders loaded. Refresh to check this production.</p>'}`;
+    el.innerHTML=`<div class="production-job-toolbar"><p>Finished shots move into the same scene’s edit. Draft previews stay marked as previews.</p><button class="vw-btn" data-production="refresh-jobs" ${state.jobLoading?'disabled':''}>${state.jobLoading?'Checking…':'Refresh renders'}</button></div>${state.jobError?`<p role="alert">${E(state.jobError)}</p>`:''}${state.jobs.map(job=>`<article class="production-job"><div><strong>${job.shot?.shot_name?E(job.shot.shot_name):job.type==='edit_media'?'Episode master':'Scene render'} #${job.id}</strong><span>${E(job.status)}${job.draft_preview?' · Draft preview':''}</span>${job.error?`<p role="alert">${E(job.error)}</p>`:''}</div><div>${job.artifacts.map(a=>`<div class="production-artifact"><a href="${E(a.url)}" target="_blank" rel="noopener">${E(a.filename)}</a>${job.status==='completed'&&!job.draft_preview&&['video','audio','image','preview'].includes(a.kind)?`<button class="vw-btn" data-production="use-render" data-artifact="${a.id}">Add to edit</button>`:''}</div>`).join('')}</div></article>`).join('')||'<p class="production-job-empty">No renders loaded. Refresh to check this production.</p>'}`;
   }
   async function loadJobs() {
     if(state.jobLoading)return;const project=state.project;state.jobLoading=true;renderJobs();
@@ -136,7 +139,7 @@
     if(action==='use-render')useRender(button);
     if(action==='save'){
       if(busy())return;const key=mode();
-      const save=key==='music'?()=>LightekStudioMusic.save():['edit','color','media'].includes(key)?()=>LightekStudioTimeline.save():()=>LightekStudioApp.save();
+      const save=key==='shots'?()=>LightekStudioShots.save():key==='music'?()=>LightekStudioMusic.save():['edit','color','media'].includes(key)?()=>LightekStudioTimeline.save():()=>LightekStudioApp.save();
       state.busy=true;button.disabled=true;Promise.resolve().then(save).then(()=>{updateStatus();toast('Changes saved.');}).catch(error=>toast(error.message)).finally(()=>{state.busy=false;button.disabled=false;});
     }
   });

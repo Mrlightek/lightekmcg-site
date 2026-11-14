@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -14,6 +14,9 @@ module Studio
         raise ArgumentError, "Unsupported Studio workspace action" unless ACTIONS.include?(@action)
         public_send(@action)
       end
+
+      def shots_save = Studio::Shots::Board.save(access:@access,payload:@payload)
+      def shots_list = Studio::Shots::Board.list(access:@access,scene_id:@payload.fetch("scene_id"))
 
       def starter_scene_create
         Studio::NativeBlender::StarterCast.start(access:@access,payload:@payload)
@@ -174,17 +177,31 @@ module Studio
 
       def render_quote
         scene = @access.scene!(@payload.fetch("scene_id"))
-        manifest=Blender::ManifestBuilder.new(scene).call
-        if @payload.fetch("output","still")=="movie"
-          first=Integer(scene.settings.fetch("frame_start",1));last=Integer(scene.settings.fetch("frame_end",250))
-          raise ArgumentError,"Export a shot of 1–2400 frames at a time" unless first>=1 && (last-first+1).between?(1,2400)
-          manifest["outputs"]={"blend"=>true,"animation"=>true,"bundle"=>scene.blender_bundle.attached?}
+        operation=nil
+        if @payload["shot_id"].present?
+          key=@payload.fetch("request_key").to_s
+          raise ArgumentError,"A shot quote request key is required" unless Studio::Shots::Board::KEY.match?(key)
+          scene.with_lock do
+            manifest,metadata=Studio::Shots::Board.snapshot(scene,@payload["shot_id"])
+            operation=scene.studio_operations.where("metadata ->> 'shot_request_key' = ?",key).first
+            if operation
+              raise ArgumentError,"This quote request belongs to a different shot revision" unless operation.metadata["shot_fingerprint"]==metadata["shot_fingerprint"] && operation.metadata["shot_id"]==metadata["shot_id"]
+            else
+              raise ArgumentError,"The scene changed. Save or refresh the storyboard before quoting." unless scene.lock_version==Integer(@payload.fetch("lock_version"))
+              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"awaiting_payment",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:metadata.merge("shot_request_key"=>key))
+            end
+          end
+        else
+          manifest=Blender::ManifestBuilder.new(scene).call
+          if @payload.fetch("output","still")=="movie"
+            first=Integer(scene.settings.fetch("frame_start",1));last=Integer(scene.settings.fetch("frame_end",250))
+            raise ArgumentError,"Export a shot of 1–2400 frames at a time" unless first>=1 && (last-first+1).between?(1,2400)
+            manifest["outputs"]={"blend"=>true,"animation"=>true,"bundle"=>scene.blender_bundle.attached?}
+          end
+          operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"awaiting_payment",intent:{"user_id"=>@access.user.id},manifest:manifest)
         end
-        operation = scene.studio_operations.create!(studio_project: scene.studio_project, production: scene.production,
-          operation_type: "build_scene", provider: "blender", capability: "studio.render.preview", status: "awaiting_payment", intent: {"user_id"=>@access.user.id},
-          manifest: manifest)
-        Studio::Billing::Quote.call(operation: operation, rail: :stripe_card)
-        { operation_id: operation.id, quote: operation.reload.cost_quote, status: operation.status, operation_type: operation.operation_type }
+        Studio::Billing::Quote.call(operation:operation,rail: :stripe_card) if operation.cost_quote.blank?
+        {operation_id:operation.id,quote:operation.reload.cost_quote,status:operation.status,operation_type:operation.operation_type}
       end
 
       def render_checkout
@@ -212,7 +229,7 @@ module Studio
           key="render-artifact-#{artifact.id}"
           asset=StudioAsset.find_by(owner_id:@access.user.id,request_key:key)
           unless asset
-            asset=StudioAsset.new(owner:@access.user,site_id:@access.site_id,studio_project:project,name:artifact.filename.to_s.first(160),
+            asset=StudioAsset.new(owner:@access.user,site_id:@access.site_id,studio_project:project,name:(operation.metadata["shot_name"].presence || artifact.filename.to_s).first(160),
               request_key:key,kind:artifact.kind=="preview" ? "image" : artifact.kind,status:"uploaded")
             asset.file.attach(artifact.file.blob)
             asset.save!
@@ -228,6 +245,10 @@ module Studio
         project=scene.studio_project
         operation=project.studio_operations.where(status:"completed").joins(:artifacts).where(artifacts:{id:@payload.fetch("artifact_id")}).first!
         raise ArgumentError,"Draft previews are for review. Export the full shot before adding it to the episode." if operation.metadata["draft_preview"]
+        if @payload["shot_id"].present?
+          _,metadata=Studio::Shots::Board.snapshot(scene,@payload["shot_id"])
+          raise ArgumentError,"Render the current storyboard shot before adding it to the edit." unless operation.studio_scene_id==scene.id && operation.metadata["shot_id"]==metadata["shot_id"] && operation.metadata["shot_fingerprint"]==metadata["shot_fingerprint"]
+        end
         key=@payload.fetch("request_key").to_s
         raise ArgumentError,"A render handoff request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         @payload["project_id"]=project.id
@@ -615,7 +636,7 @@ module Studio
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,
             output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset"),
-            scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
+            shot:operation.metadata.slice("shot_id","shot_name"), scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
             artifacts: operation.artifacts.select { |artifact| artifact.file.attached? }.map do |artifact|
               { id: artifact.id, kind: artifact.kind, filename: artifact.filename,
                 url: Rails.application.routes.url_helpers.rails_blob_path(artifact.file, only_path: true) }
@@ -670,6 +691,7 @@ module Studio
             end
             settings=copy.settings.except("library_requests", "json_preset_requests", "cast_receipts", "performance_receipts")
             settings["active_camera_object_id"]=object_ids[scene.settings["active_camera_object_id"]] if scene.settings["active_camera_object_id"]
+            settings=Studio::Shots::Board.copy_settings(settings,object_ids) if settings["shot_board"]
             copy.update!(settings:settings)
           end
           { project_id: project.id, scene_id: project.studio_scenes.order(:id).first&.id, is_template: template }

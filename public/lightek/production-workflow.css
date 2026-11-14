@@ -5,3 +5,10 @@
 [data-session-director]>details{grid-column:1/-1}[data-presentation-fields]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px}[data-presentation-fields] label{margin:0}@media(max-width:700px){[data-presentation-fields]{grid-template-columns:1fr}}
 
 .production-hub{background:#11161e;border-radius:12px}
+
+/* The Dashboard supplies its own breadcrumb and theme; public rooms retain
+   the standalone production palette above. */
+.dd-dashboard .dd-content .production-breadcrumbs{display:none}
+.dd-dashboard .dd-content .production-navigation{color:var(--dd-text-secondary,#596579)}
+.dd-dashboard .dd-content .production-links{background:var(--dd-sidebar-bg,#fff);border-color:var(--dd-border,#dce2eb)}
+.dd-dashboard .dd-content .production-links [aria-current=page]{color:var(--dd-accent,#2563eb);background:var(--dd-card-bg,#f4f6fa)}

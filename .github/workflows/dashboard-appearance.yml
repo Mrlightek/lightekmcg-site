@@ -7,6 +7,10 @@ on:
       - 'app/views/dashboard/**'
       - 'app/views/dymond_dash/**'
       - 'public/lightek/dashboard.*'
+      - 'public/lightek/reservations-workspace.css'
+      - 'public/lightek/production-workflow.css'
+      - 'public/lightek/site-content.css'
+      - 'test/javascript/dashboard_workspace_browser_test.cjs'
       - 'public/lightek/business-workspace.css'
       - 'test/standalone/dashboard_appearance_test.rb'
       - 'test/standalone/dashboard_network_view_test.rb'
@@ -36,3 +40,14 @@ jobs:
         run: ruby test/standalone/dashboard_breadcrumbs_test.rb
       - name: Check navigation script
         run: node --check public/lightek/dashboard.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install workspace browser checks
+        run: |
+          npm install --prefix /tmp/dashboard-ci playwright@1.56.1
+          /tmp/dashboard-ci/node_modules/.bin/playwright install --with-deps chromium webkit
+      - name: Verify workspace palettes in desktop and mobile browsers
+        env:
+          NODE_PATH: /tmp/dashboard-ci/node_modules
+        run: node test/javascript/dashboard_workspace_browser_test.cjs

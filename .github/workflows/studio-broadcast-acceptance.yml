@@ -7,6 +7,8 @@ on:
       - 'app/jobs/studio_ai_install_job.rb'
       - 'app/jobs/studio_lip_sync_job.rb'
       - 'public/lightek/studio-performance.css'
+      - 'public/lightek/studio-look.css'
+      - 'test/operations/studio_appearance_blender.py'
       - 'lib/scripts/gatekeeper/install_studio_ai.py'
       - 'lib/scripts/setup_studio_ai_access.py'
       - 'public/lightek/studio-ai.css'
@@ -172,6 +174,11 @@ jobs:
           ffmpeg -v error -y -f lavfi -i sine=frequency=220:duration=2 -ac 1 "$RUNNER_TEMP/studio-motion/voice.wav"
           blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python blender/create_performer.py -- "$RUNNER_TEMP/studio-motion/params.json" "$RUNNER_TEMP/studio-motion/performer.blend"
           blender --background "$RUNNER_TEMP/studio-motion/performer.blend" --disable-autoexec --python-exit-code 1 --python test/operations/studio_motion_blender.py -- "$PWD" "$RUNNER_TEMP/studio-motion"
+      - name: Saved materials and reversible compositor finish
+        run: |
+          bundle exec ruby test/standalone/studio_appearance_checks.rb --name /StudioAppearanceTest/
+          mkdir -p "$RUNNER_TEMP/studio-appearance"
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python test/operations/studio_appearance_blender.py -- "$PWD" "$RUNNER_TEMP/studio-appearance"
       - name: Completed render to episode edit handoff
         run: |
           bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
@@ -260,6 +267,7 @@ jobs:
           node test/javascript/studio_finishing_test.cjs
           node test/javascript/studio_performance_test.cjs
           node test/javascript/studio_motion_test.cjs
+          node test/javascript/studio_look_test.cjs
           node test/javascript/studio_visual_test.cjs
           node test/javascript/studio_dashboard_browser_test.cjs
           node test/javascript/studio_dashboard_context_test.cjs

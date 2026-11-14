@@ -1,0 +1,34 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{JSDOM}=require('jsdom');
+(async()=>{
+ const dom=new JSDOM('<main id="lightek-studio-dashboard"><div id="app"></div></main>',{url:'https://studio.test/#/studio/7/music',runScripts:'outside-only'}),w=dom.window;
+ const ctx=dom.getInternalVMContext(),evaluate=s=>vm.runInContext(s,ctx),document=w.document;
+ evaluate(`const app=document.getElementById('app'),ST={},requests=[],played=[],record={scene:{id:7,settings:{},lock_version:0}};
+ const E=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),studioCurrentSceneId=()=>7,studioSceneRecord=()=>record;
+ const nevaeh={execute:async request=>{requests.push(JSON.parse(JSON.stringify(request)));let result={assets:[]};if(request.capability.endsWith('music.save')){record.scene.settings.music=JSON.parse(JSON.stringify(request.payload.composition));record.scene.settings.music_revision=(record.scene.settings.music_revision||0)+1;record.scene.lock_version++;result={composition:record.scene.settings.music,revision:record.scene.settings.music_revision,lock_version:record.scene.lock_version};}return{result};}};
+ function render(){app.innerHTML=LightekStudioMusic.view(record)}
+ window.LightekMusicAudio={stop:()=>{},play:async score=>{played.push(score);return true;},update:()=>false};`);
+ vm.runInContext(fs.readFileSync('public/lightek/vendor/tone/Midi-2.0.28.js','utf8'),ctx);
+ for(const name of ['studio-music-core','studio-music'])vm.runInContext(fs.readFileSync('public/lightek/'+name+'.js','utf8'),ctx);
+ const settle=async()=>{for(let i=0;i<10;i++)await new Promise(r=>setImmediate(r));};
+ const click=async selector=>{const element=document.querySelector(selector);assert(element,selector);element.click();await settle();};
+ const change=async(selector,value)=>{const element=document.querySelector(selector);assert(element,selector);element.value=value;element.dispatchEvent(new w.Event('change',{bubbles:true}));await settle();};
+ evaluate('render()');await settle();
+ await click('[data-music=new-pattern]');
+ const keys=[...document.querySelectorAll('.mw-track')].find(b=>b.textContent.includes('Keys'));keys.click();await settle();
+ await click('[data-music=write-note][data-pitch="64"][data-step="0"]');
+ await change('[data-pattern-name]','Theme phrase');await change('[data-placement-bar]','2');
+ await click('[data-music=place-pattern]');await click('[data-music=duplicate-placement]');await click('[data-music=save]');
+ let saved=JSON.parse(evaluate('JSON.stringify(record.scene.settings.music)'));
+ assert.equal(saved.version,2);assert.equal(saved.patterns.length,1);assert.deepEqual(saved.playlist.map(c=>c.bar),[1,2]);
+ assert.equal(saved.patterns[0].tracks.find(t=>t.notes.length).notes[0].pitch,64);assert(saved.tracks.every(t=>!t.notes.length),'pattern source is separate from free song notes');
+ await click('[data-music=note]');await change('[data-music-velocity]','.5');await click('[data-music=save]');
+ const events=JSON.parse(evaluate('JSON.stringify(LightekMusicCore.events(record.scene.settings.music))'));
+ assert.equal(events.length,2);assert.deepEqual(events.map(n=>n.velocity),[.5,.5]);assert.deepEqual(events.map(n=>n.time),[2.4,4.8]);
+ await click('[data-music=play]');assert.equal(evaluate('played.at(-1).bars'),1,'pattern audition uses local length');await click('[data-music=stop]');
+ await change('[data-pattern-source]','');await click('[data-music=play]');assert.equal(evaluate('played.at(-1).playlist.length'),2,'song playback retains both placements');await click('[data-music=stop]');
+ const midiBytes=w.LightekMusicCore.toMidi(JSON.parse(evaluate('JSON.stringify(record.scene.settings.music)')));const midi=new w.Midi(midiBytes);assert.equal(midi.tracks.reduce((n,t)=>n+t.notes.length,0),2);
+ const originalId=saved.patterns[0].id;await change('[data-pattern-source]',originalId);await click('[data-music=duplicate-pattern]');await click('[data-music=save]');assert.equal(evaluate('record.scene.settings.music.patterns.length'),2);
+ await click('[data-music=delete-pattern]');await click('[data-music=save]');assert.equal(evaluate('record.scene.settings.music.playlist.length'),2,'deleting an unplaced copy retains original placements');
+ await change('[data-pattern-source]',originalId);await click('[data-music=delete-pattern]');await click('[data-music=undo]');await click('[data-music=save]');assert.equal(evaluate('record.scene.settings.music.playlist.length'),2,'undo restores linked source and placements');
+ dom.window.close();console.log('STUDIO_MUSIC_PATTERNS_DOM_PASS linked editing placements audition song source duplication undo');
+})().catch(error=>{console.error(error);process.exit(1)});

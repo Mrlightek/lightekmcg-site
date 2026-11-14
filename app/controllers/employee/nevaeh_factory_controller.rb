@@ -12,7 +12,7 @@ module Employee
       head :not_found
     end
     def index
-      @tab = %w[construction training conversation islamic].include?(params[:tab]) ? params[:tab] : 'construction'
+      @tab = %w[construction training conversation islamic study].include?(params[:tab]) ? params[:tab] : 'construction'
       @constructions = NevaehConstruction.includes(:active_release).order(updated_at: :desc).limit(100)
       @construction = params[:construction_id].present? ? NevaehConstruction.find(params[:construction_id]) : NevaehConstruction.new(definition: default_definition, sample_tests: default_tests)
       @datasets = NevaehTrainingDataset.order(updated_at: :desc, id: :desc).offset([params[:dataset_page].to_i, 0].max * 100).limit(100)
@@ -27,6 +27,16 @@ module Employee
         authorize! :manage, NevaehLanguageModel
         @islamic_sources = NevaehIslamicSource.order(:name, :id).limit(200)
         @islamic_passages = params[:q].present? ? NevaehIntelligences::Islamic::Library.search(query: params[:q], source_id: params[:source_id]) : []
+      end
+      if @tab == 'study'
+        authorize! :manage, NevaehLanguageModel
+        @study_routines = NevaehStudyRoutine.includes(:source, :language_model).order(:id).limit(100)
+        @study_routine = params[:study_routine_id].present? ? NevaehStudyRoutine.find(params[:study_routine_id]) : NevaehStudyRoutine.new(daily_times: NevaehStudyRoutine::SLOTS.index_with { '' })
+        @study_sources = NevaehIslamicSource.where(kind: 'quran', status: 'reviewed').order(:id)
+        @study_datasets = NevaehTrainingDataset.where(status: 'approved').where("provenance ->> 'source' = ?", 'islamic_library')
+          .select("id, name, provenance ->> 'source_id' AS islamic_source_id").order(:id).limit(1000)
+        @study_sessions = NevaehStudySession.includes(:nevaeh_study_routine, :nevaeh_training_run).order(id: :desc).limit(30)
+        @study_windows = @study_routine.persisted? ? NevaehIntelligences::Islamic::StudyClock.windows(@study_routine, date: Time.current.in_time_zone(NevaehIntelligences::Islamic::StudyClock.zone).to_date) : []
       end
     end
     def save_construction
@@ -134,6 +144,22 @@ module Employee
     def islamic_ethics
       dataset = NevaehIntelligences::Islamic::Ethics.build!(source: NevaehIslamicSource.find(params[:id]), actor: current_user)
       redirect_to employee_nevaeh_factory_path(tab: 'training', dataset_id: dataset.id), notice: 'Draft ethical conduct lessons created with Quran references. Review these authored applications before approval; they are not quotations or religious rulings.'
+    end
+    def save_study_routine
+      NevaehIntelligences::Islamic::Importer.authorize!(current_user)
+      routine = params[:id].present? ? NevaehStudyRoutine.find(params[:id]) : NevaehStudyRoutine.new(creator: current_user)
+      attributes = params.require(:study_routine).permit(:name, :source_id, :language_model_id, :enabled, :training_enabled,
+        :auto_activate, :window_minutes, :passages_per_session, :training_epochs, :lock_version,
+        daily_times: NevaehStudyRoutine::SLOTS, dataset_ids: [])
+      attributes[:dataset_ids] = Array(attributes[:dataset_ids]).reject(&:blank?).map { |id| Integer(id) }.uniq
+      routine.update!(attributes)
+      redirect_to employee_nevaeh_factory_path(tab: 'study', study_routine_id: routine.id), notice: 'Study routine saved. Enabled periods follow the application server clock; each period runs once per server-local date.'
+    end
+    def pause_study_routine
+      NevaehIntelligences::Islamic::Importer.authorize!(current_user)
+      routine = NevaehStudyRoutine.find(params[:id])
+      routine.with_lock { routine.update_columns(enabled: false, lock_version: routine.lock_version + 1) }
+      redirect_to employee_nevaeh_factory_path(tab: 'study', study_routine_id: routine.id), notice: 'Study routine paused. Pending work will be blocked; active scheduled training checks the pause during its next guard interval.'
     end
     def save_language_model
       model = params[:id].present? ? NevaehLanguageModel.find(params[:id]) : NevaehLanguageModel.new

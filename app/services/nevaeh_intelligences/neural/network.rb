@@ -110,12 +110,13 @@ module NevaehIntelligences
         @state['updates'] += 1
         loss
       end
-      def epoch(examples, learning_rate: nil, seed: 0)
+      def epoch(examples, learning_rate: nil, seed: 0, before_step: nil)
         loss = 0.0; count = 0
         rows = learning_rate ? examples.shuffle(random: Random.new(seed)) : examples
         rows.each do |row|
           prompt = encode(row.fetch('prompt')); response = encode(row.fetch('response')).first(64) + [3]; prefix = [2]
           response.each do |target|
+            before_step&.call if learning_rate
             loss += step(prompt: prompt, prefix: prefix, target: target, learning_rate: learning_rate)
             prefix << target; count += 1
           end

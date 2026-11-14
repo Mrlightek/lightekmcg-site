@@ -145,3 +145,7 @@ Technical foundations: [neural language modelling](https://d2l.ai/chapter_recurr
 ## Quran, hadith and Islamic learning
 
 Open the **Quran & Hadith** factory tab for immutable, attributed source editions, exact-reference search, Quran download, authorized collection imports, source-derived training batches and draft ethical conduct lessons. Follow the [Islamic learning tutorial](tutorials/islamic_learning.md) for source formats, review, permissions, multiple-tradition attribution and cumulative training. Training now continues from the active checkpoint, with bounded rehearsal, retention checks and vocabulary coverage; activate each passing batch before requesting the next.
+
+## Daily Salah study periods
+
+Use **Salah & Study** to configure Fajr, Dhuhr, Asr, Maghrib, Isha and Tahajjud study appointments on the application server clock. Each period can read the next Quran passages and run approved neural training. See [the setup and receipt guide](tutorials/salah_study.md) for times, automatic passing-checkpoint activation, pause and expiry behavior.

@@ -3,7 +3,7 @@
 <% content_for :head do %><link rel="stylesheet" href="/lightek/nevaeh/control-center.css"><link rel="stylesheet" href="/lightek/nevaeh/factory.css"><script src="/lightek/nevaeh/factory.js" defer></script><% end %>
 <section class="nc" data-factory data-help-scope="<%= @tab == 'training' ? 'training' : @tab == 'conversation' ? 'conversation' : 'factory' %>">
   <header class="nc-hero"><div><span class="nc-eyebrow">LIGHTEK OS / NEVAEH</span><h1>Build the ability.</h1><p>Digital Factory <%= nevaeh_help_button('factory') %></p><p class="nc-muted">Construct → verify → connect → execute. Teach → train → evaluate → converse.</p></div></header>
-  <nav class="nc-tabs" aria-label="Factory workspaces"><% {'construction'=>'Construction factory', 'training'=>'Neural training', 'conversation'=>'Conversation', 'islamic'=>'Quran & Hadith'}.each do |key,label| %><%= link_to label, employee_nevaeh_factory_path(tab: key), class: @tab == key ? 'active' : nil %><% end %><%= link_to 'Software Library', employee_software_library_path %><%= link_to 'Control Center', employee_nevaeh_control_center_path %></nav>
+  <nav class="nc-tabs" aria-label="Factory workspaces"><% {'construction'=>'Construction factory', 'training'=>'Neural training', 'conversation'=>'Conversation', 'islamic'=>'Quran & Hadith', 'study'=>'Salah & Study'}.each do |key,label| %><%= link_to label, employee_nevaeh_factory_path(tab: key), class: @tab == key ? 'active' : nil %><% end %><%= link_to 'Software Library', employee_software_library_path %><%= link_to 'Control Center', employee_nevaeh_control_center_path %></nav>
   <% if @tab == 'construction' %>
     <div class="nc-heading"><div><h2>From specification to working service.</h2><p>Generate Ruby, test expected behavior, connect a capability and create its worker.</p></div><%= link_to '+ New construction', employee_nevaeh_factory_path, class: 'nc-button' %></div>
     <div class="nc-split"><aside class="nc-panel"><h3>Construction library</h3><% @constructions.each do |record| %><article class="nc-worker"><%= link_to record.name, employee_nevaeh_factory_path(construction_id: record.id) %><p><code><%= record.capability_key %></code></p><span class="nc-pill"><%= record.status %> <%= "· v#{record.active_release.version}" if record.active_release %></span></article><% end %><% if @constructions.empty? %><p>Start with the greeting construction on the right, or define your own transformation.</p><% end %></aside>
@@ -40,6 +40,8 @@
         <% if run.checkpoint %><p>Checkpoint #<%= run.checkpoint.id %> · <%= run.checkpoint.status %></p><% if run.checkpoint.status.in?(%w[verified active]) %><%= button_to 'Activate these weights', employee_nevaeh_factory_activate_checkpoint_path(run.checkpoint), class: 'nc-button' %><% if run.nevaeh_language_model.active_checkpoint_id && run.nevaeh_language_model.active_checkpoint_id != run.checkpoint.id %><%= button_to 'Restore this checkpoint', employee_nevaeh_factory_activate_checkpoint_path(run.checkpoint), params: {rollback: '1'}, class: 'nc-button secondary' %><% end %><% else %><p class="nc-muted">This candidate did not pass loss, vocabulary coverage or retention checks. Revise the corpus or training configuration and train again.</p><% end %><% end %>
       </section><% end %>
     </article></div>
+  <% elsif @tab == 'study' %>
+    <%= render 'study_routines' %>
   <% elsif @tab == 'islamic' %>
     <%= render 'islamic_library' %>
   <% else %>

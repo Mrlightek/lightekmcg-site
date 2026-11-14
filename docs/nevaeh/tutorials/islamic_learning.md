@@ -78,3 +78,7 @@ NevaehIntelligences::Islamic::Library.lookup(source_id: source.id, reference: "2
 ```
 
 The result includes exact text, edition, translator, tradition, assessments and fingerprints, with `generated: false`. Generated neural replies remain drafts. This release exposes source lookup in the factory; it does not automatically ground every conversation reply in retrieved passages or certify generated religious advice.
+
+## Daily study schedule
+
+To continue Quran reading and approved training during six daily Salah/Tahajjud periods, configure [Salah & Study](salah_study.md). It uses the existing application server clock and time zone; no location or prayer-time API is required.

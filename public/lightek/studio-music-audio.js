@@ -62,5 +62,5 @@
     live.noteIds.forEach(id=>live.transport.clear(id));live.noteIds=core.events(score).map(event=>live.transport.schedule(time=>live?.voices.get(event.track)?.({...event,time}),event.time));return true;
   }
   async function render(score,assets,onlyTrack=null){stop();core.validate(score);await Tone.start();const prepared=await samples(score,assets);let g;try{const result=await Tone.Offline(()=>{g=graph(score,assets,onlyTrack,false,prepared);automate(g,score,0);for(const event of core.events(score,onlyTrack))g.voices.get(event.track)?.(event);},Math.min(600,core.seconds(score)+core.mixerTail(score)),2,48000);return result.get();}finally{g?.nodes.reverse().forEach(n=>n.dispose());}}
-  window.LightekMusicAudio={play,stop,render,update,unlock:()=>Tone.start()};
+  window.LightekMusicAudio={play,stop,render,update,position:()=>live?live.transport.seconds:null,unlock:()=>Tone.start()};
 })();

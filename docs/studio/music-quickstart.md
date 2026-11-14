@@ -14,3 +14,7 @@
 For an existing project, a concurrent edit in another window is reported when saving. Your draft stays open. Save before leaving the browser; the musical source and undo history are not automatically saved on every click.
 
 This first music workspace supports 4/4 at a constant tempo, up to 16 tracks, 128 bars, ten minutes and 4096 notes. WAV bounces are 48 kHz / 16-bit stereo. MIDI does not include the instrument sounds, sample mappings, effects or swing settings. Recording/comping, hardware MIDI, plugin hosting, automation, expanded instruments, tempo maps and advanced mastering remain on the [production workstation roadmap](production-workstation.md).
+
+## Continue into production
+
+The music workflow now includes [reusable patterns and playlist placements](music-patterns.md), [song automation](music-automation.md), [channel/group/master inserts](music-mixer.md), [microphone recording and audio takes](music-recording.md), and [picture monitoring, score starts and cues](music-picture-scoring.md). These guides describe the current source versions and exact workflow bounds. The [feature sprint checklist](feature-sprints.md) separates implementation from final integrated acceptance.

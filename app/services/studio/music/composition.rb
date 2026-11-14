@@ -10,7 +10,7 @@ module Studio
         raise ArgumentError,"Music source must be an object" unless raw.is_a?(Hash)
         data = raw.deep_stringify_keys
         raise ArgumentError, "Music project is too large" if data.to_json.bytesize > 1_000_000
-        raise ArgumentError, "Unsupported music project version" unless [1,2,3,4,5].include?(integer(data.fetch("version", 1)))
+        raise ArgumentError, "Unsupported music project version" unless [1,2,3,4,5,6].include?(integer(data.fetch("version", 1)))
         tempo = number(data.fetch("tempo", 100), 40, 240)
         bars = integer(data.fetch("bars", 4))
         raise ArgumentError, "Use 1–128 bars" unless bars.between?(1, 128)
@@ -59,6 +59,7 @@ module Studio
         result.merge!(Patterns.normalize(data,tracks:normalized,bars:bars)) if result["version"]>=2 || data.key?("patterns") || data.key?("playlist")
         result["automation"]=Automation.normalize(data.fetch("automation",[]),tracks:normalized,bars:bars,version:result["version"]) if result["version"]>=3 || data.key?("automation")
         result["mixer"]=Mixer.normalize(data,tracks:normalized,raw_tracks:tracks,version:result["version"]) if result["version"]>=4 || data.key?("mixer") || tracks.any?{|t|t.key?("effects") || t.key?("bus_id")}
+        result["scoring"]=Scoring.normalize(data.fetch("scoring",{}),version:result["version"],duration:bars*4*60/tempo) if result["version"]>=6 || data.key?("scoring")
         result
       rescue KeyError, TypeError => error
         raise ArgumentError,"Music project contains missing or invalid fields: #{error.message}"
@@ -106,6 +107,7 @@ module Studio
           revision=integer(payload.fetch("revision"))
           raise ArgumentError,"The music changed after this bounce. Save and bounce the current source." unless revision==scene.settings.fetch("music_revision",0)
           prior=scene.settings.fetch("music_mix",{})
+          score_start=scene.settings.dig("music","scoring","start") || 0
           timeline=scene.settings.fetch("timeline",{"output"=>"video","width"=>1280,"height"=>720,"clips"=>[]}).deep_dup
           if prior["asset_id"]==asset.id && prior["revision"]==revision && timeline["clips"].any? { |c|c["asset_id"]==asset.id }
             return {scene_id:scene.id,lock_version:scene.lock_version,timeline:timeline}
@@ -119,17 +121,18 @@ module Studio
             linked.each do |clip|
               whole=previous && clip.fetch("in",0).to_f==0 && (clip["out"].to_f-previous.metadata["duration"].to_f).abs<0.05
               clip["out"]=duration if whole
+              clip["start"]=score_start if score_start!=prior.fetch("score_start",0)
               clip["asset_id"]=asset.id
             end
           else
             occupied=timeline["clips"].map { |c|integer(c.fetch("track",0)) }
             track=(0..15).find { |id|!occupied.include?(id) }
             raise ArgumentError,"Free an audio track before adding this score" unless track
-            timeline["clips"]<<{"asset_id"=>asset.id,"in"=>0,"out"=>duration,"start"=>0,"track"=>track,"gain"=>1}
+            timeline["clips"]<<{"asset_id"=>asset.id,"in"=>0,"out"=>duration,"start"=>score_start,"track"=>track,"gain"=>1}
           end
           assets=StudioAsset.for_actor(access).where(id:timeline["clips"].map { |c|c["asset_id"] }).index_by(&:id)
           normalized=Studio::Editing::Timeline.normalize(timeline,assets:assets)
-          scene.update!(settings:scene.settings.merge("timeline"=>normalized,"music_mix"=>{"asset_id"=>asset.id,"revision"=>revision}))
+          scene.update!(settings:scene.settings.merge("timeline"=>normalized,"music_mix"=>{"asset_id"=>asset.id,"revision"=>revision,"score_start"=>score_start}))
           {scene_id:scene.id,lock_version:scene.lock_version,timeline:normalized}
         end
       rescue ActiveRecord::StaleObjectError

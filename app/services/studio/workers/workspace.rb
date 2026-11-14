@@ -338,6 +338,12 @@ module Studio
 
       def assets_list
         scope=StudioAsset.for_actor(@access).order(id: :desc)
+        if @payload.key?("asset_ids")
+          ids=@payload.fetch("asset_ids")
+          raise ArgumentError,"Request at most 64 media references" unless ids.is_a?(Array) && ids.length<=64
+          ids=ids.map{|value|id=Integer(value);raise ArgumentError,"Use positive whole asset IDs" unless id>0 && Float(value)==id;id}
+          scope=scope.where(site_id:@access.site_id,id:ids)
+        end
         scope=scope.where("id < ?",Integer(@payload["before"])) if @payload["before"].present?
         scope=scope.where(site_id:@access.site_id) if @payload["scope_site"]
         scope=scope.where(kind:%w[blend audio video]) if @payload["surface"]=="performance"

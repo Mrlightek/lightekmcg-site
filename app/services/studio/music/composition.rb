@@ -10,7 +10,7 @@ module Studio
         raise ArgumentError,"Music source must be an object" unless raw.is_a?(Hash)
         data = raw.deep_stringify_keys
         raise ArgumentError, "Music project is too large" if data.to_json.bytesize > 1_000_000
-        raise ArgumentError, "Unsupported music project version" unless [1,2,3].include?(integer(data.fetch("version", 1)))
+        raise ArgumentError, "Unsupported music project version" unless [1,2,3,4].include?(integer(data.fetch("version", 1)))
         tempo = number(data.fetch("tempo", 100), 40, 240)
         bars = integer(data.fetch("bars", 4))
         raise ArgumentError, "Use 1–128 bars" unless bars.between?(1, 128)
@@ -53,6 +53,7 @@ module Studio
         raise ArgumentError,"Reusable patterns require music source version 2" if result["version"]==1 && (Array(data["patterns"]).any? || Array(data["playlist"]).any?)
         result.merge!(Patterns.normalize(data,tracks:normalized,bars:bars)) if result["version"]>=2 || data.key?("patterns") || data.key?("playlist")
         result["automation"]=Automation.normalize(data.fetch("automation",[]),tracks:normalized,bars:bars,version:result["version"]) if result["version"]>=3 || data.key?("automation")
+        result["mixer"]=Mixer.normalize(data,tracks:normalized,raw_tracks:tracks,version:result["version"]) if result["version"]>=4 || data.key?("mixer") || tracks.any?{|t|t.key?("effects") || t.key?("bus_id")}
         result
       rescue KeyError, TypeError => error
         raise ArgumentError,"Music project contains missing or invalid fields: #{error.message}"

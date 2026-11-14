@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v73-music-automation"
+const CACHE = "lightek-shell-v74-music-mixer"
 
 const SHELL = [
   "/lightek/index.html",

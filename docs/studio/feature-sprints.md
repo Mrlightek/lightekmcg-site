@@ -11,6 +11,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Offline speech-driven mouth cues, editable phoneme takes, optional detailed face bindings and native Blender animation. See [Character lip sync](character-lip-sync.md).
 - [x] Source-bound body-motion clips, trim/speed/repeat/layer/blend controls, saved arrangements and editable native NLA playback. See [Body motion clips](body-motion-clips.md).
 - [x] Per-slot native/Cast material controls, sparse input overrides and a reversible scene compositor finish. See [Look & materials](look-and-materials.md).
+- [x] Mixer subgroup routing, ordered channel/bus/master EQ/compression/distortion/delay inserts and processed stems. See [Mixer buses & inserts](music-mixer.md).
 - [x] Saved song automation for gain, pan, filter and delay, with shared live/offline scheduling, bypass and undo. See [Music automation](music-automation.md).
 - [x] Reusable multichannel music patterns, linked playlist placements and shared playback/WAV/stem/MIDI expansion. See [Patterns & playlist](music-patterns.md).
 - [x] Storyboard → Genesis prompt handoff with shot provenance.

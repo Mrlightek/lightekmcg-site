@@ -3,15 +3,17 @@ class Api::ReservationFederationController < ActionController::Base
   before_action :authenticate_peer
   rescue_from ActiveRecord::RecordNotFound, with: -> { render json: {error: 'Reservation resource not found'}, status: :not_found }
   rescue_from ActiveRecord::RecordInvalid, ArgumentError, KeyError, LightekReservations::Availability::Invalid,
-    LightekReservations::Booking::Invalid, with: ->(e) { render json: {error: e.message}, status: :unprocessable_entity }
+    LightekReservations::Booking::Invalid, LightekAgency::PackagePolicy::Denied, with: ->(e) { render json: {error: e.message}, status: :unprocessable_entity }
   def catalog
-    render json: {approved: catalog_service.approved.map { |r| catalog_service.serialize(r) },
+    authorize_reselling!
+    render json: {approved: LightekAgency::HostingCatalog.rows,
       offers: catalog_service.offers(@peer).map { |r| catalog_service.serialize(r) },
       templates: LightekDesign::StarterLibrary.designs.map { |key, value| {key: key, name: value['name'], industry: value['industry']} },
       merchant_url: "#{LightekReservations::Federation::Issuer.origin}/my/resort-earnings?peer=#{@peer.key}"}
   end
   def save_offer
-    attributes = params.require(:offer).permit(:id, :name, :description, :source_id, :price_cents, :template_key, :published).to_h
+    authorize_reselling!
+    attributes = params.require(:offer).permit(:id, :name, :description, :source_id, :price_cents, :template_key, :published, package_policy: {}).to_h
     @peer.site.update!(name: params[:brand_name].to_s.first(160)) if params[:brand_name].present?
     resource = catalog_service.save!(peer: @peer, attributes: attributes)
     render json: {offer: catalog_service.serialize(resource)}
@@ -46,6 +48,12 @@ class Api::ReservationFederationController < ActionController::Base
       merchant_url: "#{LightekReservations::Federation::Issuer.origin}/my/resort-earnings?peer=#{@peer.key}"}
   end
   private
+  def authorize_reselling!
+    data = @peer.order&.items&.first&.purchase_snapshot.to_h['managed_package'] if @peer.respond_to?(:order)
+    if data && !LightekAgency::PackagePolicy.normalize(data.fetch('policy'))['features']['agency']['enabled']
+      raise LightekAgency::PackagePolicy::Denied, 'This installation package does not include reseller tools.'
+    end
+  end
   def catalog_service = LightekReservations::Federation::Catalog
   def authenticate_peer
     response.headers['Cache-Control'] = 'no-store'

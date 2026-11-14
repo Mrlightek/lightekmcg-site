@@ -104,6 +104,7 @@ module LightekCommerce
         site_name: "#{customer.first_name}'s Lightek", headline: "Welcome to Lightek",
         description: "Your Lightek workspace", certificate_email: actor.email_address,
         credential_slug: slug)
+      config['managed_package'] = order.items.sole.purchase_snapshot.to_h['managed_package'] if order.items.sole.purchase_snapshot.to_h['managed_package']
       config['demo_content'] = LightekAgency::DemoUpgrade.content_for(order) if order.respond_to?(:agency_demo_id) && order.agency_demo_id
       config['reservation_federation'] = LightekReservations::Federation::Issuer.ensure!(order: order, merchant: customer, domain: domain)
       if reservation

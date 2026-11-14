@@ -1,0 +1,17 @@
+<% content_for :page_title, 'Reseller packages' %><%= stylesheet_link_tag '/lightek/people-workspace.css' %>
+<main class="lp-workspace"><header class="lp-heading"><div><span class="lp-eyebrow">AGENCY / RESELLER</span><h1>Build on Lightek.</h1><p>Your catalog starts with Lightek's published, marked-up server packages. Set your brand, selling price and client feature allowances.</p></div></header>
+<%= form_with url: dashboard_reseller_packages_path, method: :get do %><%= label_tag :site_id, 'Agency website' %><%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %><%= submit_tag 'Switch website', class: 'lp-button' %><% end %>
+<section class="lp-card"><h2>Lightek wholesale catalog</h2>
+<% if @sources.empty? %><p>No Lightek server packages are published yet. The platform operator publishes them under Hosting packages & margins.</p><% else %>
+<%= form_with url: dashboard_reseller_packages_path, method: :get do %><%= hidden_field_tag :site_id, @site.id %><%= label_tag :source_id, 'Build from' %><%= select_tag :source_id, options_for_select(@sources.map { |source| ["#{source['name']} · #{number_to_currency(source['price_cents'] / 100.0)} / #{source['billing_interval']}", source['id']] }, @selected_source['id']) %><%= submit_tag 'Choose source package', class: 'lp-button secondary' %><% end %>
+<p>Lightek wholesale charge: <strong><%= number_to_currency(@selected_source['price_cents'] / 100.0) %></strong>. Minimum selling price including the payment reserve: <strong><%= number_to_currency(@selected_source['minimum_price_cents'] / 100.0) %></strong>. Your remaining proceeds are subject to processing, tax and any agreed upstream revenue share.</p>
+<%= form_with scope: :offer, url: dashboard_reseller_packages_path(site_id: @site.id), class: 'lp-form' do |f| %>
+<%= f.hidden_field :source_id, value: @selected_source['id'] %><%= f.hidden_field :id, value: @editing&.fetch('id') %>
+<label>Package name<%= f.text_field :name, value: @editing&.fetch('name') || @selected_source['name'], required: true, maxlength: 160 %></label>
+<label>Description<%= f.text_area :description, value: @editing&.fetch('description'), maxlength: 3000 %></label>
+<label>Your selling price (cents per term)<%= f.number_field :price_cents, value: @editing&.fetch('price_cents') || @selected_source['minimum_price_cents'], min: @selected_source['minimum_price_cents'], required: true %></label>
+<%= render 'policy_fields', policy: @policy, upstream: @selected_source['package_policy'], prefix: 'offer[package_policy]' %>
+<label><%= f.check_box :published, checked: @editing ? @editing['published'] : false %> Publish this package in my storefront</label><%= f.submit 'Save reseller package', class: 'lp-button' %>
+<% end %><% end %></section>
+<section class="lp-card"><h2>Your packages</h2><% @offers.each do |offer| %><p><strong><%= offer['name'] %></strong> · <%= number_to_currency(offer['price_cents'] / 100.0) %> · <%= offer['published'] ? 'Published' : 'Draft' %> · <%= link_to 'Edit package', dashboard_reseller_packages_path(site_id: @site.id, offer_id: offer['id'], source_id: offer['source_id']) %></p><% end %>
+<%= link_to 'View my booking storefront', reservations_catalog_path(site_id: @site.id), class: 'lp-button secondary' %></section></main>

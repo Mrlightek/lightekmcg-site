@@ -4,24 +4,25 @@ module LightekReservations
       module_function
       def approved
         Resource.available.where(kind: 'server', source_resource_id: nil)
-          .where(site_id: DymondSite::Site.where(tenant: User.where(role: 'super_admin')).select(:id)).includes(:product)
+          .where(site_id: DymondSite::Site.where(tenant: User.where(role: 'super_admin')).select(:id)).joins(:product).where(lightek_commerce_products: {published: true}).where.not(product_id: HostingPackage.where(active: false).select(:product_id)).includes(:product)
       end
       def serialize(resource)
         {'id'=>resource.id, 'name'=>resource.name, 'description'=>resource.description,
-          'price_cents'=>resource.price_cents, 'minimum_price_cents'=>resource.minimum_price_cents, 'cost_floor_cents'=>resource.cost_floor_cents,
+          'price_cents'=>resource.price_cents, 'minimum_price_cents'=>resource.source_resource_id ? resource.minimum_price_cents : LightekCommerce::MerchantPayouts.minimum_charge_cents(resource.price_cents), 'cost_floor_cents'=>resource.source_resource_id ? resource.cost_floor_cents : resource.price_cents,
           'billing_interval'=>resource.billing_interval, 'template_key'=>resource.template_key,
-          'accommodations'=>resource.accommodations, 'published'=>resource.published?, 'source_id'=>resource.source_resource_id,
-          'timezone'=>resource.timezone, 'notice_minutes'=>resource.notice_minutes}
+          'accommodations'=>resource.accommodations, 'published'=>resource.published?, 'source_id'=>resource.source_resource&.product&.hosting_package ? "hosting:#{resource.source_resource.product.hosting_package.id}" : resource.source_resource_id,
+          'package_policy'=>LightekAgency::PackagePolicy.normalize(resource.product.respond_to?(:package_policy) ? resource.product.package_policy : {}), 'timezone'=>resource.timezone, 'notice_minutes'=>resource.notice_minutes}
       end
       def offers(peer)
         Resource.where(site_id: peer.site_id, kind: 'server').includes(:product)
       end
       def save!(peer:, attributes:)
         attributes = attributes.stringify_keys
-        source = approved.find(attributes.fetch('source_id'))
+        source_key = attributes.fetch('source_id').to_s
+        source = source_key.start_with?('hosting:') ? LightekAgency::HostingCatalog.materialize!(source_key) : approved.find(source_key)
         raise ArgumentError, 'Choose a priced offer above the protected platform floor' unless attributes.fetch('price_cents').to_s.match?(/\A[1-9]\d*\z/)
         price = Integer(attributes.fetch('price_cents'))
-        raise ArgumentError, 'Selling price is below the protected platform floor' if price < source.minimum_price_cents
+        raise ArgumentError, 'Selling price is below the protected platform floor' if price < LightekCommerce::MerchantPayouts.minimum_charge_cents(source.price_cents)
         # The base floor is reserved centrally. Merchants never supply compute,
         # subscription IDs, fee rules, payout destinations, or ownership IDs.
         source.with_lock do
@@ -30,10 +31,16 @@ module LightekReservations
             product = resource.product || LightekCommerce::Product.new(site: peer.site, slug: "resort-#{SecureRandom.hex(8)}", inventory_quantity: 100_000)
             product.assign_attributes(name: attributes.fetch('name'), product_type: 'lightek_instance',
               price_cents: price, subscription_plan_id: source.product.subscription_plan_id, published: ActiveModel::Type::Boolean.new.cast(attributes['published']))
+            policy = LightekAgency::PackagePolicy.restrict!(upstream: LightekAgency::PackagePolicy.for_product(source.product), requested: attributes.fetch('package_policy', {}))
+            product.package_policy = policy
+            if (hosting = source.product.hosting_package)
+              product.source_hosting_package = hosting
+              product.billing_interval = source.product.billing_interval
+            end
             product.save!
             resource.assign_attributes(name: attributes.fetch('name'), description: attributes['description'], kind: 'server',
               source_resource: source, product: product, template_key: attributes['template_key'].presence,
-              accommodations: source.accommodations, compute: source.compute, cost_floor_cents: source.cost_floor_cents,
+              accommodations: source.accommodations, compute: source.compute, cost_floor_cents: source.price_cents,
               billing_interval: source.billing_interval, timezone: source.timezone, notice_minutes: source.notice_minutes,
               published: product.published?)
             resource.save!

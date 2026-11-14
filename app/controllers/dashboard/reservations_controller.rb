@@ -14,7 +14,7 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
     redirect_to dashboard_reservations_path(site_id: @site.id), alert: error.message
   end
   def network_offer
-    values = params.require(:offer).permit(:id, :name, :description, :source_id, :price_cents, :template_key, :published).to_h
+    values = params.require(:offer).permit(:id, :name, :description, :source_id, :price_cents, :template_key, :published, package_policy: {}).to_h
     network_client.request('offers', body: {offer: values, brand_name: @site.name}, method: :post)
     redirect_to network_dashboard_reservations_path(site_id: @site.id), notice: 'Server resort offer saved on the Lightek network.'
   rescue LightekReservations::Federation::Client::Unavailable => error
@@ -59,7 +59,7 @@ class Dashboard::ReservationsController < Dashboard::SettingsHomeController
       source = LightekReservations::Resource.available.where(kind: 'server', source_resource_id: nil).find(params.require(:approved_server_id))
       raise ArgumentError, 'Choose a platform-approved server package' unless source.site.tenant&.role == 'super_admin'
       attributes.merge!('source_resource_id' => source.id, 'compute' => source.compute,
-        'cost_floor_cents' => source.cost_floor_cents, 'billing_interval' => source.billing_interval)
+        'cost_floor_cents' => source.price_cents, 'billing_interval' => source.billing_interval)
     end
     resource.assign_attributes(attributes)
     resource.product_id = nil if resource.product_id.blank?

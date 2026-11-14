@@ -6,3 +6,6 @@ resources :dashboard_demos, path: '/dashboard/demos', controller: 'dashboard/dem
   patch :settings, on: :collection
   post :upgrade, on: :member
 end
+
+get '/dashboard/reseller-packages', to: 'dashboard/reseller_packages#index', as: :dashboard_reseller_packages
+post '/dashboard/reseller-packages', to: 'dashboard/reseller_packages#create'

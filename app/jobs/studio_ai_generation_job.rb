@@ -2,7 +2,7 @@
 class StudioAiGenerationJob < ApplicationJob
   queue_as :studio
   def perform(id)
-    asset=StudioAsset.find(id);runtime=Studio::Ai::Runtime.new;submit=false
+    asset=StudioAsset.find(id);runtime=Studio::Ai::Runtime.new(site:DymondSite::Site.find(asset.site_id),identity:asset.metadata["ai_worker"] || {"mode"=>"local"});submit=false
     asset.with_lock do
       return if %w[ready failed].include?(asset.status)
       if asset.status=="uploaded"

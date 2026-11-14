@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "engine_commit": "30c259cac8c08ff8d015f9aff3151cb525c9b702",
+  "engine_version": "0.3.76",
+  "torch_version": "2.7.1",
+  "models": [
+    {
+      "id": "sd15",
+      "name": "v1-5-pruned-emaonly.safetensors",
+      "folder": "checkpoints",
+      "repo": "Comfy-Org/stable-diffusion-1.5",
+      "revision": "9cfd069101959ca3828bf9c04a4419870832b74f",
+      "path": "v1-5-pruned-emaonly.safetensors",
+      "bytes": 4265146304,
+      "sha256": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
+      "license": "CreativeML Open RAIL-M"
+    },
+    {
+      "id": "wan22",
+      "name": "wan2.2_ti2v_5B_fp16.safetensors",
+      "folder": "diffusion_models",
+      "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+      "revision": "ee6f4a40737a995bf5818954cfce6d59443b0f04",
+      "path": "split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors",
+      "bytes": 9999658848,
+      "sha256": "456f901338bd9eadbded3828b819109a9b68e8a525ca5cf8d0049a69fcfeca1e",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "wan_vae",
+      "name": "wan2.2_vae.safetensors",
+      "folder": "vae",
+      "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+      "revision": "ee6f4a40737a995bf5818954cfce6d59443b0f04",
+      "path": "split_files/vae/wan2.2_vae.safetensors",
+      "bytes": 1409400960,
+      "sha256": "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "wan_text",
+      "name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "folder": "text_encoders",
+      "repo": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+      "revision": "123acf1cc74bccbb9bfff8ac1ee72edc08c2341d",
+      "path": "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "bytes": 6735906897,
+      "sha256": "c3355d30191f1f066b26d93fba017ae9809dce6c627dda5f6a66eaa651204f68",
+      "license": "Apache-2.0"
+    }
+  ],
+  "packages": {
+    "concept": {
+      "name": "Concept images \u00b7 SD 1.5",
+      "models": [
+        "sd15"
+      ],
+      "devices": [
+        "cpu",
+        "cuda"
+      ],
+      "ram_gib": 8,
+      "free_disk_gib": 24,
+      "vram_mib": 4096
+    },
+    "video": {
+      "name": "Video \u00b7 Wan 2.2 5B",
+      "models": [
+        "wan22",
+        "wan_vae",
+        "wan_text"
+      ],
+      "devices": [
+        "cuda"
+      ],
+      "ram_gib": 32,
+      "free_disk_gib": 80,
+      "vram_mib": 24576
+    }
+  }
+}

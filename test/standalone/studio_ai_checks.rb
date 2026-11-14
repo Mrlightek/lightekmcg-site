@@ -2,6 +2,7 @@
 require_relative "studio_production_checks"
 require "socket"
 require File.join(ROOT,"app/services/studio/assets/ingestor")
+require File.join(ROOT,"app/services/studio/ai/setup")
 require File.join(ROOT,"app/services/studio/ai/runtime")
 require File.join(ROOT,"app/services/studio/ai/generation")
 require File.join(ROOT,"app/jobs/studio_ai_generation_job")

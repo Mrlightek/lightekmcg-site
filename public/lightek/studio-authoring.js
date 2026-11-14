@@ -116,12 +116,12 @@
   };
   function skewControls(object = selected()) {
     const d = object?.definition || {}, draft = state.skewDraft;
-    const skew = draft?.objectId === object?.id && draft.sceneId === current()?.scene.id
-      ? draft.command : { axis: "X", source_axis: "Z", factor: 0 };
+    const hasDraft = draft?.objectId === object?.id && draft.sceneId === current()?.scene.id;
+    const skew = hasDraft ? draft.command : { axis: "X", source_axis: "Z", factor: 0 };
     const mesh = ["MESH", "CUBE", "SPHERE", "CYLINDER", "PLANE"].includes(d.native_type || object?.object_type?.toUpperCase());
     return mesh && !d.native_source_preview ? toolForm(
         "mesh_skew", "Skew object",
-        `<p>Lean the mesh around its local origin. Drag to preview, then apply to save.</p><label class="fld"><span>Move axis</span><select name="axis">${options(["X", "Y", "Z"], skew.axis)}</select></label><label class="fld"><span>Along axis</span><select name="source_axis">${options(["X", "Y", "Z"], skew.source_axis)}</select></label><label class="fld"><span>Skew amount</span><input name="factor" type="range" min="-2" max="2" step="0.01" value="${skew.factor}"></label><label class="fld"><span>Exact amount</span><input name="factor_value" type="number" min="-2" max="2" step="0.01" value="${skew.factor}"></label><button type="button" class="btn sm" data-a="studioAuthorSkewReset">Reset preview</button><p data-skew-status role="status">Preview changes are unsaved.</p>`,
+        `<p>Lean the mesh around its local origin. Drag to preview, then apply to save.</p><label class="fld"><span>Move axis</span><select name="axis">${options(["X", "Y", "Z"], skew.axis)}</select></label><label class="fld"><span>Along axis</span><select name="source_axis">${options(["X", "Y", "Z"], skew.source_axis)}</select></label><label class="fld"><span>Skew amount</span><input name="factor" type="range" min="-2" max="2" step="0.01" value="${skew.factor}"></label><label class="fld"><span>Exact amount</span><input name="factor_value" type="number" min="-2" max="2" step="0.01" value="${skew.factor}"></label><button type="button" class="btn sm" data-a="studioAuthorSkewReset">Reset preview</button><p data-skew-status role="status">${hasDraft ? "Preview changes are unsaved." : "Adjust to preview. Apply saves one edit."}</p>`,
       ) : "";
   }
   ui.objectControls = object => {

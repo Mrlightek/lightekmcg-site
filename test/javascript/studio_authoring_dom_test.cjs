@@ -30,6 +30,7 @@ const fixture = require('./fixtures/studio_authoring_fixture.cjs');
   assert.equal(evaluate('requests.length'),1);
   assert.deepEqual(JSON.parse(evaluate('JSON.stringify(requests[0].payload.command)')),{kind:'mesh_skew',axis:'X',source_axis:'Z',factor:-.5,indices:[]});
   assert.equal(evaluate('LightekStudioMeshDraft()'),null);
+  assert.match(document.querySelector('[data-skew-status]').textContent,/Adjust to preview/);
   // A worker proxy already contains the baked commands. Later slider edits
   // replay only the suffix; undoing across that snapshot drops the baked proxy.
   evaluate('A.studioAuthorSync()');await settle();

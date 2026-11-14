@@ -3,14 +3,14 @@ module Studio
   module Music
     # Musical timing is in quarter-note beats. Rendered audio uses the regular asset pipeline.
     class Composition
-      INSTRUMENTS = %w[kick snare hat clap bass keys pad lead sample].freeze
+      INSTRUMENTS = %w[kick snare hat clap bass keys pad lead sample recording].freeze
       DRUMS = %w[kick snare hat clap].freeze
       MAX_NOTES = 4096
       def self.normalize(raw, access:)
         raise ArgumentError,"Music source must be an object" unless raw.is_a?(Hash)
         data = raw.deep_stringify_keys
         raise ArgumentError, "Music project is too large" if data.to_json.bytesize > 1_000_000
-        raise ArgumentError, "Unsupported music project version" unless [1,2,3,4].include?(integer(data.fetch("version", 1)))
+        raise ArgumentError, "Unsupported music project version" unless [1,2,3,4,5].include?(integer(data.fetch("version", 1)))
         tempo = number(data.fetch("tempo", 100), 40, 240)
         bars = integer(data.fetch("bars", 4))
         raise ArgumentError, "Use 1–128 bars" unless bars.between?(1, 128)
@@ -26,6 +26,7 @@ module Studio
           raise ArgumentError, "Invalid instrument track ID" unless id.match?(/\A[a-zA-Z0-9_-]{1,60}\z/)
           instrument = track.fetch("instrument")
           raise ArgumentError, "Choose an available instrument" unless INSTRUMENTS.include?(instrument)
+          raise ArgumentError,"Audio takes require music source version 5" if instrument=="recording" && integer(data.fetch("version",1))<5
           notes = track.fetch("notes", [])
           raise ArgumentError,"Instrument notes must be a list" unless notes.is_a?(Array)
           total += notes.length
@@ -35,13 +36,17 @@ module Studio
             "gain"=>number(track.fetch("gain", 0.75), 0, 1.5), "pan"=>number(track.fetch("pan", 0), -1, 1),
             "muted"=>ActiveModel::Type::Boolean.new.cast(track.fetch("muted", false)), "solo"=>ActiveModel::Type::Boolean.new.cast(track.fetch("solo", false)),
             "cutoff"=>number(track.fetch("cutoff", 18000), 100, 18000), "delay"=>number(track.fetch("delay", 0), 0, 0.6), "notes"=>notes}
-          if instrument == "sample"
+          if %w[sample recording].include?(instrument)
             asset = StudioAsset.for_actor(access).where(site_id:access.site_id,status: "ready", kind: "audio").find(integer(track.fetch("asset_id")))
             raise ArgumentError,"Use sample recordings up to two minutes; trim longer sources first" unless asset.metadata["duration"].to_f.between?(0.01,120)
             first = number(track.fetch("sample_in", 0), 0, 600)
             last = number(track.fetch("sample_out", [asset.metadata["duration"].to_f, 30].min), 0.01, 600)
-            raise ArgumentError, "Choose a sample slice up to thirty seconds within the recording" unless last > first && last-first <= 30 && last <= asset.metadata["duration"].to_f + 0.001
-            root = integer(track.fetch("root", 60))
+            raise ArgumentError, "Choose a source range within the recording (samples: 30 seconds; audio takes: 120 seconds)" unless last > first && last-first <= (instrument=="recording" ? 120 : 30) && last <= asset.metadata["duration"].to_f + 0.001
+            if instrument=="recording"
+              expected=(last-first)*tempo/60
+              raise ArgumentError,"An audio take needs one fixed-pitch clip matching its source duration at this tempo" unless notes.length==1 && notes[0]["pitch"]==60 && (notes[0]["length"]-expected).abs<0.00001
+            end
+            root = instrument=="recording" ? 60 : integer(track.fetch("root", 60))
             raise ArgumentError, "Sample root note must be between 0 and 127" unless root.between?(0, 127)
             result.merge!("asset_id"=>asset.id, "sample_in"=>first, "sample_out"=>last, "root"=>root)
           end
@@ -67,7 +72,7 @@ module Studio
           raise ArgumentError,"Each note must be an object" unless item.is_a?(Hash)
           note = item.deep_stringify_keys
           beat = number(note.fetch("beat"), 0, bars * 4)
-          length = number(note.fetch("length", 0.25), 0.015625, 64)
+          length = number(note.fetch("length", 0.25), 0.015625, instrument=="recording" ? 512 : 64)
           pitch = integer(note.fetch("pitch", 60))
           raise ArgumentError, "MIDI notes must be between 0 and 127" unless pitch.between?(0, 127)
           raise ArgumentError, "A note extends beyond the song" if beat >= bars * 4 || beat + length > bars * 4 + 0.000001

@@ -21,6 +21,7 @@ module Studio
           lanes=lanes.map do |lane|
             raise ArgumentError,"A pattern channel must be an object" unless lane.is_a?(Hash)
             channel=channels[lane.fetch("track_id")] || raise(ArgumentError,"A pattern references a missing instrument channel")
+            raise ArgumentError,"Audio takes belong to the song, not reusable patterns" if channel["instrument"]=="recording" && lane.fetch("notes",[]).present?
             notes=Composition.notes(lane.fetch("notes",[]),bars:length,instrument:channel["instrument"])
             total+=notes.length
             raise ArgumentError,"Use at most 4096 source notes across song and patterns" if total>Composition::MAX_NOTES

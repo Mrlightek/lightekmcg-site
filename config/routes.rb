@@ -625,6 +625,8 @@ get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 
+get "/dashboard/live/production", to: "dashboard/live_broadcasts#production", as: :dashboard_live_production
+post "/dashboard/live/production", to: "dashboard/live_broadcasts#save_production"
 get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
 post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
 post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination

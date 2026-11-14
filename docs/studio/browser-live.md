@@ -3,6 +3,8 @@
 Open **Settings → Studio & broadcasting → Live Studio**, or `/dashboard/live`.
 Use a browser supporting camera capture, canvas capture and WebM MediaRecorder (and screen capture when sharing a screen) (Firefox or Chrome). HTTPS and macOS screen-recording/microphone permissions are required. No TikTok desktop application, extension or Mac-side encoder is needed. Test on the actual older Mac before broadcasting; browser version support and available CPU still matter.
 
+Use [saved live production setups](live-production-setups.md) to retain prepared stage/media selections, imported camera and subject controls with a show template or episode. Loading prepares local preview and never starts a broadcast.
+
 ## First private test
 
 1. On the Ubuntu Passenger application server, run `bash lib/scripts/install_lightek_live_encoder.sh` as root. This installs FFmpeg if missing, then verifies H.264/AAC support. It changes no application settings or running containers.

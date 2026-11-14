@@ -20,6 +20,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Saved bus volume/pan and master volume envelopes, shared live/offline scheduling and processed-stem handoff (source v7). See [Music automation](music-automation.md).
 - [x] Saved song automation for gain, pan, filter and delay, with shared live/offline scheduling, bypass and undo. See [Music automation](music-automation.md).
 - [x] Reusable multichannel music patterns, linked playlist placements and shared playback/WAV/stem/MIDI expansion. See [Patterns & playlist](music-patterns.md).
+- [x] Scene-bound Live Studio setups for prepared stages, imported cameras, subject placement and library media; template/episode copies, permission revalidation and explicit preview handoff. See [Live production setups](live-production-setups.md).
 - [x] Storyboard → Genesis prompt handoff with shot provenance.
 - [x] Finished shot → media library → edit handoff and reusable template reference remapping.
 
@@ -31,7 +32,7 @@ These checkboxes record implementation, not completed production acceptance.
 - [ ] Advanced character creation/performance tools, eligible face/performance models and expanded reusable body-animation controls.
 - [ ] Expand direct Blender object/material/rig/compositor controls using the existing documented command contract.
 - [ ] Remaining music production: automatic device latency calibration, loop/punch/comp recording, expanded MIDI expression/controllers, expanded instruments/effects and automation recording and additional effect controls; integrated music-to-picture acceptance.
-- [ ] Shared production templates/assets in Live Studio, multi-person composition, stage effects, audience and distribution completion.
+- [ ] Expand saved Live Studio setups into full authored-scene fidelity; complete multi-person composition, stage effects, audience and distribution acceptance.
 - [ ] Complete the agreed media publishing and distribution connections across network, streaming, community and social destinations.
 
 ## Integrated verification sprint

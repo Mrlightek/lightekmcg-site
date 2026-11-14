@@ -22,10 +22,27 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     rooms = rooms.where(lightek_reservation_resources: {site_id: @site.id})
     rooms = rooms.where(host_user_id: current_user.id) unless current_user.role == 'super_admin' || @site.tenant == current_user
     @session_rooms = rooms.includes(:resource).order(:starts_at).limit(100)
+    @production_scenes = StudioScene.where(studio_project_id:actor.projects.where(site_id:site.id).select(:id)).includes(:studio_project).order(updated_at: :desc).limit(100).to_a
+    if params[:scene_id].present?
+      selected=Studio::Live::ProductionPreset.new(user:current_user,site:site).scene!(params[:scene_id])
+      @production_scenes.unshift(selected) unless @production_scenes.any?{|scene|scene.id==selected.id}
+    end
     @restream_chat_url = Studio::Live::Audience.chat_url(current_user)
     settings = Studio::Live::Audience.settings(current_user)
     @audience_connections = {tiktok: settings['tiktok_username'], ssn: settings['ssn_session'].present?, restream: @restream_chat_url.present?}
     @recent = Studio::Live::Sessions.for_user(current_user).order(id: :desc).limit(8)
+  end
+  def production
+    site=live_site
+    raise ActiveRecord::RecordNotFound unless site
+    render json:Studio::Live::ProductionPreset.new(user:current_user,site:site).read(params.require(:scene_id))
+  end
+  def save_production
+    site=live_site
+    raise ActiveRecord::RecordNotFound unless site
+    preset=params.require(:preset)
+    raise ArgumentError,"Live setup must be an object" unless preset.is_a?(ActionController::Parameters)
+    render json:Studio::Live::ProductionPreset.new(user:current_user,site:site).save(params.require(:scene_id),preset:preset.to_unsafe_h,lock_version:params.require(:lock_version))
   end
   def create
     site = live_site

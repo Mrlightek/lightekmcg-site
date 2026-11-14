@@ -15,6 +15,7 @@ A business can build its website, sell products or book services, manage custome
 | Schedule Quran study and training at Salah times | [Salah & Study on the server clock](docs/nevaeh/tutorials/salah_study.md) |
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
+| Reuse a production setup for a live show | [Saved live production setups](docs/studio/live-production-setups.md) |
 | Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |
 | Play instruments into editable notes | [Performance recording](docs/studio/music-performance.md) |
 | Score a production against picture | [Picture scoring & cues](docs/studio/music-picture-scoring.md) |
@@ -47,7 +48,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Websites and community | Pages/sections, HTML design imports, starter designs, coordinated site themes, native store/journal integration, articles/RSS and per-site PWA branding, navigation and moderation |
 | Communications | Lightek webmail, conversation replies, rich composition, mailbox management, distribution addresses, Junk/spam controls, mail templates and native transactional SMTP routing |
 | Reservations and live rooms | Bookable resources, availability/capacity, paid reservations, calendar downloads, private guest rooms, host moderation and Studio program composition |
-| Studio | Photo/video editing and exports; Blender authoring, shots/storyboard, cast lip sync/body motion, materials/look; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub, instrument performance recording and picture scoring; connected finishing, live and delivery workspaces |
+| Studio | Photo/video editing and exports; Blender authoring, shots/storyboard, cast lip sync/body motion, materials/look; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub, instrument performance recording and picture scoring; saved live production setups and connected finishing/delivery workspaces |
 | Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
 | Nevaeh | Conversational operating workspace, typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |
 | Platform security and operations | Gatekeeper authorization, scoped Vault credentials, tenant ownership checks, background execution, audit history, retry/recovery paths and configurable Dashboard appearance |

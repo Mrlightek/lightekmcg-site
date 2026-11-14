@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v69-phoneme-cues"
+const CACHE = "lightek-shell-v70-motion-clips"
 
 const SHELL = [
   "/lightek/index.html",
@@ -31,7 +31,8 @@ const SHELL = [
   "/lightek/studio-create.js",
   "/lightek/studio-authoring.js",
   "/lightek/studio-performance.js",
-  "/lightek/studio-performance.css?v=69",
+  "/lightek/studio-motion.js",
+  "/lightek/studio-performance.css?v=70",
   "/lightek/studio-visual.js",
   "/lightek/studio-visual.css",
   "/lightek/studio-music-core.js",

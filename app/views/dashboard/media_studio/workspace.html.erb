@@ -10,8 +10,8 @@
 </main>
 <%= javascript_include_tag "/lightek/nevaeh-client.js?v=65", defer:true %>
 <%= javascript_include_tag "/lightek/studio-dashboard.js?v=65", defer:true %>
-<% %w[studio-app studio-native studio-authoring studio-media studio-create studio-performance studio-visual].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=69", defer:true %>
+<% %w[studio-app studio-native studio-authoring studio-media studio-create studio-performance studio-motion studio-visual].each do |name| %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=70", defer:true %>
 <% end %>
 <%= javascript_include_tag "/lightek/vendor/tone/Tone-15.1.22.js", defer:true %>
 <%= javascript_include_tag "/lightek/vendor/tone/Midi-2.0.28.js", defer:true %>
@@ -32,4 +32,4 @@
 
 <%= stylesheet_link_tag "/lightek/studio-ai.css?v=68" %>
 
-<%= stylesheet_link_tag "/lightek/studio-performance.css?v=69" %>
+<%= stylesheet_link_tag "/lightek/studio-performance.css?v=70" %>

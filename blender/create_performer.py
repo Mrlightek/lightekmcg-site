@@ -121,6 +121,21 @@ for bone_name, parts in [('Head', head_parts), ('Arm.L', arm_parts['L']), ('Arm.
         world = obj.matrix_world.copy(); obj.parent = rig; obj.parent_type = 'BONE'; obj.parent_bone = bone_name
         bpy.context.view_layer.update(); obj.matrix_world = world
 
+# Stashed native Actions are reusable clips, not automatically playing animation.
+for name, bone_name, axis, amplitude in [('Head nod','Head',0,.25),('Look left and right','Head',2,.35),('Wave right','Arm.R',2,.7)]:
+    animation=rig.animation_data_create();animation.action=None
+    bone=rig.pose.bones[bone_name];bone.rotation_mode='XYZ'
+    for frame, value in [(1,0),(7,amplitude),(13,0),(19,-amplitude),(25,0)]:
+        bone.rotation_euler=(0,0,0);bone.rotation_euler[axis]=value
+        bone.keyframe_insert(data_path='rotation_euler',frame=frame,group=bone_name)
+    action=animation.action;action.name=name
+    slot=getattr(animation,'action_slot',None)
+    track=animation.nla_tracks.new();track.name='Source · '+name
+    strip=track.strips.new(name,1,action)
+    if slot is not None and hasattr(strip,'action_slot'):strip.action_slot=slot
+    track.mute=True;animation.action=None
+scene.frame_set(1)
+
 camera = bpy.data.objects.new('Portrait camera', bpy.data.cameras.new('Portrait lens')); scene.collection.objects.link(camera)
 camera.location = (0, -5, 1.7); camera.rotation_euler = (Vector((0, 0, 1.5))-camera.location).to_track_quat('-Z', 'Y').to_euler(); camera.data.lens = 60; scene.camera = camera
 for name, loc, power, size in [('Key', (3, -4, 5), 800, 4), ('Fill', (-3, -2, 3), 400, 4), ('Rim', (1, 2, 4), 900, 3)]:

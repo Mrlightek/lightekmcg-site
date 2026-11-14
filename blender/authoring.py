@@ -2,6 +2,7 @@
 import bpy
 import bmesh
 import math
+import motion
 from mathutils import Vector
 
 NODE_TYPES = {
@@ -39,6 +40,7 @@ def inventory(obj):
         data['vertex_groups'] = [g.name for g in obj.vertex_groups][:256]
         if mesh.shape_keys: data['shape_keys'] = [{'name': k.name, 'value': k.value} for k in list(mesh.shape_keys.key_blocks)[:128]]
     if obj.type == 'ARMATURE':
+        data['motion_actions'] = motion.inventory(obj)
         data['bones'] = [{'name': b.name, 'parent': b.parent.name if b.parent else None,
                          'head': list(b.head), 'tail': list(b.tail), 'location': list(b.location),
                          'rotation': list(b.rotation_euler), 'scale': list(b.scale)} for b in list(obj.pose.bones)[:4096]]

@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -69,6 +69,7 @@ module Studio
         scene=@access.scene!(@payload.fetch("scene_id"))
         Studio::Performance::LipSync.receipt(Studio::Performance::LipSync.find(access:@access,scene:scene,id:@payload.fetch("operation_id")))
       end
+      def motion_save = Studio::Performance::MotionPlan.save(access:@access,payload:@payload)
       def performance_save = Studio::Performance::Take.save(access:@access,payload:@payload)
       def performance_remove = Studio::Performance::Take.remove(access:@access,payload:@payload)
 
@@ -77,7 +78,7 @@ module Studio
         if @payload["operation_id"]
           operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview").find(@payload["operation_id"])
         else
-          raise ArgumentError,"Save a character performance first" unless scene.scene_objects.any? { |object| object.definition["performance"] }
+          raise ArgumentError,"Save a character performance first" unless scene.scene_objects.any? { |object| object.definition["performance"] || Array(object.definition["motion_clips"]).any? }
           @access.user.with_lock do
             operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview",status:%w[pending running]).first
             unless operation
@@ -86,7 +87,7 @@ module Studio
               manifest=Blender::ManifestBuilder.new(scene).call.deep_dup
               settings=manifest["scene"]["settings"]
               fps=settings.fetch("fps",24).to_f/settings.fetch("fps_base",1)
-              first=scene.scene_objects.filter_map { |object| object.definition.dig("performance","start") }.min
+              first=scene.scene_objects.flat_map { |object| [object.definition.dig("performance","start"),*Array(object.definition["motion_clips"]).map{|clip|clip["start"]}].compact }.min
               width=settings.fetch("resolution_x",1280);height=settings.fetch("resolution_y",720)
               factor=320.0/[width,height].max
               settings.merge!("resolution_x"=>(width*factor).round.clamp(64,320),"resolution_y"=>(height*factor).round.clamp(64,320),"samples"=>8,
@@ -696,7 +697,7 @@ module Studio
               child.save!
               object_ids[object.id]=child.id
             end
-            settings=copy.settings.except("library_requests", "json_preset_requests", "cast_receipts", "performance_receipts")
+            settings=copy.settings.except("library_requests", "json_preset_requests", "cast_receipts", "performance_receipts", "motion_receipts")
             settings["active_camera_object_id"]=object_ids[scene.settings["active_camera_object_id"]] if scene.settings["active_camera_object_id"]
             settings=Studio::Shots::Board.copy_settings(settings,object_ids) if settings["shot_board"]
             copy.update!(settings:settings)

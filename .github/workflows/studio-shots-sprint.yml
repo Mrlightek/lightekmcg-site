@@ -1,0 +1,47 @@
+name: Studio shots sprint checks
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/studio-shots-sprint.yml'
+      - 'app/services/studio/shots/**'
+      - 'app/services/studio/workers/workspace.rb'
+      - 'app/services/studio/ai/generation.rb'
+      - 'app/controllers/dashboard/media_studio_controller.rb'
+      - 'public/lightek/studio-shots.*'
+      - 'public/lightek/studio-production.js'
+      - 'public/lightek/studio-ai.js'
+      - 'test/standalone/studio_shots_checks.rb'
+      - 'test/javascript/studio_shots_test.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+      LIGHTEK_TEST_BLENDER: '1'
+      BLENDER_BIN: /usr/bin/blender
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - name: Install public media dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender ffmpeg python3-numpy
+      - name: Verify storyboard contracts and real shot output
+        run: bundle exec ruby test/standalone/studio_shots_checks.rb --name "/StudioShotsTest|StudioProductionTest/"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify storyboard controls and handoffs
+        run: |
+          npm install --prefix "$RUNNER_TEMP/studio-shots" jsdom@26.1.0
+          NODE_PATH="$RUNNER_TEMP/studio-shots/node_modules" node test/javascript/studio_shots_test.cjs

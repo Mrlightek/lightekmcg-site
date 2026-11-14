@@ -18,10 +18,12 @@
 <% %w[studio-music-core studio-music-audio studio-music].each do |name| %>
   <%= javascript_include_tag "/lightek/#{name}.js?v=65", defer:true %>
 <% end %>
-<%= javascript_include_tag "/lightek/studio-production.js?v=66", defer:true %>
+<%= javascript_include_tag "/lightek/studio-production.js?v=67", defer:true %>
 <%= javascript_include_tag "/lightek/studio-dashboard-context.js?v=1", defer:true %>
 <%= javascript_include_tag "/lightek/studio-edit-workbench.js?v=65", defer:true %>
-<%= javascript_include_tag "/lightek/studio-ai.js?v=65", defer:true %>
+<%= javascript_include_tag "/lightek/studio-ai.js?v=67", defer:true %>
+<%= javascript_include_tag "/lightek/studio-shots.js?v=67", defer:true %>
+<%= stylesheet_link_tag "/lightek/studio-shots.css?v=67" %>
 <%= javascript_include_tag "/lightek/studio-delivery.js?v=65", defer:true %>
 <%= stylesheet_link_tag "/lightek/studio-delivery.css?v=65" %>
 <%= stylesheet_link_tag "/lightek/studio-edit-workbench.css?v=66" %>

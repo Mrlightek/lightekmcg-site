@@ -12,6 +12,8 @@ A business can build its website, sell products or book services, manage custome
 | Production is asking you to set up an authenticator | [First sign-in, MFA and recovery](docs/security/sign-in-and-mfa.md) |
 | Learn Nevaeh, agents, workers, watchers and commands | [Operating workspace and Guide](docs/nevaeh_operating_system.md) · [Tutorials](docs/nevaeh/tutorials/commands.md) |
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
+| Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
+| Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |
 | Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
 | Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
 | Operate a server or update client installations | [Servers & applications](docs/server-application-management.md) · [Customer Updates](docs/customer_fleet_updates.md) |

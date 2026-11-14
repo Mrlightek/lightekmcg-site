@@ -3,6 +3,11 @@ module LightekCommerce
   class Order < ApplicationRecord
     before_validation(on: :create) { self.payment_namespace ||= PaymentIdentity.namespace(site) if site }
     self.table_name = "lightek_commerce_orders"
+    scope :visible, -> { where(deleted_at: nil) }
+
+    def removable?
+      %w[pending_payment canceled].include?(status) && !paid_at? && !provisioned_at? && gatekeeper_application_launch_id.nil?
+    end
     belongs_to :site, class_name: "DymondSite::Site"
     has_one :network_sale, class_name: "LightekCommerce::NetworkSale", dependent: :restrict_with_error
     has_one :commerce_subscription, class_name: "LightekCommerce::Subscription", dependent: :restrict_with_error

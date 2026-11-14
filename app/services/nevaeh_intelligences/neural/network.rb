@@ -11,7 +11,7 @@ module NevaehIntelligences
       WINDOW = 4
       attr_reader :state
       def self.tokens(text)
-        text.to_s.downcase.scan(/[\p{L}\p{N}]+(?:['’][\p{L}]+)?|[^\s\p{L}\p{N}]/).first(256)
+        text.to_s.downcase.scan(/[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{M}]+)?|[^\s\p{L}\p{M}\p{N}]/).first(256)
       end
       def self.build(examples:, hidden_size: 16, vocabulary_limit: 256, seed: 17)
         counts = Hash.new(0)
@@ -31,9 +31,28 @@ module NevaehIntelligences
         @vocabulary = state.fetch('vocabulary'); @index = @vocabulary.each_with_index.to_h
         @size = @vocabulary.length; @hidden = state.fetch('hidden_size')
       end
+      def self.continue(state:, examples:, hidden_size:, vocabulary_limit:)
+        original = new(state)
+        old = original.state
+        raise ArgumentError, 'Continuing training cannot shrink hidden units or vocabulary' if hidden_size < old['hidden_size'] || vocabulary_limit < old['vocabulary'].length
+        fresh = build(examples: examples, hidden_size: hidden_size, vocabulary_limit: vocabulary_limit).state
+        vocabulary = (old['vocabulary'] + fresh['vocabulary']).uniq.first(vocabulary_limit)
+        random = Random.new(17)
+        h = hidden_size; old_h = old['hidden_size']; old_v = old['vocabulary'].length; v = vocabulary.length
+        result = {'schema' => 1, 'window' => WINDOW, 'vocabulary' => vocabulary, 'hidden_size' => h,
+          'embedding' => Array.new(v * (WINDOW + 1)) { Array.new(h) { (random.rand - 0.5) * 0.16 } },
+          'output' => Array.new(v) { Array.new(h) { (random.rand - 0.5) * 0.16 } },
+          'hidden_bias' => old['hidden_bias'].dup + Array.new(h - old_h, 0.0),
+          'output_bias' => old['output_bias'].dup + Array.new(v - old_v, -4.0), 'updates' => old['updates']}
+        (WINDOW + 1).times do |position|
+          old_v.times { |id| result['embedding'][position * v + id][0, old_h] = old['embedding'][position * old_v + id].dup }
+        end
+        old_v.times { |id| result['output'][id] = old['output'][id].dup + Array.new(h - old_h, 0.0) }
+        new(result)
+      end
       def validate!
         s = @state; v = s['vocabulary']; h = s['hidden_size']
-        raise ArgumentError, 'Invalid neural checkpoint dimensions' unless s['schema'] == 1 && s['window'] == WINDOW && v.is_a?(Array) && v.length.between?(5, 512) && v.first(4) == SPECIAL && v.uniq == v && v.all? { |token| token.is_a?(String) && token.length.between?(1, 100) } && h.is_a?(Integer) && h.between?(8, 32)
+        raise ArgumentError, 'Invalid neural checkpoint dimensions' unless s['schema'] == 1 && s['window'] == WINDOW && v.is_a?(Array) && v.length.between?(5, 2048) && v.first(4) == SPECIAL && v.uniq == v && v.all? { |token| token.is_a?(String) && token.length.between?(1, 100) } && h.is_a?(Integer) && h.between?(8, 64)
         {'embedding' => [v.length * (WINDOW + 1), h], 'output' => [v.length, h]}.each do |key, (rows, columns)|
           matrix = s[key]
           raise ArgumentError, 'Invalid neural checkpoint matrix' unless matrix.is_a?(Array) && matrix.length == rows && matrix.all? { |row| row.is_a?(Array) && row.length == columns && row.all? { |x| x.is_a?(Numeric) && x.finite? && x.abs <= 1000 } }

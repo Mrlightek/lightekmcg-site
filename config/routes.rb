@@ -175,6 +175,12 @@ Rails.application.routes.draw do
 
   get "/employee/nevaeh/help/:topic", to: "employee/nevaeh_help#show", as: :employee_nevaeh_help
   get "/employee/nevaeh/factory", to: "employee/nevaeh_factory#index", as: :employee_nevaeh_factory
+  post "/employee/nevaeh/factory/islamic/import", to: "employee/nevaeh_factory#import_islamic_source", as: :employee_nevaeh_factory_import_islamic
+  post "/employee/nevaeh/factory/islamic/quran", to: "employee/nevaeh_factory#download_quran", as: :employee_nevaeh_factory_download_quran
+  post "/employee/nevaeh/factory/islamic/:id/review", to: "employee/nevaeh_factory#review_islamic_source", as: :employee_nevaeh_factory_review_islamic
+  get "/employee/nevaeh/factory/islamic/:id/export", to: "employee/nevaeh_factory#export_islamic_source", as: :employee_nevaeh_factory_export_islamic
+  post "/employee/nevaeh/factory/islamic/:id/datasets", to: "employee/nevaeh_factory#islamic_datasets", as: :employee_nevaeh_factory_islamic_datasets
+  post "/employee/nevaeh/factory/islamic/:id/ethics", to: "employee/nevaeh_factory#islamic_ethics", as: :employee_nevaeh_factory_islamic_ethics
   post "/employee/nevaeh/factory/constructions", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_constructions
   patch "/employee/nevaeh/factory/constructions/:id", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_construction
   post "/employee/nevaeh/factory/constructions/:id/build", to: "employee/nevaeh_factory#build", as: :employee_nevaeh_factory_build_construction

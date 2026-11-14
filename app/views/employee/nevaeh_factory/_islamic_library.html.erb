@@ -1,0 +1,69 @@
+<div class="nc-heading"><div><h2>Knowledge with its sources intact.</h2><p>Quran, hadith and attributed scholarship. Multiple traditions, with differences preserved.</p></div><%= nevaeh_help_button('islamic') %></div>
+<div class="nc-grid2">
+  <article class="nc-panel"><h3>Import the Arabic Quran</h3>
+    <p>Download the complete Arabic text from Tanzil. The import checks the sequence of all 6,236 verses across 114 surahs and preserves their wording.</p>
+    <%= form_with url: employee_nevaeh_factory_download_quran_path do %>
+      <label class="nc-check"><input type="checkbox" name="training_permitted" value="1"> This edition is permitted for our neural training use</label>
+      <label>Training permission or license evidence<textarea name="permission_evidence" rows="2" maxlength="20000" placeholder="Record the applicable permission or license basis when enabling training."></textarea></label>
+      <button class="nc-button">Download Quran from Tanzil</button>
+    <% end %>
+    <p><%= link_to 'Tanzil source and license', 'https://tanzil.net/docs/Text_License' %></p>
+    <p class="nc-muted">Imported editions begin as drafts. Review their source and attribution before searching or making training batches.</p>
+  </article>
+  <article class="nc-panel"><h3>Add hadith, translations or commentary</h3>
+    <%= form_with url: employee_nevaeh_factory_import_islamic_path, multipart: true do %>
+      <label>Format<select name="source_format"><option value="json">Source manifest and passages (JSON)</option><option value="tanzil">Complete Tanzil Arabic text (surah|ayah|text)</option></select></label>
+      <label>Source file<input type="file" name="source_file" accept=".json,.txt,application/json,text/plain" required></label>
+      <details><summary>Training permissions for a Tanzil text upload</summary>
+        <label class="nc-check"><input type="checkbox" name="training_permitted" value="1"> This edition is permitted for our neural training use</label>
+        <label>Permission evidence<textarea name="permission_evidence" rows="2" maxlength="20000"></textarea></label>
+      </details>
+      <button class="nc-button">Import source edition</button>
+    <% end %>
+    <p class="nc-muted">JSON imports include edition, language, translator where applicable, source URL, attribution and license. Hadith assessments retain each scholar, grade and assessment reference. Missing assessments remain unknown.</p>
+    <p class="nc-muted">Use authorized exports. The library represents the sources actually imported; it does not claim to contain every hadith.</p>
+  </article>
+</div>
+<article class="nc-panel"><h3>Source editions</h3>
+  <% if @islamic_sources.empty? %><p>Begin with the Quran import, then add authorized editions of hadith collections, translations and commentary.</p><% end %>
+  <% @islamic_sources.each do |source| %>
+    <section class="nc-step"><div class="nc-heading"><h4><%= source.name %></h4><span class="nc-pill"><%= source.status %> · <%= source.kind %></span></div>
+      <p><%= source.passages_count %> passages · <%= source.language %> · <%= source.edition %></p>
+      <% if source.translator.present? %><p>Translator: <%= source.translator %></p><% end %>
+      <% if source.tradition.present? %><p>Tradition attribution: <%= source.tradition %></p><% end %>
+      <p><%= source.attribution %></p><p><%= link_to 'Original source', source.source_url %></p>
+      <details><summary>License, permission and source fingerprint</summary><pre><%= source.license %></pre><p><%= source.permission_evidence %></p><code><%= source.sha256 %></code></details>
+      <details><summary>Preview the first three passages</summary><% source.passages.order(:id).limit(3).each do |passage| %><h5><%= passage.reference %></h5><blockquote dir="auto" style="white-space: pre-wrap"><%= passage.body.first(4000) %></blockquote><% if passage.body.length > 4000 %><p>Preview shortened. Download the full edition to review the complete passage.</p><% end %><% end %></details>
+      <div class="nc-links">
+        <%= link_to 'Download complete source edition', employee_nevaeh_factory_export_islamic_path(source), class: 'nc-button secondary' %>
+        <% if source.status == 'draft' %><%= button_to 'Mark source reviewed', employee_nevaeh_factory_review_islamic_path(source), class: 'nc-button secondary' %><% end %>
+        <% if source.status == 'reviewed' && source.training_permitted? %><%= button_to 'Create draft training batches', employee_nevaeh_factory_islamic_datasets_path(source), class: 'nc-button' %>
+          <% if source.kind == 'quran' %><%= button_to 'Create ethical conduct lessons', employee_nevaeh_factory_islamic_ethics_path(source), class: 'nc-button secondary' %><% end %>
+        <% end %>
+      </div>
+      <p class="nc-muted"><%= source.training_permitted? ? 'Training permission recorded. Batches still require content review.' : 'Reference use only. To record training permission, import an edition with its permission evidence.' %></p>
+    </section>
+  <% end %>
+</article>
+<article class="nc-panel"><h3>Find an exact reference or passage</h3>
+  <%= form_with url: employee_nevaeh_factory_path, method: :get do %>
+    <input type="hidden" name="tab" value="islamic">
+    <label>Reference or words<input name="q" value="<%= params[:q] %>" maxlength="200" required placeholder="2:256 or words from a passage"></label>
+    <label>Edition<select name="source_id"><option value="">All reviewed editions</option><%= options_for_select(@islamic_sources.map { |source| ["#{source.name} · #{source.edition} · #{source.language}", source.id] }, params[:source_id]) %></select></label>
+    <button class="nc-button secondary">Search sources</button>
+  <% end %>
+  <% if params[:q].present? && @islamic_passages.empty? %><p>No matching passage in the reviewed editions.</p><% end %>
+  <% @islamic_passages.each do |passage| %>
+    <% source = passage.nevaeh_islamic_source %>
+    <section class="nc-step"><h4><%= source.name %> · <%= passage.reference %></h4>
+      <p class="nc-muted"><%= source.kind %> · <%= source.language %> · <%= source.edition %><%= " · #{source.translator}" if source.translator.present? %><%= " · #{source.tradition}" if source.tradition.present? %></p>
+      <blockquote dir="auto" style="white-space: pre-wrap"><%= passage.body %></blockquote>
+      <% if passage.narrator.present? %><p>Narrator: <%= passage.narrator %></p><% end %>
+      <% passage.assessments.each do |assessment| %><p><%= assessment['scholar'] %>: <%= assessment['grade'] %> — <%= assessment['reference'] %></p><% end %>
+      <% if source.kind == 'hadith' && passage.assessments.empty? %><p>No scholarly grading recorded in this import.</p><% end %>
+      <p><%= source.attribution %> · <%= link_to 'Source', source.source_url %></p>
+      <details><summary>Exact source evidence</summary><pre><%= JSON.pretty_generate(passage.citation.except(:text)) %></pre></details>
+    </section>
+  <% end %>
+  <p class="nc-muted">Results reproduce imported text. Commentary and scholarly assessments remain attributed; a search result does not establish a religious ruling.</p>
+</article>

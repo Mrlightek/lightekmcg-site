@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_14_000000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_14_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1532,6 +1532,58 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_000000) do
     t.index ["book_id"], name: "index_lightek_accounting_workbooks_on_book_id"
   end
 
+  create_table "lightek_agency_demo_requests", force: :cascade do |t|
+    t.bigint "agency_id", null: false
+    t.string "email_address", null: false
+    t.string "first_name", null: false
+    t.string "last_name", null: false
+    t.string "nonce", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "invitation_queued_at"
+    t.datetime "verified_at"
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agency_id", "email_address", "created_at"], name: "index_demo_requests_on_agency_email_created"
+    t.index ["agency_id"], name: "index_lightek_agency_demo_requests_on_agency_id"
+  end
+
+  create_table "lightek_agency_demo_settings", force: :cascade do |t|
+    t.bigint "agency_id", null: false
+    t.bigint "public_site_id"
+    t.bigint "upgrade_product_id"
+    t.boolean "public_enabled", default: false, null: false
+    t.integer "duration_days", default: 14, null: false
+    t.integer "max_active", default: 20, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agency_id"], name: "index_lightek_agency_demo_settings_on_agency_id", unique: true
+  end
+
+  create_table "lightek_agency_demos", force: :cascade do |t|
+    t.bigint "agency_id", null: false
+    t.bigint "client_id"
+    t.bigint "site_id"
+    t.bigint "demo_request_id"
+    t.bigint "upgrade_order_id"
+    t.string "public_id", null: false
+    t.string "name", null: false
+    t.string "status", default: "active", null: false
+    t.boolean "created_client", default: false, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "converted_at"
+    t.datetime "cleaned_at"
+    t.string "cleanup_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agency_id"], name: "index_lightek_agency_demos_on_agency_id"
+    t.index ["client_id"], name: "index_lightek_agency_demos_on_client_id"
+    t.index ["demo_request_id"], name: "index_lightek_agency_demos_on_demo_request_id", unique: true, where: "(demo_request_id IS NOT NULL)"
+    t.index ["public_id"], name: "index_lightek_agency_demos_on_public_id", unique: true
+    t.index ["site_id"], name: "index_lightek_agency_demos_on_site_id", unique: true, where: "(site_id IS NOT NULL)"
+    t.index ["status", "expires_at"], name: "index_lightek_agency_demos_on_status_and_expires_at"
+  end
+
   create_table "lightek_agency_site_memberships", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "user_id", null: false
@@ -1675,6 +1727,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_000000) do
     t.bigint "shipping_quote_id"
     t.string "network_reference"
     t.string "network_invoice_reference"
+    t.bigint "agency_demo_id"
+    t.jsonb "demo_content", default: {}, null: false
+    t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
     t.index ["gatekeeper_application_launch_id"], name: "idx_on_gatekeeper_application_launch_id_aa7421ca02"
     t.index ["hosting_owner_id"], name: "index_lightek_commerce_orders_on_hosting_owner_id"
@@ -4357,6 +4412,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_000000) do
   add_foreign_key "lightek_accounting_transactions", "lightek_accounting_reconciliations", column: "reconciliation_id"
   add_foreign_key "lightek_accounting_workbooks", "lightek_accounting_books", column: "book_id"
   add_foreign_key "lightek_accounting_workbooks", "users", column: "actor_id"
+  add_foreign_key "lightek_agency_demo_requests", "users", column: "agency_id"
+  add_foreign_key "lightek_agency_demo_settings", "users", column: "agency_id"
+  add_foreign_key "lightek_agency_demos", "users", column: "agency_id"
+  add_foreign_key "lightek_agency_demos", "users", column: "client_id", on_delete: :nullify
   add_foreign_key "lightek_agency_site_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_agency_site_memberships", "users"
   add_foreign_key "lightek_agency_site_memberships", "users", column: "granted_by_id"

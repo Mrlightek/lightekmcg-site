@@ -14,6 +14,7 @@ A business can build its website, sell products or book services, manage custome
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
 | Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |
+| Record and arrange audio takes | [Recording & audio takes](docs/studio/music-recording.md) |
 | Group instruments and process the mix | [Mixer buses & inserts](docs/studio/music-mixer.md) |
 | Automate the music mix | [Music automation](docs/studio/music-automation.md) |
 | Compose reusable music patterns | [Patterns & playlist](docs/studio/music-patterns.md) |

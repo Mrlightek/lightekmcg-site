@@ -13,6 +13,10 @@ module Studio
         raise ArgumentError,"Seed must be between 0 and 4294967295" unless seed.between?(0,2**32-1)
         recipe_id=payload.fetch("recipe").to_s;model=payload.fetch("model","").to_s
         intent={"scene_id"=>scene.id,"prompt"=>prompt,"negative"=>negative,"seed"=>seed,"recipe"=>recipe_id,"model"=>model}
+        if payload["shot_id"].present?
+          shot=Studio::Shots::Board.find(scene,payload["shot_id"])
+          intent.merge!("shot_id"=>shot["id"],"shot_name"=>shot["name"])
+        end
         asset=nil
         access.user.with_lock do
           asset=StudioAsset.find_by(owner:access.user,request_key:key)
@@ -34,7 +38,7 @@ module Studio
         receipt(asset)
       end
       def self.receipt(asset)
-        {asset_id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,phase:asset.metadata["ai_phase"],error:asset.error_message,prompt:asset.metadata.dig("ai_intent","prompt"),seed:asset.metadata.dig("ai_intent","seed"),preview_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil}
+        {asset_id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,phase:asset.metadata["ai_phase"],error:asset.error_message,prompt:asset.metadata.dig("ai_intent","prompt"),shot_id:asset.metadata.dig("ai_intent","shot_id"),shot_name:asset.metadata.dig("ai_intent","shot_name"),seed:asset.metadata.dig("ai_intent","seed"),preview_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil}
       end
       def self.list(access:,scene_id:)
         scene=access.scene!(scene_id)

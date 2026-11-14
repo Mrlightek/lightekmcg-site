@@ -2,7 +2,7 @@
 module LightekCommerce
   module Installations
     def self.scope_for(actor, operator: false)
-      scope = Order.where.not(purpose: "subscription_renewal").or(Order.where(purpose: nil)).joins(items: :product).where(lightek_commerce_products: {product_type: "lightek_instance"}).distinct
+      scope = Order.where.not(purpose: "subscription_renewal").or(Order.where(purpose: nil)).visible.joins(items: :product).where(lightek_commerce_products: {product_type: "lightek_instance"}).distinct
       unless operator
         return scope.where(customer_email: actor.email_address).or(scope.where(hosting_owner_id: actor.id))
       end

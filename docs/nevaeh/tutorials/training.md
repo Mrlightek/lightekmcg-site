@@ -30,3 +30,7 @@ Search documents with `/search Blender` or Software Library. Imported web text d
 Replace each ID with the record returned by that stage. Inspect training and held-out loss before activation. A completed training job is not automatically an active checkpoint; only a passing checkpoint can be activated. Internal models are for administrators; shared models are available to the intended users.
 
 The native model is small and its replies are drafts. Fluent text is not verified knowledge or an executable plan. Add representative examples and evaluate held-out behavior rather than assuming broad reasoning from a low training loss.
+
+## Continue learning from new source material
+
+Each new training request captures the active checkpoint as its parent. Train and activate batches sequentially to build on earlier weights. Training records retention loss and vocabulary coverage; it does not certify factual accuracy or ethical behavior. For Quran, hadith, translations, commentary and attributed ethical lessons, follow [Islamic learning](islamic_learning.md).

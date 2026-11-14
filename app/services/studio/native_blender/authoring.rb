@@ -2,7 +2,7 @@
 module Studio
   module NativeBlender
     class Authoring
-      KINDS=%w[mesh_translate mesh_extrude mesh_subdivide mesh_inset mesh_bevel mesh_delete mesh_merge mesh_smooth sculpt modifier bone_pose bone_add weight shape_key keyframe node_add node_link node_value node_remove].freeze
+      KINDS=%w[mesh_translate mesh_skew mesh_extrude mesh_subdivide mesh_inset mesh_bevel mesh_delete mesh_merge mesh_smooth sculpt modifier bone_pose bone_add weight shape_key keyframe node_add node_link node_value node_remove].freeze
       NODES={
         "material"=>%w[ShaderNodeBsdfPrincipled ShaderNodeOutputMaterial ShaderNodeTexNoise ShaderNodeTexVoronoi ShaderNodeTexChecker ShaderNodeTexCoord ShaderNodeMapping ShaderNodeValToRGB ShaderNodeMixRGB ShaderNodeMath ShaderNodeBump ShaderNodeNormalMap ShaderNodeEmission ShaderNodeMixShader ShaderNodeBsdfTransparent ShaderNodeRGB ShaderNodeValue],
         "geometry"=>%w[NodeGroupInput NodeGroupOutput GeometryNodeTransform GeometryNodeMeshCube GeometryNodeMeshUVSphere GeometryNodeSetPosition GeometryNodeInputPosition GeometryNodeJoinGeometry GeometryNodeSubdivisionSurface GeometryNodeSetMaterial GeometryNodeInstanceOnPoints GeometryNodeRealizeInstances GeometryNodeDistributePointsOnFaces ShaderNodeMath ShaderNodeVectorMath ShaderNodeTexNoise ShaderNodeValue],
@@ -77,6 +77,10 @@ module Studio
           raise ArgumentError,"Select vertices for weights" if kind=="weight" && cmd["indices"].empty?
         end
         case kind
+        when "mesh_skew"
+          axis=raw.fetch("axis");source_axis=raw.fetch("source_axis")
+          raise ArgumentError,"Choose two different X, Y or Z axes" unless %w[X Y Z].include?(axis) && %w[X Y Z].include?(source_axis) && axis!=source_axis
+          cmd.merge!("axis"=>axis,"source_axis"=>source_axis,"factor"=>number(raw.fetch("factor"),-2,2))
         when "mesh_translate","mesh_extrude" then cmd["delta"]=vector(raw.fetch("delta"))
         when "mesh_subdivide" then cmd["cuts"]=integer(raw.fetch("cuts",1),1,4)
         when "mesh_inset","mesh_bevel","mesh_merge" then cmd["amount"]=number(raw.fetch("amount"),0.000001,10000);cmd["segments"]=integer(raw.fetch("segments",2),1,8) if kind=="mesh_bevel"

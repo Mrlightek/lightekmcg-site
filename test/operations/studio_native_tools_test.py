@@ -30,6 +30,29 @@ def proof():
         if kind == 'mesh_delete': assert len(obj.data.polygons) == 5
         if kind == 'mesh_merge': assert len(obj.data.vertices) == 7
     obj = cube()
+    for axis in 'XYZ':
+        for source in 'XYZ':
+            if axis == source: continue
+            obj = cube(); shared = obj.copy(); bpy.context.scene.collection.objects.link(shared)
+            before = [list(v.co) for v in obj.data.vertices]
+            obj.shape_key_add(name='Basis'); obj.shape_key_add(name='Expression')
+            obj.data.shape_keys.key_blocks['Expression'].data[0].co.z += .25
+            expressions = [list(v.co) for v in obj.data.shape_keys.key_blocks['Expression'].data]
+            authoring.apply(obj,[{'kind':'mesh_skew','axis':axis,'source_axis':source,'factor':-.75,'indices':[]}])
+            a, s = 'XYZ'.index(axis), 'XYZ'.index(source)
+            for i, v in enumerate(obj.data.vertices):
+                assert abs(v.co[a] - (before[i][a] - .75*before[i][s])) < 1e-5
+                assert list(shared.data.vertices[i].co) == before[i]
+            for i, v in enumerate(obj.data.shape_keys.key_blocks['Expression'].data):
+                assert abs(v.co[a] - (expressions[i][a] - .75*expressions[i][s])) < 1e-5
+    obj = cube()
+    for params in [{'axis':'X','source_axis':'X','factor':1},{'axis':'X','source_axis':'Z','factor':float('nan')},{'axis':'X','source_axis':'Z','factor':3}]:
+        try:
+            authoring.apply(obj,[{'kind':'mesh_skew',**params}])
+            raise AssertionError('Invalid skew accepted')
+        except ValueError:
+            pass
+    obj = cube()
     authoring.apply(obj, [{'kind': 'sculpt', 'center': [1,1,1], 'path': [[-1,1,1]], 'delta': [0,0,.1], 'radius': .5}])
     assert max(v.co.z for v in obj.data.vertices) > 1
     for kind, props in [('SUBSURF', {'levels':1}), ('MIRROR', {'use_clip':True}), ('SOLIDIFY', {'thickness':.1}), ('DECIMATE', {'ratio':.5})]:

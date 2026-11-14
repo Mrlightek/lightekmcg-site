@@ -90,6 +90,9 @@ on:
       - 'db/migrate/20261107153000_register_studio_native_creation.rb'
       - 'db/migrate/20261107190000_register_studio_authoring.rb'
       - 'test/javascript/studio_authoring_test.cjs'
+      - 'test/javascript/studio_authoring_dom_test.cjs'
+      - 'test/javascript/studio_mesh_commands_test.cjs'
+      - 'test/javascript/fixtures/studio_authoring_fixture.cjs'
       - 'test/javascript/studio_stage_test.cjs'
       - 'blender/**'
       - 'app/models/artifact.rb'
@@ -178,7 +181,7 @@ jobs:
       - name: Native production authoring and animation acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
-        run: bundle exec ruby test/standalone/studio_authoring_checks.rb --name /test_authoring/
+        run: bundle exec ruby test/standalone/studio_authoring_checks.rb --name "/test_authoring|test_skew/"
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -214,6 +217,8 @@ jobs:
           NODE_PATH: ${{ runner.temp }}/studio-browser/node_modules
         run: |
           node test/javascript/studio_creation_test.cjs
+          node test/javascript/studio_authoring_dom_test.cjs
+          node test/javascript/studio_mesh_commands_test.cjs
           node test/javascript/studio_authoring_test.cjs
           node test/javascript/studio_library_test.cjs
           node test/javascript/studio_finishing_test.cjs

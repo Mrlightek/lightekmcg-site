@@ -2,16 +2,7 @@ const assert = require("node:assert/strict"),
   fs = require("node:fs"),
   path = require("node:path");
 const { chromium } = require("playwright");
-const fixture = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;background:#080e16;color:#eee;font:14px system-ui}#app{max-width:1200px;margin:auto;padding:12px}button{cursor:pointer;padding:8px}.btn{color:#eee;background:#26384b;border:1px solid #52677e;border-radius:6px}.btn.p{background:#66512d}.eb{font-size:10px;color:#d4bf95}.pwa-post-actions{display:flex;gap:8px;flex-wrap:wrap}</style><link rel="stylesheet" href="/lightek/studio-authoring.css"></head><body><main id="app"></main><script>
-const app=document.getElementById('app'),A={},ST={loaded:true,selectedObjectId:1},requests=[];
-const E=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const toast=v=>window.lastToast=v;
-const scene={id:7,lock_version:0,settings:{frame_start:1,frame_end:24,native_revision:0},objects:[{id:1,name:'Hero mesh',object_type:'native_object',definition:{native_type:'MESH',blender_object_name:'Hero',location:[0,0,0],rotation:[0,0,0],scale:[1,1,1],mesh:{vertex_count:8,face_count:6,vertices:[[0,1,1,1],[1,-1,1,1]],faces:[[0,0,1,2,3]]},graphs:[{scope:'material',slot:0,graph:{name:'Hero surface',nodes:[{name:'Principled BSDF',type:'ShaderNodeBsdfPrincipled',inputs:[{index:0,name:'Base Color'}],outputs:[{index:0,name:'BSDF'}]},{name:'Material Output',type:'ShaderNodeOutputMaterial',inputs:[{index:0,name:'Surface'}],outputs:[]}],links:[{from:'Principled BSDF',to:'Material Output',input:0,output:0}]}}]}},{id:2,name:'Hero rig',object_type:'native_object',definition:{native_type:'ARMATURE',bones:[{name:'Root',parent:null},{name:'Hand',parent:'Root'}]}}]};const record={scene,project:{id:1}};
-window.LightekStudioApp={tools:()=>'',prepare:()=>{},setQuote:q=>window.quote=q};window.LightekStudioViewportBridge={snapshot:()=>({sceneId:7,objects:scene.objects})};
-const studioCurrentSceneId=()=>7,studioSceneRecord=()=>record,studioWorkspaceSelectedObject=s=>s?.objects.find(o=>o.id===ST.selectedObjectId);
-A.studioLoad=async()=>{};A.studioBlenderDraftPreview=()=>{};
-const nevaeh={execute:async request=>{requests.push(request);const p=request.payload;if(request.capability.endsWith('authoring.edit')){scene.lock_version++;scene.settings.native_revision++;const o=scene.objects.find(o=>o.id===p.object_id)||scene.objects[0];o.definition.authoring_commands||=[];if(p.command)o.definition.authoring_commands.push(p.command);return {result:{object_id:o.id}};}if(request.capability.endsWith('authoring.preview'))return {result:{status:'completed',native_revision:scene.settings.native_revision,authoring:{},proxy_url:'/rails/active_storage/blobs/redirect/signed/scene.glb'}};return {result:{operation_id:9,quote:{principal_cents:500}}};}};
-function render(){app.innerHTML=LightekStudioApp.tools(record)}app.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b)});
-</script><script src="/lightek/studio-authoring.js"></script><script>location.hash='#/studio/7';render()</script></body></html>`;
+const fixture = require('./fixtures/studio_authoring_fixture.cjs');
 (async () => {
   const browser = await chromium.launch({
     headless: true,
@@ -144,6 +135,32 @@ function render(){app.innerHTML=LightekStudioApp.tools(record)}app.addEventListe
       path: "/tmp/lightek-authoring-mobile.png",
       fullPage: true,
     });
+    await page.getByRole('button',{name:'Model',exact:true}).click();
+    const skew=page.locator('[data-authoring-form=mesh_skew]');
+    const before=await page.evaluate(()=>requests.length);
+    await skew.locator('[name=factor_value]').fill('0.75');
+    assert.equal(await page.evaluate(()=>requests.length),before,'dragging does not submit an engine job');
+    assert.equal((await page.evaluate(()=>LightekStudioMeshDraft())).command.factor,.75);
+    await page.evaluate(()=>render());
+    assert.equal(await skew.locator('[name=factor_value]').inputValue(),'0.75','background rendering retains the draft');
+    await skew.getByRole('button',{name:'Reset preview'}).click();
+    assert.equal(await skew.locator('[name=factor_value]').inputValue(),'0');
+    assert.equal(await page.evaluate(()=>LightekStudioMeshDraft()),null);
+    await skew.locator('[name=factor_value]').fill('-0.5');
+    await skew.getByRole('button',{name:'Apply skew object'}).click();
+    await page.waitForFunction(n=>requests.length===n+1,before);
+    assert.deepEqual((await page.evaluate(()=>requests.at(-1))).payload.command,{kind:'mesh_skew',axis:'X',source_axis:'Z',factor:-.5,indices:[]});
+    assert.equal(await page.evaluate(()=>LightekStudioMeshDraft()),null);
+    // Dashboard tokens control the specialized authoring panel in either palette.
+    await page.evaluate(()=>{
+      const host=document.createElement('div');host.id='lightek-studio-dashboard';app.before(host);host.append(app);
+    });
+    for(const palette of [{bg:'#ffffff',text:'#172033',field:'#f4f6fa'},{bg:'#171923',text:'#eef0f6',field:'#10121a'}]) {
+      await page.evaluate(p=>document.documentElement.style.cssText=`--dd-sidebar-bg:${p.bg};--dd-card-bg:${p.bg};--dd-text-primary:${p.text};--dd-text-secondary:${p.text};--dd-input-bg:${p.field};--dd-input-text:${p.text};--dd-border:#556677;--dd-input-border:#556677;--dd-accent:#8965ce;--dd-button-text:#ffffff`,palette);
+      assert.equal(await page.locator('.sa-dock').evaluate(el=>getComputedStyle(el).backgroundColor),palette.bg==='#ffffff'?'rgb(255, 255, 255)':'rgb(23, 25, 35)');
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      await page.screenshot({path:`/tmp/lightek-authoring-${palette.bg==='#ffffff'?'light':'dark'}.png`,fullPage:true});
+    }
     assert.deepEqual(errors, []);
     console.log(
       "STUDIO_AUTHORING_UI_PASS mesh sculpt picked_coordinates rig_keyframe node_graph preview mobile",

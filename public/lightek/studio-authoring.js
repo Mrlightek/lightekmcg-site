@@ -13,6 +13,7 @@
     frame: 1,
     playing: false,
     brush: false,
+    skewDraft: null,
   };
   const previews = new Map();
   let playTimer = null,
@@ -113,8 +114,23 @@
       "CompositorNodeValue",
     ],
   };
+  function skewControls(object = selected()) {
+    const d = object?.definition || {}, draft = state.skewDraft;
+    const hasDraft = draft?.objectId === object?.id && draft.sceneId === current()?.scene.id;
+    const skew = hasDraft ? draft.command : { axis: "X", source_axis: "Z", factor: 0 };
+    const mesh = ["MESH", "CUBE", "SPHERE", "CYLINDER", "PLANE"].includes(d.native_type || object?.object_type?.toUpperCase());
+    return mesh && !d.native_source_preview ? toolForm(
+        "mesh_skew", "Skew object",
+        `<p>Lean the mesh around its local origin. Drag to preview, then apply to save.</p><label class="fld"><span>Move axis</span><select name="axis">${options(["X", "Y", "Z"], skew.axis)}</select></label><label class="fld"><span>Along axis</span><select name="source_axis">${options(["X", "Y", "Z"], skew.source_axis)}</select></label><label class="fld"><span>Skew amount</span><input name="factor" type="range" min="-2" max="2" step="0.01" value="${skew.factor}"></label><label class="fld"><span>Exact amount</span><input name="factor_value" type="number" min="-2" max="2" step="0.01" value="${skew.factor}"></label><button type="button" class="btn sm" data-a="studioAuthorSkewReset">Reset preview</button><p data-skew-status role="status">${hasDraft ? "Preview changes are unsaved." : "Adjust to preview. Apply saves one edit."}</p>`,
+      ) : "";
+  }
+  ui.objectControls = object => {
+    const control = skewControls(object);
+    return control ? `<div class="sa-dock sa-object-controls"><div class="sa-form-grid">${control}</div><div class="pwa-post-actions"><button class="btn sm" data-a="studioAuthorUndo">Undo</button><button class="btn sm" data-a="studioAuthorRedo">Redo</button><button class="btn sm" data-a="studioAuthorSync">Update Blender viewport</button></div></div>` : "";
+  };
   function model(d) {
     return (
+      skewControls() +
       toolForm(
         "mesh_translate",
         "Move vertices",
@@ -354,6 +370,7 @@
     );
   };
   A.studioAuthorTab = (b) => {
+    clearSkewDraft();
     state.tab = b.dataset.tab;
     render(1);
   };
@@ -415,6 +432,7 @@
         command,
         request_key: crypto.randomUUID(),
       });
+      clearSkewDraft();
       await A.studioLoad(true);
       ST.selectedObjectId = result.object_id;
       state.message =
@@ -460,6 +478,41 @@
   };
   A.studioAuthorUndo = () => run(() => edit("undo"));
   A.studioAuthorRedo = () => run(() => edit("redo"));
+  function clearSkewDraft() {
+    state.skewDraft = null;
+    window.dispatchEvent(new CustomEvent("lightek:mesh-command-preview", {
+      detail: { sceneId: current()?.scene.id, objectId: selected()?.id },
+    }));
+  }
+  window.LightekStudioMeshDraft = () => {
+    const draft = state.skewDraft;
+    return draft && state.tab === "model" && draft.sceneId === current()?.scene.id && draft.objectId === selected()?.id ? draft : null;
+  };
+  A.studioAuthorSkewReset = () => {
+    clearSkewDraft();
+    render(1);
+  };
+  app.addEventListener("input", event => {
+    const form = event.target.closest('[data-authoring-form="mesh_skew"]');
+    if (!form || state.busy) return;
+    const f = form.elements;
+    if (event.target.name === "factor_value") f.factor.value = f.factor_value.value;
+    else f.factor_value.value = f.factor.value;
+    const command = { kind: "mesh_skew", axis: f.axis.value, source_axis: f.source_axis.value, factor: Number(f.factor_value.value), indices: [] };
+    f.source_axis.setCustomValidity(command.axis === command.source_axis ? "Choose two different axes." : "");
+    if (!form.checkValidity()) return;
+    state.tab = "model";
+    state.skewDraft = { sceneId: current()?.scene.id, objectId: selected()?.id, command };
+    window.dispatchEvent(new CustomEvent("lightek:mesh-command-preview", { detail: state.skewDraft }));
+  });
+  window.addEventListener("lightek:mesh-command-preview-status", event => {
+    if (event.detail?.sceneId !== current()?.scene.id || event.detail?.objectId !== selected()?.id) return;
+    const status = app.querySelector("[data-skew-status]");
+    if (status) status.textContent = event.detail.ok ? (window.LightekStudioMeshDraft() ? "Live preview · Apply skew object to save." : "Saved mesh preview. Adjust to add another skew, or Undo.") : event.detail.reason;
+  });
+  window.addEventListener("lightek:visual-selection", () => {
+    if (state.skewDraft && state.skewDraft.objectId !== selected()?.id) clearSkewDraft();
+  });
   A.studioAuthorRenderFrame = () => {
     const input = app.querySelector("[data-blender-preview-frame]");
     if (input) input.value = state.frame;
@@ -517,6 +570,8 @@
           proxy: result.proxy_url,
           image: result.url,
           inventory: result.authoring,
+          commands: Object.fromEntries((fresh.scene.objects || []).map(o => [o.id, structuredClone(o.definition.authoring_commands || [])])),
+          transforms: Object.fromEntries((fresh.scene.objects || []).map(o => [o.id, structuredClone({ location:o.definition.location, rotation:o.definition.rotation, scale:o.definition.scale })])),
         });
         mergeInventory(fresh);
         state.message = "Blender viewport and object metadata updated.";
@@ -540,6 +595,7 @@
   const prepare = ui.prepare;
   ui.prepare = (record) => {
     prepare(record);
+    if (state.skewDraft && (state.skewDraft.sceneId !== record.scene.id || state.skewDraft.objectId !== selected()?.id)) clearSkewDraft();
     if (lastScene !== record.scene.id) {
       lastScene = record.scene.id;
       state.frame = Number(record.scene.settings.frame_current || 1);
@@ -558,13 +614,15 @@
       const scene = current()?.scene;
       if (
         !cache?.proxy ||
-        Number(cache.revision || 0) !==
-          Number(scene?.settings.native_revision || 0)
+        !(scene?.objects || []).every(o => {
+          const baked = cache.commands?.[o.id] || [], saved = o.definition.authoring_commands || [];
+          return baked.length <= saved.length && JSON.stringify(baked) === JSON.stringify(saved.slice(0, baked.length));
+        })
       )
         return data;
       let found = false;
       const objects = data.objects.map((o) => {
-        if (!o.definition?.native_source_preview) return o;
+        if (!o.definition?.native_source_preview) return { ...o, definition: { ...o.definition, viewport_baked_commands: cache.commands?.[o.id] || [], viewport_source_transform:cache.transforms?.[o.id] } };
         found = true;
         return {
           ...o,
@@ -680,6 +738,12 @@
       ])
         if (f[key]) cmd[key] = num(key);
       if (kind === "sculpt") cmd.center = vec("center");
+      if (kind === "mesh_skew") {
+        cmd.axis = f.axis.value;
+        cmd.source_axis = f.source_axis.value;
+        cmd.factor = num("factor_value");
+        cmd.indices = [];
+      }
       if (["bone_pose", "keyframe"].includes(kind))
         for (const key of ["location", "rotation", "scale"])
           cmd[key] = vec(key);

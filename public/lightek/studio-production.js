@@ -1,7 +1,7 @@
 /* Production navigation and handoffs shared by every native Dashboard workspace. */
 (() => {
   if (!document.querySelector('#lightek-studio-dashboard')) return;
-  const modes = [['shots','Shots'],['media','Media'],['edit','Edit'],['color','Color'],['stage','Stage & FX'],['cast','Animation'],['ai','AI Studio'],['music','Music'],['deliver','Deliver']];
+  const modes = [['shots','Shots'],['media','Media'],['edit','Edit'],['color','Color'],['stage','Stage & FX'],['look','Look & materials'],['cast','Animation'],['ai','AI Studio'],['music','Music'],['deliver','Deliver']];
   const aliases = {'3d':'scene',timeline:'edit',performance:'cast',visual:'camera',publish:'deliver'};
   const allowed = new Set([...modes.map(([key])=>key),'scene','camera','assets','script']);
   const state = {scene:null,hash:null,busy:false,jobs:[],project:null,jobError:'',jobLoading:false,timer:null};
@@ -9,17 +9,19 @@
   const mode = () => { const key=location.hash.split('/')[3]||'edit';return aliases[key]|| (allowed.has(key)?key:'stage'); };
   const current = () => studioSceneRecord(studioCurrentSceneId());
   const call = async(action,payload)=>(await nevaeh.execute({capability:'studio.workspace.'+action,payload})).result;
-  const busy = () => state.busy || window.LightekStudioShots?.busy() || window.LightekStudioDelivery?.busy() || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
+  const busy = () => window.LightekStudioLook?.busy() || state.busy || window.LightekStudioShots?.busy() || window.LightekStudioDelivery?.busy() || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
   function go(key,sceneId=studioCurrentSceneId(),internal=false) {
     if(busy()&&!internal){toast('Finish the current save or render request before switching.');return;}
     const target=aliases[key]||key;
     if(!allowed.has(target)||!studioSceneRecord(Number(sceneId)))return;
+    window.LightekStudioLook?.capture();
     LightekStudioPerformance?.capture();
     LightekStudioMusic?.stop();LightekStudioTimeline?.stop();
     location.hash=`#/studio/${Number(sceneId)}/${target}`;
   }
   function status() {
     const dirty=[];
+    if(window.LightekStudioLook?.dirty())dirty.push('look & materials');
     if(window.LightekStudioShots?.dirty())dirty.push('storyboard');
     if(LightekStudioApp.dirty())dirty.push('scene notes');
     if(LightekStudioPerformance?.dirty())dirty.push('cast direction');
@@ -38,6 +40,7 @@
     return `<header class="production-header"><a class="production-brand" href="${home}">LIGHTEK<span>STUDIO</span></a><div class="production-title"><a href="${home}" class="production-breadcrumb">Productions</a><h1>${E(record.project.name)}</h1>${campaignLink}</div><label class="production-scene"><span>Scene</span><select aria-label="Production scene" data-production-scene>${scenes.map(r=>`<option value="${r.scene.id}" ${r.scene.id===scene.id?'selected':''}>${E(r.scene.name)}</option>`).join('')}</select></label><span class="production-save" role="status" data-production-status>${E(status())}</span><a class="vw-btn" href="#/studio/${scene.id}/script" data-production-mode="script">Script</a><button class="vw-btn" data-production="save">Save changes</button></header><div class="production-toolbar"><nav aria-label="Production workspaces">${modes.map(([key,label])=>`<a href="#/studio/${scene.id}/${key}" data-production-mode="${key}">${label}</a>`).join('')}</nav><div class="production-tools"><a href="#/studio/${scene.id}/assets" data-production-mode="assets">Assets</a><button class="vw-btn" data-vw="save-template">Save show template</button></div></div><div class="production-context"><div><strong data-production-mode-title></strong><span data-production-description></span></div><nav aria-label="Scene tools"><a href="#/studio/${scene.id}/scene" data-production-mode="scene">Model & animate</a><a href="#/studio/${scene.id}/camera" data-production-mode="camera">Camera & lighting</a></nav></div>`;
   }
   const descriptions = {
+    look:['Look & materials','Save surface controls and scene finish, then review a Blender preview.'],
     shots:['Direct the sequence','Order shots, choose cameras and timing, then render into your edit.'],
     ai:['AI Studio','Generate on your own worker, then use the result in this production.'],
     media:['Media pool','Import and organize source media for this production.'],
@@ -61,6 +64,7 @@
     if(key==='stage')return LightekStudioVisual.view(record);
     if(key==='shots')return window.LightekStudioShots?.view(record)||'<p>Opening storyboard…</p>';
     if(key==='ai')return window.LightekStudioAI?.view(record)||'<p>Opening AI Studio…</p>';
+    if(key==='look')return window.LightekStudioLook?.view(record)||'';
     if(key==='music')return LightekStudioMusic.view(record);
     if(key==='assets')return `<div class="production-panel studio-dashboard-advanced">${R.studio('library')}</div>`;
     let content;
@@ -78,6 +82,7 @@
       history.replaceState(null,'',location.pathname+location.search+state.hash);
       toast('Finish the current operation before switching.');return true;
     }
+    window.LightekStudioLook?.capture();
     LightekStudioPerformance?.capture();
     const key=mode();
     if(state.scene!==record.scene.id){
@@ -139,13 +144,13 @@
     if(action==='use-render')useRender(button);
     if(action==='save'){
       if(busy())return;const key=mode();
-      const save=key==='shots'?()=>LightekStudioShots.save():key==='music'?()=>LightekStudioMusic.save():['edit','color','media'].includes(key)?()=>LightekStudioTimeline.save():()=>LightekStudioApp.save();
+      const save=key==='look'?()=>LightekStudioLook.save():key==='shots'?()=>LightekStudioShots.save():key==='music'?()=>LightekStudioMusic.save():['edit','color','media'].includes(key)?()=>LightekStudioTimeline.save():()=>LightekStudioApp.save();
       state.busy=true;button.disabled=true;Promise.resolve().then(save).then(()=>{updateStatus();toast('Changes saved.');}).catch(error=>toast(error.message)).finally(()=>{state.busy=false;button.disabled=false;});
     }
   });
   app.addEventListener('change',event=>{if(event.target.matches('[data-production-scene]')){go(mode(),Number(event.target.value));if(busy())event.target.value=state.scene;}queueMicrotask(updateStatus);});
   app.addEventListener('input',()=>queueMicrotask(updateStatus));
   app.addEventListener('toggle',event=>{if(event.target.matches('[data-production-jobs]')){if(event.target.open)loadJobs();else clearTimeout(state.timer);}},true);
-  window.addEventListener('beforeunload',event=>{if(window.LightekStudioEdit?.busy()||LightekStudioApp.hasDrafts()||LightekStudioTimeline?.hasDrafts()||LightekStudioPerformance?.hasDrafts()){event.preventDefault();event.returnValue='';}});
+  window.addEventListener('beforeunload',event=>{if(window.LightekStudioLook?.hasDrafts()||window.LightekStudioEdit?.busy()||LightekStudioApp.hasDrafts()||LightekStudioTimeline?.hasDrafts()||LightekStudioPerformance?.hasDrafts()){event.preventDefault();event.returnValue='';}});
   window.LightekStudioProduction={render:renderProduction,go,mode};
 })();

@@ -14,6 +14,7 @@ A business can build its website, sell products or book services, manage custome
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
 | Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |
+| Finish Blender materials and scene look | [Look & materials](docs/studio/look-and-materials.md) |
 | Arrange character motion | [Body motion clips](docs/studio/body-motion-clips.md) |
 | Animate dialogue on a character | [Character speech & lip sync](docs/studio/character-lip-sync.md) |
 | Set up a self-hosted generation worker | [Genesis workers & model packages](docs/studio/genesis-workers.md) |

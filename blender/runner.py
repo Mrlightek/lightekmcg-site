@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import authoring
 import performance
 import motion
+import appearance
 
 
 SCHEMA_VERSION = "1.0"
@@ -375,6 +376,7 @@ def create_manifest_object(item):
             for source_name, child in zip(names, target.objects):
                 bpy.context.scene.collection.objects.link(child)
                 source_objects[source_name] = child
+                child["lightek_source_object"] = source_name
         elif definition.get("asset_format") == "blend":
             with bpy.data.libraries.load(path, link=False) as (available, target):
                 requested = definition.get("asset_scene")
@@ -872,6 +874,7 @@ def stage_manifest(manifest):
             obj = create_manifest_object(item)
             apply_library_motion(obj, definition)
         authoring.apply(obj, definition.get("authoring_commands", []))
+        appearance.material(obj, definition)
         obj["lightek_preset_instance"] = definition.get("preset_instance", "")
         obj["lightek_preset_object"] = definition.get("production_shot_name") or item.get("name", "")
         obj["lightek_object_name"] = definition.get("blender_object_name", obj.name)
@@ -903,6 +906,7 @@ def stage_manifest(manifest):
         bpy.context.scene.camera = None
     ensure_camera()
     apply_json_presets(settings, created)
+    if "look" in settings: appearance.look(bpy.context.scene, settings["look"])
     if bpy.context.scene.camera.data.type == 'PANO':
         bpy.context.scene.render.engine = 'CYCLES'
     if not native_path:

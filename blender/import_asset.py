@@ -46,9 +46,15 @@ def object_payload(obj):
             continue
         bsdf = material.node_tree.nodes.get('Principled BSDF') if material.use_nodes else None
         color = list(bsdf.inputs['Base Color'].default_value) if bsdf else list(material.diffuse_color)
-        materials.append({'name': material.name, 'slot': slot_index, 'editable': bool(bsdf), 'color': color,
-            'metallic': float(bsdf.inputs['Metallic'].default_value) if bsdf else 0,
-            'roughness': float(bsdf.inputs['Roughness'].default_value) if bsdf else 0.5})
+        surface = {'name':material.name,'slot':slot_index,'editable':bool(bsdf),'color':color,
+            'metallic':float(bsdf.inputs['Metallic'].default_value) if bsdf else 0,
+            'roughness':float(bsdf.inputs['Roughness'].default_value) if bsdf else .5}
+        if bsdf:
+            for field,socket in {'transmission':'Transmission Weight','ior':'IOR','opacity':'Alpha','emission_color':'Emission Color','emission_strength':'Emission Strength'}.items():
+                if socket in bsdf.inputs:
+                    value=bsdf.inputs[socket].default_value;surface[field]=list(value) if field=='emission_color' else float(value)
+            surface['linked_fields']=[field for field,socket in {'color':'Base Color','metallic':'Metallic','roughness':'Roughness','transmission':'Transmission Weight','ior':'IOR','opacity':'Alpha','emission_color':'Emission Color','emission_strength':'Emission Strength'}.items() if socket in bsdf.inputs and bsdf.inputs[socket].is_linked]
+        materials.append(surface)
     definition['materials'] = materials
     inputs = []
     for mod in obj.modifiers:

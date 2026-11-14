@@ -9,7 +9,7 @@ ROOT=Path(__file__).resolve().parents[2]
 class StudioMediaSetupTest(unittest.TestCase):
     def assert_restricted_runtime_probes(self, commands):
         probes=[command for command in commands if command[0]=='run']
-        self.assertEqual(len(probes),2)
+        self.assertEqual(len(probes),3)
         node=next(command for command in probes if 'node' in command)
         self.assertEqual(node[-3:],['node','/opt/lightek-editors/movie-render.cjs','--health'])
         self.assertEqual(node[node.index('--memory')+1],'256m')
@@ -43,7 +43,7 @@ class StudioMediaSetupTest(unittest.TestCase):
             commands=[json.loads(line) for line in (folder/'trace').read_text().splitlines()]
             self.assertEqual(commands[0],['info'])
             build=next(command for command in commands if command[0]=='build')
-            self.assertEqual(build[build.index('--tag')+1],'lightek/studio-media:20261112')
+            self.assertEqual(build[build.index('--tag')+1],'lightek/studio-media:20261114')
             self.assertEqual(build[-1],str(ROOT/'docker/studio-media'))
             self.assertIn('--label',build)
             self.assert_restricted_runtime_probes(commands)
@@ -74,7 +74,7 @@ if '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.4.0')
             self.assertIn('LIGHTEK_BLENDER_RUNTIME_READY',result.stdout)
 
     def test_either_failed_runtime_probe_stops_setup(self):
-        for engine in ['node','blender']:
+        for engine in ['node','blender','/opt/rhubarb/rhubarb']:
             with self.subTest(engine=engine), tempfile.TemporaryDirectory() as directory:
                 folder=Path(directory); binary=folder/'docker'
                 binary.write_text("#!/usr/bin/env python3\nimport os,sys\nargs=sys.argv[1:]\nif args==['info','--format','{{.NCPU}}']:print('1')\nif args and args[0]=='run' and os.environ['FAIL_ENGINE'] in args:sys.exit(7)\nif '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.4.0')\n")

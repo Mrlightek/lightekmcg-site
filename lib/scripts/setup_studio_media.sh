@@ -2,7 +2,7 @@
 set -euo pipefail
 # Run as the same OS account as Sidekiq, from the application checkout.
 # Rails stays on Passenger. Blender/FFmpeg are isolated dependency workers.
-STUDIO_RUNTIME_IMAGE="${STUDIO_ASSET_WORKER_IMAGE:-lightek/studio-media:20261112}"
+STUDIO_RUNTIME_IMAGE="${STUDIO_ASSET_WORKER_IMAGE:-lightek/studio-media:20261114}"
 STUDIO_RUNTIME_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 command -v docker >/dev/null || { echo 'ERROR: Docker is required for isolated Studio media workers.' >&2; exit 1; }
 if ! STUDIO_DOCKER_STATUS="$(docker info 2>&1)"; then
@@ -31,3 +31,9 @@ fi
 if [[ -n "${STUDIO_MEDIA_WORKER_IMAGE:-}" && "$STUDIO_MEDIA_WORKER_IMAGE" != "$STUDIO_RUNTIME_IMAGE" ]]; then
   docker image inspect "$STUDIO_MEDIA_WORKER_IMAGE" >/dev/null || docker pull "$STUDIO_MEDIA_WORKER_IMAGE"
 fi
+
+# Fail deployment clearly if a custom media image lacks the speech engine.
+STUDIO_SPEECH_IMAGE="${STUDIO_MEDIA_WORKER_IMAGE:-$STUDIO_RUNTIME_IMAGE}"
+docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --pids-limit 128 --memory 256m --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" \
+  "$STUDIO_SPEECH_IMAGE" /opt/rhubarb/rhubarb --version

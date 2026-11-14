@@ -1,0 +1,45 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { JSDOM } = require('jsdom');
+const script = fs.readFileSync(path.join(__dirname, '../../public/lightek/mfa-recovery.js'), 'utf8');
+const codes = Array.from({length: 10}, (_, i) => (i + 1).toString(16).padStart(24, '0'));
+function fixture(supported = true) {
+  const dom = new JSDOM(`<section data-mfa-recovery><ul data-mfa-recovery-codes>${codes.map(code => `<li><code>${code}</code></li>`).join('')}</ul><button data-mfa-recovery-download hidden>Download</button><p data-mfa-recovery-status></p></section>`, {runScripts: 'outside-only', url: 'https://example.test'});
+  const blobs = [], clicks = [], released = [], timers = [];
+  dom.window.Blob = Blob;
+  dom.window.URL.createObjectURL = supported ? blob => { blobs.push(blob); return `blob:fixture-${blobs.length}`; } : undefined;
+  dom.window.URL.revokeObjectURL = url => released.push(url);
+  dom.window.setTimeout = (callback, delay) => timers.push({callback, delay});
+  dom.window.HTMLAnchorElement.prototype.click = function () { clicks.push({href: this.href, filename: this.download}); };
+  dom.window.eval(script);
+  return {dom, blobs, clicks, released, timers, button: dom.window.document.querySelector('button')};
+}
+(async () => {
+  const test = fixture();
+  test.dom.window.document.dispatchEvent(new test.dom.window.Event('turbo:load'));
+  assert.equal(test.button.hidden, false);
+  test.button.click();
+  test.button.click();
+  assert.equal(test.clicks.length, 2, 'Reinitializing must not bind duplicate downloads');
+  assert.equal(test.clicks[0].filename, 'lightek-recovery-codes.txt');
+  const text = await test.blobs[0].text();
+  assert.equal(test.blobs[0].type, 'text/plain;charset=utf-8');
+  for (const code of codes) assert.equal(text.split('\n').filter(line => line === code).length, 1);
+  assert.match(text, /Each code can be used once/);
+  assert.equal(test.dom.window.document.querySelectorAll('a[download]').length, 0);
+  assert.equal(test.dom.window.localStorage.length + test.dom.window.sessionStorage.length, 0);
+  assert.equal(test.released.length, 0, 'Do not revoke before the browser consumes the download');
+  test.timers.forEach(timer => { assert.equal(timer.delay, 60000); timer.callback(); });
+  assert.deepEqual(test.released, ['blob:fixture-1', 'blob:fixture-2']);
+  test.dom.window.URL.createObjectURL = () => { throw new Error('Fixture failure'); };
+  test.button.click();
+  assert.match(test.dom.window.document.querySelector('[data-mfa-recovery-status]').textContent, /Copy the codes above/);
+  assert.equal(test.dom.window.document.querySelectorAll('code').length, 10);
+  test.dom.window.close();
+  const unsupported = fixture(false);
+  assert.equal(unsupported.button.hidden, true);
+  assert.equal(unsupported.dom.window.document.querySelectorAll('code').length, 10);
+  unsupported.dom.window.close();
+  console.log('MFA_RECOVERY_PASS: exact codes, repeated clicks, local download, URL cleanup and copy fallback');
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -53,6 +53,19 @@ require ROOT.join('app/controllers/passwords_controller')
 require ROOT.join('app/controllers/account_setups_controller')
 require ROOT.join('app/controllers/identity_onboarding_controller')
 require ROOT.join('app/controllers/dashboard/agencies_controller')
+require ROOT.join('app/controllers/dashboard/account_settings_controller')
+require ROOT.join('app/controllers/dashboard/client_home_controller')
+require ROOT.join('app/models/lightek_agency/site_membership')
+require ROOT.join('app/services/lightek_agency/access')
+require ROOT.join('app/services/lightek_commerce/installations')
+ActiveRecord::Schema.define do
+  add_column :lightek_commerce_orders, :created_at, :datetime
+  create_table(:lightek_agency_site_memberships) do |t|
+    t.integer :user_id; t.integer :site_id; t.integer :granted_by_id; t.string :role
+  end
+end
+LightekCommerce::Order.reset_column_information
+[Dashboard::AccountSettingsController, Dashboard::ClientHomeController].each { |klass| klass.layout false }
 require ROOT.join('app/services/gatekeeper/website_readiness')
 
 class EnterpriseOnboardingChecks < EnterpriseHttpChecks
@@ -78,6 +91,17 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
     User.create!(email_address: 'new-client@example.test', role: 'admin', first_name: 'New', password_setup_required: true,
       password: 'unknown-bootstrap-password', password_confirmation: 'unknown-bootstrap-password')
   end
+  def capture_page(name)
+    return unless (directory = ENV['MFA_QR_CAPTURE_DIR'])
+    FileUtils.mkdir_p(directory)
+    File.write(File.join(directory, name), response.body)
+  end
+  def open_client_home
+    LightekCommerce::Installations.stub(:scope_for, ->(actor) {
+      assert_equal @other.id, actor.id
+      LightekCommerce::Order.none
+    }) { get dashboard_client_home_path }
+  end
   def csrf = Nokogiri::HTML(response.body).at_css('input[name="authenticity_token"]')['value']
   def open_setup(user)
     @setup_token = user.generate_token_for(:password_setup)
@@ -85,6 +109,7 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
     assert_response :success
     assert_includes response.body, 'no temporary or previous password is needed'
     assert_equal 'same-origin', response.headers['Referrer-Policy']
+    capture_page('password-setup.html')
     csrf
   end
   def test_onboarding_invitation_is_queued_only_for_pending_accounts
@@ -125,6 +150,11 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
     post confirm_identity_security_path, params: {otp: LightekIdentity::Mfa.code(secret, Time.current.to_i / 30), authenticity_token: csrf}, headers: {'Origin' => 'https://example.test'}
     assert_response :success
     assert_includes response.body, 'Save your recovery codes'
+    assert_select '[data-mfa-recovery-codes] code', count: 10
+    assert_select 'button[data-mfa-recovery-download][type="button"][hidden]', count: 1
+    assert_select 'script[src="/lightek/mfa-recovery.js"]', count: 1
+    assert_equal 'no-store', response.headers['Cache-Control']
+    capture_page('recovery.html')
     assert LightekIdentity::Mfa.fresh?(client.sessions.last)
     get '/after-login'
     assert_response :success
@@ -256,6 +286,113 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
       assert client.password_setup_required?
       assert client.password_setup_invitation_error
     end
+  end
+
+  def test_onboarding_client_lands_on_a_scoped_home_and_can_open_personal_settings
+    client = @other
+    client.update!(agency: @employer)
+    DymondSite::Site.create!(tenant: @employer, name: 'Private agency site', host: 'private-agency.example.test')
+    login(client)
+    assert_redirected_to dashboard_client_home_url
+    open_client_home
+    assert_response :success
+    assert_includes response.body, 'Your workspace'
+    assert_includes response.body, 'No websites have been assigned'
+    refute_includes response.body, 'Private agency site'
+    capture_page('client-home.html')
+    get dashboard_settings_home_path
+    assert_response :success
+    assert_select 'a[href="/identity/security"] strong', text: 'Sign-in security'
+    refute_includes response.body, 'Compute providers'
+    refute_includes response.body, 'Credential vault'
+    assert_equal %w[no-store private], response.headers['Cache-Control'].split(',').map(&:strip).sort
+    capture_page('client-settings.html')
+  end
+
+  def test_onboarding_client_home_only_lists_owned_or_explicitly_delegated_sites
+    client = @other
+    owned = DymondSite::Site.create!(tenant: client, name: 'Owned client site', host: 'owned.example.test')
+    delegated = DymondSite::Site.create!(tenant: @employer, name: 'Delegated site', host: 'delegated.example.test')
+    DymondSite::Site.create!(tenant: @employer, name: 'Never assigned', host: 'secret.example.test')
+    LightekAgency::SiteMembership.create!(site: delegated, user: client, granted_by: @employer, role: 'designer')
+    login(client)
+    open_client_home
+    assert_response :success
+    assert_includes response.body, owned.name
+    assert_includes response.body, delegated.name
+    refute_includes response.body, 'Never assigned'
+    refute_includes response.body, 'secret.example.test'
+  ensure
+    LightekAgency::SiteMembership.delete_all
+  end
+
+  def test_onboarding_bookkeeping_unavailable_explains_access_without_granting_it
+    original = User.instance_method(:can_access_feature?)
+    User.define_method(:can_access_feature?) { |*| false }
+    login(@other)
+    get dashboard_accounting_path
+    assert_response :forbidden
+    assert_includes response.body, 'active bookkeeping entitlement'
+    assert_select 'a[href="/after-login/servers"]', text: 'Back to Servers & Applications'
+    refute_includes response.body, @book.name
+    post dashboard_accounting_books_path, params: {book: {name: 'Must not be created'}}
+    assert_response :forbidden
+    refute LightekAccounting::Book.exists?(name: 'Must not be created')
+  ensure
+    User.define_method(:can_access_feature?, original) if original
+  end
+
+  def test_onboarding_missing_or_foreign_bookkeeping_record_has_a_safe_explanation
+    login(@other)
+    get dashboard_accounting_path(employer_id: @employer.id, book_id: @book.id)
+    assert_response :not_found
+    assert_includes response.body, 'could not be found for your account'
+    refute_includes response.body, @book.name
+  end
+
+  def test_onboarding_personal_settings_and_client_home_still_require_sign_in
+    get dashboard_settings_home_path
+    assert_redirected_to new_session_path
+    get dashboard_client_home_path
+    assert_redirected_to new_session_path
+  end
+
+  def test_onboarding_installed_application_launch_opens_its_admin_dashboard
+    visible = LightekCommerce::Order.create!(customer_email: @other.email_address)
+    LightekCommerce::Order.create!(customer_email: @employer.email_address)
+    login(@other)
+    LightekCommerce::Installations.stub(:scope_for, ->(actor) {
+      assert_equal @other.id, actor.id
+      LightekCommerce::Order.where(customer_email: actor.email_address)
+    }) do
+      LightekCommerce::Installations.stub(:summary, ->(order) {
+        assert_equal visible.id, order.id
+        {hostname: 'owned-instance.example.test', state: 'ready', ready: true, url: 'https://owned-instance.example.test'}
+      }) { get dashboard_client_home_path }
+    end
+    assert_response :success
+    assert_select 'a[href="https://owned-instance.example.test/dashboard/"][rel="noopener"]', text: 'Launch admin dashboard'
+    assert_select "a[href=\"/my/installations/#{visible.id}\"]", text: 'Application details & setup'
+  end
+
+  def test_onboarding_explicit_return_destination_is_preserved_for_clients
+    get '/after-login/servers'
+    assert_redirected_to new_session_path
+    post session_path, params: {email_address: @other.email_address, password: 'fixture-password'}
+    assert_redirected_to 'https://example.test/after-login/servers'
+  end
+
+  def test_onboarding_generic_dashboard_request_returns_clients_to_their_home
+    get '/dashboard'
+    assert_redirected_to new_session_path
+    post session_path, params: {email_address: @other.email_address, password: 'fixture-password'}
+    assert_redirected_to dashboard_client_home_url
+  end
+
+  def test_onboarding_installed_owner_admin_keeps_the_admin_dashboard_landing
+    @employer.update!(role: 'admin')
+    login(@employer)
+    assert_redirected_to dashboard_nevaeh_os_url
   end
 
 end

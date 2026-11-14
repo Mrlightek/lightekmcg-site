@@ -19,8 +19,12 @@ on:
       - 'public/lightek/accounting-live.js'
       - 'test/standalone/enterprise*'
       - 'public/lightek/mfa-enrollment*'
+      - 'public/lightek/mfa-recovery.js'
+      - 'public/lightek/people-workspace.css'
       - 'public/lightek/vendor/qrcode-generator/**'
       - 'test/javascript/mfa_qr*'
+      - 'test/javascript/account_onboarding_browser_test.cjs'
+      - 'test/javascript/mfa_recovery_test.cjs'
       - 'test/standalone/people*'
       - 'test/operations/directory_membership_test.py'
       - '.github/workflows/enterprise-acceptance.yml'
@@ -59,7 +63,7 @@ jobs:
       - name: Install QR browser acceptance dependencies
         run: |
           npm install --prefix /tmp/mfa-qr-ci playwright@1.56.1 jsqr@1.4.0 pngjs@7.0.0 jsdom@26.1.0
-          /tmp/mfa-qr-ci/node_modules/.bin/playwright install --with-deps chromium
+          /tmp/mfa-qr-ci/node_modules/.bin/playwright install --with-deps chromium webkit
       - name: Verify authentication, tenant permissions and bookkeeping workflows
         env:
           MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render
@@ -70,7 +74,9 @@ jobs:
           MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render
         run: |
           node test/javascript/mfa_qr_encoding_test.cjs
+          node test/javascript/mfa_recovery_test.cjs
           node test/javascript/mfa_qr_browser_test.cjs
+          node test/javascript/account_onboarding_browser_test.cjs
       - name: Verify staged provisioning acceptance and invitation mail
         run: |
           python3 -m unittest test.scripts.test_paid_instance_verification

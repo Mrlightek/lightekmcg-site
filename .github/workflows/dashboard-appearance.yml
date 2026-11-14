@@ -10,6 +10,8 @@ on:
       - 'public/lightek/business-workspace.css'
       - 'test/standalone/dashboard_appearance_test.rb'
       - 'test/standalone/dashboard_network_view_test.rb'
+      - 'app/helpers/nevaeh_control_center_helper.rb'
+      - 'test/standalone/dashboard_breadcrumbs_test.rb'
       - '.github/workflows/dashboard-appearance.yml'
   workflow_dispatch:
 permissions:

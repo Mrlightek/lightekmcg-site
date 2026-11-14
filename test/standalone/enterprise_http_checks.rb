@@ -66,11 +66,17 @@ EnterpriseHarness.routes.draw do
     end
   end
   get '/my/installations/:id', to: 'installations#show', as: :installation
+  get '/my/installations', to: 'installations#index', as: :installations
+  get '/dashboard/home', to: 'dashboard/client_home#index', as: :dashboard_client_home
+  get '/dashboard/settings', to: 'dashboard/account_settings#index', as: :dashboard_settings_home
+  get '/dashboard/business', to: 'dashboard/business_hub#index', as: :dashboard_business_hub
+  get '/my/reservations', to: 'identity_protected#index', as: :my_reservations
   resources :passwords, param: :token
   resource :session,only: %i[new create destroy]
   eval(ROOT.join('config/routes/enterprise_identity.rb').read,binding)
   eval(ROOT.join('config/routes/accounting.rb').read,binding)
   get '/after-login',to: 'identity_protected#index'
+  get '/dashboard',to: 'identity_protected#index'
   get '/after-login/servers',to: 'identity_protected#index',as: :dashboard_servers
   get '/after-login/employee',to: 'identity_protected#index',as: :dashboard_nevaeh_os
   eval(ROOT.join('config/routes/people.rb').read,binding)

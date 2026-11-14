@@ -162,6 +162,16 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/studio_performance_checks.rb --name /test_performance_/
+      - name: Source-bound motion arrangements and native NLA playback
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: |
+          bundle exec ruby test/standalone/studio_motion_checks.rb --name /StudioMotionTest/
+          mkdir -p "$RUNNER_TEMP/studio-motion"
+          echo '{"skin":"#925e43","wardrobe":"#64388b","hair":"#211916"}' > "$RUNNER_TEMP/studio-motion/params.json"
+          ffmpeg -v error -y -f lavfi -i sine=frequency=220:duration=2 -ac 1 "$RUNNER_TEMP/studio-motion/voice.wav"
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python blender/create_performer.py -- "$RUNNER_TEMP/studio-motion/params.json" "$RUNNER_TEMP/studio-motion/performer.blend"
+          blender --background "$RUNNER_TEMP/studio-motion/performer.blend" --disable-autoexec --python-exit-code 1 --python test/operations/studio_motion_blender.py -- "$PWD" "$RUNNER_TEMP/studio-motion"
       - name: Completed render to episode edit handoff
         run: |
           bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
@@ -249,6 +259,7 @@ jobs:
           node test/javascript/studio_library_test.cjs
           node test/javascript/studio_finishing_test.cjs
           node test/javascript/studio_performance_test.cjs
+          node test/javascript/studio_motion_test.cjs
           node test/javascript/studio_visual_test.cjs
           node test/javascript/studio_dashboard_browser_test.cjs
           node test/javascript/studio_dashboard_context_test.cjs

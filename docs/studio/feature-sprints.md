@@ -9,6 +9,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Ordered storyboard, camera/frame/Cast selection and immutable shot render snapshots.
 - [x] Managed Genesis worker/model setup, authenticated routing, resumable verified packages and core image/video recipe contracts. See [Genesis workers](genesis-workers.md).
 - [x] Offline speech-driven mouth cues, editable phoneme takes, optional detailed face bindings and native Blender animation. See [Character lip sync](character-lip-sync.md).
+- [x] Source-bound body-motion clips, trim/speed/repeat/layer/blend controls, saved arrangements and editable native NLA playback. See [Body motion clips](body-motion-clips.md).
 - [x] Storyboard → Genesis prompt handoff with shot provenance.
 - [x] Finished shot → media library → edit handoff and reusable template reference remapping.
 

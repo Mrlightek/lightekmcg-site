@@ -3,3 +3,7 @@
 #lightek-studio-dashboard .studio-performance{background:var(--dd-page-bg,#0d1119);color:var(--dd-text-primary,#edf0f6)}
 #lightek-studio-dashboard .studio-performance .pwa-post{background:var(--dd-card-bg,#151922);border-color:var(--dd-border,#384354)}
 #lightek-studio-dashboard .studio-performance :is(input,select,textarea){background:var(--dd-input-bg,#0c1018);color:var(--dd-input-text,var(--dd-text-primary,#edf0f6));border-color:var(--dd-input-border,var(--dd-border,#384354));color-scheme:var(--dd-form-scheme,dark)}
+
+.studio-motion{margin:20px 0;padding:16px;border:1px solid var(--dd-border,#384354);border-radius:10px}.studio-motion-clips>article{margin:14px 0;padding:14px;border:1px solid var(--dd-border,#384354);border-radius:8px}.studio-motion-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}.studio-motion [role=alert]{color:var(--dd-danger,#efa093)}
+
+.studio-motion fieldset{border:0;margin:0;padding:0;min-width:0}

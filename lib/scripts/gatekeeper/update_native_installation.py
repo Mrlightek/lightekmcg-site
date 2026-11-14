@@ -301,6 +301,8 @@ class NativeUpdater:
                         self.command(["bash", str(self.root / "lib/scripts/refresh_lightek_mail_helpers.sh")])
                     if (self.root / "lib/scripts/setup_session_media_access.py").is_file():
                         self.command(["python3", str(self.root / "lib/scripts/setup_session_media_access.py"), "--app-root", self.profile["app_root"], "--app-user", self.user.pw_name])
+                    if (self.root / "lib/scripts/setup_studio_ai_access.py").is_file():
+                        self.command(["python3", str(self.root / "lib/scripts/setup_studio_ai_access.py"), "--app-root", self.profile["app_root"], "--app-user", self.user.pw_name])
                     if (self.root / "lib/scripts/setup_wordpress_sandbox_access.py").is_file():
                         self.command(["python3", str(self.root / "lib/scripts/setup_wordpress_sandbox_access.py"), "--app-root", self.profile["app_root"], "--app-user", self.user.pw_name])
                     self.command(["python3", str(self.root / "lib/scripts/setup_studio_docker_access.py"), "--app-user", self.user.pw_name])

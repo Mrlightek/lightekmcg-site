@@ -12,6 +12,9 @@ module Gatekeeper
         def initialize(receipt)
           @receipt = receipt.slice("domain", "source_sha", "image", "target_id", "attempt", "previous_version",
             "database_backup", "status", "migration_started", "code_restored", "error_class", "adapter", "component", "repository", "log_path")
+          if %w[insufficient_memory insufficient_disk gpu_required gpu_unavailable insufficient_vram https_vhost_required worker_assigned_elsewhere installation_busy model_checksum_mismatch engine_health_failed].include?(receipt["reason"])
+            @receipt["reason"]=receipt["reason"]
+          end
           if ["Use a server with at least 2 GB RAM", "Find exactly one active HTTPS virtual host for this website", "WordPress test needs 384 MB available RAM and 3 GB free disk", "Docker Compose, Apache and Certbot must be installed first"].include?(receipt["reason"])
             @receipt["reason"]=receipt["reason"]
           end
@@ -33,15 +36,16 @@ module Gatekeeper
       end
 
       def self.run!(node:, domain:, requested_by:, operation_id:, payload:, script_name:, registry: false)
-        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py wordpress_sandbox.py directory_membership.py].include?(script_name)
+        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py install_studio_ai.py wordpress_sandbox.py directory_membership.py].include?(script_name)
+        duration = script_name == "install_studio_ai.py" ? 7200 : 1800
         script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
         if node.local?
-          stdout, _, status = Timeout.timeout(1900) do
-            privileged = %w[install_session_media.py wordpress_sandbox.py].include?(script_name)
+          stdout, _, status = Timeout.timeout(duration + 100) do
+            privileged = %w[install_session_media.py install_studio_ai.py wordpress_sandbox.py].include?(script_name)
             local_script=privileged ? "/usr/local/lib/lightek/#{script_name}" : script_path.to_s
             timer=privileged ? "/usr/bin/timeout" : "timeout"
             python=privileged ? "/usr/bin/python3" : "python3"
-            Open3.capture3("sudo", "-n", timer, "--signal=TERM", "--kill-after=30s", "1800s", python, local_script,
+            Open3.capture3("sudo", "-n", timer, "--signal=TERM", "--kill-after=30s", "#{duration}s", python, local_script,
               stdin_data: JSON.generate(payload))
           end
           receipt = JSON.parse(stdout)
@@ -78,14 +82,18 @@ module Gatekeeper
         end
         require "net/ssh"
         # Full bounded execution; remote 'timeout' also survives a worker disconnect.
-        Timeout.timeout(1900) do
+        Timeout.timeout(duration + 100) do
           Net::SSH.start(node.ip_address, node.ssh_user, **options) do |ssh|
             script = script_path.read
             if script_name == "install_container_application.py"
               verifier = Base64.strict_encode64(Rails.root.join("script/lightek/verify_paid_instance.py").read)
               script = "import base64\n_lightek_verifier = {'__name__': 'lightek_verifier'}\nexec(base64.b64decode('#{verifier}'), _lightek_verifier)\n" + script
             end
-            command = "timeout --signal=TERM --kill-after=30s 1800s python3 -c #{Shellwords.escape(script)}"
+            if script_name == "install_studio_ai.py"
+              catalog = Base64.strict_encode64(Rails.root.join("config/studio_ai/packages.json").read)
+              script = "import base64,json\n_LIGHTEK_AI_CATALOG=json.loads(base64.b64decode('#{catalog}'))\n" + script
+            end
+            command = "timeout --signal=TERM --kill-after=30s #{duration}s python3 -c #{Shellwords.escape(script)}"
             stdout = +""
             exit_status = nil
             ssh.open_channel do |ch|

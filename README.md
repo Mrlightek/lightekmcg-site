@@ -14,6 +14,7 @@ A business can build its website, sell products or book services, manage custome
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
 | Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |
+| Set up a self-hosted generation worker | [Genesis workers & model packages](docs/studio/genesis-workers.md) |
 | Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
 | Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
 | Operate a server or update client installations | [Servers & applications](docs/server-application-management.md) · [Customer Updates](docs/customer_fleet_updates.md) |

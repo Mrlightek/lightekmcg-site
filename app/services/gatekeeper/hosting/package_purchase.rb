@@ -52,6 +52,10 @@ module Gatekeeper
           connection = LightekReservations::Federation::Issuer.ensure!(order: order, merchant: owner, domain: launch.domain)
           launch.update!(template_snapshot: launch.template_snapshot.merge("reservation_federation" => connection))
         end
+        if order.respond_to?(:agency_demo_id) && order.agency_demo_id
+          content = LightekAgency::DemoUpgrade.content_for(order)
+          launch.update!(template_snapshot: launch.template_snapshot.merge('demo_content' => content)) unless launch.template_snapshot['demo_content']
+        end
         launch.update!(status: "queued") if launch.status == "failed"
         Launches.perform!(launch)
         raise Access::Denied, "Hosting installation has not passed verification" unless launch.reload.status == "ready"
@@ -66,6 +70,7 @@ module Gatekeeper
           end
         end
         order.update!(provisioning_state: "ready", provisioned_at: Time.current, provisioning_error: nil)
+        LightekAgency::DemoUpgrade.complete!(order) if order.respond_to?(:agency_demo_id) && order.agency_demo_id
         LightekCommerce::PaidInstanceProvisioning.publish_ready_notification!(order: order, customer: owner, domain: launch.domain)
         order
       end

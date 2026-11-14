@@ -1,0 +1,18 @@
+<% content_for :page_title, @demo.name %><%= stylesheet_link_tag '/lightek/people-workspace.css' %>
+<main class="lp-workspace"><header class="lp-heading"><div><span class="lp-eyebrow">YOUR DEMO</span><h1><%= @demo.name %></h1><p>Expires <%= @demo.expires_at.to_fs(:long) %>. This temporary workspace uses your agency’s instance.</p></div></header>
+<section class="lp-card"><h2><%= @demo.active? ? 'Make it yours' : 'Demo finished' %></h2>
+<% if @demo.active? && @demo.site %>
+  <p>Explore your business workspace and edit your website. Live store payments and outbound campaigns are disabled in demos.</p>
+  <%= link_to 'Open demo workspace', dashboard_business_hub_path(site_id: @demo.site_id), class: 'lp-button' %>
+  <%= link_to 'Choose a design', dashboard_website_designs_path(site_id: @demo.site_id), class: 'lp-button secondary' %>
+<% else %><p>The temporary demo is no longer available. Your client account still shows any purchased services.</p><% end %>
+</section>
+<section class="lp-card"><h2>Your own instance</h2>
+<% if @order %><p>Upgrade: <%= @order.status.humanize %>. Your demo is removed after the paid instance passes verification.</p><%= link_to 'View installation', installation_path(@order), class: 'lp-button' %><% end %>
+<% if @demo.active? && current_user.id == @demo.client_id && @setting&.upgrade_product %>
+  <p><strong><%= @setting.upgrade_product.name %></strong> · <%= number_to_currency(@setting.upgrade_product.price_cents / 100.0) %> / <%= @setting.upgrade_product.billing_interval.humanize %></p>
+  <p>Continue to secure checkout to review the final price. Verified payment starts a separate instance with your admin account. Website pages and standard sections are copied from a snapshot taken at checkout. Built-in design settings are included. Custom Studio sections must be replaced with standard sections before checkout. Demo orders, financial history, credentials and uploaded media are not migrated.</p>
+  <%= button_to 'Upgrade to my own instance', upgrade_dashboard_demo_path(@demo), method: :post, params: {checkout_key: SecureRandom.uuid}, class: 'lp-button', data: {turbo: false} %>
+<% elsif !@order && @demo.active? %><p>Ask your agency to configure a paid upgrade package.</p><% end %>
+<p>At expiry, a worker removes the temporary workspace. After a successful upgrade, cleanup waits for the new instance to be verified. The client billing login remains available.</p>
+</section></main>

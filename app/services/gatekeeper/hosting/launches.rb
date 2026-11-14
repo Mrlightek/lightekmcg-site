@@ -104,6 +104,7 @@ module Gatekeeper
             site = WebsiteDeployment.configuration(owner: launch.owner, domain: domain, site_name: launch.name,
               headline: "Welcome", description: launch.name, certificate_email: launch.owner.email_address, credential_slug: slug)
             site["reservation_federation"] = config["reservation_federation"] if config["reservation_federation"]
+            site['demo_content'] = config['demo_content'] if config['demo_content']
             WebsiteDeployment.register!(actor: actor, record: launch.gatekeeper_node || request, config: site)
           end
           receipt = request ? WebsiteDeployment.provision_and_run!(actor: actor, request: request, domain: domain) :
@@ -137,6 +138,7 @@ module Gatekeeper
               container_port: config.fetch("container_port"), rails_database: config.fetch("rails_database"), rails_worker: config.fetch("rails_worker", false),
               email: launch.owner.email_address, environment: secrets.fetch("environment", {}),
               lightek_application: config.fetch("lightek_application", false), name: launch.name, reservation_federation: federation,
+              demo_content: config['demo_content'],
               branding: launch.owner.account_branding_profile&.attributes&.slice("brand_name", "logo_url", "support_email", "accent_color")})
           raise Access::Denied, "Container HTTPS verification failed" unless receipt["status"] == "succeeded" && receipt["domain"] == domain && receipt["image"] == config["image"]
           if config["lightek_application"]

@@ -5,7 +5,7 @@ module LightekAgency
       owned = LightekSettings::WebsiteIdentity.sites_for(user)
       return owned if user&.role == "super_admin"
       delegated_ids = SiteMembership.where(user: user).select(:site_id)
-      DymondSite::Site.where(id: owned.select(:id)).or(DymondSite::Site.where(id: delegated_ids))
+      LightekSettings::WebsiteIdentity.available_demo_scope(DymondSite::Site.where(id: owned.select(:id)).or(DymondSite::Site.where(id: delegated_ids)))
     end
     def self.manage_members?(user, site)
       LightekSettings::WebsiteIdentity.sites_for(user).exists?(id: site.id)

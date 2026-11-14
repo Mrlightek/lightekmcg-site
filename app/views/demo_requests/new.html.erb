@@ -1,0 +1,13 @@
+<main class="auth-shell"><%= render 'authentication/story' %><section class="auth-panel"><div class="auth-card">
+  <h1>Try it.<br><span>Make it yours.</span></h1>
+  <p class="auth-intro">Request a <%= @setting.duration_days %>-day demo. Confirm your email and your workspace is prepared automatically. Upgrade to your own instance when you are ready.</p>
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
+  <%= form_with scope: :demo_request, url: request_demo_path, data: {turbo: false} do |f| %>
+    <% {first_name: 'First name', last_name: 'Last name', email_address: 'Email'}.each do |field, label| %>
+      <div class="auth-field"><%= f.label field, label %><%= f.text_field field, type: field == :email_address ? 'email' : 'text', class: 'auth-input auth-input-plain', required: true, maxlength: 254 %></div>
+    <% end %>
+    <div hidden aria-hidden="true"><%= text_field_tag :website_url, nil, tabindex: -1, autocomplete: 'off' %></div>
+    <%= f.submit 'Request my demo', class: 'auth-submit' %>
+  <% end %>
+</div></section></main>

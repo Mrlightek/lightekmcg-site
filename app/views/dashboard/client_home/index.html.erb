@@ -7,6 +7,7 @@
   </header>
   <section class="lp-card">
     <h2>Your websites</h2>
+    <% @demos.each do |demo| %><p><%= link_to demo.name, dashboard_demo_path(demo), class: 'lp-button secondary' %> · <%= demo.active? ? "Demo until #{demo.expires_at.to_date}" : demo.status.humanize %></p><% end %>
     <% if @sites.any? %>
       <% @sites.each do |site| %>
         <div><h3><%= site.name %></h3><p><%= site.host %></p>

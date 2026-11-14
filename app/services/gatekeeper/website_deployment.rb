@@ -116,7 +116,7 @@ module Gatekeeper
       rescue StandardError => e
         raise Invalid, "Provider node verification failed; reconcile the allocation before retrying (#{e.class})"
       end
-      register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role", "reservation_experience", "reservation_federation", "branding"))
+      register!(actor:, record: node, config: config.slice("domain", "owner_id", "owner_email", "site_name", "headline", "description", "email", "credential_slug", "owner_role", "reservation_experience", "reservation_federation", "branding", "demo_content"))
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 600
       loop do
         result = Gatekeeper::Compute::NodeVerificationService.call(request:, requested_by: actor.email_address)
@@ -204,7 +204,7 @@ module Gatekeeper
             command = "umask 077; mkdir -p ~/.ssh; chmod 700 ~/.ssh; touch ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; printf '%s\\n' #{Shellwords.escape(public_key)} >> ~/.ssh/authorized_keys"
             ssh.exec!(command) { |_channel, _stream, _data| }
             installed = true
-            input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email", "reservation_experience", "reservation_federation", "branding")
+            input = config.slice("domain", "site_name", "headline", "description", "email", "owner_role", "owner_email", "reservation_experience", "reservation_federation", "branding", "demo_content")
             if config['reservation_federation']
               peer_secrets = LightekVault::Service.checkout!(slug: config['reservation_federation'].fetch('credential_slug'),
                 consumer: CONSUMER, purpose: 'reservation_federation', requested_by: @actor.email_address,

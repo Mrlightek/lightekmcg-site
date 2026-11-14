@@ -18,6 +18,9 @@ on:
       - 'lib/scripts/gatekeeper/directory_membership.py'
       - 'public/lightek/accounting-live.js'
       - 'test/standalone/enterprise*'
+      - 'test/standalone/agency_demo_checks.rb'
+      - 'config/schedule.yml'
+      - 'db/migrate/*agency_demos*'
       - 'public/lightek/mfa-enrollment*'
       - 'public/lightek/mfa-recovery.js'
       - 'public/lightek/people-workspace.css'
@@ -67,7 +70,7 @@ jobs:
       - name: Verify authentication, tenant permissions and bookkeeping workflows
         env:
           MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render
-        run: ruby test/standalone/enterprise_onboarding_checks.rb
+        run: ruby test/standalone/agency_demo_checks.rb
       - name: Decode actual enrollment QR and verify desktop/phone rendering
         env:
           NODE_PATH: /tmp/mfa-qr-ci/node_modules

@@ -1,0 +1,5 @@
+<main class="auth-shell"><%= render 'authentication/story' %><section class="auth-panel"><div class="auth-card">
+  <h1>Your demo<br><span>is one step away.</span></h1>
+  <p class="auth-intro">Confirm your email to start your <%= @setting.duration_days %>-day demo. No server purchase or payment is made by this step.</p>
+  <%= button_to 'Confirm email & start demo', activate_demo_request_path(params[:token]), method: :post, class: 'auth-submit', data: {turbo: false} %>
+</div></section></main>

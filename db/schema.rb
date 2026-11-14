@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_14_010000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_14_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1584,6 +1584,37 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_010000) do
     t.index ["status", "expires_at"], name: "index_lightek_agency_demos_on_status_and_expires_at"
   end
 
+  create_table "lightek_agency_installed_packages", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "source_key", null: false
+    t.boolean "runtime", default: false, null: false
+    t.jsonb "policy", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_lightek_agency_installed_packages_on_user_id", unique: true
+  end
+
+  create_table "lightek_agency_package_storage", force: :cascade do |t|
+    t.bigint "installed_package_id", null: false
+    t.bigint "blob_id", null: false
+    t.bigint "bytes", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["installed_package_id", "blob_id"], name: "index_package_storage_on_account_blob", unique: true
+    t.index ["installed_package_id"], name: "index_lightek_agency_package_storage_on_installed_package_id"
+  end
+
+  create_table "lightek_agency_package_usages", force: :cascade do |t|
+    t.bigint "installed_package_id", null: false
+    t.string "feature", null: false
+    t.date "period", null: false
+    t.bigint "used", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["installed_package_id", "feature", "period"], name: "index_package_usage_on_account_feature_period", unique: true
+    t.index ["installed_package_id"], name: "index_lightek_agency_package_usages_on_installed_package_id"
+  end
+
   create_table "lightek_agency_site_memberships", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "user_id", null: false
@@ -1782,9 +1813,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_010000) do
     t.integer "shipping_length_in"
     t.integer "shipping_width_in"
     t.integer "shipping_height_in"
+    t.bigint "source_hosting_package_id"
+    t.jsonb "package_policy", default: {}, null: false
     t.index ["site_id", "sku"], name: "idx_commerce_site_sku", unique: true, where: "(sku IS NOT NULL)"
     t.index ["site_id", "slug"], name: "index_lightek_commerce_products_on_site_id_and_slug", unique: true
     t.index ["site_id"], name: "index_lightek_commerce_products_on_site_id"
+    t.index ["source_hosting_package_id"], name: "index_lightek_commerce_products_on_source_hosting_package_id"
     t.index ["subscription_plan_id"], name: "index_lightek_commerce_products_on_subscription_plan_id"
     t.check_constraint "compare_at_cents IS NULL OR compare_at_cents >= 0", name: "commerce_compare_price_valid"
     t.check_constraint "inventory_quantity >= 0", name: "commerce_inventory_nonnegative"
@@ -4416,6 +4450,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_010000) do
   add_foreign_key "lightek_agency_demo_settings", "users", column: "agency_id"
   add_foreign_key "lightek_agency_demos", "users", column: "agency_id"
   add_foreign_key "lightek_agency_demos", "users", column: "client_id", on_delete: :nullify
+  add_foreign_key "lightek_agency_installed_packages", "users"
+  add_foreign_key "lightek_agency_package_storage", "lightek_agency_installed_packages", column: "installed_package_id"
+  add_foreign_key "lightek_agency_package_usages", "lightek_agency_installed_packages", column: "installed_package_id"
   add_foreign_key "lightek_agency_site_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_agency_site_memberships", "users"
   add_foreign_key "lightek_agency_site_memberships", "users", column: "granted_by_id"
@@ -4439,6 +4476,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_010000) do
   add_foreign_key "lightek_commerce_orders", "users", column: "hosting_owner_id"
   add_foreign_key "lightek_commerce_product_variants", "lightek_commerce_products", column: "product_id"
   add_foreign_key "lightek_commerce_products", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_commerce_products", "hosting_packages", column: "source_hosting_package_id"
   add_foreign_key "lightek_commerce_refunds", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_commerce_revenue_allocations", "users", column: "beneficiary_id"

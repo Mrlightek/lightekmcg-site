@@ -7,10 +7,11 @@ module LightekAgency
         raise Demos::Invalid, 'Demo has expired. Ask your agency for a new demo.' unless demo.active?
         setting = DemoSetting.find_by!(agency: demo.agency)
         product = Demos.upgrade_products(demo.agency).find(setting.upgrade_product_id)
+        snapshot = DemoContent.export(demo)
         order = LightekCommerce::InstallationCheckout.reserve!(actor: actor, product: product, checkout_key: checkout_key)
         raise Demos::Invalid, 'This checkout belongs to another upgrade' if order.agency_demo_id.present? && order.agency_demo_id != demo.id
         raise Demos::Invalid, 'A completed checkout cannot be reassigned' unless order.status == 'pending_payment' && order.payment_reference.blank?
-        order.update!(agency_demo_id: demo.id, hosting_owner: actor, demo_content: DemoContent.export(demo))
+        order.update!(agency_demo_id: demo.id, hosting_owner: actor, demo_content: snapshot)
         demo.update!(upgrade_order: order, status: 'upgrading')
         order
       end

@@ -27,6 +27,13 @@ module LightekAgency
           end
           roots.each { |model| model.where(site_id: site.id).find_each { |record| destroy_owned!(record, {}) } }
           destroy_owned!(site, {})
+          if defined?(DymondSite::SiteTemplate)
+            DymondSite::SiteTemplate.where('key LIKE ?', "lightek_site_#{site.id}_%").find_each do |template|
+              next unless template.settings.to_h['lightek_site_id'].to_s == site.id.to_s && !template.preset?
+              next if DymondSite::Site.where(active_template_id: template.id).exists?
+              destroy_owned!(template, {})
+            end
+          end
         end
         demo.update!(site: nil, status: demo.converted_at ? 'converted' : 'expired', cleaned_at: Time.current, cleanup_error: nil)
         UserFeatureEntitlement.where(user_id: demo.client_id, source: "demo:#{demo.public_id}").destroy_all

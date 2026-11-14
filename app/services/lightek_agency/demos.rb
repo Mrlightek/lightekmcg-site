@@ -57,13 +57,16 @@ module LightekAgency
       return unless Demo.table_exists?
       raise error, 'Demo workspaces cannot accept real orders or send live campaigns. Upgrade to your own instance first.' if Demo.exists?(site_id: site.id)
     end
+    def self.feature_available?(user, feature)
+      feature.to_s == 'studio' && user&.role == 'client' && Demo.table_exists? && Demo.available.where(client_id: user.id).exists?
+    end
     def self.hidden_site_ids
       Demo.where.not(site_id: nil).where.not(id: Demo.available.select(:id)).select(:site_id)
     end
     def self.expired_demo_account?(user)
       return false unless user&.role == 'client' && Demo.table_exists?
       records = Demo.where(client_id: user.id, created_client: true)
-      records.exists? && !records.available.exists?
+      records.exists? && !Demo.where(client_id: user.id).available.exists?
     end
   end
 end

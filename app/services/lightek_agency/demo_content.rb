@@ -5,11 +5,14 @@ module LightekAgency
   # financial history cross the installation boundary.
   class DemoContent
     MAX_BYTES = 2.megabytes
+    TOKEN_KEYS = %w[color_bg color_primary color_text color_text_muted font_heading font_mono font_sans].freeze
     def self.export(demo)
       site = demo.site || raise(Demos::Invalid, 'Demo workspace is unavailable')
       raise Demos::Invalid, 'Demo ownership changed' unless site.tenant == demo.client
       pages = site.pages.order(:position, :id).limit(101).to_a
       raise Demos::Invalid, 'Demo export supports up to 100 pages' if pages.size > 100
+      home = pages.find { |page| page.slug == 'home' }
+      raise Demos::Invalid, 'Keep a home page with at least one section before upgrading' unless home && home.sections.exists?
       content = {'version' => 1, 'demo_id' => demo.public_id, 'name' => site.name, 'design' => export_design(site), 'pages' => pages.map do |page|
         sections = page.sections.order(:position, :id).limit(101).to_a
         raise Demos::Invalid, 'Demo export supports up to 100 sections per page' if sections.size > 100
@@ -23,8 +26,10 @@ module LightekAgency
       return unless site.respond_to?(:active_template) && site.active_template
       settings = site.active_template.settings.to_h
       design = settings['lightek_design']
-      raise Demos::Invalid, 'Custom Studio designs cannot be promoted yet. Choose a built-in design before checkout.' unless design.present? && LightekDesign::Catalog.designs.key?(design)
-      {'key' => design, 'tokens' => settings.fetch('tokens', {})}
+      builtins = LightekDesign::Catalog.respond_to?(:builtin_designs) ? LightekDesign::Catalog.builtin_designs : LightekDesign::Catalog.designs
+      custom = settings['lightek_site_theme'] || settings['lightek_studio_release'] || (design.present? && !builtins.key?(design))
+      raise Demos::Invalid, 'Custom Studio designs cannot be promoted yet. Choose a built-in design before checkout.' if custom
+      {'key' => design, 'tokens' => settings.fetch('tokens', {}).slice(*TOKEN_KEYS)}
     end
     def self.digest(content) = Digest::SHA256.hexdigest(JSON.generate(content.deep_stringify_keys))
     def self.install!(site:, content:)
@@ -43,7 +48,11 @@ module LightekAgency
         # transaction before the owner can use the newly provisioned instance.
         if content['design'].present?
           design = content.fetch('design')
-          template = LightekDesign::WebsiteDesigns.template_for!(site: site, design: design.fetch('key'))
+          template = if design['key'].present?
+            LightekDesign::WebsiteDesigns.template_for!(site: site, design: design.fetch('key'))
+          else
+            DymondSite::SiteTemplate.create!(name: "#{site.name} appearance", key: "lightek_site_#{site.id}_demo", preset: false, settings: {'lightek_site_id' => site.id})
+          end
           template.update!(settings: template.settings.merge('tokens' => design.fetch('tokens', {})))
           site.update!(active_template: template)
         end

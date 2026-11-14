@@ -37,7 +37,8 @@ jobs:
       - name: Install public media dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender ffmpeg
+          sudo apt-get install -y blender ffmpeg python3-numpy
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr 'import bpy, numpy; print("STUDIO_NUMPY_READY", numpy.__version__)'
       - name: Verify saved source, actual renders and native tool regression
         run: |
           bundle exec ruby test/standalone/studio_authoring_checks.rb --name /StudioAuthoringTest/

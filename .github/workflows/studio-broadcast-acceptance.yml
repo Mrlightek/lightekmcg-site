@@ -211,6 +211,10 @@ jobs:
         run: bundle exec ruby test/standalone/campaign_studio_checks.rb --name /CampaignStudioChecks/
       - name: Local media helper authorization
         run: python3 -m unittest test.operations.session_media_access_test
+      - name: Saved Live Studio production setup and authorization
+        run: |
+          bundle exec ruby test/standalone/studio_live_production_checks.rb --name /StudioLiveProductionTest/
+          bundle exec ruby test/standalone/studio_live_production_http_checks.rb --name /StudioLiveProductionHttpTest/
       - name: Native Dashboard music source and isolation
         run: |
           bundle exec ruby test/standalone/studio_music_checks.rb --name /test_music_/
@@ -306,6 +310,7 @@ jobs:
           node test/javascript/studio_music_picture_audio_test.cjs
           node test/javascript/studio_music_picture_browser_test.cjs
           node test/javascript/studio_music_audio_test.cjs
+          node test/javascript/studio_live_production_test.cjs
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_stage_test.cjs
           node test/javascript/studio_native_camera_test.cjs

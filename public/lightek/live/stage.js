@@ -45,7 +45,7 @@ export class StageComposer {
     this.cameras = [];
   }
   async load(url) {
-    if (!/^\/api\/lightek\/pwa\/assets\/\d+\/proxy$/.test(url))
+    if (!/^\/(?:api\/lightek\/pwa\/assets\/\d+\/proxy|dashboard\/studio-broadcasting\/assets\/\d+\/proxy\?site_id=\d+)$/.test(url))
       throw Error("Choose a prepared Studio model.");
     const gltf = await new GLTFLoader().setWithCredentials(true).loadAsync(url);
     if (this.model) this.disposeModel();

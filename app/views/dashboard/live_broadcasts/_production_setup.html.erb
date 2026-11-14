@@ -1,0 +1,7 @@
+<details class="ll-config" <%= "open" if params[:scene_id].present? %> data-production-setup data-production-url="<%= "/dashboard/live/production?site_id=#{@site.id}" %>">
+  <summary>Production setup · reuse a show or episode</summary>
+  <p>Save the selected stage, camera framing, program media, graphic and audio bed with a production. Load it into local preview before broadcasting. Camera/microphone permissions and session-room connections stay under your control.</p>
+  <label>Production scene<select data-production-scene><option value="">Choose a production</option><% Array(@production_scenes).each do |scene| %><option value="<%= scene.id %>" <%= "selected" if params[:scene_id].to_s==scene.id.to_s %>><%= scene.studio_project.name %> · <%= scene.name %><%= " · Show template" if scene.studio_project.is_template? %></option><% end %></select></label>
+  <button type="button" data-production-read>Check saved setup</button><button type="button" data-production-apply disabled>Load saved setup into preview</button><button type="button" data-production-save disabled>Save current controls to production</button>
+  <p role="status" aria-live="polite" data-production-status>Choose a production and check its saved setup. Loading never starts a broadcast.</p>
+</details>

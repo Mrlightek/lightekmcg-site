@@ -21,3 +21,7 @@ Use Dashboard → PWA Administration to control the selected site's brand, navig
 Acceptance exercises real timeline normalization, ownership checks, persisted export snapshots and Dashboard/PWA checkout return routing. FFmpeg checks produce actual H.264 landscape/portrait/square exports, ProRes MOV and WAV masters. Browser checks run the native scripts through edit/title/format/save/quote/error recovery/publish/resumed-checkout interactions; render, payment and publication responses are fixtures there. They do not charge a card or publish to a real social account.
 
 This release closes the Dashboard delivery gap. It does not establish complete DaVinci Resolve/Blender feature parity. Current timeline limits remain 64 clips, 16 tracks and ten minutes per assembly. Neural generation, production character motion/lip sync, native Blender execution, LiveKit networking and real social publishing require their own engine/device/account acceptance. CMS placement, campaign association and automatic external social posting are not added by the Deliver controls. Existing work is retained; these outstanding capabilities are not represented as completed.
+
+## Continue into a live production
+
+Choose **Use this production in Live Studio** in Deliver to open the same site and scene. Configure and save the stage/media controls there, then explicitly load the saved setup into local preview. Show templates copy these controls into episodes; asset references remain shared. See [Saved live production setups](live-production-setups.md).

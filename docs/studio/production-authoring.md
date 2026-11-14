@@ -30,6 +30,8 @@ Interactive operations are bounded: 128 commands per object, 32 samples per brus
 
 ## Live 3D stages
 
+[Saved live production setups](live-production-setups.md) connect these prepared stages and library sources to the scene, including independent setup controls in show-template episodes. This does not automatically rebuild arbitrary authored scenes as GLB.
+
 Live Studio includes a **3D stage + camera** program layout. Load a prepared Blender/GLB asset, choose an imported camera or automatic framing, and position the webcam subject in the set. The camera texture is a depth-tested plane inside the Three.js scene; objects can appear in front of or behind it. Chroma key removes the selected green/blue background. Adjust key tolerance, subject size and depth while watching the program preview.
 
 The rendered 3D stage enters the same canvas captured by the live recorder and encoder. Existing graphics, audio beds, private recordings, Lightek broadcasts and configured social destinations continue through that program feed. Loading a stage does not start a stream. Camera cutout here uses chroma key, not AI person segmentation. Native Blender effects that cannot export to GLTF must be rendered to media before live playout.

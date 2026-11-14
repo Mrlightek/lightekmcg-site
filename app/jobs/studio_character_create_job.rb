@@ -22,6 +22,7 @@ class StudioCharacterCreateJob < ApplicationJob
       asset.file.attach(io:File.open(output),filename:"performer.blend",content_type:"application/x-blender")
       Studio::Assets::Ingestor.call(asset)
       bindings={"jaw_open"=>{"object"=>"FaceMouth","key"=>"jaw_open"},"smile"=>{"object"=>"FaceMouth","key"=>"smile"},"mouth_wide"=>{"object"=>"FaceMouth","key"=>"mouth_wide"},"mouth_round"=>{"object"=>"FaceMouth","key"=>"mouth_round"},"blink"=>{"object"=>"FaceEyes","key"=>"blink"},"brow_raise"=>{"object"=>"FaceBrows","key"=>"brow_raise"}}
+      %w[a b c d e f g h x].each{|shape|bindings["viseme_#{shape}"]={"object"=>"FaceMouth","key"=>"viseme_#{shape}"}}
       bones={"head"=>{"object"=>"PerformerRig","bone"=>"Head"},"left_arm"=>{"object"=>"PerformerRig","bone"=>"Arm.L"},"right_arm"=>{"object"=>"PerformerRig","bone"=>"Arm.R"}}
       profile=Studio::Performance::Cast.profile(asset,{"source_scene"=>"Lightek Performer","bindings"=>bindings,"bones"=>bones})
       asset.update!(metadata:asset.metadata.merge("character_profile"=>profile))

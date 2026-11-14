@@ -91,6 +91,16 @@ for name in ('jaw_open', 'smile', 'mouth_wide', 'mouth_round'):
         if name == 'smile': point.co.z += 0.045*(abs(x)/0.125)**2
         if name == 'mouth_wide': point.co.x *= 1.4
         if name == 'mouth_round': point.co.x *= 0.55; point.co.z = 1.72+(z-1.72)*4
+# Distinct editable mouth silhouettes for the Rhubarb A–H / rest vocabulary.
+for label, (width, height, lift) in {
+    'a': (1.0, .15, 0), 'b': (1.05, 1.6, 0), 'c': (1.0, 4.5, 0),
+    'd': (.95, 8, 0), 'e': (.65, 5, 0), 'f': (.38, 3.6, 0),
+    'g': (1.05, 1, .012), 'h': (1.0, 3, .018), 'x': (.9, .45, 0),
+}.items():
+    key = mouth.shape_key_add(name='viseme_'+label)
+    for point in key.data:
+        point.co.x *= width
+        point.co.z = 1.72 + (point.co.z-1.72)*height + lift
 head_parts.append(mouth)
 
 arm_parts = {}

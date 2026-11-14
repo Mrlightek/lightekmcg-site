@@ -3,6 +3,7 @@ import bpy
 import math
 import os
 import subprocess
+import visemes
 
 SOUNDS = []
 
@@ -50,22 +51,16 @@ def apply(root, objects, definition):
                 for point in curve.keyframe_points:
                     point.interpolation = 'LINEAR'
 
-    # Volume-following mouth movement; explicit expression curves can refine it.
-    points = {max(0, start - 1 / fps): 0, end: 0}
-    for sample in take['mouth_frames']:
-        if sample['time'] < duration:
-            points[start + sample['time']] = sample['value']
-    for cue in take['expressions']:
-        if cue['control'] == 'jaw_open':
-            first = start + cue['start']; last = start + cue['end']
-            points = {time: value for time, value in points.items() if time < first or time > last}
-            edge = min(0.12, (last-first)/3)
-            points.update({first: 0, first+edge: cue['value'], last-edge: cue['value'], last: 0})
-    animate(shape('jaw_open'), points)
+    mouth = visemes.curves(take['lip_sync']['cues'], duration=duration, start=start, fps=fps, bindings=bindings) if take.get('lip_sync_mode') == 'phoneme' else {}
     for control in bindings:
-        if control == 'jaw_open':
-            continue
-        points = {max(0, start - 1 / fps): 0, start: 0, end: 0}
+        if control in mouth:
+            points = mouth[control].copy()
+        else:
+            points = {max(0, start - 1 / fps): 0, start: 0, end: 0}
+        if control == 'jaw_open' and not mouth:
+            for sample in take['mouth_frames']:
+                if sample['time'] < duration:
+                    points[start + sample['time']] = sample['value']
         if control == 'blink':
             t = start + 1.2
             while t + 0.18 < end:

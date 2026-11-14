@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -64,6 +64,11 @@ module Studio
       def cast_create = Studio::Performance::Cast.create(access:@access,payload:@payload)
       def cast_register = Studio::Performance::Cast.register(access:@access,payload:@payload)
       def cast_place = Studio::Performance::Cast.place(access:@access,payload:@payload)
+      def performance_analyze = Studio::Performance::LipSync.start(access:@access,payload:@payload)
+      def performance_analysis
+        scene=@access.scene!(@payload.fetch("scene_id"))
+        Studio::Performance::LipSync.receipt(Studio::Performance::LipSync.find(access:@access,scene:scene,id:@payload.fetch("operation_id")))
+      end
       def performance_save = Studio::Performance::Take.save(access:@access,payload:@payload)
       def performance_remove = Studio::Performance::Take.remove(access:@access,payload:@payload)
 
@@ -634,7 +639,7 @@ module Studio
         { publications: project.studio_publications.order(id: :desc).limit(30).map { |publication|
             { id: publication.id, status: publication.status, scheduled_at: publication.scheduled_at&.iso8601,
               error: publication.error_message, post_id: publication.metadata.to_h["post_id"] } },
-          operations: project.studio_operations.order(id: :desc).limit(30).map do |operation|
+          operations: project.studio_operations.where.not(operation_type:"speech_analysis").order(id: :desc).limit(30).map do |operation|
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,
             output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset"),

@@ -7,7 +7,7 @@ const profile={source_scene:'Cast',bindings:{jaw_open:{object:'Face',key:'Open'}
 const actor={id:1,name:'Lead',kind:'blend',status:'ready',native_url:'/native',metadata:{character_profile:profile,scenes:[{name:'Cast',objects:[{name:'Face',definition:{shape_keys:[{name:'Basis'},{name:'Open'},{name:'Smile'}]}},{name:'Rig',definition:{bones:[{name:'Head'}]}}]}]}};
 const audio={id:2,name:'Dialogue',kind:'audio',status:'ready',metadata:{duration:2}};
 const record={project:{id:1},scene:{id:1,lock_version:0,objects:[{id:10,name:'Lead',definition:{asset_id:1,character_profile:profile}}],settings:{}}};
-Object.assign(w,{E:value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),app:w.document.querySelector('main'),ST:{workspaceMode:'performance'},STUDIO_WORKSPACE_MODES:[],A:{},studioSceneRecord:()=>record,studioCurrentSceneId:()=>1,toast:()=>{},LightekStudioApp:{story:()=>'',setQuote:()=>{}},nevaeh:{execute:async request=>{requests.push(request);const {capability,payload}=request;if(capability.endsWith('assets.list'))return{result:{assets:[actor,audio]}};if(capability.endsWith('performance.save')){record.scene.objects[0].definition.performance={...payload,take_id:payload.request_key,duration:payload.source_out-payload.source_in};record.scene.lock_version++;}if(capability.endsWith('performance.preview'))return{result:{operation_id:99,status:'completed',url:'/private/preview.mp4'}};return{result:{object_id:10}};}}});
+Object.assign(w,{E:value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),app:w.document.querySelector('main'),ST:{workspaceMode:'performance'},STUDIO_WORKSPACE_MODES:[],A:{},studioSceneRecord:()=>record,studioCurrentSceneId:()=>1,toast:()=>{},LightekStudioApp:{story:()=>'',setQuote:()=>{}},nevaeh:{execute:async request=>{requests.push(request);const {capability,payload}=request;if(capability.endsWith('assets.list'))return{result:{assets:[actor,audio]}};if(capability.endsWith('performance.save')){record.scene.objects[0].definition.performance={...payload,take_id:payload.request_key,duration:payload.source_out-payload.source_in};record.scene.lock_version++;}if(capability.endsWith('performance.analyze'))return{result:{id:77,status:'pending'}};if(capability.endsWith('performance.analysis'))return{result:{id:77,status:'completed',result:{cues:[{start:0,end:.5,value:'A'},{start:.5,end:1.5,value:'D'},{start:1.5,end:2,value:'X'}]}}};if(capability.endsWith('performance.preview'))return{result:{operation_id:99,status:'completed',url:'/private/preview.mp4'}};return{result:{object_id:10}};}}});
 w.render=()=>{w.app.innerHTML=w.LightekStudioApp.story(record,'performance');};w.A.studioLoad=async()=>w.render();
 w.app.addEventListener('click',event=>{const button=event.target.closest('[data-a]');if(button)w.A[button.dataset.a]?.(button);});
 w.eval(fs.readFileSync('public/lightek/studio-performance.js','utf8'));
@@ -29,7 +29,17 @@ const submit=async selector=>{w.app.querySelector(selector).dispatchEvent(new w.
  const registered=requests.find(r=>r.capability.endsWith('cast.register')).payload;assert.equal(registered.profile.bindings.jaw_open.key,'Open');assert.equal(registered.profile.bones.head.bone,'Head');assert.equal(registered.asset_id,1);
  await submit('[data-performance-form=create]');assert(requests.some(r=>r.capability.endsWith('cast.create')));
  w.app.querySelector('[data-a=studioCastPlace]').click();await flush();assert(requests.some(r=>r.capability.endsWith('cast.place')));
- assert(w.app.textContent.includes('does not recognize phonemes'));
+ assert(w.app.textContent.includes('Speech analysis recognizes sounds'));assert(w.app.querySelector('[name=face_viseme_a]'));
+ w.app.querySelector('[name=recognizer]').value='phonetic';w.app.querySelector('[name=dialogue]').value='Hello Lightek';
+ w.app.querySelector('[data-a=studioSpeechAnalyze]').click();await flush();
+ assert(w.app.querySelector('[data-a=studioSpeechAnalyze]').disabled);
+ await new Promise(resolve=>setTimeout(resolve,1100));await flush();
+ assert.equal(w.app.querySelector('[name=lip_sync_mode]').value,'phoneme');assert.equal(w.app.querySelectorAll('.studio-mouth-cues>div').length,3);
+ w.app.querySelector('[name=mouth_1_value]').value='F';await submit('[data-performance-form=take]');
+ const speechSaved=requests.filter(r=>r.capability.endsWith('performance.save')).at(-1).payload;
+ assert.equal(speechSaved.analysis_id,77);assert.equal(speechSaved.mouth_cues[1].value,'F');assert.equal(speechSaved.lip_sync_mode,'phoneme');
+ const analysis=requests.find(r=>r.capability.endsWith('performance.analyze')).payload;
+ assert.equal(analysis.source_out,2);assert.equal(analysis.dialogue,'Hello Lightek');assert.equal(analysis.recognizer,'phonetic');
  console.log('STUDIO_PERFORMANCE_UI_PASS cast create register place timed face cues gestures recording save private preview');
  dom.window.close();
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

@@ -11,7 +11,7 @@
 <%= javascript_include_tag "/lightek/nevaeh-client.js?v=65", defer:true %>
 <%= javascript_include_tag "/lightek/studio-dashboard.js?v=65", defer:true %>
 <% %w[studio-app studio-native studio-authoring studio-media studio-create studio-performance studio-visual].each do |name| %>
-  <%= javascript_include_tag "/lightek/#{name}.js?v=66", defer:true %>
+  <%= javascript_include_tag "/lightek/#{name}.js?v=69", defer:true %>
 <% end %>
 <%= javascript_include_tag "/lightek/vendor/tone/Tone-15.1.22.js", defer:true %>
 <%= javascript_include_tag "/lightek/vendor/tone/Midi-2.0.28.js", defer:true %>
@@ -21,7 +21,7 @@
 <%= javascript_include_tag "/lightek/studio-production.js?v=67", defer:true %>
 <%= javascript_include_tag "/lightek/studio-dashboard-context.js?v=1", defer:true %>
 <%= javascript_include_tag "/lightek/studio-edit-workbench.js?v=65", defer:true %>
-<%= javascript_include_tag "/lightek/studio-ai.js?v=68", defer:true %>
+<%= javascript_include_tag "/lightek/studio-ai.js?v=69", defer:true %>
 <%= javascript_include_tag "/lightek/studio-shots.js?v=67", defer:true %>
 <%= stylesheet_link_tag "/lightek/studio-shots.css?v=67" %>
 <%= javascript_include_tag "/lightek/studio-delivery.js?v=65", defer:true %>
@@ -31,3 +31,5 @@
 <script type="module" src="/lightek/studio-viewport.js?v=66"></script>
 
 <%= stylesheet_link_tag "/lightek/studio-ai.css?v=68" %>
+
+<%= stylesheet_link_tag "/lightek/studio-performance.css?v=69" %>

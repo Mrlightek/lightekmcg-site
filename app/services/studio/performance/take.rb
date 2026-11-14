@@ -7,9 +7,11 @@ module Studio
         n=Float(value);raise ArgumentError,"Performance timing or value is outside its range" unless n.finite? && n.between?(min,max);n
       end
       def self.save(access:,payload:)
-        scene=access.scene!(payload.fetch("scene_id"));object=scene.scene_objects.find(payload.fetch("object_id"))
+        scene=access.scene!(payload.fetch("scene_id"))
+        raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id.to_i==access.site_id.to_i
+        object=scene.scene_objects.find(payload.fetch("object_id"))
         profile=object.definition["character_profile"] || raise(ArgumentError,"Select a character placed from Cast")
-        audio=StudioAsset.for_actor(access).where(status:"ready",kind:%w[audio video]).find(payload.fetch("audio_asset_id"))
+        audio=StudioAsset.for_actor(access).where(site_id:access.site_id,status:"ready",kind:%w[audio video]).find(payload.fetch("audio_asset_id"))
         raise ArgumentError,"Choose an asset containing audio" unless audio.kind=="audio" || audio.metadata["has_audio"]
         first=number(payload.fetch("source_in",0),0,7200);last=number(payload.fetch("source_out"),0,7200);start=number(payload.fetch("start",0),0,600)
         duration=last-first
@@ -44,7 +46,23 @@ module Studio
         gestures.group_by { |cue| cue["kind"].start_with?("wave") ? cue["kind"] : "head" }.each_value do |cues|
           raise ArgumentError,"Gestures on the same bone cannot overlap" if cues.sort_by { |cue| cue["start"] }.each_cons(2).any? { |a,b| a["end"]>b["start"] }
         end
-        envelope=AudioEnvelope.call(audio,first:first,duration:duration)
+        mode=payload.fetch("lip_sync_mode","volume").to_s
+        raise ArgumentError,"Choose volume or phoneme mouth animation" unless %w[volume phoneme].include?(mode)
+        lip_sync=nil
+        if mode=="phoneme"
+          saved=object.definition["performance"].to_h
+          analysis_id=Integer(payload.fetch("analysis_id"))
+          if saved.dig("lip_sync","analysis_id")==analysis_id && saved.values_at("audio_asset_id","audio_blob_id","source_in","duration")==[audio.id,audio.file.blob.id,first,duration]
+            data=saved.fetch("lip_sync")
+          else
+            analysis=LipSync.find(access:access,scene:scene,id:analysis_id)
+            raise ArgumentError,"Finish speech analysis for this recording and trim first" unless analysis.status=="completed" && analysis.intent.values_at("audio_asset_id","audio_blob_id","source_in","duration")==[audio.id,audio.file.blob.id,first,duration]
+            data=analysis.manifest.fetch("lip_sync").merge("dialogue"=>analysis.intent["dialogue"])
+          end
+          lip_sync=data.slice("engine","version","recognizer","dialogue").merge("analysis_id"=>analysis_id,
+            "cues"=>LipSync.cues(payload.fetch("mouth_cues",data.fetch("cues")),duration:duration))
+        end
+        envelope=mode=="volume" ? AudioEnvelope.call(audio,first:first,duration:duration) : []
         result=nil
         scene.with_lock do
           receipts=scene.settings.fetch("performance_receipts",{})
@@ -54,7 +72,7 @@ module Studio
           end
           scene.lock_version=Integer(payload.fetch("lock_version"));object.reload
           object.update!(definition:object.definition.merge("performance"=>{"take_id"=>key,"audio_asset_id"=>audio.id,"audio_blob_id"=>audio.file.blob.id,
-            "source_in"=>first,"duration"=>duration,"start"=>start,"gain"=>number(payload.fetch("gain",1),0,4),"mouth_frames"=>envelope,"expressions"=>expressions,"gestures"=>gestures}))
+            "source_in"=>first,"duration"=>duration,"start"=>start,"gain"=>number(payload.fetch("gain",1),0,4),"mouth_frames"=>envelope,"lip_sync_mode"=>mode,"lip_sync"=>lip_sync,"expressions"=>expressions,"gestures"=>gestures}))
           fps=scene.settings.fetch("fps",24).to_f/scene.settings.fetch("fps_base",1)
           ending=((start+duration)*fps).ceil
           result={"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.lock_version+1,"duration"=>duration,"fingerprint"=>fingerprint}

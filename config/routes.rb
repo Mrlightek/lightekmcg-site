@@ -181,6 +181,9 @@ Rails.application.routes.draw do
   get "/employee/nevaeh/factory/islamic/:id/export", to: "employee/nevaeh_factory#export_islamic_source", as: :employee_nevaeh_factory_export_islamic
   post "/employee/nevaeh/factory/islamic/:id/datasets", to: "employee/nevaeh_factory#islamic_datasets", as: :employee_nevaeh_factory_islamic_datasets
   post "/employee/nevaeh/factory/islamic/:id/ethics", to: "employee/nevaeh_factory#islamic_ethics", as: :employee_nevaeh_factory_islamic_ethics
+  post "/employee/nevaeh/factory/study", to: "employee/nevaeh_factory#save_study_routine", as: :employee_nevaeh_factory_study_routines
+  patch "/employee/nevaeh/factory/study/:id", to: "employee/nevaeh_factory#save_study_routine", as: :employee_nevaeh_factory_study_routine
+  post "/employee/nevaeh/factory/study/:id/pause", to: "employee/nevaeh_factory#pause_study_routine", as: :employee_nevaeh_factory_pause_study
   post "/employee/nevaeh/factory/constructions", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_constructions
   patch "/employee/nevaeh/factory/constructions/:id", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_construction
   post "/employee/nevaeh/factory/constructions/:id/build", to: "employee/nevaeh_factory#build", as: :employee_nevaeh_factory_build_construction

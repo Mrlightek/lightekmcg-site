@@ -5,12 +5,20 @@ module NevaehIntelligences
   module Neural
     module Training
       class Cancelled < StandardError; end
+      class StudyWindowEnded < StandardError; end
       module_function
-      def request!(model:, dataset:, actor:, epochs:, request_key:)
+      def request!(model:, dataset:, actor:, epochs:, request_key:, study_session: nil)
         raise ArgumentError, 'Model administration required' unless actor&.persisted? && Ability.new(actor).can?(:manage, NevaehLanguageModel)
         raise ArgumentError, 'Review and approve this dataset before training' unless dataset.status == 'approved' && dataset.valid?
         Islamic::Corpus.verify_dataset!(dataset) if dataset.provenance['source'] == 'islamic_library'
         raise ArgumentError, 'Request key required' unless request_key.to_s.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        if study_session
+          Islamic::Study.guard_session!(study_session)
+          routine = study_session.nevaeh_study_routine
+          unless routine.creator_id == actor.id && routine.language_model_id == model.id && routine.dataset_ids.include?(dataset.id)
+            raise ArgumentError, 'Study training must use its configured actor, model and approved batches'
+          end
+        end
         model.with_lock do
           model.training_runs.find_or_create_by!(request_key: request_key) do |run|
             parent = model.active_checkpoint
@@ -19,6 +27,7 @@ module NevaehIntelligences
               'dataset_sha256' => Digest::SHA256.hexdigest(CanonicalJson.dump(dataset.examples)),
               'parent_checkpoint_id' => parent&.id, 'parent_checkpoint_sha256' => parent&.sha256,
               'hidden_size' => model.hidden_size, 'vocabulary_limit' => model.vocabulary_limit}
+            run.snapshot = run.snapshot.merge('study_session_id' => study_session.id) if study_session
           end
         end
       end
@@ -31,11 +40,13 @@ module NevaehIntelligences
       end
       def run!(run)
         token = SecureRandom.uuid
+        deadline = nil
         run.with_lock do
           return unless run.status == 'queued'
           raise ArgumentError, 'Training permission revoked' unless Ability.new(run.actor.reload).can?(:manage, NevaehLanguageModel)
           raise ArgumentError, 'Dataset approval changed; request training again after review' unless run.nevaeh_training_dataset.reload.status == 'approved' && Digest::SHA256.hexdigest(CanonicalJson.dump(run.nevaeh_training_dataset.examples)) == run.snapshot['dataset_sha256']
           Islamic::Corpus.verify_dataset!(run.nevaeh_training_dataset) if run.snapshot.dig('provenance', 'source') == 'islamic_library'
+          deadline = Islamic::Study.guard_training!(run) if run.snapshot['study_session_id']
           run.update!(status: 'running', started_at: Time.current, heartbeat_at: Time.current, lease_token: token, error: nil)
         end
         train, heldout = split(run.snapshot.fetch('examples'))
@@ -55,11 +66,27 @@ module NevaehIntelligences
         network = parent ? Network.continue(state: parent.weights, **settings) : Network.build(**settings)
         initial = network.epoch(train); initial_validation = network.epoch(heldout)
         initial_retention = network.epoch(retention) unless retention.empty?
-        losses = []; started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        losses = []; started = Process.clock_gettime(Process::CLOCK_MONOTONIC); window_ended = false
+        recheck_at = started
+        study_guard = if deadline
+          lambda do
+            raise StudyWindowEnded if Time.current >= deadline
+            tick = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+            if tick >= recheck_at
+              Islamic::Study.guard_training!(run)
+              recheck_at = tick + 1
+            end
+          end
+        end
         run.epochs.times do |epoch|
           raise Cancelled, 'Training cancelled or lease replaced' unless run.reload.status == 'running' && run.lease_token == token
           break if Process.clock_gettime(Process::CLOCK_MONOTONIC) - started > 90
-          loss = network.epoch(train, learning_rate: 0.08, seed: epoch)
+          begin
+            loss = network.epoch(train, learning_rate: 0.08, seed: epoch, before_step: study_guard)
+          rescue StudyWindowEnded
+            window_ended = true
+            break
+          end
           raise ArgumentError, 'Training produced a non-finite loss' unless loss.finite?
           losses << loss
           run.update!(heartbeat_at: Time.current, metrics: {loss_history: losses, epochs_completed: losses.length, initial_loss: initial})
@@ -78,6 +105,7 @@ module NevaehIntelligences
           'retention_examples' => (retention + heldout).uniq.sort_by { |row| Digest::SHA256.hexdigest(row['prompt']) }.first(24),
           'unknown_response_tokens' => heldout.sum { |row| network.encode(row['response']).count(0) },
           'training_token_coverage' => training_coverage,
+          'study_session_id' => run.snapshot['study_session_id'], 'study_window_ended' => window_ended,
           'elapsed_seconds' => (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(2), 'budget_limited' => losses.length < run.epochs}
         passed = losses.any? && final.finite? && validation.finite? && final < initial && validation <= initial_validation + 0.25
         passed &&= training_coverage >= 0.95

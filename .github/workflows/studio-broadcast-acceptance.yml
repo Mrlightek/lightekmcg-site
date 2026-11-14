@@ -215,6 +215,7 @@ jobs:
         run: |
           bundle exec ruby test/standalone/studio_music_checks.rb --name /test_music_/
           bundle exec ruby test/standalone/studio_music_patterns_checks.rb --name /StudioMusicPatternsTest/
+          bundle exec ruby test/standalone/studio_music_automation_checks.rb --name /StudioMusicAutomationTest/
       - name: Production scores and native camera-cut acceptance
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -278,6 +279,7 @@ jobs:
           node test/javascript/studio_ai_setup_test.cjs
           node test/javascript/studio_music_ui_test.cjs
           node test/javascript/studio_music_patterns_test.cjs
+          node test/javascript/studio_music_automation_test.cjs
           node test/javascript/studio_music_audio_test.cjs
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_stage_test.cjs

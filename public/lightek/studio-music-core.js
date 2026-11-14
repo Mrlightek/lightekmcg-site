@@ -6,7 +6,7 @@
   const empty=()=>({version:1,name:'Untitled music',tempo:100,bars:4,swing:0,tracks:[track('kick','Kick'),track('snare','Snare'),track('hat','Hi-hat'),track('bass','Bass'),track('keys','Keys')]});
   function number(v,min,max,label){const n=Number(v);if(!Number.isFinite(n)||n<min||n>max)throw Error(`${label} must be between ${min} and ${max}.`);return n;}
   function validate(score){
-    if(![1,2].includes(score.version))throw Error('Unsupported music project version.');
+    if(![1,2,3].includes(score.version))throw Error('Unsupported music project version.');
     number(score.tempo,40,240,'Tempo');number(score.bars,1,128,'Bars');if(!Number.isInteger(score.bars))throw Error('Use a whole number of bars.');
     if(seconds(score)>600)throw Error('Keep this composition within ten minutes.');number(score.swing,0,0.5,'Swing');
     if(!Array.isArray(score.tracks)||score.tracks.length<1||score.tracks.length>16)throw Error('Use 1–16 instrument tracks.');
@@ -14,7 +14,7 @@
     for(const t of score.tracks){if(!instruments.includes(t.instrument))throw Error('Unknown instrument.');number(t.gain,0,1.5,'Gain');number(t.pan,-1,1,'Pan');number(t.cutoff,100,18000,'Low-pass filter');number(t.delay,0,0.6,'Delay');const keys=new Set();
       for(const n of t.notes){if(++total>4096)throw Error('Use at most 4096 notes per song.');number(n.beat,0,score.bars*4,'Note position');number(n.length,0.015625,64,'Note length');number(n.pitch,0,127,'MIDI pitch');if(!Number.isInteger(n.pitch))throw Error('MIDI notes must be whole numbers.');number(n.velocity,0.01,1,'Velocity');if(n.beat>=score.bars*4||n.beat+n.length>score.bars*4+0.000001)throw Error('A note extends beyond the song.');const key=n.beat+':'+(drums.includes(t.instrument)?'drum':n.pitch);if(keys.has(key))throw Error('Remove duplicate notes at the same beat and pitch.');keys.add(key);}
       if(t.instrument==='sample'){if(!Number.isInteger(t.asset_id)||t.asset_id<=0)throw Error('Choose a prepared audio sample.');number(t.sample_in,0,600,'Sample in');number(t.sample_out,t.sample_in+0.01,t.sample_in+30,'Sample out');number(t.root,0,127,'Sample root');}
-    }validatePatterns(score);return score;
+    }validatePatterns(score);validateAutomation(score);return score;
   }
   function validatePatterns(score){
     const patterns=score.patterns||[],playlist=score.playlist||[];
@@ -52,8 +52,36 @@
     for(const t of tracks){const seen=new Set();for(const n of t.notes){const key=n.beat.toFixed(6)+':'+(drums.includes(t.instrument)?'drum':n.pitch);if(seen.has(key))throw Error('Pattern placements overlap notes on the same channel and pitch. Move the placement or clear those song notes.');seen.add(key);}t.notes.sort((a,b)=>a.beat-b.beat||a.pitch-b.pitch);}
     return tracks;
   }
+  const automationParameters={gain:{label:'Volume',min:0,max:1.5,step:.01},pan:{label:'Pan',min:-1,max:1,step:.05},cutoff:{label:'Low-pass · Hz',min:100,max:18000,step:100},delay:{label:'Delay amount',min:0,max:.6,step:.01}};
+  function validateAutomation(score){
+    const lanes=score.automation??[];
+    if(!Array.isArray(lanes)||lanes.length>64)throw Error('Use at most 64 automation lanes.');
+    if(score.version<3&&lanes.length)throw Error('Music automation requires source version 3.');
+    const keys=new Set();let total=0;
+    for(const lane of lanes){
+      if(!score.tracks.some(t=>t.id===lane.track_id))throw Error('Automation references a missing channel.');
+      const spec=automationParameters[lane.parameter],key=lane.track_id+':'+lane.parameter;
+      if(!spec||keys.has(key))throw Error('Use one supported automation lane per channel and parameter.');keys.add(key);
+      if(typeof lane.enabled!=='boolean')throw Error('Automation enabled must be true or false.');
+      if(!Array.isArray(lane.points)||lane.points.length>128)throw Error('Use at most 128 points per automation lane.');
+      if((total+=lane.points.length)>2048)throw Error('Use at most 2048 automation points per song.');
+      const beats=new Set();for(const point of lane.points){number(point.beat,0,score.bars*4,'Automation beat');number(point.value,spec.min,spec.max,'Automation value');
+        if(!['linear','hold'].includes(point.curve))throw Error('Automation arrival curves are linear or hold.');
+        const beat=Number(point.beat).toFixed(6);if(beats.has(beat))throw Error('Automation point beats must be unique.');beats.add(beat);
+      }
+    }
+  }
+  function automationLane(score,trackId,parameter){return score.automation?.find(l=>l.track_id===trackId&&l.parameter===parameter);}
+  function automationValue(score,track,parameter,beat){
+    const lane=automationLane(score,track.id,parameter);if(!lane?.enabled)return track[parameter];
+    let previous={beat:0,value:track[parameter]};
+    for(const point of [...lane.points].sort((a,b)=>a.beat-b.beat)){
+      if(point.beat>beat)return point.curve==='hold'?previous.value:previous.value+(point.value-previous.value)*(beat-previous.beat)/(point.beat-previous.beat);
+      previous=point;
+    }return previous.value;
+  }
   function makePattern(score,bar=null){
-    score.version=2;score.patterns ||= [];score.playlist ||= [];
+    score.version=Math.max(2,score.version);score.patterns ||= [];score.playlist ||= [];
     const p={id:id(),name:'Pattern '+(score.patterns.length+1),bars:1,tracks:score.tracks.map(t=>({track_id:t.id,notes:bar===null?[]:t.notes.filter(n=>n.beat>=bar*4&&n.beat<(bar+1)*4).map(n=>({...n,beat:n.beat-bar*4,length:Math.min(n.length,(bar+1)*4-n.beat)}))}))};
     score.patterns.push(p);validate(score);return p;
   }
@@ -63,7 +91,7 @@
       let lane=p.tracks.find(l=>l.track_id===t.id);if(!lane){lane={track_id:t.id,notes:[]};p.tracks.push(lane);}
       return new Proxy(t,{get:(target,name)=>name==='notes'?lane.notes:target[name],set:(target,name,value)=>{if(name==='notes')lane.notes=value;else target[name]=value;return true;}});
     });
-    return {...score,bars:p.bars,tracks,patterns:[],playlist:[]};
+    return {...score,bars:p.bars,tracks,patterns:[],playlist:[],automation:[]};
   }
   const seconds=s=>s.bars*4*60/s.tempo;
   function events(score,onlyTrack=null){validate(score);const solo=score.tracks.some(t=>t.solo);return expanded(score).flatMap(t=>(onlyTrack?t.id===onlyTrack:!t.muted&&(!solo||t.solo))?t.notes.map(n=>{const sixteenth=n.beat*4,shift=Math.abs(sixteenth-Math.round(sixteenth))<0.00001&&Math.round(sixteenth)%2?score.swing/4:0;return{track:t.id,instrument:t.instrument,pitch:n.pitch,velocity:n.velocity,time:(n.beat+shift)*60/score.tempo,duration:n.length*60/score.tempo};}):[]).sort((a,b)=>a.time-b.time);}
@@ -72,5 +100,5 @@
   function toMidi(score){validate(score);const midi=new window.Midi();midi.name=score.name;midi.header.setTempo(score.tempo);midi.header.timeSignatures.push({ticks:0,timeSignature:[4,4]});let channel=0;for(const t of expanded(score)){const dest=midi.addTrack();dest.name=t.name;if(drums.includes(t.instrument))dest.channel=9;else{if(channel===9)channel++;if(channel>15)throw Error('MIDI supports fifteen melodic channels plus a drum channel. Export some tracks as audio stems.');dest.channel=channel++;};dest.instrument.number={bass:32,keys:0,pad:88,lead:80}[t.instrument]||0;for(const n of t.notes)dest.addNote({midi:drums.includes(t.instrument)?{kick:36,snare:38,hat:42,clap:39}[t.instrument]:n.pitch,ticks:Math.round(n.beat*midi.header.ppq),durationTicks:Math.max(1,Math.round(n.length*midi.header.ppq)),velocity:n.velocity});}return midi.toArray();}
   function fromMidi(bytes,name){const midi=new window.Midi(bytes),tempos=midi.header.tempos;if(tempos.some(t=>Math.abs(t.bpm-(tempos[0]?.bpm||120))>0.001)||midi.header.timeSignatures.some(t=>t.timeSignature[0]!==4||t.timeSignature[1]!==4))throw Error('This music editor currently imports a constant tempo and 4/4 meter.');const score={version:1,name:name||midi.name||'Imported MIDI',tempo:tempos[0]?.bpm||120,bars:1,swing:0,tracks:[]};for(const source of midi.tracks){if(!source.notes.length)continue;const groups=new Map();for(const n of source.notes){const instrument=source.channel===9?([35,36].includes(n.midi)?'kick':[38,40].includes(n.midi)?'snare':[42,44,46].includes(n.midi)?'hat':n.midi===39?'clap':null):source.instrument.family==='bass'?'bass':source.instrument.family==='synth pad'?'pad':'keys';if(!instrument)throw Error('This MIDI drum kit includes sounds that need custom sample mapping.');if(!groups.has(instrument))groups.set(instrument,track(instrument,source.name||instrument));const dest=groups.get(instrument),note={beat:n.ticks/midi.header.ppq,length:n.durationTicks/midi.header.ppq,pitch:drums.includes(instrument)?60:n.midi,velocity:n.velocity};if(dest.notes.some(a=>a.beat===note.beat&&a.pitch===note.pitch))continue;dest.notes.push(note);score.bars=Math.max(score.bars,Math.ceil((note.beat+note.length)/4));}score.tracks.push(...groups.values());}return validate(score);}
   function wav(buffer){const channels=Math.min(2,buffer.numberOfChannels),length=buffer.length,rate=buffer.sampleRate,bytes=new ArrayBuffer(44+length*channels*2),view=new DataView(bytes);const text=(at,s)=>{for(let i=0;i<s.length;i++)view.setUint8(at+i,s.charCodeAt(i));};text(0,'RIFF');view.setUint32(4,36+length*channels*2,true);text(8,'WAVE');text(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,channels,true);view.setUint32(24,rate,true);view.setUint32(28,rate*channels*2,true);view.setUint16(32,channels*2,true);view.setUint16(34,16,true);text(36,'data');view.setUint32(40,length*channels*2,true);const planes=Array.from({length:channels},(_,i)=>buffer.getChannelData(i));for(let i=0;i<length;i++)for(let c=0;c<channels;c++){const sample=Math.max(-1,Math.min(1,Number.isFinite(planes[c][i])?planes[c][i]:0));view.setInt16(44+(i*channels+c)*2,sample<0?sample*32768:sample*32767,true);}return bytes;}
-  window.LightekMusicCore={instruments,drums,track,empty,clone,validate,validatePatterns,expanded,makePattern,editor,seconds,events,toggle,copyBar,toMidi,fromMidi,wav};
+  window.LightekMusicCore={instruments,drums,track,empty,clone,validate,validatePatterns,automationParameters,validateAutomation,automationLane,automationValue,expanded,makePattern,editor,seconds,events,toggle,copyBar,toMidi,fromMidi,wav};
 })();

@@ -17,23 +17,28 @@ module Studio
           shot=Studio::Shots::Board.find(scene,payload["shot_id"])
           intent.merge!("shot_id"=>shot["id"],"shot_name"=>shot["name"])
         end
+        site=DymondSite::Site.find(access.site_id)
         asset=nil
-        access.user.with_lock do
-          asset=StudioAsset.find_by(owner:access.user,request_key:key)
-          if asset
-            raise ArgumentError,"This request key belongs to another generation" unless asset.site_id==access.site_id && asset.metadata["ai_intent"]==intent
-            return receipt(asset)
+        site.with_lock do
+          access.user.with_lock do
+            asset=StudioAsset.find_by(owner:access.user,request_key:key)
+            if asset
+              raise ArgumentError,"This request key belongs to another generation" unless asset.site_id==access.site_id && asset.metadata["ai_intent"]==intent
+              return receipt(asset)
+            end
+            raise ArgumentError,"Wait for worker setup to finish before generating" if Setup.pending?(site)
+            worker=site.manifest.to_h["studio_ai_worker"] || {"mode"=>"local"}
+            runtime=Runtime.new(site:site,identity:worker);status=runtime.inventory
+            recipe=status[:recipes].find{|r|r[:id]==recipe_id && r[:ready]}
+            raise ArgumentError,status[:reason] || "This workflow is not ready on your local worker" unless recipe
+            raise ArgumentError,"Choose an installed local model" unless model.empty? || status[:models].include?(model)
+            _,graph=runtime.graph(recipe_id,prompt:prompt,negative:negative,seed:seed,model:model)
+            raise ArgumentError,"Choose an installed local model" if graph.values.any?{|n|n["class_type"]=="CheckpointLoaderSimple" && n.dig("inputs","ckpt_name").blank?}
+            pending=StudioAsset.where(owner:access.user,status:%w[uploaded processing]).where("metadata ->> 'ai_intent' IS NOT NULL").count
+            raise ArgumentError,"Wait for your current generations to finish" if pending>=2
+            asset=StudioAsset.create!(owner:access.user,site_id:access.site_id,studio_project:scene.studio_project,name:prompt.first(120),kind:recipe[:kind],status:"uploaded",request_key:key,metadata:{"ai_intent"=>intent,"ai_graph"=>graph,"ai_phase"=>"queued","ai_engine"=>"self_hosted_comfyui","ai_worker"=>worker})
+            StudioAiGenerationJob.perform_later(asset.id)
           end
-          runtime=Runtime.new;status=runtime.inventory
-          recipe=status[:recipes].find{|r|r[:id]==recipe_id && r[:ready]}
-          raise ArgumentError,status[:reason] || "This workflow is not ready on your local worker" unless recipe
-          raise ArgumentError,"Choose an installed local model" unless model.empty? || status[:models].include?(model)
-          _,graph=runtime.graph(recipe_id,prompt:prompt,negative:negative,seed:seed,model:model)
-          raise ArgumentError,"Choose an installed local model" if graph.values.any?{|n|n["class_type"]=="CheckpointLoaderSimple" && n.dig("inputs","ckpt_name").blank?}
-          pending=StudioAsset.where(owner:access.user,status:%w[uploaded processing]).where("metadata ->> 'ai_intent' IS NOT NULL").count
-          raise ArgumentError,"Wait for your current generations to finish" if pending>=2
-          asset=StudioAsset.create!(owner:access.user,site_id:access.site_id,studio_project:scene.studio_project,name:prompt.first(120),kind:recipe[:kind],status:"uploaded",request_key:key,metadata:{"ai_intent"=>intent,"ai_graph"=>graph,"ai_phase"=>"queued","ai_engine"=>"local_comfyui"})
-          StudioAiGenerationJob.perform_later(asset.id)
         end
         receipt(asset)
       end

@@ -1,0 +1,12 @@
+
+.studio-ai .ai-worker { margin: 1rem 0 1.5rem; padding: 1rem; border: 1px solid var(--dd-border,#384354); border-radius: 12px; background: var(--dd-card-bg,#151922); }
+.studio-ai .ai-worker summary { cursor: pointer; font-weight: 600; }
+.studio-ai .ai-worker form { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 1rem; margin-top: 1rem; }
+.studio-ai .ai-worker form > ul,.studio-ai .ai-worker form > p { grid-column: 1 / -1; }
+.studio-ai .ai-worker progress { width: 100%; accent-color: var(--dd-accent,#d9b567); }
+
+.studio-ai{color:var(--dd-text-primary,#edf0f6);background:var(--dd-page-bg,#0d1119)}
+.studio-ai p,.studio-ai .fld{color:var(--dd-text-secondary,#a5b2c7)}
+.studio-ai form,.studio-ai .ai-animation,.studio-ai .ai-result{background:var(--dd-card-bg,#151922);border-color:var(--dd-border,#384354)}
+.studio-ai :is(input,select,textarea){background:var(--dd-input-bg,#0c1018);color:var(--dd-input-text,var(--dd-text-primary,#edf0f6));border-color:var(--dd-input-border,var(--dd-border,#384354));color-scheme:var(--dd-form-scheme,dark)}
+.studio-ai :focus-visible{outline:2px solid var(--dd-accent,#d9b567);outline-offset:2px}

@@ -4,6 +4,10 @@ on:
     paths:
       - 'app/**/studio/**'
       - 'app/jobs/studio_ai_generation_job.rb'
+      - 'app/jobs/studio_ai_install_job.rb'
+      - 'lib/scripts/gatekeeper/install_studio_ai.py'
+      - 'lib/scripts/setup_studio_ai_access.py'
+      - 'public/lightek/studio-ai.css'
       - 'config/studio_ai/**'
       - 'config/studio/blender_demos.json'
       - 'app/jobs/studio_starter_cast_job.rb'
@@ -160,6 +164,10 @@ jobs:
         run: |
           bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
           bundle exec ruby test/standalone/studio_ai_checks.rb --name /test_ai_/
+      - name: Managed Genesis setup boundaries
+        run: |
+          bundle exec ruby test/standalone/studio_ai_setup_checks.rb --name /StudioAiSetupTest/
+          python3 -m unittest test.operations.studio_ai_setup_test
       - name: Guided media runtime connection
         run: bundle exec ruby test/standalone/session_media_setup_checks.rb --name /test_media_setup_/
       - name: Campaign to native Dashboard Studio handoff
@@ -228,6 +236,7 @@ jobs:
           node test/javascript/studio_dashboard_context_test.cjs
           node test/javascript/studio_edit_workbench_test.cjs
           node test/javascript/studio_delivery_test.cjs
+          node test/javascript/studio_ai_setup_test.cjs
           node test/javascript/studio_music_ui_test.cjs
           node test/javascript/studio_music_audio_test.cjs
           node test/javascript/studio_live_library_test.cjs

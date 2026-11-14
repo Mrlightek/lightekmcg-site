@@ -4,16 +4,24 @@ require "uri"
 require "json"
 module Studio
   module Ai
-    # This adapter talks only to an operator-managed local engine. The browser
+    # This adapter talks to a local engine or a site-owned managed worker. The browser
     # cannot supply URLs, graphs, model paths or output filenames.
     class Runtime
-      def initialize
-        @origin=URI(ENV.fetch("STUDIO_AI_URL","http://127.0.0.1:8188"))
-        raise ArgumentError,"Studio AI must use a local engine" unless %w[http https].include?(@origin.scheme) && %w[127.0.0.1 localhost ::1].include?(@origin.hostname) && @origin.userinfo.nil? && @origin.query.nil? && ["","/"].include?(@origin.path)
+      def initialize(site:nil, identity:nil)
+        identity ||= site&.manifest.to_h&.fetch("studio_ai_worker",nil)
+        if identity && identity["mode"]!="local"
+          url,@token=Setup.connection(site,identity)
+          @origin=URI(url)
+          raise ArgumentError,"Invalid managed worker origin" unless @origin.scheme=="https" && @origin.userinfo.nil? && @origin.query.nil? && @origin.fragment.nil? && @origin.path=="/lightek-ai" && @origin.hostname.to_s.match?(/\A[a-zA-Z0-9.-]+\z/)
+        else
+          @origin=URI(ENV.fetch("STUDIO_AI_URL","http://127.0.0.1:8188"))
+          raise ArgumentError,"Studio AI must use a local engine" unless %w[http https].include?(@origin.scheme) && %w[127.0.0.1 localhost ::1].include?(@origin.hostname) && @origin.userinfo.nil? && @origin.query.nil? && @origin.fragment.nil? && ["","/"].include?(@origin.path)
+        end
       end
       def request(path,payload:nil,limit:5.megabytes)
-        uri=@origin.dup;uri.path,uri.query=path.split("?",2)
+        uri=@origin.dup;requested_path,uri.query=path.split("?",2);uri.path=@origin.path.delete_suffix("/")+requested_path
         request=payload ? Net::HTTP::Post.new(uri) : Net::HTTP::Get.new(uri)
+        request["Authorization"]="Bearer #{@token}" if @token
         if payload
           request["Content-Type"]="application/json";request.body=JSON.generate(payload)
         end
@@ -44,10 +52,13 @@ module Studio
         available=recipes.map do |recipe|
           missing=recipe["workflow"].values.map{|n|n.fetch("class_type")}.uniq.reject{|name|nodes.key?(name)}
           needs_checkpoint=recipe["workflow"].values.any?{|n|n.dig("inputs","ckpt_name")=="$checkpoint"}
-          {id:recipe["id"],name:recipe["name"],kind:recipe["kind"],ready:missing.empty? && (!needs_checkpoint || models.any?),reason:missing.any? ? "Required engine nodes are not installed" : needs_checkpoint && models.empty? ? "Install a local checkpoint on the generation worker" : nil}
+          missing_models=Array(recipe["required_models"]).reject do |spec|
+            Array(nodes.dig(spec["node"],"input","required",spec["field"],0)).include?(spec["name"])
+          end
+          {id:recipe["id"],name:recipe["name"],kind:recipe["kind"],ready:missing.empty? && missing_models.empty? && (!needs_checkpoint || models.any?),reason:missing.any? ? "Required engine nodes are not installed" : missing_models.any? ? "Required workflow models are not installed" : needs_checkpoint && models.empty? ? "Install a local checkpoint on the generation worker" : nil}
         end
         {connected:true,engine:"Self-hosted ComfyUI",recipes:available,models:models}
-      rescue SystemCallError,SocketError,Timeout::Error,IOError,ArgumentError,JSON::ParserError
+      rescue SystemCallError,SocketError,Timeout::Error,IOError,OpenSSL::SSL::SSLError,ArgumentError,JSON::ParserError
         {connected:false,engine:"Self-hosted ComfyUI",recipes:[],models:[],reason:"No ready local generation worker. Engine and model installation must be completed before generation is available."}
       end
       def graph(recipe_id,prompt:,negative:,seed:,model:)

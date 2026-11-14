@@ -7,6 +7,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Photo/video editing engines, saved projects and PNG/MP4 exports.
 - [x] Saved Blender authoring commands and an interactive object-skew control (PR #241).
 - [x] Ordered storyboard, camera/frame/Cast selection and immutable shot render snapshots.
+- [x] Managed Genesis worker/model setup, authenticated routing, resumable verified packages and core image/video recipe contracts. See [Genesis workers](genesis-workers.md).
 - [x] Storyboard → Genesis prompt handoff with shot provenance.
 - [x] Finished shot → media library → edit handoff and reusable template reference remapping.
 
@@ -14,7 +15,7 @@ These checkboxes record implementation, not completed production acceptance.
 
 ## Remaining feature sprints
 
-- [ ] Managed Genesis workers/model installation and tested local generation recipes for the agreed media types.
+- [ ] Complete generation recipes for the remaining agreed media types and verify actual inference/output on suitable production hardware.
 - [ ] Character creation/performance tools, eligible face/performance models, phoneme lip sync and reusable animation controls.
 - [ ] Expand direct Blender object/material/rig/compositor controls using the existing documented command contract.
 - [ ] FL Studio-style music workflow: pattern/channel arrangement, recording, instruments, mixer/effects and scoring against picture.

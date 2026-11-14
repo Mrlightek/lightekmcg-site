@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v77-music-performance"
+const CACHE = "lightek-shell-v78-music-overdub"
 
 const SHELL = [
   "/lightek/index.html",
@@ -38,6 +38,7 @@ const SHELL = [
   "/lightek/studio-music-core.js",
   "/lightek/studio-music-audio.js",
   "/lightek/studio-music-recording.js",
+  "/lightek/studio-music-recorder-worklet.js?v=78",
   "/lightek/studio-music.js",
   "/lightek/studio-music.css",
   "/lightek/vendor/tone/Tone-15.1.22.js",

@@ -1,0 +1,17 @@
+// Runs the vendored instruments against a real native Web Audio offline renderer (no browser mocks).
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+(async()=>{
+ global.navigator||={};await import(require.resolve('node-web-audio-api/polyfill.js'));
+ window.performance=performance;global.requestAnimationFrame=window.requestAnimationFrame=()=>0;global.cancelAnimationFrame=window.cancelAnimationFrame=()=>{};window.self=window;
+ global.Tone=require(process.cwd()+'/public/lightek/vendor/tone/Tone-15.1.22.js');
+ Tone.setContext(new Tone.Context({context:new AudioContext({sinkId:{type:'none'}}),clockSource:'offline'}));
+ // Offline rendering needs no sound-card resume; synthesis and all DSP remain real.
+ Tone.start=async()=>{};global.crypto||=require('node:crypto').webcrypto;
+ for(const file of ['studio-music-core','studio-music-audio'])vm.runInThisContext(fs.readFileSync('public/lightek/'+file+'.js','utf8'));
+ const core=window.LightekMusicCore,audio=window.LightekMusicAudio,energy=(buffer,start,end,channel=0)=>{const data=buffer.getChannelData(channel);let sum=0;for(let i=Math.floor(start*buffer.sampleRate);i<Math.min(data.length,Math.floor(end*buffer.sampleRate));i++)sum+=data[i]**2;return sum;};
+ let origin;const backing=core.empty();backing.bars=1;backing.tempo=120;backing.tracks=[core.track('keys')];
+ await Tone.Offline(async()=>{await audio.play(backing,[],()=>{},false);origin=audio.captureInfo();assert.equal(origin.context,Tone.getTransport().context.rawContext);assert.equal(origin.sampleRate,48000);assert(Number.isInteger(origin.startFrame));assert(origin.startFrame>=.04*48000&&origin.startFrame<=.06*48000);},.1,2,48000);audio.stop();assert.equal(audio.captureInfo(),null);
+ const input=new AudioBuffer({length:48000,numberOfChannels:2,sampleRate:48000});for(let i=12000;i<18000;i++)for(let channel=0;channel<2;channel++)input.getChannelData(channel)[i]=Math.sin(2*Math.PI*880*i/48000)*.25;const bytes=core.wav(input);global.fetch=async()=>({ok:true,headers:{get:()=>String(bytes.byteLength)},arrayBuffer:async()=>bytes});const asset={id:88,name:'Recorded take',kind:'audio',status:'ready',metadata:{duration:1},proxy_url:'/overdub'},alignment={tempo:120,sampleRate:48000,startFrame:origin.startFrame,firstFrame:0,frames:48000,windowFrames:96000};
+ for(const [correction,onset] of [[0,.2],[50,.15],[-100,.3]]){const score=core.empty();score.bars=1;score.tempo=120;score.tracks=[];const placed=core.overdubPlacement(asset,alignment,120,correction);const take=core.addRecording(score,asset,placed.beat,placed);assert.equal(take.sample_in,placed.in);const mix=await audio.render(score,[asset]);assert(energy(mix,onset-.05,onset-.01)<1e-9,'take stays silent before the aligned signal');assert(energy(mix,onset+.02,onset+.08)>.01,'aligned signal follows the requested timing correction');}
+ console.log('STUDIO_MUSIC_OVERDUB_AUDIO_PASS real scheduled backing frame origin, PCM source alignment, pre-roll trim, earlier/later correction and WAV rendering');await Tone.getContext().close();process.exit(0);
+})().catch(e=>{console.error(e);process.exit(1)});

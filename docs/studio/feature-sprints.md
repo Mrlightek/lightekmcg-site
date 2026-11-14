@@ -13,6 +13,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Per-slot native/Cast material controls, sparse input overrides and a reversible scene compositor finish. See [Look & materials](look-and-materials.md).
 - [x] Instrument performance capture from screen/computer/MIDI input, review/quantization and existing note-source handoff. See [Performance recording](music-performance.md).
 - [x] Music-clock-driven muted picture monitor, saved scoring cues/start and aligned mix replacement. See [Picture scoring](music-picture-scoring.md).
+- [x] Song-clock microphone overdub, bounded bar passes, manual timing correction and editable aligned placement. See [Microphone overdub](music-overdub.md).
 - [x] Local microphone capture/review, retryable library import and source-bound audio takes through the music mixer. See [Recording & audio takes](music-recording.md).
 - [x] Mixer subgroup routing, ordered channel/bus/master EQ/compression/distortion/delay inserts and processed stems. See [Mixer buses & inserts](music-mixer.md).
 - [x] Saved song automation for gain, pan, filter and delay, with shared live/offline scheduling, bypass and undo. See [Music automation](music-automation.md).
@@ -27,7 +28,7 @@ These checkboxes record implementation, not completed production acceptance.
 - [ ] Complete generation recipes for the remaining agreed media types and verify actual inference/output on suitable production hardware.
 - [ ] Advanced character creation/performance tools, eligible face/performance models and expanded reusable body-animation controls.
 - [ ] Expand direct Blender object/material/rig/compositor controls using the existing documented command contract.
-- [ ] Remaining music production: synchronized overdub/latency handling, expanded MIDI expression/controllers, expanded instruments/effects and bus/effect automation; integrated music-to-picture acceptance.
+- [ ] Remaining music production: automatic device latency calibration, loop/punch/comp recording, expanded MIDI expression/controllers, expanded instruments/effects and bus/effect automation; integrated music-to-picture acceptance.
 - [ ] Shared production templates/assets in Live Studio, multi-person composition, stage effects, audience and distribution completion.
 - [ ] Complete the agreed media publishing and distribution connections across network, streaming, community and social destinations.
 

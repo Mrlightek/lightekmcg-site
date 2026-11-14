@@ -234,7 +234,7 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Music composition | Step sequencer, piano roll, instruments/samples, reusable multichannel patterns and linked song placements with repeat/transposition/strength/mute. |
 | Microphone overdub | Shared song/capture audio clock, bounded bar passes, local PCM review, manual timing correction and editable aligned audio-take placement. Hardware latency calibration remains separate. |
 | Instrument performance recording | Screen/computer/MIDI-input note capture, velocity/sustain, manual input correction, review/grid/Apply/Undo and existing song/pattern persistence. |
-| Music automation | Saved channel gain/pan/filter/delay, group gain/pan and master gain envelopes; linear/hold points, bypass, live/offline scheduling and processed stems. |
+| Music automation | Saved channel gain/pan/filter/delay, group gain/pan, master gain and schedulable EQ/compressor/delay/wet-mix insert envelopes; linear/hold points, bypass, live/offline scheduling and processed stems. |
 | Music mixer | Eight subgroup buses, channel routing and ordered channel/group/master EQ, compression, distortion and delay inserts, with bypass/reorder/undo. |
 | Audio takes | Local microphone capture/review, retryable canonical WAV library import, source-bound original-pitch takes, trim/beat placement and shared mixer routing. |
 | Picture scoring | Muted Edit compositor monitor driven by music time, saved score start and picture cues, beat mapping and aligned mix placement. |

@@ -4,6 +4,7 @@ require File.join(ROOT,"app/services/studio/music/composition")
 require File.join(ROOT,"app/services/studio/music/patterns")
 require File.join(ROOT,"app/services/studio/music/automation")
 require File.join(ROOT,"app/services/studio/music/mixer")
+require File.join(ROOT,"app/services/studio/music/scoring")
 require File.join(ROOT,"app/services/studio/assets/upload")
 require File.join(ROOT,"app/services/studio/workers/pwa")
 # Standalone checks substitute only the external gem's query adapter, with real AR relations.

@@ -74,6 +74,7 @@ EnterpriseHarness.routes.draw do
   resources :passwords, param: :token
   resource :session,only: %i[new create destroy]
   eval(ROOT.join('config/routes/enterprise_identity.rb').read,binding)
+  eval(ROOT.join('config/routes/agency_demos.rb').read,binding)
   eval(ROOT.join('config/routes/accounting.rb').read,binding)
   get '/after-login',to: 'identity_protected#index'
   get '/dashboard',to: 'identity_protected#index'

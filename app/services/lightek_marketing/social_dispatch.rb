@@ -7,6 +7,7 @@ module LightekMarketing
   class SocialDispatch
     class Unavailable < StandardError; end
     def self.call!(post:)
+      LightekAgency::Demos.ensure_live_site!(post.campaign.site, error: Unavailable) if defined?(LightekAgency::Demos)
       post.with_lock do
         raise Unavailable, "Provider outcome requires reconciliation" if post.status == "needs_review"
         raise Unavailable, "Publication already completed" if post.status == "published"

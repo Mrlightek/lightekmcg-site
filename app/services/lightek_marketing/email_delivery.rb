@@ -6,6 +6,7 @@ module LightekMarketing
     class Invalid < StandardError; end
 
     def self.call!(campaign:, actor:)
+      LightekAgency::Demos.ensure_live_site!(campaign.site, error: Invalid) if defined?(LightekAgency::Demos)
       campaign.with_lock do
         raise Invalid, "Only ready email campaigns can be sent" unless campaign.channel == "email" && campaign.status == "ready"
         raise Invalid, "Campaign already sent" if campaign.sent_at? || campaign.mail_message_id.present?

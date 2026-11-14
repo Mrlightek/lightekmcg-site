@@ -28,6 +28,7 @@ module NevaehControlCenterHelper
       rows << item.call("shipping", "Shipping & Fulfillment", main_app.dashboard_shipping_path, "ti-truck-delivery")
     end
     if current_user.role.in?(%w[super_admin white_label])
+      rows << item.call("demos", "Client demos", main_app.dashboard_demos_path, "ti-flask")
       rows << item.call("connect", "Lightek Connect", main_app.dashboard_connect_path, "ti-plug-connected")
       rows << item.call("white-label", "White Label Agencies", main_app.dashboard_agencies_path, "ti-brand-asana")
     end

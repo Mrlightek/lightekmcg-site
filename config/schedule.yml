@@ -1,4 +1,10 @@
 # config/schedule.yml
+agency_demo_cleanup:
+  cron: "*/5 * * * *"
+  class: "LightekAgency::DemoSweepJob"
+  queue: default
+  active_job: true
+
 susu_cycle_reminders:
   cron: "0 9 * * *" # Daily at 9:00 AM
   class: "SusuCycleReminderJob"

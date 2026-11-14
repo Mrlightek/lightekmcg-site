@@ -3,6 +3,7 @@ module LightekCommerce
   class StripeCheckout
     class Unavailable < StandardError; end
     def self.start!(order:, success_url:, cancel_url:)
+      LightekAgency::Demos.ensure_live_site!(order.site, error: Unavailable) if defined?(LightekAgency::Demos)
       raise Unavailable, "Order is not payable" unless order.status == "pending_payment"
       return NetworkCheckout.start!(order: order, success_url: success_url, cancel_url: cancel_url) if NetworkCheckout.connected?(order)
       return resume!(order: order) if order.payment_reference.present?

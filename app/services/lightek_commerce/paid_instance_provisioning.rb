@@ -104,6 +104,7 @@ module LightekCommerce
         site_name: "#{customer.first_name}'s Lightek", headline: "Welcome to Lightek",
         description: "Your Lightek workspace", certificate_email: actor.email_address,
         credential_slug: slug)
+      config['demo_content'] = LightekAgency::DemoUpgrade.content_for(order) if order.respond_to?(:agency_demo_id) && order.agency_demo_id
       config['reservation_federation'] = LightekReservations::Federation::Issuer.ensure!(order: order, merchant: customer, domain: domain)
       if reservation
         config["reservation_experience"] = reservation.package_snapshot.merge("reference" => reservation.reference,
@@ -124,6 +125,7 @@ module LightekCommerce
       end
       # The packager acceptance receipt has passed before the order is marked ready.
       order.update!(provisioning_state: "ready", provisioned_at: Time.current)
+      LightekAgency::DemoUpgrade.complete!(order) if order.respond_to?(:agency_demo_id) && order.agency_demo_id
       Fulfillment.complete!(order: order, reference: "server-reservation-#{reservation.reference}") if reservation && order.status == 'paid'
       begin
         publish_ready_notification!(order: order, customer: customer, domain: domain)

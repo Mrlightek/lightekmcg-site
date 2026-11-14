@@ -96,6 +96,9 @@ module DymondBank
       destination.update!(capability_status: response.dig('configuration','recipient','capabilities','bank_accounts','ach','status').to_s.slice(0,50))
     end
     def prepare!(statement)
+      if defined?(LightekAgency::Demo) && LightekAgency::Demo.table_exists? && LightekAgency::Demo.where(client_id: @employer.id, cleaned_at: nil).exists?
+        raise Unavailable, 'Live payroll payouts are disabled for demo accounts'
+      end
       run = statement.pay_run
       raise Unavailable, 'Sender account changed after approval' unless run.employer_id == @employer.id && run.financial_account_ref == financial_account_ref
       destination = statement.employment.payout_destination
@@ -118,6 +121,9 @@ module DymondBank
       result
     end
     def confirm!(statement)
+      if defined?(LightekAgency::Demo) && LightekAgency::Demo.table_exists? && LightekAgency::Demo.where(client_id: @employer.id, cleaned_at: nil).exists?
+        raise Unavailable, 'Live payroll payouts are disabled for demo accounts'
+      end
       raise Unavailable, 'Sender account changed after approval' unless statement.pay_run.financial_account_ref == financial_account_ref
       request(:post, "/v2/money_management/payout_intents/#{identifier!(statement.provider_ref)}/confirm", {}, key: "workforce-confirm-#{statement.id}-v1")
     end

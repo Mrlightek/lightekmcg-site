@@ -4,6 +4,8 @@ import math
 import os
 import subprocess
 import visemes
+import motion
+from mathutils import Euler
 
 SOUNDS = []
 
@@ -74,6 +76,8 @@ def apply(root, objects, definition):
                 points.update({first: 0, first + edge: cue['value'], last - edge: cue['value'], last: 0})
         animate(shape(control), points)
 
+    motion_ids={clip['action_id'] for clip in definition.get('motion_clips',[])}
+    motion_rigs={item['rig'] for item in profile.get('motions',[]) if item['id'] in motion_ids}
     for cue in take['gestures']:
         binding_key = {'nod': 'head', 'shake': 'head', 'wave_left': 'left_arm', 'wave_right': 'right_arm'}[cue['kind']]
         binding = profile['bones'][binding_key]
@@ -83,7 +87,7 @@ def apply(root, objects, definition):
         if rig.animation_data and rig.animation_data.action:
             rig.animation_data.action = rig.animation_data.action.copy()
         bone = rig.pose.bones[binding['bone']]
-        base = bone.matrix_basis.to_euler('XYZ')
+        base = Euler((0,0,0),'XYZ') if binding['object'] in motion_rigs else bone.matrix_basis.to_euler('XYZ')
         bone.rotation_mode = 'XYZ'
         for i in range(17):
             ratio = i / 16
@@ -93,6 +97,17 @@ def apply(root, objects, definition):
             angles[axis] += math.sin(ratio * math.tau * 2) * math.sin(ratio * math.pi) * cue['strength'] * 0.6
             bone.rotation_euler = angles
             bone.keyframe_insert(data_path='rotation_euler', frame=frame_at(t, fps), group='Lightek performance')
+
+    if definition.get('motion_clips') and take['gestures']:
+        rigs={objects[profile['bones'][{'nod':'head','shake':'head','wave_left':'left_arm','wave_right':'right_arm'}[cue['kind']]]['object']] for cue in take['gestures']}
+        for rig in rigs:
+            if rig not in {objects[name] for name in motion_rigs}: continue
+            action=rig.animation_data.action
+            if action is None: continue
+            slot=getattr(rig.animation_data,'action_slot',None)
+            first,last=action.frame_range
+            rig.animation_data.action=None
+            motion.add_strip(rig,action,slot,name='Lightek gesture overlay',first=first,last=last,scene_start=first,mode='ADD')
 
     path = take.get('audio_path')
     if not path or not os.path.isfile(path):

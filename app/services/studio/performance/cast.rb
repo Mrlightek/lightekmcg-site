@@ -7,7 +7,7 @@ module Studio
       def self.inventory(asset)
         asset.metadata.slice("character_profile","performer_build","duration","has_audio","source_scene","missing_dependencies").merge("scenes"=>Array(asset.metadata["scenes"]).map do |scene|
           {"name"=>scene["name"],"objects"=>Array(scene["objects"]).map do |object|
-            {"name"=>object["name"],"definition"=>object.fetch("definition",{}).slice("native_type","shape_keys").merge("bones"=>Array(object.dig("definition","bones")).map { |bone| bone.slice("name") })}
+            {"name"=>object["name"],"definition"=>object.fetch("definition",{}).slice("native_type","shape_keys","motion_actions").merge("bones"=>Array(object.dig("definition","bones")).map { |bone| bone.slice("name") })}
           end}
         end)
       end
@@ -34,7 +34,13 @@ module Studio
           binding
         end
         raise ArgumentError,"Each gesture needs its own bone" unless bones.values.uniq.length==bones.length
-        {"version"=>1,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones}
+        source_fps=Float(source.dig("settings","fps") || 24)/Float(source.dig("settings","fps_base") || 1)
+        raise ArgumentError,"The character source frame rate is invalid" unless source_fps.finite? && source_fps.between?(1,120)
+        motions=objects.flat_map do |object|
+          next [] unless object.dig("definition","native_type")=="ARMATURE"
+          Array(object.dig("definition","motion_actions")).map{|action|action.slice("id","name","source","slot","frame_start","frame_end").merge("rig"=>object["name"],"fps"=>source_fps)}
+        end.first(64)
+        {"version"=>2,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones}
       end
 
       def self.register(access:,payload:)

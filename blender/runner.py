@@ -9,6 +9,7 @@ from mathutils import Vector, Matrix, Euler
 sys.path.insert(0, os.path.dirname(__file__))
 import authoring
 import performance
+import motion
 
 
 SCHEMA_VERSION = "1.0"
@@ -393,6 +394,7 @@ def create_manifest_object(item):
                 child.parent = root
         apply_transform(root, definition)
         if definition.get("character_profile"):
+            motion.apply(source_objects, definition)
             performance.apply(root, source_objects, definition)
         return root
 

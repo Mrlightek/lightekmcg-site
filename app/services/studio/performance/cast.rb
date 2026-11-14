@@ -2,7 +2,7 @@
 module Studio
   module Performance
     class Cast
-      CONTROLS=%w[jaw_open smile blink brow_raise mouth_wide mouth_round].freeze
+      CONTROLS=(%w[jaw_open smile blink brow_raise mouth_wide mouth_round] + %w[a b c d e f g h x].map{|shape|"viseme_#{shape}"}).freeze
       GESTURES=%w[head left_arm right_arm].freeze
       def self.inventory(asset)
         asset.metadata.slice("character_profile","performer_build","duration","has_audio","source_scene","missing_dependencies").merge("scenes"=>Array(asset.metadata["scenes"]).map do |scene|

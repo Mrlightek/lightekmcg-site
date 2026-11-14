@@ -5,6 +5,8 @@ on:
       - 'app/**/studio/**'
       - 'app/jobs/studio_ai_generation_job.rb'
       - 'app/jobs/studio_ai_install_job.rb'
+      - 'app/jobs/studio_lip_sync_job.rb'
+      - 'public/lightek/studio-performance.css'
       - 'lib/scripts/gatekeeper/install_studio_ai.py'
       - 'lib/scripts/setup_studio_ai_access.py'
       - 'public/lightek/studio-ai.css'
@@ -168,6 +170,22 @@ jobs:
         run: |
           bundle exec ruby test/standalone/studio_ai_setup_checks.rb --name /StudioAiSetupTest/
           python3 -m unittest test.operations.studio_ai_setup_test
+      - name: Pinned offline speech engine and native mouth animation
+        env:
+          LIGHTEK_RHUBARB: ${{ runner.temp }}/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb
+        run: |
+          mkdir -p "$RUNNER_TEMP/rhubarb/proof"
+          curl --fail --location --retry 2 https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -o "$RUNNER_TEMP/rhubarb/release.zip"
+          echo "a9a9074862cff47b2d59b8bf399a678a3b0b74f9452ad6ad94cb292913dd8667  $RUNNER_TEMP/rhubarb/release.zip" | sha256sum --check -
+          unzip -q "$RUNNER_TEMP/rhubarb/release.zip" -d "$RUNNER_TEMP/rhubarb"
+          chmod 755 "$LIGHTEK_RHUBARB"
+          bundle exec ruby test/standalone/studio_lip_sync_checks.rb --name /StudioLipSyncTest/
+          python3 -m unittest test.operations.studio_visemes_test
+          ffmpeg -v error -y -f lavfi -i "flite=text='Hello Lightek. We are making a movie today.':voice=slt" -ac 1 -ar 16000 "$RUNNER_TEMP/rhubarb/speech.wav"
+          "$LIGHTEK_RHUBARB" -f json -r phonetic --extendedShapes GHX --threads 1 "$RUNNER_TEMP/rhubarb/speech.wav" > "$RUNNER_TEMP/rhubarb/cues.json"
+          echo '{"skin":"#925e43","wardrobe":"#64388b","hair":"#211916"}' > "$RUNNER_TEMP/rhubarb/params.json"
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python blender/create_performer.py -- "$RUNNER_TEMP/rhubarb/params.json" "$RUNNER_TEMP/rhubarb/performer.blend"
+          blender --background "$RUNNER_TEMP/rhubarb/performer.blend" --disable-autoexec --python-exit-code 1 --python test/operations/studio_lip_sync_blender.py -- "$PWD" "$RUNNER_TEMP/rhubarb/speech.wav" "$RUNNER_TEMP/rhubarb/cues.json" "$RUNNER_TEMP/rhubarb/proof"
       - name: Guided media runtime connection
         run: bundle exec ruby test/standalone/session_media_setup_checks.rb --name /test_media_setup_/
       - name: Campaign to native Dashboard Studio handoff

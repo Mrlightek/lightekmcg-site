@@ -2,7 +2,7 @@
 module Studio
   module NativeBlender
     class Runtime
-      DEFAULT_IMAGE="lightek/studio-media:20261112".freeze
+      DEFAULT_IMAGE="lightek/studio-media:20261114".freeze
       def self.image(role=:asset)
         ENV[{render:"STUDIO_RENDER_WORKER_IMAGE",media:"STUDIO_MEDIA_WORKER_IMAGE"}.fetch(role,"STUDIO_ASSET_WORKER_IMAGE")].presence || ENV["STUDIO_ASSET_WORKER_IMAGE"].presence || DEFAULT_IMAGE
       end

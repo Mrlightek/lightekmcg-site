@@ -66,6 +66,8 @@ Rails.application.routes.draw do
   post "/dashboard/studio-broadcasting/uploads", to: "dashboard/media_studio#workspace_upload", as: :dashboard_studio_upload
   get "/dashboard/studio-broadcasting/assets/:id/:flavor", to: "dashboard/media_studio#workspace_asset", as: :dashboard_studio_asset
   get "/dashboard/studio-broadcasting/workspace(/:scene_id)", to: "dashboard/media_studio#workspace", as: :dashboard_production_workspace
+  get "/dashboard/studio-broadcasting/projects/:id/delete", to: "dashboard/media_studio#confirm_project_deletion", as: :delete_dashboard_studio_project
+  delete "/dashboard/studio-broadcasting/projects/:id", to: "dashboard/media_studio#destroy_project", as: :dashboard_studio_project
   get "/dashboard/studio-broadcasting", to: "dashboard/media_studio#index", as: :dashboard_media_studio
   post "/dashboard/studio-broadcasting/generation-provider", to: "dashboard/media_studio#save_generation_provider", as: :dashboard_studio_generation_provider
   post "/dashboard/studio-broadcasting/applications", to: "dashboard/media_studio#save_application", as: :dashboard_broadcast_applications

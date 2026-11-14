@@ -1,6 +1,6 @@
 <% content_for :page_title, "#{@scene.studio_project.name} · Studio" %>
 <% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
-<%= stylesheet_link_tag "/lightek/studio-editors.css?v=1" %>
+<%= stylesheet_link_tag "/lightek/studio-editors.css?v=20261114" %>
 <% if @kind == "video" %><%= stylesheet_link_tag "/lightek/editors/video/editor.css?v=1" %><% end %>
 <main id="lightek-studio-dashboard" data-turbo="false" class="lightek-editor" data-editor-kind="<%= @kind %>" data-editor-base="<%= dashboard_studio_editor_path(kind: @kind, id: @scene.id, site_id: @site.id).split('?').first %>" data-site-id="<%= @site.id %>" data-lock-version="<%= @scene.lock_version %>" data-csrf-token="<%= form_authenticity_token %>">
   <%= render "dashboard/shared/business_workspace", active: "Studio", studio: true %>

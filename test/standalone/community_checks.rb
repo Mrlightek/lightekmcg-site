@@ -41,7 +41,7 @@ ActiveRecord::Schema.define do
   create_table(:productions) { |t| t.integer :studio_project_id; t.string :name; t.string :kind, default: "general"; t.string :status, default: "development"; t.json :metadata, default: {}; t.timestamps }
   create_table(:studio_scenes) { |t| t.integer :studio_project_id; t.integer :production_id; t.string :name; t.json :settings, default: {}; t.timestamps }
   create_table(:scene_objects) { |t| t.integer :studio_scene_id; t.string :name; t.string :object_type; t.integer :position, default: 0; t.json :definition, default: {}; t.timestamps }
-  create_table(:creation_jobs) { |t| t.integer :studio_scene_id }
+  create_table(:creation_jobs) { |t| t.integer :studio_scene_id; t.string :status, default: "pending" }
   create_table(:studio_operations) { |t| t.integer :studio_project_id; t.integer :studio_scene_id; t.integer :production_id; t.string :operation_type; t.string :provider; t.string :capability; t.string :status; t.json :intent, default: {}; t.json :manifest, default: {}; t.json :cost_quote, default: {}; t.json :metadata, default: {}; t.text :error_message; t.datetime :started_at; t.datetime :completed_at; t.timestamps }
   create_table(:artifacts) { |t| t.integer :studio_operation_id; t.integer :creation_job_id; t.string :kind; t.string :filename; t.timestamps }
   create_table(:studio_publications) { |t| t.integer :studio_project_id; t.integer :production_id; t.integer :artifact_id; t.string :platform; t.string :status; t.datetime :scheduled_at; t.datetime :published_at; t.text :error_message; t.json :metadata, default: {}; t.timestamps }

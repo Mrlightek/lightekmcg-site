@@ -1,0 +1,11 @@
+<% content_for :page_title, "Delete project" %>
+<%= stylesheet_link_tag "/lightek/media-control.css?v=20261114" %>
+<main class="media-control">
+  <section class="mc-setup-intro"><span class="mc-eyebrow">PRODUCTION LIBRARY</span><h1>Delete <%= @project.name %>?</h1>
+    <p>This permanently removes this project, its scenes and generated exports. Media saved separately in your library is kept. This cannot be undone.</p>
+    <%= form_with url: dashboard_studio_project_path(@project, site_id: @site.id), method: :delete, local: true, data: {turbo: false}, class: "mc-delete-form" do %>
+      <label><%= check_box_tag :confirmation, "delete", false, required: true %> I confirm permanent deletion of <%= @project.name %>.</label>
+      <div class="mc-delete-actions"><%= submit_tag "Delete project permanently", class: "mc-button" %><%= link_to "Keep project", dashboard_media_studio_path(site_id: @site.id), class: "mc-button" %></div>
+    <% end %>
+  </section>
+</main>

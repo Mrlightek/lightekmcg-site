@@ -7,6 +7,10 @@ on:
       - 'app/views/dashboard/**'
       - 'app/views/dymond_dash/**'
       - 'public/lightek/dashboard.*'
+      - 'public/lightek/media-control.css'
+      - 'public/lightek/studio-editors.css'
+      - 'app/models/studio_project.rb'
+      - 'test/standalone/studio_project_deletion_checks.rb'
       - 'public/lightek/reservations-workspace.css'
       - 'public/lightek/production-workflow.css'
       - 'public/lightek/site-content.css'
@@ -51,3 +55,15 @@ jobs:
         env:
           NODE_PATH: /tmp/dashboard-ci/node_modules
         run: node test/javascript/dashboard_workspace_browser_test.cjs
+  project-deletion:
+    runs-on: ubuntu-24.04
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - name: Verify project deletion and retained media
+        run: bundle exec ruby test/standalone/studio_project_deletion_checks.rb --name /StudioProjectDeletionChecks/

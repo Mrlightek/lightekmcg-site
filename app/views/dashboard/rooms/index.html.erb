@@ -1,5 +1,5 @@
 <% content_for :page_title, 'Rooms & guests' %>
-<%= stylesheet_link_tag '/lightek/production-workflow.css?v=1' %>
+<%= stylesheet_link_tag '/lightek/production-workflow.css?v=20261114' %>
 <main class="production-hub"><%= render 'shared/production_navigation', site: @site, section: 'Rooms & guests' %>
 <header class="production-heading"><div><span>LIGHTEK / TOGETHER</span><h1>Bring your people together.</h1><p>Start a private video or audio room for <strong><%= @site.name %></strong>. Invite guests and take the conversation into Live Studio when you’re ready.</p></div><%= link_to 'Manage bookable rooms', dashboard_reservations_path(site_id: @site.id, anchor: 'resource-editor'), class: 'production-button' %></header>
 <%= form_with url: dashboard_rooms_path, method: :get, class: 'production-site' do %><label>Website<%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %></label><%= submit_tag 'Switch website' %><% end %>

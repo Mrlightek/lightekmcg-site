@@ -62,3 +62,11 @@
 .lr-customer-workspace .lr-notice{color:var(--dd-text-primary,#172033);background:var(--dd-sidebar-bg,#fff);border-color:var(--dd-border,#dce2eb)}
 @media(max-width:1050px){.dd-dashboard .lr-admin .lr-admin-grid{grid-template-columns:minmax(0,1fr)}.dd-dashboard .lr-admin .lr-form{max-width:760px}}
 @media(max-width:768px){.lr-customer-workspace .lr-shell{padding:22px 16px}.lr-customer-workspace .lr-top{padding:14px 16px;align-items:flex-start;flex-direction:column}.lr-customer-workspace .lr-booking-row,.lr-customer-workspace .lr-detail-grid{grid-template-columns:minmax(0,1fr);gap:14px}.lr-customer-workspace .lr-booking-row .lr-button{justify-self:start}.lr-customer-workspace :is(.lr-button,input[type=submit]),.dd-dashboard .lr-admin .lr-button{min-height:40px}.dd-dashboard .lr-admin .lr-hours{grid-template-columns:42px minmax(0,1fr) minmax(0,1fr)}}
+
+/* Feature styles can load after this file through Turbo. Keep the whole
+   authenticated workspace on the selected Dashboard palette in either order. */
+.dd-dashboard .dd-content .lr-admin{background:transparent;color:var(--dd-text-primary,#172033)}
+.dd-dashboard .dd-content .lr-admin :is(h1,h2,h3){color:var(--dd-text-primary,#172033)}
+.dd-dashboard .dd-content .lr-admin :is(input:not([type=submit]):not([type=checkbox]),select,textarea){background:var(--dd-input-bg,#fff);color:var(--dd-input-text,#172033);border-color:var(--dd-input-border,#c5cedb)}
+.dd-dashboard .dd-content .lr-admin .booking-kind-picks button{background:var(--dd-sidebar-bg,#fff);color:var(--dd-text-primary,#172033);border-color:var(--dd-border,#dce2eb)}
+.dd-dashboard .dd-content .lr-admin .booking-kind-picks [aria-pressed=true]{color:var(--dd-accent,#2563eb);border-color:var(--dd-accent,#2563eb)}

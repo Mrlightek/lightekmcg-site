@@ -45,7 +45,7 @@ ActiveRecord::Schema.define do
   end
   create_table(:subscription_infrastructure_entitlements) { |t| t.integer :subscription_plan_id; t.integer :max_sites }
   create_table(:lightek_commerce_products) do |t|
-    t.references :site; t.string :name; t.string :slug; t.string :currency, default: "usd"
+    t.references :site; t.string :name; t.text :description; t.string :slug; t.string :currency, default: "usd"
     t.integer :price_cents, default: 0; t.integer :inventory_quantity, default: 0
     t.boolean :published, default: true; t.string :product_type, default: "physical"
     t.integer :subscription_plan_id; t.string :image_url; t.string :short_description; t.string :sku; t.integer :position
@@ -189,6 +189,12 @@ module LightekCommerce
     def self.check!(*) = true
   end
 end
+source = Rails.root.join("db/migrate/20261114130000_add_agency_package_policies.rb").read
+source = source.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
+eval(source, TOPLEVEL_BINDING)
+AddAgencyPackagePolicies.new.migrate(:up)
+require Rails.root.join('app/services/lightek_agency/package_policy').to_s
+require Rails.root.join('app/services/lightek_agency/hosting_catalog').to_s
 %w[gatekeeper_application_template agency_profile hosting_package lightek_commerce/product
   lightek_commerce/network_account lightek_commerce/network_sale lightek_commerce/order lightek_commerce/order_item lightek_commerce/subscription lightek_commerce/billing_invoice lightek_commerce/revenue_allocation lightek_shipping/account lightek_shipping/profile lightek_shipping/quote lightek_shipping/shipment].each do |path|
   require Rails.root.join("app/models/#{path}").to_s

@@ -1,0 +1,7 @@
+<fieldset><legend>Installed features & limits</legend><p>Blank limits mean unlimited when the upstream package permits it. Monthly write allowances count successful application write requests in each UTC calendar month. Website and user limits include the initial website and account. Media storage is measured in bytes.</p>
+<% LightekAgency::PackagePolicy::FEATURES.each do |key, label| %><% settings = policy.fetch('features').fetch(key); parent = upstream&.dig('features', key) %>
+<div class="dd-field"><label><%= hidden_field_tag "#{prefix}[features][#{key}][enabled]", '0' %><%= check_box_tag "#{prefix}[features][#{key}][enabled]", '1', settings['enabled'], disabled: parent && !parent['enabled'] %> <%= label %></label>
+<label>Monthly write requests<%= number_field_tag "#{prefix}[features][#{key}][monthly_writes]", settings['monthly_writes'], min: 0, max: parent&.fetch('monthly_writes', nil), placeholder: parent&.fetch('monthly_writes', nil) || 'Unlimited' %></label></div>
+<% end %>
+<% LightekAgency::PackagePolicy::LIMITS.each do |key, label| %><label><%= label %><%= number_field_tag "#{prefix}[limits][#{key}]", policy.dig('limits', key), min: key == 'max_storage_bytes' ? 0 : 1, max: upstream&.dig('limits', key), placeholder: upstream&.dig('limits', key) || 'Unlimited' %></label><% end %>
+</fieldset>

@@ -1,0 +1,40 @@
+name: Agency reseller packages
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'config/initializers/lightek_agency_packages.rb'
+      - 'config/routes/agency_demos.rb'
+      - 'db/migrate/*agency_package*'
+      - 'test/standalone/agency_*checks.rb'
+      - 'test/scripts/test_paid_instance_verification.py'
+      - 'script/lightek/verify_paid_instance.py'
+      - '.github/workflows/agency-reseller-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reseller:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - name: Install public test dependencies
+        run: gem install 'activerecord:8.0.4' 'activestorage:8.0.4' 'actionpack:8.0.4' 'railties:8.0.4' 'minitest:~>5.25' 'uri:~>1.1' 'sqlite3:~>2.7' 'faker:~>3.8' bcrypt stripe jwt rubyzip webrick --no-document
+      - name: Install media dependency for inherited broadcast regressions
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Wholesale catalog, immutable pricing and package inheritance
+        run: ruby test/standalone/agency_reseller_checks.rb
+      - name: Installed permissions, request quotas and shared storage accounting
+        run: ruby test/standalone/agency_package_access_checks.rb
+      - name: Cross-instance federation and ownership
+        run: ruby test/standalone/agency_reseller_http_checks.rb
+      - name: Authenticated install policy and demo import evidence
+        run: python3 -m unittest test/scripts/test_paid_instance_verification.py
+      - name: Installer syntax
+        run: |
+          bash -n script/lightek/website_deploy.sh
+          python3 -m py_compile lib/scripts/gatekeeper/install_container_application.py script/lightek/verify_paid_instance.py

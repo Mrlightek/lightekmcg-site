@@ -61,7 +61,7 @@ class ReservationFederationChecks < ActionDispatch::IntegrationTest
     assert_response :success
     saved = LightekReservations::Resource.find(response.parsed_body['offer']['id'])
     assert_equal @peer.site_id, saved.site_id
-    assert_equal @package.cost_floor_cents, saved.cost_floor_cents
+    assert_equal @package.price_cents, saved.cost_floor_cents
     assert_equal @package.compute, saved.compute
     assert_equal @package.product.subscription_plan_id, saved.product.subscription_plan_id
     post '/api/reservations/federation/offers', params: {offer: {
@@ -127,13 +127,13 @@ class ReservationFederationChecks < ActionDispatch::IntegrationTest
     end
   end
   def test_minimum_reseller_price_covers_floor_after_processing_and_tax_reserve
-    minimum = @package.minimum_price_cents
+    minimum = LightekCommerce::MerchantPayouts.minimum_charge_cents(@package.price_cents)
     assert minimum > @package.cost_floor_cents
     assert_raises(ArgumentError) { offer(price_cents: @package.cost_floor_cents) }
     resource = offer(price_cents: minimum)
     order = Struct.new(:total_cents, :subtotal_cents).new((minimum * 1.25).ceil, minimum)
     quote = LightekCommerce::MerchantPayouts.fee_quote(order)
-    assert_operator minimum - quote[:processor_reserve_cents] - quote[:platform_fee_cents], :>=, @package.cost_floor_cents
+    assert_operator minimum - quote[:processor_reserve_cents] - quote[:platform_fee_cents], :>=, @package.price_cents
     assert resource.published?
   end
   def test_actual_https_connection_crosses_two_independent_database_processes

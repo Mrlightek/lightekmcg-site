@@ -35,8 +35,9 @@ module LightekCommerce
       platform_fee = (gross * platform_bps + 9999) / 10_000
       reservation = order.respond_to?(:id) ? LightekReservations::Reservation.find_by(order_id: order.id) : nil
       change = order.respond_to?(:id) ? LightekReservations::Change.find_by(order_id: order.id) : nil
-      hosting_reserve = order.respond_to?(:items) ? order.items.first&.purchase_snapshot.to_h.dig("hosting", "monthly_cost_ceiling_cents").to_i : 0
-      infrastructure = reservation&.server? ? reservation.package_snapshot.fetch('cost_floor_cents', 0).to_i : hosting_reserve
+      hosting = order.respond_to?(:items) ? order.items.first&.purchase_snapshot.to_h.fetch("hosting", {}).to_h : {}
+      hosting_reserve = hosting.fetch("platform_charge_cents", hosting.fetch("monthly_cost_ceiling_cents", 0)).to_i
+      infrastructure = [reservation&.server? ? reservation.package_snapshot.fetch('cost_floor_cents', 0).to_i : 0, hosting_reserve].max
       if change
         quote = change.quote
         target_floor = quote.dig('target', 'cost_floor_cents').to_i

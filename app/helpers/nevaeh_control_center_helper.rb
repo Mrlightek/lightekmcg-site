@@ -27,6 +27,9 @@ module NevaehControlCenterHelper
       rows << item.call("commerce", "Commerce", main_app.dashboard_commerce_path, "ti-shopping-cart")
       rows << item.call("shipping", "Shipping & Fulfillment", main_app.dashboard_shipping_path, "ti-truck-delivery")
     end
+    if current_user.role.in?(%w[super_admin white_label]) || (current_user.role == "admin" && LightekAgency::PackagePolicy.runtime_accounts.exists?)
+      rows << item.call("reseller-packages", "Reseller packages", main_app.dashboard_reseller_packages_path, "ti-packages")
+    end
     if current_user.role.in?(%w[super_admin white_label])
       rows << item.call("demos", "Client demos", main_app.dashboard_demos_path, "ti-flask")
       rows << item.call("connect", "Lightek Connect", main_app.dashboard_connect_path, "ti-plug-connected")
@@ -77,9 +80,16 @@ module NevaehControlCenterHelper
     rows
   end
 
+  def package_navigation(entries)
+    return entries unless defined?(LightekAgency::PackagePolicy) && current_user.role != 'super_admin'
+    entries.select { |entry| LightekAgency::PackagePolicy.allowed?(current_user, LightekAgency::PackageFeatures.for_path(entry['path'])) }
+  end
+
   def nevaeh_sidebar_entries
-    return nevaeh_navigation_defaults unless NevaehWorkspacePreference.table_exists?
+    unless NevaehWorkspacePreference.table_exists?
+      return package_navigation(nevaeh_navigation_defaults)
+    end
     entries = NevaehIntelligences::WorkspaceNavigation.entries(user: current_user, defaults: nevaeh_navigation_defaults)
-    entries.map { |entry| entry['id'] == 'overview' && current_user.role == 'client' ? entry.merge('path' => nevaeh_home_path) : entry }
+    package_navigation(entries.map { |entry| entry['id'] == 'overview' && current_user.role == 'client' ? entry.merge('path' => nevaeh_home_path) : entry })
   end
 end

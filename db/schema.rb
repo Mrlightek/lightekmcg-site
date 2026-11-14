@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_14_130000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_14_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1760,6 +1760,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_130000) do
     t.string "network_invoice_reference"
     t.bigint "agency_demo_id"
     t.jsonb "demo_content", default: {}, null: false
+    t.datetime "deleted_at"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
     t.index ["gatekeeper_application_launch_id"], name: "idx_on_gatekeeper_application_launch_id_aa7421ca02"
@@ -1769,6 +1770,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_130000) do
     t.index ["provisioning_request_id"], name: "index_lightek_commerce_orders_on_provisioning_request_id"
     t.index ["shipping_quote_id"], name: "idx_shipping_quote_checkout", unique: true, where: "((shipping_quote_id IS NOT NULL) AND ((purpose IS NULL) OR ((purpose)::text <> 'shipping_label'::text)))"
     t.index ["shipping_quote_id"], name: "index_lightek_commerce_orders_on_shipping_quote_id"
+    t.index ["site_id", "deleted_at"], name: "idx_commerce_visible_orders"
     t.index ["site_id", "payment_reference"], name: "idx_commerce_payment_reference", unique: true, where: "(payment_reference IS NOT NULL)"
     t.index ["site_id"], name: "index_lightek_commerce_orders_on_site_id"
     t.check_constraint "refunded_cents >= 0 AND refunded_cents <= total_cents", name: "commerce_refunded_amount_valid"

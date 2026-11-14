@@ -10,15 +10,15 @@ Open **Studio → Music → Mixer buses & inserts**. This extends the existing c
 4. Choose an insert. Adjust its parameters, bypass it with **Active**, reorder it with **Move up/down**, or remove it. Inserts run top to bottom. Source saves preserve their order, settings and bypass state.
 5. Play the pattern or song, save music, export a WAV/stem, or use **Add mix to edit**. These use the same audio routing. Pattern audition retains routing/inserts but omits the song automation, as before.
 
-Routing and insert changes stop playback because they rebuild the processing graph. Press Play to hear the revised graph. Bus/master faders, bus pan and mute/solo update during playback. Undo/Redo restores routes, deleted groups and their effects. Removing a group returns its channels directly to Master; the button names this behavior explicitly.
+Routing and insert changes stop playback because they rebuild the processing graph. Press Play to hear the revised graph. Bus/master faders, bus pan and mute/solo update during playback. Undo/Redo restores routes, deleted groups and their effects. Removing a group returns its channels directly to Master and removes its automation; the button names this behavior explicitly.
 
 ## Signal path
 
 Channel instrument → existing low-pass/delay controls → channel inserts → channel pan/gain and mute gate → selected bus inserts/pan/gain/mute gate (if routed) → master inserts/gain → existing final −1 dB limiter.
 
-Channel automation continues to control its own gain, pan, filter and delay before the bus. Bus and insert parameter automation is not part of this sprint. Group mute gates the processed group, including delay tails; later channel automation cannot unmute it. Bus solo excludes direct-to-master channels and other groups. Existing channel solo and group solo are intersected: a channel must pass both selections. Mute remains authoritative.
+Channel automation continues to control its own gain, pan, filter and delay before the bus. [Song automation](music-automation.md) now supports bus volume/pan and master volume in source version 7; insert-parameter automation remains further work. Group mute gates the processed group, including delay tails; later channel automation cannot unmute it. Bus solo excludes direct-to-master channels and other groups. Existing channel solo and group solo are intersected: a channel must pass both selections. Mute remains authoritative.
 
-Selected-channel stems silence all other instrument sources while retaining that channel's group and master processing. As with the existing track-stem behavior, channel/group mute and solo are bypassed for the selected source. Group/master fader levels still apply. These are **processed stems**: summing individually exported stems through nonlinear group/master compression or distortion does not necessarily reconstruct the full mix. They are not dry multitrack exports.
+Selected-channel stems silence all other instrument sources while retaining that channel's group and master processing. As with the existing track-stem behavior, channel/group mute and solo are bypassed for the selected source. Group/master fader levels and enabled envelopes still apply. These are **processed stems**: summing individually exported stems through nonlinear group/master compression or distortion does not necessarily reconstruct the full mix. They are not dry multitrack exports.
 
 ## Included inserts
 
@@ -35,7 +35,7 @@ Exports add an estimated decay tail for enabled delay inserts on each channel's 
 
 ## Saved source and bounds
 
-Mixer configuration upgrades musical source to **version 4**. Versions 1–3 remain supported; adding automation or patterns to a version 4 song retains version 4. An older server rejects version 4 rather than dropping mixer data. Deploy server code with the updated Dashboard assets and PWA cache. No database migration is needed.
+Mixer configuration upgrades musical source to **version 4**. Versions 1–3 remain supported; adding channel automation or patterns to a version 4 song retains version 4. Group/master automation upgrades it to version 7. An older server rejects version 4 rather than dropping mixer data. Deploy server code with the updated Dashboard assets and PWA cache. No database migration is needed.
 
 - Global tracks add `bus_id` (null for Master) and ordered `effects`.
 - `mixer.buses` stores `{id, name, gain, pan, muted, solo, effects}`.
@@ -46,4 +46,4 @@ Limits: eight groups; four inserts per channel, group or master chain; thirty-tw
 
 MIDI export remains notes and tempo; it does not encode these effect chains or routing. Retain the saved Studio source for editable processing, or export WAV/stems for the audible result.
 
-Focused checks cover save normalization, bounds and malformed payloads, episode independence, coexistence with patterns/automation, UI routing/reordering/bypass/undo, plus actual DSP for faders, pan, mute/solo, processed stems, EQ, compression, distortion, delay, order changes, tails and live controls. Sends/returns, nested routing, sidechain controls, bus automation, additional effects, overdub and picture synchronization remain further production work. Standalone [recording and audio takes](music-recording.md) are available in source version 5. Integrated production acceptance remains in the final verification sprint.
+Focused checks cover save normalization, bounds and malformed payloads, episode independence, coexistence with patterns/automation, UI routing/reordering/bypass/undo, plus actual DSP for faders, pan, mute/solo, processed stems, EQ, compression, distortion, delay, order changes, tails and live controls. Sends/returns, nested routing, sidechain controls, insert-parameter automation and additional effects remain further production work. [Group/master automation](music-automation.md), [microphone overdub](music-overdub.md) and [picture scoring](music-picture-scoring.md) are available. Standalone [recording and audio takes](music-recording.md) are available in source version 5. Integrated production acceptance remains in the final verification sprint.

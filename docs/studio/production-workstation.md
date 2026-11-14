@@ -40,7 +40,7 @@ Current limits: 128 bars, ten minutes, 4096 notes per composition, 32 simultaneo
 
 ## Remaining music-production work
 
-Live vocal/instrument recording and comping; hardware MIDI input and recording; pattern clips and sections; tempo/meter maps and picture cue markers; automation lanes; richer sampler/instrument engines and sound banks; inserts, sends, buses, EQ, dynamics, reverb and metering; nondestructive sample chopping/time-stretch; 24-bit and float source bounces; bulk aligned stem packages; score templates with scene synchronization. Professional plugin hosting requires a worker/plugin architecture, not an unsupported claim that arbitrary desktop plugins run in the browser.
+The implemented music workflows are documented in [patterns](music-patterns.md), [channel/group/master automation](music-automation.md), [mixer buses and inserts](music-mixer.md), [instrument/MIDI input recording](music-performance.md), [microphone overdub](music-overdub.md) and [picture scoring](music-picture-scoring.md). Remaining production work includes loop/punch recording and comping, automatic device calibration, extended MIDI expression, tempo/meter maps, richer sampler/instrument sound banks, insert-parameter automation, sends/sidechains/reverb and expanded metering, time-stretch, 24-bit/float bounces and bulk stem packages. Professional plugin hosting requires a worker/plugin architecture, not an unsupported claim that arbitrary desktop plugins run in the browser.
 
 ## AI shows and digital cast remain in scope
 

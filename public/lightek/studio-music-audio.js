@@ -39,16 +39,17 @@
   }
   // Use AudioParam timing for continuous ramps; mute/solo has a separate gate.
   function automate(g,score,time,beat=0,smooth=false){
-    for(const t of score.tracks){const c=g.controls.get(t.id);if(!c)continue;
-      const params={gain:c.gain.gain,pan:c.pan.pan,cutoff:c.filter.frequency,delay:c.delay.wet};
-      for(const [key,param] of Object.entries(params)){
-        const lane=core.automationLane(score,t.id,key),value=core.automationValue(score,t,key,beat);
-        if(smooth&&!lane?.enabled){param.cancelAndHoldAtTime(time);param.linearRampToValueAtTime(value,time+.02);continue;}
-        param.cancelScheduledValues(time);param.setValueAtTime(value,time);
-        if(lane?.enabled)for(const point of [...lane.points].sort((a,b)=>a.beat-b.beat))if(point.beat>beat){
-          const at=time+(point.beat-beat)*60/score.tempo;
-          if(point.curve==='linear')param.linearRampToValueAtTime(point.value,at);else param.setValueAtTime(point.value,at);
-        }
+    const mix=core.mixerState(score),targets=[];
+    for(const track of score.tracks){const c=g.controls.get(track.id);if(c)targets.push({owner:track,target:track.id,params:{gain:c.gain.gain,pan:c.pan.pan,cutoff:c.filter.frequency,delay:c.delay.wet}});}
+    for(const bus of mix.buses){const c=g.busControls.get(bus.id);if(c)targets.push({owner:bus,target:{bus_id:bus.id},params:{gain:c.gain.gain,pan:c.pan.pan}});}
+    targets.push({owner:mix.master,target:{master:true},params:{gain:g.masterGain.gain}});
+    for(const {owner,target,params} of targets)for(const [key,param] of Object.entries(params)){
+      const lane=core.automationLane(score,target,key),value=core.automationValue(score,owner,key,beat,target);
+      if(smooth&&!lane?.enabled){param.cancelAndHoldAtTime(time);param.linearRampToValueAtTime(value,time+.02);continue;}
+      param.cancelScheduledValues(time);param.setValueAtTime(value,time);
+      if(lane?.enabled)for(const point of [...lane.points].sort((a,b)=>a.beat-b.beat))if(point.beat>beat){
+        const at=time+(point.beat-beat)*60/score.tempo;
+        if(point.curve==='linear')param.linearRampToValueAtTime(point.value,at);else param.setValueAtTime(point.value,at);
       }
     }
   }
@@ -56,8 +57,8 @@
   function update(score,time=Tone.now()){
     if(!live)return false;core.validate(score);
     const topology=core.mixerTopology(score);if(topology!==live.topology)return false;
-    const mix=core.mixerState(score);live.masterGain.gain.rampTo(mix.master.gain,.02,time);
-    for(const bus of mix.buses){const c=live.busControls.get(bus.id);c.gain.gain.rampTo(bus.gain,.02,time);c.pan.pan.rampTo(bus.pan,.02,time);c.gate.gain.rampTo(!bus.muted&&(!mix.buses.some(b=>b.solo)||bus.solo)?1:0,.02,time);}
+    const mix=core.mixerState(score);
+    for(const bus of mix.buses){const c=live.busControls.get(bus.id);c.gate.gain.rampTo(!bus.muted&&(!mix.buses.some(b=>b.solo)||bus.solo)?1:0,.02,time);}
     for(const t of score.tracks){const c=live.controls.get(t.id);c.gate.gain.rampTo(core.audible(score,t)?1:0,0.02,time);c.delay.delayTime.rampTo(60/score.tempo/2,0.02,time);}
     const seconds=live.transport.getSecondsAtTime(time)*live.tempo/score.tempo;live.transport.loopEnd=core.seconds(score);if(live.tempo!==score.tempo||seconds>=core.seconds(score))live.transport.seconds=seconds%core.seconds(score);live.tempo=score.tempo;live.graph.score=score;automate(live,score,time,(seconds%core.seconds(score))*score.tempo/60,true);
     live.noteIds.forEach(id=>live.transport.clear(id));live.noteIds=core.events(score).map(event=>live.transport.schedule(time=>live?.voices.get(event.track)?.({...event,time}),event.time));return true;

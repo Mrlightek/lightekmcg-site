@@ -158,7 +158,7 @@ module Studio
 
       def project_delete
         project = @access.projects.find(@payload.fetch("project_id"))
-        project.destroy!
+        project.with_lock { project.destroy! }
         { deleted_project_id: project.id }
       end
 

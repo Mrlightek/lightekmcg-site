@@ -5,7 +5,7 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
   protect_from_forgery with: :exception
   before_action { response.set_header("Cache-Control", "private, no-store") }
   rescue_from LightekPwa::Policy::Denied, with: :denied
-  rescue_from ActiveRecord::RecordInvalid, ActiveRecord::StaleObjectError, ArgumentError, with: :invalid
+  rescue_from ActiveRecord::RecordInvalid, ActiveRecord::StaleObjectError, ActiveRecord::RecordNotDestroyed, ArgumentError, with: :invalid
 
   def index
     return unless @site
@@ -24,6 +24,15 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
     @live = StudioLiveOperation.where(studio_project_id: projects.select(:id)).order(id: :desc).limit(10)
     @stats = {"Published titles"=>posts.where(moderation_state: "published").count, "OTT applications"=>applications.count,
       "Channels on air"=>channels.where(status: "published").count, "Broadcasts sending"=>@live.where(status: "live").count}
+  end
+  def confirm_project_deletion
+    @project = editable_projects.find(params[:id])
+  end
+  def destroy_project
+    project = editable_projects.find(params[:id])
+    raise ArgumentError, "Confirm permanent deletion before deleting a project." unless params[:confirmation] == "delete"
+    project.with_lock { project.destroy! }
+    back("Project deleted. Media saved separately in your library is kept.")
   end
   def workspace
     access=Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
@@ -153,6 +162,7 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
     raise ActiveRecord::RecordNotFound if @site.nil? && action_name != "index"
     Studio::Broadcasting::Access.authorize!(current_user, @site) if @site
   end
+  def editable_projects = Studio::PwaAccess.new("user_id" => current_user.id, "site_id" => @site.id).projects.where(site_id: @site.id)
   def applications = Studio::Broadcasting::Application.where(site_id: @site.id)
   def channels = Studio::Broadcasting::Channel.where(site_id: @site.id)
   def posts = Post.where(site_id: @site.id, distribution: %w[lightek_streaming octavia], kind: %w[video live])

@@ -1,0 +1,66 @@
+name: Studio command acceptance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/studio-command-acceptance.yml'
+      - 'app/services/studio/native_blender/**'
+      - 'blender/**'
+      - 'public/lightek/studio-authoring.*'
+      - 'public/lightek/studio-mesh-commands.js'
+      - 'public/lightek/studio-viewport.js'
+      - 'public/lightek/studio-visual.js'
+      - 'test/javascript/studio_authoring*'
+      - 'test/javascript/studio_mesh_commands_test.cjs'
+      - 'test/javascript/fixtures/studio_authoring_fixture.cjs'
+      - 'test/standalone/studio_authoring_checks.rb'
+      - 'test/operations/studio_native_tools_test.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  commands:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+      LIGHTEK_TEST_BLENDER: '1'
+      BLENDER_BIN: /usr/bin/blender
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - name: Install public media dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender ffmpeg
+      - name: Verify saved source, actual renders and native tool regression
+        run: |
+          bundle exec ruby test/standalone/studio_authoring_checks.rb --name /StudioAuthoringTest/
+          python3 test/operations/studio_native_tools_test.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/studio-command-browser" playwright@1.51.1 jsdom@26.1.0
+          "$RUNNER_TEMP/studio-command-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify controls, exact preview geometry and Dashboard palettes
+        env:
+          NODE_PATH: ${{ runner.temp }}/studio-command-browser/node_modules
+        run: |
+          node test/javascript/studio_authoring_dom_test.cjs
+          node test/javascript/studio_mesh_commands_test.cjs
+          node test/javascript/studio_authoring_test.cjs
+          blender --background --factory-startup --disable-autoexec --python-exit-code 1 --python-expr "import bpy; bpy.context.scene.objects['Cube']['lightek_object_name']='Cube'; bpy.ops.export_scene.gltf(filepath='/tmp/native-viewport-proof.glb', export_format='GLB', export_extras=True)"
+          node test/javascript/studio_native_viewport_test.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: studio-command-browser
+          path: /tmp/lightek-authoring-*.png
+          if-no-files-found: ignore

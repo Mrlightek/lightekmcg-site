@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v65-site-content"
+const CACHE = "lightek-shell-v66-mesh-commands"
 
 const SHELL = [
   "/lightek/index.html",
@@ -48,6 +48,7 @@ const SHELL = [
   "/lightek/vendor/three/addons/utils/SkeletonUtils.js",
   "/lightek/community-app.css",
   "/lightek/studio-viewport.js",
+  "/lightek/studio-mesh-commands.js",
   "/lightek/vendor/gsap/gsap.min.js",
   "/lightek/vendor/three/three.core.js",
   "/lightek/vendor/three/three.module.js",

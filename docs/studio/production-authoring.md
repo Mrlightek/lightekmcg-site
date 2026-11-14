@@ -10,6 +10,8 @@ Preparation records mesh topology samples, rig bones and parents, vertex groups,
 
 ## Authoring dock
 
+The main object inspector now also exposes an interactive **Skew object** control: preview locally, apply one saved command, undo/redo, and render through the existing Blender API. See [command-based authoring](command-authoring.md) for the contract, native-coordinate behavior and verification boundaries.
+
 Select an object in the Outliner or 3D view. The new dock has Model, Sculpt, Rig & weights, Animate and Node graphs tabs.
 
 - Model: translate vertices; extrude, inset or delete faces; subdivide or bevel edges; merge or smooth vertices; add subdivision, mirror, solidify, bevel and decimate modifiers.

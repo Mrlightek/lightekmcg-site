@@ -40,6 +40,45 @@ class StudioAuthoringTest < StudioCreationTest
     assert_equal 12,arm.definition["authoring_commands"].last["frame"]
     assert_raises(ArgumentError) { author(arm,{kind:"mesh_translate",delta:[0,0,1]}) }
   end
+  def test_skew_validates_axes_and_limits_and_replays_through_saved_history
+    [{axis:"X",source_axis:"X",factor:1},{axis:"W",source_axis:"Z",factor:1},{axis:"X",source_axis:"Z",factor:2.01},{axis:"X",source_axis:"Z",factor:Float::NAN}].each do |params|
+      assert_raises(ArgumentError) { author(mesh,{kind:"mesh_skew",**params}) }
+    end
+    assert_nil mesh.reload.definition["authoring_commands"]
+    command={kind:"mesh_skew",axis:"X",source_axis:"Z",factor:0.75}
+    payload={request_key:SecureRandom.uuid,lock_version:@scene.reload.lock_version}
+    result=author(mesh,command,**payload)
+    assert_equal result,author(mesh,command,**payload)
+    assert_equal [{"kind"=>"mesh_skew","indices"=>[],"axis"=>"X","source_axis"=>"Z","factor"=>0.75}],mesh.reload.definition["authoring_commands"]
+    manifest=Blender::ManifestBuilder.new(@scene.reload).call
+    assert_equal "mesh_skew",manifest.fetch("scene").fetch("objects").find { |o| o["id"].to_s==mesh.id.to_s }.dig("definition","authoring_commands",0,"kind")
+    author(mesh,{},operation:"undo");assert_empty mesh.reload.definition["authoring_commands"]
+    author(mesh,{},operation:"redo");assert_equal 0.75,mesh.reload.definition["authoring_commands"].first["factor"]
+  end
+  def test_skew_real_native_source_renders_and_reopens_with_exact_saved_geometry
+    skip "Set LIGHTEK_TEST_BLENDER=1" unless ENV["LIGHTEK_TEST_BLENDER"]=="1"
+    Dir.mktmpdir("skew-native-") do |root|
+      asset=imported_native(native_fixture(root));original=asset.native.blob.download
+      opened=action("blender_template_use",asset_id:asset.id,source_scene:"Native Stage",request_key:SecureRandom.uuid)
+      scene=StudioScene.find(opened[:scene_id]);cube=scene.scene_objects.find_by!(name:"NativeCube")
+      author(cube,{kind:"mesh_skew",axis:"X",source_axis:"Z",factor:0.5})
+      scene.reload;manifest=Blender::ManifestBuilder.new(scene).call
+      manifest["scene"]["settings"].merge!("resolution_x"=>64,"resolution_y"=>64,"samples"=>1)
+      manifest["outputs"]={"blend"=>true,"glb"=>true,"preview"=>true,"authoring"=>true}
+      op=scene.studio_operations.create!(studio_project:scene.studio_project,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.blender.authoring.preview",status:"running",intent:{user_id:@alice.id},manifest:manifest)
+      previous=ENV["BLENDER_OUTPUT_ROOT"];ENV["BLENDER_OUTPUT_ROOT"]=File.join(root,"out")
+      result=Rails.stub(:root,Pathname(ROOT)) { Studio::Providers::BlenderProvider.new(op).call }
+      check="import bpy; c=bpy.data.objects['NativeCube']; assert all(abs(abs(v.co.x-0.5*v.co.z)-1)<1e-5 for v in c.data.vertices); assert len(c.data.vertices)==8; assert 'Native nodes' in c.modifiers; print('SKEW_REOPEN_PASS')"
+      output=Studio::MediaProcess.run!([ENV.fetch("BLENDER_BIN","blender"),"--background",result.output_directory.join("scene.blend").to_s,"--disable-autoexec","--python-exit-code","1","--python-expr",check],timeout:60)
+      assert_includes output,"SKEW_REOPEN_PASS"
+      assert_equal "glTF",File.binread(result.output_directory.join("scene.glb"),4)
+      assert result.output_directory.join("preview.png").exist?
+      assert_equal original,asset.native.blob.download
+      author(cube,{},operation:"undo");assert_empty cube.reload.definition["authoring_commands"]
+    ensure
+      ENV["BLENDER_OUTPUT_ROOT"]=previous
+    end
+  end
   def test_authoring_preview_requests_real_geometry_and_does_not_mutate_the_source
     author(mesh,{kind:"mesh_subdivide",cuts:1})
     result=action("blender_authoring_preview",scene_id:@scene.id)

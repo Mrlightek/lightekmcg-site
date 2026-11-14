@@ -1,0 +1,51 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const { JSDOM } = require('jsdom');
+const fixture = require('./fixtures/studio_authoring_fixture.cjs');
+
+(async () => {
+  const dom = new JSDOM(fixture,{url:'https://authoring.test/',runScripts:'outside-only'});
+  const context=dom.getInternalVMContext(),document=dom.window.document;
+  dom.window.structuredClone=structuredClone;
+  const scripts=[...document.scripts].filter(s=>!s.src);
+  vm.runInContext(scripts[0].textContent,context);
+  vm.runInContext(fs.readFileSync('public/lightek/studio-authoring.js','utf8'),context);
+  vm.runInContext(scripts[1].textContent,context);
+  const evaluate=source=>vm.runInContext(source,context);
+  const form=()=>document.querySelector('[data-authoring-form=mesh_skew]');
+  const input=(name,value)=>{const field=form().elements.namedItem(name);field.value=value;field.dispatchEvent(new dom.window.Event('input',{bubbles:true}));};
+  const settle=async()=>{for(let n=0;n<6;n++)await new Promise(resolve=>setImmediate(resolve));};
+  input('factor_value','0.75');
+  assert.equal(evaluate('requests.length'),0,'preview never submits a job');
+  assert.equal(evaluate('LightekStudioMeshDraft().command.factor'),.75);
+  evaluate('render()');assert.equal(form().elements.factor_value.value,'0.75');
+  form().querySelector('[data-a=studioAuthorSkewReset]').click();
+  assert.equal(evaluate('LightekStudioMeshDraft()'),null);
+  assert.equal(form().elements.factor_value.value,'0');
+  input('source_axis','X');assert.equal(form().checkValidity(),false);
+  input('source_axis','Z');input('factor_value','-0.5');
+  form().dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));
+  await settle();
+  assert.equal(evaluate('requests.length'),1);
+  assert.deepEqual(JSON.parse(evaluate('JSON.stringify(requests[0].payload.command)')),{kind:'mesh_skew',axis:'X',source_axis:'Z',factor:-.5,indices:[]});
+  assert.equal(evaluate('LightekStudioMeshDraft()'),null);
+  // A worker proxy already contains the baked commands. Later slider edits
+  // replay only the suffix; undoing across that snapshot drops the baked proxy.
+  evaluate('A.studioAuthorSync()');await settle();
+  assert.equal(evaluate('LightekStudioViewportBridge.snapshot().objects[0].definition.viewport_baked_commands.length'),1);
+  input('factor_value','0.2');
+  evaluate('scene.objects[0].definition.authoring_commands.push({kind:"mesh_skew",axis:"Y",source_axis:"Z",factor:0.3});scene.settings.native_revision++');
+  assert.equal(evaluate('LightekStudioViewportBridge.snapshot().objects[0].definition.viewport_baked_commands.length'),1);
+  evaluate('scene.objects[0].definition.authoring_commands=[];scene.settings.native_revision++');
+  assert.equal(evaluate('LightekStudioViewportBridge.snapshot().objects[0].definition.viewport_baked_commands'),undefined);
+  evaluate('ST.selectedObjectId=2;render()');
+  assert.equal(evaluate('LightekStudioMeshDraft()'),null,'selection does not leak another object\'s draft');
+  assert.equal(document.querySelector('[data-authoring-form=mesh_skew]'),null,'rigs do not get mesh controls');
+  evaluate('ST.selectedObjectId=1;app.innerHTML=LightekStudioApp.objectControls(scene.objects[0])');
+  assert(form(),'the same command control is available in the main object inspector');
+  input('factor_value','0.4');
+  assert.equal(evaluate('LightekStudioMeshDraft().command.factor'),.4);
+  dom.window.close();
+  console.log('STUDIO_AUTHORING_DOM_PASS preview apply reset axes drafts baked_prefix undo inspector');
+})().catch(error=>{console.error(error);process.exitCode=1;});

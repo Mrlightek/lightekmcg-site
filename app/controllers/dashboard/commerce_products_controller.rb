@@ -60,7 +60,7 @@ class Dashboard::CommerceProductsController < Dashboard::CommerceBaseController
   def authorize_instance_product!
     requested_type = params.fetch(:product, {})[:product_type].to_s
     is_installation = requested_type == "lightek_instance" || @product&.product_type == "lightek_instance"
-    raise CanCan::AccessDenied if is_installation && current_user.role != "super_admin"
+    raise CanCan::AccessDenied if is_installation && current_user.role != "super_admin" && !@product&.source_hosting_package_id
   end
   def set_site
     sites = LightekSettings::WebsiteIdentity.sites_for(current_user)

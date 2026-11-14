@@ -90,6 +90,7 @@ class User < ApplicationRecord
   # ── DymondDash product entitlements ────────────────────────────────────────
   def can_access_feature?(feature_slug)
     feature_slug = feature_slug.to_s
+    return false if role != 'super_admin' && defined?(LightekAgency::PackagePolicy) && !LightekAgency::PackagePolicy.allowed?(self, feature_slug)
     return persisted? if feature_slug == "server_instances"
     return role.in?(%w[super_admin white_label]) if feature_slug == "agency_workspace"
     return role.in?(%w[super_admin admin white_label]) || LightekSettings::WebsiteIdentity.sites_for(self).exists? if feature_slug == "commerce_workspace"

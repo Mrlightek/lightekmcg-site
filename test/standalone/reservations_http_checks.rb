@@ -58,6 +58,8 @@ require ROOT.join('app/controllers/dashboard/commerce_payouts_controller').to_s
 # Real cookie/MFA coverage lives in enterprise_http_checks; this fixture uses headers.
 Dashboard::CommercePayoutsController.skip_before_action :require_sensitive_session!
 ReservationHarness.routes.draw do
+  get '/dashboard/reseller-packages', to: 'dashboard/reseller_packages#index', as: :dashboard_reseller_packages
+  post '/dashboard/reseller-packages', to: 'dashboard/reseller_packages#create'
   eval(ROOT.join('config/routes/reservations.rb').read, binding)
   get '/my/installations', to: 'reservations#index', as: :installations
   get '/my/installations/:id', to: 'reservations#show', as: :installation

@@ -4,6 +4,22 @@ module LightekCommerce
   # Every installation retains its own database and sites; ownership is scoped per site.
   class Product < ApplicationRecord
     self.table_name = "lightek_commerce_products"
+    belongs_to :source_hosting_package, class_name: "HostingPackage", optional: true
+    def effective_hosting_package = hosting_package || source_hosting_package
+    validate :reseller_package_configuration
+    def reseller_package_configuration
+      return unless has_attribute?(:package_policy)
+      LightekAgency::PackagePolicy.for_product(self)
+      return unless source_hosting_package
+      source = source_hosting_package
+      errors.add(:source_hosting_package, "must be a published Lightek package") unless source.active? && source.product.published? && source.product.site.tenant&.role == "super_admin"
+      errors.add(:subscription_plan_id, "must match the Lightek package") unless subscription_plan_id == source.product.subscription_plan_id
+      errors.add(:billing_interval, "must match the Lightek package") unless billing_interval == source.product.billing_interval && product_type == "lightek_instance"
+      minimum = LightekCommerce::MerchantPayouts.minimum_charge_cents(source.product.price_cents)
+      errors.add(:price_cents, "must cover the Lightek wholesale price and payment reserve (#{minimum} cents)") if price_cents.to_i < minimum
+    rescue LightekAgency::PackagePolicy::Denied => error
+      errors.add(:package_policy, error.message)
+    end
     has_one :hosting_package, dependent: :restrict_with_error
     has_many :variants, class_name: "LightekCommerce::ProductVariant", dependent: :restrict_with_error
     has_many_attached :photos

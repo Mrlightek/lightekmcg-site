@@ -124,6 +124,40 @@ class VerificationTest(unittest.TestCase):
         self.overrides['/dashboard/settings'] = Response('https://client-1.example.test/dashboard/settings', 'Settings')
         with self.assertRaises(verifier.PublicVerificationError): self.verify()
 
+    def managed(self, **proof_changes):
+        self.config['managed_package'] = dict(source_key='platform:42', policy_digest='expected-policy',
+            policy=dict(features=dict(website=dict(enabled=False), commerce=dict(enabled=False))))
+        self.gate(managed_package_source='platform:42', managed_package_digest='expected-policy', **proof_changes)
+
+    def test_installed_policy_must_match_source_and_digest(self):
+        self.managed()
+        self.assertEqual('expected-policy', self.verify()['managed_package_digest'])
+        for field in ('managed_package_source', 'managed_package_digest'):
+            self.managed()
+            proof = json.loads(self.overrides['/identity/onboarding-status'].body)
+            proof[field] = 'tampered'
+            self.overrides['/identity/onboarding-status'].body = json.dumps(proof)
+            with self.assertRaises(verifier.PublicVerificationError): self.verify()
+
+    def test_disabled_dashboard_denials_require_authenticated_policy_evidence(self):
+        self.managed()
+        denied = Response('https://client-1.example.test/dashboard/commerce/orders', 'Not included')
+        denied.status = 403
+        self.overrides['/dashboard/commerce/orders'] = denied
+        self.assertEqual(['/dashboard/commerce/orders'], self.verify()['package_denied_paths'])
+        self.config['managed_package']['policy']['features']['commerce']['enabled'] = True
+        with self.assertRaises(verifier.PublicVerificationError): self.verify()
+
+    def test_single_section_demo_requires_import_digest(self):
+        self.config['demo_content'] = dict(pages=[dict(sections=[dict(type='hero')])])
+        self.config['demo_content_digest'] = 'demo-copy'
+        self.overrides['/__lightek/website-health'] = Response('https://client-1.example.test/__lightek/website-health',
+            json.dumps(dict(domain=self.config['domain'], release=self.config['release'], site_id=1, sections=1)))
+        self.gate(demo_content_digest='demo-copy')
+        self.assertEqual('demo-copy', self.verify()['demo_content_digest'])
+        self.gate(demo_content_digest='wrong-copy')
+        with self.assertRaises(verifier.PublicVerificationError): self.verify()
+
     def test_same_origin_redirect_guard_rejects_other_hosts(self):
         guard = verifier.SameOriginRedirect(self.config['domain'])
         for url in ['https://other.test/path', 'http://client-1.example.test/path']:

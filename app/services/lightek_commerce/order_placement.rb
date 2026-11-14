@@ -51,10 +51,22 @@ module LightekCommerce
           subtotal += line_total
           snapshot = {"product_type" => product.product_type, "billing_interval" => product.billing_interval,
             "track_inventory" => variant_id ? true : product.track_inventory?, "subscription_plan_id" => product.subscription_plan_id}
-          package = product.hosting_package
+          package = product.respond_to?(:effective_hosting_package) ? product.effective_hosting_package : product.hosting_package
           if package
             raise Invalid, "Hosting package is unavailable" unless package.active?
+            raise Invalid, "Hosting package is unavailable" unless package.product.published?
             snapshot["hosting"] = package.snapshot
+            if product.respond_to?(:source_hosting_package_id) && product.source_hosting_package_id
+              package.product.lock!
+              floor = package.product.price_cents
+              raise Invalid, "Update this offer: its price no longer covers the Lightek package" if price < MerchantPayouts.minimum_charge_cents(floor)
+              snapshot["hosting"]["platform_charge_cents"] = floor
+              snapshot["hosting"]["source_product_id"] = package.product_id
+            end
+          end
+          if product.product_type == "lightek_instance" && defined?(LightekAgency::PackagePolicy) && product.has_attribute?(:package_policy)
+            snapshot["managed_package"] = {"source_key" => "#{order.payment_namespace}:#{order.id}", "policy" => LightekAgency::PackagePolicy.for_product(product)}
+            snapshot["managed_package"]["policy_digest"] = LightekAgency::PackagePolicy.digest(snapshot["managed_package"]["policy"])
           end
           order.items.create!(purchase_snapshot: snapshot, product: product, variant: variant_id ? variant : nil,
             name: name, quantity: qty, unit_price_cents: price, line_total_cents: line_total)
@@ -67,7 +79,7 @@ module LightekCommerce
         ReservationExpiryJob.set(wait: 30.minutes).perform_later(order.id)
         order
       end
-    rescue RevenueSharing::Invalid, MerchantPayouts::Invalid => error
+    rescue ActiveRecord::RecordInvalid, RevenueSharing::Invalid, MerchantPayouts::Invalid, LightekAgency::PackagePolicy::Denied => error
       raise Invalid, error.message
     rescue ArgumentError, TypeError
       raise Invalid, "Invalid cart items"

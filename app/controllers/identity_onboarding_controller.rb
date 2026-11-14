@@ -15,7 +15,9 @@ class IdentityOnboardingController < ApplicationController
     return head(:forbidden) unless site.tenant == current_user && current_user.role.in?(%w[admin super_admin])
     enabled = LightekIdentity::Mfa.enabled?(current_user)
     required = LightekIdentity::Mfa.required?(current_user)
-    render json: {version: 1, domain: host, release: ENV.fetch('LIGHTEK_RELEASE'), site_id: site.id,
+    package = LightekAgency::InstalledPackage.find_by(user: current_user) if defined?(LightekAgency::PackagePolicy) && LightekAgency::PackagePolicy.available?
+    package_evidence = package ? {managed_package_source: package.source_key, managed_package_digest: LightekAgency::PackagePolicy.digest(package.policy)} : {}
+    render json: {**package_evidence, demo_content_digest: site.manifest.to_h['demo_content_digest'], version: 1, domain: host, release: ENV.fetch('LIGHTEK_RELEASE'), site_id: site.id,
       owner_email: current_user.email_address, password_authenticated: true,
       password_setup_required: current_user.password_setup_required?, mfa_required: required, mfa_enabled: enabled,
       mfa_verified: !!LightekIdentity::Mfa.fresh?(Current.session),

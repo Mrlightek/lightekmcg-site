@@ -101,11 +101,19 @@ end
 module LightekReservations
   class NotificationJob < ApplicationJob; end
 end
+source = Rails.root.join("db/migrate/20261114130000_add_agency_package_policies.rb").read
+source = source.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
+eval(source, TOPLEVEL_BINDING)
+AddAgencyPackagePolicies.new.migrate(:up)
+require Rails.root.join('app/services/lightek_agency/package_policy').to_s
+require Rails.root.join('app/services/lightek_agency/hosting_catalog').to_s
 module LightekCommerce
   class Product < ApplicationRecord
     self.table_name = 'lightek_commerce_products'
     belongs_to :site, class_name: 'DymondSite::Site'
     has_many :variants, class_name: 'LightekCommerce::ProductVariant'
+    belongs_to :source_hosting_package, class_name: 'HostingPackage', optional: true
+    def effective_hosting_package = hosting_package || source_hosting_package
     has_one :hosting_package
   end
   class ProductVariant < ApplicationRecord
@@ -391,6 +399,9 @@ class ReservationsChecks < Minitest::Test
     assert offer.errors[:source_resource].any?
     approved = server
     offer.source_resource = approved
+    refute offer.valid?, 'The provider floor is not the agency wholesale price'
+    offer.cost_floor_cents = approved.price_cents
+    offer.product.update!(price_cents: 14000)
     assert offer.valid?, offer.errors.full_messages.join(', ')
     offer.compute = offer.compute.merge('monthly_cost_cents'=>1)
     refute offer.valid?

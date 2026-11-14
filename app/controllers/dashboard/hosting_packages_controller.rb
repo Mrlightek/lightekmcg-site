@@ -18,13 +18,13 @@ class Dashboard::HostingPackagesController < ApplicationController
     HostingPackage.transaction do
       product = LightekCommerce::Product.create!(site: site, name: values.delete(:name), slug: "hosting-#{SecureRandom.hex(8)}",
         price_cents: values.delete(:price_cents), subscription_plan_id: values.delete(:subscription_plan_id),
-        product_type: "lightek_instance", billing_interval: "month", track_inventory: false,
+        package_policy: (params[:package_policy]&.to_unsafe_h || {}), product_type: "lightek_instance", billing_interval: "month", track_inventory: false,
         inventory_quantity: 0, published: true)
       package = HostingPackage.create!(values.merge(product: product, active: true))
       Gatekeeper::Hosting::PackagePurchase.validate!(snapshot: package.snapshot, retail_cents: product.price_cents, actor: current_user)
     end
     redirect_to dashboard_hosting_packages_path, notice: "Retail hosting package published."
-  rescue ActiveRecord::RecordInvalid, Gatekeeper::Hosting::Access::Denied => error
+  rescue ActiveRecord::RecordInvalid, LightekAgency::PackagePolicy::Denied, Gatekeeper::Hosting::Access::Denied => error
     redirect_to dashboard_hosting_packages_path, alert: error.message
   end
   def update

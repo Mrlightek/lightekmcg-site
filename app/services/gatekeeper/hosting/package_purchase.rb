@@ -56,6 +56,10 @@ module Gatekeeper
           content = LightekAgency::DemoUpgrade.content_for(order)
           launch.update!(template_snapshot: launch.template_snapshot.merge('demo_content' => content)) unless launch.template_snapshot['demo_content']
         end
+        managed = order.items.sole.purchase_snapshot.to_h['managed_package']
+        if managed && !launch.template_snapshot['managed_package']
+          launch.update!(template_snapshot: launch.template_snapshot.merge('managed_package' => managed))
+        end
         launch.update!(status: "queued") if launch.status == "failed"
         Launches.perform!(launch)
         raise Access::Denied, "Hosting installation has not passed verification" unless launch.reload.status == "ready"

@@ -43,6 +43,8 @@ module LightekPwa
     end
     def manage? = %w[admin editor moderator].include?(role)
     def authorize_admin!(section = "overview")
+      package_feature = {"overview" => "pwa", "settings" => "pwa", "navigation" => "pwa", "people" => "community"}.fetch(section, section)
+      LightekAgency::PackagePolicy.authorize!(@user, package_feature) if defined?(LightekAgency::PackagePolicy) && !super_admin?
       raise Denied, "This application is outside your administration access" unless manage?
       raise Denied, "Application settings require an administrator" if section == "people" && role != "admin"
       raise Denied, "Application design requires an editor or administrator" if %w[settings navigation].include?(section) && role == "moderator"
@@ -51,6 +53,7 @@ module LightekPwa
     end
     def authorize!(surface = nil)
       return true if super_admin?
+      LightekAgency::PackagePolicy.authorize!(@user, surface || 'pwa') if defined?(LightekAgency::PackagePolicy)
       raise Denied, "Your access to this application is suspended" if membership&.status == "suspended"
       app = Application.find_by(site_id: @site&.id) || Application.new(site: @site)
       raise Denied, "This application is under maintenance" unless app.status == "published"

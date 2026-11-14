@@ -164,10 +164,12 @@ def install_locked(config):
                 bootstrap = {"domain": domain, "owner_email": config["email"], "owner_password": state["owner_password"],
                              "owner_role": "admin", "site_name": config.get("name", domain), "headline": "Welcome",
                              "description": config.get("name", domain), "branding": config.get("branding"),
-                             "reservation_federation": config.get("reservation_federation"), "demo_content": config.get("demo_content")}
+                             "reservation_federation": config.get("reservation_federation"), "demo_content": config.get("demo_content"), "managed_package": config.get("managed_package")}
                 runner = ('require "json"; c=JSON.parse(STDIN.read); '
                           'raise "Rebuild this application image with demo upgrade support" if c["demo_content"] && !defined?(LightekAgency::DemoContent); '
+                          'raise "Rebuild this application image with reseller package support" if c["managed_package"] && !defined?(LightekAgency::PackagePolicy); '
                           'LightekWebsite::Bootstrap.call(c); '
+                          'LightekAgency::PackagePolicy.install!(user: User.find_by!(email_address: c.fetch("owner_email")), configuration: c["managed_package"]) if c["managed_package"]; '
                           'LightekAgency::DemoContent.install!(site: DymondSite::Site.find_by!(host: c.fetch("domain")), content: c["demo_content"]) if c["demo_content"]')
                 run(compose + ["run", "--rm", "--no-deps", "-T", "web", "bin/rails", "runner", runner], input=json.dumps(bootstrap).encode())
             tasks = subprocess.check_output(compose + ["run", "--rm", "--no-deps", "web", "bin/rails", "-T"], stderr=subprocess.DEVNULL, timeout=180).decode()
@@ -210,7 +212,7 @@ def install_locked(config):
             import runpy
             verifier = runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "script/lightek/verify_paid_instance.py"))
         health = verifier["verify_public"]({"domain": domain, "release": config["image"].split("@sha256:")[1],
-                                            "owner_email": config["email"], "owner_password": state["owner_password"]})
+                                            "owner_email": config["email"], "owner_password": state["owner_password"], "managed_package": config.get("managed_package"), "demo_content": config.get("demo_content"), "demo_content_digest": config.get("demo_content_digest")})
     fleet_config = {"compose_file": str(root / "compose.json"), "compose_project": project, "db_service": "db",
                     "health_url": f"https://{domain}/up", "revision_url": f"https://{domain}/__lightek/release"}
     return {"public_https_verified": True, "owner_login_verified": bool(health), "health": health, "release": health.get("release"), "fleet_config": fleet_config,

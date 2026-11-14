@@ -1,6 +1,6 @@
 # Lightek feature catalog
 
-**Current source inventory: November 13, 2026, including merged PR #230.** Lightek connects business operations, creative production, communications, infrastructure and automation through the same Dashboard, accounts and service boundaries.
+**Platform baseline: November 13, 2026, PR #230. Studio inventory refreshed November 14, 2026 for the current source.** Lightek connects business operations, creative production, communications, infrastructure and automation through the same Dashboard, accounts and service boundaries.
 
 This is the current product inventory for the Rails host. Module guides describe supported formats, provider setup, limits and acceptance commands. An implemented connector still needs its real account, credentials, worker/runtime and live verification; a central deployment does not establish readiness on every independent client server. Historical module documents may describe an earlier delivery stage; use the newest linked workflow for current behavior.
 
@@ -229,16 +229,24 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Advanced workstation/finishing | Existing Blender workspaces and a separate timeline/mix/export path with transforms, fades, speed, titles, picture adjustments, MP4/ProRes and WAV output contracts. |
 | Cast & Performance | Native toon creation or compatible packed character registration, placements, recorded audio takes, saved facial/gesture cues and animated preview/shot export. |
 | Show templates | Reusable scenes, cast, sets/cameras, production plans, scene objectives and independent episode/project copies. |
-| Music composition | Step sequencer, piano roll, instruments/samples, multi-bar arrangement, gain/pan/mute/solo and sound shaping. |
+| Music composition | Step sequencer, piano roll, instruments/samples, reusable multichannel patterns and linked song placements with repeat/transposition/strength/mute. |
+| Music automation | Saved gain/pan/filter/delay envelopes with linear/hold points, bypass and live/offline scheduling. |
+| Music mixer | Eight subgroup buses, channel routing and ordered channel/group/master EQ, compression, distortion and delay inserts, with bypass/reorder/undo. |
+| Audio takes | Local microphone capture/review, retryable canonical WAV library import, source-bound original-pitch takes, trim/beat placement and shared mixer routing. |
+| Picture scoring | Muted Edit compositor monitor driven by music time, saved score start and picture cues, beat mapping and aligned mix placement. |
+| Shots & storyboard | Ordered shots, camera/frame/Cast selection, immutable render snapshots, Genesis prompt provenance and finished-shot handoff to the edit. |
+| Character lip sync & motion | Offline Rhubarb mouth cues and editable face bindings; source-bound native Actions/NLA clips with trim/speed/repeat/layer/blend. |
+| Materials & look | Per-slot native/Cast shader input overrides and reversible scene compositor finish. |
+| Managed Genesis setup | Self-hosted worker/model setup, authenticated routing, verified resumable packages and image/video workflow contracts. |
 | Music delivery | Saved scores, WAV mix/stems, MIDI export and a linked mix-to-edit handoff. |
 | AI Studio integration | Loopback ComfyUI readiness, operator recipes, prompt/seed jobs, durable asset ingestion and result-to-edit. |
 | Production delivery | Existing artifact/library reuse, publication records, release queues, channel/OTT configuration and destination adapters. |
 
 **Editor contracts:** the new basic editor path and the advanced legacy/native production path coexist. Basic photo/video PNG/MP4 exports use existing instance resources without an added checkout. Advanced Blender/render/finishing operations retain their documented quote/payment workflows. The basic video editor currently supports up to 16 tracks/128 clips/ten minutes and a 1920-pixel maximum canvas dimension; the advanced finishing path has its own clip/output limits.
 
-**Engine scope:** the browser preserves native Blender rigs/node graphs but does not implement every Blender/Maya authoring tool. Cast mouth automation follows audio volume, not automatic phoneme/viseme alignment. AI concept-image generation requires an installed local engine/checkpoint; automatic model/GPU provisioning, proven AI video/voice/3D recipes, face replacement and voice cloning are not delivered by that generic adapter. Full Resolve/Maya parity and automatic finished-episode generation remain separate acceptance goals.
+**Engine scope:** the browser preserves native Blender rigs/node graphs but does not implement every Blender/Maya authoring tool. Cast supports offline speech-driven mouth cues with editable phoneme/face bindings; detailed character creation and performance-model coverage remain broader work. AI concept-image generation requires an installed local engine/checkpoint; managed worker/model setup and queued image/video contracts are implemented, while actual inference on suitable hardware and the remaining voice/3D/performance recipes still need implementation or acceptance. Face replacement and voice cloning are not claimed as delivered. Full Resolve/Maya parity and automatic finished-episode generation remain separate acceptance goals.
 
-Guides: [basic editors](docs/studio/open-source-editors.md), [Blender engine](docs/studio/native-blender-engine.md), [native authoring](docs/studio/blender-authoring.md), [production finishing](docs/studio/production-suite.md), [cast](docs/studio/cast-and-performance.md), [music](docs/studio/music-quickstart.md), [AI Studio](docs/studio/ai-studio.md), [production roadmap](docs/studio/roadmap.md).
+Guides: [basic editors](docs/studio/open-source-editors.md), [Blender engine](docs/studio/native-blender-engine.md), [native authoring](docs/studio/blender-authoring.md), [production finishing](docs/studio/production-suite.md), [cast](docs/studio/cast-and-performance.md), [music](docs/studio/music-quickstart.md), [patterns](docs/studio/music-patterns.md), [automation](docs/studio/music-automation.md), [mixer](docs/studio/music-mixer.md), [recording](docs/studio/music-recording.md), [picture scoring](docs/studio/music-picture-scoring.md), [feature sprint status](docs/studio/feature-sprints.md), [AI Studio](docs/studio/ai-studio.md), [production roadmap](docs/studio/roadmap.md).
 
 ## 12. Live production, audience and distribution
 

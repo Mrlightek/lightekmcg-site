@@ -11,6 +11,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Offline speech-driven mouth cues, editable phoneme takes, optional detailed face bindings and native Blender animation. See [Character lip sync](character-lip-sync.md).
 - [x] Source-bound body-motion clips, trim/speed/repeat/layer/blend controls, saved arrangements and editable native NLA playback. See [Body motion clips](body-motion-clips.md).
 - [x] Per-slot native/Cast material controls, sparse input overrides and a reversible scene compositor finish. See [Look & materials](look-and-materials.md).
+- [x] Music-clock-driven muted picture monitor, saved scoring cues/start and aligned mix replacement. See [Picture scoring](music-picture-scoring.md).
 - [x] Local microphone capture/review, retryable library import and source-bound audio takes through the music mixer. See [Recording & audio takes](music-recording.md).
 - [x] Mixer subgroup routing, ordered channel/bus/master EQ/compression/distortion/delay inserts and processed stems. See [Mixer buses & inserts](music-mixer.md).
 - [x] Saved song automation for gain, pan, filter and delay, with shared live/offline scheduling, bypass and undo. See [Music automation](music-automation.md).
@@ -25,7 +26,7 @@ These checkboxes record implementation, not completed production acceptance.
 - [ ] Complete generation recipes for the remaining agreed media types and verify actual inference/output on suitable production hardware.
 - [ ] Advanced character creation/performance tools, eligible face/performance models and expanded reusable body-animation controls.
 - [ ] Expand direct Blender object/material/rig/compositor controls using the existing documented command contract.
-- [ ] FL Studio-style music workflow: pattern/channel arrangement, recording, instruments, mixer/effects and scoring against picture.
+- [ ] Remaining music production: synchronized overdub/latency handling, MIDI performance capture, expanded instruments/effects and bus/effect automation; integrated music-to-picture acceptance.
 - [ ] Shared production templates/assets in Live Studio, multi-person composition, stage effects, audience and distribution completion.
 - [ ] Complete the agreed media publishing and distribution connections across network, streaming, community and social destinations.
 

@@ -14,6 +14,7 @@ A business can build its website, sell products or book services, manage custome
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
 | Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |
+| Score a production against picture | [Picture scoring & cues](docs/studio/music-picture-scoring.md) |
 | Record and arrange audio takes | [Recording & audio takes](docs/studio/music-recording.md) |
 | Group instruments and process the mix | [Mixer buses & inserts](docs/studio/music-mixer.md) |
 | Automate the music mix | [Music automation](docs/studio/music-automation.md) |
@@ -30,7 +31,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 
 ## What is in the platform now
 
-*Source snapshot: November 13, 2026, including merged PR #230. This describes implemented host workflows; it is not a claim that every external provider or every deployed client instance has passed live acceptance.*
+*Platform baseline: November 13, 2026, PR #230; Studio inventory and workflow links refreshed November 14, 2026. This describes implemented host workflows; it is not a claim that every external provider or every deployed client instance has passed live acceptance.*
 
 | Workspace | Current capabilities |
 | --- | --- |
@@ -42,7 +43,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Websites and community | Pages/sections, HTML design imports, starter designs, coordinated site themes, native store/journal integration, articles/RSS and per-site PWA branding, navigation and moderation |
 | Communications | Lightek webmail, conversation replies, rich composition, mailbox management, distribution addresses, Junk/spam controls, mail templates and native transactional SMTP routing |
 | Reservations and live rooms | Bookable resources, availability/capacity, paid reservations, calendar downloads, private guest rooms, host moderation and Studio program composition |
-| Studio | Integrated miniPaint photo and Movie Masher video editors; saved projects and PNG/MP4 exports; advanced Blender, cast/performance, music, finishing, live production and delivery workspaces |
+| Studio | Photo/video editing and exports; Blender authoring, shots/storyboard, cast lip sync/body motion, materials/look; music patterns, automation, mixer inserts, recorded audio takes and picture scoring; connected finishing, live and delivery workspaces |
 | Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
 | Nevaeh | Conversational operating workspace, typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |
 | Platform security and operations | Gatekeeper authorization, scoped Vault credentials, tenant ownership checks, background execution, audit history, retry/recovery paths and configurable Dashboard appearance |

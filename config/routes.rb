@@ -147,6 +147,8 @@ Rails.application.routes.draw do
   delete "/commerce/cart/:product_id", to: "commerce#remove", as: :commerce_cart_remove
   post "/commerce/checkout", to: "commerce#checkout", as: :commerce_checkout
   get "/dashboard/commerce/orders", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_orders
+  delete "/dashboard/commerce/orders", to: "dashboard/commerce_orders#bulk_destroy"
+  delete "/dashboard/commerce/orders/:order_id", to: "dashboard/commerce_orders#destroy", as: :dashboard_commerce_order
   # BEGIN LIGHTEK MARKETPLACE V8.7
   get "/marketplace", to: "marketplace#index", as: :marketplace
   get "/marketplace/:id", to: "marketplace#show", as: :marketplace_listing, constraints: { id: /[0-9]+/ }

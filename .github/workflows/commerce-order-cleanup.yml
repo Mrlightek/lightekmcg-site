@@ -1,0 +1,29 @@
+name: Commerce Order Cleanup
+on:
+  pull_request:
+    paths:
+      - 'app/controllers/dashboard/commerce_orders_controller.rb'
+      - 'app/models/lightek_commerce/**'
+      - 'app/services/lightek_commerce/**'
+      - 'app/views/dashboard/commerce_orders/**'
+      - 'db/migrate/*commerce_order_deletion*'
+      - 'config/routes.rb'
+      - 'test/standalone/commerce_order_cleanup_test.rb'
+      - 'test/standalone/commerce_hosting_test.rb'
+      - '.github/workflows/commerce-order-cleanup.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - name: Install public test dependencies
+        run: gem install activerecord:8.0.5 actionpack:8.0.5 actionview:8.0.5 sqlite3:2.7.4 minitest:5.25.5 --no-document
+      - name: Test order removal, payment safety, inventory and merchant isolation
+        run: ruby test/standalone/commerce_order_cleanup_test.rb

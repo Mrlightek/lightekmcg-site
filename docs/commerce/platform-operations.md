@@ -11,9 +11,16 @@ Lightek's product direction is an ERP built into the platform: customer and agen
 | Sell hosting at retail | Hosting packages → package configuration, then customer hosting checkout | Provider plan, cost ceiling and margin remain operator configuration. The customer buys the retail product. The payer and installed application's owner are recorded separately. |
 | Manage an agency | Agencies → enable agency / create client / branding / revenue terms | Uses nested managed accounts, inherited branding and explicit upstream revenue terms. Existing purchase snapshots retain their agreed terms. |
 | Run a store | Commerce → products, orders, subscriptions, fulfillment and payouts | Uses the existing site-scoped products and orders. Service products can bill monthly/yearly; inventory rules are captured when the order is reserved. |
+| Clear unpaid test orders | Commerce → Orders → Delete unpaid order, or select rows → Delete selected unpaid orders | Cancels unpaid orders, restores reserved inventory once, and removes them from Orders and Application installations. Paid orders and installations are protected. |
 | Ship a parcel | Shipping → origin and packaging → rates → purchase → label / tracking | Uses the platform carrier connection and retail shipping price. Merchant screens do not receive the carrier credential or base cost. |
 
 A client instance connects through the existing authenticated federation peer. Merchandise checkout goes to the platform processor account; receipts are synchronized back to the client instance. Each peer's mirrored merchant tree is confined to that peer's reseller branch. Refund, fulfillment, payout and subscription-cancellation requests address only that peer's sales. Renewals retain their invoice identity and receive subsequent fulfillment, refund and payout updates. A browser return from checkout is not payment confirmation.
+
+### Removing test and abandoned orders
+
+Open the storefront's **Orders** page. Use **Delete unpaid order** for one row, or check multiple unpaid rows and choose **Delete selected unpaid orders**. Confirm the action. Pending-payment and canceled orders are eligible; paid, refunded, fulfilled and installed orders remain protected on the server as well as in the UI. Bulk selection applies only to the current storefront, up to 150 rows, and reports orders that could not be removed.
+
+An open Stripe checkout must be confirmed expired before the order is canceled. Completed, paid, settling or unverifiable checkouts remain visible for reconciliation. A network checkout must first expire or be canceled at its upstream provider; the local action checks its receipt and retains it if still pending. Retry cleanup after reconciliation. Canceled records and line items stay in the database for delayed webhooks and network receipts; deletion removes them from the active merchant and installation lists. Apply migration `20261114140000` during deployment before using these controls.
 
 ## Configuration and deployment
 
@@ -32,6 +39,7 @@ The standalone suites exercise real Active Record models, transactions and migra
 
 ```sh
 ruby test/standalone/commerce_network_test.rb
+ruby test/standalone/commerce_order_cleanup_test.rb
 ruby test/standalone/website_deployment_dispatch_test.rb
 ruby test/standalone/hosting_bootstrap_test.rb
 ruby test/standalone/fleet_hosting_test.rb

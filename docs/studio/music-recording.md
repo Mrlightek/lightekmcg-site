@@ -27,7 +27,7 @@ Song takes are independent of reusable musical patterns. Pattern capture/copy do
 
 ## Persistence and limits
 
-Adding an audio take upgrades musical source to **version 5**. Versions 1–4 remain supported. Adding patterns, channel automation or mixer controls to a version 5 song keeps that version. Group/master automation upgrades it to version 7 and retains the audio-take references. Older servers reject version 5 rather than silently discarding recordings. Deploy the updated Dashboard/PWA scripts with the server code; no database migration is required.
+Adding an audio take upgrades musical source to **version 5**. Versions 1–4 remain supported. Adding patterns, channel automation or mixer controls to a version 5 song keeps that version. Group/master fader automation upgrades it to version 7; supported insert automation upgrades it to version 8. Both retain the audio-take references. Older servers reject version 5 rather than silently discarding recordings. Deploy the updated Dashboard/PWA scripts with the server code; no database migration is required.
 
 The source uses `instrument: "recording"`, an authorized ready audio `asset_id`, `sample_in`, `sample_out`, and one fixed-pitch placement in `notes`. Its beat is the musical start; length is `(sample_out - sample_in) * tempo / 60`, with pitch 60 as a source marker. Playback uses Tone.Player rather than repitching the recording through the sampler. Gain/pan, mute/solo, effects and `bus_id` follow the existing channel contract.
 

@@ -218,6 +218,7 @@ jobs:
           bundle exec ruby test/standalone/studio_music_automation_checks.rb --name /StudioMusicAutomationTest/
           bundle exec ruby test/standalone/studio_music_mixer_checks.rb --name /StudioMusicMixerTest/
           bundle exec ruby test/standalone/studio_music_bus_automation_checks.rb --name /StudioMusicBusAutomationTest/
+          bundle exec ruby test/standalone/studio_music_insert_automation_checks.rb --name /StudioMusicInsertAutomationTest/
           bundle exec ruby test/standalone/studio_music_recording_checks.rb --name /StudioMusicRecordingTest/
           bundle exec ruby test/standalone/studio_music_scoring_checks.rb --name /StudioMusicScoringTest/
       - name: Production scores and native camera-cut acceptance
@@ -288,6 +289,8 @@ jobs:
           node test/javascript/studio_music_mixer_audio_test.cjs
           node test/javascript/studio_music_bus_automation_test.cjs
           node test/javascript/studio_music_bus_automation_audio_test.cjs
+          node test/javascript/studio_music_insert_automation_test.cjs
+          node test/javascript/studio_music_insert_automation_audio_test.cjs
           node test/javascript/studio_music_overdub_worklet_test.cjs
           node test/javascript/studio_music_overdub_test.cjs
           node test/javascript/studio_music_overdub_audio_test.cjs

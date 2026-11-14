@@ -10,7 +10,7 @@ module Studio
         raise ArgumentError,"Music source must be an object" unless raw.is_a?(Hash)
         data = raw.deep_stringify_keys
         raise ArgumentError, "Music project is too large" if data.to_json.bytesize > 1_000_000
-        raise ArgumentError, "Unsupported music project version" unless [1,2,3,4,5,6,7].include?(integer(data.fetch("version", 1)))
+        raise ArgumentError, "Unsupported music project version" unless [1,2,3,4,5,6,7,8].include?(integer(data.fetch("version", 1)))
         tempo = number(data.fetch("tempo", 100), 40, 240)
         bars = integer(data.fetch("bars", 4))
         raise ArgumentError, "Use 1–128 bars" unless bars.between?(1, 128)

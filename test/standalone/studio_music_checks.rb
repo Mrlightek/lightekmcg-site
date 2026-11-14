@@ -45,7 +45,7 @@ class StudioMusicTest < StudioPerformanceTest
   def test_music_rejects_invalid_song_bounds_duplicate_notes_and_stale_writes
     save_score
     original=@scene.reload.settings["music"]
-    [{tempo:0},{bars:129},{bars:128,tempo:40},{swing:0.6},{version:8},{bars:4.1}].each do |changes|
+    [{tempo:0},{bars:129},{bars:128,tempo:40},{swing:0.6},{version:9},{bars:4.1}].each do |changes|
       assert_raises(ArgumentError) { save_score(score.merge(changes)) }
     end
     invalid=score;invalid[:tracks][0][:notes]<<invalid[:tracks][0][:notes].first.dup

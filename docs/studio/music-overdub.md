@@ -28,7 +28,7 @@ Overdub requires HTTPS, microphone permission and AudioWorklet support. Standalo
 
 The song remains constant-tempo 4/4 at 40–240 BPM. Overdub supports 1–16 bars from the song start, capped at 120 seconds of captured input. At 40 BPM, sixteen bars take 96 seconds. Capture supports context rates from 8–192 kHz; import normalizes to the existing 48 kHz / 16-bit stereo WAV contract under 25 MB. No count-in, loop recording, comping, punch-in, arbitrary record start or automatic latency calibration is included.
 
-No database migration or new music source version is needed. Audio-take channels use existing version 5 fields; picture scoring starts at version 6. Adding group/master automation upgrades to version 7 while retaining recording fields and scoring settings. MIDI exports contain musical notes, not recorded waveform audio. Pending local takes must be saved or downloaded before leaving the page.
+No database migration or new music source version is needed. Audio-take channels use existing version 5 fields; picture scoring starts at version 6. Adding group/master fader automation upgrades to version 7 and insert automation to version 8, retaining recording fields and scoring settings. MIDI exports contain musical notes, not recorded waveform audio. Pending local takes must be saved or downloaded before leaving the page.
 
 ## Focused verification
 

@@ -16,6 +16,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Song-clock microphone overdub, bounded bar passes, manual timing correction and editable aligned placement. See [Microphone overdub](music-overdub.md).
 - [x] Local microphone capture/review, retryable library import and source-bound audio takes through the music mixer. See [Recording & audio takes](music-recording.md).
 - [x] Mixer subgroup routing, ordered channel/bus/master EQ/compression/distortion/delay inserts and processed stems. See [Mixer buses & inserts](music-mixer.md).
+- [x] Saved EQ/compressor/delay/wet-mix insert envelopes on channels, buses and master, stable insert references and automated delay-tail budgeting (source v8). See [Music automation](music-automation.md).
 - [x] Saved bus volume/pan and master volume envelopes, shared live/offline scheduling and processed-stem handoff (source v7). See [Music automation](music-automation.md).
 - [x] Saved song automation for gain, pan, filter and delay, with shared live/offline scheduling, bypass and undo. See [Music automation](music-automation.md).
 - [x] Reusable multichannel music patterns, linked playlist placements and shared playback/WAV/stem/MIDI expansion. See [Patterns & playlist](music-patterns.md).
@@ -29,7 +30,7 @@ These checkboxes record implementation, not completed production acceptance.
 - [ ] Complete generation recipes for the remaining agreed media types and verify actual inference/output on suitable production hardware.
 - [ ] Advanced character creation/performance tools, eligible face/performance models and expanded reusable body-animation controls.
 - [ ] Expand direct Blender object/material/rig/compositor controls using the existing documented command contract.
-- [ ] Remaining music production: automatic device latency calibration, loop/punch/comp recording, expanded MIDI expression/controllers, expanded instruments/effects and insert-parameter automation; integrated music-to-picture acceptance.
+- [ ] Remaining music production: automatic device latency calibration, loop/punch/comp recording, expanded MIDI expression/controllers, expanded instruments/effects and automation recording and additional effect controls; integrated music-to-picture acceptance.
 - [ ] Shared production templates/assets in Live Studio, multi-person composition, stage effects, audience and distribution completion.
 - [ ] Complete the agreed media publishing and distribution connections across network, streaming, community and social destinations.
 

@@ -154,3 +154,20 @@
     white-space: normal;
   }
 }
+
+/* Dashboard appearance supplies the authoring palette; PWA keeps its defaults. */
+#lightek-studio-dashboard .sa-dock {background:var(--dd-sidebar-bg);color:var(--dd-text-primary);border-color:var(--dd-border);font-family:inherit}
+#lightek-studio-dashboard .sa-transport,
+#lightek-studio-dashboard .sa-form-grid > :is(form,section) {background:var(--dd-card-bg);border-color:var(--dd-border)}
+#lightek-studio-dashboard .sa-dock :is(h3,h4,legend,.fld>span,[role=status],.eb) {color:var(--dd-text-primary)}
+#lightek-studio-dashboard .sa-dock p {color:var(--dd-text-secondary);line-height:1.5}
+#lightek-studio-dashboard .sa-form-grid :is(input,select) {background:var(--dd-input-bg);color:var(--dd-input-text);border-color:var(--dd-input-border);color-scheme:var(--dd-form-scheme)}
+#lightek-studio-dashboard .sa-dock .btn {background:var(--dd-card-bg);color:var(--dd-text-primary);border:1px solid var(--dd-border);border-radius:6px;padding:7px 10px;font:inherit;cursor:pointer}
+#lightek-studio-dashboard .sa-dock .btn.p {background:var(--dd-accent);color:var(--dd-button-text);border-color:var(--dd-accent)}
+#lightek-studio-dashboard .sa-dock :focus-visible {outline:2px solid var(--dd-accent);outline-offset:2px}
+.sa-form-grid input[type=range] {padding:0;accent-color:var(--dd-accent,#dcc490);min-height:32px}
+.sa-object-controls {margin:12px 0;padding:0;border:0;background:none}
+.sa-object-controls .sa-form-grid {display:block;max-height:none;overflow:visible;margin:0;padding:0}
+.sa-object-controls .sa-form-grid > form {padding:12px}
+.sa-object-controls .sa-form-grid button {margin:4px 4px 0 0;white-space:normal}
+.sa-object-controls .sa-form-grid p {font-size:11px}

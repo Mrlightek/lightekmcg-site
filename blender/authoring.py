@@ -96,6 +96,27 @@ def mesh_operation(obj, cmd):
     mesh = obj.data
     if len(mesh.vertices) > 500000: raise ValueError('Use a mesh under 500,000 vertices for interactive editing')
     kind = cmd['kind']
+    if kind == 'mesh_skew':
+        axes = {'X': 0, 'Y': 1, 'Z': 2}
+        axis, source = cmd.get('axis'), cmd.get('source_axis')
+        factor = cmd.get('factor')
+        if axis not in axes or source not in axes or axis == source:
+            raise ValueError('Choose two different X, Y or Z axes')
+        if isinstance(factor, bool) or not isinstance(factor, (int, float)) or not math.isfinite(factor) or not -2 <= factor <= 2:
+            raise ValueError('Skew factor must be finite and between -2 and 2')
+        selection = cmd.get('indices', [])
+        if not isinstance(selection, list) or len(selection) > 4096 or any(type(i) is not int or i < 0 or i >= len(mesh.vertices) for i in selection):
+            raise ValueError('Mesh selection changed; refresh its topology')
+        indices = set(selection) if selection else range(len(mesh.vertices))
+        # Object-local shear, around its origin. Apply the same linear map to
+        # every shape key so the character retains its editable expressions.
+        collections = [mesh.vertices]
+        if mesh.shape_keys:
+            collections += [key.data for key in mesh.shape_keys.key_blocks]
+        for points in collections:
+            for i in indices:
+                points[i].co[axes[axis]] += factor * points[i].co[axes[source]]
+        mesh.update(); return
     if kind == 'sculpt':
         center = Vector(numbers(cmd['center'])); delta = Vector(numbers(cmd['delta'])); radius = float(cmd['radius'])
         if not 0.001 <= radius <= 10000: raise ValueError('Invalid sculpt radius')

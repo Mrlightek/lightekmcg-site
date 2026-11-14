@@ -1,5 +1,6 @@
 import * as THREE from "./vendor/three/three.module.js";
 import { GLTFLoader } from "./vendor/three/addons/loaders/GLTFLoader.js";
+import { previewMeshCommands, nativeObjectRoot } from "./studio-mesh-commands.js";
 import {
   OrbitControls
 } from "./vendor/three/addons/controls/OrbitControls.js";
@@ -431,13 +432,27 @@ const buildObject = object => {
         if(object.definition?.native_source_preview){
           const native=(bridge()?.snapshot?.().objects||[]).filter(item=>['native_object','cube','sphere','cylinder','plane','imported_asset'].includes(item.object_type)&&!item.definition?.native_source_preview);
           const byName=new Map(native.map(item=>[item.definition.blender_object_name||item.name,item]));
-          const matches=[];gltf.scene.traverse(node=>{const item=byName.get(node.userData.lightek_object_name||node.name);if(item)matches.push([node,item]);});
-          for(const [node,item] of matches){
+          const matches=[];gltf.scene.traverse(node=>{const item=byName.get(node.userData.lightek_object_name||node.name);if(item)matches.push([node,item,node.matrixWorld.clone()]);});
+          const animatedNames=new Set(gltf.animations.flatMap(clip=>clip.tracks.map(track=>THREE.PropertyBinding.parseTrackName(track.name).nodeName)));
+          for(const [node,item,sourceWorld] of matches){
             const previous=active.objects.get(item.id);if(previous){previous.visible=false;previous.traverse(child=>{const i=active.pickables.indexOf(child);if(i>=0)active.pickables.splice(i,1);});}
-            active.scene.attach(node);markRoot(node,item);const d=item.definition;
-            node.position.set(...d.location);node.rotation.set(...d.rotation.map(radians));node.scale.set(...d.scale);node.visible=!d.hide_viewport&&!d.native_deleted;
+            // Keep the GLTF -> Blender basis on the imported child. The editable
+            // root uses Blender object coordinates, including for mesh commands.
+            const d=item.definition;
+            let animated=false;
+            node.traverse(child=>{if(child.isSkinnedMesh||Object.keys(child.geometry?.morphAttributes||{}).length||animatedNames.has(child.name)||animatedNames.has(child.uuid))animated=true;});
+            let nativeRoot;
+            if(animated){
+              active.scene.attach(node);sourceWorld.decompose(node.position,node.quaternion,node.scale);nativeRoot=markRoot(node,item);
+              nativeRoot.position.set(...d.location);nativeRoot.rotation.set(...d.rotation.map(radians));nativeRoot.scale.set(...d.scale);nativeRoot.visible=!d.hide_viewport&&!d.native_deleted;
+              nativeRoot.userData.nativeAnimation=true;
+            }else{
+              nativeRoot=markRoot(nativeObjectRoot(node,d,sourceWorld),item);
+              active.scene.add(nativeRoot);
+            }
             if(d.material_override)node.traverse(child=>{if(!child.isMesh)return;const materials=Array.isArray(child.material)?child.material:[child.material];child.material=materials.map(m=>{const copy=m.clone(),p=d.material_override;if(p.color)copy.color?.setRGB(...p.color.slice(0,3));if(p.metallic!==undefined)copy.metalness=p.metallic;if(p.roughness!==undefined)copy.roughness=p.roughness;return copy;});if(!Array.isArray(child.material)||child.material.length!==1)return;child.material=child.material[0];});
-            active.objects.set(item.id,node);
+            active.objects.set(item.id,nativeRoot);
+            refreshMeshCommands(item,nativeRoot);
           }
         }
         for(const mesh of [...active.scene.children])mesh.traverse(child=>{if(child.isMesh&&!active.pickables.includes(child)&&child.visible)active.pickables.push(child);});
@@ -527,6 +542,30 @@ const buildObject = object => {
 
   return root;
 };
+
+const refreshMeshCommands = (object, root, draft = window.LightekStudioMeshDraft?.()) => {
+  if (!root || object.definition?.native_source_preview) return;
+  const d = object.definition || {}, saved = d.authoring_commands || [], baked = d.viewport_baked_commands || [];
+  const commands = saved.slice(baked.length);
+  if (draft?.sceneId === active?.sceneId && draft.objectId === object.id) commands.push(draft.command);
+  if (!commands.length && !root.userData.hasMeshCommandPreview) return;
+  const signature = JSON.stringify(commands);
+  const result = root.userData.meshCommandSignature === signature
+    ? root.userData.meshCommandResult : root.userData.nativeAnimation
+      ? {ok:false,reason:"This animated mesh needs a Blender viewport update for an accurate preview."}
+      : previewMeshCommands(root, commands);
+  root.userData.meshCommandSignature = signature;
+  root.userData.meshCommandResult = result;
+  root.userData.hasMeshCommandPreview = true;
+  window.dispatchEvent(new CustomEvent('lightek:mesh-command-preview-status', { detail: { sceneId:active?.sceneId, objectId:object.id, ...result } }));
+};
+
+window.addEventListener('lightek:mesh-command-preview',event=>{
+  if (!active || Number(event.detail?.sceneId) !== active.sceneId) return;
+  const state=bridge()?.snapshot?.();
+  // Clear the previous object's draft when selection changes or Reset is used.
+  for (const object of state?.objects || []) refreshMeshCommands(object,active.objects.get(Number(object.id)));
+});
 
 const selectedRoot = state => {
   if (
@@ -1531,7 +1570,7 @@ const mountSoftware = (dom, state) => {
   active = {...dom, sceneId:Number(state.sceneId), scene, camera, objects:new Map(), pickables:[], mode:'select',
     orbit:{target, update:noop}, transform:{detach:noop, attach:noop, setMode:noop, setSpace:noop},
     renderer:{setAnimationLoop:noop,dispose:()=>cancelAnimationFrame(animation)}};
-  for (const object of state.objects || []) { const root=buildObject(object); active.objects.set(objectIdFor(object),root); scene.add(root); }
+  for (const object of state.objects || []) { const root=buildObject(object); active.objects.set(objectIdFor(object),root); scene.add(root); refreshMeshCommands(object,root); }
   const fit = ids => {
     scene.updateMatrixWorld(true);
     const bounds=layoutBounds(active.objects,ids);
@@ -1787,7 +1826,8 @@ const mount = (
       }
     });
 
-    scene.add(root)
+    scene.add(root);
+    refreshMeshCommands(object,root);
   });
 
   updateHighlights(state);
@@ -2089,6 +2129,7 @@ window.addEventListener('lightek:authoring-frame',event=>{
 window.addEventListener('lightek:visual-selection',()=>{
   if(!active)return;
   const state=bridge()?.snapshot?.();
+  for (const object of state?.objects || []) refreshMeshCommands(object,active.objects.get(Number(object.id)));
   updateHighlights(state);
   if(active.transform)applyTool(active.mode,state);
 });

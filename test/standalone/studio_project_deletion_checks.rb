@@ -7,22 +7,23 @@ class StudioProjectDeletionChecks < BroadcastControlTest
     @scene = @project.studio_scenes.first!
     @client = session_for
   end
+  def html_headers(user = @alice) = headers(user).merge("Accept" => "text/html")
   def deletion_path(project = @project, site = @site) = "/dashboard/studio-broadcasting/projects/#{project.id}?site_id=#{site.id}"
   def operation(status = "completed")
     @project.studio_operations.create!(studio_scene: @scene, operation_type: "edit_media", provider: "ffmpeg", capability: "studio.editor.export", status: status)
   end
   def test_project_deletion_requires_explicit_confirmation_and_renders_escaped_name
     @project.update!(name: "<script>test</script>")
-    @client.get "/dashboard/studio-broadcasting/projects/#{@project.id}/delete?site_id=#{@site.id}", headers: headers
+    @client.get "/dashboard/studio-broadcasting/projects/#{@project.id}/delete?site_id=#{@site.id}", headers: html_headers
     assert_equal 200, @client.response.status
     assert_includes @client.response.body, "&lt;script&gt;test&lt;/script&gt;"
     assert_includes @client.response.body, 'name="confirmation"'
-    @client.delete deletion_path, headers: headers
+    @client.delete deletion_path, headers: html_headers
     assert_equal 303, @client.response.status
     assert StudioProject.exists?(@project.id)
   end
   def test_project_deletion_removes_owned_content_and_preserves_reusable_media_and_billing
-    @scene.scene_objects.create!(name: "Shape", object_type: "cube", definition: {})
+    @scene.scene_objects.create!(name: "Shape", object_type: "cube", definition: {"location" => [0, 0, 0]})
     @scene.editor_source.attach(io: StringIO.new("source"), filename: "source.json", identify: false)
     op = operation
     artifact = op.artifacts.create!(kind: "video", filename: "export.mp4")
@@ -31,7 +32,7 @@ class StudioProjectDeletionChecks < BroadcastControlTest
     asset.file.attach(artifact.file.blob)
     billing = DymondBank::Transaction.create!(payable_type: "StudioOperation", payable_id: op.id, status: "succeeded")
     other = StudioProject.create!(owner: @bob, site: @other_site, name: "Other production")
-    @client.delete deletion_path, params: {confirmation: "delete"}, headers: headers
+    @client.delete deletion_path, params: {confirmation: "delete"}, headers: html_headers
     assert_equal 303, @client.response.status
     refute StudioProject.exists?(@project.id)
     refute StudioScene.exists?(@scene.id)
@@ -46,9 +47,9 @@ class StudioProjectDeletionChecks < BroadcastControlTest
   end
   def test_project_deletion_is_site_scoped_even_for_superadmin_and_denies_other_users
     foreign = StudioProject.create!(owner: @bob, site: @other_site, name: "Foreign")
-    @client.delete deletion_path(foreign), params: {confirmation: "delete"}, headers: headers
+    @client.delete deletion_path(foreign), params: {confirmation: "delete"}, headers: html_headers
     assert_equal 404, @client.response.status
-    @client.delete deletion_path, params: {confirmation: "delete"}, headers: headers(@bob)
+    @client.delete deletion_path, params: {confirmation: "delete"}, headers: html_headers(@bob)
     assert_includes [403,404], @client.response.status
     assert StudioProject.exists?(@project.id)
     assert StudioProject.exists?(foreign.id)
@@ -75,11 +76,11 @@ class StudioProjectDeletionChecks < BroadcastControlTest
     refute StudioProject.exists?(@project.id)
   end
   def test_project_deletion_requires_csrf_and_card_links_to_confirmation
-    @client.get "/dashboard/studio-broadcasting?site_id=#{@site.id}", headers: headers
+    @client.get "/dashboard/studio-broadcasting?site_id=#{@site.id}", headers: html_headers
     assert_equal 200, @client.response.status
     assert_includes @client.response.body, "/dashboard/studio-broadcasting/projects/#{@project.id}/delete?site_id=#{@site.id}"
     Dashboard::MediaStudioController.allow_forgery_protection = true
-    @client.delete deletion_path, params: {confirmation: "delete"}, headers: headers
+    @client.delete deletion_path, params: {confirmation: "delete"}, headers: html_headers
     assert_includes [403,422], @client.response.status
     assert StudioProject.exists?(@project.id)
   end
@@ -90,4 +91,13 @@ class StudioProjectDeletionChecks < BroadcastControlTest
     end
     assert StudioProject.exists?(@project.id)
   end
+  def test_project_deletion_blocks_active_native_workstations
+    workstation = StudioWorkstation.create!(owner: @alice, site: @site, studio_scene: @scene, status: "ready", session_key: SecureRandom.hex(16), request_key: SecureRandom.uuid, expires_at: 1.hour.from_now)
+    assert_raises(ActiveRecord::RecordNotDestroyed) { @project.destroy! }
+    assert StudioScene.exists?(@scene.id)
+    workstation.update!(status: "stopped")
+    @project.reload.destroy!
+    refute StudioWorkstation.exists?(workstation.id)
+  end
+
 end

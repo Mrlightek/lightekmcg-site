@@ -6,6 +6,9 @@ module NevaehOs
     end
     def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil)
       @page_context=PageContext.normalize(page_context)
+      if PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i))
+        return overview.merge('page_context'=>@page_context,'influences'=>[])
+      end
       if @page_context && PageContext.question?(text)
         return PageContext.help(@actor,@page_context,query:text).merge(status:'grounded',influences:[],page_context:@page_context)
       end
@@ -54,7 +57,8 @@ module NevaehOs
         entry=Guide.capability(command.fetch('capability'),actor:@actor)
         {'text'=>JSON.pretty_generate(entry),'guide_url'=>"/dashboard/nevaeh/guide?capability=#{entry[:key]}",'status'=>'ready','capability'=>entry}
       when 'help'
-        {'text'=>Command::HELP, 'status'=>'ready'}
+        help=overview
+        help.merge('text'=>text.strip.start_with?('/help') ? Command::HELP : help['text'],'spoken_text'=>help['text'],'commands'=>Command::HELP)
       when 'models'
         rows=RailsConsole.models(@actor).map(&:name)
         {'text'=>rows.join("\n"),'models'=>rows,'status'=>'ready'}
@@ -115,6 +119,14 @@ module NevaehOs
       result.merge('influences'=>[{'planet'=>2,'reason'=>"Intent: #{command['kind']}"},{'planet'=>6,'reason'=>'Permissions use your signed-in account and are checked again when work executes.'}], 'ethics'=>[nil,nil,nil,nil,nil],
         'checks'=>{'authenticated'=>true,'memory_requires_consent'=>true,'execution_status'=>result['status']}, 'persona'=>persona.name, 'mode'=>mode,
         'chart_accuracy'=>'illustrative', 'memory'=>result['memory'])
+    end
+    def overview
+      entries=Guide.catalog(actor:@actor).select { |entry| entry[:availability]=='connected' }
+      examples=entries.select { |entry| entry[:example].present? }.first(6)
+      text="I can help you plan work, find the right tools, and delegate supported tasks to your workers. I can explain the page you're on and track tasks through their actual results."
+      text+="\n\nConnected options include: #{examples.map { |entry| entry[:title] }.join('; ')}." if examples.any?
+      text+="\n\nTell me what you want to accomplish. Open Guide & capabilities for the full list and any tools that still need connecting."
+      {'text'=>text,'status'=>'ready','guide_url'=>'/dashboard/nevaeh/guide','capabilities'=>examples.map { |entry| {slug:entry[:key],name:entry[:title],invoke:entry[:example]} }}
     end
     def prepare_command(command)
       return command.merge('host'=>@host,'origin'=>@origin) if command['kind']=='goal'

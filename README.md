@@ -140,3 +140,5 @@ Update [FEATURES.md](FEATURES.md) and the relevant operating guide when a featur
 Agency wholesale pricing, reseller packages and installed feature limits: [operator and agency guide](docs/agency-reseller-packages.md).
 
 Nevaeh’s spoken replies use an offline CPU natural voice with a stable style blend and private audio-driven mouth timing. The Studio image installs checksum-verified model assets and verifies stdin-to-WAV synthesis during deployment. Her activity label separates queued, running, delayed and approval/payment work; see [voice and activity guide](docs/nevaeh/tutorials/voice.md).
+
+Spoken replies now start from private AAC playlist items as later items generate, using an authenticated HLS manifest and a separate single-slot voice queue. Status distinguishes queued from generating, abandoned queues fail after two minutes, and general help questions return a capability overview before documentation search. The playlist release requires the speech-segment migration and a Sidekiq restart.

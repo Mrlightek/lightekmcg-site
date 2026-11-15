@@ -21,6 +21,11 @@ module NevaehOs
       ['compliance',/legal|compliance/,'Legal & compliance','platform',%w[legal compliance],%w[compliance],'docs/']
     ].freeze
     module_function
+    def overview_question?(text)
+      return false unless text.is_a?(String)
+      question=text.strip.sub(/\A(?:hello|hi|hey)(?: nevaeh)?[\s,!.:;-]+/i,'').sub(/\A(?:please )?(?:tell|show) me /i,'')
+      question.match?(/\A(?:what (?:(?:can you|you can) (?:do(?: for me)?|help me (?:do|with))|options do you have|are your (?:capabilities|options))|how can you help(?: me)?)[?!.]*\z/i)
+    end
     def normalize(value)
       return nil unless value.is_a?(Hash)
       raw=value.deep_stringify_keys

@@ -14,6 +14,7 @@ on:
       - 'app/services/script_builder/**'
       - 'app/services/screenplay_engine/**'
       - 'app/services/studio/media_process.rb'
+      - 'config/initializers/sidekiq.rb'
       - 'docker/studio-media/**'
       - 'lib/scripts/setup_studio_media.sh'
       - 'app/services/studio/performance/audio_envelope.rb'
@@ -50,6 +51,24 @@ on:
 permissions:
   contents: read
 jobs:
+  voice-queue:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+      - run: gem install sidekiq -v 8.1.7 --no-document
+      - name: Verify speech bypasses a blocked default worker
+        env:
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: ruby test/standalone/nevaeh_voice_queue_test.rb
+
   voice-container:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
@@ -144,5 +163,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Exercise actual speech playback and mouth synchronization
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_voice_browser.cjs
+      - name: Exercise incremental authenticated HLS speech playback
+        run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_playlist_browser.cjs
       - name: Exercise workforce, delegation, goals and removal
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_workforce_browser.cjs

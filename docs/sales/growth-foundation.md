@@ -71,3 +71,5 @@ Use **Prepare or open today’s plan** in Growth, or `/growth SITE_ID` in Nevaeh
 [Campaign content & review](campaign-content-review.md) now connects the reviewed brief to three editable copy approaches, explicit version-specific campaign approval, queued-payload guards and focused Studio formats. Final media export and provider publication remain separate verified actions.
 
 [Publishing calendar and Studio export handoff](publishing-calendar.md) connects final media selection to reviewed social schedules and provider receipts; it does not infer publication from scheduling or an inbox submission.
+
+Website evidence and reviewed CMS changes: [Website growth audits and guided fixes](website-growth-audits.md). Daily plans use the latest full-site evidence; page-only fix rechecks retain their own receipts.

@@ -53,7 +53,7 @@ Dashboard::MarketingCampaignsController.prepend_view_path ROOT.join('app/views')
 Dashboard::MarketingCampaignsController.layout false
 # The actual campaign controller/form is the destination for the drafted result.
 SalesHarness.routes.draw do
-  %w[publication_calendar campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
+  %w[website_audits publication_calendar campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
   get '/orders', to: 'dashboard/sales#index', as: :dashboard_commerce_orders
   get '/customers/history', to: 'dashboard/sales#index', as: :history_dashboard_customers
   get '/csrf', to: 'dashboard/settings_home#csrf'
@@ -121,7 +121,7 @@ class DailyGrowthChecks < GrowthFoundationChecks
     assert_equal 1, plan.snapshot.dig('facts', 'due_tasks')
     assert_equal 1, plan.snapshot.dig('facts', 'review_inquiries')
     assert_equal Date.current.iso8601, plan.snapshot.dig('brief', 'goal_on')
-    assert_equal 'growth-daily-v1', plan.playbook_version
+    assert_equal 'growth-daily-v2', plan.playbook_version
     assert_equal 'One place to run the business', plan.snapshot.dig('brief', 'value_proposition')
   end
   def test_daily_sparse_measurements_do_not_invent_conversion_failures

@@ -7,3 +7,5 @@
 .growth-content-variant p{overflow-wrap:anywhere}
 
 .growth-calendar-slot{padding:24px 0;border-top:1px solid var(--sales-line)}.growth-calendar-slot p{overflow-wrap:anywhere}.growth-calendar-slot .sales-button{margin:8px 12px 8px 0}
+
+.growth-audit-finding{margin:24px 0}.growth-workspace pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;font-size:12px}.growth-audit-finding .sales-form{margin-top:18px}.growth-workspace #review-changes input[type=checkbox]{width:auto;margin-right:8px;display:inline-block}

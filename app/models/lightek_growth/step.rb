@@ -1,7 +1,7 @@
 module LightekGrowth
   class Step < ApplicationRecord
     self.table_name = 'lightek_growth_steps'
-    DESTINATIONS = %w[brief intake tasks sales orders campaigns links website].freeze
+    DESTINATIONS = %w[brief intake tasks sales orders campaigns links website website_audit].freeze
     belongs_to :site, class_name: 'DymondSite::Site'
     belongs_to :plan, class_name: 'LightekGrowth::Plan'
     belongs_to :resolved_by, class_name: 'User', optional: true

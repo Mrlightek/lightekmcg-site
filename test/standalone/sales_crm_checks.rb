@@ -7,6 +7,9 @@ require 'action_dispatch/testing/integration'
 require 'minitest/autorun'
 require 'tmpdir'
 require 'pathname'
+require 'fileutils'
+# Every exporter can run first under Minitest's randomized order.
+FileUtils.mkdir_p(ENV['SALES_PREVIEW_DIR']) if ENV['SALES_PREVIEW_DIR']
 ROOT = Pathname.new(File.expand_path('../..', __dir__))
 class SalesHarness < Rails::Application
   config.root = Dir.mktmpdir('sales-http-')
@@ -81,6 +84,7 @@ require ROOT.join('app/controllers/dashboard/sales_tasks_controller')
 Dashboard::SalesController.prepend_view_path ROOT.join('app/views')
 Dashboard::SalesController.layout false
 SalesHarness.routes.draw do
+  eval(ROOT.join('config/routes/website_audits.rb').read, binding)
   eval(ROOT.join('config/routes/publication_calendar.rb').read, binding)
   eval(ROOT.join('config/routes/campaign_content.rb').read, binding)
   eval(ROOT.join('config/routes/growth.rb').read, binding)

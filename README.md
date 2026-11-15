@@ -54,6 +54,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Workspace | Current capabilities |
 | --- | --- |
 | Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
+| Website growth audit | Native CMS evidence, guided metadata/CTA/alt previews, verified rechecks and guarded rollback; [operating guide](docs/sales/website-growth-audits.md) |
 | Publishing calendar | Finished Studio export handoff, reviewed social schedules and provider outcome recovery; [operating guide](docs/sales/publishing-calendar.md) |
 | Recipe-driven episode Director | Reuses long-form production templates and show bibles, creates independent scenes with editable camera coverage, queues local stock-voice dialogue/captions, directs bound Cast performances, quotes scene renders, assembles private episode masters, and delivers reviewed community/OTT or configured TikTok/Instagram publications; [operating guide](docs/nevaeh/tutorials/production_director.md) |
 | Conversational campaign producer | Native TikTok draft recipe: timed script/storyboard, editable portrait timeline, graphics or owned images, music and captions, private MP4 preview and retry receipts; [operating guide](docs/nevaeh/tutorials/campaign_producer.md) |

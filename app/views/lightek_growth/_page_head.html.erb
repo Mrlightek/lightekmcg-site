@@ -1,0 +1,5 @@
+<% metadata = if !@preview && defined?(LightekGrowth::PageMetadata) && LightekGrowth::PageMetadata.table_exists? && @page.is_a?(DymondSite::Page)
+  LightekGrowth::PageMetadata.find_by(site_id: @site.id, page_id: @page.id)
+end %>
+<title><%= metadata&.title_tag.presence || "#{@page.title} · #{@site.name}" %></title>
+<% if metadata&.description.present? %><meta name="description" content="<%= metadata.description %>"><% end %>

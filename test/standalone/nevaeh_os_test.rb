@@ -123,6 +123,9 @@ class NevaehOsTest < Minitest::Test
   def execute(action) = NevaehOs::Worker.perform('execute',{'action_id'=>action.id})
   def test_natural_language_and_command_vocabulary
     assert_equal 'resources',command('/resources')['kind']
+    assert_equal({'kind'=>'growth_plan','site_id'=>12},command('/growth 12'))
+    assert_equal 'growth.plan',NevaehOs::Agents.capability(command('/growth 12'))
+    assert_raises(ArgumentError) { command('/growth 0') }
     assert_equal 'read',command('list workers')['operation']
     assert_equal 'paused',command('/pause worker 12')['status']
     assert_equal 'project',command('create a Studio project called Opening Night')['kind']

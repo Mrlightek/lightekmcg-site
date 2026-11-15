@@ -1,5 +1,6 @@
 # frozen_string_literal: true
-class Dashboard::MarketingCampaignsController < Dashboard::CommerceBaseController
+class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeController
+  skip_before_action :require_settings_operator!
   protect_from_forgery with: :exception
   before_action :set_site
   before_action :set_campaign, only: %i[edit update destroy send_email send_audience schedule studio]
@@ -58,7 +59,7 @@ class Dashboard::MarketingCampaignsController < Dashboard::CommerceBaseControlle
   end
   private
   def set_site
-    @site = LightekAgency::Access.sites_for(current_user).find(params.require(:site_id))
+    @site = LightekSales::Access.sites_for(current_user).find(params.require(:site_id))
   end
   def set_campaign
     @campaign = LightekMarketing::Campaign.where(site: @site).find(params[:id])

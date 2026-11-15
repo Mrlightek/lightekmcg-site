@@ -37,6 +37,7 @@ module NevaehOs
       /learn https://docs.blender.org/… — import a training page as a draft
       /review ID — review an imported source and create a training dataset draft
       /search Blender — search software documentation and reviewed sources
+      /growth SITE_ID — prepare or open today’s business growth plan
       /status — your recent actions · /briefing — today's operational briefing
       /remember Preferences: I prefer concise replies — offers a memory for consent
       /forget ID — remove one of your memories
@@ -47,6 +48,9 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if (m=q.match(/\A(?:\/?growth|(?:prepare|show) (?:my )?growth plan)\s+([1-9][0-9]*)\z/i))
+        return {'kind'=>'growth_plan','site_id'=>m[1].to_i}
+      end
       if (m=q.match(/\A\/?(?:guide|tutorial)(?:\s+([a-z0-9_-]+))?\z/i))
         return {'kind'=>'guide','topic'=>m[1] || 'start'}
       end

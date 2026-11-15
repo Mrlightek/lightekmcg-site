@@ -10,6 +10,14 @@ module NevaehOs
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'growth_plan'
+        raise ArgumentError, 'Choose a positive business website ID.' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        begin
+          LightekGrowth::Workspace.new(actor: actor, site: site).revalidate!
+        rescue LightekAgency::PackagePolicy::Denied => error
+          raise ArgumentError, error.message
+        end
       when 'watch'
         UbuntuPackages.authorize!(actor)
         if command['operation']=='apply'
@@ -73,6 +81,10 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'growth_plan'
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        planner = LightekGrowth::DailyPlanner.new(actor: actor, site: site)
+        planner.receipt(planner.prepare!)
       when 'watch'
         case command.fetch('operation')
         when 'list'

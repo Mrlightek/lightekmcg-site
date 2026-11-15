@@ -12,6 +12,10 @@ AddGrowthFoundation.new.migrate(:up)
 [WebsiteTemplateInquiry, LightekSales::Lead, LightekSales::Opportunity, LightekCommerce::Order].each(&:reset_column_information)
 ActiveRecord::Base.connection.add_column :lightek_commerce_orders, :tax_cents, :integer, default: 0
 LightekCommerce::Order.reset_column_information
+require ROOT.join('db/migrate/20261115150000_add_daily_growth_plans')
+AddDailyGrowthPlans.new.migrate(:up)
+%w[plan step].each { |file| require ROOT.join("app/models/lightek_growth/#{file}") }
+%w[playbook daily_planner].each { |file| require ROOT.join("app/services/lightek_growth/#{file}") }
 %w[brief link visit].each { |file| require ROOT.join("app/models/lightek_growth/#{file}") }
 %w[tracking workspace funnel].each { |file| require ROOT.join("app/services/lightek_growth/#{file}") }
 require ROOT.join('app/controllers/growth_links_controller')

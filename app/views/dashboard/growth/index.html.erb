@@ -1,13 +1,14 @@
 <% content_for :page_title, 'Growth & attribution' %>
 <main class="sales-workspace growth-workspace">
   <%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %>
-  <%= stylesheet_link_tag '/lightek/growth-workspace.css?v=1' %>
+  <%= stylesheet_link_tag '/lightek/growth-workspace.css?v=2' %>
   <%= render 'dashboard/shared/business_workspace', active: 'Growth' %>
   <header class="sales-header"><div><span class="sales-eyebrow">LIGHTEK / FROM ATTENTION TO DELIVERY</span><h1>Growth & attribution</h1><p>Know your audience. Trace your campaigns to real business results.</p></div>
     <%= form_with url: dashboard_growth_path, method: :get, class: 'sales-site' do %><%= label_tag :site_id, 'Business website' %><%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %><%= submit_tag 'Switch', class: 'sales-button secondary' %><% end %>
   </header>
   <% if flash[:alert] %><div class="sales-errors" role="alert"><%= flash[:alert] %></div><% end %>
   <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <%= render 'daily_plan' %>
   <section class="sales-coach"><span class="sales-eyebrow">YOUR GROWTH FOUNDATION</span><p><%= @brief.complete? ? 'Your business brief is ready. Create a campaign link, share it, and follow the results below.' : 'Start with your business brief, create a campaign, then share its tracked link. No marketing expertise required.' %></p><p><%= link_to 'Manage campaigns', dashboard_marketing_campaigns_path(site_id: @site.id) %> · <%= link_to 'Review inquiries', dashboard_sales_intake_path(site_id: @site.id) %> · <%= link_to 'Open sales pipeline', dashboard_sales_path(site_id: @site.id, tab: 'pipeline') %></p></section>
   <section class="sales-panel growth-results" aria-labelledby="results-title">
     <div class="sales-panel-title"><div><span class="sales-eyebrow">MEASURE WHAT HAPPENS</span><h2 id="results-title">Campaign journey</h2><p>Visits starting in this date range, and the stages they have reached as of now.</p></div></div>
@@ -18,7 +19,7 @@
     <p><small>Order totals include recorded tax/shipping. These are not profit or settled bank balances; refunds remain visible.</small></p>
   </section>
   <section class="sales-two-col growth-editors">
-    <article class="sales-panel"><span class="sales-eyebrow">01 / KNOW YOUR BUSINESS</span><h2>Business growth brief</h2><p>A shared, reviewed brief for this website. It will ground future marketing playbooks.</p>
+    <article id="business-brief" class="sales-panel"><span class="sales-eyebrow">01 / KNOW YOUR BUSINESS</span><h2>Business growth brief</h2><p>A shared, reviewed brief for this website. Nevaeh uses this reviewed brief for your daily plan and editable campaign drafts.</p>
       <%= form_with url: dashboard_growth_brief_path(site_id: @site.id), method: :patch, scope: :brief, class: 'sales-form' do |f| %>
         <%= f.hidden_field :lock_version, value: (@brief.persisted? ? @brief.lock_version : 'new') %>
         <% {'offering' => 'What do you sell?', 'audience' => 'Who is it for?', 'customer_problem' => 'What problem do they need solved?', 'value_proposition' => 'Why should they choose you?', 'voice' => 'How should your brand sound?', 'goal' => 'What result are you working toward?'}.each do |field, label| %><label><%= label %><%= f.text_area field, value: @brief.public_send(field), rows: 3, maxlength: 2000 %></label><% end %>
@@ -26,7 +27,7 @@
       <% end %>
       <% if @brief.persisted? %><p><small>Updated <%= @brief.updated_at.to_fs(:long) %> by <%= @brief.updated_by.email_address %> · revision <%= @brief.lock_version %></small></p><% end %>
     </article>
-    <article class="sales-panel"><span class="sales-eyebrow">02 / CONNECT YOUR CAMPAIGN</span><h2>Create a tracked link</h2><p>Use a different link for each channel or placement. Visitors stay on <strong><%= @site.host %></strong>.</p>
+    <article id="campaign-links" class="sales-panel"><span class="sales-eyebrow">02 / CONNECT YOUR CAMPAIGN</span><h2>Create a tracked link</h2><p>Use a different link for each channel or placement. Visitors stay on <strong><%= @site.host %></strong>.</p>
       <% if @campaigns.any? %><%= form_with url: dashboard_growth_links_path(site_id: @site.id), scope: :link, class: 'sales-form' do |f| %>
         <label>Campaign<%= f.select :campaign_id, options_from_collection_for_select(@campaigns, :id, :name), {}, required: true %></label>
         <label>Placement name<%= f.text_field :label, placeholder: 'Instagram profile — November offer', required: true, maxlength: 160 %></label>

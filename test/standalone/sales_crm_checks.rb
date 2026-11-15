@@ -103,6 +103,7 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     [LightekSales::Activity, LightekSales::RoutingRule, LightekSales::Lead, LightekSales::Opportunity,
      LightekMarketing::Contact, LightekSales::Account, LightekAgency::SiteMembership].each(&:delete_all)
     if defined?(LightekGrowth::Visit) && LightekGrowth::Visit.table_exists?
+      [LightekGrowth::Step, LightekGrowth::Plan].each(&:delete_all) if defined?(LightekGrowth::Plan)
       [LightekGrowth::Visit, LightekGrowth::Link, LightekGrowth::Brief, LightekMarketing::Campaign].each(&:delete_all)
     end
     [DymondSite::Site, User].each(&:delete_all)

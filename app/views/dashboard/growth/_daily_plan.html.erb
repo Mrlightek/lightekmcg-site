@@ -1,0 +1,24 @@
+<section id="daily-growth-plan" class="sales-panel growth-daily-plan" aria-labelledby="daily-plan-title">
+  <div class="sales-panel-title"><div><span class="sales-eyebrow">NEVAEH / YOUR NEXT MOVES</span><h2 id="daily-plan-title">Daily growth plan</h2><p>Practical recommendations from reviewed playbooks and your business records.</p></div></div>
+  <% if @plan %>
+    <p><strong><%= @plan.plan_on.to_fs(:long) %> · revision <%= @plan.revision %></strong> · prepared <%= @plan.created_at.to_fs(:long) %> by <%= @plan.created_by.email_address %></p>
+    <% if @plan.snapshot.dig('brief', 'goal').present? %><aside class="sales-coach"><span class="sales-eyebrow">YOUR BUSINESS GOAL</span><p><%= @plan.snapshot.dig('brief', 'goal') %><% if @plan.snapshot.dig('brief', 'goal_on').present? %> · target <%= @plan.snapshot.dig('brief', 'goal_on') %><% end %></p></aside><% end %>
+    <p><small>Evidence window: <%= @plan.snapshot['window_from'] %>–<%= @plan.snapshot['window_to'] %>. Operational queues are current at preparation. <%= @plan.playbook_version %>. This snapshot stays unchanged; refresh after fixing an issue or revising the brief.</small></p>
+    <% unless @plan_current %><p class="sales-errors">You are viewing a historical plan. Prepare or open today’s latest plan before acting.</p><% end %>
+    <% @plan_steps.each do |step| %><article class="growth-plan-step">
+      <div class="sales-task-heading"><div><span class="sales-eyebrow">MOVE <%= step.position %> / <%= step.status.humanize %></span><h3><%= step.definition['title'] %></h3></div><%= link_to 'Open the right tool', growth_step_path(step), class: 'sales-button secondary' %></div>
+      <p><%= step.definition['reason'] %></p><ol><% step.definition.fetch('instructions', []).each do |instruction| %><li><%= instruction %></li><% end %></ol>
+      <details class="growth-plan-evidence"><summary>Why Nevaeh recommended this</summary><dl class="growth-unknown"><% step.definition.fetch('evidence', {}).each do |key, value| %><div><dt><%= key.humanize %></dt><dd><%= value.is_a?(Array) ? value.map(&:humanize).join(', ') : value %></dd></div><% end %></dl><p><small>Observed records support a review; they do not prove why customers did or did not convert.</small></p></details>
+      <% if step.status == 'open' && @plan_current %>
+        <% if step.definition['action'] == 'create_campaign' %><%= button_to 'Prepare editable campaign draft', draft_dashboard_growth_step_path(site_id: @site.id, plan_id: @plan.id, id: step.id), params: {lock_version: step.lock_version}, class: 'sales-button' %><p><small>This saves a draft from your reviewed brief. Review the copy and prepare media before publishing.</small></p><% end %>
+        <%= form_with url: resolve_dashboard_growth_step_path(site_id: @site.id, plan_id: @plan.id, id: step.id), method: :patch, class: 'sales-form growth-step-resolution' do |f| %><%= hidden_field_tag :lock_version, step.lock_version %><label>What did you do, or why is this not applicable?<%= text_area_tag :note, nil, rows: 2, maxlength: 1000, required: true %></label><div class="sales-actions"><%= f.button 'Mark done', name: :status, value: 'completed', class: 'sales-button secondary' %><%= f.button 'Dismiss', name: :status, value: 'dismissed', class: 'sales-button secondary' %></div><% end %>
+      <% elsif step.status != 'open' %><p><strong><%= step.resolution_source == 'campaign_draft' ? 'Draft creation recorded' : 'Operator-reported resolution' %>:</strong> <%= step.resolution_note %></p><p><small><%= step.resolved_by&.email_address %> · <%= step.resolved_at&.to_fs(:long) %></small></p><% end %>
+    </article><% end %>
+  <% else %><p class="sales-empty">Prepare your first plan. Nevaeh will review your brief, inquiry inbox, sales follow-ups, pending delivery and measured campaign activity.</p><% end %>
+  <div class="sales-actions growth-plan-controls">
+    <%= button_to(@plan_current ? 'Refresh today’s plan' : 'Prepare or open today’s plan', prepare_dashboard_growth_plan_path(site_id: @site.id), params: (@plan_current ? {refresh_from: @plan.id, request_key: SecureRandom.uuid} : {}), class: 'sales-button') %>
+    <%= link_to 'Open latest plan', dashboard_growth_path(site_id: @site.id, anchor: 'daily-growth-plan'), class: 'sales-button secondary' if @plan && !@plan_current %>
+  </div>
+  <% if @plan_history.any? %><nav class="growth-plan-history" aria-label="Recent growth plans"><strong>Recent plans:</strong> <% @plan_history.each do |plan| %><%= link_to "#{plan.plan_on} · v#{plan.revision}", dashboard_growth_path(site_id: @site.id, plan_id: plan.id, anchor: 'daily-growth-plan'), aria: {current: @plan&.id == plan.id ? 'page' : nil} %><% end %></nav><% end %>
+  <p><small>Nevaeh prepares recommendations and drafts. Marking a move done records your report; payment, delivery and publication still require their own evidence. Unresolved conditions may appear again in a refreshed or next-day plan.</small></p>
+</section>

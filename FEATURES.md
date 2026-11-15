@@ -87,12 +87,13 @@ Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/
 | Capability | Implemented behavior |
 | --- | --- |
 | Business growth brief | Per-website offering, audience, problem, value, voice and dated goal; editor identity and optimistic revision checks. |
+| Daily Nevaeh growth plans | Up to five authored, evidence-backed next moves; immutable daily snapshots/revisions, operator resolution notes, native tool links, idempotent editable campaign drafts, and existing Nevaeh scheduled-worker support. |
 | First-party campaign links | Same-host HTTPS redirects with fixed source/medium/campaign tags, signed 30-day visit cookies, repeat-click reuse and per-link enable/disable. |
 | Campaign journey | Visit-cohort milestones through native inquiries, new leads, converted deals, quote orders, confirmed payment and recorded delivery; duplicate-safe distinct-visit counts. |
 | Commercial evidence | Paid order counts/totals, separate refunds, recent attributed orders and explicitly separate unknown-source activity. |
 | Source preservation and operation | Read-only source on inquiry, lead/deal, quote and order screens; preserved history, tenant/role/package boundaries, structured diagnostics and native recovery guidance. |
 
-Scope: first-party tracked-link attribution, not complete traffic analytics, verified people, multi-touch identity, automated research, an AI CMO or a new social-publishing engine. Direct checkout can skip CRM stages. Historical or untraceable sales remain unknown. See [Growth Foundation](docs/sales/growth-foundation.md).
+Scope: first-party tracked-link attribution, not complete traffic analytics, verified people, multi-touch identity, automated research, a general AI CMO or a new social-publishing engine. Daily plans use reviewed rules rather than causal inference. See the [daily-plan tutorial](docs/nevaeh/tutorials/growth.md). Direct checkout can skip CRM stages. Historical or untraceable sales remain unknown. See [Growth Foundation](docs/sales/growth-foundation.md).
 
 ## 4. Websites, design, publishing and the PWA
 

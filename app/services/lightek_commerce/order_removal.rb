@@ -33,7 +33,7 @@ module LightekCommerce
     def self.expire_checkout!(order)
       raise Invalid, "This payment provider must confirm cancellation before deletion." unless order.payment_provider == "stripe"
       key = DymondBank::StripeCredentials.secret_key
-      raise Invalid, "Stripe must be configured to safely cancel this checkout." if key.blank?
+      raise Invalid, "Payments must be configured to safely cancel this checkout." if key.blank?
       options = {api_key: key}
       session = Stripe::Checkout::Session.retrieve(order.payment_reference, options)
       metadata = session.metadata.to_h.stringify_keys

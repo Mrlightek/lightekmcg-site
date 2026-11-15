@@ -22,6 +22,8 @@ Open the storefront's **Orders** page. Expand **Manage order** and use **Delete 
 
 An open Stripe checkout must be confirmed expired before the order is canceled. Completed, paid, settling or unverifiable checkouts remain visible for reconciliation. A network checkout must first expire or be canceled at its upstream provider; the local action checks its receipt and retains it if still pending. Retry cleanup after reconciliation. Canceled records and line items stay in the database for delayed webhooks and network receipts; deletion removes them from the active merchant and installation lists. Apply migration `20261114140000` during deployment before using these controls.
 
+For bank/identity setup and connection recovery, see [Payout accounts](../payments/payout-accounts.md). Each owner manages their own payout information with direct sign-in and MFA.
+
 ## Configuration and deployment
 
 1. Deploy to the platform and client instances that will use network commerce; apply migrations `20261112070000`, `20261112073000`, `20261112080000` and `20261112083000`. Restart Rails and queue workers, and apply the existing scheduler configuration. The migrations extend existing commerce records and add agency, hosting, subscription, revenue-allocation, shipping and federation settlement records.

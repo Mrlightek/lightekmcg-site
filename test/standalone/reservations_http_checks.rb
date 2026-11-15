@@ -48,6 +48,7 @@ module LightekCommerce
   end
 end
 module Api; end
+require ROOT.join('app/services/lightek_payments/payout_accounts').to_s
 require ROOT.join('app/controllers/api/reservation_federation_controller').to_s
 require ROOT.join('app/controllers/network_reservations_controller').to_s
 require ROOT.join('app/controllers/reservations_controller').to_s

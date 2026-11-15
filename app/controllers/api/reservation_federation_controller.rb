@@ -33,7 +33,13 @@ class Api::ReservationFederationController < ActionController::Base
     }}
   end
   def payouts
-    schedule = LightekCommerce::PayoutSchedule.for!(@peer.merchant)
+    merchant = @peer.merchant
+    if params[:merchant_chain]
+      values = params.permit(:store_name, merchant_chain: %i[subject email first_name last_name role upstream_share_bps]).to_h
+      merchant, = LightekCommerce::NetworkAccounts.resolve!(peer: @peer, chain: values.fetch('merchant_chain'), store_name: values.fetch('store_name'))
+    end
+    state = LightekPayments::PayoutAccounts.status(merchant)
+    schedule = LightekCommerce::PayoutSchedule.for!(merchant)
     if request.patch?
       cadence = params.require(:cadence)
       raise ArgumentError, 'Choose weekly or biweekly' unless %w[weekly biweekly].include?(cadence)
@@ -43,8 +49,8 @@ class Api::ReservationFederationController < ActionController::Base
       end
     end
     render json: {cadence: schedule.cadence, enabled: schedule.enabled?, next_run_at: schedule.next_run_at.iso8601,
-      connect_ready: @peer.merchant.stripe_connect_ready?, connect_account_id: @peer.merchant.stripe_connect_account_id,
-      connect_details_submitted: @peer.merchant.stripe_connect_details_submitted, connect_payouts_enabled: @peer.merchant.stripe_connect_payouts_enabled, last_error: schedule.last_error,
+      connect_ready: state[:state] == 'ready', connect_account_id: merchant.stripe_connect_account_id,
+      connect_details_submitted: merchant.stripe_connect_details_submitted?, connect_payouts_enabled: state[:state] == 'ready', last_error: nil,
       merchant_url: "#{LightekReservations::Federation::Issuer.origin}/my/resort-earnings?peer=#{@peer.key}"}
   end
   private

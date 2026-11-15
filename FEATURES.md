@@ -232,7 +232,7 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Cast & Performance | Native toon creation or compatible packed character registration, placements, recorded audio takes, saved facial/gesture cues and animated preview/shot export. |
 | Show templates | Reusable scenes, cast, sets/cameras, production plans, scene objectives and independent episode/project copies. |
 | Music composition | Step sequencer, piano roll, instruments/samples, reusable multichannel patterns and linked song placements with repeat/transposition/strength/mute. |
-| Microphone overdub | Shared song/capture audio clock, bounded bar passes, local PCM review, manual timing correction and editable aligned audio-take placement. Hardware latency calibration remains separate. |
+| Microphone overdub | Shared song/capture audio clock, full passes or selected-bar punch-in/out with discarded lead-in, local PCM review, bounded timing correction and editable aligned audio-take placement. Hardware latency calibration remains separate. |
 | Instrument performance recording | Screen/computer/MIDI-input note capture, velocity/sustain, manual input correction, review/grid/Apply/Undo and existing song/pattern persistence. |
 | Music automation | Saved channel gain/pan/filter/delay, group gain/pan, master gain and schedulable EQ/compressor/delay/wet-mix insert envelopes; linear/hold points, bypass, live/offline scheduling and processed stems. |
 | Music mixer | Eight subgroup buses, channel routing and ordered channel/group/master EQ, compression, distortion and delay inserts, with bypass/reorder/undo. |

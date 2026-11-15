@@ -5,7 +5,7 @@
     constructor(changed=()=>{}){this.changed=changed;this.state='idle';this.take=null;this.error='';this.token=0;this.meter=null;}
     supported(){return !!(window.isSecureContext&&navigator.mediaDevices?.getUserMedia&&window.MediaRecorder);}
     notify(){this.changed(this);}
-    release(){clearTimeout(this.stopTimer);this.stopTimer=null;if(this.worklet){this.worklet.onprocessorerror=null;this.worklet.port.onmessage=null;this.worklet.port.postMessage({type:'stop'});this.worklet.port.close();this.worklet.disconnect();this.worklet=null;}clearInterval(this.timer);this.timer=null;this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;this.source?.disconnect();this.analyser?.disconnect();this.source=null;this.analyser=null;if(this.context&&!this.sharedContext)this.context.close().catch(()=>{});this.context=null;this.sharedContext=false;this.meter=null;}
+    release(){this.punchWindow=null;clearTimeout(this.stopTimer);this.stopTimer=null;if(this.worklet){this.worklet.onprocessorerror=null;this.worklet.port.onmessage=null;this.worklet.port.postMessage({type:'stop'});this.worklet.port.close();this.worklet.disconnect();this.worklet=null;}clearInterval(this.timer);this.timer=null;this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;this.source?.disconnect();this.analyser?.disconnect();this.source=null;this.analyser=null;if(this.context&&!this.sharedContext)this.context.close().catch(()=>{});this.context=null;this.sharedContext=false;this.meter=null;}
     async start(sceneId,device=''){
       if(!this.supported())throw Error('Microphone recording needs HTTPS and a browser with MediaRecorder support. Upload a recording instead.');
       if(this.state==='acquiring'||this.state==='recording'||this.state==='stopping'||this.take)throw Error('Finish, save or discard the current take first.');
@@ -31,11 +31,12 @@
       }catch(error){if(token===this.token){this.release();this.state='idle';this.error=error.name==='NotAllowedError'?'Microphone permission was denied. Allow it in your browser or upload a recording.':error.message;this.notify();}throw error;}
     }
     overdubSupported(){return !!(window.isSecureContext&&navigator.mediaDevices?.getUserMedia&&window.AudioWorkletNode);}
-    async startOverdub(sceneId,{beforeRecord,stopped=()=>{},tempo,bars}){
+    async startOverdub(sceneId,{beforeRecord,stopped=()=>{},tempo,bars,punchStartBeat=null}){
       if(!this.overdubSupported())throw Error('Overdub needs browser audio-worklet support. Use standalone recording or upload a take.');
       if(this.take||['acquiring','recording','stopping'].includes(this.state))throw Error('Finish, save or clear the current take first.');
       if(!Number.isInteger(bars)||bars<1||bars>16||!Number.isFinite(tempo)||tempo<40||tempo>240)throw Error('Choose a supported tempo and 1–16 overdub bars.');
-      const token=++this.token;this.mode='overdub';this.sceneId=sceneId;this.state='acquiring';this.elapsed=0;this.error='';this.overdubStopped=stopped;this.notify();
+      if(punchStartBeat!==null&&(!Number.isInteger(punchStartBeat)||punchStartBeat<0||punchStartBeat%4!==0||punchStartBeat+bars*4>512))throw Error('Choose a punch range within 128 song bars.');
+      const token=++this.token;this.punchWindow=null;this.mode='overdub';this.sceneId=sceneId;this.state='acquiring';this.elapsed=0;this.error='';this.overdubStopped=stopped;this.notify();
       const stopBacking=()=>{const callback=this.overdubStopped;this.overdubStopped=null;callback?.();};
       try{
         await Tone.start();if(token!==this.token)return false;
@@ -43,17 +44,18 @@
         this.context=context;this.sharedContext=true;
         const stream=await navigator.mediaDevices.getUserMedia({video:false,audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:{ideal:2}}});
         if(token!==this.token){stream.getTracks().forEach(track=>track.stop());return false;}this.stream=stream;
-        if(!worklets.has(context))worklets.set(context,context.audioWorklet.addModule('/lightek/studio-music-recorder-worklet.js?v=78').catch(error=>{worklets.delete(context);throw error;}));
+        if(!worklets.has(context))worklets.set(context,context.audioWorklet.addModule('/lightek/studio-music-recorder-worklet.js?v=83').catch(error=>{worklets.delete(context);throw error;}));
         await worklets.get(context);if(token!==this.token)return false;
         const info=await beforeRecord();if(token!==this.token)return false;if(!info||info.context!==context||!Number.isInteger(info.startFrame)||info.startFrame<0||!Number.isFinite(context.sampleRate)||context.sampleRate<8000||context.sampleRate>192000)throw Error('The backing audio engine changed or has an unsupported clock. Try recording again.');
-        const rate=context.sampleRate,windowFrames=Math.floor(bars*4*60/tempo*rate),maxFrames=120*rate,chunks=[];let frames=0,firstFrame=null,finished=false;
+        const rate=context.sampleRate,windowFrames=Math.floor(bars*4*60/tempo*rate),windowStartFrame=info.startFrame+Math.round((punchStartBeat||0)*60/tempo*rate),maxFrames=120*rate,chunks=[];
+        this.punchWindow=punchStartBeat===null?null:{startFrame:windowStartFrame,stopFrame:windowStartFrame+windowFrames,startBeat:punchStartBeat,bars};let frames=0,firstFrame=null,finished=false;
         const finish=()=>{if(finished||token!==this.token)return;finished=true;this.release();
           if(frames){const planes=[new Float32Array(frames),new Float32Array(frames)];let at=0;for(const chunk of chunks){planes[0].set(chunk[0],at);planes[1].set(chunk[1],at);at+=chunk[0].length;}chunks.length=0;
             const blob=new Blob([window.LightekMusicCore.wav({numberOfChannels:2,length:frames,sampleRate:rate,getChannelData:i=>planes[i]})],{type:'audio/wav'});
-            this.take={sceneId,blob,url:URL.createObjectURL(blob),name:'Overdub take',extension:'wav',elapsed:frames/rate,requestKey:crypto.randomUUID(),signedId:null,assetId:null,wavFile:null,placed:false,alignment:{tempo,sampleRate:rate,startFrame:info.startFrame,firstFrame,frames,windowFrames}};this.elapsed=frames/rate;this.state='ready';
+            this.take={sceneId,blob,url:URL.createObjectURL(blob),name:'Overdub take',extension:'wav',elapsed:frames/rate,requestKey:crypto.randomUUID(),signedId:null,assetId:null,wavFile:null,placed:false,alignment:{tempo,sampleRate:rate,startFrame:info.startFrame,firstFrame,frames,windowFrames,...(punchStartBeat===null?{}:{punchStartBeat,windowStartFrame})}};this.elapsed=frames/rate;this.state='ready';
           }else{this.state='idle';this.error ||= 'No audio frames were received. Try recording again.';}stopBacking();this.notify();
         };
-        this.finishOverdub=finish;const node=this.worklet=new AudioWorkletNode(context,'lightek-take-recorder',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2],processorOptions:{stopFrame:info.startFrame+windowFrames,maxFrames}});
+        this.finishOverdub=finish;const node=this.worklet=new AudioWorkletNode(context,'lightek-take-recorder',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2],processorOptions:{startFrame:punchStartBeat===null?0:windowStartFrame,stopFrame:windowStartFrame+windowFrames,maxFrames}});
         node.port.onmessage=event=>{if(finished||token!==this.token)return;const data=event.data;if(data.type==='pcm'){
           const left=new Float32Array(data.channels[0]),right=new Float32Array(data.channels[1]);if(!Number.isInteger(data.frame)||!left.length||left.length!==right.length||left.length>2048||frames+left.length>maxFrames||firstFrame!==null&&data.frame!==firstFrame+frames){this.error='Input continuity was lost. Kept the delivered audio; review it before saving.';finish();return;}
           firstFrame ??= data.frame;chunks.push([left,right]);frames+=left.length;this.elapsed=frames/rate;

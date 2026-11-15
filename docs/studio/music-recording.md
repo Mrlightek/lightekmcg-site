@@ -13,7 +13,7 @@ Open **Studio → Music → Record & place audio takes**. Microphone capture is 
 
 You can also choose an existing prepared audio asset under **Or use a prepared library recording**. The existing upload/sample-library controls accept recordings made elsewhere. Audio sources must be at most two minutes and downloadable within the existing 25 MB audio-loader limit.
 
-This capture mode records a **standalone take**. It stops song playback and never connects the microphone to speakers. It does not record the synthesizer/mixer output or align itself to song playback. For backing playback and aligned placement, use [Record with song](music-overdub.md). Automatic device latency calibration remains further work. Browser permission, actual input hardware and device/browser timing still require the integrated verification sprint.
+This capture mode records a **standalone take**. It stops song playback and never connects the microphone to speakers. It does not record the synthesizer/mixer output or align itself to song playback. For backing playback, full-pass or selected-bar punch capture and aligned placement, use [Record with song](music-overdub.md). Automatic device latency calibration remains further work. Browser permission, actual input hardware and device/browser timing still require the integrated verification sprint.
 
 ## Edit the take
 

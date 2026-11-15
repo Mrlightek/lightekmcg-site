@@ -165,9 +165,11 @@
     number(correction,-500,500,'Timing correction');if(!alignment||alignment.tempo!==tempo)throw Error('Restore the recorded tempo or use manual take placement.');
     for(const key of ['firstFrame','startFrame','frames','windowFrames','sampleRate'])if(!Number.isFinite(alignment[key]))throw Error('The take has no valid audio-clock alignment.');
     if(alignment.sampleRate<=0||alignment.frames<=0||alignment.windowFrames<=0)throw Error('The take has no valid recorded frame range.');
-    const start=(alignment.firstFrame-alignment.startFrame)/alignment.sampleRate-correction/1000,first=Math.max(0,-start),last=Math.min(Number(asset.metadata?.duration),alignment.frames/alignment.sampleRate,alignment.windowFrames/alignment.sampleRate-start);
+    const punch=alignment.punchStartBeat!==undefined;
+    if(punch&&(!Number.isInteger(alignment.punchStartBeat)||alignment.punchStartBeat<0||alignment.punchStartBeat%4!==0||alignment.punchStartBeat>=512||!Number.isInteger(alignment.windowStartFrame)||alignment.windowStartFrame<alignment.startFrame||alignment.firstFrame<alignment.windowStartFrame))throw Error('The take has no valid punch range.');
+    const start=(alignment.firstFrame-(punch?alignment.windowStartFrame:alignment.startFrame))/alignment.sampleRate-correction/1000,first=Math.max(0,-start),last=Math.min(Number(asset.metadata?.duration),alignment.frames/alignment.sampleRate,alignment.windowFrames/alignment.sampleRate-start);
     if(!Number.isFinite(last)||last-first<.05)throw Error('The timing correction removes this take. Reduce it or use manual source trim.');
-    return {beat:Math.max(0,start)*tempo/60,in:first,out:last};
+    return {beat:(punch?alignment.punchStartBeat:0)+Math.max(0,start)*tempo/60,in:first,out:last};
   }
   function applyPerformance(score,{trackId,patternId=null,notes}){
     const target=score.tracks.find(t=>t.id===trackId);if(!target||target.instrument==='recording')throw Error('The original instrument channel is unavailable. Keep or download the performance.');

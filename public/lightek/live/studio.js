@@ -5,6 +5,7 @@ function boot(){
  let screen,camera,mic,audio,mixer,micNode,gain,analyser,silent,program,canvas,paintTimer,clockTimer,ws,recorder,identifier,active=false,stopping=false,holding=false,muted=true,queue=[],pending=null,sequence=0,queuedBytes=0,started=0,connectTimer,transportPhase='idle',cameraBusy=false,captureGeneration=0;
  let productionSetup=null,stage=null,stageLoading=false,sessionSource=null,sessionLoading=false,presentationDraft={participants:{}};
  const comments=window.LightekLiveComments?.boot(root);
+ const overlay=window.LightekLiveOverlay?.boot(root);
  const showPresentation=window.LightekLiveShowPresentation?new window.LightekLiveShowPresentation():null;
  let libraryVisual=null,libraryOverlay=null,libraryBed=null,libraryBedGain=null,libraryVideoGain=null,libraryBusy=false;
  const source=document.createElement('video');source.muted=true;source.playsInline=true;
@@ -30,7 +31,7 @@ function boot(){
     if(mode==='combined'&&live(camera)&&cameraVideo.readyState>=2){ctx.fillStyle='#b5f58b';ctx.fillRect(916,496,328,188);ctx.fillStyle='#0b121b';ctx.fillRect(920,500,320,180);const r=Math.min(320/cameraVideo.videoWidth,180/cameraVideo.videoHeight),cw=cameraVideo.videoWidth*r,ch=cameraVideo.videoHeight*r;ctx.drawImage(cameraVideo,920+(320-cw)/2,500+(180-ch)/2,cw,ch);}
    }
    else{ctx.fillStyle='#b5f58b';ctx.font='22px sans-serif';ctx.fillText('LIGHTEK / LIVE',90,110);ctx.fillStyle='#f2f5fa';ctx.font='bold 56px sans-serif';ctx.fillText('Back in a moment.',90,340);ctx.fillStyle='#a7b4c6';ctx.font='24px sans-serif';ctx.fillText('Building Lightek. Stay with us.',90,390);}
-   if(!holding&&libraryOverlay?.complete&&libraryOverlay.naturalWidth)ctx.drawImage(libraryOverlay,0,0,1280,720);
+   if(!holding&&libraryOverlay?.complete&&libraryOverlay.naturalWidth){if(overlay)overlay.draw(ctx,libraryOverlay);else ctx.drawImage(libraryOverlay,0,0,1280,720);}
    if(!holding&&pictureReady)comments?.draw(ctx,q('[data-presentation=accent]')?.value);
    if(analyser){const bins=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(bins);const level=Math.sqrt(bins.reduce((sum,v)=>sum+((v-128)/128)**2,0)/bins.length);q('[data-meter]').value=muted||holding?0:Math.min(1,level*4);}
   }
@@ -133,7 +134,7 @@ function boot(){
  async function loadStage(){if(stageLoading)return;stageLoading=true;const button=q('[data-stage-load]'),notice=q('[data-stage-status]'),generation=captureGeneration;button.disabled=true;let next=null;try{const option=q('[data-stage-asset]').selectedOptions[0];if(!option?.value)throw Error('Choose a prepared Blender stage.');notice.textContent='Loading 3D stage…';const {StageComposer}=await import('/lightek/live/stage.js?v=2');next=new StageComposer();const cameras=await next.load(option.dataset.stageUrl);if(generation!==captureGeneration){next.dispose();return;}stage?.dispose();stage=next;next=null;const select=q('[data-stage-camera]');select.replaceChildren(new Option('Automatic stage framing',''));cameras.forEach(camera=>select.add(new Option(camera.name,String(camera.index))));q('[data-layout]').value='stage';await ensureProgram();libraryMix();notice.textContent='Stage ready. Check camera placement and keying in the program preview before going live.';message('');return true;}catch(e){next?.dispose();notice.textContent=e.message;message(e.message);return false;}finally{stageLoading=false;button.disabled=false;}}
  q('[data-stage-load]')?.addEventListener('click',loadStage);
 
- productionSetup=window.LightekLiveProduction?.boot(root,{active:()=>active,loadLibrary,loadStage,updated:()=>{libraryMix();controls();},generation:()=>captureGeneration,capturePresentation:()=>showPresentation?.portable(presentationValues()),applyPresentation:applyShowPresentation});
+ productionSetup=window.LightekLiveProduction?.boot(root,{active:()=>active,loadLibrary,loadStage,updated:()=>{libraryMix();controls();},generation:()=>captureGeneration,capturePresentation:()=>showPresentation?.portable(presentationValues()),applyPresentation:applyShowPresentation,captureOverlay:()=>overlay?.read(),applyOverlay:values=>{if(!overlay)throw Error('Reopen Live Studio to load graphic placement.');overlay.apply(values);}});
  q('[data-stage-subject-source]')?.addEventListener('change',libraryMix);
  q('[data-stage-camera]')?.addEventListener('change',event=>stage?.setCamera(event.target.value));
  q('[data-load-library]')?.addEventListener('click',loadLibrary);q('[data-clear-library]')?.addEventListener('click',clearLibrary);q('[data-library-volume]')?.addEventListener('input',libraryMix);q('[data-library-loop]')?.addEventListener('change',event=>{if(libraryVisual?.element.tagName==='VIDEO')libraryVisual.element.loop=event.target.checked;});

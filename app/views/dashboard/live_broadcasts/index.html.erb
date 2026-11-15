@@ -1,9 +1,10 @@
 <% content_for :page_title, "Live Studio" %>
-<%= stylesheet_link_tag "/lightek/live/studio.css?v=4" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=5" %>
 <%= javascript_include_tag "/lightek/live/comments.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/show-presentation.js?v=1", defer: true %>
-<%= javascript_include_tag "/lightek/live/production.js?v=2", defer: true %>
-<%= javascript_include_tag "/lightek/live/studio.js?v=12", defer: true %>
+<%= javascript_include_tag "/lightek/live/overlay.js?v=1", defer: true %>
+<%= javascript_include_tag "/lightek/live/production.js?v=3", defer: true %>
+<%= javascript_include_tag "/lightek/live/studio.js?v=13", defer: true %>
 <%= javascript_include_tag '/lightek/vendor/livekit-2.23.0.umd.js', defer: true %>
 <%= javascript_include_tag '/lightek/live/audience.js?v=2', defer: true %>
 <main class="ll-studio" data-live-studio data-create-url="<%= dashboard_live_sessions_path(site_id: @site.id) %>">

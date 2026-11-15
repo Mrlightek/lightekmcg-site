@@ -16,6 +16,8 @@ class StudioLiveProductionHttpTest < BroadcastControlTest
       assert_equal 200,client.response.status,client.response.body.first(1000)
       assert_includes client.response.body,"Reusable live show"
       assert_includes client.response.body,"data-production-setup"
+      assert_includes client.response.body,"data-overlay-controls"
+      assert_includes client.response.body,"/lightek/live/overlay.js?v=1"
     end
     path="/dashboard/live/production?site_id=#{@site.id}"
     client.get path,headers:headers,params:{scene_id:scene.id}
@@ -41,17 +43,19 @@ class StudioLiveProductionHttpTest < BroadcastControlTest
   ensure
     Dashboard::LiveBroadcastsController.allow_forgery_protection=true
   end
-  def test_show_presentation_v2_http_round_trip_excludes_room_identities
+  def test_show_presentation_and_graphic_placement_v3_http_round_trip_excludes_room_identities
     project=StudioProject.create!(owner:@alice,site:@site,name:"Show branding")
     scene=project.studio_scenes.first;client=session_for;path="/dashboard/live/production?site_id=#{@site.id}"
-    payload={scene_id:scene.id,lock_version:scene.lock_version,preset:{version:2,layout:"session",presentation:{layout:"split",title:"Network show",brand:"LIGHTEK",accent:"#aabbcc"}}}
+    payload={scene_id:scene.id,lock_version:scene.lock_version,preset:{version:3,layout:"session",overlay:{enabled:true,x:900,y:30,width:320,height:160,opacity:0.8,fit:"contain"},presentation:{layout:"split",title:"Network show",brand:"LIGHTEK",accent:"#aabbcc"}}}
     Dashboard::LiveBroadcastsController.allow_forgery_protection=false
     client.post path,headers:headers,params:payload,as: :json
     assert_equal 200,client.response.status,client.response.body
     result=body(client);assert_equal "Network show",result.dig("preset","presentation","title")
     refute result["preset"]["presentation"].key?("participants")
     client.get path,headers:headers,params:{scene_id:scene.id}
-    assert_equal 2,body(client).dig("preset","version")
+    assert_equal 3,body(client).dig("preset","version")
+    assert_equal 900,body(client).dig("preset","overlay","x")
+    assert_equal 0.8,body(client).dig("preset","overlay","opacity")
     payload[:lock_version]=result["lock_version"];payload[:preset][:presentation][:participants]={"user-99"=>{name:"Other guest"}}
     client.post path,headers:headers,params:payload,as: :json
     assert_equal 422,client.response.status

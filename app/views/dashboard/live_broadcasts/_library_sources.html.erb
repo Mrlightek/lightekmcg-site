@@ -4,6 +4,19 @@
   <label>Program image / video<select data-library-visual><option value="">No library program</option><% @library_assets.select { |asset| %w[image video].include?(asset.kind) }.each do |asset| %><option value="<%= asset.id %>" data-kind="<%= asset.kind %>" data-library-url="/api/lightek/pwa/assets/<%= asset.id %>/proxy" <%= "selected" if selected == asset %>><%= asset.name %></option><% end %></select></label>
   <label><input type="checkbox" data-library-loop> Loop program video</label>
   <label>Graphic overlay<select data-library-overlay><option value="">No overlay</option><% @library_assets.select { |asset| asset.kind == "image" }.each do |asset| %><option value="<%= asset.id %>" data-library-url="/api/lightek/pwa/assets/<%= asset.id %>/proxy"><%= asset.name %></option><% end %></select></label>
+  <fieldset data-overlay-controls>
+    <legend>Graphic placement · 1280 × 720 program</legend>
+    <label><input type="checkbox" data-overlay-field="enabled" checked> Show graphic in program</label>
+    <label>Image fit<select data-overlay-field="fit"><option value="stretch">Stretch to box</option><option value="contain">Preserve aspect ratio</option></select></label>
+    <div class="ll-overlay-fields">
+      <% [["x", "Left · px", -1280, 1280, 0, 1], ["y", "Top · px", -720, 720, 0, 1], ["width", "Width · px", 1, 1280, 1280, 1], ["height", "Height · px", 1, 720, 720, 1], ["opacity", "Opacity", 0, 1, 1, 0.01]].each do |key, label, min, max, value, step| %>
+        <label><%= label %><input type="number" data-overlay-field="<%= key %>" min="<%= min %>" max="<%= max %>" value="<%= value %>" step="<%= step %>"></label>
+      <% end %>
+    </div>
+    <button type="button" data-overlay-reset>Reset full-frame graphic</button>
+    <p class="ll-note">Position and size use program pixels. Changes affect the current program, including an active broadcast. Save the production setup to reuse them. Holding screen hides the graphic.</p>
+    <p role="status" data-overlay-status></p>
+  </fieldset>
   <label>Audio bed<select data-library-audio><option value="">No audio bed</option><% @library_assets.select { |asset| asset.kind == "audio" }.each do |asset| %><option value="<%= asset.id %>" data-library-url="/api/lightek/pwa/assets/<%= asset.id %>/proxy" <%= "selected" if selected == asset %>><%= asset.name %></option><% end %></select></label>
   <label>Audio bed level<input type="range" min="0" max="1" step="0.05" value="0.25" data-library-volume></label>
   <button type="button" data-load-library>Load selected library media</button><button type="button" data-clear-library>Clear library sources</button>

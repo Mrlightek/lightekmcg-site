@@ -23,6 +23,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Operator-selected audience comments in the captured program, source attribution and clear/holding/session cleanup. See [Audience graphics](live-audience-graphics.md).
 - [x] Guest program video visibility/order and independent per-participant audio gain, host-only room persistence and holding mute. See [Guest program controls](live-guest-program.md).
 - [x] Scene-bound Live Studio setups for prepared stages, imported cameras, subject placement, library media and portable show presentation styling; template/episode copies, room-style restoration, permission revalidation and explicit preview handoff. See [Live production setups](live-production-setups.md).
+- [x] Library still → Genesis image-to-video, frozen input review, authenticated worker upload and prepared MP4 handoff. See [Image-to-video](genesis-image-to-video.md).
 - [x] Storyboard → Genesis prompt handoff with shot provenance.
 - [x] Finished shot → media library → edit handoff and reusable template reference remapping.
 

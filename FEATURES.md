@@ -243,7 +243,7 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Materials & look | Per-slot native/Cast shader input overrides and reversible scene compositor finish. |
 | Managed Genesis setup | Self-hosted worker/model setup, authenticated routing, verified resumable packages and image/video workflow contracts. |
 | Music delivery | Saved scores, WAV mix/stems, MIDI export and a linked mix-to-edit handoff. |
-| AI Studio integration | Loopback ComfyUI readiness, operator recipes, prompt/seed jobs, durable asset ingestion and result-to-edit. |
+| AI Studio integration | Local or managed ComfyUI readiness, concept images, text-to-video and library image-to-video, prompt/seed jobs, frozen starting-image sources, durable asset ingestion and result-to-edit. See [Image-to-video](docs/studio/genesis-image-to-video.md). |
 | Production delivery | Existing artifact/library reuse, publication records, release queues, channel/OTT configuration and destination adapters. |
 
 **Editor contracts:** the new basic editor path and the advanced legacy/native production path coexist. Basic photo/video PNG/MP4 exports use existing instance resources without an added checkout. Advanced Blender/render/finishing operations retain their documented quote/payment workflows. The basic video editor currently supports up to 16 tracks/128 clips/ten minutes and a 1920-pixel maximum canvas dimension; the advanced finishing path has its own clip/output limits.

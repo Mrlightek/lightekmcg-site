@@ -185,6 +185,7 @@ jobs:
         run: |
           bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
           bundle exec ruby test/standalone/studio_ai_checks.rb --name /test_ai_/
+          bundle exec ruby test/standalone/studio_ai_image_video_checks.rb --name /StudioAiImageVideoTest/
       - name: Managed Genesis setup boundaries
         run: |
           bundle exec ruby test/standalone/studio_ai_setup_checks.rb --name /StudioAiSetupTest/
@@ -289,6 +290,7 @@ jobs:
           node test/javascript/studio_edit_workbench_test.cjs
           node test/javascript/studio_delivery_test.cjs
           node test/javascript/studio_ai_setup_test.cjs
+          node test/javascript/studio_ai_image_video_test.cjs
           node test/javascript/studio_music_ui_test.cjs
           node test/javascript/studio_music_patterns_test.cjs
           node test/javascript/studio_music_automation_test.cjs

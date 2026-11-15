@@ -13,6 +13,10 @@ module Studio
         raise ArgumentError,"Seed must be between 0 and 4294967295" unless seed.between?(0,2**32-1)
         recipe_id=payload.fetch("recipe").to_s;model=payload.fetch("model","").to_s
         intent={"scene_id"=>scene.id,"prompt"=>prompt,"negative"=>negative,"seed"=>seed,"recipe"=>recipe_id,"model"=>model}
+        if payload["input_asset_id"].present?
+          raise ArgumentError,"Choose a starting image ID" unless payload["input_asset_id"].to_s.match?(/\A[1-9]\d*\z/)
+          intent["input_asset_id"]=Integer(payload["input_asset_id"])
+        end
         if payload["shot_id"].present?
           shot=Studio::Shots::Board.find(scene,payload["shot_id"])
           intent.merge!("shot_id"=>shot["id"],"shot_name"=>shot["name"])
@@ -32,18 +36,31 @@ module Studio
             recipe=status[:recipes].find{|r|r[:id]==recipe_id && r[:ready]}
             raise ArgumentError,status[:reason] || "This workflow is not ready on your local worker" unless recipe
             raise ArgumentError,"Choose an installed local model" unless model.empty? || status[:models].include?(model)
+            source=nil
+            if recipe[:input_kind]=="image"
+              raise ArgumentError,"Choose a prepared starting image" unless intent["input_asset_id"]
+              source=StudioAsset.for_actor(access).where(site_id:access.site_id).find(intent["input_asset_id"])
+              InputImage.validate!(source)
+            elsif intent["input_asset_id"]
+              raise ArgumentError,"This workflow does not accept a starting image"
+            end
             _,graph=runtime.graph(recipe_id,prompt:prompt,negative:negative,seed:seed,model:model)
             raise ArgumentError,"Choose an installed local model" if graph.values.any?{|n|n["class_type"]=="CheckpointLoaderSimple" && n.dig("inputs","ckpt_name").blank?}
             pending=StudioAsset.where(owner:access.user,status:%w[uploaded processing]).where("metadata ->> 'ai_intent' IS NOT NULL").count
             raise ArgumentError,"Wait for your current generations to finish" if pending>=2
             asset=StudioAsset.create!(owner:access.user,site_id:access.site_id,studio_project:scene.studio_project,name:prompt.first(120),kind:recipe[:kind],status:"uploaded",request_key:key,metadata:{"ai_intent"=>intent,"ai_graph"=>graph,"ai_phase"=>"queued","ai_engine"=>"self_hosted_comfyui","ai_worker"=>worker})
+            if source
+              blob=source.proxy.blob
+              asset.ai_input.attach(blob)
+              asset.update!(metadata:asset.metadata.merge("ai_input_source"=>{"asset_id"=>source.id,"blob_id"=>blob.id,"checksum"=>blob.checksum}))
+            end
             StudioAiGenerationJob.perform_later(asset.id)
           end
         end
         receipt(asset)
       end
       def self.receipt(asset)
-        {asset_id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,phase:asset.metadata["ai_phase"],error:asset.error_message,prompt:asset.metadata.dig("ai_intent","prompt"),shot_id:asset.metadata.dig("ai_intent","shot_id"),shot_name:asset.metadata.dig("ai_intent","shot_name"),seed:asset.metadata.dig("ai_intent","seed"),preview_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil}
+        {asset_id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,phase:asset.metadata["ai_phase"],input_asset_id:asset.metadata.dig("ai_intent","input_asset_id"),input_url:asset.ai_input.attached? ? "/dashboard/studio-broadcasting/assets/#{asset.id}/input?site_id=#{asset.site_id}" : nil,error:asset.error_message,prompt:asset.metadata.dig("ai_intent","prompt"),shot_id:asset.metadata.dig("ai_intent","shot_id"),shot_name:asset.metadata.dig("ai_intent","shot_name"),seed:asset.metadata.dig("ai_intent","seed"),preview_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil}
       end
       def self.list(access:,scene_id:)
         scene=access.scene!(scene_id)

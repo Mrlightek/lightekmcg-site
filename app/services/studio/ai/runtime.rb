@@ -2,6 +2,7 @@
 require "net/http"
 require "uri"
 require "json"
+require "stringio"
 module Studio
   module Ai
     # This adapter talks to a local engine or a site-owned managed worker. The browser
@@ -18,13 +19,14 @@ module Studio
           raise ArgumentError,"Studio AI must use a local engine" unless %w[http https].include?(@origin.scheme) && %w[127.0.0.1 localhost ::1].include?(@origin.hostname) && @origin.userinfo.nil? && @origin.query.nil? && @origin.fragment.nil? && ["","/"].include?(@origin.path)
         end
       end
-      def request(path,payload:nil,limit:5.megabytes)
+      def request(path,payload:nil,form:nil,limit:5.megabytes)
         uri=@origin.dup;requested_path,uri.query=path.split("?",2);uri.path=@origin.path.delete_suffix("/")+requested_path
-        request=payload ? Net::HTTP::Post.new(uri) : Net::HTTP::Get.new(uri)
+        request=payload || form ? Net::HTTP::Post.new(uri) : Net::HTTP::Get.new(uri)
         request["Authorization"]="Bearer #{@token}" if @token
         if payload
           request["Content-Type"]="application/json";request.body=JSON.generate(payload)
         end
+        request.set_form(form,"multipart/form-data") if form
         result="".b
         Net::HTTP.start(uri.hostname,uri.port,nil,use_ssl:uri.scheme=="https",open_timeout:3,read_timeout:20) do |http|
           http.request(request) do |response|
@@ -51,11 +53,12 @@ module Studio
         models=Array(nodes.dig("CheckpointLoaderSimple","input","required","ckpt_name",0))
         available=recipes.map do |recipe|
           missing=recipe["workflow"].values.map{|n|n.fetch("class_type")}.uniq.reject{|name|nodes.key?(name)}
+          missing_inputs=Array(recipe["required_inputs"]).any?{|spec| !(nodes.dig(spec["node"],"input","required") || {}).key?(spec["field"]) && !(nodes.dig(spec["node"],"input","optional") || {}).key?(spec["field"])}
           needs_checkpoint=recipe["workflow"].values.any?{|n|n.dig("inputs","ckpt_name")=="$checkpoint"}
           missing_models=Array(recipe["required_models"]).reject do |spec|
             Array(nodes.dig(spec["node"],"input","required",spec["field"],0)).include?(spec["name"])
           end
-          {id:recipe["id"],name:recipe["name"],kind:recipe["kind"],ready:missing.empty? && missing_models.empty? && (!needs_checkpoint || models.any?),reason:missing.any? ? "Required engine nodes are not installed" : missing_models.any? ? "Required workflow models are not installed" : needs_checkpoint && models.empty? ? "Install a local checkpoint on the generation worker" : nil}
+          {id:recipe["id"],name:recipe["name"],kind:recipe["kind"],input_kind:recipe["input_kind"],ready:!missing_inputs && missing.empty? && missing_models.empty? && (!needs_checkpoint || models.any?),reason:missing_inputs ? "Required image-conditioning inputs are not available on this engine" : missing.any? ? "Required engine nodes are not installed" : missing_models.any? ? "Required workflow models are not installed" : needs_checkpoint && models.empty? ? "Install a local checkpoint on the generation worker" : nil}
         end
         {connected:true,engine:"Self-hosted ComfyUI",recipes:available,models:models}
       rescue SystemCallError,SocketError,Timeout::Error,IOError,OpenSSL::SSL::SSLError,ArgumentError,JSON::ParserError
@@ -69,6 +72,13 @@ module Studio
           node.fetch("inputs").transform_values!{|value|values.fetch(value,value)}
         end
         [recipe,graph]
+      end
+      def upload_image(bytes,filename:)
+        raise ArgumentError,"Invalid prepared starting image" unless bytes.bytesize<=10.megabytes && bytes.start_with?("\x89PNG\r\n\x1a\n".b) && filename.match?(/\Alightek-[a-zA-Z0-9_-]+\.png\z/)
+        form=[["image",StringIO.new(bytes),{filename:filename,content_type:"image/png"}],["type","input"],["subfolder","lightek"],["overwrite","false"]]
+        result=JSON.parse(request("/upload/image",form:form,limit:16.kilobytes))
+        raise ArgumentError,"The engine did not confirm the starting image" unless result["name"]==filename && result["subfolder"]=="lightek" && result["type"]=="input"
+        "lightek/#{filename}"
       end
       def submit(graph)
         id=json("/prompt",payload:{prompt:graph}).fetch("prompt_id").to_s

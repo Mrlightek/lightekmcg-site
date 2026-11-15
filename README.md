@@ -29,6 +29,7 @@ A business can build its website, sell products or book services, manage custome
 | Finish Blender materials and scene look | [Look & materials](docs/studio/look-and-materials.md) |
 | Arrange character motion | [Body motion clips](docs/studio/body-motion-clips.md) |
 | Animate dialogue on a character | [Character speech & lip sync](docs/studio/character-lip-sync.md) |
+| Animate a library still into a video shot | [Genesis image-to-video](docs/studio/genesis-image-to-video.md) |
 | Set up a self-hosted generation worker | [Genesis workers & model packages](docs/studio/genesis-workers.md) |
 | Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
 | Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
@@ -38,7 +39,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 
 ## What is in the platform now
 
-*Platform baseline: November 13, 2026, PR #230; Studio inventory and workflow links refreshed November 14, 2026. This describes implemented host workflows; it is not a claim that every external provider or every deployed client instance has passed live acceptance.*
+*Platform baseline: November 13, 2026, PR #230; Studio inventory and workflow links refreshed November 15, 2026. This describes implemented host workflows; it is not a claim that every external provider or every deployed client instance has passed live acceptance.*
 
 | Workspace | Current capabilities |
 | --- | --- |
@@ -50,7 +51,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Websites and community | Pages/sections, HTML design imports, starter designs, coordinated site themes, native store/journal integration, articles/RSS and per-site PWA branding, navigation and moderation |
 | Communications | Lightek webmail, conversation replies, rich composition, mailbox management, distribution addresses, Junk/spam controls, mail templates and native transactional SMTP routing |
 | Reservations and live rooms | Bookable resources, availability/capacity, paid reservations, calendar downloads, private guest rooms, host moderation and Studio program composition |
-| Studio | Photo/video editing and exports; Blender authoring, shots/storyboard, cast lip sync/body motion, materials/look; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub, instrument performance recording and picture scoring; saved live production setups and connected finishing/delivery workspaces |
+| Studio | Photo/video editing and exports; Blender authoring, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub, instrument performance recording and picture scoring; saved live production setups and connected finishing/delivery workspaces |
 | Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
 | Nevaeh | Conversational operating workspace, typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |
 | Platform security and operations | Gatekeeper authorization, scoped Vault credentials, tenant ownership checks, background execution, audit history, retry/recovery paths and configurable Dashboard appearance |

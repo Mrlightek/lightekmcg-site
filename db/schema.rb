@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_001000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -3821,6 +3821,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "deleted_at"
     t.index ["nevaeh_os_agent_id"], name: "index_nevaeh_agent_workers_on_nevaeh_os_agent_id"
     t.index ["user_id"], name: "index_nevaeh_agent_workers_on_user_id"
   end
@@ -3922,6 +3923,40 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
     t.datetime "updated_at", null: false
     t.index ["nevaeh_language_model_id"], name: "idx_conversation_model"
     t.index ["user_id"], name: "index_nevaeh_conversations_on_user_id"
+  end
+
+  create_table "nevaeh_goal_steps", force: :cascade do |t|
+    t.bigint "nevaeh_goal_id", null: false
+    t.bigint "nevaeh_os_agent_id", null: false
+    t.bigint "nevaeh_agent_run_id"
+    t.string "key", null: false
+    t.string "label", null: false
+    t.integer "position", null: false
+    t.string "status", default: "waiting", null: false
+    t.json "command", default: {}, null: false
+    t.json "expectations", default: [], null: false
+    t.json "evidence", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_agent_run_id"], name: "index_nevaeh_goal_steps_on_nevaeh_agent_run_id"
+    t.index ["nevaeh_goal_id", "key"], name: "index_nevaeh_goal_steps_on_nevaeh_goal_id_and_key", unique: true
+    t.index ["nevaeh_goal_id"], name: "index_nevaeh_goal_steps_on_nevaeh_goal_id"
+    t.index ["nevaeh_os_agent_id"], name: "index_nevaeh_goal_steps_on_nevaeh_os_agent_id"
+  end
+
+  create_table "nevaeh_goals", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "title", null: false
+    t.string "request_key", null: false
+    t.string "fingerprint", null: false
+    t.string "status", default: "draft", null: false
+    t.text "error"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "request_key"], name: "index_nevaeh_goals_on_user_id_and_request_key", unique: true
+    t.index ["user_id"], name: "index_nevaeh_goals_on_user_id"
   end
 
   create_table "nevaeh_inference_models", force: :cascade do |t|
@@ -4095,6 +4130,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
     t.boolean "enabled", default: true, null: false
     t.string "autonomy", default: "manual", null: false
     t.jsonb "allowed_capabilities", default: [], null: false
+    t.datetime "deleted_at"
     t.index ["user_id", "system_key"], name: "index_nevaeh_os_agents_on_user_id_and_system_key", unique: true
     t.index ["user_id"], name: "index_nevaeh_os_agents_on_user_id"
   end
@@ -4128,6 +4164,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_nevaeh_os_sources_on_user_id"
+  end
+
+  create_table "nevaeh_speeches", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "request_key", null: false
+    t.string "fingerprint", null: false
+    t.text "text", null: false
+    t.string "voice", default: "en-us+f3", null: false
+    t.integer "speed", default: 170, null: false
+    t.string "status", default: "queued", null: false
+    t.float "duration"
+    t.json "mouth_frames", default: [], null: false
+    t.boolean "truncated", default: false, null: false
+    t.text "error"
+    t.datetime "started_at"
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_nevaeh_speeches_on_expires_at"
+    t.index ["status", "started_at"], name: "index_nevaeh_speeches_on_status_and_started_at"
+    t.index ["user_id", "request_key"], name: "index_nevaeh_speeches_on_user_id_and_request_key", unique: true
+    t.index ["user_id"], name: "index_nevaeh_speeches_on_user_id"
   end
 
   create_table "nevaeh_studio_idempotency_records", force: :cascade do |t|
@@ -4760,6 +4818,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
     t.index ["studio_project_id"], name: "index_studio_publications_on_studio_project_id"
   end
 
+  create_table "studio_remote_renders", force: :cascade do |t|
+    t.bigint "peer_id", null: false
+    t.bigint "studio_operation_id", null: false
+    t.string "request_key", null: false
+    t.string "manifest_digest", null: false
+    t.jsonb "result", default: {}, null: false
+    t.datetime "enqueued_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["peer_id", "request_key"], name: "index_studio_remote_renders_on_peer_id_and_request_key", unique: true
+    t.index ["peer_id"], name: "index_studio_remote_renders_on_peer_id"
+    t.index ["studio_operation_id"], name: "index_studio_remote_renders_on_studio_operation_id", unique: true
+  end
+
   create_table "studio_scenes", force: :cascade do |t|
     t.bigint "studio_project_id", null: false
     t.string "name", null: false
@@ -5369,6 +5441,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
   add_foreign_key "nevaeh_conversation_turns", "nevaeh_conversations"
   add_foreign_key "nevaeh_conversations", "nevaeh_language_models"
   add_foreign_key "nevaeh_conversations", "users"
+  add_foreign_key "nevaeh_goal_steps", "nevaeh_agent_runs"
+  add_foreign_key "nevaeh_goal_steps", "nevaeh_goals"
+  add_foreign_key "nevaeh_goal_steps", "nevaeh_os_agents"
+  add_foreign_key "nevaeh_goals", "users"
   add_foreign_key "nevaeh_intelligences", "nevaeh_capabilities"
   add_foreign_key "nevaeh_islamic_passages", "nevaeh_islamic_sources"
   add_foreign_key "nevaeh_islamic_sources", "users", column: "creator_id"
@@ -5388,6 +5464,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
   add_foreign_key "nevaeh_os_consents", "users"
   add_foreign_key "nevaeh_os_memories", "users"
   add_foreign_key "nevaeh_os_sources", "users"
+  add_foreign_key "nevaeh_speeches", "users"
   add_foreign_key "nevaeh_study_routines", "nevaeh_islamic_sources", column: "source_id"
   add_foreign_key "nevaeh_study_routines", "nevaeh_language_models", column: "language_model_id"
   add_foreign_key "nevaeh_study_routines", "users", column: "creator_id"
@@ -5448,6 +5525,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
   add_foreign_key "studio_publications", "artifacts"
   add_foreign_key "studio_publications", "productions"
   add_foreign_key "studio_publications", "studio_projects"
+  add_foreign_key "studio_remote_renders", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "studio_remote_renders", "studio_operations"
   add_foreign_key "studio_scenes", "productions"
   add_foreign_key "studio_scenes", "studio_projects"
   add_foreign_key "studio_workstations", "studio_scenes"

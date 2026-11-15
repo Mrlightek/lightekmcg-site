@@ -1,0 +1,56 @@
+/* MFA challenge only. The auth layout supplies the site's existing brand tokens. */
+.auth-shell.auth-verification {
+  display: grid; grid-template-columns: minmax(0, 1fr); align-items: center;
+  min-height: 100vh; min-height: 100dvh; overflow: visible;
+  padding: max(36px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--auth-gold) 9%, transparent), transparent 52%), var(--auth-bg);
+}
+.verification-frame { width: min(100%, 480px); margin: auto; }
+.verification-brand { display: flex; justify-content: center; margin-bottom: 30px; }
+.auth-verification .auth-brand { gap: 12px; }
+.auth-verification .auth-wordmark { font-size: 25px; letter-spacing: .04em; }
+.auth-verification .auth-brand img,.auth-verification .auth-monogram { width: 38px; height: 38px; }
+.auth-verification .verification-panel {
+  display: block; min-height: 0; margin: 0; padding: 34px; border: 1px solid var(--auth-line-strong);
+  border-radius: 20px; background: color-mix(in srgb, var(--auth-bg) 96%, var(--auth-text));
+  box-shadow: 0 22px 75px rgba(0,0,0,.14), 0 1px 0 var(--auth-line) inset;
+}
+.auth-verification .auth-card { width: 100%; min-width: 0; }
+.verification-topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.verification-stage { font-size: 10px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--auth-gold); }
+.verification-shield { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border: 1px solid var(--auth-line-strong); border-radius: 13px; color: var(--auth-gold); background: color-mix(in srgb, var(--auth-gold) 6%, transparent); }
+.verification-shield svg { width: 26px; height: 26px; }
+.auth-verification .auth-card h1 { font-family: inherit; font-size: clamp(28px, 5vw, 34px); font-weight: 650; letter-spacing: -.045em; line-height: 1.2; }
+.auth-verification .auth-intro { margin: 14px 0 20px; font-size: 14px; line-height: 1.75; }
+.verification-destination { display: flex; gap: 9px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--auth-line); border-radius: 9px; margin-bottom: 26px; font-size: 11px; line-height: 1.65; color: var(--auth-muted); }
+.verification-destination svg,.verification-footer > svg { width: 16px; height: 16px; flex: 0 0 16px; margin-top: 2px; color: var(--auth-gold); }
+.verification-destination strong { display: block; font-weight: 600; color: var(--auth-text); overflow-wrap: anywhere; }
+.auth-verification .verification-form { gap: 20px; }
+.auth-verification .auth-field label { font-size: 12px; font-weight: 600; }
+.auth-verification .verification-code { width: 100%; min-width: 0; height: 58px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 20px; letter-spacing: .12em; padding: 14px 16px; border-radius: 10px; }
+.auth-verification .verification-code::placeholder { font-family: inherit; font-size: 15px; letter-spacing: .025em; }
+.auth-verification .auth-field-help { font-size: 11px; line-height: 1.7; margin-top: 8px; }
+.auth-verification .verification-code[aria-invalid=true] { border-color: var(--auth-danger); }
+.auth-verification .verification-submit { min-height: 50px; border-radius: 10px; font-size: 13px; box-shadow: 0 4px 14px var(--auth-line); }
+.auth-verification .verification-submit:hover { transform: none; }
+.auth-verification .verification-submit:disabled { opacity: .65; cursor: wait; }
+.auth-verification :is(input, a, summary):focus-visible { outline: 2px solid var(--auth-gold); outline-offset: 4px; }
+.verification-help { margin-top: 24px; padding-bottom: 22px; border-bottom: 1px solid var(--auth-line); font-size: 12px; }
+.verification-help summary { cursor: pointer; color: var(--auth-text); line-height: 1.6; }
+.verification-help p { margin: 12px 0 0; color: var(--auth-muted); font-size: 12px; line-height: 1.75; }
+.verification-restart { display: grid; gap: 7px; margin-top: 20px; }
+.verification-restart a { color: var(--auth-gold-light); font-size: 12px; font-weight: 600; text-underline-offset: 4px; }
+.verification-restart span { color: var(--auth-muted); font-size: 11px; line-height: 1.6; }
+.verification-footer { display: flex; justify-content: center; align-items: flex-start; gap: 9px; margin-top: 24px; text-align: left; font-size: 11px; line-height: 1.8; color: var(--auth-muted); }
+.verification-footer p { margin: 0; }
+.verification-footer span { opacity: .85; }
+.auth-verification .verification-error { margin-bottom: 20px; font-size: 12px; color: var(--auth-text); }
+.verification-error p { margin: 5px 0 0; line-height: 1.65; }
+@media(max-width:520px) {
+  .auth-shell.auth-verification { padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+  .auth-verification .verification-panel { padding: 26px 22px; border-radius: 16px; }
+  .verification-brand { margin-bottom: 24px; }
+  .verification-topline { margin-bottom: 20px; }
+  .auth-verification .verification-code { font-size: 18px; }
+}
+@media(prefers-reduced-motion:reduce) { .auth-verification * { transition: none !important; } }

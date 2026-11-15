@@ -586,6 +586,7 @@
       .auth-wordmark {overflow-wrap:anywhere;}
       .auth-story-copy h2 {overflow-wrap:anywhere;}
     </style>
+    <%= yield :head %>
   </head>
 
   <body data-auth-layout="lightek" data-auth-site="<%= brand.site&.id %>">

@@ -7,6 +7,10 @@ on:
       - 'app/views/dashboard/**'
       - 'app/views/dymond_dash/**'
       - 'public/lightek/dashboard.*'
+      - 'public/lightek/dashboard-forms.css'
+      - 'test/javascript/dashboard_forms_browser_test.cjs'
+      - 'test/support/export_dashboard_forms.rb'
+      - 'test/standalone/commerce_order_cleanup_test.rb'
       - 'public/lightek/media-control.css'
       - 'public/lightek/studio-editors.css'
       - 'app/models/studio_project.rb'
@@ -44,6 +48,8 @@ jobs:
         run: ruby test/standalone/dashboard_breadcrumbs_test.rb
       - name: Check navigation script
         run: node --check public/lightek/dashboard.js
+      - name: Render actual commerce forms and verify order actions
+        run: ruby test/support/export_dashboard_forms.rb /tmp/lightek-form-fixtures
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -55,6 +61,10 @@ jobs:
         env:
           NODE_PATH: /tmp/dashboard-ci/node_modules
         run: node test/javascript/dashboard_workspace_browser_test.cjs
+      - name: Verify order and product forms in Chromium and WebKit
+        env:
+          NODE_PATH: /tmp/dashboard-ci/node_modules
+        run: node test/javascript/dashboard_forms_browser_test.cjs
   project-deletion:
     runs-on: ubuntu-24.04
     env:

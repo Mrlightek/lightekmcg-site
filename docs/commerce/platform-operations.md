@@ -18,7 +18,7 @@ A client instance connects through the existing authenticated federation peer. M
 
 ### Removing test and abandoned orders
 
-Open the storefront's **Orders** page. Use **Delete unpaid order** for one row, or check multiple unpaid rows and choose **Delete selected unpaid orders**. Confirm the action. Pending-payment and canceled orders are eligible; paid, refunded, fulfilled and installed orders remain protected on the server as well as in the UI. Bulk selection applies only to the current storefront, up to 150 rows, and reports orders that could not be removed.
+Open the storefront's **Orders** page. Expand **Manage order** and use **Delete unpaid order** for one order, or select multiple unpaid orders and choose **Delete selected unpaid orders**. Confirm the action. Pending-payment and canceled orders are eligible; paid, refunded, fulfilled and installed orders remain protected on the server as well as in the UI. Bulk selection applies only to the current storefront, up to 150 orders, and reports orders that could not be removed. See [dashboard forms and order management](../dashboard/forms.md) for the shared interface patterns.
 
 An open Stripe checkout must be confirmed expired before the order is canceled. Completed, paid, settling or unverifiable checkouts remain visible for reconciliation. A network checkout must first expire or be canceled at its upstream provider; the local action checks its receipt and retains it if still pending. Retry cleanup after reconciliation. Canceled records and line items stay in the database for delayed webhooks and network receipts; deletion removes them from the active merchant and installation lists. Apply migration `20261114140000` during deployment before using these controls.
 

@@ -1,1 +1,30 @@
-<main class="auth-shell"><section class="auth-panel"><div class="auth-card"><h1>Verify your sign-in</h1><p>Enter a six-digit authenticator code or an unused recovery code.</p><% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %><%= form_with url: identity_challenge_path, class: 'auth-form' do |f| %><%= f.label :otp, 'Verification code' %><%= f.text_field :otp, required: true, autocomplete: 'one-time-code', autofocus: true %><%= f.submit 'Verify & continue' %><% end %><%= link_to 'Start a new sign-in', new_session_path %></div></section></main>
+<% content_for :title, "Verify your identity · #{authentication_branding.name}" %>
+<% content_for :head do %><%= stylesheet_link_tag '/lightek/auth-verification.css?v=20261115' %><% end %>
+<main class="auth-shell auth-verification">
+  <div class="verification-frame">
+    <header class="verification-brand"><%= render "authentication/brand" %></header>
+    <section class="auth-panel verification-panel" aria-labelledby="verification-title">
+      <div class="auth-card">
+        <div class="verification-topline">
+          <span class="verification-stage">Two-step verification</span>
+          <span class="verification-shield" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.3 3.1 7.5 7.5 9.5 4.4-2 7.5-5.2 7.5-9.5V6L12 3Z"/><path d="m8.5 12 2.3 2.3 4.7-4.7"/></svg></span>
+        </div>
+        <h1 id="verification-title">Confirm it’s you.</h1>
+        <p class="auth-intro">One more check before you continue to <%= authentication_branding.name %>. Open your authenticator app and enter the current code.</p>
+        <div class="verification-destination"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Account verification on <strong><%= request.host %></strong></span></div>
+        <% if flash[:alert].present? %><div class="auth-flash verification-error" id="verification-error" role="alert"><strong>We couldn’t verify that code.</strong><p><%= flash[:alert] %></p></div><% end %>
+        <%= form_with url: identity_challenge_path, class: 'auth-form verification-form', data: {turbo: false} do |form| %>
+          <div class="auth-field">
+            <%= form.label :otp, 'Authenticator or recovery code', for: 'verification-otp' %>
+            <%= form.text_field :otp, id: 'verification-otp', class: 'auth-input auth-input-plain verification-code', required: true, autocomplete: 'one-time-code', autofocus: true, autocapitalize: 'none', autocorrect: 'off', spellcheck: false, placeholder: 'Enter your code', aria: { describedby: ['verification-code-help', ('verification-error' if flash[:alert].present?)].compact.join(' '), invalid: flash[:alert].present? } %>
+            <p class="auth-field-help" id="verification-code-help">Enter the six-digit code from your app, or an unused recovery code. You can paste either here.</p>
+          </div>
+          <%= form.submit 'Verify & continue', class: 'auth-submit verification-submit', data: {disable_with: 'Verifying…'} %>
+        <% end %>
+        <details class="verification-help"><summary>Can’t access your authenticator?</summary><p>Enter one of the recovery codes you saved when setting up two-step verification. Each recovery code works once. If this verification has expired, start a new sign-in.</p></details>
+        <div class="verification-restart"><%= link_to 'Start a new sign-in', new_session_path %><span>Use another account or restart verification.</span></div>
+      </div>
+    </section>
+    <footer class="verification-footer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.3 3.1 7.5 7.5 9.5 4.4-2 7.5-5.2 7.5-9.5V6L12 3Z"/></svg><p>Keep your verification and recovery codes private.<br><span>Enter them only in the account verification form.</span></p></footer>
+  </div>
+</main>

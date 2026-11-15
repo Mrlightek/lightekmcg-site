@@ -1,10 +1,11 @@
 <% content_for :page_title, "Live Studio" %>
-<%= stylesheet_link_tag "/lightek/live/studio.css?v=3" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=4" %>
+<%= javascript_include_tag "/lightek/live/comments.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/show-presentation.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/production.js?v=2", defer: true %>
-<%= javascript_include_tag "/lightek/live/studio.js?v=11", defer: true %>
+<%= javascript_include_tag "/lightek/live/studio.js?v=12", defer: true %>
 <%= javascript_include_tag '/lightek/vendor/livekit-2.23.0.umd.js', defer: true %>
-<%= javascript_include_tag '/lightek/live/audience.js?v=1', defer: true %>
+<%= javascript_include_tag '/lightek/live/audience.js?v=2', defer: true %>
 <main class="ll-studio" data-live-studio data-create-url="<%= dashboard_live_sessions_path(site_id: @site.id) %>">
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
   <header class="ll-header"><div><span class="ll-eyebrow">LIGHTEK / STUDIO</span><h1>Your work. On air.</h1><p>Build, share and broadcast from Lightek.</p></div><span class="ll-badge" data-state>Preview only</span></header>

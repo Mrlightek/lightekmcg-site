@@ -15,6 +15,7 @@ A business can build its website, sell products or book services, manage custome
 | Schedule Quran study and training at Salah times | [Salah & Study on the server clock](docs/nevaeh/tutorials/salah_study.md) |
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
+| Feature a viewer comment on the live program | [Audience comment graphics](docs/studio/live-audience-graphics.md) |
 | Direct guests in the live program | [Guest visibility, order and audio](docs/studio/live-guest-program.md) |
 | Reuse production assets and branding for a live show | [Saved live production setups](docs/studio/live-production-setups.md) |
 | Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |

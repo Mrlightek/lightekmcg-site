@@ -70,3 +70,7 @@ Apply migration `20261112150000_add_direct_production_rooms` and restart Rails/S
 ## Direct guest video and program sound
 
 [Guest program controls](live-guest-program.md) add per-person video visibility, program ordering and audio level beside the existing name/effect fields. These controls change the composed feed, preserve room membership, and save only through the host presentation action. Video visibility and audio muting remain independent.
+
+## Feature a comment on the program
+
+[Audience comment graphics](live-audience-graphics.md) let the operator select an available community, room, TikTok or SSN chat message for the composed video. Incoming messages remain off-screen until selected; holding/end/release clears the selection. The Restream iframe remains separate.

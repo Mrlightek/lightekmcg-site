@@ -32,6 +32,14 @@ Client accounts land on **Your workspace** after sign-in when no explicit return
 
 Do not share the QR code, setup key, password, verification codes or recovery codes in chat, tickets or screenshots. Lightek does not need you to send those to support to explain this screen.
 
+## Verify your sign-in or refresh an existing session
+
+The **Confirm it’s you** page is the same MFA check used after password sign-in and when an existing session needs fresh verification. It uses the website’s authentication name, logo, colors and fonts. The verification card shows the current website host so you can compare it with your browser’s address bar.
+
+Enter the current six-digit authenticator code, or paste a full unused recovery code, then choose **Verify & continue**. Recovery codes use the same field and are not restricted to six digits. **Can’t access your authenticator?** explains the recovery option. **Start a new sign-in** lets you restart an expired challenge or choose a different account.
+
+An unsuccessful verification displays an error beside the input without repeating the code you entered. The page does not display setup keys or saved recovery codes. MFA freshness, challenge expiry, single-use recovery codes, rate limiting, session creation, CSRF checks and return-destination validation continue through the existing controller and MFA services. The page remains usable without JavaScript.
+
 ## What the organization sign-in section means
 
 **Link organization sign-in** is separate from authenticator enrollment. Leave it alone unless the company's IT administrator has configured an OIDC provider under **Directory & Access → Organization sign-in** and supplied its organization code.

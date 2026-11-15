@@ -64,6 +64,36 @@
     const label = event.target.parentElement.querySelector('[data-color-value]');
     if (label) label.textContent = event.target.value;
   });
+  function updateOrderSelection(workspace) {
+    if (!workspace) return;
+    const choices = [...workspace.querySelectorAll('[data-order-select]')];
+    const selected = choices.filter(choice => choice.checked);
+    const all = workspace.querySelector('[data-order-select-all]');
+    const count = workspace.querySelector('[data-order-selection-count]');
+    const submit = workspace.querySelector('[data-order-bulk-delete]');
+    workspace.querySelector('[data-order-selection-tools]')?.removeAttribute('hidden');
+    if (all) {
+      all.checked = choices.length > 0 && selected.length === choices.length;
+      all.indeterminate = selected.length > 0 && selected.length < choices.length;
+    }
+    if (count) count.textContent = selected.length ? `${selected.length} unpaid order${selected.length === 1 ? '' : 's'} selected` : 'Select unpaid orders to clean up';
+    if (submit) submit.disabled = selected.length === 0;
+    choices.forEach(choice => choice.closest('.dd-order')?.classList.toggle('is-selected', choice.checked));
+  }
+  function setupOrderSelection() {
+    document.querySelectorAll('[data-orders-workspace]').forEach(updateOrderSelection);
+  }
+  document.addEventListener('change', event => {
+    if (!event.target.matches('[data-order-select], [data-order-select-all]')) return;
+    const workspace = event.target.closest('[data-orders-workspace]');
+    if (event.target.matches('[data-order-select-all]')) {
+      workspace?.querySelectorAll('[data-order-select]').forEach(choice => { choice.checked = event.target.checked; });
+    }
+    updateOrderSelection(workspace);
+  });
+  document.addEventListener('DOMContentLoaded', setupOrderSelection);
+  document.addEventListener('turbo:load', setupOrderSelection);
+  setupOrderSelection();
   document.addEventListener('DOMContentLoaded', setupDashboardNavigation);
   document.addEventListener('turbo:load', setupDashboardNavigation);
   setupDashboardNavigation();

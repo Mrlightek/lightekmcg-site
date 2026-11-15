@@ -142,6 +142,7 @@ require "action_dispatch/testing/integration"
 module DymondDash
   class ApplicationController < ActionController::Base
     def current_user = User.find_by(id: request.headers["X-Test-User"])
+    helper_method :current_user
     rescue_from(ActiveRecord::RecordNotFound) { head :not_found }
   end
 end
@@ -160,6 +161,12 @@ CLEANUP_ROUTES.draw do
   get "/dashboard/installations", to: "dashboard/commerce_orders#index", as: :dashboard_installations
   get "/dashboard/commerce/payouts", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_payouts
   get "/dashboard/commerce/products", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_products
+  post "/dashboard/commerce/orders/:order_id/fulfill", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_fulfill
+  post "/dashboard/commerce/orders/:order_id/refund", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_refund
+  get "/dashboard/commerce/products/new", to: "dashboard/commerce_orders#index", as: :new_dashboard_commerce_product
+  patch "/dashboard/commerce/products/:id", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_product
+  post "/dashboard/commerce/products/:product_id/variants", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_variants
+  delete "/dashboard/commerce/products/:product_id/variants/:id", to: "dashboard/commerce_orders#index", as: :dashboard_commerce_variant
 end
 Dashboard::CommerceOrdersController.include(CLEANUP_ROUTES.url_helpers)
 Dashboard::CommerceOrdersController.helper(CLEANUP_ROUTES.url_helpers)
@@ -220,5 +227,32 @@ class CommerceOrderCleanupHttpTest < CommerceHostingTest
       assert_equal 403, request(:delete, "/dashboard/commerce/orders/#{order.id}", actor: user, site_id: @site.id).status
     end
     refute order.reload.deleted_at?
+  end
+
+  def test_paid_order_actions_have_separate_labeled_fields_and_preserve_payment_parameters
+    orders = 2.times.map { order_for(product).tap { |order| order.update!(status: "paid", paid_at: Time.current) } }
+    page = request(:get, "/dashboard/commerce/orders", site_id: @site.id)
+    assert_equal 200, page.status
+    html = Nokogiri::HTML(page.body)
+    assert_equal 2, html.css("details.dd-order-manage").size
+    orders.each do |order|
+      reference = html.at_css("#order_#{order.id}_fulfillment_reference")
+      assert_equal "fulfillment_reference", reference["name"]
+      assert html.at_css("label[for='#{reference['id']}']")
+      refund = html.at_css("#order_#{order.id}_refund_amount")
+      assert_equal "amount_cents", refund["name"]
+      assert_equal order.total_cents.to_s, refund["max"]
+      assert html.at_css("##{refund['aria-describedby']}")
+    end
+    ids = html.css("[id]").map { |element| element["id"] }
+    assert_equal ids.uniq, ids, "each order needs unique label targets"
+    assert_empty html.css("form form"), "action forms must never nest"
+  end
+
+  def test_empty_order_list_has_a_useful_next_action
+    page = request(:get, "/dashboard/commerce/orders", site_id: @site.id)
+    assert_equal 200, page.status
+    assert_includes page.body, "A fresh start for your storefront"
+    refute_includes page.body, "delete-selected-orders"
   end
 end

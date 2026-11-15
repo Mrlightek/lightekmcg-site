@@ -23,6 +23,9 @@ on:
       - 'db/migrate/*agency_demos*'
       - 'public/lightek/mfa-enrollment*'
       - 'public/lightek/mfa-recovery.js'
+      - 'public/lightek/auth-verification.css'
+      - 'test/standalone/identity_verification_design_checks.rb'
+      - 'test/javascript/identity_verification_browser_test.cjs'
       - 'public/lightek/people-workspace.css'
       - 'public/lightek/vendor/qrcode-generator/**'
       - 'test/javascript/mfa_qr*'
@@ -71,6 +74,10 @@ jobs:
         env:
           MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render
         run: ruby test/standalone/agency_demo_checks.rb
+      - name: Verify branded MFA challenge and security behavior
+        env:
+          MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render
+        run: ruby test/standalone/identity_verification_design_checks.rb --name /test_verification_/
       - name: Decode actual enrollment QR and verify desktop/phone rendering
         env:
           NODE_PATH: /tmp/mfa-qr-ci/node_modules
@@ -80,6 +87,7 @@ jobs:
           node test/javascript/mfa_recovery_test.cjs
           node test/javascript/mfa_qr_browser_test.cjs
           node test/javascript/account_onboarding_browser_test.cjs
+          node test/javascript/identity_verification_browser_test.cjs
       - name: Verify staged provisioning acceptance and invitation mail
         run: |
           python3 -m unittest test.scripts.test_paid_instance_verification

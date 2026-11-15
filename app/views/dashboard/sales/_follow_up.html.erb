@@ -1,0 +1,4 @@
+<div class="sales-follow-up">
+  <div><span class="sales-badge"><%= kind == 'lead' ? record.status.humanize : record.stage.humanize %></span><h3><%= link_to record.name, record_url(kind, record) %></h3><p><%= record.next_step.presence || 'Choose one concrete action to move this forward.' %></p></div>
+  <div><strong><%= record.follow_up_on || 'Set follow-up' %></strong><% if kind == 'opportunity' && record.close_on < Date.current %><small class="sales-alert">Close date overdue</small><% end %></div>
+</div>

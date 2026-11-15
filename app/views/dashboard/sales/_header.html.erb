@@ -1,0 +1,14 @@
+<%= stylesheet_link_tag '/lightek/sales-workspace.css?v=1' %>
+<%= render 'dashboard/shared/business_workspace', active: 'Sales' %>
+<header class="sales-header">
+  <div><span class="sales-eyebrow">LIGHTEK / RELATIONSHIPS TO REVENUE</span><h1>Sales & CRM</h1><p>Build relationships. Keep your next move clear.</p></div>
+  <%= form_with url: dashboard_sales_path, method: :get, class: 'sales-site' do %>
+    <%= label_tag :site_id, 'Business website' %><%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %><%= submit_tag 'Switch', class: 'sales-button secondary' %>
+  <% end %>
+</header>
+<nav class="sales-tabs" aria-label="Sales workspaces">
+  <% [['today', 'Today'], ['leads', 'Leads'], ['pipeline', 'Deal pipeline'], ['accounts', 'Companies'], ['contacts', 'Contacts'], ['routing', 'Lead routing']].each do |tab, label| %>
+    <% next if tab == 'routing' && !@manage_routing %>
+    <%= link_to label, dashboard_sales_path(site_id: @site.id, tab: tab), aria: {current: @tab == tab ? 'page' : nil} %>
+  <% end %>
+</nav>

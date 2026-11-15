@@ -8,6 +8,7 @@ A business can build its website, sell products or book services, manage custome
 
 | What you need | Where to go |
 | --- | --- |
+| Manage leads, deals, follow-ups and forecasts | [Sales & CRM](docs/sales/crm.md) |
 | The full current feature list | [Lightek feature catalog](FEATURES.md) |
 | Production is asking you to set up an authenticator | [First sign-in, MFA and recovery](docs/security/sign-in-and-mfa.md) |
 | Learn Nevaeh, agents, workers, watchers and commands | [Operating workspace and Guide](docs/nevaeh_operating_system.md) · [Tutorials](docs/nevaeh/tutorials/commands.md) |
@@ -46,6 +47,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Workspace | Current capabilities |
 | --- | --- |
 | Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
+| Sales & CRM | Site-scoped leads, companies and shared marketing contacts; qualified-lead conversion, source routing, deal stages, follow-up worklists, activity history and monthly forecasts by currency |
 | Commerce and shipping | Site-scoped catalogs and variants, cart/checkout, orders, subscriptions, fulfillment, refunds, merchant payouts, upstream revenue terms, federated client sales and FedEx shipping integration |
 | Books & accounting | Encrypted books, statement mapping/import, categorization, reconciliation and period controls, cash-basis P&L, Schedule C workpapers, supported native workbooks and reviewed-input federal estimates |
 | People & Access | 26 default enterprise departments, reporting chains, HR/IT/finance separation, benefits elections, reviewed payroll statements, independent approval and employer-funded net-pay payout workflows |

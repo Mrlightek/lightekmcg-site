@@ -1,0 +1,51 @@
+name: Sales CRM acceptance
+on:
+  pull_request:
+    paths:
+      - 'app/controllers/dashboard/sales_controller.rb'
+      - 'app/models/lightek_sales/**'
+      - 'app/models/concerns/sales_site_record.rb'
+      - 'app/models/lightek_marketing/contact.rb'
+      - 'app/services/lightek_sales/**'
+      - 'app/services/lightek_agency/access.rb'
+      - 'app/services/lightek_agency/package_features.rb'
+      - 'app/services/lightek_settings/website_identity.rb'
+      - 'app/views/dashboard/sales/**'
+      - 'app/views/dashboard/shared/_business_workspace.html.erb'
+      - 'public/lightek/sales-workspace.css'
+      - 'public/lightek/business-workspace.css'
+      - 'config/routes.rb'
+      - 'config/routes/sales.rb'
+      - 'db/migrate/*lightek_sales*'
+      - 'test/standalone/sales_crm_checks.rb'
+      - 'test/javascript/sales_crm_browser_test.cjs'
+      - '.github/workflows/sales-crm-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sales:
+    runs-on: ubuntu-24.04
+    env:
+      SALES_PREVIEW_DIR: tmp/sales-preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - name: Install public test dependencies
+        run: gem install activerecord:8.0.4 actionpack:8.0.4 railties:8.0.4 sqlite3:2.10.2 minitest:5.27.0 --no-document
+      - name: Verify sales lifecycle, routing, consent, isolation and forecasts
+        run: ruby test/standalone/sales_crm_checks.rb
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/sales-browser" playwright@1.62.1
+          "$RUNNER_TEMP/sales-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify native sales screens at desktop and phone widths
+        env:
+          NODE_PATH: ${{ runner.temp }}/sales-browser/node_modules
+        run: node test/javascript/sales_crm_browser_test.cjs

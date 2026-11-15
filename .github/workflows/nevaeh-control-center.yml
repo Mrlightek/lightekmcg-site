@@ -76,6 +76,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the CPU voice stage used by the Studio image
         run: docker build --target voice --tag lightek/nevaeh-voice:test docker/studio-media
+      - name: Verify Nevaeh name pronunciation rules
+        run: python3 -m unittest test.operations.nevaeh_pronunciation_test
       - name: Verify noexec reproduction and actual restricted voice generation
         env:
           NEVAEH_TEST_VOICE_CONTAINER: '1'

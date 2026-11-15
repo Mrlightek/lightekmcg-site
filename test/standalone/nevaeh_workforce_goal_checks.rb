@@ -150,6 +150,20 @@ class NevaehWorkforceHttpChecks < NevaehOsHttpTest
 end
 class NevaehPageContextChecks < NevaehOsTest
   def self.runnable_methods = instance_methods(false).grep(/^test_/).map(&:to_s)
+  def test_conversational_capability_question_precedes_unrelated_document_search
+    conversation=NevaehOs::Conversation.new(actor:@actor)
+    ['Hello, tell me what you can help me do.','What options do you have?','What can you do?','How can you help me?','help'].each do |phrase|
+      result=conversation.ask(text:phrase,request_key:SecureRandom.uuid,page_context:{path:'/dashboard/nevaeh',title:'Nevaeh'})
+      assert_equal 'ready',result['status'],phrase
+      assert_includes result['text'],'delegate supported tasks'
+      refute_includes result['text'],"Here's what I found in the documentation"
+      refute_includes result['text'],'Quran'
+      assert_equal '/dashboard/nevaeh/guide',result['guide_url']
+    end
+    assert_equal 0,NevaehOsAction.count
+    refute NevaehOs::PageContext.overview_question?('What can you do here?')
+    refute NevaehOs::PageContext.overview_question?('Find documentation about what options do you have')
+  end
   def test_context_help_uses_current_area_and_reading_help_never_executes
     result=NevaehOs::Conversation.new(actor:@actor).ask(text:'What can you do here?',request_key:SecureRandom.uuid,page_context:{path:'/dashboard/servers',search:'?site_id=42&secret=x',title:'Servers'})
     assert_equal 'grounded',result[:status]

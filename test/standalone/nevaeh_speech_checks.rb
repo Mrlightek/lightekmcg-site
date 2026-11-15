@@ -5,19 +5,25 @@ module CanCan
 end unless defined?(CanCan::AccessDenied)
 require File.join(ROOT,'db/migrate/20261115235500_create_nevaeh_speeches')
 CreateNevaehSpeeches.new.migrate(:up)
+require File.join(ROOT,'db/migrate/20261116001500_create_nevaeh_speech_segments')
+CreateNevaehSpeechSegments.new.migrate(:up)
+require File.join(ROOT,'app/models/nevaeh_speech_segment')
+require File.join(ROOT,'app/services/nevaeh_os/speech_playlist')
 %w[app/models/nevaeh_speech app/services/studio/performance/audio_envelope app/services/nevaeh_os/speech app/jobs/nevaeh_os/speech_job app/helpers/nevaeh_help_helper app/controllers/dashboard/nevaeh_os_controller].each { |file| require File.join(ROOT,file) }
 Rails.application.routes.append do
   post '/dashboard/nevaeh/speech',to:'dashboard/nevaeh_os#speech'
   get '/dashboard/nevaeh/speech/:id',to:'dashboard/nevaeh_os#speech_status'
   delete '/dashboard/nevaeh/speech/:id',to:'dashboard/nevaeh_os#speech_cancel'
   get '/dashboard/nevaeh/speech/:id/audio',to:'dashboard/nevaeh_os#speech_audio'
+  get '/dashboard/nevaeh/speech/:id/playlist.m3u8',to:'dashboard/nevaeh_os#speech_playlist',format:false
+  get '/dashboard/nevaeh/speech/:id/segments/:position.ts',to:'dashboard/nevaeh_os#speech_segment',format:false
 end
 Rails.application.reload_routes!
 class NevaehSpeechChecks < StudioDirectorProducerChecks
   def self.runnable_methods = instance_methods(false).grep(/^test_/).map(&:to_s)
   def setup
     super
-    NevaehSpeech.delete_all
+    NevaehSpeechSegment.delete_all;NevaehSpeech.delete_all
   end
   def speech(text:'Hello Marlon. We can work together.',key:SecureRandom.uuid)
     NevaehOs::Speech.request!(actor:@alice,text:text,request_key:key,voice:'en-us+f3')
@@ -35,10 +41,54 @@ class NevaehSpeechChecks < StudioDirectorProducerChecks
     assert_raises(ArgumentError) { speech(text:'Different response.',key:key) }
     assert_equal 'queued',record.status
     assert_nil NevaehOs::Speech.receipt(record)[:audio_url]
+    assert_equal 'nevaeh_voice',NevaehOs::SpeechJob.queue_name
     assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::Speech.owned!(@bob,record.id) }
     2.times { speech }
     assert_raises(ArgumentError) { speech }
     assert_raises(ActiveRecord::RecordInvalid) { NevaehOs::Speech.request!(actor:@bob,text:'Text',request_key:SecureRandom.uuid,voice:'../../other') }
+  end
+  def test_status_poll_expires_abandoned_queue_without_relying_on_a_worker_sweep
+    record=speech
+    assert_equal 'queued',NevaehOs::Speech.receipt(record)[:status]
+    record.update_column(:created_at,121.seconds.ago)
+    NevaehOs::Speech.owned!(@alice,record.id)
+    assert_equal 'failed',record.reload.status
+    assert_includes record.error,'voice worker did not start'
+    NevaehOs::Speech.generate!(record)
+    refute record.audio.attached?
+    assert_operator NevaehOs::Speech.receipt(record)[:elapsed_seconds],:>=,120
+  end
+  def test_playlist_publishes_first_item_before_reply_finishes_and_protects_every_item
+    record=speech(text:('This is an ordinary spoken sentence for the playlist. '*7))
+    assert_operator record.segments.count,:>,1
+    calls=0;client=session_for
+    generator=->(**args) do
+      calls+=1
+      if calls==2
+        record.reload
+        assert_equal 'running',record.status
+        assert NevaehOs::Speech.receipt(record)[:playlist_ready]
+        client.get "/dashboard/nevaeh/speech/#{record.id}/playlist.m3u8",headers:headers
+        assert_equal 200,client.response.status
+        assert_includes client.response.body,'#EXTINF:'
+        refute_includes client.response.body,'#EXT-X-ENDLIST'
+        client.get "/dashboard/nevaeh/speech/#{record.id}/segments/0.ts",headers:headers
+        assert_equal 200,client.response.status
+        assert_operator client.response.body.bytesize,:>,100
+        client.get "/dashboard/nevaeh/speech/#{record.id}/segments/0.ts",headers:headers(@bob)
+        assert_equal 404,client.response.status
+        client.get "/dashboard/nevaeh/speech/#{record.id}/playlist.m3u8",headers:headers(@bob)
+        assert_equal 404,client.response.status
+      end
+      voice_fixture.call(**args)
+    end
+    ScreenplayEngine::AudioSynthesizer.stub(:synthesize!,generator) { NevaehOs::Speech.generate!(record) }
+    assert_equal 'ready',record.reload.status
+    assert_equal record.segments.count,calls
+    assert_includes NevaehOs::SpeechPlaylist.manifest(record),'#EXT-X-ENDLIST'
+    data=NevaehOs::Speech.receipt(record)
+    assert_equal calls,data[:playlist_items].size
+    assert data[:playlist_frames].each_cons(2).all? { |a,b| a['time']<=b['time'] }
   end
   def test_natural_voice_is_default_and_real_model_produces_private_playable_audio
     record=NevaehOs::Speech.request!(actor:@alice,text:'Hello Marlon. Let us create something together.',request_key:SecureRandom.uuid)
@@ -146,7 +196,8 @@ class NevaehSpeechChecks < StudioDirectorProducerChecks
     text='An answer with a useful sentence. '*100
     record=speech(text:text)
     assert record.truncated
-    assert_operator record.text.length,:<=,1800
+    assert_operator record.text.length,:<=,600
+    assert_equal 1,NevaehOs::Speech.chunks(record.text).size
     assert_equal record.text,NevaehOs::Speech.chunks(record.text).join
     assert NevaehOs::Speech.chunks(record.text).all? { |chunk| chunk.length<=900 }
     assert record.text.end_with?('.')

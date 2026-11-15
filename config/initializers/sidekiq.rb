@@ -1,5 +1,13 @@
 # config/initializers/sidekiq.rb
 Sidekiq.configure_server do |config|
+  # Interactive replies must not wait behind renders, training or other jobs.
+  # One speech slot per ordinary worker process bounds neural CPU/memory use.
+  unless ENV['STUDIO_CPU_WORKER']=='1'
+    config.capsule('nevaeh_voice') do |capsule|
+      capsule.concurrency=1
+      capsule.queues=%w[nevaeh_voice]
+    end
+  end
   config.on(:startup) do
   config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0") }
     schedule_file = Rails.root.join("config/schedule.yml")

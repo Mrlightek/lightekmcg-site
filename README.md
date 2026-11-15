@@ -138,3 +138,5 @@ The final PR #230 identity/bookkeeping/Connect acceptance passed **80 tests / 74
 Update [FEATURES.md](FEATURES.md) and the relevant operating guide when a feature or its acceptance boundary changes. Keep README as the entry point. Preserve older architecture/history as historical references; use the current feature catalog for product scope and the installed Nevaeh registry for executable command availability. Store capability contracts and verified procedures in the existing registry/KB alongside the documentation.
 
 Agency wholesale pricing, reseller packages and installed feature limits: [operator and agency guide](docs/agency-reseller-packages.md).
+
+Nevaeh’s spoken replies use an offline CPU natural voice with a stable style blend and private audio-driven mouth timing. The Studio image installs checksum-verified model assets and verifies stdin-to-WAV synthesis during deployment. Her activity label separates queued, running, delayed and approval/payment work; see [voice and activity guide](docs/nevaeh/tutorials/voice.md).

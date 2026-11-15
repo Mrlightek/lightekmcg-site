@@ -52,9 +52,11 @@ module Studio
     def self.cpu_limit
       run!(["python3",Rails.root.join("lib/scripts/studio_worker_limits.py").to_s],timeout:15).strip
     end
-    def self.container(command, root:, image:)
+    def self.container(command, root:, image:, stdin: false)
       name="lightek-media-#{SecureRandom.hex(8)}"
-      ["docker","run","--rm","--name",name,"--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","2g","--cpus",cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=512m","-v","#{root}:/work:rw",image]+command
+      # Docker drops piped input unless stdin is explicitly attached. No TTY:
+      # speech text must reach the engine unchanged through the pipe.
+      ["docker","run",*(stdin ? ["--interactive"] : []),"--rm","--name",name,"--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","2g","--cpus",cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=512m","-v","#{root}:/work:rw",image]+command
     end
   end
 end

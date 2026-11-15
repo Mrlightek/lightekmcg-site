@@ -16,7 +16,7 @@ module NevaehOs
       end
       [clean,truncated]
     end
-    def request!(actor:,text:,request_key:,voice:'en-us+f3',speed:170)
+    def request!(actor:,text:,request_key:,voice:'nevaeh-natural',speed:170)
       spoken,truncated=normalize(text)
       fingerprint=Digest::SHA256.hexdigest([spoken,truncated,voice,speed].to_json)
       actor.with_lock do
@@ -36,7 +36,7 @@ module NevaehOs
     end
     def receipt(speech)
       {id:speech.id,status:speech.status,duration:speech.duration,text:speech.text,truncated:speech.truncated,voice:speech.voice,error:speech.error,
-        engine:'espeak_ng',mouth_mode:'volume',mouth_frames:speech.status=='ready' ? speech.mouth_frames : [],audio_url:speech.status=='ready' && speech.audio.attached? ? "/dashboard/nevaeh/speech/#{speech.id}/audio" : nil}
+        engine:speech.voice.start_with?('nevaeh-') ? 'kokoro_onnx' : 'espeak_ng',mouth_mode:'volume',mouth_frames:speech.status=='ready' ? speech.mouth_frames : [],audio_url:speech.status=='ready' && speech.audio.attached? ? "/dashboard/nevaeh/speech/#{speech.id}/audio" : nil}
     end
     def cancel!(actor,id)
       speech=owned!(actor,id)
@@ -97,7 +97,7 @@ module NevaehOs
     end
     def sweep!
       NevaehSpeech.where(status:'queued').where('created_at < ?',10.minutes.ago).update_all(status:'failed',error:'Speech waited too long for its worker. Check the worker, then read the response again.')
-      NevaehSpeech.where(status:'running').where('started_at < ?',5.minutes.ago).update_all(status:'failed',error:'Speech preparation was interrupted. Read the response again to create a new request.')
+      NevaehSpeech.where(status:'running').where('started_at < ?',10.minutes.ago).update_all(status:'failed',error:'Speech preparation was interrupted. Read the response again to create a new request.')
       NevaehSpeech.where('expires_at <= ?',Time.current).order(:id).limit(100).each(&:destroy!)
     end
   end

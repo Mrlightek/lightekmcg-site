@@ -63,16 +63,10 @@ class Dashboard::NevaehOsController < ::ApplicationController
     render json:NevaehOs::Stage.new(current_user).save_script!(params.to_unsafe_h.slice('production_id','scene_id','lock_version','script'))
   end
   def assistant
-    actions=NevaehOsAction.where(user:current_user)
-    projects=StudioProject.where(owner_id:current_user.id)
-    operation=StudioOperation.where(studio_project_id:projects.select(:id)).order(id: :desc).first
-    working=actions.where(status:'pending').exists? || StudioOperation.where(studio_project_id:projects.select(:id),status:%w[pending running]).exists? || StudioPublication.where(studio_project_id:projects.select(:id),status:'publishing').exists?
-    attention=actions.order(id: :desc).first&.status=='failed' || operation&.status=='failed' || operation&.metadata&.dig('rehearsal_report','status')=='needs_attention'
-    phase=working ? 'working' : attention ? 'attention' : 'idle'
-    render json:{state:phase,message:phase=='working' ? 'Work is in progress. I can keep it with you in the workspace.' : phase=='attention' ? 'A recent task needs attention. Its receipt is available in the workspace.' : 'Ready when you are.',workspace_url:'/dashboard/nevaeh'}
+    render json:NevaehOs::Presence.for(current_user)
   end
   def speech
-    value=NevaehOs::Speech.request!(actor:current_user,text:params.require(:text),request_key:params.require(:request_key),voice:params.fetch(:voice,'en-us+f3'),speed:Integer(params.fetch(:speed,170)))
+    value=NevaehOs::Speech.request!(actor:current_user,text:params.require(:text),request_key:params.require(:request_key),voice:params.fetch(:voice,'nevaeh-natural'),speed:Integer(params.fetch(:speed,170)))
     render json:NevaehOs::Speech.receipt(value)
   end
   def speech_status

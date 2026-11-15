@@ -13,6 +13,9 @@ on:
       - 'app/services/studio/workers/workspace.rb'
       - 'app/services/script_builder/**'
       - 'app/services/screenplay_engine/**'
+      - 'app/services/studio/media_process.rb'
+      - 'docker/studio-media/**'
+      - 'lib/scripts/setup_studio_media.sh'
       - 'app/services/studio/performance/audio_envelope.rb'
       - 'app/views/dymond_dash/shared/_sidebar.html.erb'
       - 'app/services/studio/publishers/**'
@@ -75,7 +78,25 @@ jobs:
       - run: blender --background --factory-startup --python-exit-code 1 --python test/operations/studio_spatial_blender_checks.py
       - run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
       - run: bundle exec ruby test/standalone/nevaeh_workforce_expansion_checks.rb --name '/NevaehWorkforceExpansionChecks/'
-      - run: NEVAEH_TEST_REAL_SPEECH=1 bundle exec ruby test/standalone/nevaeh_speech_checks.rb --name '/NevaehSpeech/'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: docker/studio-media/voice/requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: /tmp/lightek-voice-models
+          key: kokoro-v1-int8-ae315a79-voices-bca610b8
+      - name: Install and verify offline natural voice dependencies
+        run: |
+          pip install -r docker/studio-media/voice/requirements.txt
+          python3 docker/studio-media/voice/install_models.py /tmp/lightek-voice-models
+      - name: Verify real private speech, natural CPU voice and activity states
+        env:
+          NEVAEH_TEST_REAL_SPEECH: '1'
+          NEVAEH_TEST_NATURAL_VOICE: '1'
+          LIGHTEK_VOICE_MODELS: /tmp/lightek-voice-models
+        run: bundle exec ruby test/standalone/nevaeh_speech_checks.rb --name '/NevaehSpeech/'
       - run: bundle exec ruby test/standalone/nevaeh_os_test.rb
       - run: python3 -m unittest test.operations.nevaeh_package_control_test
       - run: node --check public/nevaeh/workforce.js

@@ -1,4 +1,5 @@
 require_relative 'studio_director_producer_checks'
+require File.join(ROOT,'app/services/nevaeh_os/presence')
 module CanCan
   class AccessDenied < StandardError; end
 end unless defined?(CanCan::AccessDenied)
@@ -19,7 +20,7 @@ class NevaehSpeechChecks < StudioDirectorProducerChecks
     NevaehSpeech.delete_all
   end
   def speech(text:'Hello Marlon. We can work together.',key:SecureRandom.uuid)
-    NevaehOs::Speech.request!(actor:@alice,text:text,request_key:key)
+    NevaehOs::Speech.request!(actor:@alice,text:text,request_key:key,voice:'en-us+f3')
   end
   def synthesize(record)
     if ENV['NEVAEH_TEST_REAL_SPEECH']=='1'
@@ -38,6 +39,69 @@ class NevaehSpeechChecks < StudioDirectorProducerChecks
     2.times { speech }
     assert_raises(ArgumentError) { speech }
     assert_raises(ActiveRecord::RecordInvalid) { NevaehOs::Speech.request!(actor:@bob,text:'Text',request_key:SecureRandom.uuid,voice:'../../other') }
+  end
+  def test_natural_voice_is_default_and_real_model_produces_private_playable_audio
+    record=NevaehOs::Speech.request!(actor:@alice,text:'Hello Marlon. Let us create something together.',request_key:SecureRandom.uuid)
+    assert_equal 'nevaeh-natural',record.voice
+    assert_equal 'kokoro_onnx',NevaehOs::Speech.receipt(record)[:engine]
+    skip 'Set NEVAEH_TEST_NATURAL_VOICE=1 with the offline CPU model installed' unless ENV['NEVAEH_TEST_NATURAL_VOICE']=='1'
+    Rails.stub(:root,Pathname(ROOT)) { NevaehOs::Speech.generate!(record) }
+    assert_equal 'ready',record.reload.status,record.error
+    assert record.audio.attached?
+    assert record.mouth_frames.any? { |sample| sample['value']>0.1 }
+    assert_equal "/dashboard/nevaeh/speech/#{record.id}/audio",NevaehOs::Speech.receipt(record)[:audio_url]
+    client=session_for;client.get "/dashboard/nevaeh/speech/#{record.id}/audio",headers:headers
+    assert_equal 200,client.response.status
+    assert client.response.body.start_with?('RIFF')
+    assert_equal 'nevaeh-natural',record.reload.voice
+  end
+  def test_production_natural_voice_keeps_text_private_and_attaches_container_input
+    Dir.mktmpdir('neural-command-') do |root|
+      path=File.join(root,'voice.wav');text='A private reply.'
+      process=->(command,**options) do
+        assert_equal ['docker','run'],command.first(2)
+        assert_includes command,'--interactive'
+        assert_equal 'none',command[command.index('--network')+1]
+        refute_includes command,'--tty'
+        refute_includes command,text
+        assert_includes command,'/opt/lightek-voice/synthesize.py'
+        assert_equal text,options[:stdin_data]
+        assert_equal path.sub(root,'/work'),command[command.index('--output')+1]
+        File.binwrite(path,'RIFFfixture')
+      end
+      Rails.env.stub(:production?,true) do
+        Studio::NativeBlender::Runtime.stub(:image,'fixture/media') do
+          Studio::MediaProcess.stub(:cpu_limit,'1') do
+            Studio::MediaProcess.stub(:run!,process) do
+              ScreenplayEngine::AudioSynthesizer.synthesize!(text:text,path:path,voice:'nevaeh-natural',speed:170)
+            end
+          end
+        end
+      end
+      assert_raises(ArgumentError) { ScreenplayEngine::AudioSynthesizer.synthesize!(text:text,path:path,voice:'nevaeh-untrusted',speed:170) }
+    end
+  end
+  def test_presence_distinguishes_queue_running_delay_and_completion_without_changing_jobs
+    assert_equal 'idle',NevaehOs::Presence.for(@alice)[:state]
+    result=directed({'dialogue'=>[{'scene'=>1,'text'=>'Hello.'}]})
+    operation=StudioOperation.find(result['voice_operations'].first['id'])
+    value=NevaehOs::Presence.for(@alice)
+    assert_equal 'queued',value[:state];assert_equal 1,value[:counts][:queued]
+    refute_includes value[:message],'running'
+    assert_equal 'idle',NevaehOs::Presence.for(@bob)[:state]
+    operation.update_column(:updated_at,11.minutes.ago)
+    value=NevaehOs::Presence.for(@alice)
+    assert_equal 'attention',value[:state];assert_includes value[:message],'still queued'
+    assert_equal 'pending',operation.reload.status
+    operation.update!(status:'running')
+    assert_equal 'working',NevaehOs::Presence.for(@alice)[:state]
+    operation.update!(status:'failed')
+    assert_equal 'attention',NevaehOs::Presence.for(@alice)[:state]
+    operation.update!(status:'completed')
+    value=NevaehOs::Presence.for(@alice)
+    assert_equal 'idle',value[:state];assert_includes value[:message],'finished'
+    operation.update!(status:'awaiting_approval')
+    assert_equal 'waiting',NevaehOs::Presence.for(@alice)[:state]
   end
   def test_real_speech_has_decodable_audio_actual_duration_and_mouth_samples
     record=speech
@@ -71,7 +135,7 @@ class NevaehSpeechChecks < StudioDirectorProducerChecks
       ScreenplayEngine::AudioSynthesizer.stub(:synthesize!,->(**_) { raise ArgumentError,'Speech engine unavailable' }) { NevaehOs::Speech.generate!(failed) }
     end
     assert_equal 'failed',failed.reload.status;assert_nil NevaehOs::Speech.receipt(failed)[:audio_url]
-    stalled=speech;stalled.update!(status:'running',started_at:6.minutes.ago)
+    stalled=speech;stalled.update!(status:'running',started_at:11.minutes.ago)
     NevaehOs::Speech.sweep!
     assert_equal 'failed',stalled.reload.status
   end

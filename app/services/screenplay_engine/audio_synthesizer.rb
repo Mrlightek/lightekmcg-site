@@ -6,13 +6,14 @@ module ScreenplayEngine
   class AudioSynthesizer
     AUDIO_DIR = "./output_audio"
 
-    # Uses local 'espeak' or macOS 'say' (or replace with an API call like ElevenLabs/OpenAI)
+    # Local stock speech and CPU neural speech share the same private WAV path.
     def self.synthesize!(text:, path:, voice: 'en-us', speed: 155, cancel_if: nil)
       raise ArgumentError, 'Dialogue must contain 1–1000 characters' unless text.is_a?(String) && text.length.between?(1,1000) && !text.include?("\0")
-      raise ArgumentError, 'Choose an installed stock voice' unless %w[en en-us en-gb ar en-us+f3 en-gb+f3 ar+f3].include?(voice)
+      raise ArgumentError, 'Choose an installed voice' unless (%w[en en-us en-gb ar en-us+f3 en-gb+f3 ar+f3]+NeuralVoice::VOICES).include?(voice)
       raise ArgumentError, 'Choose a speaking speed of 100–220 words per minute' unless speed.is_a?(Integer) && speed.between?(100,220)
+      return NeuralVoice.synthesize!(text:text,path:path,voice:voice,speed:speed,cancel_if:cancel_if) if NeuralVoice::VOICES.include?(voice)
       command = if Rails.env.production?
-        Studio::MediaProcess.container(['espeak-ng','--stdin','-v',voice,'-s',speed.to_s,'-w',"/work/#{File.basename(path)}"], root: File.dirname(path), image: Studio::NativeBlender::Runtime.image(:media))
+        Studio::MediaProcess.container(['espeak-ng','--stdin','-v',voice,'-s',speed.to_s,'-w',"/work/#{File.basename(path)}"], root: File.dirname(path), image: Studio::NativeBlender::Runtime.image(:media), stdin: true)
       else
         [ENV.fetch('STUDIO_TTS_BINARY','espeak-ng'),'--stdin','-v',voice,'-s',speed.to_s,'-w',path]
       end

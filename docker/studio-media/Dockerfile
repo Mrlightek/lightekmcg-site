@@ -15,6 +15,14 @@ COPY --from=blender /opt/blender /opt/blender
 COPY --from=blender /opt/rhubarb /opt/rhubarb
 RUN ln -s /opt/blender/blender /usr/local/bin/blender
 ENV HOME=/tmp
+RUN apt-get update && apt-get install -y --no-install-recommends python3-venv curl && rm -rf /var/lib/apt/lists/*
+COPY voice/requirements.txt /opt/lightek-voice/requirements.txt
+RUN python3 -m venv /opt/lightek-voice/venv \
+ && /opt/lightek-voice/venv/bin/pip install --no-cache-dir -r /opt/lightek-voice/requirements.txt
+# Quantized CPU model and fixed voice styles are downloaded only at build time.
+COPY voice/install_models.py /opt/lightek-voice/install_models.py
+RUN python3 /opt/lightek-voice/install_models.py /opt/lightek-voice/models
+COPY voice/synthesize.py voice/NOTICE.md voice/LICENSE-APACHE-2.0.txt /opt/lightek-voice/
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
 COPY movie-render.cjs /opt/lightek-editors/movie-render.cjs

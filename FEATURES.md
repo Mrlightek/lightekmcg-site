@@ -227,7 +227,7 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Basic exports | PNG/MP4 exports into the existing media library, downloadable results and isolated server-side video rendering. |
 | Campaign connection | Create/reopen a campaign production with its brief and return link, retaining website context. |
 | Native Blender library | Approved demo/source imports, prepared metadata, pinned editable `.blend` attachments and optional GLB browser proxies. |
-| Native authoring | Outliner/Inspector, source-object transforms, visibility, duplication/removal, cameras, lights, material overrides and exposed Geometry Nodes parameters. |
+| Native authoring | Outliner/Inspector, source-object transforms, visibility, duplication/removal, cameras, lights, material overrides, exposed Geometry Nodes parameters and named modifier stacks with typed values, viewport/render toggles, ordering, removal and undo. |
 | Advanced workstation/finishing | Existing Blender workspaces and a separate timeline/mix/export path with transforms, fades, speed, titles, picture adjustments, MP4/ProRes and WAV output contracts. |
 | Cast & Performance | Native toon creation or compatible packed character registration, placements, recorded audio takes, saved facial/gesture cues and animated preview/shot export. |
 | Show templates | Reusable scenes, cast, sets/cameras, production plans, scene objectives and independent episode/project copies. |

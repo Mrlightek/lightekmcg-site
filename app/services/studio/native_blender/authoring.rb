@@ -2,7 +2,8 @@
 module Studio
   module NativeBlender
     class Authoring
-      KINDS=%w[mesh_translate mesh_skew mesh_extrude mesh_subdivide mesh_inset mesh_bevel mesh_delete mesh_merge mesh_smooth sculpt modifier bone_pose bone_add weight shape_key keyframe node_add node_link node_value node_remove].freeze
+      KINDS=%w[mesh_translate mesh_skew mesh_extrude mesh_subdivide mesh_inset mesh_bevel mesh_delete mesh_merge mesh_smooth sculpt modifier modifier_state modifier_move modifier_remove bone_pose bone_add weight shape_key keyframe node_add node_link node_value node_remove].freeze
+      MODIFIERS=%w[SUBSURF MIRROR SOLIDIFY BEVEL DECIMATE].freeze
       NODES={
         "material"=>%w[ShaderNodeBsdfPrincipled ShaderNodeOutputMaterial ShaderNodeTexNoise ShaderNodeTexVoronoi ShaderNodeTexChecker ShaderNodeTexCoord ShaderNodeMapping ShaderNodeValToRGB ShaderNodeMixRGB ShaderNodeMath ShaderNodeBump ShaderNodeNormalMap ShaderNodeEmission ShaderNodeMixShader ShaderNodeBsdfTransparent ShaderNodeRGB ShaderNodeValue],
         "geometry"=>%w[NodeGroupInput NodeGroupOutput GeometryNodeTransform GeometryNodeMeshCube GeometryNodeMeshUVSphere GeometryNodeSetPosition GeometryNodeInputPosition GeometryNodeJoinGeometry GeometryNodeSubdivisionSurface GeometryNodeSetMaterial GeometryNodeInstanceOnPoints GeometryNodeRealizeInstances GeometryNodeDistributePointsOnFaces ShaderNodeMath ShaderNodeVectorMath ShaderNodeTexNoise ShaderNodeValue],
@@ -57,6 +58,9 @@ module Studio
       def integer(value,min,max)
         n=Integer(value);raise ArgumentError,"Integer outside its range" unless n.between?(min,max);n
       end
+      def whole_integer(value,min,max)
+        n=integer(value,min,max);raise ArgumentError,"Use a whole number" unless Float(value)==n;n
+      end
       def vector(value,count=3)
         raise ArgumentError,"Use #{count} numeric values" unless value.is_a?(Array) && value.length==count
         value.map { |v| number(v) }
@@ -64,11 +68,30 @@ module Studio
       def name(value)
         text=value.to_s;raise ArgumentError,"Use a name with 1–120 characters" unless text.length.between?(1,120) && !text.include?("\0");text
       end
+      # Always replay against the pinned source, never a baked viewport snapshot.
+      def modifier_stack(object)
+        definition=object.definition["native_original"] || object.definition
+        stack=Array(definition["modifier_stack"] || definition["modifiers"]).deep_dup
+        Array(object.definition["authoring_commands"]).each do |cmd|
+          target=stack.find { |m| m["name"]==cmd["name"] }
+          case cmd["kind"]
+          when "modifier"
+            stack<<{"name"=>cmd["name"],"type"=>cmd["type"]} unless target
+          when "modifier_remove" then stack.delete(target)
+          when "modifier_move" then stack.insert(cmd["index"],stack.delete(target)) if target
+          else
+            if cmd["kind"].start_with?("node_") && cmd["scope"]=="geometry" && !stack.any? { |m| m["name"]==cmd.fetch("modifier","Studio Geometry") }
+              stack<<{"name"=>cmd.fetch("modifier","Studio Geometry"),"type"=>"NODES"}
+            end
+          end
+        end
+        stack
+      end
       def normalize(raw,object)
         kind=raw.fetch("kind");raise ArgumentError,"Unsupported authoring tool" unless KINDS.include?(kind)
         type=object.definition["native_type"] || object.object_type.upcase
         mesh=%w[MESH CUBE SPHERE CYLINDER PLANE].include?(type)
-        raise ArgumentError,"Select a mesh for this tool" if (kind.start_with?("mesh_") || %w[sculpt weight shape_key modifier].include?(kind)) && !mesh
+        raise ArgumentError,"Select a mesh for this tool" if (kind.start_with?("mesh_") || (%w[sculpt weight shape_key].include?(kind) || kind.start_with?("modifier"))) && !mesh
         raise ArgumentError,"Select an armature for rigging" if kind.start_with?("bone_") && type!="ARMATURE"
         cmd={"kind"=>kind}
         if kind.start_with?("mesh_") || kind=="weight"
@@ -86,12 +109,30 @@ module Studio
         when "mesh_inset","mesh_bevel","mesh_merge" then cmd["amount"]=number(raw.fetch("amount"),0.000001,10000);cmd["segments"]=integer(raw.fetch("segments",2),1,8) if kind=="mesh_bevel"
         when "mesh_smooth" then cmd.merge!("amount"=>number(raw.fetch("amount",0.5),0,1),"iterations"=>integer(raw.fetch("iterations",1),1,10))
         when "sculpt" then cmd.merge!("center"=>vector(raw.fetch("center")),"delta"=>vector(raw.fetch("delta")),"radius"=>number(raw.fetch("radius"),0.001,10000))
+        when "modifier_state","modifier_move","modifier_remove"
+          stack=modifier_stack(object);target=stack.find { |m| m["name"]==raw["name"] }
+          raise ArgumentError,"Choose an available supported modifier" unless target && MODIFIERS.include?(target["type"])
+          cmd["name"]=name(raw.fetch("name"))
+          if kind=="modifier_state"
+            %w[show_viewport show_render].each do |field|
+              next unless raw.key?(field)
+              raise ArgumentError,"Modifier visibility must be true or false" unless [true,false].include?(raw[field])
+              cmd[field]=raw[field]
+            end
+            raise ArgumentError,"Choose a modifier visibility setting" if cmd.length==2
+          elsif kind=="modifier_move"
+            cmd["index"]=whole_integer(raw.fetch("index"),0,stack.length-1)
+          end
         when "modifier"
+          stack=modifier_stack(object);target=stack.find { |m| m["name"]==raw["name"] }
+          raise ArgumentError,"Modifier type does not match its saved source" if target && target["type"]!=raw["type"]
+          raise ArgumentError,"Use at most 64 modifiers per object" if !target && stack.length>=64
           allowed={"SUBSURF"=>{"levels"=>[0,3],"render_levels"=>[0,3]},"MIRROR"=>{"use_clip"=>[0,1]},"SOLIDIFY"=>{"thickness"=>[-100,100]},"BEVEL"=>{"width"=>[0,100],"segments"=>[1,8]},"DECIMATE"=>{"ratio"=>[0.001,1]}}
           spec=allowed[raw["type"]] || raise(ArgumentError,"Unsupported modifier")
           properties=raw.fetch("properties",{}).to_h
           raise ArgumentError,"Unknown modifier property" unless (properties.keys-spec.keys).empty?
-          cmd.merge!("type"=>raw["type"],"name"=>name(raw.fetch("name")),"properties"=>properties.to_h { |k,v| [k,k=="use_clip" ? ActiveModel::Type::Boolean.new.cast(v) : %w[levels render_levels segments].include?(k) ? integer(v,*spec[k]) : number(v,*spec[k])] })
+          raise ArgumentError,"Modifier names must fit within 63 UTF-8 bytes" if name(raw.fetch("name")).bytesize>63
+          cmd.merge!("type"=>raw["type"],"name"=>name(raw.fetch("name")),"properties"=>properties.to_h { |k,v| [k,k=="use_clip" ? ActiveModel::Type::Boolean.new.cast(v) : %w[levels render_levels segments].include?(k) ? whole_integer(v,*spec[k]) : number(v,*spec[k])] })
         when "bone_pose"
           cmd["bone"]=name(raw.fetch("bone"));%w[location rotation scale].each { |k| cmd[k]=vector(raw.fetch(k,k=="scale" ? [1,1,1] : [0,0,0])) }
         when "bone_add"

@@ -6,6 +6,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 
 - [x] Photo/video editing engines, saved projects and PNG/MP4 exports.
 - [x] Saved Blender authoring commands and an interactive object-skew control (PR #241).
+- [x] Named Blender modifier stacks, typed parameter controls, independent viewport/render state, ordering/removal and saved undo/redo. See [Modifier stack](blender-modifier-stack.md).
 - [x] Ordered storyboard, camera/frame/Cast selection and immutable shot render snapshots.
 - [x] Managed Genesis worker/model setup, authenticated routing, resumable verified packages and core image/video recipe contracts. See [Genesis workers](genesis-workers.md).
 - [x] Offline speech-driven mouth cues, editable phoneme takes, optional detailed face bindings and native Blender animation. See [Character lip sync](character-lip-sync.md).

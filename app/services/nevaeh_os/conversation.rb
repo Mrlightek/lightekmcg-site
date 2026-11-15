@@ -33,7 +33,10 @@ module NevaehOs
       else
         case command.fetch('kind')
       when 'production'
-        if command['operation']=='catalog'
+        if command['operation']=='personalities'
+          rows=Studio::Director::Personality.catalog
+          {'text'=>rows.map { |row| "#{row['key']} · #{row['name']} · #{row['habit']}" }.join("\n"),'personality_templates'=>rows,'status'=>'ready'}
+        elsif command['operation']=='catalog'
           rows = Studio::Director::Producer.catalog
           {'text'=>rows.map { |row| "#{row['key']} · #{row['name']} · #{row['scene_count']} scenes" }.join("\n"), 'recipes'=>rows, 'status'=>'ready'}
         else

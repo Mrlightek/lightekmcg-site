@@ -15,7 +15,7 @@ module Studio
       def self.normalize(raw)
         raise ArgumentError, 'Production inputs must be an object' unless raw.is_a?(Hash)
         data = raw.deep_stringify_keys
-        raise ArgumentError, 'Unknown production input' unless (data.keys - %w[name template_key show_bible_key episode_number dialogue destinations]).empty?
+        raise ArgumentError, 'Unknown production input' unless (data.keys - %w[name template_key show_bible_key episode_number series_key dialogue destinations]).empty?
         name = data.fetch('name').to_s.strip
         raise ArgumentError, 'Give the episode a name of 1–120 characters' unless data['name'].is_a?(String) && name.length.between?(1,120) && !name.match?(/[\x00-\x1f]/)
         key = TEMPLATE_ALIASES.fetch(data['template_key'], data['template_key'])
@@ -25,21 +25,24 @@ module Studio
         raise ArgumentError, 'Choose a show bible preset' if bible && (bible['kind'] || bible['type']) != 'show_bible'
         episode = data.fetch('episode_number',1)
         raise ArgumentError, 'Choose a positive episode number' unless episode.is_a?(Integer) && episode.between?(1,10000)
+        series=data['series_key']
+        raise ArgumentError,'Use a series key of 1–80 letters, digits, underscores or hyphens' if series && (!series.is_a?(String) || !series.match?(/\A[a-zA-Z0-9_-]{1,80}\z/))
         destinations = data.fetch('destinations', %w[lightek_streaming])
         raise ArgumentError, 'Choose OTT, community, TikTok, Instagram or Facebook destinations' unless destinations.is_a?(Array) && destinations.any? && (destinations - Studio::Publishers::Registry::PUBLISHERS.keys).empty?
         lines = data.fetch('dialogue',[])
         raise ArgumentError, 'Provide at most 100 dialogue cues' unless lines.is_a?(Array) && lines.size <= 100
         lines = lines.map do |line|
-          raise ArgumentError, 'Each dialogue cue must be an object' unless line.is_a?(Hash) && (line.keys - %w[scene speaker text start voice speed]).empty?
+          raise ArgumentError, 'Each dialogue cue must be an object' unless line.is_a?(Hash) && (line.keys - %w[scene speaker text start voice speed auto_start]).empty?
           line = line.deep_stringify_keys
+          raise ArgumentError,'Automatic dialogue timing must be a boolean' if line.key?('auto_start') && ![true,false].include?(line['auto_start'])
           text = line.fetch('text').to_s
           speaker = line.fetch('speaker','Narrator').to_s
           index = line.fetch('scene')
           start = Float(line.fetch('start',0))
           raise ArgumentError, 'Use dialogue of 1–400 characters, a speaker and a valid scene number' unless line['text'].is_a?(String) && text.length.between?(1,400) && !text.match?(/[\x00-\x08\x0b-\x1f]/) && speaker.length.between?(1,80) && index.is_a?(Integer) && index.between?(1,100) && start.finite? && start.between?(0,570)
-          {'scene'=>index, 'speaker'=>speaker, 'text'=>text, 'start'=>start, 'voice'=>Voice.voice!(line.fetch('voice','en-us')), 'speed'=>Voice.speed!(line.fetch('speed',155))}
+          {'scene'=>index, 'speaker'=>speaker, 'text'=>text, 'start'=>start, 'auto_start'=>line.fetch('auto_start',!line.key?('start')), 'voice'=>Voice.voice!(line.fetch('voice','en-us')), 'speed'=>Voice.speed!(line.fetch('speed',155))}
         end
-        {'name'=>name, 'template_key'=>key, 'show_bible_key'=>data['show_bible_key'], 'episode_number'=>episode, 'dialogue'=>lines, 'destinations'=>destinations.uniq}
+        {'name'=>name, 'template_key'=>key, 'show_bible_key'=>data['show_bible_key'], 'episode_number'=>episode, 'series_key'=>series, 'dialogue'=>lines, 'destinations'=>destinations.uniq}
       rescue KeyError => error
         raise ArgumentError, "Missing production input: #{error.key}"
       end
@@ -138,11 +141,38 @@ module Studio
         find!(production.id, actor: actor)
         operations = production.studio_operations.where(capability: 'studio.direct.voice').order(:id).to_a
         status = operations.any? { |operation| operation.status == 'failed' } ? 'needs_attention' : operations.any? { |operation| %w[pending running].include?(operation.status) } ? 'dispatched' : 'prepared'
+        stories = production.studio_operations.where(capability:'studio.direct.story').order(:id).to_a
+        renders = production.studio_operations.where(capability:'studio.render.preview').select { |op| op.metadata['director_render_key'] }
+        assemblies = production.studio_operations.where(capability:'studio.direct.assemble').order(:id).to_a
+        publications = production.studio_publications.order(:id).to_a
+        voice_status=status
+        current_work=[stories.last,assemblies.last,*renders.group_by(&:studio_scene_id).values.map(&:last),*publications.group_by { |pub| [pub.platform,pub.metadata['connection_id']] }.values.map(&:last)].compact
+        status = 'needs_attention' if current_work.any? { |row| %w[failed needs_review].include?(row.status) }
+        status = 'dispatched' if status!='needs_attention' && current_work.any? { |row| %w[pending running draft scheduled publishing].include?(row.status) }
         director = production.metadata.fetch('director').deep_dup
-        director['readiness']['voices'] = operations.empty? ? 'dialogue_required' : status == 'prepared' ? 'ready' : status
-        {'production_id'=>production.id, 'status'=>status, 'director'=>director, 'voice_operations'=>operations.map { |operation| {'id'=>operation.id, 'status'=>operation.status, 'error'=>operation.error_message} },
-          'links'=>[{'label'=>'Open episode in Studio', 'url'=>"/dashboard/studio-broadcasting/workspace/#{director['scene_ids'].first}?site_id=#{production.studio_project.site_id}&workspace=script"}],
-          'text'=>"#{production.name}: #{status}. #{director['scene_ids'].size} editable scenes, #{director['total_seconds'].round} seconds planned, using existing production recipes and camera direction. Dialogue cues produce synthetic voice assets. Finished character performances, master assembly and publication still require their Studio workflows. Use /produce status #{production.id}."}
+        director['readiness']['voices'] = operations.empty? ? 'dialogue_required' : voice_status == 'prepared' ? 'ready' : voice_status
+        director['readiness']['scene_renders'] = renders.map(&:status).uniq.join(', ') if renders.any?
+        performance_takes = production.studio_scenes.flat_map do |scene|
+          scene.scene_objects.filter_map do |object|
+            take=object.definition['performance']
+            next unless take && object.definition['director_speaker']
+            {'scene_id'=>scene.id,'object_id'=>object.id,'speaker'=>object.definition['director_speaker'],'audio_asset_id'=>take['audio_asset_id'],'duration'=>take['duration']}
+          end
+        end
+        director['readiness']['finished_performances'] = "#{performance_takes.size} editable takes prepared; artistic review required" if performance_takes.any?
+        latest = assemblies.last
+        director['readiness']['episode_master'] = latest.status if latest
+        director['readiness']['publishing'] = publications.map(&:status).uniq.join(', ') if publications.any?
+        links = [{'label'=>'Open episode in Studio', 'url'=>"/dashboard/studio-broadcasting/workspace/#{director['scene_ids'].first}?site_id=#{production.studio_project.site_id}&workspace=script"}]
+        if renders.any?
+          links << {'label'=>'Render quotes & checkout', 'url'=>"/dashboard/studio-broadcasting/workspace/#{director['scene_ids'].first}?site_id=#{production.studio_project.site_id}&workspace=deliver"}
+        end
+        if latest&.status=='completed' && (artifact=latest.artifacts.find_by(kind:'video')) && artifact.file.attached?
+          links << {'label'=>'Review episode master', 'url'=>Rails.application.routes.url_helpers.rails_blob_path(artifact.file,disposition:'inline',only_path:true)}
+        end
+        {'production_id'=>production.id, 'status'=>status, 'render_operations'=>renders.map { |op| {'id'=>op.id,'scene_id'=>op.studio_scene_id,'status'=>op.status,'error'=>op.error_message,'quote'=>op.cost_quote} }, 'assembly_operations'=>assemblies.map { |op| {'id'=>op.id,'status'=>op.status,'error'=>op.error_message,'artifact_id'=>op.manifest['artifact_id']} }, 'publications'=>publications.map { |pub| {'id'=>pub.id,'destination'=>pub.platform,'status'=>pub.status,'error'=>pub.error_message,'post_id'=>pub.metadata['post_id'],'remote_id'=>pub.metadata.dig('social_submission','media_id') || pub.metadata.dig('social_submission','remote_id'),'provider_status'=>pub.metadata.dig('social_submission','provider_status')} }, 'director'=>director, 'story_operations'=>stories.map { |op| Studio::Director::StoryPipeline.receipt(op) }, 'performance_takes'=>performance_takes, 'voice_operations'=>operations.map { |operation| {'id'=>operation.id, 'scene_id'=>operation.studio_scene_id, 'status'=>operation.status, 'error'=>operation.error_message,'cues'=>Array(operation.manifest['dialogue']).each_with_index.map { |cue,index| {'cue_index'=>index,'speaker'=>cue['speaker'],'start'=>cue['start'],'audio_asset_id'=>Array(operation.manifest['asset_ids'])[index]} }} },
+          'links'=>links,
+          'text'=>"#{production.name}: #{status}. #{director['scene_ids'].size} editable scenes, #{director['total_seconds'].round} seconds planned, using existing production recipes and camera direction. Dialogue cues produce synthetic voice assets. Use /produce animate for bound Cast performances, /produce assemble for full scene exports, and /produce publish for reviewed community/OTT delivery. Use /produce status #{production.id}."}
       end
     end
   end

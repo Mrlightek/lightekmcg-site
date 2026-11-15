@@ -13,6 +13,12 @@ class StudioDirectedVoiceJob < ApplicationJob
     scene = Studio::PwaAccess.new('user_id'=>actor.id,'site_id'=>operation.studio_project.site_id).scene!(operation.studio_scene_id)
     cues = operation.manifest.fetch('dialogue')
     assets = cues.each_with_index.map { |line,index| Studio::Director::Voice.asset!(operation, actor, line, index) }
+    cursor=0.0
+    cues=cues.zip(assets).map do |line,asset|
+      cue=line.merge('start'=>line['auto_start'] ? cursor : line.fetch('start'))
+      cursor=[cursor,cue['start']+asset.metadata.fetch('duration')].max
+      cue
+    end
     scene.with_lock do
       operation.reload
       return if operation.status == 'cancelled'
@@ -37,7 +43,7 @@ class StudioDirectedVoiceJob < ApplicationJob
       owned = StudioAsset.for_actor(access).where(site_id: access.site_id, id: timeline['clips'].map { |clip| clip['asset_id'] }).index_by(&:id)
       normalized = Studio::Editing::Timeline.normalize(timeline, assets: owned)
       scene.update!(settings: scene.settings.merge('timeline'=>normalized,'voice_direction'=>{'operation_id'=>operation.id,'asset_ids'=>assets.map(&:id),'synthetic'=>true}))
-      operation.update!(status: 'completed', completed_at: Time.current, manifest: operation.manifest.merge('asset_ids'=>assets.map(&:id)))
+      operation.update!(status: 'completed', completed_at: Time.current, manifest: operation.manifest.merge('dialogue'=>cues,'asset_ids'=>assets.map(&:id)))
     end
   rescue StandardError => error
     operation&.with_lock do

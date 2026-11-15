@@ -9,6 +9,8 @@ from mathutils import Vector, Matrix, Euler
 sys.path.insert(0, os.path.dirname(__file__))
 import authoring
 import performance
+import relationships
+import spatial_checks
 import motion
 import appearance
 
@@ -889,6 +891,9 @@ def stage_manifest(manifest):
             f"Created {item.get('type')} "
             f"{obj.name!r}"
         )
+
+    relationships.apply(objects, created)
+    spatial_checks.validate(objects, created, settings)
 
     # An explicit production format takes precedence over recipe animation FPS.
     if "fps" in settings:

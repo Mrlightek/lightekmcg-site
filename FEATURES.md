@@ -361,3 +361,28 @@ Guides: [Lightek Connect](docs/integrations/lightek-connect.md), [Vault recovery
 The final PR #230 enterprise/Connect harness passed **80 tests / 743 assertions** on Rails 8.0.5/PostgreSQL 16, with separate Connect, People/payroll and deployment-preflight checks passing. [Recorded enterprise run](https://github.com/Mrlightek/lightekmcg-site/actions/runs/43491056481). Its cross-server transport is replaced in-process; real deployed provider/host acceptance is a separate result. Other modules have their own checks and recorded limitations in the linked guides. This inventory does not declare every repository workflow green.
 
 When a capability changes, update its owning guide and this catalog, retain the exact verification boundary, and keep the installed registry/KB procedure aligned. Put future targets in the [product contract](docs/platform/product-contract.md), [ERP workstreams](docs/platform/erp-completion.md) or [Studio roadmap](docs/studio/roadmap.md), so operators can distinguish current workflows from work still to finish.
+
+
+## Nevaeh production Director and task workspace
+
+| Area | Implemented behavior |
+| --- | --- |
+| Workspace | Conversation, Studio/Guide/learning navigation, agent selection, workers, watchers, recent-action reopen, source evidence, memory controls, responsive layout; former astronomy interface retired. |
+| Campaign producer | Editable portrait ad script/storyboard, graphics, music, captions and private MP4 draft preview. |
+| Episode preparation | Existing recipes and show bibles, independent long-form episode scenes, camera coverage and local stock-voice dialogue. |
+| Character direction | Automatic placement of registered Cast assets, audio-driven mouth animation, available gestures/expressions and optional registered body motions; one take per character per scene, pinned speaker/series identity, deliberate listener targets and personal-space/collision preflight. |
+| Scene render | Full-scene Blender movie snapshots and existing paid render quotes, replay protection and Studio checkout. |
+| Episode assembly | Current complete scene exports in saved scene order; pinned media and source checks, verified 1080p MP4 with stereo audio, up to four hours across multiple scene timelines. |
+| Reviewed delivery | Explicitly reviewed Director masters dispatched through existing native community/OTT publishers, with current permissions and per-destination receipts. TikTok Direct Post and Instagram Reels transports use existing scoped connections, explicit settings, polling and uncertain-response reconciliation; Facebook Studio video transport remains unimplemented. |
+
+Guides: [Campaign producer](docs/nevaeh/tutorials/campaign_producer.md), [Production Director](docs/nevaeh/tutorials/production_director.md), [Nevaeh workspace](docs/nevaeh_operating_system.md). These are connected editable workflows, not automatic finished screenplay/actor generation or verified production deployment.
+
+
+| Story and spatial direction | Behavior |
+| --- | --- |
+| Fiction personality catalog | 36 zodiac-inspired creative archetype variations, optional fictional birth background, explicit goals/knowledge/secrets; isolated from operating identity. |
+| Cooperative narrative workers | Sage characters → Warden event/knowledge simulation → Nevaeh camera viewpoints → Muse editable script scaffold, persisted stage/run evidence and stale-edit stops. |
+| Relative scene graph | Optional parent offsets, camera tracking and reciprocal character facing via independent baked targets; cycles/missing scene-local references rejected. |
+| Physical plausibility | Scene-metre personal space, explicit close contact, per-frame evaluated mesh collision checks, parent-relative camera placement and target-focused perspective/DOF. Detection stops invalid blocking; it does not add automatic path solving or subframe physics. |
+
+Guides: [Story simulation](docs/nevaeh/tutorials/story_simulation.md) and [Social delivery](docs/nevaeh/tutorials/social_delivery.md). Real social provider approval/configuration and live production acceptance remain deployment checks.

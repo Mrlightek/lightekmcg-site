@@ -18,7 +18,9 @@ module NevaehOs
           Studio::Director::Producer.normalize(command.fetch('values'))
         elsif command['operation']=='retry'
           Studio::Director::Producer.voice_operation!(command.fetch('id'), actor: actor)
-        elsif command['operation']=='status'
+        elsif command['operation']=='story_status'
+          Studio::Director::StoryPipeline.find!(command.fetch('id'),actor:actor)
+        elsif %w[status animate assemble publish render story story_step blocking].include?(command['operation'])
           Studio::Director::Producer.find!(command.fetch('id'), actor: actor)
         else
           raise ArgumentError, 'Unknown production action'
@@ -110,6 +112,12 @@ module NevaehOs
         case command.fetch('operation')
         when 'start' then producer.start!(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')), values: command.fetch('values'), request_key: "nevaeh-production-#{action.id}")
         when 'status' then producer.receipt(producer.find!(command.fetch('id'), actor: actor), actor: actor)
+        when 'story' then Studio::Director::StoryPipeline.start!(production:producer.find!(command.fetch('id'),actor:actor),actor:actor,values:command.fetch('values'),request_key:"nevaeh-story-#{action.id}")
+        when 'story_step' then Studio::Director::StoryPipeline.step!(production:producer.find!(command.fetch('id'),actor:actor),actor:actor,values:command.fetch('values'),request_key:"nevaeh-story-step-#{action.id}")
+        when 'story_status' then Studio::Director::StoryPipeline.receipt(Studio::Director::StoryPipeline.find!(command.fetch('id'),actor:actor))
+        when 'render' then Studio::Director::Finishing.render!(production:producer.find!(command.fetch('id'),actor:actor),actor:actor,request_key:"nevaeh-render-#{action.id}")
+        when 'animate', 'assemble', 'publish', 'blocking'
+          Studio::Director::Finishing.public_send("#{command.fetch('operation')}!",production:producer.find!(command.fetch('id'),actor:actor),actor:actor,values:command.fetch('values'),request_key:"nevaeh-finishing-#{action.id}")
         when 'retry' then producer.retry_voice!(command.fetch('id'), actor: actor)
         end
       when 'campaign_produce'

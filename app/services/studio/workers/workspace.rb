@@ -280,10 +280,20 @@ module Studio
           key = @payload.fetch("request_key").to_s
           raise ArgumentError, "Request key required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
           platform=@payload.fetch("platform","lightek_social")
-          raise ArgumentError,"Choose a native publishing destination" unless %w[lightek_social lightek_streaming octavia].include?(platform)
+          raise ArgumentError,"Choose a supported publishing destination" unless %w[lightek_social lightek_streaming octavia tiktok instagram].include?(platform)
           metadata = { "user_id" => @access.user.id, "site_id" => @access.site_id, "request_key" => key,
             "audience" => @payload.fetch("audience","everyone"), "title" => @payload["title"], "content" => @payload["content"], "community_slug" => @payload["community_slug"] }
+          if %w[tiktok instagram].include?(platform)
+            raise ArgumentError,'Review the video and social settings before submitting' unless @payload['reviewed']==true
+            connection=Studio::Publishers::SocialTransport.connection!(@payload.fetch('connection_id'),actor:@access.user,project:project)
+            raise ArgumentError,'Choose a matching social account' unless connection.provider==platform
+            metadata.merge!('reviewed'=>true,'connection_id'=>connection.id,'tiktok_settings'=>@payload['tiktok_settings'])
+          end
+          fingerprint=Digest::SHA256.hexdigest(@payload.except('user_id','site_id','origin','request_key').to_json)
+          metadata['input_fingerprint']=fingerprint
           publication = project.studio_publications.find_by(request_key: key)
+          publication ||= project.studio_publications.where(platform:platform,artifact_id:@payload.fetch('artifact_id')).detect { |pub| pub.metadata['input_fingerprint']==fingerprint } if %w[tiktok instagram].include?(platform)
+          raise ArgumentError,'This request key belongs to different publishing inputs' if publication && publication.metadata['input_fingerprint'] && publication.metadata['input_fingerprint']!=fingerprint
           unless publication
             operation = project.studio_operations.where(status: "completed").joins(:artifacts).where(artifacts: { id: @payload.fetch("artifact_id") }).first!
             artifact = operation.artifacts.find(@payload.fetch("artifact_id"))
@@ -649,7 +659,7 @@ module Studio
         project = @access.projects.find(@payload.fetch("project_id"))
         { publications: project.studio_publications.order(id: :desc).limit(30).map { |publication|
             { id: publication.id, status: publication.status, scheduled_at: publication.scheduled_at&.iso8601,
-              error: publication.error_message, post_id: publication.metadata.to_h["post_id"] } },
+              error: publication.error_message, post_id: publication.metadata.to_h["post_id"],remote_id:publication.metadata.dig("social_submission","media_id") || publication.metadata.dig("social_submission","remote_id"),platform:publication.platform } },
           operations: project.studio_operations.where.not(operation_type:"speech_analysis").order(id: :desc).limit(30).map do |operation|
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,

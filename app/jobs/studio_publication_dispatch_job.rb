@@ -6,7 +6,7 @@ class StudioPublicationDispatchJob < ApplicationJob
   def perform(publication_id)
     publication = StudioPublication.find(publication_id)
 
-    return if publication.status.in?(%w[published cancelled publishing])
+    return if publication.status.in?(%w[published cancelled publishing needs_review])
 
     if publication.status == "scheduled" &&
        publication.scheduled_at.present? &&

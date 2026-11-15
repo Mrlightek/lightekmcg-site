@@ -2,7 +2,9 @@
 module NevaehOs
   module Guide
     TUTORIALS={
-      'production_director'=>['Direct episodes from production recipes and show bibles','all'],
+      'story_simulation'=>['Characters, viewpoints, relative blocking and story workers','all'],
+      'social_delivery'=>['Studio TikTok and Instagram video delivery','all'],
+      'production_director'=>['Direct episodes, characters, story workers and delivery','all'],
       'campaign_producer'=>['Produce a campaign in Studio','growth'],
       'growth'=>['Daily business growth plans','growth'],
       'start'=>['Meet your operating workspace','all'], 'commands'=>['Commands, inputs and capability discovery','all'],
@@ -29,6 +31,8 @@ module NevaehOs
       'resources'=>['CRUD resource contracts','/resources','commands','all'],
       'status'=>['Execution activity','/status','recovery','all'],
       'studio.direct.production'=>['Prepare an episode using existing recipes, bibles and voice cues','make a 22 minute comedy episode called Family Business','production_director','all'],
+      'studio.direct.story'=>['Character templates and collaborative story simulation','/produce personalities','production_director','all'],
+      'studio.direct.finishing'=>['Scene rendering, episode assembly and reviewed delivery','/guide production_director','production_director','all'],
       'marketing.campaign.produce'=>['Create an editable TikTok ad with private preview','make me a funny tiktok campaign ad promoting Xyzzy service','campaign_producer','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],

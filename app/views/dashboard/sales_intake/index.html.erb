@@ -1,0 +1,36 @@
+<% content_for :page_title, 'Inquiry inbox · Sales & CRM' %>
+<main class="sales-workspace"><%= render 'dashboard/sales/header' %>
+  <div class="sales-record-heading"><div><span class="sales-eyebrow">TURN INTEREST INTO A CONVERSATION</span><h2>Inquiry inbox</h2><p>Review new interest, keep its source, and give someone the next move.</p></div></div>
+  <nav class="sales-tabs" aria-label="Inquiry status"><% %w[awaiting_review needs_review imported duplicate ignored].each do |status| %><%= link_to status.humanize, dashboard_sales_intake_path(site_id: @site.id, status: status), aria: {current: @status == status ? 'page' : nil} %><% end %></nav>
+  <section class="sales-panel"><h2><%= @status.humanize %></h2>
+    <div class="sales-table-scroll"><table><thead><tr><th>Person</th><th>Source</th><th>Received</th><th>Next step</th></tr></thead><tbody>
+      <% @entries.each do |entry| %><tr><td><%= link_to entry.payload['name'].presence || 'Review missing name', dashboard_sales_intake_entry_path(site_id: @site.id, id: entry.id) %><small><%= entry.payload['email'].presence || 'Email needed' %></small></td><td><%= entry.source %><small><%= entry.origin.humanize %></small></td><td><%= entry.created_at.to_fs(:short) %></td><td><%= entry.error_message.presence || entry.status.humanize %></td></tr><% end %>
+    </tbody></table></div><% if @entries.empty? %><p class="sales-empty">Nothing in this queue. Review a website inquiry or stage a CSV below.</p><% end %><small>Showing the latest 100 entries in this status.</small>
+  </section>
+  <section class="sales-two-col">
+    <article class="sales-panel"><span class="sales-eyebrow">ALREADY ON YOUR WEBSITE</span><h2>Unreviewed form submissions</h2><p>These are saved inquiries from this website. Choose which belong in your sales pipeline.</p>
+      <% @inquiries.each do |inquiry| %><div class="sales-follow-up"><div><strong><%= inquiry.fields['name'].presence || "Inquiry ##{inquiry.id}" %></strong><small><%= inquiry.template_key.humanize %> · <%= inquiry.section_key %> · <%= inquiry.created_at.to_fs(:short) %></small></div><%= button_to 'Review inquiry', capture_dashboard_sales_intake_path(site_id: @site.id), params: {inquiry_id: inquiry.id}, class: 'sales-button secondary' %></div><% end %>
+      <% if @inquiries.empty? %><p class="sales-empty">Every saved inquiry has an inbox entry.</p><% end %><small>Latest 50 uncaptured submissions. Review does not reserve a service or subscribe anyone to marketing.</small>
+    </article>
+    <article class="sales-panel"><span class="sales-eyebrow">BRING YOUR CONTACT LIST</span><h2>Stage a CSV for review</h2><p>Use headers <code>name,email</code>. Optional: <code>company,phone,message,source</code>. Each row becomes an inbox entry; leads are created only when accepted.</p>
+      <%= form_with url: upload_dashboard_sales_intake_path(site_id: @site.id), multipart: true, class: 'sales-form' do |f| %><label>CSV file<%= f.file_field :file, accept: '.csv,text/csv', required: true %><small>UTF-8 · maximum 100 rows · 512 KB · up to 2000 characters per field.</small></label><%= f.submit 'Stage for review', class: 'sales-button' %><% end %>
+      <p>Uploading the same file again reuses its inbox entries. Accepting an existing email links its lead and preserves its history.</p>
+    </article>
+  </section>
+  <% if @manage_routing %>
+    <section class="sales-panel"><span class="sales-eyebrow">LET THE WEBSITE HAND IT TO SALES</span><h2>Automatic form intake</h2><p>Choose a published form, map its fields and enable it. Future valid submissions become routed leads with a follow-up task. Incomplete submissions stay in Needs review.</p>
+      <% @rules.each do |rule| %><p><%= link_to "#{rule.template_key.humanize} / #{rule.section_key}", dashboard_sales_intake_path(site_id: @site.id, rule_id: rule.id) %> · <strong><%= rule.enabled? ? 'Enabled' : 'Disabled' %></strong> · source: <%= rule.source %></p><% if rule.enabled? %><%= button_to 'Disable automation', configure_dashboard_sales_intake_path(site_id: @site.id), params: {form_key: [rule.template_key, rule.section_key].join('::'), rule_id: rule.id, lock_version: rule.lock_version, rule: {enabled: '0'}}, class: 'sales-button secondary' %><% end %><% end %>
+      <% if @forms.any? %>
+        <%= form_with url: dashboard_sales_intake_path, method: :get, class: 'sales-filters' do |f| %><%= hidden_field_tag :site_id, @site.id, id: 'intake_form_site_id' %><label>Published form<%= select_tag :form_key, options_for_select(@forms.map { |key| [key.split('::').join(' / '), key] }, @form_key) %></label><%= submit_tag 'Choose form', class: 'sales-button secondary' %><% end %>
+        <% if @form_fields.any? %>
+          <%= form_with url: configure_dashboard_sales_intake_path(site_id: @site.id), scope: :rule, class: 'sales-form sales-rule-editor' do |f| %>
+            <%= hidden_field_tag :form_key, @form_key %><% if @rule.persisted? %><%= hidden_field_tag :rule_id, @rule.id %><%= hidden_field_tag :lock_version, @rule.lock_version %><% end %>
+            <div class="sales-form-grid"><label>Lead source<%= f.text_field :source, value: @rule.source, required: true, maxlength: 80 %><small>Matches your lead-routing source rules.</small></label><label>Automatic acceptance<%= f.select :enabled, [['Disabled — review manually', '0'], ['Enabled — accept new valid inquiries', '1']], selected: @rule.enabled? ? '1' : '0' %></label>
+              <% LightekSales::IntakeRule::TARGETS.each do |field| %><label><%= field.humanize %> field<%= select_tag "rule[mapping][#{field}]", options_for_select([['Not present', '']] + @form_fields.map { |key| [key.humanize, key] }, @rule.mapping[field].presence || (field == 'message' && @form_fields.include?('msg') ? 'msg' : @form_fields.include?(field) ? field : '')), required: field.in?(%w[name email]) %></label><% end %>
+            </div><%= f.submit 'Save form intake', class: 'sales-button' %>
+          <% end %>
+        <% end %>
+      <% else %><p class="sales-empty">Publish an installed starter form to configure automatic intake. Existing inquiries can still be reviewed manually.</p><% end %>
+    </section>
+  <% end %>
+</main>

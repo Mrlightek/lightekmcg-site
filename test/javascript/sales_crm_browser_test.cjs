@@ -17,7 +17,7 @@ if (!folder) throw new Error('Export views with SALES_PREVIEW_DIR and sales_crm_
     });
     for (const width of [1440, 1024, 390]) {
       await page.setViewportSize({ width, height: 1000 });
-      for (const screen of ['today', 'pipeline', 'deal']) {
+      for (const screen of ['today', 'pipeline', 'deal', 'intake', 'inquiry', 'tasks']) {
         await page.goto(`http://sales.test/${screen}`);
         await page.getByRole('heading', { name: 'Sales & CRM', exact: true }).waitFor();
         assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `page overflow ${screen} at ${width}`);
@@ -36,6 +36,6 @@ if (!folder) throw new Error('Export views with SALES_PREVIEW_DIR and sales_crm_
       }
     }
     assert.deepEqual(errors, []);
-    console.log('SALES_BROWSER_PASS native Today, pipeline and deal views; currency inputs, relationship links and responsive layout at 1440/1024/390');
+    console.log('SALES_BROWSER_PASS native Today, pipeline, deal, inquiry inbox/review and task views; currency inputs, relationship links and responsive layout at 1440/1024/390');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

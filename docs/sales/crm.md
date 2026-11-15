@@ -4,6 +4,8 @@ Open **Dashboard → Sales & CRM**, or **Business → Sales & CRM**, and choose 
 
 This workspace helps an owner run a repeatable sales process: capture interest, understand the buyer, agree on a next step, qualify the opportunity, prepare a proposal and follow the deal through a decision.
 
+Website form intake, reviewed CSV imports and assigned follow-up tasks are available in [Inquiry intake and sales follow-through](intake-and-follow-through.md).
+
 ## Start with your own business
 
 1. Choose the website you sell through. For Lightek itself, use the Lightek business website rather than a client website.
@@ -67,14 +69,14 @@ Save a note, call, meeting or email activity on a record. The timeline records a
 
 Disqualify inactive leads or close lost deals with a reason. This release does not offer destructive CRM deletion. Lists show up to 200 records, pipeline columns up to 40 deals each, follow-up lists up to 100 of each type, related lists up to 50 of each type, and activity timelines up to 100 entries. Use owner/name filters to narrow large lists. The forecast covers the entire filtered scope, including records beyond visible list limits.
 
-Automatic lead capture, imports/merging, custom stages, round-robin/territory routing, scheduled reminders, email/calendar synchronization, quote approval, automatic order handoff and typed Nevaeh sales commands are not delivered by this foundation sprint. There are no external AI calls or automatic customer messages here.
+Opt-in published-form intake, reviewed CSV staging and in-app due tasks/calendar downloads are now delivered in the follow-through sprint. Contact merging, custom stages, round-robin/territory routing, email reminder delivery, email/calendar synchronization, quote approval, automatic order handoff and typed Nevaeh sales commands remain subsequent work. There are no external AI calls or automatic customer messages here.
 
 ## CRM completion sequence
 
 | Sprint | Business outcome | Acceptance |
 | --- | --- | --- |
 | 1 — Sales foundation (this release) | Capture → qualify → convert → manage deals and follow-ups → estimate pipeline | Site-scoped records, shared contacts, source routing, atomic conversion, stage guidance, independent currency totals and activity history |
-| 2 — Intake and follow-through | Inquiries enter the pipeline and the right person follows up | Authorized form/import adapters; duplicate review; scheduled tasks/reminders; email/calendar links; source attribution and recovery |
+| 2 — Intake and follow-through (delivered core) | Inquiries enter the pipeline and the right person follows up | Opt-in published-form adapter, reviewed CSV intake, duplicate linking, assigned/snoozable due tasks, calendar snapshots, source attribution and queue recovery. Email/calendar synchronization remains separate work. |
 | 3 — Quote to delivery | Agreed scope becomes an approved, payable and fulfilled service | Versioned quotes, approvals and signatures against verified existing Bank/Commerce contracts; traceable deal/order/invoice/payment/provisioning links; retry without duplicate billing |
 | 4 — Team sales management | Managers can operate a growing sales team | Configurable stages, ownership queues, round-robin/territory rules, quotas, stage aging, conversion/loss reports and forecast history |
 | 5 — Nevaeh sales execution | Natural-language requests execute supported sales workflows | Typed site-authorized capabilities, deterministic inputs, traceable receipts, escalation and tested recovery; external outreach uses the established communication permissions |
@@ -82,11 +84,11 @@ Automatic lead capture, imports/merging, custom stages, round-robin/territory ro
 ## Verification
 
 ```sh
-ruby test/standalone/sales_crm_checks.rb
-SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/sales_crm_checks.rb
+ruby test/standalone/sales_intake_checks.rb
+SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/sales_intake_checks.rb
 SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs
 ```
 
-The standalone suite runs the real migration, models, transactional services, route file, controller and native ERB views using Rails/ActiveRecord and SQLite. The private Dashboard authentication/layout and existing website-ownership resolver are fixture boundaries. Set `SALES_DATABASE_URL` to a disposable database to run the same contracts on another adapter; this script creates/deletes fixture tables and must never target production. Browser checks inspect the actual controller-rendered views inside a fixture Dashboard shell at 1440, 1024 and 390 pixels. Screenshots are optional with `SALES_SCREENSHOTS=1`; `CHROMIUM_PATH` can select an installed browser. Production MFA, package enforcement, PostgreSQL contention and client deployment acceptance remain host-environment verification. The Sales CRM acceptance workflow runs the standalone and browser checks on pull requests without private engine credentials.
+The standalone suite runs the real migrations, models, transactional services, jobs, route file, controllers and native ERB views using Rails/ActiveRecord and SQLite. The private Dashboard authentication/layout and existing website-ownership resolver are fixture boundaries. Set `SALES_DATABASE_URL` to a disposable database to run the same contracts on another adapter; this script creates/deletes fixture tables and must never target production. Browser checks inspect the actual controller-rendered views inside a fixture Dashboard shell at 1440, 1024 and 390 pixels. Screenshots are optional with `SALES_SCREENSHOTS=1`; `CHROMIUM_PATH` can select an installed browser. Production MFA, package enforcement, PostgreSQL contention and client deployment acceptance remain host-environment verification. The Sales CRM acceptance workflow runs the standalone and browser checks on pull requests without private engine credentials.
 
 Deployment requires `db:migrate`; the migration adds the CRM tables and enriches the existing Marketing contacts. Existing campaign permission fields are retained. No prospect data, example deals, routing assignments or customer messages are seeded automatically.

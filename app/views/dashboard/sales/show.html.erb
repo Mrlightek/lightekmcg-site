@@ -86,6 +86,12 @@
       <small>Up to 50 related records of each type.</small>
     </section>
   <% end %>
+  <% if @record.persisted? && @kind.in?(%w[lead opportunity account contact]) && @record.errors.empty? %>
+    <section class="sales-panel sales-follow-through"><div class="sales-panel-title"><div><span class="sales-eyebrow">GIVE THE NEXT STEP AN OWNER</span><h2>Follow-up tasks</h2></div></div>
+      <% (@record_tasks || []).each do |task| %><%= render 'task', task: task %><% end %>
+      <%= form_with url: dashboard_sales_tasks_path(site_id: @site.id), scope: :task, class: 'sales-form' do |f| %><%= hidden_field_tag :record_kind, @kind %><%= hidden_field_tag :record_id, @record.id %><%= hidden_field_tag :request_key, SecureRandom.uuid %><div class="sales-form-grid"><label class="full">Task<%= f.text_field :title, required: true, maxlength: 300, placeholder: 'Call to review the proposal' %></label><label>Assigned to<%= f.collection_select :owner_id, @owners, :id, :email_address, {selected: @owners.exists?(id: current_user.id) ? current_user.id : @owners.first&.id}, required: true %></label><label>Due time (<%= Time.zone.name %>)<%= f.datetime_local_field :due_at, value: (Time.current + 1.day).strftime('%Y-%m-%dT%H:%M'), required: true %></label></div><%= f.submit 'Schedule task', class: 'sales-button' %><% end %>
+    </section>
+  <% end %>
   <% if @record.persisted? %>
     <section class="sales-two-col">
       <article class="sales-panel"><span class="sales-eyebrow">KEEP THE CONTEXT</span><h2>Log a conversation</h2><p>Record what happened and update the next step above.</p>

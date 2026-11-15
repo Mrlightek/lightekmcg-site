@@ -1,0 +1,11 @@
+<article class="sales-task">
+  <div class="sales-task-heading"><div><span class="sales-badge"><%= task.status.humanize %><%= ' · Due' if task.status == 'open' && task.due_at <= Time.current %></span><h3><%= task.title %></h3><p><%= link_to (task.record.respond_to?(:email) && task.record.is_a?(LightekMarketing::Contact) ? task.record.email : task.record.name), record_url(task.record_kind, task.record) %></p></div><div><strong><%= task.due_at.strftime('%b %-d, %Y · %H:%M') %></strong><small><%= Time.zone.name %></small><small><%= task.owner.email_address %></small></div></div>
+  <div class="sales-task-actions">
+    <%= link_to 'Add to calendar', calendar_dashboard_sales_task_path(site_id: @site.id, id: task.id), class: 'sales-button secondary', data: {turbo: false} %>
+    <% if task.status == 'open' %>
+      <%= button_to 'Mark complete', dashboard_sales_task_path(site_id: @site.id, id: task.id), method: :patch, params: {task: {action: 'complete', lock_version: task.lock_version}}, class: 'sales-button' %>
+      <%= form_with url: dashboard_sales_task_path(site_id: @site.id, id: task.id), method: :patch, scope: :task, class: 'sales-snooze' do |f| %><%= f.hidden_field :action, value: 'snooze', id: "task_#{task.id}_action" %><%= f.hidden_field :lock_version, value: task.lock_version, id: "task_#{task.id}_version" %><label>Snooze until<%= f.datetime_local_field :due_at, id: "task_#{task.id}_due_at", required: true, value: (Time.current + 1.day).strftime('%Y-%m-%dT%H:%M') %></label><%= f.submit 'Snooze', class: 'sales-button secondary' %><% end %>
+      <%= button_to 'Cancel task', dashboard_sales_task_path(site_id: @site.id, id: task.id), method: :patch, params: {task: {action: 'cancel', lock_version: task.lock_version}}, class: 'sales-button secondary' %>
+    <% end %>
+  </div>
+</article>

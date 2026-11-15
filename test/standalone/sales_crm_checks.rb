@@ -60,6 +60,7 @@ require ROOT.join('app/models/lightek_marketing/contact')
 %w[account opportunity lead routing_rule activity].each { |name| require ROOT.join("app/models/lightek_sales/#{name}") }
 %w[workspace forecast].each { |name| require ROOT.join("app/services/lightek_sales/#{name}") }
 require ROOT.join('app/services/lightek_agency/package_features')
+require_relative 'sales_intake_support'
 module Dashboard
   class SettingsHomeController < ActionController::Base
     before_action :require_settings_operator!, except: :csrf
@@ -72,6 +73,9 @@ module Dashboard
 end
 require ROOT.join('app/controllers/dashboard/commerce_base_controller')
 require ROOT.join('app/controllers/dashboard/sales_controller')
+require ROOT.join('app/controllers/dashboard/sales_intake_controller')
+require ROOT.join('app/controllers/dashboard/sales_tasks_controller')
+[Dashboard::SalesIntakeController, Dashboard::SalesTasksController].each { |klass| klass.prepend_view_path ROOT.join('app/views'); klass.layout false }
 Dashboard::SalesController.prepend_view_path ROOT.join('app/views')
 Dashboard::SalesController.layout false
 SalesHarness.routes.draw do
@@ -86,6 +90,10 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
   include SalesHarness.routes.url_helpers
   def app = SalesHarness
   def setup
+    ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+    LightekAgency::PackagePolicy.allowed = true
+    LightekAgency::PackagePolicy.reserved = LightekAgency::PackagePolicy.released = 0
+    [LightekSales::Task, LightekSales::IntakeEntry, LightekSales::IntakeRule, WebsiteTemplateInquiry, DymondSite::Section, DymondSite::Page].each(&:delete_all)
     [LightekSales::Activity, LightekSales::RoutingRule, LightekSales::Lead, LightekSales::Opportunity,
      LightekMarketing::Contact, LightekSales::Account, LightekAgency::SiteMembership, DymondSite::Site, User].each(&:delete_all)
     @owner = User.create!(email_address: 'owner@example.test', role: 'admin')

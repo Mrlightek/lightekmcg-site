@@ -4651,6 +4651,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
     t.index ["post_id"], name: "index_studio_broadcast_programs_on_post_id"
   end
 
+  create_table "studio_compute_leases", force: :cascade do |t|
+    t.bigint "studio_operation_id", null: false
+    t.string "tenant_key", null: false
+    t.string "token", null: false
+    t.string "worker", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "released_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["studio_operation_id"], name: "index_studio_compute_leases_on_studio_operation_id", unique: true
+    t.index ["tenant_key", "expires_at"], name: "index_studio_compute_leases_on_tenant_key_and_expires_at"
+  end
+
+  create_table "studio_compute_pools", force: :cascade do |t|
+    t.string "name", null: false
+    t.index ["name"], name: "index_studio_compute_pools_on_name", unique: true
+  end
+
   create_table "studio_live_operations", force: :cascade do |t|
     t.bigint "studio_project_id", null: false
     t.bigint "production_id"
@@ -5419,6 +5437,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
   add_foreign_key "studio_broadcast_channels", "dymond_site_sites", column: "site_id", on_delete: :cascade
   add_foreign_key "studio_broadcast_programs", "posts", on_delete: :cascade
   add_foreign_key "studio_broadcast_programs", "studio_broadcast_channels", column: "channel_id", on_delete: :cascade
+  add_foreign_key "studio_compute_leases", "studio_operations"
   add_foreign_key "studio_live_operations", "productions"
   add_foreign_key "studio_live_operations", "studio_projects"
   add_foreign_key "studio_operations", "productions"

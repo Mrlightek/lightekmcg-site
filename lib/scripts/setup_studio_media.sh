@@ -37,3 +37,8 @@ STUDIO_SPEECH_IMAGE="${STUDIO_MEDIA_WORKER_IMAGE:-$STUDIO_RUNTIME_IMAGE}"
 docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
   --pids-limit 128 --memory 256m --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" \
   "$STUDIO_SPEECH_IMAGE" /opt/rhubarb/rhubarb --version
+
+# Exercise the real stdin-to-WAV path offline, under worker restrictions.
+printf '%s' 'Nevaeh voice is ready.' | docker run --rm --interactive --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --pids-limit 128 --memory 2g --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,size=512m \
+  "$STUDIO_SPEECH_IMAGE" /opt/lightek-voice/venv/bin/python /opt/lightek-voice/synthesize.py --output /tmp/nevaeh-health.wav

@@ -418,7 +418,7 @@ See [Workforce, goals and page assistance](docs/nevaeh/tutorials/workforce.md). 
 
 | Capability | Implemented behavior |
 | --- | --- |
-| Local speech | Account-owned eSpeak NG WAV clips; U.S. English female default, British English/Arabic female options and bounded speed settings. |
+| Local speech | Account-owned CPU Kokoro ONNX WAV clips; stable Nevaeh Natural blend by default, Warm alternative, explicit basic English/Arabic voices, bounded pace, offline model files and deployment speech health check. |
 | Speaking character | A fixed base face with a masked speaking-mouth plate; 40 ms audio-envelope samples follow actual media playback, including silence. |
 | Voice controls | Read replies, microphone input, pause/stop/replay, explicit autoplay recovery and reduced-motion handling in the workspace/Dashboard dock. |
 | Private lifecycle | Authenticated no-store audio, ownership/CSRF, request replay protection, cancellation, bounded queue limits, interrupted-job handling and one-day expiry/cleanup. |

@@ -3915,6 +3915,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
     t.index ["sha256"], name: "index_nevaeh_islamic_sources_on_sha256", unique: true
   end
 
+  create_table "nevaeh_language_bindings", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.bigint "nevaeh_manual_build_id"
+    t.string "name", null: false
+    t.string "status", default: "draft", null: false
+    t.jsonb "patterns", default: [], null: false
+    t.jsonb "slots", default: {}, null: false
+    t.jsonb "command_template", default: {}, null: false
+    t.jsonb "source_refs", default: [], null: false
+    t.string "contract_sha256"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_language_bindings_on_creator_id"
+    t.index ["nevaeh_manual_build_id"], name: "idx_language_binding_build"
+  end
+
   create_table "nevaeh_language_checkpoints", force: :cascade do |t|
     t.bigint "nevaeh_training_run_id", null: false
     t.bigint "nevaeh_language_model_id", null: false
@@ -3939,6 +3956,40 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "nevaeh_learning_plans", force: :cascade do |t|
+    t.bigint "actor_id", null: false
+    t.bigint "language_model_id", null: false
+    t.bigint "active_training_run_id"
+    t.bigint "nevaeh_manual_build_id"
+    t.string "name", null: false
+    t.jsonb "dataset_ids", default: [], null: false
+    t.integer "position", default: 0, null: false
+    t.integer "attempt", default: 0, null: false
+    t.integer "epochs", default: 3, null: false
+    t.string "status", default: "paused", null: false
+    t.text "error"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active_training_run_id"], name: "index_nevaeh_learning_plans_on_active_training_run_id"
+    t.index ["actor_id"], name: "index_nevaeh_learning_plans_on_actor_id"
+    t.index ["language_model_id"], name: "index_nevaeh_learning_plans_on_language_model_id"
+    t.index ["nevaeh_manual_build_id"], name: "idx_learning_plan_build"
+  end
+
+  create_table "nevaeh_manual_builds", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.string "name", null: false
+    t.string "status", default: "queued", null: false
+    t.jsonb "manifest", default: [], null: false
+    t.jsonb "dataset_ids", default: [], null: false
+    t.jsonb "coverage", default: {}, null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_manual_builds_on_creator_id"
   end
 
   create_table "nevaeh_os_actions", force: :cascade do |t|
@@ -5205,9 +5256,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
   add_foreign_key "nevaeh_islamic_passages", "nevaeh_islamic_sources"
   add_foreign_key "nevaeh_islamic_sources", "users", column: "creator_id"
   add_foreign_key "nevaeh_islamic_sources", "users", column: "reviewer_id"
+  add_foreign_key "nevaeh_language_bindings", "nevaeh_manual_builds"
+  add_foreign_key "nevaeh_language_bindings", "users", column: "creator_id"
   add_foreign_key "nevaeh_language_checkpoints", "nevaeh_language_models"
   add_foreign_key "nevaeh_language_checkpoints", "nevaeh_training_runs"
   add_foreign_key "nevaeh_language_models", "nevaeh_language_checkpoints", column: "active_checkpoint_id"
+  add_foreign_key "nevaeh_learning_plans", "nevaeh_language_models", column: "language_model_id"
+  add_foreign_key "nevaeh_learning_plans", "nevaeh_manual_builds"
+  add_foreign_key "nevaeh_learning_plans", "nevaeh_training_runs", column: "active_training_run_id"
+  add_foreign_key "nevaeh_learning_plans", "users", column: "actor_id"
+  add_foreign_key "nevaeh_manual_builds", "users", column: "creator_id"
   add_foreign_key "nevaeh_os_actions", "users"
   add_foreign_key "nevaeh_os_agents", "users"
   add_foreign_key "nevaeh_os_consents", "users"

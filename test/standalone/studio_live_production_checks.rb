@@ -41,7 +41,7 @@ class StudioLiveProductionTest < StudioMusicTest
   end
   def test_live_setup_validates_numbers_switches_assets_and_layouts_without_writing
     data=preset;save_live(data);before=@scene.reload.settings["live_preset"]
-    mutations=[->(p){p[:version]=3},->(p){p[:layout]="execute"},->(p){p[:layout]="library"},->(p){p[:volume]=Float::NAN},
+    mutations=[->(p){p[:version]=4},->(p){p[:layout]="execute"},->(p){p[:layout]="library"},->(p){p[:volume]=Float::NAN},
       ->(p){p[:volume]=nil},->(p){p[:loop]="yes"},->(p){p[:camera]="script"},->(p){p[:stage_asset_id]=1.5},
       ->(p){p[:subject][:height]=0},->(p){p[:subject][:source]="webcam_url"},->(p){p[:stream_key]="secret"}]
     mutations.each{|m|bad=data.deep_dup;m.call(bad);assert_raises(ArgumentError){save_live(bad)}}
@@ -77,6 +77,29 @@ class StudioLiveProductionTest < StudioMusicTest
     style=save_live(data)[:preset]["presentation"]
     assert_equal 120,style["title"].length;assert_equal 300,style["ticker"].length
     assert_raises(ArgumentError){save_live(preset)}
+  end
+
+  def test_graphic_placement_v3_round_trip_independent_episode_and_downgrade_protection
+    data=preset.merge(version:3,presentation:{title:"Lightek News"},overlay:{enabled:true,x:920,y:40,width:300,height:150,opacity:0.75,fit:"contain"})
+    saved=save_live(data)[:preset];assert_equal 3,saved["version"];assert_equal 0.75,saved.dig("overlay","opacity")
+    assert_equal "contain",live_setup.read(@scene.id).dig(:preset,"overlay","fit")
+    template=action("template_save",project_id:@project.id,name:"Graphic show",request_key:SecureRandom.uuid)
+    episode=action("template_use",project_id:template[:project_id],name:"Graphic episode",request_key:SecureRandom.uuid)
+    copy=StudioScene.find(episode[:scene_id]);assert_equal saved,copy.settings["live_preset"]
+    changed=saved.deep_dup;changed["overlay"]["enabled"]=false;changed["overlay"]["x"]=60;save_live(changed,scene:copy)
+    assert @scene.reload.settings.dig("live_preset","overlay","enabled");assert_equal 920,@scene.settings.dig("live_preset","overlay","x")
+    refute copy.reload.settings.dig("live_preset","overlay","enabled")
+    [1,2].each { |version| assert_raises(ArgumentError) { save_live(saved.except("overlay").merge("version"=>version)) } }
+    assert_equal saved,@scene.reload.settings["live_preset"]
+  end
+  def test_graphic_placement_validates_bounds_switches_fields_and_legacy_defaults_without_writes
+    data=preset.merge(version:3,overlay:{enabled:true,x:0,y:0,width:300,height:150,opacity:1,fit:"contain"});save_live(data);before=@scene.reload.settings["live_preset"]
+    mutations=[->(p){p[:version]=2},->(p){p[:overlay]=nil},->(p){p[:overlay]=[]},->(p){p[:overlay][:url]="http://example.test"},->(p){p[:overlay][:enabled]="false"},->(p){p[:overlay][:x]=1281},->(p){p[:overlay][:y]=Float::INFINITY},->(p){p[:overlay][:width]=0},->(p){p[:overlay][:height]=721},->(p){p[:overlay][:opacity]=-0.1},->(p){p[:overlay][:opacity]=nil},->(p){p[:overlay][:fit]="cover"}]
+    mutations.each { |mutate| bad=data.deep_dup;mutate.call(bad);assert_raises(ArgumentError) { save_live(bad) } }
+    assert_equal before,@scene.reload.settings["live_preset"]
+    defaults=live_setup.normalize({"version"=>3,"layout"=>"camera"})["overlay"]
+    assert_equal({"enabled"=>true,"fit"=>"stretch","x"=>0.0,"y"=>0.0,"width"=>1280.0,"height"=>720.0,"opacity"=>1.0},defaults)
+    legacy=live_setup.normalize({"version"=>1,"layout"=>"camera"});refute legacy.key?("overlay")
   end
 
 end

@@ -16,6 +16,7 @@ A business can build its website, sell products or book services, manage custome
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Control Blender modifiers and stack order | [Modifier stack](docs/studio/blender-modifier-stack.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
+| Position a graphic or logo in the live program | [Live graphic placement](docs/studio/live-overlay-placement.md) |
 | Feature a viewer comment on the live program | [Audience comment graphics](docs/studio/live-audience-graphics.md) |
 | Direct guests in the live program | [Guest visibility, order and audio](docs/studio/live-guest-program.md) |
 | Reuse production assets and branding for a live show | [Saved live production setups](docs/studio/live-production-setups.md) |
@@ -52,7 +53,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Websites and community | Pages/sections, HTML design imports, starter designs, coordinated site themes, native store/journal integration, articles/RSS and per-site PWA branding, navigation and moderation |
 | Communications | Lightek webmail, conversation replies, rich composition, mailbox management, distribution addresses, Junk/spam controls, mail templates and native transactional SMTP routing |
 | Reservations and live rooms | Bookable resources, availability/capacity, paid reservations, calendar downloads, private guest rooms, host moderation and Studio program composition |
-| Studio | Photo/video editing and exports; Blender authoring and modifier stacks, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub and punch ranges, instrument performance recording and picture scoring; saved live production setups and connected finishing/delivery workspaces |
+| Studio | Photo/video editing and exports; Blender authoring and modifier stacks, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub and punch ranges, instrument performance recording and picture scoring; saved live production setups, positioned graphic overlays and connected finishing/delivery workspaces |
 | Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
 | Nevaeh | Conversational operating workspace, typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |
 | Platform security and operations | Gatekeeper authorization, scoped Vault credentials, tenant ownership checks, background execution, audit history, retry/recovery paths and configurable Dashboard appearance |

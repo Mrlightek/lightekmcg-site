@@ -6,15 +6,18 @@ module LightekMarketing
   # No arbitrary user-controlled URL requests or fake provider OAuth.
   class SocialDispatch
     class Unavailable < StandardError; end
-    def self.call!(post:)
+    def self.call!(post:, expected_digest: nil, actor: nil)
       LightekAgency::Demos.ensure_live_site!(post.campaign.site, error: Unavailable) if defined?(LightekAgency::Demos)
       post.with_lock do
         raise Unavailable, "Provider outcome requires reconciliation" if post.status == "needs_review"
         raise Unavailable, "Publication already completed" if post.status == "published"
         raise Unavailable, "Existing provider reference requires reconciliation" if post.remote_id.present?
-        connection = post.connection
+        connection = post.connection.reload
         campaign = post.campaign
         campaign.with_lock do
+          PublicationCalendar.new(actor: actor, site: campaign.site).authorize! if actor
+          raise Unavailable, 'Scheduled content changed before submission.' if expected_digest && expected_digest != campaign.content_digest
+          raise Unavailable, 'Campaign media was revoked or changed.' unless campaign.media_ready?
           raise Unavailable, "Campaign content requires review" unless campaign.content_approved?
           raise Unavailable, "Campaign is not ready" unless campaign.status == "ready" && campaign.channel == "social"
           raise Unavailable, "Connection unavailable" unless connection.enabled? && connection.site_id == campaign.site_id

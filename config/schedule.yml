@@ -89,3 +89,9 @@ lightek_sales_intake_recovery:
   class: "LightekSales::IntakeSweepJob"
   queue: default
   active_job: true
+
+lightek_social_publication_calendar:
+  cron: "* * * * *"
+  class: "LightekMarketing::PublicationSweepJob"
+  queue: default
+  active_job: true

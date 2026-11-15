@@ -66,4 +66,8 @@ Retain history tables and review fields when reverting application code. Pause o
 
 The private authentication/package shell, social provider responses, Mail account readiness and Studio project allocation are boundary fixtures. StudioProduction's actual handoff logic executes against a saved scene fixture; this is not a full render or a live social publication.
 
-Export native pages with `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/campaign_content_checks.rb`, then run `SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs`. Eleven controller-rendered screens are checked at desktop/tablet/phone widths, including the content workbench's draft forms, saved approval and Studio link.
+Export native pages with `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/publication_calendar_checks.rb`, then run `SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs`. Twelve controller-rendered screens are checked at desktop/tablet/phone widths, including the content workbench's draft forms, saved approval and Studio link.
+
+## Final export and scheduled publication
+
+The [Publishing calendar](publishing-calendar.md) now attaches a completed Studio export to a social campaign through a retained, issuing-host media link. Attach first, then review and approve the final payload. Supported accounts can schedule that exact version with current operator checks and separate provider-submission/publication evidence. Existing adapter limits and live verification still apply.

@@ -58,7 +58,7 @@ To pause new capture for one placement, disable that link. For account-wide capt
 
 Coverage includes first-party cookies, repeat clicks, duplicate inquiries/acceptance/payment events, source preservation, direct storefront checkout, unknown/expired/tampered/private capture, host/site and delegated-role rejection, stale brief updates, revoked access, local-path validation, campaign history retention, immutable attribution, refunds, cohort dates and bounded per-link report queries.
 
-Export native pages with `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/campaign_content_checks.rb`, then run `SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs`. The browser check covers eleven native screens, including the daily plan and campaign-content review, at desktop, tablet and phone widths, including Growth's form controls, share URL and seven milestones. Private engine navigation/authentication and live provider behavior remain deployment acceptance items.
+Export native pages with `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/publication_calendar_checks.rb`, then run `SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs`. The browser check covers twelve native screens, including the daily plan and campaign-content review, at desktop, tablet and phone widths, including Growth's form controls, share URL and seven milestones. Private engine navigation/authentication and live provider behavior remain deployment acceptance items.
 
 ## Daily growth plans
 
@@ -69,3 +69,5 @@ Use **Prepare or open today’s plan** in Growth, or `/growth SITE_ID` in Nevaeh
 ## From recommendations to creative production
 
 [Campaign content & review](campaign-content-review.md) now connects the reviewed brief to three editable copy approaches, explicit version-specific campaign approval, queued-payload guards and focused Studio formats. Final media export and provider publication remain separate verified actions.
+
+[Publishing calendar and Studio export handoff](publishing-calendar.md) connects final media selection to reviewed social schedules and provider receipts; it does not infer publication from scheduling or an inbox submission.

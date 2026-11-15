@@ -172,6 +172,10 @@ Rails.application.routes.draw do
   get "/dashboard/nevaeh/guide", to: "dashboard/nevaeh_os#guide", as: :dashboard_nevaeh_guide
   get "/dashboard/nevaeh/social_connections", to: "dashboard/nevaeh_os#social_connections"
   get "/dashboard/nevaeh/social_options", to: "dashboard/nevaeh_os#social_options"
+  get "/dashboard/nevaeh/stage", to: "dashboard/nevaeh_os#stage"
+  patch "/dashboard/nevaeh/stage", to: "dashboard/nevaeh_os#stage"
+  patch "/dashboard/nevaeh/stage/script", to: "dashboard/nevaeh_os#stage_script"
+  get "/dashboard/nevaeh/assistant", to: "dashboard/nevaeh_os#assistant"
   get "/dashboard/nevaeh/state", to: "dashboard/nevaeh_os#state"
   get "/dashboard/nevaeh/files/*filename", to: "dashboard/nevaeh_os#download", format: false
   post "/dashboard/nevaeh/files", to: "dashboard/nevaeh_os#upload"

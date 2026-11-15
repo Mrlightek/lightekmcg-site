@@ -153,10 +153,11 @@ module Studio
         director['readiness']['voices'] = operations.empty? ? 'dialogue_required' : voice_status == 'prepared' ? 'ready' : voice_status
         director['readiness']['scene_renders'] = renders.map(&:status).uniq.join(', ') if renders.any?
         performance_takes = production.studio_scenes.flat_map do |scene|
-          scene.scene_objects.filter_map do |object|
-            take=object.definition['performance']
-            next unless take && object.definition['director_speaker']
-            {'scene_id'=>scene.id,'object_id'=>object.id,'speaker'=>object.definition['director_speaker'],'audio_asset_id'=>take['audio_asset_id'],'duration'=>take['duration']}
+          scene.scene_objects.flat_map do |object|
+            next [] unless object.definition['director_speaker']
+            Array(object.definition['performance_takes'].presence || [object.definition['performance']].compact).map do |take|
+              {'scene_id'=>scene.id,'object_id'=>object.id,'speaker'=>object.definition['director_speaker'],'audio_asset_id'=>take['audio_asset_id'],'start'=>take['start'],'duration'=>take['duration']}
+            end
           end
         end
         director['readiness']['finished_performances'] = "#{performance_takes.size} editable takes prepared; artistic review required" if performance_takes.any?

@@ -71,4 +71,36 @@ spatial_checks.validate(objects,created,{})
 rig.pose.bones['Head'].rotation_mode='XYZ';rig.pose.bones['Head'].rotation_euler.y=1.57079632679
 check_error(lambda:spatial_checks.validate(objects,created,{}),'eyeline')
 print('PASS: bound head eyeline mismatch stops the shot')
+clean()
+import performance
+import tempfile
+import wave
+import struct
+face=cube('Face',(0,0,0));face.shape_key_add(name='Basis');jaw=face.shape_key_add(name='Open');jaw.data[0].co.z+=0.2
+profile={'bindings':{'jaw_open':{'object':'Face','key':'Open'}},'bones':{}}
+with tempfile.TemporaryDirectory() as directory:
+    path=str(Path(directory)/'line.wav')
+    with wave.open(path,'wb') as file:
+        file.setnchannels(1);file.setsampwidth(2);file.setframerate(8000);file.writeframes(struct.pack('<h',1200)*8000)
+    takes=[{'take_id':'take_'+str(index),'start':start,'duration':1,'source_in':0,'gain':1,'mouth_frames':[{'time':0,'value':0},{'time':0.2,'value':1},{'time':0.8,'value':0}],'expressions':[],'gestures':[],'audio_path':path} for index,start in enumerate((0,2))]
+    bpy.context.scene.render.fps=24;bpy.context.scene.frame_end=72
+    performance.apply_sequence(face,{'Face':face},{'character_profile':profile,'performance_takes':takes,'performance_instance':'same_actor'})
+    editor=bpy.context.scene.sequence_editor
+    strips=editor.strips if hasattr(editor,'strips') else editor.sequences
+    assert len(strips)==2,'Both dialogue recordings must remain in the scene'
+    bpy.context.scene.frame_set(6);assert face.data.shape_keys.key_blocks['Open'].value>0.8
+    bpy.context.scene.frame_set(36);assert face.data.shape_keys.key_blocks['Open'].value<0.01
+    bpy.context.scene.frame_set(54);assert face.data.shape_keys.key_blocks['Open'].value>0.8
+print('PASS: sequential mouth animation and both audio takes remain on one character')
+clean()
+a=cube('Amina',(-2,0,1));b=cube('Bilal',(2,0,1));c=cube('Chloe',(-2,4,1))
+bpy.context.scene.render.fps=24;bpy.context.scene.frame_end=48
+objects=[{'id':1,'name':'Amina','definition':{'story_relation':{'look_at':2,'facing_axis':'-Y'},'director_gaze_cues':[{'start':1,'end':2,'look_at':3}]}},{'id':2,'name':'Bilal','definition':{}},{'id':3,'name':'Chloe','definition':{}}]
+relationships.apply(objects,{'1':a,'2':b,'3':c})
+bpy.context.scene.frame_set(1);bpy.context.view_layer.update()
+first=a.constraints['Lightek story focus'].target.matrix_world.translation.copy()
+bpy.context.scene.frame_set(30);bpy.context.view_layer.update()
+second=a.constraints['Lightek story focus'].target.matrix_world.translation.copy()
+assert (first-b.location).length<0.01 and (second-c.location).length<0.01
+print('PASS: timed dialogue attention changes to the actual next character')
 print('STUDIO_SPATIAL_CHECKS_PASSED')

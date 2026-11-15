@@ -40,6 +40,7 @@ module NevaehOs
       /produce catalog · /produce {"site_id":123,"name":"Episode 1","template_key":"comedy"} — reuse production recipes and show bibles
       /produce personalities · /produce story {…} · /produce story_status ID — fictional character templates and cooperating story workers
       /produce blocking {…} — relative positions, gaze, personal space, collision checks and camera depth
+      /produce rehearse {…} · /produce rehearsal_status ID · /produce rehearsal_apply ID — preview blocking on a copy, then apply verified corrections
       /produce animate {…} · /produce assemble {…} · /produce publish {…} — direct characters, join full scene exports, deliver a reviewed master
       /produce render ID · /produce assemble ID · /produce status ID · /produce retry VOICE_OPERATION_ID
       /campaign {"site_id":123,"service":"Xyzzy","tone":"funny"} — build an editable TikTok draft and private preview
@@ -57,10 +58,10 @@ module NevaehOs
       q = text.strip
       return {'kind'=>'production','operation'=>'personalities'} if q.match?(/\A\/?produce\s+personalities\z/i)
       return {'kind'=>'production','operation'=>'catalog'} if q.match?(/\A\/?produce\s+catalog\z/i)
-      if (m=q.match(/\A\/?produce\s+(status|retry|render|assemble|story_status)\s+([1-9][0-9]*)\z/i))
+      if (m=q.match(/\A\/?produce\s+(status|retry|render|assemble|story_status|rehearse|rehearsal_status|rehearsal_apply)\s+([1-9][0-9]*)\z/i))
         return {'kind'=>'production','operation'=>m[1].downcase,'id'=>m[2].to_i,'values'=>{}}
       end
-      if (m=q.match(/\A\/?produce\s+(animate|assemble|publish|story|blocking)\s+(\{.*\})\z/im))
+      if (m=q.match(/\A\/?produce\s+(animate|assemble|publish|story|blocking|rehearse)\s+(\{.*\})\z/im))
         payload=JSON.parse(m[2])
         raise ArgumentError, 'Production finishing inputs must be an object with production_id' unless payload.is_a?(Hash) && payload['production_id'].to_s.match?(/\A[1-9][0-9]*\z/)
         return {'kind'=>'production','operation'=>m[1].downcase,'id'=>payload.delete('production_id').to_i,'values'=>payload}

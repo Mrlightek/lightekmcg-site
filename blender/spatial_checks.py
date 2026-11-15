@@ -41,7 +41,7 @@ def intersects(a,b):
 
 def validate(objects,created,settings):
     direction=settings.get('spatial_direction') or {}
-    cast=[item for item in objects if item.get('definition',{}).get('director_speaker') and str(item['id']) in created]
+    cast=[item for item in objects if (item.get('definition',{}).get('director_speaker') or item.get('definition',{}).get('blocking_actor') or item.get('definition',{}).get('character_profile')) and str(item['id']) in created]
     if not cast:
         return
     scene=bpy.context.scene

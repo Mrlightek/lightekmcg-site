@@ -167,6 +167,13 @@
   <link rel="stylesheet" href="/lightek/dashboard.css?v=20261114">
   <link rel="stylesheet" href="/lightek/dashboard-forms.css?v=20261114">
   <script src="/lightek/dashboard.js?v=20261114" defer></script>
+<% if params[:nevaeh_embed] == '1' %>
+  <style>
+    .dd-shell > .dd-sidebar, .dd-topbar, .dd-nav-scrim, .business-workspace { display: none !important; }
+    .dd-body { margin-left: 0 !important; }
+    .dd-content { padding: 0 !important; }
+  </style>
+<% end %>
 </head>
 <body class="dd-dashboard">
 <div class="dd-shell">
@@ -266,5 +273,6 @@ document.querySelectorAll('.dd-nav-group[data-nav-section]').forEach(function(de
 });
 </script>
 <%= render "shared/nevaeh_contextual_help" %>
+<% if current_user&.persisted? %><nevaeh-presence></nevaeh-presence><script src="/nevaeh/presence.js?v=1" defer></script><% end %>
 </body>
 </html>

@@ -14,6 +14,17 @@ def frame_at(seconds, fps):
     return max(1, 1 + round(seconds * fps))
 
 
+def apply_sequence(root, objects, definition):
+    takes=definition.get('performance_takes')
+    if not takes:
+        return apply(root,objects,definition)
+    if not isinstance(takes,list) or len(takes)>32:
+        raise RuntimeError('Use at most 32 character dialogue takes')
+    base=str(definition.get('performance_instance',root.name))
+    for index,take in enumerate(takes):
+        apply(root,objects,dict(definition,performance=take,performance_instance=base+'_take_'+str(index)))
+
+
 def apply(root, objects, definition):
     profile = definition['character_profile']
     take = definition.get('performance')

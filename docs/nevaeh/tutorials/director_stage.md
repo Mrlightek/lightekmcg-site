@@ -1,6 +1,6 @@
 # Graphical workspace, assistant and rehearsals
 
-Open **Dashboard → Nevaeh**. The central stage holds your work beside the conversation. The reference-based Nevaeh character shows actual request, voice and execution states. The Dashboard assistant dock can answer through the same command pipeline or **Bring this page into workspace**. This is the first reactive virtual-assistant interface; it does not imply a fully rigged 3D character or facial lip sync or continuous awareness of every application event.
+Open **Dashboard → Nevaeh**. The central stage holds your work beside the conversation. The reference-based Nevaeh character shows actual request, voice and execution states. The Dashboard assistant dock can answer through the same command pipeline or **Bring this page into workspace**. This is the first reactive virtual-assistant interface; it does not imply a fully rigged 3D character or phoneme-specific facial acting or continuous awareness of every application event.
 
 ## Keep the work together
 
@@ -48,3 +48,5 @@ Apply migration `20261115233000_create_nevaeh_workspaces`, restart Rails and the
 The standalone suite exercises ownership, persistence, optimistic edits, request replay, unchanged-source enforcement, real Blender collision correction, obstacle routing, actual private MP4 duration and dialogue source pinning. Native Blender checks verify two successive recordings and mouth animation intervals. Browser checks exercise the shared workspace, script save, embedded tools, rehearsal command and mobile layout. CI runs the backend/native checks; deployment-specific visual and permissions checks should use your actual saved productions.
 
 Open **Workforce & goals** for defined specialist jobs, assigned tasks, pause/delete controls, evidence-driven plans and page-aware assistance. See the [workforce guide](workforce.md). Deleted roles/tasks leave their receipts intact and do not resume new work.
+
+[Spoken replies and the speaking character](voice.md) connect private local audio to a stable 2D mouth overlay with pause/stop/replay controls.

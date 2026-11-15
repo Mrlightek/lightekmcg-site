@@ -412,4 +412,15 @@ See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md)
 | Expansion tasks | Capability/schema/page-area gap audits with engineering tickets, native manual import, phrase contract validation and existing construction-build/training workers. |
 | Contextual assistant | Current Dashboard path/title and numeric application context, relevant guide/task suggestions and authorized documentation assistance without collecting form values or secret query parameters. |
 
-See [Workforce, goals and page assistance](docs/nevaeh/tutorials/workforce.md). Roles and manuals do not manufacture missing executors; arbitrary autonomous code repair/deployment, complete visual judgment and assistant facial lip sync remain outside this implementation.
+See [Workforce, goals and page assistance](docs/nevaeh/tutorials/workforce.md). Roles and manuals do not manufacture missing executors; arbitrary autonomous code repair/deployment, complete visual judgment and full 3D facial acting remain outside this implementation.
+
+### Nevaeh spoken replies and character mouth animation
+
+| Capability | Implemented behavior |
+| --- | --- |
+| Local speech | Account-owned eSpeak NG WAV clips; U.S. English female default, British English/Arabic female options and bounded speed settings. |
+| Speaking character | A fixed base face with a masked speaking-mouth plate; 40 ms audio-envelope samples follow actual media playback, including silence. |
+| Voice controls | Read replies, microphone input, pause/stop/replay, explicit autoplay recovery and reduced-motion handling in the workspace/Dashboard dock. |
+| Private lifecycle | Authenticated no-store audio, ownership/CSRF, request replay protection, cancellation, bounded queue limits, interrupted-job handling and one-day expiry/cleanup. |
+
+See [Voice and speaking character](docs/nevaeh/tutorials/voice.md). This is volume-driven 2D animation, not a phoneme-specific or full 3D facial performance. The stock synthetic voice remains a first version; a natural self-hosted voice upgrade is planned separately.

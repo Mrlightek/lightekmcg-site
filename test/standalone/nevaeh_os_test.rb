@@ -832,7 +832,7 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 19,topics.size
+    assert_equal 20,topics.size
     assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'
     assert_includes topics.map { |topic| topic[:id] }, 'production_director'
     assert_includes topics.map { |topic| topic[:id] }, 'story_simulation'

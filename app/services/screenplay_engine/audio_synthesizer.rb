@@ -9,7 +9,7 @@ module ScreenplayEngine
     # Uses local 'espeak' or macOS 'say' (or replace with an API call like ElevenLabs/OpenAI)
     def self.synthesize!(text:, path:, voice: 'en-us', speed: 155, cancel_if: nil)
       raise ArgumentError, 'Dialogue must contain 1–1000 characters' unless text.is_a?(String) && text.length.between?(1,1000) && !text.include?("\0")
-      raise ArgumentError, 'Choose an installed stock voice' unless %w[en en-us en-gb ar].include?(voice)
+      raise ArgumentError, 'Choose an installed stock voice' unless %w[en en-us en-gb ar en-us+f3 en-gb+f3 ar+f3].include?(voice)
       raise ArgumentError, 'Choose a speaking speed of 100–220 words per minute' unless speed.is_a?(Integer) && speed.between?(100,220)
       command = if Rails.env.production?
         Studio::MediaProcess.container(['espeak-ng','--stdin','-v',voice,'-s',speed.to_s,'-w',"/work/#{File.basename(path)}"], root: File.dirname(path), image: Studio::NativeBlender::Runtime.image(:media))

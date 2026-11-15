@@ -89,7 +89,7 @@ Page-aware questions such as **What can you do here?**, **Explain this page**, o
 
 The assistant does not collect password fields, hidden form values or arbitrary query tokens. Context is reference data, not an authority grant. A forged path/site ID cannot bypass the resource policies applied at execution. The assistant can explain a workflow from its documentation even when direct execution is not connected; the gap audit makes those missing connections visible.
 
-The assistant can speak using browser text-to-speech. Its current portrait reacts through status treatments. Studio has lip-sync tooling for registered characters, but this release does not connect the assistant portrait to a facial rig or animate its mouth.
+The assistant now uses [private local speech and audio-driven 2D mouth animation](voice.md), with playback controls in the workspace and Dashboard dock. Studio also has separate lip-sync tooling for registered characters. The assistant is not a full 3D facial rig.
 
 ## Deployment and checks
 

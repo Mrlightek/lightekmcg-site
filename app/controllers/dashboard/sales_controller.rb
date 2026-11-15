@@ -63,6 +63,10 @@ class Dashboard::SalesController < Dashboard::SettingsHomeController
   end
   def show
     @record = @workspace.find(@kind, params[:id])
+    if @kind == 'opportunity'
+      @quotes = LightekSales::Quote.where(site: @site, opportunity: @record).order(created_at: :desc).limit(50)
+      @products = LightekCommerce::Product.where(site: @site, published: true, product_type: %w[service digital lightek_instance]).order(:name)
+    end
     @record_tasks = LightekSales::Task.where(site: @site, record: @record).includes(:owner).order(Arel.sql("CASE WHEN status = 'open' THEN 0 ELSE 1 END"), :due_at).limit(50)
     if @kind.in?(%w[account contact])
       key = @kind == 'account' ? :account_id : :contact_id

@@ -4,11 +4,15 @@
 
 A business can build its website, sell products or book services, manage customer communications, produce media, run its own applications and delegate supported work to Nevaeh using the same accounts and operational records. Agencies can manage nested client businesses and independently provisioned client instances through the existing account, billing and Gatekeeper boundaries.
 
+**Built IT-first:** business teams get usable products; IT gets explicit access boundaries, execution evidence and recovery paths in the same system. See the [operating contract](docs/platform/it-first-operations.md).
+
 ## Start here
 
 | What you need | Where to go |
 | --- | --- |
 | Manage leads, deals, follow-ups and forecasts | [Sales & CRM](docs/sales/crm.md) · [Inquiry intake & tasks](docs/sales/intake-and-follow-through.md) |
+| Onboard/offboard employees or agencies | [Lifecycle operations](docs/people/onboarding-offboarding.md) |
+| Turn an approved quote into an order and delivery | [Quotes to delivery](docs/sales/quotes-to-delivery.md) |
 | The full current feature list | [Lightek feature catalog](FEATURES.md) |
 | Production is asking you to set up an authenticator | [First sign-in, MFA and recovery](docs/security/sign-in-and-mfa.md) |
 | Learn Nevaeh, agents, workers, watchers and commands | [Operating workspace and Guide](docs/nevaeh_operating_system.md) · [Tutorials](docs/nevaeh/tutorials/commands.md) |

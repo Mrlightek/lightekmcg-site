@@ -11,7 +11,7 @@ module LightekSales
     def self.owners_for(site)
       delegated = LightekAgency::SiteMembership.where(site: site, role: %w[manager marketer]).select(:user_id)
       owner_id = site.tenant_id if site.tenant_type == 'User'
-      User.where(id: delegated).or(User.where(id: owner_id)).where(role: %w[super_admin admin white_label client employee])
+      User.where(access_suspended_at: nil).where(id: delegated).or(User.where(access_suspended_at: nil, id: owner_id)).where(role: %w[super_admin admin white_label client employee])
     end
   end
 end

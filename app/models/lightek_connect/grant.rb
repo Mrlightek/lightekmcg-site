@@ -31,6 +31,9 @@ module LightekConnect
 
     def authorize_connection!
       connection.reload
+      if defined?(LightekPeople::LifecycleAccess) && !LightekPeople::LifecycleAccess.agency_ready?(connection.user)
+        raise Gatekeeper::Hosting::Access::Denied, 'Agency onboarding is incomplete or access is suspended'
+      end
       raise Gatekeeper::Hosting::Access::Denied, 'Connection revoked or agency access removed' if connection.revoked_at? || !connection.user.role.in?(%w[white_label super_admin])
       raise Gatekeeper::Hosting::Access::Denied, 'Client access removed' if site && !LightekSettings::WebsiteIdentity.sites_for(connection.user).exists?(id: site.id)
       raise Gatekeeper::Hosting::Access::Denied, 'Company requires direct sign-in' unless MfaHandoff.allowed_for?(connection.user) && (!site || MfaHandoff.allowed_for?(site.tenant))

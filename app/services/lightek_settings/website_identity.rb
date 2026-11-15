@@ -2,6 +2,7 @@
 module LightekSettings
   class WebsiteIdentity
     def self.sites_for(user)
+      return DymondSite::Site.none if defined?(LightekPeople::LifecycleAccess) && !LightekPeople::LifecycleAccess.active?(user)
       if user&.role == 'client'
         return available_demo_scope(DymondSite::Site.where(tenant: user).or(DymondSite::Site.where(id: LightekReservations::Peer.where(merchant: user).select(:site_id))))
       end

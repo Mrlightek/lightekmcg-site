@@ -2,6 +2,8 @@
 
 class User < ApplicationRecord
   # ── Rails 8 native authentication ─────────────────────────────────────────────
+  def access_active? = access_suspended_at.nil?
+
   has_secure_password
   include FirstUsePassword
 
@@ -89,6 +91,7 @@ class User < ApplicationRecord
 
   # ── DymondDash product entitlements ────────────────────────────────────────
   def can_access_feature?(feature_slug)
+    return false unless access_active?
     feature_slug = feature_slug.to_s
     return false if role != 'super_admin' && defined?(LightekAgency::PackagePolicy) && !LightekAgency::PackagePolicy.allowed?(self, feature_slug)
     return persisted? if feature_slug == "server_instances"

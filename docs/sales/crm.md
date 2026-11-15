@@ -69,7 +69,7 @@ Save a note, call, meeting or email activity on a record. The timeline records a
 
 Disqualify inactive leads or close lost deals with a reason. This release does not offer destructive CRM deletion. Lists show up to 200 records, pipeline columns up to 40 deals each, follow-up lists up to 100 of each type, related lists up to 50 of each type, and activity timelines up to 100 entries. Use owner/name filters to narrow large lists. The forecast covers the entire filtered scope, including records beyond visible list limits.
 
-Opt-in published-form intake, reviewed CSV staging and in-app due tasks/calendar downloads are now delivered in the follow-through sprint. Contact merging, custom stages, round-robin/territory routing, email reminder delivery, email/calendar synchronization, quote approval, automatic order handoff and typed Nevaeh sales commands remain subsequent work. There are no external AI calls or automatic customer messages here.
+Opt-in published-form intake, reviewed CSV staging and in-app due tasks/calendar downloads are now delivered in the follow-through sprint. Contact merging, custom stages, round-robin/territory routing, email reminder delivery, email/calendar synchronization, negotiated/physical quotes, separate signatures and typed Nevaeh sales commands remain subsequent work. The catalog-backed [quote-to-order connection](quotes-to-delivery.md) is delivered. There are no external AI calls or automatic customer messages here.
 
 ## CRM completion sequence
 
@@ -77,7 +77,7 @@ Opt-in published-form intake, reviewed CSV staging and in-app due tasks/calendar
 | --- | --- | --- |
 | 1 — Sales foundation (this release) | Capture → qualify → convert → manage deals and follow-ups → estimate pipeline | Site-scoped records, shared contacts, source routing, atomic conversion, stage guidance, independent currency totals and activity history |
 | 2 — Intake and follow-through (delivered core) | Inquiries enter the pipeline and the right person follows up | Opt-in published-form adapter, reviewed CSV intake, duplicate linking, assigned/snoozable due tasks, calendar snapshots, source attribution and queue recovery. Email/calendar synchronization remains separate work. |
-| 3 — Quote to delivery | Agreed scope becomes an approved, payable and fulfilled service | Versioned quotes, approvals and signatures against verified existing Bank/Commerce contracts; traceable deal/order/invoice/payment/provisioning links; retry without duplicate billing |
+| 3 — Quote to delivery (catalog connection delivered) | Agreed catalog scope becomes an approved, payable service | Immutable USD catalog quotes, staff/customer acknowledgment, pending Commerce orders and existing processor/delivery paths. Negotiated prices, physical/shipping quotes, separate signatures and standalone Bank invoice contracts remain further work. |
 | 4 — Team sales management | Managers can operate a growing sales team | Configurable stages, ownership queues, round-robin/territory rules, quotas, stage aging, conversion/loss reports and forecast history |
 | 5 — Nevaeh sales execution | Natural-language requests execute supported sales workflows | Typed site-authorized capabilities, deterministic inputs, traceable receipts, escalation and tested recovery; external outreach uses the established communication permissions |
 

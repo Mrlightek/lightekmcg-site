@@ -12,6 +12,9 @@ class Dashboard::AgenciesController < ApplicationController
       user = scope.find(params.require(:user_id))
       user.update!(role: "white_label", agency: user.agency || current_user)
       user.create_agency_profile!(brand_name: params.require(:brand_name))
+      if defined?(LightekPeople::Lifecycle) && LightekPeople::LifecycleCase.table_exists?
+        LightekPeople::Lifecycle.new(actor: current_user, employer: user.agency).start!(kind: 'agency_onboarding', subject: user)
+      end
     end
     redirect_to dashboard_agencies_path, notice: "White label agency enabled."
   rescue ActiveRecord::RecordInvalid => error
@@ -68,7 +71,8 @@ class Dashboard::AgenciesController < ApplicationController
   end
   private
   def require_agency_access!
-    head :forbidden unless current_user&.role.in?(%w[super_admin white_label])
+    return head(:forbidden) unless current_user&.role.in?(%w[super_admin white_label]) && (!defined?(LightekPeople::LifecycleAccess) || LightekPeople::LifecycleAccess.active?(current_user))
+    head :forbidden if defined?(LightekPeople::LifecycleAccess) && !LightekPeople::LifecycleAccess.agency_ready?(current_user) && !action_name.in?(%w[index update])
   end
   def agency_scope
     current_user.role == "super_admin" ? User.where(role: "white_label") : User.where(id: current_user.managed_account_ids, role: "white_label")

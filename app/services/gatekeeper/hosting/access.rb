@@ -2,7 +2,7 @@ module Gatekeeper
   module Hosting
     class Access
       class Denied < StandardError; end
-      def self.super_admin?(actor) = actor&.persisted? && actor.role == "super_admin"
+      def self.super_admin?(actor) = actor&.persisted? && actor.role == "super_admin" && (!defined?(LightekPeople::LifecycleAccess) || LightekPeople::LifecycleAccess.active?(actor))
 
       def self.nodes(actor)
         raise Denied, "Sign in to manage servers" unless actor&.persisted?
@@ -20,6 +20,7 @@ module Gatekeeper
       end
 
       def self.account_ids(actor)
+        return [] unless (!defined?(LightekPeople::LifecycleAccess) || LightekPeople::LifecycleAccess.active?(actor))
         actor.respond_to?(:managed_account_ids) ? actor.managed_account_ids : [actor.id]
       end
 

@@ -9,6 +9,7 @@ module LightekPeople
     end
     attr_reader :actor, :employer, :membership
     def initialize(actor:, employer:)
+      raise Denied, 'Account access suspended' if defined?(LifecycleAccess) && !LifecycleAccess.active?(actor)
       @actor, @employer = actor, employer
       @membership = Employment.find_by(employer_id: employer.id, worker_id: actor.id)
       raise Denied, 'This employer has not granted access' unless owner? || membership
@@ -27,6 +28,9 @@ module LightekPeople
       roles.include?(membership&.payroll_access)
     end
     def require_active!
+      if defined?(LifecycleAccess) && !LifecycleAccess.active?(@actor.reload)
+        raise Denied, 'Account access is suspended'
+      end
       @membership&.reload
       raise Denied, 'This employer membership is no longer active' unless owner? || @membership&.active_on?(Date.current)
     rescue ActiveRecord::RecordNotFound

@@ -6,6 +6,11 @@ ActiveJob::Base.logger = Logger.new(File::NULL)
 if ActiveRecord::Base.connection.adapter_name == 'SQLite'
   ActiveRecord::ConnectionAdapters::TableDefinition.class_eval { alias_method :jsonb, :json }
 end
+require ROOT.join('db/migrate/20261115120000_add_lifecycle_controls')
+AddLifecycleControls.new.migrate(:up)
+User.reset_column_information
+require ROOT.join('app/models/lightek_people/lifecycle_case')
+require ROOT.join('app/services/lightek_people/lifecycle_access')
 ActiveRecord::Schema.define do
   create_table(:website_template_inquiries) { |t| t.references :site; t.string :template_key; t.string :section_key; t.json :fields; t.timestamps }
   create_table(:dymond_site_pages) { |t| t.references :site; t.boolean :published, default: false }
@@ -56,3 +61,5 @@ module LightekAgency
     end
   end
 end
+
+require_relative 'sales_quote_support'

@@ -1,8 +1,19 @@
-name: Sales CRM acceptance
+name: Lifecycle and Sales CRM acceptance
 on:
   pull_request:
     paths:
       - 'app/controllers/dashboard/sales*'
+      - 'app/controllers/sales_quotes_controller.rb'
+      - 'app/controllers/dashboard/lifecycle_controller.rb'
+      - 'app/services/lightek_people/**'
+      - 'app/models/lightek_people/**'
+      - 'app/models/lightek_connect/**'
+      - 'app/views/dashboard/lifecycle/**'
+      - 'app/views/dashboard/sales_quotes/**'
+      - 'app/views/sales_quotes/**'
+      - 'db/migrate/*lifecycle_controls*'
+      - 'db/migrate/*sales_quotes*'
+      - 'test/standalone/lifecycle_quote_checks.rb'
       - 'app/models/lightek_sales/**'
       - 'app/models/website_template_inquiry.rb'
       - 'app/jobs/lightek_sales/**'
@@ -20,6 +31,8 @@ on:
       - 'public/lightek/business-workspace.css'
       - 'config/routes.rb'
       - 'config/routes/sales.rb'
+      - 'config/routes/sales_quotes.rb'
+      - 'config/routes/lifecycle.rb'
       - 'db/migrate/*lightek_sales*'
       - 'db/migrate/*sales_intake*'
       - 'test/standalone/sales_*'
@@ -42,7 +55,7 @@ jobs:
       - name: Install public test dependencies
         run: gem install activerecord:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 --no-document
       - name: Verify sales lifecycle, routing, consent, isolation and forecasts
-        run: ruby test/standalone/sales_intake_checks.rb
+        run: ruby test/standalone/lifecycle_quote_checks.rb
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

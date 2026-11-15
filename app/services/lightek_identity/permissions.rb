@@ -1,6 +1,7 @@
 module LightekIdentity
   class Permissions
     def self.ids(actor, type, permission)
+      return [] if defined?(LightekPeople::LifecycleAccess) && !LightekPeople::LifecycleAccess.active?(actor)
       return [] unless actor && ResourceGrant.table_exists? && %w[GatekeeperNode GatekeeperHostedApplication].include?(type)
       memberships = LightekPeople::Employment.active.where(worker_id: actor.id)
       allowed = permission == 'read' ? %w[read manage] : [permission]

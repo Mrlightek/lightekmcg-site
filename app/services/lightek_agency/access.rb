@@ -2,6 +2,7 @@
 module LightekAgency
   module Access
     def self.sites_for(user)
+      return DymondSite::Site.none if defined?(LightekPeople::LifecycleAccess) && !LightekPeople::LifecycleAccess.active?(user)
       owned = LightekSettings::WebsiteIdentity.sites_for(user)
       return owned if user&.role == "super_admin"
       delegated_ids = SiteMembership.where(user: user).select(:site_id)

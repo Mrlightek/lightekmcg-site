@@ -816,8 +816,9 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 14,topics.size
+    assert_equal 15,topics.size
     assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'
+    assert_includes topics.map { |topic| topic[:id] }, 'production_director'
     topics.each do |topic|
       document=NevaehOs::Guide.tutorial(topic[:id],actor:@actor)
       assert document[:body].start_with?('# ')

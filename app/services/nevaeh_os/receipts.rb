@@ -6,7 +6,18 @@ module NevaehOs
     def for(action)
       value = {id:action.id,status:action.status,result:action.result,error:action.error,created_at:action.created_at,kind:action.command['kind']}
       return value unless action.status == 'completed'
-      if action.result['agent_run_id']
+      if action.command['kind'] == 'production' && action.result['production_id']
+        producer = Studio::Director::Producer
+        receipt = producer.receipt(producer.find!(action.result['production_id'], actor: action.user), actor: action.user)
+        value[:downstream] = {type:'directed_production', id:receipt['production_id'], status:receipt['status'], result:receipt}
+        value[:status] = receipt['status'] == 'dispatched' ? 'dispatched' : receipt['status'] == 'needs_attention' ? 'failed' : 'completed'
+      elsif action.command['kind'] == 'campaign_produce' && action.result['operation_id']
+        producer = LightekMarketing::CampaignProducer
+        operation = producer.find!(action.result['operation_id'], actor: action.user)
+        receipt = producer.receipt(operation, actor: action.user)
+        value[:downstream] = {type:'campaign_production', id:operation.id, status:operation.status, error:operation.error_message, result:receipt}
+        value[:status] = %w[completed failed cancelled].include?(operation.status) ? operation.status : 'dispatched'
+      elsif action.result['agent_run_id']
         run=NevaehAgentRun.where(actor:action.user).find(action.result['agent_run_id'])
         child=run.nevaeh_os_action
         value[:downstream]=child ? self.for(child) : {type:'agent',id:run.id,status:run.status,error:run.error}

@@ -2,6 +2,8 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'production_director'=>['Direct episodes from production recipes and show bibles','all'],
+      'campaign_producer'=>['Produce a campaign in Studio','growth'],
       'growth'=>['Daily business growth plans','growth'],
       'start'=>['Meet your operating workspace','all'], 'commands'=>['Commands, inputs and capability discovery','all'],
       'agents'=>['Agents, delegation and scheduled workers','all'], 'memory'=>['Memory, voice and personas','all'],
@@ -26,6 +28,8 @@ module NevaehOs
       'capabilities'=>['Installed capability catalog','/capabilities','commands','all'],
       'resources'=>['CRUD resource contracts','/resources','commands','all'],
       'status'=>['Execution activity','/status','recovery','all'],
+      'studio.direct.production'=>['Prepare an episode using existing recipes, bibles and voice cues','make a 22 minute comedy episode called Family Business','production_director','all'],
+      'marketing.campaign.produce'=>['Create an editable TikTok ad with private preview','make me a funny tiktok campaign ad promoting Xyzzy service','campaign_producer','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],
       'agents.list'=>['Agent workforce','/agents','agents','all'],

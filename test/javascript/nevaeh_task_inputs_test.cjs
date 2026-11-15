@@ -30,3 +30,15 @@ test('retrying identical inputs reuses the action request key',async()=>{
   await form.onsubmit({preventDefault(){}});assert.equal(context.think,0);
   await form.onsubmit({preventDefault(){}});assert.equal(calls[0][3].request_key,calls[1][3].request_key);
 });
+
+test('campaign receipts show safe review links as text and ignore external URLs',()=>{
+  const start=source.indexOf('function renderReceipt(a){'),end=source.indexOf('\n',start);
+  assert(start>=0 && end>start);
+  const receipt=new Element('div');receipt.replaceChildren=function(){this.children=[];};
+  const context={document:{createElement:tag=>new Element(tag)},$:()=>receipt};
+  vm.runInNewContext(source.slice(start,end),context);
+  context.renderReceipt({result:{text:'Draft ready',links:[{label:'<Review draft>',url:'/dashboard/studio-broadcasting/workspace/4'},{label:'Preview',url:'/rails/active_storage/blobs/test'},{label:'Bad',url:'javascript:alert(1)'},{label:'External',url:'//example.com'}]}});
+  const links=receipt.children.filter(node=>node.tag==='a');
+  assert.equal(links.length,2);assert.equal(links[0].textContent,'<Review draft>');
+  assert.equal(links[0].href,'/dashboard/studio-broadcasting/workspace/4');
+});

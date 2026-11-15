@@ -11,6 +11,29 @@ module NevaehOs
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'production'
+        if command['operation']=='start'
+          raise ArgumentError, 'Choose a positive business website ID' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+          Studio::Director::Producer.authorize!(actor, DymondSite::Site.find(command.fetch('site_id')))
+          Studio::Director::Producer.normalize(command.fetch('values'))
+        elsif command['operation']=='retry'
+          Studio::Director::Producer.voice_operation!(command.fetch('id'), actor: actor)
+        elsif command['operation']=='status'
+          Studio::Director::Producer.find!(command.fetch('id'), actor: actor)
+        else
+          raise ArgumentError, 'Unknown production action'
+        end
+      when 'campaign_produce'
+        if command['operation'] == 'start'
+          raise ArgumentError, 'Choose a positive business website ID' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+          site = DymondSite::Site.find(command.fetch('site_id'))
+          LightekMarketing::CampaignProducer.authorize!(actor, site)
+          LightekMarketing::CampaignProducer.inputs(command.fetch('values'))
+        elsif %w[status retry].include?(command['operation'])
+          LightekMarketing::CampaignProducer.find!(command.fetch('id'), actor: actor)
+        else
+          raise ArgumentError, 'Unknown campaign production action'
+        end
       when 'growth_plan'
         raise ArgumentError, 'Choose a positive business website ID.' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
         site = DymondSite::Site.find(command.fetch('site_id'))
@@ -82,6 +105,20 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'production'
+        producer = Studio::Director::Producer
+        case command.fetch('operation')
+        when 'start' then producer.start!(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')), values: command.fetch('values'), request_key: "nevaeh-production-#{action.id}")
+        when 'status' then producer.receipt(producer.find!(command.fetch('id'), actor: actor), actor: actor)
+        when 'retry' then producer.retry_voice!(command.fetch('id'), actor: actor)
+        end
+      when 'campaign_produce'
+        producer = LightekMarketing::CampaignProducer
+        case command.fetch('operation')
+        when 'start' then producer.start!(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')), values: command.fetch('values'), request_key: "nevaeh-campaign-#{action.id}")
+        when 'status' then producer.receipt(producer.find!(command.fetch('id'), actor: actor), actor: actor)
+        when 'retry' then producer.retry!(command.fetch('id'), actor: actor)
+        end
       when 'growth_plan'
         site = DymondSite::Site.find(command.fetch('site_id'))
         planner = LightekGrowth::DailyPlanner.new(actor: actor, site: site)

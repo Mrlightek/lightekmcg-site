@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_15_233000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1980,6 +1980,52 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
     t.index ["user_id"], name: "index_lightek_connect_sandboxes_on_user_id"
   end
 
+  create_table "lightek_growth_audit_findings", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "website_audit_id", null: false
+    t.bigint "page_id", null: false
+    t.string "rule", null: false
+    t.string "locator", null: false
+    t.string "severity", null: false
+    t.string "title", null: false
+    t.string "status", default: "open", null: false
+    t.jsonb "evidence", default: {}, null: false
+    t.jsonb "fix_target", default: {}, null: false
+    t.text "resolution_note"
+    t.bigint "resolved_by_id"
+    t.datetime "resolved_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["resolved_by_id"], name: "index_lightek_growth_audit_findings_on_resolved_by_id"
+    t.index ["site_id"], name: "index_lightek_growth_audit_findings_on_site_id"
+    t.index ["website_audit_id"], name: "index_lightek_growth_audit_findings_on_website_audit_id"
+  end
+
+  create_table "lightek_growth_audit_fixes", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "finding_id", null: false
+    t.bigint "created_by_id", null: false
+    t.bigint "applied_by_id"
+    t.bigint "rolled_back_by_id"
+    t.string "status", default: "prepared", null: false
+    t.string "baseline"
+    t.string "applied_fingerprint"
+    t.jsonb "before_values", default: {}, null: false
+    t.jsonb "after_values", default: {}, null: false
+    t.jsonb "verification", default: {}, null: false
+    t.datetime "applied_at"
+    t.datetime "rolled_back_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["applied_by_id"], name: "index_lightek_growth_audit_fixes_on_applied_by_id"
+    t.index ["created_by_id"], name: "index_lightek_growth_audit_fixes_on_created_by_id"
+    t.index ["finding_id"], name: "index_lightek_growth_audit_fixes_on_finding_id"
+    t.index ["rolled_back_by_id"], name: "index_lightek_growth_audit_fixes_on_rolled_back_by_id"
+    t.index ["site_id"], name: "index_lightek_growth_audit_fixes_on_site_id"
+  end
+
   create_table "lightek_growth_briefs", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "updated_by_id", null: false
@@ -2013,6 +2059,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
     t.index ["created_by_id"], name: "index_lightek_growth_links_on_created_by_id"
     t.index ["site_id"], name: "index_lightek_growth_links_on_site_id"
     t.index ["token"], name: "index_lightek_growth_links_on_token", unique: true
+  end
+
+  create_table "lightek_growth_page_metadata", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "page_id", null: false
+    t.bigint "updated_by_id", null: false
+    t.string "title_tag"
+    t.text "description"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["page_id"], name: "index_lightek_growth_page_metadata_on_page_id", unique: true
+    t.index ["site_id"], name: "index_lightek_growth_page_metadata_on_site_id"
+    t.index ["updated_by_id"], name: "index_lightek_growth_page_metadata_on_updated_by_id"
   end
 
   create_table "lightek_growth_plans", force: :cascade do |t|
@@ -2064,6 +2124,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
     t.index ["site_id", "created_at"], name: "index_lightek_growth_visits_on_site_id_and_created_at"
     t.index ["site_id"], name: "index_lightek_growth_visits_on_site_id"
     t.index ["token"], name: "index_lightek_growth_visits_on_token", unique: true
+  end
+
+  create_table "lightek_growth_website_audits", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "created_by_id", null: false
+    t.bigint "scope_page_id"
+    t.string "request_key", null: false
+    t.string "status", null: false
+    t.string "rules_version", null: false
+    t.jsonb "page_results", default: [], null: false
+    t.jsonb "summary", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_lightek_growth_website_audits_on_created_by_id"
+    t.index ["site_id", "request_key"], name: "idx_website_audit_request", unique: true
+    t.index ["site_id"], name: "index_lightek_growth_website_audits_on_site_id"
   end
 
   create_table "lightek_identity_connections", force: :cascade do |t|
@@ -4267,6 +4343,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
     t.index ["user_id"], name: "index_nevaeh_workspace_preferences_on_user_id", unique: true
   end
 
+  create_table "nevaeh_workspaces", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.json "panels", default: [], null: false
+    t.string "active_key"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_nevaeh_workspaces_on_user_id", unique: true
+  end
+
   create_table "nevaeh_writing_profiles", force: :cascade do |t|
     t.string "name", null: false
     t.string "format", null: false
@@ -5052,11 +5138,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
   add_foreign_key "lightek_connect_grants", "sessions", column: "authorization_session_id", on_delete: :nullify
   add_foreign_key "lightek_connect_sandboxes", "gatekeeper_nodes"
   add_foreign_key "lightek_connect_sandboxes", "users"
+  add_foreign_key "lightek_growth_audit_findings", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_audit_findings", "lightek_growth_website_audits", column: "website_audit_id"
+  add_foreign_key "lightek_growth_audit_findings", "users", column: "resolved_by_id"
+  add_foreign_key "lightek_growth_audit_fixes", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_audit_fixes", "lightek_growth_audit_findings", column: "finding_id"
+  add_foreign_key "lightek_growth_audit_fixes", "users", column: "applied_by_id"
+  add_foreign_key "lightek_growth_audit_fixes", "users", column: "created_by_id"
+  add_foreign_key "lightek_growth_audit_fixes", "users", column: "rolled_back_by_id"
   add_foreign_key "lightek_growth_briefs", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_briefs", "users", column: "updated_by_id"
   add_foreign_key "lightek_growth_links", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_links", "lightek_marketing_campaigns", column: "campaign_id"
   add_foreign_key "lightek_growth_links", "users", column: "created_by_id"
+  add_foreign_key "lightek_growth_page_metadata", "dymond_site_pages", column: "page_id", on_delete: :cascade
+  add_foreign_key "lightek_growth_page_metadata", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_page_metadata", "users", column: "updated_by_id"
   add_foreign_key "lightek_growth_plans", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_plans", "lightek_growth_plans", column: "previous_plan_id"
   add_foreign_key "lightek_growth_plans", "users", column: "created_by_id"
@@ -5065,6 +5162,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
   add_foreign_key "lightek_growth_steps", "users", column: "resolved_by_id"
   add_foreign_key "lightek_growth_visits", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_visits", "lightek_growth_links", column: "link_id"
+  add_foreign_key "lightek_growth_website_audits", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_website_audits", "users", column: "created_by_id"
   add_foreign_key "lightek_identity_connections", "users", column: "employer_id"
   add_foreign_key "lightek_identity_factors", "users"
   add_foreign_key "lightek_identity_login_attempts", "lightek_identity_connections", column: "connection_id"
@@ -5288,6 +5387,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
   add_foreign_key "nevaeh_workflow_runs", "users", column: "actor_id"
   add_foreign_key "nevaeh_workflows", "users", column: "creator_id"
   add_foreign_key "nevaeh_workspace_preferences", "users"
+  add_foreign_key "nevaeh_workspaces", "users"
   add_foreign_key "nevaeh_writing_profiles", "nevaeh_inference_models", column: "inference_model_id"
   add_foreign_key "nevaeh_writing_profiles", "nevaeh_language_models", column: "language_model_id"
   add_foreign_key "nevaehs", "users"

@@ -1,6 +1,6 @@
 # Nevaeh operating workspace
 
-Nevaeh now has one authenticated conversational front door at `/dashboard/nevaeh`. The supplied identity-wheel design is integrated with the application rather than served as a standalone demo. Normal sign-in lands here; explicit return URLs still win. The dashboard Nevaeh section links to it.
+Nevaeh now has one authenticated conversational front door at `/dashboard/nevaeh`. The task-focused workspace brings conversation, Studio, agents, learning, and execution evidence together. Normal sign-in lands here; explicit return URLs still win. The dashboard Nevaeh section links to it.
 
 ## Connected behavior
 
@@ -59,11 +59,11 @@ Run `ruby test/standalone/nevaeh_os_test.rb`. This uses real OS models, migratio
 
 Run `node test/standalone/nevaeh_os_browser.cjs` with Playwright installed. `CHROMIUM_PATH` optionally selects an installed Chromium. Screenshots go to `tmp`. These checks use explicit API fixtures to verify layouts, escaping, CSRF request headers, mobile sheets and reduced motion; they do not claim production domain execution or real microphone verification.
 
-Deploy using the normal migration and worker-update pipeline. Keep Dispatch workers running. The full application/private-engine bundle, PostgreSQL runtime, real microphone permissions, paid actions, production deployment and every domain's end-to-end acceptance remain outside the controlled local checks. No external AI service or inference server was added. The natal/transit wheel remains explicitly illustrative; approximate positions do not affect authorization, action selection or evidence. The five principle labels are presentation labels, with no fabricated numerical ethics scores.
+Deploy using the normal migration and worker-update pipeline. Keep Dispatch workers running. The full application/private-engine bundle, PostgreSQL runtime, real microphone permissions, paid actions, production deployment and every domain's end-to-end acceptance remain outside the controlled local checks. No external AI service or inference server was added. The former identity wheel, chart preview, transits, and birth-data prompts are retired from the operating interface. Truth, trust, justice, mercy and excellence remain visible principles; execution evidence appears as references and receipts.
 
 ## Console, Ubuntu applications and agent workforce update
 
-Capability names are now executable instructions: `susu.list`, `/susu.list`, `/execute susu.list` and `show my susus` all resolve to the same native capability. A capability-shaped request that is absent or disabled returns an explicit error instead of documentation search. The native Susu query includes groups the actor organizes or belongs to. Results render as cards, and the evidence panel has its own full-width text layout rather than the transit icon grid. The CSS/JS version changes force a fresh fetch after deployment.
+Capability names are now executable instructions: `susu.list`, `/susu.list`, `/execute susu.list` and `show my susus` all resolve to the same native capability. A capability-shaped request that is absent or disabled returns an explicit error instead of documentation search. The native Susu query includes groups the actor organizes or belongs to. Results render as cards, and the evidence panel has its own full-width text layout rather than the former visualization. The CSS/JS version changes force a fresh fetch after deployment.
 
 ### Rails console
 
@@ -168,3 +168,13 @@ The existing minute WorkflowSweepJob enqueues due watcher polls and recovers und
 Apply migration `20261109160000_create_nevaeh_watchers_and_events`, update the package helper through the existing native deployment path, and restart workers. This follow-up includes the merged PR #205 foundation and has been reconciled with main at `2a0b985`, preserving the later provisioning, routing and schema updates. Polling, package changes and actual external installation/deployment were tested with controlled sensor/queue adapters locally, not against production accounts. Local tests verify the state transitions and permission boundaries; they do not claim live production watcher acceptance.
 
 Commands and complete worked examples are in `docs/nevaeh/tutorials/watchers.md`. Run the existing OS Ruby suite, Python package tests, operating-workspace browser check and `test/standalone/nevaeh_guide_browser.cjs` after rendering its fixture via the Ruby suite.
+
+
+## Production finishing and the task workspace
+
+The workspace centers a multiline conversation composer, modes with execution guidance, draft starters, agent selection, workers, recent saved actions, source evidence, memory consent, and admin-only learning/server links. Recent actions can be reopened for live status. Agent creation asks for a name and role. No chart rendering, sky animation, transit request parameters, or birth-data prompts remain. Existing saved records are preserved.
+
+The Director supports `/produce render ID` (existing paid render quotes), `/produce animate {…}` (bound Cast and dialogue), `/produce assemble ID` (current full scene exports), and `/produce publish {…}` (explicitly reviewed native or configured TikTok/Instagram delivery). See [Production Director](nevaeh/tutorials/production_director.md). Every step follows the same resource ownership, Gatekeeper, worker, and publisher boundaries as Studio.
+
+
+Character creation now has its own [fiction-template and story-worker pipeline](nevaeh/tutorials/story_simulation.md); the retired operating chart is not used for operational decisions. [Social delivery](nevaeh/tutorials/social_delivery.md) connects reviewed Studio video exports to the existing site's encrypted social accounts, with asynchronous receipts and explicit uncertain-outcome handling.

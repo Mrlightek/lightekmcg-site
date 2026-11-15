@@ -22,7 +22,7 @@ module LightekMarketing
       key, = application_credentials
       uri = URI(AUTHORIZE)
       uri.query = URI.encode_www_form(client_key: key, response_type: "code",
-        scope: "user.info.basic,video.upload", redirect_uri: redirect_uri, state: state)
+        scope: "user.info.basic,video.upload#{ENV['LIGHTEK_TIKTOK_DIRECT_POST_ENABLED']=='1' ? ',video.publish' : ''}", redirect_uri: redirect_uri, state: state)
       uri.to_s
     end
 

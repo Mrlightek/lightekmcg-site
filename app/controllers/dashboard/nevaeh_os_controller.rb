@@ -35,17 +35,32 @@ class Dashboard::NevaehOsController < ::ApplicationController
       format.json { render json:{topics:@topics,coverage:@coverage,capabilities:@matches,tutorial:@tutorial,reference:@reference} }
     end
   end
+  def social_connections
+    project=StudioProject.find(params.require(:project_id))
+    Studio::Broadcasting::Access.authorize!(current_user,project.site)
+    Studio::PwaAccess.new('user_id'=>current_user.id,'site_id'=>project.site_id).projects.find(project.id)
+    Studio::Broadcasting::Access.authorize!(current_user,project.site)
+    render json:{connections:LightekMarketing::SocialConnection.where(site_id:project.site_id,enabled:true,provider:%w[tiktok instagram]).map { |row| {id:row.id,provider:row.provider,label:row.account_label} }}
+  end
+  def social_options
+    project=StudioProject.find(params.require(:project_id))
+    Studio::Broadcasting::Access.authorize!(current_user,project.site)
+    Studio::PwaAccess.new('user_id'=>current_user.id,'site_id'=>project.site_id).projects.find(project.id)
+    connection=Studio::Publishers::SocialTransport.connection!(params.require(:connection_id),actor:current_user,project:project)
+    options=connection.provider=='tiktok' ? Studio::Publishers::TikTok.options!(connection:connection,actor:current_user,project:project) : {account:connection.account_label,format:'Instagram Reel'}
+    render json:{connection_id:connection.id,provider:connection.provider,options:options}
+  end
   def state
     render json: {
       user: {id:current_user.id,name:current_user.respond_to?(:first_name) ? current_user.first_name : 'Operator'},
       resources: NevaehOs::Resources.catalog(current_user),
-      agents: NevaehOsAgent.where(user:current_user).order(:id).map { |a| a.attributes.slice('id','name','role','birth_date','birth_time','birth_place','system_key','enabled','autonomy','allowed_capabilities') },
+      agents: NevaehOsAgent.where(user:current_user).order(:id).map { |a| a.attributes.slice('id','name','role','system_key','enabled','autonomy','allowed_capabilities') },
       host_control: current_user.role=='super_admin',
       agent_workers: NevaehAgentWorker.where(user:current_user).includes(:nevaeh_os_agent).order(id: :desc).limit(30).map { |worker| {id:worker.id,agent_id:worker.nevaeh_os_agent_id,agent:worker.nevaeh_os_agent.name,name:worker.name,enabled:worker.enabled?,interval_minutes:worker.interval_minutes,next_run_at:worker.next_run_at,last_status:worker.runs.order(id: :desc).first&.execution_status} },
       watchers:current_user.role=='super_admin' ? NevaehWatcher.where(user:current_user).order(id: :desc).limit(8).map { |w| {id:w.id,name:w.name,status:w.status,initialized:w.initialized?,error:w.error,last_polled_at:w.last_polled_at} } : [],
       memory: memory_state,
       actions: NevaehOsAction.where(user:current_user).order(id: :desc).limit(12).map { |a| receipt(a) },
-      kernel: {language_models: NevaehLanguageModel.where(enabled:true).where.not(active_checkpoint_id:nil).count, chart_accuracy:'illustrative', ethics_scores:'not_measured'}
+      kernel: {language_models: NevaehLanguageModel.where(enabled:true).where.not(active_checkpoint_id:nil).count, execution_evidence:'receipts'}
     }
   end
   def ask

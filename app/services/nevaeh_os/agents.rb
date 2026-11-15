@@ -15,6 +15,8 @@ module NevaehOs
     end
     def capability(command)
       case command['kind']
+      when 'production' then 'studio.direct.production'
+      when 'campaign_produce' then 'marketing.campaign.produce'
       when 'growth_plan' then 'growth.plan'
       when 'capability' then command['intent']
       when 'watch' then "watcher.#{command['operation']}"

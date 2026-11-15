@@ -7,7 +7,7 @@ class StudioPublication < ApplicationRecord
     lightek_streaming
     octavia
   ].freeze
-  STATUSES = %w[draft scheduled publishing published failed cancelled].freeze
+  STATUSES = %w[draft scheduled publishing published failed needs_review cancelled].freeze
 
   has_one_attached :spatial_scene
   has_many_attached :spatial_files

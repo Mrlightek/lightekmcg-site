@@ -25,4 +25,4 @@ Voice can submit recognized commands, so inspect the transcription and resulting
 
 Choose Generate agent, enter its name and identity information, and send the resulting creation instruction. Saved personas have the same worker/delegation interface as built-in agents. Use their numeric ID for an unambiguous `/delegate ID INSTRUCTION`.
 
-The persona's instructions can shape native model drafts. Its voice/visual styling and approximate natal chart do not provide additional permissions.
+The persona's instructions can shape native model drafts. Its name, role and instructions do not provide additional permissions. The operating interface no longer asks for birth data; existing records and consent settings remain available for explicit deletion.

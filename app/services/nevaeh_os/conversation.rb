@@ -32,6 +32,17 @@ module NevaehOs
         {'text'=>"#{mode.to_s.in?(%w[3 reflect]) ? 'Reflection' : 'Proposed action'}: #{command.to_json}\nNo action dispatched in this mode. Choose Operate to execute this instruction.", 'status'=>'planned'}
       else
         case command.fetch('kind')
+      when 'production'
+        if command['operation']=='personalities'
+          rows=Studio::Director::Personality.catalog
+          {'text'=>rows.map { |row| "#{row['key']} · #{row['name']} · #{row['habit']}" }.join("\n"),'personality_templates'=>rows,'status'=>'ready'}
+        elsif command['operation']=='catalog'
+          rows = Studio::Director::Producer.catalog
+          {'text'=>rows.map { |row| "#{row['key']} · #{row['name']} · #{row['scene_count']} scenes" }.join("\n"), 'recipes'=>rows, 'status'=>'ready'}
+        else
+          action = Dispatch.submit!(actor: @actor, command: command, request_key: request_key)
+          {'text'=>"Production action ##{action.id} queued through Gatekeeper and Dispatch.", 'status'=>action.status,'action_id'=>action.id}
+        end
       when 'guide'
         tutorial=Guide.tutorial(command.fetch('topic'),actor:@actor)
         {'text'=>tutorial.fetch(:body),'guide_url'=>"/dashboard/nevaeh/guide?topic=#{tutorial[:id]}",'status'=>'ready','tutorial'=>tutorial.except(:body)}
@@ -68,6 +79,8 @@ module NevaehOs
         if @actor.role=='super_admin'
           rows += %w[create list show poll pause resume apply].map { |operation| {slug:"watcher.#{operation}",name:"Watcher #{operation}",domain:'watchers',invoke:operation=='create' ? '/watch create {"name":"FFmpeg updates","kind":"ubuntu_package","target":{"package":"ffmpeg"},"response":"prepare"}' : "/watch #{operation}#{operation=='list' ? '' : ' ID'}"} }
         end
+        rows << {slug:'studio.direct.production',name:'Recipe-driven episode Director',domain:'studio',invoke:'/produce catalog'}
+        rows << {slug:'marketing.campaign.produce',name:'Campaign producer',domain:'marketing',invoke:'make me a funny tiktok campaign ad promoting Xyzzy service'} if Guide.allowed?('growth', @actor)
         rows << {slug:'growth.plan',name:'Daily business growth plan',domain:'growth',invoke:'/growth SITE_ID'} if Guide.allowed?('growth', @actor)
         rows << {slug:'agents.list',name:'Agent workforce',domain:'agents',invoke:'/agents'}
         rows = rows.uniq { |row| row[:slug] }
@@ -91,6 +104,16 @@ module NevaehOs
         'chart_accuracy'=>'illustrative', 'memory'=>result['memory'])
     end
     def prepare_command(command)
+      if %w[campaign_produce production].include?(command['kind']) && command['operation']=='start'
+        raise ArgumentError, 'Choose a positive business website ID' if command.key?('site_id') && !command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+        sites = command['kind']=='production' ? Studio::Broadcasting::Access.sites(@actor) : LightekSales::Access.sites_for(@actor)
+        site = command['site_id'] ? sites.find(command['site_id']) : sites.find_by(host: @host.to_s.downcase)
+        candidates = sites.limit(2).to_a unless site
+        site ||= candidates.first if candidates&.one?
+        raise ArgumentError, 'Choose a business using /campaign {"site_id":123,"service":"Xyzzy","tone":"funny"}' unless site
+        command['site_id'] = site.id
+        return command
+      end
       return command unless command['kind']=='capability'
       key=command.fetch('intent')
       native=NevaehOrchestration::NativeContracts.supported?(key)

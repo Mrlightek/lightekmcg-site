@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_001000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_001500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4166,6 +4166,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_001000) do
     t.index ["user_id"], name: "index_nevaeh_os_sources_on_user_id"
   end
 
+  create_table "nevaeh_speech_segments", force: :cascade do |t|
+    t.bigint "nevaeh_speech_id", null: false
+    t.integer "position", null: false
+    t.text "text", null: false
+    t.string "status", default: "queued", null: false
+    t.float "duration"
+    t.json "mouth_frames", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_speech_id", "position"], name: "index_nevaeh_speech_segments_on_nevaeh_speech_id_and_position", unique: true
+    t.index ["nevaeh_speech_id"], name: "index_nevaeh_speech_segments_on_nevaeh_speech_id"
+  end
+
   create_table "nevaeh_speeches", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "request_key", null: false
@@ -5464,6 +5477,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_001000) do
   add_foreign_key "nevaeh_os_consents", "users"
   add_foreign_key "nevaeh_os_memories", "users"
   add_foreign_key "nevaeh_os_sources", "users"
+  add_foreign_key "nevaeh_speech_segments", "nevaeh_speeches"
   add_foreign_key "nevaeh_speeches", "users"
   add_foreign_key "nevaeh_study_routines", "nevaeh_islamic_sources", column: "source_id"
   add_foreign_key "nevaeh_study_routines", "nevaeh_language_models", column: "language_model_id"

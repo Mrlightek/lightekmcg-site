@@ -34,3 +34,5 @@ The native model is small and its replies are drafts. Fluent text is not verifie
 ## Continue learning from new source material
 
 Each new training request captures the active checkpoint as its parent. Train and activate batches sequentially to build on earlier weights. Training records retention loss and vocabulary coverage; it does not certify factual accuracy or ethical behavior. For Quran, hadith, translations, commentary and attributed ethical lessons, follow [Islamic learning](islamic_learning.md).
+
+For repository-wide manuals and sequential multi-batch learning, use [Manuals & Language](manual_learning.md). This also provides separately reviewed conversational bindings to actual operating capabilities.

@@ -31,3 +31,5 @@ Use the Guide search, the live capability reference, `/describe CAPABILITY`, `/r
 Conversation occupies the center. The left navigation opens Studio, guides, agent workers and, for administrators, Learning & Study. Your activity on the right reopens saved task receipts; Sources & execution evidence shows the references behind each response. Memory controls remain opt in. On small screens the same controls reflow below the conversation. The former chart interface is retired.
 
 Next: read the Commands tutorial, then Agents and delegation.
+
+The [graphical stage](director_stage.md) keeps your work in one place: open a production, task, Guide, workers or Dashboard page beside chat. Your work tabs persist between visits. Nevaeh’s illustrated assistant reacts to actual activity and can bring a Dashboard page into this workspace.

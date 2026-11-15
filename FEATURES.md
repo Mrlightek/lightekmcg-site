@@ -371,7 +371,7 @@ When a capability changes, update its owning guide and this catalog, retain the 
 | Workspace | Conversation, Studio/Guide/learning navigation, agent selection, workers, watchers, recent-action reopen, source evidence, memory controls, responsive layout; former astronomy interface retired. |
 | Campaign producer | Editable portrait ad script/storyboard, graphics, music, captions and private MP4 draft preview. |
 | Episode preparation | Existing recipes and show bibles, independent long-form episode scenes, camera coverage and local stock-voice dialogue. |
-| Character direction | Automatic placement of registered Cast assets, audio-driven mouth animation, available gestures/expressions and optional registered body motions; one take per character per scene, pinned speaker/series identity, deliberate listener targets and personal-space/collision preflight. |
+| Character direction | Automatic placement of registered Cast assets, audio-driven mouth animation, available gestures/expressions and optional registered body motions; up to 32 non-overlapping takes per character per scene, pinned speaker/series identity, deliberate listener targets and personal-space/collision preflight. |
 | Scene render | Full-scene Blender movie snapshots and existing paid render quotes, replay protection and Studio checkout. |
 | Episode assembly | Current complete scene exports in saved scene order; pinned media and source checks, verified 1080p MP4 with stereo audio, up to four hours across multiple scene timelines. |
 | Reviewed delivery | Explicitly reviewed Director masters dispatched through existing native community/OTT publishers, with current permissions and per-destination receipts. TikTok Direct Post and Instagram Reels transports use existing scoped connections, explicit settings, polling and uncertain-response reconciliation; Facebook Studio video transport remains unimplemented. |
@@ -387,3 +387,14 @@ Guides: [Campaign producer](docs/nevaeh/tutorials/campaign_producer.md), [Produc
 | Physical plausibility | Scene-metre personal space, explicit close contact, per-frame evaluated mesh collision checks, parent-relative camera placement and target-focused perspective/DOF. Detection stops invalid blocking; it does not add automatic path solving or subframe physics. |
 
 Guides: [Story simulation](docs/nevaeh/tutorials/story_simulation.md) and [Social delivery](docs/nevaeh/tutorials/social_delivery.md). Real social provider approval/configuration and live production acceptance remain deployment checks.
+
+### Shared Nevaeh stage and rehearsals
+
+| Capability | Current behavior |
+| --- | --- |
+| Shared graphical stage | Eight persistent work tabs for owned productions, task receipts, workers, guides, learning and internal Dashboard pages; script, saved XY blocking, embedded Studio and preview remain beside chat. |
+| Reactive virtual assistant | Illustrated animated assistant in the workspace and Dashboard dock; reflects real request, voice, job and attention states and brings the current page into the shared workspace. |
+| Blocking rehearsal | Forked, private Blender Workbench preview with bounded obstacle routing, personal-space correction and full-scene spatial audit. Reviewed corrections apply only to the unchanged source revision. |
+| Dialogue continuity | Reuses pinned Cast objects across successive lines, retains each audio source and schedules speaker/listener gaze cues. |
+
+See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md) for limits, recovery and deployment. Root routing does not generate a walk cycle or guarantee artistic facial/eye animation. The assistant is a reactive graphical foundation, with existing authorized command execution.

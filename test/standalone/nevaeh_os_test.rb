@@ -112,9 +112,13 @@ end
 %w[helpers/nevaeh_help_helper services/nevaeh_os/watch_contract services/nevaeh_os/watch_sensors services/nevaeh_os/watch_engine services/nevaeh_os/watch_reaction services/nevaeh_os/guide services/nevaeh_intelligences/software_library models/nevaeh_watcher models/nevaeh_watch_event models/nevaeh_agent_worker models/nevaeh_agent_run models/nevaeh_application_adapter models/nevaeh_os_action models/nevaeh_os_consent models/nevaeh_os_memory models/nevaeh_os_source models/nevaeh_os_agent models/nevaeh_capability
  services/nevaeh_os/agents services/nevaeh_os/agent_workforce services/nevaeh_os/ubuntu_packages services/nevaeh_os/applications services/nevaeh_os/process_runner services/nevaeh_os/rails_console services/nevaeh_os/resources services/nevaeh_os/command services/nevaeh_os/web_document services/nevaeh_os/executor services/nevaeh_os/dispatch services/nevaeh_os/worker
  services/gatekeeper/authorization_decision services/gatekeeper/authorization_service services/gatekeeper].each { |f| require File.join(ROOT,'app',f) }
+require File.join(ROOT,'db/migrate/20261115233000_create_nevaeh_workspaces')
+CreateNevaehWorkspaces.new.migrate(:up)
+require File.join(ROOT,'app/models/nevaeh_workspace')
+require File.join(ROOT,'app/services/nevaeh_os/stage')
 class NevaehOsTest < Minitest::Test
   def setup
-    [NevaehWatchEvent,NevaehWatcher,NevaehAgentRun,NevaehAgentWorker,NevaehApplicationAdapter,NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
+    [NevaehWorkspace,NevaehWatchEvent,NevaehWatcher,NevaehAgentRun,NevaehAgentWorker,NevaehApplicationAdapter,NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
     @actor=User.create!(role:'super_admin')
     @other=User.create!(role:'client')
   end
@@ -816,7 +820,7 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 17,topics.size
+    assert_equal 18,topics.size
     assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'
     assert_includes topics.map { |topic| topic[:id] }, 'production_director'
     assert_includes topics.map { |topic| topic[:id] }, 'story_simulation'

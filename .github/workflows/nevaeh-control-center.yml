@@ -17,6 +17,10 @@ on:
       - 'app/services/studio/publishers/**'
       - 'app/services/studio/publishing/**'
       - 'app/jobs/studio_story_pipeline_job.rb'
+      - 'app/jobs/studio_rehearsal_job.rb'
+      - 'app/services/studio/performance/**'
+      - 'app/models/studio_operation.rb'
+      - 'app/views/dymond_dash/layouts/**'
       - 'app/jobs/studio_social_publication_poll_job.rb'
       - 'blender/**'
       - 'test/operations/studio_spatial_blender_checks.py'
@@ -65,9 +69,13 @@ jobs:
       - run: bundle exec ruby test/standalone/studio_director_finishing_checks.rb --name '/StudioDirectorFinishingChecks/'
       - run: bundle exec ruby test/standalone/studio_story_pipeline_checks.rb --name '/StudioStoryPipelineChecks/'
       - run: bundle exec ruby test/standalone/studio_social_transport_checks.rb --name '/StudioSocialTransportChecks/'
+      - run: REHEARSAL_REAL_BLENDER=1 bundle exec ruby test/standalone/nevaeh_stage_rehearsal_checks.rb --name '/NevaehStageRehearsalChecks/'
+      - run: python3 -m unittest test.operations.nevaeh_rehearsal_paths_test
       - run: blender --background --factory-startup --python-exit-code 1 --python test/operations/studio_spatial_blender_checks.py
       - run: bundle exec ruby test/standalone/nevaeh_os_test.rb
       - run: python3 -m unittest test.operations.nevaeh_package_control_test
+      - run: node --check public/nevaeh/stage.js
+      - run: node --check public/nevaeh/presence.js
       - run: node --check public/nevaeh/os.js
       - run: node --check public/nevaeh/guide.js
       - run: node --check public/lightek/nevaeh/control-center.js
@@ -77,3 +85,18 @@ jobs:
       - name: Check migration discovery
         run: |
           bundle exec ruby -ractive_record -e 'ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"); m = ActiveRecord::MigrationContext.new("db/migrate").migrations; abort "Duplicate migration versions" unless m.map(&:version).uniq.length == m.length; puts "Migration versions unique"'
+
+  graphical-workspace:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/nevaeh-browser" --no-save playwright
+          "$RUNNER_TEMP/nevaeh-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Exercise stage and Dashboard assistant with authenticated API fixtures
+        run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_stage_browser.cjs

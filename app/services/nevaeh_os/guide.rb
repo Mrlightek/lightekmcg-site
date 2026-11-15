@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'director_stage'=>['Graphical workspace, assistant and scene rehearsals','all'],
       'story_simulation'=>['Characters, viewpoints, relative blocking and story workers','all'],
       'social_delivery'=>['Studio TikTok and Instagram video delivery','all'],
       'production_director'=>['Direct episodes, characters, story workers and delivery','all'],
@@ -32,6 +33,7 @@ module NevaehOs
       'status'=>['Execution activity','/status','recovery','all'],
       'studio.direct.production'=>['Prepare an episode using existing recipes, bibles and voice cues','make a 22 minute comedy episode called Family Business','production_director','all'],
       'studio.direct.story'=>['Character templates and collaborative story simulation','/produce personalities','production_director','all'],
+      'studio.direct.rehearsal'=>['Preview and correct character blocking on a scene copy','rehearse this scene','director_stage','all'],
       'studio.direct.finishing'=>['Scene rendering, episode assembly and reviewed delivery','/guide production_director','production_director','all'],
       'marketing.campaign.produce'=>['Create an editable TikTok ad with private preview','make me a funny tiktok campaign ad promoting Xyzzy service','campaign_producer','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],

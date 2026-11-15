@@ -96,7 +96,7 @@ class StudioOperation < ApplicationRecord
         raise ArgumentError,"The character source changed. Register its new version in Cast." unless asset.native.attached? && asset.native.blob.id==profile["source_blob_id"]
         performance_sources.attach(asset.native.blob)
       end
-      if (take=definition["performance"])
+      Array(definition["performance_takes"].presence || [definition["performance"]].compact).each do |take|
         audio=StudioAsset.for_actor(access).find(take.fetch("audio_asset_id"))
         raise ArgumentError,"The performance recording changed. Save the take again." unless audio.file.attached? && audio.file.blob.id==take["audio_blob_id"]
         performance_sources.attach(audio.file.blob)

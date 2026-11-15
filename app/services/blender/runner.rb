@@ -96,7 +96,7 @@ module Blender
         next unless object["type"]=="imported_asset"
         definition=object.fetch("definition")
         definition.delete("asset_path")
-        if (take=definition["performance"])
+        Array(definition["performance_takes"].presence || [definition["performance"]].compact).each do |take|
           take.delete("audio_path")
           source=@performance_paths.fetch(take.fetch("audio_blob_id"))
           voice=output_directory.join("voice-#{take['audio_blob_id']}#{File.extname(source)}")
@@ -212,6 +212,7 @@ module Blender
     end
 
     def timeout_seconds
+      return 180 if execution_record.respond_to?(:metadata) && execution_record.metadata["director_rehearsal"]
       return 180 if execution_record.respond_to?(:metadata) && execution_record.metadata["performance_preview"]
       return 120 if execution_record.respond_to?(:metadata) && execution_record.metadata["asset_source_export"]
       return 60 if execution_record.respond_to?(:metadata) && execution_record.metadata["draft_preview"]

@@ -11,6 +11,7 @@ import authoring
 import performance
 import relationships
 import spatial_checks
+import rehearsal
 import motion
 import appearance
 
@@ -399,7 +400,7 @@ def create_manifest_object(item):
         apply_transform(root, definition)
         if definition.get("character_profile"):
             motion.apply(source_objects, definition)
-            performance.apply(root, source_objects, definition)
+            performance.apply_sequence(root, source_objects, definition)
         return root
 
     if object_type in {
@@ -892,14 +893,26 @@ def stage_manifest(manifest):
             f"{obj.name!r}"
         )
 
-    relationships.apply(objects, created)
-    spatial_checks.validate(objects, created, settings)
-
     # An explicit production format takes precedence over recipe animation FPS.
     if "fps" in settings:
         bpy.context.scene.render.fps = int(settings["fps"])
     if "fps_base" in settings:
         bpy.context.scene.render.fps_base = float(settings["fps_base"])
+
+    report=None
+    if settings.get('_director_rehearsal'):
+        report=rehearsal.plan(objects,created,settings)
+    relationships.apply(objects, created)
+    if report is None:
+        spatial_checks.validate(objects, created, settings)
+    else:
+        try:
+            spatial_checks.validate(objects, created, settings)
+        except RuntimeError as error:
+            report['unresolved'].append(str(error))
+        report['status']='needs_attention' if report['unresolved'] else 'ready'
+        bpy.context.scene['lightek_rehearsal_report']=json.dumps(report)
+
     active_id = settings.get("active_camera_object_id")
     selected = created.get(str(active_id)) if active_id is not None else None
     if selected is None and settings.get("active_camera"):
@@ -953,6 +966,14 @@ def main():
         outputs = requested_outputs(manifest)
         generated = []
 
+        if settings.get('_director_rehearsal'):
+            bpy.context.scene.render.threads_mode='FIXED'
+            bpy.context.scene.render.threads=2
+            bpy.context.scene.display.shading.color_type='MATERIAL'
+            report=json.loads(bpy.context.scene['lightek_rehearsal_report'])
+            with open(os.path.join(output_directory,'rehearsal.json'),'w') as handle:json.dump(report,handle)
+            generated.append('rehearsal.json')
+
         if outputs.get("authoring"):
             inventory = {str(item.get('id')): authoring.inventory(created[str(item.get('id'))]) for item in objects
                          if str(item.get('id')) in created and (item.get('definition', {}).get('authoring_commands') or item.get('id') == manifest.get('authoring_object_id'))}
@@ -988,6 +1009,8 @@ def main():
             scene = bpy.context.scene
             if not 1 <= scene.frame_end-scene.frame_start+1 <= 2400:
                 raise RuntimeError('Export 1–2400 frames per movie shot')
+            if settings.get('_director_rehearsal'):
+                scene.frame_end=min(scene.frame_end,scene.frame_start+int(settings['_director_rehearsal']['preview_frames'])-1)
             scene.render.image_settings.file_format = 'FFMPEG'
             scene.render.ffmpeg.format = 'MPEG4'
             scene.render.ffmpeg.codec = 'H264'

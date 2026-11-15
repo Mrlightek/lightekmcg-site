@@ -50,6 +50,26 @@ class Dashboard::NevaehOsController < ::ApplicationController
     options=connection.provider=='tiktok' ? Studio::Publishers::TikTok.options!(connection:connection,actor:current_user,project:project) : {account:connection.account_label,format:'Instagram Reel'}
     render json:{connection_id:connection.id,provider:connection.provider,options:options}
   end
+  def stage
+    service=NevaehOs::Stage.new(current_user)
+    if request.patch?
+      render json:service.update!(params.to_unsafe_h.slice('operation','lock_version','panel','key','scene_id'))
+    else
+      render json:service.read
+    end
+  end
+  def stage_script
+    render json:NevaehOs::Stage.new(current_user).save_script!(params.to_unsafe_h.slice('production_id','scene_id','lock_version','script'))
+  end
+  def assistant
+    actions=NevaehOsAction.where(user:current_user)
+    projects=StudioProject.where(owner_id:current_user.id)
+    operation=StudioOperation.where(studio_project_id:projects.select(:id)).order(id: :desc).first
+    working=actions.where(status:'pending').exists? || StudioOperation.where(studio_project_id:projects.select(:id),status:%w[pending running]).exists? || StudioPublication.where(studio_project_id:projects.select(:id),status:'publishing').exists?
+    attention=actions.order(id: :desc).first&.status=='failed' || operation&.status=='failed' || operation&.metadata&.dig('rehearsal_report','status')=='needs_attention'
+    phase=working ? 'working' : attention ? 'attention' : 'idle'
+    render json:{state:phase,message:phase=='working' ? 'Work is in progress. I can keep it with you in the workspace.' : phase=='attention' ? 'A recent task needs attention. Its receipt is available in the workspace.' : 'Ready when you are.',workspace_url:'/dashboard/nevaeh'}
+  end
   def state
     render json: {
       user: {id:current_user.id,name:current_user.respond_to?(:first_name) ? current_user.first_name : 'Operator'},
@@ -64,7 +84,7 @@ class Dashboard::NevaehOsController < ::ApplicationController
     }
   end
   def ask
-    render json: NevaehOs::Conversation.new(actor:current_user,host:request.host,origin:request.base_url).ask(text:params.require(:q),request_key:params.require(:request_key),agent:params[:agent],mode:params[:mode],
+    render json: NevaehOs::Conversation.new(actor:current_user,host:request.host,origin:request.base_url).ask(text:NevaehOs::Stage.new(current_user).instruction(params.require(:q)),request_key:params.require(:request_key),agent:params[:agent],mode:params[:mode],
       binding_id:params[:binding_id],binding_fingerprint:params[:binding_fingerprint],language_slots:params[:language_slots].respond_to?(:to_unsafe_h) ? params[:language_slots].to_unsafe_h : params[:language_slots],interval_minutes:params[:interval_minutes])
   end
   def download

@@ -10,6 +10,7 @@ module Studio
         "preview.png" => "preview",
         "movie.mp4" => "video",
         "authoring.json" => "authoring",
+        "rehearsal.json" => "manifest",
         "manifest.json" => "manifest",
         "blender.log" => "log"
       }.freeze
@@ -48,13 +49,15 @@ module Studio
             paths[id]={path:path,format:extension,scene:asset.metadata["source_scene"]}
           end
           objects.each do |object|
-            take=object.dig("definition","performance");next unless take
+            definition=object.fetch("definition",{})
+            Array(definition["performance_takes"].presence || [definition["performance"]].compact).each do |take|
             audio=StudioAsset.for_actor(access).where(status:"ready",kind:%w[audio video]).find(take.fetch("audio_asset_id"))
             pinned=operation.performance_sources.find { |source| source.blob_id==take["audio_blob_id"] }
             raise ArgumentError,"The performance recording snapshot is unavailable" unless pinned
             path=File.join(root,"voice-#{pinned.blob_id}#{File.extname(pinned.filename.to_s)}")
             File.open(path,"wb") { |file| pinned.blob.download { |chunk| file.write(chunk) } }
             performance_paths[pinned.blob_id]=path
+            end
           end
           template_path=nil
           bundle_path=nil

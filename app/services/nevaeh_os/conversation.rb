@@ -4,7 +4,11 @@ module NevaehOs
     def initialize(actor:, host: nil, origin: nil)
       @actor, @host, @origin = actor, host, origin
     end
-    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil)
+    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil)
+      @page_context=PageContext.normalize(page_context)
+      if @page_context && PageContext.question?(text)
+        return PageContext.help(@actor,@page_context,query:text).merge(status:'grounded',influences:[],page_context:@page_context)
+      end
       command = Command.parse(text)
       persona=Agents.resolve!(agent.presence || 'nevaeh',@actor)
       language = if binding_id
@@ -14,7 +18,7 @@ module NevaehOs
       end
       command = language['command'] if language && language['command']
       command=prepare_command(command)
-      command['agent_id']=persona.id unless %w[help resources capabilities status briefing remember search models schema agents guide describe].include?(command['kind'])
+      command['agent_id']=persona.id unless %w[help resources capabilities status briefing remember search models schema agents guide describe goals goal_show].include?(command['kind'])
       if command['kind']=='agent_task'
         inner = command['command'] || Command.parse(command.delete('instruction'))
         if inner['kind'] == 'search' && defined?(Language)
@@ -25,7 +29,7 @@ module NevaehOs
         command['command']=prepare_command(inner)
       end
       command['persona_id']=persona.id if command['kind']=='model'
-      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe].include?(command['kind'])
+      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe goals goal_show].include?(command['kind'])
       result = if language && language['status'] == 'needs_clarification'
         language.slice('text', 'status', 'sources', 'language_request')
       elsif planning
@@ -57,10 +61,14 @@ module NevaehOs
       when 'schema'
         schema=RailsConsole.schema(command.fetch('model'),@actor)
         {'text'=>JSON.pretty_generate(schema),'schema'=>schema,'status'=>'ready'}
+      when 'goals','goal_show'
+        rows=command['kind']=='goal_show' ? [Goals.owned!(@actor,command.fetch('id'))] : NevaehGoal.where(user:@actor).order(id: :desc).limit(30)
+        {'text'=>rows.map { |goal| "##{goal.id} · #{goal.title} · #{goal.status}" }.join("\n"),'goals'=>rows.map { |goal| Goals.receipt(goal) },'status'=>'ready'}
       when 'agents'
-        rows=NevaehOsAgent.where(user:@actor).map do |member|
+        Workforce.install!(@actor)
+        rows=NevaehOsAgent.where(user:@actor,deleted_at:nil).map do |member|
           {id:member.id,name:member.name,enabled:member.enabled?,autonomy:member.autonomy,allowed_capabilities:member.allowed_capabilities,
-           workers:NevaehAgentWorker.where(user:@actor,nevaeh_os_agent:member).order(id: :desc).limit(20).map { |w| {id:w.id,name:w.name,enabled:w.enabled?,interval_minutes:w.interval_minutes,next_run_at:w.next_run_at,last_status:w.runs.order(id: :desc).first&.execution_status} }}
+           workers:NevaehAgentWorker.where(user:@actor,nevaeh_os_agent:member,deleted_at:nil).order(id: :desc).limit(20).map { |w| {id:w.id,name:w.name,enabled:w.enabled?,interval_minutes:w.interval_minutes,next_run_at:w.next_run_at,last_status:w.runs.order(id: :desc).first&.execution_status} }}
         end
         {'text'=>JSON.pretty_generate(rows),'agents'=>rows,'status'=>'ready'}
       when 'resources'
@@ -92,20 +100,27 @@ module NevaehOs
       when 'remember'
         {'text'=>'Would you like me to remember this? Your category consent and the Remember button control storage.', 'memory'=>command.slice('category','text'), 'status'=>'awaiting_memory_consent'}
       when 'search'
-        search(command.fetch('query'), persona: persona)
+        if @page_context && @page_context['path']!='/dashboard/nevaeh' && !text.strip.start_with?('/search')
+          PageContext.help(@actor,@page_context,query:command.fetch('query')).merge('status'=>'grounded')
+        else
+          search(command.fetch('query'), persona: persona)
+        end
       else
         action = Dispatch.submit!(actor: @actor, command: command, request_key: request_key)
         {'text'=>"Action ##{action.id} #{action.status == 'pending' ? 'queued through Gatekeeper and Dispatch' : action.status}. Execution receipts will appear here.", 'status'=>action.status,'action_id'=>action.id}
       end
       end
       result = result.merge('sources' => language['sources'], 'language_binding' => language['binding_name']) if language && language['command']
+      result=result.merge('page_context'=>@page_context) if @page_context
       result.merge('influences'=>[{'planet'=>2,'reason'=>"Intent: #{command['kind']}"},{'planet'=>6,'reason'=>'Permissions use your signed-in account and are checked again when work executes.'}], 'ethics'=>[nil,nil,nil,nil,nil],
         'checks'=>{'authenticated'=>true,'memory_requires_consent'=>true,'execution_status'=>result['status']}, 'persona'=>persona.name, 'mode'=>mode,
         'chart_accuracy'=>'illustrative', 'memory'=>result['memory'])
     end
     def prepare_command(command)
+      return command.merge('host'=>@host,'origin'=>@origin) if command['kind']=='goal'
       if %w[campaign_produce production].include?(command['kind']) && command['operation']=='start'
         raise ArgumentError, 'Choose a positive business website ID' if command.key?('site_id') && !command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+        command['site_id']||=@page_context['site_id'] if @page_context
         sites = command['kind']=='production' ? Studio::Broadcasting::Access.sites(@actor) : LightekSales::Access.sites_for(@actor)
         site = command['site_id'] ? sites.find(command['site_id']) : sites.find_by(host: @host.to_s.downcase)
         candidates = sites.limit(2).to_a unless site
@@ -120,7 +135,7 @@ module NevaehOs
       available=native ? NevaehCapability.enabled.exists?(slug:key) : NevaehIntelligence.available.exists?(intent_key:key)
       raise ArgumentError,"Capability #{key} is unavailable or disabled. Use /capabilities for installed actions; /search for documentation." unless available
       if native
-        requested=command.fetch('payload')['site_id']
+        requested=command.fetch('payload')['site_id'] || @page_context&.fetch('site_id',nil)
         sites=LightekPwa::Policy.sites_for(@actor)
         site=requested ? sites.find(requested) : sites.find_by(host:@host.to_s.downcase)
         if !site

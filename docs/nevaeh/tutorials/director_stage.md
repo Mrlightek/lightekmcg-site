@@ -46,3 +46,5 @@ Use the existing `/produce animate` command for each measured dialogue cue. The 
 Apply migration `20261115233000_create_nevaeh_workspaces`, restart Rails and the Studio Sidekiq worker, and retain a working Blender/FFmpeg runtime. The workspace needs no new external service. Existing speech, Cast, Gatekeeper and publishing configuration still apply.
 
 The standalone suite exercises ownership, persistence, optimistic edits, request replay, unchanged-source enforcement, real Blender collision correction, obstacle routing, actual private MP4 duration and dialogue source pinning. Native Blender checks verify two successive recordings and mouth animation intervals. Browser checks exercise the shared workspace, script save, embedded tools, rehearsal command and mobile layout. CI runs the backend/native checks; deployment-specific visual and permissions checks should use your actual saved productions.
+
+Open **Workforce & goals** for defined specialist jobs, assigned tasks, pause/delete controls, evidence-driven plans and page-aware assistance. See the [workforce guide](workforce.md). Deleted roles/tasks leave their receipts intact and do not resume new work.

@@ -72,8 +72,11 @@ jobs:
       - run: REHEARSAL_REAL_BLENDER=1 bundle exec ruby test/standalone/nevaeh_stage_rehearsal_checks.rb --name '/NevaehStageRehearsalChecks/'
       - run: python3 -m unittest test.operations.nevaeh_rehearsal_paths_test
       - run: blender --background --factory-startup --python-exit-code 1 --python test/operations/studio_spatial_blender_checks.py
+      - run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
+      - run: bundle exec ruby test/standalone/nevaeh_workforce_expansion_checks.rb --name '/NevaehWorkforceExpansionChecks/'
       - run: bundle exec ruby test/standalone/nevaeh_os_test.rb
       - run: python3 -m unittest test.operations.nevaeh_package_control_test
+      - run: node --check public/nevaeh/workforce.js
       - run: node --check public/nevaeh/stage.js
       - run: node --check public/nevaeh/presence.js
       - run: node --check public/nevaeh/os.js
@@ -100,3 +103,5 @@ jobs:
           "$RUNNER_TEMP/nevaeh-browser/node_modules/.bin/playwright" install --with-deps chromium
       - name: Exercise stage and Dashboard assistant with authenticated API fixtures
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_stage_browser.cjs
+      - name: Exercise workforce, delegation, goals and removal
+        run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_workforce_browser.cjs

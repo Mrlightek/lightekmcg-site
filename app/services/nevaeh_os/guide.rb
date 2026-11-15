@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'workforce'=>['Workforce roles, delegated goals and page-aware help','all'],
       'director_stage'=>['Graphical workspace, assistant and scene rehearsals','all'],
       'story_simulation'=>['Characters, viewpoints, relative blocking and story workers','all'],
       'social_delivery'=>['Studio TikTok and Instagram video delivery','all'],
@@ -27,6 +28,8 @@ module NevaehOs
       'studio.project.create'=>{'name'=>'string'}
     }.freeze
     BUILTINS={
+      'nevaeh.goal'=>['Save and run a delegated goal with completion checks','/goal list','workforce','all'],
+      'nevaeh.improve'=>['Audit gaps, import manuals and check phrase contracts','/improve gaps','workforce','admin'],
       'help'=>['Command overview','/help','commands','all'],
       'capabilities'=>['Installed capability catalog','/capabilities','commands','all'],
       'resources'=>['CRUD resource contracts','/resources','commands','all'],

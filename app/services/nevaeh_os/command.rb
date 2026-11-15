@@ -9,7 +9,10 @@ module NevaehOs
       /watch create {"name":"FFmpeg updates","kind":"ubuntu_package","target":{"package":"ffmpeg"},"response":"prepare"}
       /watch list · /watch show ID · /watch poll ID · /watch pause ID · /watch resume ID
       /watch apply EVENT_ID — apply a prepared event response
-      /agents — agents, assigned workers and execution status
+      /agents — workforce roles, responsibilities and assigned tasks
+      /goal list · /goal show ID · /goal {"title":"…","steps":[…]} — review a concrete delegated plan
+      /goal start ID · /goal pause ID · /goal resume ID · /goal cancel ID
+      /improve gaps · /improve corpus · /improve language_check — capability audit, manual learning and phrase checks
       /delegate sage susu.list — assign a real task to Sage
       /agent schedule warden 60 susu.list — run every 60 minutes
       /agent run ID · /agent pause ID — control an agent worker
@@ -56,6 +59,16 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      return {'kind'=>'goals'} if q.match?(/\A\/?goal\s+list\z/i)
+      if (m=q.match(/\A\/?goal\s+(show|start|pause|resume|cancel)\s+([1-9][0-9]*)\z/i))
+        return {'kind'=>m[1].downcase=='show' ? 'goal_show' : 'goal_control','operation'=>m[1].downcase,'id'=>m[2].to_i}
+      end
+      if (m=q.match(/\A\/?goal\s+(\{.*\})\z/im))
+        return {'kind'=>'goal','values'=>JSON.parse(m[1])}
+      end
+      if (m=q.match(/\A\/?improve\s+(gaps|corpus|language_check)\z/i))
+        return {'kind'=>'improve','operation'=>m[1].downcase}
+      end
       return {'kind'=>'production','operation'=>'personalities'} if q.match?(/\A\/?produce\s+personalities\z/i)
       return {'kind'=>'production','operation'=>'catalog'} if q.match?(/\A\/?produce\s+catalog\z/i)
       if (m=q.match(/\A\/?produce\s+(status|retry|render|assemble|story_status|rehearse|rehearsal_status|rehearsal_apply)\s+([1-9][0-9]*)\z/i))

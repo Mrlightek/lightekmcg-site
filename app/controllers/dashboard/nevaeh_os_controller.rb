@@ -70,13 +70,25 @@ class Dashboard::NevaehOsController < ::ApplicationController
     phase=working ? 'working' : attention ? 'attention' : 'idle'
     render json:{state:phase,message:phase=='working' ? 'Work is in progress. I can keep it with you in the workspace.' : phase=='attention' ? 'A recent task needs attention. Its receipt is available in the workspace.' : 'Ready when you are.',workspace_url:'/dashboard/nevaeh'}
   end
+  def page_context
+    context=NevaehOs::PageContext.normalize(params.require(:page_context).to_unsafe_h)
+    render json:NevaehOs::PageContext.help(current_user,context)
+  end
+  def workforce
+    render json:{roles:NevaehOs::Workforce.rows(current_user),tasks:NevaehOs::Workforce.tasks(current_user),goals:NevaehGoal.where(user:current_user).order(id: :desc).limit(30).map { |goal| NevaehOs::Goals.receipt(goal) }}
+  end
+  def goals
+    goal=NevaehOs::Goals.create!(actor:current_user,values:params.require(:goal).to_unsafe_h,request_key:params.require(:request_key),host:request.host,origin:request.base_url)
+    render json:NevaehOs::Goals.receipt(goal)
+  end
   def state
+    NevaehOs::Workforce.install!(current_user)
     render json: {
       user: {id:current_user.id,name:current_user.respond_to?(:first_name) ? current_user.first_name : 'Operator'},
       resources: NevaehOs::Resources.catalog(current_user),
-      agents: NevaehOsAgent.where(user:current_user).order(:id).map { |a| a.attributes.slice('id','name','role','system_key','enabled','autonomy','allowed_capabilities') },
+      agents: NevaehOsAgent.where(user:current_user,deleted_at:nil).order(:id).map { |a| a.attributes.slice('id','name','role','system_key','enabled','autonomy','allowed_capabilities') },
       host_control: current_user.role=='super_admin',
-      agent_workers: NevaehAgentWorker.where(user:current_user).includes(:nevaeh_os_agent).order(id: :desc).limit(30).map { |worker| {id:worker.id,agent_id:worker.nevaeh_os_agent_id,agent:worker.nevaeh_os_agent.name,name:worker.name,enabled:worker.enabled?,interval_minutes:worker.interval_minutes,next_run_at:worker.next_run_at,last_status:worker.runs.order(id: :desc).first&.execution_status} },
+      agent_workers: NevaehAgentWorker.where(user:current_user,deleted_at:nil).includes(:nevaeh_os_agent).order(id: :desc).limit(30).map { |worker| {id:worker.id,agent_id:worker.nevaeh_os_agent_id,agent:worker.nevaeh_os_agent.name,name:worker.name,enabled:worker.enabled?,interval_minutes:worker.interval_minutes,next_run_at:worker.next_run_at,last_status:worker.runs.order(id: :desc).first&.execution_status} },
       watchers:current_user.role=='super_admin' ? NevaehWatcher.where(user:current_user).order(id: :desc).limit(8).map { |w| {id:w.id,name:w.name,status:w.status,initialized:w.initialized?,error:w.error,last_polled_at:w.last_polled_at} } : [],
       memory: memory_state,
       actions: NevaehOsAction.where(user:current_user).order(id: :desc).limit(12).map { |a| receipt(a) },
@@ -85,7 +97,7 @@ class Dashboard::NevaehOsController < ::ApplicationController
   end
   def ask
     render json: NevaehOs::Conversation.new(actor:current_user,host:request.host,origin:request.base_url).ask(text:NevaehOs::Stage.new(current_user).instruction(params.require(:q)),request_key:params.require(:request_key),agent:params[:agent],mode:params[:mode],
-      binding_id:params[:binding_id],binding_fingerprint:params[:binding_fingerprint],language_slots:params[:language_slots].respond_to?(:to_unsafe_h) ? params[:language_slots].to_unsafe_h : params[:language_slots],interval_minutes:params[:interval_minutes])
+      page_context:params[:page_context].respond_to?(:to_unsafe_h) ? params[:page_context].to_unsafe_h : nil,binding_id:params[:binding_id],binding_fingerprint:params[:binding_fingerprint],language_slots:params[:language_slots].respond_to?(:to_unsafe_h) ? params[:language_slots].to_unsafe_h : params[:language_slots],interval_minutes:params[:interval_minutes])
   end
   def download
     NevaehOs::UbuntuPackages.authorize!(current_user)

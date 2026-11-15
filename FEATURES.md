@@ -11,6 +11,8 @@ This is the current product inventory for the Rails host. Module guides describe
 | Finish first super-admin sign-in | Sign-in security | [MFA setup and recovery](docs/security/sign-in-and-mfa.md) |
 | Operate Nevaeh or delegate work | Nevaeh operating workspace; Control Center | [Operating workspace](docs/nevaeh_operating_system.md) |
 | Build a website or publish an article | Design & Content | [Site themes and journal](docs/cms/site-themes-and-journal.md) |
+| Measure campaign outcomes | Growth in the Business workspace | [Growth Foundation](docs/sales/growth-foundation.md) |
+| Manage sales relationships | Sales & CRM | [Sales workflow and roadmap](docs/sales/crm.md) |
 | Sell and fulfill | Business; Commerce; Marketplace | [Platform operations](docs/commerce/platform-operations.md) |
 | Manage the organization or payroll | People & Access | [People and payroll](docs/people/organization-benefits-payroll.md) |
 | Keep books and reconcile statements | Finance → Books & accounting | [Enterprise operations](docs/enterprise-directory-and-accounting.md) |
@@ -71,12 +73,27 @@ Guides: [operating workspace](docs/nevaeh_operating_system.md), [agents](docs/ne
 | Writing services | Scripts, captions, posts and descriptions using rules, symbolic inference or an active native neural model. |
 | Editorial direction | Supported tone, word-limit, opening and closing directives report applied and unsupported instructions. |
 | Documentation learning | Public HTTPS reference import, source review, KB recording and reviewed dataset preparation. |
-| Native neural training | Small Ruby language-model training, held-out metrics, immutable checkpoints, explicit activation/rollback and account-owned conversation history. |
+| Native neural training | Small Ruby language-model training, continued training from an active checkpoint, bounded rehearsal/retention checks, vocabulary coverage, immutable checkpoints, explicit activation/rollback and account-owned conversation history. |
+| Quran & Hadith library | Official Tanzil Arabic Quran download; authorized hadith, translation and commentary imports; immutable editions, exact-reference search, attributed traditions and scholarly assessments, source-derived training batches and draft ethical conduct lessons. |
+| Salah study routine | Six configurable daily server-clock periods (Fajr, Dhuhr, Asr, Maghrib, Isha, Tahajjud), continued Quran reading with source receipts, approved-batch neural training, optional passing-checkpoint activation, deadline checks, pause and missed-period expiry. Fixed study appointments are manually adjusted when prayer times change. |
 | Studio script handoff | Generate/review writing drafts and apply the chosen result to the production's scene script. |
 
 **Operating scope:** the native model is a small trained network, not a claim of general-purpose LLM parity. Construction uses authored primitives and sample tests. Unsupported tickets need a reviewed executor/verifier; generated code is not automatically merged or deployed.
 
-Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/nevaeh/digital_factory.md), [structured tickets](docs/nevaeh/structured_ticket_execution.md), [historical backlog execution](docs/nevaeh/historical_backlog_execution.md).
+Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/nevaeh/digital_factory.md), [Islamic learning](docs/nevaeh/tutorials/islamic_learning.md), [Salah study](docs/nevaeh/tutorials/salah_study.md), [structured tickets](docs/nevaeh/structured_ticket_execution.md), [historical backlog execution](docs/nevaeh/historical_backlog_execution.md).
+
+## Growth Foundation: business context and campaign outcomes
+
+| Capability | Implemented behavior |
+| --- | --- |
+| Business growth brief | Per-website offering, audience, problem, value, voice and dated goal; editor identity and optimistic revision checks. |
+| Daily Nevaeh growth plans | Up to five authored, evidence-backed next moves; immutable daily snapshots/revisions, operator resolution notes, native tool links, idempotent editable campaign drafts, and existing Nevaeh scheduled-worker support. |
+| First-party campaign links | Same-host HTTPS redirects with fixed source/medium/campaign tags, signed 30-day visit cookies, repeat-click reuse and per-link enable/disable. |
+| Campaign journey | Visit-cohort milestones through native inquiries, new leads, converted deals, quote orders, confirmed payment and recorded delivery; duplicate-safe distinct-visit counts. |
+| Commercial evidence | Paid order counts/totals, separate refunds, recent attributed orders and explicitly separate unknown-source activity. |
+| Source preservation and operation | Read-only source on inquiry, lead/deal, quote and order screens; preserved history, tenant/role/package boundaries, structured diagnostics and native recovery guidance. |
+
+Scope: first-party tracked-link attribution, not complete traffic analytics, verified people, multi-touch identity, automated research, a general AI CMO or a new social-publishing engine. Daily plans use reviewed rules rather than causal inference. See the [daily-plan tutorial](docs/nevaeh/tutorials/growth.md). Direct checkout can skip CRM stages. Historical or untraceable sales remain unknown. See [Growth Foundation](docs/sales/growth-foundation.md).
 
 ## 4. Websites, design, publishing and the PWA
 
@@ -98,6 +115,27 @@ Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/
 **Operating scope:** HTML imports do not execute uploaded scripts or install arbitrary WordPress plugins. Custom widgets/forms need application wiring. Dashboard colors and PWA colors are separate settings; the PWA does not yet have the full Dashboard palette editor.
 
 Guides: [site themes and journal](docs/cms/site-themes-and-journal.md), [Design Studio](docs/lightek_design_studio.md), [HTML imports](docs/html_design_imports.md), [starter library](docs/website_template_library.md), [PWA administration](docs/lightek_pwa_administration.md).
+
+## Employee and agency lifecycle operations
+
+Coordinated, scoped onboarding/offboarding in People and Agency workspaces: staged memberships, HR/IT/owner checklist authority, reviewed activation, session/API/Connect revocation, agency-team cleanup, preserved clients/payroll/history, open-sales-work handoff and repair/retry receipts. External directory/device cleanup and contractual/billing changes require review. Guides: [lifecycle operations](docs/people/onboarding-offboarding.md) · [IT-first contract](docs/platform/it-first-operations.md).
+
+## Sales & CRM
+
+| Capability | Implemented behavior |
+| --- | --- |
+| Leads and qualification | Website-scoped prospects with source, owner, status, next action and follow-up date |
+| Companies and shared contacts | Company relationships and enriched existing Marketing contacts; company/deal links and contact purchase history; consent remains independent |
+| Lead conversion | Qualified lead → company/contact/deal in one transaction; same-site matching, existing contact-company retention, idempotent repeat and rollback on failure |
+| Quotes to delivery | USD catalog-backed service/digital/installation quotes, immutable issued revisions, expiring website-bound customer links, staff/customer approval evidence and idempotent pending-order creation through existing checkout/settlement/fulfillment contracts |
+| Deal pipeline | Discovery, Qualified, Proposal, Negotiation, Won and Lost; amount/currency, probability, close date, forecast category and stage-specific guidance |
+| Daily follow-through | Due follow-ups, overdue close dates and missing next steps; assigned tasks with due times, completion/snooze/cancel history and calendar snapshots |
+| Inquiry intake | Review existing website forms or stage bounded CSV files; opt-in automatic acceptance per published form; duplicate-email linking, original submission retention, routed ownership, one task per inquiry and five-minute queue recovery |
+| Lead assignment | Owner-managed exact source rules, explicit override and eligible-owner fallback; revoked memberships cannot receive new assignments |
+| Sales forecast | Monthly and owner-filtered open/weighted/commit/best-case/won/lost values; USD/CAD/EUR/GBP/AUD remain separate; estimates do not become payment or ledger records |
+| Activity and access | Notes/calls/meetings/email logs and mutation history; site membership, scoped associations, current-version edits and Commerce package boundary |
+
+Guides: [Sales & CRM](docs/sales/crm.md) · [Inquiry intake and follow-through](docs/sales/intake-and-follow-through.md). Native website-form and reviewed CSV intake, assigned in-app due tasks and calendar-file handoffs are delivered. Catalog quote/order handoff is documented in [Quotes to delivery](docs/sales/quotes-to-delivery.md). External email/calendar synchronization, reminder email delivery, negotiated pricing/physical quotes, customizable stages, round-robin/territory routing, quotas, forecast snapshots and Nevaeh sales capabilities remain sequenced follow-up work.
 
 ## 5. Marketplace, commerce, subscriptions and shipping
 
@@ -225,12 +263,14 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Basic exports | PNG/MP4 exports into the existing media library, downloadable results and isolated server-side video rendering. |
 | Campaign connection | Create/reopen a campaign production with its brief and return link, retaining website context. |
 | Native Blender library | Approved demo/source imports, prepared metadata, pinned editable `.blend` attachments and optional GLB browser proxies. |
-| Native authoring | Outliner/Inspector, source-object transforms, visibility, duplication/removal, cameras, lights, material overrides and exposed Geometry Nodes parameters. |
+| Native authoring | Outliner/Inspector, source-object transforms, visibility, duplication/removal, cameras, lights, material overrides, exposed Geometry Nodes parameters and named modifier stacks with typed values, viewport/render toggles, ordering, removal and undo. |
 | Advanced workstation/finishing | Existing Blender workspaces and a separate timeline/mix/export path with transforms, fades, speed, titles, picture adjustments, MP4/ProRes and WAV output contracts. |
 | Cast & Performance | Native toon creation or compatible packed character registration, placements, recorded audio takes, saved facial/gesture cues and animated preview/shot export. |
 | Show templates | Reusable scenes, cast, sets/cameras, production plans, scene objectives and independent episode/project copies. |
 | Music composition | Step sequencer, piano roll, instruments/samples, reusable multichannel patterns and linked song placements with repeat/transposition/strength/mute. |
-| Music automation | Saved gain/pan/filter/delay envelopes with linear/hold points, bypass and live/offline scheduling. |
+| Microphone overdub | Shared song/capture audio clock, full passes or selected-bar punch-in/out with discarded lead-in, local PCM review, bounded timing correction and editable aligned audio-take placement. Hardware latency calibration remains separate. |
+| Instrument performance recording | Screen/computer/MIDI-input note capture, velocity/sustain, manual input correction, review/grid/Apply/Undo and existing song/pattern persistence. |
+| Music automation | Saved channel gain/pan/filter/delay, group gain/pan, master gain and schedulable EQ/compressor/delay/wet-mix insert envelopes; linear/hold points, bypass, live/offline scheduling and processed stems. |
 | Music mixer | Eight subgroup buses, channel routing and ordered channel/group/master EQ, compression, distortion and delay inserts, with bypass/reorder/undo. |
 | Audio takes | Local microphone capture/review, retryable canonical WAV library import, source-bound original-pitch takes, trim/beat placement and shared mixer routing. |
 | Picture scoring | Muted Edit compositor monitor driven by music time, saved score start and picture cues, beat mapping and aligned mix placement. |
@@ -239,21 +279,25 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Materials & look | Per-slot native/Cast shader input overrides and reversible scene compositor finish. |
 | Managed Genesis setup | Self-hosted worker/model setup, authenticated routing, verified resumable packages and image/video workflow contracts. |
 | Music delivery | Saved scores, WAV mix/stems, MIDI export and a linked mix-to-edit handoff. |
-| AI Studio integration | Loopback ComfyUI readiness, operator recipes, prompt/seed jobs, durable asset ingestion and result-to-edit. |
+| AI Studio integration | Local or managed ComfyUI readiness, concept images, text-to-video and library image-to-video, prompt/seed jobs, frozen starting-image sources, durable asset ingestion and result-to-edit. See [Image-to-video](docs/studio/genesis-image-to-video.md). |
+| Live graphic placement | Program-canvas image position/size, aspect fit, opacity and visibility, with versioned production-setup persistence and template/episode reuse. |
 | Production delivery | Existing artifact/library reuse, publication records, release queues, channel/OTT configuration and destination adapters. |
 
 **Editor contracts:** the new basic editor path and the advanced legacy/native production path coexist. Basic photo/video PNG/MP4 exports use existing instance resources without an added checkout. Advanced Blender/render/finishing operations retain their documented quote/payment workflows. The basic video editor currently supports up to 16 tracks/128 clips/ten minutes and a 1920-pixel maximum canvas dimension; the advanced finishing path has its own clip/output limits.
 
 **Engine scope:** the browser preserves native Blender rigs/node graphs but does not implement every Blender/Maya authoring tool. Cast supports offline speech-driven mouth cues with editable phoneme/face bindings; detailed character creation and performance-model coverage remain broader work. AI concept-image generation requires an installed local engine/checkpoint; managed worker/model setup and queued image/video contracts are implemented, while actual inference on suitable hardware and the remaining voice/3D/performance recipes still need implementation or acceptance. Face replacement and voice cloning are not claimed as delivered. Full Resolve/Maya parity and automatic finished-episode generation remain separate acceptance goals.
 
-Guides: [basic editors](docs/studio/open-source-editors.md), [Blender engine](docs/studio/native-blender-engine.md), [native authoring](docs/studio/blender-authoring.md), [production finishing](docs/studio/production-suite.md), [cast](docs/studio/cast-and-performance.md), [music](docs/studio/music-quickstart.md), [patterns](docs/studio/music-patterns.md), [automation](docs/studio/music-automation.md), [mixer](docs/studio/music-mixer.md), [recording](docs/studio/music-recording.md), [picture scoring](docs/studio/music-picture-scoring.md), [feature sprint status](docs/studio/feature-sprints.md), [AI Studio](docs/studio/ai-studio.md), [production roadmap](docs/studio/roadmap.md).
+Guides: [basic editors](docs/studio/open-source-editors.md), [Blender engine](docs/studio/native-blender-engine.md), [native authoring](docs/studio/blender-authoring.md), [production finishing](docs/studio/production-suite.md), [cast](docs/studio/cast-and-performance.md), [music](docs/studio/music-quickstart.md), [patterns](docs/studio/music-patterns.md), [automation](docs/studio/music-automation.md), [mixer](docs/studio/music-mixer.md), [recording](docs/studio/music-recording.md), [picture scoring](docs/studio/music-picture-scoring.md), [performance recording](docs/studio/music-performance.md), [microphone overdub](docs/studio/music-overdub.md), [live production setups](docs/studio/live-production-setups.md), [guest program controls](docs/studio/live-guest-program.md), [audience graphics](docs/studio/live-audience-graphics.md), [feature sprint status](docs/studio/feature-sprints.md), [AI Studio](docs/studio/ai-studio.md), [production roadmap](docs/studio/roadmap.md).
 
 ## 12. Live production, audience and distribution
 
 | Capability | Implemented behavior |
 | --- | --- |
+| Saved production setups | Scene-bound prepared stage/media references, imported camera/subject settings and portable show layouts, titles, colors and ticker; room identities stay separate, with local room-style restore and optimistic saves, explicit local preview loading and independent template/episode controls. |
 | Live production sources | Existing camera/capture and prepared scene/library sources plus subscribed room media. |
 | Professional presentation | Panel/gallery, presenter/sidebar, interview/side-by-side and featured layouts with names/roles, brand colors, lower thirds and scrolling banner. |
+| Audience comment graphics | Operator-selected community/room/TikTok/SSN chat excerpts drawn into the captured program; explicit clear and holding/session-end cleanup. |
+| Guest program controls | Per-participant video visibility, stable ordering/featured selection and independent program audio level; local preview, host-only room saves and holding mute. |
 | Program composition | Combined presentation canvas and audio mix, holding-screen behavior and prepared Blender/GLB-stage presentation surfaces. |
 | Native and Restream output | Existing Live Studio output paths to Lightek community and configured Restream destinations. |
 | Lightek audience desk | Authorized playback activity and existing community replies under the site's access rules. |

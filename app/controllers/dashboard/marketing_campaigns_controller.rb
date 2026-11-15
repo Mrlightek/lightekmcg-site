@@ -1,5 +1,6 @@
 # frozen_string_literal: true
-class Dashboard::MarketingCampaignsController < Dashboard::CommerceBaseController
+class Dashboard::MarketingCampaignsController < Dashboard::SettingsHomeController
+  skip_before_action :require_settings_operator!
   protect_from_forgery with: :exception
   before_action :set_site
   before_action :set_campaign, only: %i[edit update destroy send_email send_audience schedule studio]
@@ -53,10 +54,12 @@ class Dashboard::MarketingCampaignsController < Dashboard::CommerceBaseControlle
   def destroy
     @campaign.destroy!
     redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Campaign deleted."
+  rescue ActiveRecord::RecordNotDestroyed
+    redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), alert: "This campaign has tracking links. Mark it completed and disable its links to preserve historical results."
   end
   private
   def set_site
-    @site = LightekAgency::Access.sites_for(current_user).find(params.require(:site_id))
+    @site = LightekSales::Access.sites_for(current_user).find(params.require(:site_id))
   end
   def set_campaign
     @campaign = LightekMarketing::Campaign.where(site: @site).find(params[:id])

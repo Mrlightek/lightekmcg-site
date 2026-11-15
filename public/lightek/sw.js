@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v76-picture-scoring"
+const CACHE = "lightek-shell-v85-live-overlay"
 
 const SHELL = [
   "/lightek/index.html",
@@ -38,6 +38,7 @@ const SHELL = [
   "/lightek/studio-music-core.js",
   "/lightek/studio-music-audio.js",
   "/lightek/studio-music-recording.js",
+  "/lightek/studio-music-recorder-worklet.js?v=83",
   "/lightek/studio-music.js",
   "/lightek/studio-music.css",
   "/lightek/vendor/tone/Tone-15.1.22.js",

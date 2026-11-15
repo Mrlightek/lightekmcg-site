@@ -344,6 +344,7 @@ module Studio
           ids=ids.map{|value|id=Integer(value);raise ArgumentError,"Use positive whole asset IDs" unless id>0 && Float(value)==id;id}
           scope=scope.where(site_id:@access.site_id,id:ids)
         end
+        scope=scope.where(kind:"image",status:"ready").joins(proxy_attachment: :blob).where(active_storage_blobs:{content_type:%w[image/png image/jpeg image/webp]}).where("active_storage_blobs.byte_size BETWEEN 1 AND ?",10.megabytes).includes(proxy_attachment: :blob) if @payload["surface"]=="ai_input"
         scope=scope.where("id < ?",Integer(@payload["before"])) if @payload["before"].present?
         scope=scope.where(site_id:@access.site_id) if @payload["scope_site"]
         scope=scope.where(kind:%w[blend audio video]) if @payload["surface"]=="performance"

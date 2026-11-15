@@ -10,7 +10,7 @@ Open **Studio → Music → Score against picture**. The monitor reuses the Edit
 4. Edit notes or adjust the mix. Music's own redraw preserves the active canvas; changes that already require an audio graph rebuild stop playback. Loading a different scene or leaving the workspace releases the preview.
 5. Use **Refresh edit snapshot** after changing the cut. The monitor does not automatically replace its snapshot in the middle of a scoring pass. **Open Edit** returns to the sequence.
 
-Song playback begins at the score's start, not at the picture scrub position. The picture scrubber and **Preview cue** move picture only. Pattern audition remains local to the selected pattern and does not play the song picture monitor. This sprint does not add arbitrary song seek, pre-roll, synchronized microphone overdub or device-latency compensation.
+Song playback begins at the score's start, not at the picture scrub position. The picture scrubber and **Preview cue** move picture only. Pattern audition remains local to the selected pattern and does not play the song picture monitor. Arbitrary song seek, a count-in and automatic device-latency calibration remain further work. [Record with song](music-overdub.md) adds microphone capture against this same backing/picture playback.
 
 ## Mark picture cues
 
@@ -35,3 +35,5 @@ This is a browser proxy monitor, not a frame-accurate finishing guarantee. Media
 Creating/editing scoring metadata upgrades source to **version 6**, adding `scoring: {start, cues: [{id, name, time}]}`. Source versions 1–5 remain supported, and adding patterns/automation/mixer controls/audio takes does not downgrade a scored project. Template-to-episode copies retain independent cue settings. No database migration is required; deploy the updated compositor/music scripts and PWA cache with the server.
 
 Focused checks cover source bounds, independent copies, exact-reference isolation, first and replacement mix alignment, UI clock mapping/cue persistence/canvas preservation, and the shared compositor's muted external clock, trim/speed, drift, loop reset, pause and cleanup. A decoded-video/real-music browser check is included in CI alongside the existing Edit acceptance check. Local Chromium execution was blocked by this workspace's socket restrictions, so those browser checks were not run here. Device/browser timing and integrated scoring/capture/export remain part of the final production verification sprint.
+
+Instrument note capture is available in [Performance recording](music-performance.md); [microphone overdub](music-overdub.md) provides shared-clock capture with manual timing correction.

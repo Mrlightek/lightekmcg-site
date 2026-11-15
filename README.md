@@ -4,24 +4,39 @@
 
 A business can build its website, sell products or book services, manage customer communications, produce media, run its own applications and delegate supported work to Nevaeh using the same accounts and operational records. Agencies can manage nested client businesses and independently provisioned client instances through the existing account, billing and Gatekeeper boundaries.
 
+**Built IT-first:** business teams get usable products; IT gets explicit access boundaries, execution evidence and recovery paths in the same system. See the [operating contract](docs/platform/it-first-operations.md).
+
 ## Start here
 
 | What you need | Where to go |
 | --- | --- |
+| Manage leads, deals, follow-ups and forecasts | [Sales & CRM](docs/sales/crm.md) · [Inquiry intake & tasks](docs/sales/intake-and-follow-through.md) |
+| Onboard/offboard employees or agencies | [Lifecycle operations](docs/people/onboarding-offboarding.md) |
+| Turn an approved quote into an order and delivery | [Quotes to delivery](docs/sales/quotes-to-delivery.md) |
 | The full current feature list | [Lightek feature catalog](FEATURES.md) |
 | Production is asking you to set up an authenticator | [First sign-in, MFA and recovery](docs/security/sign-in-and-mfa.md) |
 | Learn Nevaeh, agents, workers, watchers and commands | [Operating workspace and Guide](docs/nevaeh_operating_system.md) · [Tutorials](docs/nevaeh/tutorials/commands.md) |
+| Import Quran/hadith sources and extend native training | [Islamic learning and source attribution](docs/nevaeh/tutorials/islamic_learning.md) |
+| Schedule Quran study and training at Salah times | [Salah & Study on the server clock](docs/nevaeh/tutorials/salah_study.md) |
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
+| Control Blender modifiers and stack order | [Modifier stack](docs/studio/blender-modifier-stack.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
+| Position a graphic or logo in the live program | [Live graphic placement](docs/studio/live-overlay-placement.md) |
+| Feature a viewer comment on the live program | [Audience comment graphics](docs/studio/live-audience-graphics.md) |
+| Direct guests in the live program | [Guest visibility, order and audio](docs/studio/live-guest-program.md) |
+| Reuse production assets and branding for a live show | [Saved live production setups](docs/studio/live-production-setups.md) |
 | Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |
+| Play instruments into editable notes | [Performance recording](docs/studio/music-performance.md) |
 | Score a production against picture | [Picture scoring & cues](docs/studio/music-picture-scoring.md) |
+| Record a full pass or punch selected song bars | [Microphone overdub](docs/studio/music-overdub.md) |
 | Record and arrange audio takes | [Recording & audio takes](docs/studio/music-recording.md) |
 | Group instruments and process the mix | [Mixer buses & inserts](docs/studio/music-mixer.md) |
-| Automate the music mix | [Music automation](docs/studio/music-automation.md) |
+| Automate channels, groups, master and effect settings | [Music automation](docs/studio/music-automation.md) |
 | Compose reusable music patterns | [Patterns & playlist](docs/studio/music-patterns.md) |
 | Finish Blender materials and scene look | [Look & materials](docs/studio/look-and-materials.md) |
 | Arrange character motion | [Body motion clips](docs/studio/body-motion-clips.md) |
 | Animate dialogue on a character | [Character speech & lip sync](docs/studio/character-lip-sync.md) |
+| Animate a library still into a video shot | [Genesis image-to-video](docs/studio/genesis-image-to-video.md) |
 | Set up a self-hosted generation worker | [Genesis workers & model packages](docs/studio/genesis-workers.md) |
 | Create a website or publish articles | [Design & Content](docs/cms/site-themes-and-journal.md) |
 | Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
@@ -31,11 +46,13 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 
 ## What is in the platform now
 
-*Platform baseline: November 13, 2026, PR #230; Studio inventory and workflow links refreshed November 14, 2026. This describes implemented host workflows; it is not a claim that every external provider or every deployed client instance has passed live acceptance.*
+*Platform baseline: November 13, 2026, PR #230; Studio inventory and workflow links refreshed November 15, 2026. This describes implemented host workflows; it is not a claim that every external provider or every deployed client instance has passed live acceptance.*
 
 | Workspace | Current capabilities |
 | --- | --- |
 | Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
+| Growth & attribution | Daily Nevaeh growth plans with evidence and editable campaign drafts, site-scoped business briefs, first-party campaign links and visit cohorts traced through inquiries, deals, confirmed payments, refunds and recorded delivery; [operating guide](docs/sales/growth-foundation.md) |
+| Sales & CRM | Site-scoped leads, companies and shared marketing contacts; qualified-lead conversion, source routing, opt-in website/CSV inquiry intake, assigned due tasks and calendar downloads, deal stages, activity history and monthly forecasts by currency |
 | Commerce and shipping | Site-scoped catalogs and variants, cart/checkout, orders, subscriptions, fulfillment, refunds, merchant payouts, upstream revenue terms, federated client sales and FedEx shipping integration |
 | Books & accounting | Encrypted books, statement mapping/import, categorization, reconciliation and period controls, cash-basis P&L, Schedule C workpapers, supported native workbooks and reviewed-input federal estimates |
 | People & Access | 26 default enterprise departments, reporting chains, HR/IT/finance separation, benefits elections, reviewed payroll statements, independent approval and employer-funded net-pay payout workflows |
@@ -43,7 +60,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Websites and community | Pages/sections, HTML design imports, starter designs, coordinated site themes, native store/journal integration, articles/RSS and per-site PWA branding, navigation and moderation |
 | Communications | Lightek webmail, conversation replies, rich composition, mailbox management, distribution addresses, Junk/spam controls, mail templates and native transactional SMTP routing |
 | Reservations and live rooms | Bookable resources, availability/capacity, paid reservations, calendar downloads, private guest rooms, host moderation and Studio program composition |
-| Studio | Photo/video editing and exports; Blender authoring, shots/storyboard, cast lip sync/body motion, materials/look; music patterns, automation, mixer inserts, recorded audio takes and picture scoring; connected finishing, live and delivery workspaces |
+| Studio | Photo/video editing and exports; Blender authoring and modifier stacks, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub and punch ranges, instrument performance recording and picture scoring; saved live production setups, positioned graphic overlays and connected finishing/delivery workspaces |
 | Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
 | Nevaeh | Conversational operating workspace, typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |
 | Platform security and operations | Gatekeeper authorization, scoped Vault credentials, tenant ownership checks, background execution, audit history, retry/recovery paths and configurable Dashboard appearance |

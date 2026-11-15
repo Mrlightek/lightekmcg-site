@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'growth'=>['Daily business growth plans','growth'],
       'start'=>['Meet your operating workspace','all'], 'commands'=>['Commands, inputs and capability discovery','all'],
       'agents'=>['Agents, delegation and scheduled workers','all'], 'memory'=>['Memory, voice and personas','all'],
       'ubuntu'=>['Install and use Ubuntu applications','host'], 'watchers'=>['Watch changes and respond automatically','host'],
@@ -10,7 +11,7 @@ module NevaehOs
       'factory'=>['Build and extend capability APIs','admin'], 'platform'=>['Mail, payments, hosting and other modules','admin'],
       'recovery'=>['Understand receipts and fix blocked work','all']
     }.freeze
-    DOMAIN_GUIDES={'studio'=>'studio','community'=>'commands','messages'=>'commands','social'=>'commands','susu'=>'commands','factory'=>'factory','ticket'=>'agents','nevaeh'=>'start','ubuntu'=>'ubuntu','applications'=>'ubuntu','watcher'=>'watchers'}.freeze
+    DOMAIN_GUIDES={'growth'=>'growth','studio'=>'studio','community'=>'commands','messages'=>'commands','social'=>'commands','susu'=>'commands','factory'=>'factory','ticket'=>'agents','nevaeh'=>'start','ubuntu'=>'ubuntu','applications'=>'ubuntu','watcher'=>'watchers'}.freeze
     VERIFIED_INPUTS={
       'susu.list'=>{}, 'susu.show'=>{'group_id'=>'integer'}, 'susu.contribution.quote'=>{'group_id'=>'integer'},'susu.contribution.checkout'=>{'group_id'=>'integer'},
       'messages.list'=>{}, 'messages.people'=>{}, 'messages.show'=>{'conversation_id'=>'integer'}, 'messages.mark_read'=>{'conversation_id'=>'integer'},
@@ -24,6 +25,7 @@ module NevaehOs
       'capabilities'=>['Installed capability catalog','/capabilities','commands','all'],
       'resources'=>['CRUD resource contracts','/resources','commands','all'],
       'status'=>['Execution activity','/status','recovery','all'],
+      'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],
       'agents.list'=>['Agent workforce','/agents','agents','all'],
       'agent.delegate'=>['Delegate an instruction','/delegate sage susu.list','agents','all'],
@@ -50,6 +52,7 @@ module NevaehOs
     module_function
     def allowed?(level,actor)
       return false unless actor&.persisted?
+      return defined?(LightekSales::Access) && LightekSales::Access.sites_for(actor).exists? if level=='growth'
       level=='all' || (level=='host' && actor.role=='super_admin') || (level=='admin' && %w[admin super_admin].include?(actor.role))
     end
     def topics(actor:)

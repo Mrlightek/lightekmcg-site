@@ -88,7 +88,7 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
     LightekPwa::Policy.new(user:current_user,site:@site).authorize!("studio")
     access=Studio::PwaAccess.new("user_id"=>current_user.id,"site_id"=>@site.id)
     asset=StudioAsset.for_actor(access).where(site_id:@site.id).find(params[:id])
-    flavor={"original"=>:file,"native"=>:native,"bundle"=>:bundle,"proxy"=>:proxy,"thumbnail"=>:thumbnail}.fetch(params[:flavor]) { raise ActiveRecord::RecordNotFound }
+    flavor={"input"=>:ai_input,"original"=>:file,"native"=>:native,"bundle"=>:bundle,"proxy"=>:proxy,"thumbnail"=>:thumbnail}.fetch(params[:flavor]) { raise ActiveRecord::RecordNotFound }
     attachment=asset.public_send(flavor)
     raise ActiveRecord::RecordNotFound unless attachment.attached?
     redirect_to Rails.application.routes.url_helpers.rails_blob_path(attachment,only_path:true)

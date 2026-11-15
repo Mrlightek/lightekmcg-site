@@ -52,6 +52,10 @@ class Dashboard::PeopleController < Dashboard::SettingsHomeController
       if @access.owner?
         values.merge!(params.require(:employment).permit(:people_admin, :payroll_access, :accounting_access, :compliance_access, :directory_admin))
       end
+      if record.new_record? && defined?(LightekPeople::Lifecycle) && LightekPeople::LifecycleCase.table_exists?
+        values[:active] = false
+        @onboarding_prepared = true
+      end
       record.assign_attributes(values)
       unless @access.owner?
         if record.will_save_change_to_department_id? && record.department_id && protected_department?(record.department_id)
@@ -63,8 +67,9 @@ class Dashboard::PeopleController < Dashboard::SettingsHomeController
       end
       record.save!
       audit!('employment_saved', record)
+      LightekPeople::Lifecycle.new(actor: current_user, employer: @employer).start!(kind: 'employee_onboarding', subject: record) if @onboarding_prepared
     end
-    back!('Team member saved')
+    back!(@onboarding_prepared ? 'Team member staged. Complete Onboarding & offboarding before activating membership.' : 'Team member saved')
   end
 
   def benefit

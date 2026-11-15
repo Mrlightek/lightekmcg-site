@@ -58,6 +58,8 @@ on:
       - 'public/lightek/studio-edit-workbench.*'
       - 'public/lightek/media-control.css'
       - 'app/services/lightek_sessions/media_setup.rb'
+      - 'app/services/lightek_sessions/presentation.rb'
+      - 'public/lightek/sessions/**'
       - 'app/controllers/dashboard/session_media_controller.rb'
       - 'lib/scripts/setup_session_media_access.py'
       - 'public/lightek/studio-music*'
@@ -78,6 +80,7 @@ on:
       - 'public/lightek/community-app.css'
       - 'db/migrate/20261111130000_register_studio_production_suite.rb'
       - 'test/javascript/studio_live_library_test.cjs'
+      - 'test/javascript/studio_live_overlay_test.cjs'
       - 'public/lightek/studio-*.js'
       - 'public/lightek/spatial/**'
       - 'examples/spatial-editor/**'
@@ -99,6 +102,7 @@ on:
       - 'db/migrate/20261107190000_register_studio_authoring.rb'
       - 'test/javascript/studio_authoring_test.cjs'
       - 'test/javascript/studio_authoring_dom_test.cjs'
+      - 'test/javascript/studio_modifier_stack_test.cjs'
       - 'test/javascript/studio_mesh_commands_test.cjs'
       - 'test/javascript/fixtures/studio_authoring_fixture.cjs'
       - 'test/javascript/studio_stage_test.cjs'
@@ -183,6 +187,7 @@ jobs:
         run: |
           bundle exec ruby test/standalone/studio_production_checks.rb --name /test_production_/
           bundle exec ruby test/standalone/studio_ai_checks.rb --name /test_ai_/
+          bundle exec ruby test/standalone/studio_ai_image_video_checks.rb --name /StudioAiImageVideoTest/
       - name: Managed Genesis setup boundaries
         run: |
           bundle exec ruby test/standalone/studio_ai_setup_checks.rb --name /StudioAiSetupTest/
@@ -211,12 +216,19 @@ jobs:
         run: bundle exec ruby test/standalone/campaign_studio_checks.rb --name /CampaignStudioChecks/
       - name: Local media helper authorization
         run: python3 -m unittest test.operations.session_media_access_test
+      - name: Saved Live Studio production setup, show styling and authorization
+        run: |
+          bundle exec ruby test/standalone/session_rooms_checks.rb --name /test_guest_program/
+          bundle exec ruby test/standalone/studio_live_production_checks.rb --name /StudioLiveProductionTest/
+          bundle exec ruby test/standalone/studio_live_production_http_checks.rb --name /StudioLiveProductionHttpTest/
       - name: Native Dashboard music source and isolation
         run: |
           bundle exec ruby test/standalone/studio_music_checks.rb --name /test_music_/
           bundle exec ruby test/standalone/studio_music_patterns_checks.rb --name /StudioMusicPatternsTest/
           bundle exec ruby test/standalone/studio_music_automation_checks.rb --name /StudioMusicAutomationTest/
           bundle exec ruby test/standalone/studio_music_mixer_checks.rb --name /StudioMusicMixerTest/
+          bundle exec ruby test/standalone/studio_music_bus_automation_checks.rb --name /StudioMusicBusAutomationTest/
+          bundle exec ruby test/standalone/studio_music_insert_automation_checks.rb --name /StudioMusicInsertAutomationTest/
           bundle exec ruby test/standalone/studio_music_recording_checks.rb --name /StudioMusicRecordingTest/
           bundle exec ruby test/standalone/studio_music_scoring_checks.rb --name /StudioMusicScoringTest/
       - name: Production scores and native camera-cut acceptance
@@ -231,6 +243,10 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/studio_authoring_checks.rb --name "/test_authoring|test_skew/"
+      - name: Native modifier stack acceptance
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/studio_modifier_stack_checks.rb --name /StudioModifierStackTest/
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -244,7 +260,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0 node-web-audio-api@2.2.0
+      - run: npm install --prefix "$RUNNER_TEMP/studio-browser" playwright@1.51.1 jsdom@26.1.0 node-web-audio-api@2.2.0 @napi-rs/canvas@0.1.100
       - run: "$RUNNER_TEMP/studio-browser/node_modules/.bin/playwright install --with-deps chromium"
       - name: Open-source editor persistence and real PNG/MP4 export
         env:
@@ -267,6 +283,7 @@ jobs:
         run: |
           node test/javascript/studio_creation_test.cjs
           node test/javascript/studio_authoring_dom_test.cjs
+          node test/javascript/studio_modifier_stack_test.cjs
           node test/javascript/studio_mesh_commands_test.cjs
           node test/javascript/studio_authoring_test.cjs
           node test/javascript/studio_library_test.cjs
@@ -280,11 +297,24 @@ jobs:
           node test/javascript/studio_edit_workbench_test.cjs
           node test/javascript/studio_delivery_test.cjs
           node test/javascript/studio_ai_setup_test.cjs
+          node test/javascript/studio_ai_image_video_test.cjs
           node test/javascript/studio_music_ui_test.cjs
           node test/javascript/studio_music_patterns_test.cjs
           node test/javascript/studio_music_automation_test.cjs
           node test/javascript/studio_music_mixer_test.cjs
           node test/javascript/studio_music_mixer_audio_test.cjs
+          node test/javascript/studio_music_bus_automation_test.cjs
+          node test/javascript/studio_music_bus_automation_audio_test.cjs
+          node test/javascript/studio_music_insert_automation_test.cjs
+          node test/javascript/studio_music_insert_automation_audio_test.cjs
+          node test/javascript/studio_music_overdub_worklet_test.cjs
+          node test/javascript/studio_music_punch_worklet_test.cjs
+          node test/javascript/studio_music_overdub_test.cjs
+          node test/javascript/studio_music_overdub_audio_test.cjs
+          node test/javascript/studio_music_overdub_browser_test.cjs
+          node test/javascript/studio_music_performance_capture_test.cjs
+          node test/javascript/studio_music_performance_test.cjs
+          node test/javascript/studio_music_performance_audio_test.cjs
           node test/javascript/studio_music_capture_test.cjs
           node test/javascript/studio_music_recording_test.cjs
           node test/javascript/studio_music_recording_audio_test.cjs
@@ -293,6 +323,11 @@ jobs:
           node test/javascript/studio_music_picture_audio_test.cjs
           node test/javascript/studio_music_picture_browser_test.cjs
           node test/javascript/studio_music_audio_test.cjs
+          node test/javascript/studio_live_comments_test.cjs
+          node test/javascript/studio_live_guest_program_test.cjs
+          node test/javascript/studio_live_show_presentation_test.cjs
+          node test/javascript/studio_live_production_test.cjs
+          node test/javascript/studio_live_overlay_test.cjs
           node test/javascript/studio_live_library_test.cjs
           node test/javascript/studio_stage_test.cjs
           node test/javascript/studio_native_camera_test.cjs

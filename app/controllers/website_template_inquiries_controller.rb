@@ -14,6 +14,7 @@ class WebsiteTemplateInquiriesController < ApplicationController
     names = Nokogiri::HTML5.fragment(source).css("form [name]").map { |node| node["name"] }.uniq
     fields = params.permit(*names).to_h.transform_values(&:to_s)
     record = WebsiteTemplateInquiry.new(site: site, template_key: key, section_key: section, fields: fields)
+    record.growth_visit = LightekGrowth::Tracking.from_request(site: site, cookies: cookies, request: request)
     if record.save
       render json: {message: "Your request was received. The team will contact you to confirm details.", reference: record.id}, status: :created
     else

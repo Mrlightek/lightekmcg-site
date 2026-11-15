@@ -7,6 +7,7 @@ module NevaehControlCenterHelper
   def nevaeh_navigation_defaults
     item = ->(id, label, path, icon, group = "Workspaces") { {"id" => id, "label" => label, "path" => path, "icon" => icon, "group" => group} }
     rows = [item.call("overview", "Overview", nevaeh_home_path, "ti-layout-dashboard"),
+      item.call("sales", "Sales & CRM", main_app.dashboard_sales_path, "ti-chart-funnel"),
       item.call("business", "Business", main_app.dashboard_business_hub_path, "ti-building-store"),
       item.call("compliance", "Legal & Compliance", main_app.dashboard_compliance_path, "ti-scale"),
       item.call("accounting", "Books & Accounting", main_app.dashboard_accounting_path, "ti-report-money"),

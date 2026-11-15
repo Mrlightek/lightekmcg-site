@@ -48,6 +48,12 @@ nevaeh_factory_training_recovery:
   queue: default
   active_job: true
 
+nevaeh_salah_study:
+  cron: "* * * * *"
+  class: "NevaehIntelligences::Islamic::StudySweepJob"
+  queue: default
+  active_job: true
+
 lightek_reservations_recovery:
   cron: "*/5 * * * *"
   class: "LightekReservations::SweepJob"
@@ -75,5 +81,11 @@ lightek_shipping_recovery:
 lightek_commerce_network_sync:
   cron: "* * * * *"
   class: "LightekCommerce::NetworkSyncJob"
+  queue: default
+  active_job: true
+
+lightek_sales_intake_recovery:
+  cron: "*/5 * * * *"
+  class: "LightekSales::IntakeSweepJob"
   queue: default
   active_job: true

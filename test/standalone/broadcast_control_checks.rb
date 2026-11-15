@@ -36,6 +36,7 @@ Rails.application.routes.append do
   get "/dashboard/commerce", to: "dashboard/media_studio#index", as: :dashboard_commerce
   get "/dashboard/customers", to: "dashboard/media_studio#index", as: :dashboard_customers
   get "/dashboard/pwa", to: "dashboard/media_studio#index", as: :dashboard_pwa
+  get "/dashboard/sales", to: "dashboard/media_studio#index", as: :dashboard_sales
   get "/dashboard/business", to: "dashboard/media_studio#index", as: :dashboard_business_hub
   get "/dashboard/rooms", to: "dashboard/media_studio#index", as: :dashboard_rooms
   get "/dashboard/reservations", to: "dashboard/media_studio#index", as: :dashboard_reservations

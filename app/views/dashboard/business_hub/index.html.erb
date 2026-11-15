@@ -16,6 +16,7 @@
   <% if @site %>
     <p class="lbh-sub"><strong><%= @site.name %></strong> · <%= @site.host %></p>
     <nav class="lbh-actions" aria-label="Business operations">
+      <%= link_to "Sales & CRM", dashboard_sales_path(site_id: @site.id), class: "lbh-button" %>
       <%= link_to "Studio productions", dashboard_media_studio_path(site_id: @site.id), class: "lbh-button" %>
       <%= link_to "Reservations & experiences", dashboard_reservations_path(site_id: @site.id), class: "lbh-button alt" %>
       <%= link_to "Shipping & labels", dashboard_shipping_path(site_id: @site.id), class: "lbh-button alt" %>

@@ -7,6 +7,10 @@ module AccountHierarchy
 
   def managed_account_ids
     return [] unless id
+    if defined?(LightekPeople::LifecycleAccess)
+      return [] unless LightekPeople::LifecycleAccess.active?(self)
+      return [id] if role == 'white_label' && !LightekPeople::LifecycleAccess.agency_ready?(self)
+    end
     seen = [id]
     frontier = [id]
     until frontier.empty?

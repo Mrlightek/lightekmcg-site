@@ -181,4 +181,35 @@ class SessionRoomsChecks < ActionDispatch::IntegrationTest
     assert_equal ['chat_url'],stored.keys
     assert_equal 'https://chat.restream.io/embed?token=example',stored['chat_url']
   end
+  def test_guest_program_controls_save_for_host_without_changing_room_membership
+    admitted
+    member=LightekSessions::Access.request!(@room,@guest);before=member.attributes
+    key="user-#{@guest.id}"
+    values={participants:{key=>{visible:false,audio_gain:0.35,order:3,name:"Guest speaker"}}}
+    patch session_room_presentation_path(@room.key),params:{presentation:values},headers:as(@guest),as: :json;assert_response :forbidden
+    patch session_room_presentation_path(@room.key),params:{presentation:values},headers:as(@owner),as: :json;assert_response :success
+    style=@room.reload.presentation["participants"][key]
+    assert_equal false,style["visible"];assert_equal 0.35,style["audio_gain"];assert_equal 3,style["order"]
+    assert_equal before,member.reload.attributes
+    # An older client editing a name must not silently reset newer program controls.
+    patch session_room_presentation_path(@room.key),params:{presentation:{participants:{key=>{name:"Renamed guest"}}}},headers:as(@owner),as: :json;assert_response :success
+    style=@room.reload.presentation["participants"][key]
+    assert_equal false,style["visible"];assert_equal 0.35,style["audio_gain"];assert_equal 3,style["order"]
+    patch session_room_presentation_path(@room.key),params:{presentation:{title:"Updated room title"}},headers:as(@owner),as: :json;assert_response :success
+    assert_equal style,@room.reload.presentation["participants"][key]
+  end
+  def test_guest_program_control_bounds_are_atomic_and_defaults_preserve_legacy_rooms
+    key="user-#{@guest.id}"
+    values={participants:{key=>{name:"Guest"}}}
+    patch session_room_presentation_path(@room.key),params:{presentation:values},headers:as(@owner),as: :json;assert_response :success
+    style=@room.reload.presentation["participants"][key]
+    assert_equal true,style["visible"];assert_equal 1,style["audio_gain"];assert_equal 0,style["order"]
+    before=@room.presentation.deep_dup
+    [{visible:"false"},{audio_gain:-0.1},{audio_gain:1.01},{audio_gain:nil},{order:50},{order:-1},{order:0.5}].each do |invalid|
+      patch session_room_presentation_path(@room.key),params:{presentation:{participants:{key=>invalid}}},headers:as(@owner),as: :json
+      assert_response :unprocessable_entity
+      assert_equal before,@room.reload.presentation
+    end
+  end
+
 end

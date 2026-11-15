@@ -1,7 +1,21 @@
+require_relative 'concerns/growth_attributed'
 class WebsiteTemplateInquiry < ApplicationRecord
+  include GrowthAttributed
   belongs_to :site, class_name: "DymondSite::Site"
   validates :template_key, :section_key, presence: true
   validate :valid_starter_fields
+  after_create_commit :enqueue_sales_intake
+
+  def enqueue_sales_intake
+    return unless defined?(LightekSales::IntakeRule) && LightekSales::IntakeRule.table_exists?
+    if LightekSales::IntakeRule.where(site_id: site_id, template_key: template_key, section_key: section_key, enabled: true).exists?
+      LightekSales::IntakeJob.perform_later(id)
+    end
+  rescue StandardError => error
+    # Keep successful public inquiry submissions successful when Redis is down;
+    # the intake recovery sweep will enqueue the durable request later.
+    Rails.logger.warn("Sales intake enqueue failed for inquiry #{id}: #{error.class}")
+  end
 
   private
   def valid_starter_fields

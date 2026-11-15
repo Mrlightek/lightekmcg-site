@@ -1,37 +1,46 @@
 # Lightek AI Studio
 
-The target product is a character animation and AI production studio inside Dashboard. A creator should develop recurring characters and sets, direct performances, generate media, edit a show, score it and deliver it from one production. A mesh form, basic toon rig or volume-driven mouth is not fulfillment of that target.
+AI Studio connects self-hosted generation to the same production library, storyboard and edit used by the rest of Studio. The wider goal remains recurring characters and sets, directed performances, generated media, scoring and delivery from one production.
 
-## Implemented in this change
+## Generate and edit
 
-Open a production → **AI Studio**. The application checks an operator-managed local ComfyUI engine, its installed nodes and checkpoint models. Only ready recipes can be submitted. Write a prompt, optionally a negative prompt, choose the installed model and keep or change the seed.
+Open a production → **AI Studio**. The application checks the selected local or managed ComfyUI worker, its nodes and installed model names. Only ready recipes can be submitted. Choose a workflow, write the prompt, optionally a negative prompt, and keep or change the seed. The concept-image recipe also offers its installed checkpoint selector.
 
-Submission creates a durable, site/project-scoped Studio asset and queues background work. The worker submits the graph, records its engine job ID, polls using scheduled jobs and ingests the saved output through the normal proxy/thumbnail pipeline. Generation history remains attached to the production. **Add result to edit** appends prepared picture or sound to the existing timeline; save the edit to persist its placement.
+| Workflow | Inputs and result |
+| --- | --- |
+| Concept image | Prompt/seed and compatible installed Stable Diffusion checkpoint → 512×512 image |
+| Wan 2.2 text-to-video | Prompt/seed → 121 frames at 24 fps, 1280×704 MP4/H.264 |
+| Wan 2.2 image-to-video | Ready library still plus prompt/seed → the same video output contract; [input guide](genesis-image-to-video.md) |
 
-The default shipped recipe generates a 512×512 concept image from a locally installed compatible Stable Diffusion checkpoint. Installed administrator-controlled recipe graphs can describe image, video, audio or GLB outputs, but this PR does not ship or verify production video, speech or 3D generation recipes. The generic output adapter is not evidence those models are installed or that their generation quality is sufficient.
+Submission creates a durable site/project-scoped asset and queues background work. Image-to-video freezes the prepared source image as an attachment before uploading a canonical PNG to the worker. Jobs retain their original worker identity even if the website’s selection changes. The worker records its engine job ID, polls with scheduled jobs and ingests saved output through normal proxy/thumbnail preparation. Generation history stays attached to the production, including storyboard shot provenance when supplied. **Add result to edit** appends prepared media to the timeline; save the edit to persist placement.
 
-No hosted generation API key is used by this path. The adapter accepts only a loopback engine, does not accept browser-supplied workflow graphs/URLs or follow output redirects, bounds downloaded media to 250 MB and checks output paths. Request keys are idempotent across interrupted submissions. An uncertain engine submission is reported instead of automatically generating a duplicate. The Dashboard's default Tripo onboarding form is removed; legacy Tripo APIs are retained for existing clients, and are not invoked by AI Studio.
+Request keys are idempotent. An uncertain upload/submission is reported instead of automatically creating a duplicate. The browser cannot submit engine URLs, credentials, model paths or arbitrary workflow graphs. Downloads are bounded to 250 MB, output paths are checked and redirects are rejected. No hosted generation API key is used by this path.
 
-## Installation status and outstanding engineering
+## Worker setup
 
-This PR does **not** install ComfyUI, download model weights, provision GPU hardware or activate inference on production. The engine must currently exist on the application worker host (default loopback port 8188; `STUDIO_AI_URL` is operator configuration). The UI reports unavailable models/worker and disables generation when they are absent. A loopback adapter does not yet support a separate remote GPU worker.
+**Genesis worker** installs the pinned ComfyUI engine and verified model packages through the existing Servers/Gatekeeper runtime system. Setup includes ownership, capacity and device checks, resumable model downloads, persisted server phases and private authenticated HTTPS routing. See [Managed Genesis workers](genesis-workers.md) for exact requirements and operating limits. Legacy operator-managed loopback engines remain supported through `STUDIO_AI_URL`.
 
-Dashboard-managed engine/model installation must be connected to server provisioning rather than delegated to customers as manual setup. That includes device/RAM/disk checks, pinned runtime/model releases and licenses, download progress/recovery, private worker connectivity, readiness checks and output verification. No claim that a small web VPS can perform production video inference is made here.
+A worker/model readiness result establishes availability, not generation quality. The video package requires suitable CUDA hardware; a small application VPS is insufficient. No new server is purchased or resized by setup.
+
+## Production scope
 
 | Production need | Current state |
 | --- | --- |
-| Local prompt → concept image → saved asset → timeline | Integration implemented; requires an installed engine/checkpoint |
-| AI video, dialogue/voice, music generation | Additional tested local recipes/models required; existing music composition remains available |
-| Consistent recurring character identity | Reference/version workflow and conditioning required |
-| Detailed editable 3D characters, rigging and motion | Existing Blender authoring/character registration is basic; production creation/retargeting still required |
-| Phoneme-driven facial animation, singing, lip sync | Existing mouth automation follows volume; phoneme/viseme alignment is not implemented |
-| Neural face replacement/performance transfer | Not implemented by this change |
+| Prompt → image/video → saved asset → edit | Implemented integration; requires the relevant worker/model package |
+| Library still → animated video | Implemented image conditioning and frozen-source handoff; actual GPU output review remains pending |
+| Consistent recurring character identity | Starting-image conditioning is available; cross-shot identity guarantees and dedicated identity/performance workflows remain outstanding |
+| Character speech animation | Offline Rhubarb mouth cues, editable phoneme takes and optional detailed face bindings; [character lip sync](character-lip-sync.md) |
+| Editable body animation | Source-bound native Actions/NLA with arrangements and trim/speed/repeat/layer/blend; [body motion](body-motion-clips.md) |
+| Neural voice, audio generation and face/performance transfer | Additional eligible models and verified workflows required |
+| Editable characters, sets and rendering | Existing native Blender authoring; expanded controls and full production acceptance continue separately |
 | Complete animated episode from script to delivery | Not yet accepted end to end |
+
+The Dashboard does not invoke legacy Tripo onboarding for AI Studio; existing Tripo APIs remain for older clients. Generic administrator-owned recipe support for media outputs does not establish that additional speech, music or 3D generation models are installed or accepted.
 
 ## Validation
 
-Real Active Record/Active Storage tests use a loopback HTTP engine fixture and actual FFmpeg image ingest. They cover submission/polling, graph bindings, idempotency, asset persistence, site/actor access, missing models, generation failure and output path rejection. Browser tests cover prompt preservation, submission and result-to-edit handoff with fixture job responses. Neither test performs neural inference, proves model quality, or constitutes a production generation acceptance test.
+Focused Active Record/Active Storage tests exercise a loopback HTTP engine fixture and actual FFmpeg preparation/ingest. They cover submission/polling, graph binding, input upload, frozen attachments, idempotency, actor/site access, missing models/inputs, generation errors and output-path rejection. DOM fixtures cover prompt and source preservation, selection, pagination, submission, setup and edit handoff. These checks do not perform neural inference or certify model quality.
 
-The next acceptance gate must generate real content on a managed worker. Character animation acceptance must independently verify an editable recurring character, a voiced and animated performance, a rendered shot and assembly into an episode. Concept images must never be presented as completed rigged characters.
+Final verification must generate representative content on suitable production hardware, review output, and complete the integrated show workflow. Character acceptance must separately verify editable recurring characters, voiced/animated performances, rendered shots and episode assembly. See [Feature sprints](feature-sprints.md).
 
 Engine API reference: https://docs.comfy.org/development/comfyui-server/comms_routes

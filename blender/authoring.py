@@ -30,8 +30,16 @@ def graph_payload(tree):
     return {'name': tree.name, 'nodes': nodes, 'links': [{'from': l.from_node.name, 'output': list(l.from_node.outputs).index(l.from_socket), 'to': l.to_node.name, 'input': list(l.to_node.inputs).index(l.to_socket)} for l in tree.links if l.from_node.name in names and l.to_node.name in names][:512]}
 
 
+MODIFIER_PROPERTIES = {'SUBSURF': {'levels','render_levels'}, 'MIRROR': {'use_clip'}, 'SOLIDIFY': {'thickness'}, 'BEVEL': {'width','segments'}, 'DECIMATE': {'ratio'}}
+
+
+def modifier_inventory(obj):
+    return [{'name': m.name, 'type': m.type, 'show_viewport': bool(m.show_viewport), 'show_render': bool(m.show_render),
+             'properties': {key: getattr(m, key) for key in sorted(MODIFIER_PROPERTIES.get(m.type, set()))}} for m in obj.modifiers]
+
+
 def inventory(obj):
-    data = {'authoring_version': 1, 'graphs': []}
+    data = {'authoring_version': 1, 'graphs': [], 'modifier_stack': modifier_inventory(obj)}
     if obj.type == 'MESH':
         mesh = obj.data
         data['mesh'] = {'vertex_count': len(mesh.vertices), 'face_count': len(mesh.polygons), 'edge_count': len(mesh.edges),
@@ -154,10 +162,22 @@ def mesh_operation(obj, cmd):
     finally: bm.free()
 
 
+def clear_modifier_animation(obj, mod, key=None):
+    animation = obj.animation_data
+    if not animation: return
+    path = mod.path_from_id(key) if key else mod.path_from_id() + '.'
+    matches = lambda candidate: candidate == path if key else candidate.startswith(path)
+    action = animation.action
+    for curve in list(getattr(action, 'fcurves', [])) if action else []:
+        if matches(curve.data_path): action.fcurves.remove(curve)
+    for curve in list(animation.drivers):
+        if matches(curve.data_path): obj.driver_remove(curve.data_path)
+
+
 def apply(obj, commands):
     if len(commands) > 128: raise ValueError('Authoring command limit exceeded')
     copies = set()
-    if any(c['kind'] in ('keyframe','bone_pose') for c in commands) and obj.animation_data and obj.animation_data.action:
+    if any(c['kind'] in ('keyframe','bone_pose','modifier','modifier_state','modifier_remove') for c in commands) and obj.animation_data and obj.animation_data.action:
         obj.animation_data.action = obj.animation_data.action.copy()
     if any(c['kind'] == 'shape_key' for c in commands) and obj.type == 'MESH':
         obj.data = obj.data.copy()
@@ -168,10 +188,26 @@ def apply(obj, commands):
             name = cmd['name']; mod = obj.modifiers.get(name)
             if mod and mod.type != cmd['type']: raise ValueError('Modifier type mismatch')
             if not mod: mod = obj.modifiers.new(name, cmd['type'])
-            properties = {'SUBSURF': {'levels','render_levels'}, 'MIRROR': {'use_clip'}, 'SOLIDIFY': {'thickness'}, 'BEVEL': {'width','segments'}, 'DECIMATE': {'ratio'}}
+            properties = MODIFIER_PROPERTIES
             for key, value in cmd.get('properties', {}).items():
                 if key not in properties[cmd['type']]: raise ValueError('Invalid modifier parameter')
+                clear_modifier_animation(obj, mod, key)
                 setattr(mod, key, value)
+        elif kind in ('modifier_state', 'modifier_move', 'modifier_remove'):
+            mod = obj.modifiers.get(cmd['name'])
+            if mod is None or mod.type not in MODIFIER_PROPERTIES: raise ValueError('Supported modifier unavailable')
+            if kind == 'modifier_remove':
+                clear_modifier_animation(obj, mod); obj.modifiers.remove(mod)
+            elif kind == 'modifier_move':
+                index = cmd['index']
+                if not isinstance(index, int) or index < 0 or index >= len(obj.modifiers): raise ValueError('Invalid modifier order')
+                obj.modifiers.move(list(obj.modifiers).index(mod), index)
+            else:
+                for key in ('show_viewport', 'show_render'):
+                    if key in cmd:
+                        if not isinstance(cmd[key], bool): raise ValueError('Invalid modifier visibility')
+                        clear_modifier_animation(obj, mod, key)
+                        setattr(mod, key, cmd[key])
         elif kind == 'bone_pose':
             if obj.type != 'ARMATURE' or cmd['bone'] not in obj.pose.bones: raise ValueError('Pose bone unavailable')
             if obj.data.users > 1: obj.data = obj.data.copy()

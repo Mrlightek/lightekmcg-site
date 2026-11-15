@@ -32,8 +32,11 @@ module NevaehOs
           raise ArgumentError,'Agent autonomy is not scheduled' unless worker.nevaeh_os_agent.reload.autonomy=='scheduled'
           request!(worker:worker,actor:worker.user.reload,key:"schedule-#{worker.next_run_at.to_i}")
           worker.update!(next_run_at:now+worker.interval_minutes.minutes)
-        rescue ArgumentError,ActiveRecord::RecordNotFound,Gatekeeper::AuthorizationDenied,LightekPwa::Policy::Denied
+        rescue ArgumentError,ActiveRecord::RecordNotFound,Gatekeeper::AuthorizationDenied,LightekPwa::Policy::Denied => error
           worker.update!(enabled:false)
+          if worker.command['kind']=='growth_plan'
+            Rails.logger.warn({event:'lightek.growth.schedule_paused',agent_worker_id:worker.id,actor_id:worker.user_id,site_id:worker.command['site_id'],reason:error.message.first(300)}.to_json)
+          end
         end
       end
       NevaehAgentRun.where(status:'queued').order(:id).limit(100).pluck(:id).each { |id| NevaehOs::AgentRunJob.perform_later(id) }

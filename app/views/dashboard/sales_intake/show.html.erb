@@ -1,0 +1,23 @@
+<% content_for :page_title, 'Review inquiry · Sales & CRM' %>
+<main class="sales-workspace"><%= render 'dashboard/sales/header' %>
+  <div class="sales-record-heading"><div><span class="sales-eyebrow"><%= @entry.origin.upcase %> / <%= @entry.source %></span><h2>Review this relationship</h2><p><%= @entry.status.humanize %> · received <%= @entry.created_at.to_fs(:long) %></p></div><%= link_to 'Back to inquiry inbox', dashboard_sales_intake_path(site_id: @site.id), class: 'sales-button secondary' %></div>
+  <%= render 'dashboard/growth/attribution', record: @entry.inquiry %>
+  <% if @entry.error_message.present? %><div class="sales-errors" role="alert"><%= @entry.error_message %></div><% end %>
+  <section class="sales-two-col">
+    <article class="sales-panel"><h2><%= @entry.processed? ? 'Intake result' : 'Confirm the essentials' %></h2>
+      <% if @entry.processed? %>
+        <p><%= @entry.status == 'ignored' ? 'This inquiry was ignored. Its original answers are retained.' : 'This inquiry is linked to a sales relationship. Its follow-up task is available in Today and Tasks.' %></p>
+        <% if @entry.lead %><%= link_to 'Open lead', record_url('lead', @entry.lead), class: 'sales-button' %><% end %>
+      <% else %>
+        <p>Accepting links an existing lead by email or creates one. Existing sales records and marketing permissions are preserved.</p>
+        <%= form_with url: accept_dashboard_sales_intake_path(site_id: @site.id, id: @entry.id), scope: :entry, class: 'sales-form' do |f| %><%= f.hidden_field :lock_version, value: @entry.lock_version %>
+          <div class="sales-form-grid"><% LightekSales::IntakeRule::TARGETS.each do |field| %>
+            <label class="<%= field == 'message' ? 'full' : '' %>"><%= field.humanize %><% if field == 'message' %><%= f.text_area field, value: @entry.payload[field], rows: 5, maxlength: 2000 %><% elsif field == 'email' %><%= f.email_field field, value: @entry.payload[field], required: true, maxlength: 254 %><% else %><%= f.text_field field, value: @entry.payload[field], required: field == 'name', maxlength: (field == 'phone' ? 80 : 160) %><% end %></label>
+          <% end %></div><p>If Company is blank, the person’s name is used as the sales account label.</p><%= f.submit 'Accept & schedule follow-up', class: 'sales-button' %>
+        <% end %>
+        <%= button_to 'Ignore this inquiry', ignore_dashboard_sales_intake_path(site_id: @site.id, id: @entry.id), params: {entry: {lock_version: @entry.lock_version}}, class: 'sales-button secondary' %>
+      <% end %>
+    </article>
+    <article class="sales-panel"><span class="sales-eyebrow">PRESERVE THE SOURCE</span><h2>Original submission</h2><dl class="sales-original"><% @entry.original.each do |key, value| %><dt><%= key.humanize %></dt><dd><%= value %></dd><% end %></dl><small>Original answers are retained separately from the reviewed sales fields.</small></article>
+  </section>
+</main>

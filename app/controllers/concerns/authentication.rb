@@ -57,6 +57,7 @@ module Authentication
     def find_session_by_cookie
       candidate = Session.find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
       return unless candidate
+      return unless (!defined?(LightekPeople::LifecycleAccess) || LightekPeople::LifecycleAccess.active?(candidate.user))
       if candidate.identity_connection_id
         connection = LightekIdentity::Connection.find_by(id: candidate.identity_connection_id, enabled: true)
         return unless connection
@@ -87,6 +88,7 @@ end
 end
 
     def complete_primary_authentication_for(user, identity_connection_id: nil)
+      return redirect_to(main_app.new_session_path, alert: 'Account access is suspended. Contact your administrator.') unless (!defined?(LightekPeople::LifecycleAccess) || LightekPeople::LifecycleAccess.active?(user))
       if LightekIdentity::Mfa.enabled?(user)
         session[:mfa_pending] = {'user_id'=>user.id, 'connection_id'=>identity_connection_id, 'expires_at'=>5.minutes.from_now.to_i}
         redirect_to main_app.identity_challenge_path
@@ -100,6 +102,7 @@ end
     end
 
     def start_new_session_for(user, mfa_verified: false, identity_connection_id: nil, mfa_enrollment_only: false)
+      raise ActiveRecord::RecordNotFound unless (!defined?(LightekPeople::LifecycleAccess) || LightekPeople::LifecycleAccess.active?(user))
       user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip, identity_connection_id: identity_connection_id, mfa_enrollment_only: mfa_enrollment_only, mfa_verified_at: (Time.current if mfa_verified)).tap do |session|
         Current.session = session
         cookies.signed.permanent[:session_id] = { value: session.id, httponly: true, same_site: :lax, secure: Rails.env.production? }

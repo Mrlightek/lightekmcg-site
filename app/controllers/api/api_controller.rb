@@ -12,6 +12,7 @@ module Api
     authenticate_or_request_with_http_token do |token, options|
       # Find the user by token. ActiveSupport::SecurityUtils avoids timing attacks.
       @current_user = User.find_by(api_token: token)
+      @current_user = nil unless (!defined?(LightekPeople::LifecycleAccess) || LightekPeople::LifecycleAccess.active?(@current_user))
     end
   end
 

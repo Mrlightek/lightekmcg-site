@@ -54,6 +54,7 @@ module NevaehOs
         if @actor.role=='super_admin'
           rows += %w[create list show poll pause resume apply].map { |operation| {slug:"watcher.#{operation}",name:"Watcher #{operation}",domain:'watchers',invoke:operation=='create' ? '/watch create {"name":"FFmpeg updates","kind":"ubuntu_package","target":{"package":"ffmpeg"},"response":"prepare"}' : "/watch #{operation}#{operation=='list' ? '' : ' ID'}"} }
         end
+        rows << {slug:'growth.plan',name:'Daily business growth plan',domain:'growth',invoke:'/growth SITE_ID'} if Guide.allowed?('growth', @actor)
         rows << {slug:'agents.list',name:'Agent workforce',domain:'agents',invoke:'/agents'}
         rows = rows.uniq { |row| row[:slug] }
         {'text'=>rows.map { |r| "#{r[:slug]} · #{r[:name]}" }.join("\n"), 'capabilities'=>rows,'status'=>'ready'}

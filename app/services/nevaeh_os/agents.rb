@@ -15,6 +15,7 @@ module NevaehOs
     end
     def capability(command)
       case command['kind']
+      when 'growth_plan' then 'growth.plan'
       when 'capability' then command['intent']
       when 'watch' then "watcher.#{command['operation']}"
       when 'ubuntu' then "ubuntu.#{command['operation']}"

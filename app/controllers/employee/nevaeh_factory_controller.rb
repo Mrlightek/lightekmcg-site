@@ -12,10 +12,10 @@ module Employee
       head :not_found
     end
     def index
-      @tab = %w[construction training conversation].include?(params[:tab]) ? params[:tab] : 'construction'
+      @tab = %w[construction training conversation islamic study].include?(params[:tab]) ? params[:tab] : 'construction'
       @constructions = NevaehConstruction.includes(:active_release).order(updated_at: :desc).limit(100)
       @construction = params[:construction_id].present? ? NevaehConstruction.find(params[:construction_id]) : NevaehConstruction.new(definition: default_definition, sample_tests: default_tests)
-      @datasets = NevaehTrainingDataset.order(updated_at: :desc).limit(100)
+      @datasets = NevaehTrainingDataset.order(updated_at: :desc, id: :desc).offset([params[:dataset_page].to_i, 0].max * 100).limit(100)
       @dataset = params[:dataset_id].present? ? NevaehTrainingDataset.find(params[:dataset_id]) : NevaehTrainingDataset.new(examples: [])
       @models = NevaehLanguageModel.order(:name).limit(100)
       @language_model = params[:language_model_id].present? ? NevaehLanguageModel.find(params[:language_model_id]) : NevaehLanguageModel.new(hidden_size: 16, vocabulary_limit: 256, visibility: 'internal')
@@ -23,6 +23,21 @@ module Employee
       @conversations = NevaehConversation.where(user: current_user).order(updated_at: :desc).limit(30)
       @conversation = @conversations.find(params[:conversation_id]) if params[:conversation_id].present?
       @documents = NevaehIntelligences::SoftwareLibrary.new.documents.map { |doc| doc.slice(:id, :title, :path) }
+      if @tab == 'islamic'
+        authorize! :manage, NevaehLanguageModel
+        @islamic_sources = NevaehIslamicSource.order(:name, :id).limit(200)
+        @islamic_passages = params[:q].present? ? NevaehIntelligences::Islamic::Library.search(query: params[:q], source_id: params[:source_id]) : []
+      end
+      if @tab == 'study'
+        authorize! :manage, NevaehLanguageModel
+        @study_routines = NevaehStudyRoutine.includes(:source, :language_model).order(:id).limit(100)
+        @study_routine = params[:study_routine_id].present? ? NevaehStudyRoutine.find(params[:study_routine_id]) : NevaehStudyRoutine.new(daily_times: NevaehStudyRoutine::SLOTS.index_with { '' })
+        @study_sources = NevaehIslamicSource.where(kind: 'quran', status: 'reviewed').order(:id)
+        @study_datasets = NevaehTrainingDataset.where(status: 'approved').where("provenance ->> 'source' = ?", 'islamic_library')
+          .select("id, name, provenance ->> 'source_id' AS islamic_source_id").order(:id).limit(1000)
+        @study_sessions = NevaehStudySession.includes(:nevaeh_study_routine, :nevaeh_training_run).order(id: :desc).limit(30)
+        @study_windows = @study_routine.persisted? ? NevaehIntelligences::Islamic::StudyClock.windows(@study_routine, date: Time.current.in_time_zone(NevaehIntelligences::Islamic::StudyClock.zone).to_date) : []
+      end
     end
     def save_construction
       record = params[:id].present? ? NevaehConstruction.find(params[:id]) : NevaehConstruction.new(creator: current_user)
@@ -87,8 +102,64 @@ module Employee
     end
     def approve_dataset
       dataset = NevaehTrainingDataset.find(params[:id])
+      NevaehIntelligences::Islamic::Corpus.verify_dataset!(dataset)
       dataset.update!(status: 'approved')
       redirect_to employee_nevaeh_factory_path(tab: 'training', dataset_id: dataset.id), notice: 'Dataset approved for explicit training requests.'
+    end
+    def import_islamic_source
+      authorize! :manage, NevaehLanguageModel
+      upload = params.require(:source_file)
+      raise ArgumentError, 'Choose a source file under 16 MB' unless upload.respond_to?(:read) && upload.size <= NevaehIntelligences::Islamic::Importer::MAX_BYTES
+      raw = upload.read(NevaehIntelligences::Islamic::Importer::MAX_BYTES + 1).force_encoding(Encoding::UTF_8)
+      if params[:source_format] == 'tanzil'
+        raw = JSON.generate(NevaehIntelligences::Islamic::Importer.tanzil_document(text: raw,
+          license: NevaehIntelligences::Islamic::Tanzil::LICENSE, training_permitted: params[:training_permitted] == '1', permission_evidence: params[:permission_evidence].to_s))
+      end
+      source = NevaehIntelligences::Islamic::Importer.import!(raw: raw, actor: current_user)
+      redirect_to employee_nevaeh_factory_path(tab: 'islamic'), notice: "Imported #{source.name}: #{source.passages_count} passages. Review the edition before using it."
+    end
+    def download_quran
+      source = NevaehIntelligences::Islamic::Tanzil.import!(actor: current_user,
+        training_permitted: params[:training_permitted] == '1', permission_evidence: params[:permission_evidence].to_s)
+      redirect_to employee_nevaeh_factory_path(tab: 'islamic'), notice: "Imported the Arabic Quran: #{source.passages_count} verses. Review its source and license below."
+    end
+    def review_islamic_source
+      source = NevaehIslamicSource.find(params[:id])
+      NevaehIntelligences::Islamic::Importer.review!(source: source, actor: current_user)
+      redirect_to employee_nevaeh_factory_path(tab: 'islamic'), notice: 'Source reviewed. Exact passages are now searchable with attribution.'
+    end
+    def export_islamic_source
+      authorize! :manage, NevaehLanguageModel
+      source = NevaehIslamicSource.find(params[:id])
+      document = {'source' => source.attributes.slice(*NevaehIntelligences::Islamic::Importer::METADATA).compact,
+        'source_sha256' => source.sha256,
+        'records' => source.passages.order(:id).map { |passage| {'reference' => passage.reference, 'text' => passage.body, 'narrator' => passage.narrator, 'assessments' => passage.assessments}.compact }}
+      send_data JSON.pretty_generate(document), type: 'application/json', disposition: 'attachment', filename: "nevaeh-islamic-source-#{source.id}.json"
+    end
+    def islamic_datasets
+      source = NevaehIslamicSource.find(params[:id])
+      datasets = NevaehIntelligences::Islamic::Corpus.build!(source: source, actor: current_user)
+      redirect_to employee_nevaeh_factory_path(tab: 'training', dataset_id: datasets.first.id), notice: "Created #{datasets.length} draft training batches. Review and approve each batch, then train and activate sequentially to retain earlier learning."
+    end
+    def islamic_ethics
+      dataset = NevaehIntelligences::Islamic::Ethics.build!(source: NevaehIslamicSource.find(params[:id]), actor: current_user)
+      redirect_to employee_nevaeh_factory_path(tab: 'training', dataset_id: dataset.id), notice: 'Draft ethical conduct lessons created with Quran references. Review these authored applications before approval; they are not quotations or religious rulings.'
+    end
+    def save_study_routine
+      NevaehIntelligences::Islamic::Importer.authorize!(current_user)
+      routine = params[:id].present? ? NevaehStudyRoutine.find(params[:id]) : NevaehStudyRoutine.new(creator: current_user)
+      attributes = params.require(:study_routine).permit(:name, :source_id, :language_model_id, :enabled, :training_enabled,
+        :auto_activate, :window_minutes, :passages_per_session, :training_epochs, :lock_version,
+        daily_times: NevaehStudyRoutine::SLOTS, dataset_ids: [])
+      attributes[:dataset_ids] = Array(attributes[:dataset_ids]).reject(&:blank?).map { |id| Integer(id) }.uniq
+      routine.update!(attributes)
+      redirect_to employee_nevaeh_factory_path(tab: 'study', study_routine_id: routine.id), notice: 'Study routine saved. Enabled periods follow the application server clock; each period runs once per server-local date.'
+    end
+    def pause_study_routine
+      NevaehIntelligences::Islamic::Importer.authorize!(current_user)
+      routine = NevaehStudyRoutine.find(params[:id])
+      routine.with_lock { routine.update_columns(enabled: false, lock_version: routine.lock_version + 1) }
+      redirect_to employee_nevaeh_factory_path(tab: 'study', study_routine_id: routine.id), notice: 'Study routine paused. Pending work will be blocked; active scheduled training checks the pause during its next guard interval.'
     end
     def save_language_model
       model = params[:id].present? ? NevaehLanguageModel.find(params[:id]) : NevaehLanguageModel.new
@@ -110,7 +181,7 @@ module Employee
     end
     def activate_checkpoint
       checkpoint = NevaehLanguageCheckpoint.find(params[:id])
-      NevaehIntelligences::Neural::Training.activate!(checkpoint: checkpoint, actor: current_user)
+      NevaehIntelligences::Neural::Training.activate!(checkpoint: checkpoint, actor: current_user, rollback: params[:rollback] == '1')
       redirect_to employee_nevaeh_factory_path(tab: 'training', language_model_id: checkpoint.nevaeh_language_model_id), notice: 'Checkpoint activated. Conversation and neural writing services now use these weights.'
     end
     def conversation

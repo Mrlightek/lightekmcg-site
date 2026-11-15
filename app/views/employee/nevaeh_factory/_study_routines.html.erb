@@ -1,0 +1,38 @@
+<% clock = NevaehIntelligences::Islamic::StudyClock %>
+<div class="nc-heading"><div><h2>A daily rhythm for learning.</h2><p>Fajr, Dhuhr, Asr, Maghrib, Isha and Tahajjud study periods.</p></div><%= nevaeh_help_button('salah_study') %></div>
+<article class="nc-panel"><h3>Server clock</h3><p><strong><%= Time.current.in_time_zone(clock.zone).strftime('%A, %B %-d · %H:%M %Z') %></strong> · <%= clock.zone.name %></p><p class="nc-muted">These are fixed study appointments in the application's server time zone. Set the six clock times you want and adjust them as prayer times change. The browser clock and location are not used.</p></article>
+<div class="nc-split">
+  <aside class="nc-panel"><h3>Study routines</h3><%= link_to '+ New routine', employee_nevaeh_factory_path(tab: 'study'), class: 'nc-button secondary' %>
+    <% @study_routines.each do |routine| %><section class="nc-step"><%= link_to routine.name, employee_nevaeh_factory_path(tab: 'study', study_routine_id: routine.id) %><p><span class="nc-pill"><%= routine.enabled? ? 'Enabled' : 'Paused' %></span></p><p><%= routine.source.name %></p><p class="nc-muted"><%= routine.training_enabled? ? 'Reading and approved neural training' : 'Quran reading only' %></p><% if routine.last_error.present? %><p class="nc-error"><%= routine.last_error %></p><% end %></section><% end %>
+  </aside>
+  <article class="nc-panel"><h3><%= @study_routine.persisted? ? 'Edit study routine' : 'Create a study routine' %></h3>
+    <%= form_with url: @study_routine.persisted? ? employee_nevaeh_factory_study_routine_path(@study_routine) : employee_nevaeh_factory_study_routines_path, method: @study_routine.persisted? ? :patch : :post do %>
+      <input type="hidden" name="study_routine[lock_version]" value="<%= @study_routine.lock_version || 0 %>">
+      <label>Name<input name="study_routine[name]" value="<%= @study_routine.name %>" maxlength="160" required placeholder="Nevaeh daily Quran study"></label>
+      <label>Reviewed Quran edition<select name="study_routine[source_id]" required><option value="">Choose a reviewed source</option><%= options_for_select(@study_sources.map { |source| ["#{source.name} · #{source.edition}", source.id] }, @study_routine.source_id) %></select></label>
+      <div class="nc-grid2"><% NevaehStudyRoutine::SLOTS.each do |slot| %><label><%= slot.capitalize %> · server time<input type="time" name="study_routine[daily_times][<%= slot %>]" value="<%= @study_routine.daily_times[slot] %>" required></label><% end %></div>
+      <div class="nc-grid2"><label>Minutes per study period<input type="number" name="study_routine[window_minutes]" min="5" max="60" value="<%= @study_routine.window_minutes %>" required></label><label>Verses per reading session<input type="number" name="study_routine[passages_per_session]" min="1" max="50" value="<%= @study_routine.passages_per_session %>" required></label></div>
+      <label class="nc-check"><input type="hidden" name="study_routine[training_enabled]" value="0"><input type="checkbox" name="study_routine[training_enabled]" value="1" <%= 'checked' if @study_routine.training_enabled? %>> Train on approved batches during these periods</label>
+      <label>Language model<select name="study_routine[language_model_id]"><option value="">Reading only</option><%= options_for_select(@models.select(&:enabled?).map { |model| [model.name, model.id] }, @study_routine.language_model_id) %></select></label>
+      <input type="hidden" name="study_routine[dataset_ids][]" value="">
+      <label>Approved training batches<select name="study_routine[dataset_ids][]" multiple size="8"><%= options_for_select(@study_datasets.map { |dataset| ["Source ##{dataset['islamic_source_id']} · #{dataset.name}", dataset.id] }, @study_routine.dataset_ids) %></select></label>
+      <p class="nc-muted">Select batches from the chosen Quran edition. Each session uses the next approved batch in saved selection order, then cycles. Source training permission is required. If the trainer is busy, this session waits inside its period.</p>
+      <label>Epochs per training session<input type="number" name="study_routine[training_epochs]" min="1" max="50" value="<%= @study_routine.training_epochs %>" required></label>
+      <label class="nc-check"><input type="hidden" name="study_routine[auto_activate]" value="0"><input type="checkbox" name="study_routine[auto_activate]" value="1" <%= 'checked' if @study_routine.auto_activate? %>> Activate passing checkpoints automatically so the next period builds on them</label>
+      <label class="nc-check"><input type="hidden" name="study_routine[enabled]" value="0"><input type="checkbox" name="study_routine[enabled]" value="1" <%= 'checked' if @study_routine.enabled? %>> Enable this routine</label>
+      <button class="nc-button">Save study routine</button>
+    <% end %>
+    <% if @study_routine.persisted? && @study_routine.enabled? %><%= button_to 'Pause study routine', employee_nevaeh_factory_pause_study_path(@study_routine), class: 'nc-button secondary' %><% end %>
+    <p class="nc-muted">The scheduler checks once per minute. Each named period runs at most once per server-local date. Expired periods do not create a catch-up training backlog.</p>
+  </article>
+</div>
+<% if @study_windows.any? %><article class="nc-panel"><h3>Today's saved periods</h3><dl class="nf-metrics"><% @study_windows.each do |window| %><dt><%= window[:slot].capitalize %></dt><dd><%= window[:scheduled_at].strftime('%H:%M %Z') %>–<%= window[:ends_at].strftime('%H:%M %Z') %></dd><% end %></dl><p class="nc-muted">A period ends at its configured duration or the next scheduled period, whichever comes first.</p></article><% end %>
+<article class="nc-panel"><h3>Recent study receipts</h3><% if @study_sessions.empty? %><p>Receipts appear when an enabled study period begins.</p><% end %>
+  <% @study_sessions.each do |session| %><section class="nc-step"><div class="nc-heading"><h4><%= session.slot.capitalize %> · <%= session.local_date %></h4><span class="nc-pill"><%= session.status %></span></div><p><%= session.nevaeh_study_routine.name %> · <%= session.scheduled_at.in_time_zone(clock.zone).strftime('%H:%M %Z') %></p>
+    <p><%= session.reading_evidence.length %> source passages read and verified<% if session.nevaeh_training_run %> · Training #<%= session.nevaeh_training_run.id %>: <%= session.nevaeh_training_run.status %><% end %></p>
+    <% if session.result['checkpoint_activated'] %><p>Passing checkpoint activated for continued learning.</p><% end %>
+    <% if session.error.present? %><p class="nc-error"><%= session.error %></p><% end %>
+    <details><summary>References and execution evidence</summary><pre><%= JSON.pretty_generate({reading: session.reading_evidence, result: session.result, source: session.snapshot}) %></pre></details>
+  </section><% end %>
+  <p class="nc-muted">Reading receipts record exact source access and checksums. Neural learning is recorded separately as optimizer runs and checkpoints. Reading text alone does not update model weights.</p>
+</article>

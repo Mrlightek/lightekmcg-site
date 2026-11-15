@@ -44,9 +44,13 @@ Rails.application.routes.draw do
   end
   draw :reservations
   draw :people
+  draw :lifecycle
   draw :enterprise_identity
   draw :agency_demos
   draw :accounting
+  draw :growth
+  draw :sales_quotes
+  draw :sales
   post "/website/template-inquiries", to: "website_template_inquiries#create", as: :website_template_inquiries
   get "/dashboard/website/designs/manifest", to: "dashboard/website_designs#manifest", as: :dashboard_website_design_manifest
   get "/dashboard/website/designs/starter-preview", to: "dashboard/website_designs#starter_preview", as: :dashboard_website_starter_preview
@@ -175,6 +179,15 @@ Rails.application.routes.draw do
 
   get "/employee/nevaeh/help/:topic", to: "employee/nevaeh_help#show", as: :employee_nevaeh_help
   get "/employee/nevaeh/factory", to: "employee/nevaeh_factory#index", as: :employee_nevaeh_factory
+  post "/employee/nevaeh/factory/islamic/import", to: "employee/nevaeh_factory#import_islamic_source", as: :employee_nevaeh_factory_import_islamic
+  post "/employee/nevaeh/factory/islamic/quran", to: "employee/nevaeh_factory#download_quran", as: :employee_nevaeh_factory_download_quran
+  post "/employee/nevaeh/factory/islamic/:id/review", to: "employee/nevaeh_factory#review_islamic_source", as: :employee_nevaeh_factory_review_islamic
+  get "/employee/nevaeh/factory/islamic/:id/export", to: "employee/nevaeh_factory#export_islamic_source", as: :employee_nevaeh_factory_export_islamic
+  post "/employee/nevaeh/factory/islamic/:id/datasets", to: "employee/nevaeh_factory#islamic_datasets", as: :employee_nevaeh_factory_islamic_datasets
+  post "/employee/nevaeh/factory/islamic/:id/ethics", to: "employee/nevaeh_factory#islamic_ethics", as: :employee_nevaeh_factory_islamic_ethics
+  post "/employee/nevaeh/factory/study", to: "employee/nevaeh_factory#save_study_routine", as: :employee_nevaeh_factory_study_routines
+  patch "/employee/nevaeh/factory/study/:id", to: "employee/nevaeh_factory#save_study_routine", as: :employee_nevaeh_factory_study_routine
+  post "/employee/nevaeh/factory/study/:id/pause", to: "employee/nevaeh_factory#pause_study_routine", as: :employee_nevaeh_factory_pause_study
   post "/employee/nevaeh/factory/constructions", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_constructions
   patch "/employee/nevaeh/factory/constructions/:id", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_construction
   post "/employee/nevaeh/factory/constructions/:id/build", to: "employee/nevaeh_factory#build", as: :employee_nevaeh_factory_build_construction
@@ -616,6 +629,8 @@ get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 
+get "/dashboard/live/production", to: "dashboard/live_broadcasts#production", as: :dashboard_live_production
+post "/dashboard/live/production", to: "dashboard/live_broadcasts#save_production"
 get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
 post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
 post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination

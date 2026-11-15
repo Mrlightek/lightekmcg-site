@@ -62,3 +62,15 @@ Use **Reservations → Create a bookable room** for services customers reserve. 
 The shared production navigation retains website context between Reservations, Rooms & guests, Live Studio and Room service. Live Studio offers Panel, Presenter, Interview and Featured guest layouts through the existing presentation/compositor controls. Advanced virtual-production settings remain available separately. The Audience desk shows whether a TikTok username or Restream/SSN chat configuration has been saved. Video destinations and audience readers remain separate connections; saved settings alone do not mean an external account is live or its reader is connected.
 
 Apply migration `20261112150000_add_direct_production_rooms` and restart Rails/Studio workers. Run `test/standalone/production_rooms_checks.rb` and the production-workflow browser checks before release. Live guests, camera/mic permissions, external-network traversal and actual social events require separate live acceptance.
+
+## Reuse a show’s presentation
+
+[Saved production setups](live-production-setups.md) can apply the show layout, title, subtitle, brand, colors and ticker to a connected room locally. Guest identities, featured participant and individual styles remain room-specific. Restore the room’s saved presentation with the separate control, or explicitly save the current presentation to that room using its existing permission-checked action.
+
+## Direct guest video and program sound
+
+[Guest program controls](live-guest-program.md) add per-person video visibility, program ordering and audio level beside the existing name/effect fields. These controls change the composed feed, preserve room membership, and save only through the host presentation action. Video visibility and audio muting remain independent.
+
+## Feature a comment on the program
+
+[Audience comment graphics](live-audience-graphics.md) let the operator select an available community, room, TikTok or SSN chat message for the composed video. Incoming messages remain off-screen until selected; holding/end/release clears the selection. The Restream iframe remains separate.

@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+(async()=>{
+ const presentationURL='data:text/javascript;base64,'+fs.readFileSync('public/lightek/sessions/presentation.js').toString('base64');
+ const {programItems,participantGain}=await import(presentationURL);
+ const items=Array.from({length:15},(_,i)=>({identity:'user-'+i,name:'Guest '+i})),settings={layout:'gallery',participants:{'user-0':{visible:false},'user-2':{order:0},'user-1':{order:2}}};
+ assert.equal(programItems(items,settings)[0].identity,'user-2');assert(!programItems(items,settings).some(i=>i.identity==='user-0'));assert.equal(programItems(items,settings).length,12);settings.layout='fullscreen';settings.featured='user-14';assert.equal(programItems(items,settings)[0].identity,'user-14','visible featured guest can be promoted beyond the tile cap');settings.participants['user-14']={visible:false};assert(!programItems(items,settings).some(i=>i.identity==='user-14'),'hidden featured guest is not restored to program');assert.equal(participantGain({participants:{}},'user-1'),1);
+ global.navigator||={};await import(require.resolve('node-web-audio-api/polyfill.js'));
+ const context=new OfflineAudioContext(2,48000*2,48000),rooms=[],tracks=[{frequency:440},{frequency:880}];
+ global.MediaStream=class{constructor(tracks){this.tracks=tracks}};
+ global.document={querySelector:()=>({content:'csrf'}),createElement:()=>({width:1280,height:720,getContext:()=>({})})};
+ const callbacks=new Map();global.LivekitClient={RoomEvent:{TrackSubscribed:'add',TrackUnsubscribed:'remove',DataReceived:'data',Disconnected:'disconnected'},Room:class{constructor(){this.remoteParticipants=new Map([['user-1',{identity:'user-1',name:'One'}],['user-2',{identity:'user-2',name:'Two'}]]);rooms.push(this);}on(name,fn){callbacks.set(name,fn);return this;}async connect(){tracks.forEach((track,i)=>callbacks.get('add')({kind:'audio',mediaStreamTrack:track},{trackSid:'audio-'+i},[...this.remoteParticipants.values()][i]));}disconnect(){this.disposed=true;}}};
+ global.fetch=async(url,options)=>({ok:true,json:async()=>url.endsWith('/ticket')?{url:'wss://fixture.test',token:'fixture',ends_at:new Date(Date.now()+600000).toISOString()}:{presentation:{participants:{'user-1':{audio_gain:.5},'user-2':{audio_gain:0}}}}});
+ const audio={get currentTime(){return context.currentTime},createGain:()=>context.createGain(),createMediaStreamSource:stream=>{const source=context.createBufferSource(),buffer=context.createBuffer(1,48000,48000),samples=buffer.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=.1*Math.sin(2*Math.PI*stream.tracks[0].frequency*i/48000);source.buffer=buffer;source.loop=true;source.start(0);return source;}};
+ const code=fs.readFileSync('public/lightek/sessions/studio-source.js','utf8').replace("'./presentation.js?v=2'",JSON.stringify(presentationURL));
+ const {connectSessionSource}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+ const source=await connectSessionSource({key:'11111111-1111-1111-1111-111111111111',audio,mixer:context.destination});assert.equal(source.stats().audio,2);
+ const first=context.suspend(.5),second=context.suspend(1.2),render=context.startRendering();await first;
+ source.configure({participants:{'user-1':{audio_gain:0},'user-2':{audio_gain:1,visible:false}}});await context.resume();await second;source.setMuted(true);await context.resume();const buffer=await render;
+ const amplitude=(frequency,start,end)=>{const samples=buffer.getChannelData(0);let sum=0;for(let i=Math.floor(start*48000);i<Math.floor(end*48000);i++)sum+=samples[i]*Math.sin(2*Math.PI*frequency*i/48000);return Math.abs(sum)/(48000*(end-start));};
+ assert(amplitude(440,.1,.4)>.01);assert(amplitude(880,.1,.4)<.0001,'muted guest is absent from the program mix');assert(Math.abs(amplitude(440,.1,.4)/amplitude(880,.8,1.1)-.5)<.01,'half gain halves real program amplitude');assert(amplitude(880,.8,1.1)>.02,'a video-hidden guest remains audible until separately muted');assert(amplitude(440,.8,1.1)<.0001,'live guest gain changes reach real PCM');assert(amplitude(880,1.4,1.8)<.000001,'holding/master mute remains authoritative');
+ callbacks.get('remove')({kind:'audio'},{trackSid:'audio-0'});assert.equal(source.stats().audio,1);source.dispose();assert.equal(source.stats().audio,0);assert(rooms[0].disposed);assert.equal(source.ready,false);
+ console.log('STUDIO_LIVE_GUEST_PROGRAM_PASS visible ordering/featured cap and real PCM per-guest gain, video/audio independence, holding mute and unsubscribe/disposal');process.exit(0);
+})().catch(error=>{console.error(error);process.exit(1)});

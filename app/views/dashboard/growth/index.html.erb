@@ -1,0 +1,51 @@
+<% content_for :page_title, 'Growth & attribution' %>
+<main class="sales-workspace growth-workspace">
+  <%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %>
+  <%= stylesheet_link_tag '/lightek/growth-workspace.css?v=2' %>
+  <%= render 'dashboard/shared/business_workspace', active: 'Growth' %>
+  <header class="sales-header"><div><span class="sales-eyebrow">LIGHTEK / FROM ATTENTION TO DELIVERY</span><h1>Growth & attribution</h1><p>Know your audience. Trace your campaigns to real business results.</p></div>
+    <%= form_with url: dashboard_growth_path, method: :get, class: 'sales-site' do %><%= label_tag :site_id, 'Business website' %><%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %><%= submit_tag 'Switch', class: 'sales-button secondary' %><% end %>
+  </header>
+  <% if flash[:alert] %><div class="sales-errors" role="alert"><%= flash[:alert] %></div><% end %>
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <%= render 'daily_plan' %>
+  <section class="sales-coach"><span class="sales-eyebrow">YOUR GROWTH FOUNDATION</span><p><%= @brief.complete? ? 'Your business brief is ready. Create a campaign link, share it, and follow the results below.' : 'Start with your business brief, create a campaign, then share its tracked link. No marketing expertise required.' %></p><p><%= link_to 'Manage campaigns', dashboard_marketing_campaigns_path(site_id: @site.id) %> · <%= link_to 'Review inquiries', dashboard_sales_intake_path(site_id: @site.id) %> · <%= link_to 'Open sales pipeline', dashboard_sales_path(site_id: @site.id, tab: 'pipeline') %></p></section>
+  <section class="sales-panel growth-results" aria-labelledby="results-title">
+    <div class="sales-panel-title"><div><span class="sales-eyebrow">MEASURE WHAT HAPPENS</span><h2 id="results-title">Campaign journey</h2><p>Visits starting in this date range, and the stages they have reached as of now.</p></div></div>
+    <%= form_with url: dashboard_growth_path, method: :get, class: 'sales-filters' do %><%= hidden_field_tag :site_id, @site.id %><label>From<%= date_field_tag :from, @funnel.from, required: true %></label><label>Through<%= date_field_tag :to, @funnel.to, required: true %></label><%= submit_tag 'Update results', class: 'sales-button secondary' %><% end %>
+    <ol class="growth-funnel"><% @stages.each do |label, count| %><li><span><%= label %></span><strong><%= count %></strong><meter min="0" max="<%= [@stages.values.max, 1].max %>" value="<%= count %>" aria-label="<%= label %>"><%= count %></meter></li><% end %></ol>
+    <p><small>Each stage counts distinct tracked visits, not people or total records. A direct checkout can skip inquiry and deal stages. Repeated payment notifications do not add conversions.</small></p>
+    <div class="growth-money"><div><span>Paid orders</span><strong><%= @money[:paid_orders] %></strong></div><div><span>Confirmed order totals · USD</span><strong><%= number_to_currency(BigDecimal(@money[:collected_cents].to_s) / 100) %></strong></div><div><span>Recorded refunds · USD</span><strong><%= number_to_currency(BigDecimal(@money[:refunded_cents].to_s) / 100) %></strong></div></div>
+    <p><small>Order totals include recorded tax/shipping. These are not profit or settled bank balances; refunds remain visible.</small></p>
+  </section>
+  <section class="sales-two-col growth-editors">
+    <article id="business-brief" class="sales-panel"><span class="sales-eyebrow">01 / KNOW YOUR BUSINESS</span><h2>Business growth brief</h2><p>A shared, reviewed brief for this website. Nevaeh uses this reviewed brief for your daily plan and editable campaign drafts.</p>
+      <%= form_with url: dashboard_growth_brief_path(site_id: @site.id), method: :patch, scope: :brief, class: 'sales-form' do |f| %>
+        <%= f.hidden_field :lock_version, value: (@brief.persisted? ? @brief.lock_version : 'new') %>
+        <% {'offering' => 'What do you sell?', 'audience' => 'Who is it for?', 'customer_problem' => 'What problem do they need solved?', 'value_proposition' => 'Why should they choose you?', 'voice' => 'How should your brand sound?', 'goal' => 'What result are you working toward?'}.each do |field, label| %><label><%= label %><%= f.text_area field, value: @brief.public_send(field), rows: 3, maxlength: 2000 %></label><% end %>
+        <label>Goal date<%= f.date_field :goal_on, value: @brief.goal_on %></label><%= f.submit 'Save business brief', class: 'sales-button' %>
+      <% end %>
+      <% if @brief.persisted? %><p><small>Updated <%= @brief.updated_at.to_fs(:long) %> by <%= @brief.updated_by.email_address %> · revision <%= @brief.lock_version %></small></p><% end %>
+    </article>
+    <article id="campaign-links" class="sales-panel"><span class="sales-eyebrow">02 / CONNECT YOUR CAMPAIGN</span><h2>Create a tracked link</h2><p>Use a different link for each channel or placement. Visitors stay on <strong><%= @site.host %></strong>.</p>
+      <% if @campaigns.any? %><%= form_with url: dashboard_growth_links_path(site_id: @site.id), scope: :link, class: 'sales-form' do |f| %>
+        <label>Campaign<%= f.select :campaign_id, options_from_collection_for_select(@campaigns, :id, :name), {}, required: true %></label>
+        <label>Placement name<%= f.text_field :label, placeholder: 'Instagram profile — November offer', required: true, maxlength: 160 %></label>
+        <div class="sales-form-grid"><label>Source<%= f.text_field :source, placeholder: 'instagram', pattern: '[a-z0-9][a-z0-9_-]{0,79}', required: true, maxlength: 80 %></label><label>Medium<%= f.text_field :medium, placeholder: 'social', pattern: '[a-z0-9][a-z0-9_-]{0,79}', required: true, maxlength: 80 %></label></div>
+        <label>Destination path<%= f.text_field :destination_path, value: '/', placeholder: '/shop', required: true, maxlength: 500 %><small>A page on this website, starting with /. No query string or external URL.</small></label>
+        <%= f.submit 'Create tracking link', class: 'sales-button' %>
+      <% end %><% else %><p class="sales-empty">Create your first campaign before adding a tracking link.</p><%= link_to 'Create a campaign', dashboard_marketing_campaigns_path(site_id: @site.id), class: 'sales-button' %><% end %>
+      <aside class="sales-coach"><h3>What gets remembered?</h3><p>The last tracked link opened before an inquiry or direct checkout, within 30 days. Existing leads and orders keep their original attribution. Signing into another device does not merge visitors.</p><p>Browser privacy signals are respected. No IP addresses, browser fingerprints or submitted answers are stored in visit records.</p></aside>
+    </article>
+  </section>
+  <section class="sales-panel growth-links"><span class="sales-eyebrow">03 / SHARE & OBSERVE</span><h2>Your tracking links</h2><p>Latest 100 links. Disabling a link stops new redirects; its historical results remain. Link visits can include automated previews and are not verified people.</p>
+    <% if @links.empty? %><p class="sales-empty">Your first tracked campaign starts here.</p><% end %>
+    <% @links.each do |link| %><article class="growth-link"><div class="sales-task-heading"><div><h3><%= link.label %></h3><p><%= link.campaign.name %> · <%= link.source %> / <%= link.medium %> · <span class="sales-badge"><%= link.enabled? ? 'Enabled' : 'Disabled' %></span></p></div><%= button_to(link.enabled? ? 'Disable link' : 'Enable link', dashboard_growth_link_path(site_id: @site.id, id: link.id), method: :patch, params: {enabled: link.enabled? ? '0' : '1'}, class: 'sales-button secondary') %></div>
+      <label>Share this URL<input type="text" readonly value="<%= growth_link_url(token: link.token, host: @site.host, protocol: 'https') %>" aria-label="Tracking URL for <%= link.label %>"></label><p><small>Destination: <%= link.destination_path %></small></p>
+      <div class="growth-link-counts"><% @funnel.stages(link: link).each do |label, count| %><span><strong><%= count %></strong> <%= label %></span><% end %></div>
+    </article><% end %>
+  </section>
+  <section class="sales-two-col growth-editors"><article class="sales-panel"><span class="sales-eyebrow">KEEP THE NUMBERS HONEST</span><h2>Unknown campaign source</h2><p>These records have no tracked-link attribution. They are shown separately and never credited to a campaign.</p><dl class="growth-unknown"><% @unknown.each do |label, count| %><div><dt><%= label.to_s.humanize %></dt><dd><%= count %></dd></div><% end %></dl><small>Inquiries, leads and deals created in the selected range; payments confirmed in the selected range. These are record counts, separate from the visit cohort above.</small></article>
+    <article class="sales-panel"><span class="sales-eyebrow">OPERATE & RECOVER</span><h2>When a result is missing</h2><ol><li>Check the link is enabled and its destination page exists.</li><li>Open Inquiry inbox and process the submission into Sales.</li><li>Convert the qualified lead, then accept its issued quote.</li><li>Check the order’s payment and delivery evidence in Commerce.</li></ol><p>Tracking starts when this feature is deployed. Older records stay unknown. Cookie expiry, privacy preferences, different browsers and cross-domain visits can prevent attribution.</p></article></section>
+  <section class="sales-panel growth-links"><h2>Recent attributed orders</h2><% if @recent_orders.empty? %><p class="sales-empty">Orders from this visit cohort will appear here.</p><% end %><% @recent_orders.each do |order| %><article class="growth-link"><h3>Order #<%= order.id %> · <%= order.status.humanize %></h3><p><%= order.growth_attribution.description %></p><p>Payment: <%= order.paid_at ? "Confirmed #{order.paid_at.to_fs(:long)}" : 'Awaiting confirmation' %> · Delivery: <%= order.fulfilled_at || order.provisioned_at ? 'Recorded' : 'Not recorded' %></p><%= link_to 'Review orders in Commerce', dashboard_commerce_orders_path(site_id: @site.id) %></article><% end %></section>
+</main>

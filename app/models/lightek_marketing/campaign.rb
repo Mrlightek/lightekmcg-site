@@ -2,6 +2,7 @@
 module LightekMarketing
   class Campaign < ApplicationRecord
     self.table_name = "lightek_marketing_campaigns"
+    has_many :growth_links, class_name: 'LightekGrowth::Link', dependent: :restrict_with_error
     belongs_to :site, class_name: "DymondSite::Site"
     CHANNELS = %w[landing_page email social].freeze
     STATUSES = %w[draft ready paused completed].freeze

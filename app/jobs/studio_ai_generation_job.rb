@@ -23,10 +23,16 @@ class StudioAiGenerationJob < ApplicationJob
       # Durable watchdog also reconciles a worker that dies during submission.
       self.class.set(wait:6.minutes).perform_later(id)
       begin
-        prompt_id=runtime.submit(asset.metadata.fetch("ai_graph"))
+        graph=asset.metadata.fetch("ai_graph").deep_dup
+        if asset.metadata.dig("ai_intent","input_asset_id")
+          bytes=Studio::Ai::InputImage.prepare(asset)
+          name=runtime.upload_image(bytes,filename:"lightek-#{asset.id}-#{SecureRandom.hex(8)}.png")
+          graph.each_value{|node|node.fetch("inputs").transform_values!{|value|value=="$input_image" ? name : value}}
+        end
+        prompt_id=runtime.submit(graph)
         asset.update!(metadata:asset.metadata.merge("ai_prompt_id"=>prompt_id,"ai_phase"=>"generating"))
-      rescue StandardError
-        asset.update!(status:"failed",error_message:"The engine submission was not confirmed. Check its queue before generating again.",metadata:asset.metadata.merge("ai_phase"=>"submission_unconfirmed"))
+      rescue StandardError=>error
+        asset.update!(status:"failed",error_message:error.is_a?(ArgumentError) ? error.message.first(400) : "The engine submission was not confirmed. Check its queue before generating again.",metadata:asset.metadata.merge("ai_phase"=>"submission_unconfirmed"))
         return
       end
     end

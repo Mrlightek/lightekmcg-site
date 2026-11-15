@@ -13,7 +13,7 @@ Open **Studio → Music → Record & place audio takes**. Microphone capture is 
 
 You can also choose an existing prepared audio asset under **Or use a prepared library recording**. The existing upload/sample-library controls accept recordings made elsewhere. Audio sources must be at most two minutes and downloadable within the existing 25 MB audio-loader limit.
 
-This capture mode records a **standalone take**. It stops song playback and never connects the microphone to speakers. It does not record the synthesizer/mixer output, automatically align an overdub, compensate device latency, or synchronize capture with picture. Those connections remain further production work. Browser permission, actual input hardware and device/browser timing still require the integrated verification sprint.
+This capture mode records a **standalone take**. It stops song playback and never connects the microphone to speakers. It does not record the synthesizer/mixer output or align itself to song playback. For backing playback, full-pass or selected-bar punch capture and aligned placement, use [Record with song](music-overdub.md). Automatic device latency calibration remains further work. Browser permission, actual input hardware and device/browser timing still require the integrated verification sprint.
 
 ## Edit the take
 
@@ -27,7 +27,7 @@ Song takes are independent of reusable musical patterns. Pattern capture/copy do
 
 ## Persistence and limits
 
-Adding an audio take upgrades musical source to **version 5**. Versions 1–4 remain supported. Adding patterns, automation or mixer controls to a version 5 song keeps that version. Older servers reject version 5 rather than silently discarding recordings. Deploy the updated Dashboard/PWA scripts with the server code; no database migration is required.
+Adding an audio take upgrades musical source to **version 5**. Versions 1–4 remain supported. Adding patterns, channel automation or mixer controls to a version 5 song keeps that version. Group/master fader automation upgrades it to version 7; supported insert automation upgrades it to version 8. Both retain the audio-take references. Older servers reject version 5 rather than silently discarding recordings. Deploy the updated Dashboard/PWA scripts with the server code; no database migration is required.
 
 The source uses `instrument: "recording"`, an authorized ready audio `asset_id`, `sample_in`, `sample_out`, and one fixed-pitch placement in `notes`. Its beat is the musical start; length is `(sample_out - sample_in) * tempo / 60`, with pitch 60 as a source marker. Playback uses Tone.Player rather than repitching the recording through the sampler. Gain/pan, mute/solo, effects and `bus_id` follow the existing channel contract.
 
@@ -35,4 +35,4 @@ Recorded source ranges can span up to 120 seconds and 512 beats, within the song
 
 The server validates source ownership/site, ready audio status, source range/duration, version and the single fixed-pitch clip. Reusable pattern lanes cannot contain recorded clips. Template-to-episode copies preserve independent take placements while retaining the original immutable audio asset reference. Existing optimistic save locking and production mix handoff remain in use.
 
-Focused checks cover capture cancellation/denial, input measurement, device/timer cleanup and limits using simulated device contracts; native authenticated upload/import retry and UI placement/trim/tempo/undo paths; server persistence/independent copies/access checks; and real PCM decoding/resampling, trim/start/duration/pitch, multi-source playback, mixer routing and live transport. Hardware microphone capture, automated overdub, MIDI performance recording remain further work. [Picture monitoring and scoring](music-picture-scoring.md) are available in source version 6; hardware timing remains integrated acceptance.
+Focused checks cover capture cancellation/denial, input measurement, device/timer cleanup and limits using simulated device contracts; native authenticated upload/import retry and UI placement/trim/tempo/undo paths; server persistence/independent copies/access checks; and real PCM decoding/resampling, trim/start/duration/pitch, multi-source playback, mixer routing and live transport. Hardware microphone acceptance, automatic latency calibration and advanced MIDI expression remain further work. [Microphone overdub](music-overdub.md) now provides shared-clock capture and manual correction. [Instrument performance recording](music-performance.md) is available for editable note capture. [Picture monitoring and scoring](music-picture-scoring.md) are available in source version 6; hardware timing remains integrated acceptance.

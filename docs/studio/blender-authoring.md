@@ -10,7 +10,7 @@ Deployment runs `setup_studio_docker_access.py` as root before media setup. It s
 
 After migration and worker restart, `studio:blender:bootstrap` queues Scattering Pebbles and Cozy Kitchen for the platform administrator on `LIGHTEK_STUDIO_SITE_HOST`. Existing ready entries are reused; failed entries retry. Source files finish installing asynchronously on the `studio` queue. Runtime dependency failures are visible in the Asset Browser. The install script itself was checked with a command-recording Docker fixture; a real image build/deployment still needs the production daemon.
 
-For a legacy deployment outside the normal script, run the installer from the checkout as the worker OS account, migrate, restart workers and run the bootstrap rake task with the site hostname. No new image environment variable is required for the default setup. The native authoring capability migration is `20261101050000_register_blender_authoring.rb`, and the PWA shell cache is v50.
+For a legacy deployment outside the normal script, run the installer from the checkout as the worker OS account, migrate, restart workers and run the bootstrap rake task with the site hostname. No new image environment variable is required for the default setup. The native authoring capability migration is `20261101050000_register_blender_authoring.rb`, with later authoring extensions deployed through the normal Dashboard/PWA cache updates.
 
 ## Asset Browser
 
@@ -26,7 +26,7 @@ Native projects have a Blender Outliner and object Inspector. Save transforms, v
 
 The 3D preview maps real GLB mesh selections to native object identities. Source meshes can be selected and transformed individually. GLB's Y-up coordinates are converted to Blender's Z-up convention. **G / R / S** select move/rotate/scale tools. Native proxies are read-only containers; the Inspector directs users to native objects instead of saving ineffective proxy transforms. If a proxy is missing or cannot represent a native feature, bounds remain editable and Blender renders the authoritative image.
 
-This provides native object/layout and exposed-parameter editing, not Blender's full mesh-edit, sculpting, shader-link or rig-authoring UI. Those richer structures are preserved in the editable `.blend`.
+The saved authoring dock also provides bounded mesh operations, sculpt strokes, rig/weight/keyframe and node-graph commands, plus an inspectable [modifier stack](blender-modifier-stack.md). These are incremental controls over the native source; full Blender/Maya parity and integrated production acceptance remain tracked in [feature sprints](feature-sprints.md). Native structures stay preserved in the editable `.blend`.
 
 ## Draft frames
 

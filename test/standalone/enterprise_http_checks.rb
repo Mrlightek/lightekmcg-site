@@ -82,6 +82,7 @@ EnterpriseHarness.routes.draw do
   get '/after-login/servers',to: 'identity_protected#index',as: :dashboard_servers
   get '/after-login/employee',to: 'identity_protected#index',as: :dashboard_nevaeh_os
   eval(ROOT.join('config/routes/people.rb').read,binding)
+  eval(ROOT.join('config/routes/lifecycle.rb').read,binding)
   get '/dashboard/servers/:id',to: 'identity_protected#index',as: :dashboard_server
 end
 ApplicationController.prepend_view_path ROOT.join('app/views')

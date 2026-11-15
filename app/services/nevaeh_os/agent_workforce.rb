@@ -3,7 +3,7 @@ module NevaehOs
   module AgentWorkforce
     module_function
     def request!(worker:,actor:,key:)
-      raise ArgumentError,'Worker belongs to another account or is paused' unless worker.user_id==actor.id && worker.enabled?
+      raise ArgumentError,'Worker belongs to another account or is paused' unless worker.user_id==actor.id && worker.enabled? && worker.deleted_at.nil?
       Executor.authorize_command!(actor:actor,command:worker.command.merge('agent_id'=>worker.nevaeh_os_agent_id))
       worker.with_lock do
         worker.runs.find_or_create_by!(request_key:key) { |run| run.actor=actor;run.snapshot=worker.command.merge('agent_id'=>worker.nevaeh_os_agent_id) }
@@ -14,7 +14,7 @@ module NevaehOs
         return if run.nevaeh_os_action_id
         worker=run.nevaeh_agent_worker.reload
         actor=run.actor.reload
-        raise ArgumentError,'Agent worker was paused or its owner changed' unless worker.enabled? && worker.user_id==actor.id
+        raise ArgumentError,'Agent worker was paused or its owner changed' unless worker.enabled? && worker.deleted_at.nil? && worker.user_id==actor.id
         Agents.authorize!(run.snapshot,actor)
         action=Dispatch.submit!(actor:actor,command:run.snapshot,request_key:"agent-run-#{run.id}")
         run.update!(nevaeh_os_action:action,status:'dispatched',error:nil)
@@ -24,11 +24,11 @@ module NevaehOs
     end
     def tick!
       now=Time.current
-      NevaehAgentWorker.where(enabled:true).where('next_run_at <= ?',now).order(:next_run_at).limit(100).each do |worker|
+      NevaehAgentWorker.where(enabled:true,deleted_at:nil).where('next_run_at <= ?',now).order(:next_run_at).limit(100).each do |worker|
         worker.with_lock do
-          next unless worker.enabled? && worker.next_run_at && worker.next_run_at<=now && worker.interval_minutes
+          next unless worker.enabled? && worker.deleted_at.nil? && worker.next_run_at && worker.next_run_at<=now && worker.interval_minutes
           last_status=worker.runs.order(id: :desc).first&.execution_status
-          raise ArgumentError,'Previous agent run requires attention' if %w[failed blocked error evidence_unavailable].include?(last_status)
+          raise ArgumentError,'Previous agent run requires attention' if %w[failed blocked error evidence_unavailable needs_review cancelled].include?(last_status)
           raise ArgumentError,'Agent autonomy is not scheduled' unless worker.nevaeh_os_agent.reload.autonomy=='scheduled'
           request!(worker:worker,actor:worker.user.reload,key:"schedule-#{worker.next_run_at.to_i}")
           worker.update!(next_run_at:now+worker.interval_minutes.minutes)

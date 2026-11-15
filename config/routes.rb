@@ -178,6 +178,9 @@ Rails.application.routes.draw do
   get "/dashboard/nevaeh/guide", to: "dashboard/nevaeh_os#guide", as: :dashboard_nevaeh_guide
   get "/dashboard/nevaeh/social_connections", to: "dashboard/nevaeh_os#social_connections"
   get "/dashboard/nevaeh/social_options", to: "dashboard/nevaeh_os#social_options"
+  get "/dashboard/nevaeh/workforce", to: "dashboard/nevaeh_os#workforce"
+  post "/dashboard/nevaeh/context", to: "dashboard/nevaeh_os#page_context"
+  post "/dashboard/nevaeh/goals", to: "dashboard/nevaeh_os#goals"
   get "/dashboard/nevaeh/stage", to: "dashboard/nevaeh_os#stage"
   patch "/dashboard/nevaeh/stage", to: "dashboard/nevaeh_os#stage"
   patch "/dashboard/nevaeh/stage/script", to: "dashboard/nevaeh_os#stage_script"

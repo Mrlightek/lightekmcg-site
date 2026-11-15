@@ -401,3 +401,15 @@ Guides: [Story simulation](docs/nevaeh/tutorials/story_simulation.md) and [Socia
 | Dialogue continuity | Reuses pinned Cast objects across successive lines, retains each audio source and schedules speaker/listener gaze cues. |
 
 See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md) for limits, recovery and deployment. Root routing does not generate a walk cycle or guarantee artistic facial/eye animation. The character follows the supplied Nevaeh appearance reference; status reactions use a badge and subtle motion. The assistant is a reactive graphical foundation, with existing authorized command execution.
+
+### Nevaeh workforce, goals and page assistance
+
+| Capability | Implemented behavior |
+| --- | --- |
+| Workforce directory | 27 default specialist roles with departments, responsibilities, task templates, connected-contract inventory and visible connection gaps. Existing customizations remain. |
+| Delegation & removal | One-time or scheduled assigned tasks; role pause/delete and task deletion retain history and block undispatched runs. Deleted defaults do not reappear. |
+| Durable goals | Reviewable 1–12-step plans, specialist assignments, typed prior-output handoff, real downstream receipts, output expectations and pause/cancel/recovery without automatic replay of uncertain work. |
+| Expansion tasks | Capability/schema/page-area gap audits with engineering tickets, native manual import, phrase contract validation and existing construction-build/training workers. |
+| Contextual assistant | Current Dashboard path/title and numeric application context, relevant guide/task suggestions and authorized documentation assistance without collecting form values or secret query parameters. |
+
+See [Workforce, goals and page assistance](docs/nevaeh/tutorials/workforce.md). Roles and manuals do not manufacture missing executors; arbitrary autonomous code repair/deployment, complete visual judgment and assistant facial lip sync remain outside this implementation.

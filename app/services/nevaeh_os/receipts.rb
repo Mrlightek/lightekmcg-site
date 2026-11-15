@@ -6,7 +6,15 @@ module NevaehOs
     def for(action)
       value = {id:action.id,status:action.status,result:action.result,error:action.error,created_at:action.created_at,kind:action.command['kind']}
       return value unless action.status == 'completed'
-      if action.command['kind']=='production' && action.result['rehearsal_id']
+      if action.result['goal_id']
+        goal=Goals.owned!(action.user,action.result['goal_id'])
+        value[:downstream]={type:'goal',id:goal.id,status:goal.status,result:Goals.receipt(goal)}
+        value[:status]=goal.status=='running' ? 'dispatched' : goal.status=='blocked' ? 'failed' : goal.status=='cancelled' ? 'cancelled' : 'completed'
+      elsif action.result['manual_build_id']
+        build=NevaehManualBuild.where(creator:action.user).find(action.result['manual_build_id'])
+        value[:downstream]={type:'manual_build',id:build.id,status:build.status,result:build.coverage,error:build.error}
+        value[:status]=build.status=='ready' ? 'completed' : build.status=='failed' ? 'failed' : 'dispatched'
+      elsif action.command['kind']=='production' && action.result['rehearsal_id']
         service=Studio::Director::Rehearsal
         receipt=service.receipt(service.find!(action.result['rehearsal_id'],actor:action.user),actor:action.user)
         value[:downstream]={type:'rehearsal',id:receipt['rehearsal_id'],status:receipt['status'],result:receipt}

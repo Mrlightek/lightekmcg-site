@@ -25,7 +25,7 @@ module NevaehOs
     def model(key) = definition(key).first.constantize
     def scope(key, actor)
       klass = model(key)
-      OWNED.include?(key) ? klass.where(user: actor) : klass.accessible_by(Ability.new(actor), :read)
+      OWNED.include?(key) ? klass.where(user: actor).then { |scope| %w[agents agent_workers].include?(key) ? scope.where(deleted_at:nil) : scope } : klass.accessible_by(Ability.new(actor), :read)
     end
     def authorize!(actor, operation, key, id = nil, attributes = {})
       raise ArgumentError, 'Sign in first' unless actor&.persisted?
@@ -78,7 +78,13 @@ module NevaehOs
         {'record' => serialize(key, record), 'resource' => key}
       when 'destroy'
         result = serialize(key, record)
-        record.destroy!
+        if key=='agents'
+          Workforce.remove_agent!(actor,record.id)
+        elsif key=='agent_workers'
+          Workforce.remove_worker!(actor,record.id)
+        else
+          record.destroy!
+        end
         {'deleted' => result, 'resource' => key}
       else
         raise ArgumentError, 'Unsupported resource operation'

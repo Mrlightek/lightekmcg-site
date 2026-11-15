@@ -45,3 +45,5 @@ Administrators can create a caption worker:
 ```
 
 Replace WORKER_ID with the created ID. Structured workers use the existing ticket and acceptance pipeline. Control Center provides the visual builder. Agent workers can call these structured workers as part of the same operating environment.
+
+Open **Workforce & goals** for defined specialist jobs, assigned tasks, pause/delete controls, evidence-driven plans and page-aware assistance. See the [workforce guide](workforce.md). Deleted roles/tasks leave their receipts intact and do not resume new work.

@@ -7,6 +7,9 @@ require 'action_dispatch/testing/integration'
 require 'minitest/autorun'
 require 'tmpdir'
 require 'pathname'
+require 'fileutils'
+# Every exporter can run first under Minitest's randomized order.
+FileUtils.mkdir_p(ENV['SALES_PREVIEW_DIR']) if ENV['SALES_PREVIEW_DIR']
 ROOT = Pathname.new(File.expand_path('../..', __dir__))
 class SalesHarness < Rails::Application
   config.root = Dir.mktmpdir('sales-http-')

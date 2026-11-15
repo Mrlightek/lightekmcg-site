@@ -52,11 +52,14 @@ module Studio
     def self.cpu_limit
       run!(["python3",Rails.root.join("lib/scripts/studio_worker_limits.py").to_s],timeout:15).strip
     end
-    def self.container(command, root:, image:, stdin: false)
+    def self.container(command, root:, image:, stdin: false, voice_libraries: false)
       name="lightek-media-#{SecureRandom.hex(8)}"
       # Docker drops piped input unless stdin is explicitly attached. No TTY:
       # speech text must reach the engine unchanged through the pipe.
-      ["docker","run",*(stdin ? ["--interactive"] : []),"--rm","--name",name,"--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","2g","--cpus",cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=512m","-v","#{root}:/work:rw",image]+command
+      # Phonemizer clones libespeak before dlopen. Docker's default noexec /tmp
+      # cannot map that library; only neural speech gets this bounded mount.
+      library_mount=voice_libraries ? ["--tmpfs","/run/lightek-voice:rw,exec,nosuid,nodev,size=16m,mode=1777","--env","TMPDIR=/run/lightek-voice"] : []
+      ["docker","run",*(stdin ? ["--interactive"] : []),"--rm","--name",name,"--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","128","--memory","2g","--cpus",cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=512m",*library_mount,"-v","#{root}:/work:rw",image]+command
     end
   end
 end

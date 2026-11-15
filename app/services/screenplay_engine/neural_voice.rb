@@ -6,7 +6,7 @@ module ScreenplayEngine
     def synthesize!(text:, path:, voice:, speed:, cancel_if: nil)
       script=Rails.root.join('docker/studio-media/voice/synthesize.py').to_s
       command=if Rails.env.production?
-        Studio::MediaProcess.container(['/opt/lightek-voice/venv/bin/python','/opt/lightek-voice/synthesize.py','--output',"/work/#{File.basename(path)}",'--voice',voice,'--speed',speed.to_s],root:File.dirname(path),image:Studio::NativeBlender::Runtime.image(:media),stdin:true)
+        Studio::MediaProcess.container(['/opt/lightek-voice/venv/bin/python','/opt/lightek-voice/synthesize.py','--output',"/work/#{File.basename(path)}",'--voice',voice,'--speed',speed.to_s],root:File.dirname(path),image:Studio::NativeBlender::Runtime.image(:media),stdin:true,voice_libraries:true)
       else
         [ENV.fetch('LIGHTEK_VOICE_PYTHON','python3'),script,'--output',path,'--voice',voice,'--speed',speed.to_s]
       end

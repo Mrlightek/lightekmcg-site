@@ -42,6 +42,7 @@ on:
       - 'test/standalone/nevaeh*'
       - 'test/javascript/nevaeh*'
       - 'test/operations/nevaeh_package_control_test.py'
+      - 'test/operations/nevaeh_voice_container_test.py'
       - 'test/controllers/employee/nevaeh_control_center_test.rb'
       - 'db/migrate/*nevaeh*'
       - '.github/workflows/nevaeh-control-center.yml'
@@ -49,6 +50,18 @@ on:
 permissions:
   contents: read
 jobs:
+  voice-container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the CPU voice stage used by the Studio image
+        run: docker build --target voice --tag lightek/nevaeh-voice:test docker/studio-media
+      - name: Verify noexec reproduction and actual restricted voice generation
+        env:
+          NEVAEH_TEST_VOICE_CONTAINER: '1'
+        run: python3 -m unittest test.operations.nevaeh_voice_container_test -v
+
   persistence-and-rendering:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

@@ -159,6 +159,7 @@ class StudioDirectorProducerChecks < CampaignProducerChecks
         flags=command.first(image_index)
         assert_includes flags,'--interactive'
         refute_includes flags,'--tty'
+        refute_includes flags,'TMPDIR=/run/lightek-voice'
         refute_includes command,text
         assert_equal text,options[:stdin_data]
         engine=command.drop(image_index+1).map { |part| part.sub('/work/',"#{root}/") }

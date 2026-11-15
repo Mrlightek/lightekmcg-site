@@ -14,3 +14,5 @@
 [data-audience-desk] li{margin:8px 0;padding:8px 0;border-bottom:1px solid var(--ll-line)}
 [data-audience-desk] iframe{max-width:100%}
 @media(max-width:850px){[data-audience-desk] .ll-grid,[data-session-director]{grid-template-columns:minmax(0,1fr)}}
+
+.ll-comment-control{padding:18px;border:1px solid var(--ll-line);border-radius:10px}.ll-comment-control blockquote{margin:12px 0;padding:12px 16px;border-left:4px solid var(--ll-accent);overflow-wrap:anywhere;white-space:pre-wrap}.ll-comment-text{overflow-wrap:anywhere}[data-feature-comment]{display:block;margin:6px 0 14px;padding:6px 10px!important;font-size:12px}

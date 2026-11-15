@@ -4,6 +4,7 @@ function boot(){
  const q=s=>root.querySelector(s),preview=q('[data-preview]'),badge=q('[data-state]'),status=q('[data-status]'),error=q('[data-error]');
  let screen,camera,mic,audio,mixer,micNode,gain,analyser,silent,program,canvas,paintTimer,clockTimer,ws,recorder,identifier,active=false,stopping=false,holding=false,muted=true,queue=[],pending=null,sequence=0,queuedBytes=0,started=0,connectTimer,transportPhase='idle',cameraBusy=false,captureGeneration=0;
  let productionSetup=null,stage=null,stageLoading=false,sessionSource=null,sessionLoading=false,presentationDraft={participants:{}};
+ const comments=window.LightekLiveComments?.boot(root);
  const showPresentation=window.LightekLiveShowPresentation?new window.LightekLiveShowPresentation():null;
  let libraryVisual=null,libraryOverlay=null,libraryBed=null,libraryBedGain=null,libraryVideoGain=null,libraryBusy=false;
  const source=document.createElement('video');source.muted=true;source.playsInline=true;
@@ -15,21 +16,22 @@ function boot(){
  function message(text){error.textContent=text||'';error.hidden=!text;}
  function controls(){q('[data-start]').disabled=active||productionSetup?.busy()||!supported||root.dataset.encoder!=='ready';q('[data-stop]').disabled=!active||stopping;q('[data-title]').disabled=active;q('[data-destination]').disabled=active;}
  function micUI(){q('[data-mic]').setAttribute('aria-pressed',String(!muted));q('[data-mic]').textContent=muted?'Enable microphone':'Mute microphone';q('[data-mic-status]').textContent=holding?'Muted during holding screen':muted?'Microphone off':'Microphone on';if(gain)gain.gain.value=muted||holding?0:1;libraryMix();}
- function hold(value){holding=value;q('[data-hold]').setAttribute('aria-pressed',String(value));q('[data-hold]').textContent=value?'Resume screen':'Holding screen';micUI();}
+ function hold(value){if(value)comments?.clear();holding=value;q('[data-hold]').setAttribute('aria-pressed',String(value));q('[data-hold]').textContent=value?'Resume screen':'Holding screen';micUI();}
  async function ensureProgram(){
   if(program){await audio.resume();return;}
   audio=new (window.AudioContext||window.webkitAudioContext)();mixer=audio.createMediaStreamDestination();
   silent=audio.createOscillator();const silence=audio.createGain();silence.gain.value=0;silent.connect(silence).connect(mixer);silent.start();
   canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;const ctx=canvas.getContext('2d');
   function paint(){ctx.fillStyle='#0b121b';ctx.fillRect(0,0,1280,720);
-   const mode=q('[data-layout]').value,video=mode==='library'?libraryVisual?.element:mode==='camera'?cameraVideo:source,selected=mode==='camera'?camera:screen;
-   if(!holding&&mode==='session'&&sessionSource?.ready){sessionSource.paint(ctx);}
-   else if(!holding&&mode==='stage'&&stage?.ready){const roomStage=q('[data-stage-subject-source]')?.value==='session';if(roomStage&&sessionSource?.ready)sessionSource.paint(canvas.getContext('2d'));stage.setSubject(roomStage?sessionSource?.canvas:cameraVideo,{enabled:!!q('[data-stage-subject]')?.checked&&(roomStage?sessionSource?.ready:live(camera)),key:!roomStage&&!!q('[data-stage-key]')?.checked,color:q('[data-stage-color]')?.value||'#00ff00',threshold:Number(q('[data-stage-threshold]')?.value||.4),x:Number(q('[data-stage-x]')?.value||0),depth:Number(q('[data-stage-depth]')?.value||0),z:Number(q('[data-stage-z]')?.value||1.5),height:Number(q('[data-stage-height]')?.value||3)});ctx.drawImage(stage.render(performance.now()),0,0,1280,720);}
-   else if(!holding&&(mode==='library'?libraryVisual?.ready:live(selected)&&video.readyState>=2)){const width=video.videoWidth||video.naturalWidth,height=video.videoHeight||video.naturalHeight;const ratio=Math.min(1280/width,720/height),w=width*ratio,h=height*ratio;ctx.drawImage(video,(1280-w)/2,(720-h)/2,w,h);
+   let pictureReady=false;const mode=q('[data-layout]').value,video=mode==='library'?libraryVisual?.element:mode==='camera'?cameraVideo:source,selected=mode==='camera'?camera:screen;
+   if(!holding&&mode==='session'&&sessionSource?.ready){sessionSource.paint(ctx);pictureReady=true;}
+   else if(!holding&&mode==='stage'&&stage?.ready){const roomStage=q('[data-stage-subject-source]')?.value==='session';if(roomStage&&sessionSource?.ready)sessionSource.paint(canvas.getContext('2d'));stage.setSubject(roomStage?sessionSource?.canvas:cameraVideo,{enabled:!!q('[data-stage-subject]')?.checked&&(roomStage?sessionSource?.ready:live(camera)),key:!roomStage&&!!q('[data-stage-key]')?.checked,color:q('[data-stage-color]')?.value||'#00ff00',threshold:Number(q('[data-stage-threshold]')?.value||.4),x:Number(q('[data-stage-x]')?.value||0),depth:Number(q('[data-stage-depth]')?.value||0),z:Number(q('[data-stage-z]')?.value||1.5),height:Number(q('[data-stage-height]')?.value||3)});ctx.drawImage(stage.render(performance.now()),0,0,1280,720);pictureReady=true;}
+   else if(!holding&&(mode==='library'?libraryVisual?.ready:live(selected)&&video.readyState>=2)){const width=video.videoWidth||video.naturalWidth,height=video.videoHeight||video.naturalHeight;const ratio=Math.min(1280/width,720/height),w=width*ratio,h=height*ratio;ctx.drawImage(video,(1280-w)/2,(720-h)/2,w,h);pictureReady=true;
     if(mode==='combined'&&live(camera)&&cameraVideo.readyState>=2){ctx.fillStyle='#b5f58b';ctx.fillRect(916,496,328,188);ctx.fillStyle='#0b121b';ctx.fillRect(920,500,320,180);const r=Math.min(320/cameraVideo.videoWidth,180/cameraVideo.videoHeight),cw=cameraVideo.videoWidth*r,ch=cameraVideo.videoHeight*r;ctx.drawImage(cameraVideo,920+(320-cw)/2,500+(180-ch)/2,cw,ch);}
    }
    else{ctx.fillStyle='#b5f58b';ctx.font='22px sans-serif';ctx.fillText('LIGHTEK / LIVE',90,110);ctx.fillStyle='#f2f5fa';ctx.font='bold 56px sans-serif';ctx.fillText('Back in a moment.',90,340);ctx.fillStyle='#a7b4c6';ctx.font='24px sans-serif';ctx.fillText('Building Lightek. Stay with us.',90,390);}
    if(!holding&&libraryOverlay?.complete&&libraryOverlay.naturalWidth)ctx.drawImage(libraryOverlay,0,0,1280,720);
+   if(!holding&&pictureReady)comments?.draw(ctx,q('[data-presentation=accent]')?.value);
    if(analyser){const bins=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(bins);const level=Math.sqrt(bins.reduce((sum,v)=>sum+((v-128)/128)**2,0)/bins.length);q('[data-meter]').value=muted||holding?0:Math.min(1,level*4);}
   }
   paint();paintTimer=setInterval(paint,1000/24);program=canvas.captureStream(24);mixer.stream.getAudioTracks().forEach(track=>program.addTrack(track));preview.srcObject=program;await preview.play();q('[data-placeholder]').hidden=true;await audio.resume();
@@ -81,7 +83,7 @@ function boot(){
   const entry=pending;
   try{const bytes=new Uint8Array(await entry.blob.arrayBuffer());if(!active||pending!==entry)return;let raw='';for(let i=0;i<bytes.length;i+=32768)raw+=String.fromCharCode(...bytes.subarray(i,i+32768));send('chunk',{sequence:entry.sequence,live_chunk:btoa(raw)});entry.timer=setTimeout(()=>{if(active&&pending===entry)fail('The server did not acknowledge capture within 10 seconds. Check the broadcaster service log before starting another test.');},10000);}catch(e){fail(e.message);}
  }
- function finish(text){active=false;stopping=false;clearTimeout(connectTimer);clearTimeout(pending?.timer);clearInterval(clockTimer);if(recorder?.state!=='inactive')recorder?.stop();queue=[];pending=null;queuedBytes=0;ws?.close();badge.textContent='Preview only';badge.dataset.active='false';status.textContent=text;controls();}
+ function finish(text){comments?.clear();active=false;stopping=false;clearTimeout(connectTimer);clearTimeout(pending?.timer);clearInterval(clockTimer);if(recorder?.state!=='inactive')recorder?.stop();queue=[];pending=null;queuedBytes=0;ws?.close();badge.textContent='Preview only';badge.dataset.active='false';status.textContent=text;controls();}
  function fail(text){message(text);finish('Session stopped. Preview stays local.');}
  function startRecorder(){
   if(!active||stopping)return;
@@ -115,7 +117,7 @@ function boot(){
   }catch(e){fail(e.message);}
  }
  function stop(){if(!active||stopping)return;stopping=true;controls();status.textContent='Stopping capture…';if(recorder?.state==='recording')recorder.stop();else{try{send('stop');}catch{finish('Session stopped.');}}}
- function release(){if(active)return message('Stop the session before releasing capture.');captureGeneration++;sessionSource?.dispose();sessionSource=null;stage?.dispose();stage=null;disposeLibrary();disableCamera();screen?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());program?.getTracks().forEach(t=>t.stop());silent?.stop();audio?.close();clearInterval(paintTimer);screen=mic=program=audio=gain=analyser=null;muted=true;hold(false);preview.srcObject=null;source.srcObject=null;q('[data-placeholder]').hidden=false;sourceStatus();q('[data-meter]').value=0;status.textContent='Capture released.';}
+ function release(){if(active)return message('Stop the session before releasing capture.');comments?.clear();captureGeneration++;sessionSource?.dispose();sessionSource=null;stage?.dispose();stage=null;disposeLibrary();disableCamera();screen?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());program?.getTracks().forEach(t=>t.stop());silent?.stop();audio?.close();clearInterval(paintTimer);screen=mic=program=audio=gain=analyser=null;muted=true;hold(false);preview.srcObject=null;source.srcObject=null;q('[data-placeholder]').hidden=false;sourceStatus();q('[data-meter]').value=0;status.textContent='Capture released.';}
  function setPresentation(values){presentationDraft=values;root.querySelectorAll('[data-presentation]').forEach(input=>input.value=values[input.dataset.presentation]??'');sessionSource?.configure(values);if(q('[data-style-person]')?.value)q('[data-style-person]').dispatchEvent(new Event('change'));root.dispatchEvent(new CustomEvent('lightek:presentation-loaded'));}
  function roomPresentation(values){setPresentation(showPresentation?.forRoom(values)||values);}
  function applyShowPresentation(values){if(!showPresentation)throw Error('Reopen Live Studio after deployment.');setPresentation(showPresentation.apply(values,{...presentationDraft,...sessionSource?.presentation}));q('[data-presentation-status]').textContent='Production styling loaded locally. Guest settings remain specific to this room.';}

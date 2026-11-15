@@ -13,3 +13,6 @@ Rails.application.config.filter_redirect += [%r{/passwords/}, %r{/account/setup/
 Rails.application.config.filter_redirect += ["accounts.stripe.com", "connect.stripe.com"]
 
 Rails.application.config.filter_redirect += [%r{/identity/sso/callback}, %r{[?&](?:code|state|nonce)=}]
+
+# Embedded financial sessions are bearer credentials, never request-log data.
+Rails.application.config.filter_parameters += [:client_secret, :account_session, :identity_document, :date_of_birth, :dob]

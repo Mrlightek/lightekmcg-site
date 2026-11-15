@@ -17,11 +17,11 @@ module LightekCommerce
         raise Unavailable, e.message
       end
       key = DymondBank::StripeCredentials.secret_key
-      raise Unavailable, "Stripe is not configured" if key.blank?
+      raise Unavailable, "Payments are not configured" if key.blank?
       Stripe.api_key = key
       if order.shipping_quote
         stripe_test = key.match?(/\A(?:sk|rk)_test_/)
-        raise Unavailable, "FedEx and Stripe must use the same test or production mode" unless order.shipping_quote.sandbox? == stripe_test
+        raise Unavailable, "Shipping and payments must use the same test or production mode" unless order.shipping_quote.sandbox? == stripe_test
       end
       interval = order.items.first.purchase_snapshot.to_h.fetch("billing_interval", "one_time")
       recurring = interval != "one_time"
@@ -62,7 +62,7 @@ module LightekCommerce
       order.update!(payment_provider: "stripe", payment_reference: session.id)
       session
     rescue ::Stripe::StripeError => e
-      raise Unavailable, e.message
+      raise Unavailable, "Payment checkout is temporarily unavailable. Please retry."
     end
     private_class_method :start_locked!
 

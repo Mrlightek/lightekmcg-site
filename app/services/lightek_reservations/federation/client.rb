@@ -40,9 +40,15 @@ module LightekReservations
       ensure
         secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
       end
+      def ensure_payout_identity!(merchant:)
+        # Resolve only an identity in this installation's allowed merchant tree.
+        # This returns no browser credential and cannot edit bank destinations.
+        request('commerce/summary', method: :post, body: {
+          merchant_chain: LightekCommerce::NetworkCheckout.chain(@site, merchant: merchant), store_name: @site.name})
+      end
       def synchronize_payouts!(merchant:)
         raise Unavailable, 'Payout connection belongs to another merchant' unless @site.tenant == merchant
-        data = request('payouts')
+        data = request('commerce/summary', method: :post, body: {merchant_chain: LightekCommerce::NetworkCheckout.chain(@site), store_name: @site.name})
         merchant.update!(stripe_connect_account_id: data['connect_account_id'],
           stripe_connect_details_submitted: data['connect_details_submitted'] == true,
           stripe_connect_payouts_enabled: data['connect_payouts_enabled'] == true)

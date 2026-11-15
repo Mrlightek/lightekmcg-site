@@ -6,6 +6,7 @@
 <p class="intro">Choose what you want to change. Each group explains what its settings control.</p>
 <div class="grid">
 <section class="card"><h2>Your account</h2><p>Manage security for your own Lightek sign-in.</p>
+  <%= link_to dashboard_susu_payout_account_path, class: "setting-link" do %><strong>Payout account</strong><small>Set up earnings, verify your business details, and manage your bank account.</small><% end %>
   <%= link_to identity_security_path, class: "setting-link" do %><strong>Sign-in security</strong><small>Set up your authenticator and manage two-step verification.</small><% end %>
 </section>
 <% if @settings_operator %>

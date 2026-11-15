@@ -1,0 +1,40 @@
+name: Payout Account Acceptance
+on:
+  pull_request:
+    paths:
+      - 'app/services/lightek_payments/**'
+      - 'app/models/lightek_payments/**'
+      - 'app/services/dymond_bank/stripe_service.rb'
+      - 'app/services/lightek_reservations/federation/client.rb'
+      - 'app/controllers/susu_payout_accounts_controller.rb'
+      - 'app/controllers/dashboard/commerce_payouts_controller.rb'
+      - 'app/controllers/api/commerce_network_controller.rb'
+      - 'app/controllers/api/reservation_federation_controller.rb'
+      - 'app/views/susu_payout_accounts/**'
+      - 'public/lightek/payout-accounts.js'
+      - 'db/migrate/*payout_connection*'
+      - 'test/standalone/payout_*checks.rb'
+      - 'test/javascript/payout_accounts_test.cjs'
+      - '.github/workflows/payout-account-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  payout-ownership:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: false
+      - name: Install public test dependencies
+        run: gem install activerecord:8.0.5 actionpack:8.0.5 railties:8.0.5 sqlite3:2.7.4 minitest:5.25.5 jwt:2.10.3 stripe:19.6.2 bcrypt --no-document
+      - name: Verify payout sessions, MFA, CSRF and connection recovery
+        run: ruby test/standalone/payout_accounts_checks.rb --name /test_payout_/
+      - name: Verify downstream merchant account isolation
+        run: ruby test/standalone/payout_network_checks.rb
+      - name: Verify existing network commerce
+        run: ruby test/standalone/commerce_network_test.rb
+      - name: Verify browser session handling and error redaction
+        run: node test/javascript/payout_accounts_test.cjs

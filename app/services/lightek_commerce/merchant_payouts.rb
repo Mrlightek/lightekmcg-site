@@ -64,19 +64,19 @@ module LightekCommerce
         return order
       end
       order.with_lock do
-        raise Invalid, "Platform Stripe balance has not been reconciled for transfers" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
+        raise Invalid, "Platform funds have not been reconciled for earnings release" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
         raise Invalid, "Order does not belong to your store" unless
           LightekSettings::WebsiteIdentity.sites_for(merchant).where(tenant: merchant).exists?(id: order.site_id)
         return order if order.merchant_transfer_ref.present?
         checkout_paid = order.payment_provider == "stripe" && order.payment_reference.to_s.start_with?("cs_")
         renewal_paid = order.payment_provider == "stripe_invoice" && BillingInvoice.exists?(settlement_order_id: order.id, processor_reference: order.payment_reference)
-        raise Invalid, "Only Stripe-confirmed store payments may fund merchant transfers" unless checkout_paid || renewal_paid
+        raise Invalid, "Only verified store payments may fund earnings releases" unless checkout_paid || renewal_paid
         raise Invalid, "Only fulfilled, nonrefunded orders are eligible" unless order.status == "fulfilled"
         raise Invalid, "Order is not paid" unless order.paid_at.present?
         raise Invalid, "Outstanding refund prevents payout" if order.refunds.where(status: "pending").exists?
         raise Invalid, "Partially refunded order requires manual settlement" if order.refunded_cents.to_i.positive?
         DymondBank::StripeService.sync_connect_status!(merchant)
-        raise Invalid, "Complete Stripe Connect onboarding before requesting funds" unless merchant.stripe_connect_ready?
+        raise Invalid, "Complete payout account verification before requesting funds" unless merchant.stripe_connect_ready?
         RevenueSharing.record!(order)
         quote = fee_quote(order)
         raise Invalid, "Net transfer amount is zero" unless quote[:net_cents].positive?

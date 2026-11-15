@@ -54,6 +54,13 @@ require ROOT.join('app/services/lightek_compliance/sources')
 %w[accounting_import accounting_refresh jurisdiction_monitor].each { |f| require ROOT.join("app/jobs/#{f}_job") }
 [IdentitySecurityController,IdentityChallengesController,Dashboard::AccountingController,Dashboard::DirectoryController,Dashboard::ComplianceController,Dashboard::PeopleController].each { |klass| klass.layout false }
 EnterpriseHarness.routes.draw do
+  get '/dashboard/susu/payout-account', to: 'susu_payout_accounts#show', as: :dashboard_susu_payout_account
+  post '/dashboard/susu/payout-account/session', to: 'susu_payout_accounts#account_session', as: :dashboard_payout_account_session
+  get '/dashboard/susu/payout-account/status', to: 'susu_payout_accounts#connection_status', as: :dashboard_payout_account_status
+  post '/dashboard/susu/payout-account/replace', to: 'susu_payout_accounts#replace', as: :replace_dashboard_payout_account
+  post '/dashboard/susu/payout-account/connect', to: 'susu_payout_accounts#connect', as: :connect_dashboard_susu_payout_account
+  get '/dashboard/susu/payout-account/refresh', to: 'susu_payout_accounts#refresh', as: :refresh_dashboard_susu_payout_account
+  get '/test/payout-csrf', to: 'payout_test_csrf#show', as: :payout_csrf_fixture
   get '/connect/management', to: 'connect_management#show'
   post '/connect/management', to: 'connect_management#create'
   post '/api/reservations/federation/connect/redeem', to: 'api/connect_federation#redeem'

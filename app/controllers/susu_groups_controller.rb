@@ -105,10 +105,11 @@ class SusuGroupsController < DymondDash::ApplicationController
 
     redirect_to session.url, allow_other_host: true, status: :see_other
   rescue DymondBank::StripeCheckoutService::ConfigurationError, Stripe::StripeError => e
-    Rails.logger.error "[Susu] Stripe checkout failed for group #{@susu_group&.id}: #{e.message}"
-    redirect_to contribution_susu_group_path(@susu_group), alert: "Payment could not be started: #{e.message}"
+    Rails.logger.error "[Susu] Payment checkout failed for group #{@susu_group&.id}: #{e.class.name}"
+    redirect_to contribution_susu_group_path(@susu_group), alert: "Payment could not be started. Please retry or contact support."
   rescue StandardError => e
-    redirect_to contribution_susu_group_path(@susu_group), alert: e.message
+    Rails.logger.error "[Susu] Payment checkout unavailable for group #{@susu_group&.id}: #{e.class.name}"
+    redirect_to contribution_susu_group_path(@susu_group), alert: "Payment could not be started. Please retry or contact support."
   end
 
   def request_exit

@@ -50,9 +50,9 @@
 
       <%= link_to main_app.dashboard_susu_payout_account_path, class: "dd-card", style: "display:block;padding:20px;text-decoration:none;color:inherit" do %>
         <small style="color:var(--dd-text-muted)">PAYOUT ACCOUNT</small>
-        <div style="font-size:28px;font-weight:700;margin-top:8px"><%= current_user.stripe_connect_ready? ? "READY" : "SETUP" %></div>
+        <div style="font-size:28px;font-weight:700;margin-top:8px"><%= current_user.stripe_connect_ready? ? "CONNECTED" : "SETUP" %></div>
         <div style="color:var(--dd-text-secondary);font-size:12px">
-          <%= current_user.stripe_connect_ready? ? "ready to receive Susu payouts" : "complete payout setup before your payout round" %>
+          <%= current_user.stripe_connect_ready? ? "payout account linked; open it to verify current status" : "complete payout setup before your payout round" %>
         </div>
       <% end %>
     <% end %>

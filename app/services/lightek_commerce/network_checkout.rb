@@ -6,8 +6,7 @@ module LightekCommerce
       LightekReservations::Federation::Client.config(order.site).present? &&
         order.purpose.to_s.in?(["", "purchase"]) && order.items.none? { |item| item.product.product_type == "lightek_instance" }
     end
-    def self.chain(site)
-      merchant = site.tenant
+    def self.chain(site, merchant: site.tenant)
       raise ArgumentError, "Merchant must be a business account" unless merchant.is_a?(User)
       users = [merchant] + merchant.account_ancestors
       host = ENV["LIGHTEK_DEPLOYED_SITE_HOST"].presence

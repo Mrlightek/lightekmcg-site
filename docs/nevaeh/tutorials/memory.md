@@ -17,7 +17,7 @@ Categories start disabled. Disabling a category removes its memories. Turning on
 
 ## Speak with Nevaeh
 
-Use Voice to start microphone input and Speak to hear replies. The browser controls microphone permission and available speech-recognition support. Use HTTPS. Press Escape to stop listening and cancel speech. If recognition is unavailable, use the command input.
+Use Voice to start microphone input and Read replies aloud to hear responses. The [voice guide](voice.md) covers private local speech, the speaking character, pause/stop/replay, stock voices and browser support. The browser controls microphone permission and available speech-recognition support. Use HTTPS. Press Escape to stop listening and cancel speech. If recognition is unavailable, use the command input.
 
 Voice can submit recognized commands, so inspect the transcription and resulting receipt. Browser speech services may be involved; this is not an offline speech recognition guarantee.
 

@@ -13,6 +13,7 @@ on:
       - 'app/services/studio/workers/workspace.rb'
       - 'app/services/script_builder/**'
       - 'app/services/screenplay_engine/**'
+      - 'app/services/studio/performance/audio_envelope.rb'
       - 'app/views/dymond_dash/shared/_sidebar.html.erb'
       - 'app/services/studio/publishers/**'
       - 'app/services/studio/publishing/**'
@@ -74,10 +75,12 @@ jobs:
       - run: blender --background --factory-startup --python-exit-code 1 --python test/operations/studio_spatial_blender_checks.py
       - run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
       - run: bundle exec ruby test/standalone/nevaeh_workforce_expansion_checks.rb --name '/NevaehWorkforceExpansionChecks/'
+      - run: NEVAEH_TEST_REAL_SPEECH=1 bundle exec ruby test/standalone/nevaeh_speech_checks.rb --name '/NevaehSpeech/'
       - run: bundle exec ruby test/standalone/nevaeh_os_test.rb
       - run: python3 -m unittest test.operations.nevaeh_package_control_test
       - run: node --check public/nevaeh/workforce.js
       - run: node --check public/nevaeh/stage.js
+      - run: node --check public/nevaeh/voice.js
       - run: node --check public/nevaeh/presence.js
       - run: node --check public/nevaeh/os.js
       - run: node --check public/nevaeh/guide.js
@@ -103,5 +106,9 @@ jobs:
           "$RUNNER_TEMP/nevaeh-browser/node_modules/.bin/playwright" install --with-deps chromium
       - name: Exercise stage and Dashboard assistant with authenticated API fixtures
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_stage_browser.cjs
+      - name: Install audio test fixture dependency
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Exercise actual speech playback and mouth synchronization
+        run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_voice_browser.cjs
       - name: Exercise workforce, delegation, goals and removal
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_workforce_browser.cjs

@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'voice'=>['Spoken replies, playback controls and the speaking character','all'],
       'workforce'=>['Workforce roles, delegated goals and page-aware help','all'],
       'director_stage'=>['Graphical workspace, assistant and scene rehearsals','all'],
       'story_simulation'=>['Characters, viewpoints, relative blocking and story workers','all'],

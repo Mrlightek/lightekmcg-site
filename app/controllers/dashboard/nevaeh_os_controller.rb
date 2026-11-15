@@ -6,6 +6,7 @@ class Dashboard::NevaehOsController < ::ApplicationController
   before_action do
     response.set_header('Cache-Control','private, no-store')
   end
+  rate_limit to: 12, within: 1.minute, only: :speech
   rate_limit to: 60, within: 1.minute, only: :ask
   rescue_from ArgumentError, ActiveRecord::RecordInvalid, ActiveRecord::StaleObjectError, ActiveRecord::RecordNotDestroyed do |error|
     render json: {error:error.message}, status: :unprocessable_entity
@@ -69,6 +70,22 @@ class Dashboard::NevaehOsController < ::ApplicationController
     attention=actions.order(id: :desc).first&.status=='failed' || operation&.status=='failed' || operation&.metadata&.dig('rehearsal_report','status')=='needs_attention'
     phase=working ? 'working' : attention ? 'attention' : 'idle'
     render json:{state:phase,message:phase=='working' ? 'Work is in progress. I can keep it with you in the workspace.' : phase=='attention' ? 'A recent task needs attention. Its receipt is available in the workspace.' : 'Ready when you are.',workspace_url:'/dashboard/nevaeh'}
+  end
+  def speech
+    value=NevaehOs::Speech.request!(actor:current_user,text:params.require(:text),request_key:params.require(:request_key),voice:params.fetch(:voice,'en-us+f3'),speed:Integer(params.fetch(:speed,170)))
+    render json:NevaehOs::Speech.receipt(value)
+  end
+  def speech_status
+    value=NevaehOs::Speech.owned!(current_user,params[:id])
+    render json:NevaehOs::Speech.receipt(value)
+  end
+  def speech_cancel
+    render json:NevaehOs::Speech.receipt(NevaehOs::Speech.cancel!(current_user,params[:id]))
+  end
+  def speech_audio
+    value=NevaehOs::Speech.owned!(current_user,params[:id])
+    raise ArgumentError,'Finish speech preparation before playback' unless value.status=='ready' && value.audio.attached?
+    send_data value.audio.download,type:'audio/wav',disposition:'inline',filename:'nevaeh-reply.wav'
   end
   def page_context
     context=NevaehOs::PageContext.normalize(params.require(:page_context).to_unsafe_h)

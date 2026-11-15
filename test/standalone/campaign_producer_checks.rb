@@ -155,6 +155,8 @@ end
 %w[20261109090000_create_nevaeh_operating_system 20261109141000_connect_nevaeh_agent_workforce].each { |file| require File.join(ROOT,"db/migrate/#{file}") }
 CreateNevaehOperatingSystem.new.migrate(:up)
 ConnectNevaehAgentWorkforce.new.migrate(:up)
+require File.join(ROOT,'db/migrate/20261115235000_add_nevaeh_workforce_goals')
+AddNevaehWorkforceGoals.new.migrate(:up)
 ActiveRecord::Schema.define do
   create_table(:nevaeh_capabilities) do |t|
     %i[name slug domain intent_name handler queue subject_type gatekeeper_capability].each { |field| t.string field }
@@ -179,7 +181,7 @@ module Gatekeeper
   def self.authorize_capability!(**) = true
 end
 %w[nevaeh_os_action nevaeh_os_agent nevaeh_agent_worker nevaeh_agent_run nevaeh_capability].each { |file| require File.join(ROOT,"app/models/#{file}") }
-%w[agents executor dispatch worker receipts conversation guide].each { |file| require File.join(ROOT,"app/services/nevaeh_os/#{file}") }
+%w[agents executor dispatch worker receipts page_context workforce conversation guide].each { |file| require File.join(ROOT,"app/services/nevaeh_os/#{file}") }
 class CampaignProducerChecks
   def test_producer_conversation_uses_dispatch_receipts_and_planning_does_not_write
     phrase = 'make me a funny tiktok campaign ad promoting xyzzy service'

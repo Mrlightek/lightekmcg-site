@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_15_160000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2366,9 +2366,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_160000) do
     t.string "approved_content_digest"
     t.bigint "content_approved_by_id"
     t.datetime "content_approved_at"
+    t.bigint "media_binding_id"
     t.index ["content_approved_by_id"], name: "index_lightek_marketing_campaigns_on_content_approved_by_id"
     t.index ["mail_account_id"], name: "index_lightek_marketing_campaigns_on_mail_account_id"
     t.index ["mail_message_id"], name: "index_lightek_marketing_campaigns_on_mail_message_id"
+    t.index ["media_binding_id"], name: "index_lightek_marketing_campaigns_on_media_binding_id"
     t.index ["site_id", "status"], name: "index_lightek_marketing_campaigns_on_site_id_and_status"
     t.index ["site_id"], name: "index_lightek_marketing_campaigns_on_site_id"
   end
@@ -2437,6 +2439,53 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_160000) do
     t.index ["campaign_id"], name: "index_lightek_marketing_deliveries_on_campaign_id"
     t.index ["contact_id"], name: "index_lightek_marketing_deliveries_on_contact_id"
     t.index ["mail_message_id"], name: "index_lightek_marketing_deliveries_on_mail_message_id"
+  end
+
+  create_table "lightek_marketing_media_bindings", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "campaign_id", null: false
+    t.bigint "artifact_id"
+    t.bigint "created_by_id", null: false
+    t.string "token", null: false
+    t.string "filename", null: false
+    t.string "delivery_host", null: false
+    t.jsonb "source_snapshot", default: {}, null: false
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["artifact_id"], name: "index_lightek_marketing_media_bindings_on_artifact_id"
+    t.index ["campaign_id"], name: "index_lightek_marketing_media_bindings_on_campaign_id"
+    t.index ["created_by_id"], name: "index_lightek_marketing_media_bindings_on_created_by_id"
+    t.index ["site_id"], name: "index_lightek_marketing_media_bindings_on_site_id"
+    t.index ["token"], name: "index_lightek_marketing_media_bindings_on_token", unique: true
+  end
+
+  create_table "lightek_marketing_publication_slots", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "campaign_id", null: false
+    t.bigint "connection_id", null: false
+    t.bigint "scheduled_by_id", null: false
+    t.bigint "social_post_id"
+    t.string "request_key", null: false
+    t.string "content_digest", null: false
+    t.string "status", default: "scheduled", null: false
+    t.string "time_zone", default: "UTC", null: false
+    t.datetime "scheduled_at", null: false
+    t.datetime "queue_requested_at"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.text "error_message"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["campaign_id", "connection_id"], name: "idx_publication_slot_destination", unique: true, where: "((status)::text <> 'canceled'::text)"
+    t.index ["campaign_id"], name: "index_lightek_marketing_publication_slots_on_campaign_id"
+    t.index ["connection_id"], name: "index_lightek_marketing_publication_slots_on_connection_id"
+    t.index ["scheduled_by_id"], name: "index_lightek_marketing_publication_slots_on_scheduled_by_id"
+    t.index ["site_id", "request_key"], name: "idx_publication_slot_request", unique: true
+    t.index ["site_id"], name: "index_lightek_marketing_publication_slots_on_site_id"
+    t.index ["social_post_id"], name: "index_lightek_marketing_publication_slots_on_social_post_id"
+    t.index ["status", "scheduled_at"], name: "idx_on_status_scheduled_at_9297f35c32"
   end
 
   create_table "lightek_marketing_social_connections", force: :cascade do |t|
@@ -4982,6 +5031,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_160000) do
   add_foreign_key "lightek_mail_templates", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_marketing_campaigns", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_campaigns", "lightek_mail_accounts", column: "mail_account_id"
+  add_foreign_key "lightek_marketing_campaigns", "lightek_marketing_media_bindings", column: "media_binding_id"
   add_foreign_key "lightek_marketing_campaigns", "users", column: "content_approved_by_id"
   add_foreign_key "lightek_marketing_contacts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_contacts", "lightek_sales_accounts", column: "sales_account_id"
@@ -4993,6 +5043,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_160000) do
   add_foreign_key "lightek_marketing_deliveries", "lightek_mail_messages", column: "mail_message_id"
   add_foreign_key "lightek_marketing_deliveries", "lightek_marketing_campaigns", column: "campaign_id"
   add_foreign_key "lightek_marketing_deliveries", "lightek_marketing_contacts", column: "contact_id"
+  add_foreign_key "lightek_marketing_media_bindings", "artifacts", on_delete: :nullify
+  add_foreign_key "lightek_marketing_media_bindings", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_marketing_media_bindings", "lightek_marketing_campaigns", column: "campaign_id"
+  add_foreign_key "lightek_marketing_media_bindings", "users", column: "created_by_id"
+  add_foreign_key "lightek_marketing_publication_slots", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_marketing_publication_slots", "lightek_marketing_campaigns", column: "campaign_id"
+  add_foreign_key "lightek_marketing_publication_slots", "lightek_marketing_social_connections", column: "connection_id"
+  add_foreign_key "lightek_marketing_publication_slots", "lightek_marketing_social_posts", column: "social_post_id"
+  add_foreign_key "lightek_marketing_publication_slots", "users", column: "scheduled_by_id"
   add_foreign_key "lightek_marketing_social_connections", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_social_posts", "lightek_marketing_campaigns", column: "campaign_id"
   add_foreign_key "lightek_marketing_social_posts", "lightek_marketing_social_connections", column: "connection_id"

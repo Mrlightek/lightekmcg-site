@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_15_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1761,9 +1761,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.bigint "agency_demo_id"
     t.jsonb "demo_content", default: {}, null: false
     t.datetime "deleted_at"
+    t.bigint "growth_visit_id"
     t.index ["agency_demo_id"], name: "index_lightek_commerce_orders_on_agency_demo_id"
     t.index ["customer_email", "client_checkout_key"], name: "idx_commerce_client_checkout_key", unique: true, where: "(client_checkout_key IS NOT NULL)"
     t.index ["gatekeeper_application_launch_id"], name: "idx_on_gatekeeper_application_launch_id_aa7421ca02"
+    t.index ["growth_visit_id"], name: "index_lightek_commerce_orders_on_growth_visit_id"
     t.index ["hosting_owner_id"], name: "index_lightek_commerce_orders_on_hosting_owner_id"
     t.index ["merchant_transfer_ref"], name: "index_lightek_commerce_orders_on_merchant_transfer_ref", unique: true
     t.index ["network_reference", "network_invoice_reference"], name: "idx_commerce_network_receipt", unique: true
@@ -1976,6 +1978,92 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.index ["gatekeeper_node_id"], name: "index_lightek_connect_sandboxes_on_gatekeeper_node_id"
     t.index ["key"], name: "index_lightek_connect_sandboxes_on_key", unique: true
     t.index ["user_id"], name: "index_lightek_connect_sandboxes_on_user_id"
+  end
+
+  create_table "lightek_growth_briefs", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "updated_by_id", null: false
+    t.text "offering"
+    t.text "audience"
+    t.text "customer_problem"
+    t.text "value_proposition"
+    t.text "voice"
+    t.text "goal"
+    t.date "goal_on"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_lightek_growth_briefs_on_site_id", unique: true
+    t.index ["updated_by_id"], name: "index_lightek_growth_briefs_on_updated_by_id"
+  end
+
+  create_table "lightek_growth_links", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "campaign_id", null: false
+    t.bigint "created_by_id", null: false
+    t.string "token", null: false
+    t.string "label", null: false
+    t.string "source", null: false
+    t.string "medium", null: false
+    t.string "destination_path", null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["campaign_id"], name: "index_lightek_growth_links_on_campaign_id"
+    t.index ["created_by_id"], name: "index_lightek_growth_links_on_created_by_id"
+    t.index ["site_id"], name: "index_lightek_growth_links_on_site_id"
+    t.index ["token"], name: "index_lightek_growth_links_on_token", unique: true
+  end
+
+  create_table "lightek_growth_plans", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "created_by_id", null: false
+    t.bigint "previous_plan_id"
+    t.date "plan_on", null: false
+    t.integer "revision", default: 1, null: false
+    t.string "request_key", null: false
+    t.string "playbook_version", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_lightek_growth_plans_on_created_by_id"
+    t.index ["previous_plan_id"], name: "index_lightek_growth_plans_on_previous_plan_id"
+    t.index ["site_id", "plan_on", "revision"], name: "idx_growth_plan_revision", unique: true
+    t.index ["site_id", "request_key"], name: "idx_growth_plan_request", unique: true
+    t.index ["site_id"], name: "index_lightek_growth_plans_on_site_id"
+  end
+
+  create_table "lightek_growth_steps", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "plan_id", null: false
+    t.string "key", null: false
+    t.integer "position", null: false
+    t.jsonb "definition", default: {}, null: false
+    t.string "status", default: "open", null: false
+    t.text "resolution_note"
+    t.string "resolution_source"
+    t.bigint "resolved_by_id"
+    t.datetime "resolved_at"
+    t.jsonb "result", default: {}, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["plan_id", "key"], name: "index_lightek_growth_steps_on_plan_id_and_key", unique: true
+    t.index ["plan_id"], name: "index_lightek_growth_steps_on_plan_id"
+    t.index ["resolved_by_id"], name: "index_lightek_growth_steps_on_resolved_by_id"
+    t.index ["site_id"], name: "index_lightek_growth_steps_on_site_id"
+  end
+
+  create_table "lightek_growth_visits", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "link_id", null: false
+    t.string "token", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["link_id"], name: "index_lightek_growth_visits_on_link_id"
+    t.index ["site_id", "created_at"], name: "index_lightek_growth_visits_on_site_id_and_created_at"
+    t.index ["site_id"], name: "index_lightek_growth_visits_on_site_id"
+    t.index ["token"], name: "index_lightek_growth_visits_on_token", unique: true
   end
 
   create_table "lightek_identity_connections", force: :cascade do |t|
@@ -2288,6 +2376,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.datetime "updated_at", null: false
     t.string "subscription_token_digest"
     t.datetime "confirmation_sent_at"
+    t.bigint "sales_account_id"
+    t.bigint "sales_owner_id"
+    t.string "name"
+    t.string "phone"
+    t.string "job_title"
+    t.text "sales_notes"
+    t.integer "lock_version", default: 0, null: false
+    t.index ["sales_account_id"], name: "index_lightek_marketing_contacts_on_sales_account_id"
+    t.index ["sales_owner_id"], name: "index_lightek_marketing_contacts_on_sales_owner_id"
     t.index ["site_id", "email"], name: "index_lightek_marketing_contacts_on_site_id_and_email", unique: true
     t.index ["site_id"], name: "index_lightek_marketing_contacts_on_site_id"
     t.index ["subscription_token_digest"], name: "index_lightek_marketing_contacts_on_subscription_token_digest", unique: true
@@ -2502,6 +2599,30 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.index ["employer_id"], name: "index_lightek_people_employments_on_employer_id"
     t.index ["manager_id"], name: "index_lightek_people_employments_on_manager_id"
     t.index ["worker_id"], name: "index_lightek_people_employments_on_worker_id"
+  end
+
+  create_table "lightek_people_lifecycle_cases", force: :cascade do |t|
+    t.bigint "employer_id", null: false
+    t.string "subject_type", null: false
+    t.bigint "subject_id", null: false
+    t.bigint "created_by_id", null: false
+    t.bigint "revoked_by_id"
+    t.bigint "completed_by_id"
+    t.string "kind", null: false
+    t.string "status", default: "open", null: false
+    t.jsonb "steps", default: {}, null: false
+    t.jsonb "receipt", default: {}, null: false
+    t.datetime "access_revoked_at"
+    t.datetime "completed_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["completed_by_id"], name: "index_lightek_people_lifecycle_cases_on_completed_by_id"
+    t.index ["created_by_id"], name: "index_lightek_people_lifecycle_cases_on_created_by_id"
+    t.index ["employer_id", "subject_type", "subject_id"], name: "idx_open_lifecycle_case", unique: true, where: "((status)::text <> ALL ((ARRAY['completed'::character varying, 'canceled'::character varying])::text[]))"
+    t.index ["employer_id"], name: "index_lightek_people_lifecycle_cases_on_employer_id"
+    t.index ["revoked_by_id"], name: "index_lightek_people_lifecycle_cases_on_revoked_by_id"
+    t.index ["subject_type", "subject_id"], name: "index_lightek_people_lifecycle_cases_on_subject"
   end
 
   create_table "lightek_people_pay_runs", force: :cascade do |t|
@@ -2789,6 +2910,203 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.index ["reference"], name: "index_lightek_reservations_on_reference", unique: true
     t.index ["resource_id", "blocks_from", "blocks_until"], name: "idx_reservations_availability"
     t.index ["resource_id"], name: "index_lightek_reservations_on_resource_id"
+  end
+
+  create_table "lightek_sales_accounts", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "owner_id"
+    t.string "name", null: false
+    t.string "normalized_name", null: false
+    t.string "website"
+    t.text "notes"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_id"], name: "index_lightek_sales_accounts_on_owner_id"
+    t.index ["site_id", "normalized_name"], name: "idx_sales_account_name", unique: true
+    t.index ["site_id"], name: "index_lightek_sales_accounts_on_site_id"
+  end
+
+  create_table "lightek_sales_activities", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "actor_id", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.string "kind", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_lightek_sales_activities_on_actor_id"
+    t.index ["site_id", "record_type", "record_id", "created_at"], name: "idx_sales_activity_timeline"
+    t.index ["site_id"], name: "index_lightek_sales_activities_on_site_id"
+  end
+
+  create_table "lightek_sales_intake_entries", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "inquiry_id"
+    t.bigint "lead_id"
+    t.bigint "created_by_id", null: false
+    t.bigint "processed_by_id"
+    t.string "origin", null: false
+    t.string "origin_key", null: false
+    t.string "source", null: false
+    t.string "status", default: "awaiting_review", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.jsonb "original", default: {}, null: false
+    t.string "error_message"
+    t.datetime "processed_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_lightek_sales_intake_entries_on_created_by_id"
+    t.index ["inquiry_id"], name: "index_lightek_sales_intake_entries_on_inquiry_id"
+    t.index ["lead_id"], name: "index_lightek_sales_intake_entries_on_lead_id"
+    t.index ["processed_by_id"], name: "index_lightek_sales_intake_entries_on_processed_by_id"
+    t.index ["site_id", "origin_key"], name: "idx_sales_intake_origin", unique: true
+    t.index ["site_id", "status", "created_at"], name: "idx_sales_intake_review"
+    t.index ["site_id"], name: "index_lightek_sales_intake_entries_on_site_id"
+  end
+
+  create_table "lightek_sales_intake_rules", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "template_key", null: false
+    t.string "section_key", null: false
+    t.string "source", default: "website", null: false
+    t.jsonb "mapping", default: {}, null: false
+    t.boolean "enabled", default: false, null: false
+    t.datetime "enabled_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "template_key", "section_key"], name: "idx_sales_intake_form", unique: true
+    t.index ["site_id"], name: "index_lightek_sales_intake_rules_on_site_id"
+  end
+
+  create_table "lightek_sales_leads", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "owner_id"
+    t.bigint "opportunity_id"
+    t.string "name", null: false
+    t.string "email", null: false
+    t.string "company", null: false
+    t.string "phone"
+    t.string "source", default: "manual", null: false
+    t.string "status", default: "new", null: false
+    t.string "next_step"
+    t.date "follow_up_on"
+    t.text "notes"
+    t.datetime "converted_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "growth_visit_id"
+    t.index ["growth_visit_id"], name: "index_lightek_sales_leads_on_growth_visit_id"
+    t.index ["opportunity_id"], name: "index_lightek_sales_leads_on_opportunity_id"
+    t.index ["owner_id"], name: "index_lightek_sales_leads_on_owner_id"
+    t.index ["site_id", "email"], name: "index_lightek_sales_leads_on_site_id_and_email", unique: true
+    t.index ["site_id", "status", "follow_up_on"], name: "idx_sales_lead_follow_up"
+    t.index ["site_id"], name: "index_lightek_sales_leads_on_site_id"
+  end
+
+  create_table "lightek_sales_opportunities", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "owner_id"
+    t.bigint "account_id", null: false
+    t.bigint "contact_id"
+    t.string "name", null: false
+    t.string "stage", default: "discovery", null: false
+    t.string "forecast_category", default: "pipeline", null: false
+    t.bigint "amount_cents", default: 0, null: false
+    t.string "currency", default: "USD", null: false
+    t.integer "probability", default: 10, null: false
+    t.date "close_on", null: false
+    t.string "next_step"
+    t.date "follow_up_on"
+    t.text "notes"
+    t.string "loss_reason"
+    t.datetime "stage_changed_at"
+    t.datetime "closed_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "growth_visit_id"
+    t.index ["account_id"], name: "index_lightek_sales_opportunities_on_account_id"
+    t.index ["contact_id"], name: "index_lightek_sales_opportunities_on_contact_id"
+    t.index ["growth_visit_id"], name: "index_lightek_sales_opportunities_on_growth_visit_id"
+    t.index ["owner_id"], name: "index_lightek_sales_opportunities_on_owner_id"
+    t.index ["site_id", "stage", "close_on"], name: "idx_sales_pipeline"
+    t.index ["site_id"], name: "index_lightek_sales_opportunities_on_site_id"
+    t.check_constraint "amount_cents >= 0 AND probability >= 0 AND probability <= 100", name: "sales_opportunity_amount_probability"
+  end
+
+  create_table "lightek_sales_quotes", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "opportunity_id", null: false
+    t.bigint "accepted_by_id"
+    t.string "acceptance_channel"
+    t.bigint "created_by_id", null: false
+    t.bigint "order_id"
+    t.string "series_key", null: false
+    t.integer "revision", default: 1, null: false
+    t.string "status", default: "draft", null: false
+    t.string "portal_host", null: false
+    t.string "customer_email", null: false
+    t.string "title", null: false
+    t.string "currency", default: "USD", null: false
+    t.bigint "total_cents", default: 0, null: false
+    t.jsonb "lines", default: [], null: false
+    t.text "terms"
+    t.date "expires_on", null: false
+    t.datetime "issued_at"
+    t.datetime "accepted_at"
+    t.string "accepted_name"
+    t.string "acceptance_reference"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["accepted_by_id"], name: "index_lightek_sales_quotes_on_accepted_by_id"
+    t.index ["created_by_id"], name: "index_lightek_sales_quotes_on_created_by_id"
+    t.index ["opportunity_id"], name: "index_lightek_sales_quotes_on_opportunity_id"
+    t.index ["order_id"], name: "index_lightek_sales_quotes_on_order_id", unique: true
+    t.index ["site_id", "series_key", "revision"], name: "idx_sales_quote_revision", unique: true
+    t.index ["site_id"], name: "index_lightek_sales_quotes_on_site_id"
+  end
+
+  create_table "lightek_sales_routing_rules", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "owner_id", null: false
+    t.string "source", null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_id"], name: "index_lightek_sales_routing_rules_on_owner_id"
+    t.index ["site_id", "source"], name: "index_lightek_sales_routing_rules_on_site_id_and_source", unique: true
+    t.index ["site_id"], name: "index_lightek_sales_routing_rules_on_site_id"
+  end
+
+  create_table "lightek_sales_tasks", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "owner_id", null: false
+    t.bigint "created_by_id", null: false
+    t.bigint "completed_by_id"
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.string "source_key", null: false
+    t.string "title", null: false
+    t.string "status", default: "open", null: false
+    t.datetime "due_at", null: false
+    t.datetime "completed_at"
+    t.datetime "snoozed_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["completed_by_id"], name: "index_lightek_sales_tasks_on_completed_by_id"
+    t.index ["created_by_id"], name: "index_lightek_sales_tasks_on_created_by_id"
+    t.index ["owner_id"], name: "index_lightek_sales_tasks_on_owner_id"
+    t.index ["record_type", "record_id"], name: "idx_sales_task_relationship"
+    t.index ["site_id", "owner_id", "status", "due_at"], name: "idx_sales_tasks_due"
+    t.index ["site_id", "source_key"], name: "idx_sales_task_source", unique: true
+    t.index ["site_id"], name: "index_lightek_sales_tasks_on_site_id"
   end
 
   create_table "lightek_session_members", force: :cascade do |t|
@@ -3463,6 +3781,44 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.index ["status"], name: "index_nevaeh_intelligences_on_status"
   end
 
+  create_table "nevaeh_islamic_passages", force: :cascade do |t|
+    t.bigint "nevaeh_islamic_source_id", null: false
+    t.string "reference", null: false
+    t.text "body", null: false
+    t.jsonb "assessments", default: [], null: false
+    t.text "narrator"
+    t.string "sha256", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_islamic_source_id", "reference"], name: "idx_islamic_passage_reference", unique: true
+    t.index ["nevaeh_islamic_source_id"], name: "idx_islamic_passage_source"
+  end
+
+  create_table "nevaeh_islamic_sources", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.bigint "reviewer_id"
+    t.datetime "reviewed_at"
+    t.string "name", null: false
+    t.string "kind", null: false
+    t.string "language", null: false
+    t.string "edition", null: false
+    t.string "tradition"
+    t.string "translator"
+    t.text "source_url", null: false
+    t.text "attribution", null: false
+    t.text "license", null: false
+    t.text "permission_evidence"
+    t.boolean "training_permitted", default: false, null: false
+    t.string "sha256", null: false
+    t.string "status", default: "draft", null: false
+    t.integer "passages_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_islamic_sources_on_creator_id"
+    t.index ["reviewer_id"], name: "index_nevaeh_islamic_sources_on_reviewer_id"
+    t.index ["sha256"], name: "index_nevaeh_islamic_sources_on_sha256", unique: true
+  end
+
   create_table "nevaeh_language_checkpoints", force: :cascade do |t|
     t.bigint "nevaeh_training_run_id", null: false
     t.bigint "nevaeh_language_model_id", null: false
@@ -3566,6 +3922,53 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.index ["operation_key"], name: "idx_nevaeh_studio_idempotency_operation_unique", unique: true
     t.index ["ticket_id"], name: "idx_nevaeh_studio_idempotency_ticket"
     t.index ["work_item_id"], name: "idx_nevaeh_studio_idempotency_work_item"
+  end
+
+  create_table "nevaeh_study_routines", force: :cascade do |t|
+    t.bigint "creator_id", null: false
+    t.bigint "source_id", null: false
+    t.bigint "language_model_id"
+    t.string "name", null: false
+    t.jsonb "daily_times", default: {}, null: false
+    t.jsonb "dataset_ids", default: [], null: false
+    t.boolean "enabled", default: false, null: false
+    t.boolean "training_enabled", default: false, null: false
+    t.boolean "auto_activate", default: true, null: false
+    t.integer "window_minutes", default: 15, null: false
+    t.integer "passages_per_session", default: 10, null: false
+    t.integer "training_epochs", default: 3, null: false
+    t.bigint "reading_after_id", default: 0, null: false
+    t.integer "training_cursor", default: 0, null: false
+    t.integer "lock_version", default: 0, null: false
+    t.text "last_error"
+    t.datetime "last_tick_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_nevaeh_study_routines_on_creator_id"
+    t.index ["language_model_id"], name: "index_nevaeh_study_routines_on_language_model_id"
+    t.index ["source_id"], name: "index_nevaeh_study_routines_on_source_id"
+  end
+
+  create_table "nevaeh_study_sessions", force: :cascade do |t|
+    t.bigint "nevaeh_study_routine_id", null: false
+    t.bigint "nevaeh_training_run_id"
+    t.date "local_date", null: false
+    t.string "slot", null: false
+    t.datetime "scheduled_at", null: false
+    t.datetime "ends_at", null: false
+    t.string "status", default: "queued", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.jsonb "reading_evidence", default: [], null: false
+    t.jsonb "result", default: {}, null: false
+    t.string "lease_token"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_study_routine_id", "local_date", "slot"], name: "idx_study_session_daily_slot", unique: true
+    t.index ["nevaeh_study_routine_id"], name: "idx_study_session_routine"
+    t.index ["nevaeh_training_run_id"], name: "idx_study_session_training"
   end
 
   create_table "nevaeh_test_runs", force: :cascade do |t|
@@ -4334,6 +4737,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.integer "upstream_share_bps", default: 0, null: false
     t.integer "people_template_version", default: 0, null: false
     t.boolean "password_setup_required", default: false, null: false
+    t.datetime "access_suspended_at"
+    t.string "access_suspension_source"
     t.index ["agency_id"], name: "index_users_on_agency_id"
     t.index ["api_token"], name: "index_users_on_api_token", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
@@ -4350,6 +4755,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
     t.jsonb "fields", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "growth_visit_id"
+    t.index ["growth_visit_id"], name: "index_website_template_inquiries_on_growth_visit_id"
     t.index ["site_id"], name: "index_website_template_inquiries_on_site_id"
   end
 
@@ -4474,6 +4881,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
   add_foreign_key "lightek_commerce_order_items", "lightek_commerce_products", column: "product_id"
   add_foreign_key "lightek_commerce_orders", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_commerce_orders", "gatekeeper_application_launches"
+  add_foreign_key "lightek_commerce_orders", "lightek_growth_visits", column: "growth_visit_id"
   add_foreign_key "lightek_commerce_orders", "lightek_shipping_quotes", column: "shipping_quote_id"
   add_foreign_key "lightek_commerce_orders", "users", column: "hosting_owner_id"
   add_foreign_key "lightek_commerce_product_variants", "lightek_commerce_products", column: "product_id"
@@ -4497,6 +4905,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
   add_foreign_key "lightek_connect_grants", "sessions", column: "authorization_session_id", on_delete: :nullify
   add_foreign_key "lightek_connect_sandboxes", "gatekeeper_nodes"
   add_foreign_key "lightek_connect_sandboxes", "users"
+  add_foreign_key "lightek_growth_briefs", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_briefs", "users", column: "updated_by_id"
+  add_foreign_key "lightek_growth_links", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_links", "lightek_marketing_campaigns", column: "campaign_id"
+  add_foreign_key "lightek_growth_links", "users", column: "created_by_id"
+  add_foreign_key "lightek_growth_plans", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_plans", "lightek_growth_plans", column: "previous_plan_id"
+  add_foreign_key "lightek_growth_plans", "users", column: "created_by_id"
+  add_foreign_key "lightek_growth_steps", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_steps", "lightek_growth_plans", column: "plan_id"
+  add_foreign_key "lightek_growth_steps", "users", column: "resolved_by_id"
+  add_foreign_key "lightek_growth_visits", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_visits", "lightek_growth_links", column: "link_id"
   add_foreign_key "lightek_identity_connections", "users", column: "employer_id"
   add_foreign_key "lightek_identity_factors", "users"
   add_foreign_key "lightek_identity_login_attempts", "lightek_identity_connections", column: "connection_id"
@@ -4527,6 +4948,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
   add_foreign_key "lightek_marketing_campaigns", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_campaigns", "lightek_mail_accounts", column: "mail_account_id"
   add_foreign_key "lightek_marketing_contacts", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_marketing_contacts", "lightek_sales_accounts", column: "sales_account_id"
+  add_foreign_key "lightek_marketing_contacts", "users", column: "sales_owner_id"
   add_foreign_key "lightek_marketing_deliveries", "lightek_mail_messages", column: "mail_message_id"
   add_foreign_key "lightek_marketing_deliveries", "lightek_marketing_campaigns", column: "campaign_id"
   add_foreign_key "lightek_marketing_deliveries", "lightek_marketing_contacts", column: "contact_id"
@@ -4551,6 +4974,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
   add_foreign_key "lightek_people_employments", "lightek_people_employments", column: "manager_id"
   add_foreign_key "lightek_people_employments", "users", column: "employer_id"
   add_foreign_key "lightek_people_employments", "users", column: "worker_id"
+  add_foreign_key "lightek_people_lifecycle_cases", "users", column: "completed_by_id"
+  add_foreign_key "lightek_people_lifecycle_cases", "users", column: "created_by_id"
+  add_foreign_key "lightek_people_lifecycle_cases", "users", column: "employer_id"
+  add_foreign_key "lightek_people_lifecycle_cases", "users", column: "revoked_by_id"
   add_foreign_key "lightek_people_pay_runs", "users", column: "approved_by_id"
   add_foreign_key "lightek_people_pay_runs", "users", column: "employer_id"
   add_foreign_key "lightek_people_pay_runs", "users", column: "preparation_actor_id"
@@ -4583,6 +5010,36 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
   add_foreign_key "lightek_reservations", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_reservations", "lightek_reservation_resources", column: "resource_id"
   add_foreign_key "lightek_reservations", "users", column: "customer_id"
+  add_foreign_key "lightek_sales_accounts", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_accounts", "users", column: "owner_id"
+  add_foreign_key "lightek_sales_activities", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_activities", "users", column: "actor_id"
+  add_foreign_key "lightek_sales_intake_entries", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_intake_entries", "lightek_sales_leads", column: "lead_id"
+  add_foreign_key "lightek_sales_intake_entries", "users", column: "created_by_id"
+  add_foreign_key "lightek_sales_intake_entries", "users", column: "processed_by_id"
+  add_foreign_key "lightek_sales_intake_entries", "website_template_inquiries", column: "inquiry_id"
+  add_foreign_key "lightek_sales_intake_rules", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_leads", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_leads", "lightek_growth_visits", column: "growth_visit_id"
+  add_foreign_key "lightek_sales_leads", "lightek_sales_opportunities", column: "opportunity_id"
+  add_foreign_key "lightek_sales_leads", "users", column: "owner_id"
+  add_foreign_key "lightek_sales_opportunities", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_opportunities", "lightek_growth_visits", column: "growth_visit_id"
+  add_foreign_key "lightek_sales_opportunities", "lightek_marketing_contacts", column: "contact_id"
+  add_foreign_key "lightek_sales_opportunities", "lightek_sales_accounts", column: "account_id"
+  add_foreign_key "lightek_sales_opportunities", "users", column: "owner_id"
+  add_foreign_key "lightek_sales_quotes", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_quotes", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_sales_quotes", "lightek_sales_opportunities", column: "opportunity_id"
+  add_foreign_key "lightek_sales_quotes", "users", column: "accepted_by_id"
+  add_foreign_key "lightek_sales_quotes", "users", column: "created_by_id"
+  add_foreign_key "lightek_sales_routing_rules", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_routing_rules", "users", column: "owner_id"
+  add_foreign_key "lightek_sales_tasks", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_tasks", "users", column: "completed_by_id"
+  add_foreign_key "lightek_sales_tasks", "users", column: "created_by_id"
+  add_foreign_key "lightek_sales_tasks", "users", column: "owner_id"
   add_foreign_key "lightek_session_members", "lightek_reservations", column: "reservation_id"
   add_foreign_key "lightek_session_members", "lightek_session_rooms", column: "room_id"
   add_foreign_key "lightek_session_members", "users"
@@ -4633,6 +5090,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
   add_foreign_key "nevaeh_conversations", "nevaeh_language_models"
   add_foreign_key "nevaeh_conversations", "users"
   add_foreign_key "nevaeh_intelligences", "nevaeh_capabilities"
+  add_foreign_key "nevaeh_islamic_passages", "nevaeh_islamic_sources"
+  add_foreign_key "nevaeh_islamic_sources", "users", column: "creator_id"
+  add_foreign_key "nevaeh_islamic_sources", "users", column: "reviewer_id"
   add_foreign_key "nevaeh_language_checkpoints", "nevaeh_language_models"
   add_foreign_key "nevaeh_language_checkpoints", "nevaeh_training_runs"
   add_foreign_key "nevaeh_language_models", "nevaeh_language_checkpoints", column: "active_checkpoint_id"
@@ -4641,6 +5101,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
   add_foreign_key "nevaeh_os_consents", "users"
   add_foreign_key "nevaeh_os_memories", "users"
   add_foreign_key "nevaeh_os_sources", "users"
+  add_foreign_key "nevaeh_study_routines", "nevaeh_islamic_sources", column: "source_id"
+  add_foreign_key "nevaeh_study_routines", "nevaeh_language_models", column: "language_model_id"
+  add_foreign_key "nevaeh_study_routines", "users", column: "creator_id"
+  add_foreign_key "nevaeh_study_sessions", "nevaeh_study_routines"
+  add_foreign_key "nevaeh_study_sessions", "nevaeh_training_runs"
   add_foreign_key "nevaeh_training_datasets", "users", column: "creator_id"
   add_foreign_key "nevaeh_training_runs", "nevaeh_language_models"
   add_foreign_key "nevaeh_training_runs", "nevaeh_training_datasets"
@@ -4720,4 +5185,5 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_14_200000) do
   add_foreign_key "user_feature_entitlements", "users"
   add_foreign_key "users", "users", column: "agency_id"
   add_foreign_key "website_template_inquiries", "dymond_site_sites", column: "site_id"
+  add_foreign_key "website_template_inquiries", "lightek_growth_visits", column: "growth_visit_id"
 end

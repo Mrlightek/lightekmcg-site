@@ -22,6 +22,11 @@ Rails.application.routes.draw do
   post "/api/connect/sites/:id/management", to: "api/connect#management"
   post "/api/connect/dashboard", to: "api/connect#dashboard"
   delete "/api/connect", to: "api/connect#disconnect"
+  post "/api/reservations/federation/studio/cpu", to: "api/studio_compute#create"
+  get "/api/reservations/federation/studio/cpu/:key", to: "api/studio_compute#status"
+  post "/api/reservations/federation/studio/cpu/:key/resume", to: "api/studio_compute#resume"
+  post "/api/reservations/federation/studio/cpu/:key/cancel", to: "api/studio_compute#cancel"
+  get "/api/reservations/federation/studio/cpu/:key/files/:filename", to: "api/studio_compute#file", constraints: {filename: /movie\.mp4|scene\.blend|preview\.png/}, format: false
   post "/api/reservations/federation/connect/redeem", to: "api/connect_federation#redeem"
   post "/api/reservations/federation/connect/validate", to: "api/connect_federation#validate_session"
   scope "/dashboard/studio/editors/:kind", controller: "dashboard/studio_editors", as: :dashboard_studio_editor do
@@ -173,6 +178,13 @@ Rails.application.routes.draw do
   get "/dashboard/nevaeh/guide", to: "dashboard/nevaeh_os#guide", as: :dashboard_nevaeh_guide
   get "/dashboard/nevaeh/social_connections", to: "dashboard/nevaeh_os#social_connections"
   get "/dashboard/nevaeh/social_options", to: "dashboard/nevaeh_os#social_options"
+  get "/dashboard/nevaeh/workforce", to: "dashboard/nevaeh_os#workforce"
+  post "/dashboard/nevaeh/speech", to: "dashboard/nevaeh_os#speech"
+  get "/dashboard/nevaeh/speech/:id", to: "dashboard/nevaeh_os#speech_status"
+  delete "/dashboard/nevaeh/speech/:id", to: "dashboard/nevaeh_os#speech_cancel"
+  get "/dashboard/nevaeh/speech/:id/audio", to: "dashboard/nevaeh_os#speech_audio"
+  post "/dashboard/nevaeh/context", to: "dashboard/nevaeh_os#page_context"
+  post "/dashboard/nevaeh/goals", to: "dashboard/nevaeh_os#goals"
   get "/dashboard/nevaeh/stage", to: "dashboard/nevaeh_os#stage"
   patch "/dashboard/nevaeh/stage", to: "dashboard/nevaeh_os#stage"
   patch "/dashboard/nevaeh/stage/script", to: "dashboard/nevaeh_os#stage_script"

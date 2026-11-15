@@ -27,6 +27,8 @@ module NevaehOs
       when 'action'
         action=NevaehOsAction.where(user:@actor).find(data.fetch('id'))
         {'key'=>"action:#{action.id}",'kind'=>kind,'id'=>action.id,'label'=>"Task ##{action.id}"}
+      when 'workforce'
+        {'key'=>kind,'kind'=>kind,'label'=>'Workforce & goals'}
       when 'workers'
         {'key'=>kind,'kind'=>kind,'label'=>'Your workforce'}
       when 'guide'
@@ -98,8 +100,9 @@ module NevaehOs
           embed_url:"/dashboard/studio-broadcasting/workspace/#{scene.id}?site_id=#{site}&workspace=3d&nevaeh_embed=1"}
       when 'action'
         {kind:'action',receipt:Receipts.for(NevaehOsAction.where(user:@actor).find(panel['id']))}
+      when 'workforce' then {kind:'workforce'}
       when 'workers'
-        {kind:'workers',workers:NevaehAgentWorker.where(user:@actor).includes(:nevaeh_os_agent).order(id: :desc).limit(30).map { |worker| {id:worker.id,name:worker.name,agent:worker.nevaeh_os_agent.name,enabled:worker.enabled?,status:worker.runs.order(id: :desc).first&.execution_status} }}
+        {kind:'workers',workers:NevaehAgentWorker.where(user:@actor,deleted_at:nil).includes(:nevaeh_os_agent).order(id: :desc).limit(30).map { |worker| {id:worker.id,name:worker.name,agent:worker.nevaeh_os_agent.name,enabled:worker.enabled?,status:worker.runs.order(id: :desc).first&.execution_status} }}
       when 'guide' then {kind:'embed',embed_url:'/dashboard/nevaeh/guide?topic='+URI.encode_www_form_component(panel.fetch('topic','start'))}
       when 'learning' then {kind:'embed',embed_url:'/employee/nevaeh/factory'}
       when 'page' then {kind:'embed',embed_url:page!(panel['path'])}

@@ -7,6 +7,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Photo/video editing engines, saved projects and PNG/MP4 exports.
 - [x] Bounded CPU economy scene rendering, saved-frame integrity/recovery, resource-slot deferral and measured job progress; neural-engine installation restricted to infrastructure operators. See [CPU economy](cpu-economy.md).
 - [x] Dedicated CPU worker queue within one installation, tenant concurrency caps, fenced expiring attempts, interruption reconciliation and shared-filesystem checkpoint handoff. See [Shared CPU workers](shared-cpu-workers.md).
+- [x] Initial independent-installation CPU bridge for paid procedural movies, peer grants, bounded/idempotent admission, status/cancellation and streamed verified results. See [Remote CPU rendering](remote-cpu-rendering.md).
 - [x] Saved Blender authoring commands and an interactive object-skew control (PR #241).
 - [x] Named Blender modifier stacks, typed parameter controls, independent viewport/render state, ordering/removal and saved undo/redo. See [Modifier stack](blender-modifier-stack.md).
 - [x] Ordered storyboard, camera/frame/Cast selection and immutable shot render snapshots.
@@ -35,7 +36,7 @@ These checkboxes record implementation, not completed production acceptance.
 
 ## Remaining feature sprints
 
-- [ ] Authenticated CPU worker federation between independent client installations, source/checkpoint transfer without shared filesystems, strict scheduling fairness/compute accounting and measured economical neural-generation runtimes. Dedicated workers currently share one installation’s database, queue and storage.
+- [ ] Source-package transfer for native scenes/rigs/audio across independent installations, checkpoint transfer outside the central cluster, strict scheduling fairness/compute accounting and measured economical neural-generation runtimes. The first peer bridge supports procedural movies; central dedicated workers retain their shared database/queue/storage.
 
 - [ ] Complete generation recipes for the remaining agreed media types and verify actual inference/output on suitable production hardware.
 - [ ] Advanced character creation/performance tools, eligible face/performance models and expanded reusable body-animation controls.

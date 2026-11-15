@@ -11,6 +11,12 @@ module NevaehOs
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'goal'
+        raise ArgumentError,'Goal inputs must be a bounded object' unless command['values'].is_a?(Hash) && command['values'].to_json.bytesize<=24000
+      when 'goal_control'
+        Goals.owned!(actor,command.fetch('id'))
+      when 'improve'
+        Improvements.authorize!(actor,command.fetch('operation'))
       when 'production'
         if command['operation']=='start'
           raise ArgumentError, 'Choose a positive business website ID' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
@@ -111,6 +117,14 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'goal'
+        goal=Goals.create!(actor:actor,values:command.fetch('values'),request_key:"goal-action-#{action.id}",host:command['host'],origin:command['origin'])
+        {'goal_id'=>goal.id,'status'=>'draft','text'=>'Goal saved for review. Start it from Workforce & Goals.'}
+      when 'goal_control'
+        goal=Goals.control!(goal:Goals.owned!(actor,command.fetch('id')),actor:actor,operation:command.fetch('operation'))
+        {'goal_id'=>goal.id,'status'=>goal.status,'text'=>"Goal #{goal.status}."}
+      when 'improve'
+        Improvements.perform!(actor,command.fetch('operation'))
       when 'production'
         producer = Studio::Director::Producer
         case command.fetch('operation')

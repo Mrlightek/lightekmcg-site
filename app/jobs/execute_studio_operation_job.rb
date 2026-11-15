@@ -6,14 +6,27 @@ class ExecuteStudioOperationJob < ApplicationJob
 
   def perform(studio_operation_id)
     operation = StudioOperation.find(studio_operation_id)
+    if Studio::Compute::Federation::Dispatch.enabled?(operation) && operation.status == "cancelled"
+      Studio::Compute::Federation::Dispatch.cancel!(operation)
+      return
+    end
+    remote_row = StudioRemoteRender.find_by(studio_operation_id: operation.id)
+    Studio::Compute::Federation::Broker.authorize!(remote_row.peer) if remote_row
     if Studio::Compute::Queue.economy?(operation)
-      if Studio::Compute::Queue.dedicated? && !Studio::Compute::Queue.worker?
+      if Studio::Compute::Queue.dedicated? && !Studio::Compute::Queue.worker? && !Studio::Compute::Federation::Dispatch.enabled?(operation)
         self.class.set(queue: Studio::Compute::Queue.name(operation), wait: 20.seconds).perform_later(operation.id) if operation.executable?
         return
       end
       lease = Studio::Compute::Lease.claim!(operation)
       return unless lease
-      lease.run { execute(operation) }
+      lease.run do
+        if Studio::Compute::Federation::Dispatch.enabled?(operation)
+          finished = Studio::Compute::Federation::Dispatch.call(operation)
+          self.class.set(wait: 20.seconds).perform_later(operation.id) unless finished
+        else
+          execute(operation)
+        end
+      end
       return
     end
     operation.with_lock do

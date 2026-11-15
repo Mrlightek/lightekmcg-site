@@ -6,6 +6,14 @@ module Studio
     class AudioEnvelope
       # Volume-following animation, deliberately not described as phoneme alignment.
       def self.call(asset, first:, duration:)
+        # MediaProcess bounds stdout to 1 MiB; decode short windows so longer
+        # speech cannot silently lose its opening samples and shift mouth timing.
+        if duration>30
+          return (duration/30.0).ceil.times.flat_map do |index|
+            offset=index*30.0
+            call(asset,first:first+offset,duration:[30.0,duration-offset].min).map { |row| row.merge('time'=>row['time']+offset) }
+          end
+        end
         asset.file.blob.open do |source|
           Dir.mktmpdir("lightek-voice-") do |root|
             input=File.join(root,"voice#{File.extname(asset.file.filename.to_s)}")

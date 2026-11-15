@@ -271,7 +271,8 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Campaign connection | Create/reopen a campaign production with its brief and return link, retaining website context. |
 | Native Blender library | Approved demo/source imports, prepared metadata, pinned editable `.blend` attachments and optional GLB browser proxies. |
 | CPU economy rendering | Explicit Cycles CPU profile capped at 512 px / 8 samples, one-thread execution, application-host render slots, verified per-operation frame checkpoints, real progress/metrics and authorized paid-render resume. See [CPU economy](docs/studio/cpu-economy.md). |
-| Shared CPU workers | Opt-in dedicated queue within one installation, tenant concurrency caps, expiring fenced attempts, scoped interruption recovery and shared-storage checkpoint handoff. Operator-managed cluster; independent-instance federation remains pending. See [Shared CPU workers](docs/studio/shared-cpu-workers.md). |
+| Shared CPU workers | Opt-in dedicated queue within one installation, tenant concurrency caps, expiring fenced attempts, scoped interruption recovery and shared-storage checkpoint handoff. Operator-managed cluster; the separate remote bridge initially supports procedural movies. See [Shared CPU workers](docs/studio/shared-cpu-workers.md). |
+| Remote CPU bridge | Opt-in peer-authenticated procedural movie rendering across independent installations, paid-client orchestration, bounded admission, idempotent retry/resume and streamed SHA-256 verified outputs. Native/rig/audio source transfer remains pending. See [Remote CPU rendering](docs/studio/remote-cpu-rendering.md). |
 | Native authoring | Outliner/Inspector, source-object transforms, visibility, duplication/removal, cameras, lights, material overrides, exposed Geometry Nodes parameters and named modifier stacks with typed values, viewport/render toggles, ordering, removal and undo. |
 | Advanced workstation/finishing | Existing Blender workspaces and a separate timeline/mix/export path with transforms, fades, speed, titles, picture adjustments, MP4/ProRes and WAV output contracts. |
 | Cast & Performance | Native toon creation or compatible packed character registration, placements, recorded audio takes, saved facial/gesture cues and animated preview/shot export. |
@@ -400,3 +401,26 @@ Guides: [Story simulation](docs/nevaeh/tutorials/story_simulation.md) and [Socia
 | Dialogue continuity | Reuses pinned Cast objects across successive lines, retains each audio source and schedules speaker/listener gaze cues. |
 
 See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md) for limits, recovery and deployment. Root routing does not generate a walk cycle or guarantee artistic facial/eye animation. The character follows the supplied Nevaeh appearance reference; status reactions use a badge and subtle motion. The assistant is a reactive graphical foundation, with existing authorized command execution.
+
+### Nevaeh workforce, goals and page assistance
+
+| Capability | Implemented behavior |
+| --- | --- |
+| Workforce directory | 27 default specialist roles with departments, responsibilities, task templates, connected-contract inventory and visible connection gaps. Existing customizations remain. |
+| Delegation & removal | One-time or scheduled assigned tasks; role pause/delete and task deletion retain history and block undispatched runs. Deleted defaults do not reappear. |
+| Durable goals | Reviewable 1–12-step plans, specialist assignments, typed prior-output handoff, real downstream receipts, output expectations and pause/cancel/recovery without automatic replay of uncertain work. |
+| Expansion tasks | Capability/schema/page-area gap audits with engineering tickets, native manual import, phrase contract validation and existing construction-build/training workers. |
+| Contextual assistant | Current Dashboard path/title and numeric application context, relevant guide/task suggestions and authorized documentation assistance without collecting form values or secret query parameters. |
+
+See [Workforce, goals and page assistance](docs/nevaeh/tutorials/workforce.md). Roles and manuals do not manufacture missing executors; arbitrary autonomous code repair/deployment, complete visual judgment and full 3D facial acting remain outside this implementation.
+
+### Nevaeh spoken replies and character mouth animation
+
+| Capability | Implemented behavior |
+| --- | --- |
+| Local speech | Account-owned eSpeak NG WAV clips; U.S. English female default, British English/Arabic female options and bounded speed settings. |
+| Speaking character | A fixed base face with a masked speaking-mouth plate; 40 ms audio-envelope samples follow actual media playback, including silence. |
+| Voice controls | Read replies, microphone input, pause/stop/replay, explicit autoplay recovery and reduced-motion handling in the workspace/Dashboard dock. |
+| Private lifecycle | Authenticated no-store audio, ownership/CSRF, request replay protection, cancellation, bounded queue limits, interrupted-job handling and one-day expiry/cleanup. |
+
+See [Voice and speaking character](docs/nevaeh/tutorials/voice.md). This is volume-driven 2D animation, not a phoneme-specific or full 3D facial performance. The stock synthetic voice remains a first version; a natural self-hosted voice upgrade is planned separately.

@@ -116,9 +116,17 @@ require File.join(ROOT,'db/migrate/20261115233000_create_nevaeh_workspaces')
 CreateNevaehWorkspaces.new.migrate(:up)
 require File.join(ROOT,'app/models/nevaeh_workspace')
 require File.join(ROOT,'app/services/nevaeh_os/stage')
+require File.join(ROOT,'db/migrate/20261115235000_add_nevaeh_workforce_goals')
+AddNevaehWorkforceGoals.new.migrate(:up)
+%w[models/nevaeh_goal models/nevaeh_goal_step services/nevaeh_os/workforce services/nevaeh_os/goals services/nevaeh_os/improvements services/nevaeh_os/page_context].each { |file| require File.join(ROOT,'app',file) }
+module NevaehOs
+  class GoalTickJob
+    def self.perform_later(id) = id
+  end
+end
 class NevaehOsTest < Minitest::Test
   def setup
-    [NevaehWorkspace,NevaehWatchEvent,NevaehWatcher,NevaehAgentRun,NevaehAgentWorker,NevaehApplicationAdapter,NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
+    [NevaehGoalStep,NevaehGoal,NevaehWorkspace,NevaehWatchEvent,NevaehWatcher,NevaehAgentRun,NevaehAgentWorker,NevaehApplicationAdapter,NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
     @actor=User.create!(role:'super_admin')
     @other=User.create!(role:'client')
   end
@@ -158,7 +166,8 @@ class NevaehOsTest < Minitest::Test
     update=dispatch("/update agents #{NevaehOsAgent.first.id} {\"name\":\"Muse\"}",key:'update-request-123');execute(update)
     assert_equal 'Muse',NevaehOsAgent.first.name
     remove=dispatch("/delete agents #{NevaehOsAgent.first.id}",key:'delete-request-123');execute(remove)
-    assert_equal 0,NevaehOsAgent.count
+    assert_equal 0,NevaehOsAgent.where(deleted_at:nil).count
+    assert_equal 1,NevaehOsAgent.where.not(deleted_at:nil).count
   end
   def test_repeated_request_does_not_dispatch_twice_and_changed_inputs_are_rejected
     first=dispatch('/create agents {"name":"Sage"}')
@@ -247,6 +256,9 @@ class NevaehOsHttpTest < ActionController::TestCase
     @routes=ActionDispatch::Routing::RouteSet.new
     @routes.draw do
       get '/dashboard/nevaeh/guide',to:'dashboard/nevaeh_os#guide',as: :dashboard_nevaeh_guide
+      get '/dashboard/nevaeh/workforce',to:'dashboard/nevaeh_os#workforce'
+      post '/dashboard/nevaeh/context',to:'dashboard/nevaeh_os#page_context'
+      post '/dashboard/nevaeh/goals',to:'dashboard/nevaeh_os#goals'
       get '/dashboard/nevaeh/state',to:'dashboard/nevaeh_os#state'
       post '/dashboard/nevaeh/ask',to:'dashboard/nevaeh_os#ask'
       patch '/dashboard/nevaeh/consent',to:'dashboard/nevaeh_os#consent'
@@ -820,7 +832,7 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 18,topics.size
+    assert_equal 20,topics.size
     assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'
     assert_includes topics.map { |topic| topic[:id] }, 'production_director'
     assert_includes topics.map { |topic| topic[:id] }, 'story_simulation'

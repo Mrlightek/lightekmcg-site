@@ -19,13 +19,16 @@ await dock.route('https://nevaeh.test/**',async route=>{
  if(path==='/nevaeh/assets/nevaeh-character.webp')return route.fulfill({contentType:'image/webp',body:fs.readFileSync(root+'/public'+path)});
  if(path==='/nevaeh/presence.js')return route.fulfill({contentType:'application/javascript',body:fs.readFileSync(root+'/public/nevaeh/presence.js','utf8')});
  if(path==='/dashboard/nevaeh/assistant')return route.fulfill({json:{state:'working',message:'A real job is running.'}});
- if(path==='/dashboard/nevaeh/ask')return route.fulfill({json:{text:'Your task is ready.',action_id:99}});
+ if(path==='/dashboard/nevaeh/context'){const value=route.request().postDataJSON().page_context;if(value.path!=='/dashboard/servers')throw Error('Missing live page context');return route.fulfill({json:{page:{area:'Servers, applications & domains'},actions:[{title:'Inspect installed applications',example:'/ubuntu status'}],guide_url:'/dashboard/nevaeh/guide?topic=ubuntu'}});}
+ if(path==='/dashboard/nevaeh/ask'){if(route.request().postDataJSON().page_context?.path!=='/dashboard/servers')throw Error('Assistant task lost the current page');return route.fulfill({json:{text:'Your task is ready.',action_id:99}});}
  if(path==='/dashboard/nevaeh/stage'){if(route.request().method()==='PATCH')opened=route.request().postDataJSON().panel;return route.fulfill({json:{lock_version:0}});}
  return route.fulfill({contentType:'text/html',body:'<meta name="csrf-token" content="test"><title>Servers</title><nevaeh-presence></nevaeh-presence><script src="/nevaeh/presence.js" defer></script>'});
 });
 await dock.goto('https://nevaeh.test/dashboard/servers?site_id=1');
 await dock.getByRole('button',{name:'Open Nevaeh assistant',exact:true}).click();
 await dock.waitForFunction(()=>{const image=document.querySelector('nevaeh-presence').shadowRoot.querySelector('.avatar img');return image.complete&&image.naturalWidth===640;});
+await dock.getByText('Servers, applications & domains',{exact:true}).waitFor();
+await dock.getByRole('button',{name:'Inspect installed applications',exact:true}).waitFor();
 await dock.getByRole('textbox',{name:'Ask Nevaeh'}).fill('susu.list');await dock.getByRole('button',{name:'Ask Nevaeh',exact:true}).click();
 await dock.getByText('Your task is ready.').waitFor();if(opened?.id!==99)throw Error('Assistant did not pin the actual task');
 await dock.evaluate(()=>window.dispatchEvent(new CustomEvent('nevaeh:status',{detail:{state:'listening'}})));

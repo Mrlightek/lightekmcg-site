@@ -5,6 +5,8 @@ require_relative 'growth_foundation_checks'
 %w[20261109090000_create_nevaeh_operating_system 20261109141000_connect_nevaeh_agent_workforce].each { |file| require ROOT.join("db/migrate/#{file}") }
 CreateNevaehOperatingSystem.new.migrate(:up)
 ConnectNevaehAgentWorkforce.new.migrate(:up)
+require ROOT.join('db/migrate/20261115235000_add_nevaeh_workforce_goals')
+AddNevaehWorkforceGoals.new.migrate(:up)
 ActiveRecord::Schema.define do
   create_table(:nevaeh_capabilities) do |t|
     %i[name slug domain intent_name handler queue subject_type gatekeeper_capability].each { |field| t.string field }
@@ -46,7 +48,7 @@ module LightekPwa
   end
 end
 %w[nevaeh_os_action nevaeh_os_agent nevaeh_agent_worker nevaeh_agent_run nevaeh_capability].each { |file| require ROOT.join("app/models/#{file}") }
-%w[command agents executor dispatch worker receipts agent_workforce conversation guide].each { |file| require ROOT.join("app/services/nevaeh_os/#{file}") }
+%w[command agents executor dispatch worker receipts agent_workforce page_context workforce conversation guide].each { |file| require ROOT.join("app/services/nevaeh_os/#{file}") }
 require ROOT.join('app/jobs/nevaeh_os/agent_run_job')
 require ROOT.join('app/controllers/dashboard/marketing_campaigns_controller')
 Dashboard::MarketingCampaignsController.prepend_view_path ROOT.join('app/views')

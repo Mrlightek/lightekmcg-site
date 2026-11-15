@@ -23,6 +23,8 @@ module NevaehOs
       contract = if command['kind'] == 'capability'
         entry = catalog ? catalog.find { |row| row[:key] == command['intent'] } : Guide.capability(command.fetch('intent'), actor: actor)
         entry&.slice(:key, :availability, :inputs, :coverage)
+      elsif command['kind']=='improve'
+        Improvements.authorize!(actor,command.fetch('operation'))
       elsif command['kind'] == 'resource'
         Resources.definition(command.fetch('resource'))
       else

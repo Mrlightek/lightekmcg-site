@@ -12,6 +12,11 @@ module NevaehIntelligences
         rows << {name: name.to_s.first(160), patterns: patterns, slots: slots, command_template: command,
           source_refs: [{'path' => doc[:path], 'sha256' => doc[:sha256], 'title' => doc[:title]}]}
       end
+      add.call('Build a tested capability', ['build a tested capability from construction {id}', 'build construction {id}'], {'id'=>'integer'}, {'kind'=>'build','id'=>'{id}'})
+      add.call('Activate a tested capability', ['activate tested release {id}'], {'id'=>'integer'}, {'kind'=>'activate','id'=>'{id}'})
+      add.call('Audit capability coverage', ['audit my capability gaps', 'find missing task connections'], {}, {'kind'=>'improve','operation'=>'gaps'})
+      add.call('Import installed manuals', ['refresh my installed manuals', 'prepare learning from installed documentation'], {}, {'kind'=>'improve','operation'=>'corpus'})
+      add.call('Check conversational tasks', ['check my task phrases', 'verify my language contracts'], {}, {'kind'=>'improve','operation'=>'language_check'})
       add.call('Create a Studio project', ['make a studio project called {name}', 'start a new studio project named {name}', 'create a studio project called {name}'], {'name'=>'string'}, {'kind'=>'project','name'=>'{name}'})
       add.call('Open a help-desk ticket', ['report a problem about {text}', 'raise a ticket about {text}'], {'text'=>'string'}, {'kind'=>'ticket','text'=>'{text}'})
       add.call('Run a configured worker', ['run worker {id}', 'start worker {id}'], {'id'=>'integer'}, {'kind'=>'run','id'=>'{id}'})

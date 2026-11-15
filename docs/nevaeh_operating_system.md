@@ -180,3 +180,7 @@ The Director supports `/produce render ID` (existing paid render quotes), `/prod
 Character creation now has its own [fiction-template and story-worker pipeline](nevaeh/tutorials/story_simulation.md); the retired operating chart is not used for operational decisions. [Social delivery](nevaeh/tutorials/social_delivery.md) connects reviewed Studio video exports to the existing site's encrypted social accounts, with asynchronous receipts and explicit uncertain-outcome handling.
 
 The [shared graphical stage](nevaeh/tutorials/director_stage.md) now keeps operational work tabs beside conversation. The reference-based character assistant also appears across Dashboard, with actual execution/voice states and a bring-page-to-workspace action. Scene rehearsals run on a copy and require an unchanged source revision before corrections can be applied.
+
+Open **Workforce & goals** for defined specialist jobs, assigned tasks, pause/delete controls, evidence-driven plans and page-aware assistance. See the [workforce guide](tutorials/workforce.md). Deleted roles/tasks leave their receipts intact and do not resume new work.
+
+Nevaeh’s [speaking-character interface](nevaeh/tutorials/voice.md) uses private local speech, real audio-clock mouth timing, playback controls and Dashboard microphone input. Stock synthetic voices are the initial backend; a natural neural voice upgrade remains separate from the shared playback contract.

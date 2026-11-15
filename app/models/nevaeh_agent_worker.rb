@@ -7,7 +7,7 @@ class NevaehAgentWorker < ApplicationRecord
   validates :interval_minutes,numericality:{only_integer:true,greater_than_or_equal_to:5,less_than_or_equal_to:525600},allow_nil:true
   validate do
     errors.add(:nevaeh_os_agent,'belongs to another account') if nevaeh_os_agent && nevaeh_os_agent.user_id != user_id
-    errors.add(:command,'must be a bounded executable command') unless command.is_a?(Hash) && command.to_json.bytesize <= 16000 && %w[production campaign_produce growth_plan capability console ubuntu application resource run worker_status project ticket build activate approve train checkpoint write model learn review forget].include?(command['kind'])
+    errors.add(:command,'must be a bounded executable command') unless command.is_a?(Hash) && command.to_json.bytesize <= 16000 && %w[production campaign_produce growth_plan capability console ubuntu application resource run worker_status project ticket build activate approve train checkpoint write model learn review forget improve].include?(command['kind'])
   end
   before_save do
     if !enabled? || !interval_minutes

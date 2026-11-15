@@ -12,6 +12,7 @@ class StudioOperation < ApplicationRecord
   belongs_to :studio_scene, optional: true
   has_many :artifacts, dependent: :destroy
   has_one :studio_compute_lease, dependent: :destroy
+  has_one :studio_remote_render, dependent: :destroy
 
   validates :operation_type, :provider, :capability, presence: true
   validates :status, inclusion: { in: STATUSES }

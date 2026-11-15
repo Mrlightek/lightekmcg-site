@@ -3,6 +3,7 @@ module NevaehOs
   module LanguageContract
     TYPES = %w[string integer number boolean].freeze
     COMMANDS = {
+      'improve'=>%w[kind operation], 'build'=>%w[kind id], 'activate'=>%w[kind id],
       'project'=>%w[kind name], 'ticket'=>%w[kind text], 'run'=>%w[kind id],
       'worker_status'=>%w[kind id status], 'resource'=>%w[kind operation resource id attributes],
       'capability'=>%w[kind intent payload], 'write'=>%w[kind format context]
@@ -19,6 +20,8 @@ module NevaehOs
       end
       raise ArgumentError, 'Use a supported typed operating command' unless command.is_a?(Hash) && COMMANDS.key?(command['kind']) && (command.keys - COMMANDS.fetch(command['kind'])).empty? && command.to_json.bytesize <= 8000
       required = case command['kind']
+        when 'improve' then %w[operation]
+        when 'build','activate' then %w[id]
         when 'project' then %w[name]
         when 'ticket' then %w[text]
         when 'run' then %w[id]

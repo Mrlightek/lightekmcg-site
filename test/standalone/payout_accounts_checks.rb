@@ -84,7 +84,7 @@ class PayoutAccountsChecks < EnterpriseHttpChecks
   def test_payout_fresh_status_clears_stale_ready_and_never_returns_provider_error
     linked
     Stripe::Account.stub(:retrieve, ->(*_) {raise inaccessible}) do
-      assert_equal({state: 'unavailable', replaceable: true}, Accounts.status(@employer))
+      assert_equal({state: 'unavailable', replaceable: true, code: 'connection_unavailable'}, Accounts.status(@employer))
     end
     refute @employer.reload.stripe_connect_ready?
   end
@@ -148,6 +148,57 @@ class PayoutAccountsChecks < EnterpriseHttpChecks
     assert_equal 'acct_owner',change.previous_account_id
     assert_equal 'acct_replacement',change.replacement_account_id
   end
+  def test_payout_repair_and_hosted_verification_do_not_require_a_browser_key
+    linked
+    DymondBank::StripeCredentials.stub(:publishable_key, 'pk_live_wrong_mode') do
+      config = Accounts.configuration_status
+      assert config[:hosted_ready]
+      refute config[:embedded_ready]
+      retrieve = ->(id,*) {id.nil? ? OpenStruct.new(id:'acct_platform') : (raise inaccessible)}
+      replacement = account(id:'acct_replacement', details_submitted:false, payouts_enabled:false)
+      Stripe::Account.stub(:retrieve,retrieve) do
+        Stripe::Account.stub(:create,replacement) {Accounts.replace_unavailable!(@employer)}
+      end
+      assert_equal 'acct_replacement', @employer.reload.stripe_connect_account_id
+      Stripe::Account.stub(:retrieve,replacement) do
+        Stripe::AccountLink.stub(:create, ->(params,*) {
+          assert_equal 'acct_replacement', params[:account]
+          OpenStruct.new(url:'https://connect.stripe.com/setup/fixture')
+        }) do
+          assert_equal 'https://connect.stripe.com/setup/fixture', Accounts.hosted_link!(@employer,refresh_url:'https://example.test/refresh',return_url:'https://example.test/return')
+        end
+      end
+      refute @employer.reload.stripe_connect_ready?
+      assert_equal 'acct_owner', LightekPayments::ConnectionChange.last.previous_account_id
+    end
+  end
+  def test_payout_missing_private_configuration_offers_no_financial_actions
+    sign_in
+    DymondBank::StripeCredentials.stub(:secret_key, '') do
+      assert_equal({hosted_ready:false,embedded_ready:false,code:'configuration_missing'},Accounts.configuration_status)
+      get dashboard_susu_payout_account_path
+      assert_response :success
+      page=Nokogiri::HTML(response.body)
+      assert_empty page.css('[data-payout-open]')
+      assert_empty page.css('[data-payout-fallback]')
+      assert_includes page.text,'awaiting platform configuration'
+    end
+  end
+  def test_payout_missing_browser_configuration_renders_working_native_fallback
+    sign_in
+    DymondBank::StripeCredentials.stub(:publishable_key,'pk_live_wrong_mode') do
+      get dashboard_susu_payout_account_path
+      assert_response :success
+      page=Nokogiri::HTML(response.body)
+      assert_empty page.css('[data-payout-open]')
+      assert_equal connect_dashboard_susu_payout_account_path,page.at_css('[data-payout-fallback] form')['action']
+      assert_equal 'post',page.at_css('[data-payout-fallback] form')['method']
+      post dashboard_payout_account_session_path,params:{authenticity_token:@csrf},headers:{'Origin'=>'http://example.test'}
+      assert_response :unprocessable_entity
+      assert_equal 'embedded_configuration',response.parsed_body['code']
+      refute_includes response.body,'pk_live'
+    end
+  end
   def test_payout_cannot_replace_an_accessible_account_or_authentication_failure
     linked
     Stripe::Account.stub(:retrieve,account) {assert_raises(Accounts::Unavailable) {Accounts.replace_unavailable!(@employer)}}
@@ -203,6 +254,31 @@ class PayoutAccountsChecks < EnterpriseHttpChecks
       assert_nil @employer.reload.stripe_connect_account_id
     end
   end
+  def test_payout_hosted_setup_supports_each_account_generation_without_browser_key
+    %w[super_admin white_label client].each do |role|
+      owner = User.create!(email_address: "hosted_#{role}@example.test", role: role)
+      login(owner)
+      get '/test/payout-csrf'
+      csrf = response.parsed_body.fetch('token')
+      DymondBank::StripeCredentials.stub(:publishable_key,'pk_live_wrong_mode') do
+        Stripe::Account.stub(:create,account(owner,id:"acct_hosted_#{role}",details_submitted:false,payouts_enabled:false)) do
+          Stripe::AccountLink.stub(:create, ->(values,*) {
+            assert_equal "acct_hosted_#{role}",values[:account]
+            assert_equal 'account_onboarding',values[:type]
+            assert_equal 'http://example.test/dashboard/susu/payout-account',values[:return_url]
+            OpenStruct.new(url:'https://connect.stripe.com/setup/fixture')
+          }) do
+            post connect_dashboard_susu_payout_account_path,params:{authenticity_token:csrf,user_id:@other.id,account_id:'acct_other'},headers:{'Origin'=>'http://example.test'}
+            assert_response :see_other
+            assert_redirected_to 'https://connect.stripe.com/setup/fixture'
+          end
+        end
+      end
+      assert_equal "acct_hosted_#{role}",owner.reload.stripe_connect_account_id
+      refute owner.stripe_connect_ready?
+      assert_nil @other.reload.stripe_connect_account_id
+    end
+  end
   def test_payout_hosted_fallback_is_owner_scoped_and_rejects_untrusted_destinations
     linked
     Stripe::Account.stub(:retrieve,account) do
@@ -224,6 +300,9 @@ class PayoutAccountsChecks < EnterpriseHttpChecks
       refute_includes page.text,'sk_live'
       assert_includes page.text,'could not verify your payout connection'
       assert_includes page.text,'Repair an unavailable connection'
+      assert_equal 'section',page.at_css('[data-payout-repair]').name
+      assert_empty page.css('[data-payout-open]')
+      assert_empty page.css('[data-payout-fallback]')
       refute_equal 'Ready for payouts',page.at_css('[data-payout-badge]').text
     end
   end

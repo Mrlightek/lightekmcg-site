@@ -3,8 +3,9 @@ require 'uri'
 module LightekPayments
   class PayoutAccounts
     class Unavailable < StandardError
-      attr_reader :replaceable
-      def initialize(message = 'Payout verification is temporarily unavailable. Please try again or contact support.', replaceable: false)
+      attr_reader :replaceable, :code
+      def initialize(message = 'Payout verification is temporarily unavailable. Please try again or contact support.', replaceable: false, code: 'verification_unavailable')
+        @code = code
         @replaceable = replaceable
         super(message)
       end
@@ -13,7 +14,7 @@ module LightekPayments
 
     def self.options
       key = DymondBank::StripeCredentials.secret_key.to_s
-      raise Unavailable, 'Payouts are not configured yet. Contact your account administrator.' if key.blank?
+      raise Unavailable.new('Payouts are not configured yet. Contact your account administrator.', code: 'configuration_missing') if key.blank?
       {api_key: key}
     end
 
@@ -22,8 +23,18 @@ module LightekPayments
       value = provider.publishable_key if provider.respond_to?(:publishable_key)
       value = value.presence || ENV['LIGHTEK_PAYOUT_PUBLISHABLE_KEY'].presence || ENV['STRIPE_PUBLISHABLE_KEY'].presence
       mode = opts.fetch(:api_key).match?(/\A(?:sk|rk)_live_/) ? 'live' : 'test'
-      raise Unavailable, 'Secure payout setup is not configured yet. Contact your account administrator.' unless value.to_s.start_with?("pk_#{mode}_")
+      raise Unavailable.new('Embedded payout fields are not configured. Use Open secure verification to continue.', code: 'embedded_configuration') unless value.to_s.start_with?("pk_#{mode}_")
       value
+    end
+
+    # Hosted verification needs only backend credentials. Missing browser
+    # configuration must not block people from submitting payout information.
+    def self.configuration_status
+      opts = options
+      publishable_key(opts)
+      {hosted_ready: true, embedded_ready: true}
+    rescue Unavailable => error
+      {hosted_ready: error.code == 'embedded_configuration', embedded_ready: false, code: error.code}
     end
 
     def self.persist_status!(user, account)
@@ -54,10 +65,10 @@ module LightekPayments
     rescue ::Stripe::StripeError => error
       invalidate!(user)
       report(user, error)
-      {state: 'unavailable', replaceable: stale_reference?(error)}
-    rescue Unavailable
+      {state: 'unavailable', replaceable: stale_reference?(error), code: stale_reference?(error) ? 'connection_unavailable' : 'verification_unavailable'}
+    rescue Unavailable => error
       invalidate!(user)
-      {state: 'unavailable', replaceable: false}
+      {state: 'unavailable', replaceable: false, code: error.code}
     end
 
     def self.session!(user, component: 'account-onboarding')
@@ -76,7 +87,7 @@ module LightekPayments
     rescue ::Stripe::StripeError => error
       invalidate!(user)
       report(user, error)
-      raise Unavailable.new(replaceable: stale_reference?(error))
+      raise Unavailable.new(replaceable: stale_reference?(error), code: stale_reference?(error) ? 'connection_unavailable' : 'verification_unavailable')
     rescue Unavailable
       invalidate!(user)
       raise
@@ -122,7 +133,6 @@ module LightekPayments
     # migrates an old balance or treats a replacement as verified/ready.
     def self.replace_unavailable!(user)
       opts = options
-      publishable_key(opts)
       user.with_lock do
         old = user.stripe_connect_account_id
         raise Unavailable, 'No existing payout connection needs replacement.' if old.blank?

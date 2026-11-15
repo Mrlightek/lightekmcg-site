@@ -4,6 +4,7 @@ require "socket"
 require File.join(ROOT,"app/services/studio/assets/ingestor")
 require File.join(ROOT,"app/services/studio/ai/setup")
 require File.join(ROOT,"app/services/studio/ai/runtime")
+require File.join(ROOT,"app/services/studio/ai/input_image")
 require File.join(ROOT,"app/services/studio/ai/generation")
 require File.join(ROOT,"app/jobs/studio_ai_generation_job")
 class StudioAiTest < StudioProductionTest
@@ -13,7 +14,7 @@ class StudioAiTest < StudioProductionTest
     FileUtils.mkdir_p(Rails.root.join("config/studio_ai/workflows"));FileUtils.cp(File.join(ROOT,"config/studio_ai/workflows/image.json"),Rails.root.join("config/studio_ai/workflows/image.json"))
     @old_url=ENV["STUDIO_AI_URL"];@server=TCPServer.new("127.0.0.1",0)
     ENV["STUDIO_AI_URL"]="http://127.0.0.1:#{@server.addr[1]}"
-    @submitted=[];@completed=false;@engine_error=false;@models=["local.safetensors"]
+    @uploads=[];@extra_recipes=[];@supports_input=true;@upload_bad=false;@submitted=[];@completed=false;@engine_error=false;@models=["local.safetensors"]
     @image=IO.popen(["ffmpeg","-v","error","-f","lavfi","-i","color=c=blue:s=64x64","-frames:v","1","-threads","1","-f","image2pipe","-vcodec","png","-"],"rb",&:read)
     @thread=Thread.new do
       loop do
@@ -28,13 +29,22 @@ class StudioAiTest < StudioProductionTest
         when "/object_info"
           recipe=JSON.parse(File.read(File.join(ROOT,"config/studio_ai/workflows/image.json")))
           nodes=recipe["workflow"].values.to_h{|n|[n["class_type"],{}]}
+          @extra_recipes.each do |extra|
+            extra["workflow"].each_value{|node|nodes[node["class_type"]] ||= {}}
+            Array(extra["required_models"]).each{|spec|nodes[spec["node"]]={"input"=>{"required"=>{spec["field"]=>[[spec["name"]]]}}}}
+          end
+          nodes["Wan22ImageToVideoLatent"]={"input"=>{"optional"=>(@supports_input ? {"start_image"=>["IMAGE"]} : {})}} if nodes.key?("Wan22ImageToVideoLatent")
           nodes["CheckpointLoaderSimple"]={"input"=>{"required"=>{"ckpt_name"=>[@models]}}};nodes
+        when "/upload/image"
+          @uploads<<body
+          filename=body[/filename="([^"]+)"/,1]
+          {"name"=>@upload_bad ? "../other.png" : filename,"subfolder"=>"lightek","type"=>"input"}
         when "/prompt"
           @submitted<<JSON.parse(body);{"prompt_id"=>"local-job-1"}
         when "/history/local-job-1"
-          @completed ? {"local-job-1"=>{"status"=>{"completed"=>true,"status_str"=>@engine_error ? "error" : "success"},"outputs"=>{"9"=>{"images"=>[{"filename"=>"result.png","subfolder"=>"","type"=>"output"}]}}}} : {}
+          @completed ? {"local-job-1"=>{"status"=>{"completed"=>true,"status_str"=>@engine_error ? "error" : "success"},"outputs"=>{"9"=>{(@video ? "videos" : "images")=>[{"filename"=>(@video ? "result.mp4" : "result.png"),"subfolder"=>"","type"=>"output"}]}}}} : {}
         when "/view"
-          type="image/png";@image
+          type=@video ? "video/mp4" : "image/png";@video || @image
         else {}
         end
         bytes=type=="application/json" ? JSON.generate(response) : response

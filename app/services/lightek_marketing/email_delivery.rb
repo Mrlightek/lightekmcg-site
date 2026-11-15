@@ -8,6 +8,7 @@ module LightekMarketing
     def self.call!(campaign:, actor:)
       LightekAgency::Demos.ensure_live_site!(campaign.site, error: Invalid) if defined?(LightekAgency::Demos)
       campaign.with_lock do
+        raise Invalid, "Campaign content requires review" unless campaign.content_approved?
         raise Invalid, "Only ready email campaigns can be sent" unless campaign.channel == "email" && campaign.status == "ready"
         raise Invalid, "Campaign already sent" if campaign.sent_at? || campaign.mail_message_id.present?
         raise Invalid, "Campaign must include a headline and message" if campaign.headline.blank? || campaign.message.blank?

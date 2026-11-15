@@ -58,10 +58,14 @@ To pause new capture for one placement, disable that link. For account-wide capt
 
 Coverage includes first-party cookies, repeat clicks, duplicate inquiries/acceptance/payment events, source preservation, direct storefront checkout, unknown/expired/tampered/private capture, host/site and delegated-role rejection, stale brief updates, revoked access, local-path validation, campaign history retention, immutable attribution, refunds, cohort dates and bounded per-link report queries.
 
-Export native pages with `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/daily_growth_checks.rb`, then run `SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs`. The browser check covers ten native screens, including the daily plan, at desktop, tablet and phone widths, including Growth's form controls, share URL and seven milestones. Private engine navigation/authentication and live provider behavior remain deployment acceptance items.
+Export native pages with `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/campaign_content_checks.rb`, then run `SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs`. The browser check covers eleven native screens, including the daily plan and campaign-content review, at desktop, tablet and phone widths, including Growth's form controls, share URL and seven milestones. Private engine navigation/authentication and live provider behavior remain deployment acceptance items.
 
 ## Daily growth plans
 
 Use **Prepare or open today’s plan** in Growth, or `/growth SITE_ID` in Nevaeh. Recommendations show frozen evidence and direct tool links, with explicit operator completion/dismissal notes and one-per-step campaign draft creation. **Refresh today’s plan** preserves earlier revisions. The existing agent scheduler can prepare plans every 1,440 minutes with authorization rechecked; see [the full operating tutorial](../nevaeh/tutorials/growth.md).
 
 `ruby test/standalone/daily_growth_checks.rb` extends the foundation acceptance suite with daily evidence, priority rules, revision/retry semantics, native HTTP, campaign editing permissions, Nevaeh command/worker receipts and scheduled-agent revocation behavior. Remote host Gatekeeper/Dispatch storage, private authentication and provider IO remain boundary fixtures.
+
+## From recommendations to creative production
+
+[Campaign content & review](campaign-content-review.md) now connects the reviewed brief to three editable copy approaches, explicit version-specific campaign approval, queued-payload guards and focused Studio formats. Final media export and provider publication remain separate verified actions.

@@ -1,67 +1,108 @@
-<main class="lt-settings">
-  <h1>Commerce · Orders</h1>
-  <p><%= link_to "Application installations", dashboard_installations_path %></p>
-  <p><%= @site.name %> · Payment must be verified before fulfillment.</p>
-  <p><%= link_to "Merchant payouts", dashboard_commerce_payouts_path(site_id: @site.id) %></p>
-  <p><%= link_to "Products", dashboard_commerce_products_path(site_id: @site.id) %></p>
+<% content_for :page_title, "Orders" %>
+<main class="dd-workspace dd-orders" data-orders-workspace>
+  <header class="dd-page-header dd-page-hero">
+    <div>
+      <span class="dd-eyebrow">Commerce / <%= @site.name %></span>
+      <h1>Orders</h1>
+      <p>A clear view of every purchase. Manage payments, delivery, and customer access from one place.</p>
+    </div>
+    <nav class="dd-action-group" aria-label="Commerce navigation">
+      <%= link_to dashboard_commerce_payouts_path(site_id: @site.id), class: "dd-button" do %><i class="ti ti-wallet" aria-hidden="true"></i> Payouts<% end %>
+      <%= link_to dashboard_installations_path, class: "dd-button" do %><i class="ti ti-server" aria-hidden="true"></i> Installations<% end %>
+      <%= link_to dashboard_commerce_products_path(site_id: @site.id), class: "dd-button dd-btn-primary" do %><i class="ti ti-package" aria-hidden="true"></i> Manage products<% end %>
+    </nav>
+  </header>
 
-  <p>Delete unpaid test or abandoned orders to clear this list. Reserved inventory is released and open Stripe checkouts are expired. Payment records are retained for reconciliation.</p>
-  <%= form_with url: dashboard_commerce_orders_path(site_id: @site.id), method: :delete,
-      id: "delete-selected-orders", data: { turbo_confirm: "Delete the selected unpaid orders and cancel their checkouts?" } do %>
-    <%= submit_tag "Delete selected unpaid orders", class: "btn btn-danger" %>
-  <% end %>
+  <section class="dd-metrics" aria-label="Orders in this view">
+    <% [["Orders shown", @orders.size, "ti-receipt"], ["Awaiting payment", @orders.count { |order| order.status == "pending_payment" }, "ti-clock"], ["Ready to fulfill", @orders.count { |order| order.status == "paid" }, "ti-box-seam"]].each do |label, value, icon| %>
+      <div class="dd-metric"><span><%= label %><i class="ti <%= icon %>" aria-hidden="true"></i></span><strong><%= value %></strong></div>
+    <% end %>
+  </section>
 
-  <table>
-    <thead><tr><th>Select</th><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>
-      <% @orders.each do |order| %>
-        <tr>
-          <td>
-            <% if order.removable? %>
-              <%= check_box_tag "order_ids[]", order.id, false, id: "select-order-#{order.id}", form: "delete-selected-orders", aria: { label: "Select unpaid order ##{order.id}" } %>
-            <% end %>
-          </td>
-          <td>#<%= order.id %><%= render 'dashboard/growth/attribution', record: order %></td>
-          <td><%= order.customer_email %></td>
-          <td><%= order.items.map { |item| "#{item.quantity} × #{item.name}" }.join(", ") %></td>
-          <td><%= number_to_currency(order.total_cents / 100.0) %></td>
-          <td>
-            <%= order.status.humanize %>
-            <% if order.items.any? { |item| item.product.product_type == "lightek_instance" } %>
-              <p>Installation: <%= order.provisioning_state.presence || "Awaiting paid confirmation" %></p>
-              <% if LightekCommerce::Installations.ready?(order) && LightekCommerce::Installations.can_manage_access?(current_user, order) %>
-                <p><%= link_to "Set password & open application", installation_path(order) %></p>
-              <% end %>
-              <% if order.provisioning_error.present? %><p role="alert"><%= order.provisioning_error %></p><% end %>
-              <% if order.paid_at? && !order.provisioned_at? %>
-                <%= button_to "Resume installation", dashboard_commerce_retry_provisioning_path(site_id: @site.id, order_id: order.id), method: :post %>
-              <% end %>
-            <% end %>
-            <% if order.status == "paid" %>
-              <%= form_with url: dashboard_commerce_fulfill_path(order_id: order.id, site_id: @site.id), method: :post do %>
-                <%= text_field_tag :fulfillment_reference, nil, placeholder: "Tracking / delivery reference" %>
-                <%= text_field_tag :fulfillment_note, nil, placeholder: "Fulfillment note" %>
-                <%= submit_tag "Mark fulfilled" %>
-              <% end %>
-            <% end %>
-            <% if %w[paid partially_refunded].include?(order.status) %>
-              <%= form_with url: dashboard_commerce_refund_path(order_id: order.id, site_id: @site.id), method: :post do |form| %>
-                <%= number_field_tag :amount_cents, order.total_cents - order.refunded_cents, min: 1, max: order.total_cents - order.refunded_cents, required: true, aria: { label: "Refund amount in cents" } %>
-                <%= form.submit "Refund amount" %>
-              <% end %>
-            <% end %>
-          </td>
-          <td>
-            <% if order.removable? %>
-              <%= button_to "Delete unpaid order", dashboard_commerce_order_path(site_id: @site.id, order_id: order.id), method: :delete,
-                  class: "btn btn-danger", form: { data: { turbo_confirm: "Delete unpaid order ##{order.id} and cancel its checkout?" } } %>
-            <% else %>
-              <span>Payment / installation record retained</span>
-            <% end %>
-          </td>
-        </tr>
+  <section class="dd-panel dd-order-list" aria-labelledby="recent-orders-heading">
+    <div class="dd-panel-header">
+      <div><h2 id="recent-orders-heading">Recent orders</h2><p>Showing the latest 150 orders at most. Payment is verified before fulfillment.</p></div>
+      <span class="dd-status"><%= @site.name %></span>
+    </div>
+    <% if @orders.any? %>
+      <% if @orders.any?(&:removable?) %>
+        <div class="dd-selection-bar">
+          <div class="dd-selection-meta">
+            <label class="dd-check" data-order-selection-tools hidden><input type="checkbox" data-order-select-all> Select all unpaid</label>
+            <span data-order-selection-count role="status" aria-live="polite">Select unpaid orders to clean up</span>
+          </div>
+          <%= form_with url: dashboard_commerce_orders_path(site_id: @site.id), method: :delete,
+              id: "delete-selected-orders", data: { turbo_confirm: "Delete the selected unpaid orders and cancel their checkouts?" } do %>
+            <%= submit_tag "Delete selected unpaid orders", class: "dd-button dd-button-danger", data: { order_bulk_delete: true } %>
+          <% end %>
+        </div>
       <% end %>
-      <% if @orders.empty? %><tr><td colspan="7">No orders to display.</td></tr><% end %>
-    </tbody>
-  </table>
+
+      <div class="dd-order-collection">
+        <% @orders.each do |order| %>
+          <% tone = %w[paid fulfilled].include?(order.status) ? "success" : %w[pending_payment partially_refunded].include?(order.status) ? "warning" : "neutral" %>
+          <article class="dd-order" aria-labelledby="order-heading-<%= order.id %>">
+            <div class="dd-order-overview">
+              <div class="dd-order-identity">
+                <% if order.removable? %>
+                  <%= check_box_tag "order_ids[]", order.id, false, id: "select-order-#{order.id}", form: "delete-selected-orders", data: { order_select: true }, aria: { label: "Select unpaid order ##{order.id}" } %>
+                <% else %><span class="dd-order-receipt" aria-hidden="true"><i class="ti ti-receipt"></i></span><% end %>
+                <div><span class="dd-caption">Order</span><h3 id="order-heading-<%= order.id %>">#<%= order.id %></h3></div>
+              </div>
+              <div class="dd-order-customer"><span class="dd-caption">Customer</span><strong><%= order.customer_email %></strong></div>
+              <div class="dd-order-items"><span class="dd-caption">Items</span><%= order.items.map { |item| "#{item.quantity} × #{item.name}" }.join(", ") %></div>
+              <div class="dd-order-total"><span class="dd-caption">Total</span><strong><%= number_to_currency(order.total_cents / 100.0) %></strong></div>
+              <span class="dd-status" data-tone="<%= tone %>"><%= order.status.humanize %></span>
+            </div>
+            <details class="dd-order-manage">
+              <summary><span><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i> Manage order</span><span class="dd-disclosure-hint">Details & actions <i class="ti ti-chevron-down" aria-hidden="true"></i></span></summary>
+              <div class="dd-order-attribution"><%= render "dashboard/growth/attribution", record: order %></div>
+              <div class="dd-order-panels">
+                <% if order.items.any? { |item| item.product.product_type == "lightek_instance" } %>
+                  <section class="dd-form-section">
+                    <div class="dd-section-heading"><i class="ti ti-server" aria-hidden="true"></i><div><h3>Application installation</h3><p><%= order.provisioning_state.presence&.humanize || "Awaiting paid confirmation" %></p></div></div>
+                    <% if LightekCommerce::Installations.ready?(order) && LightekCommerce::Installations.can_manage_access?(current_user, order) %>
+                      <%= link_to "Set password & open application", installation_path(order), class: "dd-button" %>
+                    <% end %>
+                    <% if order.provisioning_error.present? %><p class="dd-field-error" role="alert"><%= order.provisioning_error %></p><% end %>
+                    <% if order.paid_at? && !order.provisioned_at? %>
+                      <%= button_to "Resume installation", dashboard_commerce_retry_provisioning_path(site_id: @site.id, order_id: order.id), method: :post, class: "dd-button dd-btn-primary" %>
+                    <% end %>
+                  </section>
+                <% end %>
+                <% if order.status == "paid" %>
+                  <section class="dd-form-section">
+                    <div class="dd-section-heading"><i class="ti ti-truck-delivery" aria-hidden="true"></i><div><h3>Fulfillment</h3><p>Add delivery details and mark this order complete.</p></div></div>
+                    <%= form_with url: dashboard_commerce_fulfill_path(order_id: order.id, site_id: @site.id), method: :post, class: "dd-form-stack" do %>
+                      <div class="dd-field"><%= label_tag "order_#{order.id}_fulfillment_reference", "Tracking or delivery reference" %><%= text_field_tag :fulfillment_reference, nil, id: "order_#{order.id}_fulfillment_reference", placeholder: "e.g. tracking number or delivery ID" %></div>
+                      <div class="dd-field"><%= label_tag "order_#{order.id}_fulfillment_note", "Fulfillment note" %><%= text_area_tag :fulfillment_note, nil, id: "order_#{order.id}_fulfillment_note", rows: 2, placeholder: "Optional details about delivery" %></div>
+                      <div class="dd-form-actions"><%= submit_tag "Mark fulfilled", class: "dd-button dd-btn-primary" %></div>
+                    <% end %>
+                  </section>
+                <% end %>
+                <% if %w[paid partially_refunded].include?(order.status) %>
+                  <section class="dd-form-section">
+                    <div class="dd-section-heading"><i class="ti ti-credit-card-refund" aria-hidden="true"></i><div><h3>Issue a refund</h3><p>Available to refund: <%= number_to_currency((order.total_cents - order.refunded_cents) / 100.0) %>.</p></div></div>
+                    <%= form_with url: dashboard_commerce_refund_path(order_id: order.id, site_id: @site.id), method: :post, class: "dd-form-stack", data: { turbo_confirm: "Issue this refund? Confirm the amount before continuing." } do %>
+                      <div class="dd-field"><%= label_tag "order_#{order.id}_refund_amount", "Amount to refund (cents)" %><%= number_field_tag :amount_cents, order.total_cents - order.refunded_cents, id: "order_#{order.id}_refund_amount", min: 1, max: order.total_cents - order.refunded_cents, required: true, aria: { describedby: "order_#{order.id}_refund_help" } %><small id="order_<%= order.id %>_refund_help">100 cents = <%= number_to_currency(1) %>. The refund uses the original payment method.</small></div>
+                      <div class="dd-form-actions"><%= submit_tag "Refund amount", class: "dd-button dd-button-danger" %></div>
+                    <% end %>
+                  </section>
+                <% end %>
+                <section class="dd-form-section dd-order-record">
+                  <div class="dd-section-heading"><i class="ti <%= order.removable? ? 'ti-trash' : 'ti-shield-lock' %>" aria-hidden="true"></i><div><h3><%= order.removable? ? "Unpaid order cleanup" : "Payment record" %></h3><p><%= order.removable? ? "Remove this test or abandoned order. Reserved inventory is released after checkout cancellation." : "Payment and installation history is retained for your business records." %></p></div></div>
+                  <% if order.removable? %>
+                    <%= button_to "Delete unpaid order", dashboard_commerce_order_path(site_id: @site.id, order_id: order.id), method: :delete, class: "dd-button dd-button-danger", form: { data: { turbo_confirm: "Delete unpaid order ##{order.id} and cancel its checkout?" } } %>
+                  <% else %><span class="dd-record-note"><i class="ti ti-lock" aria-hidden="true"></i> Protected record</span><% end %>
+                </section>
+              </div>
+            </details>
+          </article>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="dd-empty-state"><span class="dd-empty-icon"><i class="ti ti-receipt" aria-hidden="true"></i></span><h3>A fresh start for your storefront</h3><p>New purchases will appear here, ready for payment review and fulfillment.</p><%= link_to "Manage products", dashboard_commerce_products_path(site_id: @site.id), class: "dd-button dd-btn-primary" %></div>
+    <% end %>
+  </section>
+  <p class="dd-workspace-footnote"><i class="ti ti-shield-check" aria-hidden="true"></i> Paid orders stay protected. Unpaid cleanup retains records for payment reconciliation.</p>
 </main>

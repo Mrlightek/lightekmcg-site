@@ -15,6 +15,7 @@ A business can build its website, sell products or book services, manage custome
 | Turn an approved quote into an order and delivery | [Quotes to delivery](docs/sales/quotes-to-delivery.md) |
 | The full current feature list | [Lightek feature catalog](FEATURES.md) |
 | Production is asking you to set up an authenticator | [First sign-in, MFA and recovery](docs/security/sign-in-and-mfa.md) |
+| Use consistent dashboard forms and order actions | [Dashboard form patterns and order management](docs/dashboard/forms.md) |
 | Learn Nevaeh, agents, workers, watchers and commands | [Operating workspace and Guide](docs/nevaeh_operating_system.md) · [Tutorials](docs/nevaeh/tutorials/commands.md) |
 | Import Quran/hadith sources and extend native training | [Islamic learning and source attribution](docs/nevaeh/tutorials/islamic_learning.md) |
 | Schedule Quran study and training at Salah times | [Salah & Study on the server clock](docs/nevaeh/tutorials/salah_study.md) |
@@ -51,6 +52,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Workspace | Current capabilities |
 | --- | --- |
 | Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
+| Campaign content & review | Three shared-writer copy variations, saved-revision approval, queued payload checks and focused Studio production; [operating guide](docs/sales/campaign-content-review.md) |
 | Growth & attribution | Daily Nevaeh growth plans with evidence and editable campaign drafts, site-scoped business briefs, first-party campaign links and visit cohorts traced through inquiries, deals, confirmed payments, refunds and recorded delivery; [operating guide](docs/sales/growth-foundation.md) |
 | Sales & CRM | Site-scoped leads, companies and shared marketing contacts; qualified-lead conversion, source routing, opt-in website/CSV inquiry intake, assigned due tasks and calendar downloads, deal stages, activity history and monthly forecasts by currency |
 | Commerce and shipping | Site-scoped catalogs and variants, cart/checkout, orders, subscriptions, fulfillment, refunds, merchant payouts, upstream revenue terms, federated client sales and FedEx shipping integration |

@@ -14,35 +14,38 @@ module LightekMarketing
         raise Unavailable, "Existing provider reference requires reconciliation" if post.remote_id.present?
         connection = post.connection
         campaign = post.campaign
-        raise Unavailable, "Campaign is not ready" unless campaign.status == "ready" && campaign.channel == "social"
-        raise Unavailable, "Connection unavailable" unless connection.enabled? && connection.site_id == campaign.site_id
-        if connection.provider == "tiktok"
-          raise Unavailable, "Already submitted" if post.submission_status == "submitted"
-          publish_id = TiktokVideoUpload.submit!(connection: connection, campaign: campaign)
-          post.update!(remote_id: publish_id, submission_status: "PROCESSING_UPLOAD")
-          TiktokSubmissionPollJob.set(wait: 2.minutes).perform_later(post.id)
-          return post
+        campaign.with_lock do
+          raise Unavailable, "Campaign content requires review" unless campaign.content_approved?
+          raise Unavailable, "Campaign is not ready" unless campaign.status == "ready" && campaign.channel == "social"
+          raise Unavailable, "Connection unavailable" unless connection.enabled? && connection.site_id == campaign.site_id
+          if connection.provider == "tiktok"
+            raise Unavailable, "Already submitted" if post.submission_status == "submitted"
+            publish_id = TiktokVideoUpload.submit!(connection: connection, campaign: campaign)
+            post.update!(remote_id: publish_id, submission_status: "PROCESSING_UPLOAD")
+            TiktokSubmissionPollJob.set(wait: 2.minutes).perform_later(post.id)
+            return post
+          end
+          if %w[facebook instagram].include?(connection.provider)
+            MetaConnectionHealth.check!(connection: connection)
+            remote = SocialProviders.publish!(connection: connection, campaign: campaign)
+            post.update!(status: "published", remote_id: remote.to_s.slice(0, 255), published_at: Time.current)
+            return post
+          end
+          configured = ENV.fetch("LIGHTEK_SOCIAL_PUBLISH_GATEWAY_URL", "")
+          raise Unavailable, "Trusted social gateway has not been configured" if configured.blank?
+          uri = URI.parse(configured)
+          raise Unavailable, "HTTPS gateway required" unless uri.scheme == "https" && uri.host.present? && uri.userinfo.nil?
+          key = ENV.fetch("LIGHTEK_SOCIAL_PUBLISH_GATEWAY_TOKEN", "")
+          raise Unavailable, "Gateway token missing" if key.blank?
+          request = Net::HTTP::Post.new(uri.request_uri, {"Content-Type" => "application/json", "Authorization" => "Bearer #{key}", "Idempotency-Key" => "lightek-social-#{post.id}"})
+          request.body = {provider: connection.provider, account: connection.account_label,
+            campaign_id: campaign.id, text: [campaign.headline, campaign.message, campaign.cta_url].compact.join("\n\n")}.to_json
+          response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 20) { |http| http.request(request) }
+          raise Unavailable, "Gateway rejected publish request (#{response.code})" unless response.is_a?(Net::HTTPSuccess)
+          result = JSON.parse(response.body)
+          raise Unavailable, "Gateway did not return publication confirmation" if result["remote_id"].blank?
+          post.update!(status: "published", remote_id: result["remote_id"].to_s.slice(0, 255), published_at: Time.current)
         end
-        if %w[facebook instagram].include?(connection.provider)
-          MetaConnectionHealth.check!(connection: connection)
-          remote = SocialProviders.publish!(connection: connection, campaign: campaign)
-          post.update!(status: "published", remote_id: remote.to_s.slice(0, 255), published_at: Time.current)
-          return post
-        end
-        configured = ENV.fetch("LIGHTEK_SOCIAL_PUBLISH_GATEWAY_URL", "")
-        raise Unavailable, "Trusted social gateway has not been configured" if configured.blank?
-        uri = URI.parse(configured)
-        raise Unavailable, "HTTPS gateway required" unless uri.scheme == "https" && uri.host.present? && uri.userinfo.nil?
-        key = ENV.fetch("LIGHTEK_SOCIAL_PUBLISH_GATEWAY_TOKEN", "")
-        raise Unavailable, "Gateway token missing" if key.blank?
-        request = Net::HTTP::Post.new(uri.request_uri, {"Content-Type" => "application/json", "Authorization" => "Bearer #{key}", "Idempotency-Key" => "lightek-social-#{post.id}"})
-        request.body = {provider: connection.provider, account: connection.account_label,
-          campaign_id: campaign.id, text: [campaign.headline, campaign.message, campaign.cta_url].compact.join("\n\n")}.to_json
-        response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 20) { |http| http.request(request) }
-        raise Unavailable, "Gateway rejected publish request (#{response.code})" unless response.is_a?(Net::HTTPSuccess)
-        result = JSON.parse(response.body)
-        raise Unavailable, "Gateway did not return publication confirmation" if result["remote_id"].blank?
-        post.update!(status: "published", remote_id: result["remote_id"].to_s.slice(0, 255), published_at: Time.current)
       end
     end
   end

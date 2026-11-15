@@ -1,26 +1,71 @@
-<% content_for :page_title, @product.persisted? ? "Edit Product" : "Create Product" %>
-<style>.lcp{max-width:1100px;margin:auto;padding:26px}.lcp-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px}.lcp-panel{padding:22px;border:1px solid var(--dd-border,#555);background:var(--dd-bg-elevated,#21232d);border-radius:14px;margin:15px 0}.lcp-field{display:grid;gap:7px;margin:14px 0}.lcp-field input,.lcp-field textarea,.lcp-field select{padding:12px;width:100%;box-sizing:border-box;border-radius:8px;background:var(--dd-bg,#16171e);border:1px solid var(--dd-border,#555);color:var(--dd-text-primary,#fff)}.lcp-submit{background:var(--dd-accent,#6759d9);color:white;padding:13px 20px;border:0;border-radius:8px}@media(max-width:800px){.lcp-grid{grid-template-columns:1fr}}</style>
-<main class="lcp"><p>COMMERCE / PRODUCT CATALOG</p><h1><%= @product.persisted? ? "Edit product" : "Create a product" %></h1><p><%= link_to "← Back to products", dashboard_commerce_products_path(site_id: @site.id) %></p>
-<% if @product.errors.any? %><div role="alert"><%= @product.errors.full_messages.to_sentence %></div><% end %>
-<%= form_with model: @product, scope: :product, url: (@product.persisted? ? dashboard_commerce_product_path(@product, site_id: @site.id) : dashboard_commerce_products_path(site_id: @site.id)) do |f| %>
-<div class="lcp-grid"><div>
-<section class="lcp-panel"><h2>Product story</h2>
-<div class="lcp-field"><%= f.label :name %><%= f.text_field :name, required: true, maxlength: 160 %></div>
-<div class="lcp-field"><%= f.label :slug, "URL slug" %><%= f.text_field :slug, required: true %></div>
-<div class="lcp-field"><%= f.label :short_description, "Storefront headline" %><%= f.text_area :short_description, rows: 2, maxlength: 300 %></div>
-<div class="lcp-field"><%= f.label :description, "Full description" %><%= f.text_area :description, rows: 7 %></div>
-<div class="lcp-field"><%= f.label :photos, "Upload product photos (up to 8)" %><%= f.file_field :photos, multiple: true, accept: "image/jpeg,image/png,image/webp" %></div><% if @product.persisted? && @product.photos.attached? %><div style="display:flex;flex-wrap:wrap;gap:12px"><% @product.photos.each do |photo| %><label><%= image_tag photo.variant(resize_to_limit: [130,130]), alt: @product.name %><br><%= check_box_tag "product[remove_photo_ids][]", photo.id %> Remove</label><% end %></div><% end %><div class="lcp-field"><%= f.label :image_url, "Optional externally hosted photo HTTPS URL" %><%= f.url_field :image_url %></div>
-</section><section class="lcp-panel"><h2>Pricing</h2>
-<div class="lcp-field"><%= f.label :price_cents, "Price (cents; 2500 = $25)" %><%= f.number_field :price_cents, min: 0, required: true %></div>
-<div class="lcp-field"><%= f.label :billing_interval, "Billing" %><%= f.select :billing_interval, [["One-time purchase", "one_time"], ["Monthly subscription", "month"], ["Annual subscription", "year"]] %></div>
-<div class="lcp-field"><label><%= f.check_box :track_inventory %> Track inventory (disable for unlimited services)</label></div>
-<div class="lcp-field"><%= f.label :compare_at_cents, "Compare-at price (cents)" %><%= f.number_field :compare_at_cents, min: 0 %></div></section></div>
-<aside><section class="lcp-panel"><h2>Publication & inventory</h2>
-<div class="lcp-field"><%= f.label :product_type %><%= f.select :product_type, [["Physical product", "physical"], ["Digital product", "digital"], ["Service / subscription", "service"]] + (current_user.role == "super_admin" ? [["Managed Lightek installation", "lightek_instance"]] : []) %></div>
-<% if current_user.role == "super_admin" %><div class="lcp-field"><%= f.label :subscription_plan_id %><%= f.collection_select :subscription_plan_id, DymondBank::SubscriptionPlan.order(:name), :id, :name, include_blank: "Select installation plan" %></div><% end %><div class="lcp-field"><%= f.label :sku, "SKU" %><%= f.text_field :sku %></div>
-<h3>Physical shipping</h3><p>Optional per-item overrides. Shipping uses your business's default package when these are blank.</p><% {shipping_weight_lb: "Weight (lb)", shipping_length_in: "Length (in)", shipping_width_in: "Width (in)", shipping_height_in: "Height (in)"}.each do |key, label| %><div class="lcp-field"><%= f.label key, label %><%= f.number_field key, min: 0.001, step: key == :shipping_weight_lb ? 0.001 : 1 %></div><% end %>
-<div class="lcp-field"><%= f.label :inventory_quantity %><%= f.number_field :inventory_quantity, min: 0, required: true %></div>
-<div class="lcp-field"><%= f.label :position %><%= f.number_field :position, min: 0 %></div>
-<div class="lcp-field"><label><%= f.check_box :featured %> Featured product</label></div>
-<div class="lcp-field"><label><%= f.check_box :published %> Publish to storefront</label></div>
-<%= f.submit(@product.persisted? ? "Save changes" : "Create product", class: "lcp-submit") %></section></aside></div><% end %><% if @product.persisted? %><section class="lcp-panel"><h2>Product options</h2><p>Sizes, colors and other selections have individual prices and stock.</p><% @product.variants.order(:id).each do |variant| %><p><%= variant.name %> — <%= number_to_currency(variant.price_cents / 100.0) %> — <%= variant.inventory_quantity %> available — <%= variant.active? ? "Active" : "Disabled" %> <% if variant.active? %><%= button_to "Disable", dashboard_commerce_variant_path(site_id: @site.id, product_id: @product.id, id: variant.id), method: :delete %><% end %></p><% end %><%= form_with url: dashboard_commerce_variants_path(site_id: @site.id, product_id: @product.id), scope: :variant do |v| %><div class="lcp-field"><%= v.label :name, "Option name" %><%= v.text_field :name, placeholder: "Small / Blue", required: true %></div><div class="lcp-field"><%= v.label :sku %><%= v.text_field :sku %></div><div class="lcp-field"><%= v.label :price_cents, "Price in cents" %><%= v.number_field :price_cents, min: 0, required: true %></div><div class="lcp-field"><%= v.label :inventory_quantity, "Quantity" %><%= v.number_field :inventory_quantity, min: 0, required: true %></div><%= v.submit "Add option" %><% end %></section><% end %></main>
+<% content_for :page_title, @product.persisted? ? "Edit product" : "Create product" %>
+<main class="dd-workspace">
+  <header class="dd-page-header dd-page-hero">
+    <div><span class="dd-eyebrow">Commerce / Product catalog</span><h1><%= @product.persisted? ? "Edit product" : "Create a product" %></h1><p>Shape the story, set your price, and get ready to sell on <%= @site.name %>.</p></div>
+    <%= link_to dashboard_commerce_products_path(site_id: @site.id), class: "dd-button" do %><i class="ti ti-arrow-left" aria-hidden="true"></i> Back to products<% end %>
+  </header>
+  <% if @product.errors.any? %>
+    <div class="dd-form-errors" role="alert"><strong>Check these details before saving</strong><ul><% @product.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div>
+  <% end %>
+  <%= form_with model: @product, scope: :product, url: (@product.persisted? ? dashboard_commerce_product_path(@product, site_id: @site.id) : dashboard_commerce_products_path(site_id: @site.id)), class: "dd-product-form" do |f| %>
+    <div class="dd-form-layout">
+      <div class="dd-form-column">
+        <section class="dd-form-section" aria-labelledby="product-story-heading">
+          <div class="dd-section-heading"><i class="ti ti-pencil" aria-hidden="true"></i><div><h2 id="product-story-heading">Product story</h2><p>Help customers understand what makes this worth buying.</p></div></div>
+          <div class="dd-field"><%= f.label :name, "Product name" %><%= f.text_field :name, required: true, maxlength: 160, placeholder: "Give your product a memorable name" %></div>
+          <div class="dd-field"><%= f.label :slug, "URL slug" %><%= f.text_field :slug, required: true, placeholder: "your-product-name", aria: { describedby: "product-slug-help" } %><small id="product-slug-help">The product's address in your storefront. Use words separated by hyphens.</small></div>
+          <div class="dd-field"><%= f.label :short_description, "Storefront headline" %><%= f.text_area :short_description, rows: 2, maxlength: 300, placeholder: "The short version that makes someone want to learn more" %></div>
+          <div class="dd-field"><%= f.label :description, "Full description" %><%= f.text_area :description, rows: 7, placeholder: "What's included, who it's for, and what customers can expect" %></div>
+        </section>
+        <section class="dd-form-section" aria-labelledby="product-media-heading">
+          <div class="dd-section-heading"><i class="ti ti-photo" aria-hidden="true"></i><div><h2 id="product-media-heading">Product imagery</h2><p>Make a strong first impression with clear, high-quality photos.</p></div></div>
+          <div class="dd-field"><%= f.label :photos, "Upload product photos" %><%= f.file_field :photos, multiple: true, accept: "image/jpeg,image/png,image/webp", aria: { describedby: "product-photo-help" } %><small id="product-photo-help">Up to 8 images. JPEG, PNG, or WebP.</small></div>
+          <% if @product.persisted? && @product.photos.attached? %>
+            <div class="dd-product-photos"><% @product.photos.each do |photo| %><label class="dd-product-photo"><%= image_tag photo.variant(resize_to_limit: [130,130]), alt: @product.name %><span class="dd-check"><%= check_box_tag "product[remove_photo_ids][]", photo.id, false, id: "remove-photo-#{photo.id}" %> Remove photo</span></label><% end %></div>
+          <% end %>
+          <div class="dd-field"><%= f.label :image_url, "External photo URL (optional)" %><%= f.url_field :image_url, placeholder: "https://", aria: { describedby: "product-image-url-help" } %><small id="product-image-url-help">Use an HTTPS address for an externally hosted image.</small></div>
+        </section>
+        <section class="dd-form-section" aria-labelledby="product-pricing-heading">
+          <div class="dd-section-heading"><i class="ti ti-tag" aria-hidden="true"></i><div><h2 id="product-pricing-heading">Pricing & billing</h2><p>Choose a one-time purchase or a recurring service.</p></div></div>
+          <div class="dd-form-grid">
+            <div class="dd-field"><%= f.label :price_cents, "Price (cents)" %><%= f.number_field :price_cents, min: 0, required: true, aria: { describedby: "product-price-help" } %><small id="product-price-help">2500 cents = <%= number_to_currency(25) %>.</small></div>
+            <div class="dd-field"><%= f.label :compare_at_cents, "Compare-at price (cents)" %><%= f.number_field :compare_at_cents, min: 0 %><small>Optional original price for a sale or promotion.</small></div>
+            <div class="dd-field dd-field-wide"><%= f.label :billing_interval, "Billing frequency" %><%= f.select :billing_interval, [["One-time purchase", "one_time"], ["Monthly subscription", "month"], ["Annual subscription", "year"]] %></div>
+          </div>
+        </section>
+      </div>
+      <aside class="dd-form-column" aria-label="Product settings">
+        <section class="dd-form-section" aria-labelledby="product-publication-heading">
+          <div class="dd-section-heading"><i class="ti ti-world" aria-hidden="true"></i><div><h2 id="product-publication-heading">Publication</h2><p>Control how this product appears in your store.</p></div></div>
+          <div class="dd-field"><%= f.label :product_type %><%= f.select :product_type, [["Physical product", "physical"], ["Digital product", "digital"], ["Service / subscription", "service"]] + (current_user.role == "super_admin" ? [["Managed Lightek installation", "lightek_instance"]] : []) %></div>
+          <% if current_user.role == "super_admin" %><div class="dd-field"><%= f.label :subscription_plan_id, "Installation plan" %><%= f.collection_select :subscription_plan_id, DymondBank::SubscriptionPlan.order(:name), :id, :name, include_blank: "Select installation plan" %><small>Required for managed Lightek installations.</small></div><% end %>
+          <%= f.label :published, class: "dd-check" do %><%= f.check_box :published %> Publish to storefront<% end %>
+          <%= f.label :featured, class: "dd-check" do %><%= f.check_box :featured %> Feature this product<% end %>
+          <div class="dd-field"><%= f.label :position, "Display order" %><%= f.number_field :position, min: 0 %></div>
+        </section>
+        <section class="dd-form-section" aria-labelledby="product-inventory-heading">
+          <div class="dd-section-heading"><i class="ti ti-packages" aria-hidden="true"></i><div><h2 id="product-inventory-heading">Inventory</h2><p>Keep stock accurate as orders come in.</p></div></div>
+          <div class="dd-field"><%= f.label :sku, "SKU" %><%= f.text_field :sku, placeholder: "Your internal product code" %></div>
+          <%= f.label :track_inventory, class: "dd-check" do %><%= f.check_box :track_inventory %> Track available inventory<% end %>
+          <p class="dd-form-callout">Turn inventory tracking off for unlimited services and digital products.</p>
+          <div class="dd-field"><%= f.label :inventory_quantity, "Available quantity" %><%= f.number_field :inventory_quantity, min: 0, required: true %></div>
+        </section>
+        <section class="dd-form-section" aria-labelledby="product-shipping-heading">
+          <div class="dd-section-heading"><i class="ti ti-truck" aria-hidden="true"></i><div><h2 id="product-shipping-heading">Physical shipping</h2><p>Optional overrides. Leave blank to use your business's default package.</p></div></div>
+          <div class="dd-form-grid"><% {shipping_weight_lb: "Weight (lb)", shipping_length_in: "Length (in)", shipping_width_in: "Width (in)", shipping_height_in: "Height (in)"}.each do |key, label| %><div class="dd-field"><%= f.label key, label %><%= f.number_field key, min: 0.001, step: key == :shipping_weight_lb ? 0.001 : 1 %></div><% end %></div>
+        </section>
+      </aside>
+    </div>
+    <footer class="dd-form-actions dd-product-save"><p class="dd-form-save-note">Your product is published only when “Publish to storefront” is selected.</p><div class="dd-action-group"><%= link_to "Cancel", dashboard_commerce_products_path(site_id: @site.id), class: "dd-button" %><%= f.submit(@product.persisted? ? "Save changes" : "Create product", class: "dd-button dd-btn-primary") %></div></footer>
+  <% end %>
+  <% if @product.persisted? %>
+    <section class="dd-form-section" aria-labelledby="product-options-heading">
+      <div class="dd-section-heading"><i class="ti ti-list-details" aria-hidden="true"></i><div><h2 id="product-options-heading">Product options</h2><p>Sizes, colors, and other selections can have individual prices and stock.</p></div></div>
+      <% if @product.variants.any? %><div class="dd-table-scroll"><table class="dd-table"><caption class="dd-caption">Existing product options</caption><thead><tr><th scope="col">Option</th><th scope="col">Price</th><th scope="col">Stock</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody><% @product.variants.order(:id).each do |variant| %><tr><td><%= variant.name %></td><td><%= number_to_currency(variant.price_cents / 100.0) %></td><td><%= variant.inventory_quantity %></td><td><span class="dd-status" data-tone="<%= variant.active? ? 'success' : 'neutral' %>"><%= variant.active? ? "Active" : "Disabled" %></span></td><td><% if variant.active? %><%= button_to "Disable", dashboard_commerce_variant_path(site_id: @site.id, product_id: @product.id, id: variant.id), method: :delete, class: "dd-button dd-button-danger" %><% end %></td></tr><% end %></tbody></table></div><% end %>
+      <%= form_with url: dashboard_commerce_variants_path(site_id: @site.id, product_id: @product.id), scope: :variant, class: "dd-form-stack" do |v| %>
+        <div class="dd-form-grid"><div class="dd-field"><%= v.label :name, "Option name" %><%= v.text_field :name, placeholder: "Small / Blue", required: true %></div><div class="dd-field"><%= v.label :sku, "SKU" %><%= v.text_field :sku %></div><div class="dd-field"><%= v.label :price_cents, "Price (cents)" %><%= v.number_field :price_cents, min: 0, required: true %></div><div class="dd-field"><%= v.label :inventory_quantity, "Available quantity" %><%= v.number_field :inventory_quantity, min: 0, required: true %></div></div>
+        <div class="dd-form-actions"><%= v.submit "Add option", class: "dd-button dd-btn-primary" %></div>
+      <% end %>
+    </section>
+  <% end %>
+</main>

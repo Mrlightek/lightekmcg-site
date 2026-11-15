@@ -19,6 +19,16 @@ on:
       - 'db/migrate/*growth_foundation*'
       - 'test/standalone/growth_foundation_checks.rb'
       - 'test/standalone/daily_growth_checks.rb'
+      - 'test/standalone/campaign_content_checks.rb'
+      - 'app/controllers/dashboard/campaign_content_controller.rb'
+      - 'app/models/concerns/campaign_content_review.rb'
+      - 'app/models/lightek_marketing/**'
+      - 'app/services/lightek_marketing/**'
+      - 'app/jobs/lightek_marketing/**'
+      - 'app/views/dashboard/campaign_content/**'
+      - 'app/views/dashboard/marketing_campaigns/**'
+      - 'config/routes/campaign_content.rb'
+      - 'db/migrate/*campaign_content_review*'
       - 'db/migrate/*daily_growth_plans*'
       - 'app/services/nevaeh_os/**'
       - 'app/models/nevaeh_agent_worker.rb'
@@ -75,7 +85,7 @@ jobs:
       - name: Install public test dependencies
         run: gem install activerecord:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 --no-document
       - name: Verify sales lifecycle, routing, consent, isolation and forecasts
-        run: ruby test/standalone/daily_growth_checks.rb
+        run: ruby test/standalone/campaign_content_checks.rb
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

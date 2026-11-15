@@ -1,6 +1,8 @@
+require_relative '../concerns/growth_attributed'
 # frozen_string_literal: true
 module LightekSales
   class Lead < ApplicationRecord
+    include GrowthAttributed
     self.table_name = 'lightek_sales_leads'
     include SalesSiteRecord
     STATUSES = %w[new contacted qualified disqualified converted].freeze

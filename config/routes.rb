@@ -48,6 +48,7 @@ Rails.application.routes.draw do
   draw :enterprise_identity
   draw :agency_demos
   draw :accounting
+  draw :growth
   draw :sales_quotes
   draw :sales
   post "/website/template-inquiries", to: "website_template_inquiries#create", as: :website_template_inquiries

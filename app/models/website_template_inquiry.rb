@@ -1,4 +1,6 @@
+require_relative 'concerns/growth_attributed'
 class WebsiteTemplateInquiry < ApplicationRecord
+  include GrowthAttributed
   belongs_to :site, class_name: "DymondSite::Site"
   validates :template_key, :section_key, presence: true
   validate :valid_starter_fields

@@ -1,6 +1,8 @@
+require_relative '../concerns/growth_attributed'
 # frozen_string_literal: true
 module LightekSales
   class Opportunity < ApplicationRecord
+    include GrowthAttributed
     self.table_name = 'lightek_sales_opportunities'
     include SalesSiteRecord
     STAGES = {'discovery' => 10, 'qualified' => 30, 'proposal' => 60, 'negotiation' => 80, 'closed_won' => 100, 'closed_lost' => 0}.freeze

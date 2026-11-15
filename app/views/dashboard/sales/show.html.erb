@@ -3,6 +3,7 @@
 <main class="sales-workspace">
   <%= render 'header' %>
   <div class="sales-record-heading"><div><span class="sales-eyebrow"><%= @record.persisted? ? 'BUILD THE RELATIONSHIP' : 'START SOMETHING NEW' %></span><h2><%= @record.persisted? ? (@kind == 'contact' ? @record.email : @kind == 'routing_rule' ? @record.source : @record.name) : "New #{title.downcase}" %></h2></div><%= link_to 'Back to sales', dashboard_sales_path(site_id: @site.id), class: 'sales-button secondary' %></div>
+  <%= render 'dashboard/growth/attribution', record: @record if @kind.in?(%w[lead opportunity]) %>
   <% if @record.errors.any? %><div class="sales-errors" role="alert"><h3>Review these fields</h3><ul><% @record.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div><% end %>
   <% if @kind == 'opportunity' %><aside class="sales-coach"><span class="sales-eyebrow">YOUR NEXT CONVERSATION</span><p><%= @record.guidance %></p></aside><% end %>
   <% converted = @kind == 'lead' && @record.converted_at? %>

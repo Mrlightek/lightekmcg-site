@@ -1,8 +1,23 @@
-name: Lifecycle and Sales CRM acceptance
+name: Growth, lifecycle and Sales CRM acceptance
 on:
   pull_request:
     paths:
       - 'app/controllers/dashboard/sales*'
+      - 'app/controllers/dashboard/growth_controller.rb'
+      - 'app/controllers/growth_links_controller.rb'
+      - 'app/controllers/website_template_inquiries_controller.rb'
+      - 'app/controllers/commerce_controller.rb'
+      - 'app/models/concerns/growth_attributed.rb'
+      - 'app/models/lightek_growth/**'
+      - 'app/services/lightek_growth/**'
+      - 'app/services/lightek_commerce/order_placement.rb'
+      - 'app/models/lightek_commerce/order.rb'
+      - 'app/models/lightek_marketing/campaign.rb'
+      - 'app/views/dashboard/growth/**'
+      - 'public/lightek/growth-workspace.css'
+      - 'config/routes/growth.rb'
+      - 'db/migrate/*growth_foundation*'
+      - 'test/standalone/growth_foundation_checks.rb'
       - 'app/controllers/sales_quotes_controller.rb'
       - 'app/controllers/dashboard/lifecycle_controller.rb'
       - 'app/services/lightek_people/**'
@@ -55,7 +70,7 @@ jobs:
       - name: Install public test dependencies
         run: gem install activerecord:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 --no-document
       - name: Verify sales lifecycle, routing, consent, isolation and forecasts
-        run: ruby test/standalone/lifecycle_quote_checks.rb
+        run: ruby test/standalone/growth_foundation_checks.rb
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

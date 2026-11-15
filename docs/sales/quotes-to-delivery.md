@@ -43,3 +43,7 @@ SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/lifecycle_quote_checks.
 SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs
 ruby test/standalone/commerce_order_cleanup_test.rb
 ```
+
+## Growth attribution
+
+[Growth Foundation](growth-foundation.md) copies a deal’s recorded tracked visit to its quote-created order. Acceptance does not count as payment; the funnel reads persisted commerce payment and fulfillment/provisioning timestamps. Repeated acceptance and processor events do not add reached-stage conversions.

@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -23,6 +23,7 @@ module LightekCommerce
         products = Product.where(site: site, id: product_ids).order(:id).lock.to_a
         raise Invalid, "One or more products are unavailable" unless products.size == product_ids.size && products.all?(&:published?)
         order = Order.new(shipping_quote: shipping_quote, site: site, customer_email: customer_email.to_s.strip.downcase)
+        order.growth_visit = growth_visit if growth_visit
         order.save!
         recurring = products.select { |product| product.billing_interval != "one_time" }
         raise Invalid, "Buy each subscription separately, quantity one" if recurring.any? && (requested.size != 1 || requested.values.first.to_i != 1 || requested.keys.first.include?(":"))

@@ -80,6 +80,7 @@ require ROOT.join('app/controllers/dashboard/people_controller')
 require ROOT.join('app/controllers/dashboard/lifecycle_controller')
 [SalesQuotesController, Dashboard::LifecycleController, Dashboard::SalesQuotesController].each { |klass| klass.prepend_view_path ROOT.join('app/views'); klass.layout false }
 SalesHarness.routes.draw do
+  eval(ROOT.join('config/routes/growth.rb').read, binding)
   eval(ROOT.join('config/routes/lifecycle.rb').read, binding)
   eval(ROOT.join('config/routes/sales_quotes.rb').read, binding)
   eval(ROOT.join('config/routes/sales.rb').read, binding)

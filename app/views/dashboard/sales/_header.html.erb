@@ -6,6 +6,7 @@
     <%= label_tag :site_id, 'Business website' %><%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %><%= submit_tag 'Switch', class: 'sales-button secondary' %>
   <% end %>
 </header>
+<p><%= link_to 'Growth & attribution', dashboard_growth_path(site_id: @site.id) %></p>
 <nav class="sales-tabs" aria-label="Sales workspaces">
   <% [['today', 'Today'], ['intake', 'Inquiry inbox'], ['tasks', 'Tasks'], ['leads', 'Leads'], ['pipeline', 'Deal pipeline'], ['accounts', 'Companies'], ['contacts', 'Contacts'], ['routing', 'Lead routing']].each do |tab, label| %>
     <% next if tab == 'routing' && !@manage_routing %>

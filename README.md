@@ -21,7 +21,7 @@ A business can build its website, sell products or book services, manage custome
 | Track Studio implementation and final verification | [Feature sprints](docs/studio/feature-sprints.md) |
 | Play instruments into editable notes | [Performance recording](docs/studio/music-performance.md) |
 | Score a production against picture | [Picture scoring & cues](docs/studio/music-picture-scoring.md) |
-| Record against song playback | [Microphone overdub](docs/studio/music-overdub.md) |
+| Record a full pass or punch selected song bars | [Microphone overdub](docs/studio/music-overdub.md) |
 | Record and arrange audio takes | [Recording & audio takes](docs/studio/music-recording.md) |
 | Group instruments and process the mix | [Mixer buses & inserts](docs/studio/music-mixer.md) |
 | Automate channels, groups, master and effect settings | [Music automation](docs/studio/music-automation.md) |
@@ -51,7 +51,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Websites and community | Pages/sections, HTML design imports, starter designs, coordinated site themes, native store/journal integration, articles/RSS and per-site PWA branding, navigation and moderation |
 | Communications | Lightek webmail, conversation replies, rich composition, mailbox management, distribution addresses, Junk/spam controls, mail templates and native transactional SMTP routing |
 | Reservations and live rooms | Bookable resources, availability/capacity, paid reservations, calendar downloads, private guest rooms, host moderation and Studio program composition |
-| Studio | Photo/video editing and exports; Blender authoring, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub, instrument performance recording and picture scoring; saved live production setups and connected finishing/delivery workspaces |
+| Studio | Photo/video editing and exports; Blender authoring, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub and punch ranges, instrument performance recording and picture scoring; saved live production setups and connected finishing/delivery workspaces |
 | Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
 | Nevaeh | Conversational operating workspace, typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |
 | Platform security and operations | Gatekeeper authorization, scoped Vault credentials, tenant ownership checks, background execution, audit history, retry/recovery paths and configurable Dashboard appearance |

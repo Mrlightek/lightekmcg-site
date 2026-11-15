@@ -53,7 +53,7 @@ Dashboard::MarketingCampaignsController.prepend_view_path ROOT.join('app/views')
 Dashboard::MarketingCampaignsController.layout false
 # The actual campaign controller/form is the destination for the drafted result.
 SalesHarness.routes.draw do
-  %w[campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
+  %w[publication_calendar campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
   get '/orders', to: 'dashboard/sales#index', as: :dashboard_commerce_orders
   get '/customers/history', to: 'dashboard/sales#index', as: :history_dashboard_customers
   get '/csrf', to: 'dashboard/settings_home#csrf'

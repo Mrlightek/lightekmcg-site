@@ -3,8 +3,18 @@ require_relative '../concerns/campaign_content_review'
 module LightekMarketing
   class Campaign < ApplicationRecord
     include CampaignContentReview
+    belongs_to :media_binding, class_name: 'LightekMarketing::MediaBinding', optional: true
+    before_validation do
+      if has_attribute?(:media_binding_id) && media_binding && media_url_changed? && media_url != media_binding.public_url
+        self.media_binding = nil
+      end
+    end
     has_many :content_variants, class_name: 'LightekMarketing::ContentVariant'
     before_destroy do
+      if (defined?(LightekMarketing::MediaBinding) && LightekMarketing::MediaBinding.table_exists? && LightekMarketing::MediaBinding.where(campaign_id: id).exists?) || (defined?(LightekMarketing::PublicationSlot) && LightekMarketing::PublicationSlot.table_exists? && LightekMarketing::PublicationSlot.where(campaign_id: id).exists?)
+        errors.add(:base, 'Publishing and media history must be retained; complete the campaign instead')
+        throw :abort
+      end
       if defined?(LightekMarketing::ContentVariant) && LightekMarketing::ContentVariant.table_exists? && content_variants.exists?
         errors.add(:base, 'Content review history must be retained; complete the campaign instead')
         throw :abort

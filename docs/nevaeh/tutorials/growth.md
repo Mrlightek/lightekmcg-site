@@ -53,3 +53,5 @@ Deploy `20261115150000_add_daily_growth_plans` through the existing per-instance
 ## Review and produce campaign content
 
 From the campaign editor, open **Content variations & approval** to use the shared writing engine for offer, problem and benefit drafts. Saved-copy approval binds the payload used by existing sends/publication. Social campaigns select portrait, square or landscape Studio production; reopening preserves edits, and script replacement is explicit. See [the full content and Studio workflow](../../sales/campaign-content-review.md). This workbench is available in Dashboard; `/growth` continues to prepare recommendations rather than automatically approve or publish content.
+
+The [Publishing calendar](../../sales/publishing-calendar.md) now handles final Studio export attachment and reviewed social scheduling from Dashboard. `/growth` remains a planning command; it does not automatically schedule or publish external messages.

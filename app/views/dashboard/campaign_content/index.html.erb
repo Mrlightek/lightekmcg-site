@@ -2,6 +2,7 @@
 <main class="sales-workspace growth-workspace">
   <%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %><%= stylesheet_link_tag '/lightek/growth-workspace.css?v=3' %>
   <%= render 'dashboard/shared/business_workspace', active: 'Campaigns' %>
+  <p><%= link_to 'Attach a Studio export / open publishing calendar', dashboard_publication_calendar_path(site_id: @site.id, campaign_id: @campaign.id) if @campaign.channel == 'social' %></p>
   <header class="sales-header"><div><span class="sales-eyebrow">NEVAEH / CREATE · REVIEW · DELIVER</span><h1>Campaign content & review</h1><p><%= @campaign.name %> · <%= @campaign.channel.humanize %></p></div><%= link_to 'Back to campaign', edit_dashboard_marketing_campaign_path(@campaign, site_id: @site.id), class: 'sales-button secondary' %></header>
   <% if flash[:alert] %><div class="sales-errors" role="alert"><%= flash[:alert] %></div><% end %><% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
   <section class="sales-panel"><h2>Prepare three approaches</h2><p>Offer, problem and benefit variations use the shared Nevaeh writing engine with reviewed business facts. Review every claim, tone and call to action before approving. These are copy drafts, not finished media.</p>

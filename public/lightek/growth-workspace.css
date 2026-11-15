@@ -5,3 +5,5 @@
 .growth-content-variant{margin:24px 0}.growth-content-variant pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-width:100%}.growth-content-variant input[type=checkbox]{width:auto;display:inline-block;margin-right:8px}
 
 .growth-content-variant p{overflow-wrap:anywhere}
+
+.growth-calendar-slot{padding:24px 0;border-top:1px solid var(--sales-line)}.growth-calendar-slot p{overflow-wrap:anywhere}.growth-calendar-slot .sales-button{margin:8px 12px 8px 0}

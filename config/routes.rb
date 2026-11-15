@@ -190,6 +190,14 @@ Rails.application.routes.draw do
   post "/employee/nevaeh/factory/study", to: "employee/nevaeh_factory#save_study_routine", as: :employee_nevaeh_factory_study_routines
   patch "/employee/nevaeh/factory/study/:id", to: "employee/nevaeh_factory#save_study_routine", as: :employee_nevaeh_factory_study_routine
   post "/employee/nevaeh/factory/study/:id/pause", to: "employee/nevaeh_factory#pause_study_routine", as: :employee_nevaeh_factory_pause_study
+  post "/employee/nevaeh/factory/manuals", to: "employee/nevaeh_factory#learn_manuals", as: :employee_nevaeh_factory_manual_builds
+  post "/employee/nevaeh/factory/manuals/:id/approve", to: "employee/nevaeh_factory#approve_manuals", as: :employee_nevaeh_factory_approve_manuals
+  post "/employee/nevaeh/factory/manuals/:id/phrases", to: "employee/nevaeh_factory#activate_manual_phrases", as: :employee_nevaeh_factory_activate_manual_phrases
+  post "/employee/nevaeh/factory/manuals/:id/train", to: "employee/nevaeh_factory#start_manual_training", as: :employee_nevaeh_factory_train_manuals
+  post "/employee/nevaeh/factory/language_bindings", to: "employee/nevaeh_factory#save_language_binding", as: :employee_nevaeh_factory_language_bindings
+  patch "/employee/nevaeh/factory/language_bindings/:id", to: "employee/nevaeh_factory#save_language_binding", as: :employee_nevaeh_factory_language_binding
+  post "/employee/nevaeh/factory/language_bindings/:id/:operation", to: "employee/nevaeh_factory#control_language_binding", as: :employee_nevaeh_factory_control_language_binding
+  post "/employee/nevaeh/factory/learning_plans/:id/:operation", to: "employee/nevaeh_factory#control_learning_plan", as: :employee_nevaeh_factory_control_learning_plan
   post "/employee/nevaeh/factory/constructions", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_constructions
   patch "/employee/nevaeh/factory/constructions/:id", to: "employee/nevaeh_factory#save_construction", as: :employee_nevaeh_factory_construction
   post "/employee/nevaeh/factory/constructions/:id/build", to: "employee/nevaeh_factory#build", as: :employee_nevaeh_factory_build_construction

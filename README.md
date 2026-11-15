@@ -18,6 +18,7 @@ A business can build its website, sell products or book services, manage custome
 | Set up and manage a payout account | [Payout accounts, verification and connection repair](docs/payments/payout-accounts.md) |
 | Use consistent dashboard forms and order actions | [Dashboard form patterns and order management](docs/dashboard/forms.md) |
 | Learn Nevaeh, agents, workers, watchers and commands | [Operating workspace and Guide](docs/nevaeh_operating_system.md) · [Tutorials](docs/nevaeh/tutorials/commands.md) |
+| Train on installed manuals and teach conversational tasks | [Manuals & Language](docs/nevaeh/tutorials/manual_learning.md) |
 | Import Quran/hadith sources and extend native training | [Islamic learning and source attribution](docs/nevaeh/tutorials/islamic_learning.md) |
 | Schedule Quran study and training at Salah times | [Salah & Study on the server clock](docs/nevaeh/tutorials/salah_study.md) |
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |

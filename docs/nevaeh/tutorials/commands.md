@@ -39,3 +39,7 @@ The live reference distinguishes declared input schemas, implementation-derived 
 ## Add new functionality
 
 Activate a verified construction or application adapter. Its catalog entry is generated from the installed contract. The reference updates with the installed software; a new command does not need to be manually added to the Guide navigation.
+
+## Taught conversational phrases
+
+Administrators can import the installed manuals and teach typed phrases through [Manuals & Language](manual_learning.md). For example, an activated project phrase accepts `Could you please make a studio project called Launch Night`. Missing inputs appear in a task form in chat; `Every 60 minutes, run worker 12` uses the existing agent scheduler. Review receipts for actual execution and the coverage report for unsupported adapters or input contracts.

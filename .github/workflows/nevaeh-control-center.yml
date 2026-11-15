@@ -19,6 +19,7 @@ on:
       - 'public/lightek/nevaeh/**'
       - 'public/lightek/studio-app.js'
       - 'test/standalone/nevaeh*'
+      - 'test/javascript/nevaeh*'
       - 'test/operations/nevaeh_package_control_test.py'
       - 'test/controllers/employee/nevaeh_control_center_test.rb'
       - 'db/migrate/*nevaeh*'
@@ -41,6 +42,9 @@ jobs:
       - run: bundle exec ruby test/standalone/nevaeh_digital_factory_test.rb
       - run: bundle exec ruby test/standalone/nevaeh_islamic_learning_test.rb --name '/NevaehIslamicLearningTest/'
       - run: bundle exec ruby test/standalone/nevaeh_salah_study_test.rb --name '/NevaehSalahStudyTest/'
+      - run: bundle exec ruby test/standalone/nevaeh_manual_learning_test.rb --name '/NevaehManualLearningTest/'
+      - run: bundle exec ruby test/standalone/nevaeh_manual_conversation_test.rb --name '/NevaehManualConversationTest/'
+      - run: node --test test/javascript/nevaeh_task_inputs_test.cjs
       - name: Install application test binaries
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: bundle exec ruby test/standalone/nevaeh_os_test.rb

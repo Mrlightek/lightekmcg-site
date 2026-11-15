@@ -1,0 +1,41 @@
+<div class="nc-heading"><div><h2>Teach from the system you built.</h2><p>Installed manuals → reviewed training → conversational tasks → execution receipts.</p></div><%= nevaeh_help_button('manual_learning') %></div>
+<article class="nc-panel"><h3>Learn the installed manuals</h3>
+  <%= form_with url: employee_nevaeh_factory_manual_builds_path do %><label>Corpus name<input name="name" value="Installed Lightek manuals" required maxlength="160"></label><button class="nc-button">Build corpus & draft conversational phrases</button><% end %>
+  <p class="nc-muted">Imports eligible installed documentation through Software Library. Builds source-linked neural batches, drafts phrases from live capability contracts and documented command examples, and reports adapter/input gaps. Importing documentation does not execute its code examples.</p>
+  <div class="nc-links"><% @manual_builds.each do |build| %><%= link_to "##{build.id} #{build.name} · #{build.status}", employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: build.id) %><% end %></div>
+</article>
+<% if @manual_build %>
+  <article class="nc-panel"><div class="nc-heading"><h3><%= @manual_build.name %></h3><span class="nc-pill"><%= @manual_build.status %></span></div>
+    <% if @manual_build.error.present? %><p class="nc-error"><%= @manual_build.error %></p><% end %>
+    <dl class="nf-metrics"><dt>Source documents</dt><dd><%= @manual_build.coverage['document_count'] || 0 %></dd><dt>Training parts / batches</dt><dd><%= @manual_build.coverage['training_parts'] || 0 %> / <%= @manual_build.dataset_ids.length %></dd><dt>Draft language bindings</dt><dd><%= @manual_build.coverage['draft_bindings'] || 0 %></dd><dt>Adapter or input-contract gaps</dt><dd><%= Array(@manual_build.coverage['gaps']).length %></dd></dl>
+    <details><summary>Source manifest and capability gaps</summary><pre><%= JSON.pretty_generate({sources: @manual_build.manifest, coverage: @manual_build.coverage}) %></pre></details>
+    <div class="nc-links"><% @manual_build.dataset_ids.each_with_index do |id, index| %><%= link_to "Review batch #{index + 1}", employee_nevaeh_factory_path(tab: 'training', dataset_id: id) %><% end %></div>
+    <% if @manual_build.status == 'ready' %>
+      <div class="nc-links"><%= button_to 'Approve reviewed source batches', employee_nevaeh_factory_approve_manuals_path(@manual_build), class: 'nc-button secondary' %><%= button_to 'Activate reviewed conversational phrases', employee_nevaeh_factory_activate_manual_phrases_path(@manual_build), class: 'nc-button' %></div>
+      <%= form_with url: employee_nevaeh_factory_train_manuals_path(@manual_build) do %><label>Internal model<select name="language_model_id" required><option value="">Choose an enabled internal model</option><%= options_for_select(@models.select { |model| model.enabled? && model.visibility == 'internal' }.map { |model| [model.name, model.id] }) %></select></label><label>Epochs per batch<input name="epochs" type="number" min="1" max="50" value="3" required></label><button class="nc-button">Train approved batches sequentially</button><% end %>
+    <% else %><%= link_to 'Refresh build status', employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: @manual_build.id), class: 'nc-button secondary' %><% end %>
+    <p class="nc-muted">Neural knowledge training and phrase activation are independent. A phrase resolves an exact typed action; generated model text cannot invent or execute commands.</p>
+  </article>
+<% end %>
+<div class="nc-grid2">
+  <article class="nc-panel"><h3>Conversational phrase library</h3><%= link_to '+ Teach another phrase', employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: @manual_build&.id), class: 'nc-button secondary' %>
+    <% @language_bindings.each do |binding| %><section class="nc-step"><%= link_to binding.name, employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: binding.nevaeh_manual_build_id, binding_id: binding.id) %><p><span class="nc-pill"><%= binding.status %></span></p><% binding.patterns.each do |phrase| %><p><code><%= phrase %></code></p><% end %><details><summary>Exact action and sources</summary><pre><%= JSON.pretty_generate({command: binding.command_template, slots: binding.slots, sources: binding.source_refs}) %></pre></details><%= button_to 'Pause phrase', employee_nevaeh_factory_control_language_binding_path(binding, operation: 'pause'), class: 'nc-button secondary' if binding.status == 'active' %></section><% end %>
+  </article>
+  <article class="nc-panel"><h3>Teach a phrase</h3>
+    <%= form_with url: @language_binding.persisted? ? employee_nevaeh_factory_language_binding_path(@language_binding) : employee_nevaeh_factory_language_bindings_path, method: @language_binding.persisted? ? :patch : :post do %>
+      <input type="hidden" name="manual_build_id" value="<%= @manual_build&.id %>"><input type="hidden" name="binding[lock_version]" value="<%= @language_binding.lock_version || 0 %>">
+      <label>Name<input name="binding[name]" value="<%= @language_binding.name %>" required maxlength="160" placeholder="Create a Studio project"></label>
+      <label>Source manual<select name="document_id" required><option value="">Choose its installed manual</option><%= options_for_select(@documents.map { |doc| [doc[:path], doc[:id]] }, @documents.find { |doc| doc[:path] == @language_binding.source_refs.first&.fetch('path', nil) }&.fetch(:id)) %></select></label>
+      <label>Phrases (JSON array)<textarea name="patterns_json" rows="5"><%= JSON.pretty_generate(@language_binding.patterns) %></textarea></label>
+      <label>Typed slots (JSON object)<textarea name="slots_json" rows="4"><%= JSON.pretty_generate(@language_binding.slots) %></textarea></label>
+      <label>Operating command template (JSON)<textarea name="command_json" rows="7"><%= JSON.pretty_generate(@language_binding.command_template) %></textarea></label>
+      <button class="nc-button secondary">Save phrase draft</button>
+    <% end %>
+    <% if @language_binding.persisted? %><%= button_to 'Activate this reviewed phrase', employee_nevaeh_factory_control_language_binding_path(@language_binding, operation: 'activate'), class: 'nc-button' %><% end %>
+    <p class="nc-muted">Slots support string, integer and boolean values. Put placeholders such as {name} in whole command values. Inputs are bound as data. Changing a phrase returns it to Draft; changing its manual blocks stale execution.</p>
+  </article>
+</div>
+<article class="nc-panel"><h3>Sequential learning plans</h3><% if @learning_plans.empty? %><p>Start an approved corpus plan above to train and activate each passing batch automatically.</p><% end %>
+  <% @learning_plans.each do |plan| %><section class="nc-step"><h4>#<%= plan.id %> · <%= plan.name %></h4><p><%= plan.status %> · <%= plan.position %> / <%= plan.dataset_ids.length %> batches accepted · <%= plan.language_model.name %></p><% if plan.active_training_run %><p>Training #<%= plan.active_training_run.id %>: <%= plan.active_training_run.status %></p><% end %><% if plan.error.present? %><p class="nc-error"><%= plan.error %></p><% end %><div class="nc-links"><%= button_to 'Pause plan', employee_nevaeh_factory_control_learning_plan_path(plan, operation: 'pause'), class: 'nc-button secondary' if plan.status == 'running' %><%= button_to 'Resume remaining batches', employee_nevaeh_factory_control_learning_plan_path(plan, operation: 'resume'), class: 'nc-button' if plan.status.in?(%w[paused blocked]) %></div></section><% end %>
+</article>
+<article class="nc-panel"><h3>Use the phrases in Nevaeh</h3><p>Try <code>make a studio project called Launch Night</code> or <code>every 60 minutes, run worker 12</code> after reviewing the corresponding bindings. Replace the name or worker ID with your own.</p><p class="nc-muted">Recurring tasks use the selected agent's existing workforce. Unknown instructions stay questions or requests for clarification. Missing adapters and schemas remain visible in the coverage report.</p><%= link_to 'Open Nevaeh', main_app.dashboard_nevaeh_os_path, class: 'nc-button' %></article>

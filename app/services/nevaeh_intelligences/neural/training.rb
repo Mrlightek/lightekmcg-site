@@ -7,10 +7,17 @@ module NevaehIntelligences
       class Cancelled < StandardError; end
       class StudyWindowEnded < StandardError; end
       module_function
-      def request!(model:, dataset:, actor:, epochs:, request_key:, study_session: nil)
+      def request!(model:, dataset:, actor:, epochs:, request_key:, study_session: nil, learning_plan: nil)
         raise ArgumentError, 'Model administration required' unless actor&.persisted? && Ability.new(actor).can?(:manage, NevaehLanguageModel)
         raise ArgumentError, 'Review and approve this dataset before training' unless dataset.status == 'approved' && dataset.valid?
         Islamic::Corpus.verify_dataset!(dataset) if dataset.provenance['source'] == 'islamic_library'
+        Manuals.verify_dataset!(dataset) if dataset.provenance['source'] == 'installed_manuals'
+        raise ArgumentError, 'Installed operational manuals require an internal model' if dataset.provenance['source'] == 'installed_manuals' && model.visibility != 'internal'
+        if learning_plan
+          unless learning_plan.status == 'running' && learning_plan.actor_id == actor.id && learning_plan.language_model_id == model.id && learning_plan.dataset_ids[learning_plan.position] == dataset.id
+            raise ArgumentError, 'Learning request does not match the current approved batch'
+          end
+        end
         raise ArgumentError, 'Request key required' unless request_key.to_s.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         if study_session
           Islamic::Study.guard_session!(study_session)
@@ -28,6 +35,7 @@ module NevaehIntelligences
               'parent_checkpoint_id' => parent&.id, 'parent_checkpoint_sha256' => parent&.sha256,
               'hidden_size' => model.hidden_size, 'vocabulary_limit' => model.vocabulary_limit}
             run.snapshot = run.snapshot.merge('study_session_id' => study_session.id) if study_session
+            run.snapshot = run.snapshot.merge('learning_plan_id' => learning_plan.id) if learning_plan
           end
         end
       end
@@ -46,6 +54,9 @@ module NevaehIntelligences
           raise ArgumentError, 'Training permission revoked' unless Ability.new(run.actor.reload).can?(:manage, NevaehLanguageModel)
           raise ArgumentError, 'Dataset approval changed; request training again after review' unless run.nevaeh_training_dataset.reload.status == 'approved' && Digest::SHA256.hexdigest(CanonicalJson.dump(run.nevaeh_training_dataset.examples)) == run.snapshot['dataset_sha256']
           Islamic::Corpus.verify_dataset!(run.nevaeh_training_dataset) if run.snapshot.dig('provenance', 'source') == 'islamic_library'
+          Manuals.verify_dataset!(run.nevaeh_training_dataset) if run.snapshot.dig('provenance', 'source') == 'installed_manuals'
+          raise ArgumentError, 'Operational manual training requires an internal model' if run.snapshot.dig('provenance', 'source') == 'installed_manuals' && run.nevaeh_language_model.reload.visibility != 'internal'
+          LearningPlans.guard!(run) if run.snapshot['learning_plan_id']
           deadline = Islamic::Study.guard_training!(run) if run.snapshot['study_session_id']
           run.update!(status: 'running', started_at: Time.current, heartbeat_at: Time.current, lease_token: token, error: nil)
         end
@@ -68,12 +79,13 @@ module NevaehIntelligences
         initial_retention = network.epoch(retention) unless retention.empty?
         losses = []; started = Process.clock_gettime(Process::CLOCK_MONOTONIC); window_ended = false
         recheck_at = started
-        study_guard = if deadline
+        study_guard = if deadline || run.snapshot['learning_plan_id']
           lambda do
-            raise StudyWindowEnded if Time.current >= deadline
+            raise StudyWindowEnded if deadline && Time.current >= deadline
             tick = Process.clock_gettime(Process::CLOCK_MONOTONIC)
             if tick >= recheck_at
-              Islamic::Study.guard_training!(run)
+              Islamic::Study.guard_training!(run) if deadline
+              LearningPlans.guard!(run) if run.snapshot['learning_plan_id']
               recheck_at = tick + 1
             end
           end
@@ -106,6 +118,7 @@ module NevaehIntelligences
           'unknown_response_tokens' => heldout.sum { |row| network.encode(row['response']).count(0) },
           'training_token_coverage' => training_coverage,
           'study_session_id' => run.snapshot['study_session_id'], 'study_window_ended' => window_ended,
+          'learning_plan_id' => run.snapshot['learning_plan_id'],
           'elapsed_seconds' => (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(2), 'budget_limited' => losses.length < run.epochs}
         passed = losses.any? && final.finite? && validation.finite? && final < initial && validation <= initial_validation + 0.25
         passed &&= training_coverage >= 0.95

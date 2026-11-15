@@ -74,13 +74,14 @@ Guides: [operating workspace](docs/nevaeh_operating_system.md), [agents](docs/ne
 | Editorial direction | Supported tone, word-limit, opening and closing directives report applied and unsupported instructions. |
 | Documentation learning | Public HTTPS reference import, source review, KB recording and reviewed dataset preparation. |
 | Native neural training | Small Ruby language-model training, continued training from an active checkpoint, bounded rehearsal/retention checks, vocabulary coverage, immutable checkpoints, explicit activation/rollback and account-owned conversation history. |
+| Manual learning and conversational tasks | Versioned installed-manual corpus, source-linked batches, approved sequential training/activation, reviewable phrases derived from registered contracts or explicit documented examples, typed in-chat input completion, recurring agent tasks and adapter/schema coverage gaps. Source/contract drift and ambiguous matches block stale execution. |
 | Quran & Hadith library | Official Tanzil Arabic Quran download; authorized hadith, translation and commentary imports; immutable editions, exact-reference search, attributed traditions and scholarly assessments, source-derived training batches and draft ethical conduct lessons. |
 | Salah study routine | Six configurable daily server-clock periods (Fajr, Dhuhr, Asr, Maghrib, Isha, Tahajjud), continued Quran reading with source receipts, approved-batch neural training, optional passing-checkpoint activation, deadline checks, pause and missed-period expiry. Fixed study appointments are manually adjusted when prayer times change. |
 | Studio script handoff | Generate/review writing drafts and apply the chosen result to the production's scene script. |
 
 **Operating scope:** the native model is a small trained network, not a claim of general-purpose LLM parity. Construction uses authored primitives and sample tests. Unsupported tickets need a reviewed executor/verifier; generated code is not automatically merged or deployed.
 
-Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/nevaeh/digital_factory.md), [Islamic learning](docs/nevaeh/tutorials/islamic_learning.md), [Salah study](docs/nevaeh/tutorials/salah_study.md), [structured tickets](docs/nevaeh/structured_ticket_execution.md), [historical backlog execution](docs/nevaeh/historical_backlog_execution.md).
+Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/nevaeh/digital_factory.md), [Manuals & Language](docs/nevaeh/tutorials/manual_learning.md), [Islamic learning](docs/nevaeh/tutorials/islamic_learning.md), [Salah study](docs/nevaeh/tutorials/salah_study.md), [structured tickets](docs/nevaeh/structured_ticket_execution.md), [historical backlog execution](docs/nevaeh/historical_backlog_execution.md).
 
 ## Growth Foundation: business context and campaign outcomes
 

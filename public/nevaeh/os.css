@@ -69,3 +69,5 @@ input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;hei
 .output-download{display:block;color:var(--cy);padding:8px 0}
 
 .guide-launch{display:block;margin:0 0 12px;padding:11px 12px;color:var(--cy);border:1px solid #00ffff44;background:linear-gradient(120deg,#06333188,#30204c88);font-size:11px;text-decoration:none}.guide-launch:hover{border-color:var(--cy)}#watcher-tools[hidden]{display:none}
+
+.nv-task-inputs{display:grid;gap:12px;padding:14px;border:1px solid var(--line);background:#0b101a;white-space:normal}.nv-task-inputs label{display:grid;gap:5px;color:var(--ink);text-transform:capitalize}.nv-task-inputs input,.nv-task-inputs select{box-sizing:border-box;min-width:0;width:100%;padding:10px;background:#111622;color:var(--ink);border:1px solid var(--line);font:inherit}.nv-task-inputs .btn{justify-self:start}.nv-task-inputs [role=status]{color:var(--mg);margin:0}

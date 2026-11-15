@@ -816,7 +816,8 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 13,topics.size
+    assert_equal 14,topics.size
+    assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'
     topics.each do |topic|
       document=NevaehOs::Guide.tutorial(topic[:id],actor:@actor)
       assert document[:body].start_with?('# ')
@@ -825,6 +826,7 @@ class NevaehGuideTest < Minitest::Test
     end
     refute NevaehOs::Guide.topics(actor:@client).any? { |row| row[:id]=='ubuntu' }
     assert_raises(ArgumentError) { NevaehOs::Guide.tutorial('console',actor:@client) }
+    assert_raises(ArgumentError) { NevaehOs::Guide.tutorial('manual_learning',actor:@client) }
     assert_raises(ArgumentError) { NevaehOs::Guide.tutorial('../../etc/passwd',actor:@actor) }
   end
   def test_new_installed_capabilities_automatically_get_visible_reference_and_schema_gap

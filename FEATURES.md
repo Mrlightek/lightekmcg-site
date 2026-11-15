@@ -395,8 +395,8 @@ Guides: [Story simulation](docs/nevaeh/tutorials/story_simulation.md) and [Socia
 | Capability | Current behavior |
 | --- | --- |
 | Shared graphical stage | Eight persistent work tabs for owned productions, task receipts, workers, guides, learning and internal Dashboard pages; script, saved XY blocking, embedded Studio and preview remain beside chat. |
-| Reactive virtual assistant | Illustrated animated assistant in the workspace and Dashboard dock; reflects real request, voice, job and attention states and brings the current page into the shared workspace. |
+| Reactive virtual assistant | Reference-based character assistant in the workspace and Dashboard dock; reflects real request, voice, job and attention states and brings the current page into the shared workspace. |
 | Blocking rehearsal | Forked, private Blender Workbench preview with bounded obstacle routing, personal-space correction and full-scene spatial audit. Reviewed corrections apply only to the unchanged source revision. |
 | Dialogue continuity | Reuses pinned Cast objects across successive lines, retains each audio source and schedules speaker/listener gaze cues. |
 
-See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md) for limits, recovery and deployment. Root routing does not generate a walk cycle or guarantee artistic facial/eye animation. The assistant is a reactive graphical foundation, with existing authorized command execution.
+See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md) for limits, recovery and deployment. Root routing does not generate a walk cycle or guarantee artistic facial/eye animation. The character follows the supplied Nevaeh appearance reference; status reactions use a badge and subtle motion. The assistant is a reactive graphical foundation, with existing authorized command execution.

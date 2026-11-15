@@ -2,8 +2,11 @@ name: Sales CRM acceptance
 on:
   pull_request:
     paths:
-      - 'app/controllers/dashboard/sales_controller.rb'
+      - 'app/controllers/dashboard/sales*'
       - 'app/models/lightek_sales/**'
+      - 'app/models/website_template_inquiry.rb'
+      - 'app/jobs/lightek_sales/**'
+      - 'config/schedule.yml'
       - 'app/models/concerns/sales_site_record.rb'
       - 'app/models/lightek_marketing/contact.rb'
       - 'app/services/lightek_sales/**'
@@ -11,13 +14,15 @@ on:
       - 'app/services/lightek_agency/package_features.rb'
       - 'app/services/lightek_settings/website_identity.rb'
       - 'app/views/dashboard/sales/**'
+      - 'app/views/dashboard/sales_intake/**'
       - 'app/views/dashboard/shared/_business_workspace.html.erb'
       - 'public/lightek/sales-workspace.css'
       - 'public/lightek/business-workspace.css'
       - 'config/routes.rb'
       - 'config/routes/sales.rb'
       - 'db/migrate/*lightek_sales*'
-      - 'test/standalone/sales_crm_checks.rb'
+      - 'db/migrate/*sales_intake*'
+      - 'test/standalone/sales_*'
       - 'test/javascript/sales_crm_browser_test.cjs'
       - '.github/workflows/sales-crm-acceptance.yml'
   workflow_dispatch:
@@ -35,9 +40,9 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: false
       - name: Install public test dependencies
-        run: gem install activerecord:8.0.4 actionpack:8.0.4 railties:8.0.4 sqlite3:2.10.2 minitest:5.27.0 --no-document
+        run: gem install activerecord:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 --no-document
       - name: Verify sales lifecycle, routing, consent, isolation and forecasts
-        run: ruby test/standalone/sales_crm_checks.rb
+        run: ruby test/standalone/sales_intake_checks.rb
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

@@ -1,4 +1,4 @@
-<%= stylesheet_link_tag '/lightek/sales-workspace.css?v=1' %>
+<%= stylesheet_link_tag '/lightek/sales-workspace.css?v=2' %>
 <%= render 'dashboard/shared/business_workspace', active: 'Sales' %>
 <header class="sales-header">
   <div><span class="sales-eyebrow">LIGHTEK / RELATIONSHIPS TO REVENUE</span><h1>Sales & CRM</h1><p>Build relationships. Keep your next move clear.</p></div>
@@ -7,8 +7,8 @@
   <% end %>
 </header>
 <nav class="sales-tabs" aria-label="Sales workspaces">
-  <% [['today', 'Today'], ['leads', 'Leads'], ['pipeline', 'Deal pipeline'], ['accounts', 'Companies'], ['contacts', 'Contacts'], ['routing', 'Lead routing']].each do |tab, label| %>
+  <% [['today', 'Today'], ['intake', 'Inquiry inbox'], ['tasks', 'Tasks'], ['leads', 'Leads'], ['pipeline', 'Deal pipeline'], ['accounts', 'Companies'], ['contacts', 'Contacts'], ['routing', 'Lead routing']].each do |tab, label| %>
     <% next if tab == 'routing' && !@manage_routing %>
-    <%= link_to label, dashboard_sales_path(site_id: @site.id, tab: tab), aria: {current: @tab == tab ? 'page' : nil} %>
+    <%= link_to label, (tab == 'intake' ? dashboard_sales_intake_path(site_id: @site.id) : dashboard_sales_path(site_id: @site.id, tab: tab)), aria: {current: @tab == tab ? 'page' : nil} %>
   <% end %>
 </nav>

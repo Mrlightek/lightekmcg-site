@@ -3,7 +3,7 @@
   <%= render 'header' %>
   <section class="sales-toolbar">
     <%= form_with url: dashboard_sales_path, method: :get, class: 'sales-filters' do %>
-      <%= hidden_field_tag :site_id, @site.id %><%= hidden_field_tag :tab, @tab %>
+      <%= hidden_field_tag :site_id, @site.id, id: 'sales_filter_site_id' %><%= hidden_field_tag :tab, @tab %>
       <label>Find a record<%= search_field_tag :q, params[:q], placeholder: 'Name or contact email', maxlength: 160 %></label>
       <label>Sales owner<%= select_tag :owner_id, options_from_collection_for_select(@owners, :id, :email_address, @owner_id), include_blank: 'All owners' %></label>
       <label>Forecast month<%= month_field_tag :month, @month.strftime('%Y-%m') %></label>
@@ -17,6 +17,9 @@
     <article><span>Your sales rhythm</span><strong class="sales-summary-copy">One clear next step.</strong><small>Review due follow-ups, then move a relationship forward.</small></article>
   </section>
   <% if @tab == 'today' %>
+    <section class="sales-panel"><div class="sales-panel-title"><div><span class="sales-eyebrow">KEEP THE PROMISE</span><h2>Due follow-up tasks</h2></div><%= link_to "Inquiry inbox (#{@intake_count})", dashboard_sales_intake_path(site_id: @site.id), class: 'sales-button secondary' %></div>
+      <% @due_tasks.each do |task| %><%= render 'task', task: task %><% end %><% if @due_tasks.empty? %><p class="sales-empty">No scheduled tasks are due. Open a relationship to schedule the next conversation.</p><% end %>
+    </section>
     <section class="sales-two-col">
       <article class="sales-panel"><div class="sales-panel-title"><span class="sales-eyebrow">MAKE YOUR NEXT MOVE</span><h2>Follow-ups & overdue deals</h2></div>
         <% if @due_leads.empty? && @due_deals.empty? %><p class="sales-empty">You’re clear for today. Add a lead or schedule your next conversation.</p><% end %>
@@ -31,6 +34,10 @@
         <% @missing_deals.each do |deal| %><%= render 'follow_up', record: deal, kind: 'opportunity' %><% end %>
         <small>Up to 100 records of each type.</small>
       </article>
+    </section>
+  <% elsif @tab == 'tasks' %>
+    <section class="sales-panel"><h2>Scheduled follow-through</h2><p>Due dates surface tasks here automatically. Completing a task records its result; review the relationship’s next step separately.</p><nav class="sales-tabs" aria-label="Task status"><% %w[open completed canceled].each do |status| %><%= link_to status.humanize, dashboard_sales_path(site_id: @site.id, tab: 'tasks', task_status: status, owner_id: @owner_id), aria: {current: @task_status == status ? 'page' : nil} %><% end %></nav>
+      <% @tasks.each do |task| %><%= render 'task', task: task %><% end %><% if @tasks.empty? %><p class="sales-empty">No <%= @task_status %> tasks. Schedule one from a lead, deal, company or contact.</p><% end %><small>Showing up to 100 tasks, earliest due dates first.</small>
     </section>
   <% elsif @tab == 'pipeline' %>
     <section class="sales-board" aria-label="Deal stages">

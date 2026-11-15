@@ -102,7 +102,7 @@ Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/
 
 Guides: [site themes and journal](docs/cms/site-themes-and-journal.md), [Design Studio](docs/lightek_design_studio.md), [HTML imports](docs/html_design_imports.md), [starter library](docs/website_template_library.md), [PWA administration](docs/lightek_pwa_administration.md).
 
-## Sales & CRM foundation
+## Sales & CRM
 
 | Capability | Implemented behavior |
 | --- | --- |
@@ -110,12 +110,13 @@ Guides: [site themes and journal](docs/cms/site-themes-and-journal.md), [Design 
 | Companies and shared contacts | Company relationships and enriched existing Marketing contacts; company/deal links and contact purchase history; consent remains independent |
 | Lead conversion | Qualified lead → company/contact/deal in one transaction; same-site matching, existing contact-company retention, idempotent repeat and rollback on failure |
 | Deal pipeline | Discovery, Qualified, Proposal, Negotiation, Won and Lost; amount/currency, probability, close date, forecast category and stage-specific guidance |
-| Daily follow-through | Due follow-ups, overdue expected close dates and active records missing a next step or follow-up date |
+| Daily follow-through | Due follow-ups, overdue close dates and missing next steps; assigned tasks with due times, completion/snooze/cancel history and calendar snapshots |
+| Inquiry intake | Review existing website forms or stage bounded CSV files; opt-in automatic acceptance per published form; duplicate-email linking, original submission retention, routed ownership, one task per inquiry and five-minute queue recovery |
 | Lead assignment | Owner-managed exact source rules, explicit override and eligible-owner fallback; revoked memberships cannot receive new assignments |
 | Sales forecast | Monthly and owner-filtered open/weighted/commit/best-case/won/lost values; USD/CAD/EUR/GBP/AUD remain separate; estimates do not become payment or ledger records |
 | Activity and access | Notes/calls/meetings/email logs and mutation history; site membership, scoped associations, current-version edits and Commerce package boundary |
 
-Guide: [Sales & CRM](docs/sales/crm.md). The first release includes native Dashboard navigation and responsive forms/boards. It does not claim enterprise CRM parity: intake adapters, email/calendar synchronization, quote/order automation, customizable stages, round-robin/territory routing, quotas, forecast snapshots and Nevaeh sales capabilities remain sequenced follow-up work.
+Guides: [Sales & CRM](docs/sales/crm.md) · [Inquiry intake and follow-through](docs/sales/intake-and-follow-through.md). Native website-form and reviewed CSV intake, assigned in-app due tasks and calendar-file handoffs are delivered. External email/calendar synchronization, reminder email delivery, quote/order automation, customizable stages, round-robin/territory routing, quotas, forecast snapshots and Nevaeh sales capabilities remain sequenced follow-up work.
 
 ## 5. Marketplace, commerce, subscriptions and shipping
 

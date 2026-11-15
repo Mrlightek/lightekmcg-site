@@ -17,7 +17,7 @@ class Dashboard::SalesController < Dashboard::SettingsHomeController
   end
 
   def index
-    @tab = params[:tab].to_s.in?(%w[today leads pipeline accounts contacts routing]) ? params[:tab] : 'today'
+    @tab = params[:tab].to_s.in?(%w[today tasks leads pipeline accounts contacts routing]) ? params[:tab] : 'today'
     raise ActiveRecord::RecordNotFound if @tab == 'routing' && !@manage_routing
     @month = Date.strptime(params[:month].presence || Date.current.strftime('%Y-%m'), '%Y-%m').beginning_of_month
     @owner_id = params[:owner_id].presence
@@ -31,6 +31,12 @@ class Dashboard::SalesController < Dashboard::SettingsHomeController
     @missing_leads = leads.active.where("next_step IS NULL OR next_step = '' OR follow_up_on IS NULL").order(:created_at).limit(100)
     @missing_deals = deals.open_pipeline.where("next_step IS NULL OR next_step = '' OR follow_up_on IS NULL").order(:created_at).limit(100)
     @forecast = LightekSales::Forecast.call(deals, month: @month)
+    tasks = LightekSales::Task.where(site: @site).includes(:owner, :record)
+    tasks = tasks.where(owner_id: @owner_id) if @owner_id
+    @task_status = params[:task_status].to_s.in?(%w[open completed canceled]) ? params[:task_status] : 'open'
+    @tasks = tasks.where(status: @task_status).order(:due_at, :id).limit(100)
+    @due_tasks = tasks.due.order(:due_at, :id).limit(100)
+    @intake_count = LightekSales::IntakeEntry.where(site: @site, status: %w[awaiting_review needs_review]).count
     if @tab == 'pipeline'
       @stage_counts = deals.group(:stage).count
       @pipeline = LightekSales::Opportunity::STAGES.keys.to_h { |stage| [stage, deals.where(stage: stage).includes(:account, :owner).order(:close_on, :id).limit(40)] }
@@ -57,6 +63,7 @@ class Dashboard::SalesController < Dashboard::SettingsHomeController
   end
   def show
     @record = @workspace.find(@kind, params[:id])
+    @record_tasks = LightekSales::Task.where(site: @site, record: @record).includes(:owner).order(Arel.sql("CASE WHEN status = 'open' THEN 0 ELSE 1 END"), :due_at).limit(50)
     if @kind.in?(%w[account contact])
       key = @kind == 'account' ? :account_id : :contact_id
       @related_deals = @workspace.scope('opportunity').where(key => @record.id).order(updated_at: :desc).limit(50)

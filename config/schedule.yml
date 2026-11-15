@@ -83,3 +83,9 @@ lightek_commerce_network_sync:
   class: "LightekCommerce::NetworkSyncJob"
   queue: default
   active_job: true
+
+lightek_sales_intake_recovery:
+  cron: "*/5 * * * *"
+  class: "LightekSales::IntakeSweepJob"
+  queue: default
+  active_job: true

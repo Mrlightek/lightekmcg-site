@@ -1,6 +1,8 @@
 # Managed Genesis workers
 
-Open **Dashboard → Studio → AI Studio → Genesis worker**. Choose a registered application runtime you can manage, a model package, and CPU or NVIDIA CUDA. **Install engine & models** queues Gatekeeper setup on that server. No new server is purchased or resized by this action.
+Infrastructure operators open **Dashboard → Studio → AI Studio → Operator neural-worker setup**. Ordinary creators do not receive installation controls and cannot start engine installation. CPU procedural scene production uses the existing deployed Studio runtime and does not need these model packages; see [CPU economy rendering](cpu-economy.md).
+
+For optional neural generation, choose a registered application runtime you can manage, a model package, and CPU or NVIDIA CUDA. **Install engine & models** queues Gatekeeper setup on that server. No new server is purchased or resized by this action.
 
 | Package | Engine/model | Compute | Capacity checks |
 | --- | --- | --- | --- |

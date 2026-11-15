@@ -58,7 +58,14 @@ def apply(objects, created):
             offset = row.get('look_at_offset',[0,0,0])
             if len(offset)!=3 or any(not math.isfinite(float(v)) or abs(float(v))>10 for v in offset):
                 raise RuntimeError('Invalid gaze offset')
-            target = created[str(row['look_at'])]
+            target_id=row['look_at']
+            item=next(item for item in objects if str(item['id'])==key)
+            seconds=(frame-1)/(scene.render.fps/scene.render.fps_base)
+            for cue in item.get('definition',{}).get('director_gaze_cues',[]):
+                if cue['start']<=seconds<cue['end']:
+                    target_id=cue['look_at']
+            if str(target_id) not in created:raise RuntimeError('Dialogue listener target is unavailable')
+            target = created[str(target_id)]
             markers[key].location = target.matrix_world @ Vector(offset)
             markers[key].keyframe_insert(data_path='location',frame=frame)
     for key,row in gaze.items():

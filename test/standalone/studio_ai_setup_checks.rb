@@ -33,7 +33,7 @@ class StudioAiSetupTest < StudioAiTest
   def setup
     super
     GatekeeperInstallation.delete_all;GatekeeperNode.delete_all;LightekVault::Secret.delete_all;LightekVault::Service.values={}
-    @alice.update!(role:"member");@site.update!(tenant:@alice)
+    @alice.update!(role:"super_admin");@site.update!(tenant:@alice)
     @node=GatekeeperNode.create!(owner_type:"User",owner_id:@alice.id,status:"ready")
     @worker=GatekeeperInstallation.create!(gatekeeper_node:@node,account:@alice,component:"lightek_app",adapter:"native_rails",domain:"worker.example.test")
     FileUtils.cp(File.join(ROOT,"config/studio_ai/packages.json"),Rails.root.join("config/studio_ai/packages.json"))
@@ -57,7 +57,9 @@ class StudioAiSetupTest < StudioAiTest
   end
   def test_setup_node_management_is_required_even_with_website_access
     @node.update!(owner_id:@bob.id)
-    assert_raises(ActiveRecord::RecordNotFound){install}
+    @alice.update!(role:"member")
+    assert_raises(Gatekeeper::Hosting::Access::Denied){install}
+    @alice.update!(role:"super_admin")
     @node.update!(owner_id:@alice.id,status:"deleting")
     assert_raises(Gatekeeper::Hosting::Access::Denied){install}
   end
@@ -125,10 +127,13 @@ class StudioAiSetupTest < StudioAiTest
     assert_raises(ArgumentError){Studio::Ai::Runtime.new(site:@site,identity:identity)}
   end
   def test_setup_read_only_server_grant_cannot_install_and_has_no_setup_controls
+    @alice.update!(role:"member")
     @node.update!(owner_id:@bob.id)
     Gatekeeper::Hosting::Access.stub(:nodes,GatekeeperNode.all) do
       assert_raises(Gatekeeper::Hosting::Access::Denied){install}
-      assert_empty action("ai_setup_status",scene_id:@scene.id)[:workers]
+      result=action("ai_setup_status",scene_id:@scene.id)
+      refute result[:can_manage];assert_empty result[:packages]
+      assert_empty result[:workers]
     end
   end
   def test_setup_invalid_receipt_never_selects_an_unverified_worker
@@ -138,6 +143,23 @@ class StudioAiSetupTest < StudioAiTest
     end
     assert_equal "failed",@site.reload.manifest.dig("studio_ai_install","status")
     assert_nil @site.manifest["studio_ai_worker"]
+  end
+  def test_customer_installer_http_request_is_forbidden_without_host_mutation
+    @alice.update!(role:"admin");client=session_for
+    Dashboard::MediaStudioController.allow_forgery_protection=false
+    client.post "/dashboard/studio-broadcasting/execute",headers:headers,params:{site_id:@site.id,capability:"studio.workspace.ai.setup.install",payload:{scene_id:@scene.id,installation_id:@worker.id,package_id:"concept",device:"cpu"}},as: :json
+    assert_equal 403,client.response.status,client.response.body
+    assert_includes JSON.parse(client.response.body)["error"],"infrastructure operator"
+    assert_nil @site.reload.manifest["studio_ai_install"]
+  ensure
+    Dashboard::MediaStudioController.allow_forgery_protection=true
+  end
+  def test_customer_cannot_start_or_finish_an_operator_installation
+    state=install;@alice.update!(role:"admin")
+    result=action("ai_setup_status",scene_id:@scene.id);refute result[:can_manage];assert_empty result[:workers];assert_empty result[:packages]
+    assert_raises(Gatekeeper::Hosting::Access::Denied) { install }
+    assert_raises(Gatekeeper::Hosting::Access::Denied) { StudioAiInstallJob.perform_now(@site.id,@alice.id,state["request_id"]) }
+    assert_equal "failed",@site.reload.manifest.dig("studio_ai_install","status")
   end
   def test_setup_video_recipe_requires_all_three_actual_model_inventories
     FileUtils.cp(File.join(ROOT,"config/studio_ai/workflows/wan22_video.json"),Rails.root.join("config/studio_ai/workflows/wan22_video.json"))

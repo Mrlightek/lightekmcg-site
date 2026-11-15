@@ -32,10 +32,25 @@ module Blender
     end
 
     def call
+      return Studio::Compute::CpuProfile.with_slot { execute } if Studio::Compute::CpuProfile.economy?(execution_record.manifest)
+      execute
+    end
+
+    def clear_checkpoints!
+      FileUtils.rm_rf(output_directory.join("cpu-frames")) if Studio::Compute::CpuProfile.economy?(execution_record.manifest)
+    rescue SystemCallError
+      Rails.logger.warn("CPU checkpoint cleanup needs attention for operation #{execution_record.id}")
+    end
+
+    def execute
       prepare_output_directory
       write_manifest
 
-      stdout = Studio::MediaProcess.run!(command, timeout: timeout_seconds, cancel_if: -> { execution_record.respond_to?(:status) && execution_record.reload.status == "cancelled" })
+      @worker_started=Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      options={timeout:timeout_seconds,cancel_if: -> { execution_record.respond_to?(:status) && execution_record.reload.status=="cancelled" }}
+      options[:on_tick]= -> { record_progress } if Studio::Compute::CpuProfile.economy?(execution_record.manifest)
+      stdout = Studio::MediaProcess.run!(command, **options)
+      record_progress
       write_log(stdout, "")
 
       result_payload = read_result_payload!
@@ -60,6 +75,8 @@ module Blender
     rescue RuntimeError => error
       write_log(stdout, error.message)
       raise ExecutionError, error.message
+    ensure
+      record_progress
     end
 
     private
@@ -67,7 +84,8 @@ module Blender
     attr_reader :execution_record
 
     def prepare_output_directory
-      FileUtils.mkdir_p(output_directory)
+      FileUtils.mkdir_p(output_directory,mode:0700)
+      File.chmod(0700,output_directory)
     end
 
     def write_manifest
@@ -96,7 +114,7 @@ module Blender
         next unless object["type"]=="imported_asset"
         definition=object.fetch("definition")
         definition.delete("asset_path")
-        if (take=definition["performance"])
+        Array(definition["performance_takes"].presence || [definition["performance"]].compact).each do |take|
           take.delete("audio_path")
           source=@performance_paths.fetch(take.fetch("audio_blob_id"))
           voice=output_directory.join("voice-#{take['audio_blob_id']}#{File.extname(source)}")
@@ -127,7 +145,7 @@ module Blender
       script=Rails.root.join("blender/runner.py").to_s
       if Rails.env.production?
         image=Studio::NativeBlender::Runtime.image(:render)
-        ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory","4g","--cpus",Studio::MediaProcess.cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
+        ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory",Studio::Compute::CpuProfile.economy?(execution_record.manifest) ? "1g" : "4g","--cpus",Studio::Compute::CpuProfile.economy?(execution_record.manifest) ? "1" : Studio::MediaProcess.cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
           "-v","#{output_directory}:/work:rw","-v","#{Rails.root.join("blender")}:/engine:ro",image,"blender","--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python","/engine/runner.py","--","/work/manifest.json","/work"]
       else
         [render_engine_binary,"--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python",script,"--",manifest_path.to_s,output_directory.to_s]
@@ -211,10 +229,22 @@ module Blender
       expected
     end
 
+    def record_progress
+      return unless execution_record.respond_to?(:metadata) && Studio::Compute::CpuProfile.economy?(execution_record.manifest)
+      path=output_directory.join("cpu-progress.json");return unless path.file? && path.size<8192
+      progress=JSON.parse(path.read).slice("profile","phase","completed_frames","total_frames","reused_frames","elapsed_seconds","cpu_seconds","blender_peak_rss_bytes")
+      progress["worker_elapsed_seconds"]=(Process.clock_gettime(Process::CLOCK_MONOTONIC)-@worker_started).round(3) if @worker_started
+      execution_record.with_lock { execution_record.update!(metadata:execution_record.metadata.merge("cpu_render_progress"=>progress)) }
+    rescue JSON::ParserError,Errno::ENOENT
+      nil
+    end
+
     def timeout_seconds
+      return 180 if execution_record.respond_to?(:metadata) && execution_record.metadata["director_rehearsal"]
       return 180 if execution_record.respond_to?(:metadata) && execution_record.metadata["performance_preview"]
       return 120 if execution_record.respond_to?(:metadata) && execution_record.metadata["asset_source_export"]
       return 60 if execution_record.respond_to?(:metadata) && execution_record.metadata["draft_preview"]
+      return 7200 if Studio::Compute::CpuProfile.economy?(execution_record.manifest)
       ENV.fetch(
         "STUDIO_RENDER_TIMEOUT_SECONDS",
         ENV.fetch("BLENDER_TIMEOUT_SECONDS", 900)

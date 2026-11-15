@@ -57,15 +57,16 @@ module Studio
           fps = scene.settings.fetch('fps',24).to_f/scene.settings.fetch('fps_base',1)
           raise ArgumentError, 'The dialogue must fit this scene' unless cue.fetch('start')+duration<=scene.settings.fetch('frame_end',1)/fps+0.05
           object = scene.scene_objects.find { |item| item.definition['director_speaker']==cue['speaker'] }
-          raise ArgumentError, 'This character already has a take. Use another scene or edit its Performance workspace.' if object&.definition&.dig('performance')
-          placed = Studio::Performance::Cast.place(access:workspace,payload:{'scene_id'=>scene.id,'asset_id'=>cast.id,'lock_version'=>scene.lock_version,'request_key'=>"director-#{digest(key)}-cast"})
+          raise ArgumentError,'This speaker uses a different placed Cast asset' if object && object.definition['asset_id']!=cast.id
+          fresh=object.nil?
+          placed = fresh ? Studio::Performance::Cast.place(access:workspace,payload:{'scene_id'=>scene.id,'asset_id'=>cast.id,'lock_version'=>scene.lock_version,'request_key'=>"director-#{digest(key)}-cast"}) : {'object_id'=>object.id}
           scene.reload
           object = scene.scene_objects.find(placed.fetch('object_id'))
           others=scene.scene_objects.select { |item| item.id!=object.id && item.definition['director_speaker'] }
           facing=data.fetch('facing_axis','-Y')
           raise ArgumentError,'Choose the character forward axis X, Y, -X or -Y' unless %w[X Y -X -Y].include?(facing)
           location=[others.size.even? ? -1.0 : 1.0,(others.size/2)*2.0,0.0]
-          object.update!(definition:object.definition.merge('director_speaker'=>cue['speaker'],'director_facing_axis'=>facing,'location'=>location))
+          object.update!(definition:object.definition.merge('director_speaker'=>cue['speaker'],'director_facing_axis'=>facing,'location'=>fresh ? location : object.definition.fetch('location',[0,0,0])))
           if data['listener_object_id'] || others.size==1
             listener=data['listener_object_id'] ? scene.scene_objects.find(data['listener_object_id']) : others.first
             rows=[{'object_id'=>object.id,'look_at'=>listener.id,'facing_axis'=>facing,'personal_space'=>0.9}]
@@ -79,8 +80,25 @@ module Studio
           production.update!(metadata:production.metadata.merge('director_cast'=>identities))
           expressions = profile.fetch('bindings',{}).key?('brow_raise') ? [{'control'=>'brow_raise','start'=>0,'end'=>[duration,0.6].min,'value'=>0.25}] : []
           gestures = profile.fetch('bones',{}).key?('head') ? [{'kind'=>'nod','start'=>0,'end'=>[duration,1.0].min,'strength'=>0.2}] : []
-          take = Studio::Performance::Take.save(access:workspace,payload:{'scene_id'=>scene.id,'object_id'=>object.id,'audio_asset_id'=>audio.id,'source_out'=>duration,'start'=>cue['start'],'lock_version'=>scene.lock_version,'request_key'=>"director-#{digest(key)}-take",'expressions'=>expressions,'gestures'=>gestures})
+          take = Studio::Performance::Take.save(access:workspace,payload:{'scene_id'=>scene.id,'object_id'=>object.id,'audio_asset_id'=>audio.id,'source_out'=>duration,'start'=>cue['start'],'append'=>true,'lock_version'=>scene.lock_version,'request_key'=>"director-#{digest(key)}-take",'expressions'=>expressions,'gestures'=>gestures})
           scene.reload
+          if defined?(listener) && listener
+            speaking=object.reload
+            gaze=Array(speaking.definition['director_gaze_cues']).reject { |row| row['role']=='listener' }+[{'start'=>cue['start'],'end'=>cue['start']+duration,'look_at'=>listener.id,'role'=>'speaker'}]
+            speaking.update!(definition:speaking.definition.merge('director_gaze_cues'=>gaze.sort_by { |row| row['start'] }))
+          end
+          cast_members=scene.scene_objects.select { |item| item.definition['director_speaker'] }
+          cast_members.each do |member|
+            own=Array(member.definition['director_gaze_cues']).reject { |row| row['role']=='listener' }
+            attention=cast_members.reject { |item| item.id==member.id }.flat_map do |speaker|
+              Array(speaker.definition['performance_takes'].presence || [speaker.definition['performance']].compact).filter_map do |line|
+                first=line['start'];last=first+line['duration']
+                next if own.any? { |cue| first<cue['end'] && last>cue['start'] }
+                {'start'=>first,'end'=>last,'look_at'=>speaker.id,'role'=>'listener'}
+              end
+            end
+            member.update!(definition:member.definition.merge('director_gaze_cues'=>(attention+own).sort_by { |row| row['start'] }))
+          end
           if data['motion_clips']
             Studio::Performance::MotionPlan.save(access:workspace,payload:{'scene_id'=>scene.id,'object_id'=>object.id,'clips'=>data['motion_clips'],'lock_version'=>scene.lock_version,'motion_revision'=>0,'request_key'=>"director-#{digest(key)}-motion"})
             scene.reload

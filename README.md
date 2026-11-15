@@ -22,6 +22,7 @@ A business can build its website, sell products or book services, manage custome
 | Import Quran/hadith sources and extend native training | [Islamic learning and source attribution](docs/nevaeh/tutorials/islamic_learning.md) |
 | Schedule Quran study and training at Salah times | [Salah & Study on the server clock](docs/nevaeh/tutorials/salah_study.md) |
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
+| Render procedural scenes with a bounded CPU budget | [CPU economy rendering & recovery](docs/studio/cpu-economy.md) |
 | Control Blender modifiers and stack order | [Modifier stack](docs/studio/blender-modifier-stack.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
 | Position a graphic or logo in the live program | [Live graphic placement](docs/studio/live-overlay-placement.md) |
@@ -54,6 +55,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Workspace | Current capabilities |
 | --- | --- |
 | Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
+| Website growth audit | Native CMS evidence, guided metadata/CTA/alt previews, verified rechecks and guarded rollback; [operating guide](docs/sales/website-growth-audits.md) |
 | Publishing calendar | Finished Studio export handoff, reviewed social schedules and provider outcome recovery; [operating guide](docs/sales/publishing-calendar.md) |
 | Recipe-driven episode Director | Reuses long-form production templates and show bibles, creates independent scenes with editable camera coverage, queues local stock-voice dialogue/captions, directs bound Cast performances, quotes scene renders, assembles private episode masters, and delivers reviewed community/OTT or configured TikTok/Instagram publications; [operating guide](docs/nevaeh/tutorials/production_director.md) |
 | Conversational campaign producer | Native TikTok draft recipe: timed script/storyboard, editable portrait timeline, graphics or owned images, music and captions, private MP4 preview and retry receipts; [operating guide](docs/nevaeh/tutorials/campaign_producer.md) |
@@ -67,8 +69,9 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Websites and community | Pages/sections, HTML design imports, starter designs, coordinated site themes, native store/journal integration, articles/RSS and per-site PWA branding, navigation and moderation |
 | Communications | Lightek webmail, conversation replies, rich composition, mailbox management, distribution addresses, Junk/spam controls, mail templates and native transactional SMTP routing |
 | Reservations and live rooms | Bookable resources, availability/capacity, paid reservations, calendar downloads, private guest rooms, host moderation and Studio program composition |
-| Studio | Photo/video editing and exports; Blender authoring and modifier stacks, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub and punch ranges, instrument performance recording and picture scoring; saved live production setups, positioned graphic overlays and connected finishing/delivery workspaces |
+| Studio | Photo/video editing and exports; Blender authoring, modifier stacks and resumable CPU economy rendering, shots/storyboard, cast lip sync/body motion, materials/look; self-hosted Genesis concept images, text-to-video and image-to-video; music patterns, channel/group/master and effect automation, mixer inserts, audio takes, synchronized microphone overdub and punch ranges, instrument performance recording and picture scoring; saved live production setups, positioned graphic overlays and connected finishing/delivery workspaces |
 | Infrastructure | New/existing server application installation, native Rails and container templates, GHCR image builds, domains/DNS, registered runtimes, targeted/fleet updates and installation receipts |
+| Graphical Nevaeh workspace | Persistent work tabs, script/blocking/embedded Studio, private correction rehearsals and a reactive Dashboard assistant; [guide](docs/nevaeh/tutorials/director_stage.md) |
 | Character stories & spatial direction | Fictional personality templates, real cooperative story workers, limited character knowledge, pinned Cast identities, relative cameras/gaze, personal space and frame-sampled collision/depth checks; [guide](docs/nevaeh/tutorials/story_simulation.md) |
 | Nevaeh | Task-focused conversational workspace with Studio/learning navigation, live receipts, sources, and consent controls; typed capabilities, structured tickets, agents/workers/schedules, change watchers, governed data console, Ubuntu application adapters, Digital Factory and native language-model training |
 | Platform security and operations | Gatekeeper authorization, scoped Vault credentials, tenant ownership checks, background execution, audit history, retry/recovery paths and configurable Dashboard appearance |

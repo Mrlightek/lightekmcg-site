@@ -3,6 +3,16 @@ on:
   pull_request:
     paths:
       - 'app/controllers/dashboard/sales*'
+      - 'app/controllers/dashboard/website_audits_controller.rb'
+      - 'app/controllers/lightek_growth/**'
+      - 'app/views/dashboard/website_audits/**'
+      - 'app/views/lightek_growth/**'
+      - 'app/views/layouts/lightek_design/website.html.erb'
+      - 'config/initializers/lightek_growth_page_metadata.rb'
+      - 'config/routes/website_audits.rb'
+      - 'db/migrate/*website_growth_audits*'
+      - 'test/standalone/website_audit_checks.rb'
+      - 'test/standalone/site_content_checks.rb'
       - 'app/controllers/dashboard/growth_controller.rb'
       - 'app/controllers/growth_links_controller.rb'
       - 'app/controllers/website_template_inquiries_controller.rb'
@@ -88,9 +98,11 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: false
       - name: Install public test dependencies
-        run: gem install activerecord:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 --no-document
+        run: gem install activerecord:8.0.4 activestorage:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 uri:1.1.2 --no-document
       - name: Verify sales lifecycle, routing, consent, isolation and forecasts
         run: ruby test/standalone/publication_calendar_checks.rb
+      - name: Verify native CMS audit evidence, permissions, fixes and recovery
+        run: ruby test/standalone/website_audit_checks.rb --name '/test_site_|test_audit_/'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

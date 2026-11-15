@@ -71,8 +71,17 @@ module Studio
             return receipts[key]
           end
           scene.lock_version=Integer(payload.fetch("lock_version"));object.reload
-          object.update!(definition:object.definition.merge("performance"=>{"take_id"=>key,"audio_asset_id"=>audio.id,"audio_blob_id"=>audio.file.blob.id,
-            "source_in"=>first,"duration"=>duration,"start"=>start,"gain"=>number(payload.fetch("gain",1),0,4),"mouth_frames"=>envelope,"lip_sync_mode"=>mode,"lip_sync"=>lip_sync,"expressions"=>expressions,"gestures"=>gestures}))
+          take={"take_id"=>key,"audio_asset_id"=>audio.id,"audio_blob_id"=>audio.file.blob.id,
+            "source_in"=>first,"duration"=>duration,"start"=>start,"gain"=>number(payload.fetch("gain",1),0,4),"mouth_frames"=>envelope,"lip_sync_mode"=>mode,"lip_sync"=>lip_sync,"expressions"=>expressions,"gestures"=>gestures}
+          definition=object.definition.deep_dup
+          if payload['append']==true
+            takes=Array(definition['performance_takes'].presence || [definition['performance']].compact)
+            raise ArgumentError,'Use at most 32 non-overlapping takes per character' if takes.size>=32 || takes.any? { |prior| start<prior['start']+prior['duration']-0.001 && start+duration>prior['start']+0.001 }
+            definition['performance_takes']=(takes+[take]).sort_by { |item| item['start'] }
+          elsif definition['performance_takes'].present?
+            raise ArgumentError,'This character has a dialogue sequence. Append a take or remove its sequence explicitly.'
+          end
+          object.update!(definition:definition.merge('performance'=>take))
           fps=scene.settings.fetch("fps",24).to_f/scene.settings.fetch("fps_base",1)
           ending=((start+duration)*fps).ceil
           result={"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.lock_version+1,"duration"=>duration,"fingerprint"=>fingerprint}
@@ -86,7 +95,7 @@ module Studio
       def self.remove(access:,payload:)
         scene=access.scene!(payload.fetch("scene_id"));scene.with_lock do
           scene.lock_version=Integer(payload.fetch("lock_version"))
-          object=scene.scene_objects.find(payload.fetch("object_id"));object.update!(definition:object.definition.except("performance"))
+          object=scene.scene_objects.find(payload.fetch("object_id"));object.update!(definition:object.definition.except("performance","performance_takes","director_gaze_cues"))
           scene.update!(settings:scene.settings.merge("native_revision"=>scene.settings.fetch("native_revision",0).to_i+1))
         end
         {scene_id:scene.id,lock_version:scene.lock_version}

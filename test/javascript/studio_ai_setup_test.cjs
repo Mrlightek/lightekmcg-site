@@ -8,14 +8,14 @@ const {JSDOM}=require('jsdom');
     const app=document.getElementById('app'),requests=[],record={scene:{id:7},project:{id:4}};
     const E=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const studioCurrentSceneId=()=>7,toast=v=>window.lastToast=v;
-    let mode='ai',ready=false,phase='queued';
+    let mode='ai',ready=false,phase='queued',operator=true;
     window.LightekStudioProduction={mode:()=>mode,go:(target,id)=>{mode=target;window.lastRoute={target,id}}};
     window.LightekStudioTimeline={insert:id=>window.inserted=id};
     const A={studioAssetsReload:async()=>{}};
     const nevaeh={execute:async request=>{
       requests.push(structuredClone(request));let result;
       switch(request.capability){
-        case 'studio.workspace.ai.setup.status': result={install:phase==='queued'?{}:{status:phase,phase:'downloading_model',model:'real.safetensors',downloaded_bytes:1073741824,total_bytes:4294967296},workers:[{id:12,domain:'worker.example.test'}],packages:[{id:'concept',name:'Concept images',devices:['cpu','cuda'],ram_gib:8,free_disk_gib:24,vram_mib:4096},{id:'video',name:'Video shots',devices:['cuda'],ram_gib:32,free_disk_gib:80,vram_mib:24576}]};break;
+        case 'studio.workspace.ai.setup.status': result={can_manage:operator,install:phase==='queued'?{}:{status:phase,phase:'downloading_model',model:'real.safetensors',downloaded_bytes:1073741824,total_bytes:4294967296},workers:[{id:12,domain:'worker.example.test'}],packages:[{id:'concept',name:'Concept images',devices:['cpu','cuda'],ram_gib:8,free_disk_gib:24,vram_mib:4096},{id:'video',name:'Video shots',devices:['cuda'],ram_gib:32,free_disk_gib:80,vram_mib:24576}]};break;
         case 'studio.workspace.ai.setup.install': phase='running';result={status:'queued'};break;
         case 'studio.workspace.ai.status':result={connected:ready,recipes:ready?[{id:'image',name:'Concept image',kind:'image',ready:true}]:[],models:ready?['real.safetensors']:[]};break;
         case 'studio.workspace.ai.jobs':result=ready?[{asset_id:88,status:'ready',kind:'image',name:'Finished shot',prompt:'A real shot',seed:42,preview_url:'/result.png'}]:[];break;
@@ -49,5 +49,6 @@ const {JSDOM}=require('jsdom');
   const edited=document.querySelector('[name=prompt]');edited.focus();edited.setSelectionRange(3,7);
   document.querySelector('[data-ai="refresh"]').click();await settle();
   assert.equal(document.activeElement.name,'prompt');assert.equal(document.activeElement.selectionStart,3);assert.equal(document.activeElement.selectionEnd,7);
+  evaluate('operator=false');document.querySelector('[data-ai=refresh]').click();await settle();assert.equal(document.querySelector('[data-ai-setup]'),null,'customers never receive installer controls');assert(document.querySelector('[data-production-mode=camera]'),'CPU scene production remains directly available');assert.match(document.querySelector('.ai-worker').textContent,/managed by Lightek/);
   dom.window.close();console.log('Genesis worker setup DOM checks passed');
 })().catch(error=>{console.error(error);process.exit(1)});

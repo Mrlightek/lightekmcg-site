@@ -33,6 +33,9 @@ on:
       - 'app/views/dashboard/media_studio/**'
       - 'config/routes.rb'
       - 'public/lightek/live/**'
+      - 'app/services/studio/compute/**'
+      - 'db/migrate/20261115190000_register_studio_cpu_render_resume.rb'
+      - 'test/javascript/studio_cpu_economy_test.cjs'
       - 'public/lightek/broadcast/**'
       - 'public/lightek/studio-visual.*'
       - 'public/lightek/studio-dashboard.*'
@@ -247,6 +250,10 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/studio_modifier_stack_checks.rb --name /StudioModifierStackTest/
+      - name: CPU economy checkpoint rendering and measured resource boundaries
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/studio_cpu_economy_checks.rb --name /StudioCpuEconomyTest/
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -297,6 +304,7 @@ jobs:
           node test/javascript/studio_edit_workbench_test.cjs
           node test/javascript/studio_delivery_test.cjs
           node test/javascript/studio_ai_setup_test.cjs
+          node test/javascript/studio_cpu_economy_test.cjs
           node test/javascript/studio_ai_image_video_test.cjs
           node test/javascript/studio_music_ui_test.cjs
           node test/javascript/studio_music_patterns_test.cjs

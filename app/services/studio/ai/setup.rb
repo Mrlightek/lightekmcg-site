@@ -5,6 +5,7 @@ module Studio
       CONSUMER = "Studio::Ai::Runtime"
       PURPOSE = "studio_ai"
       ACTIVE = %w[queued running].freeze
+      def self.operator?(actor) = ::Gatekeeper::Hosting::Access.super_admin?(actor)
       def self.catalog = JSON.parse(Rails.root.join("config/studio_ai/packages.json").read)
       def self.slug(site_id, installation_id) = "studio-ai-#{site_id}-#{installation_id}"
       def self.installations(site:, actor:)
@@ -22,6 +23,7 @@ module Studio
       end
       def self.start(access:, payload:)
         site=site_for(access,payload.fetch("scene_id"))
+        raise ::Gatekeeper::Hosting::Access::Denied,"Only a Lightek infrastructure operator can install generation engines" unless operator?(access.user)
         installation=installations(site:site,actor:access.user).find(payload.fetch("installation_id"))
         ::Gatekeeper::Hosting::Access.authorize!(access.user,installation.gatekeeper_node)
         ::Gatekeeper::Hosting::Access.active!(installation.gatekeeper_node)
@@ -43,7 +45,9 @@ module Studio
         end
       end
       def self.status(access:, payload:)
-        site=site_for(access,payload.fetch("scene_id"));state=site.manifest.to_h["studio_ai_install"].to_h
+        site=site_for(access,payload.fetch("scene_id"))
+        return {can_manage:false,active:site.manifest.to_h["studio_ai_worker"].present?,install:{},workers:[],packages:[]} unless operator?(access.user)
+        state=site.manifest.to_h["studio_ai_install"].to_h
         if ACTIVE.include?(state["status"]) && Time.iso8601(state.fetch("started_at"))<130.minutes.ago
           site.with_lock do
             current=site.manifest.to_h["studio_ai_install"].to_h
@@ -71,7 +75,7 @@ module Studio
             state=state.merge("progress_message"=>"Server progress is temporarily unavailable. Setup may still be running.")
           end
         end
-        {install:state.slice("status","request_id","installation_id","package_id","device","phase","model","downloaded_bytes","total_bytes","message","progress_message"),
+        {can_manage:true,install:state.slice("status","request_id","installation_id","package_id","device","phase","model","downloaded_bytes","total_bytes","message","progress_message"),
           workers:targets.map{|i|{id:i.id,domain:i.domain}},
           packages:catalog.fetch("packages").map{|id,p|{id:id,name:p["name"],devices:p["devices"],ram_gib:p["ram_gib"],free_disk_gib:p["free_disk_gib"],vram_mib:p["vram_mib"]}},
           active:site.manifest.to_h["studio_ai_worker"].present?}

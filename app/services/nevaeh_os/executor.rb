@@ -18,6 +18,10 @@ module NevaehOs
           Studio::Director::Producer.normalize(command.fetch('values'))
         elsif command['operation']=='retry'
           Studio::Director::Producer.voice_operation!(command.fetch('id'), actor: actor)
+        elsif command['operation']=='rehearse'
+          Studio::Director::Rehearsal.production!(command.fetch('id'),actor:actor)
+        elsif %w[rehearsal_status rehearsal_apply].include?(command['operation'])
+          Studio::Director::Rehearsal.find!(command.fetch('id'),actor:actor)
         elsif command['operation']=='story_status'
           Studio::Director::StoryPipeline.find!(command.fetch('id'),actor:actor)
         elsif %w[status animate assemble publish render story story_step blocking].include?(command['operation'])
@@ -112,6 +116,9 @@ module NevaehOs
         case command.fetch('operation')
         when 'start' then producer.start!(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')), values: command.fetch('values'), request_key: "nevaeh-production-#{action.id}")
         when 'status' then producer.receipt(producer.find!(command.fetch('id'), actor: actor), actor: actor)
+        when 'rehearse' then Studio::Director::Rehearsal.start!(production:Studio::Director::Rehearsal.production!(command.fetch('id'),actor:actor),actor:actor,values:command.fetch('values',{}),request_key:"nevaeh-rehearsal-#{action.id}")
+        when 'rehearsal_status' then Studio::Director::Rehearsal.receipt(Studio::Director::Rehearsal.find!(command.fetch('id'),actor:actor),actor:actor)
+        when 'rehearsal_apply' then Studio::Director::Rehearsal.apply!(operation:Studio::Director::Rehearsal.find!(command.fetch('id'),actor:actor),actor:actor)
         when 'story' then Studio::Director::StoryPipeline.start!(production:producer.find!(command.fetch('id'),actor:actor),actor:actor,values:command.fetch('values'),request_key:"nevaeh-story-#{action.id}")
         when 'story_step' then Studio::Director::StoryPipeline.step!(production:producer.find!(command.fetch('id'),actor:actor),actor:actor,values:command.fetch('values'),request_key:"nevaeh-story-step-#{action.id}")
         when 'story_status' then Studio::Director::StoryPipeline.receipt(Studio::Director::StoryPipeline.find!(command.fetch('id'),actor:actor))

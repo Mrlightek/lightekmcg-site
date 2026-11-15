@@ -6,7 +6,12 @@ module NevaehOs
     def for(action)
       value = {id:action.id,status:action.status,result:action.result,error:action.error,created_at:action.created_at,kind:action.command['kind']}
       return value unless action.status == 'completed'
-      if action.command['kind'] == 'production' && action.result['production_id']
+      if action.command['kind']=='production' && action.result['rehearsal_id']
+        service=Studio::Director::Rehearsal
+        receipt=service.receipt(service.find!(action.result['rehearsal_id'],actor:action.user),actor:action.user)
+        value[:downstream]={type:'rehearsal',id:receipt['rehearsal_id'],status:receipt['status'],result:receipt}
+        value[:status]=%w[pending running].include?(receipt['status']) ? 'dispatched' : %w[failed needs_attention].include?(receipt['status']) ? 'failed' : 'completed'
+      elsif action.command['kind'] == 'production' && action.result['production_id']
         producer = Studio::Director::Producer
         receipt = producer.receipt(producer.find!(action.result['production_id'], actor: action.user), actor: action.user)
         value[:downstream] = {type:'directed_production', id:receipt['production_id'], status:receipt['status'], result:receipt}

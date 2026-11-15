@@ -88,6 +88,7 @@ Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/
 | Capability | Implemented behavior |
 | --- | --- |
 | Business growth brief | Per-website offering, audience, problem, value, voice and dated goal; editor identity and optimistic revision checks. |
+| Website growth audit and guided fixes | Bounded native CMS rendering, immutable evidence/coverage, owner-scoped metadata and registered section edits, explicit preview/apply/recheck/rollback and evidence-backed daily recommendations; [operating guide](docs/sales/website-growth-audits.md). |
 | Publishing calendar and Studio export handoff | Retained JPEG/PNG/MP4 export bindings, issuing-host media links, reviewed-version social schedules, timezone-aware times, current operator checks, durable claims and separate submitted/published/reconciliation states; [operating guide](docs/sales/publishing-calendar.md). |
 | Campaign content workbench | Offer/problem/benefit drafts through the shared writer, editable revisions, attributable saved-copy approval and payload fingerprints checked before existing sends/publication. |
 | Focused campaign Studio production | Social portrait/square/landscape formats, offer/audience/goal/CTA brief, preserved creative edits on reopen and explicit script replacement; [content and Studio guide](docs/sales/campaign-content-review.md). |
@@ -269,6 +270,7 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Basic exports | PNG/MP4 exports into the existing media library, downloadable results and isolated server-side video rendering. |
 | Campaign connection | Create/reopen a campaign production with its brief and return link, retaining website context. |
 | Native Blender library | Approved demo/source imports, prepared metadata, pinned editable `.blend` attachments and optional GLB browser proxies. |
+| CPU economy rendering | Explicit Cycles CPU profile capped at 512 px / 8 samples, one-thread execution, application-host render slots, verified per-operation frame checkpoints, real progress/metrics and authorized paid-render resume. See [CPU economy](docs/studio/cpu-economy.md). |
 | Native authoring | Outliner/Inspector, source-object transforms, visibility, duplication/removal, cameras, lights, material overrides, exposed Geometry Nodes parameters and named modifier stacks with typed values, viewport/render toggles, ordering, removal and undo. |
 | Advanced workstation/finishing | Existing Blender workspaces and a separate timeline/mix/export path with transforms, fades, speed, titles, picture adjustments, MP4/ProRes and WAV output contracts. |
 | Cast & Performance | Native toon creation or compatible packed character registration, placements, recorded audio takes, saved facial/gesture cues and animated preview/shot export. |
@@ -370,7 +372,7 @@ When a capability changes, update its owning guide and this catalog, retain the 
 | Workspace | Conversation, Studio/Guide/learning navigation, agent selection, workers, watchers, recent-action reopen, source evidence, memory controls, responsive layout; former astronomy interface retired. |
 | Campaign producer | Editable portrait ad script/storyboard, graphics, music, captions and private MP4 draft preview. |
 | Episode preparation | Existing recipes and show bibles, independent long-form episode scenes, camera coverage and local stock-voice dialogue. |
-| Character direction | Automatic placement of registered Cast assets, audio-driven mouth animation, available gestures/expressions and optional registered body motions; one take per character per scene, pinned speaker/series identity, deliberate listener targets and personal-space/collision preflight. |
+| Character direction | Automatic placement of registered Cast assets, audio-driven mouth animation, available gestures/expressions and optional registered body motions; up to 32 non-overlapping takes per character per scene, pinned speaker/series identity, deliberate listener targets and personal-space/collision preflight. |
 | Scene render | Full-scene Blender movie snapshots and existing paid render quotes, replay protection and Studio checkout. |
 | Episode assembly | Current complete scene exports in saved scene order; pinned media and source checks, verified 1080p MP4 with stereo audio, up to four hours across multiple scene timelines. |
 | Reviewed delivery | Explicitly reviewed Director masters dispatched through existing native community/OTT publishers, with current permissions and per-destination receipts. TikTok Direct Post and Instagram Reels transports use existing scoped connections, explicit settings, polling and uncertain-response reconciliation; Facebook Studio video transport remains unimplemented. |
@@ -386,3 +388,14 @@ Guides: [Campaign producer](docs/nevaeh/tutorials/campaign_producer.md), [Produc
 | Physical plausibility | Scene-metre personal space, explicit close contact, per-frame evaluated mesh collision checks, parent-relative camera placement and target-focused perspective/DOF. Detection stops invalid blocking; it does not add automatic path solving or subframe physics. |
 
 Guides: [Story simulation](docs/nevaeh/tutorials/story_simulation.md) and [Social delivery](docs/nevaeh/tutorials/social_delivery.md). Real social provider approval/configuration and live production acceptance remain deployment checks.
+
+### Shared Nevaeh stage and rehearsals
+
+| Capability | Current behavior |
+| --- | --- |
+| Shared graphical stage | Eight persistent work tabs for owned productions, task receipts, workers, guides, learning and internal Dashboard pages; script, saved XY blocking, embedded Studio and preview remain beside chat. |
+| Reactive virtual assistant | Illustrated animated assistant in the workspace and Dashboard dock; reflects real request, voice, job and attention states and brings the current page into the shared workspace. |
+| Blocking rehearsal | Forked, private Blender Workbench preview with bounded obstacle routing, personal-space correction and full-scene spatial audit. Reviewed corrections apply only to the unchanged source revision. |
+| Dialogue continuity | Reuses pinned Cast objects across successive lines, retains each audio source and schedules speaker/listener gaze cues. |
+
+See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md) for limits, recovery and deployment. Root routing does not generate a walk cycle or guarantee artistic facial/eye animation. The assistant is a reactive graphical foundation, with existing authorized command execution.

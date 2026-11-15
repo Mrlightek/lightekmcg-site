@@ -1,0 +1,102 @@
+<% title = {'lead' => 'Lead', 'account' => 'Company', 'contact' => 'Contact', 'opportunity' => 'Deal', 'routing_rule' => 'Routing rule'}.fetch(@kind) %>
+<% content_for :page_title, "#{title} · Sales & CRM" %>
+<main class="sales-workspace">
+  <%= render 'header' %>
+  <div class="sales-record-heading"><div><span class="sales-eyebrow"><%= @record.persisted? ? 'BUILD THE RELATIONSHIP' : 'START SOMETHING NEW' %></span><h2><%= @record.persisted? ? (@kind == 'contact' ? @record.email : @kind == 'routing_rule' ? @record.source : @record.name) : "New #{title.downcase}" %></h2></div><%= link_to 'Back to sales', dashboard_sales_path(site_id: @site.id), class: 'sales-button secondary' %></div>
+  <% if @record.errors.any? %><div class="sales-errors" role="alert"><h3>Review these fields</h3><ul><% @record.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div><% end %>
+  <% if @kind == 'opportunity' %><aside class="sales-coach"><span class="sales-eyebrow">YOUR NEXT CONVERSATION</span><p><%= @record.guidance %></p></aside><% end %>
+  <% converted = @kind == 'lead' && @record.converted_at? %>
+  <% if converted %>
+    <section class="sales-panel"><h2>This lead is now a deal</h2><p>Continue the relationship on its company, contact and deal records.</p><%= link_to 'Open deal', record_url('opportunity', @record.opportunity), class: 'sales-button' %></section>
+  <% else %>
+    <section class="sales-panel sales-editor">
+      <div class="sales-panel-title"><div><h2><%= title %> details</h2><p>Keep the essentials clear. You can refine the rest as you learn.</p></div></div>
+      <%= form_with model: @record, scope: :record, url: (@record.persisted? ? record_url(@kind, @record) : dashboard_sales_records_path(kind: @kind, site_id: @site.id)), method: (@record.persisted? ? :patch : :post), class: 'sales-form' do |f| %>
+        <%= f.hidden_field :lock_version if @record.persisted? %>
+        <div class="sales-form-grid">
+          <% if @kind == 'contact' %>
+            <label>Email address<%= f.email_field :email, required: true, readonly: @record.persisted?, maxlength: 254, autocomplete: 'email' %><small>Existing addresses retain their marketing permission history.</small></label>
+            <label>Full name<%= f.text_field :name, maxlength: 160, autocomplete: 'name' %></label>
+            <label>Phone<%= f.telephone_field :phone, maxlength: 80, autocomplete: 'tel' %></label>
+            <label>Job title<%= f.text_field :job_title, maxlength: 160 %></label>
+            <label>Company<%= f.collection_select :sales_account_id, @accounts, :id, :name, include_blank: 'No company' %></label>
+            <label>Sales owner<%= f.collection_select :sales_owner_id, @owners, :id, :email_address, include_blank: 'Unassigned' %></label>
+            <label class="full">Relationship notes<%= f.text_area :sales_notes, rows: 5, maxlength: 20000 %></label>
+          <% elsif @kind == 'routing_rule' %>
+            <label>Lead source<%= f.text_field :source, required: true, maxlength: 80, placeholder: 'referral' %><small>Matches the source entered on new leads, ignoring case.</small></label>
+            <label>Assign to<%= f.collection_select :owner_id, @owners, :id, :email_address, {}, required: true %></label>
+          <% else %>
+            <label class="full"><%= @kind == 'account' ? 'Company name' : @kind == 'lead' ? 'Full name' : 'Deal name' %><%= f.text_field :name, required: true, maxlength: 160, placeholder: (@kind == 'opportunity' ? 'Website & monthly services' : nil) %></label>
+            <% if @kind == 'lead' %>
+              <label>Email address<%= f.email_field :email, required: true, maxlength: 254, autocomplete: 'email' %></label>
+              <label>Company<%= f.text_field :company, required: true, maxlength: 160 %></label>
+              <label>Phone<%= f.telephone_field :phone, maxlength: 80 %></label>
+              <label>Source<%= f.text_field :source, maxlength: 80, placeholder: 'referral, website, event' %></label>
+              <label>Status<%= f.select :status, LightekSales::Lead::STATUSES.reject { |status| status == 'converted' }.map { |status| [status.humanize, status] } %></label>
+            <% elsif @kind == 'account' %>
+              <label>Website<%= f.text_field :website, maxlength: 300, placeholder: 'example.com' %></label>
+            <% elsif @kind == 'opportunity' %>
+              <label>Company<%= f.collection_select :account_id, @accounts, :id, :name, {include_blank: 'Choose company'}, required: true %><small><%= link_to 'Create company first', new_dashboard_sales_record_path(kind: 'account', site_id: @site.id) %></small></label>
+              <label>Contact<%= f.collection_select :contact_id, @contacts, :id, :email, include_blank: 'No contact' %><small>Choose a contact belonging to this company.</small></label>
+              <label>Stage<%= f.select :stage, LightekSales::Opportunity::STAGES.keys.map { |stage| [stage.humanize, stage] } %></label>
+              <label>Forecast category<%= f.select :forecast_category, [['Pipeline', 'pipeline'], ['Best case', 'best_case'], ['Commit', 'commit'], ['Omitted', 'omitted']] %></label>
+              <label>Deal value<%= f.number_field :amount, value: @record.amount, min: 0, step: '0.01', required: true %><small>Total expected value in the selected currency.</small></label>
+              <label>Currency<%= f.select :currency, LightekSales::Opportunity::CURRENCIES %></label>
+              <label>Expected close date<%= f.date_field :close_on, required: true %></label>
+              <label>Probability (%)<%= f.number_field :probability, min: 0, max: 100, step: 1, required: true %><small>Stage changes apply a default unless you change probability too.</small></label>
+              <label class="full">Loss reason<%= f.text_field :loss_reason, maxlength: 300, placeholder: 'Required when closing a deal as lost' %></label>
+            <% end %>
+            <label>Sales owner<%= f.collection_select :owner_id, @owners, :id, :email_address, include_blank: (@kind == 'lead' && @record.new_record? ? 'Use source routing' : 'Unassigned') %></label>
+            <% if @kind.in?(%w[lead opportunity]) %>
+              <label>Follow-up date<%= f.date_field :follow_up_on %></label>
+              <label class="full">Next step<%= f.text_field :next_step, maxlength: 300, placeholder: 'Call Jamie on Tuesday to review the proposal' %></label>
+            <% end %>
+            <label class="full">Notes<%= f.text_area :notes, rows: 5, maxlength: 20000, placeholder: 'Needs, budget, decision maker, timing and useful context' %></label>
+          <% end %>
+        </div>
+        <div class="sales-form-footer"><p><%= @kind == 'contact' ? 'Saving a contact does not subscribe them to marketing.' : 'Clear records make the next conversation easier.' %></p><%= f.submit "Save #{title.downcase}", class: 'sales-button' %></div>
+      <% end %>
+    </section>
+  <% end %>
+  <% if @kind == 'lead' && @record.persisted? && !converted %>
+    <section class="sales-panel"><span class="sales-eyebrow">FROM INTEREST TO OPPORTUNITY</span><h2>Convert qualified lead</h2><p>First save this lead as Qualified. Conversion creates a deal and reuses matching company and contact records. An existing contact’s company and marketing permissions are preserved.</p>
+      <%= form_with url: convert_dashboard_sales_lead_path(id: @record.id, site_id: @site.id), scope: :conversion, class: 'sales-form' do |f| %>
+        <%= f.hidden_field :lock_version, value: @record.lock_version %>
+        <div class="sales-form-grid"><label>Deal name<%= f.text_field :name, value: "#{@record.company} opportunity", required: true, maxlength: 160 %></label><label>Deal value<%= f.number_field :amount, value: '0.00', min: 0, step: '0.01', required: true %></label><label>Currency<%= f.select :currency, LightekSales::Opportunity::CURRENCIES %></label><label>Expected close date<%= f.date_field :close_on, value: Date.current + 30, required: true %></label></div>
+        <%= f.submit 'Convert to deal', class: 'sales-button', disabled: @record.status != 'qualified' %>
+      <% end %>
+    </section>
+  <% end %>
+  <% if @record.persisted? && @kind == 'opportunity' && @record.errors.empty? %>
+    <section class="sales-panel"><h2>Connected relationship</h2><p><%= link_to @record.account.name, record_url('account', @record.account) %><% if @record.contact %> · <%= link_to @record.contact.email, record_url('contact', @record.contact) %><% end %></p><%= link_to 'Open Commerce', dashboard_commerce_path(site_id: @site.id), class: 'sales-button secondary' if @commerce_access %></section>
+  <% end %>
+  <% if @related_deals %>
+    <section class="sales-panel"><h2>Connected deals</h2>
+      <% @related_deals.each do |deal| %><div class="sales-follow-up"><%= link_to deal.name, record_url('opportunity', deal) %><span><%= deal.stage.humanize %> · <%= deal.currency %> <%= deal.amount %></span></div><% end %>
+      <% if @related_deals.empty? %><p>No deals linked yet.</p><% end %>
+      <% if @kind == 'account' %>
+        <p><%= link_to '+ New deal for this company', new_dashboard_sales_record_path(kind: 'opportunity', site_id: @site.id, account_id: @record.id) %></p>
+        <h3>People at this company</h3><% @related_contacts.each do |contact| %><p><%= link_to contact.name.presence || contact.email, record_url('contact', contact) %></p><% end %>
+        <%= link_to '+ Add contact', new_dashboard_sales_record_path(kind: 'contact', site_id: @site.id, account_id: @record.id) %>
+      <% else %>
+        <% if @record.sales_account %><p>Company: <%= link_to @record.sales_account.name, record_url('account', @record.sales_account) %></p><% end %>
+        <p>Marketing permission: <%= @record.subscribed_at? && !@record.unsubscribed_at? ? 'Subscribed' : 'Not subscribed' %></p>
+        <%= link_to 'Purchase history', history_dashboard_customers_path(site_id: @site.id, email: @record.email), class: 'sales-button secondary' if @commerce_access %>
+      <% end %>
+      <small>Up to 50 related records of each type.</small>
+    </section>
+  <% end %>
+  <% if @record.persisted? %>
+    <section class="sales-two-col">
+      <article class="sales-panel"><span class="sales-eyebrow">KEEP THE CONTEXT</span><h2>Log a conversation</h2><p>Record what happened and update the next step above.</p>
+        <%= form_with url: dashboard_sales_activities_path(kind: @kind, id: @record.id, site_id: @site.id), scope: :activity, class: 'sales-form' do |f| %>
+          <label>Activity type<%= f.select :kind, %w[note call meeting email].map { |kind| [kind.humanize, kind] } %></label><label>What happened?<%= f.text_area :body, rows: 5, required: true, maxlength: 20000 %></label><%= f.submit 'Log activity', class: 'sales-button secondary' %>
+        <% end %>
+      </article>
+      <article class="sales-panel"><span class="sales-eyebrow">RELATIONSHIP HISTORY</span><h2>Activity timeline</h2>
+        <% @activities.each do |activity| %><div class="sales-timeline"><div><strong><%= activity.kind.humanize %></strong><time datetime="<%= activity.created_at.iso8601 %>"><%= activity.created_at.to_fs(:short) %></time></div><p><%= activity.body %></p><small><%= activity.actor.email_address %></small></div><% end %>
+        <% if @activities.empty? %><p class="sales-empty">No activity yet. Log your first conversation.</p><% end %>
+      </article>
+    </section>
+  <% end %>
+</main>

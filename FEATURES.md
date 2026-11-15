@@ -11,6 +11,7 @@ This is the current product inventory for the Rails host. Module guides describe
 | Finish first super-admin sign-in | Sign-in security | [MFA setup and recovery](docs/security/sign-in-and-mfa.md) |
 | Operate Nevaeh or delegate work | Nevaeh operating workspace; Control Center | [Operating workspace](docs/nevaeh_operating_system.md) |
 | Build a website or publish an article | Design & Content | [Site themes and journal](docs/cms/site-themes-and-journal.md) |
+| Manage sales relationships | Sales & CRM | [Sales workflow and roadmap](docs/sales/crm.md) |
 | Sell and fulfill | Business; Commerce; Marketplace | [Platform operations](docs/commerce/platform-operations.md) |
 | Manage the organization or payroll | People & Access | [People and payroll](docs/people/organization-benefits-payroll.md) |
 | Keep books and reconcile statements | Finance → Books & accounting | [Enterprise operations](docs/enterprise-directory-and-accounting.md) |
@@ -100,6 +101,21 @@ Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/
 **Operating scope:** HTML imports do not execute uploaded scripts or install arbitrary WordPress plugins. Custom widgets/forms need application wiring. Dashboard colors and PWA colors are separate settings; the PWA does not yet have the full Dashboard palette editor.
 
 Guides: [site themes and journal](docs/cms/site-themes-and-journal.md), [Design Studio](docs/lightek_design_studio.md), [HTML imports](docs/html_design_imports.md), [starter library](docs/website_template_library.md), [PWA administration](docs/lightek_pwa_administration.md).
+
+## Sales & CRM foundation
+
+| Capability | Implemented behavior |
+| --- | --- |
+| Leads and qualification | Website-scoped prospects with source, owner, status, next action and follow-up date |
+| Companies and shared contacts | Company relationships and enriched existing Marketing contacts; company/deal links and contact purchase history; consent remains independent |
+| Lead conversion | Qualified lead → company/contact/deal in one transaction; same-site matching, existing contact-company retention, idempotent repeat and rollback on failure |
+| Deal pipeline | Discovery, Qualified, Proposal, Negotiation, Won and Lost; amount/currency, probability, close date, forecast category and stage-specific guidance |
+| Daily follow-through | Due follow-ups, overdue expected close dates and active records missing a next step or follow-up date |
+| Lead assignment | Owner-managed exact source rules, explicit override and eligible-owner fallback; revoked memberships cannot receive new assignments |
+| Sales forecast | Monthly and owner-filtered open/weighted/commit/best-case/won/lost values; USD/CAD/EUR/GBP/AUD remain separate; estimates do not become payment or ledger records |
+| Activity and access | Notes/calls/meetings/email logs and mutation history; site membership, scoped associations, current-version edits and Commerce package boundary |
+
+Guide: [Sales & CRM](docs/sales/crm.md). The first release includes native Dashboard navigation and responsive forms/boards. It does not claim enterprise CRM parity: intake adapters, email/calendar synchronization, quote/order automation, customizable stages, round-robin/territory routing, quotas, forecast snapshots and Nevaeh sales capabilities remain sequenced follow-up work.
 
 ## 5. Marketplace, commerce, subscriptions and shipping
 

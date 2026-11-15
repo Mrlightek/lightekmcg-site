@@ -1,0 +1,75 @@
+<% content_for :page_title, 'Sales & CRM' %>
+<main class="sales-workspace">
+  <%= render 'header' %>
+  <section class="sales-toolbar">
+    <%= form_with url: dashboard_sales_path, method: :get, class: 'sales-filters' do %>
+      <%= hidden_field_tag :site_id, @site.id %><%= hidden_field_tag :tab, @tab %>
+      <label>Find a record<%= search_field_tag :q, params[:q], placeholder: 'Name or contact email', maxlength: 160 %></label>
+      <label>Sales owner<%= select_tag :owner_id, options_from_collection_for_select(@owners, :id, :email_address, @owner_id), include_blank: 'All owners' %></label>
+      <label>Forecast month<%= month_field_tag :month, @month.strftime('%Y-%m') %></label>
+      <%= submit_tag 'Apply', class: 'sales-button secondary' %>
+    <% end %>
+    <div class="sales-actions"><%= link_to '+ New lead', new_dashboard_sales_record_path(kind: 'lead', site_id: @site.id), class: 'sales-button' %><%= link_to '+ New deal', new_dashboard_sales_record_path(kind: 'opportunity', site_id: @site.id), class: 'sales-button secondary' %></div>
+  </section>
+  <section class="sales-summary" aria-label="Sales overview">
+    <article><span>Active leads</span><strong><%= @lead_count %></strong><small>New, contacted or qualified</small></article>
+    <article><span>Open deals</span><strong><%= @deal_count %></strong><small>Discovery through negotiation</small></article>
+    <article><span>Your sales rhythm</span><strong class="sales-summary-copy">One clear next step.</strong><small>Review due follow-ups, then move a relationship forward.</small></article>
+  </section>
+  <% if @tab == 'today' %>
+    <section class="sales-two-col">
+      <article class="sales-panel"><div class="sales-panel-title"><span class="sales-eyebrow">MAKE YOUR NEXT MOVE</span><h2>Follow-ups & overdue deals</h2></div>
+        <% if @due_leads.empty? && @due_deals.empty? %><p class="sales-empty">You’re clear for today. Add a lead or schedule your next conversation.</p><% end %>
+        <% @due_leads.each do |lead| %><%= render 'follow_up', record: lead, kind: 'lead' %><% end %>
+        <% @due_deals.each do |deal| %><%= render 'follow_up', record: deal, kind: 'opportunity' %><% end %>
+        <small>Up to 100 leads and 100 deals, earliest dates first.</small>
+      </article>
+      <article class="sales-panel"><div class="sales-panel-title"><span class="sales-eyebrow">KEEP MOMENTUM</span><h2>Give these a next step</h2></div>
+        <p>Every active relationship benefits from a specific action and a date.</p>
+        <% if @missing_leads.empty? && @missing_deals.empty? %><p class="sales-empty">Every active record has a next step and follow-up date.</p><% end %>
+        <% @missing_leads.each do |lead| %><%= render 'follow_up', record: lead, kind: 'lead' %><% end %>
+        <% @missing_deals.each do |deal| %><%= render 'follow_up', record: deal, kind: 'opportunity' %><% end %>
+        <small>Up to 100 records of each type.</small>
+      </article>
+    </section>
+  <% elsif @tab == 'pipeline' %>
+    <section class="sales-board" aria-label="Deal stages">
+      <% @pipeline.each do |stage, deals| %>
+        <section class="sales-column"><h2><%= stage.humanize %> <span><%= @stage_counts.fetch(stage, 0) %></span></h2>
+          <p class="sales-stage-guide"><%= LightekSales::Opportunity::GUIDANCE.fetch(stage) %></p>
+          <% deals.each do |deal| %><article class="sales-deal">
+            <small><%= deal.account.name %></small><h3><%= link_to deal.name, record_url('opportunity', deal) %></h3>
+            <strong><%= deal.currency %> <%= number_with_precision(deal.amount_cents / 100.0, precision: 2, delimiter: ',') %></strong>
+            <p><%= deal.next_step.presence || 'Add your next step' %></p>
+            <footer><span>Close <%= deal.close_on %></span><span><%= deal.probability %>%</span></footer>
+            <small><%= deal.owner&.email_address || 'Unassigned' %></small>
+          </article><% end %>
+          <% if deals.empty? %><p class="sales-empty">No deals in this stage.</p><% end %>
+          <% if @stage_counts.fetch(stage, 0) > 40 %><small>Showing first 40. Filter by name or owner to narrow the list.</small><% end %>
+        </section>
+      <% end %>
+    </section>
+  <% else %>
+    <section class="sales-panel">
+      <% kind = {'leads' => 'lead', 'accounts' => 'account', 'contacts' => 'contact', 'routing' => 'routing_rule'}.fetch(@tab) %>
+      <div class="sales-panel-title"><h2><%= {'leads' => 'Leads', 'accounts' => 'Companies', 'contacts' => 'Contacts', 'routing' => 'Lead routing'}.fetch(@tab) %></h2><%= link_to "Add #{kind == 'account' ? 'company' : kind.humanize.downcase}", new_dashboard_sales_record_path(kind: kind, site_id: @site.id), class: 'sales-button secondary' if @tab != 'routing' || @manage_routing %></div>
+      <% if @tab == 'routing' %><p>Match a lead’s source to an owner. New leads without an explicit owner use this rule, then the eligible person entering the lead, then the website owner. Existing leads keep their assignment.</p><% end %>
+      <% if @tab == 'contacts' %><p>These are the same contacts used by Marketing. Sales entry and lead conversion preserve existing subscription permissions.</p><% end %>
+      <div class="sales-table-scroll"><table><thead><tr><th>Record</th><th><%= @tab == 'leads' ? 'Company / status' : @tab == 'contacts' ? 'Company' : 'Details' %></th><th>Owner</th></tr></thead><tbody>
+        <% @records.each do |record| %><tr>
+          <td><%= link_to (kind == 'contact' ? record.email : kind == 'routing_rule' ? record.source : record.name), record_url(kind, record) %><% if kind == 'lead' %><small><%= record.email %></small><% elsif kind == 'contact' %><small><%= record.name %></small><% end %></td>
+          <td><%= case kind; when 'lead' then "#{record.company} · #{record.status.humanize}"; when 'contact' then record.sales_account&.name || 'No company'; when 'account' then record.website.presence || 'Company account'; else 'Exact source match'; end %></td>
+          <td><%= (kind == 'contact' ? record.sales_owner : record.owner)&.email_address || 'Unassigned' %></td>
+        </tr><% end %>
+      </tbody></table></div>
+      <% if @records.empty? %><p class="sales-empty">No records here yet. Create your first one to get started.</p><% end %><small>Showing up to 200 records. Use the filters to narrow the list.</small>
+    </section>
+  <% end %>
+  <section class="sales-panel sales-forecast"><div class="sales-panel-title"><div><span class="sales-eyebrow">LOOK AHEAD</span><h2><%= @month.strftime('%B %Y') %> forecast</h2></div><span class="sales-badge">Expected close dates</span></div>
+    <p>Weighted pipeline uses each deal’s probability. Commit is the owner’s judgment; best case includes commit. Omitted open deals are excluded. Won is a sales status; payment and booked revenue are tracked separately in Commerce and Accounting.</p>
+    <div class="sales-table-scroll"><table><thead><tr><th>Currency</th><th>Open pipeline</th><th>Weighted</th><th>Commit</th><th>Best case</th><th>Won</th><th>Lost</th></tr></thead><tbody>
+      <% @forecast.each do |row| %><tr><td><strong><%= row[:currency] %></strong></td><% %i[open_cents weighted_cents commit_cents best_case_cents won_cents lost_cents].each do |key| %><td><%= number_with_precision(row[key] / 100.0, precision: 2, delimiter: ',') %></td><% end %></tr><% end %>
+    </tbody></table></div>
+    <% if @forecast.empty? %><p class="sales-empty">Add a deal with an expected close date in this month to see a forecast.</p><% end %>
+  </section>
+</main>

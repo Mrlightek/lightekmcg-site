@@ -12,6 +12,7 @@ class SusuPayoutAccountsController < ApplicationController
   def show
     @payout_schedule = LightekCommerce::PayoutSchedule.for!(current_user)
     @payout_status = LightekPayments::PayoutAccounts.status(current_user)
+    @payout_configuration = LightekPayments::PayoutAccounts.configuration_status
   end
 
   def connection_status
@@ -23,7 +24,7 @@ class SusuPayoutAccountsController < ApplicationController
     # connected-account ID, bank details, tax IDs or identity documents here.
     render json: LightekPayments::PayoutAccounts.session!(current_user, component: params[:component].presence || 'account-onboarding')
   rescue LightekPayments::PayoutAccounts::Unavailable => error
-    render json: {error: error.message, replaceable: error.replaceable}, status: :unprocessable_entity
+    render json: {error: error.message, code: error.code, replaceable: error.replaceable}, status: :unprocessable_entity
   end
 
   def replace

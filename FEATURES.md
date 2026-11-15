@@ -148,7 +148,7 @@ Guides: [Sales & CRM](docs/sales/crm.md) · [Inquiry intake and follow-through](
 | --- | --- |
 | Marketplace product editor | Groups, one-time/free/monthly/yearly options, billing versions and reviewed delivery connections. |
 | Store catalogs | Site-scoped products, variants, prices, inventory/stock rules and native storefront/cart integration. |
-| Owner-scoped payout setup | Embedded onboarding/account management, direct MFA, fresh payout capability checks, provider-neutral UI and explicit audited repair of inaccessible references. Connected installations resolve the actual merchant chain. [Guide](docs/payments/payout-accounts.md). |
+| Owner-scoped payout setup | Embedded onboarding/account management, direct MFA, fresh payout capability checks, provider-neutral UI and prominent audited repair of inaccessible references, and visible hosted verification when embedded configuration is unavailable. Connected installations resolve the actual merchant chain. [Guide](docs/payments/payout-accounts.md). |
 | Orders and payment lifecycle | Existing Bank/Stripe checkout, verified webhook handling, initial and recurring payments, failed/past-due/canceled states and order snapshots. |
 | Fulfillment | Product/service delivery, application access, hosting handoffs and operational order status. |
 | Subscriptions | Frozen purchased terms, renewals and cancellation through the existing billing contracts. |

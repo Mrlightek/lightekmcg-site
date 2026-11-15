@@ -3,19 +3,20 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname,'../../public/lightek/payout-accounts.js'),'utf8');
 function element(dataset={}) {return {dataset, hidden:false,disabled:false,textContent:'',events:{},children:[],addEventListener(name,fn){this.events[name]=fn;},replaceChildren(...children){this.children=children;}};}
-function harness(responses) {
+function harness(responses, initialState, sdkMode='ready') {
   const opens=[element({payoutOpen:'account-onboarding'}),element({payoutOpen:'account-management'})];
   const error=element(),component=element(),badge=element(),status=element(),refresh=element();
   const nodes={'[data-payout-error]':error,'[data-payout-component]':component,'[data-payout-badge]':badge,'[data-payout-status]':status,'[data-payout-refresh]':refresh};
-  const root=element({sessionUrl:'/session',statusUrl:'/status'});
+  const root=element({sessionUrl:'/session',statusUrl:'/status',payoutState:initialState});
   root.querySelector=selector=>nodes[selector];root.querySelectorAll=()=>opens;
-  const events={},requests=[],sdkOptions=[],components=[];let logouts=0;
+  const events={},requests=[],sdkOptions=[],components=[];let logouts=0,reloads=0;
   const sdk={init(options){sdkOptions.push(options);return {create(name){components.push(name);return {setOnLoadError(fn){this.onError=fn;},setOnExit(fn){this.onExit=fn;}};},logout(){logouts++;return Promise.resolve();}};}};
-  const document={querySelector(selector){return selector==='[data-payout-workspace]'?root:selector==='meta[name="csrf-token"]'?{content:'csrf-fixture'}:null;},addEventListener(name,fn){events[name]=fn;},head:{appendChild(){throw Error('unexpected provider script before an explicit action');}}};
-  vm.runInNewContext(source,{document,window:{StripeConnect:sdk},AbortController,URL,location:{origin:'https://example.test'},getComputedStyle:()=>({getPropertyValue:()=>''}),fetch:async(url,options)=>{
+  const providerWindow={StripeConnect:sdkMode==='ready'?sdk:undefined};
+  const document={createElement:()=>({}),querySelector(selector){return selector==='[data-payout-workspace]'?root:selector==='meta[name="csrf-token"]'?{content:'csrf-fixture'}:null;},addEventListener(name,fn){events[name]=fn;},head:{appendChild(script){if(sdkMode==='blocked') script.onerror(); else if(sdkMode==='callback'){script.onload(); providerWindow.StripeConnect.init=sdk.init; providerWindow.StripeConnect.onLoad();} else throw Error('unexpected provider script before an explicit action');}}};
+  vm.runInNewContext(source,{document,window:providerWindow,AbortController,URL,location:{origin:'https://example.test',reload(){reloads++;}},setTimeout,clearTimeout,getComputedStyle:()=>({getPropertyValue:()=>''}),fetch:async(url,options)=>{
     requests.push({url,options});const response=responses.shift();if(response instanceof Error)throw response;return {ok:response.ok!==false,headers:{get:()=>response.type||'application/json'},json:async()=>response.data};
   }});
-  return {opens,error,component,badge,status,refresh,requests,sdkOptions,components,events,get logouts(){return logouts;}};
+  return {opens,error,component,badge,status,refresh,requests,sdkOptions,components,events,get logouts(){return logouts;},get reloads(){return reloads;}};
 }
 (async()=>{
   const h=harness([{data:{client_secret:'ephemeral-1',publishable_key:'pk_test_fixture'}},{data:{client_secret:'ephemeral-2',publishable_key:'pk_test_fixture'}},{data:{state:'ready'}}]);
@@ -42,8 +43,31 @@ function harness(responses) {
   assert.equal(denied.error.hidden,false);
   assert(!denied.error.textContent.includes('sk_live_private'));
   assert.equal(denied.component.children.length,0);
+  const repair=harness([{ok:false,data:{code:'connection_unavailable',error:'sk_live_private'}}]);
+  await repair.opens[0].events.click();
+  assert.match(repair.error.textContent,/review connection repair/);
+  assert(repair.opens.every(button=>button.disabled));
+  const fallback=harness([{ok:false,data:{code:'embedded_configuration'}}]);
+  await fallback.opens[0].events.click();
+  assert.match(fallback.error.textContent,/Open secure verification/);
+  const changed=harness([{data:{state:'unavailable',replaceable:true}}], 'needs_information');
+  await changed.refresh.events.click();
+  assert.equal(changed.reloads,1,'re-render blocked actions when access changes');
+  const recovered=harness([{data:{state:'needs_information'}}], 'unavailable');
+  await recovered.refresh.events.click();
+  assert.equal(recovered.reloads,1,'restore setup actions after configuration repair');
+  const blocked=harness([{data:{client_secret:'ephemeral-blocked',publishable_key:'pk_test_fixture'}}], 'needs_information', 'blocked');
+  assert.equal(blocked.requests.length,0);
+  await blocked.opens[0].events.click();
+  assert.equal(blocked.requests.length,1,'diagnose backend before attempting SDK load');
+  assert.match(blocked.error.textContent,/Open secure verification/);
+  assert(blocked.opens.every(button=>!button.disabled),'blocked script must not leave setup buttons busy');
+  const delayed=harness([{data:{client_secret:'ephemeral-delayed',publishable_key:'pk_test_fixture'}}], 'needs_information', 'callback');
+  await delayed.opens[0].events.click();
+  assert.deepEqual(delayed.components,['account-onboarding'],'use the SDK readiness callback when script load precedes initialization');
   const expired=harness([{type:'text/html',data:{}}]);
   await expired.opens[0].events.click();
+  assert.match(expired.error.textContent,/Sign in again/);
   assert.equal(expired.component.children.length,0,'an HTML login redirect is never treated as a financial session');
   console.log('Payout frontend: consent, CSRF, ephemeral sessions, renewal, sanitized errors and logout passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

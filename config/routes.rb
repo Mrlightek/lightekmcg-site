@@ -48,6 +48,7 @@ Rails.application.routes.draw do
   draw :enterprise_identity
   draw :agency_demos
   draw :accounting
+  draw :campaign_content
   draw :growth
   draw :sales_quotes
   draw :sales

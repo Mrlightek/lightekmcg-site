@@ -87,6 +87,8 @@ Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/
 | Capability | Implemented behavior |
 | --- | --- |
 | Business growth brief | Per-website offering, audience, problem, value, voice and dated goal; editor identity and optimistic revision checks. |
+| Campaign content workbench | Offer/problem/benefit drafts through the shared writer, editable revisions, attributable saved-copy approval and payload fingerprints checked before existing sends/publication. |
+| Focused campaign Studio production | Social portrait/square/landscape formats, offer/audience/goal/CTA brief, preserved creative edits on reopen and explicit script replacement; [content and Studio guide](docs/sales/campaign-content-review.md). |
 | Daily Nevaeh growth plans | Up to five authored, evidence-backed next moves; immutable daily snapshots/revisions, operator resolution notes, native tool links, idempotent editable campaign drafts, and existing Nevaeh scheduled-worker support. |
 | First-party campaign links | Same-host HTTPS redirects with fixed source/medium/campaign tags, signed 30-day visit cookies, repeat-click reuse and per-link enable/disable. |
 | Campaign journey | Visit-cohort milestones through native inquiries, new leads, converted deals, quote orders, confirmed payment and recorded delivery; duplicate-safe distinct-visit counts. |

@@ -81,6 +81,7 @@ require ROOT.join('app/controllers/dashboard/sales_tasks_controller')
 Dashboard::SalesController.prepend_view_path ROOT.join('app/views')
 Dashboard::SalesController.layout false
 SalesHarness.routes.draw do
+  eval(ROOT.join('config/routes/campaign_content.rb').read, binding)
   eval(ROOT.join('config/routes/growth.rb').read, binding)
   eval(ROOT.join('config/routes/sales_quotes.rb').read, binding)
   eval(ROOT.join('config/routes/sales.rb').read, binding)
@@ -103,6 +104,7 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     [LightekSales::Activity, LightekSales::RoutingRule, LightekSales::Lead, LightekSales::Opportunity,
      LightekMarketing::Contact, LightekSales::Account, LightekAgency::SiteMembership].each(&:delete_all)
     if defined?(LightekGrowth::Visit) && LightekGrowth::Visit.table_exists?
+      LightekMarketing::ContentVariant.delete_all if defined?(LightekMarketing::ContentVariant)
       [LightekGrowth::Step, LightekGrowth::Plan].each(&:delete_all) if defined?(LightekGrowth::Plan)
       [LightekGrowth::Visit, LightekGrowth::Link, LightekGrowth::Brief, LightekMarketing::Campaign].each(&:delete_all)
     end

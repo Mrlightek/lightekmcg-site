@@ -2,7 +2,7 @@
 const fs = require('fs'), path = require('path'), assert = require('assert/strict');
 const { chromium } = require('playwright');
 const repo = path.resolve(__dirname, '../..'), folder = process.env.SALES_PREVIEW_DIR;
-if (!folder) throw new Error('Export views with SALES_PREVIEW_DIR and daily_growth_checks.rb first');
+if (!folder) throw new Error('Export views with SALES_PREVIEW_DIR and campaign_content_checks.rb first');
 (async () => {
   const browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ['--enable-features=CDPScreenshotNewSurface'], executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox', '--no-zygote', '--single-process', '--disable-gpu'] });
   try {
@@ -17,13 +17,19 @@ if (!folder) throw new Error('Export views with SALES_PREVIEW_DIR and daily_grow
     });
     for (const width of [1440, 1024, 390]) {
       await page.setViewportSize({ width, height: 1000 });
-      for (const screen of ['today', 'pipeline', 'deal', 'intake', 'inquiry', 'tasks', 'quote', 'lifecycle', 'growth', 'growth-plan']) {
+      for (const screen of ['today', 'pipeline', 'deal', 'intake', 'inquiry', 'tasks', 'quote', 'lifecycle', 'growth', 'growth-plan', 'campaign-content']) {
         await page.goto(`http://sales.test/${screen}`);
-        await page.getByRole('heading', { name: screen === 'lifecycle' ? 'Onboarding & offboarding' : screen.startsWith('growth') ? 'Growth & attribution' : 'Sales & CRM', exact: true }).waitFor();
+        await page.getByRole('heading', { name: screen === 'lifecycle' ? 'Onboarding & offboarding' : screen.startsWith('growth') ? 'Growth & attribution' : screen === 'campaign-content' ? 'Campaign content & review' : 'Sales & CRM', exact: true }).waitFor();
         assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `page overflow ${screen} at ${width}`);
         for (const input of await page.locator('.sales-form input:not([type=hidden]), .sales-form select, .sales-form textarea').all()) {
           const box = await input.boundingBox();
           assert(box && box.x >= 0 && box.x + box.width <= width + 1, `form outside viewport ${width}`);
+        }
+        if (screen === 'campaign-content') {
+          assert(await page.getByRole('button', { name: 'Prepare content variations' }).isVisible());
+          assert.equal(await page.getByRole('button', { name: 'Approve & use this version' }).count(), 2);
+          assert(await page.getByText('This saved version is immutable.', { exact: false }).isVisible());
+          assert(await page.getByRole('link', { name: 'Open campaign editor / Studio' }).isVisible());
         }
         if (screen === 'growth-plan') {
           assert(await page.getByRole('heading', { name: 'Daily growth plan', exact: true }).isVisible());
@@ -52,6 +58,6 @@ if (!folder) throw new Error('Export views with SALES_PREVIEW_DIR and daily_grow
       }
     }
     assert.deepEqual(errors, []);
-    console.log('SALES_BROWSER_PASS native Today, pipeline, deal, inquiry inbox/review, tasks, quotes, lifecycle, Growth and daily-plan views; currency inputs, relationship links and responsive layout at 1440/1024/390');
+    console.log('SALES_BROWSER_PASS native Today, pipeline, deal, inquiry inbox/review, tasks, quotes, lifecycle, Growth, daily-plan and campaign-content views; currency inputs, relationship links and responsive layout at 1440/1024/390');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

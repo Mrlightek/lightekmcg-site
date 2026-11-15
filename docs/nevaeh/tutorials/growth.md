@@ -49,3 +49,7 @@ Structured diagnostic events: `lightek.growth.plan_prepared`, `step_resolved`, `
 If execution fails, check the website ID and manager/marketer permission, marketing feature availability, assigned agent capability, current brief revision and current plan date/revision. For a stale plan or changed brief, open Growth and refresh. For a paused scheduled worker, resolve the access/provider/queue problem and use the existing agent controls; repeated command submission alone is not evidence of a successful run.
 
 Deploy `20261115150000_add_daily_growth_plans` through the existing per-instance update pipeline before exposing the new code. Retain plan/step tables when reverting code; their snapshots and operator notes are the review history.
+
+## Review and produce campaign content
+
+From the campaign editor, open **Content variations & approval** to use the shared writing engine for offer, problem and benefit drafts. Saved-copy approval binds the payload used by existing sends/publication. Social campaigns select portrait, square or landscape Studio production; reopening preserves edits, and script replacement is explicit. See [the full content and Studio workflow](../../sales/campaign-content-review.md). This workbench is available in Dashboard; `/growth` continues to prepare recommendations rather than automatically approve or publish content.

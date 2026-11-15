@@ -53,7 +53,7 @@ Dashboard::MarketingCampaignsController.prepend_view_path ROOT.join('app/views')
 Dashboard::MarketingCampaignsController.layout false
 # The actual campaign controller/form is the destination for the drafted result.
 SalesHarness.routes.draw do
-  %w[growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
+  %w[campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
   get '/orders', to: 'dashboard/sales#index', as: :dashboard_commerce_orders
   get '/customers/history', to: 'dashboard/sales#index', as: :history_dashboard_customers
   get '/csrf', to: 'dashboard/settings_home#csrf'
@@ -161,7 +161,7 @@ class DailyGrowthChecks < GrowthFoundationChecks
     assert_response :success
     assert_includes response.body, 'Managed websites'
     csrf = token(@member)
-    patch dashboard_marketing_campaign_path(campaign, site_id: @site.id), params: {campaign: {headline: 'Reviewed managed website offer'}}, headers: headers(@member).merge('X-CSRF-Token' => csrf)
+    patch dashboard_marketing_campaign_path(campaign, site_id: @site.id), params: {campaign: {headline: 'Reviewed managed website offer', lock_version: (campaign.has_attribute?(:lock_version) ? campaign.lock_version : 0)}}, headers: headers(@member).merge('X-CSRF-Token' => csrf)
     assert_response :redirect
     assert_equal 'Reviewed managed website offer', campaign.reload.headline
     assert_equal 'draft', campaign.status

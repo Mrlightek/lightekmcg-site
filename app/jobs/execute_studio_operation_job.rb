@@ -12,8 +12,16 @@ class ExecuteStudioOperationJob < ApplicationJob
     operation.with_lock do
       operation.update!(status: "completed", completed_at: Time.current) unless operation.status == "cancelled"
     end
+    Blender::Runner.new(operation).clear_checkpoints! if operation.status=="completed" && operation.provider=="blender" && Studio::Compute::CpuProfile.economy?(operation.manifest)
+  rescue Studio::Compute::CpuProfile::Busy
+    operation.with_lock do
+      return if operation.status=="cancelled"
+      operation.update!(status:"pending",metadata:operation.metadata.merge("cpu_render_progress"=>operation.metadata.fetch("cpu_render_progress",{}).merge("profile"=>"cpu_economy","phase"=>"waiting_for_cpu_slot")))
+    end
+    self.class.set(wait:20.seconds).perform_later(operation.id)
   rescue Studio::MediaProcess::Cancelled => error
     operation&.update(status: "cancelled", completed_at: Time.current, error_message: error.message)
+    Blender::Runner.new(operation).clear_checkpoints! if operation&.provider=="blender" && Studio::Compute::CpuProfile.economy?(operation.manifest)
   rescue StandardError => error
     cancelled = false
     if operation

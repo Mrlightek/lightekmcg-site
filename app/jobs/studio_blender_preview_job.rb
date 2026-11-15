@@ -9,6 +9,13 @@ class StudioBlenderPreviewJob < ApplicationJob
     end
     Studio::Providers::BlenderProvider.new(operation).call
     operation.update!(status:"completed")
+    Blender::Runner.new(operation).clear_checkpoints! if Studio::Compute::CpuProfile.economy?(operation.manifest)
+  rescue Studio::Compute::CpuProfile::Busy
+    operation.with_lock do
+      return if operation.status=="cancelled"
+      operation.update!(status:"pending")
+    end
+    self.class.set(wait:20.seconds).perform_later(operation.id)
   rescue StandardError=>error
     operation&.update!(status:"failed",error_message:error.message.to_s.first(1000))
     raise

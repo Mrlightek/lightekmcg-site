@@ -11,7 +11,8 @@ module Studio
         "movie.mp4" => "video",
         "authoring.json" => "authoring",
         "manifest.json" => "manifest",
-        "blender.log" => "log"
+        "blender.log" => "log",
+        "cpu-progress.json" => "metrics"
       }.freeze
 
       def initialize(operation)
@@ -94,12 +95,13 @@ module Studio
           path = directory.join(filename)
           next unless path.exist?
 
-          artifact = operation.artifacts.create!(kind: kind, filename: filename)
+          artifact = operation.artifacts.find_or_initialize_by(kind: kind, filename: filename)
           artifact.file.attach(
             io: File.open(path),
             filename: filename,
             content_type: content_type_for(filename)
           )
+          artifact.save!
         end
       end
 

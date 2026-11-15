@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v86-director-delivery"
+const CACHE = "lightek-shell-v87-cpu-economy"
 
 const SHELL = [
   "/lightek/index.html",

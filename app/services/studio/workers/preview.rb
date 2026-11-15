@@ -25,6 +25,10 @@ module Studio
 
         operation.reload
 
+        if operation.status=="pending" && Studio::Compute::CpuProfile.economy?(operation.manifest)
+          return {"operation_id"=>operation.id,"scene_id"=>operation.studio_scene_id,"status"=>"pending","phase"=>"waiting_for_cpu_slot"}
+        end
+
         unless operation.status == "completed"
           raise(
             "Studio preview operation ##{operation.id} finished with " \

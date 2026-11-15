@@ -130,8 +130,8 @@ def apply(root, objects, definition):
     SOUNDS.append(take)
 
 
-def mux_movie(path):
-    if not SOUNDS:
+def mux_movie(path, force=False):
+    if not SOUNDS and not force:
         return
     scene = bpy.context.scene
     fps = scene.render.fps / scene.render.fps_base

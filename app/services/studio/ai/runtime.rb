@@ -62,7 +62,7 @@ module Studio
         end
         {connected:true,engine:"Self-hosted ComfyUI",recipes:available,models:models}
       rescue SystemCallError,SocketError,Timeout::Error,IOError,OpenSSL::SSL::SSLError,ArgumentError,JSON::ParserError
-        {connected:false,engine:"Self-hosted ComfyUI",recipes:[],models:[],reason:"No ready local generation worker. Engine and model installation must be completed before generation is available."}
+        {connected:false,engine:"Self-hosted ComfyUI",recipes:[],models:[],reason:"Optional neural generation is unavailable on this installation. Infrastructure operators manage neural workers; CPU scene production uses the separate Studio runtime."}
       end
       def graph(recipe_id,prompt:,negative:,seed:,model:)
         recipe=recipes.find{|r|r["id"]==recipe_id} || raise(ArgumentError,"Choose an installed AI workflow")

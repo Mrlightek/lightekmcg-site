@@ -13,7 +13,7 @@ module Studio
     def self.temporary_directory(prefix,&block)
       Dir.mktmpdir(prefix,temp_root,&block)
     end
-    def self.run!(command, timeout:90, cancel_if:nil, stdin_data:nil, cleanup_container:true)
+    def self.run!(command, timeout:90, cancel_if:nil, stdin_data:nil, cleanup_container:true, on_tick:nil)
       output="";errors="";status=nil
       Open3.popen3(*command,pgroup:true) do |input,stdout,stderr,wait|
         input.write(stdin_data) if stdin_data
@@ -21,7 +21,11 @@ module Studio
         readers=[Thread.new{while(chunk=stdout.read(16_384));output=(output+chunk).last(1_048_576);end},Thread.new{while(chunk=stderr.read(4096));errors=(errors+chunk).last(4096);end}]
         begin
           deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+          tick=Process.clock_gettime(Process::CLOCK_MONOTONIC)
           until wait.join(0.2)
+            if on_tick && Process.clock_gettime(Process::CLOCK_MONOTONIC)-tick>=2
+              on_tick.call;tick=Process.clock_gettime(Process::CLOCK_MONOTONIC)
+            end
             raise Cancelled, "Operation cancelled by an application administrator" if cancel_if&.call
             raise Timeout::Error, "Media processing exceeded its time limit" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
           end

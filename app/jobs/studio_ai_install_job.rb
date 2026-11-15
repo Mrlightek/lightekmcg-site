@@ -4,6 +4,7 @@ class StudioAiInstallJob < ApplicationJob
   # Never automatically repeat a host mutation after an interrupted invocation.
   def perform(site_id, actor_id, request_id)
     site=DymondSite::Site.find(site_id);actor=User.find(actor_id);state=nil
+    raise Gatekeeper::Hosting::Access::Denied,"Infrastructure operator access was revoked" unless Studio::Ai::Setup.operator?(actor)
     site.with_lock do
       state=site.manifest.to_h["studio_ai_install"].to_h
       return unless state["request_id"]==request_id && state["status"]=="queued"

@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -51,7 +51,7 @@ module Studio
           else
             project=StudioProject.create!(owner:@access.user,site_id:@access.site_id,name:name,request_key:key)
             scene=project.studio_scenes.first!
-            scene.update!(name:"Sequence 01",settings:scene.settings.merge("timeline"=>format.merge("export_preset"=>"review","clips"=>[])))
+            scene.update!(name:"Sequence 01",settings:scene.settings.merge("compute_profile"=>"cpu_economy","render_engine"=>"CYCLES","timeline"=>format.merge("export_preset"=>"review","clips"=>[])))
           end
           {project_id:project.id,scene_id:project.studio_scenes.first!.id}
         end
@@ -133,12 +133,14 @@ module Studio
         scene = @access.scene!(@payload.fetch("scene_id"))
         scene.lock_version = Integer(@payload.fetch("lock_version"))
         settings = @payload.fetch("render_settings").to_h
+        profile=settings.fetch("compute_profile",scene.settings.fetch("compute_profile","custom"))
+        raise ArgumentError,"Choose CPU economy or custom rendering" unless %w[cpu_economy custom].include?(profile)
         engine = settings.fetch("render_engine")
         raise ArgumentError, "Unsupported render engine" unless %w[BLENDER_EEVEE_NEXT CYCLES].include?(engine)
         width, height = Integer(settings.fetch("resolution_x")), Integer(settings.fetch("resolution_y"))
         raise ArgumentError, "Resolution must be between 64 and 4096 pixels" unless width.between?(64, 4096) && height.between?(64, 4096)
         scene.transaction do
-          scene.settings = scene.settings.to_h.merge("render_engine" => engine, "resolution_x" => width, "resolution_y" => height,
+          scene.settings = scene.settings.to_h.merge("compute_profile"=>profile,"render_engine" => engine, "resolution_x" => width, "resolution_y" => height,
             "transparent_background" => ActiveModel::Type::Boolean.new.cast(settings["transparent_background"]))
           timeline={}
           %w[frame_start frame_end frame_current fps samples].each { |key| timeline[key]=Integer(settings[key]) if settings.key?(key) }
@@ -213,6 +215,20 @@ module Studio
         end
         Studio::Billing::Quote.call(operation:operation,rail: :stripe_card) if operation.cost_quote.blank?
         {operation_id:operation.id,quote:operation.reload.cost_quote,status:operation.status,operation_type:operation.operation_type}
+      end
+
+      def render_resume
+        operation=StudioOperation.where(studio_project_id:@access.projects.where(site_id:@access.site_id).select(:id)).find(@payload.fetch("operation_id"))
+        enqueue=false
+        operation.with_lock do
+          raise ArgumentError,"Only a paid CPU economy movie can resume" unless operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && operation.paid? && !operation.metadata["draft_preview"]
+          return {operation_id:operation.id,status:operation.status} if %w[pending running completed].include?(operation.status)
+          raise ArgumentError,"Only failed renders can resume" unless operation.status=="failed"
+          operation.update!(status:"pending",error_message:nil,completed_at:nil)
+          enqueue=true
+        end
+        ExecuteStudioOperationJob.perform_later(operation.id) if enqueue
+        {operation_id:operation.id,status:operation.status}
       end
 
       def render_checkout
@@ -663,6 +679,7 @@ module Studio
           operations: project.studio_operations.where.not(operation_type:"speech_analysis").order(id: :desc).limit(30).map do |operation|
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,
+            cpu_progress:operation.metadata["cpu_render_progress"],cpu_resumable:operation.status=="failed" && operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && !operation.metadata["draft_preview"] && operation.paid?,
             output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset"),
             shot:operation.metadata.slice("shot_id","shot_name"), scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
             artifacts: operation.artifacts.select { |artifact| artifact.file.attached? }.map do |artifact|

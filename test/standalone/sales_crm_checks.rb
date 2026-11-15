@@ -81,6 +81,7 @@ require ROOT.join('app/controllers/dashboard/sales_tasks_controller')
 Dashboard::SalesController.prepend_view_path ROOT.join('app/views')
 Dashboard::SalesController.layout false
 SalesHarness.routes.draw do
+  eval(ROOT.join('config/routes/website_audits.rb').read, binding)
   eval(ROOT.join('config/routes/publication_calendar.rb').read, binding)
   eval(ROOT.join('config/routes/campaign_content.rb').read, binding)
   eval(ROOT.join('config/routes/growth.rb').read, binding)

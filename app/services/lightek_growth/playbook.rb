@@ -2,7 +2,7 @@ module LightekGrowth
   # Authored rules over measured facts. Neither model prose nor brief text can
   # select an executable capability or establish a causal marketing claim.
   class Playbook
-    VERSION = 'growth-daily-v1'.freeze
+    VERSION = 'growth-daily-v2'.freeze
     def self.recommendations(snapshot)
       facts = snapshot.fetch('facts')
       candidates = []
@@ -23,6 +23,13 @@ module LightekGrowth
       end
       if facts['expiring_quotes'] > 0
         add.call('quotes', 'Review quotes approaching expiry', 'Issued quotes expire within three days. Confirm the customer has what they need; an issued quote is not a payment.', 'sales', facts.slice('expiring_quotes'), ['Open the proposal or negotiation deals.', 'Check the issued quote and contact the customer through an authorized channel.', 'Revise expired commercial details rather than accepting an outdated offer.'])
+      end
+      if facts.key?('website_audit_id')
+        if facts['website_audit_id'].nil? || facts['website_audit_stale']
+          add.call('website_audit', 'Refresh your website evidence', 'A current native website audit is needed before making website optimization claims.', 'website_audit', facts.slice('website_audit_id', 'website_audit_stale'), ['Run a native website audit for the selected business.', 'Review assessed and unassessed pages.', 'Prioritize evidence-backed fixes and refresh this plan.'])
+        elsif facts['website_audit_open'].to_i > 0 || facts['website_audit_unassessed'].to_i > 0 || facts['website_audit_incomplete']
+          add.call('website_audit', 'Review website growth findings', 'The latest full-site native audit has open findings or unassessed pages. Review the source and evidence before changing the site.', 'website_audit', facts.slice('website_audit_id', 'website_audit_open', 'website_audit_high', 'website_audit_unassessed'), ['Open the audit and review the affected page.', 'Prepare a supported change or record why no change is needed.', 'Apply only an approved preview, then check the re-audit result.'])
+        end
       end
       if snapshot['brief_complete'] && snapshot.dig('brief', 'goal_on').present? && snapshot.dig('brief', 'goal_on') <= snapshot.fetch('window_to')
         add.call('goal_review', 'Review your business goal and deadline', 'The saved goal date has arrived. Compare actual outcomes with your goal and decide the next target; this playbook does not interpret free-text goals as verified results.', 'brief', {'goal_on' => snapshot.dig('brief', 'goal_on')}, ['Review the measured funnel and actual order outcomes.', 'Record what was achieved and what still needs work.', 'Update the goal and date, then refresh the plan.'])

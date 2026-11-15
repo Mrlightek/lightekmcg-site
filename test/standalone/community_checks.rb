@@ -119,7 +119,7 @@ require File.join(ROOT, "db/migrate/20261001124100_create_lightek_pwa_storefront
 CreateLightekPwaStorefront.new.migrate(:up)
 class CreationJob < ApplicationRecord; end
 class ApplicationJob < ActiveJob::Base; end
-%w[app/models/lightek_pwa/application app/models/lightek_pwa/membership app/models/lightek_pwa/admin_event
+%w[app/services/studio/compute/cpu_profile app/models/lightek_pwa/application app/models/lightek_pwa/membership app/models/lightek_pwa/admin_event
    app/models/lightek_pwa/surface app/models/lightek_pwa/surface_module app/models/lightek_pwa/navigation_item
    app/services/lightek_pwa/policy app/services/lightek_pwa/configuration app/services/lightek_pwa/administration
    app/models/studio_project app/models/production app/models/studio_scene app/models/scene_object app/models/studio_workstation

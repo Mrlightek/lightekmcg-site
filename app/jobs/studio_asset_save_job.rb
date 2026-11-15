@@ -19,6 +19,10 @@ class StudioAssetSaveJob < ApplicationJob
     Studio::Assets::Ingestor.call(asset,source_path:result.output_directory.join("scene.blend").to_s,source_root:result.output_directory.to_s)
     raise "Blender asset preparation failed" unless asset.reload.status=="ready"
     operation.update!(status:"completed")
+    Blender::Runner.new(operation).clear_checkpoints! if Studio::Compute::CpuProfile.economy?(operation.manifest)
+  rescue Studio::Compute::CpuProfile::Busy
+    operation.with_lock { operation.update!(status:"pending") unless operation.status=="cancelled" }
+    self.class.set(wait:20.seconds).perform_later(operation.id) unless operation.status=="cancelled"
   rescue StandardError=>error
     asset&.update!(status:"failed",error_message:error.message.to_s.first(1000))
     operation&.update!(status:"failed",error_message:error.message.to_s.first(1000))

@@ -5,6 +5,9 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
   protect_from_forgery with: :exception
   before_action { response.set_header("Cache-Control", "private, no-store") }
   rescue_from LightekPwa::Policy::Denied, with: :denied
+  rescue_from "Gatekeeper::Hosting::Access::Denied" do |error|
+    render json:{status:"failed",error:error.message},status: :forbidden
+  end
   rescue_from ActiveRecord::RecordInvalid, ActiveRecord::StaleObjectError, ActiveRecord::RecordNotDestroyed, ArgumentError, with: :invalid
 
   def index

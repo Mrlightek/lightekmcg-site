@@ -1,5 +1,5 @@
 class Artifact < ApplicationRecord
-  KINDS = %w[blend glb preview manifest log video audio image poster thumbnail subtitle package authoring].freeze
+  KINDS = %w[blend glb preview manifest log video audio image poster thumbnail subtitle package authoring metrics].freeze
 
   belongs_to :creation_job, optional: true
   belongs_to :studio_operation, optional: true

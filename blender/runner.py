@@ -14,6 +14,7 @@ import spatial_checks
 import rehearsal
 import motion
 import appearance
+import cpu_render
 
 
 SCHEMA_VERSION = "1.0"
@@ -939,6 +940,7 @@ def stage_manifest(manifest):
         if obj is not None and item.get('definition', {}).get('native_original') and item.get('name'):
             obj.name = item['name']
 
+    cpu_render.configure(settings)
     return created
 
 
@@ -1021,9 +1023,14 @@ def main():
             old_sequencer = scene.render.use_sequencer
             if performance.SOUNDS:
                 scene.render.use_sequencer = False
-            bpy.ops.render.render(animation=True)
+            if manifest["scene"]["settings"].get("compute_profile") == cpu_render.PROFILE:
+                cpu_render.movie(manifest, output_directory)
+            else:
+                bpy.ops.render.render(animation=True)
             scene.render.use_sequencer = old_sequencer
-            performance.mux_movie(scene.render.filepath)
+            economy = manifest["scene"]["settings"].get("compute_profile") == cpu_render.PROFILE
+            performance.mux_movie(scene.render.filepath, force=economy and cpu_render.has_audio(scene))
+            if economy: cpu_render.completed(output_directory)
             generated.append('movie.mp4')
 
         if outputs.get("bundle"):

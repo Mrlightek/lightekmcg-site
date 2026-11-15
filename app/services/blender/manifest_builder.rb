@@ -17,7 +17,7 @@ module Blender
         "scene" => {
           "id" => scene.id,
           "name" => scene.name,
-          "settings" => scene.settings,
+          "settings" => Studio::Compute::CpuProfile.settings(scene.settings),
           "objects" => scene.scene_objects.map { |object| serialize_object(object) }
         },
         "outputs" => {

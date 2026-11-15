@@ -52,6 +52,7 @@ These guides are also discoverable in **Dashboard → Software Library** after t
 | Workspace | Current capabilities |
 | --- | --- |
 | Business, agencies and Marketplace | Business overview, managed account hierarchies, client branding, products, billing versions, subscription intervals and reviewed fulfillment connections |
+| Publishing calendar | Finished Studio export handoff, reviewed social schedules and provider outcome recovery; [operating guide](docs/sales/publishing-calendar.md) |
 | Campaign content & review | Three shared-writer copy variations, saved-revision approval, queued payload checks and focused Studio production; [operating guide](docs/sales/campaign-content-review.md) |
 | Growth & attribution | Daily Nevaeh growth plans with evidence and editable campaign drafts, site-scoped business briefs, first-party campaign links and visit cohorts traced through inquiries, deals, confirmed payments, refunds and recorded delivery; [operating guide](docs/sales/growth-foundation.md) |
 | Sales & CRM | Site-scoped leads, companies and shared marketing contacts; qualified-lead conversion, source routing, opt-in website/CSV inquiry intake, assigned due tasks and calendar downloads, deal stages, activity history and monthly forecasts by currency |

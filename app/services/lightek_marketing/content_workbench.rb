@@ -71,6 +71,7 @@ module LightekMarketing
           end
           campaign.assign_attributes(variant.attributes.slice(*ContentVariant::COPY_FIELDS))
           campaign.assign_attributes(content_review_required: true, approved_content_digest: campaign.content_digest, content_approved_by: @actor, content_approved_at: Time.current, status: 'ready')
+          raise ArgumentError, 'Selected Studio media is unavailable. Attach a valid export before approving.' unless campaign.media_ready?
           campaign.save!
           # Keep the source immutable; applied fingerprint has its own result column.
           variant.update!(status: 'approved', approved_by: @actor, approved_at: Time.current, applied_digest: campaign.content_digest)

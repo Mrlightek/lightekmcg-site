@@ -2,9 +2,24 @@
 """Offline CPU voice synthesis; model/voice files are installed at image build."""
 import argparse
 import os
+import re
 from pathlib import Path
 import sys
 import wave
+
+
+def spoken_phonemes(text, tokenizer):
+    """Keep the written name intact while fixing its spoken pronunciation."""
+    pieces = re.split(r"(\bnevaeh(?:['’]s)?\b)", text, flags=re.IGNORECASE)
+    sounds = []
+    for piece in pieces:
+        if not piece.strip():
+            continue
+        if re.fullmatch(r"nevaeh(?:['’]s)?", piece, flags=re.IGNORECASE):
+            sounds.append('nəvˈeɪə' + ('z' if piece.lower().endswith(('\'s', '’s')) else ''))
+        else:
+            sounds.append(tokenizer.phonemize(piece, 'en-us'))
+    return ' '.join(sounds)
 
 
 def main():
@@ -31,7 +46,8 @@ def main():
     engine = Kokoro.from_session(session, str(directory / 'voices.bin'))
     # Stable, original preset blend. No uploaded person's voice is cloned.
     style = (0.7 * engine.get_voice_style('af_heart') + 0.3 * engine.get_voice_style('af_bella')) if args.voice == 'nevaeh-natural' else engine.get_voice_style('af_bella')
-    audio, rate = engine.create(text, voice=style, speed=args.speed / 170.0, lang='en-us')
+    phonemes = spoken_phonemes(text, engine.tokenizer)
+    audio, rate = engine.create(phonemes, voice=style, speed=args.speed / 170.0, lang='en-us', is_phonemes=True)
     audio = np.asarray(audio).reshape(-1)
     if not np.isfinite(audio).all() or not 0.05 <= audio.size / rate <= 120 or np.max(np.abs(audio), initial=0) < 0.0001:
         raise ValueError('Natural voice produced invalid or silent audio')

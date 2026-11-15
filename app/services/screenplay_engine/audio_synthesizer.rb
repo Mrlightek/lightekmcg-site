@@ -12,12 +12,14 @@ module ScreenplayEngine
       raise ArgumentError, 'Choose an installed voice' unless (%w[en en-us en-gb ar en-us+f3 en-gb+f3 ar+f3]+NeuralVoice::VOICES).include?(voice)
       raise ArgumentError, 'Choose a speaking speed of 100–220 words per minute' unless speed.is_a?(Integer) && speed.between?(100,220)
       return NeuralVoice.synthesize!(text:text,path:path,voice:voice,speed:speed,cancel_if:cancel_if) if NeuralVoice::VOICES.include?(voice)
+      # eSpeak's explicit phoneme syntax; the saved/displayed text is unchanged.
+      spoken=text.gsub(/\bnevaeh(['’]s)?\b/i) { "[[n@v'eI@#{$1 ? 'z' : ''}]]" }
       command = if Rails.env.production?
         Studio::MediaProcess.container(['espeak-ng','--stdin','-v',voice,'-s',speed.to_s,'-w',"/work/#{File.basename(path)}"], root: File.dirname(path), image: Studio::NativeBlender::Runtime.image(:media), stdin: true)
       else
         [ENV.fetch('STUDIO_TTS_BINARY','espeak-ng'),'--stdin','-v',voice,'-s',speed.to_s,'-w',path]
       end
-      Studio::MediaProcess.run!(command, timeout: 180, stdin_data: text, cancel_if: cancel_if)
+      Studio::MediaProcess.run!(command, timeout: 180, stdin_data: spoken, cancel_if: cancel_if)
       raise 'Speech engine produced no audio' unless File.size?(path)
       path
     rescue Errno::ENOENT

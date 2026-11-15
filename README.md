@@ -24,6 +24,7 @@ A business can build its website, sell products or book services, manage custome
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Render procedural scenes with a bounded CPU budget | [CPU economy rendering & recovery](docs/studio/cpu-economy.md) |
 | Route CPU renders to dedicated Lightek workers | [Shared CPU worker deployment & recovery](docs/studio/shared-cpu-workers.md) |
+| Render supported procedural movies from a client installation | [Remote CPU bridge](docs/studio/remote-cpu-rendering.md) |
 | Control Blender modifiers and stack order | [Modifier stack](docs/studio/blender-modifier-stack.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
 | Position a graphic or logo in the live program | [Live graphic placement](docs/studio/live-overlay-placement.md) |

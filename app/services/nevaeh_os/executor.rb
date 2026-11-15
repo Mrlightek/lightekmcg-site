@@ -7,6 +7,7 @@ module NevaehOs
       authorize_command!(actor:action.user.reload,command:action.command)
     end
     def authorize_command!(actor:,command:)
+      Language.guard!(command, actor: actor) if defined?(Language)
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
@@ -152,6 +153,8 @@ module NevaehOs
         {'release_id'=>release.id,'status'=>'active','capability'=>release.nevaeh_construction.capability_key}
       when 'approve'
         dataset = NevaehTrainingDataset.find(command.fetch('id'))
+        NevaehIntelligences::Manuals.verify_dataset!(dataset) if dataset.provenance['source'] == 'installed_manuals'
+        NevaehIntelligences::Islamic::Corpus.verify_dataset!(dataset) if dataset.provenance['source'] == 'islamic_library'
         dataset.update!(status:'approved')
         {'dataset_id'=>dataset.id,'status'=>dataset.status}
       when 'train'

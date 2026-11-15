@@ -4,17 +4,31 @@ module NevaehOs
     def initialize(actor:, host: nil, origin: nil)
       @actor, @host, @origin = actor, host, origin
     end
-    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse')
+    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil)
       command = Command.parse(text)
       persona=Agents.resolve!(agent.presence || 'nevaeh',@actor)
+      language = if binding_id
+        Language.bind!(binding_id: binding_id, fingerprint: binding_fingerprint, values: language_slots, actor: @actor, interval_minutes: interval_minutes, agent_ref: persona.id.to_s)
+      elsif defined?(Language) && command['kind'] == 'search'
+        Language.resolve(text.strip, actor: @actor, agent_ref: persona.id.to_s)
+      end
+      command = language['command'] if language && language['command']
       command=prepare_command(command)
       command['agent_id']=persona.id unless %w[help resources capabilities status briefing remember search models schema agents guide describe].include?(command['kind'])
       if command['kind']=='agent_task'
-        command['command']=prepare_command(Command.parse(command.delete('instruction')))
+        inner = command['command'] || Command.parse(command.delete('instruction'))
+        if inner['kind'] == 'search' && defined?(Language)
+          resolved = Language.resolve(inner.fetch('query'), actor: @actor, schedule: false)
+          language = resolved if resolved
+          inner = resolved['command'] if resolved && resolved['command']
+        end
+        command['command']=prepare_command(inner)
       end
       command['persona_id']=persona.id if command['kind']=='model'
       planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe].include?(command['kind'])
-      result = if planning
+      result = if language && language['status'] == 'needs_clarification'
+        language.slice('text', 'status', 'sources', 'language_request')
+      elsif planning
         {'text'=>"#{mode.to_s.in?(%w[3 reflect]) ? 'Reflection' : 'Proposed action'}: #{command.to_json}\nNo action dispatched in this mode. Choose Operate to execute this instruction.", 'status'=>'planned'}
       else
         case command.fetch('kind')
@@ -71,6 +85,7 @@ module NevaehOs
         {'text'=>"Action ##{action.id} #{action.status == 'pending' ? 'queued through Gatekeeper and Dispatch' : action.status}. Execution receipts will appear here.", 'status'=>action.status,'action_id'=>action.id}
       end
       end
+      result = result.merge('sources' => language['sources'], 'language_binding' => language['binding_name']) if language && language['command']
       result.merge('influences'=>[{'planet'=>2,'reason'=>"Intent: #{command['kind']}"},{'planet'=>6,'reason'=>'Permissions use your signed-in account and are checked again when work executes.'}], 'ethics'=>[nil,nil,nil,nil,nil],
         'checks'=>{'authenticated'=>true,'memory_requires_consent'=>true,'execution_status'=>result['status']}, 'persona'=>persona.name, 'mode'=>mode,
         'chart_accuracy'=>'illustrative', 'memory'=>result['memory'])

@@ -149,3 +149,7 @@ Open the **Quran & Hadith** factory tab for immutable, attributed source edition
 ## Daily Salah study periods
 
 Use **Salah & Study** to configure Fajr, Dhuhr, Asr, Maghrib, Isha and Tahajjud study appointments on the application server clock. Each period can read the next Quran passages and run approved neural training. See [the setup and receipt guide](tutorials/salah_study.md) for times, automatic passing-checkpoint activation, pause and expiry behavior.
+
+## Installed manuals and conversational operations
+
+Open **Manuals & Language** to build a versioned source corpus, review batches and phrase contracts, run sequential native training, and connect everyday requests to existing operating actions. The [manual learning guide](tutorials/manual_learning.md) covers input completion, recurring tasks, coverage gaps and the distinction between neural drafts and authorized execution.

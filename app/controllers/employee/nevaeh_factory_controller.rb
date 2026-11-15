@@ -12,7 +12,7 @@ module Employee
       head :not_found
     end
     def index
-      @tab = %w[construction training conversation islamic study].include?(params[:tab]) ? params[:tab] : 'construction'
+      @tab = %w[construction training conversation islamic study manuals].include?(params[:tab]) ? params[:tab] : 'construction'
       @constructions = NevaehConstruction.includes(:active_release).order(updated_at: :desc).limit(100)
       @construction = params[:construction_id].present? ? NevaehConstruction.find(params[:construction_id]) : NevaehConstruction.new(definition: default_definition, sample_tests: default_tests)
       @datasets = NevaehTrainingDataset.order(updated_at: :desc, id: :desc).offset([params[:dataset_page].to_i, 0].max * 100).limit(100)
@@ -23,6 +23,13 @@ module Employee
       @conversations = NevaehConversation.where(user: current_user).order(updated_at: :desc).limit(30)
       @conversation = @conversations.find(params[:conversation_id]) if params[:conversation_id].present?
       @documents = NevaehIntelligences::SoftwareLibrary.new.documents.map { |doc| doc.slice(:id, :title, :path) }
+      if @tab == 'manuals'
+        @manual_builds = NevaehManualBuild.order(id: :desc).limit(20)
+        @manual_build = params[:manual_build_id].present? ? NevaehManualBuild.find(params[:manual_build_id]) : @manual_builds.first
+        @language_bindings = (@manual_build ? @manual_build.bindings : NevaehLanguageBinding.all).order(:id).limit(1000)
+        @language_binding = params[:binding_id].present? ? NevaehLanguageBinding.find(params[:binding_id]) : NevaehLanguageBinding.new(patterns: ['make a studio project called {name}'], slots: {'name'=>'string'}, command_template: {'kind'=>'project','name'=>'{name}'})
+        @learning_plans = NevaehLearningPlan.includes(:language_model, :active_training_run).order(id: :desc).limit(20)
+      end
       if @tab == 'islamic'
         authorize! :manage, NevaehLanguageModel
         @islamic_sources = NevaehIslamicSource.order(:name, :id).limit(200)
@@ -103,6 +110,7 @@ module Employee
     def approve_dataset
       dataset = NevaehTrainingDataset.find(params[:id])
       NevaehIntelligences::Islamic::Corpus.verify_dataset!(dataset)
+      NevaehIntelligences::Manuals.verify_dataset!(dataset) if dataset.provenance['source'] == 'installed_manuals'
       dataset.update!(status: 'approved')
       redirect_to employee_nevaeh_factory_path(tab: 'training', dataset_id: dataset.id), notice: 'Dataset approved for explicit training requests.'
     end
@@ -160,6 +168,67 @@ module Employee
       routine = NevaehStudyRoutine.find(params[:id])
       routine.with_lock { routine.update_columns(enabled: false, lock_version: routine.lock_version + 1) }
       redirect_to employee_nevaeh_factory_path(tab: 'study', study_routine_id: routine.id), notice: 'Study routine paused. Pending work will be blocked; active scheduled training checks the pause during its next guard interval.'
+    end
+    def learn_manuals
+      build = NevaehIntelligences::Manuals.request!(actor: current_user, name: params[:name].presence || 'Installed Lightek manuals')
+      redirect_to employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: build.id), notice: 'Manual import queued. It will create versioned source batches, draft conversational phrases and a capability coverage report.'
+    end
+    def approve_manuals
+      build = NevaehManualBuild.find(params[:id])
+      NevaehIntelligences::Manuals.approve!(build: build, actor: current_user)
+      redirect_to employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: build.id), notice: 'Source training batches approved. Conversational phrase activation is separate.'
+    end
+    def activate_manual_phrases
+      build = NevaehManualBuild.find(params[:id])
+      NevaehOs::Language.authorize!(current_user)
+      documents = NevaehIntelligences::SoftwareLibrary.new.documents
+      catalog = NevaehOs::Guide.catalog(actor: current_user)
+      NevaehLanguageBinding.transaction do
+        build.bindings.each { |binding| NevaehOs::Language.activate!(binding: binding, actor: current_user, documents: documents, catalog: catalog) }
+      end
+      redirect_to employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: build.id), notice: 'Reviewed conversational phrases activated. Tasks still use the signed-in account, agent restrictions and Gatekeeper.'
+    end
+    def save_language_binding
+      NevaehOs::Language.authorize!(current_user)
+      binding = params[:id].present? ? NevaehLanguageBinding.find(params[:id]) : NevaehLanguageBinding.new(creator: current_user)
+      binding.assign_attributes(params.require(:binding).permit(:name, :lock_version))
+      binding.nevaeh_manual_build = NevaehManualBuild.find(params[:manual_build_id]) if params[:manual_build_id].present?
+      binding.patterns = parse_json(:patterns_json, 16000)
+      binding.slots = parse_json(:slots_json, 8000)
+      binding.command_template = parse_json(:command_json, 8000)
+      doc = NevaehIntelligences::SoftwareLibrary.new.find(params.require(:document_id))
+      binding.source_refs = [{'path'=>doc[:path], 'sha256'=>doc[:sha256], 'title'=>doc[:title]}]
+      binding.status = 'draft'
+      binding.save!
+      redirect_to employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: binding.nevaeh_manual_build_id, binding_id: binding.id), notice: 'Conversational phrase saved as a draft. Inspect its typed action and activate it when ready.'
+    end
+    def control_language_binding
+      NevaehOs::Language.authorize!(current_user)
+      binding = NevaehLanguageBinding.find(params[:id])
+      if params[:operation] == 'activate'
+        NevaehOs::Language.activate!(binding: binding, actor: current_user)
+      elsif params[:operation] == 'pause'
+        binding.with_lock { binding.update_columns(status: 'paused', lock_version: binding.lock_version + 1) }
+      else
+        raise ArgumentError, 'Choose activate or pause'
+      end
+      redirect_to employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: binding.nevaeh_manual_build_id, binding_id: binding.id)
+    end
+    def start_manual_training
+      build = NevaehManualBuild.find(params[:id])
+      plan = NevaehIntelligences::LearningPlans.request!(build: build, model: NevaehLanguageModel.find(params.require(:language_model_id)), actor: current_user, epochs: params.require(:epochs))
+      redirect_to employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: build.id), notice: "Learning plan ##{plan.id} started. The existing trainer will process approved batches sequentially and activate only passing checkpoints."
+    end
+    def control_learning_plan
+      plan = NevaehLearningPlan.find(params[:id])
+      if params[:operation] == 'pause'
+        NevaehIntelligences::LearningPlans.pause!(plan: plan, actor: current_user)
+      elsif params[:operation] == 'resume'
+        NevaehIntelligences::LearningPlans.resume!(plan: plan, actor: current_user)
+      else
+        raise ArgumentError, 'Choose pause or resume'
+      end
+      redirect_to employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: plan.nevaeh_manual_build_id)
     end
     def save_language_model
       model = params[:id].present? ? NevaehLanguageModel.find(params[:id]) : NevaehLanguageModel.new

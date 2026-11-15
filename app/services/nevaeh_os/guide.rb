@@ -9,6 +9,7 @@ module NevaehOs
       'console'=>['Query and manage application data','admin'], 'studio'=>['Studio and Blender workflows','all'],
       'writing'=>['Writing services and inference models','admin'], 'training'=>['Documentation, KB and neural training','admin'],
       'factory'=>['Build and extend capability APIs','admin'], 'platform'=>['Mail, payments, hosting and other modules','admin'],
+      'manual_learning'=>['Learn installed manuals and teach conversational tasks','admin'],
       'recovery'=>['Understand receipts and fix blocked work','all']
     }.freeze
     DOMAIN_GUIDES={'growth'=>'growth','studio'=>'studio','community'=>'commands','messages'=>'commands','social'=>'commands','susu'=>'commands','factory'=>'factory','ticket'=>'agents','nevaeh'=>'start','ubuntu'=>'ubuntu','applications'=>'ubuntu','watcher'=>'watchers'}.freeze

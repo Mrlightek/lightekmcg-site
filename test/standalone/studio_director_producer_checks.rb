@@ -3,6 +3,7 @@
 require_relative 'campaign_producer_checks'
 %w[production_blueprints/registry production_blueprints/task_groups director/voice director/producer].each { |file| require File.join(ROOT,"app/services/studio/#{file}") }
 require File.join(ROOT,'app/services/studio/publishers/registry')
+require File.join(ROOT,'app/services/screenplay_engine/neural_voice')
 require File.join(ROOT,'app/services/screenplay_engine/audio_synthesizer')
 require File.join(ROOT,'app/jobs/studio_directed_voice_job')
 class StudioDirectorProducerChecks < CampaignProducerChecks
@@ -141,6 +142,44 @@ class StudioDirectorProducerChecks < CampaignProducerChecks
       assert_raises(ArgumentError) { ScreenplayEngine::AudioSynthesizer.synthesize!(text:'Hi',path:path) }
     ensure
       ENV['STUDIO_TTS_BINARY']=previous
+    end
+  end
+  def test_production_speech_forwards_text_through_container_stdin
+    skip 'Set DIRECTOR_TEST_REAL_SPEECH=1 with espeak-ng installed' unless ENV['DIRECTOR_TEST_REAL_SPEECH']=='1'
+    Dir.mktmpdir('production-speech-') do |root|
+      path=File.join(root,'reply.wav')
+      text='Hello Marlon. Here are the options I can help you with.'
+      runner=Studio::MediaProcess.method(:run!)
+      # Substitute only Docker's process boundary. Keep the production command
+      # builder, stdin transport, real speech engine, and WAV decoding intact.
+      transport=->(command,**options) do
+        assert_equal ['docker','run'],command.first(2)
+        image_index=command.index('speech-test/media')
+        refute_nil image_index
+        flags=command.first(image_index)
+        assert_includes flags,'--interactive'
+        refute_includes flags,'--tty'
+        refute_includes command,text
+        assert_equal text,options[:stdin_data]
+        engine=command.drop(image_index+1).map { |part| part.sub('/work/',"#{root}/") }
+        engine[0]=ENV.fetch('STUDIO_TTS_BINARY','espeak-ng')
+        # An unattached Docker stdin behaves like EOF, which reproduces the bug.
+        forwarded=flags.include?('--interactive') ? options[:stdin_data] : ''
+        runner.call(engine,**options.merge(stdin_data:forwarded))
+      end
+      Rails.env.stub(:production?,true) do
+        Studio::NativeBlender::Runtime.stub(:image,'speech-test/media') do
+          Studio::MediaProcess.stub(:cpu_limit,'1') do
+            Studio::MediaProcess.stub(:run!,transport) do
+              ScreenplayEngine::AudioSynthesizer.synthesize!(text:text,path:path,voice:'en-us+f3',speed:170)
+            end
+          end
+        end
+      end
+      assert File.binread(path,4)=='RIFF'
+      samples=runner.call(['ffmpeg','-v','error','-i',path,'-f','s16le','-']).b.unpack('s<*')
+      assert_operator samples.size,:>,8000
+      assert_operator samples.map(&:abs).max,:>,50
     end
   end
 end

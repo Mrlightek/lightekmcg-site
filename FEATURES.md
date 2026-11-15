@@ -271,6 +271,7 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Campaign connection | Create/reopen a campaign production with its brief and return link, retaining website context. |
 | Native Blender library | Approved demo/source imports, prepared metadata, pinned editable `.blend` attachments and optional GLB browser proxies. |
 | CPU economy rendering | Explicit Cycles CPU profile capped at 512 px / 8 samples, one-thread execution, application-host render slots, verified per-operation frame checkpoints, real progress/metrics and authorized paid-render resume. See [CPU economy](docs/studio/cpu-economy.md). |
+| Shared CPU workers | Opt-in dedicated queue within one installation, tenant concurrency caps, expiring fenced attempts, scoped interruption recovery and shared-storage checkpoint handoff. Operator-managed cluster; independent-instance federation remains pending. See [Shared CPU workers](docs/studio/shared-cpu-workers.md). |
 | Native authoring | Outliner/Inspector, source-object transforms, visibility, duplication/removal, cameras, lights, material overrides, exposed Geometry Nodes parameters and named modifier stacks with typed values, viewport/render toggles, ordering, removal and undo. |
 | Advanced workstation/finishing | Existing Blender workspaces and a separate timeline/mix/export path with transforms, fades, speed, titles, picture adjustments, MP4/ProRes and WAV output contracts. |
 | Cast & Performance | Native toon creation or compatible packed character registration, placements, recorded audio takes, saved facial/gesture cues and animated preview/shot export. |
@@ -394,8 +395,8 @@ Guides: [Story simulation](docs/nevaeh/tutorials/story_simulation.md) and [Socia
 | Capability | Current behavior |
 | --- | --- |
 | Shared graphical stage | Eight persistent work tabs for owned productions, task receipts, workers, guides, learning and internal Dashboard pages; script, saved XY blocking, embedded Studio and preview remain beside chat. |
-| Reactive virtual assistant | Illustrated animated assistant in the workspace and Dashboard dock; reflects real request, voice, job and attention states and brings the current page into the shared workspace. |
+| Reactive virtual assistant | Reference-based character assistant in the workspace and Dashboard dock; reflects real request, voice, job and attention states and brings the current page into the shared workspace. |
 | Blocking rehearsal | Forked, private Blender Workbench preview with bounded obstacle routing, personal-space correction and full-scene spatial audit. Reviewed corrections apply only to the unchanged source revision. |
 | Dialogue continuity | Reuses pinned Cast objects across successive lines, retains each audio source and schedules speaker/listener gaze cues. |
 
-See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md) for limits, recovery and deployment. Root routing does not generate a walk cycle or guarantee artistic facial/eye animation. The assistant is a reactive graphical foundation, with existing authorized command execution.
+See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md) for limits, recovery and deployment. Root routing does not generate a walk cycle or guarantee artistic facial/eye animation. The character follows the supplied Nevaeh appearance reference; status reactions use a badge and subtle motion. The assistant is a reactive graphical foundation, with existing authorized command execution.

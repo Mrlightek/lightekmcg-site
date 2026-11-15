@@ -1,6 +1,6 @@
 # Graphical workspace, assistant and rehearsals
 
-Open **Dashboard → Nevaeh**. The central stage holds your work beside the conversation. The illustrated Nevaeh character shows actual request, voice and execution states. The Dashboard assistant dock can answer through the same command pipeline or **Bring this page into workspace**. This is the first reactive virtual-assistant interface; it does not imply a fully rigged 3D character or continuous awareness of every application event.
+Open **Dashboard → Nevaeh**. The central stage holds your work beside the conversation. The reference-based Nevaeh character shows actual request, voice and execution states. The Dashboard assistant dock can answer through the same command pipeline or **Bring this page into workspace**. This is the first reactive virtual-assistant interface; it does not imply a fully rigged 3D character or facial lip sync or continuous awareness of every application event.
 
 ## Keep the work together
 

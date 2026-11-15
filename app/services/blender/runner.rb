@@ -47,9 +47,10 @@ module Blender
       write_manifest
 
       @worker_started=Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      options={timeout:timeout_seconds,cancel_if: -> { execution_record.respond_to?(:status) && execution_record.reload.status=="cancelled" }}
+      options={timeout:timeout_seconds,cancel_if: -> { cancelled? }}
       options[:on_tick]= -> { record_progress } if Studio::Compute::CpuProfile.economy?(execution_record.manifest)
       stdout = Studio::MediaProcess.run!(command, **options)
+      Studio::Compute::Lease.check!
       record_progress
       write_log(stdout, "")
 
@@ -82,6 +83,12 @@ module Blender
     private
 
     attr_reader :execution_record
+
+    def cancelled?
+      return true if execution_record.respond_to?(:status) && execution_record.reload.status == "cancelled"
+      Studio::Compute::Lease.check!
+      false
+    end
 
     def prepare_output_directory
       FileUtils.mkdir_p(output_directory,mode:0700)
@@ -231,10 +238,11 @@ module Blender
 
     def record_progress
       return unless execution_record.respond_to?(:metadata) && Studio::Compute::CpuProfile.economy?(execution_record.manifest)
+      Studio::Compute::Lease.heartbeat!
       path=output_directory.join("cpu-progress.json");return unless path.file? && path.size<8192
       progress=JSON.parse(path.read).slice("profile","phase","completed_frames","total_frames","reused_frames","elapsed_seconds","cpu_seconds","blender_peak_rss_bytes")
       progress["worker_elapsed_seconds"]=(Process.clock_gettime(Process::CLOCK_MONOTONIC)-@worker_started).round(3) if @worker_started
-      execution_record.with_lock { execution_record.update!(metadata:execution_record.metadata.merge("cpu_render_progress"=>progress)) }
+      execution_record.with_lock { Studio::Compute::Lease.check!; execution_record.update!(metadata:execution_record.metadata.merge("cpu_render_progress"=>progress)) }
     rescue JSON::ParserError,Errno::ENOENT
       nil
     end

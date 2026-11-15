@@ -32,4 +32,4 @@ Conversation occupies the center. The left navigation opens Studio, guides, agen
 
 Next: read the Commands tutorial, then Agents and delegation.
 
-The [graphical stage](director_stage.md) keeps your work in one place: open a production, task, Guide, workers or Dashboard page beside chat. Your work tabs persist between visits. Nevaeh’s illustrated assistant reacts to actual activity and can bring a Dashboard page into this workspace.
+The [graphical stage](director_stage.md) keeps your work in one place: open a production, task, Guide, workers or Dashboard page beside chat. Your work tabs persist between visits. Nevaeh’s reference-based character assistant reacts to actual activity and can bring a Dashboard page into this workspace.

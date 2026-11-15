@@ -95,3 +95,10 @@ lightek_social_publication_calendar:
   class: "LightekMarketing::PublicationSweepJob"
   queue: default
   active_job: true
+
+# Recovers the state of interrupted attempts; users explicitly resume paid work.
+studio_cpu_lease_recovery:
+  cron: "* * * * *"
+  class: "StudioCpuLeaseSweepJob"
+  queue: default
+  active_job: true

@@ -22,9 +22,14 @@ class StudioMediaSetupTest(unittest.TestCase):
         self.assertIn('--interactive',speech)
         self.assertNotIn('--tty',speech)
         self.assertEqual(speech[speech.index('--memory')+1],'2g')
+        self.assertIn('/run/lightek-voice:rw,exec,nosuid,nodev,size=16m,mode=1777',speech)
+        self.assertIn('TMPDIR=/run/lightek-voice',speech)
+        self.assertIn('/tmp:rw,nosuid,size=512m',speech)
         self.assertEqual(speech[-4:],['/opt/lightek-voice/venv/bin/python','/opt/lightek-voice/synthesize.py','--output','/tmp/nevaeh-health.wav'])
         for probe in probes:
             with self.subTest(engine=probe[-3:]):
+                if probe is not speech:
+                    self.assertNotIn('TMPDIR=/run/lightek-voice',probe)
                 self.assertIn('--read-only',probe)
                 self.assertEqual(probe[probe.index('--network')+1],'none')
                 self.assertEqual(probe[probe.index('--cpus')+1],'1')

@@ -38,4 +38,3 @@ jobs:
         run: ruby test/standalone/commerce_network_test.rb
       - name: Verify browser session handling and error redaction
         run: node test/javascript/payout_accounts_test.cjs
-

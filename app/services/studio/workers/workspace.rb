@@ -196,6 +196,7 @@ module Studio
           raise ArgumentError,"A shot quote request key is required" unless Studio::Shots::Board::KEY.match?(key)
           scene.with_lock do
             manifest,metadata=Studio::Shots::Board.snapshot(scene,@payload["shot_id"])
+            Studio::Compute::Federation::Contract.validate!(manifest) if ENV["STUDIO_CPU_REMOTE"] == "1" && Studio::Compute::CpuProfile.economy?(manifest)
             operation=scene.studio_operations.where("metadata ->> 'shot_request_key' = ?",key).first
             if operation
               raise ArgumentError,"This quote request belongs to a different shot revision" unless operation.metadata["shot_fingerprint"]==metadata["shot_fingerprint"] && operation.metadata["shot_id"]==metadata["shot_id"]
@@ -211,6 +212,7 @@ module Studio
             raise ArgumentError,"Export a shot of 1–2400 frames at a time" unless first>=1 && (last-first+1).between?(1,2400)
             manifest["outputs"]={"blend"=>true,"animation"=>true,"bundle"=>scene.blender_bundle.attached?}
           end
+          Studio::Compute::Federation::Contract.validate!(manifest) if ENV["STUDIO_CPU_REMOTE"] == "1" && Studio::Compute::CpuProfile.economy?(manifest)
           operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"awaiting_payment",intent:{"user_id"=>@access.user.id},manifest:manifest)
         end
         Studio::Billing::Quote.call(operation:operation,rail: :stripe_card) if operation.cost_quote.blank?
@@ -225,7 +227,9 @@ module Studio
           raise ArgumentError,"Only a paid CPU economy movie can resume" unless operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && operation.paid? && !operation.metadata["draft_preview"]
           return {operation_id:operation.id,status:operation.status} if %w[pending running completed].include?(operation.status)
           raise ArgumentError,"Only failed renders can resume" unless operation.status=="failed"
-          operation.update!(status:"pending",error_message:nil,completed_at:nil)
+          metadata = operation.metadata.deep_dup
+          metadata["remote_cpu"]["resume_requested"] = true if metadata["remote_cpu"].is_a?(Hash)
+          operation.update!(status:"pending",error_message:nil,completed_at:nil,metadata:metadata)
           enqueue=true
         end
         ExecuteStudioOperationJob.perform_later(operation.id) if enqueue

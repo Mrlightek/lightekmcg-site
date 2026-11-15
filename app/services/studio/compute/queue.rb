@@ -6,6 +6,7 @@ module Studio
       end
 
       def self.name(operation)
+        return "studio" if Federation::Dispatch.enabled?(operation)
         return "studio" unless economy?(operation) && dedicated?
         raise ArgumentError, "Dedicated CPU workers require shared Studio storage" unless ENV["STUDIO_CPU_SHARED_STORAGE"] == "1"
         "studio_cpu"

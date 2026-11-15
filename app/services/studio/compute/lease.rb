@@ -70,6 +70,9 @@ module Studio
       def heartbeat!
         return if @heartbeat_at && Process.clock_gettime(Process::CLOCK_MONOTONIC) - @heartbeat_at < 2
         raise Lost, "CPU render lease expired or was replaced" unless owned.update_all(expires_at: Time.current + TTL, updated_at: Time.current) == 1
+        if (remote = StudioRemoteRender.find_by(studio_operation_id: @operation.id))
+          Federation::Broker.authorize!(remote.peer)
+        end
         @heartbeat_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         check!
       end

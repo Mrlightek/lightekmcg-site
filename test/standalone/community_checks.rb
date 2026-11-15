@@ -100,6 +100,10 @@ end
 ActiveRecord::ConnectionAdapters::TableDefinition.prepend(SqliteJsonbForHarness)
 require File.join(ROOT, "db/migrate/20261115210000_create_studio_compute_leases")
 CreateStudioComputeLeases.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261116001000_create_studio_remote_renders")
+CreateStudioRemoteRenders.new.migrate(:up)
+require File.join(ROOT, "app/models/studio_remote_render")
+%w[contract broker dispatch].each { |file| require File.join(ROOT, "app/services/studio/compute/federation", file) }
 require File.join(ROOT, "app/models/studio_compute_pool")
 require File.join(ROOT, "app/models/studio_compute_lease")
 require File.join(ROOT, "app/services/studio/compute/queue")

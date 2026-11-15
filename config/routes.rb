@@ -22,6 +22,11 @@ Rails.application.routes.draw do
   post "/api/connect/sites/:id/management", to: "api/connect#management"
   post "/api/connect/dashboard", to: "api/connect#dashboard"
   delete "/api/connect", to: "api/connect#disconnect"
+  post "/api/reservations/federation/studio/cpu", to: "api/studio_compute#create"
+  get "/api/reservations/federation/studio/cpu/:key", to: "api/studio_compute#status"
+  post "/api/reservations/federation/studio/cpu/:key/resume", to: "api/studio_compute#resume"
+  post "/api/reservations/federation/studio/cpu/:key/cancel", to: "api/studio_compute#cancel"
+  get "/api/reservations/federation/studio/cpu/:key/files/:filename", to: "api/studio_compute#file", constraints: {filename: /movie\.mp4|scene\.blend|preview\.png/}, format: false
   post "/api/reservations/federation/connect/redeem", to: "api/connect_federation#redeem"
   post "/api/reservations/federation/connect/validate", to: "api/connect_federation#validate_session"
   scope "/dashboard/studio/editors/:kind", controller: "dashboard/studio_editors", as: :dashboard_studio_editor do

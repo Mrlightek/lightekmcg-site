@@ -46,7 +46,7 @@ module Studio
             raise ArgumentError,"Asset source is not ready" unless attachment && (attachment.respond_to?(:attached?) ? attachment.attached? : attachment.persisted?)
             extension=native ? "blend" : "glb"
             path=File.join(root,"#{id}.#{extension}")
-            File.open(path,"wb") { |file| attachment.blob.download { |chunk| file.write(chunk) } }
+            File.open(path,"wb") { |file| attachment.blob.download { |chunk| Studio::Compute::Lease.heartbeat!; file.write(chunk) } }
             paths[id]={path:path,format:extension,scene:asset.metadata["source_scene"]}
           end
           objects.each do |object|
@@ -56,7 +56,7 @@ module Studio
             pinned=operation.performance_sources.find { |source| source.blob_id==take["audio_blob_id"] }
             raise ArgumentError,"The performance recording snapshot is unavailable" unless pinned
             path=File.join(root,"voice-#{pinned.blob_id}#{File.extname(pinned.filename.to_s)}")
-            File.open(path,"wb") { |file| pinned.blob.download { |chunk| file.write(chunk) } }
+            File.open(path,"wb") { |file| pinned.blob.download { |chunk| Studio::Compute::Lease.heartbeat!; file.write(chunk) } }
             performance_paths[pinned.blob_id]=path
             end
           end
@@ -78,10 +78,10 @@ module Studio
             bundle||=asset.bundle if defined?(asset) && asset && asset.bundle.attached?
             if bundle
               bundle_path=File.join(root,"native-bundle.zip")
-              File.open(bundle_path,"wb") { |file| bundle.blob.download { |chunk| file.write(chunk) } }
+              File.open(bundle_path,"wb") { |file| bundle.blob.download { |chunk| Studio::Compute::Lease.heartbeat!; file.write(chunk) } }
             end
             template_path=File.join(root,"native-template.blend")
-            File.open(template_path,"wb") { |file| source.blob.download { |chunk| file.write(chunk) } }
+            File.open(template_path,"wb") { |file| source.blob.download { |chunk| Studio::Compute::Lease.heartbeat!; file.write(chunk) } }
           end
           result = ::Blender::Runner.new(operation,asset_paths:paths,template_path:template_path,template_bundle:bundle_path,performance_paths:performance_paths).call
           attach_outputs(result.output_directory)
@@ -98,13 +98,17 @@ module Studio
           path = directory.join(filename)
           next unless path.exist?
 
-          artifact = operation.artifacts.find_or_initialize_by(kind: kind, filename: filename)
-          artifact.file.attach(
-            io: File.open(path),
-            filename: filename,
-            content_type: content_type_for(filename)
-          )
-          artifact.save!
+          operation.with_lock do
+            Studio::Compute::Lease.check!
+            artifact = operation.artifacts.find_or_initialize_by(kind: kind, filename: filename)
+            artifact.file.attach(
+              io: File.open(path),
+              filename: filename,
+              content_type: content_type_for(filename)
+            )
+            Studio::Compute::Lease.check!
+            artifact.save!
+          end
         end
       end
 

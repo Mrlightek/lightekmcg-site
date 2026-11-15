@@ -1,0 +1,4 @@
+# Dedicated operator-managed CPU worker. Keep one process per host by default.
+:concurrency: 1
+:queues:
+  - studio_cpu

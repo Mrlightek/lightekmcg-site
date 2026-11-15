@@ -23,6 +23,7 @@ A business can build its website, sell products or book services, manage custome
 | Schedule Quran study and training at Salah times | [Salah & Study on the server clock](docs/nevaeh/tutorials/salah_study.md) |
 | Edit a photo or video and export it | [Photo and Video Studio](docs/studio/open-source-editors.md) |
 | Render procedural scenes with a bounded CPU budget | [CPU economy rendering & recovery](docs/studio/cpu-economy.md) |
+| Route CPU renders to dedicated Lightek workers | [Shared CPU worker deployment & recovery](docs/studio/shared-cpu-workers.md) |
 | Control Blender modifiers and stack order | [Modifier stack](docs/studio/blender-modifier-stack.md) |
 | Direct and render a shot sequence | [Shots & Storyboard](docs/studio/shots-and-storyboard.md) |
 | Position a graphic or logo in the live program | [Live graphic placement](docs/studio/live-overlay-placement.md) |

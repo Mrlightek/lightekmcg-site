@@ -1,6 +1,7 @@
 class NevaehSpeech < ApplicationRecord
   belongs_to :user
   has_one_attached :audio
+  has_many :segments,-> { order(:position) },class_name:'NevaehSpeechSegment',dependent: :destroy
   attribute :voice, default: 'nevaeh-natural'
   validates :request_key,format:{with:/\A[a-zA-Z0-9_-]{8,100}\z/},uniqueness:{scope: :user_id}
   validates :status,inclusion:{in:%w[queued running ready failed cancelled]}

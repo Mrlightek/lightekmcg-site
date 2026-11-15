@@ -183,6 +183,8 @@ Rails.application.routes.draw do
   get "/dashboard/nevaeh/speech/:id", to: "dashboard/nevaeh_os#speech_status"
   delete "/dashboard/nevaeh/speech/:id", to: "dashboard/nevaeh_os#speech_cancel"
   get "/dashboard/nevaeh/speech/:id/audio", to: "dashboard/nevaeh_os#speech_audio"
+  get "/dashboard/nevaeh/speech/:id/playlist.m3u8", to: "dashboard/nevaeh_os#speech_playlist",format:false
+  get "/dashboard/nevaeh/speech/:id/segments/:position.ts", to: "dashboard/nevaeh_os#speech_segment",constraints:{position:/\d+/},format:false
   post "/dashboard/nevaeh/context", to: "dashboard/nevaeh_os#page_context"
   post "/dashboard/nevaeh/goals", to: "dashboard/nevaeh_os#goals"
   get "/dashboard/nevaeh/stage", to: "dashboard/nevaeh_os#stage"

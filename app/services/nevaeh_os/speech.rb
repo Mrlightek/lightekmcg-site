@@ -4,14 +4,16 @@ require 'json'
 module NevaehOs
   module Speech
     module_function
+    SPOKEN_LIMIT=600
+    QUEUE_TIMEOUT=2.minutes
     def normalize(text)
       raise ArgumentError,'Use a response of 1–20,000 characters' unless text.is_a?(String) && text.length.between?(1,20000) && !text.include?("\0")
       clean=text.gsub(/```.*?```/m,' ').gsub(/\[([^\]]+)\]\([^)]+\)/,'\\1').gsub(%r{https?://\S+},' ').gsub(/^[\s#>*-]+/,'').delete('`*').gsub(/\s+/,' ').strip
       raise ArgumentError,'There is no spoken text in this response' if clean.empty?
-      truncated=clean.length>1800
+      truncated=clean.length>SPOKEN_LIMIT
       if truncated
-        sample=clean.first(1800)
-        boundary=sample.rindex(/[.!?]\s/) || sample.rindex(/\s/) || 1799
+        sample=clean.first(SPOKEN_LIMIT)
+        boundary=sample.rindex(/[.!?]\s/) || sample.rindex(/\s/) || SPOKEN_LIMIT-1
         clean=sample.first(boundary+1).strip
       end
       [clean,truncated]
@@ -27,15 +29,30 @@ module NevaehOs
         end
         raise ArgumentError,'Wait for your current speech clips or stop them before preparing another' if NevaehSpeech.where(user:actor,status:%w[queued running]).count>=3
         speech=NevaehSpeech.create!(user:actor,request_key:request_key,fingerprint:fingerprint,text:spoken,truncated:truncated,voice:voice,speed:speed,expires_at:1.day.from_now)
+        SpeechPlaylist.parts(spoken).each_with_index { |part,index| speech.segments.create!(position:index,text:part) }
         SpeechJob.perform_later(speech.id)
         speech
       end
     end
     def owned!(actor,id)
-      NevaehSpeech.where(user:actor).where('expires_at > ?',Time.current).find(id)
+      speech=NevaehSpeech.where(user:actor).where('expires_at > ?',Time.current).find(id)
+      expire_stalled!(speech)
+      speech
+    end
+    def expire_stalled!(speech)
+      speech.with_lock do
+        if speech.status=='queued' && speech.created_at<QUEUE_TIMEOUT.ago
+          speech.update!(status:'failed',error:'The voice worker did not start within two minutes. It may be busy or offline. Read the reply again after the worker is available.')
+        elsif speech.status=='running' && speech.started_at && speech.started_at<10.minutes.ago
+          speech.update!(status:'failed',error:'Speech preparation was interrupted. Read the response again to create a new request.')
+        end
+      end
     end
     def receipt(speech)
-      {id:speech.id,status:speech.status,duration:speech.duration,text:speech.text,truncated:speech.truncated,voice:speech.voice,error:speech.error,
+      since=speech.status=='running' ? speech.started_at : speech.created_at
+      playlist=SpeechPlaylist.timeline(speech)
+      {id:speech.id,status:speech.status,elapsed_seconds:[(Time.current-(since || Time.current)).to_i,0].max,duration:speech.duration,text:speech.text,truncated:speech.truncated,voice:speech.voice,error:speech.error,
+        playlist_url:"/dashboard/nevaeh/speech/#{speech.id}/playlist.m3u8",playlist_ready:playlist[:items].any?,playlist_items:playlist[:items],playlist_duration:playlist[:duration],playlist_frames:playlist[:mouth_frames],playlist_total:speech.segments.count,
         engine:speech.voice.start_with?('nevaeh-') ? 'kokoro_onnx' : 'espeak_ng',mouth_mode:'volume',mouth_frames:speech.status=='ready' ? speech.mouth_frames : [],audio_url:speech.status=='ready' && speech.audio.attached? ? "/dashboard/nevaeh/speech/#{speech.id}/audio" : nil}
     end
     def cancel!(actor,id)
@@ -55,18 +72,19 @@ module NevaehOs
       Rails.env.production? ? Studio::MediaProcess.container(command.map { |part| part.gsub(root,'/work') },root:root,image:Studio::NativeBlender::Runtime.image(:media)) : command
     end
     def generate!(speech)
+      expire_stalled!(speech)
       claimed=false
       speech.with_lock do
         return unless speech.status=='queued'
+        SpeechPlaylist.parts(speech.text).each_with_index { |part,index| speech.segments.create!(position:index,text:part) } unless speech.segments.exists?
         speech.update!(status:'running',started_at:Time.current,error:nil);claimed=true
       end
       speech.user.reload
       cancel=-> { speech.reload.status!='running' || speech.expires_at<=Time.current }
       Studio::MediaProcess.temporary_directory('nevaeh-speech-') do |root|
-        paths=chunks(speech.text).each_with_index.map do |part,index|
-          path=File.join(root,"part-#{index}.wav")
-          ScreenplayEngine::AudioSynthesizer.synthesize!(text:part,path:path,voice:speech.voice,speed:speech.speed,cancel_if:cancel)
-          path
+        paths=speech.segments.map do |segment|
+          return if cancel.call
+          SpeechPlaylist.render!(speech,segment,root,cancel)
         end
         return if cancel.call
         # Generated, fixed local filenames only; the concat manifest never contains user paths.
@@ -96,7 +114,7 @@ module NevaehOs
       raise
     end
     def sweep!
-      NevaehSpeech.where(status:'queued').where('created_at < ?',10.minutes.ago).update_all(status:'failed',error:'Speech waited too long for its worker. Check the worker, then read the response again.')
+      NevaehSpeech.where(status:'queued').where('created_at < ?',QUEUE_TIMEOUT.ago).update_all(status:'failed',error:'The voice worker did not start within two minutes. It may be busy or offline. Read the reply again after the worker is available.')
       NevaehSpeech.where(status:'running').where('started_at < ?',10.minutes.ago).update_all(status:'failed',error:'Speech preparation was interrupted. Read the response again to create a new request.')
       NevaehSpeech.where('expires_at <= ?',Time.current).order(:id).limit(100).each(&:destroy!)
     end

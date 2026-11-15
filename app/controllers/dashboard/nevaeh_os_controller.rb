@@ -81,6 +81,15 @@ class Dashboard::NevaehOsController < ::ApplicationController
     raise ArgumentError,'Finish speech preparation before playback' unless value.status=='ready' && value.audio.attached?
     send_data value.audio.download,type:'audio/wav',disposition:'inline',filename:'nevaeh-reply.wav'
   end
+  def speech_playlist
+    value=NevaehOs::Speech.owned!(current_user,params[:id])
+    render plain:NevaehOs::SpeechPlaylist.manifest(value),content_type:'application/vnd.apple.mpegurl'
+  end
+  def speech_segment
+    value=NevaehOs::Speech.owned!(current_user,params[:id])
+    segment=value.segments.where(status:'ready').find_by!(position:params[:position])
+    send_data segment.stream.download,type:'video/mp2t',disposition:'inline',filename:"part-#{segment.position}.ts"
+  end
   def page_context
     context=NevaehOs::PageContext.normalize(params.require(:page_context).to_unsafe_h)
     render json:NevaehOs::PageContext.help(current_user,context)

@@ -63,7 +63,7 @@ class CommerceController < ApplicationController
     if physical && LightekShipping::Profile.exists?(site: @site) && !quote
       raise LightekCommerce::OrderPlacement::Invalid, "Choose a shipping quote before payment"
     end
-    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: cart, shipping_quote: quote)
+    order = LightekCommerce::OrderPlacement.call(site: @site, customer_email: email, quantities: cart, shipping_quote: quote, growth_visit: LightekGrowth::Tracking.from_request(site: @site, cookies: cookies, request: request))
     checkout = LightekCommerce::StripeCheckout.start!(order: order,
       success_url: instance_cart ? installation_url(order) : commerce_shop_url(site_id: @site.id, order_id: order.id),
       cancel_url: commerce_shop_url(site_id: @site.id))

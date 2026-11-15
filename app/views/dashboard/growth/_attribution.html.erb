@@ -1,0 +1,2 @@
+<% visit = record.respond_to?(:growth_attribution) ? record.growth_attribution : nil %>
+<p class="growth-source"><strong>Campaign source:</strong> <%= visit ? visit.description : 'Unknown — no tracked-link attribution recorded' %></p>

@@ -53,6 +53,8 @@ class Dashboard::MarketingCampaignsController < Dashboard::CommerceBaseControlle
   def destroy
     @campaign.destroy!
     redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), notice: "Campaign deleted."
+  rescue ActiveRecord::RecordNotDestroyed
+    redirect_to dashboard_marketing_campaigns_path(site_id: @site.id), alert: "This campaign has tracking links. Mark it completed and disable its links to preserve historical results."
   end
   private
   def set_site

@@ -23,3 +23,5 @@ This is a product/engineering contract for continued implementation, not a claim
 Use **Dashboard → System logs** for diagnostic events, then follow the referenced business record. These new events carry lifecycle-case IDs or quote/order IDs. A universal cross-module correlation scheme and automatic external credential cleanup are not implied by this release.
 
 Related operating guides: [onboarding/offboarding](../people/onboarding-offboarding.md), [quotes to delivery](../sales/quotes-to-delivery.md), [inquiry follow-through](../sales/intake-and-follow-through.md).
+
+Growth Foundation applies this contract with visible campaign/source lineage, unknown-source reporting, brief revisions, reversible link enable/disable, structured diagnostic events and links to the native inquiry, deal and order recovery workflows. See [the operating guide](../sales/growth-foundation.md).

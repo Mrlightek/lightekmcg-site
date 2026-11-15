@@ -11,6 +11,7 @@ This is the current product inventory for the Rails host. Module guides describe
 | Finish first super-admin sign-in | Sign-in security | [MFA setup and recovery](docs/security/sign-in-and-mfa.md) |
 | Operate Nevaeh or delegate work | Nevaeh operating workspace; Control Center | [Operating workspace](docs/nevaeh_operating_system.md) |
 | Build a website or publish an article | Design & Content | [Site themes and journal](docs/cms/site-themes-and-journal.md) |
+| Measure campaign outcomes | Growth in the Business workspace | [Growth Foundation](docs/sales/growth-foundation.md) |
 | Manage sales relationships | Sales & CRM | [Sales workflow and roadmap](docs/sales/crm.md) |
 | Sell and fulfill | Business; Commerce; Marketplace | [Platform operations](docs/commerce/platform-operations.md) |
 | Manage the organization or payroll | People & Access | [People and payroll](docs/people/organization-benefits-payroll.md) |
@@ -80,6 +81,18 @@ Guides: [operating workspace](docs/nevaeh_operating_system.md), [agents](docs/ne
 **Operating scope:** the native model is a small trained network, not a claim of general-purpose LLM parity. Construction uses authored primitives and sample tests. Unsupported tickets need a reviewed executor/verifier; generated code is not automatically merged or deployed.
 
 Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/nevaeh/digital_factory.md), [Islamic learning](docs/nevaeh/tutorials/islamic_learning.md), [Salah study](docs/nevaeh/tutorials/salah_study.md), [structured tickets](docs/nevaeh/structured_ticket_execution.md), [historical backlog execution](docs/nevaeh/historical_backlog_execution.md).
+
+## Growth Foundation: business context and campaign outcomes
+
+| Capability | Implemented behavior |
+| --- | --- |
+| Business growth brief | Per-website offering, audience, problem, value, voice and dated goal; editor identity and optimistic revision checks. |
+| First-party campaign links | Same-host HTTPS redirects with fixed source/medium/campaign tags, signed 30-day visit cookies, repeat-click reuse and per-link enable/disable. |
+| Campaign journey | Visit-cohort milestones through native inquiries, new leads, converted deals, quote orders, confirmed payment and recorded delivery; duplicate-safe distinct-visit counts. |
+| Commercial evidence | Paid order counts/totals, separate refunds, recent attributed orders and explicitly separate unknown-source activity. |
+| Source preservation and operation | Read-only source on inquiry, lead/deal, quote and order screens; preserved history, tenant/role/package boundaries, structured diagnostics and native recovery guidance. |
+
+Scope: first-party tracked-link attribution, not complete traffic analytics, verified people, multi-touch identity, automated research, an AI CMO or a new social-publishing engine. Direct checkout can skip CRM stages. Historical or untraceable sales remain unknown. See [Growth Foundation](docs/sales/growth-foundation.md).
 
 ## 4. Websites, design, publishing and the PWA
 

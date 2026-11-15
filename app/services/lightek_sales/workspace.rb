@@ -24,7 +24,7 @@ module LightekSales
       scope(kind).find(id)
     end
 
-    def save!(kind, values, id: nil, lock_version: nil)
+    def save!(kind, values, id: nil, lock_version: nil, growth_visit: nil)
       authorize_routing! if kind == 'routing_rule'
       record = id ? find(kind, id) : scope(kind).new
       record.with_lock do
@@ -41,6 +41,10 @@ module LightekSales
         end
         created = record.new_record?
         attributes = parse_money(attributes) if kind == 'opportunity'
+        if growth_visit
+          raise ArgumentError, 'Attribution is only set on a new lead.' unless kind == 'lead' && created
+          record.growth_visit = growth_visit
+        end
         record.assign_attributes(attributes)
         record.save!
         changes = record.saved_changes.except('created_at', 'updated_at', 'lock_version')
@@ -79,6 +83,7 @@ module LightekSales
         contact.sales_account = account
         contact.sales_owner_id = eligible_owner(lead.owner_id)&.id if contact.sales_owner_id.blank?
         contact.save!
+        attributes['growth_visit'] = lead.growth_attribution if lead.growth_attribution
         opportunity = scope('opportunity').create!(attributes.merge(account: account, contact: contact,
           owner_id: eligible_owner(lead.owner_id)&.id, stage: 'qualified', probability: 30,
           next_step: lead.next_step, follow_up_on: lead.follow_up_on, notes: lead.notes))

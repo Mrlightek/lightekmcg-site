@@ -69,7 +69,7 @@ module LightekSales
         unless lead
           lead = workspace.save!('lead', {name: data['name'], email: data['email'], company: data['company'].presence || data['name'],
             phone: data['phone'], source: entry.source, notes: details(entry, data),
-            next_step: 'Review the inquiry and agree on a first conversation.', follow_up_on: Date.current + 1})
+            next_step: 'Review the inquiry and agree on a first conversation.', follow_up_on: Date.current + 1}, growth_visit: entry.inquiry&.growth_attribution)
         end
         Activity.create!(site: site, actor: actor, record: lead, kind: 'inquiry_received', body: details(entry, data))
         related = lead.converted_at? ? lead.opportunity : lead

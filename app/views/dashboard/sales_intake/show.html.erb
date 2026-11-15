@@ -1,6 +1,7 @@
 <% content_for :page_title, 'Review inquiry · Sales & CRM' %>
 <main class="sales-workspace"><%= render 'dashboard/sales/header' %>
   <div class="sales-record-heading"><div><span class="sales-eyebrow"><%= @entry.origin.upcase %> / <%= @entry.source %></span><h2>Review this relationship</h2><p><%= @entry.status.humanize %> · received <%= @entry.created_at.to_fs(:long) %></p></div><%= link_to 'Back to inquiry inbox', dashboard_sales_intake_path(site_id: @site.id), class: 'sales-button secondary' %></div>
+  <%= render 'dashboard/growth/attribution', record: @entry.inquiry %>
   <% if @entry.error_message.present? %><div class="sales-errors" role="alert"><%= @entry.error_message %></div><% end %>
   <section class="sales-two-col">
     <article class="sales-panel"><h2><%= @entry.processed? ? 'Intake result' : 'Confirm the essentials' %></h2>

@@ -21,7 +21,7 @@
               <%= check_box_tag "order_ids[]", order.id, false, id: "select-order-#{order.id}", form: "delete-selected-orders", aria: { label: "Select unpaid order ##{order.id}" } %>
             <% end %>
           </td>
-          <td>#<%= order.id %></td>
+          <td>#<%= order.id %><%= render 'dashboard/growth/attribution', record: order %></td>
           <td><%= order.customer_email %></td>
           <td><%= order.items.map { |item| "#{item.quantity} × #{item.name}" }.join(", ") %></td>
           <td><%= number_to_currency(order.total_cents / 100.0) %></td>

@@ -17,13 +17,21 @@ if (!folder) throw new Error('Export views with SALES_PREVIEW_DIR and sales_crm_
     });
     for (const width of [1440, 1024, 390]) {
       await page.setViewportSize({ width, height: 1000 });
-      for (const screen of ['today', 'pipeline', 'deal', 'intake', 'inquiry', 'tasks', 'quote', 'lifecycle']) {
+      for (const screen of ['today', 'pipeline', 'deal', 'intake', 'inquiry', 'tasks', 'quote', 'lifecycle', 'growth']) {
         await page.goto(`http://sales.test/${screen}`);
-        await page.getByRole('heading', { name: screen === 'lifecycle' ? 'Onboarding & offboarding' : 'Sales & CRM', exact: true }).waitFor();
+        await page.getByRole('heading', { name: screen === 'lifecycle' ? 'Onboarding & offboarding' : screen === 'growth' ? 'Growth & attribution' : 'Sales & CRM', exact: true }).waitFor();
         assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `page overflow ${screen} at ${width}`);
         for (const input of await page.locator('.sales-form input:not([type=hidden]), .sales-form select, .sales-form textarea').all()) {
           const box = await input.boundingBox();
           assert(box && box.x >= 0 && box.x + box.width <= width + 1, `form outside viewport ${width}`);
+        }
+        if (screen === 'growth') {
+          assert.equal(await page.locator('.growth-funnel li').count(), 7);
+          assert(await page.getByRole('button', { name: 'Save business brief' }).isVisible());
+          assert(await page.getByRole('button', { name: 'Create tracking link' }).isVisible());
+          const share = page.getByRole('textbox', { name: 'Tracking URL for Instagram profile' });
+          assert(await share.getAttribute('readonly') !== null);
+          assert((await share.inputValue()).startsWith('https://lightek.test/g/'));
         }
         if (screen === 'deal') {
           await page.getByLabel('Next step', { exact: true }).fill('Confirm budget and decision maker');
@@ -36,6 +44,6 @@ if (!folder) throw new Error('Export views with SALES_PREVIEW_DIR and sales_crm_
       }
     }
     assert.deepEqual(errors, []);
-    console.log('SALES_BROWSER_PASS native Today, pipeline, deal, inquiry inbox/review, tasks, quotes and lifecycle views; currency inputs, relationship links and responsive layout at 1440/1024/390');
+    console.log('SALES_BROWSER_PASS native Today, pipeline, deal, inquiry inbox/review, tasks, quotes, lifecycle and Growth views; currency inputs, relationship links and responsive layout at 1440/1024/390');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

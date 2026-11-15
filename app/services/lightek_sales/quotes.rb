@@ -46,7 +46,7 @@ module LightekSales
         raise ArgumentError, 'Reopen the lost deal before accepting a quote.' if quote.opportunity.stage == 'closed_lost'
         verify_catalog!(quote)
         order = LightekCommerce::OrderPlacement.call(site: quote.site, customer_email: quote.customer_email,
-          quantities: quote.lines.to_h { |line| [line['product_id'].to_s, line['quantity']] })
+          quantities: quote.lines.to_h { |line| [line['product_id'].to_s, line['quantity']] }, growth_visit: quote.opportunity.growth_attribution)
         raise ArgumentError, 'Catalog prices changed. Issue a revised quote.' unless order.total_cents == quote.total_cents &&
           order.items.all? { |item| quote.lines.any? { |line| line['product_id'] == item.product_id && line['quantity'] == item.quantity && line['unit_price_cents'] == item.unit_price_cents } }
         quote.update!(accepted_by: actor, acceptance_channel: actor ? 'staff' : 'customer_portal', status: 'accepted', accepted_at: Time.current, accepted_name: name.to_s.strip, acceptance_reference: reference.to_s.strip, order: order)

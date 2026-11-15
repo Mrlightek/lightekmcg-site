@@ -81,6 +81,7 @@ require ROOT.join('app/controllers/dashboard/sales_tasks_controller')
 Dashboard::SalesController.prepend_view_path ROOT.join('app/views')
 Dashboard::SalesController.layout false
 SalesHarness.routes.draw do
+  eval(ROOT.join('config/routes/growth.rb').read, binding)
   eval(ROOT.join('config/routes/sales_quotes.rb').read, binding)
   eval(ROOT.join('config/routes/sales.rb').read, binding)
   get '/orders', to: 'dashboard/sales#index', as: :dashboard_commerce_orders
@@ -100,7 +101,11 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     LightekAgency::PackagePolicy.reserved = LightekAgency::PackagePolicy.released = 0
     [LightekSales::Quote, LightekCommerce::OrderItem, LightekCommerce::Order, LightekCommerce::Product, LightekPeople::LifecycleCase, LightekSales::Task, LightekSales::IntakeEntry, LightekSales::IntakeRule, WebsiteTemplateInquiry, DymondSite::Section, DymondSite::Page].each(&:delete_all)
     [LightekSales::Activity, LightekSales::RoutingRule, LightekSales::Lead, LightekSales::Opportunity,
-     LightekMarketing::Contact, LightekSales::Account, LightekAgency::SiteMembership, DymondSite::Site, User].each(&:delete_all)
+     LightekMarketing::Contact, LightekSales::Account, LightekAgency::SiteMembership].each(&:delete_all)
+    if defined?(LightekGrowth::Visit) && LightekGrowth::Visit.table_exists?
+      [LightekGrowth::Visit, LightekGrowth::Link, LightekGrowth::Brief, LightekMarketing::Campaign].each(&:delete_all)
+    end
+    [DymondSite::Site, User].each(&:delete_all)
     @owner = User.create!(email_address: 'owner@example.test', role: 'admin')
     @other = User.create!(email_address: 'other@example.test', role: 'admin')
     @member = User.create!(email_address: 'sales@example.test', role: 'employee')

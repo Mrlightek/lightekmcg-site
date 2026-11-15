@@ -1,25 +1,36 @@
 require 'json'
 require 'open3'
+require 'fileutils'
 
 module ScreenplayEngine
   class AudioSynthesizer
     AUDIO_DIR = "./output_audio"
 
     # Uses local 'espeak' or macOS 'say' (or replace with an API call like ElevenLabs/OpenAI)
-    def self.generate_dialogue_audio(speaker, text, line_index)
-      Dir.mkdir(AUDIO_DIR) unless Dir.exist?(AUDIO_DIR)
-      file_path = File.join(AUDIO_DIR, "#{speaker}_line_#{line_index}.wav")
-
-      # Simple local TTS fallback (Mac 'say' or Linux 'espeak')
-      if RUBY_PLATFORM =~ /darwin/
-        system("say", "-o", file_path, "--data-format=LEI16@24000", text)
+    def self.synthesize!(text:, path:, voice: 'en-us', speed: 155, cancel_if: nil)
+      raise ArgumentError, 'Dialogue must contain 1–1000 characters' unless text.is_a?(String) && text.length.between?(1,1000) && !text.include?("\0")
+      raise ArgumentError, 'Choose an installed stock voice' unless %w[en en-us en-gb ar].include?(voice)
+      raise ArgumentError, 'Choose a speaking speed of 100–220 words per minute' unless speed.is_a?(Integer) && speed.between?(100,220)
+      command = if Rails.env.production?
+        Studio::MediaProcess.container(['espeak-ng','--stdin','-v',voice,'-s',speed.to_s,'-w',"/work/#{File.basename(path)}"], root: File.dirname(path), image: Studio::NativeBlender::Runtime.image(:media))
       else
-        system("espeak", "-w", file_path, text)
+        [ENV.fetch('STUDIO_TTS_BINARY','espeak-ng'),'--stdin','-v',voice,'-s',speed.to_s,'-w',path]
       end
-
-      # Return relative path for Blender to load
-      File.expand_path(file_path)
+      Studio::MediaProcess.run!(command, timeout: 180, stdin_data: text, cancel_if: cancel_if)
+      raise 'Speech engine produced no audio' unless File.size?(path)
+      path
+    rescue Errno::ENOENT
+      raise ArgumentError, 'Install espeak-ng or rebuild the Studio media image to enable synthetic voices'
     end
+    def self.generate_dialogue_audio(speaker, text, line_index)
+      FileUtils.mkdir_p(AUDIO_DIR)
+      name = speaker.to_s.gsub(/[^a-zA-Z0-9_-]/,'_').first(80)
+      index = Integer(line_index)
+      raise ArgumentError, 'Choose a nonnegative dialogue index' if index.negative?
+      path = File.expand_path(File.join(AUDIO_DIR,"#{name}_line_#{index}.wav"))
+      synthesize!(text: text, path: path)
+    end
+
   end
 end
 

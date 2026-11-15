@@ -37,6 +37,13 @@ module NevaehOs
       /learn https://docs.blender.org/… — import a training page as a draft
       /review ID — review an imported source and create a training dataset draft
       /search Blender — search software documentation and reviewed sources
+      /produce catalog · /produce {"site_id":123,"name":"Episode 1","template_key":"comedy"} — reuse production recipes and show bibles
+      /produce personalities · /produce story {…} · /produce story_status ID — fictional character templates and cooperating story workers
+      /produce blocking {…} — relative positions, gaze, personal space, collision checks and camera depth
+      /produce animate {…} · /produce assemble {…} · /produce publish {…} — direct characters, join full scene exports, deliver a reviewed master
+      /produce render ID · /produce assemble ID · /produce status ID · /produce retry VOICE_OPERATION_ID
+      /campaign {"site_id":123,"service":"Xyzzy","tone":"funny"} — build an editable TikTok draft and private preview
+      /campaign status ID · /campaign retry ID — production progress and recovery
       /growth SITE_ID — prepare or open today’s business growth plan
       /status — your recent actions · /briefing — today's operational briefing
       /remember Preferences: I prefer concise replies — offers a memory for consent
@@ -48,6 +55,37 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      return {'kind'=>'production','operation'=>'personalities'} if q.match?(/\A\/?produce\s+personalities\z/i)
+      return {'kind'=>'production','operation'=>'catalog'} if q.match?(/\A\/?produce\s+catalog\z/i)
+      if (m=q.match(/\A\/?produce\s+(status|retry|render|assemble|story_status)\s+([1-9][0-9]*)\z/i))
+        return {'kind'=>'production','operation'=>m[1].downcase,'id'=>m[2].to_i,'values'=>{}}
+      end
+      if (m=q.match(/\A\/?produce\s+(animate|assemble|publish|story|blocking)\s+(\{.*\})\z/im))
+        payload=JSON.parse(m[2])
+        raise ArgumentError, 'Production finishing inputs must be an object with production_id' unless payload.is_a?(Hash) && payload['production_id'].to_s.match?(/\A[1-9][0-9]*\z/)
+        return {'kind'=>'production','operation'=>m[1].downcase,'id'=>payload.delete('production_id').to_i,'values'=>payload}
+      end
+      if (m=q.match(/\A\/?produce\s+(\{.*\})\z/im))
+        payload=JSON.parse(m[1])
+        raise ArgumentError, 'Production input must be an object' unless payload.is_a?(Hash)
+        return {'kind'=>'production','operation'=>'start','site_id'=>payload.delete('site_id'),'values'=>payload}.compact
+      end
+      if (m=q.match(/\A(?:please )?(?:make|create|produce)(?: me)? (?:a |an )?(22|42|48)[ -]minute (comedy|procedural|drama) episode (?:called|named) (.+)\z/i))
+        durations={'comedy'=>'22','procedural'=>'42','drama'=>'48'}
+        raise ArgumentError, 'Choose 22-minute comedy, 42-minute procedural or 48-minute drama, or choose a template with /produce catalog' unless durations[m[2].downcase]==m[1]
+        return {'kind'=>'production','operation'=>'start','values'=>{'name'=>m[3].strip,'template_key'=>m[2].downcase}}
+      end
+      if (m=q.match(/\A\/?campaign\s+(status|retry)\s+([1-9][0-9]*)\z/i))
+        return {'kind'=>'campaign_produce','operation'=>m[1].downcase,'id'=>m[2].to_i}
+      end
+      if (m=q.match(/\A\/?campaign\s+(\{.*\})\z/im))
+        payload=JSON.parse(m[1])
+        raise ArgumentError, 'Campaign input must be an object' unless payload.is_a?(Hash)
+        return {'kind'=>'campaign_produce','operation'=>'start','site_id'=>payload.delete('site_id'),'values'=>payload}.compact
+      end
+      if (m=q.match(/\A(?:please )?(?:make|create|produce)(?: me)? (?:a |an )?(?:(funny|professional) )?(?:tiktok|tik tok) (?:campaign(?: ad)?|ad) (?:promoting|for) (.+?)[.!]?\z/i))
+        return {'kind'=>'campaign_produce','operation'=>'start','values'=>{'service'=>m[2].strip,'tone'=>m[1]&.downcase || 'funny'}}
+      end
       if (m=q.match(/\A(?:\/?growth|(?:prepare|show) (?:my )?growth plan)\s+([1-9][0-9]*)\z/i))
         return {'kind'=>'growth_plan','site_id'=>m[1].to_i}
       end

@@ -4,11 +4,11 @@ Nevaeh is the operating workspace for your signed-in account. Conversation, capa
 
 ## Your first five minutes
 
-1. Open Nevaeh from Dashboard, then open **Guide** in Mission Control.
+1. Open Nevaeh from Dashboard, then open **Guide & capabilities** in the workspace navigation.
 2. Enter `/help` to see command vocabulary.
 3. Enter `/capabilities` to see what is installed. A capability button puts its command into the input; you still choose when to send it.
 4. Try `susu.list` or `show my susus`. This lists Susus you organize or belong to.
-5. Read the thought card and execution receipt. **Queued** means submitted; **completed** means its downstream operation finished. Structured ticket workflows additionally report verification.
+5. Read the response and execution receipt. **Queued** means submitted; **completed** means its downstream operation finished. Structured ticket workflows additionally report verification.
 
 ```text
 /help
@@ -28,6 +28,6 @@ Use the Guide search, the live capability reference, `/describe CAPABILITY`, `/r
 
 ## Read the visual interface
 
-The wheel is an identity visualization with approximate chart positions. Source references and execution evidence explain actual requests. Permissions and authorization do not depend on astrology. The principle labels do not represent measured numerical ethics scores.
+Conversation occupies the center. The left navigation opens Studio, guides, agent workers and, for administrators, Learning & Study. Your activity on the right reopens saved task receipts; Sources & execution evidence shows the references behind each response. Memory controls remain opt in. On small screens the same controls reflow below the conversation. The former chart interface is retired.
 
 Next: read the Commands tutorial, then Agents and delegation.

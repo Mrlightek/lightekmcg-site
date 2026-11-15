@@ -34,3 +34,11 @@ Scene saving uses scene_id, the current lock_version, and a workspace object. Re
 Delegate a configured production worker with `/delegate muse /run WORKER_ID`. A watcher can trigger a reviewed worker when a source changes, using response command and a structured run command. Existing structured workflow sections define dependencies and output references.
 
 See the installed Studio manuals in Software Library for the current Blender/runtime and broadcasting workflows.
+
+## Conversational campaign production
+
+Say `make me a funny tiktok campaign ad promoting Xyzzy service` in Operate to create a draft social campaign and an editable Studio motion graphics production with a private preview. See [Campaign producer](campaign_producer.md) for business facts, images, permissions, retries and the separate review/export/publishing steps.
+
+## Multi-scene episode Director
+
+The [Production Director](production_director.md) connects the existing long-form recipes, show bibles, native camera coverage, department blueprints and local synthetic dialogue into a conversational preparation workflow. Say `make a 22 minute comedy episode called Family Business` or use `/produce catalog`.

@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v85-live-overlay"
+const CACHE = "lightek-shell-v86-director-delivery"
 
 const SHELL = [
   "/lightek/index.html",

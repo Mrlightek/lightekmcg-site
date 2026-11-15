@@ -14,6 +14,19 @@ on:
       - 'app/services/script_builder/**'
       - 'app/services/screenplay_engine/**'
       - 'app/views/dymond_dash/shared/_sidebar.html.erb'
+      - 'app/services/studio/publishers/**'
+      - 'app/services/studio/publishing/**'
+      - 'app/jobs/studio_story_pipeline_job.rb'
+      - 'app/jobs/studio_social_publication_poll_job.rb'
+      - 'blender/**'
+      - 'test/operations/studio_spatial_blender_checks.py'
+      - 'test/standalone/studio_story_pipeline_checks.rb'
+      - 'test/standalone/studio_social_transport_checks.rb'
+      - 'app/services/studio/director/**'
+      - 'app/jobs/studio*assembly*'
+      - 'app/jobs/studio_directed_voice_job.rb'
+      - 'test/standalone/studio_director*'
+      - 'test/standalone/campaign_producer*'
       - 'public/nevaeh/**'
       - 'lib/scripts/nevaeh/**'
       - 'public/lightek/nevaeh/**'
@@ -46,7 +59,13 @@ jobs:
       - run: bundle exec ruby test/standalone/nevaeh_manual_conversation_test.rb --name '/NevaehManualConversationTest/'
       - run: node --test test/javascript/nevaeh_task_inputs_test.cjs
       - name: Install application test binaries
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng blender
+      - run: bundle exec ruby test/standalone/campaign_producer_checks.rb --name '/CampaignProducerChecks/'
+      - run: DIRECTOR_TEST_REAL_SPEECH=1 bundle exec ruby test/standalone/studio_director_producer_checks.rb --name '/StudioDirectorProducerChecks/'
+      - run: bundle exec ruby test/standalone/studio_director_finishing_checks.rb --name '/StudioDirectorFinishingChecks/'
+      - run: bundle exec ruby test/standalone/studio_story_pipeline_checks.rb --name '/StudioStoryPipelineChecks/'
+      - run: bundle exec ruby test/standalone/studio_social_transport_checks.rb --name '/StudioSocialTransportChecks/'
+      - run: blender --background --factory-startup --python-exit-code 1 --python test/operations/studio_spatial_blender_checks.py
       - run: bundle exec ruby test/standalone/nevaeh_os_test.rb
       - run: python3 -m unittest test.operations.nevaeh_package_control_test
       - run: node --check public/nevaeh/os.js

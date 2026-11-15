@@ -171,3 +171,8 @@
 .sa-object-controls .sa-form-grid > form {padding:12px}
 .sa-object-controls .sa-form-grid button {margin:4px 4px 0 0;white-space:normal}
 .sa-object-controls .sa-form-grid p {font-size:11px}
+
+.sa-modifiers {grid-column:1/-1;min-width:0}
+.sa-modifier {border:1px solid rgba(128,128,128,.25);border-radius:10px;padding:14px;margin:12px 0;overflow-wrap:anywhere}
+.sa-modifier form {margin-bottom:12px}
+.sa-modifiers .pwa-post-actions {display:flex;flex-wrap:wrap;gap:8px}

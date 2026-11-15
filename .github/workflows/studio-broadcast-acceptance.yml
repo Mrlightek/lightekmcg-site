@@ -101,6 +101,7 @@ on:
       - 'db/migrate/20261107190000_register_studio_authoring.rb'
       - 'test/javascript/studio_authoring_test.cjs'
       - 'test/javascript/studio_authoring_dom_test.cjs'
+      - 'test/javascript/studio_modifier_stack_test.cjs'
       - 'test/javascript/studio_mesh_commands_test.cjs'
       - 'test/javascript/fixtures/studio_authoring_fixture.cjs'
       - 'test/javascript/studio_stage_test.cjs'
@@ -241,6 +242,10 @@ jobs:
         env:
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/studio_authoring_checks.rb --name "/test_authoring|test_skew/"
+      - name: Native modifier stack acceptance
+        env:
+          LIGHTEK_TEST_BLENDER: '1'
+        run: bundle exec ruby test/standalone/studio_modifier_stack_checks.rb --name /StudioModifierStackTest/
       - name: Existing Studio media regression
         env:
           LIGHTEK_TEST_BLENDER: '1'
@@ -277,6 +282,7 @@ jobs:
         run: |
           node test/javascript/studio_creation_test.cjs
           node test/javascript/studio_authoring_dom_test.cjs
+          node test/javascript/studio_modifier_stack_test.cjs
           node test/javascript/studio_mesh_commands_test.cjs
           node test/javascript/studio_authoring_test.cjs
           node test/javascript/studio_library_test.cjs

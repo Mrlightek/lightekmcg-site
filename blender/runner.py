@@ -639,7 +639,7 @@ def save_blend(path):
     )
 
 
-def export_glb(path):
+def export_glb(path, apply_modifiers=False):
     log(f"Exporting GLB: {path}")
 
     bpy.ops.export_scene.gltf(
@@ -647,6 +647,7 @@ def export_glb(path):
         export_format="GLB",
         use_selection=False,
         export_extras=True,
+        export_apply=apply_modifiers,
     )
 
 
@@ -967,7 +968,7 @@ def main():
                 output_directory,
                 "scene.glb",
             )
-            export_glb(path)
+            export_glb(path, apply_modifiers=bool(outputs.get("authoring")))
             generated.append("scene.glb")
 
         if outputs.get("preview"):

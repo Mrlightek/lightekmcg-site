@@ -114,6 +114,37 @@
       "CompositorNodeValue",
     ],
   };
+  const modifierSpecs = {
+    SUBSURF: {label:"Subdivision surface", fields:{levels:["Viewport levels",0,3,1,1],render_levels:["Render levels",0,3,1,2]}},
+    MIRROR: {label:"Mirror", fields:{use_clip:["Clip mirror center",0,1,1,true]}},
+    SOLIDIFY: {label:"Solidify", fields:{thickness:["Thickness · local units",-100,100,.01,.01]}},
+    BEVEL: {label:"Bevel", fields:{width:["Width · local units",0,100,.01,.1],segments:["Segments",1,8,1,2]}},
+    DECIMATE: {label:"Decimate", fields:{ratio:["Remaining geometry ratio",.001,1,.001,.5]}},
+  };
+  function modifierParameters(type, values = {}, defaults = false) {
+    return Object.entries(modifierSpecs[type].fields).map(([key,[label,min,max,step,initial]])=>{
+      const value=values[key]??(defaults?initial:"");
+      return key==="use_clip"?`<label class="fld"><span>${esc(label)}</span><select data-modifier-property="${key}"><option value="">Keep worker value</option><option value="true" ${value===true?'selected':''}>On</option><option value="false" ${value===false?'selected':''}>Off</option></select></label>`:`<label class="fld"><span>${esc(label)}</span><input type="number" data-modifier-property="${key}" value="${esc(value)}" min="${min}" max="${max}" step="${step}" placeholder="Keep worker value"></label>`;
+    }).join("");
+  }
+  function modifierStack(d) {
+    const object=selected(),source=d.native_original||d,saved=d.authoring_commands||[],cache=previews.get(current()?.scene.id),baked=cache?.commands?.[object?.id]||[];
+    let stack=structuredClone(source.modifier_stack||source.modifiers||[]),commands=saved;
+    if(cache?.inventory?.[object?.id]?.modifier_stack&&baked.length<=saved.length&&baked.every((c,i)=>JSON.stringify(c)===JSON.stringify(saved[i]))){stack=structuredClone(cache.inventory[object.id].modifier_stack);commands=saved.slice(baked.length);}
+    for(const cmd of commands){let target=stack.find(m=>m.name===cmd.name);
+      if(cmd.kind==='modifier'){if(!target){target={name:cmd.name,type:cmd.type,show_viewport:true,show_render:true,properties:{}};stack.push(target);}target.properties={...target.properties,...cmd.properties};}
+      if(cmd.kind==='modifier_state'&&target)for(const key of ['show_viewport','show_render'])if(key in cmd)target[key]=cmd[key];
+      if(cmd.kind==='modifier_remove'&&target)stack.splice(stack.indexOf(target),1);
+      if(cmd.kind==='modifier_move'&&target){stack.splice(stack.indexOf(target),1);stack.splice(cmd.index,0,target);}
+      if(cmd.kind.startsWith('node_')&&cmd.scope==='geometry'&&!stack.some(m=>m.name===(cmd.modifier||'Studio Geometry')))stack.push({name:cmd.modifier||'Studio Geometry',type:'NODES'});
+    }
+    return stack;
+  }
+  function modifierControls(d) {
+    const type=d.native_type||selected()?.object_type?.toUpperCase();if(!['MESH','CUBE','SPHERE','CYLINDER','PLANE'].includes(type))return '';
+    const stack=modifierStack(d),button=(label,action,m,index,extra='')=>`<button type="button" class="btn sm" data-a="studioAuthorModifier" data-action="${action}" data-name="${esc(m.name)}" data-index="${index}" ${state.busy?'disabled':''} ${extra}>${label}</button>`;
+    return `<section class="sa-modifiers"><h4>Modifier stack · ${stack.length}</h4><p>Runs top to bottom in Blender. Save parameters or change order, then Update Blender viewport to review the result. Unsupported source modifiers stay preserved and read-only.</p>${stack.map((m,i)=>`<article class="sa-modifier" data-modifier-name="${esc(m.name)}"><h4>${i+1}. ${esc(m.name)} · ${esc(modifierSpecs[m.type]?.label||m.type)}</h4>${modifierSpecs[m.type]?`${toolForm('modifier','Update '+esc(m.name),`<input type="hidden" name="name" value="${esc(m.name)}"><input type="hidden" name="type" value="${esc(m.type)}">${modifierParameters(m.type,m.properties)}`)}<p>Viewport: ${m.show_viewport===undefined?'unknown · update viewport':m.show_viewport?'on':'off'} · Render: ${m.show_render===undefined?'unknown · update viewport':m.show_render?'on':'off'}</p><div class="pwa-post-actions">${button(m.show_viewport===false?'Enable viewport':'Disable viewport','viewport',m,i)}${m.show_viewport===undefined?button('Enable viewport','viewport-on',m,i):''}${button(m.show_render===false?'Enable render':'Disable render','render',m,i)}${m.show_render===undefined?button('Enable render','render-on',m,i):''}${button('Move up','move',m,i-1,i===0?'disabled':'')}${button('Move down','move',m,i+1,i===stack.length-1?'disabled':'')}${button('Remove','remove',m,i)}</div>`:'<p>Preserved from the native source · read-only in this stack.</p>'}</article>`).join('')||'<p>No modifiers yet.</p>'}${toolForm('modifier','Add modifier',input('name','Unique modifier name','Studio Subdivision')+`<label class="fld"><span>Modifier type</span><select name="type" data-modifier-type>${Object.entries(modifierSpecs).map(([key,spec])=>`<option value="${key}">${spec.label}</option>`).join('')}</select></label><div data-modifier-parameters>${modifierParameters('SUBSURF',{},true)}</div>`)}</section>`;
+  }
   function skewControls(object = selected()) {
     const d = object?.definition || {}, draft = state.skewDraft;
     const hasDraft = draft?.objectId === object?.id && draft.sceneId === current()?.scene.id;
@@ -164,13 +195,7 @@
         "Merge vertices",
         selection() + numeric("amount", "Merge distance", 0.001),
       ) +
-      toolForm(
-        "modifier",
-        "Modifier",
-        input("name", "Modifier name", "Studio Subdivision") +
-          `<label class="fld"><span>Type</span><select name="type">${options(["SUBSURF", "MIRROR", "SOLIDIFY", "BEVEL", "DECIMATE"], "SUBSURF")}</select></label>` +
-          numeric("amount", "Level / thickness / ratio", 1),
-      ) +
+      modifierControls(d) +
       (d.mesh
         ? `<details class="sa-topology"><summary>Mesh topology · ${d.mesh.vertex_count} vertices / ${d.mesh.face_count} faces</summary><p>${d.mesh.sampled ? "First 4096 elements shown. Brush strokes affect the mesh within the selected radius." : ""}</p><div>${d.mesh.vertices
             .slice(0, 300)
@@ -476,6 +501,15 @@
         );
     },
   };
+  app.addEventListener('change',event=>{if(!event.target.matches('[data-modifier-type]'))return;const form=event.target.closest('form');form.querySelector('[data-modifier-parameters]').innerHTML=modifierParameters(event.target.value,{},true);});
+  A.studioAuthorModifier = b => run(async()=>{
+    const target=modifierStack(selected()?.definition||{}).find(m=>m.name===b.dataset.name);if(!target||!modifierSpecs[target.type])throw Error('Select an available supported modifier.');
+    const action=b.dataset.action,cmd={kind:action==='remove'?'modifier_remove':action==='move'?'modifier_move':'modifier_state',name:target.name};
+    if(action==='move')cmd.index=Number(b.dataset.index);
+    if(action.startsWith('viewport'))cmd.show_viewport=action==='viewport-on'||target.show_viewport===false;
+    if(action.startsWith('render'))cmd.show_render=action==='render-on'||target.show_render===false;
+    await edit('apply',cmd);
+  });
   A.studioAuthorUndo = () => run(() => edit("undo"));
   A.studioAuthorRedo = () => run(() => edit("redo"));
   function clearSkewDraft() {
@@ -758,16 +792,9 @@
       if (kind === "shape_key") cmd.value = num("value");
       if (kind === "modifier") {
         cmd.type = f.type.value;
-        cmd.properties =
-          cmd.type === "SUBSURF"
-            ? { levels: num("amount"), render_levels: num("amount") }
-            : cmd.type === "SOLIDIFY"
-              ? { thickness: num("amount") }
-              : cmd.type === "DECIMATE"
-                ? { ratio: num("amount") }
-                : cmd.type === "BEVEL"
-                  ? { width: num("amount"), segments: 2 }
-                  : { use_clip: true };
+        if(form.querySelector("[data-modifier-type]")&&modifierStack(selected()?.definition||{}).some(m=>m.name===cmd.name))throw Error("Choose a unique name; update the existing modifier in its stack card.");
+        cmd.properties = Object.fromEntries([...form.querySelectorAll('[data-modifier-property]')].filter(el=>el.value!=='').map(el=>[el.dataset.modifierProperty,el.dataset.modifierProperty==='use_clip'?el.value==='true':Number(el.value)]));
+        if(!Object.keys(cmd.properties).length)throw Error('Choose at least one modifier parameter to save.');
         delete cmd.amount;
       }
       if (kind.startsWith("node_")) {

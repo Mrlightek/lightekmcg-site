@@ -29,7 +29,7 @@ jobs:
           ruby-version: '3.3.6'
           bundler-cache: false
       - name: Install public test dependencies
-        run: gem install activerecord:8.0.5 actionpack:8.0.5 railties:8.0.5 sqlite3:2.7.4 minitest:5.25.5 jwt:2.10.3 stripe:19.6.2 bcrypt --no-document
+        run: gem install activerecord:8.0.5 actionpack:8.0.5 railties:8.0.5 sqlite3:2.7.4 minitest:5.25.5 jwt:2.10.3 stripe:19.6.2 bcrypt rubyzip:3.4.1 --no-document
       - name: Verify payout sessions, MFA, CSRF and connection recovery
         run: ruby test/standalone/payout_accounts_checks.rb --name /test_payout_/
       - name: Verify downstream merchant account isolation
@@ -38,3 +38,4 @@ jobs:
         run: ruby test/standalone/commerce_network_test.rb
       - name: Verify browser session handling and error redaction
         run: node test/javascript/payout_accounts_test.cjs
+

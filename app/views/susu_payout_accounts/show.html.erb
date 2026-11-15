@@ -1,22 +1,28 @@
-<p>Your earnings release schedule: <strong><%= @payout_schedule.cadence == "weekly" ? "Every week" : "Every two weeks" %></strong>. Manage your earnings schedule from your store’s Merchant payouts page.</p>
-<div class="susu-shell susu-narrow">
-  <div class="susu-heading">
-    <div class="susu-eyebrow">SUSU PAYOUTS</div>
-    <h1>Payout account</h1>
-    <p>Connect a Stripe payout account so funded Susu rounds can be transferred to you.</p>
-  </div>
-
-  <div class="susu-card">
-    <% if current_user.stripe_connect_ready? %>
-      <h2>Ready for payouts</h2>
-      <p>Your Stripe payout account completed onboarding and is payout-enabled.</p>
-    <% else %>
-      <h2><%= current_user.stripe_connect_account_id.present? ? "Finish payout setup" : "Connect your payout account" %></h2>
-      <p>Stripe-hosted onboarding collects the payout information required for your account.</p>
-      <%= button_to "Continue with Stripe",
-                    connect_dashboard_susu_payout_account_path,
-                    method: :post,
-                    class: "susu-button susu-button-primary" %>
-    <% end %>
-  </div>
-</div>
+<% content_for :page_title, 'Payout account' %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><script src="/lightek/payout-accounts.js?v=20261115" defer></script><% end %>
+<main class="dd-workspace" data-payout-workspace data-session-url="<%= dashboard_payout_account_session_path %>" data-status-url="<%= dashboard_payout_account_status_path %>">
+  <header class="dd-page-header dd-page-hero"><div><span class="dd-eyebrow">Finance / Your earnings</span><h1>Your payout account</h1><p>Set up how you receive your earnings, keep your business details current, and manage your bank account in one place.</p></div><span class="dd-status" data-payout-badge data-tone="<%= @payout_status[:state] == 'ready' ? 'success' : 'warning' %>"><%= @payout_status[:state] == 'ready' ? 'Ready for payouts' : 'Verification required' %></span></header>
+  <section class="dd-form-section">
+    <div class="dd-section-heading"><i class="ti ti-building-bank" aria-hidden="true"></i><div><h2>Set up & manage payouts</h2><p>For business owners, agencies, and individual clients. Each person manages their own payout information.</p></div></div>
+    <p class="dd-form-callout">Your bank, tax, and identity details are collected in secure verification fields. Full account numbers and identity documents are not saved in Lightek forms or request logs. Any required verification or financial-service terms are presented inside the secure workflow.</p>
+    <p data-payout-status role="status" aria-live="polite"><%= {'not_started'=>'Add your business or individual details and the bank account where you want to receive payouts.', 'ready'=>'Your account was verified and is enabled to receive payouts. You can still update your details below.', 'pending_verification'=>'Your information is under review. You can open setup to check for outstanding requirements.', 'needs_information'=>'Your payout setup needs more information. Open setup to complete verification.', 'unavailable'=>'We could not verify your payout connection. It is not currently marked ready. Try again, or ask your account administrator to check the connection.'}.fetch(@payout_status[:state]) %></p>
+    <div class="dd-action-group">
+      <button type="button" class="dd-button dd-btn-primary" data-payout-open="account-onboarding"><%= current_user.stripe_connect_account_id.present? ? 'Continue payout setup' : 'Set up payouts' %></button>
+      <% if current_user.stripe_connect_account_id.present? %><button type="button" class="dd-button" data-payout-open="account-management">Manage account & bank details</button><% end %>
+      <button type="button" class="dd-button" data-payout-refresh>Refresh status</button>
+    </div>
+    <p data-payout-error role="alert" class="dd-field-error" hidden></p>
+    <div data-payout-component aria-label="Secure payout account setup"></div>
+    <details><summary>Secure fields not loading?</summary><p class="dd-form-callout">If this browser cannot display the embedded fields, open the secure verification flow. Required financial-service verification or terms may be shown there.</p><%= button_to 'Open secure verification', connect_dashboard_susu_payout_account_path, method: :post, class: 'dd-button', form: {data: {turbo: false}} %></details>
+    <noscript><p class="dd-form-callout">Enable JavaScript for embedded fields, or use Open secure verification above.</p></noscript>
+  </section>
+  <% if @payout_status[:replaceable] %>
+    <details class="dd-form-section"><summary>Repair an unavailable connection</summary><p class="dd-form-callout">Your saved payout connection cannot be accessed with this platform’s current configuration. First ask your administrator to check the platform credentials. If you choose to start a new connection, the old reference is kept for reconciliation. Existing balances and completed payouts are not moved to the new account.</p>
+      <%= form_with url: replace_dashboard_payout_account_path, method: :post, class: 'dd-form-stack', data: {turbo: false} do %>
+        <label class="dd-check"><%= check_box_tag :confirm_replacement, '1', false, required: true %> I understand that a new connection does not recover an old balance.</label>
+        <%= submit_tag 'Create a new payout connection', class: 'dd-button dd-button-danger' %>
+      <% end %>
+    </details>
+  <% end %>
+  <section class="dd-form-section"><div class="dd-section-heading"><i class="ti ti-calendar" aria-hidden="true"></i><div><h2>Your earnings schedule</h2><p>Earnings are scheduled for release <%= @payout_schedule.cadence == 'weekly' ? 'every week' : 'every two weeks' %>. Manage your release schedule from your store’s Merchant payouts page. Bank arrival depends on processing, verification, and bank availability.</p></div></div></section>
+</main>

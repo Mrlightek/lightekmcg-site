@@ -1,40 +1,82 @@
-class SusuPayoutAccountsController < DymondDash::ApplicationController
+class SusuPayoutAccountsController < ApplicationController
+  skip_authorization_check
   include LightekIdentity::SensitiveSession
   before_action :require_sensitive_session!
-  layout "dymond_dash/layouts/dymond_dash"
-
+  before_action :require_direct_owner!
+  before_action :private_response!
   before_action :redirect_network_payouts
+  layout 'dymond_dash/layouts/dymond_dash'
+  protect_from_forgery with: :exception
+  rate_limit to: 12, within: 1.minute, only: %i[account_session replace connect], by: -> { current_user&.id || request.remote_ip }
 
   def show
     @payout_schedule = LightekCommerce::PayoutSchedule.for!(current_user)
-    return if current_user.stripe_connect_account_id.blank?
-    DymondBank::StripeService.sync_connect_status!(current_user)
-  rescue DymondBank::StripeService::StripeError => e
-    flash.now[:alert] = "Could not refresh payout status: #{e.message}"
+    @payout_status = LightekPayments::PayoutAccounts.status(current_user)
+  end
+
+  def connection_status
+    render json: LightekPayments::PayoutAccounts.status(current_user)
+  end
+
+  def account_session
+    # Destination and user identity are always server-derived. Never accept a
+    # connected-account ID, bank details, tax IDs or identity documents here.
+    render json: LightekPayments::PayoutAccounts.session!(current_user, component: params[:component].presence || 'account-onboarding')
+  rescue LightekPayments::PayoutAccounts::Unavailable => error
+    render json: {error: error.message, replaceable: error.replaceable}, status: :unprocessable_entity
+  end
+
+  def replace
+    unless params[:confirm_replacement] == '1'
+      return redirect_to dashboard_susu_payout_account_path, alert: 'Confirm that a new payout connection does not recover an old account balance.', status: :see_other
+    end
+    LightekPayments::PayoutAccounts.replace_unavailable!(current_user)
+    redirect_to dashboard_susu_payout_account_path, notice: 'A new payout connection is ready for setup. Your previous connection reference was retained for reconciliation.', status: :see_other
+  rescue LightekPayments::PayoutAccounts::Unavailable => error
+    redirect_to dashboard_susu_payout_account_path, alert: error.message, status: :see_other
   end
 
   def connect
-    link = DymondBank::StripeService.create_account_link!(
-      user: current_user,
-      refresh_url: refresh_dashboard_susu_payout_account_url,
-      return_url: dashboard_susu_payout_account_url
-    )
-    redirect_to link.url, allow_other_host: true, status: :see_other
-  rescue DymondBank::StripeService::ConfigurationError, DymondBank::StripeService::StripeError => e
-    redirect_to dashboard_susu_payout_account_path, alert: "Payout setup could not start: #{e.message}"
+    destination = LightekPayments::PayoutAccounts.hosted_link!(current_user,
+      refresh_url: refresh_dashboard_susu_payout_account_url, return_url: dashboard_susu_payout_account_url)
+    redirect_to destination, allow_other_host: true, status: :see_other
+  rescue LightekPayments::PayoutAccounts::Unavailable => error
+    redirect_to dashboard_susu_payout_account_path, alert: error.message, status: :see_other
+  end
+  def refresh
+    redirect_to dashboard_susu_payout_account_path, status: :see_other
   end
 
-  def refresh
-    redirect_to connect_dashboard_susu_payout_account_path, status: :see_other
-  end
   private
+  # Personal earnings setup is independent of the optional Susu application.
+  def package_feature = nil
+
+  def require_direct_owner!
+    head :forbidden if Current.session&.connect_delegation.present?
+  end
+  def private_response!
+    response.headers['Cache-Control'] = 'no-store, private'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    head :upgrade_required unless request.ssl? || Rails.env.development? || Rails.env.test?
+  end
   def redirect_network_payouts
-    site = LightekSettings::WebsiteIdentity.sites_for(current_user).detect { |record| LightekReservations::Federation::Client.config(record) }
+    host = ENV['LIGHTEK_DEPLOYED_SITE_HOST'].presence
+    candidates = host ? DymondSite::Site.where(host: host) : DymondSite::Site.where(tenant: current_user)
+    site = candidates.detect { |record| LightekReservations::Federation::Client.config(record) }
     return unless site
-    LightekReservations::Federation::Client.new(site) # Validate the configured HTTPS origin.
+    client = LightekReservations::Federation::Client.new(site)
     connection = LightekReservations::Federation::Client.config(site)
-    # Account/destination changes happen only after authenticating the central
-    # merchant account; a peer token cannot change a payout destination.
-    redirect_to "#{connection.fetch('origin')}/my/resort-earnings?peer=#{connection.fetch('key')}", allow_other_host: true, status: :see_other
+    return if URI.parse(connection.fetch('origin')).host.to_s.casecmp?(request.host)
+    # Authenticate as the actual payout owner on the platform. Neither an agency
+    # role nor an installation's bearer credential can edit another user's bank.
+    destination = "#{connection.fetch('origin').delete_suffix('/')}/dashboard/susu/payout-account"
+    if action_name.in?(%w[show connect refresh])
+      client.ensure_payout_identity!(merchant: current_user)
+      redirect_to destination, allow_other_host: true, status: :see_other
+    else
+      render json: {error: 'Open payout setup on your central Lightek account.', url: destination}, status: :conflict
+    end
+  rescue LightekReservations::Federation::Client::Unavailable
+    render plain: 'Your payout workspace could not be opened. Please retry or contact support.', status: :service_unavailable
   end
 end

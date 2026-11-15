@@ -15,6 +15,7 @@ A business can build its website, sell products or book services, manage custome
 | Turn an approved quote into an order and delivery | [Quotes to delivery](docs/sales/quotes-to-delivery.md) |
 | The full current feature list | [Lightek feature catalog](FEATURES.md) |
 | Production is asking you to set up an authenticator | [First sign-in, MFA and recovery](docs/security/sign-in-and-mfa.md) |
+| Set up and manage a payout account | [Payout accounts, verification and connection repair](docs/payments/payout-accounts.md) |
 | Use consistent dashboard forms and order actions | [Dashboard form patterns and order management](docs/dashboard/forms.md) |
 | Learn Nevaeh, agents, workers, watchers and commands | [Operating workspace and Guide](docs/nevaeh_operating_system.md) · [Tutorials](docs/nevaeh/tutorials/commands.md) |
 | Import Quran/hadith sources and extend native training | [Islamic learning and source attribution](docs/nevaeh/tutorials/islamic_learning.md) |

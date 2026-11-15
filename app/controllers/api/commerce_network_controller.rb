@@ -1,7 +1,8 @@
 class Api::CommerceNetworkController < Api::ReservationFederationController
   rescue_from LightekCommerce::MerchantPayouts::Invalid, LightekCommerce::RevenueSharing::Invalid,
     LightekCommerce::Refunds::Invalid, LightekCommerce::Fulfillment::Invalid, LightekCommerce::StripeCheckout::Unavailable,
-    Stripe::StripeError, with: ->(error) { render json: {error: error.message}, status: :unprocessable_entity }
+    DymondBank::StripeService::ConfigurationError, with: ->(error) { render json: {error: error.message}, status: :unprocessable_entity }
+  rescue_from Stripe::StripeError, DymondBank::StripeService::StripeError, with: ->(_) { render json: {error: 'Payment processing is temporarily unavailable. Retry or contact support.'}, status: :unprocessable_entity }
   def checkout
     values = params.require(:checkout).permit(:source_key, :customer_email, :store_name, :return_url, :shipping_quote_key, :shipping_price_cents,
       merchant_chain: %i[subject email first_name last_name role upstream_share_bps], items: %i[name quantity unit_price_cents product_type billing_interval]).to_h
@@ -32,23 +33,20 @@ class Api::CommerceNetworkController < Api::ReservationFederationController
     values = params.permit(:return_url, :store_name, merchant_chain: %i[subject email first_name last_name role upstream_share_bps]).to_h
     destination = LightekCommerce::NetworkGateway.return_url!(@peer, values.fetch("return_url"))
     merchant, = LightekCommerce::NetworkAccounts.resolve!(peer: @peer, chain: values.fetch("merchant_chain"), store_name: values.fetch("store_name"))
-    Stripe.api_key = DymondBank::StripeCredentials.secret_key
-    merchant.with_lock do
-      if merchant.stripe_connect_account_id.blank?
-        account = Stripe::Account.create({type: "express", email: merchant.email_address, capabilities: {transfers: {requested: true}}},
-          {idempotency_key: "lightek-network-connect-user-#{merchant.id}"})
-        merchant.update!(stripe_connect_account_id: account.id)
-      end
-    end
-    link = Stripe::AccountLink.create(account: merchant.stripe_connect_account_id, type: "account_onboarding", return_url: destination, refresh_url: destination)
-    render json: {url: link.url}
+    # A peer can resolve its merchant tree, but cannot obtain credentials that
+    # edit bank destinations. The merchant signs in and verifies MFA centrally.
+    render json: {url: "#{LightekReservations::Federation::Issuer.origin}/dashboard/susu/payout-account"}
   end
+
   def summary
     values = params.permit(:store_name, merchant_chain: %i[subject email first_name last_name role upstream_share_bps]).to_h
     merchant, = LightekCommerce::NetworkAccounts.resolve!(peer: @peer, chain: values.fetch("merchant_chain"), store_name: values.fetch("store_name"))
-    DymondBank::StripeService.sync_connect_status!(merchant) if merchant.stripe_connect_account_id.present?
+    state = LightekPayments::PayoutAccounts.status(merchant)
+    schedule = LightekCommerce::PayoutSchedule.for!(merchant)
     shares = LightekCommerce::RevenueAllocation.where(beneficiary: merchant)
-    render json: {connect_ready: merchant.stripe_connect_ready?, earned_share_cents: shares.sum("amount_cents - reversed_cents"),
+    render json: {connect_ready: state[:state] == 'ready', connect_account_id: merchant.stripe_connect_account_id,
+      connect_details_submitted: merchant.stripe_connect_details_submitted?, connect_payouts_enabled: state[:state] == 'ready',
+      cadence: schedule.cadence, enabled: schedule.enabled?, next_run_at: schedule.next_run_at.iso8601, earned_share_cents: shares.sum("amount_cents - reversed_cents"),
       pending_share_cents: shares.where(status: "pending").sum("amount_cents - reversed_cents")}
   end
   private

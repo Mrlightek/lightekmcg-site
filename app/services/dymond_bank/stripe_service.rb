@@ -23,7 +23,7 @@ module DymondBank
         sync_connect_status!(user, account: account)
         account
       rescue ::Stripe::StripeError => e
-        raise StripeError, e.message
+        raise StripeError, "The payout service could not complete this request. Refresh your payout connection or contact support."
       end
 
       def create_account_link!(user:, refresh_url:, return_url:)
@@ -36,20 +36,17 @@ module DymondBank
           type: "account_onboarding"
         )
       rescue ::Stripe::StripeError => e
-        raise StripeError, e.message
+        raise StripeError, "The payout service could not complete this request. Refresh your payout connection or contact support."
       end
 
       def sync_connect_status!(user, account: nil)
         configure!
         account ||= retrieve_account(user.stripe_connect_account_id)
-        user.update!(
-          stripe_connect_details_submitted: !!account.details_submitted,
-          stripe_connect_payouts_enabled: !!account.payouts_enabled,
-          stripe_connect_onboarded_at: (account.details_submitted ? (user.stripe_connect_onboarded_at || Time.current) : nil)
-        )
+        LightekPayments::PayoutAccounts.persist_status!(user, account)
         account
-      rescue ::Stripe::StripeError => e
-        raise StripeError, e.message
+      rescue ::Stripe::StripeError, StripeError, LightekPayments::PayoutAccounts::Unavailable => e
+        LightekPayments::PayoutAccounts.invalidate!(user)
+        raise StripeError, "The payout service could not complete this request. Refresh your payout connection or contact support."
       end
 
       def create_transfer(amount_cents:, currency:, destination_account:, description:, metadata: {}, idempotency_key: nil)
@@ -65,22 +62,22 @@ module DymondBank
         options[:idempotency_key] = idempotency_key if idempotency_key.present?
         Stripe::Transfer.create(params, options)
       rescue ::Stripe::StripeError => e
-        raise StripeError, e.message
+        raise StripeError, "The payout service could not complete this request. Refresh your payout connection or contact support."
       end
 
       def retrieve_account(account_id)
         configure!
-        raise ConfigurationError, "Stripe Connect account is missing" if account_id.blank?
+        raise ConfigurationError, "Payout account setup is required" if account_id.blank?
         Stripe::Account.retrieve(account_id)
       rescue ::Stripe::StripeError => e
-        raise StripeError, e.message
+        raise StripeError, "The payout service could not complete this request. Refresh your payout connection or contact support."
       end
 
       private
 
       def configure!
         key = DymondBank::StripeCredentials.secret_key
-        raise ConfigurationError, "Stripe secret key is missing" if key.blank?
+        raise ConfigurationError, "Payouts are not configured yet" if key.blank?
 
         Stripe.api_key = key
       end

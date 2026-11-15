@@ -61,12 +61,12 @@
     <h3 style="margin-top:0">Payout Account</h3>
 
     <% if current_user.stripe_connect_ready? %>
-      <div style="font-size:28px;font-weight:700;color:var(--dd-accent-primary)">READY</div>
-      <p style="color:var(--dd-text-secondary);font-size:13px">Your Stripe connected account is enabled to receive Susu payouts.</p>
+      <div style="font-size:28px;font-weight:700;color:var(--dd-accent-primary)">CONNECTED</div>
+      <p style="color:var(--dd-text-secondary);font-size:13px">Your payout account is linked. Open it to verify its current status and requirements.</p>
       <%= link_to "View payout account", main_app.dashboard_susu_payout_account_path, class: "dd-topbar-btn dd-btn-primary" %>
     <% elsif current_user.stripe_connect_account_id.present? %>
       <div style="font-size:28px;font-weight:700">SETUP</div>
-      <p style="color:var(--dd-text-secondary);font-size:13px">Finish Stripe onboarding before a funded round can be sent to you.</p>
+      <p style="color:var(--dd-text-secondary);font-size:13px">Finish payout verification before a funded round can be sent to you.</p>
       <%= link_to "Continue payout setup", main_app.dashboard_susu_payout_account_path, class: "dd-topbar-btn dd-btn-primary" %>
     <% else %>
       <div style="font-size:28px;font-weight:700">NOT SET</div>

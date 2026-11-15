@@ -1,14 +1,14 @@
 <%= stylesheet_link_tag "reservations" %>
 <main class="lt-settings lr-admin">
 <h1>Commerce · Merchant payouts</h1>
-<p><%= @site.name %> · Transfer earnings from Lightek's Stripe balance into your connected Stripe account.</p>
-<p>Funds reach your bank according to your Stripe Connect payout schedule. Merchant transfers are separate from bank payouts.</p>
+<p><%= @site.name %> · Release your eligible earnings to your payout account.</p>
+<p>Released earnings reach your bank after verification and processing. Your earnings release schedule and bank arrival are separate steps.</p>
 <% if current_user.stripe_connect_ready? %>
-  <p><strong>Stripe Connect:</strong> Ready</p>
+  <p><strong>Payout account:</strong> Ready</p>
 <% else %>
-  <p><strong>Stripe Connect:</strong> Setup required. <%= link_to "Set up your payout account", dashboard_susu_payout_account_path %></p>
+  <p><strong>Payout account:</strong> Setup required. <%= link_to "Set up your payout account", dashboard_susu_payout_account_path %></p>
 <% end %>
-<section class="lr-card"><span class="lr-eyebrow">YOUR PAYDAY</span><h2>Automatic earnings releases</h2><p>Choose when eligible fulfilled orders are released to your connected payout account. The default is every two weeks. Stripe determines bank arrival after release.</p><%= form_with url: dashboard_commerce_payout_schedule_path, method: :patch, class: 'lr-form' do %><%= hidden_field_tag :site_id, @site.id %><label>Release schedule<%= select_tag :cadence, options_for_select([['Every two weeks (14 days)', 'biweekly'], ['Every week (7 days)', 'weekly']], @payout_schedule.cadence) %></label><label><span><%= check_box_tag :enabled, '1', @payout_schedule.enabled? %> Enable automatic earnings releases</span></label><%= submit_tag 'Save payout schedule', class: 'lr-button' %><% end %><p>Next release: <strong><%= @payout_schedule.next_run_at.in_time_zone('America/New_York').strftime('%b %-d, %Y · %-I:%M %p %Z') %></strong></p><p>Pending refunds, incomplete onboarding, and unavailable funds delay release. Unpaid orders are never eligible.</p><% if @payout_schedule.last_error.present? %><p class="lr-alert" role="status"><%= @payout_schedule.last_error %></p><% end %><%= link_to 'Add or manage payout account ↗', dashboard_susu_payout_account_path, class: 'lr-link' %></section>
+<section class="lr-card"><span class="lr-eyebrow">YOUR PAYDAY</span><h2>Automatic earnings releases</h2><p>Choose when eligible fulfilled orders are released to your connected payout account. The default is every two weeks. Bank arrival depends on processing and your bank.</p><%= form_with url: dashboard_commerce_payout_schedule_path, method: :patch, class: 'lr-form' do %><%= hidden_field_tag :site_id, @site.id %><label>Release schedule<%= select_tag :cadence, options_for_select([['Every two weeks (14 days)', 'biweekly'], ['Every week (7 days)', 'weekly']], @payout_schedule.cadence) %></label><label><span><%= check_box_tag :enabled, '1', @payout_schedule.enabled? %> Enable automatic earnings releases</span></label><%= submit_tag 'Save payout schedule', class: 'lr-button' %><% end %><p>Next release: <strong><%= @payout_schedule.next_run_at.in_time_zone('America/New_York').strftime('%b %-d, %Y · %-I:%M %p %Z') %></strong></p><p>Pending refunds, incomplete onboarding, and unavailable funds delay release. Unpaid orders are never eligible.</p><% if @payout_schedule.last_error.present? %><p class="lr-alert" role="status">An earnings release needs review. Verify your payout account and available funds before retrying.</p><% end %><%= link_to 'Add or manage payout account ↗', dashboard_susu_payout_account_path, class: 'lr-link' %></section>
 <p><%= link_to "Orders", dashboard_commerce_orders_path(site_id: @site.id) %></p>
 <table><thead><tr><th>Order</th><th>Gross</th><th>Processor reserve</th><th>Platform fee / infrastructure</th><th>Transfer</th><th>Status</th></tr></thead><tbody>
 <% @orders.each do |order| %>
@@ -17,12 +17,12 @@
 <td><%= number_to_currency(quote[:processor_reserve_cents] / 100.0) %></td>
 <td><%= number_to_currency((quote[:platform_fee_cents] + quote[:infrastructure_reserve_cents]) / 100.0) %></td>
 <td><%= number_to_currency(quote[:net_cents] / 100.0) %></td>
-<td><% if order.merchant_transfer_ref.present? %>Transferred: <%= order.merchant_transfer_ref %>
+<td><% if order.merchant_transfer_ref.present? %>Released
 <% elsif order.refunded_cents.to_i > 0 %>Refund requires reconciliation
 <% elsif order.refunds.any? { |refund| refund.status == "pending" } %>Refund pending
 <% elsif current_user.stripe_connect_ready? %>
-<%= button_to "Request merchant transfer", dashboard_commerce_payout_path(site_id: @site.id, order_id: order.id), method: :post, form: { data: { turbo_confirm: "Transfer this order's net earnings?" } } %>
+<%= button_to "Request merchant transfer", dashboard_commerce_payout_path(site_id: @site.id, order_id: order.id), method: :post, class: "dd-button dd-btn-primary", form: { data: { turbo_confirm: "Transfer this order's net earnings?" } } %>
 <% else %>Connect payout account first<% end %>
-<% if order.merchant_transfer_error.present? %><p><%= order.merchant_transfer_error %></p><% end %>
+<% if order.merchant_transfer_error.present? %><p>This release needs review. Contact support if verification and funds are ready.</p><% end %>
 </td></tr>
 <% end %></tbody></table></main>

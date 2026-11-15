@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_15_150000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_15_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2360,6 +2360,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_150000) do
     t.datetime "scheduled_at"
     t.datetime "dispatch_started_at"
     t.string "media_url", limit: 1200
+    t.string "production_format", default: "portrait", null: false
+    t.integer "lock_version", default: 0, null: false
+    t.boolean "content_review_required", default: false, null: false
+    t.string "approved_content_digest"
+    t.bigint "content_approved_by_id"
+    t.datetime "content_approved_at"
+    t.index ["content_approved_by_id"], name: "index_lightek_marketing_campaigns_on_content_approved_by_id"
     t.index ["mail_account_id"], name: "index_lightek_marketing_campaigns_on_mail_account_id"
     t.index ["mail_message_id"], name: "index_lightek_marketing_campaigns_on_mail_message_id"
     t.index ["site_id", "status"], name: "index_lightek_marketing_campaigns_on_site_id_and_status"
@@ -2390,6 +2397,33 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_150000) do
     t.index ["subscription_token_digest"], name: "index_lightek_marketing_contacts_on_subscription_token_digest", unique: true
   end
 
+  create_table "lightek_marketing_content_variants", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "campaign_id", null: false
+    t.bigint "created_by_id", null: false
+    t.bigint "approved_by_id"
+    t.string "batch_key", null: false
+    t.string "angle", null: false
+    t.string "status", null: false
+    t.string "headline"
+    t.string "cta_label"
+    t.string "cta_url"
+    t.string "media_url"
+    t.text "message"
+    t.string "applied_digest"
+    t.string "baseline_digest", null: false
+    t.jsonb "source_snapshot", default: {}, null: false
+    t.datetime "approved_at"
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approved_by_id"], name: "index_lightek_marketing_content_variants_on_approved_by_id"
+    t.index ["campaign_id", "batch_key", "angle"], name: "idx_campaign_content_angle", unique: true
+    t.index ["campaign_id"], name: "index_lightek_marketing_content_variants_on_campaign_id"
+    t.index ["created_by_id"], name: "index_lightek_marketing_content_variants_on_created_by_id"
+    t.index ["site_id"], name: "index_lightek_marketing_content_variants_on_site_id"
+  end
+
   create_table "lightek_marketing_deliveries", force: :cascade do |t|
     t.bigint "campaign_id", null: false
     t.bigint "contact_id", null: false
@@ -2398,6 +2432,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_150000) do
     t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "content_digest"
     t.index ["campaign_id", "contact_id"], name: "idx_on_campaign_id_contact_id_9471603ba4", unique: true
     t.index ["campaign_id"], name: "index_lightek_marketing_deliveries_on_campaign_id"
     t.index ["contact_id"], name: "index_lightek_marketing_deliveries_on_contact_id"
@@ -4947,9 +4982,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_150000) do
   add_foreign_key "lightek_mail_templates", "lightek_mail_accounts", column: "account_id"
   add_foreign_key "lightek_marketing_campaigns", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_campaigns", "lightek_mail_accounts", column: "mail_account_id"
+  add_foreign_key "lightek_marketing_campaigns", "users", column: "content_approved_by_id"
   add_foreign_key "lightek_marketing_contacts", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_marketing_contacts", "lightek_sales_accounts", column: "sales_account_id"
   add_foreign_key "lightek_marketing_contacts", "users", column: "sales_owner_id"
+  add_foreign_key "lightek_marketing_content_variants", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_marketing_content_variants", "lightek_marketing_campaigns", column: "campaign_id"
+  add_foreign_key "lightek_marketing_content_variants", "users", column: "approved_by_id"
+  add_foreign_key "lightek_marketing_content_variants", "users", column: "created_by_id"
   add_foreign_key "lightek_marketing_deliveries", "lightek_mail_messages", column: "mail_message_id"
   add_foreign_key "lightek_marketing_deliveries", "lightek_marketing_campaigns", column: "campaign_id"
   add_foreign_key "lightek_marketing_deliveries", "lightek_marketing_contacts", column: "contact_id"

@@ -219,6 +219,7 @@ module Studio
 
       def render_resume
         operation=StudioOperation.where(studio_project_id:@access.projects.where(site_id:@access.site_id).select(:id)).find(@payload.fetch("operation_id"))
+        Studio::Compute::Lease.reconcile!(StudioOperation.where(id: operation.id))
         enqueue=false
         operation.with_lock do
           raise ArgumentError,"Only a paid CPU economy movie can resume" unless operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && operation.paid? && !operation.metadata["draft_preview"]
@@ -673,6 +674,7 @@ module Studio
 
       def operations_list
         project = @access.projects.find(@payload.fetch("project_id"))
+        Studio::Compute::Lease.reconcile!(project.studio_operations)
         { publications: project.studio_publications.order(id: :desc).limit(30).map { |publication|
             { id: publication.id, status: publication.status, scheduled_at: publication.scheduled_at&.iso8601,
               error: publication.error_message, post_id: publication.metadata.to_h["post_id"],remote_id:publication.metadata.dig("social_submission","media_id") || publication.metadata.dig("social_submission","remote_id"),platform:publication.platform } },

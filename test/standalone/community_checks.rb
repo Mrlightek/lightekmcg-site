@@ -98,6 +98,12 @@ module SqliteJsonbForHarness
   def jsonb(*names, **options) = json(*names, **options)
 end
 ActiveRecord::ConnectionAdapters::TableDefinition.prepend(SqliteJsonbForHarness)
+require File.join(ROOT, "db/migrate/20261115210000_create_studio_compute_leases")
+CreateStudioComputeLeases.new.migrate(:up)
+require File.join(ROOT, "app/models/studio_compute_pool")
+require File.join(ROOT, "app/models/studio_compute_lease")
+require File.join(ROOT, "app/services/studio/compute/queue")
+require File.join(ROOT, "app/services/studio/compute/lease")
 require File.join(ROOT, "db/migrate/20261031120000_complete_lightek_community")
 class CompleteLightekCommunity
   def add_column(table, name, type, **options)

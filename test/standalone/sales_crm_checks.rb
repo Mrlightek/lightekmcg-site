@@ -13,6 +13,7 @@ class SalesHarness < Rails::Application
   config.eager_load = false
   config.secret_key_base = 'sales-test-only-' * 8
   config.hosts.clear
+  config.cache_store = :memory_store
   config.logger = Logger.new(File::NULL)
   config.action_dispatch.show_exceptions = :none
   config.action_controller.allow_forgery_protection = true
@@ -73,13 +74,16 @@ module Dashboard
 end
 require ROOT.join('app/controllers/dashboard/commerce_base_controller')
 require ROOT.join('app/controllers/dashboard/sales_controller')
+require ROOT.join('app/controllers/dashboard/sales_quotes_controller')
 require ROOT.join('app/controllers/dashboard/sales_intake_controller')
 require ROOT.join('app/controllers/dashboard/sales_tasks_controller')
 [Dashboard::SalesIntakeController, Dashboard::SalesTasksController].each { |klass| klass.prepend_view_path ROOT.join('app/views'); klass.layout false }
 Dashboard::SalesController.prepend_view_path ROOT.join('app/views')
 Dashboard::SalesController.layout false
 SalesHarness.routes.draw do
+  eval(ROOT.join('config/routes/sales_quotes.rb').read, binding)
   eval(ROOT.join('config/routes/sales.rb').read, binding)
+  get '/orders', to: 'dashboard/sales#index', as: :dashboard_commerce_orders
   get '/customers/history', to: 'dashboard/sales#index', as: :history_dashboard_customers
   get '/csrf', to: 'dashboard/settings_home#csrf'
   %w[business_hub website_designs media_studio marketing_campaigns commerce customers pwa].each do |name|
@@ -90,10 +94,11 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
   include SalesHarness.routes.url_helpers
   def app = SalesHarness
   def setup
+    Rails.cache.clear
     ActiveJob::Base.queue_adapter.enqueued_jobs.clear
     LightekAgency::PackagePolicy.allowed = true
     LightekAgency::PackagePolicy.reserved = LightekAgency::PackagePolicy.released = 0
-    [LightekSales::Task, LightekSales::IntakeEntry, LightekSales::IntakeRule, WebsiteTemplateInquiry, DymondSite::Section, DymondSite::Page].each(&:delete_all)
+    [LightekSales::Quote, LightekCommerce::OrderItem, LightekCommerce::Order, LightekCommerce::Product, LightekPeople::LifecycleCase, LightekSales::Task, LightekSales::IntakeEntry, LightekSales::IntakeRule, WebsiteTemplateInquiry, DymondSite::Section, DymondSite::Page].each(&:delete_all)
     [LightekSales::Activity, LightekSales::RoutingRule, LightekSales::Lead, LightekSales::Opportunity,
      LightekMarketing::Contact, LightekSales::Account, LightekAgency::SiteMembership, DymondSite::Site, User].each(&:delete_all)
     @owner = User.create!(email_address: 'owner@example.test', role: 'admin')

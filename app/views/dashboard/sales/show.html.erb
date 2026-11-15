@@ -68,6 +68,9 @@
     </section>
   <% end %>
   <% if @record.persisted? && @kind == 'opportunity' && @record.errors.empty? %>
+    <section class="sales-panel"><h2>Quotes & orders</h2><% (@quotes || []).each do |quote| %><p><%= link_to "#{quote.title} · revision #{quote.revision} · #{quote.status.humanize}", dashboard_sales_quote_path(site_id: @site.id, id: quote.id) %><% if quote.order %> · order #<%= quote.order_id %> / <%= quote.order.status.humanize %><% end %></p><% end %></section>
+    <%= render 'dashboard/sales_quotes/new', opportunity: @record %>
+
     <section class="sales-panel"><h2>Connected relationship</h2><p><%= link_to @record.account.name, record_url('account', @record.account) %><% if @record.contact %> · <%= link_to @record.contact.email, record_url('contact', @record.contact) %><% end %></p><%= link_to 'Open Commerce', dashboard_commerce_path(site_id: @site.id), class: 'sales-button secondary' if @commerce_access %></section>
   <% end %>
   <% if @related_deals %>

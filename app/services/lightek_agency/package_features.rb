@@ -8,7 +8,7 @@ module LightekAgency
       'reservations' => %w[dymond_booking dashboard/reservations reservations network_reservations],
       'shipping' => %w[dashboard/shipping commerce_shipping_quotes api/shipping_broker],
       'payments' => %w[dymond_bank dashboard/bank], 'knowledge' => %w[dymond_kb],
-      'commerce' => %w[dashboard/sales dymond_catalog dashboard/commerce commerce stores dashboard/customers marketplace dashboard/marketplace catalogs],
+      'commerce' => %w[sales_quotes dashboard/sales dymond_catalog dashboard/commerce commerce stores dashboard/customers marketplace dashboard/marketplace catalogs],
       'marketing' => %w[dashboard/marketing_ dashboard/social_connections dashboard/meta_connections dashboard/tiktok_connections dashboard/connect_shopify_settings marketing_subscriptions],
       'mail' => %w[dashboard/mail api/lightek_mail], 'accounting' => %w[dashboard/accounting dashboard/financial_operations],
       'people' => %w[dashboard/people departments employee/users employee/timesheets], 'directory' => %w[dashboard/directory],

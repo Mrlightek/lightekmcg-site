@@ -16,12 +16,19 @@ module LightekSales
     def scope(kind)
       RECORDS.fetch(kind).where(site: site)
     end
-    def find(kind, id) = scope(kind).find(id)
+    def revalidate!
+      Access.sites_for(actor.reload).find(site.id)
+    end
+    def find(kind, id)
+      revalidate!
+      scope(kind).find(id)
+    end
 
     def save!(kind, values, id: nil, lock_version: nil)
       authorize_routing! if kind == 'routing_rule'
       record = id ? find(kind, id) : scope(kind).new
       record.with_lock do
+        revalidate!
         if id && (lock_version.blank? || record.lock_version != Integer(lock_version.to_s, 10))
           raise ActiveRecord::StaleObjectError.new(record, 'update')
         end
@@ -51,6 +58,7 @@ module LightekSales
       # Serializes matching company/contact creation for this website, including
       # two different leads converted into the same company at the same time.
       site.with_lock do
+        revalidate!
         lead.reload
         return lead.opportunity if lead.converted_at?
         if lock_version.blank? || lead.lock_version != Integer(lock_version.to_s, 10)

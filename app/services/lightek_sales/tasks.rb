@@ -10,6 +10,7 @@ module LightekSales
       record = @workspace.find(kind, id)
       attrs = values.to_h.stringify_keys.slice('title', 'owner_id', 'due_at')
       @site.with_lock do
+        @workspace.revalidate!
         existing = Task.find_by(site: @site, source_key: source_key)
         if existing
           raise ArgumentError, 'This request already belongs to another relationship.' if existing.record_type != record.class.name || existing.record_id != record.id
@@ -23,6 +24,7 @@ module LightekSales
     def update!(id, action:, lock_version:, due_at: nil)
       task = Task.where(site: @site).find(id)
       task.with_lock do
+        @workspace.revalidate!
         unless lock_version.to_s.match?(/\A\d+\z/) && task.lock_version == lock_version.to_i
           raise ActiveRecord::StaleObjectError.new(task, 'update')
         end

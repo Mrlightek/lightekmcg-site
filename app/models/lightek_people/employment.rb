@@ -25,6 +25,20 @@ module LightekPeople
     after_commit { DirectorySyncJob.perform_later(employer_id) if defined?(DirectorySyncJob) }
     validates :payroll_access, inclusion: {in: %w[none preparer approver administrator]}
     validate :organization_and_reporting
+    attr_accessor :lifecycle_activation, :lifecycle_revocation
+    validate do
+      if new_record? && active? && !lifecycle_activation && defined?(LifecycleCase) && LifecycleCase.table_exists?
+        errors.add(:active, 'must begin inactive and be activated through onboarding')
+      end
+      if active? && active_changed? && !lifecycle_activation && defined?(LifecycleCase) && LifecycleCase.table_exists?
+        errors.add(:active, 'must be activated through completed onboarding')
+      end
+    end
+    validate do
+      if persisted? && active_changed? && !active? && !lifecycle_revocation && defined?(LifecycleCase) && LifecycleCase.table_exists?
+        errors.add(:active, 'must be ended through offboarding so access and open work are handled together')
+      end
+    end
     scope :active, -> { where(active: true).where('starts_on <= ?', Date.current).where('ends_on IS NULL OR ends_on >= ?', Date.current) }
     def active_on?(date) = active? && starts_on <= date && (ends_on.nil? || ends_on >= date)
     def worked_during?(first, last)

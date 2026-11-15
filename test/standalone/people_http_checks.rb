@@ -31,7 +31,10 @@ require ROOT.join('app/controllers/dashboard/people_controller')
 # exercises the real session, MFA and enrollment boundary.
 Dashboard::PeopleController.skip_before_action :sensitive_people!
 Dashboard::PeopleController.layout false
-PeopleHarness.routes.draw { eval(ROOT.join('config/routes/people.rb').read, binding) }
+PeopleHarness.routes.draw do
+  eval(ROOT.join('config/routes/people.rb').read, binding)
+  eval(ROOT.join('config/routes/lifecycle.rb').read, binding)
+end
 ApplicationController.prepend_view_path ROOT.join('app/views')
 ApplicationController.helper(Module.new { def stylesheet_link_tag(*) = ''.html_safe })
 class PeopleHttpChecks < ActionDispatch::IntegrationTest

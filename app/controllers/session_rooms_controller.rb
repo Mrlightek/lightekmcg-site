@@ -79,7 +79,7 @@ class SessionRoomsController < ApplicationController
   def presentation
     LightekSessions::Access.host!(@room, current_user)
     values = params.require(:presentation).permit(:layout, :title, :subtitle, :ticker, :brand, :featured, :background, :accent, participants: {}).to_h
-    @room.update!(presentation: LightekSessions::Presentation.normalize!(values))
+    @room.update!(presentation: LightekSessions::Presentation.normalize!(values,@room.presentation))
     render json: {presentation: @room.presentation}
   rescue ArgumentError => error
     render json: {error: error.message}, status: :unprocessable_entity

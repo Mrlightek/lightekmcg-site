@@ -66,3 +66,7 @@ Apply migration `20261112150000_add_direct_production_rooms` and restart Rails/S
 ## Reuse a show’s presentation
 
 [Saved production setups](live-production-setups.md) can apply the show layout, title, subtitle, brand, colors and ticker to a connected room locally. Guest identities, featured participant and individual styles remain room-specific. Restore the room’s saved presentation with the separate control, or explicitly save the current presentation to that room using its existing permission-checked action.
+
+## Direct guest video and program sound
+
+[Guest program controls](live-guest-program.md) add per-person video visibility, program ordering and audio level beside the existing name/effect fields. These controls change the composed feed, preserve room membership, and save only through the host presentation action. Video visibility and audio muting remain independent.

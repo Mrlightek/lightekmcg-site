@@ -14,7 +14,7 @@ Loading a saved setup is blocked while broadcasting. It never creates a broadcas
 
 ## Carry the show look between rooms
 
-A version 2 setup includes portable show presentation fields. Loading applies these fields locally to a connected session compositor, preserving the room's featured participant, guest names/roles and camera effects. If no room is connected, the show look waits locally and applies when you connect one. Changing the selected room keeps the show look but uses that room's participant settings. If a loaded 3D stage uses the session as its subject, connecting the room keeps the stage program view.
+A version 2 setup includes portable show presentation fields. Loading applies these fields locally to a connected session compositor, preserving the room's featured participant, guest names/roles, camera effects and [guest program visibility/order/audio settings](live-guest-program.md). If no room is connected, the show look waits locally and applies when you connect one. Changing the selected room keeps the show look but uses that room's participant settings. If a loaded 3D stage uses the session as its subject, connecting the room keeps the stage program view.
 
 **Use this room’s saved presentation** reloads the chosen room's authorized state, clears the local show override and restores its saved look. This does not change the saved production setup. Editing layout/branding while a show override is active updates that local override; save the production setup to retain those edits for later episodes.
 

@@ -1,10 +1,16 @@
+export function participantGain(settings,identity){const value=Number(settings.participants?.[identity]?.audio_gain??1);return Number.isFinite(value)?Math.max(0,Math.min(1,value)):1;}
+export function programItems(items,settings){
+ const visible=items.map((item,index)=>({item,index,style:settings.participants?.[item.identity]||{}})).filter(entry=>entry.style.visible!==false).sort((a,b)=>(Number(a.style.order)||0)-(Number(b.style.order)||0)||a.index-b.index).map(entry=>entry.item);
+ const featured=['presenter','fullscreen'].includes(settings.layout)&&visible.find(item=>item.identity===settings.featured);
+ return featured?[featured,...visible.filter(item=>item!==featured)].slice(0,12):visible.slice(0,12);
+}
 export class SessionPresentation{
  constructor(){this.settings={layout:'gallery',background:'#142f2c',accent:'#d6edac',participants:{}};this.lastLayout='';this.changed=0;this.previous=null;}
  configure(settings){this.settings={...this.settings,...settings,participants:settings.participants||this.settings.participants};}
  paint(ctx,items,now=performance.now()){
  const s=this.settings,w=1280,h=720;ctx.save();ctx.filter='none';ctx.fillStyle=s.background;ctx.fillRect(0,0,w,h);const gradient=ctx.createLinearGradient(0,0,w,h);gradient.addColorStop(0,'rgba(255,255,255,.07)');gradient.addColorStop(1,'rgba(0,0,0,.45)');ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);
  ctx.fillStyle=s.accent;ctx.fillRect(40,36,5,50);ctx.fillStyle='#f5f7f2';ctx.font='600 27px system-ui';ctx.fillText(s.title||'Together, on Lightek',62,63,900);ctx.fillStyle='#c7d6cb';ctx.font='17px system-ui';ctx.fillText(s.subtitle||'A Lightek live experience',62,88,900);ctx.fillStyle=s.accent;ctx.font='600 16px system-ui';ctx.textAlign='right';ctx.fillText(s.brand||'LIGHTEK',1236,62,230);ctx.textAlign='left';
- const shown=items.slice(0,12),layout=items.some(item=>item.screen)&&s.layout==='gallery'?'presenter':s.layout;const featured=shown.find(item=>item.identity===s.featured)||shown.find(item=>item.screen)||shown[0];let boxes=[];
+ const shown=programItems(items,s),layout=shown.some(item=>item.screen)&&s.layout==='gallery'?'presenter':s.layout;const featured=shown.find(item=>item.identity===s.featured)||shown.find(item=>item.screen)||shown[0];let boxes=[];
  if(layout==='fullscreen'&&featured)boxes=[[featured,40,115,1200,540]];
  else if(layout==='presenter'&&featured){boxes.push([featured,40,115,866,540]);shown.filter(item=>item!==featured).slice(0,3).forEach((item,i)=>boxes.push([item,926,115+i*184,314,172]));}
  else{const list=layout==='split'?shown.slice(0,2):shown,cols=list.length===1?1:list.length<=4?2:list.length<=9?3:4,rows=Math.ceil(Math.max(1,list.length)/cols),bw=(1200-18*(cols-1))/cols,bh=(540-18*(rows-1))/rows;list.forEach((item,i)=>boxes.push([item,40+(i%cols)*(bw+18),115+Math.floor(i/cols)*(bh+18),bw,bh]));}

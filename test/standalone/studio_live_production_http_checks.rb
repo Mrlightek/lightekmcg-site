@@ -1,5 +1,6 @@
 require_relative "broadcast_control_checks"
 require File.join(ROOT,"app/services/studio/live/production_preset")
+require File.join(ROOT,"app/services/lightek_sessions/presentation")
 Rails.application.routes.append do
   get "/dashboard/live/production",to:"dashboard/live_broadcasts#production"
   post "/dashboard/live/production",to:"dashboard/live_broadcasts#save_production"
@@ -40,4 +41,23 @@ class StudioLiveProductionHttpTest < BroadcastControlTest
   ensure
     Dashboard::LiveBroadcastsController.allow_forgery_protection=true
   end
+  def test_show_presentation_v2_http_round_trip_excludes_room_identities
+    project=StudioProject.create!(owner:@alice,site:@site,name:"Show branding")
+    scene=project.studio_scenes.first;client=session_for;path="/dashboard/live/production?site_id=#{@site.id}"
+    payload={scene_id:scene.id,lock_version:scene.lock_version,preset:{version:2,layout:"session",presentation:{layout:"split",title:"Network show",brand:"LIGHTEK",accent:"#aabbcc"}}}
+    Dashboard::LiveBroadcastsController.allow_forgery_protection=false
+    client.post path,headers:headers,params:payload,as: :json
+    assert_equal 200,client.response.status,client.response.body
+    result=body(client);assert_equal "Network show",result.dig("preset","presentation","title")
+    refute result["preset"]["presentation"].key?("participants")
+    client.get path,headers:headers,params:{scene_id:scene.id}
+    assert_equal 2,body(client).dig("preset","version")
+    payload[:lock_version]=result["lock_version"];payload[:preset][:presentation][:participants]={"user-99"=>{name:"Other guest"}}
+    client.post path,headers:headers,params:payload,as: :json
+    assert_equal 422,client.response.status
+    assert_equal "Network show",scene.reload.settings.dig("live_preset","presentation","title")
+  ensure
+    Dashboard::LiveBroadcastsController.allow_forgery_protection=true
+  end
+
 end

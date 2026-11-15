@@ -20,7 +20,7 @@ Implementation continues in feature sprints, with focused checks as code lands. 
 - [x] Saved bus volume/pan and master volume envelopes, shared live/offline scheduling and processed-stem handoff (source v7). See [Music automation](music-automation.md).
 - [x] Saved song automation for gain, pan, filter and delay, with shared live/offline scheduling, bypass and undo. See [Music automation](music-automation.md).
 - [x] Reusable multichannel music patterns, linked playlist placements and shared playback/WAV/stem/MIDI expansion. See [Patterns & playlist](music-patterns.md).
-- [x] Scene-bound Live Studio setups for prepared stages, imported cameras, subject placement and library media; template/episode copies, permission revalidation and explicit preview handoff. See [Live production setups](live-production-setups.md).
+- [x] Scene-bound Live Studio setups for prepared stages, imported cameras, subject placement, library media and portable show presentation styling; template/episode copies, room-style restoration, permission revalidation and explicit preview handoff. See [Live production setups](live-production-setups.md).
 - [x] Storyboard → Genesis prompt handoff with shot provenance.
 - [x] Finished shot → media library → edit handoff and reusable template reference remapping.
 

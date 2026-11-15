@@ -1,5 +1,6 @@
 require_relative "studio_music_checks"
 require File.join(ROOT,"app/services/studio/live/production_preset")
+require File.join(ROOT,"app/services/lightek_sessions/presentation")
 class StudioLiveProductionTest < StudioMusicTest
   StudioMusicTest.instance_methods(false).grep(/^test_/).each{|method|undef_method(method)}
   def live_setup
@@ -40,7 +41,7 @@ class StudioLiveProductionTest < StudioMusicTest
   end
   def test_live_setup_validates_numbers_switches_assets_and_layouts_without_writing
     data=preset;save_live(data);before=@scene.reload.settings["live_preset"]
-    mutations=[->(p){p[:version]=2},->(p){p[:layout]="execute"},->(p){p[:layout]="library"},->(p){p[:volume]=Float::NAN},
+    mutations=[->(p){p[:version]=3},->(p){p[:layout]="execute"},->(p){p[:layout]="library"},->(p){p[:volume]=Float::NAN},
       ->(p){p[:volume]=nil},->(p){p[:loop]="yes"},->(p){p[:camera]="script"},->(p){p[:stage_asset_id]=1.5},
       ->(p){p[:subject][:height]=0},->(p){p[:subject][:source]="webcam_url"},->(p){p[:stream_key]="secret"}]
     mutations.each{|m|bad=data.deep_dup;m.call(bad);assert_raises(ArgumentError){save_live(bad)}}
@@ -48,4 +49,34 @@ class StudioLiveProductionTest < StudioMusicTest
     StudioAsset.find(data[:stage_asset_id]).update!(status:"failed")
     assert_raises(ArgumentError){live_setup.read(@scene.id)}
   end
+  def test_show_presentation_v2_round_trips_and_template_episodes_keep_independent_style
+    data=preset.merge(version:2,presentation:{layout:"split",title:"Lightek After Hours",subtitle:"The conversation",brand:"LIGHTEK",ticker:"Welcome",background:"#102030",accent:"#abcdef"})
+    result=save_live(data);style=result[:preset]["presentation"]
+    assert_equal "split",style["layout"]
+    assert_equal "Lightek After Hours",style["title"]
+    refute style.key?("participants");refute style.key?("featured")
+    template=action("template_save",project_id:@project.id,name:"Styled show",request_key:SecureRandom.uuid)
+    episode=action("template_use",project_id:template[:project_id],name:"Styled episode",request_key:SecureRandom.uuid)
+    copy=StudioScene.find(episode[:scene_id]);assert_equal style,copy.settings.dig("live_preset","presentation")
+    changed=copy.settings["live_preset"].deep_dup;changed["presentation"]["title"]="Episode two"
+    save_live(changed,scene:copy)
+    assert_equal "Lightek After Hours",@scene.reload.settings.dig("live_preset","presentation","title")
+    assert_equal "Episode two",copy.reload.settings.dig("live_preset","presentation","title")
+  end
+  def test_show_presentation_rejects_room_identity_fields_and_invalid_styles_without_writing
+    legacy=save_live(preset)[:preset];assert_equal 1,legacy["version"];refute legacy.key?("presentation")
+    data=preset.merge(version:2,presentation:{layout:"presenter",title:"Show"});save_live(data)
+    before=@scene.reload.settings["live_preset"]
+    mutations=[->(p){p[:version]=1},->(p){p[:presentation]=[]},->(p){p[:presentation]=nil},
+      ->(p){p[:presentation][:featured]="user-1"},->(p){p[:presentation][:participants]={}},
+      ->(p){p[:presentation][:layout]="execute"},->(p){p[:presentation][:accent]="url(https://example.test)"},
+      ->(p){p[:presentation][:room_key]="private"}]
+    mutations.each{|mutate|bad=data.deep_dup;mutate.call(bad);assert_raises(ArgumentError){save_live(bad)}}
+    assert_equal before,@scene.reload.settings["live_preset"]
+    data[:presentation]={title:"x"*200,ticker:"y"*400}
+    style=save_live(data)[:preset]["presentation"]
+    assert_equal 120,style["title"].length;assert_equal 300,style["ticker"].length
+    assert_raises(ArgumentError){save_live(preset)}
+  end
+
 end

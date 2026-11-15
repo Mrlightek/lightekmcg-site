@@ -2607,6 +2607,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
     t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'member'::character varying]::text[])", name: "lightek_messaging_participants_role_check"
   end
 
+  create_table "lightek_payout_connection_changes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "previous_account_id", null: false
+    t.string "replacement_account_id", null: false
+    t.string "platform_account_id", null: false
+    t.boolean "livemode", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["replacement_account_id"], name: "idx_payout_replacement_account", unique: true
+    t.index ["user_id"], name: "index_lightek_payout_connection_changes_on_user_id"
+  end
+
   create_table "lightek_people_audit_events", force: :cascade do |t|
     t.bigint "employer_id", null: false
     t.bigint "actor_id", null: false
@@ -5062,6 +5074,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_170000) do
   add_foreign_key "lightek_messaging_messages", "profiles", column: "sender_profile_id"
   add_foreign_key "lightek_messaging_participants", "lightek_messaging_conversations", column: "conversation_id"
   add_foreign_key "lightek_messaging_participants", "profiles"
+  add_foreign_key "lightek_payout_connection_changes", "users"
   add_foreign_key "lightek_people_audit_events", "users", column: "actor_id"
   add_foreign_key "lightek_people_audit_events", "users", column: "employer_id"
   add_foreign_key "lightek_people_benefit_enrollments", "lightek_people_benefit_plans", column: "benefit_plan_id"

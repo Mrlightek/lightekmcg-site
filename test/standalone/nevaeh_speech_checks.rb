@@ -61,6 +61,9 @@ class NevaehSpeechChecks < StudioDirectorProducerChecks
       process=->(command,**options) do
         assert_equal ['docker','run'],command.first(2)
         assert_includes command,'--interactive'
+        assert_includes command,'/run/lightek-voice:rw,exec,nosuid,nodev,size=16m,mode=1777'
+        assert_includes command,'TMPDIR=/run/lightek-voice'
+        assert_includes command,'/tmp:rw,nosuid,size=512m'
         assert_equal 'none',command[command.index('--network')+1]
         refute_includes command,'--tty'
         refute_includes command,text

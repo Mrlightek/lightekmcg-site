@@ -17,9 +17,10 @@
 
 - Persist one JSON report per Dispatch work item attempt at the repository-root-relative path `.nevaeh/reports/<task_id>.json`; create `.nevaeh/reports/` when absent.
 - Use a unique filename-safe task ID for each attempt; reject path separators and traversal components, and never overwrite an earlier report.
-- Write every worker report to that path before the manager turn ends; do not treat chat output, temporary session state or an external artifact as a substitute for the report file.
-- Treat a worker task as incomplete until its report file exists and the manager has read it back and validated its JSON, task identity and status.
-- If the worker cannot write the report, return `blocked` with the write error instead of `accepted`; let the manager persist that blocked report at the same path if possible. If neither can write, leave the task incomplete and report the persistence failure.
+- Write and commit every worker report at that path, then push the commit to a retained branch in the repository before the manager turn ends; do not treat an uncommitted file, a local-only commit, chat output, temporary session state or an external artifact as a substitute.
+- Treat a worker task as incomplete until the report is committed and pushed, and the manager has read it back from the remote repository at that exact commit and validated its JSON, task identity and status.
+- Record the report-store branch and full report commit SHA in the manager's completion receipt so later sessions can retrieve the same file; retain that branch until its report commits are reachable from the shared base branch.
+- If the worker cannot write, commit or push the report, return `blocked` with the persistence error instead of `accepted`; let the manager write, commit and push that blocked report at the same path if possible. If neither can persist it, leave the task incomplete and report the persistence failure.
 - Use exactly the following fields and nesting; replace the illustrative values with actual task evidence.
 
 ```json
@@ -48,7 +49,7 @@
 
 - Require nonempty strings for task ID, worker identity, page path, revision and fingerprint.
 - Set `status` to exactly `accepted`, `blocked` or `failed`.
-- Set `accepted` only after independent acceptance checks pass and accepted output is retained in the required report file; verify the write by reading the file back before closing the task.
+- Prepare an `accepted` report only after independent acceptance checks pass; do not recognize accepted output or close the task until that report is committed, pushed and read back from its remote commit.
 - Set `blocked` for missing contracts, denied authority, stale sources, unresolved dependencies or out-of-scope requests.
 - Set `failed` when an attempted execution or its acceptance checks fail.
 - Preserve submitted, running and uncertain execution states in Dispatch; do not treat this terminal report shape as the full work-item lifecycle.
@@ -68,10 +69,10 @@
 3. Select only a page-worker whose required capability contracts and executable Dispatch actions already exist. Treat roles and manuals as documentation, not as missing executors.
 4. Record a blocked result and a capability gap when no eligible worker or executor exists; do not substitute unsupported model prose for execution.
 5. Create an immutable task input snapshot containing the work item ID, worker identity, pinned source page, registered capability references, requested action, typed inputs, dependencies and independent acceptance checks.
-6. Before delegating any task with dependencies, read each referenced `.nevaeh/reports/<task_id>.json` directly from the report store; do not reconstruct it from memory, chat or cached values. If a file is absent, unreadable, invalid, mismatched or not accepted, or its reference uses `unresolved:`, record the blocker and do not dispatch the dependent task. Resolve typed prior-output handoff only from the validated file's output and validate the downstream input contract before dispatch.
+6. Before delegating any task with dependencies, read each referenced `.nevaeh/reports/<task_id>.json` from the remote repository at the report commit recorded in its manager completion receipt; do not reconstruct it from memory, chat or cached values. If the remote commit cannot be resolved, a file is absent, uncommitted, unreadable, invalid, mismatched or not accepted, or its reference uses `unresolved:`, record the blocker and do not dispatch the dependent task. Resolve typed prior-output handoff only from the validated file's output and validate the downstream input contract before dispatch.
 7. Apply Gatekeeper permission and account-scope checks before dispatch and again at execution; block denied or stale work.
 8. Dispatch the task through the existing Dispatch work item mechanism; retain its run identity and downstream receipts.
-9. Observe the persisted work-item state and read the terminal report from `.nevaeh/reports/<task_id>.json`; correlate it with the task, attempt, worker and pinned source page. Require the file to exist before closing the worker task or ending the manager turn; surface a write failure as blocked and incomplete.
+9. Observe the persisted work-item state and read the terminal report from `.nevaeh/reports/<task_id>.json` at its pushed report commit; correlate it with the task, attempt, worker and pinned source page. Require the commit and successful remote read-back before closing the worker task or ending the manager turn; surface a write, commit or push failure as blocked and incomplete.
 10. Validate the report and read its output, evidence and dependencies before using the result.
 11. Advance dependent durable-goal steps only after accepted output passes the recorded acceptance checks; pass typed values and the immutable report reference onward.
 12. Retain blocked and failed reports, surface their reasons and use reviewed retry/revision paths. Reconcile uncertain work before retrying; do not automatically replay it.

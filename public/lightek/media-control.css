@@ -34,3 +34,8 @@
 .dd-dashboard .media-control .mc-delete-form label{display:flex;align-items:flex-start;gap:10px}
 .dd-dashboard .media-control .mc-delete-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 @media(max-width:850px){.dd-dashboard .media-control .mc-selector{flex-basis:auto;width:100%;max-width:450px}.dd-dashboard .media-control .mc-library-toolbar{gap:12px;flex-wrap:wrap}}
+
+/* Keep OTT checkbox tiles readable in the selected Dashboard theme. */
+.dd-dashboard .media-control .ms-toggle{background:var(--dd-card-bg,#f4f6fa);color:var(--dd-text-primary,#172033);border:1px solid var(--dd-border,#dce2eb);cursor:pointer}
+.dd-dashboard .media-control .ms-toggle>span{color:inherit}
+.dd-dashboard .media-control .ms-toggle input[type=checkbox]{flex-shrink:0}

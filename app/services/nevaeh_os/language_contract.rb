@@ -139,7 +139,10 @@ module NevaehOs
         end
       end
       # These fields come from operating/agent context. The executor checks them.
-      actual = command.except('language_binding', 'agent_id', 'persona_id', 'site_id', 'origin')
+      # These server annotations are independently checked before Language.guard!
+      # by Executor, DocumentationWorkers, PageWorkers and the report resolver.
+      actual = command.except('language_binding', 'agent_id', 'persona_id', 'site_id', 'origin',
+        'documentation_contract','documentation_read','experience_contract','manager_context','report_dependencies','task_contract','page_contract')
       raise ArgumentError, 'The saved task does not match its reviewed conversational action' unless verify.call(binding.command_template, actual)
     end
   end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require 'json'
 require 'digest'
+require_relative 'task_head'
 module NevaehIntelligences
   module Neural
     # Native fixed-window neural language model. Position-specific embeddings,
@@ -60,6 +61,7 @@ module NevaehIntelligences
         {'hidden_bias' => h, 'output_bias' => v.length}.each do |key, length|
           raise ArgumentError, 'Invalid neural checkpoint bias' unless s[key].is_a?(Array) && s[key].length == length && s[key].all? { |x| x.is_a?(Numeric) && x.finite? && x.abs <= 1000 }
         end
+        TaskHead.new(s['task_head']) if s['task_head']
       end
       def encode(text) = self.class.tokens(text).map { |token| @index.fetch(token, 0) }
       def features(prompt, prefix)
@@ -122,6 +124,24 @@ module NevaehIntelligences
           end
         end
         loss / [count, 1].max
+      end
+      def rank_labels(prompt:,labels:)
+        raise ArgumentError,'Use bounded task labels' unless prompt.is_a?(String) && prompt.length.between?(1,4000) && labels.is_a?(Array) && labels.size.between?(1,12) && labels.all? { |label| label.is_a?(String) && label.match?(/\A[a-z_]{1,40}\z/) }
+        return TaskHead.new(state.fetch('task_head')).rank(prompt,labels) if state['task_head']
+        # Unknown task labels cannot become meaningful proposals from this checkpoint.
+        return [] if labels.any? { |label| encode(label).include?(0) }
+        input=encode(prompt)
+        scores=labels.map do |label|
+          prefix=[2];targets=encode(label)+[3]
+          loss=targets.sum do |target|
+            value=step(prompt:input,prefix:prefix,target:target,learning_rate:nil)
+            prefix<<target;value
+          end
+          {'label'=>label,'score'=>-loss/targets.length}
+        end
+        maximum=scores.map { |row| row['score'] }.max
+        total=scores.sum { |row| Math.exp(row['score']-maximum) }
+        scores.map { |row| row.merge('confidence'=>(Math.exp(row['score']-maximum)/total).round(5)) }.sort_by { |row| [-row['confidence'],row['label']] }
       end
       def generate(prompt:, max_tokens: 64, temperature: 0.6, seed: 17)
         raise ArgumentError, 'Prompt must contain 1–8000 characters' unless prompt.is_a?(String) && prompt.strip.length.between?(1, 8000)

@@ -4,7 +4,7 @@ Tags: agency, hosting, dashboard
 Requires at least: 6.5
 Tested up to: 6.5
 Requires PHP: 8.0
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,5 +26,7 @@ Disconnect before uninstalling, or revoke the connection from Lightek Dashboard.
 No. Credentials are stored per WordPress user.
 
 == Changelog ==
+= 0.1.1 =
+Preserve connections during temporary service failures, correct management-link expiry, update confirmed website names, and detect credential-storage failures.
 = 0.1.0 =
 Initial development release. Directory approval and production acceptance are pending.

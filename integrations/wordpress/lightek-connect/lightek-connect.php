@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Lightek Connect
  * Description: Connect your Lightek agency account and manage client environments from WordPress.
- * Version: 0.1.0
+ * Version: 0.1.1
  * Requires at least: 6.5
  * Requires PHP: 8.0
  * License: GPL-2.0-or-later
@@ -19,8 +19,8 @@ final class Lightek_Connect {
     }
     public static function page() {
         if (!current_user_can('manage_options')) { return; }
-        wp_enqueue_style('lightek-connect', plugins_url('assets/workspace.css', __FILE__), [], '0.1.0');
-        wp_enqueue_script('lightek-connect', plugins_url('assets/workspace.js', __FILE__), [], '0.1.0', true);
+        wp_enqueue_style('lightek-connect', plugins_url('assets/workspace.css', __FILE__), [], '0.1.1');
+        wp_enqueue_script('lightek-connect', plugins_url('assets/workspace.js', __FILE__), [], '0.1.1', true);
         echo '<div class="wrap"><main id="lightek-connect" data-platform="wordpress" data-origin="' . esc_attr(self::ORIGIN) . '" data-api="' . esc_url(rest_url('lightek-connect/v1')) . '" data-nonce="' . esc_attr(wp_create_nonce('wp_rest')) . '"></main></div>';
     }
     public static function routes() {
@@ -61,10 +61,16 @@ final class Lightek_Connect {
         $status = wp_remote_retrieve_response_code($response);
         $data = json_decode(wp_remote_retrieve_body($response), true) ?: [];
         if ($path === '/pair' && $status === 200 && isset($data['token'])) {
-            try { update_user_meta(get_current_user_id(), 'lightek_connect_token', self::encrypt($data['token'])); }
-            catch (Throwable $error) { return new WP_Error('storage_failed', 'Could not securely store connection', ['status' => 500]); }
-            unset($data['token']);
+            try {
+                $encrypted = self::encrypt($data['token']);
+                if (!update_user_meta(get_current_user_id(), 'lightek_connect_token', $encrypted)) {
+                    throw new RuntimeException('Credential storage failed');
+                }
+            }
+            catch (Throwable $error) { return new WP_Error('storage_failed', 'Could not securely store connection. Revoke this connection in Lightek, then create a new code and retry.', ['status' => 500]); }
         }
+        // Never return a credential to browser JavaScript, including unexpected error responses.
+        unset($data['token']);
         if ($path === '' && $request->get_method() === 'DELETE' && $status === 204) { delete_user_meta(get_current_user_id(), 'lightek_connect_token'); }
         return new WP_REST_Response($data, $status, ['Cache-Control' => 'no-store']);
     }

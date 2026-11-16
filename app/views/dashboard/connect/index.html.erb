@@ -3,6 +3,12 @@
   <header class="dd-page-header">
     <div><span class="dd-eyebrow">Distribution / Agency integrations</span><h1>Lightek Connect</h1><p>Manage your clients from WordPress and Shopify. One account, connected to your Lightek network.</p></div>
   </header>
+  <section class="dd-panel">
+    <header class="dd-panel-header"><div><h2>Install your connector</h2><p>Install once, then connect each administrator with their own single-use code.</p></div></header>
+    <div class="dd-form-actions"><%= link_to "Download WordPress plugin", dashboard_connect_wordpress_download_path, class: "dd-button", data: { turbo: false } %></div>
+    <details class="dd-detail"><summary>WordPress installation</summary><p>In WordPress, open Plugins → Add New Plugin → Upload Plugin. Choose the downloaded ZIP, install and activate it. Open Lightek in the WordPress menu, then paste a WordPress connection code from this page.</p></details>
+    <details class="dd-detail"><summary>Shopify installation</summary><p>Register Lightek Connect in the Shopify Dev Dashboard, set its embedded app URL to https://lightekmcg.com/connect/shopify, and save the app credentials below as the platform administrator. Install the app on your development store, open it, and paste a Shopify connection code from this page.</p><p>Development testing is available after app setup. Public distribution still requires Shopify review and an approved billing arrangement.</p></details>
+  </section>
   <% if @code %>
     <div class="dd-note" role="status"><strong>Your connection code is ready</strong><p>Paste it once into your connector. It expires in ten minutes; treat it as a password.</p><code><%= @code %></code></div>
   <% end %>

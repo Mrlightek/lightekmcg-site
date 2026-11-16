@@ -36,13 +36,14 @@ jobs:
           node-version: '22'
       - name: Install isolated test dependencies
         run: |
-          gem install activerecord:8.0.5.1 actionpack:8.0.5.1 jwt:2.10.3 sqlite3:2.7.4 minitest:5.25.4 --no-document
+          gem install activerecord:8.0.5.1 actionpack:8.0.5.1 jwt:2.10.3 sqlite3:2.7.4 minitest:5.25.4 rubyzip:3.4.0 --no-document
           npm install --prefix /tmp/connect-qa jsdom@26.1.0
       - name: Test backend and HTTP authorization
         run: |
           ruby test/standalone/lightek_connect_api_test.rb
           ruby test/standalone/lightek_connect_sandbox_test.rb
           ruby test/standalone/lightek_connect_vault_test.rb
+          ruby test/standalone/lightek_connect_download_test.rb
           python3 test/standalone/wordpress_sandbox_test.py
       - name: Test WordPress connector
         run: |

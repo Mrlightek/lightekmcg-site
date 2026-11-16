@@ -9,6 +9,14 @@ class NevaehWorkerReport < ApplicationRecord
   validates :capability, :site_key, presence: true
   validates :contract_sha256, :receipt_sha256, format: {with: /\A[0-9a-f]{64}\z/}
   validate do
+    begin
+      NevaehOs::ReportSchema.validate!(structured_result)
+      unless structured_result['account_id']==user_id && structured_result['task_id']=="run-#{nevaeh_agent_run_id}" && structured_result['status']==status
+        errors.add(:structured_result,'must identify this account, task and execution status')
+      end
+    rescue ArgumentError => error
+      errors.add(:structured_result,error.message)
+    end
     run = nevaeh_agent_run
     if run && (run.actor_id != user_id || run.nevaeh_agent_worker.nevaeh_os_agent_id != nevaeh_os_agent_id)
       errors.add(:nevaeh_agent_run, 'must belong to this account and specialist')

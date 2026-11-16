@@ -6,18 +6,26 @@ module NevaehOs
     end
     def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil, page_action: nil)
       @page_context=PageContext.normalize(page_context)
-      if !page_action && (task=PageWorkers.request_for(text,actor:@actor,context:@page_context))
+      selected=NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(system_key:agent.to_s) || NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(id:agent.to_s.delete_prefix('custom-'))
+      page_sme=selected&.system_key.to_s.start_with?('page_')
+      if !page_action && !page_sme && (task=PageWorkers.request_for(text,actor:@actor,context:@page_context))
         return task if task['missing_inputs'].any?
         page_action=task['page_task'].slice(:key,:fingerprint).merge(inputs:{})
       end
-      if !page_action && (PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i)))
+      if !page_action && !page_sme && (PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i)))
         return overview.merge('page_context'=>@page_context,'influences'=>[])
       end
-      if !page_action && @page_context && PageContext.question?(text)
+      if !page_action && !page_sme && @page_context && PageContext.question?(text)
         return PageContext.help(@actor,@page_context,query:text).merge(status:'grounded',influences:[],page_context:@page_context)
       end
       command = page_action ? PageWorkers.prepare!(actor:@actor,context:@page_context,request:page_action) : Command.parse(text)
       persona=Agents.resolve!(agent.presence || 'nevaeh',@actor)
+      if persona.system_key.to_s.start_with?('page_') && command['kind']=='search'
+        command={'kind'=>'documentation_question','topic'=>persona.system_key.delete_prefix('page_'),'query'=>command.fetch('query')}
+      end
+      if persona.system_key.to_s.start_with?('page_')
+        raise ArgumentError,'A page SME answers only its assigned documentation; ask Nevaeh to coordinate other work' unless command['kind']=='documentation_question' && command['topic']==persona.system_key.delete_prefix('page_') && !binding_id
+      end
       language = if binding_id
         Language.bind!(binding_id: binding_id, fingerprint: binding_fingerprint, values: language_slots, actor: @actor, interval_minutes: interval_minutes, agent_ref: persona.id.to_s)
       elsif defined?(Language) && command['kind'] == 'search'

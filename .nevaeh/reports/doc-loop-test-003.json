@@ -1,0 +1,37 @@
+{
+  "task_id": "doc-loop-test-003",
+  "worker": "workforce_page_sme",
+  "source_page": {
+    "path": "docs/nevaeh/tutorials/workforce.md",
+    "revision": "0aecdc25c3af02d258d1baba0aa4217522017ee6",
+    "fingerprint": "sha256:dda54579e6fc1c329376c6bb9715ac2cadeacc4e1f07c2c3855915f4271ab209"
+  },
+  "status": "accepted",
+  "output": {
+    "summary": "Consumed the committed upstream integer remaining capacity as requested task count, checked it against the workforce page goal ceiling, and retained the requested count as downstream budget. Documentation harness only; application Dispatch/Gatekeeper runtime was not exercised.",
+    "values": {
+      "requested_tasks": 9,
+      "documented_maximum_goal_tasks": 12,
+      "within_limit": true,
+      "remaining_goal_capacity": 3,
+      "downstream_budget": 9,
+      "input_path": "output.values.remaining_capacity",
+      "expected_type": "integer",
+      "dependency_consumed": true,
+      "upstream_report_commit": "eb930fbf5b4722bc151cb887162b7aa1e05bc4e0",
+      "source_quotes": [
+        "A goal connects up to twelve one-time tasks in order and waits for their downstream results."
+      ]
+    },
+    "evidence": [
+      "https://github.com/Mrlightek/lightekmcg-site/blob/0aecdc25c3af02d258d1baba0aa4217522017ee6/docs/nevaeh/tutorials/workforce.md#L7",
+      "https://github.com/Mrlightek/lightekmcg-site/blob/eb930fbf5b4722bc151cb887162b7aa1e05bc4e0/.nevaeh/reports/doc-loop-test-002.json"
+    ]
+  },
+  "dependencies": [
+    {
+      "task_id": "doc-loop-test-002",
+      "report_ref": ".nevaeh/reports/doc-loop-test-002.json"
+    }
+  ]
+}

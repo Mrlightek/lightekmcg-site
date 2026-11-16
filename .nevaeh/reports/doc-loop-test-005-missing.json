@@ -1,0 +1,39 @@
+{
+  "task_id": "doc-loop-test-005-missing",
+  "worker": "workforce_page_sme",
+  "source_page": {
+    "path": "docs/nevaeh/tutorials/workforce.md",
+    "revision": "0aecdc25c3af02d258d1baba0aa4217522017ee6",
+    "fingerprint": "sha256:dda54579e6fc1c329376c6bb9715ac2cadeacc4e1f07c2c3855915f4271ab209"
+  },
+  "status": "blocked",
+  "output": {
+    "summary": "Normal manager preflight prevented dependent task dispatch because the upstream report is absent at the exact fault-store revision. This explicitly authorized diagnostic worker independently confirmed remote 404 and local absence, did not recover the value from historical sources, and did not execute the dependent task. Documentation harness only; application Dispatch/Gatekeeper runtime was not exercised.",
+    "values": {
+      "maximum_goal_tasks": null,
+      "dependency_resolved": false,
+      "dependency_consumed": false,
+      "dependent_task_executed": false,
+      "diagnostic_probe": true,
+      "upstream_store_commit": "4c3f55b8a8883b584410c86b8fdc15f5d341d854",
+      "input_path": "output.values.maximum_goal_tasks",
+      "expected_type": "integer",
+      "upstream_http_status": 404,
+      "upstream_absent_on_disk": true,
+      "normal_manager_dispatch_prevented": true,
+      "source_quotes": [
+        "Only earlier steps can supply outputs; missing values block execution."
+      ]
+    },
+    "evidence": [
+      "https://github.com/Mrlightek/lightekmcg-site/blob/0aecdc25c3af02d258d1baba0aa4217522017ee6/docs/nevaeh/tutorials/workforce.md#L73",
+      "https://api.github.com/repos/Mrlightek/lightekmcg-site/contents/.nevaeh/reports/doc-loop-test-001.json?ref=4c3f55b8a8883b584410c86b8fdc15f5d341d854"
+    ]
+  },
+  "dependencies": [
+    {
+      "task_id": "doc-loop-test-001",
+      "report_ref": "unresolved:doc-loop-test-001"
+    }
+  ]
+}

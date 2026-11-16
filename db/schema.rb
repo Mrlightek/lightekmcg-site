@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_040002) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4324,6 +4324,56 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_040002) do
     t.index ["nevaeh_training_run_id"], name: "idx_study_session_training"
   end
 
+  create_table "nevaeh_task_dialogues", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "request_key", null: false
+    t.string "status", default: "collecting", null: false
+    t.text "request_text", null: false
+    t.string "catalog_sha256", null: false
+    t.jsonb "plan", default: [], null: false
+    t.jsonb "context", default: {}, null: false
+    t.jsonb "interpretation", default: {}, null: false
+    t.jsonb "response", default: {}, null: false
+    t.bigint "nevaeh_os_action_id"
+    t.bigint "nevaeh_goal_id"
+    t.datetime "expires_at", null: false
+    t.integer "lock_version", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_goal_id"], name: "index_nevaeh_task_dialogues_on_nevaeh_goal_id"
+    t.index ["nevaeh_os_action_id"], name: "index_nevaeh_task_dialogues_on_nevaeh_os_action_id"
+    t.index ["user_id", "request_key"], name: "index_nevaeh_task_dialogues_on_user_id_and_request_key", unique: true
+    t.index ["user_id"], name: "index_nevaeh_task_dialogues_on_user_id"
+  end
+
+  create_table "nevaeh_task_examples", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "nevaeh_task_dialogue_id", null: false
+    t.text "phrase", null: false
+    t.string "phrase_sha256", null: false
+    t.string "task_key", null: false
+    t.string "catalog_sha256", null: false
+    t.string "status", default: "active", null: false
+    t.jsonb "evidence", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_task_dialogue_id"], name: "index_nevaeh_task_examples_on_nevaeh_task_dialogue_id"
+    t.index ["user_id", "phrase_sha256", "catalog_sha256"], name: "idx_nevaeh_reviewed_task_phrase", unique: true, where: "((status)::text = 'active'::text)"
+    t.index ["user_id"], name: "index_nevaeh_task_examples_on_user_id"
+  end
+
+  create_table "nevaeh_task_turns", force: :cascade do |t|
+    t.bigint "nevaeh_task_dialogue_id", null: false
+    t.string "request_key", null: false
+    t.string "input_sha256", null: false
+    t.jsonb "input", default: {}, null: false
+    t.jsonb "response", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_task_dialogue_id", "request_key"], name: "idx_nevaeh_task_turn_delivery", unique: true
+    t.index ["nevaeh_task_dialogue_id"], name: "index_nevaeh_task_turns_on_nevaeh_task_dialogue_id"
+  end
+
   create_table "nevaeh_test_runs", force: :cascade do |t|
     t.string "run_id", null: false
     t.string "status", null: false
@@ -5584,6 +5634,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_040002) do
   add_foreign_key "nevaeh_study_routines", "users", column: "creator_id"
   add_foreign_key "nevaeh_study_sessions", "nevaeh_study_routines"
   add_foreign_key "nevaeh_study_sessions", "nevaeh_training_runs"
+  add_foreign_key "nevaeh_task_dialogues", "nevaeh_goals"
+  add_foreign_key "nevaeh_task_dialogues", "nevaeh_os_actions"
+  add_foreign_key "nevaeh_task_dialogues", "users"
+  add_foreign_key "nevaeh_task_examples", "nevaeh_task_dialogues"
+  add_foreign_key "nevaeh_task_examples", "users"
+  add_foreign_key "nevaeh_task_turns", "nevaeh_task_dialogues"
   add_foreign_key "nevaeh_training_datasets", "users", column: "creator_id"
   add_foreign_key "nevaeh_training_runs", "nevaeh_language_models"
   add_foreign_key "nevaeh_training_runs", "nevaeh_training_datasets"

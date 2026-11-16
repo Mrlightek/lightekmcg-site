@@ -7,6 +7,7 @@ module NevaehOs
       authorize_command!(actor:action.user.reload,command:action.command)
     end
     def authorize_command!(actor:,command:)
+      PageWorkers.guard!(actor,command) if defined?(PageWorkers)
       Language.guard!(command, actor: actor) if defined?(Language)
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?

@@ -21,12 +21,12 @@ class NevaehWorkforceGoalChecks < NevaehOsTest
   end
   def test_default_roles_are_defined_owned_and_do_not_resurrect_after_deletion
     NevaehOs::Workforce.install!(@actor)
-    assert_equal 27,NevaehOsAgent.where(user:@actor).count
+    assert_equal 28,NevaehOsAgent.where(user:@actor).count
     sage=NevaehOsAgent.find_by!(user:@actor,system_key:'sage')
     assert_includes sage.instructions,'growth'
     NevaehOs::Workforce.remove_agent!(@actor,sage.id)
     NevaehOs::Workforce.install!(@actor)
-    assert_equal 27,NevaehOsAgent.where(user:@actor).count
+    assert_equal 28,NevaehOsAgent.where(user:@actor).count
     assert sage.reload.deleted_at
     assert_raises(ArgumentError) { NevaehOs::Agents.resolve!('sage',@actor) }
     assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::Workforce.remove_agent!(@other,sage.id) }
@@ -124,7 +124,7 @@ class NevaehWorkforceHttpChecks < NevaehOsHttpTest
     get :workforce,format: :json
     assert_response :success
     rows=JSON.parse(response.body)['roles']
-    assert_equal 27,rows.size
+    assert_equal 28,rows.size
     assert rows.all? { |row| row['purpose'].present? && row['department'].present? }
     refute rows.any? { |row| row['id']==NevaehOsAgent.find_by!(user:@other,system_key:'sage').id }
   end

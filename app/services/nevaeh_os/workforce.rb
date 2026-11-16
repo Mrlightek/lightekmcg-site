@@ -20,6 +20,7 @@ module NevaehOs
       'capability_builder'=>['Capability Builder','Engineering','Compile saved construction contracts into services, workers and verifiers; run their saved acceptance examples.',['nevaeh.build','nevaeh.activate'],['/build CONSTRUCTION_ID']],
       'support'=>['Support Coordinator','Support','Create actionable tickets for problems and missing integrations.',['nevaeh.ticket'],['open a ticket about DESCRIBE_THE_PROBLEM']],
       'media'=>['Media Processor','Studio','Probe and convert files through reviewed application operations.',['application.run','application.describe'],['/app run ffmpeg probe {"input":"UPLOADED_FILENAME"}']],
+      'studio_operator'=>['Studio Workspace Operator','Studio','Operate registered Studio projects, assets and workspace services using their typed inputs and saved receipts.',['studio.project.*','studio.workspace.*'],[]],
       'ubuntu'=>['Application Maintainer','IT','Plan and install Ubuntu packages and connect reviewed application recipes.',['ubuntu.*','application.*'],['/ubuntu plan ffmpeg','/ubuntu setup ffmpeg']],
       'website'=>['Website Operator','Web & Content','Operate connected website and content capabilities.',['site.*','website.*','cms.*'],[]],
       'sales'=>['Sales Coordinator','Sales','Operate connected CRM, sales and lead capabilities.',['sales.*','crm.*','growth.*'],[]],

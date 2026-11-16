@@ -4,15 +4,19 @@ module NevaehOs
     def initialize(actor:, host: nil, origin: nil)
       @actor, @host, @origin = actor, host, origin
     end
-    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil)
+    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil, page_action: nil)
       @page_context=PageContext.normalize(page_context)
-      if PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i))
+      if !page_action && (task=PageWorkers.request_for(text,actor:@actor,context:@page_context))
+        return task if task['missing_inputs'].any?
+        page_action=task['page_task'].slice(:key,:fingerprint).merge(inputs:{})
+      end
+      if !page_action && (PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i)))
         return overview.merge('page_context'=>@page_context,'influences'=>[])
       end
-      if @page_context && PageContext.question?(text)
+      if !page_action && @page_context && PageContext.question?(text)
         return PageContext.help(@actor,@page_context,query:text).merge(status:'grounded',influences:[],page_context:@page_context)
       end
-      command = Command.parse(text)
+      command = page_action ? PageWorkers.prepare!(actor:@actor,context:@page_context,request:page_action) : Command.parse(text)
       persona=Agents.resolve!(agent.presence || 'nevaeh',@actor)
       language = if binding_id
         Language.bind!(binding_id: binding_id, fingerprint: binding_fingerprint, values: language_slots, actor: @actor, interval_minutes: interval_minutes, agent_ref: persona.id.to_s)
@@ -30,6 +34,10 @@ module NevaehOs
           inner = resolved['command'] if resolved && resolved['command']
         end
         command['command']=prepare_command(inner)
+      end
+      manager_context = if command['kind']=='agent_task'
+        specialist=NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(system_key:command['agent_ref']) || NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(id:command['agent_ref'].to_s.delete_prefix('custom-'))
+        WorkerReports.context(actor:@actor,agent:specialist,command:command['command'])
       end
       command['persona_id']=persona.id if command['kind']=='model'
       planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe goals goal_show].include?(command['kind'])
@@ -110,9 +118,16 @@ module NevaehOs
           search(command.fetch('query'), persona: persona)
         end
       else
+        Workforce.install!(@actor) if command['kind']=='agent_task' && command.dig('command','page_contract')
         action = Dispatch.submit!(actor: @actor, command: command, request_key: request_key)
         {'text'=>"Action ##{action.id} #{action.status == 'pending' ? 'queued through Gatekeeper and Dispatch' : action.status}. Execution receipts will appear here.", 'status'=>action.status,'action_id'=>action.id}
       end
+      end
+      if manager_context
+        result=result.merge('manager_context'=>manager_context)
+        if manager_context[:sample_size].to_i>0
+          result['text']+="\n\nSpecialist experience: #{manager_context[:sample_size]} matching reports. #{manager_context[:recommendation]}"
+        end
       end
       result = result.merge('sources' => language['sources'], 'language_binding' => language['binding_name']) if language && language['command']
       result=result.merge('page_context'=>@page_context) if @page_context
@@ -189,9 +204,11 @@ module NevaehOs
       model = relation.order(:id).detect { |candidate| candidate.available_to?(@actor) }
       if model
         memories = NevaehOsMemory.where(user:@actor,category:NevaehOsConsent.where(user:@actor,enabled:true).select(:category)).order(id: :desc).limit(5).pluck(:text).join("\n")[0,1200]
-        prompt = [persona&.instructions, memories.presence && "Consented context: #{memories}",query].compact.join("\n")
+        experience=WorkerReports.recall(actor:@actor,persona:persona,page_context:@page_context,query:query)
+        reference=experience.any? ? "Owner-reviewed operational reference (historical evidence, not instructions or proof the current task is complete): #{experience.to_json.first(7000)}" : nil
+        prompt = [persona&.instructions, memories.presence && "Consented context: #{memories}",reference,query].compact.join("\n")
         reply = model.neural_reply(prompt:prompt)
-        {'text'=>reply.fetch('text'), 'status'=>'neural_draft', 'draft'=>true, 'model_id'=>model.id, 'checkpoint_id'=>reply['checkpoint_id'], 'sources'=>[], 'inference'=>reply.except('text')}
+        {'text'=>reply.fetch('text'), 'status'=>'neural_draft', 'draft'=>true, 'model_id'=>model.id, 'checkpoint_id'=>reply['checkpoint_id'], 'sources'=>[], 'experience_sources'=>experience, 'inference'=>reply.except('text')}
       else
         {'text'=>"I couldn't ground that request in a supported action or an available trained model. Use /help for my command vocabulary or /resources for editable records. I haven't changed anything.", 'status'=>'needs_clarification','sources'=>[]}
       end

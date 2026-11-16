@@ -64,6 +64,8 @@ jobs:
           bundler-cache: true
       - name: Verify page contracts, specialist handoff and execution guards
         run: bundle exec ruby test/standalone/nevaeh_page_worker_checks.rb --name '/NevaehPageWorkerChecks/'
+      - name: Verify specialist reports, feedback, isolation and manager recall
+        run: bundle exec ruby test/standalone/nevaeh_worker_report_checks.rb --name '/NevaehWorkerReport/'
       - name: Verify workforce lifecycle and current-page context
         run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
 
@@ -184,6 +186,8 @@ jobs:
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_voice_browser.cjs
       - name: Exercise page-specialist task forms and delegation
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_page_workers_browser.cjs
+      - name: Exercise SME reports and owner feedback
+        run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_worker_reports_browser.cjs
       - name: Exercise incremental authenticated HLS speech playback
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_playlist_browser.cjs
       - name: Exercise workforce, delegation, goals and removal

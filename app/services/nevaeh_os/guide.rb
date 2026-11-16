@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'worker_reports'=>['SME reports, lessons and management experience','all'],
       'page_workers'=>['Page specialists, task inputs and manager delegation','all'],
       'voice'=>['Spoken replies, playback controls and the speaking character','all'],
       'workforce'=>['Workforce roles, delegated goals and page-aware help','all'],

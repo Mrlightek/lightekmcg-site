@@ -68,18 +68,23 @@ module NevaehOs
         row
       end
     end
+    def with_experience(actor,row)
+      agent=NevaehOsAgent.find_by(user:actor,system_key:row[:worker][:key])
+      command={'kind'=>'capability','intent'=>row[:key],'payload'=>row[:defaults],'page_contract'=>{'fingerprint'=>row[:fingerprint]}}
+      row.merge(experience:agent ? WorkerReports.context(actor:actor,agent:agent,command:command) : WorkerReports.empty_context)
+    end
     def manifest(actor,context,entries:nil)
       rows=contracts(actor,context,entries:entries)
       {page:context,area:PageContext.area(context)[2],coordination:'Nevaeh gathers inputs, delegates to the page specialist, and follows actual execution receipts.',
         verification:'Queued is not finished. The specialist task and downstream service receipt determine completion.',
-        actions:rows.select { |row| row[:availability]=='task_ready' },gaps:rows.reject { |row| row[:availability]=='task_ready' }.map { |row| row.slice(:key,:title,:reason) }}
+        actions:rows.select { |row| row[:availability]=='task_ready' }.map { |row| with_experience(actor,row) },gaps:rows.reject { |row| row[:availability]=='task_ready' }.map { |row| row.slice(:key,:title,:reason) }}
     end
     def request_for(text,actor:,context:)
       return unless context && text.is_a?(String) && !text.strip.start_with?('/')
       phrase=text.strip.downcase.sub(/\A(?:please |can you |could you )/,'').sub(/[?!.]+\z/,'')
       matches=contracts(actor,context).select { |row| row[:availability]=='task_ready' && ALIASES.fetch(row[:key],[]).include?(phrase) }
       return unless matches.one?
-      row=matches.first
+      row=with_experience(actor,matches.first)
       missing=row[:inputs].select { |key,field| field['required'] && !row[:defaults].key?(key) }.keys
       {'text'=>"#{row[:worker][:name]} can #{row[:title].downcase}. Provide the task inputs below, then delegate it. Nevaeh will follow the execution receipts.",
         'status'=>'needs_inputs','page_task'=>row,'missing_inputs'=>missing,'page_context'=>context,'influences'=>[]}

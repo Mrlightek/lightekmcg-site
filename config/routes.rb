@@ -179,6 +179,8 @@ Rails.application.routes.draw do
   get "/dashboard/nevaeh/social_connections", to: "dashboard/nevaeh_os#social_connections"
   get "/dashboard/nevaeh/social_options", to: "dashboard/nevaeh_os#social_options"
   get "/dashboard/nevaeh/workforce", to: "dashboard/nevaeh_os#workforce"
+  get "/dashboard/nevaeh/worker_reports", to: "dashboard/nevaeh_os#worker_reports"
+  post "/dashboard/nevaeh/worker_reports/:id/reviews", to: "dashboard/nevaeh_os#review_worker_report"
   post "/dashboard/nevaeh/speech", to: "dashboard/nevaeh_os#speech"
   get "/dashboard/nevaeh/speech/:id", to: "dashboard/nevaeh_os#speech_status"
   delete "/dashboard/nevaeh/speech/:id", to: "dashboard/nevaeh_os#speech_cancel"

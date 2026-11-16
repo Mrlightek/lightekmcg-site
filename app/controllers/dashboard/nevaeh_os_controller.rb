@@ -97,6 +97,14 @@ class Dashboard::NevaehOsController < ::ApplicationController
   def workforce
     render json:{roles:NevaehOs::Workforce.rows(current_user),tasks:NevaehOs::Workforce.tasks(current_user),goals:NevaehGoal.where(user:current_user).order(id: :desc).limit(30).map { |goal| NevaehOs::Goals.receipt(goal) }}
   end
+  def worker_reports
+    NevaehOs::WorkerReports.sweep!(actor:current_user,limit:30)
+    render json:NevaehOs::WorkerReports.list(actor:current_user,agent_id:params[:agent_id])
+  end
+  def review_worker_report
+    render json:NevaehOs::WorkerReports.review!(actor:current_user,id:params[:id],verdict:params.require(:verdict),
+      lesson:params.fetch(:lesson,''),receipt_sha256:params.require(:receipt_sha256))
+  end
   def goals
     goal=NevaehOs::Goals.create!(actor:current_user,values:params.require(:goal).to_unsafe_h,request_key:params.require(:request_key),host:request.host,origin:request.base_url)
     render json:NevaehOs::Goals.receipt(goal)

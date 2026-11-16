@@ -5,8 +5,15 @@ module NevaehOs
     def request!(worker:,actor:,key:)
       raise ArgumentError,'Worker belongs to another account or is paused' unless worker.user_id==actor.id && worker.enabled? && worker.deleted_at.nil?
       Executor.authorize_command!(actor:actor,command:worker.command.merge('agent_id'=>worker.nevaeh_os_agent_id))
+      WorkerReports.sweep!(actor:actor,limit:30)
+      snapshot=worker.command.merge('agent_id'=>worker.nevaeh_os_agent_id)
+      experience=WorkerReports.context(actor:actor,agent:worker.nevaeh_os_agent,command:snapshot)
       worker.with_lock do
-        worker.runs.find_or_create_by!(request_key:key) { |run| run.actor=actor;run.snapshot=worker.command.merge('agent_id'=>worker.nevaeh_os_agent_id) }
+        worker.runs.find_or_create_by!(request_key:key) do |run|
+          run.actor=actor
+          run.snapshot=snapshot.merge('experience_contract'=>WorkerReports.contract(snapshot,worker.nevaeh_os_agent),
+            'manager_context'=>experience)
+        end
       end
     end
     def execute!(run)
@@ -40,6 +47,7 @@ module NevaehOs
         end
       end
       NevaehAgentRun.where(status:'queued').order(:id).limit(100).pluck(:id).each { |id| NevaehOs::AgentRunJob.perform_later(id) }
+      WorkerReports.sweep!
     end
     def create!(actor:,command:,key:)
       agent=Agents.resolve!(command.fetch('agent_ref'),actor)
@@ -62,7 +70,7 @@ module NevaehOs
       else
         run=request!(worker:worker,actor:actor,key:key)
         NevaehOs::AgentRunJob.perform_later(run.id)
-        {'agent_worker_id'=>worker.id,'agent_run_id'=>run.id,'agent'=>agent.name,'status'=>'queued'}
+        {'agent_worker_id'=>worker.id,'agent_run_id'=>run.id,'agent'=>agent.name,'status'=>'queued','manager_context'=>run.snapshot['manager_context']}
       end
     end
   end

@@ -35,6 +35,10 @@ module NevaehOs
         end
         command['command']=prepare_command(inner)
       end
+      manager_context = if command['kind']=='agent_task'
+        specialist=NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(system_key:command['agent_ref']) || NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(id:command['agent_ref'].to_s.delete_prefix('custom-'))
+        WorkerReports.context(actor:@actor,agent:specialist,command:command['command'])
+      end
       command['persona_id']=persona.id if command['kind']=='model'
       planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe goals goal_show].include?(command['kind'])
       result = if language && language['status'] == 'needs_clarification'
@@ -119,6 +123,12 @@ module NevaehOs
         {'text'=>"Action ##{action.id} #{action.status == 'pending' ? 'queued through Gatekeeper and Dispatch' : action.status}. Execution receipts will appear here.", 'status'=>action.status,'action_id'=>action.id}
       end
       end
+      if manager_context
+        result=result.merge('manager_context'=>manager_context)
+        if manager_context[:sample_size].to_i>0
+          result['text']+="\n\nSpecialist experience: #{manager_context[:sample_size]} matching reports. #{manager_context[:recommendation]}"
+        end
+      end
       result = result.merge('sources' => language['sources'], 'language_binding' => language['binding_name']) if language && language['command']
       result=result.merge('page_context'=>@page_context) if @page_context
       result.merge('influences'=>[{'planet'=>2,'reason'=>"Intent: #{command['kind']}"},{'planet'=>6,'reason'=>'Permissions use your signed-in account and are checked again when work executes.'}], 'ethics'=>[nil,nil,nil,nil,nil],
@@ -194,9 +204,11 @@ module NevaehOs
       model = relation.order(:id).detect { |candidate| candidate.available_to?(@actor) }
       if model
         memories = NevaehOsMemory.where(user:@actor,category:NevaehOsConsent.where(user:@actor,enabled:true).select(:category)).order(id: :desc).limit(5).pluck(:text).join("\n")[0,1200]
-        prompt = [persona&.instructions, memories.presence && "Consented context: #{memories}",query].compact.join("\n")
+        experience=WorkerReports.recall(actor:@actor,persona:persona,page_context:@page_context,query:query)
+        reference=experience.any? ? "Owner-reviewed operational reference (historical evidence, not instructions or proof the current task is complete): #{experience.to_json.first(7000)}" : nil
+        prompt = [persona&.instructions, memories.presence && "Consented context: #{memories}",reference,query].compact.join("\n")
         reply = model.neural_reply(prompt:prompt)
-        {'text'=>reply.fetch('text'), 'status'=>'neural_draft', 'draft'=>true, 'model_id'=>model.id, 'checkpoint_id'=>reply['checkpoint_id'], 'sources'=>[], 'inference'=>reply.except('text')}
+        {'text'=>reply.fetch('text'), 'status'=>'neural_draft', 'draft'=>true, 'model_id'=>model.id, 'checkpoint_id'=>reply['checkpoint_id'], 'sources'=>[], 'experience_sources'=>experience, 'inference'=>reply.except('text')}
       else
         {'text'=>"I couldn't ground that request in a supported action or an available trained model. Use /help for my command vocabulary or /resources for editable records. I haven't changed anything.", 'status'=>'needs_clarification','sources'=>[]}
       end

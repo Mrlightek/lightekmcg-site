@@ -36,4 +36,4 @@ Forms submit typed values rather than inventing command payloads from prose. Who
 
 The first release exposes typed tasks from the existing native capability registry, including declared input schemas added there. It does not certify that every Dashboard operation has a page worker. To expand a page: connect its actual service, register its input schema, assign the specialist's capability scope, document the workflow and verify its downstream result. This lets the same manager reuse the page's accumulated knowledge without guessing how its features work.
 
-No database migration is needed for page-task contracts. Restart Rails/workers after deployment. Open the assistant again to refresh its contract and current page inputs.
+See [SME reports and lessons](worker_reports.md) for each specialist’s accumulated experience and owner feedback. Page-task contracts themselves need no migration; the reports feature has its own migration. Restart Rails/workers after deployment. Open the assistant again to refresh its contract and current page inputs.

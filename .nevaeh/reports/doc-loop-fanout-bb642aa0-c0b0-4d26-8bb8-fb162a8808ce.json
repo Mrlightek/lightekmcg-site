@@ -1,0 +1,26 @@
+{
+  "task_id": "doc-loop-fanout-bb642aa0-c0b0-4d26-8bb8-fb162a8808ce",
+  "worker": "workforce_page_sme",
+  "source_page": {
+    "path": "docs/nevaeh/tutorials/workforce.md",
+    "revision": "0aecdc25c3af02d258d1baba0aa4217522017ee6",
+    "fingerprint": "sha256:dda54579e6fc1c329376c6bb9715ac2cadeacc4e1f07c2c3855915f4271ab209"
+  },
+  "status": "accepted",
+  "output": {
+    "summary": "Prepared and source-verified independent fanout report for the documentation harness only; application Dispatch/Gatekeeper runtime was not exercised. Task acceptance remains pending manager commit, push and exact remote read-back.",
+    "values": {
+      "maximum_goal_tasks": 12,
+      "minimum_repeat_minutes": 5,
+      "source_quotes": [
+        "A goal connects up to twelve one-time tasks in order and waits for their downstream results.",
+        "An optional repeat interval creates a scheduled agent worker; its minimum is five minutes."
+      ]
+    },
+    "evidence": [
+      "https://github.com/Mrlightek/lightekmcg-site/blob/0aecdc25c3af02d258d1baba0aa4217522017ee6/docs/nevaeh/tutorials/workforce.md#L7",
+      "https://github.com/Mrlightek/lightekmcg-site/blob/0aecdc25c3af02d258d1baba0aa4217522017ee6/docs/nevaeh/tutorials/workforce.md#L34"
+    ]
+  },
+  "dependencies": []
+}

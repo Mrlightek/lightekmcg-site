@@ -4,7 +4,7 @@ module NevaehOs
     # Positions are executable specialties, not additional language models.
     ROLES={
       'nevaeh'=>['Nevaeh','Coordination','Coordinate saved goals and delegate supported tasks.',['*'],['/goal list']],
-      'sage'=>['Sage · Planning','Strategy','Prepare business growth plans and inspect current business work.',['growth.plan'],['/growth SITE_ID']],
+      'sage'=>['Sage · Planning','Strategy','Prepare business growth plans and inspect current business work.',['growth.plan','growth.review'],['/growth SITE_ID','/growth review SITE_ID COMPARISON_ID']],
       'muse'=>['Muse · Writing','Creative','Write editable captions, posts and script drafts.',['nevaeh.write'],['/write script {"topic":"YOUR_TOPIC"}']],
       'warden'=>['Warden · Verification','Quality','Inspect actual production and rehearsal receipts; report capability gaps.',['studio.direct.production','nevaeh.improve'],['/produce status PRODUCTION_ID','/improve gaps']],
       'producer'=>['Episode Producer','Studio','Prepare episode scenes from production recipes and show bibles.',['studio.direct.production'],['/produce {"site_id":1,"name":"Episode 1","template_key":"comedy"}']],
@@ -13,7 +13,7 @@ module NevaehOs
       'editor'=>['Episode Editor','Studio','Assemble completed scene exports into an episode master.',['studio.direct.production'],['/produce assemble PRODUCTION_ID']],
       'publisher'=>['Publishing Coordinator','Distribution','Deliver an explicitly reviewed master to configured destinations.',['studio.direct.production'],['/produce publish {"production_id":1,"artifact_id":1,"reviewed":true,"destinations":["lightek_streaming"]}']],
       'campaign'=>['Campaign Producer','Marketing','Build editable social ads and private MP4 previews.',['marketing.campaign.produce'],['/campaign {"site_id":1,"service":"YOUR_SERVICE","tone":"funny"}']],
-      'growth'=>['Growth Analyst','Marketing','Prepare the site’s daily growth plan from actual business evidence.',['growth.plan'],['/growth SITE_ID']],
+      'growth'=>['Growth Analyst','Marketing','Prepare the site’s daily growth plan from actual business evidence.',['growth.plan','growth.review'],['/growth SITE_ID','/growth review SITE_ID COMPARISON_ID']],
       'librarian'=>['Manuals Librarian','Learning','Import installed manuals and draft training batches and conversational bindings.',['nevaeh.improve','nevaeh.learn','nevaeh.review'],['/improve corpus']],
       'language_tester'=>['Language Contract Tester','Learning','Check active phrases against their current sources and action contracts.',['nevaeh.improve'],['/improve language_check']],
       'trainer'=>['Language Trainer','Learning','Train reviewed datasets through the native trainer and acceptance checks.',['nevaeh.train','nevaeh.checkpoint'],['/train MODEL_ID {"dataset_id":1,"epochs":10}']],

@@ -2,7 +2,7 @@ module LightekGrowth
   # Authored rules over measured facts. Neither model prose nor brief text can
   # select an executable capability or establish a causal marketing claim.
   class Playbook
-    VERSION = 'growth-daily-v2'.freeze
+    VERSION = 'growth-daily-v3'.freeze
     def self.recommendations(snapshot)
       facts = snapshot.fetch('facts')
       candidates = []
@@ -23,6 +23,9 @@ module LightekGrowth
       end
       if facts['expiring_quotes'] > 0
         add.call('quotes', 'Review quotes approaching expiry', 'Issued quotes expire within three days. Confirm the customer has what they need; an issued quote is not a payment.', 'sales', facts.slice('expiring_quotes'), ['Open the proposal or negotiation deals.', 'Check the issued quote and contact the customer through an authorized channel.', 'Revise expired commercial details rather than accepting an outdated offer.'])
+      end
+      if facts['performance_review_due'].to_i > 0
+        add.call('performance', 'Review your measured campaign comparisons', 'A saved comparison is ready for a fresh measured review. Compare placement coverage and downstream outcomes before preparing another creative.', 'performance', facts.slice('performance_review_due', 'performance_comparison_id', 'performance_review_id'), ['Open the saved comparison and inspect the pinned versions and links.', 'Measure a fresh review and inspect its coverage, payments and refunds.', 'Prepare a follow-up only from reviewed evidence; keep it editable until normal content approval.'])
       end
       if facts.key?('website_audit_id')
         if facts['website_audit_id'].nil? || facts['website_audit_stale']

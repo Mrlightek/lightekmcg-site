@@ -1,0 +1,56 @@
+{
+  "task_id": "doc-loop-test-002",
+  "worker": "page_workers_dependency_sme",
+  "source_page": {
+    "path": "docs/nevaeh/tutorials/page_workers.md",
+    "revision": "002d558e6f00bc84f92b0d8241462432099d529d",
+    "fingerprint": "sha256:12775b5361d8597d889b5748fde74c3e87f693196afc636e5d4524152c111aac"
+  },
+  "status": "accepted",
+  "output": {
+    "summary": "Resolved the committed upstream integer cap and verified that one documentation-derived step per page/service family fits it. Documentation planning harness only; application Dispatch/Gatekeeper runtime was not exercised.",
+    "values": {
+      "input_path": "output.values.maximum_goal_tasks",
+      "expected_type": "integer",
+      "maximum_goal_tasks": 12,
+      "dependency_resolved": true,
+      "dependency_consumed": true,
+      "upstream_report_commit": "06bac03c825e8b0c3d1f007bcbdcdf1c720d5f2f",
+      "plan": [
+        {
+          "family": "Mail and messaging",
+          "specialist": "Mail Operator",
+          "task": "List/open conversations"
+        },
+        {
+          "family": "Finance / Susu",
+          "specialist": "Finance Operator",
+          "task": "List/open groups"
+        },
+        {
+          "family": "Studio projects and workspaces",
+          "specialist": "Studio Workspace Operator",
+          "task": "Create a project"
+        }
+      ],
+      "step_count": 3,
+      "fits_cap": true,
+      "remaining_capacity": 9,
+      "source_quotes": [
+        "| Mail and messaging | Mail Operator | List/open conversations, list people, mark a conversation read |",
+        "| Finance / Susu | Finance Operator | List/open groups, contribution quote and checkout |",
+        "| Studio projects and workspaces | Studio Workspace Operator | Create a project, list assets, inspect runtime and writing profiles, save declared workspace inputs |"
+      ]
+    },
+    "evidence": [
+      "https://github.com/Mrlightek/lightekmcg-site/blob/002d558e6f00bc84f92b0d8241462432099d529d/docs/nevaeh/tutorials/page_workers.md#L19-L21",
+      "https://github.com/Mrlightek/lightekmcg-site/blob/06bac03c825e8b0c3d1f007bcbdcdf1c720d5f2f/.nevaeh/reports/doc-loop-test-001.json"
+    ]
+  },
+  "dependencies": [
+    {
+      "task_id": "doc-loop-test-001",
+      "report_ref": ".nevaeh/reports/doc-loop-test-001.json"
+    }
+  ]
+}

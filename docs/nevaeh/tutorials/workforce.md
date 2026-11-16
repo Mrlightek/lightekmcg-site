@@ -27,7 +27,7 @@ A role is a saved specialist identity, instructions and capability assignment. A
 | Commerce | Commerce Operator uses connected order, inventory, shipping and catalog operations. |
 | Legal & Compliance | Compliance Coordinator uses connected compliance capabilities and retains evidence. |
 
-There are 28 roles including Nevaeh. Existing names, instructions and assignments are preserved. A deleted role stays deleted; revisiting the directory does not silently restore it. **Task templates available** means an instruction template exists, not that every account or provider is configured. **Needs an executable adapter** identifies a role without a matching connected contract. Account permissions are checked when work is submitted and again when it executes.
+There are 28 roles including Nevaeh. Existing names, instructions and assignments are preserved. A deleted role stays deleted; revisiting the directory does not silently restore it. **Tasks available** means a task template or connected action exists; account and provider setup may still be required. The default filter shows enabled specialists with available tasks. Choose **All specialists** to include paused roles and roles marked **Not connected yet**. Assignment is disabled for these roles until they are enabled and have connected tasks. Account permissions are checked when work is submitted and again when it executes.
 
 ## Delegate work and manage the team
 
@@ -98,3 +98,5 @@ Apply migration `20261115235000_add_nevaeh_workforce_goals`; restart Rails and w
 The standalone checks exercise persisted delegation, typed result handoff, failed output checks, source drift, compilation, manual import, pause/cancel/replay, deleted-role persistence, account isolation, CSRF and page context filtering. Browser fixtures cover role explanations, task/goal actions, deletion/cancel, page-aware assistant suggestions, portrait loading and mobile overflow. Provider-specific execution still requires its deployed account/runtime configuration.
 
 Page task forms delegate known services to their assigned specialists and retain the page/application contract with each saved instruction. See [Page specialists](page_workers.md) for current coverage and how Nevaeh coordinates their receipts.
+
+The directory preserves expanded panels, task drafts and list position during background refreshes. Open **Manage specialist** for pause and delete controls. Open **Repeat on a schedule** for recurring work or **Plan several tasks** for a goal. Completed one-time tasks and completed/cancelled goals stay in expandable history; past reports remain under **Reports & history**.

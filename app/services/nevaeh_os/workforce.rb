@@ -53,7 +53,7 @@ module NevaehOs
       catalog=Guide.catalog(actor:actor)
       NevaehOsAgent.where(user:actor,deleted_at:nil).order(:id).map do |agent|
         role=ROLES[agent.system_key]
-        connected=catalog.select { |entry| entry[:availability]=='connected' && match?(role ? role[3] : (agent.allowed_capabilities.presence || ['*']),execution_key(entry[:key])) }.map { |entry| entry.slice(:key,:title,:inputs) }.first(80)
+        connected=catalog.select { |entry| entry[:availability]=='connected' && match?(role ? role[3] : (agent.allowed_capabilities.presence || ['*']),execution_key(entry[:key])) }.map { |entry| entry.slice(:key,:title,:inputs,:example) }.first(80)
         {id:agent.id,name:agent.name,department:agent.role,purpose:agent.instructions.presence || role&.[](2) || 'Custom worker role',system_key:agent.system_key,enabled:agent.enabled?,autonomy:agent.autonomy,
           examples:role&.[](4) || (agent.system_key.to_s.start_with?('page_') ? ["/page #{agent.system_key.delete_prefix('page_')} YOUR_QUESTION"] : []),capabilities:connected,availability:(role && role[4].any?) || connected.any? ? 'task_ready' : 'adapter_needed',allowed_capabilities:agent.allowed_capabilities,
           tasks:agent.agent_workers.where(deleted_at:nil).count,deletable:agent.system_key!='nevaeh'}

@@ -1,0 +1,197 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "worker_id",
+    "account_id",
+    "status",
+    "documentation",
+    "output",
+    "dependencies",
+    "file_ownership"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^run-[1-9][0-9]*$"
+    },
+    "worker_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "account_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed",
+        "failed",
+        "blocked",
+        "cancelled",
+        "evidence_unavailable"
+      ]
+    },
+    "documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "read_at"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^docs/nevaeh/tutorials/[a-z_]+\\.md$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "read_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 40
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "receipt_sha256",
+        "references",
+        "kind"
+      ],
+      "properties": {
+        "action_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "receipt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "references": {
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "type",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "type": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "status": {
+                "type": "string",
+                "maxLength": 80
+              }
+            }
+          }
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "receipt_reference"
+          ]
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id",
+          "status"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "pattern": "^run-[1-9][0-9]*$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "failed",
+              "blocked",
+              "cancelled",
+              "evidence_unavailable"
+            ]
+          }
+        }
+      }
+    },
+    "file_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace",
+        "write_files",
+        "report_writer"
+      ],
+      "properties": {
+        "workspace": {
+          "type": "string",
+          "enum": [
+            "worker_workspace"
+          ]
+        },
+        "write_files": {
+          "type": "array",
+          "maxItems": 40,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240,
+            "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[a-zA-Z0-9_-][a-zA-Z0-9_.-]*(?:/[a-zA-Z0-9_.-]+)*$"
+          }
+        },
+        "report_writer": {
+          "type": "string",
+          "enum": [
+            "manager"
+          ]
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lightek:nevaeh:worker-report:1",
+  "title": "Nevaeh worker result v1"
+}

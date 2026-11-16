@@ -66,6 +66,8 @@ jobs:
         run: bundle exec ruby test/standalone/nevaeh_page_worker_checks.rb --name '/NevaehPageWorkerChecks/'
       - name: Verify specialist reports, feedback, isolation and manager recall
         run: bundle exec ruby test/standalone/nevaeh_worker_report_checks.rb --name '/NevaehWorkerReport/'
+      - name: Verify JSON Schema, source rereads, manager journal and file ownership
+        run: bundle exec ruby test/standalone/nevaeh_reporting_convention_checks.rb --name '/NevaehReportingConventionChecks/'
       - name: Verify workforce lifecycle and current-page context
         run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
 

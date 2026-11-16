@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'reporting_system'=>['Structured reporting convention and documentation-page SMEs','all'],
       'worker_reports'=>['SME reports, lessons and management experience','all'],
       'page_workers'=>['Page specialists, task inputs and manager delegation','all'],
       'voice'=>['Spoken replies, playback controls and the speaking character','all'],
@@ -31,6 +32,7 @@ module NevaehOs
       'studio.project.create'=>{'name'=>'string'}
     }.freeze
     BUILTINS={
+      'nevaeh.documentation_question'=>['Ask a documentation-page SME','/page agents How do I delegate?','reporting_system','all'],
       'nevaeh.goal'=>['Save and run a delegated goal with completion checks','/goal list','workforce','all'],
       'nevaeh.improve'=>['Audit gaps, import manuals and check phrase contracts','/improve gaps','workforce','admin'],
       'help'=>['Command overview','/help','commands','all'],

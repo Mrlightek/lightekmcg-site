@@ -13,8 +13,9 @@ module NevaehOs
     def contract(command, agent)
       # Bind operational lessons to the actual role and service contract, not arbitrary input values.
       capability = NevaehCapability.find_by(slug: Agents.capability(command)) if command['kind'] == 'capability'
-      PageWorkers.digest({version: 1, agent: agent.id, instructions: agent.instructions,
-        scopes: agent.allowed_capabilities, kind: command['kind'], operation: command['operation'],
+      documentation=command['documentation_contract'] || DocumentationWorkers.bind!(actor:agent.user,command:command.merge('agent_id'=>agent.id)).fetch('documentation_contract')
+      PageWorkers.digest({version: 2, agent: agent.id, instructions: agent.instructions,
+        documentation: documentation.slice('path','sha256'), scopes: agent.allowed_capabilities, kind: command['kind'], operation: command['operation'],
         resource: command['resource'], page_contract: command.dig('page_contract', 'fingerprint'),
         binding: capability&.attributes&.slice('handler', 'queue', 'gatekeeper_capability', 'enabled', 'metadata')})
     end
@@ -36,10 +37,12 @@ module NevaehOs
           chain << node.stringify_keys.slice('id', 'type', 'kind', 'status')
           node = node[:downstream] || node['downstream']
         end
+        structured=structured_result(run,receipt,status,digest,chain)
+        status=structured.fetch('status')
         values = {user_id: run.actor_id, nevaeh_os_agent_id: worker.nevaeh_os_agent_id,
           capability: Agents.capability(run.snapshot), site_key: site_key(run.snapshot),
           contract_sha256: run.snapshot['experience_contract'] || PageWorkers.digest({legacy_run: run.id}),
-          receipt_sha256: digest, status: status,
+          receipt_sha256: digest, status: status, structured_result:structured,
           evidence: {action_id: action&.id, run_id: run.id, worker_id: worker.id,
             page: run.snapshot.dig('page_contract', 'context', 'path'),
             input_keys: run.snapshot.fetch('payload', {}).keys.sort,
@@ -48,8 +51,40 @@ module NevaehOs
         report = NevaehWorkerReport.find_or_initialize_by(nevaeh_agent_run: run)
         report.assign_attributes(values)
         report.save! if report.new_record? || report.changed?
+        ReportJournal.append!(run.actor,structured)
         report
       end
+    end
+
+    def structured_result(run,receipt,status,digest,chain)
+      stamp=run.snapshot['documentation_contract']
+      unless stamp
+        guide=Guide.tutorial('commands',actor:run.actor)
+        stamp={'path'=>guide[:path],'sha256'=>Digest::SHA256.hexdigest(guide[:body]),'write_files'=>[]}
+      end
+      read=run.snapshot['documentation_read']
+      status='blocked' if status=='completed' && !read
+      dependencies=[]
+      if (step=NevaehGoalStep.find_by(nevaeh_agent_run_id:run.id))
+        dependencies=step.nevaeh_goal.steps.where('position < ?',step.position).where.not(nevaeh_agent_run_id:nil).order(:position).map do |previous|
+          source=previous.nevaeh_agent_run
+          raise ArgumentError,'Dependency belongs to another account' unless source.actor_id==run.actor_id
+          state=source.execution_status.to_s
+          state='pending' unless %w[completed failed blocked cancelled evidence_unavailable].include?(state)
+          {'task_id'=>"run-#{source.id}",'status'=>state}
+        end
+      end
+      value={'schema_version'=>1,'task_id'=>"run-#{run.id}",'worker_id'=>run.nevaeh_agent_worker_id,'account_id'=>run.actor_id,'status'=>status,
+        'documentation'=>{'path'=>stamp.fetch('path'),'sha256'=>stamp.fetch('sha256'),'read_at'=>read&.fetch('read_at',nil)},
+        'output'=>{'kind'=>'receipt_reference','action_id'=>run.nevaeh_os_action_id,'receipt_sha256'=>digest,
+          'references'=>chain.map { |r| {'id'=>r['id'].is_a?(Integer) ? r['id'] : nil,'type'=>(r['type'] || r['kind'] || 'execution').to_s,'status'=>r['status'].to_s} }},
+        'dependencies'=>dependencies,'file_ownership'=>{'workspace'=>'worker_workspace','write_files'=>stamp.fetch('write_files',[]),'report_writer'=>'manager'}}
+      ReportSchema.validate!(value)
+    end
+    def journal_result!(report)
+      value=ReportJournal.read!(report.user)["run-#{report.nevaeh_agent_run_id}"]
+      raise ArgumentError,'The shared structured report is missing or does not match execution evidence' unless value && value==report.structured_result
+      value
     end
 
     def sweep!(actor: nil, limit: 100)
@@ -73,7 +108,7 @@ module NevaehOs
       review = latest_review(report)
       {id: report.id, agent_id: report.nevaeh_os_agent_id, agent: report.nevaeh_os_agent.name,
         capability: report.capability, site: report.site_key, status: report.status,
-        evidence: report.evidence, receipt_sha256: report.receipt_sha256,
+        structured_report:journal_result!(report), evidence: report.evidence, receipt_sha256: report.receipt_sha256,
         review: review&.attributes&.slice('id', 'verdict', 'lesson', 'created_at'),
         review_count: report.reviews.count, review_history: report.reviews.order(id: :desc).limit(10).map { |r| r.attributes.slice('id','verdict','lesson','receipt_sha256','created_at') }, updated_at: report.updated_at}
     end
@@ -110,6 +145,7 @@ module NevaehOs
         capability: Agents.capability(command), site_key: site_key(command), contract_sha256: current_contract)
       # A bounded sample, scoped to the same specialist/service/site/contract. Never use obsolete evidence.
       reports = scope.order(id: :desc).limit(50).map { |report| capture!(report.nevaeh_agent_run) }
+      reports.each { |report| journal_result!(report) }
       reports.select! { |report| report.status != 'pending' && report.contract_sha256 == current_contract }
       accepted = []; corrections = []
       reports.each do |report|
@@ -139,6 +175,7 @@ module NevaehOs
       terms = query.to_s.downcase.scan(/[a-z][a-z0-9_]{2,}/).first(16)
       scope.order(id: :desc).limit(30).filter_map do |report|
         report = capture!(report.nevaeh_agent_run)
+        journal_result!(report)
         review = latest_review(report)
         next unless review && review.lesson.present?
         agent = report.nevaeh_os_agent

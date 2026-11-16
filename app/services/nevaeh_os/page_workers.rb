@@ -70,7 +70,7 @@ module NevaehOs
     end
     def with_experience(actor,row)
       agent=NevaehOsAgent.find_by(user:actor,system_key:row[:worker][:key])
-      command={'kind'=>'capability','intent'=>row[:key],'payload'=>row[:defaults],'page_contract'=>{'fingerprint'=>row[:fingerprint]}}
+      command={'kind'=>'capability','intent'=>row[:key],'payload'=>row[:defaults],'page_contract'=>{'fingerprint'=>row[:fingerprint]},'documentation_contract'=>row[:source].stringify_keys}
       row.merge(experience:agent ? WorkerReports.context(actor:actor,agent:agent,command:command) : WorkerReports.empty_context)
     end
     def manifest(actor,context,entries:nil)

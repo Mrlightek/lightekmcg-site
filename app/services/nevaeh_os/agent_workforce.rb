@@ -5,6 +5,10 @@ module NevaehOs
     def request!(worker:,actor:,key:)
       raise ArgumentError,'Worker belongs to another account or is paused' unless worker.user_id==actor.id && worker.enabled? && worker.deleted_at.nil?
       Executor.authorize_command!(actor:actor,command:worker.command.merge('agent_id'=>worker.nevaeh_os_agent_id))
+      worker.with_lock do
+        bound=DocumentationWorkers.bind!(actor:actor,command:worker.command.merge('agent_id'=>worker.nevaeh_os_agent_id))
+        worker.update!(command:bound) unless worker.command==bound
+      end
       WorkerReports.sweep!(actor:actor,limit:30)
       snapshot=worker.command.merge('agent_id'=>worker.nevaeh_os_agent_id)
       experience=WorkerReports.context(actor:actor,agent:worker.nevaeh_os_agent,command:snapshot)
@@ -23,6 +27,8 @@ module NevaehOs
         actor=run.actor.reload
         raise ArgumentError,'Agent worker was paused or its owner changed' unless worker.enabled? && worker.deleted_at.nil? && worker.user_id==actor.id
         Agents.authorize!(run.snapshot,actor)
+        document=DocumentationWorkers.read!(actor:actor,command:run.snapshot)
+        run.update!(snapshot:run.snapshot.merge('documentation_read'=>document.except(:body).stringify_keys))
         action=Dispatch.submit!(actor:actor,command:run.snapshot,request_key:"agent-run-#{run.id}")
         run.update!(nevaeh_os_action:action,status:'dispatched',error:nil)
       end
@@ -51,13 +57,13 @@ module NevaehOs
     end
     def create!(actor:,command:,key:)
       agent=Agents.resolve!(command.fetch('agent_ref'),actor)
-      inner=command.fetch('command').merge('agent_id'=>agent.id)
+      inner=DocumentationWorkers.bind!(actor:actor,command:command.fetch('command').merge('agent_id'=>agent.id))
       Agents.authorize!(inner,actor)
       interval=command['interval_minutes']
       agent.update!(autonomy:'scheduled') if interval && agent.autonomy!='scheduled'
-      worker=if inner['page_contract'] && !interval
-        context=inner['page_contract'].fetch('context')
-        name="#{PageContext.area(context)[2]} · #{Agents.capability(inner)}".first(160)
+      worker=if (inner['page_contract'] || inner['kind']=='documentation_answer') && !interval
+        context=inner.dig('page_contract','context')
+        name=context ? "#{PageContext.area(context)[2]} · #{Agents.capability(inner)}".first(160) : "Page SME · #{inner.fetch('topic')}"
         actor.with_lock do
           same=NevaehAgentWorker.where(user:actor,nevaeh_os_agent:agent,name:name,deleted_at:nil,interval_minutes:nil).order(id: :desc).limit(100).detect { |row| row.command==inner }
           same || NevaehAgentWorker.create!(user:actor,nevaeh_os_agent:agent,name:name,command:inner)

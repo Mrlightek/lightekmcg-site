@@ -6,17 +6,17 @@ module NevaehControlCenterHelper
 
   def nevaeh_navigation_defaults
     item = ->(id, label, path, icon, group = "Workspaces") { {"id" => id, "label" => label, "path" => path, "icon" => icon, "group" => group} }
-    rows = [item.call("overview", "Overview", nevaeh_home_path, "ti-layout-dashboard"),
+    rows = [item.call("overview", "Home", nevaeh_home_path, "ti-layout-dashboard"),
       item.call("sales", "Sales & CRM", main_app.dashboard_sales_path, "ti-chart-funnel"),
       item.call("business", "Business", main_app.dashboard_business_hub_path, "ti-building-store"),
       item.call("compliance", "Legal & Compliance", main_app.dashboard_compliance_path, "ti-scale"),
       item.call("accounting", "Books & Accounting", main_app.dashboard_accounting_path, "ti-report-money"),
       item.call("directory", "Directory & Access", main_app.dashboard_directory_path, "ti-shield-lock"),
-      item.call("people", "People & Access", main_app.dashboard_people_path, "ti-users-group"),
+      item.call("people", "Team & payroll", main_app.dashboard_people_path, "ti-users-group"),
       item.call("reservations", "Reservations", main_app.dashboard_reservations_path, "ti-calendar-event"),
       item.call("rooms", "Rooms & Guests", main_app.dashboard_rooms_path, "ti-users"),
       item.call("my-reservations", "My Reservations", main_app.my_reservations_path, "ti-ticket"),
-      item.call("agency", "Agency & Marketing", main_app.dashboard_agency_reports_path, "ti-chart-dots"),
+      item.call("agency", "Client portfolio", main_app.dashboard_agency_reports_path, "ti-chart-dots"),
       item.call("design", "Design & Content", main_app.dashboard_website_designs_path, "ti-palette"),
       item.call("journal", "Journal & Articles", main_app.dashboard_blog_index_path, "ti-article"),
       item.call("mail", "Communications", main_app.dashboard_mail_path, "ti-mail")]
@@ -34,10 +34,10 @@ module NevaehControlCenterHelper
     if current_user.role.in?(%w[super_admin white_label])
       rows << item.call("demos", "Client demos", main_app.dashboard_demos_path, "ti-flask")
       rows << item.call("connect", "Lightek Connect", main_app.dashboard_connect_path, "ti-plug-connected")
-      rows << item.call("white-label", "White Label Agencies", main_app.dashboard_agencies_path, "ti-brand-asana")
+      rows << item.call("white-label", "Clients & agencies", main_app.dashboard_agencies_path, "ti-brand-asana")
     end
     if LightekPwa::Policy.administration_available_for?(current_user)
-      rows << item.call("pwa", "PWA Administration", main_app.dashboard_pwa_path, "ti-device-mobile")
+      rows << item.call("pwa", "Mobile app", main_app.dashboard_pwa_path, "ti-device-mobile")
     end
     if current_user.role == "super_admin"
       rows += [item.call("infrastructure", "Infrastructure", main_app.dashboard_infrastructure_path, "ti-server"),
@@ -55,7 +55,19 @@ module NevaehControlCenterHelper
       rows << item.call("new-ticket", "New Ticket", main_app.new_employee_ticket_path, "ti-plus", "Nevaeh") if can?(:create, Marlon::Ticket)
     end
     rows << item.call("settings", "Settings", main_app.dashboard_settings_home_path, "ti-settings", "System")
-    rows
+    groups = {
+      "Start" => %w[overview],
+      "Business & money" => %w[business sales commerce shipping accounting finance],
+      "Create & publish" => %w[design journal studio pwa],
+      "Bookings & email" => %w[reservations rooms my-reservations mail],
+      "Clients & agencies" => %w[agency white-label demos reseller-packages connect],
+      "Team & administration" => %w[people directory compliance settings],
+      "Technical tools" => %w[servers infrastructure vault]
+    }
+    rows.map do |row|
+      group = groups.find { |_label, ids| ids.include?(row["id"]) }&.first
+      group ? row.merge("group" => group) : row
+    end
   end
 
   def nevaeh_dashboard_breadcrumbs(page_label:)

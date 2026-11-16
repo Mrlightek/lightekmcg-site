@@ -19,6 +19,8 @@ on:
       - 'public/lightek/production-workflow.css'
       - 'public/lightek/site-content.css'
       - 'test/javascript/dashboard_workspace_browser_test.cjs'
+      - 'test/javascript/dashboard_navigation_browser_test.cjs'
+      - 'test/standalone/dashboard_task_navigation_test.rb'
       - 'public/lightek/business-workspace.css'
       - 'test/standalone/dashboard_appearance_test.rb'
       - 'test/standalone/dashboard_network_view_test.rb'
@@ -46,6 +48,8 @@ jobs:
         run: ruby test/standalone/dashboard_network_view_test.rb
       - name: Verify shared navigation
         run: ruby test/standalone/dashboard_breadcrumbs_test.rb
+      - name: Verify task navigation destinations and roles
+        run: ruby test/standalone/dashboard_task_navigation_test.rb
       - name: Check navigation script
         run: node --check public/lightek/dashboard.js
       - name: Render actual commerce forms and verify order actions
@@ -61,6 +65,10 @@ jobs:
         env:
           NODE_PATH: /tmp/dashboard-ci/node_modules
         run: node test/javascript/dashboard_workspace_browser_test.cjs
+      - name: Verify grouped navigation and tool search
+        env:
+          NODE_PATH: /tmp/dashboard-ci/node_modules
+        run: node test/javascript/dashboard_navigation_browser_test.cjs
       - name: Verify order and product forms in Chromium and WebKit
         env:
           NODE_PATH: /tmp/dashboard-ci/node_modules

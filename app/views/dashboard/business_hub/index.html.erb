@@ -1,4 +1,4 @@
-<% content_for :page_title, "Business Command Center" %>
+<% content_for :page_title, "Your business" %>
 <style>
 .lbh{max-width:1320px;margin:auto;padding:0}.lbh-top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}.lbh-kicker{text-transform:uppercase;letter-spacing:.16em;color:var(--dd-text-muted);font-size:12px}.lbh h1{font-size:clamp(23px,2vw,28px);margin:6px 0}.lbh-sub{color:var(--dd-text-secondary)}.lbh-selector{background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));color:var(--dd-text-primary);padding:10px;border:1px solid var(--dd-border);border-radius:10px}.lbh-actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}.lbh-button{display:inline-block;background:var(--dd-accent,#665cf1);color:white!important;padding:7px 12px;border-radius:7px;text-decoration:none;font-size:12px;font-weight:600}.lbh-button.alt{background:transparent;border:1px solid var(--dd-border);color:var(--dd-text-primary)!important}.lbh-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}.lbh-metric{padding:18px;background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));border:1px solid var(--dd-border);border-radius:14px}.lbh-value{font-size:26px;font-weight:700;margin:8px 0}.lbh-panel{background:var(--dd-bg-elevated,var(--dd-card-bg,#20202b));border:1px solid var(--dd-border);border-radius:14px;padding:20px;min-width:0}.lbh-panelhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}.lbh-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:16px;margin:18px 0}.lbh-table{width:100%;border-collapse:collapse;font-size:14px}.lbh-table td,.lbh-table th{padding:11px 8px;border-bottom:1px solid var(--dd-border);text-align:left}.lbh-scroll{overflow-x:auto}.lbh-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.lbh-tile{padding:18px;border:1px solid var(--dd-border);border-radius:12px}.lbh-tile p{color:var(--dd-text-secondary);font-size:13px}.lbh-tile form{margin-top:12px}.lbh-tile input[type=submit]{padding:9px 12px;border-radius:8px;cursor:pointer}
 .lbh-chart{height:240px;display:flex;align-items:end;gap:7px;padding-top:22px;margin-top:12px;border-bottom:1px solid var(--dd-border)}.lbh-chart-col{height:100%;flex:1;display:flex;align-items:center;justify-content:end;flex-direction:column;min-width:0}.lbh-chart-col small{font-size:10px;color:var(--dd-text-muted);margin:7px 0}.lbh-chart-value{font-size:9px;white-space:nowrap;color:var(--dd-text-secondary);min-height:14px}.lbh-bar{width:100%;max-width:44px;min-height:3px;border-radius:6px 6px 0 0;background:linear-gradient(0deg,var(--dd-accent),var(--dd-accent-hover))}.lbh-progress-label{display:flex;justify-content:space-between;margin:15px 0 5px}.lbh-progress{height:10px;border-radius:20px;background:var(--dd-border);overflow:hidden}.lbh-progress span{display:block;height:100%;background:var(--dd-accent);border-radius:20px}.lbh-insights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}.lbh-insights>div{border:1px solid var(--dd-border);border-radius:10px;padding:14px}.lbh-insights strong{display:block;font-size:25px}.lbh-insights small{color:var(--dd-text-secondary)}
@@ -6,7 +6,7 @@
 <main class="lbh">
 <%= render "dashboard/shared/business_workspace", active: "Business" %>
   <div class="lbh-top">
-    <div><div class="lbh-kicker">LIGHTEK / OPERATIONS</div><h1>Business Command Center</h1><p class="lbh-sub">Commerce, marketing, content and business operations in one workspace.</p></div>
+    <div><div class="lbh-kicker">LIGHTEK / OPERATIONS</div><h1>Your business</h1><p class="lbh-sub">Choose what you need to do for this website.</p></div>
     <%= form_with url: dashboard_business_hub_path, method: :get do %>
       <%= label_tag :site_id, "Working website" %>
       <%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site&.id), onchange: "this.form.requestSubmit()", class: "lbh-selector" %>
@@ -15,6 +15,13 @@
   </div>
   <% if @site %>
     <p class="lbh-sub"><strong><%= @site.name %></strong> · <%= @site.host %></p>
+    <section class="dd-task-grid" aria-label="Business tasks">
+      <%= link_to new_dashboard_commerce_product_path(site_id: @site.id), class: "dd-task-card" do %><strong>Sell a product</strong><span>Add a product, set its price and publish it</span><% end %>
+      <%= link_to dashboard_commerce_orders_path(site_id: @site.id), class: "dd-task-card" do %><strong>Manage orders</strong><span>Check payments, fulfillment and refunds</span><% end %>
+      <%= link_to dashboard_website_designs_path(site_id: @site.id), class: "dd-task-card" do %><strong>Update this website</strong><span>Edit your design, pages and content</span><% end %>
+      <%= link_to dashboard_commerce_payouts_path(site_id: @site.id), class: "dd-task-card" do %><strong>Set up payouts</strong><span>Review your payout account and requirements</span><% end %>
+    </section>
+    <details class="dd-more-tools"><summary>More business tools · marketing, bookings, shipping and team access</summary>
     <nav class="lbh-actions" aria-label="Business operations">
       <%= link_to "Sales & CRM", dashboard_sales_path(site_id: @site.id), class: "lbh-button" %>
       <%= link_to "Studio productions", dashboard_media_studio_path(site_id: @site.id), class: "lbh-button" %>
@@ -30,6 +37,7 @@
       <%= link_to "Email Studio", dashboard_mail_path, class: "lbh-button alt" %>
       <%= link_to "View Shop", commerce_shop_path(site_id: @site.id), class: "lbh-button alt" %>
     </nav>
+    </details>
     <section class="lbh-metrics" aria-label="Business metrics">
       <% [["Net recorded sales", number_to_currency((@metrics[:gross_sales_cents] - @metrics[:refunded_cents]) / 100.0)], ["Orders", @metrics[:orders]], ["Awaiting payment", @metrics[:pending_orders]], ["Published products", @metrics[:published_products]], ["Low stock (5 or fewer)", @metrics[:low_stock_products]], ["Ready campaigns", @metrics[:ready_campaigns]], ["Campaigns submitted", @metrics[:sent_campaigns]]].each do |label, value| %>
         <div class="lbh-metric"><span class="lbh-sub"><%= label %></span><div class="lbh-value"><%= value %></div></div>

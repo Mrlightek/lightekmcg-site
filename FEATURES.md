@@ -425,3 +425,5 @@ See [Workforce, goals and page assistance](docs/nevaeh/tutorials/workforce.md). 
 | Private lifecycle | Authenticated no-store audio, ownership/CSRF, request replay protection, cancellation, bounded queue limits, interrupted-job handling and one-day expiry/cleanup. |
 
 See [Voice and speaking character](docs/nevaeh/tutorials/voice.md). This is volume-driven 2D animation, not a phoneme-specific or full 3D facial performance. The stock synthetic voice remains a first version; a natural self-hosted voice upgrade is planned separately.
+
+- Structured reporting convention: one-page documentation SMEs, required source reads, fixed JSON Schema, manager-owned per-account JSONL journals, goal dependency references and exact managed file ownership with parallel conflict checks.

@@ -122,6 +122,14 @@ AddNevaehWorkforceGoals.new.migrate(:up)
 require File.join(ROOT,'app/services/nevaeh_os/page_workers')
 require File.join(ROOT,'db/migrate/20261116010000_create_nevaeh_worker_reports')
 CreateNevaehWorkerReports.new.migrate(:up)
+require File.join(ROOT,'db/migrate/20261116020000_add_structured_worker_results')
+AddStructuredWorkerResults.new.migrate(:up)
+%w[report_schema report_journal documentation_workers].each { |file| require File.join(ROOT,'app/services/nevaeh_os',file) }
+NEVAEH_TEST_REPORT_ROOT=Dir.mktmpdir('nevaeh-report-checks-')
+module NevaehOs::ReportJournal
+  def self.root = Pathname.new(NEVAEH_TEST_REPORT_ROOT)
+end
+at_exit { FileUtils.rm_rf(NEVAEH_TEST_REPORT_ROOT) }
 %w[models/nevaeh_worker_report models/nevaeh_worker_report_review services/nevaeh_os/worker_reports].each { |file| require File.join(ROOT,'app',file) }
 module NevaehOs
   class GoalTickJob
@@ -130,6 +138,7 @@ module NevaehOs
 end
 class NevaehOsTest < Minitest::Test
   def setup
+    FileUtils.rm_rf(NEVAEH_TEST_REPORT_ROOT)
     [NevaehWorkerReportReview,NevaehWorkerReport,NevaehGoalStep,NevaehGoal,NevaehWorkspace,NevaehWatchEvent,NevaehWatcher,NevaehAgentRun,NevaehAgentWorker,NevaehApplicationAdapter,NevaehOsAction,NevaehOsAgent,NevaehOsMemory,NevaehOsConsent,NevaehOsSource,DymondDispatch::WorkItem,NevaehCapability,User].each(&:delete_all)
     @actor=User.create!(role:'super_admin')
     @other=User.create!(role:'client')
@@ -836,7 +845,7 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 22,topics.size
+    assert_equal 23,topics.size
     assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'
     assert_includes topics.map { |topic| topic[:id] }, 'production_director'
     assert_includes topics.map { |topic| topic[:id] }, 'story_simulation'

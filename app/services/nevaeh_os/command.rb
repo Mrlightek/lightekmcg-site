@@ -5,6 +5,7 @@ module NevaehOs
     HELP = <<~TEXT.freeze
       I'm Nevaeh. Tell me what you need, or use a command:
       /guide — open the operating manual and tutorials
+      /page commands How do I delegate? — ask the SME for one documentation page
       /describe susu.list — inputs, permissions, examples and verification
       /watch create {"name":"FFmpeg updates","kind":"ubuntu_package","target":{"package":"ffmpeg"},"response":"prepare"}
       /watch list · /watch show ID · /watch poll ID · /watch pause ID · /watch resume ID
@@ -59,6 +60,9 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if (m=q.match(/\A\/page\s+([a-z_]+)\s+(.+)\z/m))
+        return {'kind'=>'documentation_question','topic'=>m[1],'query'=>m[2]}
+      end
       return {'kind'=>'goals'} if q.match?(/\A\/?goal\s+list\z/i)
       if (m=q.match(/\A\/?goal\s+(show|start|pause|resume|cancel)\s+([1-9][0-9]*)\z/i))
         return {'kind'=>m[1].downcase=='show' ? 'goal_show' : 'goal_control','operation'=>m[1].downcase,'id'=>m[2].to_i}

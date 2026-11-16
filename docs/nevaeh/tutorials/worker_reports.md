@@ -35,4 +35,4 @@ Lessons provide operational context. They never override permissions, change exe
 
 This release covers delegated Nevaeh agent runs. Human actions taken directly through other Dashboard pages and existing department audit logs are not yet unified into this reporting stream. The report model is the starting point for that broader activity history.
 
-Run the `CreateNevaehWorkerReports` database migration, then restart Rails and workers. Reports and owner reviews use two new tables; no external inference or reporting service is required.
+Run the worker-report migrations, including `CreateNevaehWorkerReports` and `AddStructuredWorkerResults`, then restart Rails and workers. The [structured Reporting System convention](reporting_system.md) defines the required JSON Schema, source rereads, manager journal and file ownership. Reports and owner reviews use two new tables; no external inference or reporting service is required.

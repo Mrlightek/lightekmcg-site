@@ -15,6 +15,7 @@
       card.append(node('p',report.review?'Owner review: '+report.review.verdict:'No current owner review. Service completion does not establish output quality.'));
       if(report.review?.lesson)card.append(node('p',report.review.lesson));
       if(report.review_history?.length){const history=node('details');history.append(node('summary','Review history ('+report.review_count+' total; latest 10)'));for(const review of report.review_history)history.append(node('p',review.created_at+' · '+review.verdict+': '+review.lesson));card.append(history);}
+      if(report.structured_report){const structured=node('details');structured.append(node('summary','Worker JSON report · schema v1'),node('pre',JSON.stringify(report.structured_report,null,2)));card.append(structured);}
       const evidence=node('details');evidence.append(node('summary','Execution evidence and references'),node('pre',JSON.stringify(report.evidence,null,2)));card.append(evidence);
       if(report.evidence.action_id){const link=node('a','Open actual execution receipt');link.href='/dashboard/nevaeh/actions/'+report.evidence.action_id;link.target='_blank';link.rel='noopener';card.append(link);}
       if(report.status!=='pending'){

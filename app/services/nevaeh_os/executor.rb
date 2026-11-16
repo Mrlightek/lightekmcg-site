@@ -7,11 +7,18 @@ module NevaehOs
       authorize_command!(actor:action.user.reload,command:action.command)
     end
     def authorize_command!(actor:,command:)
+      DocumentationWorkers.read!(actor:actor,command:command) if command['documentation_contract']
       PageWorkers.guard!(actor,command) if defined?(PageWorkers)
       Language.guard!(command, actor: actor) if defined?(Language)
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'documentation_question'
+        Guide.tutorial(command.fetch('topic'),actor:actor)
+        agent=NevaehOsAgent.find(command['agent_id']) if command['agent_id']
+        raise ArgumentError,'This SME may only answer its assigned page' if agent&.system_key.to_s.start_with?('page_') && agent.system_key!="page_#{command['topic']}"
+      when 'documentation_answer'
+        DocumentationWorkers.read!(actor:actor,command:command)
       when 'goal'
         raise ArgumentError,'Goal inputs must be a bounded object' unless command['values'].is_a?(Hash) && command['values'].to_json.bytesize<=24000
       when 'goal_control'
@@ -118,6 +125,10 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'documentation_question'
+        DocumentationWorkers.delegate_question!(actor:actor,topic:command.fetch('topic'),query:command.fetch('query'),key:"documentation-action-#{action.id}")
+      when 'documentation_answer'
+        DocumentationWorkers.answer!(actor:actor,command:command)
       when 'goal'
         goal=Goals.create!(actor:actor,values:command.fetch('values'),request_key:"goal-action-#{action.id}",host:command['host'],origin:command['origin'])
         {'goal_id'=>goal.id,'status'=>'draft','text'=>'Goal saved for review. Start it from Workforce & Goals.'}

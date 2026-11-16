@@ -6,6 +6,7 @@ const root=path.resolve(__dirname,'../..');
     const page=await browser.newPage(),sent=[],queries=[],errors=[];let feedback=null;
     page.on('pageerror',e=>{errors.push(e.message);console.error(e.message);});
     const report={id:8,agent_id:4,agent:'Mail Operator',capability:'messages.list',site:'7',status:'completed',receipt_sha256:'a'.repeat(64),evidence:{action_id:21,run_id:5,chain:[{id:21,status:'completed'},{id:90,type:'dispatch',status:'completed'}]}};
+    report.structured_report={...JSON.parse(fs.readFileSync(root+'/docs/nevaeh/tutorials/reporting_system.md','utf8').match(/```json\n([\s\S]*?)\n```/)[1]),task_id:'run-5'};
     await page.route('https://reports.test/**',async route=>{
       const url=new URL(route.request().url());
       if(url.pathname.startsWith('/nevaeh/'))return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css; charset=utf-8':'application/javascript; charset=utf-8',body:fs.readFileSync(root+'/public'+url.pathname)});
@@ -19,6 +20,7 @@ const root=path.resolve(__dirname,'../..');
     await page.goto('https://reports.test/dashboard/nevaeh');
     await page.getByText('#8 · Mail Operator',{exact:true}).waitFor();
     await page.getByText('No current owner review. Service completion does not establish output quality.',{exact:true}).waitFor();
+    await page.getByText('Worker JSON report · schema v1',{exact:true}).click();await page.getByText(/"task_id": "run-5"/).waitFor();
     const link=page.getByRole('link',{name:'Open actual execution receipt'});if(await link.getAttribute('href')!=='/dashboard/nevaeh/actions/21')throw Error('Missing actual receipt reference');
     await page.getByText('Review result or teach this specialist',{exact:true}).click();
     await page.getByLabel('Review verdict for report 8',{exact:true}).selectOption('needs_fix');

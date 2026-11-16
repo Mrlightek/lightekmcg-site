@@ -126,7 +126,9 @@ class AgencyWorkspaceChecks < ActionDispatch::IntegrationTest
     assert_select 'details.agency-settings[open]', count: 0
     assert_select '#client-setup', count: 1
     refute_includes response.body, @foreign_client.email_address
-    assert_operator response.body.index('id="new-client"'), :<, response.body.index('Agency branding &amp; settings')
+    assert_select '#new-client, details.agency-settings' do |sections|
+      assert_equal 'new-client', sections.first['id']
+    end
   end
   def test_foreign_agency_and_client_selections_are_rejected
     [{agency_id: @foreign.id}, {agency_id: @agency.id, client_id: @foreign_client.id}].each do |params|

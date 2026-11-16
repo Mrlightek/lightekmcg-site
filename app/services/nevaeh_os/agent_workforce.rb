@@ -68,7 +68,7 @@ module NevaehOs
           worker.update!(next_run_at:now+worker.interval_minutes.minutes)
         rescue ArgumentError,ActiveRecord::RecordNotFound,Gatekeeper::AuthorizationDenied,LightekPwa::Policy::Denied => error
           worker.update!(enabled:false)
-          if worker.command['kind']=='growth_plan'
+          if worker.command['kind'].in?(%w[growth_plan growth_review])
             Rails.logger.warn({event:'lightek.growth.schedule_paused',agent_worker_id:worker.id,actor_id:worker.user_id,site_id:worker.command['site_id'],reason:error.message.first(300)}.to_json)
           end
         end

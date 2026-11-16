@@ -44,6 +44,7 @@ module NevaehOs
       'studio.direct.rehearsal'=>['Preview and correct character blocking on a scene copy','rehearse this scene','director_stage','all'],
       'studio.direct.finishing'=>['Scene rendering, episode assembly and reviewed delivery','/guide production_director','production_director','all'],
       'marketing.campaign.produce'=>['Create an editable TikTok ad with private preview','make me a funny tiktok campaign ad promoting Xyzzy service','campaign_producer','growth'],
+      'growth.review'=>['Measure a saved campaign comparison','/growth review SITE_ID COMPARISON_ID','growth','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],
       'agents.list'=>['Agent workforce','/agents','agents','all'],

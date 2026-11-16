@@ -104,6 +104,9 @@ module NevaehOs
       if (m=q.match(/\A(?:please )?(?:make|create|produce)(?: me)? (?:a |an )?(?:(funny|professional) )?(?:tiktok|tik tok) (?:campaign(?: ad)?|ad) (?:promoting|for) (.+?)[.!]?\z/i))
         return {'kind'=>'campaign_produce','operation'=>'start','values'=>{'service'=>m[2].strip,'tone'=>m[1]&.downcase || 'funny'}}
       end
+      if (m=q.match(/\A\/?growth review ([1-9][0-9]*) ([1-9][0-9]*)\z/i))
+        return {'kind'=>'growth_review','site_id'=>m[1].to_i,'comparison_id'=>m[2].to_i}
+      end
       if (m=q.match(/\A(?:\/?growth|(?:prepare|show) (?:my )?growth plan)\s+([1-9][0-9]*)\z/i))
         return {'kind'=>'growth_plan','site_id'=>m[1].to_i}
       end

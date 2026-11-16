@@ -21,7 +21,7 @@ Dashboard::CampaignContentController.prepend_view_path ROOT.join('app/views')
 Dashboard::CampaignContentController.layout false
 # Add the existing publishing destination to the fixture router.
 SalesHarness.routes.draw do
-  %w[website_audits publication_calendar campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
+  %w[campaign_performance website_audits publication_calendar campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
   get '/orders', to: 'dashboard/sales#index', as: :dashboard_commerce_orders
   get '/customers/history', to: 'dashboard/sales#index', as: :history_dashboard_customers
   get '/csrf', to: 'dashboard/settings_home#csrf'

@@ -110,6 +110,7 @@ module NevaehOs
         rows << {slug:'studio.direct.production',name:'Recipe-driven episode Director',domain:'studio',invoke:'/produce catalog'}
         rows << {slug:'marketing.campaign.produce',name:'Campaign producer',domain:'marketing',invoke:'make me a funny tiktok campaign ad promoting Xyzzy service'} if Guide.allowed?('growth', @actor)
         rows << {slug:'growth.plan',name:'Daily business growth plan',domain:'growth',invoke:'/growth SITE_ID'} if Guide.allowed?('growth', @actor)
+        rows << {slug:'growth.review',name:'Measured campaign comparison',domain:'growth',invoke:'/growth review SITE_ID COMPARISON_ID'} if Guide.allowed?('growth', @actor)
         rows << {slug:'agents.list',name:'Agent workforce',domain:'agents',invoke:'/agents'}
         rows = rows.uniq { |row| row[:slug] }
         {'text'=>rows.map { |r| "#{r[:slug]} · #{r[:name]}" }.join("\n"), 'capabilities'=>rows,'status'=>'ready'}

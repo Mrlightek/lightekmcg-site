@@ -88,6 +88,7 @@ Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/
 | Capability | Implemented behavior |
 | --- | --- |
 | Business growth brief | Per-website offering, audience, problem, value, voice and dated goal; editor identity and optimistic revision checks. |
+| Campaign performance loop | Two pinned social versions and tracking placements, distinct-visit outcomes and per-currency refunds, publication state separated from engagement, immutable measured reviews and guarded starting drafts; existing `growth.review` worker/report path. [Guide](docs/nevaeh/tutorials/growth.md#campaign-performance-and-follow-up-experiments). |
 | Website growth audit and guided fixes | Bounded native CMS rendering, immutable evidence/coverage, owner-scoped metadata and registered section edits, explicit preview/apply/recheck/rollback and evidence-backed daily recommendations; [operating guide](docs/sales/website-growth-audits.md). |
 | Publishing calendar and Studio export handoff | Retained JPEG/PNG/MP4 export bindings, issuing-host media links, reviewed-version social schedules, timezone-aware times, current operator checks, durable claims and separate submitted/published/reconciliation states; [operating guide](docs/sales/publishing-calendar.md). |
 | Campaign content workbench | Offer/problem/benefit drafts through the shared writer, editable revisions, attributable saved-copy approval and payload fingerprints checked before existing sends/publication. |

@@ -11,6 +11,10 @@ module LightekMarketing
     end
     has_many :content_variants, class_name: 'LightekMarketing::ContentVariant'
     before_destroy do
+      if (defined?(LightekGrowth::ComparisonArm) && LightekGrowth::ComparisonArm.table_exists? && LightekGrowth::ComparisonArm.where(campaign_id: id).exists?) || (defined?(LightekGrowth::PerformanceDraft) && LightekGrowth::PerformanceDraft.table_exists? && LightekGrowth::PerformanceDraft.where(campaign_id: id).exists?)
+        errors.add(:base, 'Performance comparison and draft history must be retained; complete the campaign instead')
+        throw :abort
+      end
       if (defined?(LightekMarketing::MediaBinding) && LightekMarketing::MediaBinding.table_exists? && LightekMarketing::MediaBinding.where(campaign_id: id).exists?) || (defined?(LightekMarketing::PublicationSlot) && LightekMarketing::PublicationSlot.table_exists? && LightekMarketing::PublicationSlot.where(campaign_id: id).exists?)
         errors.add(:base, 'Publishing and media history must be retained; complete the campaign instead')
         throw :abort

@@ -46,7 +46,7 @@ Deploy migration `20261115190000_add_website_growth_audits.rb` and the applicati
 ## Acceptance and boundaries
 
 ```sh
-SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/publication_calendar_checks.rb
+SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/campaign_performance_checks.rb
 SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/website_audit_checks.rb --name '/test_site_|test_audit_/'
 SALES_PREVIEW_DIR=tmp/sales-preview node test/javascript/sales_crm_browser_test.cjs
 ```

@@ -73,3 +73,5 @@ Use **Prepare or open today’s plan** in Growth, or `/growth SITE_ID` in Nevaeh
 [Publishing calendar and Studio export handoff](publishing-calendar.md) connects final media selection to reviewed social schedules and provider receipts; it does not infer publication from scheduling or an inbox submission.
 
 Website evidence and reviewed CMS changes: [Website growth audits and guided fixes](website-growth-audits.md). Daily plans use the latest full-site evidence; page-only fix rechecks retain their own receipts.
+
+[Campaign performance and follow-up experiments](../nevaeh/tutorials/growth.md#campaign-performance-and-follow-up-experiments) bind reviewed versions to new placement links, save measured outcomes and propose an editable next step. Unknown exposure stays unknown; observed rates are not causal winners.

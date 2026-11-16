@@ -1,24 +1,24 @@
-<div class="dd-card" style="padding:18px;margin-bottom:16px"><strong>LIGHTEK BUSINESS</strong><p style="color:var(--dd-text-secondary)">Your commerce, marketing, storefront and operational command center.</p><%= link_to "Open Business Command Center", main_app.dashboard_business_hub_path, style: "display:inline-block;padding:10px 16px;background:var(--dd-accent);color:#fff;border-radius:8px;text-decoration:none" %></div>
-<% commerce_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:id).limit(20) %>
-<% if commerce_sites.any? %>
-  <section class="dd-card" style="padding:20px;margin-bottom:20px" aria-label="Business and marketing tools">
-    <h2 style="margin:0 0 6px">Business &amp; Marketing</h2>
-    <p style="color:var(--dd-text-secondary)">Run storefronts, products, customer orders, campaigns and editable industry designs from your dashboard.</p>
-    <% commerce_sites.each do |site| %>
-      <div style="border-top:1px solid var(--dd-border);padding:12px 0">
-        <strong><%= site.name %></strong>
-        <nav aria-label="<%= site.name %> business tools" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px">
-          <%= link_to "Products & Shop", main_app.dashboard_commerce_products_path(site_id: site.id) %>
-          <%= link_to "Orders & Refunds", main_app.dashboard_commerce_orders_path(site_id: site.id) %>
-          <%= link_to "Marketing Campaigns", main_app.dashboard_marketing_campaigns_path(site_id: site.id) %>
-          <%= link_to "Website Designs", main_app.dashboard_website_designs_path(site_id: site.id) %>
-          <%= link_to "Pages & Sections", dymond_dash.pages_path(site_id: site.id) %>
-          <%= link_to "Public Shop", main_app.commerce_shop_path(site_id: site.id) %>
-        </nav>
-      </div>
+<section class="dd-home-start" aria-labelledby="dd-start-title">
+  <header><span class="dd-eyebrow">Your workspace</span><h1 id="dd-start-title">What would you like to do?</h1><p>Choose a task, or open one of your websites below.</p></header>
+  <div class="dd-task-grid">
+    <%= link_to main_app.dashboard_business_hub_path, class: "dd-task-card" do %><strong>Run my business</strong><span>Products, orders, sales and payments</span><% end %>
+    <%= link_to main_app.dashboard_website_designs_path, class: "dd-task-card" do %><strong>Update my website</strong><span>Design, pages and content</span><% end %>
+    <% if current_user.role.in?(%w[admin super_admin]) || current_user.can_access_feature?("studio") %>
+      <%= link_to main_app.dashboard_media_studio_path, class: "dd-task-card" do %><strong>Create a video or image</strong><span>Open Studio and your productions</span><% end %>
     <% end %>
+    <% if current_user.role.in?(%w[super_admin white_label]) %>
+      <%= link_to main_app.dashboard_agencies_path, class: "dd-task-card" do %><strong>Manage my clients</strong><span>Client accounts, invitations and agency branding</span><% end %>
+    <% end %>
+  </div>
+  <% commerce_sites = LightekSettings::WebsiteIdentity.sites_for(current_user).order(:id).limit(20) %>
+  <section class="dd-panel dd-home-sites" aria-labelledby="dd-sites-title">
+    <h2 id="dd-sites-title">Your websites</h2><p>Open a website to manage its business and content.</p>
+    <% commerce_sites.each do |site| %>
+      <div class="dd-home-site"><div><strong><%= site.name %></strong><small><%= site.host %></small></div><%= link_to "Open workspace", main_app.dashboard_business_hub_path(site_id: site.id), class: "dd-button" %></div>
+    <% end %>
+    <% if commerce_sites.empty? %><p>No websites are linked to your account yet. Start with <%= link_to "website setup", main_app.dashboard_website_designs_path %>.</p><% end %>
   </section>
-<% end %>
+</section>
 <% content_for :page_title, "Dashboard" %>
 
 <% if current_user.client? || current_user.contractor? %>
@@ -30,7 +30,7 @@
                            .or(SusuGroup.where(id: member.select(:id)))
                            .distinct
     else
-      my_groups = SusuGroup.none
+      my_groups = []
     end
   %>
 
@@ -69,6 +69,7 @@
     susu_groups = defined?(SusuGroup) ? SusuGroup.count : 0
     pending = defined?(SusuContribution) && SusuContribution.column_names.include?("status") ? SusuContribution.where(status: "pending").count : 0
   %>
+  <details class="dd-home-operations"><summary>System health & automation<% if metrics[:open_support_tickets].to_i.positive? %> · <%= metrics[:open_support_tickets] %> need attention<% end %></summary>
 
   <div style="margin-bottom:20px">
     <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dd-text-muted)">Nevaeh · Organizational Overview</div>
@@ -111,4 +112,5 @@
       <div style="color:var(--dd-text-secondary);font-size:12px;margin-top:4px">Open Infrastructure for Gatekeeper diagnostics.</div>
     <% end %>
   </div>
+  </details>
 <% end %>

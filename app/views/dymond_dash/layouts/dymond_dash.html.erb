@@ -164,9 +164,9 @@
   <%# Dashboard colors come from its admin theme; client website branding is separate. %>
   <%= yield :head %>
   <%= render "dymond_dash/shared/theme_forms" %>
-  <link rel="stylesheet" href="/lightek/dashboard.css?v=20261114">
+  <link rel="stylesheet" href="/lightek/dashboard.css?v=20261116-ux">
   <link rel="stylesheet" href="/lightek/dashboard-forms.css?v=20261114">
-  <script src="/lightek/dashboard.js?v=20261114" defer></script>
+  <script src="/lightek/dashboard.js?v=20261116-ux" defer></script>
 <% if params[:nevaeh_embed] == '1' %>
   <style>
     .dd-shell > .dd-sidebar, .dd-topbar, .dd-nav-scrim, .business-workspace { display: none !important; }
@@ -263,15 +263,7 @@
 
   </div>
 </div>
-<script>
-document.querySelectorAll('.dd-nav-group[data-nav-section]').forEach(function(details){
-  var key = 'dd-nav-collapsed:' + details.dataset.navSection;
-  if (localStorage.getItem(key) === '1') { details.removeAttribute('open'); }
-  details.addEventListener('toggle', function(){
-    localStorage.setItem(key, details.open ? '0' : '1');
-  });
-});
-</script>
+
 <%= render "shared/nevaeh_contextual_help" %>
 <% if current_user&.persisted? %><nevaeh-presence data-site-id="<%= @site.id if defined?(DymondSite::Site) && @site.is_a?(DymondSite::Site) %>"></nevaeh-presence><script src="/nevaeh/voice.js?v=3" defer></script><script src="/nevaeh/page-tasks.js?v=2" defer></script><script src="/nevaeh/presence.js?v=7" defer></script><% end %>
 </body>

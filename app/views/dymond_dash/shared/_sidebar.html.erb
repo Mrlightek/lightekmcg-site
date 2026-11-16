@@ -3,12 +3,25 @@
   <div class="dd-user"><div class="dd-avatar"><%= current_user.email_address.to_s.first.upcase %></div><div><div class="dd-user-name"><%= current_user.email_address %></div><small class="dd-brand-sub"><%= current_user.role.to_s.humanize %></small></div></div>
   <% if agency_branding&.support_email.present? %><div class="dd-user"><%= mail_to agency_branding.support_email, "Contact support", class: "dd-nav-item" %></div><% end %>
   <nav class="dd-nav" aria-label="Workspaces">
-    <% previous_group = nil %>
-    <% nevaeh_sidebar_entries.reject { |entry| entry['hidden'] }.each do |entry| %>
-      <% if entry['group'] != previous_group %><div class="dd-nav-label"><%= entry['group'] %></div><% previous_group = entry['group'] %><% end %>
-      <% active = request.path == entry['path'] || (entry['path'] != dymond_dash.root_path && request.path.start_with?("#{entry['path']}/")) %>
-      <%= link_to entry['path'], class: "dd-nav-item#{' active' if active}", aria: {current: active ? 'page' : nil} do %><i class="ti <%= entry['icon'] %>"></i><%= entry['label'] %><% end %>
-    <% end %>
+    <div class="dd-nav-search" data-navigation-search hidden>
+      <label for="dd-tool-search">Find a tool</label>
+      <input id="dd-tool-search" type="search" placeholder="Try orders, studio, clients…" autocomplete="off" aria-controls="dd-navigation-groups" data-tool-search>
+    </div>
+    <div id="dd-navigation-groups">
+      <% entries = nevaeh_sidebar_entries.reject { |entry| entry['hidden'] } %>
+      <% current_path = request.path.sub(%r{/+$}, '') %>
+      <% active_entry = entries.select { |entry| path = entry['path'].split('#').first.sub(%r{/+$}, ''); current_path == path || (path != nevaeh_home_path.sub(%r{/+$}, '') && current_path.start_with?("#{path}/")) }.max_by { |entry| entry['path'].length } %>
+      <% entries.group_by { |entry| entry['group'] }.each do |group, items| %>
+        <details class="dd-nav-group" data-tool-group <%= 'open' if group == 'Start' || items.include?(active_entry) %>>
+          <summary class="dd-nav-label"><%= group %></summary>
+          <% items.each do |entry| %>
+            <% active = entry == active_entry %>
+            <%= link_to entry['path'], class: "dd-nav-item#{' active' if active}", data: {tool_link: true}, aria: {current: active ? 'page' : nil} do %><i class="ti <%= entry['icon'] %>" aria-hidden="true"></i><span><%= entry['label'] %></span><% end %>
+          <% end %>
+        </details>
+      <% end %>
+    </div>
+    <p class="dd-nav-empty" data-tool-empty role="status" hidden>No matching tools. Try another name.</p>
     <% if current_user.employee? && can?(:read, Marlon::Ticket) %>
       <%= link_to main_app.employee_nevaeh_control_center_path(tab: 'navigation'), class: "dd-nav-item" do %><i class="ti ti-adjustments-horizontal"></i> Customize sidebar<% end %>
     <% end %>

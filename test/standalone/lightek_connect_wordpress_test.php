@@ -2,6 +2,7 @@
 // Run with PHP 8+, OpenSSL enabled. Execute the real plugin behind WordPress API boundaries.
 define('ABSPATH', __DIR__);
 $user_id = 10; $meta = []; $permission = true; $nonce = true; $registered = []; $response = []; $last_request = [];
+$storage_ok = true;
 function add_action($name, $callback) {}
 function register_rest_route($namespace, $route, $args) { global $registered; $registered[$route] = $args; }
 function current_user_can($capability) { global $permission; return $permission; }
@@ -9,7 +10,7 @@ function wp_verify_nonce($value, $name) { global $nonce; return $nonce; }
 function wp_salt($scheme) { return 'test-installation-salt'; }
 function get_current_user_id() { global $user_id; return $user_id; }
 function get_user_meta($user, $key, $single) { global $meta; return $meta[$user][$key] ?? ''; }
-function update_user_meta($user, $key, $value) { global $meta; $meta[$user][$key] = $value; }
+function update_user_meta($user, $key, $value) { global $meta, $storage_ok; if (!$storage_ok) { return false; } $meta[$user][$key] = $value; return true; }
 function delete_user_meta($user, $key) { global $meta; unset($meta[$user][$key]); }
 function sanitize_text_field($text) { return strip_tags($text); }
 function wp_json_encode($value) { return json_encode($value); }
@@ -52,4 +53,12 @@ check(Lightek_Connect::proxy(new Request('/../../secrets', 'GET')) instanceof WP
 $response = ['status' => 204, 'body' => []];
 Lightek_Connect::proxy(new Request('', 'DELETE'));
 check(empty($meta[10]['lightek_connect_token']), 'Disconnect deletes local credential');
+$storage_ok = false;
+$response = ['status' => 200, 'body' => ['token' => str_repeat('b', 64), 'connection_id' => 2]];
+$failed = Lightek_Connect::proxy(new Request('/pair', 'POST', ['code' => 'new-code']));
+check($failed instanceof WP_Error && $failed->code === 'storage_failed', 'Failed user-meta write must not report successful pairing');
+check(!str_contains(json_encode($failed), str_repeat('b', 64)), 'Storage failure must not disclose credential');
+$response = ['status' => 422, 'body' => ['token' => str_repeat('c', 64), 'error' => 'Unexpected response']];
+$failed = Lightek_Connect::proxy(new Request('/pair', 'POST', ['code' => 'bad-code']));
+check(!isset($failed->data['token']), 'Unexpected upstream error must never disclose credential');
 echo "$checks WordPress behavior checks passed\n";

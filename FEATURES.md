@@ -349,6 +349,7 @@ Guides: [servers & applications](docs/server-application-management.md), [Custom
 | Capability | Implemented behavior |
 | --- | --- |
 | WordPress connection | Per-administrator pairing and connected agency workspace with existing Lightek backend access. |
+| Connector installation and recovery | Agency-authorized WordPress ZIP download from Dashboard with current shared assets; outage retry without re-pairing, verified-name updates and expiring management links. |
 | Shopify connection | App Bridge staff identity validation and Vault-backed application credential configuration/rotation. |
 | Managed-site actions | Permission-filtered sites/deployments, website rename and secure full-Dashboard/client management handoffs. |
 | Verified MFA continuity | Browser verification, original source-session reuse, tenant-bound grants and per-request issuer validation over existing federation transport. |

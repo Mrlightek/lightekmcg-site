@@ -9,6 +9,7 @@ Rails.application.routes.draw do
   post "/dashboard/connect/sandboxes", to: "dashboard/connect_sandboxes#create", as: :dashboard_connect_sandboxes
   delete "/dashboard/connect/sandboxes/:id", to: "dashboard/connect_sandboxes#destroy", as: :dashboard_connect_sandbox
   get "/dashboard/connect", to: "dashboard/connect#index", as: :dashboard_connect
+  get "/dashboard/connect/wordpress.zip", to: "dashboard/connect#wordpress_download", as: :dashboard_connect_wordpress_download
   post "/dashboard/connect", to: "dashboard/connect#create"
   delete "/dashboard/connect/:id", to: "dashboard/connect#destroy", as: :dashboard_connect_connection
   get "/connect/management", to: "connect_management#show"

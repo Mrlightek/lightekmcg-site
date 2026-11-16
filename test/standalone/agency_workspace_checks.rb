@@ -20,6 +20,7 @@ AgencyWorkspaceHarness.initialize!
 ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: ':memory:')
 ActiveRecord::Schema.define do
   create_table(:users) { |t| t.string :role; t.string :email_address; t.string :first_name; t.string :last_name; t.string :password; t.integer :agency_id; t.integer :upstream_share_bps, default: 0; t.boolean :password_setup_required, default: false }
+  create_table(:agency_profiles) { |t| t.integer :user_id; t.string :brand_name }
   create_table(:sites) { |t| t.integer :tenant_id; t.string :name; t.string :host }
   create_table(:orders) { |t| t.integer :hosting_owner_id; t.string :customer_email; t.string :provisioning_state; t.timestamps }
   create_table(:gatekeeper_nodes) { |t| t.string :owner_type; t.integer :owner_id }
@@ -30,12 +31,13 @@ class User < ActiveRecord::Base
   belongs_to :agency, class_name: 'User', optional: true
   has_many :agency_clients, class_name: 'User', foreign_key: :agency_id
   validates :email_address, presence: true, uniqueness: true
-  def agency_profile = nil
+  has_one :agency_profile
   def full_name = [first_name, last_name].compact.join(' ').presence || email_address
   def managed_account_ids = [id] + agency_clients.pluck(:id)
   def password_setup_invitation_error = nil
   def send_password_setup_invitation! = true
 end
+class AgencyProfile < ActiveRecord::Base; end
 class Site < ActiveRecord::Base; end
 class Order < ActiveRecord::Base; end
 class GatekeeperNode < ActiveRecord::Base; end
@@ -158,7 +160,7 @@ class AgencyWorkspaceChecks < ActionDispatch::IntegrationTest
     HostingPackage.create!(product: Product.create!(name: 'Managed hosting', price_cents: 2500))
     get '/dashboard/servers/hosting', params: {hosting_owner_id: @client.id}, headers: @headers
     assert_response :success
-    assert_select 'select[name="hosting_owner_id"] option[selected]', value: @client.id.to_s
+    assert_select 'select[name="hosting_owner_id"] option[selected][value=?]', @client.id.to_s
     assert_select 'a', text: 'Back to client setup' do |links|
       assert_includes links.first['href'], "client_id=#{@client.id}"
     end

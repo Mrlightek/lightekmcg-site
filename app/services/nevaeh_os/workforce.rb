@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative 'specialist_tasks'
 module NevaehOs
   module Workforce
     # Positions are executable specialties, not additional language models.
@@ -22,7 +23,7 @@ module NevaehOs
       'media'=>['Media Processor','Studio','Probe and convert files through reviewed application operations.',['application.run','application.describe'],['/app run ffmpeg probe {"input":"UPLOADED_FILENAME"}']],
       'studio_operator'=>['Studio Workspace Operator','Studio','Operate registered Studio projects, assets and workspace services using their typed inputs and saved receipts.',['studio.project.*','studio.workspace.*'],[]],
       'ubuntu'=>['Application Maintainer','IT','Plan and install Ubuntu packages and connect reviewed application recipes.',['ubuntu.*','application.*'],['/ubuntu plan ffmpeg','/ubuntu setup ffmpeg']],
-      'website'=>['Website Operator','Web & Content','Operate connected website and content capabilities.',['site.*','website.*','cms.*'],[]],
+      'website'=>['Website Operator','Web & Content','Operate connected website and content capabilities.',['site.*','website.*','cms.*'],['/website page {"site_id":1,"title":"About us"}']],
       'sales'=>['Sales Coordinator','Sales','Operate connected CRM, sales and lead capabilities.',['sales.*','crm.*','growth.*'],[]],
       'mail'=>['Mail Operator','Communications','Operate connected mailbox and messaging capabilities.',['mail.*','messages.*'],[]],
       'finance'=>['Finance Operator','Accounting','Use connected accounting and banking services with their own approvals.',['accounting.*','bank.*','dymond.bank.*','susu.*'],[]],
@@ -32,6 +33,12 @@ module NevaehOs
       'hosting'=>['Hosting Operator','IT','Use connected server, deployment, DNS and hosting services.',['hosting.*','server.*','deployment.*','dns.*','domains.*'],[]],
       'compliance'=>['Compliance Coordinator','Legal & Compliance','Use connected compliance capabilities and retain their evidence.',['compliance.*','legal.*'],[]]
     }.freeze
+    # Add reviewed tasks to new defaults; the one-time migration upgrades existing roles.
+    LEGACY_REVIEW_SCOPES=SpecialistTasks::DEFINITIONS.keys.to_h { |key| [key,ROLES.fetch(key)[3].dup] }.freeze
+    SpecialistTasks::DEFINITIONS.each_key do |key|
+      ROLES.fetch(key)[3] << SpecialistTasks.capability(key)
+      ROLES.fetch(key)[4] << SpecialistTasks.example(key)
+    end
     module_function
     def match?(patterns,key) = patterns.any? { |p| p=='*' || p==key || (p.end_with?('.*') && key.start_with?(p.delete_suffix('*'))) }
     def install!(actor)
@@ -53,9 +60,10 @@ module NevaehOs
       catalog=Guide.catalog(actor:actor)
       NevaehOsAgent.where(user:actor,deleted_at:nil).order(:id).map do |agent|
         role=ROLES[agent.system_key]
-        connected=catalog.select { |entry| entry[:availability]=='connected' && match?(role ? role[3] : (agent.allowed_capabilities.presence || ['*']),execution_key(entry[:key])) }.map { |entry| entry.slice(:key,:title,:inputs,:example) }.first(80)
+        connected=catalog.select { |entry| entry[:availability]=='connected' && match?(agent.allowed_capabilities.presence || ['*'],execution_key(entry[:key])) }.map { |entry| entry.slice(:key,:title,:inputs,:example) }.first(80)
+        examples=(role&.[](4) || (agent.system_key.to_s.start_with?('page_') ? ["/page #{agent.system_key.delete_prefix('page_')} YOUR_QUESTION"] : [])).select { |example| key=example.start_with?('/operations ') ? SpecialistTasks.capability(agent.system_key) : (example.start_with?('/website page ') ? 'site.page.create' : nil); !key || match?(agent.allowed_capabilities.presence || ['*'],key) }
         {id:agent.id,name:agent.name,department:agent.role,purpose:agent.instructions.presence || role&.[](2) || 'Custom worker role',system_key:agent.system_key,enabled:agent.enabled?,autonomy:agent.autonomy,
-          examples:role&.[](4) || (agent.system_key.to_s.start_with?('page_') ? ["/page #{agent.system_key.delete_prefix('page_')} YOUR_QUESTION"] : []),capabilities:connected,availability:(role && role[4].any?) || connected.any? ? 'task_ready' : 'adapter_needed',allowed_capabilities:agent.allowed_capabilities,
+          examples:examples,capabilities:connected,availability:examples.any? || connected.any? ? 'task_ready' : 'adapter_needed',allowed_capabilities:agent.allowed_capabilities,
           tasks:agent.agent_workers.where(deleted_at:nil).count,deletable:agent.system_key!='nevaeh'}
       end
     end

@@ -4,6 +4,8 @@ module NevaehOs
   module Command
     HELP = <<~TEXT.freeze
       I'm Nevaeh. Tell me what you need, or use a command:
+      /website page {"site_id":1,"title":"About us"} — create a draft website page
+      /operations — specialist review tasks, inputs and scheduling examples
       /guide — open the operating manual and tutorials
       /page commands How do I delegate? — ask the SME for one documentation page
       /describe susu.list — inputs, permissions, examples and verification
@@ -60,6 +62,17 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if (m=q.match(/\A\/website\s+page\s+(\{.*\})\z/m))
+        values=JSON.parse(m[1]);raise ArgumentError,'Use website page inputs' unless values.is_a?(Hash)
+        return {'kind'=>'website_page','site_id'=>values.delete('site_id'),'values'=>values}.compact
+      end
+      if (m=q.match(/\A(?:please )?create (?:a )?website page (?:called|named) (.+)\z/i))
+        return {'kind'=>'website_page','values'=>{'title'=>m[1].strip}}
+      end
+      return {'kind'=>'guide','topic'=>'specialist_tasks'} if q.match?(/\A\/operations\z/i)
+      if (m=q.match(/\A\/operations\s+([a-z_]+)(?:\s+(\{.*\}))?\z/m))
+        return {'kind'=>'specialist_review','role'=>m[1],'inputs'=>m[2] ? JSON.parse(m[2]) : {}}
+      end
       if (m=q.match(/\A\/page\s+([a-z_]+)\s+(.+)\z/m))
         return {'kind'=>'documentation_question','topic'=>m[1],'query'=>m[2]}
       end

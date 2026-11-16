@@ -1,11 +1,12 @@
 const fs=require('fs'),path=require('path'),{chromium}=require('playwright');
 const root=path.resolve(__dirname,'../..');
 (async()=>{
- const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox','--no-zygote','--single-process','--disable-gpu']});
+ const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox']});
  try{
   const context=await browser.newContext({permissions:['clipboard-read','clipboard-write']});const page=await context.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.route('http://127.0.0.1:18449/**',route=>{
    const url=new URL(route.request().url());const pathname=url.pathname;let file=pathname==='/dashboard/nevaeh/guide'?path.join(root,'tmp/nevaeh-guide-preview.html'):path.join(root,'public',pathname);
+   if(pathname==='/embed')return route.fulfill({contentType:'text/html',body:'<iframe title="Guide panel" src="/dashboard/nevaeh/guide?topic=watchers" style="width:600px;height:400px"></iframe>'});
    if(pathname==='/dashboard/nevaeh')return route.fulfill({contentType:'text/html',body:'<h1>Editable operating input</h1>'});
    if(!fs.existsSync(file))return route.fulfill({status:404,body:'Not found'});
    return route.fulfill({contentType:pathname.endsWith('.css')?'text/css':pathname.endsWith('.js')?'application/javascript':'text/html',body:fs.readFileSync(file)});
@@ -13,6 +14,13 @@ const root=path.resolve(__dirname,'../..');
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.goto('http://127.0.0.1:18449/dashboard/nevaeh/guide?topic=watchers');
    await page.getByRole('heading',{name:'Watch changes and respond automatically',exact:true}).waitFor();
+   const topics=page.locator('.ng-topics');
+   if(await topics.evaluate(e=>e.open)!==(width>900))throw Error('Tutorial navigation did not adapt to panel width');
+   if(width===390){
+    if((await page.locator('.ng-main').boundingBox()).y>600)throw Error('Tutorial is buried beneath navigation');
+    await topics.locator('summary').click();await page.getByRole('navigation',{name:'Tutorials',exact:true}).waitFor();
+    await topics.locator('summary').click();
+   }
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw Error('Guide overflow at '+width);
    if(await page.evaluate(()=>window.BAD_GUIDE))throw Error('Capability title executed HTML');
    if(!await page.locator('a[href*="capability="]').count())throw Error('No live capability reference links');
@@ -22,6 +30,12 @@ const root=path.resolve(__dirname,'../..');
    await page.screenshot({path:path.join(root,'tmp','nevaeh-guide-'+width+'.png'),fullPage:false});
    console.log(width+': actual Rails guide rendering, responsive layout, reference/manual links, safe titles and command copy passed');
   }
+  await page.setViewportSize({width:900,height:650});await page.goto('http://127.0.0.1:18449/embed');
+  const frame=page.frameLocator('iframe');await frame.getByRole('heading',{name:'Watch changes and respond automatically',exact:true}).waitFor();
+  if((await frame.locator('.ng-main').boundingBox()).y>250)throw Error('Embedded Guide pushes instructions below the panel');
+  if(await frame.locator('.ng-header').isVisible())throw Error('Embedded Guide duplicates workspace navigation');
+  await page.screenshot({path:path.join(root,'tmp','nevaeh-guide-embedded.png')});
+  console.log('embedded: compact tutorial navigation and visible selected content passed');
   if(errors.length)throw Error(errors.join('\n'));
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

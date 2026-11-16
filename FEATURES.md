@@ -407,6 +407,7 @@ See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md)
 
 | Capability | Implemented behavior |
 | --- | --- |
+| Specialist operational reviews | Eight bounded, schedulable checks of saved website findings, overdue sales follow-ups, uncategorized transactions, due payroll drafts, paid fulfillment queues, lifecycle cases, saved server health and stale compliance monitors. Domain access is rechecked at execution; reports retain UUID/journal receipts. Recognized campaign requests delegate to Campaign Producer; website-page requests delegate to Website Operator and create verified unpublished drafts with management links. |
 | Workforce directory | 28 default specialist roles with departments, responsibilities and task templates. Show enabled specialists with available tasks by default; include paused/unconnected roles through All specialists and disable assignment until ready. Preserve expanded panels and drafts during refresh; keep optional controls and completed work in expandable sections. Existing customizations remain. |
 - SME operating reports: manager-reserved UUIDs with one-time legacy dependency backfill, account-scoped journal/receipt dependency references with explicit completed-to-accepted boundary mapping, read-back before dependent dispatch, downstream completion, append-only owner acceptance/corrections, per-specialist history and scoped retrieval for manager delegation and native conversational drafts. Covers delegated agent runs; direct human Dashboard actions are not yet unified.
 | Delegation & removal | One-time or scheduled assigned tasks; role pause/delete and task deletion retain history and block undispatched runs. Deleted defaults do not reappear. |
@@ -428,3 +429,5 @@ See [Workforce, goals and page assistance](docs/nevaeh/tutorials/workforce.md). 
 See [Voice and speaking character](docs/nevaeh/tutorials/voice.md). This is volume-driven 2D animation, not a phoneme-specific or full 3D facial performance. The stock synthetic voice remains a first version; a natural self-hosted voice upgrade is planned separately.
 
 - Structured reporting convention: one-page documentation SMEs, required source reads, fixed JSON Schema, manager-owned per-account JSONL journals, goal dependency references and exact managed file ownership with parallel conflict checks.
+
+Natural voice loads its CPU model once per spoken reply, publishes a shorter first chunk incrementally, and performs per-chunk encoding and mouth-envelope preparation inside the same media container. Rebuild the Studio media image for this path; deployed startup latency remains hardware-dependent.

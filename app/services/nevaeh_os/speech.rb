@@ -51,7 +51,8 @@ module NevaehOs
     def receipt(speech)
       since=speech.status=='running' ? speech.started_at : speech.created_at
       playlist=SpeechPlaylist.timeline(speech)
-      {id:speech.id,status:speech.status,elapsed_seconds:[(Time.current-(since || Time.current)).to_i,0].max,duration:speech.duration,text:speech.text,truncated:speech.truncated,voice:speech.voice,error:speech.error,
+      first_ready=speech.segments.where(status:'ready').order(:position).first
+      {id:speech.id,status:speech.status,first_audio_seconds:first_ready ? [(first_ready.updated_at-speech.created_at).round(2),0].max : nil,queue_seconds:speech.started_at ? [(speech.started_at-speech.created_at).round(2),0].max : nil,elapsed_seconds:[(Time.current-(since || Time.current)).to_i,0].max,duration:speech.duration,text:speech.text,truncated:speech.truncated,voice:speech.voice,error:speech.error,
         playlist_url:"/dashboard/nevaeh/speech/#{speech.id}/playlist.m3u8",playlist_ready:playlist[:items].any?,playlist_items:playlist[:items],playlist_duration:playlist[:duration],playlist_frames:playlist[:mouth_frames],playlist_total:speech.segments.count,
         engine:speech.voice.start_with?('nevaeh-') ? 'kokoro_onnx' : 'espeak_ng',mouth_mode:'volume',mouth_frames:speech.status=='ready' ? speech.mouth_frames : [],audio_url:speech.status=='ready' && speech.audio.attached? ? "/dashboard/nevaeh/speech/#{speech.id}/audio" : nil}
     end
@@ -82,9 +83,13 @@ module NevaehOs
       speech.user.reload
       cancel=-> { speech.reload.status!='running' || speech.expires_at<=Time.current }
       Studio::MediaProcess.temporary_directory('nevaeh-speech-') do |root|
-        paths=speech.segments.map do |segment|
-          return if cancel.call
-          SpeechPlaylist.render!(speech,segment,root,cancel)
+        paths=if speech.voice.start_with?('nevaeh-')
+          SpeechPlaylist.render_neural!(speech,root,cancel)
+        else
+          speech.segments.map do |segment|
+            return if cancel.call
+            SpeechPlaylist.render!(speech,segment,root,cancel)
+          end
         end
         return if cancel.call
         # Generated, fixed local filenames only; the concat manifest never contains user paths.

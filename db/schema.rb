@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_020000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_040001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -2043,6 +2043,38 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_020000) do
     t.index ["updated_by_id"], name: "index_lightek_growth_briefs_on_updated_by_id"
   end
 
+  create_table "lightek_growth_comparison_arms", force: :cascade do |t|
+    t.bigint "comparison_id", null: false
+    t.bigint "campaign_id", null: false
+    t.bigint "link_id", null: false
+    t.string "label", null: false
+    t.string "content_digest", null: false
+    t.jsonb "creative_snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["campaign_id"], name: "index_lightek_growth_comparison_arms_on_campaign_id"
+    t.index ["comparison_id", "label"], name: "idx_growth_comparison_arm", unique: true
+    t.index ["comparison_id"], name: "index_lightek_growth_comparison_arms_on_comparison_id"
+    t.index ["link_id"], name: "index_lightek_growth_comparison_arms_on_link_id", unique: true
+  end
+
+  create_table "lightek_growth_comparisons", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "created_by_id", null: false
+    t.string "request_key", null: false
+    t.string "name", null: false
+    t.string "variable", null: false
+    t.text "hypothesis", null: false
+    t.date "starts_on", null: false
+    t.date "ends_on", null: false
+    t.jsonb "brief_snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_lightek_growth_comparisons_on_created_by_id"
+    t.index ["site_id", "request_key"], name: "idx_growth_comparison_request", unique: true
+    t.index ["site_id"], name: "index_lightek_growth_comparisons_on_site_id"
+  end
+
   create_table "lightek_growth_links", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "campaign_id", null: false
@@ -2073,6 +2105,31 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_020000) do
     t.index ["page_id"], name: "index_lightek_growth_page_metadata_on_page_id", unique: true
     t.index ["site_id"], name: "index_lightek_growth_page_metadata_on_site_id"
     t.index ["updated_by_id"], name: "index_lightek_growth_page_metadata_on_updated_by_id"
+  end
+
+  create_table "lightek_growth_performance_drafts", force: :cascade do |t|
+    t.bigint "review_id", null: false
+    t.bigint "campaign_id", null: false
+    t.bigint "created_by_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["campaign_id"], name: "index_lightek_growth_performance_drafts_on_campaign_id"
+    t.index ["created_by_id"], name: "index_lightek_growth_performance_drafts_on_created_by_id"
+    t.index ["review_id"], name: "index_lightek_growth_performance_drafts_on_review_id", unique: true
+  end
+
+  create_table "lightek_growth_performance_reviews", force: :cascade do |t|
+    t.bigint "comparison_id", null: false
+    t.bigint "created_by_id", null: false
+    t.string "request_key", null: false
+    t.string "rules_version", null: false
+    t.jsonb "snapshot", default: {}, null: false
+    t.datetime "measured_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["comparison_id", "request_key"], name: "idx_growth_performance_review_request", unique: true
+    t.index ["comparison_id"], name: "index_lightek_growth_performance_reviews_on_comparison_id"
+    t.index ["created_by_id"], name: "index_lightek_growth_performance_reviews_on_created_by_id"
   end
 
   create_table "lightek_growth_plans", force: :cascade do |t|
@@ -3804,10 +3861,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_020000) do
     t.text "error"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "task_uuid", null: false
     t.index ["actor_id"], name: "index_nevaeh_agent_runs_on_actor_id"
     t.index ["nevaeh_agent_worker_id", "request_key"], name: "idx_nevaeh_agent_run_request", unique: true
     t.index ["nevaeh_agent_worker_id"], name: "index_nevaeh_agent_runs_on_nevaeh_agent_worker_id"
     t.index ["nevaeh_os_action_id"], name: "index_nevaeh_agent_runs_on_nevaeh_os_action_id"
+    t.index ["task_uuid"], name: "index_nevaeh_agent_runs_on_task_uuid", unique: true
   end
 
   create_table "nevaeh_agent_workers", force: :cascade do |t|
@@ -5282,12 +5341,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_020000) do
   add_foreign_key "lightek_growth_audit_fixes", "users", column: "rolled_back_by_id"
   add_foreign_key "lightek_growth_briefs", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_briefs", "users", column: "updated_by_id"
+  add_foreign_key "lightek_growth_comparison_arms", "lightek_growth_comparisons", column: "comparison_id"
+  add_foreign_key "lightek_growth_comparison_arms", "lightek_growth_links", column: "link_id"
+  add_foreign_key "lightek_growth_comparison_arms", "lightek_marketing_campaigns", column: "campaign_id"
+  add_foreign_key "lightek_growth_comparisons", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_growth_comparisons", "users", column: "created_by_id"
   add_foreign_key "lightek_growth_links", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_links", "lightek_marketing_campaigns", column: "campaign_id"
   add_foreign_key "lightek_growth_links", "users", column: "created_by_id"
   add_foreign_key "lightek_growth_page_metadata", "dymond_site_pages", column: "page_id", on_delete: :cascade
   add_foreign_key "lightek_growth_page_metadata", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_page_metadata", "users", column: "updated_by_id"
+  add_foreign_key "lightek_growth_performance_drafts", "lightek_growth_performance_reviews", column: "review_id"
+  add_foreign_key "lightek_growth_performance_drafts", "lightek_marketing_campaigns", column: "campaign_id"
+  add_foreign_key "lightek_growth_performance_drafts", "users", column: "created_by_id"
+  add_foreign_key "lightek_growth_performance_reviews", "lightek_growth_comparisons", column: "comparison_id"
+  add_foreign_key "lightek_growth_performance_reviews", "users", column: "created_by_id"
   add_foreign_key "lightek_growth_plans", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_growth_plans", "lightek_growth_plans", column: "previous_plan_id"
   add_foreign_key "lightek_growth_plans", "users", column: "created_by_id"

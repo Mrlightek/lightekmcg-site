@@ -9,7 +9,11 @@ module NevaehOs
     def directories!(target)
       target.ascend.to_a.reverse_each do |directory|
         raise ArgumentError,'Managed storage cannot contain symbolic links' if File.symlink?(directory)
-        Dir.mkdir(directory,0700) unless File.directory?(directory)
+        begin
+          Dir.mkdir(directory,0700) unless File.directory?(directory)
+        rescue Errno::EEXIST
+          raise ArgumentError,'Managed storage must be a real directory' unless File.directory?(directory) && !File.symlink?(directory)
+        end
       end
     end
     def path(actor)

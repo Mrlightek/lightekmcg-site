@@ -58,12 +58,14 @@ class NevaehReportingConventionChecks < NevaehWorkerReportChecks
 
   def test_parallel_manager_appends_do_not_interleave_or_lose_worker_results
     run,item=task;item.update!(status:'done');template=report_for(run).structured_result
+    FileUtils.rm_rf(NevaehOs::ReportJournal.root) # Exercise simultaneous first-time directory/file creation too.
     threads=10.times.map do |i|
       Thread.new { NevaehOs::ReportJournal.append!(@actor,template.merge('task_id'=>"run-#{run.id+100+i}")) }
     end
     threads.each(&:value)
     latest=NevaehOs::ReportJournal.read!(@actor)
-    assert_equal 11,latest.size
+    assert_equal 10,latest.size
+    assert File.file?(NevaehOs::ReportJournal.path(@actor))
     File.foreach(NevaehOs::ReportJournal.path(@actor)) { |line| assert NevaehOs::ReportSchema.validate!(JSON.parse(line)) }
   end
 

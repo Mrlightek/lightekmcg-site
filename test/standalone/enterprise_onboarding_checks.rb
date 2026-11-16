@@ -244,13 +244,13 @@ class EnterpriseOnboardingChecks < EnterpriseHttpChecks
   def test_onboarding_agency_created_client_gets_invitation_and_scoped_resend
     login(@employer)
     post create_client_dashboard_agency_path(@employer), params: {client: {first_name: 'New', last_name: 'Client', email_address: 'agency-client@example.test'}}
-    assert_redirected_to dashboard_agencies_path
     client = @employer.agency_clients.find_by!(email_address: 'agency-client@example.test')
+    assert_redirected_to dashboard_agencies_path(agency_id: @employer.id, client_id: client.id, anchor: 'client-setup')
     assert client.password_setup_required?
     assert ActiveJob::Base.queue_adapter.enqueued_jobs.any?
     before = ActiveJob::Base.queue_adapter.enqueued_jobs.size
     post send_setup_invitation_dashboard_agency_path(@employer), params: {client_id: client.id}
-    assert_redirected_to dashboard_agencies_path
+    assert_redirected_to dashboard_agencies_path(agency_id: @employer.id, client_id: client.id, anchor: 'client-setup')
     assert_equal before + 1, ActiveJob::Base.queue_adapter.enqueued_jobs.size
     assert_raises(ActiveRecord::RecordNotFound) do
       post send_setup_invitation_dashboard_agency_path(@employer), params: {client_id: @other.id}

@@ -6,7 +6,7 @@
   <nav aria-label="Feature categories"><% showcase.clips.map(&:category).uniq.each_with_index do |category,index| %><%= link_to category, "#feature-category-#{showcase.id}-#{index}" %><% end %></nav>
   <% showcase.clips.group_by(&:category).each_with_index do |(category,clips),index| %>
   <section id="feature-category-<%= showcase.id %>-<%= index %>"><h2><%= category %></h2><div class="feature-grid"><% clips.each do |clip| %><article><div class="feature-art" aria-hidden="true"><span><%= category %></span><strong><%= clip.title %></strong></div><h3><%= clip.title %></h3><p><%= clip.body %></p>
-    <% if showcase.approved_at && showcase.status=='completed' && clip.ready? %><video controls playsinline preload="none" aria-label="<%= clip.title %> · captioned overview"><source src="<%= feature_showcase_video_path(token: showcase.token, position: clip.position) %>" type="video/mp4"></video><small>Captioned feature overview</small><% end %>
+    <% if showcase.approved_at && showcase.status=='completed' && clip.ready? %><video controls playsinline preload="none" aria-label="<%= clip.title %> · captioned overview"><source src="<%= Rails.application.routes.url_helpers.feature_showcase_video_path(token: showcase.token, position: clip.position) %>" type="video/mp4"></video><small>Captioned feature overview</small><% end %>
   </article><% end %></div></section><% end %>
   <footer><h2>Find the right fit for your business.</h2><p>Explore the offer, ask your questions and choose your next step.</p><%= link_to 'Learn more', LightekDesign::Catalog.safe_url(showcase.marketing_kit.campaign.cta_url), class: 'feature-cta' %></footer>
 </section>

@@ -98,7 +98,7 @@ module LightekGrowth
           'campaigns' => LightekMarketing::Campaign.where(site: @site).count,
           'enabled_links' => Link.where(site: @site, enabled: true).count,
           'tracked_visits' => stages.fetch('Tracked visits'), 'inquiry_visits' => stages.fetch('Inquiry'), 'paid_visits' => stages.fetch('Confirmed payment')
-        }.merge(defined?(LightekGrowth::WebsiteAudit) && LightekGrowth::WebsiteAudit.table_exists? ? LightekGrowth::Audits::Recommendations.call(@site) : {})
+        }.merge(defined?(LightekGrowth::Comparison) && LightekGrowth::Comparison.table_exists? ? LightekGrowth::Performance::Recommendations.call(@site) : {}).merge(defined?(LightekGrowth::WebsiteAudit) && LightekGrowth::WebsiteAudit.table_exists? ? LightekGrowth::Audits::Recommendations.call(@site) : {})
       }
     end
     def find_step(plan_id, id) = Plan.where(site: @site).find(plan_id).steps.find(id)

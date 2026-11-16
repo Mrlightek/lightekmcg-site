@@ -1,0 +1,220 @@
+{
+  "receipt_id": "deployed-dependency-edge-and-cap",
+  "origin": "https://lightekmcg.com",
+  "goal": {
+    "action_id": 8,
+    "action_status": "completed",
+    "error": null,
+    "goal_id": 1,
+    "goal_status": "completed",
+    "steps": [
+      {
+        "command": {
+          "kind": "resource",
+          "operation": "read",
+          "resource": "agents"
+        },
+        "error": null,
+        "evidence_action_id": 9,
+        "expectations": [
+          {
+            "path": "result.records.0.id",
+            "present": true
+          }
+        ],
+        "key": "list_agents",
+        "returned_id": 30,
+        "returned_id_type": "number",
+        "status": "completed"
+      },
+      {
+        "command": {
+          "id": {
+            "$step": "list_agents",
+            "path": "result.records.0.id"
+          },
+          "kind": "resource",
+          "operation": "read",
+          "resource": "agents"
+        },
+        "error": null,
+        "evidence_action_id": 11,
+        "expectations": [
+          {
+            "path": "result.records.0.id",
+            "present": true
+          }
+        ],
+        "key": "read_agent",
+        "returned_id": 30,
+        "returned_id_type": "number",
+        "status": "completed"
+      }
+    ]
+  },
+  "cap_test": {
+    "action_id": 10,
+    "error": "A goal needs 1–12 concrete steps",
+    "kind": "goal",
+    "result": {},
+    "status": "failed",
+    "group_step_counts": [
+      7,
+      6
+    ],
+    "combined_steps": 13,
+    "documented_cap": 12,
+    "accepted": false
+  },
+  "runtime_reports": [
+    {
+      "account_id": 1,
+      "dependencies": [
+        {
+          "status": "completed",
+          "task_id": "run-1"
+        }
+      ],
+      "documentation": {
+        "path": "docs/nevaeh/tutorials/commands.md",
+        "read_at": "2026-11-15T21:26:13-05:00",
+        "sha256": "c36bdfabe3ddbd5a1ae20496eea21d92961034ff8e3b1620b1ba9ddcff093f0a"
+      },
+      "file_ownership": {
+        "report_writer": "manager",
+        "workspace": "worker_workspace",
+        "write_files": []
+      },
+      "output": {
+        "action_id": 11,
+        "kind": "receipt_reference",
+        "receipt_sha256": "220a04df6aae79d4d8bb1b22b44b960e0f6d2510f3c3ed534e066e34f6b05d46",
+        "references": [
+          {
+            "id": 11,
+            "status": "completed",
+            "type": "resource"
+          }
+        ]
+      },
+      "schema_version": 1,
+      "status": "completed",
+      "task_id": "run-2",
+      "worker_id": 2
+    },
+    {
+      "account_id": 1,
+      "dependencies": [],
+      "documentation": {
+        "path": "docs/nevaeh/tutorials/commands.md",
+        "read_at": "2026-11-15T21:25:20-05:00",
+        "sha256": "c36bdfabe3ddbd5a1ae20496eea21d92961034ff8e3b1620b1ba9ddcff093f0a"
+      },
+      "file_ownership": {
+        "report_writer": "manager",
+        "workspace": "worker_workspace",
+        "write_files": []
+      },
+      "output": {
+        "action_id": 9,
+        "kind": "receipt_reference",
+        "receipt_sha256": "61d057ee6e74555907fdf5cf97866d450bc707975218c4394099225b1778f5d4",
+        "references": [
+          {
+            "id": 9,
+            "status": "completed",
+            "type": "resource"
+          }
+        ]
+      },
+      "schema_version": 1,
+      "status": "completed",
+      "task_id": "run-1",
+      "worker_id": 1
+    }
+  ],
+  "contract_comparison": {
+    "expected_root_keys": [
+      "task_id",
+      "worker",
+      "source_page",
+      "status",
+      "output",
+      "dependencies"
+    ],
+    "runtime_shape_matches_root": false,
+    "runtime_task_id_format": "run-N",
+    "runtime_completion_status": "completed",
+    "runtime_dependency_shape": {
+      "task_id": "run-1",
+      "status": "completed"
+    },
+    "root_requires_uuid_reservation": true,
+    "root_requires_report_ref": true,
+    "root_requires_committed_remote_readback": true,
+    "full_contract_acceptance": "failed"
+  },
+  "notes": [
+    "Authenticated through the site's MFA flow; no credentials retained in evidence.",
+    "Goal 1 contains two read-only resource operations; both completed and returned agent ID 30.",
+    "The typed reference remains visible in the second step's saved command.",
+    "Cap error rejected goal creation; the live workforce showed only the one accepted test goal.",
+    "Runtime report-store filesystem and Git commit state were not directly inspected; store/commit implementation differences are separately grounded in repository source.",
+    "An earlier documentation-answer goal creation attempt reached action 6 and failed with: This worker needs a documentation page assignment."
+  ],
+  "machine_validation": {
+    "typed_dependency_handoff": "passed",
+    "over_cap_rejected": "passed",
+    "runtime_schema_vs_AGENTS": [
+      {
+        "task_id": "run-2",
+        "runtime_schema": "passed",
+        "AGENTS_schema": "failed",
+        "missing_fields": [
+          "source_page",
+          "worker"
+        ],
+        "unexpected_fields": [
+          "account_id",
+          "documentation",
+          "file_ownership",
+          "schema_version",
+          "worker_id"
+        ],
+        "status_allowed_by_AGENTS": false,
+        "dependencies_have_report_ref": false
+      },
+      {
+        "task_id": "run-1",
+        "runtime_schema": "passed",
+        "AGENTS_schema": "failed",
+        "missing_fields": [
+          "source_page",
+          "worker"
+        ],
+        "unexpected_fields": [
+          "account_id",
+          "documentation",
+          "file_ownership",
+          "schema_version",
+          "worker_id"
+        ],
+        "status_allowed_by_AGENTS": false,
+        "dependencies_have_report_ref": true
+      }
+    ]
+  },
+  "source_inspection": {
+    "repository_revision": "9aeaaa9dd3829e0922c4d5f479e2a4fce1043ee9",
+    "deployed_revision": "not independently established",
+    "journal_path": "storage/nevaeh_worker_reports/account-ACCOUNT_ID/reports.jsonl",
+    "dependency_value_source": "NevaehGoalStep.evidence in database via Goals.resolve",
+    "paths": [
+      "app/services/nevaeh_os/report_journal.rb",
+      "app/services/nevaeh_os/goals.rb",
+      "app/services/nevaeh_os/worker_reports.rb",
+      "config/nevaeh/worker_report.schema.json"
+    ],
+    "conclusion": "Inspected implementation differs from AGENTS.md report store and commit-gated dependency contract; live emitted schema confirms a real contract mismatch."
+  }
+}

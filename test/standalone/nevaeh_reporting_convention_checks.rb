@@ -30,7 +30,7 @@ class NevaehReportingConventionChecks < NevaehWorkerReportChecks
     ["done",value.except('dependencies'),value.merge('output'=>'all done'),value.merge('extra'=>'not in schema'),value.merge('status'=>'probably finished'),value.merge('task_id'=>"run-1\n"),value.deep_merge('file_ownership'=>{'write_files'=>['../outside']})].each do |bad|
       assert_raises(ArgumentError) { NevaehOs::ReportSchema.validate!(bad) }
     end
-    assert_equal "run-#{run.id}",value['task_id']
+    assert_equal run.task_uuid,value['task_id']
     assert_equal 'receipt_reference',value.dig('output','kind')
     assert_equal [],value['dependencies']
     assert_equal [],value.dig('file_ownership','write_files')
@@ -60,7 +60,7 @@ class NevaehReportingConventionChecks < NevaehWorkerReportChecks
     run,item=task;item.update!(status:'done');template=report_for(run).structured_result
     FileUtils.rm_rf(NevaehOs::ReportJournal.root) # Exercise simultaneous first-time directory/file creation too.
     threads=10.times.map do |i|
-      Thread.new { NevaehOs::ReportJournal.append!(@actor,template.merge('task_id'=>"run-#{run.id+100+i}")) }
+      Thread.new { NevaehOs::ReportJournal.append!(@actor,template.merge('task_id'=>SecureRandom.uuid)) }
     end
     threads.each(&:value)
     latest=NevaehOs::ReportJournal.read!(@actor)
@@ -113,7 +113,7 @@ class NevaehReportingConventionChecks < NevaehWorkerReportChecks
       NevaehOs::Goals.tick!(plan.reload)
     end
     report=report_for(runs.last)
-    assert_equal [{'task_id'=>"run-#{runs.first.id}",'status'=>'completed'}],report.structured_result['dependencies']
+    assert_equal [{'task_id'=>runs.first.task_uuid,'report_ref'=>NevaehOs::WorkerReports.dependency_for!(actor:@actor,run:runs.first)['report_ref'],'status'=>'accepted'}],report.structured_result['dependencies']
   end
 
   def test_one_page_sme_answers_with_fresh_source_excerpts_and_structured_manager_report
@@ -135,7 +135,7 @@ class NevaehReportingConventionChecks < NevaehWorkerReportChecks
     output['matches'].each { |m| assert_equal source[m['line']-1,3].join.first(1200),m['text'] }
     report=report_for(run)
     assert_equal 'completed',report.structured_result['status']
-    assert_equal "run-#{run.id}",NevaehOs::WorkerReports.journal_result!(report)['task_id']
+    assert_equal run.task_uuid,NevaehOs::WorkerReports.journal_result!(report)['task_id']
     foreign=run.snapshot.merge('topic'=>'studio')
     assert_raises(ArgumentError) { NevaehOs::DocumentationWorkers.bind!(actor:@actor,command:foreign) }
     assert_raises(ArgumentError) { NevaehOs::DocumentationWorkers.delegate_question!(actor:@other,topic:'console',query:'show schema',key:SecureRandom.uuid) }

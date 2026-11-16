@@ -16,12 +16,12 @@
     "schema_version": {
       "type": "integer",
       "enum": [
-        1
+        2
       ]
     },
     "task_id": {
       "type": "string",
-      "pattern": "^run-[1-9][0-9]*$"
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
     "worker_id": {
       "type": "integer",
@@ -135,23 +135,25 @@
         "additionalProperties": false,
         "required": [
           "task_id",
+          "report_ref",
           "status"
         ],
         "properties": {
           "task_id": {
             "type": "string",
-            "pattern": "^run-[1-9][0-9]*$"
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
           },
           "status": {
             "type": "string",
             "enum": [
-              "pending",
-              "completed",
-              "failed",
+              "accepted",
               "blocked",
-              "cancelled",
-              "evidence_unavailable"
+              "failed"
             ]
+          },
+          "report_ref": {
+            "type": "string",
+            "pattern": "^(?:journal:[1-9][0-9]*:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}:[0-9a-f]{64}|unresolved:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$"
           }
         }
       }
@@ -192,6 +194,6 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:lightek:nevaeh:worker-report:1",
-  "title": "Nevaeh worker result v1"
+  "$id": "urn:lightek:nevaeh:worker-report:2",
+  "title": "Nevaeh worker result v2"
 }

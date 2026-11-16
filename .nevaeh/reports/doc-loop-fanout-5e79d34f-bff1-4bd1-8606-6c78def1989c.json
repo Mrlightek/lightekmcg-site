@@ -1,0 +1,42 @@
+{
+  "task_id": "doc-loop-fanout-5e79d34f-bff1-4bd1-8606-6c78def1989c",
+  "worker": "page_workers_dependency_sme",
+  "source_page": {
+    "path": "docs/nevaeh/tutorials/page_workers.md",
+    "revision": "0aecdc25c3af02d258d1baba0aa4217522017ee6",
+    "fingerprint": "sha256:12775b5361d8597d889b5748fde74c3e87f693196afc636e5d4524152c111aac"
+  },
+  "status": "accepted",
+  "output": {
+    "summary": "Prepared an independently source-checked plan from the assigned page specialist table. Documentation harness only; application Dispatch/Gatekeeper runtime was not exercised. Task closure remains pending manager commit, push and remote read-back.",
+    "values": {
+      "plan": [
+        {
+          "family": "Mail and messaging",
+          "specialist": "Mail Operator",
+          "task": "List/open conversations"
+        },
+        {
+          "family": "Finance / Susu",
+          "specialist": "Finance Operator",
+          "task": "List/open groups"
+        },
+        {
+          "family": "Studio projects and workspaces",
+          "specialist": "Studio Workspace Operator",
+          "task": "Create a project"
+        }
+      ],
+      "step_count": 3,
+      "source_quotes": [
+        "| Mail and messaging | Mail Operator | List/open conversations, list people, mark a conversation read |",
+        "| Finance / Susu | Finance Operator | List/open groups, contribution quote and checkout |",
+        "| Studio projects and workspaces | Studio Workspace Operator | Create a project, list assets, inspect runtime and writing profiles, save declared workspace inputs |"
+      ]
+    },
+    "evidence": [
+      "https://github.com/Mrlightek/lightekmcg-site/blob/0aecdc25c3af02d258d1baba0aa4217522017ee6/docs/nevaeh/tutorials/page_workers.md#L19-L21"
+    ]
+  },
+  "dependencies": []
+}

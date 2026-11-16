@@ -7,6 +7,7 @@ module NevaehOs
       authorize_command!(actor:action.user.reload,command:action.command)
     end
     def authorize_command!(actor:,command:)
+      Array(command['report_dependencies']).each { |dependency| WorkerReports.resolve!(actor:actor,dependency:dependency) }
       DocumentationWorkers.read!(actor:actor,command:command) if command['documentation_contract']
       PageWorkers.guard!(actor,command) if defined?(PageWorkers)
       Language.guard!(command, actor: actor) if defined?(Language)
@@ -54,11 +55,15 @@ module NevaehOs
         else
           raise ArgumentError, 'Unknown campaign production action'
         end
-      when 'growth_plan'
+      when 'growth_plan', 'growth_review'
         raise ArgumentError, 'Choose a positive business website ID.' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
         site = DymondSite::Site.find(command.fetch('site_id'))
         begin
           LightekGrowth::Workspace.new(actor: actor, site: site).revalidate!
+          if command['kind'] == 'growth_review'
+            raise ArgumentError, 'Choose a positive comparison ID.' unless command['comparison_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+            LightekGrowth::Comparison.where(site: site).find(command.fetch('comparison_id'))
+          end
         rescue LightekAgency::PackagePolicy::Denied => error
           raise ArgumentError, error.message
         end
@@ -160,6 +165,10 @@ module NevaehOs
         when 'status' then producer.receipt(producer.find!(command.fetch('id'), actor: actor), actor: actor)
         when 'retry' then producer.retry!(command.fetch('id'), actor: actor)
         end
+      when 'growth_review'
+        site = DymondSite::Site.find(command.fetch('site_id'))
+        workspace = LightekGrowth::Performance::Workspace.new(actor: actor, site: site)
+        workspace.receipt(workspace.review!(comparison_id: command.fetch('comparison_id'), request_key: "nevaeh-action-#{action.id}"))
       when 'growth_plan'
         site = DymondSite::Site.find(command.fetch('site_id'))
         planner = LightekGrowth::DailyPlanner.new(actor: actor, site: site)

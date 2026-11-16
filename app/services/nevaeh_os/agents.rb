@@ -23,6 +23,7 @@ module NevaehOs
       when 'improve' then 'nevaeh.improve'
       when 'goal','goal_control' then 'nevaeh.goal'
       when 'growth_plan' then 'growth.plan'
+      when 'growth_review' then 'growth.review'
       when 'capability' then command['intent']
       when 'watch' then "watcher.#{command['operation']}"
       when 'ubuntu' then "ubuntu.#{command['operation']}"

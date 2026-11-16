@@ -1,0 +1,15 @@
+{
+  "task_id": "doc-loop-fanout-bb642aa0-c0b0-4d26-8bb8-fb162a8808ce",
+  "assigned_by": "manager",
+  "worker": "workforce_page_sme",
+  "source_page": "docs/nevaeh/tutorials/workforce.md",
+  "source_revision": "0aecdc25c3af02d258d1baba0aa4217522017ee6",
+  "dependencies": [],
+  "task": "Extract the documented maximum one-time goal tasks and minimum scheduled repeat interval.",
+  "expected_types": {
+    "maximum_goal_tasks": "integer",
+    "minimum_repeat_minutes": "integer"
+  },
+  "report_ref": ".nevaeh/reports/doc-loop-fanout-bb642aa0-c0b0-4d26-8bb8-fb162a8808ce.json",
+  "harness": "Codex documentation orchestration; no application runtime"
+}

@@ -2,7 +2,7 @@
 
 Open **Growth** from the shared Business workspace. **Prepare or open today’s plan** reviews the selected website's business brief, customer queues and recent tracked-link results. The plan gives up to five prioritized moves, each with a reason, practical steps, observed evidence and a button for the appropriate Lightek tool.
 
-The current playbook is `growth-daily-v1`: finish missing business context, review inquiries, check paid orders awaiting delivery, follow through on due sales tasks, review expiring quotes, review an arrived goal date, and then establish campaign drafts, tracked links or distribution. A landing-experience review is suggested only when at least 20 seven-day tracked visits have no recorded attributed inquiry/payment; this threshold is an authored heuristic, not statistical confidence or proof of a conversion failure. Operational queues take precedence over campaign expansion. The list is capped at five.
+The current playbook is `growth-daily-v3`: finish missing business context, review inquiries, check paid orders awaiting delivery, follow through on due sales tasks, review expiring quotes, review an arrived goal date, and then establish campaign drafts, tracked links or distribution. A landing-experience review is suggested only when at least 20 seven-day tracked visits have no recorded attributed inquiry/payment; this threshold is an authored heuristic, not statistical confidence or proof of a conversion failure. Operational queues take precedence over campaign expansion. The list is capped at five.
 
 ## Use the operating workspace
 
@@ -55,3 +55,41 @@ Deploy `20261115150000_add_daily_growth_plans` through the existing per-instance
 From the campaign editor, open **Content variations & approval** to use the shared writing engine for offer, problem and benefit drafts. Saved-copy approval binds the payload used by existing sends/publication. Social campaigns select portrait, square or landscape Studio production; reopening preserves edits, and script replacement is explicit. See [the full content and Studio workflow](../../sales/campaign-content-review.md). This workbench is available in Dashboard; `/growth` continues to prepare recommendations rather than automatically approve or publish content.
 
 The [Publishing calendar](../../sales/publishing-calendar.md) now handles final Studio export attachment and reviewed social scheduling from Dashboard. `/growth` remains a planning command; it does not automatically schedule or publish external messages.
+
+## Campaign performance and follow-up experiments
+
+Open **Business → Performance**. Prepare a comparison after completing the growth brief and explicitly approving two social campaigns. Record a hypothesis, one intended difference, a 1–90-day visit window, source/medium and each local destination path. Confirm the intended placement. Lightek saves the brief/audience/offer, reviewed copy, approval actor/time and exact payload digest, then binds a separate immutable tracked link to each arm. When the reviewed CTA already uses a native campaign tracking link, match its enabled source, medium and destination; Lightek binds that link. Otherwise it creates a new placement link. A link already bound to a comparison cannot be reused. Use each link alongside its assigned version. Nothing is injected into the campaigns or published; inserting a new URL into approved copy changes its digest and requires new approval and a new comparison. Earlier visits on an existing link are excluded: measurement begins at the later of version pinning and the first visit day. Older visits do not establish creative-version attribution.
+
+**Measure a fresh review**, or enter:
+
+```text
+/growth review SITE_ID COMPARISON_ID
+```
+
+This is capability **`growth.review`**, through the existing saved-action/Gatekeeper/Dispatch path. Each action saves one immutable timestamped review; retries of that action return its receipt. A new command request measures a new review. It counts native tracked visits during the saved window and independently records attributed inquiry, lead, deal, order, confirmed-payment and delivery stages. Stage counts are distinct visits, not orders. Order amounts and refunds are shown by currency; they are not profit or processor settlement. Downstream outcomes known at measurement can arrive after the visit window; later reviews can differ while earlier snapshots remain unchanged.
+
+Matching calendar receipts are grouped by their pinned campaign digest and scheduled window. Scheduled/submitted/published states are operational evidence, not views or conversions. Manual/other publication is outside those counts. Impressions, likes, spend, untracked traffic and actual audience allocation are unavailable, not zero. There is no randomized traffic split or causal winner. Source/medium and the brief describe intended placement/audience, not proof of exposure. Bots, previews, cookie/privacy limits and cross-device visits retain the existing attribution limitations.
+
+The authored review rule requires at least **30 tracked visits per placement** and waits until **seven full days after the visit window closes** before enabling a follow-up starting draft. These thresholds are not statistical confidence. Missing coverage prompts collection, changed approval/copy/media or a disabled link prompts repair, and an unfinished outcome window prompts waiting. With sufficient mature observations, exact payment/visit fractions identify an observed difference; tied rates use the control as a neutral starting point. Payments are retained historically even after refunds, with refund totals alongside them; a higher payment rate alone does not establish better revenue, profitability or customer quality.
+
+Review the evidence and explicitly confirm **Prepare editable follow-up**. It creates one native campaign draft from the selected pinned starting copy, omits media, resets the CTA to the selected local landing destination so it does not inherit an old tracking token, retains its review link in the receipt and leaves copy unapproved. It does not invent a new message: make the deliberate single change in the campaign editor, use the normal content workbench and Studio, create a new tracking link for the draft, approve the resulting version using that link and prepare a new comparison. Only the latest review, no older than seven days, can create a new draft. Repeated requests return the existing draft receipt. Updating a current campaign never rewrites the saved starting copy.
+
+The daily playbook is now **`growth-daily-v3`**. It prompts review of the latest started comparison when it has no review or its last review is older than one day. This bounded prompt is not an exhaustive backlog audit. Existing inquiries, paid delivery, due follow-ups and expiring quotes retain priority. Up to five moves are still returned.
+
+### Delegate and inspect reports
+
+```text
+/agent schedule sage 1440 /growth review SITE_ID COMPARISON_ID
+```
+
+Use the existing agent controls to pause/run this assignment. Grant `growth.review` in an explicit specialist capability list when necessary; existing saved roles are preserved and do not silently gain new grants. The assignment binds to **this growth page** and rereads it before execution. Current UUID reservations, instruction/source fingerprints, structured report schema, account-scoped journal and manager read-back apply. Existing assignments pinned to an older version of this page need fresh reviewed assignments after deployment; they must not silently adopt updated instructions. A completed worker report verifies execution of the review, not the quality of the campaign or a profitable experiment. No new scheduler, report store or report schema is introduced.
+
+### Permissions, rollout and recovery
+
+Website owner/delegated manager/marketer access and the marketing feature entitlement are rechecked by the service, including retries and follow-up creation. Cross-site campaigns, comparisons, reviews and draft IDs are rejected. Designers do not gain marketing access. Comparison inputs, creative snapshots, links and review evidence are retained; referenced campaigns cannot be removed through the model. Current campaign edits do not rewrite history. Changing the experiment setup requires a new comparison.
+
+Deploy migration `20261116040000_add_campaign_performance_comparisons.rb` before exposing this feature, using the existing per-instance update process. The workforce/report migrations from the current base remain prerequisites. Retain comparison/review/draft tables when reverting code.
+
+Structured log events are `lightek.growth.comparison_created`, `performance_reviewed` and `performance_draft_prepared`, containing actor/site/comparison/review/campaign IDs without copy, tracking tokens or customer information. Review the saved comparison, measured timestamp, source health, action receipt and structured worker report in the existing IT tools. For missing counts, verify placement link use, date/time zone, enabled state and attribution rather than assuming zero total traffic. For changed creative, prepare a fresh comparison; for stale reviews, measure again; for revoked access/package, resolve authorization before resubmitting. Publication remains governed by its own provider receipts and reconciliation controls.
+
+Acceptance: `SALES_PREVIEW_DIR=tmp/sales-preview ruby test/standalone/campaign_performance_checks.rb` exercises native schema/models/services, scoped HTTP/CSRF, measured cohorts, immutable reviews, guarded drafts and current worker documentation/UUID/journal integration. The inherited host fixtures replace private engine authentication/records and provider IO. Full installed/private-engine boot, real user placement/link usage, deployed publication and business results remain separate acceptance.

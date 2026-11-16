@@ -61,6 +61,7 @@ class Dashboard::GrowthController < Dashboard::SettingsHomeController
     when 'sales' then dashboard_sales_path(site_id: @site.id, tab: 'pipeline')
     when 'orders' then dashboard_commerce_orders_path(site_id: @site.id)
     when 'campaigns' then dashboard_marketing_campaigns_path(site_id: @site.id)
+    when 'performance' then dashboard_campaign_performance_path(site_id: @site.id)
     when 'website_audit' then dashboard_website_audits_path(site_id: @site.id)
     when 'website' then dashboard_website_designs_path(site_id: @site.id)
     else raise ArgumentError, 'Unknown growth destination'

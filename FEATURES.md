@@ -88,6 +88,7 @@ Guides: [Control Center](docs/nevaeh/control_center.md), [Digital Factory](docs/
 | Capability | Implemented behavior |
 | --- | --- |
 | Business growth brief | Per-website offering, audience, problem, value, voice and dated goal; editor identity and optimistic revision checks. |
+| Campaign performance loop | Two pinned social versions and tracking placements, distinct-visit outcomes and per-currency refunds, publication state separated from engagement, immutable measured reviews and guarded starting drafts; existing `growth.review` worker/report path. [Guide](docs/nevaeh/tutorials/growth.md#campaign-performance-and-follow-up-experiments). |
 | Website growth audit and guided fixes | Bounded native CMS rendering, immutable evidence/coverage, owner-scoped metadata and registered section edits, explicit preview/apply/recheck/rollback and evidence-backed daily recommendations; [operating guide](docs/sales/website-growth-audits.md). |
 | Publishing calendar and Studio export handoff | Retained JPEG/PNG/MP4 export bindings, issuing-host media links, reviewed-version social schedules, timezone-aware times, current operator checks, durable claims and separate submitted/published/reconciliation states; [operating guide](docs/sales/publishing-calendar.md). |
 | Campaign content workbench | Offer/problem/benefit drafts through the shared writer, editable revisions, attributable saved-copy approval and payload fingerprints checked before existing sends/publication. |
@@ -407,7 +408,7 @@ See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md)
 | Capability | Implemented behavior |
 | --- | --- |
 | Workforce directory | 28 default specialist roles with departments, responsibilities, task templates, connected-contract inventory and visible connection gaps. Existing customizations remain. |
-- SME operating reports: downstream completion, append-only owner acceptance/corrections, per-specialist history and scoped retrieval for manager delegation and native conversational drafts. Covers delegated agent runs; direct human Dashboard actions are not yet unified.
+- SME operating reports: manager-reserved UUIDs with one-time legacy dependency backfill, account-scoped journal/receipt dependency references with explicit completed-to-accepted boundary mapping, read-back before dependent dispatch, downstream completion, append-only owner acceptance/corrections, per-specialist history and scoped retrieval for manager delegation and native conversational drafts. Covers delegated agent runs; direct human Dashboard actions are not yet unified.
 | Delegation & removal | One-time or scheduled assigned tasks; role pause/delete and task deletion retain history and block undispatched runs. Deleted defaults do not reappear. |
 | Durable goals | Reviewable 1–12-step plans, specialist assignments, typed prior-output handoff, real downstream receipts, output expectations and pause/cancel/recovery without automatic replay of uncertain work. |
 | Expansion tasks | Capability/schema/page-area gap audits with engineering tickets, native manual import, phrase contract validation and existing construction-build/training workers. |

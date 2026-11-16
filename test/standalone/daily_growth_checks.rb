@@ -49,13 +49,26 @@ module LightekPwa
 end
 %w[nevaeh_os_action nevaeh_os_agent nevaeh_agent_worker nevaeh_agent_run nevaeh_capability].each { |file| require ROOT.join("app/models/#{file}") }
 %w[command agents executor dispatch worker receipts agent_workforce page_context workforce conversation guide].each { |file| require ROOT.join("app/services/nevaeh_os/#{file}") }
+# Exercise current documentation binding, UUID reservation and report journal,
+# rather than substituting the pre-workforce scheduler interface.
+%w[20261116010000_create_nevaeh_worker_reports 20261116020000_add_structured_worker_results 20261116030000_reserve_nevaeh_task_uuids].each { |file| require ROOT.join("db/migrate/#{file}") }
+CreateNevaehWorkerReports.new.migrate(:up)
+AddStructuredWorkerResults.new.migrate(:up)
+ReserveNevaehTaskUuids.new.migrate(:up)
+NevaehAgentRun.reset_column_information
+%w[nevaeh_worker_report nevaeh_worker_report_review].each { |file| require ROOT.join("app/models/#{file}") }
+%w[page_workers documentation_workers report_schema report_journal worker_reports].each { |file| require ROOT.join("app/services/nevaeh_os/#{file}") }
+def Rails.root = ROOT
+GROWTH_TEST_REPORT_ROOT = Dir.mktmpdir('growth-worker-reports-')
+NevaehOs::ReportJournal.define_singleton_method(:root) { Pathname.new(GROWTH_TEST_REPORT_ROOT) }
+at_exit { FileUtils.rm_rf(GROWTH_TEST_REPORT_ROOT) }
 require ROOT.join('app/jobs/nevaeh_os/agent_run_job')
 require ROOT.join('app/controllers/dashboard/marketing_campaigns_controller')
 Dashboard::MarketingCampaignsController.prepend_view_path ROOT.join('app/views')
 Dashboard::MarketingCampaignsController.layout false
 # The actual campaign controller/form is the destination for the drafted result.
 SalesHarness.routes.draw do
-  %w[website_audits publication_calendar campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
+  %w[campaign_performance website_audits publication_calendar campaign_content growth lifecycle people sales_quotes sales].each { |file| eval(ROOT.join("config/routes/#{file}.rb").read, binding) }
   get '/orders', to: 'dashboard/sales#index', as: :dashboard_commerce_orders
   get '/customers/history', to: 'dashboard/sales#index', as: :history_dashboard_customers
   get '/csrf', to: 'dashboard/settings_home#csrf'
@@ -73,7 +86,8 @@ SalesHarness.routes.draw do
 end
 SalesCrmChecks.prepend(Module.new do
   def setup
-    [NevaehAgentRun, NevaehAgentWorker, NevaehOsAction, NevaehOsAgent, DymondDispatch::WorkItem, NevaehCapability].each(&:delete_all)
+    FileUtils.rm_rf(Dir.glob(File.join(GROWTH_TEST_REPORT_ROOT, 'account-*')))
+    [NevaehWorkerReportReview, NevaehWorkerReport, NevaehAgentRun, NevaehAgentWorker, NevaehOsAction, NevaehOsAgent, DymondDispatch::WorkItem, NevaehCapability].each(&:delete_all)
     super
   end
 end)
@@ -123,7 +137,7 @@ class DailyGrowthChecks < GrowthFoundationChecks
     assert_equal 1, plan.snapshot.dig('facts', 'due_tasks')
     assert_equal 1, plan.snapshot.dig('facts', 'review_inquiries')
     assert_equal Date.current.iso8601, plan.snapshot.dig('brief', 'goal_on')
-    assert_equal 'growth-daily-v2', plan.playbook_version
+    assert_equal 'growth-daily-v3', plan.playbook_version
     assert_equal 'One place to run the business', plan.snapshot.dig('brief', 'value_proposition')
   end
   def test_daily_sparse_measurements_do_not_invent_conversion_failures

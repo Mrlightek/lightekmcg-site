@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - 'app/controllers/dashboard/sales*'
+      - 'app/controllers/dashboard/campaign_performance_controller.rb'
+      - 'app/views/dashboard/campaign_performance/**'
+      - 'config/routes/campaign_performance.rb'
+      - 'db/migrate/*campaign_performance*'
+      - 'test/standalone/campaign_performance_checks.rb'
       - 'app/controllers/dashboard/website_audits_controller.rb'
       - 'app/controllers/lightek_growth/**'
       - 'app/views/dashboard/website_audits/**'
@@ -100,7 +105,7 @@ jobs:
       - name: Install public test dependencies
         run: gem install activerecord:8.0.4 activestorage:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 uri:1.1.2 --no-document
       - name: Verify sales lifecycle, routing, consent, isolation and forecasts
-        run: ruby test/standalone/publication_calendar_checks.rb
+        run: ruby test/standalone/campaign_performance_checks.rb
       - name: Verify native CMS audit evidence, permissions, fixes and recovery
         run: ruby test/standalone/website_audit_checks.rb --name '/test_site_|test_audit_/'
       - uses: actions/setup-node@v4

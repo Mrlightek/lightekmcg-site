@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 module NevaehOs
   module DocumentationWorkers
-    TOPICS={'production'=>'production_director','campaign_produce'=>'campaign_producer','growth_plan'=>'growth',
+    TOPICS={'production'=>'production_director','campaign_produce'=>'campaign_producer','growth_plan'=>'growth','growth_review'=>'growth',
       'ubuntu'=>'ubuntu','application'=>'ubuntu','console'=>'console','resource'=>'commands','write'=>'writing',
       'build'=>'factory','activate'=>'factory','train'=>'training','checkpoint'=>'training','approve'=>'training',
       'learn'=>'training','review'=>'training','model'=>'training','improve'=>'workforce','ticket'=>'agents',
       'run'=>'agents','worker_status'=>'agents','project'=>'factory','forget'=>'memory'}.freeze
-    IGNORED=%w[documentation_contract documentation_read manager_context experience_contract].freeze
+    IGNORED=%w[documentation_contract documentation_read manager_context experience_contract report_dependencies].freeze
     module_function
     def instruction_digest(command) = PageWorkers.digest(command.except(*IGNORED))
     def bind!(actor:, command:)

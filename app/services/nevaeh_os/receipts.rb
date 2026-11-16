@@ -30,6 +30,11 @@ module NevaehOs
         receipt = producer.receipt(operation, actor: action.user)
         value[:downstream] = {type:'campaign_production', id:operation.id, status:operation.status, error:operation.error_message, result:receipt}
         value[:status] = %w[completed failed cancelled].include?(operation.status) ? operation.status : 'dispatched'
+      elsif action.command['kind'] == 'growth_review'
+        site = DymondSite::Site.find(action.command.fetch('site_id'))
+        review = LightekGrowth::PerformanceReview.joins(:comparison).where(lightek_growth_comparisons: {site_id: site.id}).find(action.result.fetch('review_id'))
+        receipt = LightekGrowth::Performance::Workspace.new(actor: action.user, site: site).receipt(review)
+        value[:downstream] = {type: 'performance_review', id: review.id, status: 'completed', result: receipt}
       elsif action.result['agent_run_id']
         run=NevaehAgentRun.where(actor:action.user).find(action.result['agent_run_id'])
         child=run.nevaeh_os_action

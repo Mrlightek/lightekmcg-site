@@ -1,0 +1,15 @@
+{
+  "task_id": "doc-loop-fanout-5e79d34f-bff1-4bd1-8606-6c78def1989c",
+  "assigned_by": "manager",
+  "worker": "page_workers_dependency_sme",
+  "source_page": "docs/nevaeh/tutorials/page_workers.md",
+  "source_revision": "0aecdc25c3af02d258d1baba0aa4217522017ee6",
+  "dependencies": [],
+  "task": "Build one plan step per distinct page/service family from the specialist table and return the count.",
+  "expected_types": {
+    "step_count": "integer",
+    "plan": "array"
+  },
+  "report_ref": ".nevaeh/reports/doc-loop-fanout-5e79d34f-bff1-4bd1-8606-6c78def1989c.json",
+  "harness": "Codex documentation orchestration; no application runtime"
+}

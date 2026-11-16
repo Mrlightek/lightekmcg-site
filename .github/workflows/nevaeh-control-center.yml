@@ -51,6 +51,29 @@ on:
 permissions:
   contents: read
 jobs:
+  task-builder:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - name: Verify task revisions, typed routing, Dispatch and journal read-back
+        run: bundle exec ruby test/standalone/nevaeh_task_builder_checks.rb
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/nevaeh-builder-browser" --no-save playwright
+          "$RUNNER_TEMP/nevaeh-builder-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify actual builder form and mobile layout
+        run: NODE_PATH="$RUNNER_TEMP/nevaeh-builder-browser/node_modules" node test/standalone/nevaeh_task_builder_browser.cjs
+
   page-workers:
     runs-on: ubuntu-24.04
     timeout-minutes: 5

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_001500) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4375,6 +4375,36 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_001500) do
     t.index ["user_id"], name: "index_nevaeh_watchers_on_user_id"
   end
 
+  create_table "nevaeh_worker_report_reviews", force: :cascade do |t|
+    t.bigint "nevaeh_worker_report_id", null: false
+    t.bigint "user_id", null: false
+    t.string "verdict", null: false
+    t.string "receipt_sha256", null: false
+    t.text "lesson", default: "", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_worker_report_id"], name: "index_nevaeh_worker_report_reviews_on_nevaeh_worker_report_id"
+    t.index ["user_id"], name: "index_nevaeh_worker_report_reviews_on_user_id"
+  end
+
+  create_table "nevaeh_worker_reports", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "nevaeh_os_agent_id", null: false
+    t.bigint "nevaeh_agent_run_id", null: false
+    t.string "capability", null: false
+    t.string "site_key", null: false
+    t.string "contract_sha256", null: false
+    t.string "receipt_sha256", null: false
+    t.string "status", null: false
+    t.jsonb "evidence", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["nevaeh_agent_run_id"], name: "index_nevaeh_worker_reports_on_nevaeh_agent_run_id", unique: true
+    t.index ["nevaeh_os_agent_id"], name: "index_nevaeh_worker_reports_on_nevaeh_os_agent_id"
+    t.index ["user_id", "nevaeh_os_agent_id", "capability", "site_key"], name: "idx_nevaeh_worker_report_context"
+    t.index ["user_id"], name: "index_nevaeh_worker_reports_on_user_id"
+  end
+
   create_table "nevaeh_workflow_runs", force: :cascade do |t|
     t.bigint "nevaeh_workflow_id", null: false
     t.bigint "actor_id", null: false
@@ -5492,6 +5522,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_001500) do
   add_foreign_key "nevaeh_watch_events", "nevaeh_watchers"
   add_foreign_key "nevaeh_watchers", "nevaeh_os_agents"
   add_foreign_key "nevaeh_watchers", "users"
+  add_foreign_key "nevaeh_worker_report_reviews", "nevaeh_worker_reports"
+  add_foreign_key "nevaeh_worker_report_reviews", "users"
+  add_foreign_key "nevaeh_worker_reports", "nevaeh_agent_runs"
+  add_foreign_key "nevaeh_worker_reports", "nevaeh_os_agents"
+  add_foreign_key "nevaeh_worker_reports", "users"
   add_foreign_key "nevaeh_workflow_runs", "nevaeh_workflows"
   add_foreign_key "nevaeh_workflow_runs", "users", column: "actor_id"
   add_foreign_key "nevaeh_workflows", "users", column: "creator_id"

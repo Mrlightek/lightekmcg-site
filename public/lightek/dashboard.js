@@ -1,5 +1,53 @@
 (() => {
   document.documentElement.classList.add("dd-enhanced");
+  function setupToolSearch() {
+    const input = document.querySelector('[data-tool-search]');
+    if (!input || input.dataset.ready) return;
+    input.dataset.ready = 'true';
+    input.closest('[data-navigation-search]').hidden = false;
+    const groups = [...document.querySelectorAll('[data-tool-group]')];
+    const empty = document.querySelector('[data-tool-empty]');
+    let previous = null;
+    const filter = () => {
+      const query = input.value.trim().toLocaleLowerCase();
+      if (query && !previous) previous = groups.map(group => group.open);
+      let matches = 0;
+      groups.forEach((group, index) => {
+        let count = 0;
+        group.querySelectorAll('[data-tool-link]').forEach(link => {
+          const found = !query || link.textContent.toLocaleLowerCase().includes(query);
+          link.hidden = !found;
+          if (found) count++;
+        });
+        group.hidden = count === 0;
+        matches += count;
+        if (query) group.open = count > 0;
+        else if (previous) group.open = previous[index];
+      });
+      if (!query) previous = null;
+      if (empty) empty.hidden = matches > 0;
+    };
+    const onKey = event => {
+      if (event.key === 'Escape' && input.value) {
+        event.stopPropagation();
+        input.value = '';
+        filter();
+      }
+    };
+    input.addEventListener('input', filter);
+    input.addEventListener('keydown', onKey);
+    document.addEventListener('turbo:before-cache', () => {
+      input.value = '';
+      filter();
+      input.removeEventListener('input', filter);
+      input.removeEventListener('keydown', onKey);
+      delete input.dataset.ready;
+    }, {once: true});
+    filter();
+  }
+  document.addEventListener('DOMContentLoaded', setupToolSearch);
+  document.addEventListener('turbo:load', setupToolSearch);
+  setupToolSearch();
   function setupDashboardNavigation() {
     const button = document.querySelector('[data-dashboard-menu]');
     const sidebar = document.getElementById('dd-primary-navigation');

@@ -1,4 +1,25 @@
 /* Shared administration chrome. Theme colors remain supplied by Dymond Theme. */
+.dd-dashboard [hidden] { display: none !important; }
+.dd-nav-search { padding: 8px; margin-bottom: 10px; }
+.dd-nav-search label { display: block; font-size: 12px; margin-bottom: 6px; color: var(--dd-text-secondary); }
+.dd-nav-search input { width: 100%; min-width: 0; min-height: 36px; padding: 7px 9px; border: 1px solid var(--dd-border); border-radius: 7px; background: var(--dd-input-bg, var(--dd-sidebar-bg)); color: var(--dd-text-primary); font: inherit; font-size: 12px; }
+.dd-nav-search input::placeholder { color: var(--dd-text-secondary); opacity: 1; }
+.dd-nav-group { border-bottom: 1px solid var(--dd-border); padding-bottom: 5px; }
+.dd-nav-group > summary.dd-nav-label { min-height: 40px; font-size: 11px; letter-spacing: .02em; text-transform: none; color: var(--dd-text-primary); }
+.dd-nav-group .dd-nav-item { margin-left: 6px; }
+.dd-nav-empty { padding: 8px; font-size: 12px; color: var(--dd-text-secondary); }
+.dd-task-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; margin: 20px 0; }
+.dd-task-card { display: flex; flex-direction: column; gap: 8px; padding: 20px; border: 1px solid var(--dd-border); border-radius: 12px; background: var(--dd-sidebar-bg); color: var(--dd-text-primary); text-decoration: none; min-width: 0; }
+.dd-task-card:hover { border-color: var(--dd-accent); }
+.dd-task-card strong { font-size: 15px; }
+.dd-task-card span, .dd-home-start p { font-size: 13px; line-height: 1.6; color: var(--dd-text-secondary); }
+.dd-home-sites { margin-bottom: 24px; }
+.dd-home-site { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 0; border-top: 1px solid var(--dd-border); }
+.dd-home-site > div { min-width: 0; overflow-wrap: anywhere; }
+.dd-home-site small { display: block; margin-top: 5px; color: var(--dd-text-secondary); }
+.dd-more-tools, .dd-home-operations { margin: 20px 0; padding: 14px 16px; border: 1px solid var(--dd-border); border-radius: 10px; }
+.dd-more-tools > summary, .dd-home-operations > summary { cursor: pointer; color: var(--dd-text-primary); font-size: 13px; font-weight: 600; }
+.dd-dashboard :where(.dd-task-card, .dd-nav-group summary, .dd-nav-search input, .dd-more-tools summary, .dd-home-operations summary):focus-visible { outline: 2px solid var(--dd-accent); outline-offset: 3px; }
 body.dd-dashboard {
   --dd-control-h: 36px;
   --dd-control-radius: 7px;

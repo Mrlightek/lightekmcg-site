@@ -122,6 +122,8 @@ Use **develop → release → main** for promotion. Run migrations and restart t
 
 Operator references: [deployment integration](docs/lightek_deployment_integration.md), [fleet updates](docs/customer_fleet_updates.md), [storage](docs/deployment-storage.md), [mail operations](docs/mail/operations.md), [room activation](docs/studio/session-rooms-and-audience.md) and [Connect rollout](docs/integrations/lightek-connect.md).
 
+Install Lightek Connect for WordPress directly from **Dashboard → Lightek Connect → Download WordPress plugin**, then upload and activate the ZIP in WordPress. The same screen manages pairing, Shopify app setup and isolated WordPress testing. Temporary connector outages preserve existing connections and offer retry. Real installation/client-management acceptance and marketplace distribution remain separate rollout checks in the Connect guide.
+
 ## Validation and release evidence
 
 Run the relevant module's acceptance commands from its guide. The installed application's standard Rails checks remain available:

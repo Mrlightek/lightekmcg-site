@@ -2,9 +2,14 @@ class Dashboard::ConnectController < ApplicationController
   layout "dymond_dash/layouts/dymond_dash"
   protect_from_forgery with: :exception
   before_action { head :forbidden unless current_user&.role.in?(%w[white_label super_admin]) }
+  before_action { response.headers["Cache-Control"] = "no-store" }
   before_action :load_sandboxes, only: %i[index create]
   def index
     @connections = LightekConnect::Connection.where(user: current_user).order(id: :desc)
+  end
+  def wordpress_download
+    send_data LightekConnect::WordpressPackage.build, filename: "lightek-connect-wordpress.zip",
+      type: "application/zip", disposition: "attachment"
   end
   def create
     @connection, @code = LightekConnect::Connection.issue!(user: current_user, platform: params.require(:platform), label: params.require(:label))

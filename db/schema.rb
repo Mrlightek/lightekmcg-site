@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_010000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4399,6 +4399,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_010000) do
     t.jsonb "evidence", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "structured_result", default: {}, null: false
     t.index ["nevaeh_agent_run_id"], name: "index_nevaeh_worker_reports_on_nevaeh_agent_run_id", unique: true
     t.index ["nevaeh_os_agent_id"], name: "index_nevaeh_worker_reports_on_nevaeh_os_agent_id"
     t.index ["user_id", "nevaeh_os_agent_id", "capability", "site_key"], name: "idx_nevaeh_worker_report_context"

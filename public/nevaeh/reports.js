@@ -2,11 +2,14 @@
 (()=>{
   const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
   let root,select,list,notice,signature='',loading=false;
+  const openPanels=new Set();
+  function disclosure(report,kind){const item=node('details');item.dataset.reportPanel=report.id+':'+kind;item.open=openPanels.has(item.dataset.reportPanel);return item;}
   function field(label,input){const row=node('label');row.className='workforce-field';row.append(node('span',label),input);return row;}
   function render(data){
     const next=JSON.stringify(data);if(next===signature)return;
     // Preserve feedback being composed during background refreshes.
     if(list.contains(document.activeElement))return;
+    for(const item of list.querySelectorAll('details[data-report-panel]')){if(item.open)openPanels.add(item.dataset.reportPanel);else openPanels.delete(item.dataset.reportPanel);}
     signature=next;list.replaceChildren();
     list.append(node('p',data.scope),node('p',data.learning));
     for(const report of data.reports||[]){
@@ -14,12 +17,12 @@
       card.append(node('h3','#'+report.id+' · '+report.agent),node('p',report.capability+' · '+report.status+' · application '+report.site));
       card.append(node('p',report.review?'Owner review: '+report.review.verdict:'No current owner review. Service completion does not establish output quality.'));
       if(report.review?.lesson)card.append(node('p',report.review.lesson));
-      if(report.review_history?.length){const history=node('details');history.append(node('summary','Review history ('+report.review_count+' total; latest 10)'));for(const review of report.review_history)history.append(node('p',review.created_at+' · '+review.verdict+': '+review.lesson));card.append(history);}
-      if(report.structured_report){const structured=node('details');structured.append(node('summary','Worker JSON report · schema v'+report.structured_report.schema_version),node('pre',JSON.stringify(report.structured_report,null,2)));card.append(structured);}
-      const evidence=node('details');evidence.append(node('summary','Execution evidence and references'),node('pre',JSON.stringify(report.evidence,null,2)));card.append(evidence);
+      if(report.review_history?.length){const history=disclosure(report,'history');history.append(node('summary','Review history ('+report.review_count+' total; latest 10)'));for(const review of report.review_history)history.append(node('p',review.created_at+' · '+review.verdict+': '+review.lesson));card.append(history);}
+      if(report.structured_report){const structured=disclosure(report,'structured');structured.append(node('summary','Worker JSON report · schema v'+report.structured_report.schema_version),node('pre',JSON.stringify(report.structured_report,null,2)));card.append(structured);}
+      const evidence=disclosure(report,'evidence');evidence.append(node('summary','Execution evidence and references'),node('pre',JSON.stringify(report.evidence,null,2)));card.append(evidence);
       if(report.evidence.action_id){const link=node('a','Open actual execution receipt');link.href='/dashboard/nevaeh/actions/'+report.evidence.action_id;link.target='_blank';link.rel='noopener';card.append(link);}
       if(report.status!=='pending'){
-        const details=node('details');details.append(node('summary','Review result or teach this specialist'));
+        const details=disclosure(report,'review');details.append(node('summary','Review result or teach this specialist'));
         const form=node('form'),verdict=node('select');verdict.setAttribute('aria-label','Review verdict for report '+report.id);
         const options=report.status==='completed'?['accepted','needs_fix','rejected','withdrawn']:['needs_fix','rejected','withdrawn'];
         for(const value of options)verdict.add(new Option(value.replaceAll('_',' '),value));

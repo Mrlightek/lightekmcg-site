@@ -32,6 +32,15 @@ class NevaehWorkforceGoalChecks < NevaehOsTest
     assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::Workforce.remove_agent!(@other,sage.id) }
     assert_raises(ArgumentError) { NevaehOs::Workforce.remove_agent!(@actor,NevaehOsAgent.find_by!(user:@actor,system_key:'nevaeh').id) }
   end
+  def test_directory_exposes_registered_examples_for_connected_actions
+    rows=NevaehOs::Workforce.rows(@actor)
+    capabilities=rows.flat_map { |row| row[:capabilities] }
+    refute_empty capabilities
+    catalog=NevaehOs::Guide.catalog(actor:@actor).index_by { |entry| entry[:key] }
+    capabilities.each do |capability|
+      assert_equal catalog.fetch(capability[:key])[:example],capability[:example]
+    end
+  end
   def test_deletion_stops_future_runs_and_keeps_actual_execution_history
     agent=NevaehOs::Agents.resolve!('sage',@actor)
     result=NevaehOs::AgentWorkforce.create!(actor:@actor,command:{'agent_ref'=>'sage','command'=>command('/create agents {"name":"Job child"}')},key:'delegated-task')

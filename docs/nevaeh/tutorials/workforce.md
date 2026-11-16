@@ -102,3 +102,5 @@ Page task forms delegate known services to their assigned specialists and retain
 The directory preserves expanded panels, task drafts and list position during background refreshes. Open **Manage specialist** for pause and delete controls. Open **Repeat on a schedule** for recurring work or **Plan several tasks** for a goal. Completed one-time tasks and completed/cancelled goals stay in expandable history; past reports remain under **Reports & history**.
 
 Use the named [specialist operational reviews](specialist_tasks.md) for website findings, sales follow-ups, accounting classification, payroll approval queues, fulfillment queues, onboarding/offboarding, saved server health and compliance-source freshness. Run them once or schedule them through the normal worker controls.
+
+For plain-language requests, follow-up answers, saved plans and reviewed interpretation examples, use [Ten tasks with conversational follow-through](ten_tasks.md). These extend the existing specialists and reporting path.

@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'ten_tasks'=>['Ten tasks, follow-up questions and reviewed learning','all'],
       'specialist_tasks'=>['Scheduled specialist operational reviews','all'],
       'reporting_system'=>['Structured reporting convention and documentation-page SMEs','all'],
       'worker_reports'=>['SME reports, lessons and management experience','all'],

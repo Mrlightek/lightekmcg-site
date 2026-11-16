@@ -7,6 +7,7 @@ module NevaehOs
       authorize_command!(actor:action.user.reload,command:action.command)
     end
     def authorize_command!(actor:,command:)
+      TaskCatalog.guard!(command) if command['task_contract']
       Array(command['report_dependencies']).each { |dependency| WorkerReports.resolve!(actor:actor,dependency:dependency) }
       DocumentationWorkers.read!(actor:actor,command:command) if command['documentation_contract']
       PageWorkers.guard!(actor,command) if defined?(PageWorkers)

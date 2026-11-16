@@ -12,6 +12,10 @@ module NevaehIntelligences
         raise ArgumentError, 'Review and approve this dataset before training' unless dataset.status == 'approved' && dataset.valid?
         Islamic::Corpus.verify_dataset!(dataset) if dataset.provenance['source'] == 'islamic_library'
         Manuals.verify_dataset!(dataset) if dataset.provenance['source'] == 'installed_manuals'
+        if dataset.provenance['source']=='ten_task_interpretation'
+          NevaehOs::TaskLearning.verify_dataset!(dataset)
+          raise ArgumentError,'Account task examples require an internal model owned by this training actor' unless model.visibility=='internal' && dataset.creator_id==actor.id
+        end
         raise ArgumentError, 'Installed operational manuals require an internal model' if dataset.provenance['source'] == 'installed_manuals' && model.visibility != 'internal'
         if learning_plan
           unless learning_plan.status == 'running' && learning_plan.actor_id == actor.id && learning_plan.language_model_id == model.id && learning_plan.dataset_ids[learning_plan.position] == dataset.id
@@ -55,12 +59,17 @@ module NevaehIntelligences
           raise ArgumentError, 'Dataset approval changed; request training again after review' unless run.nevaeh_training_dataset.reload.status == 'approved' && Digest::SHA256.hexdigest(CanonicalJson.dump(run.nevaeh_training_dataset.examples)) == run.snapshot['dataset_sha256']
           Islamic::Corpus.verify_dataset!(run.nevaeh_training_dataset) if run.snapshot.dig('provenance', 'source') == 'islamic_library'
           Manuals.verify_dataset!(run.nevaeh_training_dataset) if run.snapshot.dig('provenance', 'source') == 'installed_manuals'
+          if run.snapshot.dig('provenance','source')=='ten_task_interpretation'
+            NevaehOs::TaskLearning.verify_dataset!(run.nevaeh_training_dataset)
+            raise ArgumentError,'Task training account or model visibility changed' unless run.nevaeh_language_model.visibility=='internal' && run.nevaeh_training_dataset.creator_id==run.actor_id
+          end
           raise ArgumentError, 'Operational manual training requires an internal model' if run.snapshot.dig('provenance', 'source') == 'installed_manuals' && run.nevaeh_language_model.reload.visibility != 'internal'
           LearningPlans.guard!(run) if run.snapshot['learning_plan_id']
           deadline = Islamic::Study.guard_training!(run) if run.snapshot['study_session_id']
           run.update!(status: 'running', started_at: Time.current, heartbeat_at: Time.current, lease_token: token, error: nil)
         end
-        train, heldout = split(run.snapshot.fetch('examples'))
+        task_interpreter=run.snapshot.dig('provenance','source')=='ten_task_interpretation'
+        train, heldout = task_interpreter ? NevaehOs::TaskLearning.split(run.snapshot.fetch('examples')) : split(run.snapshot.fetch('examples'))
         token_count = train.sum { |row| [Network.tokens(row.fetch('response')).length, 64].min + 1 }
         raise ArgumentError, 'Dataset exceeds 12,000 training response tokens; split it into smaller datasets' if token_count > 12000
         parent = run.snapshot['parent_checkpoint_id'] && NevaehLanguageCheckpoint.find(run.snapshot['parent_checkpoint_id'])
@@ -75,6 +84,8 @@ module NevaehIntelligences
         raise ArgumentError, 'No training examples remain after held-out isolation' if train.empty?
         settings = {examples: train, hidden_size: run.snapshot.fetch('hidden_size'), vocabulary_limit: run.snapshot.fetch('vocabulary_limit')}
         network = parent ? Network.continue(state: parent.weights, **settings) : Network.build(**settings)
+        task_head=TaskHead.build(examples:train,labels:NevaehOs::TaskCatalog.keys) if task_interpreter
+        initial_task_loss=task_head&.epoch(train)
         initial = network.epoch(train); initial_validation = network.epoch(heldout)
         initial_retention = network.epoch(retention) unless retention.empty?
         losses = []; started = Process.clock_gettime(Process::CLOCK_MONOTONIC); window_ended = false
@@ -95,6 +106,7 @@ module NevaehIntelligences
           break if Process.clock_gettime(Process::CLOCK_MONOTONIC) - started > 90
           begin
             loss = network.epoch(train, learning_rate: 0.08, seed: epoch, before_step: study_guard)
+            task_head&.epoch(train,learning_rate:0.3,seed:epoch)
           rescue StudyWindowEnded
             window_ended = true
             break
@@ -107,6 +119,7 @@ module NevaehIntelligences
         retention_loss = network.epoch(retention) unless retention.empty?
         response_ids = train.flat_map { |row| network.encode(row['response']).first(64) }
         training_coverage = 1.0 - response_ids.count(0).fdiv([response_ids.length, 1].max)
+        network.state['task_head']=task_head.state if task_head
         network.validate!
         metrics = {'initial_loss' => initial, 'training_loss' => final, 'initial_validation_loss' => initial_validation, 'validation_loss' => validation,
           'epochs_completed' => losses.length, 'requested_epochs' => run.epochs, 'loss_history' => losses, 'training_examples' => train.length, 'heldout_examples' => heldout.length,
@@ -123,6 +136,15 @@ module NevaehIntelligences
         passed = losses.any? && final.finite? && validation.finite? && final < initial && validation <= initial_validation + 0.25
         passed &&= training_coverage >= 0.95
         passed &&= retention_loss.finite? && retention_loss <= initial_retention + 0.25 if initial_retention
+        if task_interpreter
+          correct=heldout.count { |row| network.rank_labels(prompt:row.fetch('prompt'),labels:NevaehOs::TaskCatalog.keys).first&.fetch('label')==row.fetch('response') }
+          metrics['initial_task_loss']=initial_task_loss
+          metrics['task_training_loss']=task_head.epoch(train)
+          metrics['task_validation_loss']=task_head.epoch(heldout)
+          metrics['task_label_accuracy']=correct.fdiv(heldout.size)
+          metrics['task_label_heldout_examples']=heldout.size
+          passed &&= heldout.size==10 && metrics['task_label_accuracy']>=0.8
+        end
         metrics['acceptance_passed'] = passed
         run.with_lock do
           raise Cancelled, 'Training cancelled or lease replaced' unless run.status == 'running' && run.lease_token == token

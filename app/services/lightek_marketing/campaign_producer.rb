@@ -93,7 +93,7 @@ module LightekMarketing
       artifact = operation.artifacts.where(kind: 'video').order(:id).last if operation.status == 'completed'
       links = [{'label'=>'Open editable Studio production', 'url'=>"/dashboard/studio-broadcasting/workspace/#{scene_id}?site_id=#{site_id}&workspace=timeline"}, {'label'=>'Review campaign copy', 'url'=>"/dashboard/marketing/campaigns/#{operation.metadata.fetch('campaign_id')}/edit?site_id=#{site_id}"}]
       links << {'label'=>'Watch private draft preview', 'url'=>Rails.application.routes.url_helpers.rails_blob_path(artifact.file, only_path: true)} if artifact&.file&.attached?
-      {'operation_id'=>operation.id, 'production_id'=>operation.production_id, 'scene_id'=>scene_id, 'campaign_id'=>operation.metadata['campaign_id'], 'status'=>operation.status, 'error'=>operation.error_message, 'plan'=>operation.manifest.fetch('campaign_plan'), 'links'=>links,
+      {'operation_id'=>operation.id, 'site_id'=>site_id, 'production_id'=>operation.production_id, 'scene_id'=>scene_id, 'campaign_id'=>operation.metadata['campaign_id'], 'status'=>operation.status, 'error'=>operation.error_message, 'plan'=>operation.manifest.fetch('campaign_plan'), 'links'=>links,
         'text'=>"Campaign production ##{operation.id}: #{operation.status}. #{operation.status == 'completed' ? 'The worker assembled' : 'The worker prepares'} script, storyboard, graphics, music and captions in Studio. This is a private draft. Use /campaign status #{operation.id} for the preview or /campaign retry #{operation.id} after a failure. Review and publishing remain separate."}
     end
   end

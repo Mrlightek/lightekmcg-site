@@ -16,7 +16,12 @@ class Dashboard::ServerInstancesController < ApplicationController
   def hosting
     Gatekeeper::Hosting::Access.nodes(current_user)
     @packages = HostingPackage.available.includes(:product).order(:id)
-    @hosting_owners = User.where(id: Gatekeeper::Hosting::Access.account_ids(current_user)).order(:email_address)
+    @hosting_owners = if Gatekeeper::Hosting::Access.super_admin?(current_user)
+      User.order(:email_address)
+    else
+      User.where(id: Gatekeeper::Hosting::Access.account_ids(current_user)).order(:email_address)
+    end
+    @hosting_owner = params[:hosting_owner_id].present? ? @hosting_owners.find(params[:hosting_owner_id]) : current_user
   end
 
   def show

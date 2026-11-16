@@ -13,9 +13,11 @@ class NevaehLanguageBinding < ApplicationRecord
     end
   end
   before_update do
-    self.status = 'draft' if %w[patterns slots command_template source_refs].any? { |field| will_save_change_to_attribute?(field) }
+    self.status = 'draft' if %w[patterns slots command_template source_refs builder_spec].any? { |field| has_attribute?(field) && will_save_change_to_attribute?(field) }
   end
   def fingerprint
-    Digest::SHA256.hexdigest(NevaehIntelligences::CanonicalJson.dump({patterns: patterns, slots: slots, command: command_template, sources: source_refs, contract_sha256: contract_sha256}))
+    data = {patterns: patterns, slots: slots, command: command_template, sources: source_refs, contract_sha256: contract_sha256}
+    data[:builder_spec] = builder_spec if has_attribute?(:builder_spec) && builder_spec.present?
+    Digest::SHA256.hexdigest(NevaehIntelligences::CanonicalJson.dump(data))
   end
 end

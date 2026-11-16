@@ -147,6 +147,7 @@ class NevaehWorkerReportChecks < NevaehPageWorkerChecks
     model=Object.new
     model.define_singleton_method(:id) { 23 }
     model.define_singleton_method(:available_to?) { |_actor| true }
+    model.define_singleton_method(:active_checkpoint) { nil }
     model.define_singleton_method(:neural_reply) { |**args| prompt=args[:prompt];{'text'=>'Check the conversation list.','checkpoint_id'=>7} }
     relation=Object.new
     relation.define_singleton_method(:where) { |*| relation }

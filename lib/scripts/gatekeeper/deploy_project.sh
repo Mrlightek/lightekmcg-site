@@ -92,6 +92,22 @@ python3 "${APP_ROOT}/lib/scripts/setup_studio_spatial.py" --app-root "$APP_ROOT"
 echo "[storage] Retain space for migrations, assets and application startup"
 python3 "${APP_ROOT}/lib/scripts/deployment_storage.py" --app-root "$APP_ROOT"
 
+# Quiesce consumers and web writes before data/schema migrations. systemctl
+# stop waits for the service's graceful shutdown; queued jobs remain durable.
+# On failure, leave workers stopped rather than run mixed code/schema versions.
+echo "[maintenance] Stop workers and web writes for report backfill"
+if systemctl cat "${SIDEKIQ_SERVICE}" >/dev/null 2>&1; then
+  systemctl stop "${SIDEKIQ_SERVICE}"
+  if systemctl is-active --quiet "${SIDEKIQ_SERVICE}"; then
+    echo "ERROR: workers are still active; refusing migration" >&2
+    exit 1
+  fi
+fi
+systemctl stop "${APACHE_SERVICE}"
+if systemctl cat "${APP_NAME}-cable.service" >/dev/null 2>&1; then
+  systemctl stop "${APP_NAME}-cable.service"
+fi
+
 echo "[3/8] Migrate"
 run_rails "bundle exec rails db:migrate"
 if [[ -f "$APP_ROOT/lib/scripts/refresh_lightek_mail_helpers.sh" ]]; then
@@ -111,25 +127,12 @@ run_rails "bundle exec rails assets:precompile"
 echo "[5/8] Zeitwerk / boot validation"
 run_rails "bundle exec rails zeitwerk:check"
 
-echo "[6/8] Sidekiq"
-if [[ -f "${APP_ROOT}/lib/scripts/gatekeeper/${SIDEKIQ_SERVICE}.service" ]]; then
-  cp "${APP_ROOT}/lib/scripts/gatekeeper/${SIDEKIQ_SERVICE}.service" "/etc/systemd/system/${SIDEKIQ_SERVICE}.service"
-  systemctl daemon-reload
-  systemctl enable "${SIDEKIQ_SERVICE}"
-fi
-systemctl restart "${SIDEKIQ_SERVICE}"
-systemctl is-active --quiet "${SIDEKIQ_SERVICE}"
-
-echo "[cable] Refresh installed standalone WebSocket backend"
-if systemctl cat "${APP_NAME}-cable.service" >/dev/null 2>&1; then
-  systemctl restart "${APP_NAME}-cable.service"
-  systemctl is-active --quiet "${APP_NAME}-cable.service"
-  python3 "${APP_ROOT}/lib/scripts/lightek_cable_setup.py" --probe-backend
-fi
-
 echo "[7/8] Apache"
+if [[ -f "${APP_ROOT}/lib/scripts/prepare_apache_passenger_env.sh" ]]; then
+  bash "${APP_ROOT}/lib/scripts/prepare_apache_passenger_env.sh"
+fi
 apache2ctl configtest
-systemctl reload "${APACHE_SERVICE}"
+systemctl restart "${APACHE_SERVICE}"
 systemctl is-active --quiet "${APACHE_SERVICE}"
 # Apache reload can retire Passenger's control socket while this CLI connects.
 # Fall back to Passenger's restart marker; the health gate below still has to pass.
@@ -175,6 +178,22 @@ done
   echo "ERROR: healthcheck failed after ${HEALTH_ATTEMPTS} attempts"
   exit 1
 }
+
+echo "[workers] Start Sidekiq only after Rails boot and health acceptance"
+if [[ -f "${APP_ROOT}/lib/scripts/gatekeeper/${SIDEKIQ_SERVICE}.service" ]]; then
+  cp "${APP_ROOT}/lib/scripts/gatekeeper/${SIDEKIQ_SERVICE}.service" "/etc/systemd/system/${SIDEKIQ_SERVICE}.service"
+  systemctl daemon-reload
+  systemctl enable "${SIDEKIQ_SERVICE}"
+fi
+systemctl restart "${SIDEKIQ_SERVICE}"
+systemctl is-active --quiet "${SIDEKIQ_SERVICE}"
+
+echo "[cable] Refresh installed standalone WebSocket backend"
+if systemctl cat "${APP_NAME}-cable.service" >/dev/null 2>&1; then
+  systemctl restart "${APP_NAME}-cable.service"
+  systemctl is-active --quiet "${APP_NAME}-cable.service"
+  python3 "${APP_ROOT}/lib/scripts/lightek_cable_setup.py" --probe-backend
+fi
 
 # Optional library population runs only after the web application is healthy.
 # Demo imports can launch large Blender jobs; never start them during a normal

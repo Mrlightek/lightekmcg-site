@@ -131,8 +131,8 @@ jobs:
             SIDEKIQ_SERVICE=lightekmcg-site-sidekiq \
             ENV_FILE=/etc/lightek/lightekmcg-site.env \
             bash "$DEPLOY_SCRIPT"
-            bash /var/www/lightekmcg-site/lib/scripts/prepare_apache_passenger_env.sh
-            systemctl restart apache2
+            # deploy_project.sh prepares Passenger and health-checks Rails
+            # before it starts workers; do not restart Rails again afterward.
             systemctl is-active --quiet apache2
             curl --fail --silent --show-error --retry 8 --retry-connrefused --retry-delay 2 --max-time 20 https://lightekmcg.com/up -o /dev/null
           LIGHTEK_DEPLOY

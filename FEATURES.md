@@ -406,7 +406,7 @@ See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md)
 
 | Capability | Implemented behavior |
 | --- | --- |
-| Workforce directory | 27 default specialist roles with departments, responsibilities, task templates, connected-contract inventory and visible connection gaps. Existing customizations remain. |
+| Workforce directory | 28 default specialist roles with departments, responsibilities, task templates, connected-contract inventory and visible connection gaps. Existing customizations remain. |
 | Delegation & removal | One-time or scheduled assigned tasks; role pause/delete and task deletion retain history and block undispatched runs. Deleted defaults do not reappear. |
 | Durable goals | Reviewable 1–12-step plans, specialist assignments, typed prior-output handoff, real downstream receipts, output expectations and pause/cancel/recovery without automatic replay of uncertain work. |
 | Expansion tasks | Capability/schema/page-area gap audits with engineering tickets, native manual import, phrase contract validation and existing construction-build/training workers. |

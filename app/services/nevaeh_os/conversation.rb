@@ -4,15 +4,19 @@ module NevaehOs
     def initialize(actor:, host: nil, origin: nil)
       @actor, @host, @origin = actor, host, origin
     end
-    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil)
+    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil, page_action: nil)
       @page_context=PageContext.normalize(page_context)
-      if PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i))
+      if !page_action && (task=PageWorkers.request_for(text,actor:@actor,context:@page_context))
+        return task if task['missing_inputs'].any?
+        page_action=task['page_task'].slice(:key,:fingerprint).merge(inputs:{})
+      end
+      if !page_action && (PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i)))
         return overview.merge('page_context'=>@page_context,'influences'=>[])
       end
-      if @page_context && PageContext.question?(text)
+      if !page_action && @page_context && PageContext.question?(text)
         return PageContext.help(@actor,@page_context,query:text).merge(status:'grounded',influences:[],page_context:@page_context)
       end
-      command = Command.parse(text)
+      command = page_action ? PageWorkers.prepare!(actor:@actor,context:@page_context,request:page_action) : Command.parse(text)
       persona=Agents.resolve!(agent.presence || 'nevaeh',@actor)
       language = if binding_id
         Language.bind!(binding_id: binding_id, fingerprint: binding_fingerprint, values: language_slots, actor: @actor, interval_minutes: interval_minutes, agent_ref: persona.id.to_s)
@@ -110,6 +114,7 @@ module NevaehOs
           search(command.fetch('query'), persona: persona)
         end
       else
+        Workforce.install!(@actor) if command['kind']=='agent_task' && command.dig('command','page_contract')
         action = Dispatch.submit!(actor: @actor, command: command, request_key: request_key)
         {'text'=>"Action ##{action.id} #{action.status == 'pending' ? 'queued through Gatekeeper and Dispatch' : action.status}. Execution receipts will appear here.", 'status'=>action.status,'action_id'=>action.id}
       end

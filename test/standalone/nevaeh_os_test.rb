@@ -119,6 +119,7 @@ require File.join(ROOT,'app/services/nevaeh_os/stage')
 require File.join(ROOT,'db/migrate/20261115235000_add_nevaeh_workforce_goals')
 AddNevaehWorkforceGoals.new.migrate(:up)
 %w[models/nevaeh_goal models/nevaeh_goal_step services/nevaeh_os/workforce services/nevaeh_os/goals services/nevaeh_os/improvements services/nevaeh_os/page_context].each { |file| require File.join(ROOT,'app',file) }
+require File.join(ROOT,'app/services/nevaeh_os/page_workers')
 module NevaehOs
   class GoalTickJob
     def self.perform_later(id) = id
@@ -832,7 +833,7 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 20,topics.size
+    assert_equal 21,topics.size
     assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'
     assert_includes topics.map { |topic| topic[:id] }, 'production_director'
     assert_includes topics.map { |topic| topic[:id] }, 'story_simulation'

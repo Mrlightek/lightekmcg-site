@@ -117,7 +117,7 @@ class Dashboard::NevaehOsController < ::ApplicationController
   end
   def ask
     render json: NevaehOs::Conversation.new(actor:current_user,host:request.host,origin:request.base_url).ask(text:NevaehOs::Stage.new(current_user).instruction(params.require(:q)),request_key:params.require(:request_key),agent:params[:agent],mode:params[:mode],
-      page_context:params[:page_context].respond_to?(:to_unsafe_h) ? params[:page_context].to_unsafe_h : nil,binding_id:params[:binding_id],binding_fingerprint:params[:binding_fingerprint],language_slots:params[:language_slots].respond_to?(:to_unsafe_h) ? params[:language_slots].to_unsafe_h : params[:language_slots],interval_minutes:params[:interval_minutes])
+      page_context:params[:page_context].respond_to?(:to_unsafe_h) ? params[:page_context].to_unsafe_h : nil,page_action:params[:page_action].respond_to?(:to_unsafe_h) ? params[:page_action].to_unsafe_h : nil,binding_id:params[:binding_id],binding_fingerprint:params[:binding_fingerprint],language_slots:params[:language_slots].respond_to?(:to_unsafe_h) ? params[:language_slots].to_unsafe_h : params[:language_slots],interval_minutes:params[:interval_minutes])
   end
   def download
     NevaehOs::UbuntuPackages.authorize!(current_user)

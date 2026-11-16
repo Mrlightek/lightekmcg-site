@@ -47,7 +47,16 @@ module NevaehOs
       Agents.authorize!(inner,actor)
       interval=command['interval_minutes']
       agent.update!(autonomy:'scheduled') if interval && agent.autonomy!='scheduled'
-      worker=NevaehAgentWorker.create!(user:actor,nevaeh_os_agent:agent,name:"#{agent.name}: #{Agents.capability(inner)}",command:inner,interval_minutes:interval)
+      worker=if inner['page_contract'] && !interval
+        context=inner['page_contract'].fetch('context')
+        name="#{PageContext.area(context)[2]} · #{Agents.capability(inner)}".first(160)
+        actor.with_lock do
+          same=NevaehAgentWorker.where(user:actor,nevaeh_os_agent:agent,name:name,deleted_at:nil,interval_minutes:nil).order(id: :desc).limit(100).detect { |row| row.command==inner }
+          same || NevaehAgentWorker.create!(user:actor,nevaeh_os_agent:agent,name:name,command:inner)
+        end
+      else
+        NevaehAgentWorker.create!(user:actor,nevaeh_os_agent:agent,name:"#{agent.name}: #{Agents.capability(inner)}",command:inner,interval_minutes:interval)
+      end
       if interval
         {'agent_worker_id'=>worker.id,'agent'=>agent.name,'next_run_at'=>worker.next_run_at,'status'=>'scheduled'}
       else

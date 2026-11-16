@@ -181,7 +181,7 @@ module Gatekeeper
   def self.authorize_capability!(**) = true
 end
 %w[nevaeh_os_action nevaeh_os_agent nevaeh_agent_worker nevaeh_agent_run nevaeh_capability].each { |file| require File.join(ROOT,"app/models/#{file}") }
-%w[agents executor dispatch worker receipts page_context workforce conversation guide].each { |file| require File.join(ROOT,"app/services/nevaeh_os/#{file}") }
+%w[agents executor dispatch worker receipts page_context page_workers workforce conversation guide].each { |file| require File.join(ROOT,"app/services/nevaeh_os/#{file}") }
 class CampaignProducerChecks
   def test_producer_conversation_uses_dispatch_receipts_and_planning_does_not_write
     phrase = 'make me a funny tiktok campaign ad promoting xyzzy service'

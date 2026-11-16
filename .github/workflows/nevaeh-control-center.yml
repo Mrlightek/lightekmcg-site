@@ -51,6 +51,22 @@ on:
 permissions:
   contents: read
 jobs:
+  page-workers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - name: Verify page contracts, specialist handoff and execution guards
+        run: bundle exec ruby test/standalone/nevaeh_page_worker_checks.rb --name '/NevaehPageWorkerChecks/'
+      - name: Verify workforce lifecycle and current-page context
+        run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
+
   voice-queue:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -111,6 +127,7 @@ jobs:
       - run: python3 -m unittest test.operations.nevaeh_rehearsal_paths_test
       - run: blender --background --factory-startup --python-exit-code 1 --python test/operations/studio_spatial_blender_checks.py
       - run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
+      - run: bundle exec ruby test/standalone/nevaeh_page_worker_checks.rb --name '/NevaehPageWorkerChecks/'
       - run: bundle exec ruby test/standalone/nevaeh_workforce_expansion_checks.rb --name '/NevaehWorkforceExpansionChecks/'
       - uses: actions/setup-python@v5
         with:
@@ -165,6 +182,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Exercise actual speech playback and mouth synchronization
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_voice_browser.cjs
+      - name: Exercise page-specialist task forms and delegation
+        run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_page_workers_browser.cjs
       - name: Exercise incremental authenticated HLS speech playback
         run: NODE_PATH="$RUNNER_TEMP/nevaeh-browser/node_modules" node test/standalone/nevaeh_playlist_browser.cjs
       - name: Exercise workforce, delegation, goals and removal

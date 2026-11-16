@@ -27,7 +27,7 @@ A role is a saved specialist identity, instructions and capability assignment. A
 | Commerce | Commerce Operator uses connected order, inventory, shipping and catalog operations. |
 | Legal & Compliance | Compliance Coordinator uses connected compliance capabilities and retains evidence. |
 
-There are 27 roles including Nevaeh. Existing names, instructions and assignments are preserved. A deleted role stays deleted; revisiting the directory does not silently restore it. **Task templates available** means an instruction template exists, not that every account or provider is configured. **Needs an executable adapter** identifies a role without a matching connected contract. Account permissions are checked when work is submitted and again when it executes.
+There are 28 roles including Nevaeh. Existing names, instructions and assignments are preserved. A deleted role stays deleted; revisiting the directory does not silently restore it. **Task templates available** means an instruction template exists, not that every account or provider is configured. **Needs an executable adapter** identifies a role without a matching connected contract. Account permissions are checked when work is submitted and again when it executes.
 
 ## Delegate work and manage the team
 
@@ -96,3 +96,5 @@ The assistant now uses [private local speech and audio-driven 2D mouth animation
 Apply migration `20261115235000_add_nevaeh_workforce_goals`; restart Rails and workers with the existing minute-based WorkflowSweepJob schedule. No extra hosted model is required. Goals use the default queue and existing agent/Dispatch workers.
 
 The standalone checks exercise persisted delegation, typed result handoff, failed output checks, source drift, compilation, manual import, pause/cancel/replay, deleted-role persistence, account isolation, CSRF and page context filtering. Browser fixtures cover role explanations, task/goal actions, deletion/cancel, page-aware assistant suggestions, portrait loading and mobile overflow. Provider-specific execution still requires its deployed account/runtime configuration.
+
+Page task forms delegate known services to their assigned specialists and retain the page/application contract with each saved instruction. See [Page specialists](page_workers.md) for current coverage and how Nevaeh coordinates their receipts.

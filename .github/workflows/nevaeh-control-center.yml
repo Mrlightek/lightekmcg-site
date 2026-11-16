@@ -68,6 +68,8 @@ jobs:
         run: bundle exec ruby test/standalone/nevaeh_worker_report_checks.rb --name '/NevaehWorkerReport/'
       - name: Verify JSON Schema, source rereads, manager journal and file ownership
         run: bundle exec ruby test/standalone/nevaeh_reporting_convention_checks.rb --name '/NevaehReportingConventionChecks/'
+      - name: Verify runtime UUID reservation and report reference parity
+        run: bundle exec ruby test/standalone/nevaeh_runtime_report_parity_checks.rb --name '/NevaehRuntimeReportParityChecks/'
       - name: Verify workforce lifecycle and current-page context
         run: bundle exec ruby test/standalone/nevaeh_workforce_goal_checks.rb --name '/NevaehWorkforce|NevaehPageContext/'
 

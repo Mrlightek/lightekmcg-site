@@ -64,27 +64,67 @@ module NevaehOs
       end
       read=run.snapshot['documentation_read']
       status='blocked' if status=='completed' && !read
-      dependencies=[]
-      if (step=NevaehGoalStep.find_by(nevaeh_agent_run_id:run.id))
-        dependencies=step.nevaeh_goal.steps.where('position < ?',step.position).where.not(nevaeh_agent_run_id:nil).order(:position).map do |previous|
-          source=previous.nevaeh_agent_run
-          raise ArgumentError,'Dependency belongs to another account' unless source.actor_id==run.actor_id
-          state=source.execution_status.to_s
-          state='pending' unless %w[completed failed blocked cancelled evidence_unavailable].include?(state)
-          {'task_id'=>"run-#{source.id}",'status'=>state}
-        end
-      end
-      value={'schema_version'=>1,'task_id'=>"run-#{run.id}",'worker_id'=>run.nevaeh_agent_worker_id,'account_id'=>run.actor_id,'status'=>status,
+      dependencies=dependencies_for(run)
+      status='blocked' if dependencies.any? { |dependency| dependency['status']!='accepted' }
+      value={'schema_version'=>2,'task_id'=>run.task_uuid,'worker_id'=>run.nevaeh_agent_worker_id,'account_id'=>run.actor_id,'status'=>status,
         'documentation'=>{'path'=>stamp.fetch('path'),'sha256'=>stamp.fetch('sha256'),'read_at'=>read&.fetch('read_at',nil)},
         'output'=>{'kind'=>'receipt_reference','action_id'=>run.nevaeh_os_action_id,'receipt_sha256'=>digest,
           'references'=>chain.map { |r| {'id'=>r['id'].is_a?(Integer) ? r['id'] : nil,'type'=>(r['type'] || r['kind'] || 'execution').to_s,'status'=>r['status'].to_s} }},
         'dependencies'=>dependencies,'file_ownership'=>{'workspace'=>'worker_workspace','write_files'=>stamp.fetch('write_files',[]),'report_writer'=>'manager'}}
       ReportSchema.validate!(value)
     end
+
+    def dependencies_for(run)
+      return run.snapshot['report_dependencies'] if run.snapshot.key?('report_dependencies')
+      # Historical queued runs did not freeze their dependency references.
+      # Resolve their actual prior runs; never interpret absent metadata as
+      # permission to skip dependencies after an upgrade.
+      step=NevaehGoalStep.find_by(nevaeh_agent_run_id:run.id)
+      return [] unless step
+      step.nevaeh_goal.steps.where('position < ?',step.position).order(:position).map do |previous|
+        source=previous.nevaeh_agent_run
+        raise ArgumentError,'Historical dependency has no reserved execution' unless source
+        begin
+          dependency_for!(actor:run.actor,run:source)
+        rescue ArgumentError,ActiveRecord::RecordNotFound
+          {'task_id'=>source.task_uuid,'report_ref'=>"unresolved:#{source.task_uuid}",'status'=>'blocked'}
+        end
+      end
+    end
     def journal_result!(report)
-      value=ReportJournal.read!(report.user)["run-#{report.nevaeh_agent_run_id}"]
+      value=ReportJournal.read!(report.user)[report.nevaeh_agent_run.task_uuid]
       raise ArgumentError,'The shared structured report is missing or does not match execution evidence' unless value && value==report.structured_result
       value
+    end
+
+    # 'completed' remains an execution lifecycle state. Only this boundary
+    # converts a verified upstream result to the dependency state 'accepted'.
+    def dependency_for!(actor:,run:)
+      raise ArgumentError,'Dependency belongs to another account' unless run && run.actor_id==actor.id
+      report=NevaehWorkerReport.find_by!(nevaeh_agent_run:run,user:actor)
+      dependency={'task_id'=>run.task_uuid,
+        'report_ref'=>ReportJournal.reference(actor_id:actor.id,task_id:run.task_uuid,receipt_sha256:report.receipt_sha256),
+        'status'=>'accepted'}
+      resolve!(actor:actor,dependency:dependency)
+      dependency
+    end
+
+    def resolve!(actor:,dependency:)
+      unless dependency.is_a?(Hash) && dependency.keys.sort==%w[report_ref status task_id] && dependency['status']=='accepted'
+        raise ArgumentError,'Dependency needs task_id, resolvable report_ref and accepted status'
+      end
+      value=ReportJournal.resolve!(actor:actor,report_ref:dependency['report_ref'])
+      raise ArgumentError,'Dependency identity or status mismatch' unless value['task_id']==dependency['task_id'] && value['status']=='completed'
+      run=NevaehAgentRun.find_by!(actor:actor,task_uuid:dependency['task_id'])
+      report=NevaehWorkerReport.find_by!(nevaeh_agent_run:run,user:actor)
+      raise ArgumentError,'Journal report does not match the stored execution report' unless report.status=='completed' && report.structured_result==value
+      DocumentationWorkers.read!(actor:actor,command:run.snapshot)
+      raise ArgumentError,'The referenced action is unavailable' unless run.nevaeh_os_action && run.nevaeh_os_action_id==value.dig('output','action_id')
+      receipt=Receipts.for(run.nevaeh_os_action.reload)
+      unless PageWorkers.digest(receipt)==value.dig('output','receipt_sha256')
+        raise ArgumentError,'The referenced execution receipt changed'
+      end
+      receipt.deep_stringify_keys
     end
 
     def sweep!(actor: nil, limit: 100)
@@ -107,6 +147,7 @@ module NevaehOs
     def row(report)
       review = latest_review(report)
       {id: report.id, agent_id: report.nevaeh_os_agent_id, agent: report.nevaeh_os_agent.name,
+        report_ref:ReportJournal.reference(actor_id:report.user_id,task_id:report.nevaeh_agent_run.task_uuid,receipt_sha256:report.receipt_sha256),
         capability: report.capability, site: report.site_key, status: report.status,
         structured_report:journal_result!(report), evidence: report.evidence, receipt_sha256: report.receipt_sha256,
         review: review&.attributes&.slice('id', 'verdict', 'lesson', 'created_at'),

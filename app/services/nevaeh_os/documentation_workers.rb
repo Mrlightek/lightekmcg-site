@@ -6,7 +6,7 @@ module NevaehOs
       'build'=>'factory','activate'=>'factory','train'=>'training','checkpoint'=>'training','approve'=>'training',
       'learn'=>'training','review'=>'training','model'=>'training','improve'=>'workforce','ticket'=>'agents',
       'run'=>'agents','worker_status'=>'agents','project'=>'factory','forget'=>'memory'}.freeze
-    IGNORED=%w[documentation_contract documentation_read manager_context experience_contract].freeze
+    IGNORED=%w[documentation_contract documentation_read manager_context experience_contract report_dependencies].freeze
     module_function
     def instruction_digest(command) = PageWorkers.digest(command.except(*IGNORED))
     def bind!(actor:, command:)

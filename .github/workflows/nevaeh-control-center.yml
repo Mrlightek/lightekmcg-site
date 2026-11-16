@@ -142,7 +142,7 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: docker/studio-media/voice/requirements.txt
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: /tmp/lightek-voice-models
           key: kokoro-v1-int8-ae315a79-voices-bca610b8

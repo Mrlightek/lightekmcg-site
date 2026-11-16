@@ -1,6 +1,94 @@
-<% content_for :page_title, "Agency workspace" %><%= render "dashboard/infrastructure/styles" %>
-<main class="infra"><header class="infra-hero"><div><span class="infra-eyebrow">Agency / White label</span><h1>Your brand. Your clients.</h1><p>Manage your agency identity, client accounts, websites and commerce.</p></div><%= link_to "Hosting plans", hosting_dashboard_servers_path, class: "infra-button infra-button-primary" %></header>
-<section class="infra-panel"><p><%= link_to "Agency onboarding & offboarding", dashboard_lifecycle_path(employer_id: current_user.id), class: "infra-button" %></p><h2>Enable a white label account</h2><%= form_with url: dashboard_agencies_path, class: "infra-form" do |f| %><div class="infra-fields"><div class="infra-field"><%= f.label :user_id, "Existing client account" %><%= f.collection_select :user_id, (current_user.role == "super_admin" ? User.where(role: "client") : current_user.agency_clients.where(role: "client")).order(:email_address), :id, :email_address %></div><div class="infra-field"><%= f.label :brand_name %><%= f.text_field :brand_name, required: true %></div></div><%= f.submit "Enable agency", class: "infra-button" %><% end %></section>
-<% @agencies.each do |agency| %><section class="infra-panel"><h2><%= agency.agency_profile&.brand_name || agency.email_address %></h2><p><%= agency.email_address %></p><%= form_with scope: :agency_profile, url: dashboard_agency_path(agency), method: :patch, class: "infra-form" do |f| %><div class="infra-fields"><% [:brand_name, :logo_url, :support_email, :accent_color].each do |field| %><div class="infra-field"><%= f.label field %><%= f.text_field field, value: agency.agency_profile&.public_send(field), required: field == :brand_name %></div><% end %></div><%= f.submit "Save branding", class: "infra-button" %><% end %>
-<% if current_user.role == "super_admin" || agency.agency_id == current_user.id %><%= form_with url: update_terms_dashboard_agency_path(agency), method: :patch, class: "infra-form" do |f| %><div class="infra-field"><%= f.label :upstream_share_bps, "Upstream share on this account and its descendants' sales (basis points; 500 = 5%)" %><%= f.number_field :upstream_share_bps, value: agency.upstream_share_bps, min: 0, max: 10000, required: true %><small>Recipient: <%= agency.agency&.email_address || "No upstream account" %>. Applies to merchandise subtotal, excluding tax and shipping. Hosting prices are separate.</small></div><%= f.submit "Save sale revenue terms", class: "infra-button" %><% end %><% end %>
-<h3>Direct subaccounts</h3><% agency.agency_clients.order(:email_address).each do |client| %><p><%= client.full_name %> · <%= client.email_address %></p><% if client.password_setup_required? %><%= button_to "Send setup invitation", send_setup_invitation_dashboard_agency_path(agency), params: {client_id: client.id}, method: :post, class: "infra-button" %><% end %><% end %><%= form_with scope: :client, url: create_client_dashboard_agency_path(agency), class: "infra-form" do |f| %><div class="infra-fields"><% [:first_name, :last_name, :email_address].each do |field| %><div class="infra-field"><%= f.label field %><%= f.text_field field, required: true %></div><% end %></div><%= f.submit "Create client account", class: "infra-button" %><% end %></section><% end %></main>
+<% content_for :page_title, "Clients & agencies" %>
+<%= render "dashboard/infrastructure/styles" %>
+<%= stylesheet_link_tag '/lightek/agency-workspace.css' %>
+<main class="infra agency-workspace">
+  <header class="infra-hero">
+    <div><span class="infra-eyebrow">Agency workspace</span><h1>Your clients, ready for business.</h1><p>Create a client account, choose hosting and follow their setup from one place.</p></div>
+    <% if @agency %><%= link_to 'Add a client', '#new-client', class: 'infra-button infra-button-primary' %><% end %>
+  </header>
+  <% if @agencies.size > 1 %>
+    <section class="infra-panel">
+      <%= form_with url: dashboard_agencies_path, method: :get, class: 'agency-switch' do |f| %>
+        <div class="infra-field"><%= f.label :agency_id, 'Working agency' %><%= f.collection_select :agency_id, @agencies, :id, :email_address, selected: @agency&.id %></div>
+        <%= f.submit 'Open agency', class: 'infra-button' %>
+      <% end %>
+    </section>
+  <% end %>
+  <% if @agency %>
+    <section class="infra-panel" id="new-client" aria-labelledby="new-client-title">
+      <div class="infra-panel-header"><div><h2 id="new-client-title">Add a client</h2><p><%= @agency.agency_profile&.brand_name || @agency.email_address %> · The client receives a private password setup invitation.</p></div></div>
+      <%= form_with scope: :client, url: create_client_dashboard_agency_path(@agency), class: 'infra-form' do |f| %>
+        <div class="infra-fields">
+          <div class="infra-field"><%= f.label :first_name, 'First name' %><%= f.text_field :first_name, required: true, autocomplete: 'given-name' %></div>
+          <div class="infra-field"><%= f.label :last_name, 'Last name' %><%= f.text_field :last_name, required: true, autocomplete: 'family-name' %></div>
+          <div class="infra-field"><%= f.label :email_address, 'Email address' %><%= f.email_field :email_address, required: true, autocomplete: 'email' %></div>
+        </div>
+        <%= f.submit 'Create client & continue', class: 'infra-button infra-button-primary' %>
+      <% end %>
+    </section>
+    <% if @selected_client %>
+      <section class="infra-panel" id="client-setup" aria-labelledby="client-setup-title">
+        <div class="infra-panel-header"><div><h2 id="client-setup-title"><%= @selected_client.full_name %></h2><p><%= @selected_client.email_address %></p></div></div>
+        <ol class="agency-steps">
+          <li><h3>Account & invitation</h3>
+            <% if @selected_client.password_setup_required? %>
+              <p>Password setup is pending. If the invitation has not arrived, send it again.</p>
+              <%= button_to 'Send setup invitation', send_setup_invitation_dashboard_agency_path(@agency), params: {client_id: @selected_client.id}, method: :post, class: 'infra-button' %>
+            <% else %><p>The client has chosen a password. Sign-in security is managed in their account.</p><% end %>
+          </li>
+          <li><h3>Choose hosting & launch</h3>
+            <% if @client_installations.empty? %>
+              <p>Choose a hosting plan for this client. Review pricing before subscribing; confirmed payment starts installation.</p>
+              <%= link_to 'Choose a hosting plan', hosting_dashboard_servers_path(hosting_owner_id: @selected_client.id), class: 'infra-button infra-button-primary' %>
+            <% else %><p>An installation is recorded below. Review its status before purchasing another plan.</p>
+              <details><summary>Need another installation?</summary><%= link_to 'Browse hosting plans', hosting_dashboard_servers_path(hosting_owner_id: @selected_client.id), class: 'infra-button' %></details>
+            <% end %>
+          </li>
+          <li><h3>Manage their business</h3>
+            <% if @client_sites.any? %>
+              <% @client_sites.each do |site| %><div class="agency-site"><div><strong><%= site.name %></strong><small><%= site.host %></small></div><%= link_to 'Open business workspace', dashboard_business_hub_path(site_id: site.id), class: 'infra-button' %></div><% end %>
+            <% else %><p>No website available to manage here yet. Follow the installation below, or choose hosting to get started.</p><% end %>
+          </li>
+        </ol>
+        <% if @client_installations.any? %>
+          <h3>Installation progress</h3>
+          <% @client_installations.each do |order, installation| %>
+            <div class="agency-site"><div><strong><%= installation[:hostname] %></strong><small><%= installation[:state].to_s.humanize %></small></div><%= link_to 'View installation', installation_path(order), class: 'infra-button' %></div>
+          <% end %>
+        <% end %>
+      </section>
+    <% end %>
+    <section class="infra-panel" aria-labelledby="agency-clients-title">
+      <div class="infra-panel-header"><div><h2 id="agency-clients-title">Your clients</h2><p>Open a client to continue setup or manage their websites.</p></div></div>
+      <%= form_with url: dashboard_agencies_path, method: :get, class: 'agency-switch' do |f| %>
+        <%= f.hidden_field :agency_id, value: @agency.id %>
+        <div class="infra-field"><%= f.label :q, 'Find a client by email' %><%= f.search_field :q, value: params[:q], maxlength: 100 %></div><%= f.submit 'Find client', class: 'infra-button' %>
+        <% if params[:q].present? %><%= link_to 'Clear search', dashboard_agencies_path(agency_id: @agency.id), class: 'infra-button' %><% end %>
+      <% end %>
+      <% @clients.each do |client| %>
+        <div class="agency-site"><div><strong><%= client.full_name %></strong><small><%= client.email_address %> · <%= client.password_setup_required? ? 'Password setup pending' : 'Password chosen' %></small></div><%= link_to 'Manage client', dashboard_agencies_path(agency_id: @agency.id, client_id: client.id, anchor: 'client-setup'), class: 'infra-button' %></div>
+      <% end %>
+      <% if @clients.empty? %><p><%= params[:q].present? ? 'No clients match that email. Try another search.' : 'No clients yet. Add your first client above.' %></p><% end %>
+      <% if @clients.size == 100 %><p>Showing up to 100 clients. Search by email to find a specific account.</p><% end %>
+    </section>
+    <details class="infra-panel agency-settings"><summary>Agency branding & settings</summary>
+      <h2>Branding</h2>
+      <%= form_with scope: :agency_profile, url: dashboard_agency_path(@agency), method: :patch, class: 'infra-form' do |f| %>
+        <div class="infra-fields"><% [:brand_name, :logo_url, :support_email, :accent_color].each do |field| %><div class="infra-field"><%= f.label field %><%= f.text_field field, value: @agency.agency_profile&.public_send(field), required: field == :brand_name %></div><% end %></div>
+        <%= f.submit 'Save branding', class: 'infra-button' %>
+      <% end %>
+      <div class="infra-actions"><% if @agency.id == current_user.id %><%= link_to 'Reseller packages', dashboard_reseller_packages_path, class: 'infra-button' %><% end %><%= link_to 'Client demos', dashboard_demos_path(agency_id: @agency.id), class: 'infra-button' %><%= link_to 'Onboarding & offboarding', dashboard_lifecycle_path(employer_id: @agency.id), class: 'infra-button' %></div>
+      <% if current_user.role == 'super_admin' || @agency.agency_id == current_user.id %>
+        <details><summary>Sales revenue terms</summary>
+          <%= form_with url: update_terms_dashboard_agency_path(@agency), method: :patch, class: 'infra-form' do |f| %><div class="infra-field"><%= f.label :upstream_share_bps, 'Upstream share (basis points; 500 = 5%)' %><%= f.number_field :upstream_share_bps, value: @agency.upstream_share_bps, min: 0, max: 10000, required: true %><small>Recipient: <%= @agency.agency&.email_address || 'No upstream account' %>. Applies to merchandise subtotal, excluding tax and shipping. Hosting prices are separate.</small></div><%= f.submit 'Save sales revenue terms', class: 'infra-button' %><% end %>
+        </details>
+      <% end %>
+    </details>
+  <% else %>
+    <section class="infra-panel"><h2>No agency accounts yet</h2><p>Enable an agency account below to start adding clients.</p></section>
+  <% end %>
+  <details class="infra-panel agency-settings"><summary>Enable another agency</summary>
+    <p>Use this when an existing client needs to operate their own agency.</p>
+    <%= form_with url: dashboard_agencies_path, class: 'infra-form' do |f| %><div class="infra-fields"><div class="infra-field"><%= f.label :user_id, 'Existing client account' %><%= f.collection_select :user_id, (current_user.role == 'super_admin' ? User.where(role: 'client') : current_user.agency_clients.where(role: 'client')).order(:email_address), :id, :email_address %></div><div class="infra-field"><%= f.label :brand_name %><%= f.text_field :brand_name, required: true %></div></div><%= f.submit 'Enable agency', class: 'infra-button' %><% end %>
+  </details>
+</main>

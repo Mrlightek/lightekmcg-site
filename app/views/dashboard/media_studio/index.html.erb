@@ -1,7 +1,7 @@
 <%= render "dashboard/shared/business_workspace", active: "Studio" %>
 <% content_for :page_title, "Media Studio" %>
 <%= stylesheet_link_tag "/lightek/broadcast/control.css?v=1" %>
-<%= stylesheet_link_tag "/lightek/media-control.css?v=20261114" %>
+<%= stylesheet_link_tag "/lightek/media-control.css?v=20261116-checkbox-contrast" %>
 <main class="media-control">
 <header class="mc-top"><span class="mc-brand">LIGHTEK / MEDIA STUDIO</span><nav><%= link_to "Live Studio",dashboard_live_path,class:"mc-button" %><% if @site %><%= link_to "Rooms & guests",dashboard_rooms_path(site_id:@site.id),class:"mc-button" %><%= link_to "New production",dashboard_studio_editor_new_path(kind:"video",site_id:@site.id),class:"mc-button mc-primary",data:{turbo:false} %><% end %></nav></header>
 <section class="mc-intro"><div><span class="mc-eyebrow">YOUR PRODUCTION DESKTOP</span><h1>Make something worth watching.</h1><p>Picture, color, music, characters and delivery. Open a production and stay in the same workspace from the first cut to the final master.</p></div><%= form_with url:dashboard_media_studio_path,method: :get,local:true,class:"mc-selector" do %><div class="mc-field"><%= label_tag :site_id, "Workspace" %><%= select_tag :site_id,options_from_collection_for_select(@sites,:id,:name,@site&.id),include_blank:"Choose application" %></div><%= submit_tag "Switch",class:"mc-button" %><% end %></section>

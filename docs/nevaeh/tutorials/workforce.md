@@ -100,3 +100,5 @@ The standalone checks exercise persisted delegation, typed result handoff, faile
 Page task forms delegate known services to their assigned specialists and retain the page/application contract with each saved instruction. See [Page specialists](page_workers.md) for current coverage and how Nevaeh coordinates their receipts.
 
 The directory preserves expanded panels, task drafts and list position during background refreshes. Open **Manage specialist** for pause and delete controls. Open **Repeat on a schedule** for recurring work or **Plan several tasks** for a goal. Completed one-time tasks and completed/cancelled goals stay in expandable history; past reports remain under **Reports & history**.
+
+Use the named [specialist operational reviews](specialist_tasks.md) for website findings, sales follow-ups, accounting classification, payroll approval queues, fulfillment queues, onboarding/offboarding, saved server health and compliance-source freshness. Run them once or schedule them through the normal worker controls.

@@ -5,7 +5,7 @@ module NevaehOs
     def parts(text)
       rest=text.strip;items=[]
       until rest.empty?
-        limit=120
+        limit=items.empty? ? 60 : 120
         if rest.length<=limit
           items<<rest;break
         end
@@ -38,6 +38,37 @@ module NevaehOs
       end
       rows<<'#EXT-X-ENDLIST' if %w[ready failed cancelled].include?(speech.status)
       rows.join("\n")+"\n"
+    end
+    def render_neural!(speech,root,cancel)
+      segments=speech.segments.to_a
+      publish=-> do
+        return if cancel.call
+        segments.each do |segment|
+          next if segment.status=='ready'
+          path=File.join(root,"part-#{segment.position}.json")
+          next unless File.file?(path)
+          raise ArgumentError,'Speech metadata is too large' if File.size(path)>64000
+          data=JSON.parse(File.read(path));duration=data.fetch('duration');frames=data.fetch('mouth_frames')
+          valid=duration.is_a?(Numeric) && duration.finite? && duration.between?(0.05,20) && frames.is_a?(Array) && frames.size.between?(1,510)
+          valid &&= frames.each_with_index.all? { |row,i| row['time'].is_a?(Numeric) && row['time'].finite? && row['time'].between?(0,duration+0.1) && (i.zero? || row['time']>=frames[i-1]['time']) && row['value'].is_a?(Numeric) && row['value'].finite? && row['value'].between?(0,1) }
+          raise ArgumentError,'Speech timing is invalid' unless valid
+          File.open(File.join(root,"part-#{segment.position}.wav"),'rb') do |audio|
+            File.open(File.join(root,"part-#{segment.position}.ts"),'rb') do |stream|
+              speech.with_lock do
+                return if speech.status!='running'
+                segment.audio.attach(io:audio,filename:"part-#{segment.position}.wav",content_type:'audio/wav',identify:false)
+                segment.stream.attach(io:stream,filename:"part-#{segment.position}.ts",content_type:'video/mp2t',identify:false)
+                segment.update!(status:'ready',duration:duration,mouth_frames:frames)
+              end
+            end
+          end
+        end
+      end
+      ScreenplayEngine::NeuralVoice.synthesize_playlist!(parts:segments.map(&:text),root:root,voice:speech.voice,speed:speech.speed,cancel_if:cancel,on_tick:publish)
+      publish.call
+      return if cancel.call
+      raise ArgumentError,'Natural voice did not finish its playlist' unless segments.all? { |segment| segment.status=='ready' }
+      segments.map { |segment| File.join(root,"part-#{segment.position}.wav") }
     end
     def render!(speech,segment,root,cancel)
       segment.update!(status:'running')

@@ -33,7 +33,19 @@ module NevaehOs
       end
       command = language['command'] if language && language['command']
       command=prepare_command(command)
-      command['agent_id']=persona.id unless %w[help resources capabilities status briefing remember search models schema agents guide describe goals goal_show].include?(command['kind'])
+      # A recognized business task goes to its executor even when a different
+      # chat specialist is selected. Explicit /delegate retains its named worker.
+      routed_to=case command['kind']
+      when 'website_page' then 'website'
+      when 'campaign_produce' then 'campaign'
+      when 'specialist_review' then command.fetch('role')
+      end
+      if routed_to
+        Workforce.install!(@actor)
+        recipient=Agents.resolve!(routed_to,@actor)
+        command={'kind'=>'agent_task','agent_ref'=>recipient.id.to_s,'command'=>command}
+      end
+      command['agent_id']=(routed_to ? Agents.resolve!('nevaeh',@actor).id : persona.id) unless %w[help resources capabilities status briefing remember search models schema agents guide describe goals goal_show].include?(command['kind'])
       if command['kind']=='agent_task'
         inner = command['command'] || Command.parse(command.delete('instruction'))
         if inner['kind'] == 'search' && defined?(Language)
@@ -132,6 +144,7 @@ module NevaehOs
         {'text'=>"Action ##{action.id} #{action.status == 'pending' ? 'queued through Gatekeeper and Dispatch' : action.status}. Execution receipts will appear here.", 'status'=>action.status,'action_id'=>action.id}
       end
       end
+      result=result.merge('delegated_to'=>recipient.name,'text'=>"Assigned to #{recipient.name}. "+result.fetch('text')) if routed_to && !planning
       if manager_context
         result=result.merge('manager_context'=>manager_context)
         if manager_context[:sample_size].to_i>0
@@ -154,6 +167,16 @@ module NevaehOs
     end
     def prepare_command(command)
       return command.merge('host'=>@host,'origin'=>@origin) if command['kind']=='goal'
+      if command['kind']=='website_page'
+        command['site_id']||=@page_context['site_id'] if @page_context
+        sites=LightekSettings::WebsiteIdentity.sites_for(@actor)
+        site=command['site_id'] ? sites.find(command['site_id']) : sites.find_by(host:@host.to_s.downcase)
+        candidates=sites.limit(5).to_a unless site
+        site||=candidates.first if candidates&.one?
+        raise ArgumentError,"Choose a website for this page: #{candidates.map { |row| "##{row.id} #{row.host}" }.join(', ')}. Use /website page with site_id and title." unless site
+        command['site_id']=site.id
+        return command
+      end
       if %w[campaign_produce production].include?(command['kind']) && command['operation']=='start'
         raise ArgumentError, 'Choose a positive business website ID' if command.key?('site_id') && !command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
         command['site_id']||=@page_context['site_id'] if @page_context

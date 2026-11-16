@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'specialist_tasks'=>['Scheduled specialist operational reviews','all'],
       'reporting_system'=>['Structured reporting convention and documentation-page SMEs','all'],
       'worker_reports'=>['SME reports, lessons and management experience','all'],
       'page_workers'=>['Page specialists, task inputs and manager delegation','all'],
@@ -32,6 +33,7 @@ module NevaehOs
       'studio.project.create'=>{'name'=>'string'}
     }.freeze
     BUILTINS={
+      'site.page.create'=>['Create a draft website page','/website page {"site_id":1,"title":"About us"}','specialist_tasks','all'],
       'nevaeh.documentation_question'=>['Ask a documentation-page SME','/page agents How do I delegate?','reporting_system','all'],
       'nevaeh.goal'=>['Save and run a delegated goal with completion checks','/goal list','workforce','all'],
       'nevaeh.improve'=>['Audit gaps, import manuals and check phrase contracts','/improve gaps','workforce','admin'],
@@ -88,6 +90,10 @@ module NevaehOs
       rows=BUILTINS.filter_map do |key,(title,example,topic,permission)|
         next unless allowed?(permission,actor)
         entry(key,title,topic,permission,example:example,source:'built-in command',coverage:'tutorial')
+      end
+      SpecialistTasks::DEFINITIONS.each do |role,(title,input)|
+        rows << entry(SpecialistTasks.capability(role),title,'specialist_tasks','domain account access',
+          example:SpecialistTasks.example(role),source:'built-in command',coverage:'fields',inputs:input ? {input=>'integer'} : {})
       end
       Resources.catalog(actor).each do |resource|
         resource.fetch(:operations,%w[read create update destroy]).each do |operation|

@@ -6,7 +6,7 @@ RUN python3 -m venv /opt/lightek-voice/venv \
 # Quantized CPU model and fixed voice styles are downloaded only at build time.
 COPY voice/install_models.py /opt/lightek-voice/install_models.py
 RUN python3 /opt/lightek-voice/install_models.py /opt/lightek-voice/models
-COPY voice/synthesize.py voice/NOTICE.md voice/LICENSE-APACHE-2.0.txt /opt/lightek-voice/
+COPY voice/synthesize.py voice/playlist.py voice/NOTICE.md voice/LICENSE-APACHE-2.0.txt /opt/lightek-voice/
 
 FROM ubuntu:24.04 AS blender
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils unzip && rm -rf /var/lib/apt/lists/*

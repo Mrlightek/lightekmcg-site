@@ -62,6 +62,8 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
+      - name: Install application adapter test binaries
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Verify task revisions, typed routing, Dispatch and journal read-back
         run: bundle exec ruby test/standalone/nevaeh_task_builder_checks.rb
       - uses: actions/setup-node@v4

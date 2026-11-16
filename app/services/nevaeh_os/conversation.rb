@@ -43,6 +43,8 @@ module NevaehOs
       routed_to=language&.fetch('worker_ref', nil) || case command['kind']
       when 'website_page' then 'website'
       when 'campaign_produce' then 'campaign'
+      when 'marketing_kit', 'marketing_execute' then 'campaign'
+      when 'feature_showcase' then 'website'
       when 'specialist_review' then command.fetch('role')
       end
       if routed_to
@@ -182,15 +184,19 @@ module NevaehOs
         command['site_id']=site.id
         return command
       end
-      if %w[campaign_produce production].include?(command['kind']) && command['operation']=='start'
+      if %w[marketing_kit marketing_execute feature_showcase].include?(command['kind']) || (%w[campaign_produce production].include?(command['kind']) && command['operation']=='start')
         raise ArgumentError, 'Choose a positive business website ID' if command.key?('site_id') && !command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
         command['site_id']||=@page_context['site_id'] if @page_context
         sites = command['kind']=='production' ? Studio::Broadcasting::Access.sites(@actor) : LightekSales::Access.sites_for(@actor)
         site = command['site_id'] ? sites.find(command['site_id']) : sites.find_by(host: @host.to_s.downcase)
         candidates = sites.limit(2).to_a unless site
         site ||= candidates.first if candidates&.one?
-        raise ArgumentError, 'Choose a business using /campaign {"site_id":123,"service":"Xyzzy","tone":"funny"}' unless site
+        raise ArgumentError, command['kind']=='marketing_kit' ? 'Choose a business using /marketing SITE_ID, or open Marketing copilot from Growth' : 'Choose a business using /campaign {"site_id":123,"service":"Xyzzy","tone":"funny"}' unless site
         command['site_id'] = site.id
+        if %w[marketing_execute feature_showcase].include?(command['kind'])
+          command['kit_id'] ||= LightekGrowth::MarketingKit.where(site: site).order(id: :desc).first&.id
+          raise ArgumentError, 'Prepare a marketing kit for this website first' unless command['kit_id']
+        end
         return command
       end
       return command unless command['kind']=='capability'

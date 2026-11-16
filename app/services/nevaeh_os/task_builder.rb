@@ -11,6 +11,9 @@ module NevaehOs
         {key: key, title: TaskCatalog.title(key), fields: fields}
       end
       rows += [
+        {key: 'marketing_kit', title: 'Prepare a seven-day marketing kit', fields: {'site_id'=>'integer'}},
+        {key: 'marketing_execute', title: 'Execute a saved marketing kit', fields: {'site_id'=>'integer', 'kit_id'=>'integer'}},
+        {key: 'feature_showcase', title: 'Build a feature page and overview videos', fields: {'site_id'=>'integer', 'kit_id'=>'integer'}},
         {key: 'project', title: 'Create a Studio project', fields: {'name'=>'string'}},
         {key: 'ticket', title: 'Open a support ticket', fields: {'text'=>'string'}},
         {key: 'caption', title: 'Write an editable caption', fields: {'topic'=>'string'}}
@@ -30,6 +33,9 @@ module NevaehOs
     end
     def command(key, inputs)
       case key
+      when 'marketing_kit' then {'kind'=>'marketing_kit', 'site_id'=>inputs.fetch('site_id'), 'values'=>{}}
+      when 'marketing_execute' then {'kind'=>'marketing_execute', 'site_id'=>inputs.fetch('site_id'), 'kit_id'=>inputs.fetch('kit_id')}
+      when 'feature_showcase' then {'kind'=>'feature_showcase', 'site_id'=>inputs.fetch('site_id'), 'kit_id'=>inputs.fetch('kit_id')}
       when 'project' then {'kind'=>'project', 'name'=>inputs.fetch('name')}
       when 'ticket' then {'kind'=>'ticket', 'text'=>inputs.fetch('text')}
       when 'caption' then {'kind'=>'write', 'format'=>'caption', 'context'=>inputs}

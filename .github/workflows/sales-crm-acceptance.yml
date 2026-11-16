@@ -2,6 +2,19 @@ name: Growth, lifecycle and Sales CRM acceptance
 on:
   pull_request:
     paths:
+      - 'app/controllers/dashboard/marketing_copilot_controller.rb'
+      - 'app/controllers/feature_showcase_videos_controller.rb'
+      - 'app/jobs/feature_showcase_job.rb'
+      - 'app/services/lightek_design/content_sections.rb'
+      - 'app/views/dymond_site/themes/default/sections/_lightek_feature_showcase.html.erb'
+      - 'public/lightek/feature-showcase.css'
+      - 'app/views/dashboard/marketing_copilot/**'
+      - 'public/lightek/marketing-copilot.css'
+      - 'db/migrate/*marketing_copilot*'
+      - 'test/standalone/marketing_copilot_checks.rb'
+      - 'test/javascript/marketing_copilot_browser_test.cjs'
+      - 'docs/nevaeh/tutorials/marketing_copilot.md'
+      - '.github/workflows/sales-crm-acceptance.yml'
       - 'app/controllers/dashboard/sales*'
       - 'app/controllers/dashboard/campaign_performance_controller.rb'
       - 'app/views/dashboard/campaign_performance/**'
@@ -92,6 +105,35 @@ on:
 permissions:
   contents: read
 jobs:
+  marketing-copilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+      MARKETING_PREVIEW_PATH: tmp/marketing-copilot-preview.html
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - name: Verify native marketing kit, CRM follow-ups, caps and journal read-back
+        # Feature videos use the existing bounded local media process runner.
+        # Their fonts are explicit so a clean runner can produce the same MP4.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          bundle exec ruby test/standalone/marketing_copilot_checks.rb --name '/MarketingCopilotChecks/'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/marketing-browser" --no-save playwright
+          "$RUNNER_TEMP/marketing-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify native marketing form and responsive layout
+        run: NODE_PATH="$RUNNER_TEMP/marketing-browser/node_modules" node test/javascript/marketing_copilot_browser_test.cjs
+
   sales:
     runs-on: ubuntu-24.04
     env:

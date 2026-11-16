@@ -24,6 +24,10 @@ module NevaehOs
       when 'campaign_produce' then 'marketing.campaign.produce'
       when 'improve' then 'nevaeh.improve'
       when 'goal','goal_control' then 'nevaeh.goal'
+      when 'marketing_execute' then 'growth.marketing_execute'
+      when 'feature_showcase' then 'site.features.create'
+      when 'marketing_follow_up' then 'sales.follow_up.prepare'
+      when 'marketing_kit' then 'growth.marketing_kit'
       when 'growth_plan' then 'growth.plan'
       when 'growth_review' then 'growth.review'
       when 'capability' then command['intent']

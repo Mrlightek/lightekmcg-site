@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'marketing_copilot'=>['Marketing copilot: offers, campaigns and follow-through','growth'],
       'task_builder'=>['Build, test and activate your own operating tasks','admin'],
       'ten_tasks'=>['Ten tasks, follow-up questions and reviewed learning','all'],
       'specialist_tasks'=>['Scheduled specialist operational reviews','all'],
@@ -49,6 +50,9 @@ module NevaehOs
       'studio.direct.finishing'=>['Scene rendering, episode assembly and reviewed delivery','/guide production_director','production_director','all'],
       'marketing.campaign.produce'=>['Create an editable TikTok ad with private preview','make me a funny tiktok campaign ad promoting Xyzzy service','campaign_producer','growth'],
       'growth.review'=>['Measure a saved campaign comparison','/growth review SITE_ID COMPARISON_ID','growth','growth'],
+      'growth.marketing_kit'=>['Prepare a seven-day marketing kit','/marketing SITE_ID','marketing_copilot','growth'],
+      'growth.marketing_execute'=>['Execute a saved marketing kit','/marketing execute SITE_ID KIT_ID','marketing_copilot','growth'],
+      'site.features.create'=>['Build a feature-showcase draft and overview videos','/features SITE_ID KIT_ID','marketing_copilot','growth'],
       'growth.plan'=>['Prepare or open a daily growth plan','/growth SITE_ID','growth','growth'],
       'briefing'=>['Daily operational briefing','/briefing','start','all'],
       'agents.list'=>['Agent workforce','/agents','agents','all'],

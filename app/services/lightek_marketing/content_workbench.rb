@@ -5,12 +5,18 @@ module LightekMarketing
       'problem' => ['For {audience}: {obstacle}', '{topic}', '{facts}', '{call_to_action}'],
       'benefit' => ['{facts}', '{topic} — for {audience}.', '{call_to_action}']
     }.freeze
+    KIT_ANGLES = {
+      'offer'=>['Looking for {topic}?', 'For {audience}.', 'The challenge: {obstacle}', '{facts}', '{call_to_action}.'],
+      'problem'=>['Still dealing with {obstacle}?', '{topic} is an option for {audience}.', 'Here is the value to consider: {facts}', '{call_to_action}.'],
+      'benefit'=>['{facts}', 'Explore {topic}, for {audience}.', 'Bring your questions. Let’s discuss whether the offer fits your needs.', '{call_to_action}.']
+    }.freeze
     def initialize(actor:, site:)
       @actor, @site = actor, site
       @access = LightekGrowth::Workspace.new(actor: actor, site: site)
     end
-    def generate!(campaign_id:, request_key:, tracking_link_id: nil)
+    def generate!(campaign_id:, request_key:, tracking_link_id: nil, purpose: 'standard')
       raise ArgumentError, 'Generation request key required.' unless request_key.to_s.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+      raise ArgumentError, 'Choose a supported copy purpose.' unless %w[standard marketing_kit].include?(purpose)
       @site.with_lock do
         @access.revalidate!
         campaign = Campaign.where(site: @site).find(campaign_id)
@@ -18,6 +24,7 @@ module LightekMarketing
         if existing.exists?
           expected = existing.first.source_snapshot['tracking_link_id'].to_s
           raise ArgumentError, 'Request key belongs to another tracking selection.' unless expected == tracking_link_id.to_s
+          raise ArgumentError, 'Request key belongs to another copy purpose.' unless existing.first.source_snapshot.fetch('purpose', 'standard') == purpose
           return existing.to_a
         end
         brief = LightekGrowth::Brief.find_by(site: @site)
@@ -26,8 +33,8 @@ module LightekMarketing
         cta = link ? Rails.application.routes.url_helpers.growth_link_url(token: link.token, host: @site.host, protocol: 'https') : (campaign.cta_url.to_s.start_with?('https://') ? campaign.cta_url : "https://#{@site.host}/")
         context = {'topic' => brief.offering, 'audience' => brief.audience, 'obstacle' => brief.customer_problem, 'facts' => brief.value_proposition, 'call_to_action' => campaign.cta_label.presence || 'Learn more'}
         snapshot = {'brief_id' => brief.id, 'brief_revision' => brief.lock_version, 'brief' => brief.attributes.slice(*LightekGrowth::Brief::FIELDS).transform_values { |v| v.is_a?(Date) ? v.iso8601 : v },
-          'tracking_link_id' => link&.id, 'channel' => campaign.channel, 'provider' => 'rules', 'writer_version' => 'campaign-angles-v1'}
-        ANGLES.map do |angle, templates|
+          'tracking_link_id' => link&.id, 'channel' => campaign.channel, 'provider' => 'rules', 'purpose'=>purpose, 'writer_version' => purpose == 'marketing_kit' ? 'marketing-kit-copy-v1' : 'campaign-angles-v1'}
+        (purpose == 'marketing_kit' ? KIT_ANGLES : ANGLES).map do |angle, templates|
           generated = NevaehIntelligences::WritingEngine.generate(format: 'post', actor: @actor, context: context,
             profile: {'format' => 'post', 'provider' => 'rules', 'templates' => templates, 'examples' => [], 'instructions' => brief.voice.to_s})
           ContentVariant.create!(site: @site, campaign: campaign, created_by: @actor, batch_key: request_key, angle: angle, status: 'draft',

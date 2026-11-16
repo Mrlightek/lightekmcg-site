@@ -7,7 +7,7 @@ module NevaehOs
       'project'=>%w[kind name], 'ticket'=>%w[kind text], 'run'=>%w[kind id],
       'worker_status'=>%w[kind id status], 'resource'=>%w[kind operation resource id attributes],
       'capability'=>%w[kind intent payload site_id], 'write'=>%w[kind format context],
-      'website_page'=>%w[kind site_id values], 'campaign_produce'=>%w[kind operation site_id values],
+      'website_page'=>%w[kind site_id values], 'marketing_kit'=>%w[kind site_id values], 'marketing_execute'=>%w[kind site_id kit_id], 'feature_showcase'=>%w[kind site_id kit_id], 'campaign_produce'=>%w[kind operation site_id values],
       'specialist_review'=>%w[kind role inputs]
     }.freeze
     module_function
@@ -31,7 +31,8 @@ module NevaehOs
         when 'resource' then %w[operation resource attributes]
         when 'capability' then %w[intent payload]
         when 'write' then %w[format context]
-        when 'website_page' then %w[site_id values]
+        when 'website_page', 'marketing_kit' then %w[site_id values]
+        when 'marketing_execute', 'feature_showcase' then %w[site_id kit_id]
         when 'campaign_produce' then %w[operation site_id values]
         when 'specialist_review' then %w[role inputs]
         end

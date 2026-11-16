@@ -11,6 +11,13 @@ another administrator does not inherit your phrases or worker assignments.
    Installed, connected capabilities with scalar input schemas appear too.
    Disabled adapters, missing schemas, nested object/array inputs and ticket-only
    construction capabilities do not appear as direct actions.
+   **Prepare a seven-day marketing kit** also supports a variable or fixed
+   website ID; see [Marketing copilot](marketing_copilot.md) for the saved outputs
+   and the distinction between preparing a kit and publishing its content.
+   **Execute a saved marketing kit** and **Build a feature page and overview
+   videos** take a website ID and saved kit ID. Assign the existing Campaign
+   Producer or Website Operator respectively, then use the same test/review
+   lifecycle before activating your own phrases.
 2. Name the task and choose an existing enabled worker with the required
    capability. Select the installed manual defining the task. Do not add a role
    to manufacture an executor or expand a worker's permissions to pass the test.

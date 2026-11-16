@@ -39,6 +39,7 @@ module NevaehOs
       raise ArgumentError,'Choose a supported dialogue action' unless [nil,'choose','continue','confirm','cancel','correct','teach','retire_example','training_dataset'].include?(action)
       raise ArgumentError,'Request key required' unless request_key.to_s.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
       return if !dialogue_id && (text.start_with?('/') || text.match?(/\A(?:how\b|what\b|why\b|explain\b)/i))
+      return if !dialogue_id && %w[marketing_kit marketing_execute feature_showcase].include?(Command.parse(text)['kind'])
       dialogue=if dialogue_id
         NevaehTaskDialogue.where(user:actor).find(dialogue_id)
       elsif (existing=NevaehTaskDialogue.find_by(user:actor,request_key:request_key))

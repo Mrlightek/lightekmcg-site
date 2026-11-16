@@ -1,5 +1,10 @@
 # Daily business growth plans
 
+For a guided week of actual campaign drafts and existing-lead follow-through,
+open [Marketing copilot](marketing_copilot.md) from Growth, or use
+`/marketing SITE_ID`. It prepares a seven-day kit while retaining the daily
+plan's evidence, native approvals and real outcome tracking described below.
+
 Open **Growth** from the shared Business workspace. **Prepare or open today’s plan** reviews the selected website's business brief, customer queues and recent tracked-link results. The plan gives up to five prioritized moves, each with a reason, practical steps, observed evidence and a button for the appropriate Lightek tool.
 
 The current playbook is `growth-daily-v3`: finish missing business context, review inquiries, check paid orders awaiting delivery, follow through on due sales tasks, review expiring quotes, review an arrived goal date, and then establish campaign drafts, tracked links or distribution. A landing-experience review is suggested only when at least 20 seven-day tracked visits have no recorded attributed inquiry/payment; this threshold is an authored heuristic, not statistical confidence or proof of a conversion failure. Operational queues take precedence over campaign expansion. The list is capped at five.

@@ -60,11 +60,20 @@ module NevaehOs
         else
           raise ArgumentError, 'Unknown campaign production action'
         end
-      when 'growth_plan', 'growth_review'
+      when 'growth_plan', 'growth_review', 'marketing_kit', 'marketing_execute', 'feature_showcase', 'marketing_follow_up'
         raise ArgumentError, 'Choose a positive business website ID.' unless command['site_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
         site = DymondSite::Site.find(command.fetch('site_id'))
         begin
           LightekGrowth::Workspace.new(actor: actor, site: site).revalidate!
+          LightekGrowth::MarketingCopilot.options(command.fetch('values', {})) if command['kind']=='marketing_kit'
+          LightekAgency::PackagePolicy.authorize!(site.tenant, 'commerce') if command['kind']=='marketing_follow_up'
+          if %w[marketing_execute feature_showcase marketing_follow_up].include?(command['kind'])
+            raise ArgumentError, 'Choose a positive marketing kit ID' unless command['kit_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+            raise ArgumentError, 'Choose a positive lead ID' if command['kind']=='marketing_follow_up' && !command['lead_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
+            kit = LightekGrowth::MarketingKit.where(site: site).find(command.fetch('kit_id'))
+            raise ArgumentError, 'Prepare a current kit before executing this work' unless LightekGrowth::MarketingCopilot.new(actor: actor, site: site).current?(kit)
+            LightekGrowth::ShowcaseBuilder.new(actor: actor, site: site).authorize! if %w[marketing_execute feature_showcase].include?(command['kind'])
+          end
           if command['kind'] == 'growth_review'
             raise ArgumentError, 'Choose a positive comparison ID.' unless command['comparison_id'].to_s.match?(/\A[1-9][0-9]{0,17}\z/)
             LightekGrowth::Comparison.where(site: site).find(command.fetch('comparison_id'))
@@ -178,6 +187,19 @@ module NevaehOs
         site = DymondSite::Site.find(command.fetch('site_id'))
         workspace = LightekGrowth::Performance::Workspace.new(actor: actor, site: site)
         workspace.receipt(workspace.review!(comparison_id: command.fetch('comparison_id'), request_key: "nevaeh-action-#{action.id}"))
+      when 'marketing_kit'
+        copilot = LightekGrowth::MarketingCopilot.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
+        copilot.receipt(copilot.prepare!(values: command.fetch('values', {}), request_key: "marketing-#{action.id}"))
+      when 'feature_showcase'
+        builder = LightekGrowth::ShowcaseBuilder.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
+        builder.receipt(builder.start!(kit_id: command.fetch('kit_id')))
+      when 'marketing_follow_up'
+        copilot = LightekGrowth::MarketingCopilot.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
+        task = copilot.follow_up_task!(id: command.fetch('kit_id'), lead_id: command.fetch('lead_id'))
+        {'crm_task_id'=>task.id, 'site_id'=>task.site_id, 'status'=>'completed', 'text'=>'Follow-up task prepared. No message was sent.'}
+      when 'marketing_execute'
+        planner = LightekGrowth::MarketingExecutionPlan.new(actor: actor, site: DymondSite::Site.find(command.fetch('site_id')))
+        planner.receipt(planner.start!(kit_id: command.fetch('kit_id')))
       when 'growth_plan'
         site = DymondSite::Site.find(command.fetch('site_id'))
         planner = LightekGrowth::DailyPlanner.new(actor: actor, site: site)

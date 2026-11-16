@@ -1,5 +1,13 @@
 get '/g/:token', to: 'growth_links#show', as: :growth_link
+get '/feature-videos/:token/:position.mp4', to: 'feature_showcase_videos#show', as: :feature_showcase_video, constraints: {position: /[0-5]/}
+get '/dashboard/marketing-copilot/showcases/:id/videos/:position', to: 'dashboard/marketing_copilot#video', as: :preview_dashboard_feature_video
+post '/dashboard/marketing-copilot/showcases/:id/approve', to: 'dashboard/marketing_copilot#approve_showcase', as: :approve_dashboard_feature_showcase
+post '/dashboard/marketing-copilot/:id/execute', to: 'dashboard/marketing_copilot#execute', as: :execute_dashboard_marketing_kit
 get '/dashboard/growth', to: 'dashboard/growth#index', as: :dashboard_growth
+get '/dashboard/marketing-copilot', to: 'dashboard/marketing_copilot#index', as: :dashboard_marketing_copilot
+post '/dashboard/marketing-copilot', to: 'dashboard/marketing_copilot#create', as: :prepare_dashboard_marketing_kit
+post '/dashboard/marketing-copilot/:id/check-in', to: 'dashboard/marketing_copilot#check_in', as: :check_in_dashboard_marketing_kit
+post '/dashboard/marketing-copilot/:id/follow-up', to: 'dashboard/marketing_copilot#follow_up', as: :follow_up_dashboard_marketing_kit
 patch '/dashboard/growth/brief', to: 'dashboard/growth#brief', as: :dashboard_growth_brief
 post '/dashboard/growth/links', to: 'dashboard/growth#create_link', as: :dashboard_growth_links
 patch '/dashboard/growth/links/:id', to: 'dashboard/growth#toggle', as: :dashboard_growth_link

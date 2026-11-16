@@ -12,7 +12,7 @@ module Employee
       head :not_found
     end
     def index
-      @tab = %w[construction training conversation islamic study manuals].include?(params[:tab]) ? params[:tab] : 'construction'
+      @tab = %w[tasks construction training conversation islamic study manuals].include?(params[:tab]) ? params[:tab] : 'construction'
       @constructions = NevaehConstruction.includes(:active_release).order(updated_at: :desc).limit(100)
       @construction = params[:construction_id].present? ? NevaehConstruction.find(params[:construction_id]) : NevaehConstruction.new(definition: default_definition, sample_tests: default_tests)
       @datasets = NevaehTrainingDataset.order(updated_at: :desc, id: :desc).offset([params[:dataset_page].to_i, 0].max * 100).limit(100)
@@ -23,6 +23,14 @@ module Employee
       @conversations = NevaehConversation.where(user: current_user).order(updated_at: :desc).limit(30)
       @conversation = @conversations.find(params[:conversation_id]) if params[:conversation_id].present?
       @documents = NevaehIntelligences::SoftwareLibrary.new.documents.map { |doc| doc.slice(:id, :title, :path) }
+      if @tab == 'tasks'
+        @task_extensions = NevaehOs::TaskBuilder.scope(current_user).order(id: :desc).limit(100)
+        @task_extension = @task_extensions.find(params[:extension_id]) if params[:extension_id].present?
+        @task_templates = NevaehOs::TaskBuilder.templates(current_user)
+        selected = params[:template_key].presence || @task_extension&.builder_spec&.fetch('template_key') || 'website_page'
+        @task_template = @task_templates.find { |row| row[:key] == selected } || @task_templates.first
+        @task_workers = NevaehOs::TaskBuilder.eligible_workers(current_user, @task_template[:key])
+      end
       if @tab == 'manuals'
         @manual_builds = NevaehManualBuild.order(id: :desc).limit(20)
         @manual_build = params[:manual_build_id].present? ? NevaehManualBuild.find(params[:manual_build_id]) : @manual_builds.first
@@ -45,6 +53,25 @@ module Employee
         @study_sessions = NevaehStudySession.includes(:nevaeh_study_routine, :nevaeh_training_run).order(id: :desc).limit(30)
         @study_windows = @study_routine.persisted? ? NevaehIntelligences::Islamic::StudyClock.windows(@study_routine, date: Time.current.in_time_zone(NevaehIntelligences::Islamic::StudyClock.zone).to_date) : []
       end
+    end
+    def save_task_extension
+      fields = params.require(:extension).permit(:name, :template_key, :worker_id, :patterns, :sample_phrase, fixed: {}, expected: {}).to_h
+      binding = NevaehOs::TaskBuilder.save!(actor: current_user, attributes: fields, document_id: params.require(:document_id), previous_id: params[:previous_id])
+      redirect_to employee_nevaeh_factory_path(tab: 'tasks', extension_id: binding.id), notice: 'Task revision saved as a draft. Test its routing and permissions, then activate it.'
+    end
+    def control_task_extension
+      binding = NevaehOs::TaskBuilder.scope(current_user).find(params[:id])
+      case params[:operation]
+      when 'test' then NevaehOs::TaskBuilder.verify!(binding: binding, actor: current_user)
+      when 'activate' then NevaehOs::TaskBuilder.activate!(binding: binding, actor: current_user)
+      when 'pause' then binding.update!(status: 'paused')
+      else raise ArgumentError, 'Choose test, activate or pause'
+      end
+      redirect_to employee_nevaeh_factory_path(tab: 'tasks', extension_id: binding.id), notice: "Task revision #{binding.reload.status}."
+    end
+    def export_task_extension
+      binding = NevaehOs::TaskBuilder.scope(current_user).find(params[:id])
+      send_data JSON.pretty_generate(NevaehOs::TaskBuilder.export(binding)), filename: "nevaeh-task-#{binding.id}.json", type: 'application/json', disposition: 'attachment'
     end
     def save_construction
       record = params[:id].present? ? NevaehConstruction.find(params[:id]) : NevaehConstruction.new(creator: current_user)
@@ -191,6 +218,7 @@ module Employee
     def save_language_binding
       NevaehOs::Language.authorize!(current_user)
       binding = params[:id].present? ? NevaehLanguageBinding.find(params[:id]) : NevaehLanguageBinding.new(creator: current_user)
+      raise ArgumentError, 'Edit this task through Task builder to preserve its tested revision' if NevaehOs::TaskBuilder.built?(binding)
       binding.assign_attributes(params.require(:binding).permit(:name, :lock_version))
       binding.nevaeh_manual_build = NevaehManualBuild.find(params[:manual_build_id]) if params[:manual_build_id].present?
       binding.patterns = parse_json(:patterns_json, 16000)
@@ -205,6 +233,7 @@ module Employee
     def control_language_binding
       NevaehOs::Language.authorize!(current_user)
       binding = NevaehLanguageBinding.find(params[:id])
+      raise ArgumentError, 'Control this task through Task builder' if NevaehOs::TaskBuilder.built?(binding)
       if params[:operation] == 'activate'
         NevaehOs::Language.activate!(binding: binding, actor: current_user)
       elsif params[:operation] == 'pause'

@@ -1,0 +1,51 @@
+<div class="nc-heading"><div><h2>Teach Nevaeh a working task.</h2><p>Choose an action, add your phrases, test the routing, then activate it.</p></div><%= link_to '+ New task', employee_nevaeh_factory_path(tab: 'tasks'), class: 'nc-button' %></div>
+<div class="nc-split">
+  <aside class="nc-panel"><h3>Your task library</h3>
+    <% @task_extensions.each do |task| %><article class="nc-worker">
+      <%= link_to task.name, employee_nevaeh_factory_path(tab: 'tasks', extension_id: task.id) %>
+      <p><span class="nc-pill"><%= task.status %> · revision <%= task.builder_spec['version'] %></span></p>
+      <p class="nc-muted"><%= task.patterns.first %></p>
+    </article><% end %>
+    <% if @task_extensions.empty? %><p>Start with a page task, a caption, a support ticket or another connected action. Saving a task does not create another worker.</p><% end %>
+    <hr class="nf-rule"><h3>Need a new executor?</h3><p>Use Construction factory to build and verify a service from its supported operations. Create its ticket-workflow worker there. Adding new operation types or application integrations requires a code change.</p>
+    <%= link_to 'Open Construction factory', employee_nevaeh_factory_path, class: 'nc-button secondary' %>
+    <%= link_to 'Read the task builder guide', main_app.dashboard_nevaeh_guide_path(topic: 'task_builder') %>
+  </aside>
+  <article class="nc-panel">
+    <h3>1. Choose an executable action</h3>
+    <%= form_with url: employee_nevaeh_factory_path, method: :get do %>
+      <input type="hidden" name="tab" value="tasks">
+      <label>Action<select name="template_key"><%= options_for_select(@task_templates.map { |row| [row[:title], row[:key]] }, @task_template[:key]) %></select></label>
+      <button class="nc-button secondary">Use this action</button>
+    <% end %>
+    <% spec = @task_extension&.builder_spec || {}; same = spec['template_key'] == @task_template[:key] %>
+    <%= form_with url: employee_nevaeh_factory_task_extensions_path, data: {task_builder: true} do %>
+      <input type="hidden" name="extension[template_key]" value="<%= @task_template[:key] %>">
+      <input type="hidden" name="previous_id" value="<%= @task_extension&.id %>">
+      <h3>2. Name it and assign its worker</h3>
+      <label>Task name<input name="extension[name]" value="<%= @task_extension&.name %>" required maxlength="160" placeholder="Draft my service page"></label>
+      <label>Existing worker<select name="extension[worker_id]" required><option value="">Choose a worker authorized for this action</option><%= options_for_select(@task_workers.map { |worker| ["#{worker.name} · #{worker.allowed_capabilities.join(', ')}", worker.id] }, spec['worker_id']) %></select></label>
+      <% if @task_workers.empty? %><p class="nc-error">No enabled worker is assigned this action. Review its worker contract in Nevaeh’s workforce before saving.</p><% end %>
+      <label>Source documentation<select name="document_id" required><option value="">Choose the manual that defines this task</option><%= options_for_select(@documents.map { |doc| [doc[:path], doc[:id]] }, @documents.find { |doc| doc[:path] == @task_extension&.source_refs&.first&.fetch('path', nil) }&.fetch(:id)) %></select></label>
+      <h3>3. Set inputs and phrases</h3><p>Leave a fixed value empty to ask for that input. Put each variable in every phrase as <code>{input_name}</code>. Fixed values stay the same every time.</p>
+      <% @task_template[:fields].each do |field, type| %><label><%= field.humanize %> · <%= type %> · fixed value (optional)<input name="extension[fixed][<%= field %>]" data-builder-fixed="<%= field %>" value="<%= spec.fetch('fixed', {})[field] if same %>" maxlength="1000" placeholder="Leave empty to use {<%= field %>}"></label><% end %>
+      <label>Phrases · one per line<textarea name="extension[patterns]" rows="4" required maxlength="8000" placeholder="prepare a page called {title} on site {site_id}"><%= @task_extension&.patterns&.join("\n") %></textarea></label>
+      <h3>4. Define an independent test</h3><p>Enter an example request and the values you expect it to extract. Testing checks routing and current permissions; it does not run the action.</p>
+      <label>Example request<input name="extension[sample_phrase]" value="<%= spec['sample_phrase'] %>" required maxlength="1000" placeholder="prepare a page called About us on site 12"></label>
+      <% @task_template[:fields].each do |field, type| %><label data-builder-expected="<%= field %>">Expected <%= field.humanize.downcase %> · <%= type %><input name="extension[expected][<%= field %>]" value="<%= spec.fetch('expected', {})[field] if same %>" maxlength="1000" placeholder="Required only when this input has no fixed value"></label><% end %>
+      <button class="nc-button">Save new draft revision</button>
+    <% end %>
+    <% if @task_extension %>
+      <hr class="nf-rule"><h3>5. Test, activate and use it</h3><p><strong><%= @task_extension.name %></strong> · <%= @task_extension.status %> · revision <%= spec['version'] %></p>
+      <div class="nc-links"><%= button_to 'Test routing & permissions', employee_nevaeh_factory_control_task_extension_path(@task_extension, operation: 'test'), class: 'nc-button secondary' %>
+        <% if @task_extension.builder_verification['passed'] && @task_extension.builder_verification['fingerprint'] == @task_extension.fingerprint %><%= button_to 'Activate this tested revision', employee_nevaeh_factory_control_task_extension_path(@task_extension, operation: 'activate'), class: 'nc-button' %><% end %>
+        <% if @task_extension.status == 'active' %><%= button_to 'Pause task', employee_nevaeh_factory_control_task_extension_path(@task_extension, operation: 'pause'), class: 'nc-button secondary' %><% end %>
+        <%= link_to 'Download task package', employee_nevaeh_factory_export_task_extension_path(@task_extension), class: 'nc-button secondary' %>
+      </div>
+      <details><summary>Action, source and test evidence</summary><pre><%= JSON.pretty_generate(NevaehOs::TaskBuilder.export(@task_extension)) %></pre></details>
+      <p>After activation, type an example phrase in Nevaeh. Read the action and worker report before treating the output as complete. A passing routing test is not an accepted work result.</p>
+      <%= link_to 'Open Nevaeh', main_app.dashboard_nevaeh_os_path, class: 'nc-button' %>
+      <p class="nc-muted">Saving a revision keeps the current version active until you activate its replacement. Pausing blocks queued actions using this task. Changing the source manual or action contract requires a reviewed revision and another test.</p>
+    <% end %>
+  </article>
+</div>

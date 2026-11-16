@@ -8,7 +8,8 @@ module NevaehOs
       @page_context=PageContext.normalize(page_context)
       selected=NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(system_key:agent.to_s) || NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(id:agent.to_s.delete_prefix('custom-'))
       page_sme=selected&.system_key.to_s.start_with?('page_')
-      if !page_action && !binding_id && !page_sme && defined?(TaskDialogues)
+      builder_phrase = !page_action && !binding_id && !page_sme && !dialogue_id && defined?(TaskBuilder) && TaskBuilder.claims?(@actor, text)
+      if !builder_phrase && !page_action && !binding_id && !page_sme && defined?(TaskDialogues)
         handled=TaskDialogues.handle(actor:@actor,text:text,request_key:request_key,dialogue_id:dialogue_id,action:dialogue_action,values:dialogue_values || {},mode:mode,context:@page_context,host:@host,origin:@origin)
         return handled if handled
       end
@@ -32,14 +33,14 @@ module NevaehOs
       end
       language = if binding_id
         Language.bind!(binding_id: binding_id, fingerprint: binding_fingerprint, values: language_slots, actor: @actor, interval_minutes: interval_minutes, agent_ref: persona.id.to_s)
-      elsif defined?(Language) && command['kind'] == 'search'
+      elsif defined?(Language) && (builder_phrase || command['kind'] == 'search')
         Language.resolve(text.strip, actor: @actor, agent_ref: persona.id.to_s)
       end
       command = language['command'] if language && language['command']
       command=prepare_command(command)
       # A recognized business task goes to its executor even when a different
       # chat specialist is selected. Explicit /delegate retains its named worker.
-      routed_to=case command['kind']
+      routed_to=language&.fetch('worker_ref', nil) || case command['kind']
       when 'website_page' then 'website'
       when 'campaign_produce' then 'campaign'
       when 'specialist_review' then command.fetch('role')
@@ -198,7 +199,7 @@ module NevaehOs
       available=native ? NevaehCapability.enabled.exists?(slug:key) : NevaehIntelligence.available.exists?(intent_key:key)
       raise ArgumentError,"Capability #{key} is unavailable or disabled. Use /capabilities for installed actions; /search for documentation." unless available
       if native
-        requested=command.fetch('payload')['site_id'] || @page_context&.fetch('site_id',nil)
+        requested=command['site_id'] || command.fetch('payload')['site_id'] || @page_context&.fetch('site_id',nil)
         sites=LightekPwa::Policy.sites_for(@actor)
         site=requested ? sites.find(requested) : sites.find_by(host:@host.to_s.downcase)
         if !site

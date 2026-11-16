@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'task_builder'=>['Build, test and activate your own operating tasks','admin'],
       'ten_tasks'=>['Ten tasks, follow-up questions and reviewed learning','all'],
       'specialist_tasks'=>['Scheduled specialist operational reviews','all'],
       'reporting_system'=>['Structured reporting convention and documentation-page SMEs','all'],

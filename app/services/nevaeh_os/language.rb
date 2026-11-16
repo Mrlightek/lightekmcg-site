@@ -14,6 +14,7 @@ module NevaehOs
     end
     def activate!(binding:, actor:, documents: nil, catalog: nil)
       authorize!(actor)
+      TaskBuilder.validate!(binding, actor: actor) if defined?(TaskBuilder) && TaskBuilder.built?(binding)
       raise ArgumentError, binding.errors.full_messages.join(', ') unless binding.valid?
       sources!(binding, documents: documents)
       available!(binding.command_template, actor: actor, catalog: catalog)
@@ -23,6 +24,8 @@ module NevaehOs
       contract = if command['kind'] == 'capability'
         entry = catalog ? catalog.find { |row| row[:key] == command['intent'] } : Guide.capability(command.fetch('intent'), actor: actor)
         entry&.slice(:key, :availability, :inputs, :coverage)
+      elsif %w[website_page campaign_produce specialist_review].include?(command['kind'])
+        {catalog: TaskCatalog.fingerprint, command: command}
       elsif command['kind']=='improve'
         Improvements.authorize!(actor,command.fetch('operation'))
       elsif command['kind'] == 'resource'
@@ -51,6 +54,10 @@ module NevaehOs
       return unless stamp
       authorize!(actor)
       binding = NevaehLanguageBinding.find(stamp.fetch('id'))
+      if defined?(TaskBuilder) && TaskBuilder.built?(binding)
+        TaskBuilder.validate!(binding, actor: actor)
+        raise ArgumentError, 'This task must run through its assigned worker' unless command['agent_id'] == binding.builder_spec['worker_id']
+      end
       raise ArgumentError, 'Conversational phrase changed or was paused; submit the task again' unless binding.status == 'active' && binding.fingerprint == stamp['fingerprint']
       LanguageContract.verify_command!(binding, command)
       sources!(binding)
@@ -71,19 +78,21 @@ module NevaehOs
         end
         command = inner&.fetch('command', nil) || Command.parse(match[2])
         raise ArgumentError, 'Name one executable task after the interval' if %w[search help agent_task agent_control].include?(command['kind'])
-        return {'command' => {'kind' => 'agent_task', 'agent_ref' => agent_ref, 'interval_minutes' => interval, 'command' => command},
+        return {'command' => {'kind' => 'agent_task', 'agent_ref' => inner&.fetch('worker_ref', nil) || agent_ref, 'interval_minutes' => interval, 'command' => command},
           'sources' => inner&.fetch('sources', []) || [], 'binding_name' => 'Recurring agent task'}
       end
       return unless Ability.new(actor).can?(:manage, NevaehWorkflow)
       return unless defined?(NevaehLanguageBinding) && NevaehLanguageBinding.table_exists?
       docs = nil; matches = []; stale = []; partials = []
       NevaehLanguageBinding.where(status: 'active').order(:id).find_each do |binding|
+        next if defined?(TaskBuilder) && TaskBuilder.built?(binding) && binding.creator_id != actor.id
         commands = LanguageContract.match(binding, text)
         partial = commands.empty? && binding.slots.any? && text.length >= 8 && binding.patterns.any? { |pattern| pattern.split('{', 2).first.strip.downcase.start_with?(text.strip.downcase) }
         next if commands.empty? && !partial
         docs ||= NevaehIntelligences::SoftwareLibrary.new.documents
         begin
           sources!(binding, documents: docs)
+          TaskBuilder.validate!(binding, actor: actor) if defined?(TaskBuilder) && TaskBuilder.built?(binding)
           available!(binding.command_template, actor: actor)
           raise ArgumentError, 'Action contract changed' unless binding.contract_sha256 == contract_fingerprint(binding.command_template, actor: actor)
           commands.each { |command| matches << [binding, command] }
@@ -92,23 +101,31 @@ module NevaehOs
           stale << binding.name
         end
       end
-      unique = matches.group_by { |_binding, command| NevaehIntelligences::CanonicalJson.dump(command) }
+      if stale.any?
+        return {'status'=>'needs_clarification', 'text'=>"A source, worker or action contract for #{stale.uniq.join(', ')} is unavailable or changed. Review the task before executing it.", 'sources'=>[]}
+      end
+      routing_key = lambda do |binding, command|
+        worker = binding.builder_spec['worker_id'] if defined?(TaskBuilder) && TaskBuilder.built?(binding)
+        NevaehIntelligences::CanonicalJson.dump([command, worker])
+      end
+      unique = matches.group_by { |binding, command| routing_key.call(binding, command) }
       if unique.size > 1
         return {'status' => 'needs_clarification', 'text' => "That phrase matches several actions: #{matches.map { |binding, _| binding.name }.uniq.join(', ')}. Use a more specific phrase or a direct capability command.", 'sources' => []}
       end
       if unique.empty?
-        partials = partials.uniq { |binding| NevaehIntelligences::CanonicalJson.dump(binding.command_template) }
+        partials = partials.uniq { |binding| routing_key.call(binding, binding.command_template) }
         if partials.one?
           binding = partials.first
           return {'status'=>'needs_clarification', 'text'=>"To #{binding.name.downcase}, I need #{binding.slots.keys.join(', ')}. Fill the task inputs below.",
             'sources'=>binding.source_refs, 'language_request'=>{'binding_id'=>binding.id, 'fingerprint'=>binding.fingerprint, 'slots'=>binding.slots}}
         end
-        return if stale.empty?
-        return {'status' => 'needs_clarification', 'text' => "The manual or adapter for #{stale.uniq.join(', ')} changed. Review its language binding before executing it.", 'sources' => []}
+        return
       end
       binding, command = unique.values.first.first
       command = command.merge('language_binding' => {'id' => binding.id, 'fingerprint' => binding.fingerprint})
-      {'command' => command, 'binding_name' => binding.name, 'sources' => binding.source_refs.map { |source| source.merge('title' => source['title'] || binding.name) }}
+      result = {'command' => command, 'binding_name' => binding.name, 'sources' => binding.source_refs.map { |source| source.merge('title' => source['title'] || binding.name) }}
+      result['worker_ref'] = binding.builder_spec.fetch('worker_id').to_s if defined?(TaskBuilder) && TaskBuilder.built?(binding)
+      result
     end
     def bind!(binding_id:, fingerprint:, values:, actor:, interval_minutes: nil, agent_ref: 'nevaeh')
       authorize!(actor)
@@ -119,13 +136,18 @@ module NevaehOs
       end
       slots = values.to_h { |key, value| [key, LanguageContract.coerce(value.to_s, binding.slots.fetch(key))] }
       command = LanguageContract.render(binding.command_template, slots).merge('language_binding'=>{'id'=>binding.id, 'fingerprint'=>binding.fingerprint})
-      guard!(command, actor: actor)
+      builder = defined?(TaskBuilder) && TaskBuilder.built?(binding)
+      worker_ref = builder ? binding.builder_spec.fetch('worker_id').to_s : agent_ref
+      checked = builder ? command.merge('agent_id'=>binding.builder_spec.fetch('worker_id')) : command
+      guard!(checked, actor: actor)
       if interval_minutes.present?
         interval = Integer(interval_minutes)
         raise ArgumentError, 'Recurring tasks use intervals from 5 to 525600 minutes' unless interval.between?(5, 525600)
-        command = {'kind'=>'agent_task', 'agent_ref'=>agent_ref, 'interval_minutes'=>interval, 'command'=>command}
+        command = {'kind'=>'agent_task', 'agent_ref'=>worker_ref, 'interval_minutes'=>interval, 'command'=>command}
       end
-      {'command'=>command, 'binding_name'=>binding.name, 'sources'=>binding.source_refs}
+      result = {'command'=>command, 'binding_name'=>binding.name, 'sources'=>binding.source_refs}
+      result['worker_ref'] = worker_ref if builder && !interval_minutes.present?
+      result
     end
   end
 end

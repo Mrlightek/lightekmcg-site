@@ -205,6 +205,9 @@ Rails.application.routes.draw do
 
   get "/employee/nevaeh/help/:topic", to: "employee/nevaeh_help#show", as: :employee_nevaeh_help
   get "/employee/nevaeh/factory", to: "employee/nevaeh_factory#index", as: :employee_nevaeh_factory
+  post "/employee/nevaeh/factory/tasks", to: "employee/nevaeh_factory#save_task_extension", as: :employee_nevaeh_factory_task_extensions
+  get "/employee/nevaeh/factory/tasks/:id/export", to: "employee/nevaeh_factory#export_task_extension", as: :employee_nevaeh_factory_export_task_extension
+  post "/employee/nevaeh/factory/tasks/:id/:operation", to: "employee/nevaeh_factory#control_task_extension", as: :employee_nevaeh_factory_control_task_extension
   post "/employee/nevaeh/factory/islamic/import", to: "employee/nevaeh_factory#import_islamic_source", as: :employee_nevaeh_factory_import_islamic
   post "/employee/nevaeh/factory/islamic/quran", to: "employee/nevaeh_factory#download_quran", as: :employee_nevaeh_factory_download_quran
   post "/employee/nevaeh/factory/islamic/:id/review", to: "employee/nevaeh_factory#review_islamic_source", as: :employee_nevaeh_factory_review_islamic

@@ -6,7 +6,9 @@ module NevaehOs
       'improve'=>%w[kind operation], 'build'=>%w[kind id], 'activate'=>%w[kind id],
       'project'=>%w[kind name], 'ticket'=>%w[kind text], 'run'=>%w[kind id],
       'worker_status'=>%w[kind id status], 'resource'=>%w[kind operation resource id attributes],
-      'capability'=>%w[kind intent payload], 'write'=>%w[kind format context]
+      'capability'=>%w[kind intent payload site_id], 'write'=>%w[kind format context],
+      'website_page'=>%w[kind site_id values], 'campaign_produce'=>%w[kind operation site_id values],
+      'specialist_review'=>%w[kind role inputs]
     }.freeze
     module_function
     def validate!(patterns:, slots:, command:, sources:)
@@ -29,6 +31,9 @@ module NevaehOs
         when 'resource' then %w[operation resource attributes]
         when 'capability' then %w[intent payload]
         when 'write' then %w[format context]
+        when 'website_page' then %w[site_id values]
+        when 'campaign_produce' then %w[operation site_id values]
+        when 'specialist_review' then %w[role inputs]
         end
       raise ArgumentError, 'Command template is missing required fields' unless required.all? { |key| command.key?(key) }
       %w[payload attributes context].each { |key| raise ArgumentError, "#{key} must be an object" if command.key?(key) && !command[key].is_a?(Hash) }
@@ -141,8 +146,8 @@ module NevaehOs
       # These fields come from operating/agent context. The executor checks them.
       # These server annotations are independently checked before Language.guard!
       # by Executor, DocumentationWorkers, PageWorkers and the report resolver.
-      actual = command.except('language_binding', 'agent_id', 'persona_id', 'site_id', 'origin',
-        'documentation_contract','documentation_read','experience_contract','manager_context','report_dependencies','task_contract','page_contract')
+      annotations = %w[language_binding agent_id persona_id site_id origin documentation_contract documentation_read experience_contract manager_context report_dependencies task_contract page_contract]
+      actual = command.except(*(annotations - binding.command_template.keys))
       raise ArgumentError, 'The saved task does not match its reviewed conversational action' unless verify.call(binding.command_template, actual)
     end
   end

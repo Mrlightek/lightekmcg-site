@@ -1,10 +1,13 @@
 <p class="nc-links"><%= link_to "Nevaeh Guide & tutorials →", main_app.dashboard_nevaeh_guide_path %></p>
 <% content_for :title, 'Nevaeh Digital Factory' %>
 <% content_for :head do %><link rel="stylesheet" href="/lightek/nevaeh/control-center.css"><link rel="stylesheet" href="/lightek/nevaeh/factory.css"><script src="/lightek/nevaeh/factory.js" defer></script><% end %>
+<% if @tab == 'tasks' %><% content_for :head do %><script src="/lightek/nevaeh/task-builder.js" defer></script><% end %><% end %>
 <section class="nc" data-factory data-help-scope="<%= @tab == 'training' ? 'training' : @tab == 'conversation' ? 'conversation' : 'factory' %>">
   <header class="nc-hero"><div><span class="nc-eyebrow">LIGHTEK OS / NEVAEH</span><h1>Build the ability.</h1><p>Digital Factory <%= nevaeh_help_button('factory') %></p><p class="nc-muted">Construct → verify → connect → execute. Teach → train → evaluate → converse.</p></div></header>
-  <nav class="nc-tabs" aria-label="Factory workspaces"><% {'construction'=>'Construction factory', 'training'=>'Neural training', 'conversation'=>'Conversation', 'islamic'=>'Quran & Hadith', 'study'=>'Salah & Study', 'manuals'=>'Manuals & Language'}.each do |key,label| %><%= link_to label, employee_nevaeh_factory_path(tab: key), class: @tab == key ? 'active' : nil %><% end %><%= link_to 'Software Library', employee_software_library_path %><%= link_to 'Control Center', employee_nevaeh_control_center_path %></nav>
-  <% if @tab == 'construction' %>
+  <nav class="nc-tabs" aria-label="Factory workspaces"><% {'tasks'=>'Task builder', 'construction'=>'Construction factory', 'training'=>'Neural training', 'conversation'=>'Conversation', 'islamic'=>'Quran & Hadith', 'study'=>'Salah & Study', 'manuals'=>'Manuals & Language'}.each do |key,label| %><%= link_to label, employee_nevaeh_factory_path(tab: key), class: @tab == key ? 'active' : nil %><% end %><%= link_to 'Software Library', employee_software_library_path %><%= link_to 'Control Center', employee_nevaeh_control_center_path %></nav>
+  <% if @tab == 'tasks' %>
+    <%= render 'task_builder' %>
+  <% elsif @tab == 'construction' %>
     <div class="nc-heading"><div><h2>From specification to working service.</h2><p>Generate Ruby, test expected behavior, connect a capability and create its worker.</p></div><%= link_to '+ New construction', employee_nevaeh_factory_path, class: 'nc-button' %></div>
     <div class="nc-split"><aside class="nc-panel"><h3>Construction library</h3><% @constructions.each do |record| %><article class="nc-worker"><%= link_to record.name, employee_nevaeh_factory_path(construction_id: record.id) %><p><code><%= record.capability_key %></code></p><span class="nc-pill"><%= record.status %> <%= "· v#{record.active_release.version}" if record.active_release %></span></article><% end %><% if @constructions.empty? %><p>Start with the greeting construction on the right, or define your own transformation.</p><% end %></aside>
       <article class="nc-panel"><h3><%= @construction.persisted? ? "Edit #{@construction.name}" : 'Create a construction' %> <%= nevaeh_help_button('factory') %></h3>

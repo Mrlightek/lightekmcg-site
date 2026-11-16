@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_050000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_16_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -4098,6 +4098,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_050000) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "builder_spec", default: {}, null: false
+    t.jsonb "builder_verification", default: {}, null: false
     t.index ["creator_id"], name: "index_nevaeh_language_bindings_on_creator_id"
     t.index ["nevaeh_manual_build_id"], name: "idx_language_binding_build"
   end

@@ -6,6 +6,11 @@ module NevaehOs
     module_function
 
     def site_key(command)
+      if command['kind']=='specialist_review'
+        values=command.fetch('inputs',{})
+        return "employer:#{values['employer_id']}" if values['employer_id']
+        return values['site_id'].to_s if values['site_id']
+      end
       value = command['site_id'] || command.dig('payload', 'site_id') || command.dig('page_contract', 'context', 'site_id')
       value.present? ? value.to_s : 'unscoped'
     end

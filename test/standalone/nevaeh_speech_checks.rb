@@ -90,6 +90,52 @@ class NevaehSpeechChecks < StudioDirectorProducerChecks
     assert_equal calls,data[:playlist_items].size
     assert data[:playlist_frames].each_cons(2).all? { |a,b| a['time']<=b['time'] }
   end
+  def test_natural_playlist_uses_one_process_and_publishes_before_later_parts
+    record=NevaehOs::Speech.request!(actor:@alice,text:('This reply has several sentences with useful information. '*5),request_key:SecureRandom.uuid)
+    assert_operator record.segments.count,:>,1
+    assert_operator record.segments.first.text.length,:<=,60
+    calls=0
+    batch=->(parts:,root:,voice:,speed:,cancel_if:,on_tick:) do
+      calls+=1
+      assert_equal 'nevaeh-natural',voice
+      parts.each_with_index do |text,index|
+        assert NevaehOs::Speech.receipt(record.reload)[:playlist_ready] if index.positive?
+        voice_fixture.call(text:text,path:File.join(root,"part-#{index}.wav"),voice:voice,speed:speed)
+        File.binwrite(File.join(root,"part-#{index}.ts"),'transport fixture')
+        File.write(File.join(root,"part-#{index}.json"),JSON.generate(duration:0.8,mouth_frames:[{'time'=>0.0,'value'=>0.2},{'time'=>0.4,'value'=>0.8}]))
+        on_tick.call
+      end
+    end
+    ScreenplayEngine::NeuralVoice.stub(:synthesize_playlist!,batch) { NevaehOs::Speech.generate!(record) }
+    assert_equal 1,calls
+    assert_operator NevaehOs::Speech.receipt(record.reload)[:first_audio_seconds],:>=,0
+    assert_operator NevaehOs::Speech.receipt(record)[:queue_seconds],:>=,0
+    assert_equal 'ready',record.reload.status
+    assert_equal record.segments.count,NevaehOs::Speech.receipt(record)[:playlist_items].size
+  end
+  def test_cancelled_natural_batch_never_publishes_later_audio
+    record=NevaehOs::Speech.request!(actor:@alice,text:'Cancel this private reply.',request_key:SecureRandom.uuid)
+    batch=->(**options) do
+      record.update!(status:'cancelled')
+      options[:on_tick].call
+    end
+    ScreenplayEngine::NeuralVoice.stub(:synthesize_playlist!,batch) { NevaehOs::Speech.generate!(record) }
+    assert_equal 'cancelled',record.reload.status
+    refute record.segments.first.audio.attached?
+  end
+  def test_natural_playlist_command_uses_one_private_container_and_stdin
+    Dir.mktmpdir('neural-playlist-') do |root|
+      calls=[]
+      process=->(command,**options) { calls<<command;assert_equal 'none',command[command.index('--network')+1];assert_includes command,'--interactive';refute_includes command,'Private text.';assert_equal ['Private text.'],JSON.parse(options.fetch(:stdin_data)).fetch('parts') }
+      Rails.env.stub(:production?,true) do
+        Studio::MediaProcess.stub(:cpu_limit,'1') do
+          Studio::MediaProcess.stub(:run!,process) { ScreenplayEngine::NeuralVoice.synthesize_playlist!(parts:['Private text.'],root:root,voice:'nevaeh-natural',speed:170) }
+        end
+      end
+      assert_equal 1,calls.size
+      assert_includes calls.first,'/opt/lightek-voice/playlist.py'
+    end
+  end
   def test_natural_voice_is_default_and_real_model_produces_private_playable_audio
     record=NevaehOs::Speech.request!(actor:@alice,text:'Hello Marlon. Let us create something together.',request_key:SecureRandom.uuid)
     assert_equal 'nevaeh-natural',record.voice

@@ -71,3 +71,9 @@ The deployment must restart Sidekiq to load the capsule. Existing jobs already w
 ## Name pronunciation
 
 The written name remains **Nevaeh**. Speech uses the explicit pronunciation **nuh-VAY-uh** (`nəvˈeɪə`) for both natural profiles and phoneme overrides for basic voices. Whole-name matching also handles straight/curly possessives and capitalization; unrelated identifiers such as NevaehSpeech are not rewritten. The override is applied only during synthesis, so stored replies, captions and playlist text retain the correct spelling. Rebuild the changed Studio media image to install the natural-voice rule, and generate a new reply; existing recordings keep their recorded pronunciation.
+
+## Natural voice startup
+
+Natural replies use one model process and media container per reply, sharing the loaded model across its chunks. The first chunk is limited to sixty characters; later chunks remain bounded to 120 characters. Ready chunks publish incrementally while later speech is generated. This removes repeated model/container startup within a reply; it does not keep a model resident between replies or guarantee a fixed latency on every server. Rebuild the Studio media image to include `voice/playlist.py`, then restart the workers. Text remains visible while speech prepares. Measure first-audio latency on the deployed CPU after rebuilding.
+
+Speech status receipts include `queue_seconds` and `first_audio_seconds` so deployed queue wait and first-playable-audio time can be checked separately. The latter records readiness of the first saved segment, before browser/network playback delay.

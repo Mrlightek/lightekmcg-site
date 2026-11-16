@@ -14,6 +14,10 @@ module NevaehOs
       Agents.authorize!(command,actor)
       raise ArgumentError, 'Account is unavailable' unless actor.persisted?
       case command.fetch('kind')
+      when 'website_page'
+        WebsitePages.authorize!(actor,command)
+      when 'specialist_review'
+        SpecialistTasks.authorize!(actor,command)
       when 'documentation_question'
         Guide.tutorial(command.fetch('topic'),actor:actor)
         agent=NevaehOsAgent.find(command['agent_id']) if command['agent_id']
@@ -130,6 +134,10 @@ module NevaehOs
       actor = authorize!(action)
       command = action.command
       case command.fetch('kind')
+      when 'website_page'
+        WebsitePages.create!(actor:actor,command:command)
+      when 'specialist_review'
+        SpecialistTasks.perform!(actor:actor,command:command)
       when 'documentation_question'
         DocumentationWorkers.delegate_question!(actor:actor,topic:command.fetch('topic'),query:command.fetch('query'),key:"documentation-action-#{action.id}")
       when 'documentation_answer'

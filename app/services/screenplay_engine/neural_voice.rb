@@ -3,6 +3,15 @@ module ScreenplayEngine
   module NeuralVoice
     VOICES = %w[nevaeh-natural nevaeh-warm].freeze
     module_function
+    def synthesize_playlist!(parts:,root:,voice:,speed:,cancel_if:nil,on_tick:nil)
+      script=Rails.root.join('docker/studio-media/voice/playlist.py').to_s
+      command=if Rails.env.production?
+        Studio::MediaProcess.container(['/opt/lightek-voice/venv/bin/python','/opt/lightek-voice/playlist.py','--directory','/work'],root:root,image:Studio::NativeBlender::Runtime.image(:media),stdin:true,voice_libraries:true)
+      else
+        [ENV.fetch('LIGHTEK_VOICE_PYTHON','python3'),script,'--directory',root]
+      end
+      Studio::MediaProcess.run!(command,timeout:240,stdin_data:JSON.generate({parts:parts,voice:voice,speed:speed}),cancel_if:cancel_if,on_tick:on_tick)
+    end
     def synthesize!(text:, path:, voice:, speed:, cancel_if: nil)
       script=Rails.root.join('docker/studio-media/voice/synthesize.py').to_s
       command=if Rails.env.production?

@@ -38,6 +38,7 @@ end
 class CampaignProducerChecks < CampaignStudioChecks
   CampaignStudioChecks.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
   def setup
+    [NevaehWorkerReportReview,NevaehWorkerReport,NevaehAgentRun,NevaehAgentWorker,NevaehOsAction,NevaehOsAgent,DymondDispatch::WorkItem].each(&:delete_all)
     super
     LightekAgency::PackagePolicy.blocked = false
     LightekGrowth::Brief.delete_all
@@ -182,8 +183,20 @@ module Gatekeeper
 end
 %w[nevaeh_os_action nevaeh_os_agent nevaeh_agent_worker nevaeh_agent_run nevaeh_capability].each { |file| require File.join(ROOT,"app/models/#{file}") }
 %w[agents executor dispatch worker receipts page_context page_workers workforce conversation guide].each { |file| require File.join(ROOT,"app/services/nevaeh_os/#{file}") }
+%w[20261116010000_create_nevaeh_worker_reports 20261116020000_add_structured_worker_results 20261116030000_reserve_nevaeh_task_uuids].each { |file| require File.join(ROOT,"db/migrate/#{file}") }
+CreateNevaehWorkerReports.new.migrate(:up)
+AddStructuredWorkerResults.new.migrate(:up)
+ReserveNevaehTaskUuids.new.migrate(:up)
+%w[nevaeh_worker_report nevaeh_worker_report_review].each { |file| require File.join(ROOT,"app/models/#{file}") }
+%w[report_schema report_journal documentation_workers worker_reports agent_workforce].each { |file| require File.join(ROOT,"app/services/nevaeh_os/#{file}") }
+require File.join(ROOT,'app/jobs/nevaeh_os/agent_run_job')
+CAMPAIGN_REPORT_ROOT=Pathname.new(Dir.mktmpdir('campaign-journal-'))
+NevaehOs::ReportJournal.define_singleton_method(:root) { CAMPAIGN_REPORT_ROOT }
+at_exit { FileUtils.rm_rf(CAMPAIGN_REPORT_ROOT) }
+require 'minitest/mock'
 class CampaignProducerChecks
   def test_producer_conversation_uses_dispatch_receipts_and_planning_does_not_write
+    Rails.stub(:root,Pathname.new(ROOT)) do
     phrase = 'make me a funny tiktok campaign ad promoting xyzzy service'
     chat = NevaehOs::Conversation.new(actor: @alice, host: @site.host)
     count = LightekMarketing::Campaign.count
@@ -192,21 +205,30 @@ class CampaignProducerChecks
     assert_equal count, LightekMarketing::Campaign.count
     result = chat.ask(text: phrase, request_key: SecureRandom.uuid, mode: 'operate')
     action = NevaehOsAction.find(result.fetch('action_id'))
-    assert_equal @site.id, action.command['site_id']
-    assert_equal 'marketing.campaign.produce', NevaehOs::Agents.capability(action.command)
-    receipt = NevaehOs::Worker.perform('execute', {'action_id'=>action.id})
+    assert_equal @site.id, action.command.dig('command','site_id')
+    assert_equal 'marketing.campaign.produce', NevaehOs::Agents.capability(action.command.fetch('command'))
+    assert_equal 'Campaign Producer',result['delegated_to']
+    delegation = NevaehOs::Worker.perform('execute', {'action_id'=>action.id})
+    run=NevaehAgentRun.find(delegation.fetch('agent_run_id'))
+    NevaehOs::AgentWorkforce.execute!(run)
+    child=run.reload.nevaeh_os_action
+    receipt = NevaehOs::Worker.perform('execute', {'action_id'=>child.id})
     op = operation(receipt)
     assert_equal 'pending', op.status
     assert_equal 'completed', action.reload.status
     assert_equal count+1, LightekMarketing::Campaign.count
-    assert_equal receipt, NevaehOs::Worker.perform('execute', {'action_id'=>action.id})
+    assert_equal delegation, NevaehOs::Worker.perform('execute', {'action_id'=>action.id})
     polled = NevaehOs::Receipts.for(action)
     assert_equal 'dispatched', polled[:status]
-    assert_equal op.id, polled.dig(:downstream,:id)
+    assert_equal op.id, polled.dig(:downstream,:downstream,:id)
     op.update!(status: 'failed', error_message: 'Renderer unavailable')
     assert_equal 'failed', NevaehOs::Receipts.for(action)[:status]
     agent = NevaehOs::Agents.resolve!('muse', @alice)
     agent.update!(allowed_capabilities: ['susu.*'])
-    assert_raises(ArgumentError) { chat.ask(text: phrase, request_key: SecureRandom.uuid, agent: 'muse', mode: 'operate') }
+    routed=chat.ask(text: phrase, request_key: SecureRandom.uuid, agent: 'muse', mode: 'operate')
+    assert_equal 'Campaign Producer',routed['delegated_to']
+    assert_equal ['susu.*'],agent.reload.allowed_capabilities
+    assert_raises(ArgumentError) { chat.ask(text: '/delegate muse '+phrase, request_key: SecureRandom.uuid, mode: 'operate') }
+    end
   end
 end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module NevaehOs
   module DocumentationWorkers
-    TOPICS={'production'=>'production_director','campaign_produce'=>'campaign_producer','growth_plan'=>'growth','growth_review'=>'growth',
+    TOPICS={'website_page'=>'specialist_tasks','specialist_review'=>'specialist_tasks','production'=>'production_director','campaign_produce'=>'campaign_producer','growth_plan'=>'growth','growth_review'=>'growth',
       'ubuntu'=>'ubuntu','application'=>'ubuntu','console'=>'console','resource'=>'commands','write'=>'writing',
       'build'=>'factory','activate'=>'factory','train'=>'training','checkpoint'=>'training','approve'=>'training',
       'learn'=>'training','review'=>'training','model'=>'training','improve'=>'workforce','ticket'=>'agents',

@@ -51,6 +51,9 @@ module NevaehOs
       /produce render ID · /produce assemble ID · /produce status ID · /produce retry VOICE_OPERATION_ID
       /campaign {"site_id":123,"service":"Xyzzy","tone":"funny"} — build an editable TikTok draft and private preview
       /campaign status ID · /campaign retry ID — production progress and recovery
+      /marketing SITE_ID — prepare a seven-day marketing kit with copy and follow-up drafts
+      /marketing execute SITE_ID [KIT_ID] — execute the kit’s supported asset and follow-up steps
+      /features SITE_ID [KIT_ID] — build a feature page and its captioned overview videos
       /growth SITE_ID — prepare or open today’s business growth plan
       /status — your recent actions · /briefing — today's operational briefing
       /remember Preferences: I prefer concise replies — offers a memory for consent
@@ -62,6 +65,26 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      if (m = q.match(/\A(?:please )?(?:build|create|make)(?: me)? (?:a |my |the )?(?:feature|features|feature showcase) (?:page|webpage)(?: with (?:feature |overview |captioned )?videos)?(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
+        return {'kind'=>'feature_showcase', 'site_id'=>m[1]&.to_i}.compact
+      end
+      if (m = q.match(/\A\/?marketing execute ([1-9][0-9]{0,17})(?: ([1-9][0-9]{0,17}))?\z/i))
+        return {'kind'=>'marketing_execute','site_id'=>m[1].to_i,'kit_id'=>m[2]&.to_i}.compact
+      end
+      if (m = q.match(/\A\/?features ([1-9][0-9]{0,17})(?: ([1-9][0-9]{0,17}))?\z/i))
+        return {'kind'=>'feature_showcase','site_id'=>m[1].to_i,'kit_id'=>m[2]&.to_i}.compact
+      end
+      if (m = q.match(/\A(?:please )?(execute my marketing plan|build my feature page)(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
+        return {'kind'=>m[1].downcase.start_with?('execute') ? 'marketing_execute' : 'feature_showcase', 'site_id'=>m[2]&.to_i}.compact
+      end
+      if (m = q.match(/\A\/?marketing(?:\s+([1-9][0-9]{0,17}))?(?:\s+(\{.*\}))?\z/im))
+        values = m[2] ? JSON.parse(m[2]) : {}
+        raise ArgumentError, 'Use a marketing input object' unless values.is_a?(Hash)
+        return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i, 'values'=>values}.compact
+      end
+      if (m = q.match(/\A(?:please )?(?:help me market my business|prepare my marketing kit|build my marketing kit)(?:\s+(?:for\s+)?(?:site\s+)?([1-9][0-9]{0,17}))?[.!]?\z/i))
+        return {'kind'=>'marketing_kit', 'site_id'=>m[1]&.to_i, 'values'=>{}}.compact
+      end
       if (m=q.match(/\A\/website\s+page\s+(\{.*\})\z/m))
         values=JSON.parse(m[1]);raise ArgumentError,'Use website page inputs' unless values.is_a?(Hash)
         return {'kind'=>'website_page','site_id'=>values.delete('site_id'),'values'=>values}.compact

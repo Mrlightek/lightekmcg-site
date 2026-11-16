@@ -848,6 +848,7 @@ class NevaehGuideTest < Minitest::Test
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
     assert_equal 26,topics.size
+    refute_includes topics.map { |topic| topic[:id] }, 'marketing_copilot' # No authorized business context in this fixture.
     assert_includes topics.map { |topic| topic[:id] }, 'task_builder'
     assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'
     assert_includes topics.map { |topic| topic[:id] }, 'production_director'

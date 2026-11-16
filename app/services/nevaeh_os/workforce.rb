@@ -13,7 +13,7 @@ module NevaehOs
       'blocking'=>['Blocking Technician','Studio','Preview personal space, obstacle routes and scene geometry on a copy.',['studio.direct.production'],['/produce rehearse {"production_id":1,"scene_id":1}']],
       'editor'=>['Episode Editor','Studio','Assemble completed scene exports into an episode master.',['studio.direct.production'],['/produce assemble PRODUCTION_ID']],
       'publisher'=>['Publishing Coordinator','Distribution','Deliver an explicitly reviewed master to configured destinations.',['studio.direct.production'],['/produce publish {"production_id":1,"artifact_id":1,"reviewed":true,"destinations":["lightek_streaming"]}']],
-      'campaign'=>['Campaign Producer','Marketing','Build editable social ads and private MP4 previews.',['marketing.campaign.produce'],['/campaign {"site_id":1,"service":"YOUR_SERVICE","tone":"funny"}']],
+      'campaign'=>['Campaign Producer','Marketing','Build editable marketing kits, social ads and private MP4 previews.',['marketing.campaign.produce','growth.marketing_kit','growth.marketing_execute'],['/marketing SITE_ID','/campaign {"site_id":1,"service":"YOUR_SERVICE","tone":"funny"}']],
       'growth'=>['Growth Analyst','Marketing','Prepare the site’s daily growth plan from actual business evidence.',['growth.plan','growth.review'],['/growth SITE_ID','/growth review SITE_ID COMPARISON_ID']],
       'librarian'=>['Manuals Librarian','Learning','Import installed manuals and draft training batches and conversational bindings.',['nevaeh.improve','nevaeh.learn','nevaeh.review'],['/improve corpus']],
       'language_tester'=>['Language Contract Tester','Learning','Check active phrases against their current sources and action contracts.',['nevaeh.improve'],['/improve language_check']],

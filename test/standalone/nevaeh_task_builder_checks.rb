@@ -146,6 +146,20 @@ class NevaehTaskBuilderChecks < NevaehTenTaskChecks
     assert_equal 'needs_clarification', result['status']
     refute result['command']
   end
+  def test_marketing_request_uses_its_native_executor_instead_of_a_ten_task_guess
+    result = ask('help me market my business', mode: 'reflect')
+    assert_equal 'planned', result['status']
+    assert_includes result['text'], 'marketing_kit'
+    assert_empty NevaehTaskDialogue.all
+    assert_empty NevaehOsAction.all
+    target = NevaehOs::TaskBuilder.command('marketing_kit', {'site_id'=>@site.id})
+    assert_equal 'growth.marketing_kit', NevaehOs::Agents.capability(target)
+    assert_equal @site.id, target['site_id']
+    ['create a feature page', 'build me a feature page with videos', 'make my features webpage with overview videos'].each do |phrase|
+      assert_equal 'feature_showcase', NevaehOs::Command.parse(phrase)['kind']
+      assert_nil NevaehOs::TaskDialogues.handle(actor: @actor, text: phrase, request_key: SecureRandom.uuid, mode: 'reflect')
+    end
+  end
 end
 
 class NevaehTaskBuilderUiChecks < NevaehTaskBuilderChecks

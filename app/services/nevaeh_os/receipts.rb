@@ -6,7 +6,13 @@ module NevaehOs
     def for(action)
       value = {id:action.id,status:action.status,result:action.result,error:action.error,created_at:action.created_at,kind:action.command['kind']}
       return value unless action.status == 'completed'
-      if action.result['goal_id']
+      if action.command['kind']=='marketing_execute' && action.result['goal_id']
+        site = DymondSite::Site.find(action.command.fetch('site_id'))
+        goal = NevaehGoal.where(user: action.user).find(action.result.fetch('goal_id'))
+        receipt = LightekGrowth::MarketingExecutionPlan.new(actor: action.user, site: site).receipt(goal)
+        value[:result] = receipt
+        value[:status] = receipt['status']=='completed' ? 'completed' : receipt['status']=='blocked' ? 'failed' : 'dispatched'
+      elsif action.result['goal_id']
         goal=Goals.owned!(action.user,action.result['goal_id'])
         value[:downstream]={type:'goal',id:goal.id,status:goal.status,result:Goals.receipt(goal)}
         value[:status]=goal.status=='running' ? 'dispatched' : goal.status=='blocked' ? 'failed' : goal.status=='cancelled' ? 'cancelled' : 'completed'
@@ -30,6 +36,12 @@ module NevaehOs
         receipt = producer.receipt(operation, actor: action.user)
         value[:downstream] = {type:'campaign_production', id:operation.id, status:operation.status, error:operation.error_message, result:receipt}
         value[:status] = %w[completed failed cancelled].include?(operation.status) ? operation.status : 'dispatched'
+      elsif action.command['kind'] == 'feature_showcase'
+        site = DymondSite::Site.find(action.command.fetch('site_id'))
+        showcase = LightekGrowth::FeatureShowcase.where(site: site).find(action.result.fetch('showcase_id'))
+        receipt = LightekGrowth::ShowcaseBuilder.new(actor: action.user, site: site).receipt(showcase)
+        value[:result] = receipt
+        value[:status] = receipt['status']=='completed' ? 'completed' : receipt['status']=='failed' ? 'failed' : 'dispatched'
       elsif action.command['kind'] == 'growth_review'
         site = DymondSite::Site.find(action.command.fetch('site_id'))
         review = LightekGrowth::PerformanceReview.joins(:comparison).where(lightek_growth_comparisons: {site_id: site.id}).find(action.result.fetch('review_id'))

@@ -1,0 +1,124 @@
+{
+  "receipt_id": "nevaeh-chain-block-and-fanout",
+  "harness": "Codex documentation manager-worker orchestration; application Dispatch/Gatekeeper runtime not exercised",
+  "report_store_branch": "test/nevaeh-chain-and-fanout",
+  "source_revision": "0aecdc25c3af02d258d1baba0aa4217522017ee6",
+  "rules_commit": "5a68b59d47e297cf1664570ab0b4c7055b6897ee",
+  "chain": {
+    "status": "passed",
+    "edges": [
+      {
+        "upstream": "doc-loop-test-001",
+        "downstream": "doc-loop-test-002"
+      },
+      {
+        "upstream": "doc-loop-test-002",
+        "downstream": "doc-loop-test-003"
+      },
+      {
+        "upstream": "doc-loop-test-003",
+        "downstream": "doc-loop-test-004"
+      }
+    ],
+    "new_reports": [
+      {
+        "task_id": "doc-loop-test-003",
+        "report_ref": ".nevaeh/reports/doc-loop-test-003.json",
+        "commit": "4cacf1e2ce4dd6dc2b26f19e9b1b612f40ff28a5",
+        "consumed_integer": 9
+      },
+      {
+        "task_id": "doc-loop-test-004",
+        "report_ref": ".nevaeh/reports/doc-loop-test-004.json",
+        "commit": "a53dd1d138b80bc7d73dbaa4f058dfa78118595b",
+        "consumed_integer": 9,
+        "remaining_capacity": 6
+      }
+    ],
+    "manager_verified_remote_before_downstream_dispatch": true
+  },
+  "missing_report": {
+    "status": "passed",
+    "dependent_task_status": "blocked",
+    "task_id": "doc-loop-test-005-missing",
+    "report_ref": ".nevaeh/reports/doc-loop-test-005-missing.json",
+    "report_commit": "0bd7b48b7f7318afee20adcfe00469e781964b1a",
+    "fixture_branch": "test/nevaeh-missing-report-probe",
+    "fixture_missing_commit": "4c3f55b8a8883b584410c86b8fdc15f5d341d854",
+    "fixture_report_commit": "a2fa2620ef6eff7c7c9c30f3596c157811b3f813",
+    "reference": "unresolved:doc-loop-test-001",
+    "upstream_http_status": 404,
+    "dependency_consumed": false,
+    "normal_dependent_dispatch_prevented": true,
+    "diagnostic_probe_only": true,
+    "original_report_preserved": true
+  },
+  "duplicate_id": {
+    "task_id": "doc-loop-test-003",
+    "result": "blocked",
+    "reason": "duplicate_task_id",
+    "worker_dispatched": false,
+    "report_sha_before": "8ae2582cdbf7d6de5dfad6feef250cbbd9a943ef",
+    "store_commit": "5a68b59d47e297cf1664570ab0b4c7055b6897ee",
+    "report_sha_after": "8ae2582cdbf7d6de5dfad6feef250cbbd9a943ef",
+    "unchanged": true
+  },
+  "uncommitted_report": {
+    "task_id": "doc-loop-uncommitted-e46077fa-47ab-4826-8a8c-f210dd54491f",
+    "result": "blocked",
+    "reason": "report_not_committed",
+    "local_file_existed": true,
+    "remote_read": "404",
+    "worker_dispatched": false,
+    "store_commit": "0bd7b48b7f7318afee20adcfe00469e781964b1a"
+  },
+  "fanout": {
+    "status": "passed",
+    "independent_worker_count": 2,
+    "manager_assigned_distinct_ids": true,
+    "committed_reservations": [
+      {
+        "task_id": "doc-loop-fanout-bb642aa0-c0b0-4d26-8bb8-fb162a8808ce",
+        "path": ".nevaeh/dispatches/doc-loop-fanout-bb642aa0-c0b0-4d26-8bb8-fb162a8808ce.json",
+        "commit": "5c8676591770a273f9e9850726917b9041691ade"
+      },
+      {
+        "task_id": "doc-loop-fanout-5e79d34f-bff1-4bd1-8606-6c78def1989c",
+        "path": ".nevaeh/dispatches/doc-loop-fanout-5e79d34f-bff1-4bd1-8606-6c78def1989c.json",
+        "commit": "5029bcc770a270412361e851c0e2f7ea335b53aa"
+      }
+    ],
+    "manager_read_both_reports_from_remote_commits": true,
+    "worker_dependencies_empty": true,
+    "reconciliation": {
+      "maximum_goal_tasks": 12,
+      "step_count": 3,
+      "within_limit": true,
+      "remaining_capacity": 9,
+      "minimum_repeat_minutes": 5,
+      "dependency_count": 2,
+      "dependencies": [
+        {
+          "task_id": "doc-loop-fanout-bb642aa0-c0b0-4d26-8bb8-fb162a8808ce",
+          "report_ref": ".nevaeh/reports/doc-loop-fanout-bb642aa0-c0b0-4d26-8bb8-fb162a8808ce.json",
+          "commit": "f0c1d085e6407085c97a72588c028845eb123aa2"
+        },
+        {
+          "task_id": "doc-loop-fanout-5e79d34f-bff1-4bd1-8606-6c78def1989c",
+          "report_ref": ".nevaeh/reports/doc-loop-fanout-5e79d34f-bff1-4bd1-8606-6c78def1989c.json",
+          "commit": "9e66780ae25b7fdc17966512def48a64629b294e"
+        }
+      ]
+    }
+  },
+  "checks": {
+    "fixed_worker_report_schema": true,
+    "source_fingerprints": true,
+    "source_quotes": true,
+    "typed_integer_inputs": true,
+    "disk_matches_remote_commit": true,
+    "report_files_committed_before_close": true,
+    "duplicate_report_unchanged": true,
+    "original_reports_not_overwritten": true
+  }
+}

@@ -3,3 +3,5 @@
 .workforce-reports{margin-top:28px;border-top:1px solid #3c3147;padding-top:22px}.workforce-reports>.workforce-field{max-width:380px}.workforce-reports .workforce-card{margin:12px 0;overflow-wrap:anywhere}.workforce-reports>p{font-size:12px;line-height:1.6;color:#c3b8cd}
 
 .workforce-controls input{flex:1 1 180px;width:auto}.workforce-controls select{flex:0 1 200px;width:auto}.workforce summary{cursor:pointer;line-height:1.6;color:#d6baef;padding:4px 0}.workforce button:disabled{opacity:.5;cursor:not-allowed}.workforce-tasks{margin-top:22px}.workforce-tasks>.workforce-card{margin:12px 0}.workforce>details{border-top:1px solid #3c3147;padding-top:12px}
+
+.nv-task-dialogue{margin:12px 0;padding:12px;border:1px solid #574663;border-radius:10px;line-height:1.6;font-size:12px}.nv-task-dialogue form,.nv-task-dialogue label{display:grid;gap:8px}.nv-task-dialogue button{margin:5px 6px 5px 0}.nv-task-dialogue input,.nv-task-dialogue select{width:100%;max-width:100%;box-sizing:border-box;padding:9px;background:#17131e;color:#f2ecfa;border:1px solid #574663;border-radius:7px}.nv-task-dialogue summary{cursor:pointer;margin-top:10px}

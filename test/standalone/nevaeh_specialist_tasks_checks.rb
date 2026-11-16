@@ -241,7 +241,7 @@ class NevaehSpecialistTasksChecks < NevaehOsTest
   end
   def test_website_selection_requires_an_unambiguous_authorized_target
     second=DymondSite::Site.create!(host:'another.test',tenant_id:@actor.id,tenant_type:'User')
-    error=assert_raises(ArgumentError) { NevaehOs::Conversation.new(actor:@actor).ask(text:'Create a website page called Test',request_key:SecureRandom.uuid) }
+    error=assert_raises(ArgumentError) { NevaehOs::Conversation.new(actor:@actor).ask(text:'/website page {"title":"Test"}',request_key:SecureRandom.uuid) }
     assert_includes error.message,"##{second.id}"
     assert_equal 0,DymondSite::Page.count
     assert_equal 0,NevaehAgentRun.count

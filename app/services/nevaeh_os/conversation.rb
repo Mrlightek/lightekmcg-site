@@ -4,10 +4,14 @@ module NevaehOs
     def initialize(actor:, host: nil, origin: nil)
       @actor, @host, @origin = actor, host, origin
     end
-    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil, page_action: nil)
+    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil, page_action: nil, dialogue_id: nil, dialogue_action: nil, dialogue_values: {})
       @page_context=PageContext.normalize(page_context)
       selected=NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(system_key:agent.to_s) || NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(id:agent.to_s.delete_prefix('custom-'))
       page_sme=selected&.system_key.to_s.start_with?('page_')
+      if !page_action && !binding_id && !page_sme && defined?(TaskDialogues)
+        handled=TaskDialogues.handle(actor:@actor,text:text,request_key:request_key,dialogue_id:dialogue_id,action:dialogue_action,values:dialogue_values || {},mode:mode,context:@page_context,host:@host,origin:@origin)
+        return handled if handled
+      end
       if !page_action && !page_sme && (task=PageWorkers.request_for(text,actor:@actor,context:@page_context))
         return task if task['missing_inputs'].any?
         page_action=task['page_task'].slice(:key,:fingerprint).merge(inputs:{})
@@ -163,7 +167,7 @@ module NevaehOs
       text="I can help you plan work, find the right tools, and delegate supported tasks to your workers. I can explain the page you're on and track tasks through their actual results."
       text+="\n\nConnected options include: #{examples.map { |entry| entry[:title] }.join('; ')}." if examples.any?
       text+="\n\nTell me what you want to accomplish. Open Guide & capabilities for the full list and any tools that still need connecting."
-      {'text'=>text,'status'=>'ready','guide_url'=>'/dashboard/nevaeh/guide','capabilities'=>examples.map { |entry| {slug:entry[:key],name:entry[:title],invoke:entry[:example]} }}
+      {'text'=>text,'status'=>'ready','guide_url'=>'/dashboard/nevaeh/guide','task_choices'=>(defined?(TaskCatalog) ? TaskCatalog.manifest : []),'capabilities'=>examples.map { |entry| {slug:entry[:key],name:entry[:title],invoke:entry[:example]} }}
     end
     def prepare_command(command)
       return command.merge('host'=>@host,'origin'=>@origin) if command['kind']=='goal'
@@ -233,7 +237,7 @@ module NevaehOs
     def native_response(query, persona: nil)
       relation = NevaehLanguageModel.where(enabled:true).where.not(active_checkpoint_id:nil)
       relation = relation.where(visibility:'shared') unless %w[admin super_admin].include?(@actor.role)
-      model = relation.order(:id).detect { |candidate| candidate.available_to?(@actor) }
+      model = relation.order(:id).detect { |candidate| candidate.available_to?(@actor) && candidate.active_checkpoint&.nevaeh_training_run&.snapshot&.dig('provenance','source')!='ten_task_interpretation' }
       if model
         memories = NevaehOsMemory.where(user:@actor,category:NevaehOsConsent.where(user:@actor,enabled:true).select(:category)).order(id: :desc).limit(5).pluck(:text).join("\n")[0,1200]
         experience=WorkerReports.recall(actor:@actor,persona:persona,page_context:@page_context,query:query)

@@ -1,4 +1,4 @@
-# Reporting System: structured worker convention v1
+# Reporting System: structured worker convention v2
 
 This is the executable convention for documentation-page SMEs and delegated Nevaeh workers. **MUST** and **MUST NOT** describe enforced boundaries; deployment and coverage are specified below.
 
@@ -22,25 +22,25 @@ Operating assignments also bind to one documentation page and one concrete instr
 
 ## Fixed report schema
 
-The normative JSON Schema is **`config/nevaeh/worker_report.schema.json`**, identified as `urn:lightek:nevaeh:worker-report:1` and using JSON Schema draft 2020-12. Every report MUST validate before model persistence, journal append or manager journal read. The runtime validator implements the schema's declared types, required fields, enums, exact object properties, bounds, patterns and array uniqueness. Unknown fields, free-text report strings and incomplete objects are rejected.
+The normative JSON Schema is **`config/nevaeh/worker_report.schema.json`**, identified as `urn:lightek:nevaeh:worker-report:2` and using JSON Schema draft 2020-12. Every report MUST validate before model persistence, journal append or manager journal read. The runtime validator implements the schema's declared types, required fields, enums, exact object properties, bounds, patterns and array uniqueness. Unknown fields, free-text report strings and incomplete objects are rejected.
 
 | Required field | Meaning |
 | --- | --- |
-| `schema_version` | Integer `1`. |
-| `task_id` | Stable `run-N` identity for this specific execution. |
+| `schema_version` | Integer `2`. |
+| `task_id` | Manager-assigned UUID reserved before worker execution. |
 | `worker_id` / `account_id` | Saved worker assignment and account that own the run. |
 | `status` | `pending`, `completed`, `failed`, `blocked`, `cancelled` or `evidence_unavailable`. |
 | `documentation` | Assigned page path, content SHA-256 and actual pre-execution read time. |
 | `output` | Typed authenticated receipt reference, receipt hash and structural execution references. |
-| `dependencies` | Earlier goal task IDs and their actual execution states; empty for independent tasks. |
+| `dependencies` | Upstream UUIDs, resolvable `report_ref` values and boundary statuses; empty for independent tasks. |
 | `file_ownership` | Exact permitted workspace files and the manager-only report writer. |
 
 For example, a successful independent worker emits the following shape. IDs, hashes and times here are illustrative:
 
 ```json
 {
-  "schema_version": 1,
-  "task_id": "run-42",
+  "schema_version": 2,
+  "task_id": "8a5b02ca-59c0-4e2d-91cb-fb425c0c0b49",
   "worker_id": 12,
   "account_id": 7,
   "status": "completed",
@@ -65,6 +65,28 @@ For example, a successful independent worker emits the following shape. IDs, has
 ```
 
 `output` points to the actual authenticated service result rather than copying arbitrary message bodies or credentials into the reporting corpus. A completed service receipt does not imply owner acceptance or artistic correctness. Existing explicit owner reviews remain separate and bound to the receipt hash.
+
+## UUID reservation and dependency resolution
+
+Reserve each new dispatch UUID in `nevaeh_agent_runs.task_uuid` before its worker is enqueued. The global unique database index rejects concurrent reuse across accounts and workers; an existing journal task ID also blocks a new reservation. A replay of the same worker/request key returns the original dispatch, not another run. Retain UUIDs when roles or tasks are paused/deleted. Apply `ReserveNevaehTaskUuids` and restart Rails and workers; the migration assigns stable UUIDs to historical runs without deleting their original journal entries.
+
+Use exactly this runtime dependency shape:
+
+```json
+{
+  "task_id": "8a5b02ca-59c0-4e2d-91cb-fb425c0c0b49",
+  "report_ref": "journal:7:8a5b02ca-59c0-4e2d-91cb-fb425c0c0b49:0000000000000000000000000000000000000000000000000000000000000000",
+  "status": "accepted"
+}
+```
+
+`journal:` identifies the account, reserved UUID and receipt SHA-256. The manager loads the account journal entry, checks the UUID and completed execution state, compares it with the stored worker report, and validates the referenced authorized action receipt's hash. It then reads typed outputs through that receipt. Missing, foreign, malformed or changed evidence blocks the dependent task, even if cached goal evidence or a database report still exists. Recheck references after queueing and before Dispatch to catch evidence removed in between. Do not repair a missing report inside dependency resolution.
+
+Keep `completed` as an internal runtime lifecycle state. Emit only `accepted` in a successfully verified dependency record at the contract boundary; this is not an owner review or a claim of artistic quality. Goal steps must also pass their saved output expectations before downstream work can start. Publish, fsync and read back the first report before marking its goal step complete.
+
+Keep harness references as committed `.nevaeh/reports/<task_id>.json` paths with exact remote-commit read-back. Do not replace them with run-N IDs or waive their commit requirement. Runtime journal durability uses the committed receipt database plus fsynced journal; it does not publish private operational reports to Git.
+
+Read version-1 journal entries using their frozen historical schema, but do not resolve run-N records as UUID dependencies. Existing report views can publish validated version-2 records under migrated UUIDs; unresolved historical goal evidence remains blocked until its upstream reports are available. Do not rewrite historical journal lines.
 
 ## Manager-owned shared file
 
@@ -100,4 +122,4 @@ This boundary covers the managed worker-file API under `storage/nevaeh_worker_fi
 
 Run **`AddStructuredWorkerResults`**, then restart Rails/workers. Existing saved operating assignments acquire a documentation contract on their next request. Historical executions without a recorded pre-execution documentation read are not promoted to completed convention-valid examples.
 
-Open **Workforce & goals → SME reports & lessons → Worker JSON report · schema v1** to inspect the structured record, then use the actual execution receipt for output details. This convention covers delegated runs and documentation-page answers; direct human Dashboard activity is still outside the unified stream.
+Open **Workforce & goals → SME reports & lessons → Worker JSON report · schema v2** to inspect the structured record, then use the actual execution receipt for output details. This convention covers delegated runs and documentation-page answers; direct human Dashboard activity is still outside the unified stream.

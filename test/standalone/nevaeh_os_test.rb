@@ -124,6 +124,8 @@ require File.join(ROOT,'db/migrate/20261116010000_create_nevaeh_worker_reports')
 CreateNevaehWorkerReports.new.migrate(:up)
 require File.join(ROOT,'db/migrate/20261116020000_add_structured_worker_results')
 AddStructuredWorkerResults.new.migrate(:up)
+eval(File.read(File.join(ROOT,'db/migrate/20261116030000_reserve_nevaeh_task_uuids.rb')).sub('Migration[8.0]','Migration[7.2]'),TOPLEVEL_BINDING,'reserve_nevaeh_task_uuids')
+ReserveNevaehTaskUuids.new.migrate(:up)
 %w[report_schema report_journal documentation_workers].each { |file| require File.join(ROOT,'app/services/nevaeh_os',file) }
 NEVAEH_TEST_REPORT_ROOT=Dir.mktmpdir('nevaeh-report-checks-')
 module NevaehOs::ReportJournal
@@ -805,7 +807,7 @@ class NevaehWatcherTest < Minitest::Test
     event=changed(record)
     # Ticket permission is a real boundary adapter here; avoid creating a ticket.
     NevaehOs::Executor.stub(:authorize_command!,@actor) do
-      NevaehOs::AgentWorkforce.stub(:request!,->(worker:,actor:,key:) { worker.runs.create!(actor:actor,request_key:key,snapshot:worker.command) }) do
+      NevaehOs::AgentWorkforce.stub(:request!,->(worker:,actor:,key:) { worker.runs.create!(actor:actor,task_uuid:SecureRandom.uuid,request_key:key,snapshot:worker.command) }) do
         NevaehOs::WatchReaction.process!(event)
       end
     end

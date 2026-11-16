@@ -94,7 +94,9 @@ module NevaehOs
         if value.key?('$step')
           source=goal.steps.find_by!(key:value.fetch('$step'))
           raise ArgumentError,'Referenced step has not completed' unless source.status=='completed'
-          result=dig_path(source.evidence,value.fetch('path'))
+          dependency=WorkerReports.dependency_for!(actor:goal.user,run:source.nevaeh_agent_run)
+          receipt=WorkerReports.resolve!(actor:goal.user,dependency:dependency)
+          result=dig_path(receipt,value.fetch('path'))
           raise ArgumentError,'Required output is missing from the completed step' if result.nil?
           result
         else value.transform_values { |item| resolve(item,goal) }
@@ -146,19 +148,27 @@ module NevaehOs
           if result=='blocked'
             step.update!(status:'blocked',evidence:receipt,error:error);goal.update!(status:'blocked',error:error)
           elsif result=='completed'
+            # Publish, fsync and read back the report before accepting this
+            # step or allowing the next step to consume its output.
+            report=WorkerReports.capture!(run)
+            raise ArgumentError,'Worker report is not complete' unless WorkerReports.journal_result!(report)['status']=='completed'
             step.update!(status:'completed',evidence:receipt,error:nil)
             goal.update!(status:'completed',error:nil) unless goal.steps.where.not(status:'completed').exists?
           else step.update!(evidence:receipt)
           end
         else
+          dependencies=goal.steps.where('position < ?',step.position).order(:position).map do |previous|
+            raise ArgumentError,'Dependency step has not completed' unless previous.status=='completed'
+            WorkerReports.dependency_for!(actor:goal.user,run:previous.nevaeh_agent_run)
+          end
           command=resolve(step.command,goal).merge('agent_id'=>agent.id)
           Executor.authorize_command!(actor:goal.user.reload,command:command)
           worker=NevaehAgentWorker.create!(user:goal.user,nevaeh_os_agent:agent,name:"#{goal.title.first(95)} · #{step.label.first(55)}",command:command)
-          run=AgentWorkforce.request!(worker:worker,actor:goal.user,key:"goal-step-#{step.id}")
+          run=AgentWorkforce.request!(worker:worker,actor:goal.user,key:"goal-step-#{step.id}",dependencies:dependencies)
           step.update!(status:'running',nevaeh_agent_run:run,error:nil)
           AgentRunJob.perform_later(run.id)
         end
-      rescue ArgumentError,ActiveRecord::RecordNotFound,Gatekeeper::AuthorizationDenied,CanCan::AccessDenied,LightekPwa::Policy::Denied => error
+      rescue ArgumentError,ActiveRecord::RecordNotFound,ActiveRecord::RecordInvalid,ActiveRecord::RecordNotUnique,SystemCallError,IOError,Gatekeeper::AuthorizationDenied,CanCan::AccessDenied,LightekPwa::Policy::Denied => error
         step&.update!(status:'blocked',error:error.message.first(2000));goal.update!(status:'blocked',error:error.message.first(2000))
       end
     end

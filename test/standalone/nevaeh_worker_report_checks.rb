@@ -178,7 +178,7 @@ class NevaehWorkerReportHttpChecks < NevaehOsHttpTest
     end
     agent=NevaehOs::Agents.resolve!('sage',@actor)
     worker=NevaehAgentWorker.create!(user:@actor,nevaeh_os_agent:agent,name:'Failed task',command:{'kind'=>'resource','operation'=>'read','resource'=>'agents'})
-    run=worker.runs.create!(actor:@actor,request_key:SecureRandom.uuid,status:'blocked',snapshot:worker.command)
+    run=worker.runs.create!(actor:@actor,task_uuid:SecureRandom.uuid,request_key:SecureRandom.uuid,status:'blocked',snapshot:worker.command)
     @report=NevaehOs::WorkerReports.capture!(run)
   end
   def test_report_endpoints_preserve_account_boundary_and_require_csrf_for_feedback

@@ -11,7 +11,7 @@ class NevaehWorkerReport < ApplicationRecord
   validate do
     begin
       NevaehOs::ReportSchema.validate!(structured_result)
-      unless structured_result['account_id']==user_id && structured_result['task_id']=="run-#{nevaeh_agent_run_id}" && structured_result['status']==status
+      unless structured_result['schema_version']==2 && structured_result['account_id']==user_id && structured_result['task_id']==nevaeh_agent_run&.task_uuid && structured_result['status']==status
         errors.add(:structured_result,'must identify this account, task and execution status')
       end
     rescue ArgumentError => error

@@ -407,7 +407,7 @@ See [Graphical workspace and rehearsal](docs/nevaeh/tutorials/director_stage.md)
 | Capability | Implemented behavior |
 | --- | --- |
 | Workforce directory | 28 default specialist roles with departments, responsibilities, task templates, connected-contract inventory and visible connection gaps. Existing customizations remain. |
-- SME operating reports: downstream completion, append-only owner acceptance/corrections, per-specialist history and scoped retrieval for manager delegation and native conversational drafts. Covers delegated agent runs; direct human Dashboard actions are not yet unified.
+- SME operating reports: manager-reserved UUIDs, account-scoped journal/receipt dependency references with explicit completed-to-accepted boundary mapping, read-back before dependent dispatch, downstream completion, append-only owner acceptance/corrections, per-specialist history and scoped retrieval for manager delegation and native conversational drafts. Covers delegated agent runs; direct human Dashboard actions are not yet unified.
 | Delegation & removal | One-time or scheduled assigned tasks; role pause/delete and task deletion retain history and block undispatched runs. Deleted defaults do not reappear. |
 | Durable goals | Reviewable 1–12-step plans, specialist assignments, typed prior-output handoff, real downstream receipts, output expectations and pause/cancel/recovery without automatic replay of uncertain work. |
 | Expansion tasks | Capability/schema/page-area gap audits with engineering tickets, native manual import, phrase contract validation and existing construction-build/training workers. |

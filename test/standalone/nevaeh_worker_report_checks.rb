@@ -123,6 +123,10 @@ class NevaehWorkerReportChecks < NevaehPageWorkerChecks
     assert_empty recall.call(@actor,manager,@context.merge('site_id'=>'999'))
     assert_empty recall.call(@other,manager,@context)
     assert_empty recall.call(@actor,NevaehOs::Agents.resolve!('muse',@actor),@context)
+    tutorial=NevaehOs::Guide.method(:tutorial)
+    NevaehOs::Guide.stub(:tutorial,lambda { |topic,**args| tutorial.call(topic,**args).merge(body:'A changed operating manual') }) do
+      assert_empty recall.call(@actor,manager,@context)
+    end
     review(report,verdict:'withdrawn',lesson:'')
     assert_empty recall.call(@actor,manager,@context)
   end

@@ -143,6 +143,11 @@ module NevaehOs
         next unless review && review.lesson.present?
         agent = report.nevaeh_os_agent
         next unless agent.enabled? && agent.deleted_at.nil? && report.contract_sha256 == contract(report.nevaeh_agent_run.snapshot, agent)
+        begin
+          PageWorkers.guard!(actor, report.nevaeh_agent_run.snapshot) if report.nevaeh_agent_run.snapshot['page_contract']
+        rescue ArgumentError, ActiveRecord::RecordNotFound
+          next
+        end
         next unless keys&.include?(report.capability) || terms.any? { |term| "#{report.capability} #{review.lesson}".downcase.include?(term) }
         {report_id: report.id, agent: agent.name, capability: report.capability, status: report.status, verdict: review.verdict, lesson: review.lesson}
       end.first(3)

@@ -118,6 +118,29 @@ For example, give one worker `scripts/episode_01.md` and another `storyboards/ep
 
 This boundary covers the managed worker-file API under `storage/nevaeh_worker_files/account-ID/`. Existing Studio/media engines retain their own artifact storage and native authorization; this convention does not claim to sandbox arbitrary shell processes or transparently intercept every filesystem write in third-party software.
 
+## Authoritative store and rollout
+
+Bind a dispatch to one store. A committed `.nevaeh/reports/<task_id>.json` path belongs to the harness and requires remote-commit read-back. A `journal:` reference belongs to the runtime and requires the matching account journal entry and receipt. Never try both stores or fall back to run-N, cached goal evidence, chat or memory when the authoritative entry is absent.
+
+The backfill policy is **one-time assigned UUIDv4**, not a fresh UUID on every deployment. `ReserveNevaehTaskUuids` fills every existing run before applying NOT NULL and the global unique index. The retained run primary key permanently maps `run-N` to its assigned UUID. `BackfillNevaehReportReferences` reuses that mapping for historical reports and queued dependency snapshots, appends validated v2 journal entries, and preserves v1 journal lines. Re-running it does not change UUIDs or add identical journal entries. Missing/mismatched journal evidence becomes blocked, never accepted from a database/cache copy. Incomplete receipt metadata blocks dispatch during the transition; a foreign/orphan legacy dependency stops the migration for repair.
+
+Use the deployment script's ordered maintenance window:
+
+1. Stop Sidekiq gracefully and stop web/Cable writes before migration. Leave queued jobs in the queue.
+2. Run both migrations and the data backfill, then asset/boot checks. On failure, leave consumers stopped; do not run mixed schemas.
+3. Prepare Passenger's environment, restart Rails/Apache and pass the web health check.
+4. Start Sidekiq, then Cable. Do not restart workers ahead of the web release.
+
+There is no `report_ref` database column: references are fields inside the versioned structured report and immutable run snapshot. A receipt without populated/validated dependency metadata remains blocked until its migration or normal publication completes.
+
+After deployment, run the opt-in acceptance on the actual host with a super-admin test account (the example uses account 1):
+
+```bash
+LIGHTEK_RUN_RUNTIME_REPORT_ACCEPTANCE=1 LIGHTEK_ACCEPTANCE_ACTOR_ID=1 bin/rails runner script/lightek/nevaeh_runtime_report_acceptance.rb
+```
+
+This uses the real job queues and Gatekeeper for one read-only edge. It pauses the goal after the upstream run, verifies its UUID journal reference, changes only the test goal's cached value, and proves the manager still reads the journal-derived integer. It durably backs up and temporarily removes only that test UUID's journal entries, verifies missing-entry resolution blocks downstream dispatch despite the database/cache copies, and restores the entry and cached evidence in `ensure`. It then resumes the goal and verifies the completed downstream run retained the resolved UUID/reference/accepted dependency. Other journal entries are preserved. The receipt and recovery backup are mode 0600 under `storage/nevaeh_acceptance/`; a successful result requires active deployed workers and is separate from local test results.
+
 ## Deployment and review
 
 Run **`AddStructuredWorkerResults`**, then restart Rails/workers. Existing saved operating assignments acquire a documentation contract on their next request. Historical executions without a recorded pre-execution documentation read are not promoted to completed convention-valid examples.

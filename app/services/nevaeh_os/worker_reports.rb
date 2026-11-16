@@ -75,7 +75,11 @@ module NevaehOs
     end
 
     def dependencies_for(run)
-      return run.snapshot['report_dependencies'] if run.snapshot.key?('report_dependencies')
+      if run.snapshot.key?('report_dependencies')
+        dependencies=run.snapshot['report_dependencies']
+        raise ArgumentError,'Runtime dependency metadata is incomplete' unless dependencies.is_a?(Array)
+        return dependencies
+      end
       # Historical queued runs did not freeze their dependency references.
       # Resolve their actual prior runs; never interpret absent metadata as
       # permission to skip dependencies after an upgrade.
@@ -92,7 +96,8 @@ module NevaehOs
       end
     end
     def journal_result!(report)
-      value=ReportJournal.read!(report.user)[report.nevaeh_agent_run.task_uuid]
+      value=ReportJournal.resolve!(actor:report.user,report_ref:ReportJournal.reference(actor_id:report.user_id,
+        task_id:report.nevaeh_agent_run.task_uuid,receipt_sha256:report.receipt_sha256))
       raise ArgumentError,'The shared structured report is missing or does not match execution evidence' unless value && value==report.structured_result
       value
     end

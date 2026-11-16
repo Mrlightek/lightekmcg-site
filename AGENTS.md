@@ -65,6 +65,7 @@
 
 ### Runtime journal boundary
 
+- Bind each dispatch to exactly one authoritative store: committed `.nevaeh/reports/` files for the harness, or `journal:` references for the runtime. Select the store from `report_ref` and the dispatch environment; reject a prefix/environment mismatch. Never search both stores, choose the first available copy, or fall back to a legacy `run-N` lookup.
 - Reserve runtime UUIDs in the existing `NevaehAgentRun.task_uuid` receipt row, committed with a global unique database index before enqueueing the worker; reject duplicate UUIDs across dispatches and retain reservations. Treat an idempotent replay of the same request as the existing dispatch, never a new task.
 - Persist runtime reports in the account-scoped JSONL journal; flush, fsync and read back the validated report before accepting upstream completion. Keep the harness committed-file and remote-read-back rules unchanged.
 - Require every runtime dependency to contain exactly `task_id`, `report_ref` and `status`; emit the upstream UUID and `journal:<account_id>:<task_uuid>:<receipt_sha256>`. Map verified runtime `completed` to dependency `accepted` at this boundary; keep runtime lifecycle states in the versioned runtime envelope, not as extra status fields in the dependency record.

@@ -11,7 +11,7 @@ module NevaehOs
     def resolve!(actor:,report_ref:)
       match=/\Ajournal:([1-9][0-9]*):([0-9a-f-]{36}):([0-9a-f]{64})\z/.match(report_ref.to_s)
       raise ArgumentError,'Unresolvable report_ref' unless match && match[1].to_i==actor.id
-      value=read!(actor)[match[2]]
+      value=read!(actor,task_id:match[2])[match[2]]
       unless value && value['schema_version']==2 && value.dig('output','receipt_sha256')==match[3]
         raise ArgumentError,'Referenced journal report is missing or stale'
       end
@@ -33,14 +33,14 @@ module NevaehOs
       directories!(root)
       root.join('reports.jsonl')
     end
-    def decode!(file,actor)
+    def decode!(file,actor,full:false,task_id:nil)
       file.seek(0,IO::SEEK_END);length=file.pos
-      file.seek([length-MAX_READ,0].max)
-      file.gets if length>MAX_READ # Skip only the incomplete first line of the bounded tail.
+      file.seek(full ? 0 : [length-MAX_READ,0].max)
+      file.gets if !full && length>MAX_READ # Skip only the incomplete first line of the bounded tail.
       file.each_line.each_with_object({}) do |line,latest|
         value=ReportSchema.validate!(JSON.parse(line))
         raise ArgumentError,'Report journal account mismatch' unless value['account_id']==actor.id
-        latest[value.fetch('task_id')]=value
+        latest[value.fetch('task_id')]=value if !task_id || value['task_id']==task_id
       end
     rescue JSON::ParserError
       raise ArgumentError,'Malformed structured report journal; manager cannot use this evidence'
@@ -70,12 +70,12 @@ module NevaehOs
       end
       value
     end
-    def read!(actor)
+    def read!(actor,full:false,task_id:nil)
       target=path(actor)
       return {} unless File.exist?(target)
       File.open(target,File::RDONLY|File::NOFOLLOW) do |file|
         file.flock(File::LOCK_SH)
-        decode!(file,actor)
+        decode!(file,actor,full:full || !task_id.nil?,task_id:task_id)
       end
     end
   end

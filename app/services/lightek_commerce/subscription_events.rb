@@ -57,7 +57,10 @@ module LightekCommerce
     def self.record_invoice!(subscription:, invoice:, at:)
       raise StripeEvents::Rejected, "Invoice is not paid" unless invoice["status"] == "paid" && invoice["currency"] == subscription.currency
       record = BillingInvoice.find_or_initialize_by(processor_reference: invoice.fetch("id"))
-      return record if record.persisted?
+      if record.persisted?
+        LightekPwa::CreatorSupport.record!(order: record.settlement_order, original_order: subscription.order) if defined?(LightekPwa::CreatorSupport) && record.settlement_order
+        return record
+      end
       original = subscription.order
       record.assign_attributes(subscription: subscription, amount_paid_cents: invoice.fetch("amount_paid"),
         currency: invoice.fetch("currency"), paid_at: Time.at(invoice.dig("status_transitions", "paid_at") || at.to_i))
@@ -70,7 +73,7 @@ module LightekCommerce
         # for review, rather than creating an incorrect merchant transfer.
         if subtotal.positive? && invoice["total"].to_i == record.amount_paid_cents && subtotal + tax.to_i == record.amount_paid_cents
           renewal = Order.create!(site: original.site, customer_email: original.customer_email, currency: record.currency,
-            status: "fulfilled", purpose: "subscription_renewal", stock_reserved: false, revenue_share_snapshot: original.revenue_share_snapshot,
+            status: "fulfilled", purpose: original.purpose == "creator_support" ? "creator_support_renewal" : "subscription_renewal", stock_reserved: false, revenue_share_snapshot: original.revenue_share_snapshot,
             subtotal_cents: subtotal, tax_cents: tax.to_i, total_cents: record.amount_paid_cents,
             payment_provider: "stripe_invoice", payment_reference: record.processor_reference,
             paid_at: record.paid_at, fulfilled_at: record.paid_at, fulfillment_reference: record.processor_reference)
@@ -82,6 +85,7 @@ module LightekCommerce
         end
       end
       record.save!
+      LightekPwa::CreatorSupport.record!(order: record.settlement_order, original_order: original) if defined?(LightekPwa::CreatorSupport) && record.settlement_order
       LightekPwa::RevenueEligibility.record!(subscription: subscription, reference: "invoice:#{record.processor_reference}") if defined?(LightekPwa::RevenueEligibility)
       record
     end

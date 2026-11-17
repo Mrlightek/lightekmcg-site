@@ -20,8 +20,9 @@ module LightekPwa
           raise ArgumentError, 'Invalid video ID' unless video.match?(Youtube::ID)
           user_id = Integer(row['user_id'], 10)
           # Only assign earnings for a video this creator actually published in this site.
-          posts = Post.where(site: site, user_id: user_id, kind: 'video')
-          raise ArgumentError, 'Video and creator do not match this application' unless posts.any? { |p| p.metadata['youtube_video_id'] == video }
+          posts = Post.where(site: site, user_id: user_id, kind: %w[video clip])
+          historical_upload = defined?(YoutubeUpload) && YoutubeUpload.exists?(site: site, user_id: user_id, video_id: video)
+          raise ArgumentError, 'Video and creator do not match this application' unless historical_upload || posts.any? { |p| p.metadata['youtube_video_id'] == video }
           first, last = Date.iso8601(row['period_start']), Date.iso8601(row['period_end'])
           raise ArgumentError, 'Use a valid completed reporting period' unless first <= last && last < Date.current
           value = row['estimated_revenue_usd'].to_s

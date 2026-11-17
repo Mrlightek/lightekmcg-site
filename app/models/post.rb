@@ -1,5 +1,22 @@
 # frozen_string_literal: true
 class Post < ApplicationRecord
+  before_destroy :detach_youtube_publication, prepend: true
+  def youtube_upload = LightekPwa::YoutubeUpload.find_by(post_id: id)
+  def detach_youtube_publication
+    return unless defined?(LightekPwa::YoutubePublishing)
+    upload = youtube_upload
+    return unless upload
+    LightekPwa::YoutubePublishing.request_withdrawal!(upload)
+    upload.update!(post_id: nil)
+  end
+  after_commit :sync_youtube_visibility, on: :update
+  def withdraw_youtube_publication
+    LightekPwa::YoutubePublishing.request_withdrawal!(youtube_upload) if defined?(LightekPwa::YoutubePublishing) && youtube_upload
+  end
+  def sync_youtube_visibility
+    return unless defined?(LightekPwa::YoutubePublishing) && (saved_change_to_visibility? || saved_change_to_audience? || saved_change_to_moderation_state? || saved_change_to_expires_at?)
+    withdraw_youtube_publication unless visibility == 'public' && audience == 'everyone' && moderation_state == 'published' && (!expires_at || expires_at.future?)
+  end
   after_commit :sync_network_publication
   def sync_network_publication
     LightekPwa::Publications.enqueue!(self) if defined?(LightekPwa::Publications)

@@ -65,3 +65,13 @@ namespace :lightek_pwa do
     abort "Infrastructure verification failed; inspect the named checks on the application host." if results.any? { |result| result[:status] == "failed" }
   end
 end
+
+namespace :lightek_pwa do
+  desc 'Report PWA launch implementation/configuration gaps without exposing secrets'
+  task launch_readiness: :environment do
+    site = LightekPwa::SiteContext.resolve(ENV.fetch('LIGHTEK_VERIFY_HOST'))
+    report = LightekPwa::LaunchReadiness.report(site: site)
+    puts JSON.pretty_generate(report)
+    abort 'Full PWA launch remains blocked; review the reported gaps.' unless report[:launch_candidate]
+  end
+end

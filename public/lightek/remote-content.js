@@ -6,6 +6,7 @@
   function media(post, origin) {
     const youtube = post.metadata?.youtube_video_id;
     if(idPattern.test(youtube || ''))return `<p>YouTube</p><iframe class="pwa-youtube" title="${esc(post.title||'YouTube video')}" src="https://www.youtube.com/embed/${youtube}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe><p><a href="https://www.youtube.com/watch?v=${youtube}" target="_blank" rel="noopener noreferrer">Watch on YouTube</a></p>`;
+    if(post.metadata?.youtube_upload_key)return '<p role="status">Preparing the creator’s YouTube version…</p>';
     return (Array.isArray(post.media)?post.media:[]).slice(0,8).map(file=>{
       if(typeof file.url!=='string'||!/^\/api\/lightek\/pwa\/posts\/\d+\/media\/\d+$/.test(file.url))return '';
       const url=esc(origin+file.url),type=String(file.content_type||'');

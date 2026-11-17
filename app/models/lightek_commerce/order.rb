@@ -18,7 +18,7 @@ module LightekCommerce
     belongs_to :hosting_owner, class_name: "User", optional: true
     has_many :revenue_allocations, class_name: "LightekCommerce::RevenueAllocation", dependent: :restrict_with_error
     before_validation(on: :create) do
-      self.revenue_share_snapshot = RevenueSharing.snapshot_for(site.tenant) if site && revenue_share_snapshot.blank? && !%w[subscription_renewal shipping_label].include?(purpose)
+      self.revenue_share_snapshot = RevenueSharing.snapshot_for(site.tenant) if site && revenue_share_snapshot.blank? && !%w[subscription_renewal shipping_label creator_support creator_support_renewal].include?(purpose)
     end
     has_many :items, class_name: "LightekCommerce::OrderItem", dependent: :restrict_with_error
     STATUSES = %w[pending_payment paid fulfilled canceled partially_refunded refunded].freeze

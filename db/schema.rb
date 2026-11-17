@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_17_143500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1875,6 +1875,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.bigint "bank_subscription_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "current_period_start"
     t.index ["bank_subscription_id"], name: "idx_commerce_bank_subscription"
     t.index ["order_id"], name: "index_lightek_commerce_subscriptions_on_order_id", unique: true
     t.index ["processor_reference"], name: "index_lightek_commerce_subscriptions_on_processor_reference", unique: true
@@ -2411,6 +2412,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.string "spam_filter_level", default: "standard", null: false
     t.json "allowed_senders", default: [], null: false
     t.json "blocked_senders", default: [], null: false
+    t.boolean "brand_member", default: false, null: false
     t.index ["address"], name: "index_lightek_mail_accounts_on_address", unique: true
     t.index ["domain_id"], name: "index_lightek_mail_accounts_on_domain_id"
     t.index ["token_digest"], name: "index_lightek_mail_accounts_on_token_digest", unique: true
@@ -3032,6 +3034,104 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.index ["site_id"], name: "index_lightek_pwa_applications_on_site_id", unique: true
   end
 
+  create_table "lightek_pwa_creator_earnings", force: :cascade do |t|
+    t.bigint "creator_payment_id", null: false
+    t.bigint "order_id", null: false
+    t.integer "principal_cents", null: false
+    t.string "state", default: "held", null: false
+    t.string "charge_reference"
+    t.string "transfer_reference"
+    t.string "reversal_reference"
+    t.string "destination_account"
+    t.datetime "available_at"
+    t.string "hold_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "transfer_requested_at"
+    t.index ["charge_reference"], name: "index_lightek_pwa_creator_earnings_on_charge_reference"
+    t.index ["creator_payment_id"], name: "index_lightek_pwa_creator_earnings_on_creator_payment_id"
+    t.index ["order_id"], name: "index_lightek_pwa_creator_earnings_on_order_id", unique: true
+  end
+
+  create_table "lightek_pwa_creator_offers", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "creator_id", null: false
+    t.integer "monthly_cents", default: 500, null: false
+    t.boolean "enabled", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_lightek_pwa_creator_offers_on_creator_id"
+    t.index ["site_id", "creator_id"], name: "pwa_creator_offer_identity", unique: true
+    t.index ["site_id"], name: "index_lightek_pwa_creator_offers_on_site_id"
+  end
+
+  create_table "lightek_pwa_creator_payments", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "creator_id", null: false
+    t.bigint "supporter_id", null: false
+    t.bigint "order_id", null: false
+    t.bigint "post_id"
+    t.string "kind", null: false
+    t.string "request_key", null: false
+    t.integer "principal_cents", null: false
+    t.integer "fee_cents", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id"], name: "index_lightek_pwa_creator_payments_on_creator_id"
+    t.index ["order_id"], name: "index_lightek_pwa_creator_payments_on_order_id", unique: true
+    t.index ["post_id"], name: "index_lightek_pwa_creator_payments_on_post_id"
+    t.index ["site_id", "supporter_id", "request_key"], name: "pwa_support_payment_identity", unique: true
+    t.index ["site_id"], name: "index_lightek_pwa_creator_payments_on_site_id"
+    t.index ["supporter_id"], name: "index_lightek_pwa_creator_payments_on_supporter_id"
+  end
+
+  create_table "lightek_pwa_member_backends", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "shared_pool_id"
+    t.bigint "launch_id"
+    t.bigint "order_id"
+    t.string "public_key", null: false
+    t.string "hostname", null: false
+    t.string "status", default: "queued", null: false
+    t.string "error_code"
+    t.jsonb "migration_receipt", default: {}, null: false
+    t.bigint "copied_bytes", default: 0, null: false
+    t.datetime "retire_after"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["hostname"], name: "index_lightek_pwa_member_backends_on_hostname", unique: true
+    t.index ["launch_id"], name: "index_lightek_pwa_member_backends_on_launch_id"
+    t.index ["order_id"], name: "index_lightek_pwa_member_backends_on_order_id"
+    t.index ["public_key"], name: "index_lightek_pwa_member_backends_on_public_key", unique: true
+    t.index ["shared_pool_id"], name: "index_lightek_pwa_member_backends_on_shared_pool_id"
+    t.index ["site_id", "user_id"], name: "pwa_member_backend_identity", unique: true
+    t.index ["site_id"], name: "index_lightek_pwa_member_backends_on_site_id"
+    t.index ["user_id"], name: "index_lightek_pwa_member_backends_on_user_id"
+  end
+
+  create_table "lightek_pwa_member_signup_requests", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "user_id", null: false
+    t.string "state", default: "queued", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "user_id"], name: "pwa_signup_backend_request", unique: true
+    t.index ["site_id"], name: "index_lightek_pwa_member_signup_requests_on_site_id"
+    t.index ["user_id"], name: "index_lightek_pwa_member_signup_requests_on_user_id"
+  end
+
+  create_table "lightek_pwa_member_tickets", force: :cascade do |t|
+    t.bigint "member_backend_id", null: false
+    t.string "token_digest", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "redeemed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["member_backend_id"], name: "index_lightek_pwa_member_tickets_on_member_backend_id"
+    t.index ["token_digest"], name: "index_lightek_pwa_member_tickets_on_token_digest", unique: true
+  end
+
   create_table "lightek_pwa_memberships", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "profile_id", null: false
@@ -3059,6 +3159,73 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_lightek_pwa_navigation_items_on_key", unique: true
+  end
+
+  create_table "lightek_pwa_publication_outboxes", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "remote_post_id", null: false
+    t.bigint "revision", default: 0, null: false
+    t.bigint "delivered_revision", default: 0, null: false
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "remote_post_id"], name: "pwa_outbox_post_unique", unique: true
+  end
+
+  create_table "lightek_pwa_publication_references", force: :cascade do |t|
+    t.bigint "peer_id", null: false
+    t.bigint "remote_post_id", null: false
+    t.bigint "post_id"
+    t.bigint "revision", default: 0, null: false
+    t.boolean "removed", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["peer_id", "remote_post_id"], name: "pwa_remote_post_unique", unique: true
+    t.index ["post_id"], name: "index_lightek_pwa_publication_references_on_post_id"
+  end
+
+  create_table "lightek_pwa_purchases", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "site_id", null: false
+    t.bigint "order_id", null: false
+    t.string "plan_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["order_id"], name: "index_lightek_pwa_purchases_on_order_id", unique: true
+    t.index ["site_id", "user_id"], name: "index_lightek_pwa_purchases_on_site_id_and_user_id"
+    t.index ["user_id"], name: "index_lightek_pwa_purchases_on_user_id"
+  end
+
+  create_table "lightek_pwa_revenue_periods", force: :cascade do |t|
+    t.bigint "purchase_id", null: false
+    t.string "source_reference", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.integer "creator_share_bps", default: 8000, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["purchase_id", "starts_at", "ends_at"], name: "pwa_paid_revenue_window"
+    t.index ["source_reference"], name: "index_lightek_pwa_revenue_periods_on_source_reference", unique: true
+  end
+
+  create_table "lightek_pwa_shared_pools", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "operator_id", null: false
+    t.bigint "launch_id"
+    t.bigint "node_id"
+    t.string "request_key", null: false
+    t.string "name", null: false
+    t.string "status", default: "provisioning", null: false
+    t.integer "max_members", default: 4, null: false
+    t.bigint "member_storage_bytes", default: 536870912, null: false
+    t.integer "monthly_cost_ceiling_cents", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["launch_id"], name: "index_lightek_pwa_shared_pools_on_launch_id"
+    t.index ["node_id"], name: "index_lightek_pwa_shared_pools_on_node_id"
+    t.index ["operator_id"], name: "index_lightek_pwa_shared_pools_on_operator_id"
+    t.index ["request_key"], name: "index_lightek_pwa_shared_pools_on_request_key", unique: true
+    t.index ["site_id"], name: "index_lightek_pwa_shared_pools_on_site_id"
   end
 
   create_table "lightek_pwa_surface_modules", force: :cascade do |t|
@@ -3091,6 +3258,104 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_lightek_pwa_surfaces_on_key", unique: true
+  end
+
+  create_table "lightek_pwa_view_batches", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "recorded_by_id", null: false
+    t.string "channel_id", null: false
+    t.date "month", null: false
+    t.string "currency", default: "usd", null: false
+    t.bigint "finalized_cents", null: false
+    t.bigint "estimated_micros", null: false
+    t.bigint "creator_liability_cents", null: false
+    t.string "source_reference", null: false
+    t.string "report_sha256", null: false
+    t.string "finalized_receipt_sha256", null: false
+    t.string "state", default: "reconciled", null: false
+    t.string "funding_reference"
+    t.string "funding_balance_transaction"
+    t.string "platform_account"
+    t.bigint "funded_cents"
+    t.datetime "funded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["channel_id", "month"], name: "pwa_channel_finalized_month", unique: true
+    t.index ["funding_reference"], name: "index_lightek_pwa_view_batches_on_funding_reference", unique: true
+    t.index ["recorded_by_id"], name: "index_lightek_pwa_view_batches_on_recorded_by_id"
+    t.index ["site_id"], name: "index_lightek_pwa_view_batches_on_site_id"
+  end
+
+  create_table "lightek_pwa_view_earnings", force: :cascade do |t|
+    t.bigint "view_batch_id", null: false
+    t.bigint "user_id", null: false
+    t.string "video_id", null: false
+    t.bigint "views", null: false
+    t.bigint "amount_cents", null: false
+    t.string "state", default: "awaiting_funding", null: false
+    t.string "destination_account"
+    t.string "transfer_reference"
+    t.string "transfer_key", null: false
+    t.datetime "transfer_requested_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["transfer_key"], name: "index_lightek_pwa_view_earnings_on_transfer_key", unique: true
+    t.index ["transfer_reference"], name: "index_lightek_pwa_view_earnings_on_transfer_reference", unique: true
+    t.index ["user_id"], name: "index_lightek_pwa_view_earnings_on_user_id"
+    t.index ["view_batch_id", "user_id", "video_id"], name: "pwa_finalized_creator_video", unique: true
+    t.index ["view_batch_id"], name: "index_lightek_pwa_view_earnings_on_view_batch_id"
+  end
+
+  create_table "lightek_pwa_youtube_revenues", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "recorded_by_id", null: false
+    t.string "video_id", null: false
+    t.date "period_start", null: false
+    t.date "period_end", null: false
+    t.string "source_reference", null: false
+    t.string "report_sha256", null: false
+    t.bigint "views", default: 0, null: false
+    t.bigint "amount_cents", null: false
+    t.integer "creator_share_bps", null: false
+    t.string "currency", default: "usd", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["recorded_by_id"], name: "index_lightek_pwa_youtube_revenues_on_recorded_by_id"
+    t.index ["site_id", "video_id", "period_start", "period_end"], name: "pwa_youtube_period_unique", unique: true
+    t.index ["user_id"], name: "index_lightek_pwa_youtube_revenues_on_user_id"
+  end
+
+  create_table "lightek_pwa_youtube_uploads", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "post_id"
+    t.bigint "peer_id"
+    t.string "public_key", null: false
+    t.bigint "source_post_id"
+    t.bigint "source_blob_id"
+    t.string "source_grant", limit: 4096
+    t.string "central_key"
+    t.string "status", default: "queued", null: false
+    t.string "title", null: false
+    t.text "description"
+    t.boolean "made_for_kids", null: false
+    t.integer "byte_size", null: false
+    t.string "checksum", null: false
+    t.string "content_type", null: false
+    t.string "video_id"
+    t.string "error_code"
+    t.datetime "session_started_at"
+    t.datetime "withdraw_requested_at"
+    t.datetime "consented_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["peer_id", "source_post_id"], name: "pwa_peer_youtube_source", unique: true
+    t.index ["peer_id"], name: "index_lightek_pwa_youtube_uploads_on_peer_id"
+    t.index ["post_id"], name: "index_lightek_pwa_youtube_uploads_on_post_id", unique: true
+    t.index ["public_key"], name: "index_lightek_pwa_youtube_uploads_on_public_key", unique: true
+    t.index ["site_id"], name: "index_lightek_pwa_youtube_uploads_on_site_id"
+    t.index ["user_id"], name: "index_lightek_pwa_youtube_uploads_on_user_id"
   end
 
   create_table "lightek_reservation_blackouts", force: :cascade do |t|
@@ -3146,13 +3411,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
   create_table "lightek_reservation_peers", force: :cascade do |t|
     t.string "key", null: false
     t.string "token_digest", null: false
-    t.bigint "order_id", null: false
+    t.bigint "order_id"
     t.bigint "merchant_id", null: false
     t.bigint "site_id", null: false
     t.boolean "enabled", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "member_backend_id"
     t.index ["key"], name: "index_lightek_reservation_peers_on_key", unique: true
+    t.index ["member_backend_id"], name: "index_lightek_reservation_peers_on_member_backend_id", unique: true
     t.index ["merchant_id"], name: "index_lightek_reservation_peers_on_merchant_id"
     t.index ["order_id"], name: "index_lightek_reservation_peers_on_order_id", unique: true
     t.index ["site_id"], name: "index_lightek_reservation_peers_on_site_id", unique: true
@@ -5290,6 +5557,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
     t.boolean "password_setup_required", default: false, null: false
     t.datetime "access_suspended_at"
     t.string "access_suspension_source"
+    t.datetime "lightek_email_confirmed_at"
     t.index ["agency_id"], name: "index_users_on_agency_id"
     t.index ["api_token"], name: "index_users_on_api_token", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
@@ -5594,9 +5862,37 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
   add_foreign_key "lightek_pwa_admin_events", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_pwa_admin_events", "users", column: "actor_id"
   add_foreign_key "lightek_pwa_applications", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_pwa_creator_earnings", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_pwa_creator_earnings", "lightek_pwa_creator_payments", column: "creator_payment_id"
+  add_foreign_key "lightek_pwa_creator_offers", "users", column: "creator_id"
+  add_foreign_key "lightek_pwa_creator_payments", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_pwa_creator_payments", "posts", on_delete: :nullify
+  add_foreign_key "lightek_pwa_creator_payments", "users", column: "creator_id"
+  add_foreign_key "lightek_pwa_creator_payments", "users", column: "supporter_id"
+  add_foreign_key "lightek_pwa_member_backends", "gatekeeper_application_launches", column: "launch_id"
+  add_foreign_key "lightek_pwa_member_backends", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_pwa_member_backends", "lightek_pwa_shared_pools", column: "shared_pool_id"
+  add_foreign_key "lightek_pwa_member_backends", "users"
+  add_foreign_key "lightek_pwa_member_signup_requests", "users"
+  add_foreign_key "lightek_pwa_member_tickets", "lightek_pwa_member_backends", column: "member_backend_id"
   add_foreign_key "lightek_pwa_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_pwa_memberships", "profiles"
+  add_foreign_key "lightek_pwa_publication_references", "posts"
+  add_foreign_key "lightek_pwa_purchases", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_pwa_purchases", "users"
+  add_foreign_key "lightek_pwa_revenue_periods", "lightek_pwa_purchases", column: "purchase_id"
+  add_foreign_key "lightek_pwa_shared_pools", "gatekeeper_application_launches", column: "launch_id"
+  add_foreign_key "lightek_pwa_shared_pools", "gatekeeper_nodes", column: "node_id"
+  add_foreign_key "lightek_pwa_shared_pools", "users", column: "operator_id"
   add_foreign_key "lightek_pwa_surface_modules", "lightek_pwa_surfaces", column: "surface_id"
+  add_foreign_key "lightek_pwa_view_batches", "users", column: "recorded_by_id"
+  add_foreign_key "lightek_pwa_view_earnings", "lightek_pwa_view_batches", column: "view_batch_id"
+  add_foreign_key "lightek_pwa_view_earnings", "users"
+  add_foreign_key "lightek_pwa_youtube_revenues", "users"
+  add_foreign_key "lightek_pwa_youtube_revenues", "users", column: "recorded_by_id"
+  add_foreign_key "lightek_pwa_youtube_uploads", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "lightek_pwa_youtube_uploads", "posts", on_delete: :nullify
+  add_foreign_key "lightek_pwa_youtube_uploads", "users"
   add_foreign_key "lightek_reservation_blackouts", "lightek_reservation_resources", column: "resource_id"
   add_foreign_key "lightek_reservation_changes", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_reservation_changes", "lightek_reservation_resources", column: "target_resource_id"
@@ -5607,6 +5903,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_16_140000) do
   add_foreign_key "lightek_reservation_intents", "users", column: "customer_id"
   add_foreign_key "lightek_reservation_peers", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_reservation_peers", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_reservation_peers", "lightek_pwa_member_backends", column: "member_backend_id"
   add_foreign_key "lightek_reservation_peers", "users", column: "merchant_id"
   add_foreign_key "lightek_reservation_resources", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_reservation_resources", "lightek_commerce_products", column: "product_id"

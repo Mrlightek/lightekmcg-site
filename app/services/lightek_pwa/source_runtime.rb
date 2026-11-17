@@ -23,14 +23,15 @@ module LightekPwa
     def self.allowed_request?(request)
       return false if frozen?
       path = request.path
-      return true if path.start_with?('/lightek/', '/api/lightek/', '/pwa/member-session', '/identity/', '/session', '/passwords', '/account-setup', '/__lightek/', '/up')
+      return true if request.get? && (path == '/' || path.start_with?('/site/'))
+      return true if path.start_with?('/lightek/', '/api/lightek/', '/pwa/member-session', '/identity/', '/session', '/passwords', '/account/setup/', '/__lightek/', '/up')
       if path == '/api/nevaeh/execute'
         capability = request.request_parameters['capability'].to_s
         return MEMBER_STUDIO_ACTIONS.include?(capability) if capability.start_with?('studio.workspace.')
         return capability.match?(/\A(?:community\.|social\.|messages\.|messaging\.|studio\.(?:workspace\.|pwa\.|scene_object\.|scene\.))/)
       end
       return true if path.start_with?('/api/nevaeh/bootstrap', '/api/nevaeh/executions/')
-      return true if request.get? && %w[/dashboard/pages /dashboard/business /dashboard/settings /dashboard/client-home].include?(path)
+      return true if request.get? && %w[/dashboard/pages /dashboard/business /dashboard/settings /dashboard/client-home /dashboard/commerce/orders].include?(path)
       path.start_with?('/dashboard/live', '/dashboard/identity')
     end
   end

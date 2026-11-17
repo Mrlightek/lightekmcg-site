@@ -126,7 +126,7 @@ const server=http.createServer((req,res)=>{
   assert.match(await page.locator('[data-studio-script]').inputValue(),/A creator builds the network/);
   await page.getByRole('button',{name:'Timeline',exact:true}).first().click();
   await page.getByRole('button',{name:'Add clip',exact:true}).click();
-  await page.getByRole('button',{name:'Add keyframe',exact:true}).click();
+  await page.getByRole('button',{name:'Keyframe at playhead',exact:true}).click();
   await page.locator('[data-frame-field="x"]').fill('24');
   await page.getByRole('button',{name:'Save timeline',exact:true}).click();
   await page.waitForFunction(()=>document.body.textContent.includes('Timeline saved'));

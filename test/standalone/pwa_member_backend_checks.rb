@@ -143,6 +143,7 @@ class PwaMemberBackendTest < PwaCommercialTest
 
 end
 
+require File.join(ROOT, 'lib/middleware/pwa_member_guard')
 require File.join(ROOT, 'app/models/concerns/pwa_member_storage_quota')
 ActiveStorage::Blob.include(PwaMemberStorageQuota)
 require File.join(ROOT, 'app/controllers/concerns/authentication')
@@ -184,6 +185,18 @@ class PwaMemberBoundaryTest < PwaMemberBackendTest
     refute LightekPwa::SourceRuntime.allowed_request?(request.new('/api/nevaeh/execute', {'capability'=>'studio.workspace.director.execute'}))
     assert LightekPwa::SourceRuntime.allowed_request?(request.new('/api/nevaeh/execute', {'capability'=>'community.post.create'}))
     assert LightekPwa::SourceRuntime.allowed_request?(request.new('/api/nevaeh/execute', {'capability'=>'studio.pwa.bootstrap'}))
+  end
+  def test_mounted_engine_routes_cannot_bypass_shared_backend_guard
+    previous = ENV['LIGHTEK_PWA_MEMBER_BACKEND']; ENV['LIGHTEK_PWA_MEMBER_BACKEND'] = 'true'
+    guard = Lightek::PwaMemberGuard.new(->(_) {[200, {}, ['engine reached']]})
+    assert_equal 403, guard.call(Rack::MockRequest.env_for('/dashboard/servers'))[0]
+    assert_equal 200, guard.call(Rack::MockRequest.env_for('/dashboard/commerce/orders'))[0]
+    assert_equal 200, guard.call(Rack::MockRequest.env_for('/'))[0]
+    assert_equal 200, guard.call(Rack::MockRequest.env_for('/site/home'))[0]
+    assert_equal 200, guard.call(Rack::MockRequest.env_for('/account/setup/owned-token/edit'))[0]
+    assert_equal 200, guard.call(Rack::MockRequest.env_for('/api/lightek/network/posts/1'))[0]
+  ensure
+    ENV['LIGHTEK_PWA_MEMBER_BACKEND'] = previous
   end
   def test_free_storage_quota_reserves_blob_size_before_upload
     previous_member = ENV['LIGHTEK_PWA_MEMBER_BACKEND']; previous_limit = ENV['LIGHTEK_PWA_MEMBER_STORAGE_BYTES']

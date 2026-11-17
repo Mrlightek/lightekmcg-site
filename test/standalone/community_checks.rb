@@ -20,6 +20,8 @@ class CommunityTestApp < Rails::Application
   # Page workers reread their pinned source documents during Dispatch.
   FileUtils.mkdir_p(File.join(config.root, 'docs/nevaeh'))
   FileUtils.cp_r(File.join(ROOT, 'docs/nevaeh/tutorials'), File.join(config.root, 'docs/nevaeh'))
+  FileUtils.mkdir_p(File.join(config.root, 'config'))
+  FileUtils.cp_r(File.join(ROOT, 'config/nevaeh'), File.join(config.root, 'config'))
   config.eager_load = false
   config.secret_key_base = "test-" * 30
   config.hosts.clear

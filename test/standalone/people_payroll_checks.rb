@@ -16,7 +16,7 @@ if ActiveRecord::Base.connection.adapter_name == 'PostgreSQL'
   configuration = ActiveRecord::Base.connection_db_config.configuration_hash
   ActiveRecord::Base.connection.execute("CREATE SCHEMA #{harness_schema}")
   ActiveRecord::Base.establish_connection(configuration.merge(schema_search_path: harness_schema))
-  at_exit do
+  Minitest.after_run do
     ActiveRecord::Base.connection.execute("DROP SCHEMA IF EXISTS #{harness_schema} CASCADE")
   end
 end

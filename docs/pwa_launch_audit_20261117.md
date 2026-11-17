@@ -95,7 +95,7 @@ Measure signup → confirmation → backend ready → first post → first reply
 | Membership/reference/revenue | 12 tests, 55 assertions, passing |
 | Creator support/settlement | 16 tests, 61 assertions, passing |
 | YouTube source/resumable/withdrawal | 15 tests, 58 assertions, passing |
-| Separate member allocation/tickets/migration | 11 tests, 48 assertions, passing |
+| Separate member allocation/tickets/migration | 12 tests, 54 assertions, passing |
 | Finalized view reconciliation/funding/transfer | 7 tests, 32 assertions, passing |
 | Backend archive/chunk/path/activation safety | 5 Python tests, passing |
 | New commercial HTTP authorization/CSRF | 6 tests, 29 assertions, passing |

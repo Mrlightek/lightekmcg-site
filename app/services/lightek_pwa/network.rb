@@ -4,6 +4,10 @@ module LightekPwa
   class Network
     def self.write_destination(user:, site:)
       purchase = Plans.current(user, site)
+      if user && site && site.tenant != user && site.tenant&.role == 'super_admin' && defined?(MemberBackend)
+        backend = MemberBackend.find_by(site: site, user: user)
+        return {ready: backend&.ready? || false, manage_url: '/lightek/index.html#/membership', create_url: nil, member_backend: true} if backend || !purchase
+      end
       return nil unless purchase
       summary = LightekCommerce::Installations.summary(purchase.order)
       {ready: summary[:ready], manage_url: "/my/installations/#{purchase.order_id}",

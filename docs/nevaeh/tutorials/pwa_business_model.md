@@ -6,7 +6,7 @@ This is the reviewed product policy from the November 17 PWA audit and implement
 
 ## Free member hosting
 
-The target is a lightweight, separately scoped member application on shared Lightek hosting. Free members can participate in the social network. Shared hosting must enforce per-member and total capacity limits. Automatic member-instance allocation has not been connected in this implementation; do not tell a new member that signup alone has provisioned a server.
+Free members participate through the central social app, while their original posts/uploads live on separate shared member servers. Automatic native backend allocation is connected through a durable signup request, a capacity-bounded separate pool and recovery jobs. Signup creates a request, not an instantly ready server; show preparing/ready states and never fall back to the central server.
 
 ## Personal membership and pricing
 
@@ -14,11 +14,11 @@ Personal moves the same member application to its own separately allocated serve
 
 ## Business and Agency membership
 
-Business is the Agency tier: business identity, white label branding, client relationships, feature controls and resale of client server packages. Each client package must cover its own costs and is billed separately. Verified active Business purchases now activate the member’s own white-label role and agency profile idempotently, preserving existing upstream relationships and branding. Staff roles cannot be converted by this path. Checkout creation/return grants no role. The full paid offer remains blocked pending allocation, migration and cash settlement. Payment never grants platform-super-administrator powers.
+Business is the Agency tier: business identity, white label branding, client relationships, feature controls and resale of client server packages. Each client package must cover its own costs and is billed separately. Verified active Business purchases now activate the member’s own white-label role and agency profile idempotently, preserving existing upstream relationships and branding. Staff roles cannot be converted by this path. Checkout creation/return grants no role. The full paid offer remains closed until separate-host allocation and all commercial configuration checks pass, followed by explicit owner enablement and deployed acceptance. Payment never grants platform-super-administrator powers.
 
 ## Instance upgrades and data preservation
 
-Keep one stable member identity and address when moving from shared to dedicated hosting. Copy and verify the member's own data and files, pause writes for the final delta, switch routing, verify the destination and retain rollback. Automatic verified migration is unfinished. Existing central posts block the new self-service checkout rather than silently replacing a populated account with an empty server.
+Keep one stable member identity and address when moving from shared to dedicated hosting. Copy and verify the member's own data and files, pause writes for the final delta, switch routing, verify the destination and retain rollback. Shared native backends now migrate through a durable root-SSH operation: freeze writes, copy the complete application database, original media, encryption/signing keys and queue data, verify schema/counts/media hashes, revoke source sessions in the destination, activate, update stable central post references and redirect the retained source. Source and destination code revisions must match. Rollback restores the unused destination first and then thaws the source; once destination activation starts, a reverse transfer is required to preserve new writes. Historical central originals stay readable in the existing database and do not block upgrades. New originals publish on member backends; a shared-to-paid transfer moves the data stored on that shared backend, without claiming to have moved central history. Existing paid instances do not receive a redundant free allocation.
 
 ## Central references and source ownership
 
@@ -50,11 +50,17 @@ Free and paid creators keep 100% of subscription, gift and tip principal. The su
 
 ## Payout execution and receipts
 
-Use Dymond Bank's existing verification and payout infrastructure with a creator-specific ledger. Estimated, reconciled, funded, available, transfer-pending, transferred and bank-paid are separate states. A transfer to a connected payout account is not proof of bank settlement. YouTube receipts in the Lightek bank do not automatically fund a processor transfer balance. Creator support releases now check the real source charge and available balance transaction, block refunds/disputes, verify the payout account and transfer full principal with a durable destination and idempotency key. An uncertain transfer remains transfer_pending for reconciliation. Refund/dispute recovery targets its own transfer. Production release/bank delivery and the separate funded YouTube cash-settlement implementation remain unverified or missing. Never mark an uncertain transfer paid or deduct a hidden platform cut from creator principal.
+Use Dymond Bank's existing verification and payout infrastructure with a creator-specific ledger. Estimated, reconciled, funded, available, transfer-pending, transferred and bank-paid are separate states. A transfer to a connected payout account is not proof of bank settlement. YouTube receipts in the Lightek bank do not automatically fund a processor transfer balance. Creator support releases now check the real source charge and available balance transaction, block refunds/disputes, verify the payout account and transfer full principal with a durable destination and idempotency key. An uncertain transfer remains transfer_pending for reconciliation. Refund/dispute recovery targets its own transfer. Finalized view settlement now retains a whole-channel daily report and finalized monthly channel receipt, scales eligible video revenue using the complete channel denominator, and creates immutable creator allocations. A separately funded platform top-up must be API-confirmed succeeded/available and cover the liability. Reserved support principal cannot be spent on view earnings. Platform automatic bank payouts must be manual while funds are reserved. View transfers retain their destination/key, recover lost responses from provider history, and block blind retries beyond the idempotency window. Production release and bank delivery remain unverified. Never mark an uncertain transfer paid or deduct a hidden platform cut from creator principal.
 
 ## Lightek branded member mail
 
 Members can receive real Lightek-domain mailboxes after confirming the signup email. The implementation starts at 250 MB storage, 20 recipients per day and bounded minute/hour limits. The feature is closed until enabled on a verified platform-owned mail domain. The account is mailbox-scoped; it does not give the member control of the platform domain. An assigned address without a real mailbox is not provisioned mail.
+
+## Separate free-member hosting
+
+Free member content must never fall back to the central Lightek server. The owner provisions a separate shared pool through PWA revenue administration, selecting a native package, member capacity and approved monthly budget. The provider price and RAM/disk admission checks must pass. Each member gets a separate native application, database, queue and storage directory on that host; this is application/database separation, not a separate machine per free user or a container security boundary. The current native profile shares its system application user. Start with a small pilot and verify resource use before increasing capacity.
+
+Signup persists an allocation request before enqueueing. A full/unavailable pool keeps the free account and queues backend setup; it does not write new original posts or uploads centrally. Default member attachment allowance is 512 MB. Native dependency/worker caps and one web process per application reduce contention; admission estimates are not proof of load-test capacity. The central member uses Membership → My publishing space → Create a post; the short-lived one-use ticket preserves the normal MFA flow. The source navigation returns to the central community, membership and earnings pages.
 
 ## Business custom-domain mail
 
@@ -66,7 +72,7 @@ Keep a simple community home, clear creation/discovery paths, a focused membersh
 
 ## Unfinished execution coverage
 
-Automatic free-instance allocation, verified migration and finalized/funded YouTube view-earnings settlement are not implemented. They block the complete launch and new paid instance sales through LaunchReadiness. Central YouTube publishing, creator subscriptions/live gifts/tips and support-principal release are implemented but still require production acceptance. No executable Nevaeh contracts for those unfinished operations are added by this guide. Answer from the guide, explain the gap, or use an existing authorized task; do not fabricate a completed operation.
+Allocation, migration, central YouTube publishing, creator support and finalized/funded view settlement are implemented services with local evidence. Native and production acceptance remain outstanding. Their dedicated Nevaeh Dispatch executors are not registered by this guide or by preparing a source build. Answer from current sources, identify missing execution contracts, or use an existing authorized task; do not fabricate an executed operation, trained checkpoint or production success.
 
 ## Learning and acceptance
 

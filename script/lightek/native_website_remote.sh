@@ -12,9 +12,10 @@ readarray -t CONFIG < <(python3 - <<'PY'
 import json
 c=json.load(open('settings.json'))
 for key in ['domain','release','email','bundler','source_sha']:print(c[key])
+print('1' if c.get('pwa_member') else '0')
 PY
 )
-DOMAIN=${CONFIG[0]};RELEASE=${CONFIG[1]};EMAIL=${CONFIG[2]};BUNDLER=${CONFIG[3]};SOURCE_SHA=${CONFIG[4]}
+DOMAIN=${CONFIG[0]};RELEASE=${CONFIG[1]};EMAIL=${CONFIG[2]};BUNDLER=${CONFIG[3]};SOURCE_SHA=${CONFIG[4]};MEMBER_BACKEND=${CONFIG[5]}
 [[ "$DOMAIN" =~ ^[a-z0-9][a-z0-9.-]+\.[a-z]{2,63}$ && "$RELEASE" =~ ^[a-f0-9]{20}$ && "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
 KEY=$(printf '%s' "$DOMAIN" | sha256sum | cut -c1-12)
 PROJECT="lt_$(printf '%s' "$DOMAIN" | sha256sum | cut -c1-16)"
@@ -24,6 +25,7 @@ BASE="/opt/lightek-sites/$DOMAIN"
 APP_ROOT="$BASE/current"
 RELEASE_DIR="$BASE/releases/$RELEASE"
 ENV_FILE="$BASE/.env"
+[[ ! -f "$APP_ROOT/tmp/pwa-migration.lock" ]] || { echo "Member migration owns this runtime. Retry deployment after cutover." >&2;exit 1; }
 RUBY_BIN="/home/$APP_USER/.rbenv/versions/3.3.6/bin"
 exec 9>"/var/lock/lightek-site-$DOMAIN.lock";flock -n 9
 exec 8>/var/lock/lightek-build.lock;flock -n 8
@@ -58,6 +60,8 @@ if p.exists():
 else:
  values=dict(POSTGRES_USER='lightek',POSTGRES_DB='lightek_production',POSTGRES_PASSWORD=secrets.token_hex(32),SECRET_KEY_BASE=secrets.token_hex(64),LOCKBOX_MASTER_KEY=secrets.token_hex(32),RAILS_MASTER_KEY=secrets.token_hex(16),LIGHTEK_VAULT_MASTER_KEY=base64.b64encode(secrets.token_bytes(32)).decode(),LIGHTEK_VAULT_KEY_VERSION='1',RAILS_ENV='production',RACK_ENV='production',MAIL_DELIVERY_METHOD='gmail_api')
  values.update(c.get('extra_env',{}))
+ if c.get('pwa_member'):
+  values.update(LIGHTEK_PWA_MEMBER_BACKEND='true',LIGHTEK_PWA_MEMBER_STORAGE_BYTES=str(c['pwa_member']['storage_bytes']))
 for name,start in [('POSTGRES_PORT',53000),('LIGHTEK_REDIS_PORT',54000),('APP_PORT',18080)]:
  if name not in values:
   for port in range(start,start+1000):
@@ -97,6 +101,12 @@ volumes:
   redis:
 EOF
 dc(){ docker compose --env-file "$ENV_FILE" -p "$PROJECT" -f "$BASE/dependencies.yml" "$@"; }
+if [[ "$MEMBER_BACKEND" = 1 ]]; then
+ python3 - "$BASE/dependencies.yml" <<'PYLIMIT'
+import pathlib,sys
+p=pathlib.Path(sys.argv[1]);s=p.read_text().replace('    image: postgres:16-bookworm','    image: postgres:16-bookworm\n    mem_limit: 256m\n    cpus: 0.5').replace('    image: redis:7-bookworm','    image: redis:7-bookworm\n    mem_limit: 128m\n    cpus: 0.25').replace('"--appendonly", "yes"','"--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"');p.write_text(s)
+PYLIMIT
+fi
 dc up -d db redis
 for attempt in $(seq 1 60); do dc exec -T db sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1 && break; [[ "$attempt" != 60 ]];sleep 1;done
 if [[ -f "$BASE/current-release" ]]; then install -d -m 0700 "$BASE/backups";dc exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > "$BASE/backups/before-$RELEASE.sql.gz";fi
@@ -147,8 +157,10 @@ run_app bundle exec rails runner script/lightek_website_bootstrap.rb
 rm -f /run/lightek/bootstrap.json
 run_app bundle exec rails assets:precompile
 run_app bundle exec rails zeitwerk:check
-python3 "$APP_ROOT/lib/scripts/setup_studio_docker_access.py" --app-user "$APP_USER"
-python3 "$APP_ROOT/lib/scripts/nevaeh/install_package_control.py" --app-root "$APP_ROOT" --app-user "$APP_USER"
+if [[ "$MEMBER_BACKEND" != 1 ]]; then
+ python3 "$APP_ROOT/lib/scripts/setup_studio_docker_access.py" --app-user "$APP_USER"
+ python3 "$APP_ROOT/lib/scripts/nevaeh/install_package_control.py" --app-root "$APP_ROOT" --app-user "$APP_USER"
+fi
 run_app bash lib/scripts/setup_studio_media.sh
 run_app bash lib/scripts/setup_live_audience.sh
 # Supply Passenger environment without shell evaluation or exposing it to browsers.
@@ -198,6 +210,11 @@ Require all granted
 </Directory>
 </VirtualHost>
 EOF
+if [[ "$MEMBER_BACKEND" = 1 ]];then
+ sed -i '/PassengerAppEnv production/a PassengerSpawnMethod direct\nPassengerMaxRequests 500' "/etc/apache2/sites-available/lightek-$DOMAIN-ssl.conf"
+ printf '%s\n' 'PassengerMaxInstancesPerApp 1' > /etc/apache2/conf-available/lightek-member-pool.conf
+ a2enconf lightek-member-pool
+fi
 a2ensite "lightek-$DOMAIN-ssl.conf";apache2ctl configtest;systemctl reload apache2
 python3 "$APP_ROOT/lib/scripts/setup_studio_spatial.py" --app-root "$APP_ROOT" --app-user "$APP_USER" --domain "$DOMAIN" --env-file "$ENV_FILE"
 cat > "/etc/systemd/system/$APP_NAME-sidekiq.service" <<EOF
@@ -215,6 +232,9 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
+if [[ "$MEMBER_BACKEND" = 1 ]];then
+ sed -i 's/sidekiq -c 2/sidekiq -c 1/; /RestartSec=5/a MemoryMax=384M\nCPUQuota=50%\nTasksMax=64' "/etc/systemd/system/$APP_NAME-sidekiq.service"
+fi
 systemctl daemon-reload;systemctl enable --now "$APP_NAME-sidekiq";systemctl restart "$APP_NAME-sidekiq"
 passenger-config restart-app "$APP_ROOT" --ignore-app-not-running
 for attempt in $(seq 1 40);do curl --fail --silent --show-error "https://$DOMAIN/__lightek/website-health" > "$BASE/health.json" && break;[[ "$attempt" != 40 ]];sleep 1;done

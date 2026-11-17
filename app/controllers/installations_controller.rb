@@ -51,6 +51,9 @@ class InstallationsController < ApplicationController
 
   def access
     order = customer_order
+    if LightekCommerce::Installations.member_move_pending?(order)
+      return redirect_to installation_path(order), alert: 'Your content is moving. Instance access opens after verification.'
+    end
     url = Gatekeeper::WebsiteDeployment.owner_password_setup_url!(actor: current_user, order: order)
     redirect_to url, allow_other_host: true, status: :see_other
   rescue Gatekeeper::WebsiteDeployment::Invalid

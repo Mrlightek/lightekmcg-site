@@ -265,6 +265,9 @@ require File.join(ROOT,'app/controllers/dashboard/nevaeh_os_controller')
 class NevaehOsHttpTest < ActionController::TestCase
   tests Dashboard::NevaehOsController
   def setup
+    # A separate policy test deliberately disables this capability. Positive
+    # HTTP fixtures start from an explicitly enabled contract for every order.
+    NevaehOs::Dispatch.register!.update!(enabled: true)
     @actor=User.create!(role:'super_admin')
     @other=User.create!(role:'client')
     @request.session[:actor_id]=@actor.id

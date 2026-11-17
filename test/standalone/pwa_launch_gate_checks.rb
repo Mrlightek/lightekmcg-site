@@ -1,5 +1,18 @@
 require_relative 'pwa_commercial_checks'
 require File.join(ROOT,'app/services/lightek_pwa/business_activation')
+module DymondBank
+  module StripeCredentials
+    def self.secret_key = nil
+  end
+end
+module LightekPwa
+  class CreatorSupport
+    def self.enabled?(*) = false
+  end
+  class SharedPool
+    def self.where(*) = []
+  end
+end
 ActiveRecord::Schema.define do
   add_column :users, :agency_id, :integer
   create_table(:agency_profiles) { |t| t.integer :user_id; t.string :brand_name; t.string :accent_color, default:'#d4af37'; t.string :logo_url; t.string :support_email }
@@ -11,11 +24,11 @@ end
 require File.join(ROOT,'app/models/agency_profile')
 class PwaLaunchGateTest < PwaCommercialTest
   PwaCommercialTest.instance_methods(false).grep(/^test_/).each { |name| undef_method(name) }
-  def test_missing_lifecycle_and_cash_settlement_cannot_be_overridden_by_enabled_flag
+  def test_missing_separate_host_and_configuration_cannot_be_overridden_by_enabled_flag
     @site.update!(manifest:{'pwa_commerce'=>{'enabled'=>true}})
     refute LightekPwa::Plans.enabled?(@site)
     error=assert_raises(LightekPwa::Plans::Unavailable) {LightekPwa::Plans.install!(site:@site,actor:@operator,personal_product_id:1)}
-    assert_includes error.message,'migration'
+    assert_includes error.message,'configuration'
     assert @purchase.entitled?, 'Existing verified paid periods must be preserved'
   end
   def test_business_role_and_branding_activate_only_after_verified_payment

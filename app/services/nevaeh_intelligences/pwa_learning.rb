@@ -24,7 +24,7 @@ module NevaehIntelligences
       build.with_lock do
         build.update!(coverage: build.coverage.merge('pwa_learning' => {'source_sha256'=>digest,
           'source_paths'=>PATHS, 'execution'=>'reference_only',
-          'execution_gaps'=>%w[free_instance_allocation verified_instance_migration finalized_funded_youtube_payouts creator_support_dispatch youtube_publishing_dispatch production_commercial_acceptance]}))
+          'execution_gaps'=>%w[free_backend_allocation_dispatch backend_migration_dispatch finalized_view_settlement_dispatch creator_support_dispatch youtube_publishing_dispatch production_commercial_acceptance]}))
       end
       synced = sync_knowledge!(docs: docs, fingerprint: digest)
       build.with_lock do

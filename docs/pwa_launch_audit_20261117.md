@@ -1,14 +1,12 @@
 # Lightek PWA launch audit and monetization plan
 
-Updated November 17, 2026, after merged PR #312. Source baseline: `develop` at `787e58a0b4a9b2bdecb68839cf9de4dfa2f4a012`; refreshed `main` remains `be65999f301e82c696bd9d2407450b87d56dac1a`. Current follow-up work is on `feat/pwa-launch-candidate` and has not been deployed. Live observations below were made earlier today on the production PWA with an owner session. They do not establish ordinary-member access or new-code production behavior.
+Updated November 17, 2026, after merged PRs #312 and #313. Current follow-up: `feat/pwa-isolated-member-launch`, based on `develop` at `89cc4b79cbe40e87db3d8eb89d7f2fcf6179868f`. The new code has not been deployed. Earlier production observations below remain historical owner-session evidence.
 
 ## Launch decision
 
-**The complete agreed offer is not yet a launch candidate.** This follow-up implements creator subscriptions, live gifts/tips, full-principal support settlement and central resumable YouTube publishing, adds authenticated API/client checks, and repairs the previously failing PWA publishing/sidebar test harness cases. It also exposes launch readiness in PWA revenue administration.
+The follow-up implements the three previously missing services: capacity-bounded allocation on a **separate shared server**, a resumable native shared-to-dedicated backend migration, and finalized monthly view earnings with an API-verified funded transfer rail. The owner can configure these through PWA revenue administration. Free originals have no fallback onto the central server. New paid sales require the complete configuration plus explicit owner enablement; flags do not establish production verification.
 
-Three implementation gaps still block the complete paid offer: automatic free member backend allocation; verified Free → Paid application/data migration with stable routing and rollback; finalized YouTube revenue reconciliation through a funded creator payout rail. New paid instance sales are now blocked in the service layer while these gaps exist. An operator checkbox or old enabled flag cannot override missing delivery code. Existing paid periods, renewal cancellation and historical earnings eligibility are preserved.
-
-Production acceptance remains outstanding for the new code: native private-engine/PostgreSQL CI, channel OAuth/public upload/playback, real collection/settlement/bank delivery, ordinary-user desktop/mobile journeys and external mail send/receive. These are separate from implementation gaps. The previously inspected native CI job receives **Not Found** while looking up the CI GitHub App installation for `lightekmcg`; its supplied credentials are present. The authorized CI App installation on the dependency owner must be corrected. Disabling those checks would not establish acceptance.
+Local database and boundary tests pass for these paths. Production/native acceptance is still required: authorized private-engine/PostgreSQL CI, a real separate-host signup/upgrade with original-media verification, billing/refund/settlement, central channel upload/playback/withdrawal, desktop/mobile journeys and external branded email. The previously inspected native CI job receives **Not Found** looking up the CI GitHub App installation on dependency owner `lightekmcg`; credentials were present. An authorized installation must be corrected rather than bypassing native tests. No real cloud allocation, payment, channel upload or bank payout is claimed by this follow-up.
 
 ## What works and what is missing
 
@@ -20,20 +18,20 @@ Production acceptance remains outstanding for the new code: native private-engin
 | Money | Live account invoices and pending records loaded | Workspace reads work; no successful production charge or withdrawal was performed. |
 | Studio/live | Live production Studio entry loaded persisted projects/scenes and controls | Existing production foundations; this audit did not verify every render/export/broadcast. |
 | Social writes and media | Real SQLite/Rails/controller tests cover tenant/author boundaries, visibility, replies, uploads and ranges | Substantive local evidence. Native PostgreSQL and ordinary-user production acceptance remain separate. |
-| Signup | Source implements password signup, CSRF, rate limiting, PWA return destination and existing MFA flow | Fresh ordinary production signup not performed. Signup does not yet allocate the agreed member backend. |
+| Signup | Source implements password signup, CSRF, rate limiting, PWA return destination and existing MFA flow | Fresh ordinary production signup not performed. A committed setup request now drives allocation on the separate pool, with bounded capacity/recovery and one-use sign-in. |
 | Install/offline | Manifest/icons/service worker exist; updated shell caches new commercial scripts | Offline shell only. No offline publication queue or offline YouTube download. Browser/iOS install acceptance pending. |
-| Membership billing | Scoped recurring purchase, actual configured hosting price, verified active paid periods, cancellation and delivery status | Foundation exists. Full paid offer remains gated on missing allocation/migration/cash settlement. |
-| Free member backend | Existing Gatekeeper shared-site/native-app provisioning primitives | Automatic signup allocation and total/per-member capacity lifecycle are not connected. Shared Rails/database tenancy is not a dedicated database/process. |
-| Upgrade/migration | Existing instance delivery can provision an empty new backend | It does not migrate an existing application. Implement verified copy/delta/cutover/rollback before offering the agreed upgrade. |
-| Central references | Authenticated peer revisions/outbox/tombstones; direct anonymous source reads | Public paid-peer references work in local tests. Central stores title/type/owner/source metadata, not remote body/media. Free-peer allocation, unified cross-instance comments/follows/private feeds remain incomplete. |
+| Membership billing | Scoped recurring purchase, actual configured hosting price, verified active paid periods, cancellation and delivery status | Foundation exists. New sales require a ready separate host and all commercial configuration; native/deployed acceptance remains pending. |
+| Free member backend | Separate native applications/databases/queues/storage on a remote shared pool, signup outbox, capacity/resource/storage controls | Implemented locally. No central fallback. Native profile shares a system user; per-member VM/container sandboxing is not claimed. Pilot/load acceptance pending. |
+| Upgrade/migration | Native complete-backend snapshot, checked resumable chunks, counts/media hashes, stable central IDs/URL cutover and retained source | Implemented locally; target/source revisions must match. Restore before activation; after activation use a reverse transfer. Real host acceptance pending. Historical central originals stay readable in place; new publishing uses the member backend. |
+| Central references | Authenticated peer revisions/outbox/tombstones; direct anonymous source reads | Public paid-peer references work in local tests. Central stores title/type/owner/source metadata, not remote body/media. Free content peers are now supported; central replies remain central. Full private cross-instance social federation is not claimed. |
 | YouTube original upload | New author-consent, exact-channel verification, fixed-origin original retrieval, checksums, Vault session receipts, bounded resumable worker and processing state | Implemented and locally tested. Actual channel authorization, quota and a real remote/native-host upload remain unverified. |
 | YouTube playback/removal | Source activates YouTube ID only after processed/public/embeddable receipt; pending placeholder; durable withdrawal and channel deletion | Locally tested, including lost response, late completion vs withdrawal and retained originals. Legacy native videos remain compatible; submitting an existing YouTube URL does not establish channel revenue ownership. |
-| YouTube view estimates | Official normalized report imports, reported views, creator estimates/RPM and historical paid-window eligibility | Implemented and tested. Estimates are not cash. Final adjustment allocation/funded view-payout settlement remain missing. |
+| YouTube view estimates | Official normalized report imports, reported views, creator estimates/RPM and historical paid-window eligibility | Implemented and tested. Estimates are not cash. Whole-channel finalized monthly allocations and API-verified funding/transfer settlement are now separate implemented paths; actual account acceptance remains pending. |
 | Creator subscriptions | Separate supporter → creator offer/payment relationship, immutable price/fee snapshots, signed recurring settlement, status, cancellation and pending-checkout resume | Implemented locally. Monthly financial support does not add subscriber-only post/media access. Real recurring payment acceptance pending. |
 | Tips/live gifts | Server quotes disclose fees; verified payment creates earning; live operation must belong to public post author/site | Implemented locally. Only confirmed gifts appear, with disclosed public supporter names. In-player live UX and actual broadcast/payment journey require production/mobile acceptance. |
 | Creator support payouts | Real source charge/available balance checks, full-principal transfer, held/available/pending/transferred/reversed states, stable destination/key, refund/dispute recovery | Implemented with real-service boundary tests. No production funds moved. Account credit and bank delivery remain distinct; YouTube estimates do not enter this rail. |
 | Branded mail | Real scoped mailbox after signup-email confirmation; verified platform domain and explicit enablement; 250 MB / 20 daily recipients starting allowance | Existing tests pass. External SMTP send/receive, DNS/reputation, queues and capacity not accepted here. |
-| Business/Agency | Existing client/reseller/feature controls plus new idempotent role/profile activation after verified active Business payment | No role at checkout/return and no super-admin grant. Each client server billed separately. Full paid offer remains gated. |
+| Business/Agency | Existing client/reseller/feature controls plus new idempotent role/profile activation after verified active Business payment | No role at checkout/return and no super-admin grant. Each client server billed separately. New paid sales remain configuration-gated. |
 | Nevaeh | Targeted source pack now includes current guide, audit and acceptance runbook; fingerprinted KB/learning integration | Local learning-plan checks pass. Updated material requires a fresh reviewed build. Production model training was not performed. No new executable contracts are invented by documentation. |
 
 ## UX changes and remaining acceptance
@@ -50,7 +48,7 @@ Remaining UX acceptance: signed-out visitor, ordinary free creator/supporter, pa
 
 | Tier | Agreed service | Pricing approach |
 |---|---|---|
-| Community | Free participation plus lightweight isolated member application on shared Lightek infrastructure; bounded branded mailbox | Free. Automatic backend allocation and shared-host capacity controls still required. |
+| Community | Free participation plus separate member application on remote shared member servers, off the central Lightek host; bounded branded mailbox | Free. Capacity-bounded allocation implemented; the owner funds a separate shared server before signup delivery. Free hosting is a real platform acquisition cost. |
 | Personal | Move the same application to its own server; central discovery references continue | Target $9.99/month only if measured compute, storage/transfer, backups, mail, support, payment costs and margin fit. Actual configured hosting package controls the price. |
 | Business / Agency | Own business backend, brand, client management, feature controls/resale; optional verified custom-domain mail | Approximately $29–49 is a hypothesis, not a configured promise. Each client server/package separately billed. |
 
@@ -68,7 +66,7 @@ Revenue order:
 
 Use the member headline **estimated earnings per 1,000 views**, calculated from that creator's own reported views and earnings. The underlying policy remains 80% of attributable channel proceeds after YouTube's own share to eligible paid creators, 20% to Lightek. Free-period view revenue stays with Lightek; free and paid creators retain all support principal. No fixed guaranteed per-view rate, artificial/incentivized views or retroactive free-period claim.
 
-A $32 creator estimate across 10,000 reported views gives $3.20 per 1,000 views, as an example only. Estimates, finalized amounts, received funds, available payout funds, account transfers and bank delivery are separate states. Final channel adjustments need a documented whole-channel denominator. An AdSense bank deposit does not itself fund the payment processor's transfer balance. The missing finalized/funded view-earnings implementation blocks the complete paid offer.
+A $32 creator estimate across 10,000 reported views gives $3.20 per 1,000 views, as an example only. Estimates, finalized amounts, received funds, available payout funds, account transfers and bank delivery are separate states. Final channel adjustments need a documented whole-channel denominator. An AdSense bank deposit does not itself fund the payment processor's transfer balance. The finalized/funded model now retains monthly whole-channel evidence and verifies a separately funded payout balance. Live funding/transfer/bank acceptance remains outstanding.
 
 ## Allocation/migration acceptance still required
 
@@ -78,7 +76,7 @@ The current central-reference path is public syndication, not full private socia
 
 ## Launch and acquisition sequence
 
-Before a full paid launch: close the three implementation gaps, fix native dependency CI access, deploy, and accept real billing/provision/migration, support payments/renewals/refunds/payouts, central YouTube upload/public playback/withdrawal, ordinary-member journeys and external email. Keep feature switches closed until their own acceptance succeeds.
+Before a full paid launch: fix native dependency CI access, configure the separate host and real accounts, deploy, and accept real billing/provision/migration, support payments/renewals/refunds/payouts, central YouTube upload/public playback/withdrawal, ordinary-member journeys and external email. Keep feature switches closed until their own acceptance succeeds.
 
 Before invitations: publish an owned original program, three useful clips and a welcome post; create two or three focused communities with an owner and first conversation. The empty Watch/Clips/Communities experience is a content-acquisition blocker even when routes work.
 
@@ -95,8 +93,11 @@ Measure signup → confirmation → backend ready → first post → first reply
 | PWA HTTP | 39 tests, 223 assertions, passing |
 | PWA administration | 65 tests, 438 assertions, passing |
 | Membership/reference/revenue | 12 tests, 55 assertions, passing |
-| Creator support/settlement | 15 tests, 59 assertions, passing |
+| Creator support/settlement | 16 tests, 61 assertions, passing |
 | YouTube source/resumable/withdrawal | 15 tests, 58 assertions, passing |
+| Separate member allocation/tickets/migration | 14 tests, 64 assertions, passing |
+| Finalized view reconciliation/funding/transfer | 7 tests, 32 assertions, passing |
+| Backend archive/chunk/path/activation safety | 5 Python tests, passing |
 | New commercial HTTP authorization/CSRF | 6 tests, 29 assertions, passing |
 | Launch gate/Business activation | 4 tests, 16 assertions, passing |
 | Branded mailbox suite | 12 tests, 62 assertions, passing |
@@ -122,3 +123,5 @@ Prepare a fresh PWA knowledge/training build from the current policy guide, this
 - Payment source-bound transfers and reversals: https://docs.stripe.com/connect/separate-charges-and-transfers
 - Invoice-payment reconciliation: https://docs.stripe.com/api/invoice-payment/list
 - Earlier market reference pages: https://help.x.com/en/using-x/x-premium and https://discord.com/blog/beginners-guide-to-nitro
+
+New official funding references: https://docs.stripe.com/api/topups/retrieve and https://docs.stripe.com/api/transfers/create.

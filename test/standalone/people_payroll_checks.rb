@@ -8,6 +8,18 @@ class ApplicationRecord < ActiveRecord::Base
   self.abstract_class = true
 end
 ActiveRecord::Base.establish_connection(ENV.fetch('PEOPLE_DATABASE_URL', 'sqlite3::memory:'))
+if ActiveRecord::Base.connection.adapter_name == 'PostgreSQL'
+  # Separate Ruby invocations share the CI database, but not fixture tables.
+  # Every connection in this process must use this harness's private schema.
+  require 'securerandom'
+  harness_schema = "enterprise_harness_#{SecureRandom.hex(8)}"
+  configuration = ActiveRecord::Base.connection_db_config.configuration_hash
+  ActiveRecord::Base.connection.execute("CREATE SCHEMA #{harness_schema}")
+  ActiveRecord::Base.establish_connection(configuration.merge(schema_search_path: harness_schema))
+  Minitest.after_run do
+    ActiveRecord::Base.connection.execute("DROP SCHEMA IF EXISTS #{harness_schema} CASCADE")
+  end
+end
 ActiveRecord::Migration.verbose = false
 if ActiveRecord::Base.connection.adapter_name == 'SQLite'
   ActiveRecord::ConnectionAdapters::TableDefinition.class_eval { alias_method :jsonb, :json }

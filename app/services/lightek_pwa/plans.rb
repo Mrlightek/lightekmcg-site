@@ -24,9 +24,10 @@ module LightekPwa
       {current_plan: purchase&.plan_key || 'community', enabled: enabled?(site),
         cancel_at_period_end: purchase&.order&.commerce_subscription&.cancel_at_period_end || false,
         current_period_end: purchase&.order&.commerce_subscription&.current_period_end,
+        backend: (user && defined?(MemberBackend) && MemberBackend.find_by(user: user, site: site))&.summary,
         installation: record && LightekCommerce::Installations.summary(record.order),
         installation_path: record && "/my/installations/#{record.order_id}",
-        setup_note: 'Paid membership includes a separate backend instance. Activation follows verified payment and server setup. Cancel renewal at any time; access continues through the paid period. Storage and transfer limits follow your selected server package.',
+        setup_note: 'Paid membership includes a separate backend instance. Existing central posts remain readable; new originals publish on your backend. Upgrading a shared backend transfers its stored content. Activation follows verified payment and server setup. Cancel renewal at any time; access continues through the paid period. Storage and transfer limits follow your selected server package.',
         plans: CATALOG.map do |key, plan|
           item = product(site, key)
           plan.merge(key: key, price_cents: key == 'community' ? 0 : item&.price_cents, available: key == 'community' || (enabled?(site) && item.present?))
@@ -34,7 +35,7 @@ module LightekPwa
     end
     def self.install!(site:, actor:, personal_product_id:, business_product_id: nil)
       raise Policy::Denied, 'Only the platform owner can configure network membership' unless actor.role == 'super_admin' && site.tenant == actor
-      raise Unavailable, LaunchReadiness::IMPLEMENTATION_GAPS.values.join(' ') unless LaunchReadiness.paid_ready?(site)
+      raise Unavailable, 'Complete the launch configuration, including a verified separate member host, before opening paid membership' unless LaunchReadiness.paid_ready?(site)
       site.with_lock do
         mapping = {'personal' => personal_product_id, 'business' => business_product_id}.reject { |_, id| id.blank? }
         raise Unavailable, 'Choose a personal server package' if mapping['personal'].blank?
@@ -44,7 +45,7 @@ module LightekPwa
             raise Unavailable, 'The Business package must include agency features'
           end
           package = item.hosting_package
-          raise Unavailable, 'Select an active managed hosting package with a subscription plan' unless package&.active? && item.subscription_plan_id
+          raise Unavailable, 'Select an active managed hosting package with a subscription plan' unless package&.active? && package.gatekeeper_application_template.kind == 'native_rails' && item.subscription_plan_id
           floor = package.monthly_cost_ceiling_cents + package.minimum_margin_cents
           raise Unavailable, 'Membership price must cover infrastructure, margin and payment fees' if item.price_cents < LightekCommerce::MerchantPayouts.minimum_charge_cents(floor)
         end
@@ -58,12 +59,13 @@ module LightekPwa
         raise Unavailable, 'Business membership requires a member or agency account'
       end
       package = item.hosting_package
-      raise Unavailable, 'This hosting package is unavailable' unless package&.active?
+      raise Unavailable, 'Choose an active native hosting package for a migratable PWA backend' unless package&.active? && package.gatekeeper_application_template.kind == 'native_rails'
       floor = package.monthly_cost_ceiling_cents + package.minimum_margin_cents
       raise Unavailable, 'This package needs a price review before checkout' if item.price_cents < LightekCommerce::MerchantPayouts.minimum_charge_cents(floor)
       purchase = nil
       user.with_lock do
-        raise Unavailable, 'Your existing posts require a verified instance migration before upgrading. Contact Lightek to arrange the move.' if Post.where(site: site, user: user).exists?
+        backend = defined?(MemberBackend) && MemberBackend.find_by(site: site, user: user)
+        raise Unavailable, 'Wait for your shared backend to finish setup before upgrading' if backend && backend.status != 'shared_ready'
         raise Unavailable, 'You already have a paid instance. Manage its subscription before buying another membership.' if current(user, site)
         purchase = Purchase.where(user: user, site: site).joins(:order).where(lightek_commerce_orders: {status: 'pending_payment'}).order(id: :desc).first
         raise Unavailable, 'Finish or wait for your existing checkout to expire before selecting another plan' if purchase && purchase.plan_key != key

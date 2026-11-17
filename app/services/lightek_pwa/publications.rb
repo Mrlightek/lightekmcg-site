@@ -14,9 +14,31 @@ module LightekPwa
         LightekPwa::PublicationSyncJob.perform_later(row.id)
       end
     end
+    def self.context(peer)
+      if peer.has_attribute?(:member_backend_id) && peer.member_backend_id && peer.member_backend
+        backend = peer.member_backend
+        raise Policy::Denied, 'Backend owner mismatch' unless backend.user_id == peer.merchant_id
+        allowed = backend.ready? && backend.user_id == peer.merchant_id
+        if backend.status == 'dedicated_ready'
+          purchase = Purchase.find_by(order_id: backend.order_id, user_id: backend.user_id, site_id: backend.site_id)
+          allowed &&= purchase&.entitled? && LightekCommerce::Installations.ready?(backend.order)
+        end
+        begin
+          Policy.new(user: backend.user, site: backend.site).authorize!
+        rescue Policy::Denied
+          allowed = false
+        end
+        {user: backend.user, site: backend.site, active: allowed, origin: "https://#{backend.current_hostname}"}
+      else
+        purchase = Purchase.find_by(order_id: peer.order_id) or raise Policy::Denied, 'This instance has no network membership'
+        raise Policy::Denied, 'Instance owner mismatch' unless peer.merchant_id == purchase.user_id
+        {user: purchase.user, site: purchase.site, active: purchase.entitled? && LightekCommerce::Installations.ready?(peer.order) && peer.merchant_id == purchase.user_id,
+          origin: "https://#{LightekCommerce::Installations.hostname(peer.order)}"}
+      end
+    end
     def self.accept!(peer:, payload:)
-      purchase = Purchase.find_by(order_id: peer.order_id) or raise Policy::Denied, 'This instance has no network membership'
-      raise Policy::Denied, 'Instance membership is inactive' unless (purchase.entitled? || payload['removed'] == true) && LightekCommerce::Installations.ready?(peer.order) && peer.merchant_id == purchase.user_id
+      owner = context(peer)
+      raise Policy::Denied, 'Instance membership is inactive' unless owner[:active] || payload['removed'] == true
       id = Integer(payload.fetch('remote_post_id'))
       revision = Integer(payload.fetch('revision'))
       raise ArgumentError, 'Invalid publication identity' unless id.positive? && revision.positive? && id <= 9_000_000_000_000_000 && revision <= 9_000_000_000_000_000
@@ -34,9 +56,9 @@ module LightekPwa
         else
           kind = payload.fetch('kind')
           raise ArgumentError, 'Unsupported network post type' unless %w[post article photo video clip audio story event].include?(kind)
-          origin = "https://#{LightekCommerce::Installations.hostname(peer.order)}"
-          title = payload['title'].to_s.first(160).presence || "Post from #{purchase.user.profile.public_display_name}"
-          post = ref.post || Post.new(user: purchase.user, site: purchase.site, visibility: 'public', audience: 'everyone')
+          origin = owner[:origin]
+          title = payload['title'].to_s.first(160).presence || "Post from #{owner[:user].profile.public_display_name}"
+          post = ref.post || Post.new(user: owner[:user], site: owner[:site], visibility: 'public', audience: 'everyone')
           youtube_id = payload['youtube_video_id'].to_s
           metadata = {'remote_content' => {'peer_key' => peer.key, 'remote_post_id' => id,
             'fetch_url' => "#{origin}/api/lightek/network/posts/#{id}", 'post_url' => "#{origin}/lightek/index.html#/post/#{id}"}}

@@ -18,6 +18,8 @@ class StudioLiveOperation < ApplicationRecord
 end
 require Rails.root.join('db/migrate/20261117110000_create_pwa_creator_payments')
 CreatePwaCreatorPayments.new.migrate(:up)
+require Rails.root.join('db/migrate/20261117143500_record_creator_transfer_attempts')
+RecordCreatorTransferAttempts.new.migrate(:up)
 module LightekPwa
   class Policy
     class Denied < StandardError; end
@@ -201,6 +203,16 @@ class PwaCreatorSupportTest < CommerceHostingTest
       Stripe::Transfer.stub(:create, ->(params,opts) {keys << opts[:idempotency_key];OpenStruct.new(id:'tr_1',**params)}) {LightekPwa::CreatorSettlement.release!(earning:e,actor:@creator)}
     end
     assert_equal 1,keys.uniq.size
+  end
+  def test_old_uncertain_support_transfer_requires_reconciliation_before_reposting
+    e=earning
+    e.update!(state:'transfer_pending',destination_account:'acct_creator',transfer_requested_at:2.days.ago)
+    with_charge(charge) do
+      Stripe::Transfer.stub(:create, ->(*) {raise 'An old uncertain transfer must never be blindly repeated'}) do
+        assert_raises(LightekPwa::CreatorSettlement::Unavailable) {LightekPwa::CreatorSettlement.release!(earning:e,actor:@creator)}
+      end
+    end
+    assert_equal 'transfer_pending',e.reload.state
   end
   def test_uncertain_reversal_keeps_the_refund_hold_durable
     e=earning;e.update!(state:'transferred',charge_reference:'ch_1',transfer_reference:'tr_1')

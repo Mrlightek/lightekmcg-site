@@ -36,9 +36,10 @@ module Gatekeeper
       end
 
       def self.run!(node:, domain:, requested_by:, operation_id:, payload:, script_name:, registry: false)
-        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py install_studio_ai.py wordpress_sandbox.py directory_membership.py].include?(script_name)
+        raise ArgumentError, "Unknown managed server script" unless %w[update_installation.py update_native_installation.py create_hosted_site.py container_owner_access.py install_container_application.py sync_reservation.py sync_federation.py install_session_media.py install_studio_ai.py wordpress_sandbox.py directory_membership.py pwa_backend_transfer.py].include?(script_name)
         duration = script_name == "install_studio_ai.py" ? 7200 : 1800
         script_path = Rails.root.join("lib/scripts/gatekeeper", script_name)
+        raise ArgumentError, "Member transfers cannot use the central host" if script_name == "pwa_backend_transfer.py" && node.local?
         if node.local?
           stdout, _, status = Timeout.timeout(duration + 100) do
             privileged = %w[install_session_media.py install_studio_ai.py wordpress_sandbox.py].include?(script_name)
@@ -100,7 +101,11 @@ module Gatekeeper
               ch.exec(command) do |_, success|
                 raise Rollouts::Invalid, "Remote updater did not start" unless success
                 ch.send_data(JSON.generate(payload)); ch.eof!
-                ch.on_data { |_, data| stdout << data if stdout.bytesize < 32_768 }
+                limit = script_name == "pwa_backend_transfer.py" ? 6_000_000 : 32_768
+                ch.on_data do |_, data|
+                  raise Rollouts::Invalid, "Managed script response exceeds its allowance" if stdout.bytesize + data.bytesize > limit
+                  stdout << data
+                end
                 ch.on_extended_data { |_, _, _data| } # Never persist docker/subprocess credential-bearing output.
                 ch.on_request("exit-status") { |_, data| exit_status = data.read_long }
               end

@@ -52,8 +52,8 @@ module LightekPwa
       upload
     end
     def self.accept!(peer:, payload:)
-      purchase = Purchase.find_by!(order_id: peer.order_id)
-      raise Policy::Denied, 'This instance cannot publish to the channel' unless purchase.entitled? && peer.merchant_id == purchase.user_id && LightekCommerce::Installations.ready?(peer.order) && central_enabled?(purchase.site)
+      owner = Publications.context(peer)
+      raise Policy::Denied, 'This instance cannot publish to the channel' unless owner[:active] && central_enabled?(owner[:site])
       source_id = Integer(payload.fetch('source_post_id'))
       raise Unavailable, 'Invalid source post' unless source_id.positive?
       peer.with_lock do
@@ -63,10 +63,10 @@ module LightekPwa
           # Refresh a source grant after worker/host recovery without restarting an upload.
           upload.update!(source_grant: payload.fetch('source_grant'))
         else
-          capacity!(purchase.site)
-          raise Unavailable, 'Daily video publishing limit reached' if YoutubeUpload.where(user: purchase.user).where('created_at >= ?', 1.day.ago).count >= 10
+          capacity!(owner[:site])
+          raise Unavailable, 'Daily video publishing limit reached' if YoutubeUpload.where(user: owner[:user]).where('created_at >= ?', 1.day.ago).count >= 10
           raise Unavailable, 'A redistribution consent receipt is required' unless payload['consent'] == true && [true,false].include?(payload['made_for_kids']) && payload.fetch('source_grant').to_s.bytesize <= 4096
-          upload = YoutubeUpload.create!(peer: peer, site: purchase.site, user: purchase.user, source_post_id: source_id,
+          upload = YoutubeUpload.create!(peer: peer, site: owner[:site], user: owner[:user], source_post_id: source_id,
             title: payload.fetch('title').to_s.first(100), description: payload['description'].to_s.first(5000),
             made_for_kids: payload['made_for_kids'], source_grant: payload.fetch('source_grant'), consented_at: Time.current,
             byte_size: payload.fetch('byte_size'), checksum: payload.fetch('checksum'), content_type: payload.fetch('content_type'))
@@ -103,11 +103,15 @@ module LightekPwa
     def self.stage_remote!(upload)
       return if upload.staged_original.attached?
       order = upload.peer.order
-      node = order.gatekeeper_application_launch&.gatekeeper_node || ProvisioningRequest.find_by(id: order.provisioning_request_id)&.gatekeeper_node
+      node = if upload.peer.respond_to?(:member_backend_id) && upload.peer.member_backend_id && upload.peer.member_backend
+        upload.peer.member_backend.current_node
+      else
+        order.gatekeeper_application_launch&.gatekeeper_node || ProvisioningRequest.find_by(id: order.provisioning_request_id)&.gatekeeper_node
+      end
       address = node&.ip_address.to_s
       raise Unavailable, 'Original source host has no verified server address' if address.blank?
       IPAddr.new(address) # Pin the managed node address; never resolve a submitted host/URL.
-      host = LightekCommerce::Installations.hostname(order)
+      host = URI(Publications.context(upload.peer)[:origin]).host
       uri = URI::HTTPS.build(host: host, path: '/api/lightek/pwa/youtube/source', query: URI.encode_www_form(grant: upload.source_grant))
       Tempfile.create(['pwa-original-', '.video'], binmode: true) do |io|
         size = 0; digest = Digest::MD5.new

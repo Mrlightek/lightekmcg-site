@@ -152,10 +152,10 @@ class PwaLaunchSetupTest < Minitest::Test
   end
   def test_payment_secret_is_encrypted_not_returned_and_disabled_secret_fails_closed
     ENV['LIGHTEK_COMMERCE_STRIPE_WEBHOOK_SECRET'] = 'whsec_legacy_fixture_value'
-    assert_equal 302, post('payment-callbacks', {signing_secret: SIGNING}).status
+    # Preserve the older dedicated endpoint for existing installations only.
+    LightekCommerce::WebhookCredentials.store!(actor: @admin, value: SIGNING)
     secret = LightekVault::Secret.find_by!(slug: LightekCommerce::WebhookCredentials::SLUG)
     refute_includes secret.attributes.to_json, SIGNING
-    refute_includes @client.response.body, SIGNING
     assert_equal SIGNING, LightekCommerce::WebhookCredentials.secret
     assert LightekCommerce::WebhookCredentials.configured?
     assert LightekVault::AuditEvent.where(secret: secret, action: 'created', requested_by: @admin.email_address).exists?
@@ -164,7 +164,7 @@ class PwaLaunchSetupTest < Minitest::Test
     assert_raises(LightekCommerce::WebhookCredentials::Unavailable) { LightekCommerce::WebhookCredentials.secret }
   end
   def test_real_signed_callback_is_accepted_and_tampered_body_rejected
-    post('payment-callbacks', {signing_secret: SIGNING})
+    LightekCommerce::WebhookCredentials.store!(actor: @admin, value: SIGNING)
     body = JSON.generate(id: 'evt_fixture', object: 'event', type: 'test.fixture', data: {object: {id: 'fixture'}})
     timestamp = Time.now.to_i
     signature = OpenSSL::HMAC.hexdigest('SHA256', SIGNING, "#{timestamp}.#{body}")
@@ -173,6 +173,11 @@ class PwaLaunchSetupTest < Minitest::Test
     assert_equal 200, @client.response.status, @client.response.body
     @client.post '/commerce/stripe/webhook', params: body + ' ', headers: headers
     assert_equal 400, @client.response.status
+  end
+  def test_retired_product_setup_does_not_create_a_duplicate_payment_secret
+    assert_equal 302, post('payment-callbacks', {signing_secret: SIGNING}).status
+    assert_empty LightekVault::Secret.all
+    refute_includes @client.response.body, SIGNING
   end
   def test_uploads_cannot_open_before_verified_channel_and_changed_selection_invalidates_receipt
     select_channel
@@ -231,18 +236,21 @@ class PwaLaunchSetupTest < Minitest::Test
     refute LightekPwa::LaunchSettings.enabled?('creator_payouts_enabled')
     assert_raises(ArgumentError) { LightekPwa::LaunchSetup.update!(site: @site, actor: @admin, attributes: {'secret'=>'private'}) }
   end
-  def test_setup_view_contains_blank_password_control_and_clear_activation_steps
+  def test_setup_view_uses_shared_bank_configuration_without_duplicate_secret_form
     select_channel
     view = ActionView::Base.with_empty_template_cache.with_view_paths(ROOT + '/app/views')
     view.extend(Rails.application.routes.url_helpers)
     view.define_singleton_method(:url_options) { {host: 'central.example.test', protocol: 'https'} }
     view.define_singleton_method(:optimize_routes_generation?) { false }
     view.define_singleton_method(:protect_against_forgery?) { false }
-    view.assign(site: @site, launch_settings: LightekPwa::LaunchSettings.snapshot, youtube_credentials: [LightekVault::Secret.find_by!(slug:'central-youtube')], youtube_verification: {})
+    view.assign(site: @site, launch_settings: LightekPwa::LaunchSettings.snapshot, youtube_credentials: [LightekVault::Secret.find_by!(slug:'central-youtube')], youtube_verification: {}, launch_readiness: {configuration: {payment_webhook: true}})
     html = view.render(partial: 'dashboard/pwa_revenue/launch_setup')
-    assert_includes html, 'https://central.example.test/commerce/stripe/webhook'
-    assert_includes html, 'type="password"'
-    refute_match(/name="signing_secret"[^>]*value=/, html)
+    assert_includes html, '/billing/webhooks/stripe'
+    assert_includes html, 'DymondBank::StripeCredentials'
+    assert_includes html, 'No separate PWA or Commerce credential is required'
+    assert_includes html, '<strong>Configured</strong>'
+    refute_includes html, 'name="signing_secret"'
+    refute_includes html, '/commerce/stripe/webhook'
     assert_includes html, '&lt;Channel&gt;'
     assert_includes html, 'Verify channel authorization'
     assert_includes html, 'customer.subscription.created'

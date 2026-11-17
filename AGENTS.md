@@ -1,5 +1,13 @@
 # LightekMCG agent execution rules
 
+## Payment integration invariant
+
+- Dymond Bank owns all platform payments, including Susu, Commerce, marketplace, memberships, creator support, invoices, subscriptions and payouts. Susu is the existing working integration, not a separate provider setup.
+- Reuse `DymondBank::StripeCredentials` for the existing Stripe Vault credential (`stripe-production`; consumer `DymondBank::StripeCredentials`; purpose `payment_processing`). Read the callback secret through `DymondBank::StripeCredentials.webhook_secret`. Never copy it to another Vault record or expose its value.
+- The canonical signed callback is `/billing/webhooks/stripe`. It verifies the signature before calling `DymondBank::StripeWebhookService.process!`; Commerce hooks into that verified event path through `LightekCommerceStripeRouting`.
+- Trace that shared path before diagnosing missing payment setup. A missing dedicated Commerce secret does not establish that the shared callback is missing. Do not ask the owner to recreate working Stripe configuration for a new product.
+- Preserve Susu handling when adding Commerce checkout, subscription, refund or dispute routing. Test both shared routing and product-specific settlement. Configuration presence does not prove a real signed delivery, charge, transfer or bank payout.
+
 ## 1. Page-to-worker mapping
 
 - Maintain an explicit registry mapping each documentation page's repository-relative path to exactly one stable page-worker identity.

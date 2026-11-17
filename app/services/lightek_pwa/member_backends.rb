@@ -160,15 +160,29 @@ module LightekPwa
       remote_site.assign_attributes(name: 'Member backend', tenant: backend.user,
         manifest: remote_site.manifest.to_h.merge('network_ledger' => true))
       remote_site.save!
-      unless peer
+      if !peer
         key = SecureRandom.uuid
-        token = "#{key}.#{SecureRandom.hex(32)}"
         # The source server owns its content. This central row is discovery metadata only.
-        LightekVault::Service.store!(name: 'Member backend connection', slug: "reservation-peer-#{key}", payload: {'token'=>token}, purpose: 'reservation_federation',
-          access_policy: {'consumers'=>['LightekReservations::Federation::Issuer','Gatekeeper::WebsiteDeployment'], 'purposes'=>['reservation_federation']}, requested_by: backend.shared_pool.operator.email_address)
-        peer = LightekReservations::Peer.create!(member_backend: backend, merchant: backend.user, site: remote_site, key: key, token_digest: Digest::SHA256.hexdigest(token))
+        digest = store_peer_credential!(backend: backend, key: key)
+        peer = LightekReservations::Peer.create!(member_backend: backend, merchant: backend.user, site: remote_site, key: key, token_digest: digest)
+      elsif !LightekVault::Secret.exists?(slug: "reservation-peer-#{peer.key}")
+        launch = backend.launch
+        # Recover only a never-installed backend. Do not rotate a live peer,
+        # replace a disabled credential, or race an installer already running.
+        unless backend.status.in?(%w[queued provisioning]) && (!launch || (launch.status.in?(%w[queued failed]) && launch.receipt.blank?))
+          raise Unavailable, 'Member connection credential is missing; an installed backend requires operator review'
+        end
+        peer.update!(token_digest: store_peer_credential!(backend: backend, key: peer.key))
       end
       {'origin'=>"https://#{backend.site.host}", 'client_host'=>backend.hostname, 'key'=>peer.key, 'credential_slug'=>"reservation-peer-#{peer.key}"}
+    end
+    def self.store_peer_credential!(backend:, key:)
+      token = "#{key}.#{SecureRandom.hex(32)}"
+      LightekVault::Service.store!(name: 'Member backend connection', slug: "reservation-peer-#{key}", payload: {'token'=>token}, purpose: 'reservation_federation',
+        access_policy: {'consumers'=>['LightekReservations::Federation::Issuer','Gatekeeper::WebsiteDeployment'], 'purposes'=>['reservation_federation']}, requested_by: backend.shared_pool.operator.email_address)
+      Digest::SHA256.hexdigest(token)
+    ensure
+      token&.clear
     end
     def self.provision!(backend)
       return backend if backend.ready?
@@ -176,8 +190,10 @@ module LightekPwa
       pool.isolated!
       raise Unavailable, 'Shared hosting is unavailable' unless pool.status.in?(%w[ready paused])
       backend.with_lock do
+        # Retry must validate the federation credential even after a launch
+        # record has been allocated; the installer still needs that credential.
+        connection = connection!(backend)
         unless backend.launch
-          connection = connection!(backend)
           configuration = pool.launch.template_snapshot.merge('reservation_federation'=>connection,
             'pwa_member'=>{'key'=>backend.public_key, 'origin'=>"https://#{backend.site.host}", 'storage_bytes'=>pool.member_storage_bytes, 'mode'=>'shared', 'display_name'=>backend.user.profile&.public_display_name.to_s.first(120).presence || 'Member'})
           launch = Gatekeeper::Hosting::Launches.create!(actor: pool.operator, enqueue: false, attributes: {template_id: pool.launch.gatekeeper_application_template_id,

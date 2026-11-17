@@ -12,6 +12,7 @@ ActiveRecord::Schema.define do
   add_column :gatekeeper_nodes, :status, :string
   add_column :gatekeeper_application_launches, :owner_id, :integer
   add_column :gatekeeper_application_launches, :domain, :string
+  add_column :gatekeeper_application_launches, :receipt, :json, default: {}
   create_table(:gatekeeper_hosted_applications) { |t| t.integer :owner_id; t.string :domain; t.string :status }
 end
 # Cloud request lookup is outside this fixture; completed orders need no request.
@@ -31,8 +32,13 @@ class GatekeeperHostedApplication < ApplicationRecord; end
 require File.join(ROOT, 'app/services/gatekeeper/hosting/access')
 # Encrypted Vault persistence is outside this backend/hostname fixture.
 module LightekVault
+  class Secret
+    class << self; attr_accessor :records; end
+    self.records = {}
+    def self.exists?(slug:) = records.key?(slug)
+  end
   class Service
-    def self.store!(**) = true
+    def self.store!(slug:, payload:, **) = Secret.records[slug] = Digest::SHA256.hexdigest(payload.fetch('token'))
   end
 end
 require File.join(ROOT, 'app/services/lightek_agency/package_policy')
@@ -56,6 +62,7 @@ class PwaMemberBackendTest < PwaCommercialTest
   PwaCommercialTest.instance_methods(false).grep(/^test_/).each { |name| undef_method(name) }
   def setup
     super
+    LightekVault::Secret.records.clear
     @node = GatekeeperNode.create!(hostname: 'shared.test')
     @pool = LightekPwa::SharedPool.create!(site: @site, operator: @operator, node: @node,
       name: 'Separate members', status: 'ready', max_members: 1, monthly_cost_ceiling_cents: 2400)
@@ -87,11 +94,58 @@ class PwaMemberBackendTest < PwaCommercialTest
     record = backend
     site = DymondSite::Site.create!(host: record.hostname, tenant: @owner, name: 'Member backend', manifest: {'keep' => 'value'})
     peer = LightekReservations::Peer.create!(member_backend: record, merchant: @owner, site: site, key: SecureRandom.uuid, token_digest: 'b'*64)
+    LightekVault::Secret.records["reservation-peer-#{peer.key}"] = 'b'*64
     LightekPwa::MemberBackends.connection!(record)
     assert_equal({'keep'=>'value', 'network_ledger'=>true}, site.reload.manifest)
     assert_equal peer.id, record.reload.peer.id
     assert_equal 'b'*64, record.peer.token_digest
     refute_includes Gatekeeper::Hosting::Access.site_domains(@owner), record.hostname
+  end
+  def test_missing_credential_is_recovered_before_retrying_an_existing_failed_launch
+    record = backend
+    record.update!(status: 'provisioning')
+    LightekPwa::MemberBackends.connection!(record)
+    peer = record.reload.peer
+    original_digest = peer.token_digest
+    LightekVault::Secret.records.clear
+    launch = GatekeeperApplicationLaunch.create!(gatekeeper_node: @node, owner_id: @owner.id, domain: record.hostname, status: 'failed')
+    record.update!(launch: launch)
+    # Remote installer is the boundary; actual retry and credential recovery run.
+    launches = Class.new do
+      def self.perform!(launch) = launch.update!(status: 'ready')
+    end
+    Gatekeeper::Hosting.const_set(:Launches, launches)
+    LightekPwa::MemberBackends.provision!(record)
+    assert record.reload.ready?
+    assert_equal launch.id, record.launch_id
+    assert_equal peer.id, record.peer.id
+    refute_equal original_digest, record.peer.token_digest
+    assert_equal LightekVault::Secret.records.fetch("reservation-peer-#{peer.key}"), record.peer.token_digest
+  ensure
+    Gatekeeper::Hosting.send(:remove_const, :Launches) if launches
+  end
+  def test_missing_live_peer_credential_is_not_silently_rotated
+    record = backend
+    LightekPwa::MemberBackends.connection!(record)
+    digest = record.reload.peer.token_digest
+    LightekVault::Secret.records.clear
+    assert_raises(LightekPwa::MemberBackends::Unavailable) { LightekPwa::MemberBackends.connection!(record) }
+    assert_equal digest, record.peer.reload.token_digest
+    assert_empty LightekVault::Secret.records
+  end
+  def test_recovery_does_not_race_installation_or_replace_a_receipted_connection
+    record = backend
+    record.update!(status: 'provisioning')
+    LightekPwa::MemberBackends.connection!(record)
+    digest = record.reload.peer.token_digest
+    LightekVault::Secret.records.clear
+    [['provisioning', {}], ['failed', {'verified'=>true}], ['ready', {}]].each do |status, receipt|
+      launch = GatekeeperApplicationLaunch.create!(gatekeeper_node: @node, owner_id: @owner.id, domain: record.hostname, status: status, receipt: receipt)
+      record.update!(launch: launch)
+      assert_raises(LightekPwa::MemberBackends::Unavailable) { LightekPwa::MemberBackends.connection!(record) }
+      assert_equal digest, record.peer.reload.token_digest
+      assert_empty LightekVault::Secret.records
+    end
   end
   def test_existing_real_website_and_foreign_owner_cannot_be_reclassified
     record = backend

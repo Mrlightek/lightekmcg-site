@@ -84,7 +84,7 @@ module LightekPwa
       end
       if @receipt['state'] == 'verified'
         raise Unavailable, 'Paid membership changed before activation; restore the retained source' unless Purchase.find_by(order: @order)&.entitled?
-        raise Unavailable, 'Destination did not activate' unless remote(:target, 'activate')['status'] == 'active'
+        raise Unavailable, 'Destination did not activate' unless remote(:target, 'activate', 'managed_package'=>@order.items.sole.purchase_snapshot.to_h['managed_package'], 'plan_key'=>Purchase.find_by(order: @order)&.plan_key)['status'] == 'active'
         checkpoint('activated')
       end
       if @receipt['state'] == 'activated'
@@ -123,7 +123,13 @@ module LightekPwa
       require 'net/http'
       uri = URI("https://#{@target_host}/api/lightek/pwa/backend-health")
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 15) { |http| http.get(uri.request_uri) }
-      raise Unavailable, 'The migrated backend did not pass public HTTPS health' unless response.is_a?(Net::HTTPSuccess) && response.body.bytesize < 32_768 && JSON.parse(response.body)['member_key'] == @backend.public_key
+      raise Unavailable, 'The migrated backend did not pass public HTTPS health' unless response.is_a?(Net::HTTPSuccess) && response.body.bytesize < 32_768
+      data = JSON.parse(response.body)
+      raise Unavailable, 'The migrated backend identity differs' unless data['member_key'] == @backend.public_key
+      managed = @order.items.sole.purchase_snapshot.to_h['managed_package']
+      if managed
+        raise Unavailable, 'The purchased package was not activated on the destination' unless data['package_digest'] == LightekAgency::PackagePolicy.digest(managed.fetch('policy'))
+      end
     end
     def rollback! = execution_lock { restore! }
     def restore!

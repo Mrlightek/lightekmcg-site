@@ -1,10 +1,18 @@
 require_relative 'pwa_commercial_checks'
 ActiveRecord::Schema.define do
+  add_column :lightek_commerce_orders, :provisioning_request_id, :integer
+  create_table(:lightek_agency_installed_packages) { |t| t.integer :user_id; t.string :source_key; t.boolean :runtime; t.json :policy, default: {} }
+  create_table(:agency_profiles) { |t| t.integer :user_id; t.string :brand_name; t.string :accent_color, default: '#d4af37'; t.string :logo_url; t.string :support_email }
   create_table(:gatekeeper_nodes) { |t| t.string :hostname; t.json :metadata, default: {}; t.boolean :local, default: false }
   create_table(:gatekeeper_application_launches) { |t| t.integer :gatekeeper_node_id; t.string :status }
   create_table(:gatekeeper_projects) { |t| t.string :domain; t.integer :gatekeeper_node_id }
   create_table(:gatekeeper_installations) { |t| t.string :domain; t.integer :gatekeeper_node_id }
 end
+# Cloud request lookup is outside this fixture; completed orders need no request.
+class ProvisioningRequest
+  def self.find_by(*) = nil
+end
+LightekCommerce::Order.reset_column_information
 class GatekeeperNode < ApplicationRecord
   def local? = local
 end
@@ -13,6 +21,13 @@ class GatekeeperApplicationLaunch < ApplicationRecord
 end
 class GatekeeperProject < ApplicationRecord; end
 class GatekeeperInstallation < ApplicationRecord; end
+require File.join(ROOT, 'app/services/lightek_agency/package_policy')
+require File.join(ROOT, 'app/models/lightek_agency/installed_package')
+require File.join(ROOT, 'app/models/agency_profile')
+class User
+  has_one :agency_profile
+end
+require File.join(ROOT, 'app/services/lightek_pwa/native_backend')
 require File.join(ROOT, 'db/migrate/20261117140000_create_pwa_member_backends')
 CreatePwaMemberBackends.new.migrate(:up)
 LightekReservations::Peer.reset_column_information
@@ -32,6 +47,7 @@ class PwaMemberBackendTest < PwaCommercialTest
       name: 'Separate members', status: 'ready', max_members: 1, monthly_cost_ceiling_cents: 2400)
   end
   def test_free_backend_capacity_is_durable_and_has_no_central_fallback
+    @purchase.destroy!
     first = LightekPwa::MemberBackends.reserve!(site: @site, user: @owner)
     assert_equal @pool, first.shared_pool
     assert_equal first, LightekPwa::MemberBackends.reserve!(site: @site, user: @owner)
@@ -39,6 +55,12 @@ class PwaMemberBackendTest < PwaCommercialTest
     assert_raises(LightekPwa::MemberBackends::Unavailable) { LightekPwa::MemberBackends.reserve!(site: @site, user: other) }
     assert_equal 1, LightekPwa::MemberBackend.count
     assert_equal 0, Post.where(user: other).count
+  end
+  def test_existing_paid_members_do_not_allocate_redundant_free_backends
+    assert_raises(LightekPwa::MemberBackends::Unavailable) { LightekPwa::MemberBackends.reserve!(site: @site, user: @owner) }
+    assert_empty LightekPwa::MemberBackend.all
+    destination = LightekPwa::Network.write_destination(user: @owner, site: @site)
+    assert_equal 'https://member.test/lightek/index.html#/create', destination[:create_url]
   end
   def test_central_host_is_rejected_from_every_inventory_source
     @node.update!(local: true)
@@ -77,6 +99,19 @@ class PwaMemberBackendTest < PwaCommercialTest
     LightekPwa::MemberTicket.last.update!(expires_at: 1.second.ago)
     assert_raises(LightekPwa::Policy::Denied) { LightekPwa::MemberBackends.redeem_ticket!(peer: @peer, token: URI.decode_www_form(URI(url).query).to_h.fetch('ticket')) }
   end
+  def test_destination_activation_reapplies_paid_policy_and_business_identity_after_copy
+    @remote.update!(manifest: {'pwa_member'=>{'key'=>backend.public_key, 'mode'=>'dedicated'}})
+    configuration = {'source_key'=>'paid-order-1', 'policy'=>{'features'=>{'agency'=>{'enabled'=>true}, 'studio'=>{'enabled'=>false}}}}
+    input = {'domain'=>@remote.host, 'owner_email'=>@owner.email_address, 'member_key'=>backend.public_key, 'managed_package'=>configuration, 'plan_key'=>'business'}
+    2.times { LightekPwa::NativeBackend.activate!(input) }
+    assert_equal 'white_label', @owner.reload.role
+    assert_equal 'Creator', @owner.agency_profile.brand_name
+    assert_equal 1, AgencyProfile.count
+    installed = LightekAgency::InstalledPackage.sole
+    assert_equal 'paid-order-1', installed.source_key
+    refute installed.policy.dig('features', 'studio', 'enabled')
+    assert_equal LightekAgency::PackagePolicy.digest(configuration['policy']), @remote.reload.manifest.dig('pwa_member', 'paid_package_digest')
+  end
   def test_old_source_cannot_be_reenabled_after_destination_can_receive_writes
     backend.update!(status: 'migrating', order: @order, migration_receipt: {'operation_key'=>SecureRandom.uuid, 'state'=>'activated', 'snapshot'=>{'bytes'=>10}})
     migration = LightekPwa::BackendMigration.allocate
@@ -94,6 +129,7 @@ class PwaMemberBackendTest < PwaCommercialTest
     target_node = GatekeeperNode.create!(hostname: 'dedicated.test')
     launch = Struct.new(:gatekeeper_node).new(target_node)
     @order.define_singleton_method(:gatekeeper_application_launch) { launch }
+    @order.define_singleton_method(:items) { [Struct.new(:purchase_snapshot).new({})] }
     backend.order = @order
     @migration_bytes = 'complete database and original media'
     @snapshot = {'member_key'=>backend.public_key, 'status'=>'frozen', 'bytes'=>@migration_bytes.bytesize,

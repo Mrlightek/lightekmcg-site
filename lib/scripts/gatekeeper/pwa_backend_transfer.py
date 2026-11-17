@@ -63,7 +63,7 @@ class Transfer:
     def db(self,sql):
         return self.compose('exec','-T','-e','PGOPTIONS=-c default_transaction_read_only=off','db','sh','-c','psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"','transfer',sql,capture=True)
     def rails(self,action,**extra):
-        source='require "json"; c=JSON.parse(STDIN.read); puts "PWA_BACKEND="+JSON.generate(c["action"]=="rewrite" ? LightekPwa::NativeBackend.rewrite!(c) : LightekPwa::NativeBackend.call(c))'
+        source='require "json"; c=JSON.parse(STDIN.read); puts "PWA_BACKEND="+JSON.generate(case c["action"]; when "rewrite" then LightekPwa::NativeBackend.rewrite!(c); when "activate" then LightekPwa::NativeBackend.activate!(c); else LightekPwa::NativeBackend.call(c); end)'
         output=self.run(['sudo','-u',self.profile['app_user'],'-H','env','PGOPTIONS=-c default_transaction_read_only=off','python3',str(self.base/'run-app.py'),'bundle','exec','rails','runner',source],json.dumps({**self.c,'action':action,**extra}).encode(),True)
         line=next(x for x in output.decode().splitlines() if x.startswith('PWA_BACKEND='));return json.loads(line[12:])
     def worker(self,action):self.run(['systemctl',action,self.profile['worker_service']])
@@ -167,6 +167,7 @@ class Transfer:
         if a=='apply':return self.apply()
         if a=='activate':
             if not (self.state/'applied.json').exists():raise ValueError('No verified backend import')
+            self.rails('activate')
             (self.state/'activation-intent').write_text('1')
             # Protected env values must also reach Passenger after import.
             def quote(v):return '"'+str(v).replace('\\','\\\\').replace('"','\\"')+'"'

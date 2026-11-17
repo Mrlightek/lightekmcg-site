@@ -18,6 +18,25 @@ module LightekPwa
          'schema'=>ActiveRecord::Base.connection.select_values('SELECT version FROM schema_migrations ORDER BY version')}
       end
     end
+    def self.activate!(input)
+      SourceRuntime.control do
+        ApplicationRecord.transaction do
+        site = DymondSite::Site.find_by!(host: input.fetch('domain'))
+        raise 'Imported backend identity mismatch' unless site.manifest.dig('pwa_member', 'key') == input.fetch('member_key') && site.tenant.email_address == input.fetch('owner_email')
+        configuration = input['managed_package']
+        LightekAgency::PackagePolicy.install!(user: site.tenant, configuration: configuration) if configuration
+        if input['plan_key'] == 'business'
+          raise 'Business package must include agency tools' unless configuration && LightekAgency::PackagePolicy.normalize(configuration.fetch('policy')).dig('features', 'agency', 'enabled')
+          user = site.tenant
+          user.update!(role: 'white_label') unless user.role == 'white_label'
+          user.create_agency_profile!(brand_name: user.profile&.public_display_name.presence || 'My business') unless user.agency_profile
+        end
+        digest = configuration && LightekAgency::PackagePolicy.digest(configuration.fetch('policy'))
+        site.update!(manifest: site.manifest.merge('pwa_member'=>site.manifest.fetch('pwa_member').merge('paid_package_digest'=>digest, 'paid_plan'=>input['plan_key'])))
+        {'member_key'=>input.fetch('member_key'), 'package_digest'=>digest}
+        end
+      end
+    end
     def self.rewrite!(input)
       SourceRuntime.control do
         source = input.fetch('source_hostname'); host = input.fetch('domain')

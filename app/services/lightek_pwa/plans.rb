@@ -27,7 +27,7 @@ module LightekPwa
         backend: (user && defined?(MemberBackend) && MemberBackend.find_by(user: user, site: site))&.summary,
         installation: record && LightekCommerce::Installations.summary(record.order),
         installation_path: record && "/my/installations/#{record.order_id}",
-        setup_note: 'Paid membership includes a separate backend instance. Activation follows verified payment and server setup. Cancel renewal at any time; access continues through the paid period. Storage and transfer limits follow your selected server package.',
+        setup_note: 'Paid membership includes a separate backend instance. Existing central posts remain readable; new originals publish on your backend. Upgrading a shared backend transfers its stored content. Activation follows verified payment and server setup. Cancel renewal at any time; access continues through the paid period. Storage and transfer limits follow your selected server package.',
         plans: CATALOG.map do |key, plan|
           item = product(site, key)
           plan.merge(key: key, price_cents: key == 'community' ? 0 : item&.price_cents, available: key == 'community' || (enabled?(site) && item.present?))
@@ -65,8 +65,6 @@ module LightekPwa
       purchase = nil
       user.with_lock do
         backend = defined?(MemberBackend) && MemberBackend.find_by(site: site, user: user)
-        central_originals = Post.where(site: site, user: user, parent_id: nil).any? { |post| post.metadata.to_h['remote_content'].blank? }
-        raise Unavailable, 'Existing central originals require a verified legacy migration before upgrading. Contact Lightek to arrange the move.' if central_originals
         raise Unavailable, 'Wait for your shared backend to finish setup before upgrading' if backend && backend.status != 'shared_ready'
         raise Unavailable, 'You already have a paid instance. Manage its subscription before buying another membership.' if current(user, site)
         purchase = Purchase.where(user: user, site: site).joins(:order).where(lightek_commerce_orders: {status: 'pending_payment'}).order(id: :desc).first

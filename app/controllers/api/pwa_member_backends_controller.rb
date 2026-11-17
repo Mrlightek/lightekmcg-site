@@ -14,7 +14,7 @@ module Api
       response.set_header('Cache-Control', 'no-store')
       site = LightekPwa::SiteContext.resolve(request.host)
       member = site.manifest.to_h['pwa_member'] or raise ActiveRecord::RecordNotFound
-      render json: {member_key: member.fetch('key')}
+      render json: {member_key: member.fetch('key'), package_digest: member['paid_package_digest']}
     end
     def show
       response.set_header('Cache-Control', 'private, no-store')

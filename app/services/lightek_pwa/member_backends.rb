@@ -49,6 +49,7 @@ module LightekPwa
     def self.reserve!(site:, user:)
       return if site.tenant == user
       Policy.new(user: user, site: site).authorize!
+      raise Unavailable, 'Your paid instance already provides your publishing space. Open My instance to sign in.' if Plans.current(user, site) && !MemberBackend.exists?(site: site, user: user)
       user.with_lock do
         existing = MemberBackend.find_by(site: site, user: user)
         if existing
@@ -96,7 +97,7 @@ module LightekPwa
         unless backend.launch
           connection = connection!(backend)
           configuration = pool.launch.template_snapshot.merge('reservation_federation'=>connection,
-            'pwa_member'=>{'key'=>backend.public_key, 'origin'=>"https://#{backend.site.host}", 'storage_bytes'=>pool.member_storage_bytes, 'mode'=>'shared'})
+            'pwa_member'=>{'key'=>backend.public_key, 'origin'=>"https://#{backend.site.host}", 'storage_bytes'=>pool.member_storage_bytes, 'mode'=>'shared', 'display_name'=>backend.user.profile&.public_display_name.to_s.first(120).presence || 'Member'})
           launch = Gatekeeper::Hosting::Launches.create!(actor: pool.operator, enqueue: false, attributes: {template_id: pool.launch.gatekeeper_application_template_id,
             node_id: pool.node_id, owner_id: backend.user_id, name: "#{backend.user.first_name}'s space", domain: backend.hostname, template_configuration: configuration})
           backend.update!(launch: launch, status: 'provisioning', error_code: nil)

@@ -22,7 +22,7 @@ Local database and boundary tests pass for these paths. Production/native accept
 | Install/offline | Manifest/icons/service worker exist; updated shell caches new commercial scripts | Offline shell only. No offline publication queue or offline YouTube download. Browser/iOS install acceptance pending. |
 | Membership billing | Scoped recurring purchase, actual configured hosting price, verified active paid periods, cancellation and delivery status | Foundation exists. New sales require a ready separate host and all commercial configuration; native/deployed acceptance remains pending. |
 | Free member backend | Separate native applications/databases/queues/storage on a remote shared pool, signup outbox, capacity/resource/storage controls | Implemented locally. No central fallback. Native profile shares a system user; per-member VM/container sandboxing is not claimed. Pilot/load acceptance pending. |
-| Upgrade/migration | Native complete-backend snapshot, checked resumable chunks, counts/media hashes, stable central IDs/URL cutover and retained source | Implemented locally; target/source revisions must match. Restore before activation; after activation use a reverse transfer. Real host acceptance pending. Legacy central originals still require a scoped migration. |
+| Upgrade/migration | Native complete-backend snapshot, checked resumable chunks, counts/media hashes, stable central IDs/URL cutover and retained source | Implemented locally; target/source revisions must match. Restore before activation; after activation use a reverse transfer. Real host acceptance pending. Historical central originals stay readable in place; new publishing uses the member backend. |
 | Central references | Authenticated peer revisions/outbox/tombstones; direct anonymous source reads | Public paid-peer references work in local tests. Central stores title/type/owner/source metadata, not remote body/media. Free content peers are now supported; central replies remain central. Full private cross-instance social federation is not claimed. |
 | YouTube original upload | New author-consent, exact-channel verification, fixed-origin original retrieval, checksums, Vault session receipts, bounded resumable worker and processing state | Implemented and locally tested. Actual channel authorization, quota and a real remote/native-host upload remain unverified. |
 | YouTube playback/removal | Source activates YouTube ID only after processed/public/embeddable receipt; pending placeholder; durable withdrawal and channel deletion | Locally tested, including lost response, late completion vs withdrawal and retained originals. Legacy native videos remain compatible; submitting an existing YouTube URL does not establish channel revenue ownership. |
@@ -95,7 +95,7 @@ Measure signup → confirmation → backend ready → first post → first reply
 | Membership/reference/revenue | 12 tests, 55 assertions, passing |
 | Creator support/settlement | 16 tests, 61 assertions, passing |
 | YouTube source/resumable/withdrawal | 15 tests, 58 assertions, passing |
-| Separate member allocation/tickets/migration | 12 tests, 54 assertions, passing |
+| Separate member allocation/tickets/migration | 14 tests, 64 assertions, passing |
 | Finalized view reconciliation/funding/transfer | 7 tests, 32 assertions, passing |
 | Backend archive/chunk/path/activation safety | 5 Python tests, passing |
 | New commercial HTTP authorization/CSRF | 6 tests, 29 assertions, passing |

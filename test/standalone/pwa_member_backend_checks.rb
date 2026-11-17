@@ -180,6 +180,18 @@ class PwaMemberBackendTest < PwaCommercialTest
     assert_equal ['reserve_target'], actions
     assert_nil backend.reload.migration_receipt['snapshot']
   end
+  def test_restore_before_source_snapshot_preserves_both_runtimes
+    migration = migration_fixture
+    actions = []
+    rpc = lambda do |side, action, extra={}|
+      actions << [side, action]
+      action == 'abort_target' ? {'status'=>'aborted'} : {'status'=>'active'}
+    end
+    migration.stub(:remote, rpc) { migration.rollback! }
+    assert_equal [[:target, 'abort_target'], [:source, 'rollback_source']], actions
+    assert_equal 'shared_ready', backend.reload.status
+    assert_nil backend.order_id
+  end
   def test_failed_destination_verification_keeps_source_routing_and_prevents_activation
     migration = migration_fixture
     rpc = lambda do |side, action, extra={}|

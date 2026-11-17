@@ -207,6 +207,7 @@ class Transfer:
                     shutil.copytree(backup,storage,dirs_exist_ok=True);self.run(['chown','-R',self.profile['app_user']+':'+self.profile['app_user'],str(storage)])
                 self.compose('stop','redis');self.compose('run','--rm','--entrypoint','sh','redis','-c','rm -rf /data/appendonlydir /data/dump.rdb');self.compose('cp',str(self.state/'destination-before.rdb'),'redis:/data/dump.rdb');self.compose('start','redis')
                 (self.state/'destination-restored').write_text('1');self.thaw()
+            if self.flag.exists():self.thaw()
             (self.state/'aborted').write_text('1');return {'status':'aborted'}
         if a=='rollback_source':
             backup=self.state/'vhost-before'

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_17_143500) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_17_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -3161,6 +3161,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_17_143500) do
     t.index ["key"], name: "index_lightek_pwa_navigation_items_on_key", unique: true
   end
 
+  create_table "lightek_pwa_platform_operators", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "operator_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["operator_id"], name: "index_lightek_pwa_platform_operators_on_operator_id"
+    t.index ["site_id"], name: "index_lightek_pwa_platform_operators_on_site_id", unique: true
+  end
+
   create_table "lightek_pwa_publication_outboxes", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "remote_post_id", null: false
@@ -3221,6 +3230,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_17_143500) do
     t.integer "monthly_cost_ceiling_cents", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "capacity_alert_state", default: "normal", null: false
     t.index ["launch_id"], name: "index_lightek_pwa_shared_pools_on_launch_id"
     t.index ["node_id"], name: "index_lightek_pwa_shared_pools_on_node_id"
     t.index ["operator_id"], name: "index_lightek_pwa_shared_pools_on_operator_id"
@@ -5877,6 +5887,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_17_143500) do
   add_foreign_key "lightek_pwa_member_tickets", "lightek_pwa_member_backends", column: "member_backend_id"
   add_foreign_key "lightek_pwa_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_pwa_memberships", "profiles"
+  add_foreign_key "lightek_pwa_platform_operators", "users", column: "operator_id"
   add_foreign_key "lightek_pwa_publication_references", "posts"
   add_foreign_key "lightek_pwa_purchases", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_pwa_purchases", "users"

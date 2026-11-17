@@ -7,6 +7,12 @@ ActiveRecord::Schema.define do
   create_table(:gatekeeper_application_launches) { |t| t.integer :gatekeeper_node_id; t.string :status }
   create_table(:gatekeeper_projects) { |t| t.string :domain; t.integer :gatekeeper_node_id }
   create_table(:gatekeeper_installations) { |t| t.string :domain; t.integer :gatekeeper_node_id }
+  add_column :gatekeeper_nodes, :owner_type, :string
+  add_column :gatekeeper_nodes, :owner_id, :integer
+  add_column :gatekeeper_nodes, :status, :string
+  add_column :gatekeeper_application_launches, :owner_id, :integer
+  add_column :gatekeeper_application_launches, :domain, :string
+  create_table(:gatekeeper_hosted_applications) { |t| t.integer :owner_id; t.string :domain; t.string :status }
 end
 # Cloud request lookup is outside this fixture; completed orders need no request.
 class ProvisioningRequest
@@ -21,6 +27,14 @@ class GatekeeperApplicationLaunch < ApplicationRecord
 end
 class GatekeeperProject < ApplicationRecord; end
 class GatekeeperInstallation < ApplicationRecord; end
+class GatekeeperHostedApplication < ApplicationRecord; end
+require File.join(ROOT, 'app/services/gatekeeper/hosting/access')
+# Encrypted Vault persistence is outside this backend/hostname fixture.
+module LightekVault
+  class Service
+    def self.store!(**) = true
+  end
+end
 require File.join(ROOT, 'app/services/lightek_agency/package_policy')
 require File.join(ROOT, 'app/models/lightek_agency/installed_package')
 require File.join(ROOT, 'app/models/agency_profile')
@@ -55,6 +69,38 @@ class PwaMemberBackendTest < PwaCommercialTest
     assert_raises(LightekPwa::MemberBackends::Unavailable) { LightekPwa::MemberBackends.reserve!(site: @site, user: other) }
     assert_equal 1, LightekPwa::MemberBackend.count
     assert_equal 0, Post.where(user: other).count
+  end
+  def test_discovery_record_does_not_reserve_the_installation_hostname
+    @purchase.destroy!
+    record = LightekPwa::MemberBackends.reserve!(site: @site, user: @owner)
+    result = LightekPwa::MemberBackends.connection!(record)
+    site = DymondSite::Site.find_by!(host: record.hostname)
+    assert_equal true, site.manifest['network_ledger']
+    assert_equal @owner, site.tenant
+    assert_equal record.hostname, result['client_host']
+    refute_includes Gatekeeper::Hosting::Access.site_domains(@owner), record.hostname
+    # A real launch still owns its hostname even when a discovery row exists.
+    GatekeeperApplicationLaunch.create!(gatekeeper_node: @node, owner_id: @owner.id, domain: record.hostname, status: 'queued')
+    assert_includes Gatekeeper::Hosting::Access.site_domains(@owner), record.hostname
+  end
+  def test_retry_repairs_only_its_existing_discovery_record_without_rotating_peer
+    record = backend
+    site = DymondSite::Site.create!(host: record.hostname, tenant: @owner, name: 'Member backend', manifest: {'keep' => 'value'})
+    peer = LightekReservations::Peer.create!(member_backend: record, merchant: @owner, site: site, key: SecureRandom.uuid, token_digest: 'b'*64)
+    LightekPwa::MemberBackends.connection!(record)
+    assert_equal({'keep'=>'value', 'network_ledger'=>true}, site.reload.manifest)
+    assert_equal peer.id, record.reload.peer.id
+    assert_equal 'b'*64, record.peer.token_digest
+    refute_includes Gatekeeper::Hosting::Access.site_domains(@owner), record.hostname
+  end
+  def test_existing_real_website_and_foreign_owner_cannot_be_reclassified
+    record = backend
+    site = DymondSite::Site.create!(host: record.hostname, tenant: @owner, name: 'Real website', manifest: {})
+    assert_raises(LightekPwa::MemberBackends::Unavailable) { LightekPwa::MemberBackends.connection!(record) }
+    refute site.reload.manifest['network_ledger']
+    site.update!(tenant: @operator)
+    assert_raises(LightekPwa::MemberBackends::Unavailable) { LightekPwa::MemberBackends.connection!(record) }
+    assert_equal @operator, site.reload.tenant
   end
   def test_existing_paid_members_do_not_allocate_redundant_free_backends
     assert_raises(LightekPwa::MemberBackends::Unavailable) { LightekPwa::MemberBackends.reserve!(site: @site, user: @owner) }

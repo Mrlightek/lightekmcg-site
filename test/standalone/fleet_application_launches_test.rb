@@ -1,5 +1,6 @@
 require_relative "../../app/services/gatekeeper/website_readiness"
 require_relative "fleet_updates_test" unless defined?(FleetUpdatesTest)
+require Rails.root.join("app/services/lightek_identity/permissions").to_s
 %w[launches mail_port_request image_builds].each { |file| require Rails.root.join("app/services/gatekeeper/hosting", file).to_s }
 require Rails.root.join("app/jobs/gatekeeper/hosting/launch_application_job").to_s
 require Rails.root.join("app/jobs/gatekeeper/hosting/mail_port_request_job").to_s

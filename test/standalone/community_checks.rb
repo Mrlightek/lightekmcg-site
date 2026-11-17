@@ -17,6 +17,11 @@ require "minitest/autorun"
 ROOT = File.expand_path("../..", __dir__)
 class CommunityTestApp < Rails::Application
   config.root = Dir.mktmpdir("lightek-community-tests")
+  # Page workers reread their pinned source documents during Dispatch.
+  FileUtils.mkdir_p(File.join(config.root, 'docs/nevaeh'))
+  FileUtils.cp_r(File.join(ROOT, 'docs/nevaeh/tutorials'), File.join(config.root, 'docs/nevaeh'))
+  FileUtils.mkdir_p(File.join(config.root, 'config'))
+  FileUtils.cp_r(File.join(ROOT, 'config/nevaeh'), File.join(config.root, 'config'))
   config.eager_load = false
   config.secret_key_base = "test-" * 30
   config.hosts.clear
@@ -146,6 +151,17 @@ class ApplicationJob < ActiveJob::Base; end
    app/services/lightek_messaging/access_denied app/services/lightek_messaging/send_message
    app/services/lightek_community/access_denied app/services/lightek_community/conversation_access app/services/lightek_community/access app/services/lightek_community/presenter app/services/lightek_community/read_model
    app/services/lightek_community/workers/pwa].each { |file| require File.join(ROOT, file) }
+
+# The shared community harness has no paid purchases. Load the actual routing
+# policy against an empty membership table so existing free-user journeys remain exercised.
+ActiveRecord::Schema.define do
+  create_table(:lightek_pwa_purchases) { |t| t.integer :user_id; t.integer :site_id; t.integer :order_id; t.string :plan_key; t.timestamps }
+end
+require File.join(ROOT, 'app/models/lightek_pwa/purchase')
+require File.join(ROOT, 'app/services/lightek_pwa/launch_readiness')
+require File.join(ROOT, 'app/services/lightek_pwa/plans')
+require File.join(ROOT, 'app/services/lightek_pwa/network')
+require File.join(ROOT, 'app/services/lightek_pwa/youtube')
 
 class LightekCommunityIntegrationTest < Minitest::Test
   def setup
@@ -510,7 +526,8 @@ class StudioWorkspaceIntegrationTest < LightekCommunityIntegrationTest
     artifact.file.attach(io: StringIO.new("image bytes"), filename: "preview.png", content_type: "image/png", identify: false)
     key = SecureRandom.uuid
     result = studio("artifact_publish", project_id: p.id, artifact_id: artifact.id, title: "Pilot preview", request_key: key)
-    retry_result = studio("artifact_publish", project_id: p.id, artifact_id: artifact.id, title: "Changed on retry", request_key: key)
+    retry_result = studio("artifact_publish", project_id: p.id, artifact_id: artifact.id, title: "Pilot preview", request_key: key)
+    assert_raises(ArgumentError) { studio("artifact_publish", project_id: p.id, artifact_id: artifact.id, title: "Changed on retry", request_key: key) }
     assert_equal result[:publication_id], retry_result[:publication_id]
     assert_equal 1, p.studio_publications.count
     publication = StudioPublication.find(result[:publication_id])

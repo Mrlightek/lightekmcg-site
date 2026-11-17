@@ -4,7 +4,7 @@
   <section class="auth-panel" aria-labelledby="registration-title"><div class="auth-card">
     <p class="auth-card-kicker"><%= authentication_branding.name %> account</p>
     <h1 id="registration-title">Your story<br><span>starts here.</span></h1>
-    <p class="auth-intro">Create your account and join <%= authentication_branding.name %>.</p>
+    <p class="auth-intro">Create your free account and join <%= authentication_branding.name %>.</p>
     <% if @user.errors.any? %><div class="auth-flash" role="alert"><%= @user.errors.full_messages.to_sentence %></div><% end %>
     <% if flash[:alert] %><div class="auth-flash" role="alert"><%= flash[:alert] %></div><% end %>
     <%= form_with model: @user, url: registrations_path, class: "auth-form", data: {turbo: false} do |form| %>

@@ -58,6 +58,7 @@ module LightekCommerce
     end
 
     def self.request!(order:, merchant:)
+      raise Invalid, "Creator support uses the creator earnings workspace" if %w[creator_support creator_support_renewal].include?(order.purpose)
       if order.payment_provider == "network"
         raise Invalid, "Order does not belong to your store" unless order.site.tenant == merchant
         NetworkCheckout.action!(order: order, action: "payout")

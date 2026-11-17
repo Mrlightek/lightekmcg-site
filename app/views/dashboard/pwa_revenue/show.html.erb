@@ -1,0 +1,82 @@
+<main class="wrap">
+  <h1>PWA memberships & YouTube revenue</h1>
+  <p><%= link_to 'Back to PWA Administration', dashboard_pwa_path(site_id: @site.id) %> · <a href="/lightek/index.html#/membership">Open membership</a></p>
+  <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <section><h2>Launch readiness</h2><p>Configured launch candidate: <strong><%= @launch_readiness[:launch_candidate] ? 'Ready' : 'Blocked' %></strong>. Configuration flags do not establish production acceptance. The deployed journeys below must still be verified.</p>
+    <ul><% @launch_readiness[:implementation_gaps].each_value do |gap| %><li><%= gap %></li><% end %></ul>
+    <table><thead><tr><th>Configuration</th><th>Status</th></tr></thead><tbody><% @launch_readiness[:configuration].each do |key, configured| %><tr><td><%= key.to_s.humanize %></td><td><%= configured ? 'Configured / enabled' : 'Needs setup' %></td></tr><% end %></tbody></table>
+    <ul><% @launch_readiness[:production_acceptance].each_value do |item| %><li><%= item %></li><% end %></ul>
+  </section>
+  <section><h2>Free-member hosting</h2>
+    <p>Free members use isolated application databases and storage on separate shared servers. Lightek's central host stores discovery references. A full or unavailable shared pool queues signup setup; it never falls back to the central server. Each native backend reserves at least 1.5 GB RAM, plus 1 GB for its host, and 6 GB disk per backend plus 10 GB for its host. Storage allowance defaults to 512 MB per member.</p>
+    <table><thead><tr><th>Shared host</th><th>State</th><th>Capacity</th></tr></thead><tbody><% @shared_pools.each do |pool| %><tr><td><%= pool.name %></td><td><%= pool.status %></td><td><%= pool.occupied %> / <%= pool.max_members %></td></tr><% end %></tbody></table>
+    <%= form_with url: pools_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+      <%= hidden_field_tag :request_key, SecureRandom.uuid %>
+      <label>Shared server package <%= select_tag :package_id, options_for_select(@pool_packages.map { |package| [package.product.name, package.id] }), include_blank: 'Choose package', required: true %></label>
+      <label>Member capacity <%= number_field_tag :max_members, 4, min: 1, max: 100, required: true %></label>
+      <label>Approved monthly server budget (USD cents) <%= number_field_tag :monthly_budget_cents, nil, min: 1, required: true %></label>
+      <p>This provisions a new paid server with the selected provider. The live provider price must fit this budget.</p><%= submit_tag 'Create separate shared server' %>
+    <% end %>
+    <table><thead><tr><th>Member</th><th>State</th><th>Migration</th><th>Recovery</th></tr></thead><tbody><% @member_backends.each do |backend| %><tr><td><%= backend.user.full_name %></td><td><%= backend.status %></td><td><%= backend.migration_receipt['state'] %></td><td><%= backend.error_code %><%= button_to 'Retry setup', retry_backend_dashboard_pwa_revenue_path(site_id: @site.id, backend_id: backend.id) %><% if backend.status == 'migrating' && !%w[activated committed complete].include?(backend.migration_receipt['state']) %><%= button_to 'Restore retained source', rollback_backend_dashboard_pwa_revenue_path(site_id: @site.id, backend_id: backend.id) %><% end %></td></tr><% end %></tbody></table>
+  </section>
+  <section><h2>Channel publishing</h2><p>Store the central channel’s OAuth client_id, client_secret and refresh_token in Vault, with consumer <code>LightekPwa::YoutubeApi</code> and purpose <code>youtube_publishing</code>. Select that credential with LIGHTEK_YOUTUBE_CREDENTIAL_SLUG and the actual channel with LIGHTEK_YOUTUBE_CHANNEL_ID. Enable LIGHTEK_YOUTUBE_UPLOADS_ENABLED only on the central installation. Credentials never belong on member instances.</p>
+    <table><thead><tr><th>Creator / post</th><th>State</th><th>Video</th><th>Recovery</th></tr></thead><tbody><% @youtube_uploads.each do |upload| %><tr><td><%= upload.user_id %> / <%= upload.source_post_id %></td><td><%= upload.status %></td><td><%= upload.video_id %></td><td><%= upload.error_code %></td></tr><% end %></tbody></table>
+  </section>
+  <section><h2>Creator support settlement</h2><p>LIGHTEK_CREATOR_SUPPORT_ENABLED opens subscriptions, tips and live gifts. LIGHTEK_CREATOR_PAYOUTS_ENABLED opens release of verified available principal. Support fees are additional and reviewed before checkout. Add charge.refunded and charge.dispute.created/closed to the signed commerce webhook alongside existing checkout, invoice and subscription events. These releases are credits to payout accounts, not proof of delivery to a bank.</p>
+    <table><thead><tr><th>Earning</th><th>Creator</th><th>Principal</th><th>State</th><th>Hold</th></tr></thead><tbody><% @creator_earnings.each do |earning| %><tr><td><%= earning.id %></td><td><%= earning.creator_payment.creator_id %></td><td><%= number_to_currency(earning.principal_cents / 100.0) %></td><td><%= earning.state %></td><td><%= earning.hold_reason %></td></tr><% end %></tbody></table>
+  </section>
+  <section><h2>Membership</h2><p>Community is free. Each paid member receives a separately provisioned backend instance. Select existing hosting packages below; their current prices and capacity apply. Membership renews monthly until canceled.</p>
+    <p><%= @membership[:setup_note] %></p>
+    <% unless @membership[:enabled] %>
+      <% if @launch_readiness[:paid_sales_ready] %>
+      <%= form_with url: enable_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+        <label>Personal instance <%= select_tag :personal_product_id, options_from_collection_for_select(@packages, :id, :name), include_blank: 'Choose package', required: true %></label>
+        <label>Business / Agency instance (optional) <%= select_tag :business_product_id, options_from_collection_for_select(@packages, :id, :name), include_blank: 'Not offered' %></label>
+        <label><%= check_box_tag :ready, '1', false, required: true %> Payments and signed webhooks are configured; I can deliver the advertised bundles and handle setup requests.</label>
+        <%= submit_tag 'Open paid membership' %>
+      <% end %>
+      <% else %><p>Opening paid membership is blocked until the configuration checks above pass, including a verified separate member host. Run the deployed acceptance journey before inviting customers.</p><% end %>
+    <% else %><p>Paid membership is open.</p><%= button_to 'Pause new paid memberships', disable_dashboard_pwa_revenue_path(site_id: @site.id), method: :post %><% end %>
+    <table><thead><tr><th>Member</th><th>Plan</th><th>Payment</th><th>Access</th><th>Setup</th></tr></thead><tbody>
+    <% @purchases.each do |purchase| %><tr><td><%= purchase.user.full_name %></td><td><%= purchase.plan_key.humanize %></td><td><%= purchase.order.commerce_subscription&.status || purchase.order.status %></td><td><%= purchase.entitled? ? 'Active' : 'Not active' %></td><td><%= link_to "View instance delivery", installation_path(purchase.order) %></td></tr><% end %>
+    </tbody></table>
+  </section>
+  <section><h2>Finalize and fund view earnings</h2><p>Finalize one completed calendar month for the whole channel. Upload a daily CSV with <code>date,video_id,estimated_revenue_usd,views</code>, including platform and free-member videos. The finalized channel receipt scales the complete report proportionally; historical paid-member eligibility determines each creator's earnings. Rounding stays with Lightek. Imports are immutable and do not create cash.</p>
+    <%= form_with url: finalize_views_dashboard_pwa_revenue_path(site_id: @site.id), multipart: true, data: {turbo: false} do %>
+      <label>Month (YYYY-MM-01) <%= date_field_tag :month, nil, required: true %></label><label>Finalized channel USD cents <%= number_field_tag :finalized_cents, nil, min: 0, required: true %></label><label>AdSense channel receipt reference <%= text_field_tag :source_reference, nil, maxlength: 300, required: true %></label><label>Complete daily channel report <%= file_field_tag :report, accept: '.csv', required: true %></label><label>Finalized channel receipt <%= file_field_tag :finalized_receipt, required: true %></label><label><%= check_box_tag :complete_channel, '1', false, required: true %> I verified this is the complete channel report and the finalized amount for this channel and month.</label><%= submit_tag 'Reconcile finalized earnings' %>
+    <% end %>
+    <p>After the channel payment arrives, fund the platform balance externally. Keep platform automatic bank payouts on manual while creator liabilities are reserved. Enter the resulting top-up reference below; the API verifies success, availability, currency and coverage. No member subscriptions or gifts fund view earnings. Provider funding fees and any shortfall are Lightek's responsibility. Transfer release checks all outstanding creator reserves again.</p>
+    <table><thead><tr><th>Month</th><th>Finalized proceeds</th><th>Creator liability</th><th>State / funding</th></tr></thead><tbody><% @view_batches.each do |batch| %><tr><td><%= batch.month %></td><td><%= number_to_currency(batch.finalized_cents/100.0) %></td><td><%= number_to_currency(batch.creator_liability_cents/100.0) %></td><td><%= batch.state %><% if batch.funding_reference.blank? %><%= form_with url: fund_views_dashboard_pwa_revenue_path(site_id: @site.id, batch_id: batch.id), data: {turbo: false} do %><%= text_field_tag :funding_reference, nil, placeholder: 'tu_…', required: true %><%= submit_tag 'Verify and reserve funding' %><% end %><% else %><%= batch.funding_reference %><% end %></td></tr><% end %></tbody></table>
+  </section>
+  <section><h2>YouTube revenue reports</h2>
+    <p>The official YouTube player can show eligible channel ads. YouTube pays the channel's AdSense account. Embedding someone else's video earns no advertising share for Lightek.</p>
+    <p>Record an authorized channel's reported revenue and the agreed creator split. These are estimates for review, separate from money received or withdrawable earnings. Confirm channel ownership, the source report and the creator agreement before importing.</p>
+    <p>Normalize the exported YouTube report to these exact columns. One row per video and completed reporting period. USD only. Paid creators receive 80% (8000 basis points) for complete reporting days inside verified paid periods; free periods use 0. Split reports into daily rows across membership changes. Preserve the original report using its reference.</p>
+    <pre>video_id,user_id,period_start,period_end,estimated_revenue_usd,creator_share_bps,views</pre>
+    <%= form_with url: import_dashboard_pwa_revenue_path(site_id: @site.id), multipart: true, data: {turbo: false} do %>
+      <label>YouTube report reference <%= text_field_tag :source_reference, nil, required: true, maxlength: 300 %></label>
+      <label>Normalized CSV <%= file_field_tag :report, accept: '.csv,text/csv', required: true %></label>
+      <%= submit_tag 'Record revenue estimates' %>
+    <% end %>
+    <table><thead><tr><th>Period</th><th>Video</th><th>Views</th><th>Creator earnings / 1,000 views</th><th>Reported USD</th><th>Creator estimate USD</th><th>Lightek estimate USD</th><th>Source</th></tr></thead><tbody>
+    <% @receipts.each do |entry| %><tr><td><%= entry.period_start %>–<%= entry.period_end %></td><td><%= entry.video_id %></td><td><%= number_with_delimiter(entry.views) %></td><td><%= entry.earnings_per_thousand_views_cents ? number_to_currency(entry.earnings_per_thousand_views_cents / 100) : "Not available" %></td><td><%= number_to_currency(entry.amount_cents / 100.0) %></td><td><%= number_to_currency(entry.creator_cents / 100.0) %></td><td><%= number_to_currency(entry.platform_cents / 100.0) %></td><td><%= entry.source_reference %></td></tr><% end %>
+    </tbody></table>
+  </section>
+  <section><h2>Teach Nevaeh this business model</h2>
+    <p>Prepare the installed PWA policy guide and audit as source-linked learning batches. This does not grant Nevaeh permission to execute unfinished features.</p>
+    <%= button_to 'Prepare PWA knowledge & training batches', prepare_nevaeh_dashboard_pwa_revenue_path(site_id: @site.id), method: :post %>
+    <% if @learning_build %>
+      <p>Source build #<%= @learning_build.id %>: <%= @learning_build.status %>. KB: <%= @learning_build.coverage.dig("pwa_learning", "knowledge_base") %>. <%= link_to 'Review source batches and receipts', employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: @learning_build.id) %></p>
+      <% if @learning_plan %><p>Learning plan #<%= @learning_plan.id %>: <%= @learning_plan.status %>. Accepted batches: <%= @learning_plan.position %> / <%= @learning_plan.dataset_ids.length %>. <%= @learning_plan.error %></p><% end %>
+      <%= form_with url: train_nevaeh_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+        <%= hidden_field_tag :build_id, @learning_build.id %>
+        <label>Internal model <%= select_tag :model_id, options_from_collection_for_select(@learning_models, :id, :name), include_blank: 'Choose the model to teach', required: true %></label>
+        <label>Epochs per batch <%= number_field_tag :epochs, 10, min: 1, max: 50, required: true %></label>
+        <label><%= check_box_tag :reviewed, '1', false, required: true %> I reviewed the source policy, implementation limits and generated examples.</label>
+        <%= submit_tag 'Train reviewed PWA material' %>
+      <% end %>
+    <% end %>
+    <p>Preparing examples is not completed model training. The existing native trainer activates only accepted checkpoints and blocks changed sources or revoked authority.</p>
+  </section>
+</main>

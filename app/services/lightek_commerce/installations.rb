@@ -30,6 +30,14 @@ module LightekCommerce
       "client-#{order.id}.#{ENV.fetch('LIGHTEK_AUTO_CLIENT_BASE_DOMAIN', 'lightekmcg.com')}".downcase
     end
 
+    def self.member_move_pending?(order)
+      return false unless defined?(LightekPwa::Purchase) && defined?(LightekPwa::MemberBackend)
+      purchase = LightekPwa::Purchase.find_by(order_id: order.id)
+      return false unless purchase
+      backend = LightekPwa::MemberBackend.find_by(site_id: purchase.site_id, user_id: purchase.user_id)
+      backend && backend.status != 'dedicated_ready'
+    end
+
     def self.summary(order)
       request = ProvisioningRequest.find_by(id: order.provisioning_request_id)
       node = request&.gatekeeper_node
@@ -40,9 +48,10 @@ module LightekCommerce
       else
         order.provisioning_state.presence || "queued"
       end
+      moving = ready?(order) && member_move_pending?(order)
       {
-        id: order.id, payment_status: order.status, state: state, ready: ready?(order),
-        hostname: hostname(order), url: ready?(order) ? "https://#{hostname(order)}" : nil,
+        id: order.id, payment_status: order.status, state: moving ? "moving_content" : state, ready: ready?(order) && !moving,
+        hostname: hostname(order), url: ready?(order) && !moving ? "https://#{hostname(order)}" : nil,
         allocated: node.present?, provisioned_at: order.provisioned_at&.iso8601,
         owner_onboarding_required_at_install: receipt.dig('health', 'owner_onboarding_required') == true,
         retryable: order.paid_at? && %w[paid fulfilled].include?(order.status) && !order.provisioned_at? && state == "failed"

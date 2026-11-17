@@ -168,6 +168,7 @@ module LightekCommerce
     # Dashboard delivery is independent of SMTP/OAuth availability. The order
     # lock makes repeated activation/recovery publish only one ready notice.
     def self.publish_ready_notification!(order:, customer:, domain:)
+      return if Installations.member_move_pending?(order)
       order.with_lock do
         raise NotReady, "Installation is not ready for notification" unless order.paid_at? &&
           %w[paid fulfilled].include?(order.status) && order.provisioning_state == "ready" && order.provisioned_at?

@@ -154,7 +154,7 @@ class User < ApplicationRecord
 
   # ── Sessions (Rails 8 auth) ───────────────────────────────────────────────────
   generates_token_for :email_verification, expires_in: 2.days do
-    email_address
+    [email_address, lightek_email_confirmed_at&.to_i]
   end
 
   generates_token_for :password_reset, expires_in: 20.minutes do

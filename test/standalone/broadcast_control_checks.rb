@@ -31,6 +31,10 @@ Rails.application.routes.append do
     get "/dashboard/studio/editors/:kind/new", to: "dashboard/studio_editors#new", as: :dashboard_studio_editor_new
     get "/dashboard/studio/editors/:kind/:id", to: "dashboard/studio_editors#show", as: :dashboard_studio_editor
   end
+  get '/dashboard/growth/performance', to: 'dashboard/media_studio#index', as: :dashboard_campaign_performance
+  get '/dashboard/website-audits', to: 'dashboard/media_studio#index', as: :dashboard_website_audits
+  get '/dashboard/publication-calendar', to: 'dashboard/media_studio#index', as: :dashboard_publication_calendar
+  get '/dashboard/growth', to: 'dashboard/media_studio#index', as: :dashboard_growth
   get "/dashboard/website/designs", to: "dashboard/media_studio#index", as: :dashboard_website_designs
   get "/dashboard/marketing/campaigns", to: "dashboard/media_studio#index", as: :dashboard_marketing_campaigns
   get "/dashboard/commerce", to: "dashboard/media_studio#index", as: :dashboard_commerce

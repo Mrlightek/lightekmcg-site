@@ -2,6 +2,7 @@
 module NevaehOs
   module Guide
     TUTORIALS={
+      'pwa_business_model'=>['PWA memberships, hosting, YouTube earnings and creator payouts','all'],
       'marketing_copilot'=>['Marketing copilot: offers, campaigns and follow-through','growth'],
       'task_builder'=>['Build, test and activate your own operating tasks','admin'],
       'ten_tasks'=>['Ten tasks, follow-up questions and reviewed learning','all'],

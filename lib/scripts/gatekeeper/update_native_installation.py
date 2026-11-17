@@ -104,6 +104,7 @@ class NativeUpdater:
         self.config = validate(config)
         self.profile = config["deployment"]
         self.root = pathlib.Path(self.profile["app_root"]).resolve()
+        if (self.root/"tmp/pwa-migration.lock").exists():raise ValueError("Member migration owns this runtime; retry the update after cutover")
         self.user = pwd.getpwnam(self.profile["app_user"])
         self.state = state_base / hashlib.sha256(str(self.root).encode()).hexdigest()[:24]
         self.state.mkdir(mode=0o700, parents=True, exist_ok=True)

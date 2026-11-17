@@ -24,6 +24,7 @@ module LightekCommerce
         return unless order.items.any? { |item| item.product.product_type == "lightek_instance" }
         if order.provisioned_at?
           LightekAgency::DemoUpgrade.complete!(order) if order.respond_to?(:agency_demo_id) && order.agency_demo_id
+          LightekPwa::BackendMigration.start!(order) if defined?(LightekPwa::BackendMigration)
           return
         end
         reservation = LightekReservations::Reservation.find_by(order_id: order.id)
@@ -35,6 +36,7 @@ module LightekCommerce
           end
         end
         PaidInstanceProvisioning.call!(order: order)
+        LightekPwa::BackendMigration.start!(order) if defined?(LightekPwa::BackendMigration)
       ensure
         connection.select_value("SELECT pg_advisory_unlock(#{lock_key})")
       end

@@ -29,7 +29,9 @@ module LightekMail
     validates :storage_limit, numericality: {only_integer: true, greater_than: 0}
     validate do
       errors.add(:address, "must use this account’s domain") if address.to_s.split("@").last != domain&.name
-      errors.add(:user, "must own the domain") if domain && domain.user_id != user_id
+      shared_brand = has_attribute?(:brand_member) && brand_member? && domain&.name == ENV.fetch('LIGHTEK_EMAIL_DOMAIN', 'lightekmcg.com') &&
+        domain.verified_at && domain.user.role == 'super_admin' && user&.lightek_email_confirmed_at && user.lightek_email_address == address
+      errors.add(:user, "must own the domain") if domain && domain.user_id != user_id && !shared_brand
       errors.add(:auto_template, "must belong to this mailbox") if auto_template && auto_template.account_id != id
     end
     def suspended? = suspended_at.present? || CustomerSuspension.exists?(user_id: user_id)

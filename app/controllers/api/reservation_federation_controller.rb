@@ -65,6 +65,9 @@ class Api::ReservationFederationController < ActionController::Base
     response.headers['Cache-Control'] = 'no-store'
     return head :upgrade_required if Rails.env.production? && !request.ssl?
     @peer = LightekReservations::Peer.authenticate(request.authorization.to_s.delete_prefix('Bearer '))
-    head :unauthorized unless @peer
+    return head :unauthorized unless @peer
+    if @peer.respond_to?(:pwa_only?) && @peer.pwa_only? && !%w[Api::PwaPublicationsController Api::PwaYoutubeFederationController Api::PwaMemberSessionsController].include?(self.class.name)
+      return head :forbidden
+    end
   end
 end

@@ -265,6 +265,9 @@ require File.join(ROOT,'app/controllers/dashboard/nevaeh_os_controller')
 class NevaehOsHttpTest < ActionController::TestCase
   tests Dashboard::NevaehOsController
   def setup
+    # A separate policy test deliberately disables this capability. Positive
+    # HTTP fixtures start from an explicitly enabled contract for every order.
+    NevaehOs::Dispatch.register!.update!(enabled: true)
     @actor=User.create!(role:'super_admin')
     @other=User.create!(role:'client')
     @request.session[:actor_id]=@actor.id
@@ -847,7 +850,8 @@ class NevaehGuideTest < Minitest::Test
   end
   def test_every_tutorial_has_actionable_steps_examples_and_permission_filtering
     topics=NevaehOs::Guide.topics(actor:@actor)
-    assert_equal 26,topics.size
+    assert_equal 27,topics.size
+    assert_includes topics.map { |topic| topic[:id] }, 'pwa_business_model'
     refute_includes topics.map { |topic| topic[:id] }, 'marketing_copilot' # No authorized business context in this fixture.
     assert_includes topics.map { |topic| topic[:id] }, 'task_builder'
     assert_includes topics.map { |topic| topic[:id] }, 'manual_learning'

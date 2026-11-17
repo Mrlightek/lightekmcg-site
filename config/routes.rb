@@ -101,6 +101,47 @@ Rails.application.routes.draw do
   post "/dashboard/pwa/communities/:id/members", to: "dashboard/pwa#community_invite", as: :dashboard_pwa_community_members
   post "/dashboard/pwa/people", to: "dashboard/pwa#invite", as: :dashboard_pwa_people
   get "/dashboard/pwa/media/:kind/:id", to: "dashboard/pwa#media", as: :dashboard_pwa_media
+  get '/api/lightek/network/posts/:id', to: 'api/pwa_network#show'
+  post '/api/reservations/federation/pwa/publications', to: 'api/pwa_publications#create'
+  post '/api/lightek/pwa/member-email', to: 'api/pwa_email#create'
+  get '/member-email/confirm', to: 'member_emails#show', as: :confirm_member_email
+  post '/member-email/confirm', to: 'member_emails#create'
+  get '/api/lightek/pwa/backend-health', to: 'api/pwa_member_backends#health'
+  get '/api/lightek/pwa/member-backend', to: 'api/pwa_member_backends#show'
+  post '/api/lightek/pwa/member-backend', to: 'api/pwa_member_backends#create'
+  post '/api/lightek/pwa/member-backend/open', to: 'api/pwa_member_backends#open'
+  get '/pwa/member-session', to: 'pwa_member_sessions#create'
+  post '/api/reservations/federation/pwa/member-session', to: 'api/pwa_member_sessions#create'
+  get '/api/lightek/pwa/youtube/source', to: 'api/pwa_youtube#source'
+  get '/api/lightek/pwa/youtube/posts/:post_id', to: 'api/pwa_youtube#show'
+  post '/api/lightek/pwa/youtube/posts/:post_id/withdraw', to: 'api/pwa_youtube#withdraw'
+  post '/api/lightek/pwa/youtube/posts/:post_id', to: 'api/pwa_youtube#create'
+  post '/api/reservations/federation/pwa/youtube', to: 'api/pwa_youtube_federation#create'
+  get '/api/reservations/federation/pwa/youtube/:key', to: 'api/pwa_youtube_federation#show'
+  get '/api/lightek/pwa/creators/:profile_id', to: 'api/pwa_creator_support#show'
+  post '/api/lightek/pwa/creators/:profile_id/quote', to: 'api/pwa_creator_support#quote'
+  post '/api/lightek/pwa/creators/:profile_id/checkout', to: 'api/pwa_creator_support#checkout'
+  post '/api/lightek/pwa/creators/:profile_id/resume', to: 'api/pwa_creator_support#resume'
+  post '/api/lightek/pwa/creators/:profile_id/configure', to: 'api/pwa_creator_support#configure'
+  post '/api/lightek/pwa/creators/:profile_id/cancel', to: 'api/pwa_creator_support#cancel'
+  get '/api/lightek/pwa/creators/:profile_id/payments', to: 'api/pwa_creator_support#payments'
+  get '/api/lightek/pwa/creators/:profile_id/earnings', to: 'api/pwa_creator_support#earnings'
+  post '/api/lightek/pwa/creators/:profile_id/release', to: 'api/pwa_creator_support#release'
+  get '/api/lightek/pwa/membership', to: 'api/pwa_memberships#show'
+  post '/api/lightek/pwa/membership/checkout', to: 'api/pwa_memberships#create'
+  post '/api/lightek/pwa/membership/cancel', to: 'api/pwa_memberships#cancel'
+  post '/api/lightek/pwa/membership/view-earnings/:earning_id/release', to: 'api/pwa_memberships#release_views'
+  post '/dashboard/pwa/revenue/finalize-views', to: 'dashboard/pwa_revenue#finalize_views', as: :finalize_views_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/fund-views/:batch_id', to: 'dashboard/pwa_revenue#fund_views', as: :fund_views_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/pools', to: 'dashboard/pwa_revenue#create_pool', as: :pools_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/backends/:backend_id/retry', to: 'dashboard/pwa_revenue#retry_backend', as: :retry_backend_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/backends/:backend_id/rollback', to: 'dashboard/pwa_revenue#rollback_backend', as: :rollback_backend_dashboard_pwa_revenue
+  get '/dashboard/pwa/revenue', to: 'dashboard/pwa_revenue#show', as: :dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/nevaeh/prepare', to: 'dashboard/pwa_revenue#prepare_nevaeh', as: :prepare_nevaeh_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/nevaeh/train', to: 'dashboard/pwa_revenue#train_nevaeh', as: :train_nevaeh_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/disable', to: 'dashboard/pwa_revenue#disable', as: :disable_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/enable', to: 'dashboard/pwa_revenue#enable', as: :enable_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/youtube', to: 'dashboard/pwa_revenue#import', as: :import_dashboard_pwa_revenue
   get "/api/lightek/pwa/manifest", to: "api/lightek_pwa#manifest"
   resources :installations, path: "/my/installations", only: %i[index show create] do
     post :access, on: :member

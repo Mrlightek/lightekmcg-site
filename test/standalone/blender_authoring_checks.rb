@@ -11,7 +11,7 @@ class BlenderAuthoringTest < NativeBlenderTest
   end
   def test_missing_runtime_configuration_has_a_default_and_a_visible_health_failure
     previous=ENV.delete("STUDIO_ASSET_WORKER_IMAGE");render=ENV.delete("STUDIO_RENDER_WORKER_IMAGE")
-    assert_equal "lightek/studio-media:20261101",Studio::NativeBlender::Runtime.image
+    assert_equal "lightek/studio-media:20261114",Studio::NativeBlender::Runtime.image
     ENV["STUDIO_ASSET_WORKER_IMAGE"]="example/custom-blender:4"
     assert_equal "example/custom-blender:4",Studio::NativeBlender::Runtime.image(:render)
     Rails.stub(:env,ActiveSupport::StringInquirer.new("production")) do

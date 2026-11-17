@@ -65,3 +65,7 @@ BUNDLE_GEMFILE=test/standalone/Gemfile bundle exec ruby test/standalone/nevaeh_m
 BUNDLE_GEMFILE=test/standalone/Gemfile bundle exec ruby test/standalone/nevaeh_manual_conversation_test.rb
 node --test test/javascript/nevaeh_task_inputs_test.cjs
 ```
+
+## Targeted PWA business-model learning
+
+PWA Administration → Memberships & YouTube revenue → Teach Nevaeh prepares just the PWA policy guide and detailed launch audit. Review the generated batches, select an enabled internal model, then train the reviewed material. The existing sequential trainer, source fingerprint checks and checkpoint acceptance apply. This pack creates no conversational action bindings for missing upload, migration, gift or payout executors. The policy guide appears in the installed guide/Software Library; preparation also synchronizes reference articles when the KB engine is installed.

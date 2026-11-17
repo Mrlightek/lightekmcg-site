@@ -82,6 +82,7 @@ module LightekCommunity
       end
 
       def post_create
+        LightekPwa::Network.require_local_write!(user: @user, site: DymondSite::Site.find(@access.site_id)) if @access.site_id && @payload['parent_id'].blank?
         # Serialized per author so job retries cannot duplicate an upload/post.
         @user.with_lock do
           request_key = @payload.fetch("request_key").to_s
@@ -100,6 +101,10 @@ module LightekCommunity
           kind = parent ? "post" : @payload.fetch("kind", "post")
           raise ArgumentError,"Start live broadcasts through Live Studio" if kind=="live"
           metadata = @payload.fetch("metadata", {}).slice("starts_at", "location", "item_ids")
+          if @payload.dig("metadata", "youtube_url").present?
+            raise ArgumentError, "YouTube videos must be public and available to everyone" unless kind == "video" && !parent && !record_community && visibility == "public" && audience == "everyone"
+            metadata["youtube_video_id"] = LightekPwa::Youtube.video_id(@payload.dig("metadata", "youtube_url"))
+          end
           if kind == "event"
             raise ArgumentError, "Event start time is required" if metadata["starts_at"].blank?
             metadata["starts_at"] = Time.iso8601(metadata["starts_at"]).iso8601
@@ -127,6 +132,7 @@ module LightekCommunity
 
       def post_update
         record = @access.posts.find(@payload.fetch("post_id"))
+        raise AccessDenied, 'Edit this post on its original instance' if record.metadata['remote_content']
         raise AccessDenied, "Only the author can edit this post" unless @access.super_admin? || record.user_id == @user.id
         if record.metadata["website_article"].is_a?(Hash) && LightekBlog::Entry.exists?(post_id: record.id)
           raise AccessDenied, "Edit this website article in Dashboard → Journal & Articles to preserve its publication state and revision."

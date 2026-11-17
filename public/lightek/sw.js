@@ -1,11 +1,11 @@
-const CACHE = "lightek-shell-v92-commercial-navigation"
+const CACHE = "lightek-shell-v93-fresh-install"
 
 const SHELL = [
   "/lightek/index.html",
   "/lightek/manifest.webmanifest",
   "/lightek/nevaeh-client.js",
-  "/lightek/bootstrap-adapter.js",
-  "/lightek/application-settings.js",
+  "/lightek/bootstrap-adapter.js?v=93",
+  "/lightek/application-settings.js?v=93",
   "/lightek/community-app.js",
   "/lightek/membership.js",
   "/lightek/creator-support.js",
@@ -74,7 +74,8 @@ self.addEventListener("install", event => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then(cache => cache.addAll(SHELL))
+      // A new CacheStorage name must not copy old bytes from the HTTP cache.
+      .then(cache => cache.addAll(SHELL.map(path => new Request(path, { cache: "reload" }))))
       .then(() => self.skipWaiting())
   )
 })

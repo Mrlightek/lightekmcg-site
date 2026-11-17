@@ -15,6 +15,7 @@ on:
       - 'app/services/studio/**'
       - 'app/controllers/api/**'
       - 'app/controllers/posts_controller.rb'
+      - 'app/controllers/registrations_controller.rb'
       - 'app/controllers/communities_controller.rb'
       - 'app/controllers/dashboard/live_broadcasts_controller.rb'
       - 'app/controllers/dashboard/pwa_controller.rb'
@@ -73,6 +74,7 @@ jobs:
         run: |
           bundle exec ruby test/standalone/pwa_http_checks.rb
           bundle exec ruby test/standalone/pwa_launch_setup_checks.rb
+          bundle exec ruby test/standalone/pwa_registration_checks.rb -n /PwaRegistrationTest/
           bundle exec ruby test/standalone/pwa_pool_operations_checks.rb -n /PwaPoolOperationsTest/
           bash -n lib/scripts/gatekeeper/prepare_member_pool.sh script/lightek/native_website_remote.sh
           bundle exec ruby test/standalone/pwa_member_backend_checks.rb -n '/PwaMemberBackendTest|PwaMemberBoundaryTest/'

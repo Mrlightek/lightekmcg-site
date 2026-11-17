@@ -13,9 +13,10 @@ class RegistrationsController < ApplicationController
   def create
     @user = User.new(params.require(:user).permit(:first_name, :last_name, :email_address, :password, :password_confirmation).merge(role: "client"))
     signup_site = LightekPwa::SiteContext.resolve(request.host) if session[:return_to_after_authenticating].to_s.start_with?('/lightek/')
+    platform_signup = LightekPwa::Policy.platform_operator(signup_site).present?
     saved = User.transaction do
       if @user.save
-        LightekPwa::MemberSignupRequest.find_or_create_by!(site: signup_site, user: @user) if signup_site&.tenant&.role == 'super_admin'
+        LightekPwa::MemberSignupRequest.find_or_create_by!(site: signup_site, user: @user) if platform_signup
         true
       else
         false
@@ -23,7 +24,7 @@ class RegistrationsController < ApplicationController
     end
     if saved
       begin
-        LightekPwa::MemberSignupJob.perform_later(signup_site.id, @user.id) if signup_site&.tenant&.role == 'super_admin'
+        LightekPwa::MemberSignupJob.perform_later(signup_site.id, @user.id) if platform_signup
       rescue StandardError => error
         Rails.logger.warn("[PWA] Member setup enqueue deferred: #{error.class}")
       end

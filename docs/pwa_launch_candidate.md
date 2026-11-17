@@ -86,6 +86,8 @@ The member sees estimates separately from finalized earnings, calculated earning
 
 ## Final launch acceptance
 
+Registration must recognize the protected platform-operator binding for imported sites as well as a super-admin tenant. PWA signup creates its durable `queued` member-setup request inside the account transaction and enqueues the existing MemberSignupJob. Ordinary sites and non-PWA registration do not allocate a platform backend; editable manifest data cannot authorize this flow. An enqueue outage leaves the durable request for commercial recovery. HTTP regression coverage substitutes only host password validation/session completion, not site policy, request persistence or job payloads. Actual fresh-user production acceptance remains required.
+
 Complete ordinary-user signup → confirmation → backend ready → first post → reply/message → return visit. Test desktop, mobile, keyboard, readable contrast and installed/offline-shell behavior. Verify real branded mail send/receive and spam controls. Publish launch programming, clips, welcome posts and two or three actively hosted communities.
 
 Only then record a production launch decision against the deployed source revision and actual receipts. Training data preparation, local tests and a green deploy alone are insufficient.

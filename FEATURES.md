@@ -4,6 +4,8 @@
 
 This is the current product inventory for the Rails host. Module guides describe supported formats, provider setup, limits and acceptance commands. An implemented connector still needs its real account, credentials, worker/runtime and live verification; a central deployment does not establish readiness on every independent client server. Historical module documents may describe an earlier delivery stage; use the newest linked workflow for current behavior.
 
+November 17 launch follow-up: membership, services, creator support and YouTube workflow routes honor their configured parent surfaces instead of bouncing to Home. The central PWA links public privacy and terms documents; see [launch operations](docs/pwa_launch_candidate.md) for operator review and remaining production acceptance.
+
 ## Find your workspace
 
 | Goal | Start here | Guide |

@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v91-member-studio-routing"
+const CACHE = "lightek-shell-v92-commercial-navigation"
 
 const SHELL = [
   "/lightek/index.html",

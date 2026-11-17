@@ -1,7 +1,7 @@
 require 'digest'
 module NevaehIntelligences
   module PwaLearning
-    PATHS = %w[docs/nevaeh/tutorials/pwa_business_model.md docs/pwa_launch_audit_20261117.md].freeze
+    PATHS = %w[docs/nevaeh/tutorials/pwa_business_model.md docs/pwa_launch_audit_20261117.md docs/pwa_launch_candidate.md].freeze
     module_function
     def documents(library = SoftwareLibrary.new)
       indexed = library.documents.index_by { |doc| doc[:path] }
@@ -24,7 +24,7 @@ module NevaehIntelligences
       build.with_lock do
         build.update!(coverage: build.coverage.merge('pwa_learning' => {'source_sha256'=>digest,
           'source_paths'=>PATHS, 'execution'=>'reference_only',
-          'execution_gaps'=>%w[central_youtube_upload free_instance_allocation verified_instance_migration creator_subscriptions live_gifts_and_tips funded_creator_payouts]}))
+          'execution_gaps'=>%w[free_instance_allocation verified_instance_migration finalized_funded_youtube_payouts creator_support_dispatch youtube_publishing_dispatch production_commercial_acceptance]}))
       end
       synced = sync_knowledge!(docs: docs, fingerprint: digest)
       build.with_lock do

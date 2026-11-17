@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function client(identity=true){
  const calls=[],events={},ctx={R:{},AF:{},A:{},E:escape,URL,Date,Intl,Set,console,
-  me:()=>identity,render:()=>{},addEventListener:(name,fn)=>{events[name]??=[];events[name].push(fn)},
+  me:()=>identity,meProfile:()=>identity?{id:7}:null,render:()=>{},addEventListener:(name,fn)=>{events[name]??=[];events[name].push(fn)},
   signInHref:h=>'/session/new?return_to='+encodeURIComponent('/lightek/index.html'+h),
   document:{querySelector:()=>null},location:{hash:'#/membership',assign:u=>calls.push({redirect:u})},
   fetch:async(url,options)=>{calls.push({url,options});return {data:{current_plan:'community',enabled:true,plans:[{key:'community',name:'Community',price_cents:0,features:['Free community']},{key:'personal',name:'Personal',price_cents:999,available:true,features:['Your own backend']}],youtube_revenue:[]}}}};

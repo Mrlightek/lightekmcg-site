@@ -17,10 +17,17 @@ class Profile
   def cover_image_url = nil
 end
 class User
+  def account_branding_profile = nil
   def can_access_feature?(_key) = false
 end
 
 # Only the private dashboard host's authentication/layout boundary is replaced.
+require File.join(ROOT, "app/helpers/agency_branding_helper")
+require File.join(ROOT, "app/helpers/nevaeh_control_center_helper")
+class NevaehWorkspacePreference
+  def self.table_exists? = false # Private dashboard preference engine boundary.
+end
+ApplicationController.helper AgencyBrandingHelper
 module Dashboard; end
 module DymondDash
   class ApplicationController < ::ApplicationController; end
@@ -355,6 +362,9 @@ class PwaAdministrationTest < PwaHttpIntegrationTest
     def routes.respond_to_missing?(*args) = true
     view = ActionView::Base.with_empty_template_cache.with_view_paths([File.join(ROOT, "app/views")])
     user.define_singleton_method(:employee?) { false }
+    view.extend(AgencyBrandingHelper)
+    view.extend(NevaehControlCenterHelper)
+    view.define_singleton_method(:nevaeh_home_path) { "/nevaeh" }
     view.define_singleton_method(:current_user) { user }
     view.define_singleton_method(:main_app) { routes }
     view.define_singleton_method(:dymond_dash) { routes }
@@ -367,7 +377,7 @@ class PwaAdministrationTest < PwaHttpIntegrationTest
       html = Nokogiri::HTML.fragment(render_sidebar(owner))
       link = html.at_css('a[href="/dashboard/pwa"]')
       assert link, "Tenant owners must find their PWA from the actual sidebar"
-      assert_includes link.text, "PWA Administration"
+      assert_includes link.text, "Mobile app"
       assert_equal "page", link["aria-current"]
     end
     @carol.update!(role: "super_admin")

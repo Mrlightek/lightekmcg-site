@@ -2,7 +2,7 @@
 
 ## Source and completion status
 
-This is the reviewed product policy from the November 17 PWA audit and implementation work. Read the installed source and current runtime receipts before answering. Source implementation, passing local tests, production deployment, native-model training and successful customer delivery are different states. The detailed evidence and unfinished work are in `docs/pwa_launch_audit_20261117.md`. Never describe this draft as a completed production launch.
+This is the reviewed product policy from the November 17 PWA audit and implementation work. Read the installed source and current runtime receipts before answering. Source implementation, passing local tests, production deployment, native-model training and successful customer delivery are different states. The detailed evidence and unfinished work are in `docs/pwa_launch_audit_20261117.md`; the current operational acceptance steps are in `docs/pwa_launch_candidate.md`. Never describe this draft as a completed production launch.
 
 ## Free member hosting
 
@@ -14,7 +14,7 @@ Personal moves the same member application to its own separately allocated serve
 
 ## Business and Agency membership
 
-Business is the Agency tier: business identity, white label branding, client relationships, feature controls and resale of client server packages. Each client package must cover its own costs and is billed separately. New agencies complete the existing onboarding workflow; this draft does not implement automatic agency-role activation from a payment. Payment never grants platform-super-administrator powers.
+Business is the Agency tier: business identity, white label branding, client relationships, feature controls and resale of client server packages. Each client package must cover its own costs and is billed separately. Verified active Business purchases now activate the member’s own white-label role and agency profile idempotently, preserving existing upstream relationships and branding. Staff roles cannot be converted by this path. Checkout creation/return grants no role. The full paid offer remains blocked pending allocation, migration and cash settlement. Payment never grants platform-super-administrator powers.
 
 ## Instance upgrades and data preservation
 
@@ -26,7 +26,7 @@ The central database is the discovery and social index. References retain owner,
 
 ## Required central YouTube pipeline
 
-The required route is original video uploaded to the member instance, then queued upload to Lightek's central YouTube channel, followed by processing checks, then YouTube playback in the PWA. Keep the channel's credentials on trusted central infrastructure. This central uploader is not implemented in the current draft. Validated embeds and estimated-revenue reports do not prove that an original video was uploaded to the channel.
+The required route is original video uploaded to the member instance, then queued upload to Lightek's central YouTube channel, followed by processing checks, then YouTube playback in the PWA. Keep the channel's credentials on trusted central infrastructure. The central uploader is now implemented: rights/audience consent, exact channel verification, authenticated source grants, bounded checked original transfer, Vault-held resumable sessions, duplicate-safe recovery, processing checks and withdrawal. It needs actual channel authorization and production acceptance; local tests do not establish a real upload. Originals stay on the source. Expired uncertain sessions require reconciliation, not blind re-upload. See `docs/pwa_launch_candidate.md` for operations.
 
 ## View earnings for paid creators
 
@@ -46,11 +46,11 @@ A YouTube video/day report is an estimate. Finalized channel amounts can change.
 
 ## Creator subscriptions, gifts and live tips
 
-Free and paid creators keep 100% of subscription, gift and tip principal. The supporter pays any disclosed processing/network charge on top. A $5 tip credits $5 principal to its creator. A supporter-to-creator subscription is distinct from a member's infrastructure subscription. The complete social subscription and live gift/tip collection paths remain unfinished in this draft.
+Free and paid creators keep 100% of subscription, gift and tip principal. The supporter pays any disclosed processing/network charge on top. A $5 tip credits $5 principal to its creator. A supporter-to-creator subscription is distinct from a member's infrastructure subscription. Creator offers, disclosed-fee quotes, canonical signed checkout/invoice settlement, monthly support entitlements/cancellation, live gifts/tips, payment history and a creator-specific principal ledger are implemented. These are financial-support subscriptions; subscriber-only post access is not implemented. Live gifts require a matching currently live public session and a verified payment receipt; pending clicks never count. Production collection remains unverified.
 
 ## Payout execution and receipts
 
-Use Dymond Bank's existing verification and payout infrastructure with a creator-specific ledger. Estimated, reconciled, funded, available, transfer-pending, transferred and bank-paid are separate states. A transfer to a connected payout account is not proof of bank settlement. YouTube receipts in the Lightek bank do not automatically fund a processor transfer balance. Never mark an uncertain transfer paid or deduct a hidden platform cut from creator principal.
+Use Dymond Bank's existing verification and payout infrastructure with a creator-specific ledger. Estimated, reconciled, funded, available, transfer-pending, transferred and bank-paid are separate states. A transfer to a connected payout account is not proof of bank settlement. YouTube receipts in the Lightek bank do not automatically fund a processor transfer balance. Creator support releases now check the real source charge and available balance transaction, block refunds/disputes, verify the payout account and transfer full principal with a durable destination and idempotency key. An uncertain transfer remains transfer_pending for reconciliation. Refund/dispute recovery targets its own transfer. Production release/bank delivery and the separate funded YouTube cash-settlement implementation remain unverified or missing. Never mark an uncertain transfer paid or deduct a hidden platform cut from creator principal.
 
 ## Lightek branded member mail
 
@@ -66,7 +66,7 @@ Keep a simple community home, clear creation/discovery paths, a focused membersh
 
 ## Unfinished execution coverage
 
-The central YouTube uploader, automatic free-instance allocation, verified migration, complete creator subscriptions/live gifts/tips, finalized-revenue settlement and funded creator payouts still require implementation and acceptance. No executable Nevaeh contracts for those unfinished operations are added by this guide. Answer from the guide, explain the gap, or use an existing authorized task; do not fabricate a completed operation.
+Automatic free-instance allocation, verified migration and finalized/funded YouTube view-earnings settlement are not implemented. They block the complete launch and new paid instance sales through LaunchReadiness. Central YouTube publishing, creator subscriptions/live gifts/tips and support-principal release are implemented but still require production acceptance. No executable Nevaeh contracts for those unfinished operations are added by this guide. Answer from the guide, explain the gap, or use an existing authorized task; do not fabricate a completed operation.
 
 ## Learning and acceptance
 

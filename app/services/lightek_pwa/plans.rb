@@ -11,7 +11,7 @@ module LightekPwa
       return nil unless user && site
       Purchase.where(user: user, site: site).includes(order: :commerce_subscription).order(id: :desc).detect(&:entitled?)
     end
-    def self.enabled?(site) = configuration(site)['enabled'] == true
+    def self.enabled?(site) = configuration(site)['enabled'] == true && LaunchReadiness.paid_ready?(site)
     def self.product(site, key)
       id = configuration(site).fetch('products', {})[key]
       return unless id && %w[personal business].include?(key)
@@ -34,6 +34,7 @@ module LightekPwa
     end
     def self.install!(site:, actor:, personal_product_id:, business_product_id: nil)
       raise Policy::Denied, 'Only the platform owner can configure network membership' unless actor.role == 'super_admin' && site.tenant == actor
+      raise Unavailable, LaunchReadiness::IMPLEMENTATION_GAPS.values.join(' ') unless LaunchReadiness.paid_ready?(site)
       site.with_lock do
         mapping = {'personal' => personal_product_id, 'business' => business_product_id}.reject { |_, id| id.blank? }
         raise Unavailable, 'Choose a personal server package' if mapping['personal'].blank?
@@ -53,8 +54,8 @@ module LightekPwa
     def self.checkout!(user:, site:, key:, success_url:, cancel_url:)
       raise Unavailable, 'Paid membership is not open yet' unless enabled?(site)
       item = product(site, key) or raise Unavailable, 'Choose an available paid plan'
-      if key == 'business' && !user.role.in?(%w[white_label super_admin])
-        raise Unavailable, 'Complete agency onboarding before purchasing Business. Your free membership is preserved.'
+      if key == 'business' && !user.role.in?(%w[client member white_label super_admin])
+        raise Unavailable, 'Business membership requires a member or agency account'
       end
       package = item.hosting_package
       raise Unavailable, 'This hosting package is unavailable' unless package&.active?

@@ -14,6 +14,8 @@ module DymondSite
     belongs_to :tenant, polymorphic: true
   end
 end
+require ROOT.join('app/models/lightek_agency/installed_package')
+require ROOT.join('app/services/lightek_agency/package_policy')
 require ROOT.join('app/services/lightek_settings/website_identity')
 require ROOT.join('app/services/lightek_settings/site_domain')
 %w[connection event grant].each { |f| require ROOT.join("app/models/lightek_connect/#{f}") }

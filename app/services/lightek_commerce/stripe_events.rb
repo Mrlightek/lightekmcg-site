@@ -4,6 +4,7 @@ module LightekCommerce
     class Rejected < StandardError; end
 
     def self.process!(event)
+      return if defined?(LightekPwa::CreatorSettlement) && LightekPwa::CreatorSettlement.payment_event!(event)
       return SubscriptionEvents.process!(event) if SubscriptionEvents::TYPES.include?(event.type)
       if %w[charge.refund.updated refund.updated].include?(event.type)
         refund = event.data.object
@@ -36,6 +37,8 @@ module LightekCommerce
         raise Rejected, "Checkout billing mode mismatch" unless session.mode == (interval == "one_time" ? "payment" : "subscription")
         SubscriptionEvents.register!(order: order, session: session) if session.mode == "subscription"
         if %w[paid fulfilled partially_refunded refunded].include?(order.status)
+          LightekPwa::CreatorSupport.record!(order: order) if defined?(LightekPwa::CreatorSupport) && %w[paid fulfilled].include?(order.status)
+          LightekPwa::BusinessActivation.call!(order: order) if defined?(LightekPwa::BusinessActivation)
           # Stripe retries also recover a lost provisioning enqueue after settlement.
           # The provisioning job's order-bound advisory lock prevents duplicate allocation.
           if order.purpose != "reservation_change" && %w[paid fulfilled].include?(order.status) && order.paid_at? && !order.provisioned_at? &&
@@ -73,6 +76,8 @@ module LightekCommerce
           LightekShipping::LabelJob.perform_later(order.id)
         end
         LightekShipping::LabelJob.perform_later(order.id) if order.purpose == "shipping_label"
+        LightekPwa::CreatorSupport.record!(order: order) if defined?(LightekPwa::CreatorSupport)
+        LightekPwa::BusinessActivation.call!(order: order) if defined?(LightekPwa::BusinessActivation)
         RevenueSharing.record!(order)
         OrderConfirmationJob.perform_later(order.id)
         PaidInstanceProvisioningJob.perform_later(order.id) if order.purpose != "reservation_change" && order.items.any? { |item| item.product.product_type == "lightek_instance" }

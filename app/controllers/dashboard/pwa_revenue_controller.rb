@@ -10,6 +10,9 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
     redirect_to dashboard_pwa_revenue_path(site_id: @site.id), alert: e.message
   end
   def show
+    @launch_readiness = LightekPwa::LaunchReadiness.report(site: @site)
+    @youtube_uploads = LightekPwa::YoutubeUpload.where(site: @site).order(id: :desc).limit(30)
+    @creator_earnings = LightekPwa::CreatorEarning.joins(:creator_payment).where(lightek_pwa_creator_payments: {site_id: @site.id}).order(id: :desc).limit(30)
     @packages = LightekCommerce::Product.visible.where(site: @site, product_type: 'lightek_instance', billing_interval: 'month').joins(:hosting_package).where(hosting_packages: {active: true})
     @learning_build = NevaehManualBuild.where(creator: current_user).where('name LIKE ?', 'PWA business model · %').order(id: :desc).first
     @learning_models = NevaehLanguageModel.where(enabled: true, visibility: 'internal').order(:name).limit(50)

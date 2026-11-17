@@ -33,7 +33,7 @@ For a campaign, say **make me a funny tiktok campaign ad promoting Lightek & ser
 
 ## Deployment
 
-Apply migration `20261116040000_connect_nevaeh_specialist_reviews` before restarting Rails and workers. It adds the review permission once to unchanged default roles. It skips customized capability lists and deleted roles. Later directory reads never regrant a removed permission. Existing schedules are retained; new review schedules require explicit submission.
+Apply migration `20261116040002_connect_nevaeh_specialist_reviews` before restarting Rails and workers. It adds the review permission once to unchanged default roles. It skips customized capability lists and deleted roles. Later directory reads never regrant a removed permission. Existing schedules are retained; new review schedules require explicit submission.
 
 ## Create a website page
 

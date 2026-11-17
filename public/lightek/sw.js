@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v88-membership-instances"
+const CACHE = "lightek-shell-v89-creator-support-youtube"
 
 const SHELL = [
   "/lightek/index.html",
@@ -8,6 +8,8 @@ const SHELL = [
   "/lightek/application-settings.js",
   "/lightek/community-app.js",
   "/lightek/membership.js",
+  "/lightek/creator-support.js",
+  "/lightek/youtube-publishing.js",
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
   "/lightek/studio-media.js",

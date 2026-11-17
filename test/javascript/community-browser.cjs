@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve('public');
 const shell=JSON.parse(fs.readFileSync(path.join(root,'lightek/sw.js'),'utf8').match(/const SHELL = (\[[\s\S]*?\n\])/)[1]);
-for(const asset of shell)assert.ok(fs.existsSync(path.join(root,asset)),`Offline shell dependency must exist: ${asset}`);
+for(const asset of shell)assert.ok(fs.existsSync(path.join(root,new URL(asset,'https://pwa.test').pathname)),`Offline shell dependency must exist: ${asset}`);
 const identity = { id: 1, authenticated: true, profile: {id:1,name:'Marlon',display_handle:'@marlon',profile_type:'person',sections:[{key:'posts'},{key:'communities'},{key:'about'}]} };
 let communities = [{id:1,slug:'lightek-creators',name:'Lightek Creators',description:'Our network',visibility:'public',sections:['conversations','members','about'],member_count:2,joined:true,can_manage:true,owner:identity.profile}];
 let posts = [{id:1,title:'The first production',content:'Published by the network',kind:'post',visibility:'public',author:identity.profile,created_at:new Date().toISOString(),reply_count:0,like_count:0,rsvp_count:0,engagements:[],media:[],can_delete:true}];

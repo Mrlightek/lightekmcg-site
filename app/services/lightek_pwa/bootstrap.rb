@@ -134,7 +134,7 @@ module LightekPwa
       if user
         if @site && LightekPwa::Policy.new(user: user, site: @site).manage?
           links << {label: "PWA Administration", href: "/dashboard/pwa?site_id=#{@site.id}"}
-          links << {label: "Memberships & revenue", href: "/dashboard/pwa/revenue?site_id=#{@site.id}"} if user.role == "super_admin" && @site.tenant == user
+          links << {label: "Memberships & revenue", href: "/dashboard/pwa/revenue?site_id=#{@site.id}"} if user.role == "super_admin"
         end
         links += [
           { label: "Saved", href: "#/saved" },

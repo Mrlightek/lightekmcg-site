@@ -3,7 +3,31 @@ module LightekPwa
   class MemberBackends
     class Unavailable < StandardError; end
     def self.operator!(site, actor)
-      raise Policy::Denied, 'Platform owner access required' unless actor&.role == 'super_admin' && site.tenant == actor
+      Policy.authorize_platform!(user: actor, site: site)
+    end
+    def self.smallest_plan!(plans)
+      plans.select { |plan| plan['monthly_cents'].to_i.positive? && plan['memory'].to_i >= 1024 && plan['disk'].to_i >= 16384 }
+        .min_by { |plan| [plan['memory'].to_i, plan['monthly_cents'].to_i, plan['vcpus'].to_i, plan['id'].to_s] } ||
+        raise(Unavailable, 'No priced server can safely run a shared member backend')
+    end
+    def self.smallest_offer!(actor:, region:)
+      raise Policy::Denied, 'Platform super administrator access required' unless actor&.role == 'super_admin'
+      provider = ComputeProvider.active.where(slug: 'linode', health_status: 'healthy').order(:id).first or raise Unavailable, 'Connect a healthy compute provider first'
+      catalog = Gatekeeper::Compute::LinodeCatalogService.call(provider: provider, requested_by: actor.email_address, region: region)
+      raise Unavailable, 'Choose a supported provider region' unless catalog.fetch('regions').any? { |row| row['id'] == region }
+      plan = smallest_plan!(catalog.fetch('plans'))
+      {provider: provider, plan: plan, region: region,
+        capacity: 1}
+    end
+    def self.create_smallest_pool!(site:, actor:, region:, plan_id:, monthly_cents:, request_key:)
+      operator!(site, actor)
+      offer = smallest_offer!(actor: actor, region: region)
+      plan = offer.fetch(:plan)
+      raise Unavailable, 'The smallest server or its price changed. Review the new quote before creating it.' unless plan['id'] == plan_id && plan['monthly_cents'] == monthly_cents
+      template = GatekeeperApplicationTemplate.ensure_native!
+      create_host!(site: site, actor: actor, max_members: offer.fetch(:capacity), budget: monthly_cents, request_key: request_key,
+        attributes: {template_id: template.id, compute_provider_id: offer.fetch(:provider).id, region: region, plan: plan_id,
+          template_configuration: template.attributes.slice('kind', 'image', 'container_port', 'credential_slug', 'rails_database', 'rails_worker', 'lightek_application').merge('pwa_pool' => {'profile' => 'starter'})})
     end
     def self.create_pool!(site:, actor:, package:, max_members:, monthly_budget_cents:, request_key: SecureRandom.uuid)
       operator!(site, actor)
@@ -15,16 +39,23 @@ module LightekPwa
       raise Unavailable, 'The shared host needs at least 1.5 GB per member plus 1 GB for the host' unless plan['memory'].to_i >= Integer(max_members) * 1536 + 1024
       raise Unavailable, 'Provider price exceeds the approved monthly budget' unless plan['monthly_cents'].to_i.positive? && plan['monthly_cents'].to_i <= budget
       raise Unavailable, 'Invalid shared-host request identity' unless request_key.to_s.match?(/\A[0-9a-f-]{36}\z/)
+      raise Unavailable, 'The shared host needs 6 GB disk per backend plus 10 GB for the host' unless plan['disk'].to_i >= Integer(max_members) * 6144 + 10240
+      create_host!(site: site, actor: actor, max_members: max_members, budget: budget, request_key: request_key,
+        attributes: {template_id: package.gatekeeper_application_template_id, compute_provider_id: package.compute_provider_id, region: package.region, plan: package.provider_plan})
+    end
+    def self.create_host!(site:, actor:, max_members:, budget:, request_key:, attributes:)
+      operator!(site, actor)
+      raise Unavailable, 'Invalid shared-host request identity' unless request_key.to_s.match?(/\A[0-9a-f-]{36}\z/)
       pool = nil
       site.with_lock do
         existing = SharedPool.find_by(site: site, request_key: request_key)
         return existing if existing
-        raise Unavailable, 'The shared host needs 6 GB disk per backend plus 10 GB for the host' unless plan['disk'].to_i >= Integer(max_members) * 6144 + 10240
+        Policy.bind_platform!(site: site, actor: actor)
         key = SecureRandom.hex(6)
-        pool = SharedPool.create!(request_key: request_key, site: site, operator: actor, name: "Member hosting #{key}", max_members: max_members, monthly_cost_ceiling_cents: budget)
-        launch = Gatekeeper::Hosting::Launches.create!(actor: actor, enqueue: false, attributes: {
-          template_id: package.gatekeeper_application_template_id, compute_provider_id: package.compute_provider_id, owner_id: actor.id,
-          name: pool.name, domain: "members-#{key}.#{site.host}", region: package.region, plan: package.provider_plan, monthly_cost_ceiling_cents: budget})
+        pool = SharedPool.create!(request_key: request_key, site: site, operator: actor, name: "Member hosting #{key}", max_members: max_members, monthly_cost_ceiling_cents: budget,
+          member_storage_bytes: attributes.dig(:template_configuration, 'pwa_pool', 'profile') == 'starter' ? 268435456 : 536870912)
+        launch = Gatekeeper::Hosting::Launches.create!(actor: actor, enqueue: false,
+          attributes: attributes.merge(owner_id: actor.id, name: pool.name, domain: "members-#{key}.#{site.host}", monthly_cost_ceiling_cents: budget))
         pool.update!(launch: launch)
       end
       MemberPoolJob.perform_later(pool.id)
@@ -47,7 +78,7 @@ module LightekPwa
       pool
     end
     def self.reserve!(site:, user:)
-      return if site.tenant == user
+      return if user&.role == 'super_admin'
       Policy.new(user: user, site: site).authorize!
       raise Unavailable, 'Your paid instance already provides your publishing space. Open My instance to sign in.' if Plans.current(user, site) && !MemberBackend.exists?(site: site, user: user)
       user.with_lock do
@@ -56,21 +87,61 @@ module LightekPwa
           MemberBackendJob.perform_later(existing.id) unless existing.ready? || existing.status == 'migrating'
           return existing
         end
-        # Never fall back to the central host when the pool is full or offline.
-        SharedPool.where(site: site, status: 'ready').order(:id).each do |pool|
-          result = pool.with_lock do
-            pool.isolated!
-            next if pool.occupied >= pool.max_members
-            key = SecureRandom.uuid
-            MemberBackend.create!(site: site, user: user, shared_pool: pool, public_key: key,
-              hostname: "member-#{key.delete('-').first(20)}.#{site.host}")
+        # Serialize only placement, not native/cloud setup. The durable cursor
+        # advances with the reservation and ignores paused/full/invalid pools.
+        site.with_lock do
+          routing = site.manifest.to_h.fetch('pwa_pool_routing', {})
+          pools = SharedPool.where(site: site, status: 'ready').order(:id).to_a
+          if routing['mode'] == 'round_robin'
+            cursor = routing['last_pool_id'].to_i
+            pools = pools.select { |pool| pool.id > cursor } + pools.select { |pool| pool.id <= cursor }
+          elsif routing['default_pool_id'].present?
+            pools.select! { |pool| pool.id == routing['default_pool_id'].to_i }
           end
-          if result
-            MemberBackendJob.perform_later(result.id)
-            return result
+          pools.each do |pool|
+            result = pool.with_lock do
+              begin
+                pool.isolated!
+              rescue Unavailable
+                next
+              end
+              next if pool.occupied >= pool.max_members
+              key = SecureRandom.uuid
+              MemberBackend.create!(site: site, user: user, shared_pool: pool, public_key: key,
+                hostname: "member-#{key.delete('-').first(20)}.#{site.host}")
+            end
+            if result
+              if routing['mode'] == 'round_robin'
+                site.update!(manifest: site.manifest.to_h.merge('pwa_pool_routing' => routing.merge('last_pool_id' => pool.id)))
+              end
+              MemberBackendJob.perform_later(result.id)
+              return result
+            end
           end
         end
         raise Unavailable, 'Member hosting is at capacity. Your free account is preserved; new content waits for a separate host.'
+      end
+    end
+    def self.configure_routing!(site:, actor:, mode:, default_pool_id: nil)
+      operator!(site, actor)
+      raise Unavailable, 'Choose a default server or round robin' unless %w[default round_robin].include?(mode)
+      site.with_lock do
+        pool = SharedPool.where(site: site, status: 'ready').find(default_pool_id) if default_pool_id.present?
+        pool&.isolated!
+        raise Unavailable, 'Choose a ready default free-member server' if mode == 'default' && !pool
+        site.update!(manifest: site.manifest.to_h.merge('pwa_pool_routing' => {'mode' => mode, 'default_pool_id' => pool&.id}))
+      end
+    end
+    def self.set_pool_status!(site:, actor:, pool_id:, status:)
+      operator!(site, actor)
+      raise Unavailable, 'Choose pause or resume' unless %w[ready paused].include?(status)
+      site.with_lock do
+        pool = SharedPool.where(site: site).find(pool_id)
+        pool.with_lock do
+          raise Unavailable, 'Only an installed shared server can be paused or resumed' unless pool.status.in?(%w[ready paused]) && pool.launch&.status == 'ready'
+          pool.isolated!
+          pool.update!(status: status)
+        end
       end
     end
     def self.connection!(backend)
@@ -92,7 +163,7 @@ module LightekPwa
       return backend if backend.ready?
       pool = backend.shared_pool
       pool.isolated!
-      raise Unavailable, 'Shared hosting is paused' unless pool.status == 'ready'
+      raise Unavailable, 'Shared hosting is unavailable' unless pool.status.in?(%w[ready paused])
       backend.with_lock do
         unless backend.launch
           connection = connection!(backend)

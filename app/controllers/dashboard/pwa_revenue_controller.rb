@@ -10,6 +10,13 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
     redirect_to dashboard_pwa_revenue_path(site_id: @site.id), alert: e.message
   end
   def show
+    @starter_region = params[:region].presence || ENV['LIGHTEK_AUTO_VPS_REGION'].presence || 'us-mia'
+    begin
+      @starter_offer = LightekPwa::MemberBackends.smallest_offer!(actor: current_user, region: @starter_region)
+    rescue StandardError => error
+      Rails.logger.warn("[PWA] Shared-host quote unavailable: #{error.class}")
+      @starter_error = 'The provider quote is unavailable. Refresh after checking the provider connection.'
+    end
     @view_batches = LightekPwa::ViewBatch.where(site: @site).order(id: :desc).limit(24)
     @shared_pools = LightekPwa::SharedPool.where(site: @site).includes(:member_backends).order(:id)
     @member_backends = LightekPwa::MemberBackend.where(site: @site).includes(:user).order(id: :desc).limit(50)
@@ -41,6 +48,22 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
     pool = LightekPwa::MemberBackends.create_pool!(site: @site, actor: current_user, package: package,
       max_members: Integer(params.require(:max_members)), monthly_budget_cents: Integer(params.require(:monthly_budget_cents)), request_key: params.require(:request_key))
     redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: "Shared host ##{pool.id} is being installed on a separate server."
+  end
+  def create_smallest_pool
+    pool = LightekPwa::MemberBackends.create_smallest_pool!(site: @site, actor: current_user,
+      region: params.require(:region), plan_id: params.require(:plan_id),
+      monthly_cents: Integer(params.require(:monthly_cents)), request_key: params.require(:request_key))
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: "Shared host ##{pool.id} is being installed on a separate server."
+  end
+  def configure_pool_routing
+    LightekPwa::MemberBackends.configure_routing!(site: @site, actor: current_user,
+      mode: params.require(:mode), default_pool_id: params[:default_pool_id])
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'New-member placement updated. Existing member backends remain on their current server.'
+  end
+  def set_pool_status
+    LightekPwa::MemberBackends.set_pool_status!(site: @site, actor: current_user,
+      pool_id: params.require(:pool_id), status: params.require(:status))
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Free-member server placement availability updated.'
   end
   def retry_backend
     backend = LightekPwa::MemberBackend.where(site: @site).find(params.require(:backend_id))
@@ -87,6 +110,6 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
   private
   def context
     raise LightekPwa::Policy::Denied, 'Platform owner access required' unless current_user&.role == 'super_admin'
-    @site = DymondSite::Site.where(tenant: current_user).find(params.require(:site_id))
+    @site = LightekPwa::Policy.sites_for(current_user).find(params.require(:site_id))
   end
 end

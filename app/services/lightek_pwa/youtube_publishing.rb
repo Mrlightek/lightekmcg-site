@@ -7,7 +7,7 @@ module LightekPwa
     class Unavailable < StandardError; end
     CHUNK = 4.megabytes
     def self.central_enabled?(site)
-      site.tenant&.role == 'super_admin' && ENV['LIGHTEK_YOUTUBE_UPLOADS_ENABLED'] == 'true'
+      Policy.platform_operator(site).present? && ENV['LIGHTEK_YOUTUBE_UPLOADS_ENABLED'] == 'true'
     end
     def self.capacity!(site)
       limit = Integer(ENV.fetch('LIGHTEK_YOUTUBE_DAILY_UPLOAD_LIMIT', '20'))

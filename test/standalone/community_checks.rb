@@ -61,6 +61,8 @@ ActiveRecord::Schema.define do
   add_index :active_storage_attachments, %i[record_type record_id name blob_id], unique: true, name: "idx_storage_test_unique"
   create_table(:active_storage_variant_records) { |t| t.references :blob; t.string :variation_digest }
 end
+require File.join(ROOT, 'db/migrate/20261117145500_create_pwa_platform_operators')
+CreatePwaPlatformOperators.new.migrate(:up)
 class ApplicationRecord < ActiveRecord::Base
   self.abstract_class = true
 end
@@ -134,7 +136,7 @@ require File.join(ROOT, "db/migrate/20261001124100_create_lightek_pwa_storefront
 CreateLightekPwaStorefront.new.migrate(:up)
 class CreationJob < ApplicationRecord; end
 class ApplicationJob < ActiveJob::Base; end
-%w[app/services/studio/compute/cpu_profile app/models/lightek_pwa/application app/models/lightek_pwa/membership app/models/lightek_pwa/admin_event
+%w[app/models/lightek_pwa/platform_operator app/services/studio/compute/cpu_profile app/models/lightek_pwa/application app/models/lightek_pwa/membership app/models/lightek_pwa/admin_event
    app/models/lightek_pwa/surface app/models/lightek_pwa/surface_module app/models/lightek_pwa/navigation_item
    app/services/lightek_pwa/policy app/services/lightek_pwa/configuration app/services/lightek_pwa/administration
    app/models/studio_project app/models/production app/models/studio_scene app/models/scene_object app/models/studio_workstation

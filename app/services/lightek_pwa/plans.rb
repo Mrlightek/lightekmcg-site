@@ -34,7 +34,7 @@ module LightekPwa
         end}
     end
     def self.install!(site:, actor:, personal_product_id:, business_product_id: nil)
-      raise Policy::Denied, 'Only the platform owner can configure network membership' unless actor.role == 'super_admin' && site.tenant == actor
+      Policy.authorize_platform!(user: actor, site: site)
       raise Unavailable, 'Complete the launch configuration, including a verified separate member host, before opening paid membership' unless LaunchReadiness.paid_ready?(site)
       site.with_lock do
         mapping = {'personal' => personal_product_id, 'business' => business_product_id}.reject { |_, id| id.blank? }

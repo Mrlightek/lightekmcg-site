@@ -13,9 +13,10 @@ import json
 c=json.load(open('settings.json'))
 for key in ['domain','release','email','bundler','source_sha']:print(c[key])
 print('1' if c.get('pwa_member') else '0')
+print('1' if c.get('pwa_pool',{}).get('profile') == 'starter' else '0')
 PY
 )
-DOMAIN=${CONFIG[0]};RELEASE=${CONFIG[1]};EMAIL=${CONFIG[2]};BUNDLER=${CONFIG[3]};SOURCE_SHA=${CONFIG[4]};MEMBER_BACKEND=${CONFIG[5]}
+DOMAIN=${CONFIG[0]};RELEASE=${CONFIG[1]};EMAIL=${CONFIG[2]};BUNDLER=${CONFIG[3]};SOURCE_SHA=${CONFIG[4]};MEMBER_BACKEND=${CONFIG[5]};STARTER_POOL=${CONFIG[6]}
 [[ "$DOMAIN" =~ ^[a-z0-9][a-z0-9.-]+\.[a-z]{2,63}$ && "$RELEASE" =~ ^[a-f0-9]{20}$ && "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
 KEY=$(printf '%s' "$DOMAIN" | sha256sum | cut -c1-12)
 PROJECT="lt_$(printf '%s' "$DOMAIN" | sha256sum | cut -c1-16)"
@@ -41,6 +42,9 @@ if [[ -f "$BASE/.env" ]];then
  cp "$BASE/.env" "$BASE/backups/environment-before-$RELEASE"
  cp "$BASE/managed.json" "$BASE/backups/managed-before-$RELEASE.json"
  if [[ -f "$BASE/compose.yml" ]] && ! grep -q '"adapter": "native_rails"' "$BASE/managed.json";then LEGACY=1;fi
+fi
+if [[ "$STARTER_POOL" = 1 ]];then
+ bash "$STAGE/app/lib/scripts/gatekeeper/prepare_member_pool.sh"
 fi
 if [[ ! -x "$RUBY_BIN/ruby" ]] || ! apache2ctl -M 2>/dev/null | grep -q passenger; then
  APP_ROOT="$RELEASE_DIR" APP_USER="$APP_USER" APP_NAME="$APP_NAME" LIGHTEK_KEEP_APACHE=1 MAKE_OPTS=-j1 bash "$STAGE/app/lib/scripts/bootstrap_lightek_rails_node.sh"
@@ -101,7 +105,7 @@ volumes:
   redis:
 EOF
 dc(){ docker compose --env-file "$ENV_FILE" -p "$PROJECT" -f "$BASE/dependencies.yml" "$@"; }
-if [[ "$MEMBER_BACKEND" = 1 ]]; then
+if [[ "$MEMBER_BACKEND" = 1 || "$STARTER_POOL" = 1 ]]; then
  python3 - "$BASE/dependencies.yml" <<'PYLIMIT'
 import pathlib,sys
 p=pathlib.Path(sys.argv[1]);s=p.read_text().replace('    image: postgres:16-bookworm','    image: postgres:16-bookworm\n    mem_limit: 256m\n    cpus: 0.5').replace('    image: redis:7-bookworm','    image: redis:7-bookworm\n    mem_limit: 128m\n    cpus: 0.25').replace('"--appendonly", "yes"','"--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"');p.write_text(s)
@@ -210,10 +214,15 @@ Require all granted
 </Directory>
 </VirtualHost>
 EOF
-if [[ "$MEMBER_BACKEND" = 1 ]];then
+if [[ "$MEMBER_BACKEND" = 1 || "$STARTER_POOL" = 1 ]];then
  sed -i '/PassengerAppEnv production/a PassengerSpawnMethod direct\nPassengerMaxRequests 500' "/etc/apache2/sites-available/lightek-$DOMAIN-ssl.conf"
  printf '%s\n' 'PassengerMaxInstancesPerApp 1' > /etc/apache2/conf-available/lightek-member-pool.conf
  a2enconf lightek-member-pool
+fi
+if [[ "$STARTER_POOL" = 1 ]];then
+ printf '%s\n' 'PassengerMaxPoolSize 1' 'PassengerMaxInstancesPerApp 1' 'PassengerPoolIdleTime 60' > /etc/apache2/conf-available/lightek-starter-pool.conf
+ a2enconf lightek-starter-pool
+ sed -i '/PassengerAppEnv production/a PassengerMinInstances 0' "/etc/apache2/sites-available/lightek-$DOMAIN-ssl.conf"
 fi
 a2ensite "lightek-$DOMAIN-ssl.conf";apache2ctl configtest;systemctl reload apache2
 python3 "$APP_ROOT/lib/scripts/setup_studio_spatial.py" --app-root "$APP_ROOT" --app-user "$APP_USER" --domain "$DOMAIN" --env-file "$ENV_FILE"
@@ -232,7 +241,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
-if [[ "$MEMBER_BACKEND" = 1 ]];then
+if [[ "$MEMBER_BACKEND" = 1 || "$STARTER_POOL" = 1 ]];then
  sed -i 's/sidekiq -c 2/sidekiq -c 1/; /RestartSec=5/a MemoryMax=384M\nCPUQuota=50%\nTasksMax=64' "/etc/systemd/system/$APP_NAME-sidekiq.service"
 fi
 systemctl daemon-reload;systemctl enable --now "$APP_NAME-sidekiq";systemctl restart "$APP_NAME-sidekiq"

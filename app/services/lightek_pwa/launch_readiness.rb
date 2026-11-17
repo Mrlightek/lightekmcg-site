@@ -4,7 +4,7 @@ module LightekPwa
     def self.configuration(site)
       {
         payment_key: DymondBank::StripeCredentials.secret_key.present?,
-        payment_webhook: LightekCommerce::WebhookCredentials.configured?,
+        payment_webhook: payment_webhook_configured?,
         separate_member_host: SharedPool.where(site: site, status: 'ready').any? do |pool|
           begin
             pool.isolated!
@@ -20,6 +20,14 @@ module LightekPwa
         view_payouts_enabled: LaunchSettings.enabled?('view_payouts_enabled'),
         member_mail_enabled: LaunchSettings.enabled?('member_mail_enabled')
       }
+    end
+    # Same Vault-backed provider and signing secret used by the working Susu
+    # endpoint. A separate Commerce endpoint is not a launch prerequisite.
+    def self.payment_webhook_configured?
+      DymondBank::StripeCredentials.webhook_secret.present?
+    rescue StandardError => error
+      Rails.logger.warn("[PWA] Shared payment callback unavailable: #{error.class}")
+      false
     end
     def self.paid_ready?(site) = IMPLEMENTATION_GAPS.empty? && configuration(site).values.all?
     def self.report(site:)

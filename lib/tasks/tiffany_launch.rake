@@ -10,7 +10,7 @@ namespace :lightek do
       checks = {
         "Tiffany site identified" => site.present?,
         "Stripe secret available via Dymond Bank" => DymondBank::StripeCredentials.secret_key.present?,
-        "Commerce webhook secret" => ENV["LIGHTEK_COMMERCE_STRIPE_WEBHOOK_SECRET"].present?,
+        "Shared Dymond Bank payment webhook" => LightekPwa::LaunchReadiness.payment_webhook_configured?,
         "Active Storage backend" => ActiveStorage::Blob.service.present?,
         "Products exist on Tiffany site" => site && LightekCommerce::Product.where(site: site).exists?,
         "Published, in-stock products on Tiffany site" => site && LightekCommerce::Product.where(site: site, published: true).where("inventory_quantity > 0").exists?,

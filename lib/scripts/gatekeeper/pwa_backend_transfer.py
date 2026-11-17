@@ -5,7 +5,7 @@ import fcntl, base64, hashlib, json, os, pathlib, re, shutil, subprocess, sys, t
 CHUNK = 4 * 1024 * 1024
 MAX_ARCHIVE = 4 * 1024 * 1024 * 1024
 SECRET_KEYS = {'SECRET_KEY_BASE','LOCKBOX_MASTER_KEY','RAILS_MASTER_KEY','LIGHTEK_VAULT_MASTER_KEY','LIGHTEK_VAULT_KEY_VERSION','ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY','ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY','ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT'}
-ACTIONS = {'probe','destination_probe','freeze_export','read_chunk','write_chunk','apply','activate','abort_target','rollback_source','redirect'}
+ACTIONS = {'probe','destination_probe','reserve_target','freeze_export','read_chunk','write_chunk','apply','activate','abort_target','rollback_source','redirect'}
 
 def digest(path):
     h=hashlib.sha256()
@@ -108,6 +108,19 @@ class Transfer:
         if self.archive.stat().st_size>MAX_ARCHIVE:raise ValueError('Backend snapshot exceeds transfer allowance')
         receipt={**proof,'bytes':self.archive.stat().st_size,'sha256':digest(self.archive),'status':'frozen'}
         (self.state/'export.json').write_text(json.dumps(receipt));return receipt
+    def reserve_target(self):
+        if (self.state/'activation-intent').exists():raise ValueError('Destination activation already began')
+        if (self.state/'apply-started').exists():
+            if not self.flag.exists() or self.flag.read_text()!=self.c['operation_key']:raise ValueError('Destination write hold changed')
+            return {'status':'reserved'}
+        proof=self.rails('destination_probe');self.freeze()
+        (self.state/'destination-proof.json').write_text(json.dumps(proof))
+        self.database_file(self.state/'destination-before.dump')
+        self.compose('exec','-T','redis','redis-cli','SAVE')
+        self.compose('cp','redis:/data/dump.rdb',str(self.state/'destination-before.rdb'))
+        (self.state/'environment-before').write_text((self.base/'.env').read_text())
+        (self.state/'apply-started').write_text('1')
+        return {'status':'reserved'}
     def apply(self):
         if (self.state/'activation-intent').exists():raise ValueError('Destination activation has begun; never overwrite newer writes')
         if self.archive.stat().st_size!=int(self.c['bytes']) or digest(self.archive)!=self.c['sha256']:raise ValueError('Transferred archive checksum mismatch')
@@ -124,10 +137,10 @@ class Transfer:
                     with archive.extractfile(member) as source,p.open('xb') as out:shutil.copyfileobj(source,out)
         manifest=json.loads((target/'manifest.json').read_text())
         if manifest['member_key']!=self.c['member_key'] or manifest['source_sha']!=self.run(['git','-C',str(self.root),'rev-parse','HEAD'],capture=True).decode().strip():raise ValueError('Backend source revision or identity differs')
-        if not (self.state/'apply-started').exists():
-            destination=self.rails('destination_probe')
-            if destination['schema']!=manifest['schema']:raise ValueError('Source and destination schemas differ')
-            self.freeze();self.database_file(self.state/'destination-before.dump');self.compose('exec','-T','redis','redis-cli','SAVE');self.compose('cp','redis:/data/dump.rdb',str(self.state/'destination-before.rdb'));(self.state/'environment-before').write_text((self.base/'.env').read_text());(self.state/'apply-started').write_text('1')
+        if not (self.state/'apply-started').exists():self.reserve_target()
+        destination=json.loads((self.state/'destination-proof.json').read_text())
+        if destination['schema']!=manifest['schema']:raise ValueError('Source and destination schemas differ')
+        if not self.flag.exists() or self.flag.read_text()!=self.c['operation_key']:raise ValueError('Destination write hold changed')
         keys=json.loads((target/'keys.json').read_text())
         if set(keys)-SECRET_KEYS:raise ValueError('Unexpected protected configuration')
         values=self.values();values.update(keys)
@@ -147,6 +160,7 @@ class Transfer:
     def call(self):
         a=self.action
         if a in {'probe','destination_probe'}:return self.rails(a)
+        if a=='reserve_target':return self.reserve_target()
         if a=='freeze_export':return self.export()
         if a=='read_chunk':
             offset=int(self.c['offset'])

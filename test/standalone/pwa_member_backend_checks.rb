@@ -134,10 +134,13 @@ class PwaMemberBackendTest < PwaCommercialTest
     @migration_bytes = 'complete database and original media'
     @snapshot = {'member_key'=>backend.public_key, 'status'=>'frozen', 'bytes'=>@migration_bytes.bytesize,
       'sha256'=>Digest::SHA256.hexdigest(@migration_bytes), 'counts'=>{'posts'=>1}, 'storage_sha256'=>'a'*64, 'source_sha'=>'b'*40}
-    LightekPwa::BackendMigration.new(backend)
+    migration = LightekPwa::BackendMigration.new(backend)
+    migration.define_singleton_method(:notify_ready!) {}
+    migration
   end
   def migration_rpc(side, action, extra={})
     case action
+    when 'reserve_target' then {'status'=>'reserved'}
     when 'freeze_export' then @snapshot
     when 'read_chunk' then {'offset'=>0,'data'=>Base64.strict_encode64(@migration_bytes),'sha256'=>Digest::SHA256.hexdigest(@migration_bytes)}
     when 'write_chunk' then {'copied_bytes'=>@migration_bytes.bytesize}
@@ -163,6 +166,19 @@ class PwaMemberBackendTest < PwaCommercialTest
     assert_nil ref.post.content
     assert backend.retire_after > 6.days.from_now
     refute backend.migration_receipt.to_json.include?(Base64.strict_encode64(@migration_bytes))
+  end
+  def test_paid_access_waits_for_member_content_and_nonempty_destination_never_freezes_source
+    migration = migration_fixture
+    summary = LightekCommerce::Installations.summary(@order)
+    assert_equal 'moving_content', summary[:state]
+    refute summary[:ready]
+    assert_nil summary[:url]
+    actions = []
+    migration.stub(:remote, ->(side, action, extra={}) {actions << action; raise LightekPwa::BackendMigration::Unavailable, 'Destination already contains content'}) do
+      assert_raises(LightekPwa::BackendMigration::Unavailable) { migration.perform! }
+    end
+    assert_equal ['reserve_target'], actions
+    assert_nil backend.reload.migration_receipt['snapshot']
   end
   def test_failed_destination_verification_keeps_source_routing_and_prevents_activation
     migration = migration_fixture

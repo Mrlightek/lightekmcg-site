@@ -437,7 +437,7 @@ module Studio
       end
 
       def blender_library_install
-        keys=@payload["keys"] || Studio::NativeBlender::DemoCatalog.items.map { |item| item["key"] }
+        keys=@payload["keys"] || Studio::NativeBlender::DemoCatalog.items.first(12).map { |item| item["key"] }
         raise ArgumentError,"Choose 1–12 official demos" unless keys.is_a?(Array) && keys.length.between?(1,12)
         keys.each { |key| Studio::NativeBlender::DemoCatalog.fetch(key) }
         original=@payload

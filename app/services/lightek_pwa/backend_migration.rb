@@ -61,6 +61,10 @@ module LightekPwa
     def run!
       return @backend if @backend.status == 'dedicated_ready' && @receipt['state'] == 'complete'
       raise Unavailable, 'Migration is not scheduled' unless %w[migrating dedicated_ready].include?(@backend.status)
+      unless @receipt['target_reserved']
+        raise Unavailable, 'Destination did not accept the write hold' unless remote(:target, 'reserve_target')['status'] == 'reserved'
+        checkpoint('target_reserved', 'target_reserved'=>true)
+      end
       unless @receipt['snapshot']
         snapshot = remote(:source, 'freeze_export')
         raise Unavailable, 'Source snapshot identity failed' unless snapshot['member_key'] == @backend.public_key && snapshot['status'] == 'frozen'
@@ -115,9 +119,13 @@ module LightekPwa
       if @receipt['state'] == 'committed'
         # Source remains frozen and retained. A retry only installs its redirect.
         raise Unavailable, 'Source routing cutover needs retry' unless remote(:source, 'redirect', 'destination_hostname'=>@target_host)['status'] == 'redirecting'
+        notify_ready!
         checkpoint('complete', 'completed_at'=>Time.current.iso8601)
       end
       @backend
+    end
+    def notify_ready!
+      LightekCommerce::PaidInstanceProvisioning.publish_ready_notification!(order: @order, customer: @backend.user, domain: @target_host)
     end
     def verify_public_health!
       require 'net/http'
@@ -136,7 +144,7 @@ module LightekPwa
       # Once activated, new posts may exist on the destination. Never discard
       # them by sending writes to an older snapshot; require a reverse transfer.
       raise Unavailable, 'Destination may contain new writes; reconcile before reversing the move' if %w[activated committed complete].include?(@receipt['state']) || @backend.status == 'dedicated_ready'
-      raise Unavailable, 'No frozen source snapshot' unless @receipt['snapshot']
+      raise Unavailable, 'No reserved migration destination' unless @receipt['target_reserved'] || @receipt['snapshot']
       raise Unavailable, 'Destination could not be safely restored' unless remote(:target, 'abort_target')['status'] == 'aborted'
       remote(:source, 'rollback_source')
       @backend.update!(status: 'shared_ready', order: nil, copied_bytes: 0, migration_receipt: {}, error_code: nil)

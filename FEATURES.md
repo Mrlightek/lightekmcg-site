@@ -444,3 +444,8 @@ Natural voice loads its CPU model once per spoken reply, publishes a shorter fir
 - Add free-member servers, select the default, choose durable round-robin placement, and pause/resume new placements. Existing backends stay bound to their current server; full/paused/invalid pools never fall back to the central server.
 - Dashboard notifications warn the pool operator at one remaining slot or 80% reservations, then at full, using the five-minute capacity job. Duplicate sweeps are quiet; recovery rearms alerts. No automatic upgrade or additional charge. Alerts track reserved member slots, not sampled CPU/RAM/disk telemetry.
 - Super administrators can reach revenue administration for imported sites through their existing global scope; explicit platform setup records the operator without changing the site's tenant.
+
+
+### Native bootstrap and scheduled recovery repair
+
+Scheduled definitions explicitly select Active Job dispatch with the pinned Sidekiq Cron adapter; server Redis configuration is applied before startup hooks. Native installation reserves its domain/owner/project identity before bootstrap, and can resume an older empty partial bootstrap without adopting existing data or symlinks. PWA revenue administration can retry the existing shared-host setup without requesting a replacement server. Bounded installer scope/line/exit markers survive wrapper errors without exposing command arguments or environment values. These fixes still require deployed retry and runtime acceptance.

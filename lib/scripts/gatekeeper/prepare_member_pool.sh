@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Only invoked for the explicit remote starter-pool profile, before compilation.
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/installer_diagnostics.sh"
+lightek_installer_diagnostics starter
 [[ "$EUID" = 0 ]] || { echo 'Starter-pool setup requires root.' >&2; exit 1; }
 SWAP_FILE=/var/lib/lightek/member-pool.swap
 SWAP_TARGET_KIB=2097152

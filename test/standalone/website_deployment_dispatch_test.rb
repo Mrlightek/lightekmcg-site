@@ -36,6 +36,30 @@ class WebsiteDeploymentDispatchTest < Minitest::Test
     popen = ->(*, &block) { block.call(StringIO.new, StringIO.new(output), OpenStruct.new(value: OpenStruct.new(success?: true))) }
     Open3.stub(:popen2e, popen) { @service.run_packager({"domain" => "client.example.com", "owner_email" => owner_email}) }
   end
+  def failed_packager(output)
+    popen = ->(*, &block) { block.call(StringIO.new, StringIO.new(output), OpenStruct.new(value: OpenStruct.new(success?: false))) }
+    Open3.stub(:popen2e, popen) do
+      assert_raises(Gatekeeper::WebsiteDeployment::Invalid) { @service.run_packager({'domain'=>'client.example.com'}) }
+    end
+  end
+  def test_installer_scope_line_and_exit_survive_failure_without_raw_output
+    message = "PRIVATE_OWNER_PASSWORD=hidden\nLIGHTEK_INSTALLER_FAILURE scope=bootstrap line=53 exit=1\r\nLIGHTEK_INSTALLER_FAILURE scope=native line=52 exit=1\n"
+    error = failed_packager(message)
+    assert_includes error.message, 'installer bootstrap line 53 exit 1'
+    refute_includes error.message, 'PRIVATE_OWNER_PASSWORD'
+    refute_includes error.message, 'hidden'
+    assert_equal ' [installer bootstrap line 53 exit 1]', @service.installer_failure_summary
+  end
+  def test_untrusted_or_malformed_diagnostics_are_not_copied_into_failure_messages
+    error = failed_packager("LIGHTEK_INSTALLER_FAILURE scope=secret-data line=42 exit=1\nLIGHTEK_INSTALLER_FAILURE scope=native line=42 exit=999\n")
+    assert_equal 'Packager did not pass acceptance', error.message
+    assert_equal '', @service.installer_failure_summary
+  end
+  def test_later_attempt_cannot_reuse_an_earlier_failure_marker
+    failed_packager("LIGHTEK_INSTALLER_FAILURE scope=starter line=9 exit=1\n")
+    assert_equal good_receipt, run_receipt(good_receipt)
+    assert_equal '', @service.installer_failure_summary
+  end
   def good_receipt
     {"url" => "https://client.example.com", "public_https_verified" => true,
       "owner_login_verified" => true, "health" => {"full_application_dashboard_verified" => true}}

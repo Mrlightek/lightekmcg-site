@@ -153,6 +153,7 @@ module Gatekeeper
     end
 
     def execute_remote(config)
+      @installer_failure = nil
       peer_secrets = nil
       operation = GatekeeperOperation.create!(gatekeeper_node: @node,
         capability: "deploy_website", requested_by: @actor.email_address,
@@ -246,8 +247,8 @@ module Gatekeeper
     rescue StandardError => error
       if operation
         stage = @deployment_stage || "initialization"
-        Rails.logger.error("[Lightek deployment] operation=#{operation.id} stage=#{stage} exception=#{error.class.name}")
-        safe_error = Invalid.new("Website deployment failed at #{stage} (#{error.class.name}); inspect the deployment terminal and retry the same node")
+        Rails.logger.error("[Lightek deployment] operation=#{operation.id} stage=#{stage} exception=#{error.class.name}#{installer_failure_summary}")
+        safe_error = Invalid.new("Website deployment failed at #{stage} (#{error.class.name})#{installer_failure_summary}; inspect the deployment terminal and retry the same node")
         operation.update!(status: "failed", exit_status: 1, completed_at: Time.current,
           error_class: error.class.name, error_message: safe_error.message)
         begin
@@ -263,7 +264,13 @@ module Gatekeeper
       [secrets, root_secret, peer_secrets].compact.each { |payload| payload.each_value { |v| v.clear if v.is_a?(String) && !v.frozen? } }
     end
 
+    def installer_failure_summary
+      return '' unless @installer_failure
+      " [installer #{@installer_failure[:scope]} line #{@installer_failure[:line]} exit #{@installer_failure[:exit]}]"
+    end
+
     def run_packager(config)
+      @installer_failure = nil
       receipt_path = nil
       passed = false
       Open3.popen2e({"RAILS_ENV" => Rails.env.to_s}, "bash", Rails.root.join("script/lightek/website_deploy.sh").to_s, "--config-stdin", chdir: Rails.root.to_s) do |stdin, output, thread|
@@ -271,10 +278,15 @@ module Gatekeeper
         output.each_line do |line|
           # Config/passwords are sent on stdin, never interpolated into commands.
           $stdout.print(line)
+          # Keep only protocol fields, never a command, raw stderr or secret.
+          marker = line.match(/LIGHTEK_INSTALLER_FAILURE scope=(native|bootstrap|starter) line=([1-9][0-9]{0,6}) exit=([1-9][0-9]{0,2})(?:\r?\n|\z)/)
+          if marker && marker[3].to_i <= 255
+            @installer_failure ||= {scope: marker[1], line: marker[2].to_i, exit: marker[3].to_i}
+          end
           passed = true if line.strip == "WEBSITE_DEPLOYMENT_PASS=https://#{@domain}"
           receipt_path = line.delete_prefix("Receipt: ").strip if line.start_with?("Receipt: ")
         end
-        raise Invalid, "Packager did not pass acceptance" unless thread.value.success? && passed && receipt_path
+        raise Invalid, "Packager did not pass acceptance#{installer_failure_summary}" unless thread.value.success? && passed && receipt_path
       end
       path = Pathname.new(receipt_path).realpath
       expected = Rails.root.join("tmp/website_deploy").realpath

@@ -1,5 +1,6 @@
 # config/initializers/sidekiq.rb
 Sidekiq.configure_server do |config|
+  config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0") }
   # Interactive replies must not wait behind renders, training or other jobs.
   # One speech slot per ordinary worker process bounds neural CPU/memory use.
   unless ENV['STUDIO_CPU_WORKER']=='1'
@@ -9,7 +10,6 @@ Sidekiq.configure_server do |config|
     end
   end
   config.on(:startup) do
-  config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0") }
     schedule_file = Rails.root.join("config/schedule.yml")
     if File.exist?(schedule_file)
       Sidekiq::Cron::Job.load_from_hash YAML.load_file(schedule_file)

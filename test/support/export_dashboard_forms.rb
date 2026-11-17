@@ -4,6 +4,8 @@ require_relative "../standalone/commerce_order_cleanup_test"
 require "fileutils"
 require Rails.root.join("app/services/lightek_dashboard/appearance_palette").to_s
 require Rails.root.join("app/services/lightek_dashboard/form_palette").to_s
+# Match config.load_defaults 8.0 in the real host, including label/input IDs.
+ActionView::Helpers::FormHelper.form_with_generates_ids = true
 fixture = CommerceOrderCleanupHttpTest.new("preview")
 fixture.setup
 begin

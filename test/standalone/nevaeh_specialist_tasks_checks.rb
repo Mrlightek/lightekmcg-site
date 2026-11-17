@@ -82,7 +82,7 @@ module Studio
     end
   end
 end
-require File.join(ROOT,'db/migrate/20261116040000_connect_nevaeh_specialist_reviews')
+require File.join(ROOT,'db/migrate/20261116040002_connect_nevaeh_specialist_reviews')
 class NevaehSpecialistTasksChecks < NevaehOsTest
   def self.runnable_methods = instance_methods(false).grep(/^test_/).map(&:to_s)
   MODELS=[DymondSite::Page,LightekPeople::Employment,LightekPeople::PayRun,LightekPeople::LifecycleCase,LightekCompliance::Monitor,LightekAccounting::Transaction,LightekAccounting::Book,LightekSales::Lead,LightekSales::Opportunity,LightekCommerce::Order,LightekGrowth::AuditFinding,LightekGrowth::WebsiteAudit,GatekeeperNode,DymondSite::Site]

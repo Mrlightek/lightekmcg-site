@@ -25,6 +25,16 @@ class StarterTokenController < ApplicationController
   protect_from_forgery with: :exception
   def show = render(json:{token:form_authenticity_token})
 end
+# Load the actual attribution boundary used by public inquiry creation. This
+# fixture has no tracking cookie, so no marketing visit is fabricated.
+require_relative '../../app/models/lightek_agency/installed_package'
+require_relative '../../app/services/lightek_agency/package_policy'
+require_relative '../../app/models/lightek_growth/visit'
+require_relative '../../app/services/lightek_growth/tracking'
+ActiveRecord::Schema.define do
+  add_column :website_template_inquiries, :growth_visit_id, :bigint
+  create_table(:lightek_growth_visits) { |t| t.integer :site_id; t.integer :link_id; t.string :token; t.timestamps }
+end
 require_relative '../../app/controllers/website_template_inquiries_controller'
 ActiveRecord::Base.connection.rename_table(:sections,:dymond_site_sections)
 DymondSite::Section.table_name='dymond_site_sections'

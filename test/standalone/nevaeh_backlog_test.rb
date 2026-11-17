@@ -101,6 +101,7 @@ end
 class ApplicationJob < ActiveJob::Base; end
 # Minimal host adapters. Real ticket models/services/jobs below are loaded intact.
 class User < ApplicationRecord
+  def can_access_feature?(_feature) = false # Host feature-assignment boundary.
   def employee? = %w[employee admin super_admin].include?(role)
 end
 class Ability
@@ -167,7 +168,7 @@ end
 end
 %w[models/nevaeh_intelligence services/gatekeeper services/gatekeeper/authorization_decision
    services/gatekeeper/authorization_service services/lightek_settings/website_identity
-   services/lightek_design/commerce_sections services/lightek_design/catalog
+   services/lightek_design/fonts services/lightek_design/html_document services/lightek_design/commerce_sections services/lightek_design/content_sections services/lightek_design/studio_document services/lightek_design/studio_blocks services/lightek_design/starter_library services/lightek_design/catalog
    services/nevaeh_intelligences/reviewed_implementation_template_v7a
    services/nevaeh_intelligences/structured_ticket services/nevaeh_intelligences/structured_actions
    services/nevaeh_intelligences/structured_repository services/nevaeh_intelligences/structured_execution

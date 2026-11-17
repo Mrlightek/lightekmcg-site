@@ -16,6 +16,12 @@ class PwaMemberSessionsController < ApplicationController
     raise ActiveRecord::RecordNotFound unless data['backend_key'] == config['key'] && data['hostname'] == request.host
     user = site.tenant
     raise ActiveRecord::RecordNotFound unless user.is_a?(User) && user.email_address == data['email']
+    # A free PWA member is a client, not a staff administrator. Older generic
+    # installers created an admin owner; reconcile only this isolated shared
+    # runtime from the authenticated central identity, before authentication.
+    if config['mode'] == 'shared' && config['paid_plan'].blank? && data['account_role'] == 'client' && user.role == 'admin'
+      user.update!(role: 'client')
+    end
     session[:return_to_after_authenticating] = params[:workspace] == 'studio' ? '/lightek/index.html#/studio' : '/lightek/index.html#/create'
     complete_primary_authentication_for(user)
   end

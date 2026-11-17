@@ -12,7 +12,8 @@ class IdentityOnboardingController < ApplicationController
     resume_session
     return head(:unauthorized) unless Current.session && Current.session.connect_delegation.blank?
     site = DymondSite::Site.find_by!(host: host)
-    return head(:forbidden) unless site.tenant == current_user && current_user.role.in?(%w[admin super_admin])
+    member_owner = ENV['LIGHTEK_PWA_MEMBER_BACKEND'] == 'true' && site.manifest.dig('pwa_member', 'mode') == 'shared' && current_user.role == 'client'
+    return head(:forbidden) unless site.tenant == current_user && (current_user.role.in?(%w[admin super_admin]) || member_owner)
     enabled = LightekIdentity::Mfa.enabled?(current_user)
     required = LightekIdentity::Mfa.required?(current_user)
     package = LightekAgency::InstalledPackage.find_by(user: current_user) if defined?(LightekAgency::PackagePolicy) && LightekAgency::PackagePolicy.available?

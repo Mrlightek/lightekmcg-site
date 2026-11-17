@@ -193,6 +193,7 @@ class PwaMemberBackendTest < PwaCommercialTest
     refute_equal token, LightekPwa::MemberTicket.last.token_digest
     data = LightekPwa::MemberBackends.redeem_ticket!(peer: @peer, token: token)
     assert_equal backend.public_key, data[:backend_key]
+    assert_equal 'client', data[:account_role]
     assert_raises(LightekPwa::Policy::Denied) { LightekPwa::MemberBackends.redeem_ticket!(peer: @peer, token: token) }
     assert_raises(LightekPwa::Policy::Denied) { LightekPwa::MemberBackends.issue_ticket!(backend: backend, user: @operator) }
     url = LightekPwa::MemberBackends.issue_ticket!(backend: backend, user: @owner)

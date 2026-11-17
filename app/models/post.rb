@@ -1,5 +1,11 @@
 # frozen_string_literal: true
 class Post < ApplicationRecord
+  after_commit :sync_network_publication
+  def sync_network_publication
+    LightekPwa::Publications.enqueue!(self) if defined?(LightekPwa::Publications)
+  rescue StandardError => error
+    Rails.logger.error("[PWA publication sync] post=#{id} #{error.class}")
+  end
   MEDIA_TYPES = %w[image/jpeg image/png image/webp image/gif video/mp4 video/webm video/quicktime audio/mpeg audio/mp4 audio/wav audio/x-wav audio/ogg audio/flac].freeze
   KINDS = %w[post article photo story video clip audio live event playlist series].freeze
   has_one_attached :spatial_scene

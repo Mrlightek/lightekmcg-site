@@ -30,6 +30,7 @@ require File.join(ROOT, "app/controllers/dashboard/pwa_controller")
 Dashboard::PwaController.layout false
 Dashboard::PwaController.prepend_view_path(File.join(ROOT, "app/views"))
 Rails.application.routes.append do
+  get '/dashboard/pwa/revenue', to: 'dashboard/pwa#show', as: :dashboard_pwa_revenue
   get "/api/nevaeh/bootstrap", to: "api/nevaeh#bootstrap"
   get "/dashboard/pwa", to: "dashboard/pwa#show", as: :dashboard_pwa
   patch "/dashboard/pwa", to: "dashboard/pwa#update"

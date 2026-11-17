@@ -12,6 +12,7 @@ module LightekPwa
       {
         schema_version: "1.0",
         application: @site ? configuration.app.bootstrap_payload.merge(access_suspended: configuration_policy.membership&.status == "suspended", administration: {role: configuration_policy.role, super_admin: configuration_policy.super_admin?, can_manage: configuration_policy.manage?}) : {id: "lightek", name: "Lightek"},
+        publishing: @site && LightekPwa::Network.write_destination(user: user, site: @site),
         identity: identity_payload,
         navigation: navigation_payload,
         surfaces: surface_payload,
@@ -125,12 +126,14 @@ module LightekPwa
         { label: "Studio", href: "#/studio" },
         { label: "Communities", href: "#/communities" },
         { label: "Messages", href: "#/messages" },
+        { label: "Membership", href: "#/membership" },
         { label: "Marketplace", href: "/marketplace" }
       ]
       links << { label: "Storefront", href: "/commerce/shop?site_id=#{@site.id}" } if @site
       if user
         if @site && LightekPwa::Policy.new(user: user, site: @site).manage?
           links << {label: "PWA Administration", href: "/dashboard/pwa?site_id=#{@site.id}"}
+          links << {label: "Memberships & revenue", href: "/dashboard/pwa/revenue?site_id=#{@site.id}"} if user.role == "super_admin" && @site.tenant == user
         end
         links += [
           { label: "Saved", href: "#/saved" },

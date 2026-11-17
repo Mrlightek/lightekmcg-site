@@ -147,6 +147,16 @@ class ApplicationJob < ActiveJob::Base; end
    app/services/lightek_community/access_denied app/services/lightek_community/conversation_access app/services/lightek_community/access app/services/lightek_community/presenter app/services/lightek_community/read_model
    app/services/lightek_community/workers/pwa].each { |file| require File.join(ROOT, file) }
 
+# The shared community harness has no paid purchases. Load the actual routing
+# policy against an empty membership table so existing free-user journeys remain exercised.
+ActiveRecord::Schema.define do
+  create_table(:lightek_pwa_purchases) { |t| t.integer :user_id; t.integer :site_id; t.integer :order_id; t.string :plan_key; t.timestamps }
+end
+require File.join(ROOT, 'app/models/lightek_pwa/purchase')
+require File.join(ROOT, 'app/services/lightek_pwa/plans')
+require File.join(ROOT, 'app/services/lightek_pwa/network')
+require File.join(ROOT, 'app/services/lightek_pwa/youtube')
+
 class LightekCommunityIntegrationTest < Minitest::Test
   def setup
     ActiveRecord::Base.connection.begin_transaction(joinable: false)

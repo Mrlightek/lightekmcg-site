@@ -9,7 +9,7 @@ module NevaehIntelligences
       ManualLearnJob.perform_later(build.id)
       build
     end
-    def build!(build, library: SoftwareLibrary.new)
+    def build!(build, library: SoftwareLibrary.new, draft_bindings: true)
       build.with_lock do
         return build if build.status == 'ready'
         return build if build.status == 'running' && build.updated_at > 5.minutes.ago
@@ -41,7 +41,7 @@ module NevaehIntelligences
               'examples_sha256'=>Digest::SHA256.hexdigest(CanonicalJson.dump(pairs)),
               'citations'=>entries.map { |row| row[:citation] }, 'reviewed'=>false})
         end
-        coverage = ManualBindings.candidates(build: build, documents: docs, actor: build.creator)
+        coverage = draft_bindings ? ManualBindings.candidates(build: build, documents: docs, actor: build.creator) : {draft_bindings: 0, gaps: [], coverage_scope: 'Reference learning only; no operating action bindings created'}
         coverage.merge!(document_count: docs.length, training_parts: rows.length, training_batches: datasets.length)
         build.update!(status: 'ready', manifest: manifest, dataset_ids: datasets.map(&:id), coverage: coverage, error: nil)
       end

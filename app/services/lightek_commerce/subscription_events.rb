@@ -82,6 +82,7 @@ module LightekCommerce
         end
       end
       record.save!
+      LightekPwa::RevenueEligibility.record!(subscription: subscription, reference: "invoice:#{record.processor_reference}") if defined?(LightekPwa::RevenueEligibility)
       record
     end
 
@@ -89,6 +90,8 @@ module LightekCommerce
       item = data.fetch("items").fetch("data").first || {}
       period_end = item["current_period_end"] || data["current_period_end"] || subscription.current_period_end&.to_i
       raise StripeEvents::Rejected, "Subscription billing period missing" unless period_end.to_i.positive?
+      period_start = item['current_period_start'] || data['current_period_start']
+      subscription.current_period_start = Time.at(period_start.to_i) if period_start.to_i.positive?
       subscription.assign_attributes(status: data.fetch("status"), cancel_at_period_end: data.fetch("cancel_at_period_end", false), current_period_end: Time.at(period_end.to_i), last_event_at: Time.current)
       subscription.save!
       if subscription.bank_subscription

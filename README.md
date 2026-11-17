@@ -151,3 +151,9 @@ Nevaeh can manage typed page-specialist tasks directly from the Dashboard assist
 **SME reports & lessons:** delegated workers retain structural execution reports and receipt-bound owner feedback. Nevaeh retrieves matching specialist/application/contract experience before new runs; available native conversational models can cite relevant reviewed lessons. See [worker reports](docs/nevaeh/tutorials/worker_reports.md). Requires the worker-report migration.
 
 **Structured worker convention:** `/page TOPIC QUESTION` delegates to a one-page SME that rereads its source and returns exact excerpts. Every delegated run emits schema-validated JSON to the manager-owned account journal, with task/status/output/dependencies and explicit file ownership. See [Reporting System](docs/nevaeh/tutorials/reporting_system.md) and [JSON Schema](config/nevaeh/worker_report.schema.json). Requires `AddStructuredWorkerResults`.
+
+### PWA membership and launch review
+
+See [the November 17 PWA audit](docs/pwa_launch_audit_20261117.md) for current feature evidence, the Free → Personal → Business/Agency model, instance migration requirements, branded email and YouTube monetization limits. The membership/reference/mail implementation is not a production launch acceptance receipt; free-instance allocation and verified migration remain open.
+
+PWA revenue administration also offers **Teach Nevaeh**: prepare the PWA policy/audit as provenance-linked learning batches, review them, and train an enabled internal model through the existing sequential acceptance pipeline. See [the PWA business-model guide](docs/nevaeh/tutorials/pwa_business_model.md). KB synchronization and actual model-training status are reported separately; no missing executor is activated by learning the guide.

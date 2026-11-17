@@ -86,6 +86,7 @@ class Dashboard::PwaController < Dashboard::SettingsHomeController
   end
   def load_section
     return unless @site
+    @membership_revenue_available = current_user.role == "super_admin" && @site.tenant == current_user
     @stats = @admin.stats
     @configuration = LightekPwa::Configuration.new(@site)
     @surfaces = LightekPwa::Surface.ordered.includes(:modules)

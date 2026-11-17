@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v87-cpu-economy"
+const CACHE = "lightek-shell-v88-membership-instances"
 
 const SHELL = [
   "/lightek/index.html",
@@ -7,6 +7,8 @@ const SHELL = [
   "/lightek/bootstrap-adapter.js",
   "/lightek/application-settings.js",
   "/lightek/community-app.js",
+  "/lightek/membership.js",
+  "/lightek/remote-content.js",
   "/lightek/studio-app.js",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",

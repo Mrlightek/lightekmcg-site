@@ -229,6 +229,20 @@ class PwaMemberBoundaryTest < PwaMemberBackendTest
     client.post '/test/direct-upload', params: payload, headers: headers.merge('X-CSRF-Token'=>token), as: :json
     assert_equal 403, client.response.status
   end
+  def test_central_studio_writes_cannot_bypass_member_hosting
+    client = ActionDispatch::Integration::Session.new(Rails.application); client.host! @site.host
+    headers = {'X-Pwa-Test-User'=>@owner.id.to_s}
+    client.get '/test/csrf', headers: headers
+    headers['X-CSRF-Token'] = JSON.parse(client.response.body).fetch('csrf_token')
+    count = StudioProject.count
+    client.post '/api/nevaeh/execute', params: {capability: 'studio.workspace.project.create', payload: {name: 'Keep off central', request_key: SecureRandom.uuid}}, headers: headers, as: :json
+    assert_equal 403, client.response.status
+    assert_equal count, StudioProject.count
+    assert_raises(LightekPwa::Policy::Denied) do
+      Studio::Workers::Workspace.perform('project_create', {'user_id'=>@owner.id, 'site_id'=>@site.id, 'name'=>'Keep off central', 'request_key'=>SecureRandom.uuid})
+    end
+    assert LightekPwa::Network.require_studio_write!(user: @owner, site: @site, capability: 'studio.pwa.bootstrap')
+  end
   def test_shared_member_runtime_cannot_invoke_server_or_training_actions
     request = Struct.new(:path, :request_parameters) { def get? = false }
     refute LightekPwa::SourceRuntime.allowed_request?(request.new('/dashboard/servers', {}))

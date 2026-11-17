@@ -2,6 +2,14 @@ module LightekPwa
   # The central feed holds references, never remote content bodies or media.
   # Browsers retrieve public posts and media directly from each member's server.
   class Network
+    STUDIO_READS = %w[studio.pwa.bootstrap studio.workspace.assets.list studio.workspace.operations.list
+      studio.workspace.look.status studio.workspace.ai.status studio.workspace.ai.setup.status studio.workspace.ai.jobs
+      studio.workspace.writing.profiles studio.workspace.shots.list studio.workspace.starter.scene.status
+      studio.workspace.performance.analysis studio.workspace.blender.runtime.status].freeze
+    def self.require_studio_write!(user:, site:, capability:)
+      return true if STUDIO_READS.include?(capability)
+      require_local_write!(user: user, site: site)
+    end
     def self.write_destination(user:, site:)
       purchase = Plans.current(user, site)
       if user && site && site.tenant != user && site.tenant&.role == 'super_admin' && defined?(MemberBackend)

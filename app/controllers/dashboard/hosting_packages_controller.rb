@@ -4,7 +4,7 @@ class Dashboard::HostingPackagesController < ApplicationController
   before_action { head :forbidden unless current_user&.role == "super_admin" }
   def index
     @packages = HostingPackage.includes(:product, :compute_provider, :gatekeeper_application_template).order(:id)
-    @sites = LightekSettings::WebsiteIdentity.sites_for(current_user).where(tenant: current_user)
+    @sites = LightekSettings::WebsiteIdentity.sites_for(current_user)
     @plans = DymondBank::SubscriptionPlan.order(:name)
     @providers = ComputeProvider.active.where(slug: "linode")
     GatekeeperApplicationTemplate.ensure_native!
@@ -14,8 +14,9 @@ class Dashboard::HostingPackagesController < ApplicationController
     values = params.require(:package).permit(:name, :site_id, :subscription_plan_id, :price_cents,
       :compute_provider_id, :gatekeeper_application_template_id, :region, :provider_plan,
       :monthly_cost_ceiling_cents, :minimum_margin_cents)
-    site = LightekSettings::WebsiteIdentity.sites_for(current_user).where(tenant: current_user).find(values.delete(:site_id))
+    site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(values.delete(:site_id))
     HostingPackage.transaction do
+      LightekPwa::Policy.bind_platform!(site: site, actor: current_user)
       product = LightekCommerce::Product.create!(site: site, name: values.delete(:name), slug: "hosting-#{SecureRandom.hex(8)}",
         price_cents: values.delete(:price_cents), subscription_plan_id: values.delete(:subscription_plan_id),
         package_policy: (params[:package_policy]&.to_unsafe_h || {}), product_type: "lightek_instance", billing_interval: "month", track_inventory: false,

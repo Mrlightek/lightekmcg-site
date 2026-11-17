@@ -13,7 +13,7 @@ module LightekPwa
     validates :monthly_cost_ceiling_cents, numericality: {only_integer: true, greater_than: 0}
     def occupied = member_backends.where.not(status: %w[retired]).count
     def isolated!
-      raise MemberBackends::Unavailable, 'Shared member hosting must use a separate remote server' unless node && !node.local? && operator.role == 'super_admin' && site.tenant == operator
+      raise MemberBackends::Unavailable, 'Shared member hosting must use a separate remote server' unless node && !node.local? && operator.role == 'super_admin'
       central_nodes = GatekeeperProject.where(domain: site.host).pluck(:gatekeeper_node_id)
       central_nodes += GatekeeperInstallation.where(domain: site.host).pluck(:gatekeeper_node_id)
       raise MemberBackends::Unavailable, 'The central Lightek server cannot host free member backends' if central_nodes.include?(node.id) || node.hostname == site.host || node.metadata.to_h.fetch('website_deployments', {}).key?(site.host)

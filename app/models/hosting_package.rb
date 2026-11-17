@@ -12,7 +12,7 @@ class HostingPackage < ApplicationRecord
   def sale_configuration
     return unless product
     errors.add(:product, "must be a monthly managed installation") unless product.product_type == "lightek_instance" && product.billing_interval == "month"
-    errors.add(:product, "must belong to the platform operator") unless product.site&.tenant&.role == "super_admin"
+    errors.add(:product, "must belong to the platform operator") unless LightekPwa::Policy.platform_operator(product.site).present?
     errors.add(:product, "retail price must cover the cost ceiling and margin") if product.price_cents.to_i < monthly_cost_ceiling_cents.to_i + minimum_margin_cents.to_i
     errors.add(:product, "needs an infrastructure subscription plan") if product.subscription_plan_id.blank?
     template = gatekeeper_application_template

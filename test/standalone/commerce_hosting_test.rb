@@ -27,6 +27,7 @@ ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"
 ActiveRecord::Migration.verbose = false
 ActiveRecord::ConnectionAdapters::TableDefinition.class_eval { alias_method :jsonb, :json }
 ActiveRecord::Schema.define do
+  create_table(:lightek_pwa_platform_operators) { |t| t.integer :site_id; t.integer :operator_id }
   create_table(:users) { |t| t.string :role; t.string :email_address; t.string :stripe_connect_account_id; t.string :first_name; t.string :last_name; t.string :password; t.boolean :password_setup_required, default: false }
   create_table(:dymond_site_sites) { |t| t.string :host; t.string :name; t.references :tenant, polymorphic: true; t.json :manifest, default: {} }
   create_table(:gatekeeper_nodes) { |t| t.references :owner, polymorphic: true; t.string :status }
@@ -193,6 +194,8 @@ source = Rails.root.join("db/migrate/20261114130000_add_agency_package_policies.
 source = source.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
 eval(source, TOPLEVEL_BINDING)
 AddAgencyPackagePolicies.new.migrate(:up)
+require Rails.root.join('app/services/lightek_pwa/policy').to_s
+require Rails.root.join('app/models/lightek_pwa/platform_operator').to_s
 require Rails.root.join('app/services/lightek_agency/package_policy').to_s
 require Rails.root.join('app/services/lightek_agency/hosting_catalog').to_s
 %w[gatekeeper_application_template agency_profile hosting_package lightek_commerce/product

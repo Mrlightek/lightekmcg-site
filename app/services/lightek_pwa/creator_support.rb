@@ -3,7 +3,7 @@ module LightekPwa
   class CreatorSupport
     class Unavailable < StandardError; end
     def self.enabled?(site)
-      site.tenant&.role == 'super_admin' && ENV['LIGHTEK_CREATOR_SUPPORT_ENABLED'] == 'true'
+      Policy.platform_operator(site).present? && ENV['LIGHTEK_CREATOR_SUPPORT_ENABLED'] == 'true'
     end
     def self.offer!(site:, creator:, monthly_cents:, enabled:)
       Policy.new(user: creator, site: site).authorize!

@@ -12,7 +12,7 @@ module LightekPwa
     end
     def self.write_destination(user:, site:)
       purchase = Plans.current(user, site)
-      if user && site && site.tenant != user && site.tenant&.role == 'super_admin' && defined?(MemberBackend)
+      if user && site && user.role != 'super_admin' && Policy.platform_operator(site).present? && defined?(MemberBackend)
         backend = MemberBackend.find_by(site: site, user: user)
         return {ready: backend&.ready? || false, manage_url: '/lightek/index.html#/membership', create_url: nil, member_backend: true} if backend || !purchase
       end

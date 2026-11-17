@@ -93,6 +93,10 @@ Only then record a production launch decision against the deployed source revisi
 
 ## Installer recovery and scheduled-job dispatch
 
+Production operations #440–442 completed dependency installation but failed while booting `db:create`: `dymond_site_patch.rb` inspected site columns before `dymond_site_sites` existed. The initializer now defers the alias until the database and table exist, then applies it on the next prepare/boot. It preserves actual domain columns and does not suppress unrelated database errors. The focused regression loads the actual initializer against an empty SQLite database, creates the schema, and verifies writes and queries through the domain alias. A missing-database fixture covers `db:create`; live PostgreSQL migration and app acceptance remain pending deployment.
+
+The 09:00 production logs also still contain a sidekiq-cron `perform_async` dispatch error. Explicit application schedules alone have not established that all persisted or engine schedules are healthy. The provided log does not identify the failing schedule; this remains a separate internal scheduler investigation rather than the confirmed native-installation blocker above.
+
 Production retry operation #432 reported `installer bootstrap line 82 exit 128` while cloning ruby-build. Bootstrap previously created `.rbenv/plugins` as root before cloning as the application user. It now creates or repairs that parent with the application user's ownership and mode 0755. The regression exercises real Git against an unwritable parent, then verifies clone and repeat-update recovery. Retry the same pool after deployment; live installation acceptance is still required.
 
 All `config/schedule.yml` entries explicitly use Active Job dispatch. The pinned sidekiq-cron 1.12 adapter must call configured `perform_later`, not `perform_async` on `ActiveJob::ConfiguredJob`. The server Redis connection is configured before startup hooks. Restart workers after deployment to reload the persisted schedule definitions. The public scheduler regression executes the actual pinned cron-to-Active-Job enqueue path; its Redis history writes are the test boundary.

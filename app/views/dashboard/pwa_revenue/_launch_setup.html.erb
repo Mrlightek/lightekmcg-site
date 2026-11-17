@@ -3,14 +3,9 @@
   <p>These settings apply to this central installation. Saving configuration does not open paid membership or confirm a successful payment, upload or bank delivery.</p>
   <details>
     <summary>Payment callbacks</summary>
-    <p>Create a payment webhook endpoint for <code><%= commerce_stripe_webhook_url %></code>, then save its signing secret here. Existing server configuration remains the fallback until a Vault secret is saved.</p>
+    <p>Payments reuse the existing Dymond Bank integration used by Susu. The signed callback is <code>/billing/webhooks/stripe</code>, and its signing secret comes from the existing Stripe credential in Vault through <code>DymondBank::StripeCredentials</code>. No separate PWA or Commerce credential is required.</p>
+    <p>Shared callback configuration: <strong><%= @launch_readiness[:configuration][:payment_webhook] ? 'Configured' : 'Existing Bank credential unavailable' %></strong>. Configuration does not prove event delivery. Verify signed events on the existing destination before opening sales.</p>
     <p>Required events: <code>checkout.session.completed</code>, <code>checkout.session.async_payment_succeeded</code>, <code>checkout.session.expired</code>, <code>invoice.paid</code>, <code>invoice.payment_failed</code>, <code>customer.subscription.created</code>, <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>, <code>charge.refund.updated</code>, <code>refund.updated</code>, <code>charge.refunded</code>, <code>charge.dispute.created</code>, <code>charge.dispute.closed</code>.</p>
-    <%= form_with url: configure_webhook_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
-      <%= label_tag :signing_secret, 'Endpoint signing secret' %>
-      <%= password_field_tag :signing_secret, nil, required: true, autocomplete: 'new-password', maxlength: 506 %>
-      <p>The secret is encrypted in Vault and is never displayed here.</p>
-      <%= submit_tag 'Save payment signing secret' %>
-    <% end %>
   </details>
   <%= form_with url: configure_launch_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
     <fieldset><legend>Central YouTube channel</legend>

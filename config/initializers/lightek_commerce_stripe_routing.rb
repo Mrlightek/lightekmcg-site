@@ -3,7 +3,13 @@
 # Reuse the verified Stripe event from Dymond Bank's existing webhook.
 module LightekCommerceStripeRouting
   def process!(event)
-    if commerce_checkout?(event)
+    if %w[charge.refund.updated refund.updated charge.refunded charge.dispute.created charge.dispute.closed].include?(event.type)
+      # These events can concern both Bank/Susu and Commerce records. Preserve
+      # Bank handling and let Commerce reconcile only its own recorded IDs.
+      result = super
+      commerce_result = LightekCommerce::StripeEvents.process!(event)
+      result || commerce_result
+    elsif commerce_checkout?(event)
       LightekCommerce::StripeEvents.process!(event)
     else
       super

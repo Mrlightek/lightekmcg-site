@@ -3,6 +3,7 @@ require File.join(ROOT,'app/services/lightek_pwa/business_activation')
 module DymondBank
   module StripeCredentials
     def self.secret_key = nil
+    def self.webhook_secret = nil
   end
 end
 module LightekPwa

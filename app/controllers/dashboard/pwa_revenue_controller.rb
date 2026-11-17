@@ -43,13 +43,9 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
     redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Platform launch settings saved. Live acceptance checks are still required.'
   end
   def configure_webhook
-    value = params.require(:signing_secret).to_s
-    LightekCommerce::WebhookCredentials.store!(actor: current_user, value: value)
-    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Payment callback signing secret stored securely. Verify an actual signed event before launch.'
-  rescue LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError
-    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), alert: 'Vault access needs repair before saving the payment signing secret.'
-  ensure
-    value&.clear
+    # Old open browser forms may still POST here. Do not create or rotate a
+    # second payment credential from this product's setup screen.
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Payments use the existing Dymond Bank Stripe credential in Vault and /billing/webhooks/stripe. No separate payment secret is required here.'
   end
   def verify_youtube
     LightekPwa::LaunchSetup.verify_youtube!(site: @site, actor: current_user)

@@ -77,7 +77,9 @@ else
   sudo -u "${APP_USER}" -H git -C "${RBENV_ROOT}" pull --ff-only
 fi
 
-mkdir -p "${RBENV_ROOT}/plugins"
+# Bootstrap runs as root; git below runs as the application user. Repair the
+# parent left by earlier attempts before cloning ruby-build into it.
+install -d -o "${APP_USER}" -g "${APP_USER}" -m 0755 "${RBENV_ROOT}/plugins"
 if [[ ! -d "${RBENV_ROOT}/plugins/ruby-build/.git" ]]; then
   sudo -u "${APP_USER}" -H git clone https://github.com/rbenv/ruby-build.git "${RBENV_ROOT}/plugins/ruby-build"
 else

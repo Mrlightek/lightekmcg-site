@@ -4,6 +4,16 @@ Updated November 17, 2026. This is an implementation and acceptance runbook, not
 
 ## Current decision
 
+### November 17 deployed navigation finding and policy pages
+
+The authenticated production member journey reproduced a redirect from `#/membership` to `#/home`: the bootstrap guard interpreted workflow routes as absent top-level surfaces. The follow-up maps membership, services, creator support and YouTube publishing onto the configured home surface in both navigation and ordinary-member rendering. It preserves unknown-route guards, disabled surface handling, server authorization and guest sign-in for YouTube submission. Existing `susu` maps to its configured money surface. The shell cache revision changes so installed clients retrieve the repair.
+
+The public documents at `/privacy.html` and `/terms.html` provide the central Lightek policy URLs for Google Branding. The central PWA footer links both; independent customer hostnames retain their own footer policies. Operator review of these documents is part of reviewing this PR before merging: confirm the stated data uses, support/deletion handling, retention obligations, financial support disclosures and external publishing terms match actual operation. These pages do not create deletion automation, certify legal compliance, verify Google branding or establish channel monetization. Anonymous live URLs must be checked after deployment before entering them in Google.
+
+Production on November 17: the selected Vault authorization successfully matched channel `UC7LZKFL5vKd7QnsFhPWzMLw` and the upload switch was saved enabled. No credential values are recorded here. The payment callback signing secret was still absent and paid membership remained blocked. The separate shared member pool was ready with 0/1 spaces. A real upload/playback, ordinary-member setup and signed billing acceptance remained outstanding; these observations do not replace those receipts.
+
+For payment callbacks, use the existing live payment account, create or inspect the endpoint `https://lightekmcg.com/commerce/stripe/webhook`, and select the handled events listed by Platform launch setup → Payment callbacks. Save that endpoint's `whsec_…` secret using the dedicated blank field there. Never paste it into chat. Keep snapshot payloads and the account scope used by commerce checkout; do not substitute connected-account or thin-event notifications. Validate a real signed delivery before opening sales. API-key presence alone is insufficient.
+
 The allocation, migration and funded view-settlement services are implemented in the current follow-up, building on merged PRs #313 and #314. Local checks exercise real database models and explicit cloud/payment boundaries. The code is a candidate for native/deployed acceptance; no production launch decision is claimed here.
 
 `LaunchReadiness` checks the separate shared host, payment/webhook configuration, channel publishing, creator-support/view-payout switches and member mail. It does not infer production verification from those flags. The owner must explicitly open sales after the checks pass. A full, missing or invalid shared pool never sends new member originals to the central server.

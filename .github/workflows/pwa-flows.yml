@@ -96,7 +96,7 @@ jobs:
         run: bundle exec ruby test/standalone/media_checks.rb
       - name: Client execution and transform tests
         run: |
-          node --test test/javascript/nevaeh-client.test.cjs test/javascript/pwa-membership.test.cjs test/javascript/pwa-remote-content.test.cjs test/javascript/pwa-commercial.test.cjs
+          node --test test/javascript/nevaeh-client.test.cjs test/javascript/pwa-membership.test.cjs test/javascript/pwa-remote-content.test.cjs test/javascript/pwa-commercial.test.cjs test/javascript/pwa-route-guard.test.cjs
           python3 test/operations/studio_transform_test.py
           python3 test/operations/migration_versions_test.py
       - name: Install browser test runtime

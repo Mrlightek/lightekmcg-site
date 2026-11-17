@@ -160,6 +160,8 @@ ActiveRecord::Schema.define do
   create_table(:lightek_pwa_purchases) { |t| t.integer :user_id; t.integer :site_id; t.integer :order_id; t.string :plan_key; t.timestamps }
 end
 require File.join(ROOT, 'app/models/lightek_pwa/purchase')
+require File.join(ROOT, 'app/models/lightek_pwa/launch_settings')
+require File.join(ROOT, 'app/services/lightek_commerce/webhook_credentials')
 require File.join(ROOT, 'app/services/lightek_pwa/launch_readiness')
 require File.join(ROOT, 'app/services/lightek_pwa/plans')
 require File.join(ROOT, 'app/services/lightek_pwa/network')

@@ -18,7 +18,7 @@ module Api
       data = LightekPwa::Plans.payload(user: current_user, site: @site)
       if current_user
         account = LightekMail::Account.mailboxes.find_by(user: current_user, brand_member: true)
-        data[:email] = {address: account&.address, enabled: account&.enabled?, open: ENV['LIGHTEK_MEMBER_EMAIL_ENABLED'] == 'true'}
+        data[:email] = {address: account&.address, enabled: account&.enabled?, open: LightekPwa::LaunchSettings.enabled?('member_mail_enabled')}
         data[:view_earnings] = LightekPwa::ViewEarning.joins(:view_batch).where(user: current_user, lightek_pwa_view_batches: {site_id: @site.id}).order(id: :desc).limit(100).map do |row|
           {id: row.id, video_id: row.video_id, month: row.view_batch.month, views: row.views, amount_cents: row.amount_cents,
             earnings_per_thousand_views_cents: row.earnings_per_thousand_views_cents, state: row.state}

@@ -2,7 +2,7 @@ class LightekEmailProvisioningService
   DOMAIN = ENV.fetch('LIGHTEK_EMAIL_DOMAIN', 'lightekmcg.com').freeze
   class Unavailable < StandardError; end
   def self.domain!
-    raise Unavailable, 'Member email is not open yet' unless ENV['LIGHTEK_MEMBER_EMAIL_ENABLED'] == 'true'
+    raise Unavailable, 'Member email is not open yet' unless LightekPwa::LaunchSettings.enabled?('member_mail_enabled')
     domain = LightekMail::Domain.find_by(name: DOMAIN)
     raise Unavailable, 'The Lightek mail domain must be verified by the platform owner' unless domain&.verified_at && domain.user.role == 'super_admin'
     domain

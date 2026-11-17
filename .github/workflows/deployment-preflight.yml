@@ -7,6 +7,8 @@ on:
       - 'app/services/gatekeeper/website_deployment.rb'
       - 'config/schedule.yml'
       - 'config/initializers/sidekiq.rb'
+      - 'config/initializers/dymond_site_patch.rb'
+      - 'test/standalone/dymond_site_initialization_test.rb'
       - 'test/standalone/scheduler.Gemfile'
       - 'test/standalone/sidekiq_cron_dispatch_checks.rb'
       - 'test/standalone/website_deployment_dispatch_test.rb'
@@ -33,6 +35,12 @@ jobs:
           bundle exec ruby test/standalone/sidekiq_cron_dispatch_checks.rb
           bundle exec ruby test/standalone/website_deployment_dispatch_test.rb
       - name: Verify deployment operation regressions before merge
+        env:
+          BUNDLE_GEMFILE: test/standalone/Gemfile
+        run: |
+          bundle install
+          bundle exec ruby test/standalone/dymond_site_initialization_test.rb
+      - name: Verify deployment shell regressions before merge
         run: |
           python3 -m unittest test.operations.bootstrap_ruby_build_test
           python3 -m unittest test.operations.installer_diagnostics_test test.operations.native_site_reservation_test test.operations.deploy_checkout_test test.operations.deployment_storage_test test.operations.session_media_access_test test.operations.deploy_release_bootstrap_test test.operations.studio_docker_access_test test.operations.studio_worker_limits_test test.operations.studio_media_setup_test test.operations.studio_workstation_units_test test.operations.studio_spatial_setup_test test.operations.studio_spatial_packages_test

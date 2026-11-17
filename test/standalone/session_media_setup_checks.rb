@@ -1,3 +1,4 @@
+require 'ostruct'
 require_relative 'fleet_hosting_test'
 require Rails.root.join('app/services/lightek_sessions/media_setup').to_s
 GatekeeperProject.belongs_to :gatekeeper_node

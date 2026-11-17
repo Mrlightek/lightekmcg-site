@@ -68,6 +68,9 @@ jobs:
           BUNDLE_GEMFILE: test/standalone/Gemfile
         run: |
           bundle exec ruby test/standalone/pwa_http_checks.rb
+          bundle exec ruby test/standalone/pwa_commercial_checks.rb -n /PwaCommercialTest/
+          bundle exec ruby test/standalone/pwa_member_email_checks.rb
+          bundle exec ruby test/standalone/nevaeh_pwa_learning_test.rb -n /NevaehPwaLearningTest/
           bundle exec ruby test/standalone/migration_version_checks.rb
           PWA_ADMIN_CAPTURE_DIR=/tmp/lightek-pwa-dashboard bundle exec ruby test/standalone/pwa_administration_checks.rb
       - name: Actual media ingestion, editing, live and Blender checks
@@ -77,7 +80,7 @@ jobs:
         run: bundle exec ruby test/standalone/media_checks.rb
       - name: Client execution and transform tests
         run: |
-          node --test test/javascript/nevaeh-client.test.cjs
+          node --test test/javascript/nevaeh-client.test.cjs test/javascript/pwa-membership.test.cjs test/javascript/pwa-remote-content.test.cjs
           python3 test/operations/studio_transform_test.py
           python3 test/operations/migration_versions_test.py
       - name: Install browser test runtime

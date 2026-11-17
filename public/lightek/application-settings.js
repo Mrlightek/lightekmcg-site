@@ -2,7 +2,7 @@
 (() => {
   const state=()=>window.LightekStorefront?.state;
   const brand=()=>state()?.bootstrap?.application;
-  const aliases={post:'home',saved:'home',community:'communities',susu:'money'};
+  const aliases={post:'home',saved:'home',community:'communities',susu:'money',membership:'home',services:'home'};
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function applyBrand(){
     const app=brand();if(!app)return;

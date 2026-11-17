@@ -101,6 +101,20 @@ Rails.application.routes.draw do
   post "/dashboard/pwa/communities/:id/members", to: "dashboard/pwa#community_invite", as: :dashboard_pwa_community_members
   post "/dashboard/pwa/people", to: "dashboard/pwa#invite", as: :dashboard_pwa_people
   get "/dashboard/pwa/media/:kind/:id", to: "dashboard/pwa#media", as: :dashboard_pwa_media
+  get '/api/lightek/network/posts/:id', to: 'api/pwa_network#show'
+  post '/api/reservations/federation/pwa/publications', to: 'api/pwa_publications#create'
+  post '/api/lightek/pwa/member-email', to: 'api/pwa_email#create'
+  get '/member-email/confirm', to: 'member_emails#show', as: :confirm_member_email
+  post '/member-email/confirm', to: 'member_emails#create'
+  get '/api/lightek/pwa/membership', to: 'api/pwa_memberships#show'
+  post '/api/lightek/pwa/membership/checkout', to: 'api/pwa_memberships#create'
+  post '/api/lightek/pwa/membership/cancel', to: 'api/pwa_memberships#cancel'
+  get '/dashboard/pwa/revenue', to: 'dashboard/pwa_revenue#show', as: :dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/nevaeh/prepare', to: 'dashboard/pwa_revenue#prepare_nevaeh', as: :prepare_nevaeh_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/nevaeh/train', to: 'dashboard/pwa_revenue#train_nevaeh', as: :train_nevaeh_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/disable', to: 'dashboard/pwa_revenue#disable', as: :disable_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/enable', to: 'dashboard/pwa_revenue#enable', as: :enable_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/youtube', to: 'dashboard/pwa_revenue#import', as: :import_dashboard_pwa_revenue
   get "/api/lightek/pwa/manifest", to: "api/lightek_pwa#manifest"
   resources :installations, path: "/my/installations", only: %i[index show create] do
     post :access, on: :member

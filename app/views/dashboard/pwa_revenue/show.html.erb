@@ -1,0 +1,50 @@
+<main class="wrap">
+  <h1>PWA memberships & YouTube revenue</h1>
+  <p><%= link_to 'Back to PWA Administration', dashboard_pwa_path(site_id: @site.id) %> · <a href="/lightek/index.html#/membership">Open membership</a></p>
+  <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <section><h2>Membership</h2><p>Community is free. Each paid member receives a separately provisioned backend instance. Select existing hosting packages below; their current prices and capacity apply. Membership renews monthly until canceled.</p>
+    <p><%= @membership[:setup_note] %></p>
+    <% unless @membership[:enabled] %>
+      <%= form_with url: enable_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+        <label>Personal instance <%= select_tag :personal_product_id, options_from_collection_for_select(@packages, :id, :name), include_blank: 'Choose package', required: true %></label>
+        <label>Business / Agency instance (optional) <%= select_tag :business_product_id, options_from_collection_for_select(@packages, :id, :name), include_blank: 'Not offered' %></label>
+        <label><%= check_box_tag :ready, '1', false, required: true %> Payments and signed webhooks are configured; I can deliver the advertised bundles and handle setup requests.</label>
+        <%= submit_tag 'Open paid membership' %>
+      <% end %>
+    <% else %><p>Paid membership is open.</p><%= button_to 'Pause new paid memberships', disable_dashboard_pwa_revenue_path(site_id: @site.id), method: :post %><% end %>
+    <table><thead><tr><th>Member</th><th>Plan</th><th>Payment</th><th>Access</th><th>Setup</th></tr></thead><tbody>
+    <% @purchases.each do |purchase| %><tr><td><%= purchase.user.full_name %></td><td><%= purchase.plan_key.humanize %></td><td><%= purchase.order.commerce_subscription&.status || purchase.order.status %></td><td><%= purchase.entitled? ? 'Active' : 'Not active' %></td><td><%= link_to "View instance delivery", installation_path(purchase.order) %></td></tr><% end %>
+    </tbody></table>
+  </section>
+  <section><h2>YouTube revenue reports</h2>
+    <p>The official YouTube player can show eligible channel ads. YouTube pays the channel's AdSense account. Embedding someone else's video earns no advertising share for Lightek.</p>
+    <p>Record an authorized channel's reported revenue and the agreed creator split. These are estimates for review, separate from money received or withdrawable earnings. Confirm channel ownership, the source report and the creator agreement before importing.</p>
+    <p>Normalize the exported YouTube report to these exact columns. One row per video and completed reporting period. USD only. Paid creators receive 80% (8000 basis points) for complete reporting days inside verified paid periods; free periods use 0. Split reports into daily rows across membership changes. Preserve the original report using its reference.</p>
+    <pre>video_id,user_id,period_start,period_end,estimated_revenue_usd,creator_share_bps,views</pre>
+    <%= form_with url: import_dashboard_pwa_revenue_path(site_id: @site.id), multipart: true, data: {turbo: false} do %>
+      <label>YouTube report reference <%= text_field_tag :source_reference, nil, required: true, maxlength: 300 %></label>
+      <label>Normalized CSV <%= file_field_tag :report, accept: '.csv,text/csv', required: true %></label>
+      <%= submit_tag 'Record revenue estimates' %>
+    <% end %>
+    <table><thead><tr><th>Period</th><th>Video</th><th>Views</th><th>Creator earnings / 1,000 views</th><th>Reported USD</th><th>Creator estimate USD</th><th>Lightek estimate USD</th><th>Source</th></tr></thead><tbody>
+    <% @receipts.each do |entry| %><tr><td><%= entry.period_start %>–<%= entry.period_end %></td><td><%= entry.video_id %></td><td><%= number_with_delimiter(entry.views) %></td><td><%= entry.earnings_per_thousand_views_cents ? number_to_currency(entry.earnings_per_thousand_views_cents / 100) : "Not available" %></td><td><%= number_to_currency(entry.amount_cents / 100.0) %></td><td><%= number_to_currency(entry.creator_cents / 100.0) %></td><td><%= number_to_currency(entry.platform_cents / 100.0) %></td><td><%= entry.source_reference %></td></tr><% end %>
+    </tbody></table>
+  </section>
+  <section><h2>Teach Nevaeh this business model</h2>
+    <p>Prepare the installed PWA policy guide and audit as source-linked learning batches. This does not grant Nevaeh permission to execute unfinished features.</p>
+    <%= button_to 'Prepare PWA knowledge & training batches', prepare_nevaeh_dashboard_pwa_revenue_path(site_id: @site.id), method: :post %>
+    <% if @learning_build %>
+      <p>Source build #<%= @learning_build.id %>: <%= @learning_build.status %>. KB: <%= @learning_build.coverage.dig("pwa_learning", "knowledge_base") %>. <%= link_to 'Review source batches and receipts', employee_nevaeh_factory_path(tab: 'manuals', manual_build_id: @learning_build.id) %></p>
+      <% if @learning_plan %><p>Learning plan #<%= @learning_plan.id %>: <%= @learning_plan.status %>. Accepted batches: <%= @learning_plan.position %> / <%= @learning_plan.dataset_ids.length %>. <%= @learning_plan.error %></p><% end %>
+      <%= form_with url: train_nevaeh_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+        <%= hidden_field_tag :build_id, @learning_build.id %>
+        <label>Internal model <%= select_tag :model_id, options_from_collection_for_select(@learning_models, :id, :name), include_blank: 'Choose the model to teach', required: true %></label>
+        <label>Epochs per batch <%= number_field_tag :epochs, 10, min: 1, max: 50, required: true %></label>
+        <label><%= check_box_tag :reviewed, '1', false, required: true %> I reviewed the source policy, implementation limits and generated examples.</label>
+        <%= submit_tag 'Train reviewed PWA material' %>
+      <% end %>
+    <% end %>
+    <p>Preparing examples is not completed model training. The existing native trainer activates only accepted checkpoints and blocks changed sources or revoked authority.</p>
+  </section>
+</main>

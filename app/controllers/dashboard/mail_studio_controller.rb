@@ -55,6 +55,10 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
   end
 
   def create_domain
+    branded_only = LightekMail::Account.mailboxes.where(user: current_user, brand_member: true).exists? && !current_user.can_access_feature?('mail')
+    if branded_only && !LightekPwa::Purchase.where(user: current_user, plan_key: 'business').any?(&:entitled?)
+      raise LightekMail::Access::Denied, 'Custom-domain mail requires Business / Agency. Your Lightek inbox remains available.'
+    end
     LightekMail::Domain.create!(user: current_user, name: params[:name])
     redirect_to dashboard_mail_path, notice: "Domain added. Publish its ownership TXT record, then verify."
   end

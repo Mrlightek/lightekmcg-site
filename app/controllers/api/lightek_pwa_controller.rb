@@ -155,6 +155,7 @@ module Api
     end
 
     def upload
+      LightekPwa::Network.require_local_write!(user: current_user, site: @site) unless params[:purpose] == 'studio_asset'
       render json: Studio::Assets::Upload.call(file:params.require(:file),user:current_user,site:@site,purpose:params[:purpose]),status: :created
     rescue ArgumentError => error
       render json: { error: error.message }, status: :unprocessable_entity

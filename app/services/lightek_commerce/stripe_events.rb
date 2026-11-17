@@ -55,6 +55,9 @@ module LightekCommerce
         raise Rejected, "Mismatched line items" unless subtotal == order.subtotal_cents
         raise Rejected, "Mismatched totals" unless subtotal + tax + shipping == total && total >= subtotal
         order.update!(status: "paid", paid_at: Time.current, tax_cents: tax, shipping_cents: shipping, total_cents: total)
+        if session.mode == 'subscription' && order.commerce_subscription
+          LightekPwa::RevenueEligibility.record!(subscription: order.commerce_subscription, reference: "checkout:#{session.id}") if defined?(LightekPwa::RevenueEligibility)
+        end
         if session.mode == "subscription" && session.respond_to?(:invoice) && session.invoice.present?
           reference = session.invoice.respond_to?(:id) ? session.invoice.id : session.invoice
           BillingInvoice.find_or_create_by!(processor_reference: reference) do |receipt|

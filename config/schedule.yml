@@ -102,3 +102,8 @@ studio_cpu_lease_recovery:
   class: "StudioCpuLeaseSweepJob"
   queue: default
   active_job: true
+
+pwa_publication_reference_recovery:
+  cron: "*/5 * * * *"
+  class: "LightekPwa::PublicationSweepJob"
+  description: "Recover pending content-reference notifications without copying member content"

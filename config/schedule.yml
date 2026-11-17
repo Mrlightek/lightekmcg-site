@@ -9,21 +9,25 @@ susu_cycle_reminders:
   cron: "0 9 * * *" # Daily at 9:00 AM
   class: "SusuCycleReminderJob"
   queue: default
+  active_job: true
 
 gatekeeper_fleet_recovery:
   cron: "* * * * *"
   class: "Gatekeeper::Fleet::SweepJob"
   queue: default
+  active_job: true
 
 gatekeeper_hosting_recovery:
   cron: "* * * * *"
   class: "Gatekeeper::Hosting::RecoveryJob"
   queue: default
+  active_job: true
 
 susu_cycle_advance:
   cron: "0 0 * * 0" # Every Sunday at midnight
   class: "SusuCycleAdvanceJob"
   queue: default
+  active_job: true
 
 nevaeh_historical_backlog:
   cron: "*/5 * * * *"
@@ -35,6 +39,7 @@ gatekeeper_device_heartbeat_sweep:
   cron: "*/1 * * * *"
   class: "GatekeeperDeviceHeartbeatSweepJob"
   queue: default
+  active_job: true
 
 nevaeh_workflow_sweep:
   cron: "* * * * *"
@@ -107,6 +112,7 @@ pwa_publication_reference_recovery:
   cron: "*/5 * * * *"
   class: "LightekPwa::PublicationSweepJob"
   description: "Recover pending content-reference notifications without copying member content"
+  active_job: true
 
 pwa_commercial_recovery:
   cron: '*/5 * * * *'

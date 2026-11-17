@@ -6,6 +6,8 @@ set -euo pipefail
 [[ "$ID" = ubuntu && "$VERSION_ID" = 24.04 ]] || { echo "The native Studio instance profile requires Ubuntu 24.04." >&2; exit 1; }
 cd "$(dirname "$0")"
 STAGE="$PWD"
+. "$STAGE/app/lib/scripts/gatekeeper/installer_diagnostics.sh"
+lightek_installer_diagnostics native
 MIGRATION_STARTED=0
 LEGACY=0
 readarray -t CONFIG < <(python3 - <<'PY'
@@ -30,7 +32,7 @@ ENV_FILE="$BASE/.env"
 RUBY_BIN="/home/$APP_USER/.rbenv/versions/3.3.6/bin"
 exec 9>"/var/lock/lightek-site-$DOMAIN.lock";flock -n 9
 exec 8>/var/lock/lightek-build.lock;flock -n 8
-if [[ -d "$BASE" && ! -f "$BASE/managed.json" ]]; then echo 'Instance path has no Lightek ownership record.' >&2;exit 1;fi
+python3 "$STAGE/app/lib/scripts/gatekeeper/native_site_reservation.py" --base "$BASE" --settings "$STAGE/settings.json" --project "$PROJECT"
 if [[ -e "$APP_ROOT" ]];then
  FLEET_KEY=$(readlink -f "$APP_ROOT" | tr -d '\n' | sha256sum | cut -c1-24)
  install -d -m 0700 "/var/lib/lightek/fleet/$FLEET_KEY"

@@ -26,10 +26,15 @@ require File.join(ROOT, 'app/services/lightek_pwa/capacity_alerts')
 module Dashboard; end
 require File.join(ROOT, 'app/services/lightek_pwa/view_settlement')
 require File.join(ROOT, 'app/controllers/dashboard/pwa_revenue_controller')
+require File.join(ROOT, 'app/jobs/lightek_pwa/member_pool_job')
 class PwaRevenueContextProbeController < Dashboard::PwaRevenueController
   def show = render(json: {site_id: @site.id})
 end
-Rails.application.routes.append { get '/test/revenue-context', to: 'pwa_revenue_context_probe#show' }
+Rails.application.routes.append do
+  get '/test/revenue-context', to: 'pwa_revenue_context_probe#show'
+  get '/dashboard/pwa/revenue', to: 'dashboard/pwa_revenue#show', as: :dashboard_pwa_revenue
+  post '/test/pool-retry', to: 'dashboard/pwa_revenue#retry_pool'
+end
 Rails.application.reload_routes!
 class PwaPoolOperationsTest < PwaMemberBackendTest
   PwaMemberBackendTest.instance_methods(false).grep(/^test_/).each { |name| undef_method(name) }
@@ -54,6 +59,35 @@ class PwaPoolOperationsTest < PwaMemberBackendTest
     assert_equal @owner, @site.reload.tenant
     client.get '/test/revenue-context', params: {site_id: @site.id}, headers: {'X-Pwa-Test-User' => @owner.id.to_s}
     assert_equal 403, client.response.status
+  end
+  def pool_retry_request(pool, actor: @operator)
+    client = ActionDispatch::Integration::Session.new(Rails.application)
+    client.host! @site.host
+    headers = {'X-Pwa-Test-User' => actor.id.to_s, 'Accept' => 'application/json'}
+    client.get '/test/csrf', headers: headers
+    token = JSON.parse(client.response.body).fetch('csrf_token')
+    client.post '/test/pool-retry', params: {site_id: @site.id, pool_id: pool.id}, headers: headers.merge('X-CSRF-Token'=>token)
+    client
+  end
+  def test_pool_retry_queues_the_existing_pool_without_creating_another_node_or_pool
+    @pool.update!(status: 'provisioning')
+    jobs = ActiveJob::Base.queue_adapter.enqueued_jobs
+    jobs.clear
+    before = [LightekPwa::SharedPool.count, GatekeeperNode.count]
+    client = pool_retry_request(@pool)
+    assert_equal 302, client.response.status, client.response.body
+    assert_equal before, [LightekPwa::SharedPool.count, GatekeeperNode.count]
+    assert_equal 1, jobs.length
+    assert_equal LightekPwa::MemberPoolJob, jobs.last.fetch(:job)
+    assert_equal [@pool.id], jobs.last.fetch(:args)
+  end
+  def test_pool_retry_rejects_foreign_pools_and_ordinary_users
+    jobs = ActiveJob::Base.queue_adapter.enqueued_jobs
+    jobs.clear
+    foreign = pool('foreign-retry', site: @remote, status: 'provisioning')
+    assert_equal 404, pool_retry_request(foreign).response.status
+    assert_equal 403, pool_retry_request(@pool, actor: @owner).response.status
+    assert_empty jobs
   end
   def test_platform_binding_is_explicit_and_super_admin_only
     @site.update!(tenant: @owner)
@@ -156,7 +190,7 @@ class PwaPoolOperationsTest < PwaMemberBackendTest
       launch_readiness: {launch_candidate: false, paid_sales_ready: false, implementation_gaps: {}, configuration: {}, production_acceptance: {}},
       starter_offer: {plan: {'id'=>'nanode-1','label'=>'Nanode 1GB','monthly_cents'=>500}, region: 'us-mia', capacity: 1},
       membership: {enabled: false, setup_note: 'Preparing'}, packages: [], purchases: [], youtube_uploads: [], creator_earnings: [], receipts: [], learning_build: nil)
-    %i[dashboard_pwa_path smallest_pool_dashboard_pwa_revenue_path routing_dashboard_pwa_revenue_path status_dashboard_pwa_revenue_pool_path pools_dashboard_pwa_revenue_path finalize_views_dashboard_pwa_revenue_path import_dashboard_pwa_revenue_path prepare_nevaeh_dashboard_pwa_revenue_path].each { |name| view.define_singleton_method(name) { |**| '/dashboard/pwa/revenue' } }
+    %i[retry_pool_dashboard_pwa_revenue_path dashboard_pwa_path smallest_pool_dashboard_pwa_revenue_path routing_dashboard_pwa_revenue_path status_dashboard_pwa_revenue_pool_path pools_dashboard_pwa_revenue_path finalize_views_dashboard_pwa_revenue_path import_dashboard_pwa_revenue_path prepare_nevaeh_dashboard_pwa_revenue_path].each { |name| view.define_singleton_method(name) { |**| '/dashboard/pwa/revenue' } }
     view.define_singleton_method(:flash) { {} }
     view.define_singleton_method(:protect_against_forgery?) { false }
     html = view.render(template: 'dashboard/pwa_revenue/show')

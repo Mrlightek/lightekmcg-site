@@ -11,6 +11,9 @@
   <section><h2>Free-member hosting</h2>
     <p>Free members use isolated application databases and storage on separate shared servers. Lightek's central host stores discovery references. A full or unavailable shared pool queues signup setup; it never falls back to the central server. The smallest starter uses a 1 GB server, a single reserved member space, 256 MB of member media storage, serialized application processes and a 2 GB swap reserve. This is a constrained pilot; full or paused pools queue new setups. Standard packages reserve 1.5 GB RAM per backend plus 1 GB for the host and allow 512 MB of media per member.</p>
     <table><thead><tr><th>Shared host</th><th>State</th><th>Capacity</th></tr></thead><tbody><% @shared_pools.each do |pool| %><tr><td><%= pool.name %></td><td><%= pool.status %></td><td><%= pool.occupied %> / <%= pool.max_members %></td></tr><% end %></tbody></table>
+    <% @shared_pools.select { |pool| %w[provisioning failed].include?(pool.status) }.each do |pool| %>
+      <%= button_to "Retry setup on existing server: #{pool.name}", retry_pool_dashboard_pwa_revenue_path(site_id: @site.id, pool_id: pool.id) %>
+    <% end %>
     <% if @starter_offer %>
       <p>Start small: <strong><%= @starter_offer[:plan]['label'] %> — <%= number_to_currency(@starter_offer[:plan]['monthly_cents'] / 100.0) %>/month</strong>, with <%= @starter_offer[:capacity] %> reserved member spaces. This is the smallest currently priced 1 GB-or-larger server, using the constrained starter profile. You receive a Dashboard notification when one space remains or reserved member capacity reaches 80%, and again when full. Upgrades remain your choice.</p>
       <%= form_with url: smallest_pool_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>

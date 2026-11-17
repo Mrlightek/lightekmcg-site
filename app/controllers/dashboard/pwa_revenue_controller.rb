@@ -65,6 +65,12 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
       pool_id: params.require(:pool_id), status: params.require(:status))
     redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Free-member server placement availability updated.'
   end
+  def retry_pool
+    pool = LightekPwa::SharedPool.where(site: @site).find(params.require(:pool_id))
+    raise ArgumentError, 'Only an unfinished shared-host installation can be retried' unless pool.status.in?(%w[provisioning failed])
+    LightekPwa::MemberPoolJob.perform_later(pool.id)
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Shared-host setup queued on its existing server. No replacement server was requested.'
+  end
   def retry_backend
     backend = LightekPwa::MemberBackend.where(site: @site).find(params.require(:backend_id))
     if backend.status == 'migrating' || backend.migration_receipt['state'] == 'committed'

@@ -1,0 +1,6 @@
+source 'https://rubygems.org'
+gem 'activejob', '8.0.4'
+gem 'activesupport', '8.0.4'
+gem 'minitest', '~> 5.25'
+gem 'sidekiq', '8.1.7'
+gem 'sidekiq-cron', '1.12.0'

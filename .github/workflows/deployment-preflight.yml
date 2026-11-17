@@ -3,6 +3,13 @@ on:
   pull_request:
     paths:
       - 'lib/scripts/**'
+      - 'script/lightek/native_website_remote.sh'
+      - 'app/services/gatekeeper/website_deployment.rb'
+      - 'config/schedule.yml'
+      - 'config/initializers/sidekiq.rb'
+      - 'test/standalone/scheduler.Gemfile'
+      - 'test/standalone/sidekiq_cron_dispatch_checks.rb'
+      - 'test/standalone/website_deployment_dispatch_test.rb'
       - 'test/operations/**'
       - '.github/workflows/deploy-production.yml'
       - '.github/workflows/deployment-preflight.yml'
@@ -15,6 +22,16 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+      - name: Verify real scheduled Active Job dispatch
+        env:
+          BUNDLE_GEMFILE: test/standalone/scheduler.Gemfile
+        run: |
+          bundle install
+          bundle exec ruby test/standalone/sidekiq_cron_dispatch_checks.rb
+          bundle exec ruby test/standalone/website_deployment_dispatch_test.rb
       - name: Verify deployment operation regressions before merge
         run: |
-          python3 -m unittest test.operations.deploy_checkout_test test.operations.deployment_storage_test test.operations.session_media_access_test test.operations.deploy_release_bootstrap_test test.operations.studio_docker_access_test test.operations.studio_worker_limits_test test.operations.studio_media_setup_test test.operations.studio_workstation_units_test test.operations.studio_spatial_setup_test test.operations.studio_spatial_packages_test
+          python3 -m unittest test.operations.installer_diagnostics_test test.operations.native_site_reservation_test test.operations.deploy_checkout_test test.operations.deployment_storage_test test.operations.session_media_access_test test.operations.deploy_release_bootstrap_test test.operations.studio_docker_access_test test.operations.studio_worker_limits_test test.operations.studio_media_setup_test test.operations.studio_workstation_units_test test.operations.studio_spatial_setup_test test.operations.studio_spatial_packages_test

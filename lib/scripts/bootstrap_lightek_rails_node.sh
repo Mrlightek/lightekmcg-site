@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+# Keep this bootstrap script usable when downloaded on its own.
+trap 'lightek_bootstrap_status=$?; printf "LIGHTEK_INSTALLER_FAILURE scope=bootstrap line=%s exit=%s\n" "$LINENO" "$lightek_bootstrap_status" >&2' ERR
 
 [[ "${EUID}" -eq 0 ]] || { echo "ERROR: run as root"; exit 1; }
 

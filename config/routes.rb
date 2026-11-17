@@ -133,6 +133,7 @@ Rails.application.routes.draw do
   post '/api/lightek/pwa/membership/view-earnings/:earning_id/release', to: 'api/pwa_memberships#release_views'
   post '/dashboard/pwa/revenue/finalize-views', to: 'dashboard/pwa_revenue#finalize_views', as: :finalize_views_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/fund-views/:batch_id', to: 'dashboard/pwa_revenue#fund_views', as: :fund_views_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/pools/:pool_id/retry', to: 'dashboard/pwa_revenue#retry_pool', as: :retry_pool_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/pool-routing', to: 'dashboard/pwa_revenue#configure_pool_routing', as: :routing_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/pool-status/:pool_id', to: 'dashboard/pwa_revenue#set_pool_status', as: :status_dashboard_pwa_revenue_pool
   post '/dashboard/pwa/revenue/smallest-pool', to: 'dashboard/pwa_revenue#create_smallest_pool', as: :smallest_pool_dashboard_pwa_revenue

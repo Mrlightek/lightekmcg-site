@@ -89,3 +89,14 @@ The member sees estimates separately from finalized earnings, calculated earning
 Complete ordinary-user signup → confirmation → backend ready → first post → reply/message → return visit. Test desktop, mobile, keyboard, readable contrast and installed/offline-shell behavior. Verify real branded mail send/receive and spam controls. Publish launch programming, clips, welcome posts and two or three actively hosted communities.
 
 Only then record a production launch decision against the deployed source revision and actual receipts. Training data preparation, local tests and a green deploy alone are insufficient.
+
+
+## Installer recovery and scheduled-job dispatch
+
+All `config/schedule.yml` entries explicitly use Active Job dispatch. The pinned sidekiq-cron 1.12 adapter must call configured `perform_later`, not `perform_async` on `ActiveJob::ConfiguredJob`. The server Redis connection is configured before startup hooks. Restart workers after deployment to reload the persisted schedule definitions. The public scheduler regression executes the actual pinned cron-to-Active-Job enqueue path; its Redis history writes are the test boundary.
+
+Native setup reserves the domain/owner/project identity atomically before host bootstrap. A stopped first bootstrap can resume its own ownership record. An older unowned directory is recoverable only when it contains an empty `releases` skeleton with empty 20-hex release directories; existing environment, storage, release files and symlinks block adoption. Known owned legacy records retain their adapter metadata. This is not permission to adopt another tenant or reset a populated instance.
+
+Use **Retry setup on existing server** for the existing pool after a repair. It requeues the same pool/launch/request and does not request a replacement server. A ready or paused pool cannot use this retry control. The existing advisory lock prevents overlapping installer execution.
+
+Bootstrap, starter preparation and the native installer emit a fixed `LIGHTEK_INSTALLER_FAILURE scope=... line=... exit=...` marker on command failure. The operation error retains only validated scope/line/status fields. Commands, environment values and raw output are not copied into the operation diagnostic. The first inner failure wins over outer wrapper failures; the next attempt clears old markers. Follow the reported line against the exact deployed source. These diagnostics require a fresh attempt after deployment; they cannot reconstruct the command that failed before instrumentation existed. A successful retry still needs HTTPS, sign-in and member-flow acceptance.

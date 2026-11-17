@@ -65,7 +65,7 @@ module LightekPwa
     end
     def self.release!(earning:, actor:)
       raise Unavailable, 'This earning belongs to another creator' unless earning.creator_payment.creator_id == actor.id
-      raise Unavailable, 'Creator payouts are not open yet' unless ENV['LIGHTEK_CREATOR_PAYOUTS_ENABLED'] == 'true'
+      raise Unavailable, 'Creator payouts are not open yet' unless LaunchSettings.enabled?('creator_payouts_enabled')
       refresh!(earning)
       earning.with_lock do
         return earning if earning.state == 'transferred'

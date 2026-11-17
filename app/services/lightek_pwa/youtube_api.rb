@@ -4,8 +4,9 @@ module LightekPwa
   class YoutubeApi
     class Unavailable < StandardError; end
     CONSUMER = name.freeze
-    def initialize
-      slug = ENV['LIGHTEK_YOUTUBE_CREDENTIAL_SLUG'].presence or raise Unavailable, 'YouTube channel is not configured'
+    def initialize(credential_slug: LaunchSettings.value('youtube_credential_slug'), channel_id: LaunchSettings.value('youtube_channel_id'))
+      slug = credential_slug.presence or raise Unavailable, 'YouTube channel is not configured'
+      @channel_id = channel_id.to_s
       @credentials = LightekVault::Service.checkout!(slug: slug, consumer: CONSUMER, purpose: 'youtube_publishing', requested_by: 'pwa-youtube-worker')
     end
     def request(method, url, body: nil, headers: {})
@@ -33,7 +34,7 @@ module LightekPwa
     def channel!
       response = request(:get, 'https://www.googleapis.com/youtube/v3/channels?part=id&mine=true')
       data = json!(response)
-      expected = ENV['LIGHTEK_YOUTUBE_CHANNEL_ID'].to_s
+      expected = @channel_id
       raise Unavailable, 'The authorized YouTube channel does not match Lightek’s channel' unless expected.match?(/\AUC[A-Za-z0-9_-]{22}\z/) && data.fetch('items').one? && data['items'].first['id'] == expected
       expected
     end

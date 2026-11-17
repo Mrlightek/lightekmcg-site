@@ -1,0 +1,35 @@
+<section aria-labelledby="launch-setup-title">
+  <h2 id="launch-setup-title">Platform launch setup</h2>
+  <p>These settings apply to this central installation. Saving configuration does not open paid membership or confirm a successful payment, upload or bank delivery.</p>
+  <details>
+    <summary>Payment callbacks</summary>
+    <p>Create a payment webhook endpoint for <code><%= commerce_stripe_webhook_url %></code>, then save its signing secret here. Existing server configuration remains the fallback until a Vault secret is saved.</p>
+    <p>Required events: <code>checkout.session.completed</code>, <code>checkout.session.async_payment_succeeded</code>, <code>checkout.session.expired</code>, <code>invoice.paid</code>, <code>invoice.payment_failed</code>, <code>customer.subscription.created</code>, <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>, <code>charge.refund.updated</code>, <code>refund.updated</code>, <code>charge.refunded</code>, <code>charge.dispute.created</code>, <code>charge.dispute.closed</code>.</p>
+    <%= form_with url: configure_webhook_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+      <%= label_tag :signing_secret, 'Endpoint signing secret' %>
+      <%= password_field_tag :signing_secret, nil, required: true, autocomplete: 'new-password', maxlength: 506 %>
+      <p>The secret is encrypted in Vault and is never displayed here.</p>
+      <%= submit_tag 'Save payment signing secret' %>
+    <% end %>
+  </details>
+  <%= form_with url: configure_launch_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+    <fieldset><legend>Central YouTube channel</legend>
+      <%= label_tag :youtube_channel_id, 'Channel ID' %>
+      <%= text_field_tag 'launch_settings[youtube_channel_id]', @launch_settings['youtube_channel_id'], id: :youtube_channel_id, maxlength: 24, placeholder: 'UC…' %>
+      <%= label_tag :youtube_credential_slug, 'Channel authorization in Vault' %>
+      <%= select_tag 'launch_settings[youtube_credential_slug]', options_for_select(@youtube_credentials.map { |credential| [credential.name, credential.slug] }, @launch_settings['youtube_credential_slug']), include_blank: 'Choose channel authorization', id: :youtube_credential_slug %>
+      <p>Store the channel's client ID, client secret and refresh token in <%= link_to 'Vault', dashboard_vault_path %>, allowing consumer <code>LightekPwa::YoutubeApi</code> and purpose <code>youtube_publishing</code>. Save your selection, then verify authorization below.</p>
+      <% receipt = @youtube_verification.to_h %>
+      <% if receipt['channel_id'] == @launch_settings['youtube_channel_id'] && receipt['credential_slug'] == @launch_settings['youtube_credential_slug'] && receipt['verified_at'].present? %>
+        <p>Last channel authorization check: <%= receipt['verified_at'] %>. Verify again after replacing the credential. Upload/playback acceptance remains pending.</p>
+      <% end %>
+    </fieldset>
+    <fieldset><legend>Launch switches</legend>
+      <% {'youtube_uploads_enabled'=>'Accept original-video uploads after channel verification', 'creator_support_enabled'=>'Open creator subscriptions, tips and gifts', 'creator_payouts_enabled'=>'Allow release of available creator support earnings', 'view_payouts_enabled'=>'Allow release of finalized, funded view earnings', 'member_mail_enabled'=>'Allow member mailbox provisioning'}.each do |key, label| %>
+        <div><%= hidden_field_tag "launch_settings[#{key}]", '0', id: nil %><%= check_box_tag "launch_settings[#{key}]", '1', @launch_settings[key], id: "launch-#{key}" %><%= label_tag "launch-#{key}", label %></div>
+      <% end %>
+    </fieldset>
+    <%= submit_tag 'Save platform launch settings' %>
+  <% end %>
+  <%= button_to 'Verify channel authorization', verify_youtube_dashboard_pwa_revenue_path(site_id: @site.id) %>
+</section>

@@ -91,6 +91,16 @@ Complete ordinary-user signup → confirmation → backend ready → first post 
 Only then record a production launch decision against the deployed source revision and actual receipts. Training data preparation, local tests and a green deploy alone are insufficient.
 
 
+## Dashboard launch setup
+
+The revenue administration page now provides central-installation launch controls to super administrators. Saved switches and channel selection live in the protected `lightek_pwa_launch_settings` table; existing environment values remain fallbacks for keys without a saved value. An explicit saved false pauses a feature across web and worker processes without a restart. These values never live in an editable site manifest or member-server deployment payload.
+
+Payment callbacks accept a dedicated endpoint signing secret through a blank password field, encrypted in Vault under a fixed commerce-webhook identity and consumer/purpose policy. Existing environment configuration is used only while that Vault record is absent; a disabled or inaccessible saved record fails closed. The form lists the callback URL and handled checkout, subscription, invoice, refund and dispute events. Creating the provider endpoint and verifying a real signed delivery remain operational steps; the form does not invent or retrieve a provider secret.
+
+Select the central YouTube channel and an existing permitted Vault credential, save, then use **Verify channel authorization**. The actual OAuth refresh and `channels?mine=true` response must match the selected channel. Opening uploads requires a receipt for that selection and credential revision; changes or replacement require verification again. Credentials need the channel's authorized client ID, client secret and refresh token. This verifies account authorization, not channel monetization, upload permission approval, an actual upload, embedded playback or earnings.
+
+Creator support, support payout release, finalized view release and member mailbox switches all use the same saved configuration as readiness checks. Existing ownership, payment, funding and available-balance checks remain in force. Saving configuration never opens paid membership automatically and never marks production acceptance complete. The new settings-table migration runs through the ordinary deploy migration step.
+
 ## Installer recovery and scheduled-job dispatch
 
 Production operations #440–442 completed dependency installation but failed while booting `db:create`: `dymond_site_patch.rb` inspected site columns before `dymond_site_sites` existed. The initializer now defers the alias until the database and table exist, then applies it on the next prepare/boot. It preserves actual domain columns and does not suppress unrelated database errors. The focused regression loads the actual initializer against an empty SQLite database, creates the schema, and verifies writes and queries through the domain alias. A missing-database fixture covers `db:create`; live PostgreSQL migration and app acceptance remain pending deployment.

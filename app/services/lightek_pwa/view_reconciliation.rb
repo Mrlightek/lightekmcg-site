@@ -19,7 +19,7 @@ module LightekPwa
       raise ArgumentError, 'Attach the complete CSV under 8 MB and the finalized channel receipt under 2 MB' unless report && report.size.between?(1, 8.megabytes) && finalized_receipt && finalized_receipt.size.between?(1, 2.megabytes)
       bytes, receipt_bytes = report.read, finalized_receipt.read
       digest, receipt_digest = Digest::SHA256.hexdigest(bytes), Digest::SHA256.hexdigest(receipt_bytes)
-      channel = ENV.fetch('LIGHTEK_YOUTUBE_CHANNEL_ID')
+      channel = LaunchSettings.value('youtube_channel_id')
       rows = CSV.parse(bytes.force_encoding('UTF-8'), headers: true)
       raise ArgumentError, 'Use date,video_id,estimated_revenue_usd,views columns; one row per video/reporting day' unless rows.headers == HEADERS && rows.size.between?(1, 50_000)
       seen = {}; total = 0; weights = Hash.new(0); views = Hash.new(0)

@@ -141,6 +141,9 @@ Rails.application.routes.draw do
   post '/dashboard/pwa/revenue/backends/:backend_id/retry', to: 'dashboard/pwa_revenue#retry_backend', as: :retry_backend_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/backends/:backend_id/rollback', to: 'dashboard/pwa_revenue#rollback_backend', as: :rollback_backend_dashboard_pwa_revenue
   get '/dashboard/pwa/revenue', to: 'dashboard/pwa_revenue#show', as: :dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/launch-settings', to: 'dashboard/pwa_revenue#configure_launch', as: :configure_launch_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/payment-callbacks', to: 'dashboard/pwa_revenue#configure_webhook', as: :configure_webhook_dashboard_pwa_revenue
+  post '/dashboard/pwa/revenue/verify-youtube', to: 'dashboard/pwa_revenue#verify_youtube', as: :verify_youtube_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/nevaeh/prepare', to: 'dashboard/pwa_revenue#prepare_nevaeh', as: :prepare_nevaeh_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/nevaeh/train', to: 'dashboard/pwa_revenue#train_nevaeh', as: :train_nevaeh_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/disable', to: 'dashboard/pwa_revenue#disable', as: :disable_dashboard_pwa_revenue

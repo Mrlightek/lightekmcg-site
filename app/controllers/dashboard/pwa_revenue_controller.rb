@@ -10,6 +10,11 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
     redirect_to dashboard_pwa_revenue_path(site_id: @site.id), alert: e.message
   end
   def show
+    @launch_settings = LightekPwa::LaunchSettings.snapshot
+    @youtube_credentials = LightekVault::Secret.active.order(:name).select do |secret|
+      secret.usable? && LightekVault::Policy.authorize(secret: secret, consumer: LightekPwa::YoutubeApi::CONSUMER, purpose: 'youtube_publishing').allowed
+    end
+    @youtube_verification = LightekPwa::LaunchSettings.find_by(id: 1)&.settings.to_h.fetch('youtube_verification', {})
     @starter_region = params[:region].presence || ENV['LIGHTEK_AUTO_VPS_REGION'].presence || 'us-mia'
     begin
       @starter_offer = LightekPwa::MemberBackends.smallest_offer!(actor: current_user, region: @starter_region)
@@ -31,6 +36,26 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
     @membership = LightekPwa::Plans.payload(user: current_user, site: @site)
     @receipts = LightekPwa::YoutubeRevenue.where(site: @site).order(id: :desc).limit(100)
     @purchases = LightekPwa::Purchase.where(site: @site).includes(:user, order: :commerce_subscription).order(id: :desc).limit(100)
+  end
+  def configure_launch
+    attributes = params.require(:launch_settings).permit(*LightekPwa::LaunchSettings::ENV_KEYS.keys).to_h
+    LightekPwa::LaunchSetup.update!(site: @site, actor: current_user, attributes: attributes)
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Platform launch settings saved. Live acceptance checks are still required.'
+  end
+  def configure_webhook
+    value = params.require(:signing_secret).to_s
+    LightekCommerce::WebhookCredentials.store!(actor: current_user, value: value)
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Payment callback signing secret stored securely. Verify an actual signed event before launch.'
+  rescue LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), alert: 'Vault access needs repair before saving the payment signing secret.'
+  ensure
+    value&.clear
+  end
+  def verify_youtube
+    LightekPwa::LaunchSetup.verify_youtube!(site: @site, actor: current_user)
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'YouTube authorization matches the selected channel. A real upload and embedded playback test are still required.'
+  rescue LightekPwa::YoutubeApi::Unavailable, LightekVault::Service::AccessDenied, LightekVault::MasterKey::ConfigurationError, LightekVault::Crypto::DecryptionError, ActiveRecord::RecordNotFound, SocketError, Timeout::Error
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), alert: 'Channel authorization could not be verified. Check the selected channel and Vault credential.'
   end
   def finalize_views
     batch = LightekPwa::ViewReconciliation.call!(site: @site, actor: current_user, month: params.require(:month),

@@ -93,6 +93,8 @@ Only then record a production launch decision against the deployed source revisi
 
 ## Installer recovery and scheduled-job dispatch
 
+Production retry operation #432 reported `installer bootstrap line 82 exit 128` while cloning ruby-build. Bootstrap previously created `.rbenv/plugins` as root before cloning as the application user. It now creates or repairs that parent with the application user's ownership and mode 0755. The regression exercises real Git against an unwritable parent, then verifies clone and repeat-update recovery. Retry the same pool after deployment; live installation acceptance is still required.
+
 All `config/schedule.yml` entries explicitly use Active Job dispatch. The pinned sidekiq-cron 1.12 adapter must call configured `perform_later`, not `perform_async` on `ActiveJob::ConfiguredJob`. The server Redis connection is configured before startup hooks. Restart workers after deployment to reload the persisted schedule definitions. The public scheduler regression executes the actual pinned cron-to-Active-Job enqueue path; its Redis history writes are the test boundary.
 
 Native setup reserves the domain/owner/project identity atomically before host bootstrap. A stopped first bootstrap can resume its own ownership record. An older unowned directory is recoverable only when it contains an empty `releases` skeleton with empty 20-hex release directories; existing environment, storage, release files and symlinks block adoption. Known owned legacy records retain their adapter metadata. This is not permission to adopt another tenant or reset a populated instance.

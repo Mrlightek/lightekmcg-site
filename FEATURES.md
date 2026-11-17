@@ -436,3 +436,11 @@ See [Voice and speaking character](docs/nevaeh/tutorials/voice.md). This is volu
 - Structured reporting convention: one-page documentation SMEs, required source reads, fixed JSON Schema, manager-owned per-account JSONL journals, goal dependency references and exact managed file ownership with parallel conflict checks.
 
 Natural voice loads its CPU model once per spoken reply, publishes a shorter first chunk incrementally, and performs per-chunk encoding and mouth-envelope preparation inside the same media container. Rebuild the Studio media image for this path; deployed startup latency remains hardware-dependent.
+
+
+### Free-member hosting operations (November 17, 2026)
+
+- Start with the smallest live priced 1 GB server through PWA revenue administration, without first creating a retail product. The starter has one pilot member slot, 256 MB media storage, 2 GB swap, bounded workers/dependencies and one host web application process. Real small-host acceptance remains required.
+- Add free-member servers, select the default, choose durable round-robin placement, and pause/resume new placements. Existing backends stay bound to their current server; full/paused/invalid pools never fall back to the central server.
+- Dashboard notifications warn the pool operator at one remaining slot or 80% reservations, then at full, using the five-minute capacity job. Duplicate sweeps are quiet; recovery rearms alerts. No automatic upgrade or additional charge. Alerts track reserved member slots, not sampled CPU/RAM/disk telemetry.
+- Super administrators can reach revenue administration for imported sites through their existing global scope; explicit platform setup records the operator without changing the site's tenant.

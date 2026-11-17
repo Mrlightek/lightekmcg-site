@@ -60,7 +60,7 @@ Members can receive real Lightek-domain mailboxes after confirming the signup em
 
 Free member content must never fall back to the central Lightek server. The owner provisions a separate shared pool through PWA revenue administration, selecting a native package, member capacity and approved monthly budget. The provider price and RAM/disk admission checks must pass. Each member gets a separate native application, database, queue and storage directory on that host; this is application/database separation, not a separate machine per free user or a container security boundary. The current native profile shares its system application user. Start with a small pilot and verify resource use before increasing capacity.
 
-Signup persists an allocation request before enqueueing. A full/unavailable pool keeps the free account and queues backend setup; it does not write new original posts or uploads centrally. Default member attachment allowance is 512 MB. Native dependency/worker caps and one web process per application reduce contention; admission estimates are not proof of load-test capacity. The central member uses Membership → My publishing space → Create a post; the short-lived one-use ticket preserves the normal MFA flow. The source navigation returns to the central community, membership and earnings pages.
+Signup persists an allocation request before enqueueing. A full/unavailable pool keeps the free account and queues backend setup; it does not write new original posts or uploads centrally. Standard member attachment allowance is 512 MB; the smallest starter profile uses 256 MB. Native dependency/worker caps and one web process per application reduce contention; admission estimates are not proof of load-test capacity. The central member uses Membership → My publishing space → Create a post; the short-lived one-use ticket preserves the normal MFA flow. The source navigation returns to the central community, membership and earnings pages.
 
 ## Business custom-domain mail
 
@@ -77,3 +77,12 @@ Allocation, migration, central YouTube publishing, creator support and finalized
 ## Learning and acceptance
 
 PWA Administration → Memberships & YouTube revenue provides a targeted Nevaeh learning panel. Prepare source-linked batches, inspect the manuals and examples, then train reviewed material with an enabled internal model. The existing sequential learning plan checks source fingerprints, approvals, trainer metrics and checkpoint acceptance. Only a passing activated checkpoint is a completed native-model update. Check a real runtime receipt before claiming that Nevaeh has trained or mastered this material.
+
+
+## Smallest free server and owner-controlled placement
+
+The owner requested the actual smallest server, not a larger comfort tier. Revenue administration now offers the smallest live priced 1 GB-or-larger plan, with a constrained starter profile: one member slot, 256 MB media allowance, 2 GB swap and serialized web application processes. This is a pilot; deployment, sign-in, publishing and resource behavior on the real 1 GB host still require acceptance. Never call swap equivalent to RAM or claim the server has been purchased from local tests.
+
+The super administrator can add more free-member servers, change the default and select round robin across ready pools. These are backend-placement decisions for new members; changing the default does not migrate existing members or send each HTTP request to a different database. Full, paused or invalid pools never receive new reservations and never fall back to the central host. Member-slot capacity notifications appear in the operator's Dashboard every threshold transition, with a five-minute sweep and no automatic upgrade/spending. A one-slot starter alerts at its first reservation; larger pools alert with one remaining slot or 80% reserved, then at full. Do not describe these as measured memory/disk alerts or confirmed external email delivery.
+
+Imported sites remain under their existing tenant. Global super-administrator administration plus explicit platform setup records the responsible operator in a protected database binding; no ordinary user can change that binding. New UI/service methods are not automatically Nevaeh Dispatch executors. Prepare a fresh reviewed source build before training from this updated guide.

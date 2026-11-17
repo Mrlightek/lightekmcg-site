@@ -64,6 +64,9 @@ module Api
       if capability.start_with?("community.", "studio.", "social.", "messaging.", "messages.", "susu.", "money.")
         payload["site_id"] = LightekPwa::SiteContext.resolve(request.host).id
         payload["origin"] = request.base_url
+        if capability.start_with?("studio.")
+          LightekPwa::Network.require_studio_write!(user: actor, site: LightekPwa::SiteContext.resolve(request.host), capability: capability)
+        end
         LightekPwa::Policy.new(user: actor, site: LightekPwa::SiteContext.resolve(request.host)).authorize_capability!(capability)
       end
 

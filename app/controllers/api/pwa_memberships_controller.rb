@@ -43,7 +43,7 @@ module Api
       render json: {checkout_url: checkout.url}
     end
     def cancel
-      purchase = LightekPwa::Plans.current(current_user, @site) or raise LightekPwa::Plans::Unavailable, LightekPwa::ViewSettlement::Unavailable, 'No active paid membership'
+      purchase = LightekPwa::Plans.current(current_user, @site) or raise LightekPwa::Plans::Unavailable, 'No active paid membership'
       LightekCommerce::SubscriptionCancellation.schedule!(subscription: purchase.order.commerce_subscription)
       show
     end

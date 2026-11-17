@@ -16,7 +16,7 @@ class PwaMemberSessionsController < ApplicationController
     raise ActiveRecord::RecordNotFound unless data['backend_key'] == config['key'] && data['hostname'] == request.host
     user = site.tenant
     raise ActiveRecord::RecordNotFound unless user.is_a?(User) && user.email_address == data['email']
-    session[:return_to_after_authenticating] = '/lightek/index.html#/create'
+    session[:return_to_after_authenticating] = params[:workspace] == 'studio' ? '/lightek/index.html#/studio' : '/lightek/index.html#/create'
     complete_primary_authentication_for(user)
   end
 end

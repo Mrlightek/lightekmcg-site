@@ -69,7 +69,7 @@ class PwaCommercialHttpTest < PwaCommercialTest
    view=ActionView::Base.with_empty_template_cache.with_view_paths(File.join(ROOT,'app/views'))
    view.assign(shared_pools:[],member_backends:[],pool_packages:[],view_batches:[],site:@site,launch_readiness:{launch_candidate:false,paid_sales_ready:false,implementation_gaps:{migration:'Verified migration missing'},configuration:{payments:false},production_acceptance:{billing:'Real payment acceptance pending'}},
      membership:{enabled:false,setup_note:'Test setup'},packages:[],purchases:[],youtube_uploads:[],creator_earnings:[],receipts:[],learning_build:nil)
-   %i[pools_dashboard_pwa_revenue_path finalize_views_dashboard_pwa_revenue_path dashboard_pwa_path import_dashboard_pwa_revenue_path prepare_nevaeh_dashboard_pwa_revenue_path].each { |name|view.define_singleton_method(name) { |**| '/dashboard/pwa/revenue' } }
+   %i[routing_dashboard_pwa_revenue_path pools_dashboard_pwa_revenue_path finalize_views_dashboard_pwa_revenue_path dashboard_pwa_path import_dashboard_pwa_revenue_path prepare_nevaeh_dashboard_pwa_revenue_path].each { |name|view.define_singleton_method(name) { |**| '/dashboard/pwa/revenue' } }
    view.define_singleton_method(:flash) { {} }
    view.define_singleton_method(:protect_against_forgery?) { false }
    html=view.render(template:'dashboard/pwa_revenue/show')

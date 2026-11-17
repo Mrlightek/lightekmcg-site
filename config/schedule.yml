@@ -113,3 +113,10 @@ pwa_commercial_recovery:
   class: 'LightekPwa::CommercialRecoveryJob'
   queue: default
   active_job: true
+
+pwa_member_capacity_alerts:
+  cron: '*/5 * * * *'
+  class: 'LightekPwa::MemberCapacityJob'
+  queue: default
+  active_job: true
+  description: 'Notify the pool operator before free-member hosting fills; never resize automatically'

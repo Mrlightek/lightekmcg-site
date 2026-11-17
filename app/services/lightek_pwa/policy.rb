@@ -16,6 +16,24 @@ module LightekPwa
       end
       sites
     end
+    # Super administrators administer imported/legacy sites without changing
+    # their tenant. A platform network is selected only by an explicit setup.
+    def self.authorize_platform!(user:, site:)
+      raise Denied, 'Platform super administrator access required' unless user&.role.to_s == 'super_admin' && site
+      true
+    end
+    def self.platform_operator(site)
+      return unless site
+      owner = site.tenant
+      return owner if owner.respond_to?(:role) && owner.role == 'super_admin'
+      operator = PlatformOperator.find_by(site: site)&.operator
+      operator if operator&.role == 'super_admin'
+    end
+    def self.bind_platform!(site:, actor:)
+      authorize_platform!(user: actor, site: site)
+      binding = PlatformOperator.find_or_initialize_by(site: site)
+      binding.update!(operator: actor)
+    end
     def self.remote_installations_for(user)
       return [] unless user && defined?(GatekeeperInstallation)
       scope = GatekeeperInstallation.where(component: "lightek_app", enabled: true)

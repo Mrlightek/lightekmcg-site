@@ -5,7 +5,7 @@ module LightekPwa
   class YoutubeImport
     HEADERS = %w[video_id user_id period_start period_end estimated_revenue_usd creator_share_bps views].freeze
     def self.call(site:, actor:, file:, source_reference:)
-      raise Policy::Denied, 'Only the platform owner can record revenue reports' unless actor.role == 'super_admin' && site.tenant == actor
+      Policy.authorize_platform!(user: actor, site: site)
       raise ArgumentError, 'Attach a CSV under 2 MB' unless file && file.size.between?(1, 2.megabytes)
       raise ArgumentError, 'Enter the YouTube report reference' if source_reference.to_s.strip.empty? || source_reference.to_s.length > 300
       bytes = file.read

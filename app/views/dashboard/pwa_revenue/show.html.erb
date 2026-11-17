@@ -9,8 +9,26 @@
     <ul><% @launch_readiness[:production_acceptance].each_value do |item| %><li><%= item %></li><% end %></ul>
   </section>
   <section><h2>Free-member hosting</h2>
-    <p>Free members use isolated application databases and storage on separate shared servers. Lightek's central host stores discovery references. A full or unavailable shared pool queues signup setup; it never falls back to the central server. Each native backend reserves at least 1.5 GB RAM, plus 1 GB for its host, and 6 GB disk per backend plus 10 GB for its host. Storage allowance defaults to 512 MB per member.</p>
+    <p>Free members use isolated application databases and storage on separate shared servers. Lightek's central host stores discovery references. A full or unavailable shared pool queues signup setup; it never falls back to the central server. The smallest starter uses a 1 GB server, a single reserved member space, 256 MB of member media storage, serialized application processes and a 2 GB swap reserve. This is a constrained pilot; full or paused pools queue new setups. Standard packages reserve 1.5 GB RAM per backend plus 1 GB for the host and allow 512 MB of media per member.</p>
     <table><thead><tr><th>Shared host</th><th>State</th><th>Capacity</th></tr></thead><tbody><% @shared_pools.each do |pool| %><tr><td><%= pool.name %></td><td><%= pool.status %></td><td><%= pool.occupied %> / <%= pool.max_members %></td></tr><% end %></tbody></table>
+    <% if @starter_offer %>
+      <p>Start small: <strong><%= @starter_offer[:plan]['label'] %> — <%= number_to_currency(@starter_offer[:plan]['monthly_cents'] / 100.0) %>/month</strong>, with <%= @starter_offer[:capacity] %> reserved member spaces. This is the smallest currently priced 1 GB-or-larger server, using the constrained starter profile. You receive a Dashboard notification when one space remains or reserved member capacity reaches 80%, and again when full. Upgrades remain your choice.</p>
+      <%= form_with url: smallest_pool_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+        <%= hidden_field_tag :request_key, SecureRandom.uuid %><%= hidden_field_tag :region, @starter_offer[:region] %><%= hidden_field_tag :plan_id, @starter_offer[:plan]['id'] %><%= hidden_field_tag :monthly_cents, @starter_offer[:plan]['monthly_cents'] %>
+        <%= submit_tag @shared_pools.empty? ? 'Start with the smallest shared server' : 'Add another smallest shared server' %>
+      <% end %>
+    <% elsif @starter_error %><p><%= @starter_error %></p><% end %>
+    <% routing = @site.manifest.to_h.fetch('pwa_pool_routing', {}) %>
+    <%= form_with url: routing_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
+      <label>New-member placement <%= select_tag :mode, options_for_select([['Default server', 'default'], ['Round robin across ready servers', 'round_robin']], routing.fetch('mode', 'default')) %></label>
+      <label>Default free-member server <%= select_tag :default_pool_id, options_for_select(@shared_pools.select { |pool| pool.status == 'ready' }.map { |pool| [pool.name, pool.id] }, routing['default_pool_id']), include_blank: 'Choose a ready server' %></label>
+      <%= submit_tag 'Save free-member placement' %>
+    <% end %>
+    <p>Placement applies to new member backends. Existing backends stay on their server. Round robin skips full and paused servers; no placement ever falls back onto the central Lightek host.</p>
+    <% @shared_pools.select { |pool| %w[ready paused].include?(pool.status) }.each do |pool| %>
+      <%= button_to "#{pool.status == 'ready' ? 'Pause new placements on' : 'Resume placements on'} #{pool.name}", status_dashboard_pwa_revenue_pool_path(site_id: @site.id, pool_id: pool.id), params: {status: pool.status == 'ready' ? 'paused' : 'ready'} %>
+    <% end %>
+    <details><summary>Choose a different package or capacity</summary>
     <%= form_with url: pools_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
       <%= hidden_field_tag :request_key, SecureRandom.uuid %>
       <label>Shared server package <%= select_tag :package_id, options_for_select(@pool_packages.map { |package| [package.product.name, package.id] }), include_blank: 'Choose package', required: true %></label>
@@ -18,6 +36,7 @@
       <label>Approved monthly server budget (USD cents) <%= number_field_tag :monthly_budget_cents, nil, min: 1, required: true %></label>
       <p>This provisions a new paid server with the selected provider. The live provider price must fit this budget.</p><%= submit_tag 'Create separate shared server' %>
     <% end %>
+    </details>
     <table><thead><tr><th>Member</th><th>State</th><th>Migration</th><th>Recovery</th></tr></thead><tbody><% @member_backends.each do |backend| %><tr><td><%= backend.user.full_name %></td><td><%= backend.status %></td><td><%= backend.migration_receipt['state'] %></td><td><%= backend.error_code %><%= button_to 'Retry setup', retry_backend_dashboard_pwa_revenue_path(site_id: @site.id, backend_id: backend.id) %><% if backend.status == 'migrating' && !%w[activated committed complete].include?(backend.migration_receipt['state']) %><%= button_to 'Restore retained source', rollback_backend_dashboard_pwa_revenue_path(site_id: @site.id, backend_id: backend.id) %><% end %></td></tr><% end %></tbody></table>
   </section>
   <section><h2>Channel publishing</h2><p>Store the central channel’s OAuth client_id, client_secret and refresh_token in Vault, with consumer <code>LightekPwa::YoutubeApi</code> and purpose <code>youtube_publishing</code>. Select that credential with LIGHTEK_YOUTUBE_CREDENTIAL_SLUG and the actual channel with LIGHTEK_YOUTUBE_CHANNEL_ID. Enable LIGHTEK_YOUTUBE_UPLOADS_ENABLED only on the central installation. Credentials never belong on member instances.</p>
@@ -38,6 +57,7 @@
       <% end %>
       <% else %><p>Opening paid membership is blocked until the configuration checks above pass, including a verified separate member host. Run the deployed acceptance journey before inviting customers.</p><% end %>
     <% else %><p>Paid membership is open.</p><%= button_to 'Pause new paid memberships', disable_dashboard_pwa_revenue_path(site_id: @site.id), method: :post %><% end %>
+    </details>
     <table><thead><tr><th>Member</th><th>Plan</th><th>Payment</th><th>Access</th><th>Setup</th></tr></thead><tbody>
     <% @purchases.each do |purchase| %><tr><td><%= purchase.user.full_name %></td><td><%= purchase.plan_key.humanize %></td><td><%= purchase.order.commerce_subscription&.status || purchase.order.status %></td><td><%= purchase.entitled? ? 'Active' : 'Not active' %></td><td><%= link_to "View instance delivery", installation_path(purchase.order) %></td></tr><% end %>
     </tbody></table>

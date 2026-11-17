@@ -180,6 +180,18 @@ class PwaMemberBackendTest < PwaCommercialTest
     assert_equal ['reserve_target'], actions
     assert_nil backend.reload.migration_receipt['snapshot']
   end
+  def test_restore_before_source_snapshot_preserves_both_runtimes
+    migration = migration_fixture
+    actions = []
+    rpc = lambda do |side, action, extra={}|
+      actions << [side, action]
+      action == 'abort_target' ? {'status'=>'aborted'} : {'status'=>'active'}
+    end
+    migration.stub(:remote, rpc) { migration.rollback! }
+    assert_equal [[:target, 'abort_target'], [:source, 'rollback_source']], actions
+    assert_equal 'shared_ready', backend.reload.status
+    assert_nil backend.order_id
+  end
   def test_failed_destination_verification_keeps_source_routing_and_prevents_activation
     migration = migration_fixture
     rpc = lambda do |side, action, extra={}|
@@ -228,6 +240,20 @@ class PwaMemberBoundaryTest < PwaMemberBackendTest
     token = JSON.parse(client.response.body).fetch('csrf_token')
     client.post '/test/direct-upload', params: payload, headers: headers.merge('X-CSRF-Token'=>token), as: :json
     assert_equal 403, client.response.status
+  end
+  def test_central_studio_writes_cannot_bypass_member_hosting
+    client = ActionDispatch::Integration::Session.new(Rails.application); client.host! @site.host
+    headers = {'X-Pwa-Test-User'=>@owner.id.to_s}
+    client.get '/test/csrf', headers: headers
+    headers['X-CSRF-Token'] = JSON.parse(client.response.body).fetch('csrf_token')
+    count = StudioProject.count
+    client.post '/api/nevaeh/execute', params: {capability: 'studio.workspace.project.create', payload: {name: 'Keep off central', request_key: SecureRandom.uuid}}, headers: headers, as: :json
+    assert_equal 403, client.response.status
+    assert_equal count, StudioProject.count
+    assert_raises(LightekPwa::Policy::Denied) do
+      Studio::Workers::Workspace.perform('project_create', {'user_id'=>@owner.id, 'site_id'=>@site.id, 'name'=>'Keep off central', 'request_key'=>SecureRandom.uuid})
+    end
+    assert LightekPwa::Network.require_studio_write!(user: @owner, site: @site, capability: 'studio.pwa.bootstrap')
   end
   def test_shared_member_runtime_cannot_invoke_server_or_training_actions
     request = Struct.new(:path, :request_parameters) { def get? = false }

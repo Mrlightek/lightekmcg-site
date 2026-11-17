@@ -223,7 +223,8 @@ module LightekPwa
         raise Policy::Denied, 'This sign-in link has expired or was already used' unless ticket.expires_at.future? && !ticket.redeemed_at
         Policy.new(user: backend.user, site: backend.site).authorize!
         ticket.update!(redeemed_at: Time.current)
-        {email: backend.user.email_address, backend_key: backend.public_key, hostname: backend.current_hostname}
+        {email: backend.user.email_address, backend_key: backend.public_key, hostname: backend.current_hostname,
+         account_role: backend.user.role}
       end
     end
   end

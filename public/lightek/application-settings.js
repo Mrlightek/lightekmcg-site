@@ -2,7 +2,7 @@
 (() => {
   const state=()=>window.LightekStorefront?.state;
   const brand=()=>state()?.bootstrap?.application;
-  const aliases={post:'home',saved:'home',community:'communities',susu:'money',membership:'home',services:'home'};
+  const aliases={post:'home',saved:'home',community:'communities',susu:'money',membership:'home',services:'home',support:'home',youtube:'home'};
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function applyBrand(){
     const app=brand();if(!app)return;
@@ -16,7 +16,8 @@
     const icon=document.querySelector('link[rel="apple-touch-icon"]');if(icon&&app.icon_url)icon.href=app.icon_url;
     let footer=document.getElementById('pwa-configured-footer');
     if(!footer){footer=document.createElement('footer');footer.id='pwa-configured-footer';footer.className='wrap';footer.style.cssText='padding:30px 24px 90px';document.body.append(footer);}
-    footer.innerHTML=(state().navigation||[]).filter(item=>item.placement==='footer').map(item=>`<a class="btn sm" href="${esc(item.href)}">${esc(item.label)}</a>`).join(' ') + (app.support_email?` <a class="btn sm" href="mailto:${esc(app.support_email)}">Contact support</a>`:'');
+    const platformPolicies=['lightekmcg.com','www.lightekmcg.com'].includes(window.location.hostname)?' <a class="btn sm" href="/privacy.html">Privacy Policy</a> <a class="btn sm" href="/terms.html">Terms of Service</a>':'';
+    footer.innerHTML=(state().navigation||[]).filter(item=>item.placement==='footer').map(item=>`<a class="btn sm" href="${esc(item.href)}">${esc(item.label)}</a>`).join(' ') + (app.support_email?` <a class="btn sm" href="mailto:${esc(app.support_email)}">Contact support</a>`:'') + platformPolicies;
   }
   for(const key of Object.keys(R)){
     const original=R[key];if(typeof original!=='function')continue;

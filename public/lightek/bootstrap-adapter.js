@@ -17,12 +17,13 @@
   }
 
   function surfaceForRoute(route) {
-    if (route === "post" || route === "saved") return "home"
-    if (route === "community") {
-      return "communities"
+    // These are detail/workflow routes within an existing configured surface.
+    // They must not be treated as missing top-level surfaces on every click.
+    const aliases = {
+      post: "home", saved: "home", community: "communities", susu: "money",
+      membership: "home", services: "home", support: "home", youtube: "home"
     }
-
-    return route
+    return aliases[route] || route
   }
 
   function capabilityAllowed(item) {
@@ -92,7 +93,7 @@
 
   function routeRequiresIdentity(route) {
     return (
-      ["create", "studio", "messages", "money", "susu", "saved"].includes(route) ||
+      ["create", "studio", "messages", "money", "susu", "saved", "youtube"].includes(route) ||
       (route === "space" && !/^#\/space\/\d+$/.test(window.location.hash))
     )
   }

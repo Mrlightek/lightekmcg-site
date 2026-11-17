@@ -30,7 +30,15 @@ class Dashboard::HostingPackagesController < ApplicationController
   end
   def update
     package = HostingPackage.find(params[:id])
-    package.update!(active: !package.active?)
-    redirect_to dashboard_hosting_packages_path, notice: "Hosting availability updated."
+    if params[:package].present?
+      values = params.require(:package).permit(:price_cents)
+      Gatekeeper::Hosting::RetailPricing.update!(package: package, actor: current_user, price_cents: values[:price_cents])
+      redirect_to dashboard_hosting_packages_path, notice: "Monthly price updated for new checkouts. Existing subscriptions keep their agreed price."
+    else
+      package.update!(active: !package.active?)
+      redirect_to dashboard_hosting_packages_path, notice: "Hosting availability updated."
+    end
+  rescue ActiveRecord::RecordInvalid, Gatekeeper::Hosting::Access::Denied => error
+    redirect_to dashboard_hosting_packages_path, alert: error.message
   end
 end

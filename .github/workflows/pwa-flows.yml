@@ -20,6 +20,10 @@ on:
       - 'app/controllers/dashboard/live_broadcasts_controller.rb'
       - 'app/controllers/dashboard/pwa_controller.rb'
       - 'app/controllers/dashboard/pwa_revenue_controller.rb'
+      - 'app/controllers/dashboard/hosting_packages_controller.rb'
+      - 'app/services/gatekeeper/hosting/retail_pricing.rb'
+      - 'app/views/dashboard/hosting_packages/**'
+      - 'test/standalone/hosting_retail_pricing_checks.rb'
       - 'app/controllers/commerce_stripe_webhooks_controller.rb'
       - 'app/services/lightek_commerce/webhook_credentials.rb'
       - 'app/views/dashboard/pwa_revenue/**'
@@ -77,6 +81,7 @@ jobs:
           bundle exec ruby test/standalone/pwa_http_checks.rb
           bundle exec ruby test/standalone/pwa_launch_setup_checks.rb
           bundle exec ruby test/standalone/shared_bank_webhook_checks.rb
+          bundle exec ruby test/standalone/hosting_retail_pricing_checks.rb
           bundle exec ruby test/standalone/pwa_registration_checks.rb -n /PwaRegistrationTest/
           bundle exec ruby test/standalone/pwa_pool_operations_checks.rb -n /PwaPoolOperationsTest/
           bash -n lib/scripts/gatekeeper/prepare_member_pool.sh script/lightek/native_website_remote.sh

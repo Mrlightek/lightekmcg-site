@@ -56,12 +56,36 @@
     const seen=new Set();
     return `<div class="wrap pwa-page"><h1>More from Lightek</h1><p>Choose what you want to do.</p><div class="pwa-services"><a class="btn p" href="#/membership">Membership & my instance</a>${meProfile()?.id?`<a class="btn" href="#/support/${Number(meProfile().id)}">Creator earnings & support</a>`:''}${links.filter(item=>item.href&&!seen.has(item.href)&&seen.add(item.href)).map(item=>`<a class="btn" href="${esc(item.href)}">${esc(item.label||item.key)}</a>`).join('')}${me()?'<a class="btn" href="/my/installations">My Applications</a>':''}</div></div>`;
   };
+  A.openPublishingStudio = async () => {
+    try {
+      const response=await fetch('/api/lightek/pwa/member-backend',{credentials:'same-origin',headers:{Accept:'application/json'}});
+      const status=await window.nevaeh.parseResponse(response);
+      if(!status.backend?.ready)throw new Error('Your publishing space is preparing. Open Membership for status.');
+      const result=await backendRequest('/open'),url=new URL(result.url);
+      if(url.protocol!=='https:'||url.host!==status.backend.hostname||url.pathname!=='/pwa/member-session')throw new Error('Invalid publishing destination');
+      url.searchParams.set('workspace','studio');location.assign(url.href);
+    } catch(e) {toast(e.message);}
+  };
+  function studioPublishingGateway(){
+    if(typeof R.studio!=='function'||R.studio.memberGateway)return;
+    const prior=R.studio;
+    const guarded=id=>{
+      const destination=window.LightekStorefront?.state.bootstrap?.publishing;
+      if(!destination|| (id&&!['create','templates','library'].includes(String(id))))return prior(id);
+      document.body?.classList?.remove('lt-visual');
+      const action=destination.member_backend?'<button class="btn p" data-a="openPublishingStudio">Open my Studio</button>':
+        destination.ready&&destination.create_url?'<a class="btn p" href="'+esc(destination.create_url.replace('#/create','#/studio'))+'">Open my Studio</a>':'';
+      return '<div class="wrap pwa-page"><h1>Studio in your publishing space</h1><p>New projects, media and processing run on your member server. Your shared space moves with you when you upgrade.</p>'+action+'<a class="btn" href="'+esc(destination.manage_url)+'">Membership & setup status</a><p>Historical projects here remain readable. Start new work in your publishing space.</p></div>';
+    };
+    guarded.memberGateway=true;R.studio=guarded;
+  }
+  addEventListener('lightek.bootstrap.ready',studioPublishingGateway);
   function simplifyNavigation(){
     const primary=document.querySelector('#primary-nav'),tools=document.querySelector('#top .tools');
     const source=window.LightekStorefront?.state.bootstrap?.member_source;
     if(source?.origin){
       try { const origin=new URL(source.origin);if(origin.protocol==='https:'&&origin.pathname==='/'){
-        if(primary){primary.innerHTML=`<a href="${esc(origin.origin)}/lightek/index.html#/home">Back to community</a><a href="#/create">Create</a><a href="#/space">My posts</a>`;}
+        if(primary){primary.innerHTML=`<a href="${esc(origin.origin)}/lightek/index.html#/home">Back to community</a><a href="#/create">Create</a><a href="#/studio">Studio</a><a href="#/space">My posts</a>`;}
         if(tools&&!tools.querySelector('[data-member-central]'))tools.insertAdjacentHTML('beforeend',`<a class="hd2" data-member-central href="${esc(origin.origin)}/lightek/index.html#/membership">Membership & earnings</a>`);
         return;
       }} catch(_){}

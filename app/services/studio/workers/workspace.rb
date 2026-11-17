@@ -12,6 +12,10 @@ module Studio
       def perform
         LightekPwa::Policy.new(user: @access.user, site: DymondSite::Site.find(@access.site_id)).authorize!("studio") if @access.site_id
         raise ArgumentError, "Unsupported Studio workspace action" unless ACTIONS.include?(@action)
+        if @access.site_id && defined?(LightekPwa::Network)
+          LightekPwa::Network.require_studio_write!(user: @access.user, site: DymondSite::Site.find(@access.site_id),
+            capability: "studio.workspace.#{@action.tr('_', '.')}")
+        end
         public_send(@action)
       end
 

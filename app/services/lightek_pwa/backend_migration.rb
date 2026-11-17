@@ -144,7 +144,6 @@ module LightekPwa
       # Once activated, new posts may exist on the destination. Never discard
       # them by sending writes to an older snapshot; require a reverse transfer.
       raise Unavailable, 'Destination may contain new writes; reconcile before reversing the move' if %w[activated committed complete].include?(@receipt['state']) || @backend.status == 'dedicated_ready'
-      raise Unavailable, 'No reserved migration destination' unless @receipt['target_reserved'] || @receipt['snapshot']
       raise Unavailable, 'Destination could not be safely restored' unless remote(:target, 'abort_target')['status'] == 'aborted'
       remote(:source, 'rollback_source')
       @backend.update!(status: 'shared_ready', order: nil, copied_bytes: 0, migration_receipt: {}, error_code: nil)

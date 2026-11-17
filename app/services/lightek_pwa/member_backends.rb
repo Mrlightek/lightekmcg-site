@@ -146,13 +146,24 @@ module LightekPwa
     end
     def self.connection!(backend)
       peer = backend.peer
+      # This central row is discovery metadata, not an installed website. Do
+      # not let it consume the hostname before Launches creates the real site.
+      remote_site = DymondSite::Site.find_or_initialize_by(host: backend.hostname)
+      if remote_site.persisted?
+        raise Unavailable, 'Member hostname is already owned' unless remote_site.tenant == backend.user
+        if peer
+          raise Unavailable, 'Member connection identity mismatch' unless peer.site_id == remote_site.id && peer.merchant_id == backend.user_id
+        elsif remote_site.manifest.to_h['network_ledger'] != true
+          raise Unavailable, 'Member hostname is already assigned to a website'
+        end
+      end
+      remote_site.assign_attributes(name: 'Member backend', tenant: backend.user,
+        manifest: remote_site.manifest.to_h.merge('network_ledger' => true))
+      remote_site.save!
       unless peer
         key = SecureRandom.uuid
         token = "#{key}.#{SecureRandom.hex(32)}"
         # The source server owns its content. This central row is discovery metadata only.
-        remote_site = DymondSite::Site.find_or_initialize_by(host: backend.hostname)
-        raise Unavailable, 'Member hostname is already owned' if remote_site.persisted? && remote_site.tenant != backend.user
-        remote_site.assign_attributes(name: 'Member backend', tenant: backend.user); remote_site.save!
         LightekVault::Service.store!(name: 'Member backend connection', slug: "reservation-peer-#{key}", payload: {'token'=>token}, purpose: 'reservation_federation',
           access_policy: {'consumers'=>['LightekReservations::Federation::Issuer','Gatekeeper::WebsiteDeployment'], 'purposes'=>['reservation_federation']}, requested_by: backend.shared_pool.operator.email_address)
         peer = LightekReservations::Peer.create!(member_backend: backend, merchant: backend.user, site: remote_site, key: key, token_digest: Digest::SHA256.hexdigest(token))

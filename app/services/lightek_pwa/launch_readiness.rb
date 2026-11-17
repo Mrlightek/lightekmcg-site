@@ -4,7 +4,7 @@ module LightekPwa
     def self.configuration(site)
       {
         payment_key: DymondBank::StripeCredentials.secret_key.present?,
-        payment_webhook: ENV['LIGHTEK_COMMERCE_STRIPE_WEBHOOK_SECRET'].present?,
+        payment_webhook: LightekCommerce::WebhookCredentials.configured?,
         separate_member_host: SharedPool.where(site: site, status: 'ready').any? do |pool|
           begin
             pool.isolated!
@@ -12,13 +12,13 @@ module LightekPwa
             false
           end
         end,
-        youtube_uploads_enabled: ENV['LIGHTEK_YOUTUBE_UPLOADS_ENABLED'] == 'true',
-        youtube_channel_selected: ENV['LIGHTEK_YOUTUBE_CHANNEL_ID'].to_s.match?(/\AUC[A-Za-z0-9_-]{22}\z/),
-        youtube_credentials_selected: ENV['LIGHTEK_YOUTUBE_CREDENTIAL_SLUG'].present?,
+        youtube_uploads_enabled: LaunchSettings.enabled?('youtube_uploads_enabled'),
+        youtube_channel_selected: LaunchSettings.value('youtube_channel_id').to_s.match?(/\AUC[A-Za-z0-9_-]{22}\z/),
+        youtube_credentials_selected: LaunchSettings.value('youtube_credential_slug').present?,
         creator_support_enabled: CreatorSupport.enabled?(site),
-        creator_payouts_enabled: ENV['LIGHTEK_CREATOR_PAYOUTS_ENABLED'] == 'true',
-        view_payouts_enabled: ENV['LIGHTEK_VIEW_PAYOUTS_ENABLED'] == 'true',
-        member_mail_enabled: ENV['LIGHTEK_MEMBER_EMAIL_ENABLED'] == 'true'
+        creator_payouts_enabled: LaunchSettings.enabled?('creator_payouts_enabled'),
+        view_payouts_enabled: LaunchSettings.enabled?('view_payouts_enabled'),
+        member_mail_enabled: LaunchSettings.enabled?('member_mail_enabled')
       }
     end
     def self.paid_ready?(site) = IMPLEMENTATION_GAPS.empty? && configuration(site).values.all?

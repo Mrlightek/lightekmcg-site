@@ -449,3 +449,6 @@ Natural voice loads its CPU model once per spoken reply, publishes a shorter fir
 ### Native bootstrap and scheduled recovery repair
 
 Scheduled definitions explicitly select Active Job dispatch with the pinned Sidekiq Cron adapter; server Redis configuration is applied before startup hooks. Native installation reserves its domain/owner/project identity before bootstrap, and can resume an older empty partial bootstrap without adopting existing data or symlinks. PWA revenue administration can retry the existing shared-host setup without requesting a replacement server. Bounded installer scope/line/exit markers survive wrapper errors without exposing command arguments or environment values. These fixes still require deployed retry and runtime acceptance.
+## PWA launch setup controls
+
+Super administrators can configure central YouTube selection and launch switches through revenue administration, verify channel authorization, and store the payment callback signing secret encrypted in Vault. Web and worker consumers use the same persisted settings, with legacy environment fallbacks. Real payments, uploads, external mail and member-server acceptance remain separate production checks.

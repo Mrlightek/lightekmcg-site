@@ -1,6 +1,7 @@
 # Actual commerce, creator payment and settlement services. Only remote payment,
 # cloud and authentication/site policy boundaries use explicit test doubles.
 require_relative 'commerce_hosting_test'
+require Rails.root.join('app/models/lightek_pwa/launch_settings')
 ActiveRecord::Schema.define do
   create_table(:posts) { |t| t.integer :site_id; t.integer :user_id; t.string :kind; t.string :visibility; t.string :audience; t.string :moderation_state; t.integer :parent_id; t.datetime :expires_at; t.json :metadata, default: {} }
   create_table(:studio_live_operations) { |t| t.string :status; t.integer :studio_project_id }

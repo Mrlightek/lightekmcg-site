@@ -5,6 +5,7 @@ end
 path = ROOT + '/db/migrate/20261117032000_add_member_brand_mailboxes.rb'
 eval(File.read(path).sub('Migration[8.0]', "Migration[#{version = ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]"), TOPLEVEL_BINDING, path)
 AddMemberBrandMailboxes.new.migrate(:up)
+require ROOT + '/app/models/lightek_pwa/launch_settings'
 require ROOT + '/app/services/lightek_email_provisioning_service'
 class User
   def full_name = 'A Member'

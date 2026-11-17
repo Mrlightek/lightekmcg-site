@@ -3,7 +3,7 @@ module LightekPwa
   class CreatorSupport
     class Unavailable < StandardError; end
     def self.enabled?(site)
-      Policy.platform_operator(site).present? && ENV['LIGHTEK_CREATOR_SUPPORT_ENABLED'] == 'true'
+      Policy.platform_operator(site).present? && LaunchSettings.enabled?('creator_support_enabled')
     end
     def self.offer!(site:, creator:, monthly_cents:, enabled:)
       Policy.new(user: creator, site: site).authorize!

@@ -7,3 +7,4 @@ gem "minitest", "~> 5.25"
 gem "uri", "~> 1.1"
 
 gem "faker", "~> 3.8"
+gem "stripe", "19.6.2"

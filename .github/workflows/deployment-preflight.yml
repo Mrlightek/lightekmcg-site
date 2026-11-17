@@ -34,4 +34,5 @@ jobs:
           bundle exec ruby test/standalone/website_deployment_dispatch_test.rb
       - name: Verify deployment operation regressions before merge
         run: |
+          python3 -m unittest test.operations.bootstrap_ruby_build_test
           python3 -m unittest test.operations.installer_diagnostics_test test.operations.native_site_reservation_test test.operations.deploy_checkout_test test.operations.deployment_storage_test test.operations.session_media_access_test test.operations.deploy_release_bootstrap_test test.operations.studio_docker_access_test test.operations.studio_worker_limits_test test.operations.studio_media_setup_test test.operations.studio_workstation_units_test test.operations.studio_spatial_setup_test test.operations.studio_spatial_packages_test

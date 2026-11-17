@@ -74,8 +74,11 @@ module LightekPwa
         if earning.destination_account.present? && earning.destination_account != actor.stripe_connect_account_id
           raise Unavailable, 'Payout account changed during a transfer; reconcile before retrying'
         end
+        if earning.state == 'transfer_pending' && (earning.transfer_requested_at.nil? || earning.transfer_requested_at < 23.hours.ago)
+          raise Unavailable, 'This older uncertain transfer needs provider reconciliation before another release attempt'
+        end
         # Stored before the request. Retrying uses the same destination/key.
-        earning.update!(state: 'transfer_pending', destination_account: actor.stripe_connect_account_id)
+        earning.update!(state: 'transfer_pending', destination_account: actor.stripe_connect_account_id, transfer_requested_at: earning.transfer_requested_at || Time.current)
       end
       return earning if earning.state == 'transferred'
       transfer = Stripe::Transfer.create({amount: earning.principal_cents, currency: earning.order.currency,

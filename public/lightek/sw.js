@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v89-creator-support-youtube"
+const CACHE = "lightek-shell-v90-separate-member-hosting"
 
 const SHELL = [
   "/lightek/index.html",

@@ -109,6 +109,8 @@ const server=http.createServer((req,res)=>{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile page must not overflow');
   await page.setViewportSize({width:1440,height:1000});
   await page.goto(`http://127.0.0.1:${server.address().port}/lightek/index.html#/studio/1`);
+  await page.getByRole('heading',{name:'Lightek Production',exact:true,level:1}).waitFor();
+  await page.getByRole('button',{name:'Advanced tools',exact:true}).click();
   await page.getByRole('heading',{name:'Pilot Scene',exact:true,level:1}).waitFor();
   await page.getByRole('button',{name:'Script',exact:true}).first().click();
   await page.locator('[data-studio-script]').fill('INT. LIGHTEK STUDIO — NIGHT\nA creator builds the network.');
@@ -117,6 +119,8 @@ const server=http.createServer((req,res)=>{
   const saved=writes.find(w=>w.capability==='studio.workspace.scene.save');
   assert.match(saved.payload.workspace.story.scriptDraft,/A creator builds the network/);
   await page.reload();
+  await page.getByRole('heading',{name:'Lightek Production',exact:true,level:1}).waitFor();
+  await page.getByRole('button',{name:'Advanced tools',exact:true}).click();
   await page.getByRole('heading',{name:'Pilot Scene',exact:true,level:1}).waitFor();
   await page.getByRole('button',{name:'Script',exact:true}).first().click();
   assert.match(await page.locator('[data-studio-script]').inputValue(),/A creator builds the network/);
@@ -129,6 +133,8 @@ const server=http.createServer((req,res)=>{
   const edited=writes.find(w=>w.capability==='studio.workspace.timeline.save');
   assert.equal(edited.payload.timeline.clips[0].keyframes[0].x,24);
   await page.reload();
+  await page.getByRole('heading',{name:'Lightek Production',exact:true,level:1}).waitFor();
+  await page.getByRole('button',{name:'Advanced tools',exact:true}).click();
   await page.getByRole('heading',{name:'Pilot Scene',exact:true,level:1}).waitFor();
   await page.getByRole('button',{name:'Timeline',exact:true}).first().click();
   assert.equal(await page.locator('[data-frame-field="x"]').inputValue(),'24');

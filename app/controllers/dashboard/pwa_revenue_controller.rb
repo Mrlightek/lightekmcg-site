@@ -6,10 +6,14 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
   rescue_from LightekPwa::Policy::Denied do |e|
     render plain: e.message, status: :forbidden
   end
-  rescue_from ArgumentError, LightekPwa::Plans::Unavailable, ActiveRecord::RecordInvalid do |e|
+  rescue_from ArgumentError, LightekPwa::Plans::Unavailable, LightekPwa::MemberBackends::Unavailable, LightekPwa::BackendMigration::Unavailable, LightekPwa::ViewSettlement::Unavailable, ActiveRecord::RecordInvalid do |e|
     redirect_to dashboard_pwa_revenue_path(site_id: @site.id), alert: e.message
   end
   def show
+    @view_batches = LightekPwa::ViewBatch.where(site: @site).order(id: :desc).limit(24)
+    @shared_pools = LightekPwa::SharedPool.where(site: @site).includes(:member_backends).order(:id)
+    @member_backends = LightekPwa::MemberBackend.where(site: @site).includes(:user).order(id: :desc).limit(50)
+    @pool_packages = HostingPackage.includes(:product).where(active: true).order(:id)
     @launch_readiness = LightekPwa::LaunchReadiness.report(site: @site)
     @youtube_uploads = LightekPwa::YoutubeUpload.where(site: @site).order(id: :desc).limit(30)
     @creator_earnings = LightekPwa::CreatorEarning.joins(:creator_payment).where(lightek_pwa_creator_payments: {site_id: @site.id}).order(id: :desc).limit(30)
@@ -20,6 +24,37 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
     @membership = LightekPwa::Plans.payload(user: current_user, site: @site)
     @receipts = LightekPwa::YoutubeRevenue.where(site: @site).order(id: :desc).limit(100)
     @purchases = LightekPwa::Purchase.where(site: @site).includes(:user, order: :commerce_subscription).order(id: :desc).limit(100)
+  end
+  def finalize_views
+    batch = LightekPwa::ViewReconciliation.call!(site: @site, actor: current_user, month: params.require(:month),
+      finalized_cents: params.require(:finalized_cents), source_reference: params.require(:source_reference),
+      report: params[:report], finalized_receipt: params[:finalized_receipt], complete_channel: params[:complete_channel] == '1')
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: "Finalized view batch ##{batch.id}. Creator earnings await confirmed funding."
+  end
+  def fund_views
+    batch = LightekPwa::ViewBatch.where(site: @site).find(params.require(:batch_id))
+    LightekPwa::ViewSettlement.fund!(batch: batch, actor: current_user, reference: params.require(:funding_reference))
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Actual available platform funding verified and reserved for this batch.'
+  end
+  def create_pool
+    package = HostingPackage.where(active: true).find(params.require(:package_id))
+    pool = LightekPwa::MemberBackends.create_pool!(site: @site, actor: current_user, package: package,
+      max_members: Integer(params.require(:max_members)), monthly_budget_cents: Integer(params.require(:monthly_budget_cents)), request_key: params.require(:request_key))
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: "Shared host ##{pool.id} is being installed on a separate server."
+  end
+  def retry_backend
+    backend = LightekPwa::MemberBackend.where(site: @site).find(params.require(:backend_id))
+    if backend.status == 'migrating' || backend.migration_receipt['state'] == 'committed'
+      LightekPwa::BackendMigrationJob.perform_later(backend.id)
+    else
+      LightekPwa::MemberBackendJob.perform_later(backend.id)
+    end
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Existing backend setup queued for retry.'
+  end
+  def rollback_backend
+    backend = LightekPwa::MemberBackend.where(site: @site).find(params.require(:backend_id))
+    LightekPwa::BackendMigration.new(backend, for_restore: true).rollback!
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'The retained source is active again. The paid server is preserved for inspection.'
   end
   def enable
     raise ArgumentError, 'Confirm payment configuration and ability to deliver the listed service bundles' unless params[:ready] == '1'

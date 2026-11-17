@@ -68,6 +68,9 @@ jobs:
           BUNDLE_GEMFILE: test/standalone/Gemfile
         run: |
           bundle exec ruby test/standalone/pwa_http_checks.rb
+          bundle exec ruby test/standalone/pwa_member_backend_checks.rb -n '/PwaMemberBackendTest|PwaMemberBoundaryTest/'
+          bundle exec ruby test/standalone/pwa_view_settlement_checks.rb -n /PwaViewSettlementTest/
+          python3 test/scripts/test_pwa_backend_transfer.py
           bundle exec ruby test/standalone/pwa_commercial_checks.rb -n /PwaCommercialTest/
           bundle exec ruby test/standalone/pwa_commercial_http_checks.rb -n /PwaCommercialHttpTest/
           bundle exec ruby test/standalone/pwa_launch_gate_checks.rb -n /PwaLaunchGateTest/

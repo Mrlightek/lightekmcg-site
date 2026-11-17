@@ -105,6 +105,7 @@ module Gatekeeper
               headline: "Welcome", description: launch.name, certificate_email: launch.owner.email_address, credential_slug: slug)
             site["reservation_federation"] = config["reservation_federation"] if config["reservation_federation"]
             site['managed_package'] = config['managed_package'] if config['managed_package']
+            site['pwa_member'] = config['pwa_member'] if config['pwa_member']
             site['demo_content'] = config['demo_content'] if config['demo_content']
             WebsiteDeployment.register!(actor: actor, record: launch.gatekeeper_node || request, config: site)
           end

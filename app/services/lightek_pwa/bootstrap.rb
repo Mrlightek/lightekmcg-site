@@ -12,6 +12,7 @@ module LightekPwa
       {
         schema_version: "1.0",
         application: @site ? configuration.app.bootstrap_payload.merge(access_suspended: configuration_policy.membership&.status == "suspended", administration: {role: configuration_policy.role, super_admin: configuration_policy.super_admin?, can_manage: configuration_policy.manage?}) : {id: "lightek", name: "Lightek"},
+        member_source: @site&.manifest.to_h['pwa_member'],
         publishing: @site && LightekPwa::Network.write_destination(user: user, site: @site),
         identity: identity_payload,
         navigation: navigation_payload,

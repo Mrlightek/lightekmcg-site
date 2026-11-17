@@ -16,3 +16,7 @@ Rails.application.config.filter_redirect += [%r{/identity/sso/callback}, %r{[?&]
 
 # Embedded financial sessions are bearer credentials, never request-log data.
 Rails.application.config.filter_parameters += [:client_secret, :account_session, :identity_document, :date_of_birth, :dob]
+
+# Member sign-in tickets are short-lived bearer credentials.
+Rails.application.config.filter_parameters += [:ticket]
+Rails.application.config.filter_redirect += [%r{/pwa/member-session}]

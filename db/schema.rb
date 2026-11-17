@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_17_150000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_17_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -3085,6 +3085,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_17_150000) do
     t.index ["supporter_id"], name: "index_lightek_pwa_creator_payments_on_supporter_id"
   end
 
+  create_table "lightek_pwa_launch_settings", force: :cascade do |t|
+    t.json "settings", default: {}, null: false
+    t.bigint "updated_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["updated_by_id"], name: "index_lightek_pwa_launch_settings_on_updated_by_id"
+  end
+
   create_table "lightek_pwa_member_backends", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "user_id", null: false
@@ -5879,6 +5887,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_17_150000) do
   add_foreign_key "lightek_pwa_creator_payments", "posts", on_delete: :nullify
   add_foreign_key "lightek_pwa_creator_payments", "users", column: "creator_id"
   add_foreign_key "lightek_pwa_creator_payments", "users", column: "supporter_id"
+  add_foreign_key "lightek_pwa_launch_settings", "users", column: "updated_by_id"
   add_foreign_key "lightek_pwa_member_backends", "gatekeeper_application_launches", column: "launch_id"
   add_foreign_key "lightek_pwa_member_backends", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_pwa_member_backends", "lightek_pwa_shared_pools", column: "shared_pool_id"

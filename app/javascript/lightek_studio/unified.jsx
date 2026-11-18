@@ -11,7 +11,7 @@ const workspaces = [
   ['library',FolderOpen,'Media Library'],['publish',Share2,'Social & Publish']
 ];
 const aliases={ai:'create',workflows:'create',stage:'create',edit:'timeline',color:'timeline',assets:'library',media:'library',deliver:'publish',cast:'create'};
-const tabFor=input=>workspaces.some(([name])=>name===input)?input:aliases[input]||'create';
+const tabFor=input=>workspaces.some(([name])=>name===input)?input:aliases[input]||'timeline';
 function readTimeline(value) {
   return {
     output:'video',width:1280,height:720,fps:24,...value,
@@ -239,8 +239,14 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
 
   return <div className="ls-shell">
     <aside className="ls-sidebar">
-      <div className="ls-brand"><span>L</span><div><strong>LIGHTEK STUDIO</strong><small>AI Media &amp; Social Hub</small></div></div>
+      <div className="ls-brand"><span>L</span><div><strong>LIGHTEK STUDIO</strong><small>Create, edit, score and publish</small></div></div>
       <nav aria-label="Studio workspaces">{workspaces.map(([name,Icon,label])=><button type="button" key={name} aria-current={tab===name?'page':undefined} onClick={()=>go(name)} disabled={busy}><Icon size={17}/>{label}</button>)}</nav>
+      <nav aria-label="More Studio tools">
+        <a href={api.native(scene.id,'music')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Music and discard unsaved timeline changes?'))event.preventDefault();}}>Music &amp; audio</a>
+        <a href={api.native(scene.id,'stage')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Animation and discard unsaved timeline changes?'))event.preventDefault();}}>Animation &amp; characters</a>
+        {api.dashboard&&<a href={api.editor('photo')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Photo Studio and discard unsaved timeline changes?'))event.preventDefault();}}>Photo &amp; graphics</a>}
+        {api.dashboard&&<a href={api.editor('video')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Video Studio and discard unsaved timeline changes?'))event.preventDefault();}}>Full video editor</a>}
+      </nav>
       <a className="ls-exit" href={home}>Exit Studio</a>
     </aside>
     <main className="ls-main">
@@ -282,6 +288,7 @@ export default function LightekUnifiedStudio({api,route,home}) {
   const [name,setName]=useState('');
   const [creating,setCreating]=useState(false);
   const [key,setKey]=useState(requestKey);
+  const [entry,setEntry]=useState('timeline');
   const loadProjects=useCallback(async()=>{
     try {const result=await api.call('bootstrap');setProjects(sceneRecords(result.projects));setLoad('ready');}
     catch(error){setError(error.message);setLoad('failed');}
@@ -304,7 +311,8 @@ export default function LightekUnifiedStudio({api,route,home}) {
     try{
       const result=await api.call('project.create',{name:name.trim()||'Untitled project',format:'landscape',request_key:key});
       await loadProjects();setName('');setKey(requestKey());
-      selectScene(result.scene_id,'create');
+      if(['music','stage'].includes(entry))location.assign(api.native(result.scene_id,entry));
+      else selectScene(result.scene_id,entry);
     }catch(error){setError(error.message);}
     finally{setCreating(false);}
   }
@@ -317,8 +325,14 @@ export default function LightekUnifiedStudio({api,route,home}) {
     {error&&<p role="alert" className="ls-error">{error}</p>}
     {load==='loading'?<p role="status">Opening your projects…</p>:load==='failed'?<button onClick={loadProjects}>Try again</button>:<>
       {selected&&!record&&<p role="status">The selected scene is unavailable. Choose a project below.</p>}
-      <form onSubmit={create}><label>Project name (optional)<input value={name} maxLength="120" onChange={event=>{setKey(requestKey());setName(event.target.value);}}/></label><button className="ls-primary" disabled={creating}><Plus size={16}/> New project</button></form>
-      <div className="ls-assets">{projects.map(item=><button type="button" key={item.scene.id} onClick={()=>selectScene(item.scene.id,'create')}><strong>{item.project.name}</strong><small>{item.scene.name}</small></button>)}</div>
+      <p>Edit your media, make music or animate a scene. AI generation is an optional workspace.</p>
+      {api.dashboard&&<nav className="ls-row" aria-label="Start an editor"><a href={api.editor('photo')}>Photo &amp; graphics</a><a href={api.editor('video')}>Full video editor</a></nav>}
+      <form onSubmit={create}><label>Project name (optional)<input value={name} maxLength="120" onChange={event=>{setKey(requestKey());setName(event.target.value);}}/></label><label>Start with<select value={entry} onChange={event=>setEntry(event.target.value)}><option value="timeline">Video editing</option><option value="music">Music &amp; audio</option><option value="stage">Animation &amp; characters</option><option value="create">AI generation</option></select></label><button className="ls-primary" disabled={creating}><Plus size={16}/> New project</button></form>
+      <div className="ls-assets">{projects.map(item=>{
+        const kind=item.scene.settings?.editor_kind;
+        const content=<><strong>{item.project.name}</strong><small>{item.scene.name}</small></>;
+        return api.dashboard&&['photo','video'].includes(kind)?<a key={item.scene.id} href={api.editor(kind,item.scene.id)}>{content}</a>:<button type="button" key={item.scene.id} onClick={()=>selectScene(item.scene.id,'timeline')}>{content}</button>;
+      })}</div>
     </>}
   </main>;
 }
@@ -367,6 +381,11 @@ let pwaHost,pwaRoot;
 window.LightekUnifiedStudio={
   pwa(container,id){
     if(id&&!/^[1-9]\d*$/.test(id)&&id!=='library'&&id!=='create')return false;
+    // Music, animation and the other native workspaces own their existing routes.
+    // Returning false lets the PWA run the original Studio renderer and hooks.
+    const requested=location.hash.split('/')[3];
+    if(requested&&!workspaces.some(([name])=>name===requested)&&!Object.prototype.hasOwnProperty.call(aliases,requested))return false;
+    if(requested==='stage')return false;
     if(pwaHost?.parentNode===container&&location.hash===activeHash)return true;
     if(pwaRoot)pwaRoot.unmount();
     pwaHost=document.createElement('div');

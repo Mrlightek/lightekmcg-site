@@ -18,6 +18,10 @@
 .ls-shell button svg,.ls-projects button svg{vertical-align:middle;margin-right:6px}
 .ls-shell .ls-primary,.ls-projects .ls-primary{background:var(--ls-action);border-color:var(--ls-action);color:white;font-weight:600}
 .ls-sidebar nav button{display:flex;align-items:center;gap:7px;background:transparent;min-height:44px}
+.ls-sidebar nav a{display:flex;align-items:center;min-height:44px;padding:8px 12px;border:1px solid var(--ls-line);border-radius:8px;text-decoration:none;overflow-wrap:anywhere}
+.ls-sidebar nav a:hover{border-color:var(--ls-accent)}
+.ls-projects select{max-width:100%;min-height:40px;border:1px solid var(--ls-line);border-radius:8px;background:#0d0f18;color:var(--ls-text);padding:8px 10px;font:inherit}
+.ls-projects .ls-assets>a{display:block;padding:8px 12px;border:1px solid var(--ls-line);border-radius:8px;text-decoration:none}
 .ls-health{margin-top:auto;padding:12px;background:#0d0e15;border:1px solid var(--ls-line);border-radius:10px}
 .ls-exit{padding:0 10px}.ls-main{min-width:0}.ls-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 22px;border-bottom:1px solid var(--ls-line);background:#14151e}
 .ls-header h1{margin-right:auto}.ls-header select{max-width:300px}.ls-content{padding:20px}

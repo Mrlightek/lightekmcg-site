@@ -43,7 +43,7 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
       @scene=access.scene!(params[:scene_id])
       raise ActiveRecord::RecordNotFound unless @scene.studio_project.site_id==@site.id
     end
-    mode=params[:workspace].presence || (params[:advanced] == "1" ? "edit" : "ai")
+    mode=params[:workspace].presence || "edit"
     raise ArgumentError,"Choose an available production workspace" unless %w[shots ai workflows media color stage edit cast scene camera deliver performance 3d timeline script publish music].include?(mode)
     @workspace_mode=mode
     @advanced_workspace = params[:advanced] == "1" || %w[shots scene camera script music 3d].include?(mode)

@@ -92,11 +92,17 @@ export function studioApi(host) {
     activityListeners.add(listener);
     return ()=>activityListeners.delete(listener);
   }
-  return {call,upload,converse,onActivity,dashboard:!!host,site,advanced:(scene,workspace='edit') => {
+  function advanced(scene,workspace='edit') {
     const params = new URLSearchParams({advanced:'1',workspace});
     if (site) params.set('site_id',site);
     return prefix + '/workspace/' + scene + '?' + params;
-  }};
+  }
+  return {call,upload,converse,onActivity,dashboard:!!host,site,advanced,
+    native:(scene,workspace)=>host?advanced(scene,workspace):`#/studio/${scene}/${workspace}`,
+    editor:(kind,scene)=>{
+      if(!host || !['photo','video'].includes(kind))return null;
+      return `/dashboard/studio/editors/${kind}/${scene || 'new'}${query}`;
+    }};
 }
 
 export function sceneRecords(projects) {

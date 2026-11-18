@@ -8,7 +8,7 @@ module Studio
       class Current < ActiveSupport::CurrentAttributes
         attribute :lease
       end
-      TTL = 90.seconds
+      TTL = Guardrails::LEASE_SECONDS.seconds
 
       def self.claim!(operation)
         pool = StudioComputePool.create_or_find_by!(name: "cpu")

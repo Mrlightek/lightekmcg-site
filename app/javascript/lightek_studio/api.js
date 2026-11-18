@@ -51,7 +51,7 @@ export function studioApi(host) {
       let receiptId;
       if(tracked)notify({id:localId,label,status:'queued',scene_id:payload.scene_id});
       try {
-        const data=await window.nevaeh.execute(request,{onReceipt:receipt=>{
+        const data=await window.nevaeh.execute(tracked?{...request,prefer_async:true}:request,{onReceipt:receipt=>{
           receiptId=receipt.work_item_id;
           if(tracked)notify({id:receiptId,replace:localId,label,status:'running',scene_id:payload.scene_id,task_uuid:receipt.correlation_id});
         }});

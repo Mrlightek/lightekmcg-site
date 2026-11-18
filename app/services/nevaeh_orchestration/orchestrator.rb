@@ -121,6 +121,11 @@ module NevaehOrchestration
           }.compact
         )
 
+      if capability.slug.start_with?("studio.workspace.")
+        payload=Array(attributes[:args])[1]
+        Studio::Compute::Guardrails.preflight!(capability.slug,payload.to_h.deep_stringify_keys)
+      end
+
       work_item =
         DispatchService.call(
           plan: plan

@@ -39,6 +39,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
   const [prompt,setPrompt]=useState('');
   const [seed,setSeed]=useState('-1');
   const [steps,setSteps]=useState('');
+  const [quality,setQuality]=useState('auto');
   const [aspect,setAspect]=useState('16:9');
   const [worker,setWorker]=useState('');
   const [reference,setReference]=useState('');
@@ -84,13 +85,13 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
   const elapsed=Math.max(0,...timeline.clips.map(clip=>clip.start+(clip.out-clip.in)/(clip.speed||1)));
 
   function change(setter,value){
-    setter(value);setKey(requestKey());setQuote(null);setError('');
+    setter(value);setKey(requestKey());setQuote(null);setError('');setFailure(null);
   }
   function submit(action, message=()=>'Studio could not complete this request.') {
     run(async()=>{
       setError('');
       try {await action();}
-      catch(cause){if(cause.name!=='AbortError'){setError(message(cause));setFailure({error:cause.message,receipt:cause.workItemId || cause.data?.work_item_id});}}
+      catch(cause){if(cause.name!=='AbortError'){setError(cause.data?.suggestion?cause.message:message(cause));setFailure({error:cause.message,suggestion:cause.data?.suggestion,receipt:cause.workItemId || cause.data?.work_item_id});}}
     });
   }
   function upload(setter,file) {
@@ -131,7 +132,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
       } finally {setPhase('');}
     }else{
       const payload=mode==='character'?{recipe:engine,input_asset_id:Number(source),driver_asset_id:Number(driver)}:
-        {recipe:recipeId,prompt:prompt.trim(),genesis_worker_id:chosenWorker.id,
+        {recipe:recipeId,prompt:prompt.trim(),genesis_worker_id:chosenWorker.id,...(quality!=='auto'?{quality_profile:quality}:{}),
           ...(mode==='image'?{aspect_ratio:aspect}:{seed:seed===''?-1:Number(seed),...(steps!==''?{steps:Number(steps)}:{}),
             ...(currentReference?{input_asset_id:currentReference}:{})})};
       const result=await api.call('ai.generate',{...payload,scene_id:scene.id,request_key:key},recordReceipt);
@@ -164,9 +165,13 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
           {mode==='image'&&<Options label="Aspect ratio" value={aspect} onChange={value=>change(setAspect,value)} options={['16:9','9:16','1:1'].map(id=>[id,id])}/>}
           <Options label="Genesis worker" value={chosenWorker?String(chosenWorker.id):''} onChange={value=>change(setWorker,value)}
             options={workers.length?workers.map(item=>[String(item.id),item.label]):[['','No available worker']]}/>
-          {mode==='video'&&<details className="ls-drawer"><summary><Sliders size={16}/> Advanced</summary><div className="ls-fields">
+          {<details className="ls-drawer"><summary><Sliders size={16}/> Advanced</summary><div className="ls-fields">
+            <Options label="Quality" value={quality} onChange={value=>change(setQuality,value)}
+              options={[[ 'auto','Auto' ],[ 'economy','Economy' ],[ 'quality','Quality' ]]}/>
+            {mode==='video'&&<>
             <label>Seed<input type="number" min="-1" max="4294967295" step="1" value={seed} onChange={event=>change(setSeed,event.target.value)}/><small>−1 picks a seed automatically.</small></label>
             <label>Steps<input type="number" min="1" max="60" step="1" placeholder={recipe?.steps || 'Default'} value={steps} onChange={event=>change(setSteps,event.target.value)}/></label>
+            </>}
           </div></details>}
           {inventory&&(!chosenWorker||!recipe?.ready)&&<p className="ls-muted">This tool is currently unavailable.</p>}
         </>}
@@ -203,6 +208,10 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
         <button onClick={()=>setDetails(chosenOperation?{operationId:chosenOperation.id,receipt:receipts['operation-'+chosenOperation.id],error:chosenOperation.error}:{assetId:selected,receipt:receipts['asset-'+selected],error:job?.error})}>Operation Details</button>
       </div>}
       {error&&<button onClick={()=>setDetails(failure)}>Operation Details</button>}
+      {error&&neural&&failure?.suggestion?.quality_profile==='economy'&&<button type="button" onClick={()=>{
+        if(failure.suggestion.steps)setSteps(String(failure.suggestion.steps));
+        change(setQuality,'economy');
+      }}>Use Economy settings</button>}
       {chosenOperation?.cpu_resumable&&<button disabled={busy} onClick={()=>submit(async()=>{await api.call('render.resume',{operation_id:chosenOperation.id});await refresh();})}>Resume Render from Checkpoint</button>}
       {operationVideo&&!chosenOperation.draft_preview&&<button disabled={busy} onClick={()=>submit(addRender)}>Save clip to Media Library</button>}
       {!api.dashboard&&operationVideo&&!chosenOperation.draft_preview&&<button onClick={()=>{

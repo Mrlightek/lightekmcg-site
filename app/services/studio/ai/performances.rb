@@ -14,7 +14,7 @@ module Studio
         "audio/mp4"=>".m4a", "audio/ogg"=>".ogg", "audio/webm"=>".webm", "audio/aac"=>".aac"
       }.freeze
       LIMIT = 50.megabytes
-      RUN_TIMEOUT = 30.minutes
+      RUN_TIMEOUT = Compute::Guardrails::PERFORMANCE_TIMEOUT.seconds
       QUEUE_TIMEOUT = 1.hour
       RECOVERY_AFTER = RUN_TIMEOUT + 5.minutes
 
@@ -74,7 +74,7 @@ module Studio
         raise ArgumentError,"Choose a supported media file up to 50 MB" unless MIME_EXTENSIONS.key?(blob.content_type) && blob.byte_size.between?(1,LIMIT)
         if asset.kind=="image"
           InputImage.validate!(asset)
-        elsif !asset.metadata["duration"].to_f.between?(0.1,15)
+        elsif !asset.metadata["duration"].to_f.between?(0.1,Compute::Guardrails::PERFORMANCE_SECONDS)
           raise ArgumentError,"Use a recording or video between 0.1 and 15 seconds"
         end
         blob
@@ -129,7 +129,7 @@ module Studio
           end
           FileUtils.cp(Rails.root.join("lib/scripts/studio_performance_worker.py"),root)
           command=MediaProcess.container(["python","/work/studio_performance_worker.py",recipe,*paths],root:root,image:worker_image,
-            memory: "12g", pull: false)
+            memory: Compute::Guardrails::PERFORMANCE_MEMORY, pull: false)
           MediaProcess.run!(command,timeout:RUN_TIMEOUT)
           file=File.join(root,"performance.mp4")
           raise ArgumentError,"Performance worker did not save a usable video" unless File.file?(file) && !File.symlink?(file) && File.size(file).between?(1,250.megabytes)

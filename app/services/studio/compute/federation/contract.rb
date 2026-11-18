@@ -18,8 +18,9 @@ module Studio
           # Require already-resolved dimensions: a paid snapshot is never silently rewritten.
           resolved = CpuProfile.settings(settings)
           raise ArgumentError, "Resolve the CPU economy profile before submitting" unless resolved == settings
+          Studio::Compute::Guardrails.economy_manifest!(manifest)
           start = Integer(settings.fetch("frame_start", 1)); finish = Integer(settings.fetch("frame_end", 1))
-          raise ArgumentError, "Remote CPU movies support 1–2400 ordered frames" unless start >= 1 && finish >= start && finish <= 2400
+          raise ArgumentError, "Remote CPU movies support 1–2400 ordered frames" unless start >= 1 && finish >= start && finish <= Guardrails::CPU_FRAMES
           vector!(settings["world_color"], 4) if settings.key?("world_color")
           number!(settings["world_strength"]) if settings.key?("world_strength")
           base = settings.fetch("fps_base", 1)

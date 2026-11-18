@@ -31,3 +31,5 @@ Image conditioning supplies a starting frame. It does not guarantee recurring ch
 Focused tests use the real database and attachments, real FFmpeg PNG preparation and MP4 ingest, and a loopback ComfyUI protocol fixture. They cover scoped source selection, frozen-image review, original-image replacement, idempotency, multipart upload, workflow binding, missing conditioning support, failed upload confirmation and UI source/pagination/submission behavior. They do not run Wan inference. Actual GPU generation, visual quality, performance and integrated production acceptance remain in the final verification sprint.
 
 The implementation uses the already pinned ComfyUI engine: [Wan conditioning node](https://github.com/Comfy-Org/ComfyUI/blob/30c259cac8c08ff8d015f9aff3151cb525c9b702/comfy_extras/nodes_wan.py) and [image upload route](https://github.com/Comfy-Org/ComfyUI/blob/30c259cac8c08ff8d015f9aff3151cb525c9b702/server.py). It adds an Active Storage attachment, with no new database table or migration.
+
+See [Studio specialist limits and recovery](worker-guardrails.md) for the enforced worker budgets and retry options.

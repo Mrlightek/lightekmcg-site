@@ -43,3 +43,5 @@ Focused tests cover resolved profile bounds, preserved source settings, containe
 ## Remaining compute work
 
 Dedicated workers within one installation now add tenant concurrency caps and expiring job leases. The [remote CPU bridge](remote-cpu-rendering.md) now connects independent client installations for supported procedural movies. Native/rig/audio source transfer, strict scheduling fairness/compute accounting, checkpoint transfer without shared central storage, economical neural-runtime/model evaluation and representative production-server benchmarks remain separate work. The full production go/no-go stays in the integrated verification sprint.
+
+See [Studio specialist limits and recovery](worker-guardrails.md) for the enforced worker budgets and retry options.

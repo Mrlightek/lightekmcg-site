@@ -48,8 +48,28 @@ module Studio
         verified=(status=="ready" && asset&.proxy&.attached?) ||
           (status=="completed" && operation&.artifacts&.any? { |artifact| artifact.file.attached? })
         status="failed" if status.in?(%w[ready completed]) && !verified
+        working=if verified && asset && asset.metadata["ai_profile"]
+          {"quality_profile"=>asset.metadata["ai_profile"],"genesis_worker_id"=>asset.metadata.dig("ai_worker","installation_id"),
+            "seed"=>asset.metadata.dig("ai_intent","seed")}.compact
+        end
         {id:item.id,task_uuid:item.correlation_id,label:LABELS.fetch(item.kind),status:status,asset_id:asset&.id,
-          operation_id:operation&.id,teach:verified && Ability.new(access.user).can?(:manage,NevaehWorkflow)}
+          operation_id:operation&.id,recovery:status.in?(%w[failed recoverable]) ? Studio::Compute::Recovery.advice(asset:asset,operation:operation,work_error:item.error,checkpoint:checkpoint) : nil,
+          working_parameters:working,
+          teach:verified && Ability.new(access.user).can?(:manage,NevaehWorkflow)}
+      end
+
+      def retry_economy_inputs!(actor, site, receipt_id)
+        item=scope(actor,site.id).where(kind:"studio.workspace.ai.generate").find(receipt_id)
+        access=Studio::PwaAccess.new("user_id"=>actor.id,"site_id"=>site.id)
+        inputs=item.args.fetch(1)
+        scene=access.scene!(inputs.fetch("scene_id"))
+        raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id==site.id
+        evidence=row(item,access,scene)
+        unless evidence.dig(:recovery,:action)=="retry_economy"
+          raise ArgumentError,"This result doesn’t have an Economy retry. Check the worker before submitting again."
+        end
+        inputs.slice(*Studio::Compute::Guardrails::GENERATION_INPUTS).merge("quality_profile"=>"economy",
+          "steps"=>inputs.fetch("steps",20).to_i.clamp(1,20),"request_key"=>"economy-retry-#{item.id}","user_id"=>actor.id,"site_id"=>site.id)
       end
 
       def publication_status(publication)

@@ -114,7 +114,7 @@ module NevaehOs
       raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id==site.id
       evidence=activity.row(item,access,scene)
       raise ArgumentError, "Wait for a verified Studio result before teaching this phrase" unless evidence[:teach]
-      payload=studio_inputs(item.kind,inputs)
+      payload=studio_inputs(item.kind,inputs).merge(evidence.fetch(:working_parameters,nil) || {})
       target={"kind"=>"capability","intent"=>item.kind,"payload"=>payload,"site_id"=>site.id}
       worker=worker!(actor,Agents.resolve!("nevaeh",actor).id,target)
       doc=NevaehIntelligences::SoftwareLibrary.new.documents.find { |entry| entry[:path]=="docs/lightek_pwa_acceptance.md" }
@@ -126,7 +126,7 @@ module NevaehOs
         binding=NevaehLanguageBinding.create!(creator:actor,name:phrase,patterns:[phrase],slots:{},
           command_template:target,source_refs:[doc.slice(:path,:sha256,:title).stringify_keys],
           builder_spec:{"schema"=>1,"studio_capture"=>true,"template_key"=>"capability:#{item.kind}",
-            "worker_id"=>worker.id,"fixed"=>payload,"sample_phrase"=>phrase,"expected"=>{},
+            "worker_id"=>worker.id,"source_receipt_id"=>receipt_id.to_i,"fixed"=>payload,"sample_phrase"=>phrase,"expected"=>{},
             "family"=>SecureRandom.uuid,"version"=>1})
         verify!(binding:binding,actor:actor)
         activate!(binding:binding,actor:actor)
@@ -136,7 +136,7 @@ module NevaehOs
     def studio_inputs(capability, inputs)
       keys=case capability
       when "studio.workspace.ai.generate"
-        %w[scene_id recipe prompt genesis_worker_id input_asset_id driver_asset_id aspect_ratio seed steps]
+        Studio::Compute::Guardrails::GENERATION_INPUTS
       when "studio.workspace.render.quote"
         %w[scene_id scene_preset procedural_script_params routing_mode output]
       when "studio.workspace.performance.preview"

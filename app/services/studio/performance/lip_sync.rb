@@ -32,9 +32,9 @@ module Studio
             [[rhubarb.first,"--version"],ffmpeg,rhubarb].each_with_index.map do |command,index|
               if Rails.env.production?
                 command=command.map{|value|value.gsub(root,"/work")}
-                command=Studio::MediaProcess.container(command,root:root,image:Studio::NativeBlender::Runtime.image(:media))
+                command=Studio::MediaProcess.container(command,root:root,image:Studio::NativeBlender::Runtime.image(:media),memory:Studio::Compute::Guardrails::MEDIA_MEMORY)
               end
-              output=Studio::MediaProcess.run!(command,timeout:[8,45,180].fetch(index))
+              output=Studio::MediaProcess.run!(command,timeout:[8,45,Studio::Compute::Guardrails::SPEECH_TIMEOUT].fetch(index))
               if index==0
                 raise ArgumentError,"Install the pinned Rhubarb speech engine version" unless output.strip=="Rhubarb Lip Sync version #{VERSION}"
               end
@@ -54,7 +54,7 @@ module Studio
         audio=StudioAsset.for_actor(access).where(site_id:access.site_id,status:"ready",kind:%w[audio video]).find(payload.fetch("audio_asset_id"))
         raise ArgumentError,"Choose a recording containing audio" unless audio.file.attached? && (audio.kind=="audio" || audio.metadata["has_audio"])
         first=Take.number(payload.fetch("source_in",0),0,7200);last=Take.number(payload.fetch("source_out"),0,7200)
-        raise ArgumentError,"Analyze 0.1–30 seconds within the recording" unless (last-first).between?(0.1,30) && last<=audio.metadata["duration"].to_f+0.01
+        raise ArgumentError,"Analyze 0.1–30 seconds within the recording" unless (last-first).between?(0.1,Studio::Compute::Guardrails::SPEECH_SECONDS) && last<=audio.metadata["duration"].to_f+0.01
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"A speech request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         recognizer=payload.fetch("recognizer","pocketSphinx").to_s;dialogue=payload.fetch("dialogue","").to_s.strip

@@ -23,8 +23,8 @@ const origin = 'http://localhost:18447';
     const image={id:21,name:'Starting image',kind:'image',status:'ready',proxy_url:'/image.png'};
     const uploadedFrame={...image,id:24,name:'Uploaded frame'};
     const sound={id:22,name:'Voice recording',kind:'audio',status:'ready',proxy_url:'/voice.wav',metadata:{duration:4.1}};
-    const video={id:23,name:'Generated shot',kind:'video',status:'ready',metadata:{duration:5},proxy_url:'/video.mp4'};
-    let generated=false,published=[],loads=0,recoverable=true,frameImported=false,uploadAttempts=0;
+    const video={id:23,name:'Generated shot',kind:'video',status:'ready',metadata:{duration:5,width:540,height:960},proxy_url:'/video.mp4'};
+    let generated=false,published=[],loads=0,recoverable=true,taught=false,frameImported=false,uploadAttempts=0;
 
     await page.route(origin+'/**',async route=>{
       const url=new URL(route.request().url());
@@ -45,13 +45,25 @@ const origin = 'http://localhost:18447';
         calls.push([key,data]);
         let result;
         switch(key){
+          case 'nevaeh.conversation':
+            if(data.teach){taught=true;result={text:'Shortcut saved and ready to use.'};}
+            else result={text:'You are in the '+data.view+' workspace.',status:'grounded'};
+            break;
           case 'bootstrap': result={projects:[{id:3,name:'Production',unassigned_scenes:[scene]}]};break;
           case 'assets.list': result={assets:data.surface==='ai_input'?[image,...(frameImported?[uploadedFrame]:[])]:[image,sound,...(frameImported?[uploadedFrame]:[]),...(generated?[video]:[])]};break;
           case 'ai.status': result={connected:true,device:{type:'cpu'},models:['sd-v1-5.safetensors'],genesis_workers:[{id:18,label:'Genesis worker',video:true,image:true}],render_pools:['local','remote'],performances:[{id:'musetalk',source:['image','video'],driver:'audio',configured:true}],recipes:['wan22_video','wan22_image_video','image'].map(id=>({id,ready:true,steps:20}))};break;
           case 'asset.import': frameImported=true;result={asset_id:24,status:'uploaded'};break;
           case 'ai.generate': generated=true;result={asset_id:23,status:'uploaded'};break;
           case 'ai.jobs': result=generated?[{...video,asset_id:23,preview_url:video.proxy_url}]:[];break;
-          case 'operations.list': loads++;result={operations:[{id:46,type:'build_scene',scene_id:7,status:recoverable?'failed':'pending',cpu_resumable:recoverable,error:recoverable?'private diagnostic':null,artifacts:[]}],publications:published};break;
+          case 'operations.list':
+            loads++;
+            result={
+              activity:data.activity_scene_id?[{id:81,label:'Generation',status:'ready',asset_id:23,teach:true},
+                ...(recoverable?[{id:79,label:'3D render',status:'recoverable',operation_id:46}]:[])]:[],
+              operations:[{id:46,type:'build_scene',scene_id:7,status:recoverable?'failed':'pending',cpu_resumable:recoverable,error:recoverable?'private diagnostic':null,artifacts:[]},
+                ...(data.activity_scene_id?[{id:71,type:'build_scene',scene_id:7,status:'completed',artifacts:[{id:77,kind:'video',filename:'Landscape render.mp4',url:'/video.mp4'}]}]:[])],
+              publications:published
+            };break;
           case 'render.quote': result={operation_id:46,quote:{currency:'USD',total_cents:300}};break;
           case 'render.resume': recoverable=false;result={operation_id:46,status:'pending'};break;
           case 'timeline.save': scene.settings.timeline=data.timeline;scene.lock_version++;result={timeline:data.timeline,lock_version:scene.lock_version};break;
@@ -66,7 +78,7 @@ const origin = 'http://localhost:18447';
             published.push({id,platform:data.platform,status:data.platform==='lightek_social'?'published':'pending',youtube_preparation:data.youtube_preparation,post_id:data.youtube_preparation?52:null});
             result={publication_id:id,status:'queued'};break;
           }
-          case 'timeline.quote': result={operation_id:56,quote:{currency:'USD',total_cents:300}};break;
+          case 'timeline.quote': result={operation_id:56,status:'awaiting_payment',quote:{currency:'USD',total_cents:300}};break;
           default: throw Error('Unexpected capability '+key);
         }
         return route.fulfill({json:{status:'completed',result}});
@@ -161,9 +173,43 @@ const origin = 'http://localhost:18447';
       assert(await page.evaluate(()=>document.documentElement.scrollWidth<=390),name+' must fit on a phone');
     }
     assert(loads>0);
+    recoverable=true;
     await page.goto(origin+'/lightek/index.html#/studio/7/timeline');
     await page.getByRole('heading',{name:'Timeline & Edit'}).waitFor();
     await page.getByRole('button',{name:/Generated shot/}).waitFor();
+    await page.getByRole('button',{name:'Nevaeh',exact:true}).click();
+    await page.getByLabel('Message Nevaeh').fill('How do I use the timeline?');
+    await page.getByRole('button',{name:'Send',exact:true}).click();
+    await page.getByText('You are in the timeline workspace.').waitFor();
+    await page.getByRole('button',{name:'Media Library',exact:true}).click();
+    await page.getByRole('button',{name:/Starting image/}).click();
+    await page.getByLabel('Message Nevaeh').fill('How do I use this image?');
+    await page.getByRole('button',{name:'Send',exact:true}).click();
+    await page.getByText('You are in the library workspace.').waitFor();
+    assert(calls.some(([key,data])=>key==='nevaeh.conversation'&&data.asset_id===21&&data.scene_id===7&&data.view==='library'));
+    await page.getByRole('button',{name:'Activity',exact:true}).click();
+    await page.getByText('Verified Result',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Resume from Checkpoint',exact:true}).click();
+    await page.getByRole('button',{name:'Resume from Checkpoint',exact:true}).waitFor({state:'hidden'});
+    assert.equal(calls.filter(([key])=>key==='render.resume').length,2);
+    await page.getByRole('button',{name:'Teach Nevaeh This Phrase'}).click();
+    await page.getByLabel('New phrase').fill('Make my desk clip');
+    await page.getByRole('button',{name:'Save shortcut'}).click();
+    await page.getByText('Shortcut saved and ready to use.').waitFor();
+    assert(taught);
+    await page.getByRole('button',{name:'Close Nevaeh'}).click();
+    await page.getByRole('button',{name:'Social & Publish',exact:true}).click();
+    await page.getByRole('button',{name:'Landscape render.mp4'}).click();
+    await page.getByRole('button',{name:/Approve crop/}).waitFor();
+    assert(calls.some(([key,data])=>key==='timeline.quote'&&data.source_artifact_id===77&&data.social_prepare===true));
+    await page.getByRole('button',{name:'Generated shot',exact:true}).click();
+    await page.getByLabel('YouTube Shorts via Lightek').check();
+    await page.getByLabel('YouTube audience').selectOption('false');
+    await page.getByLabel('I own the distribution rights and authorize public publishing to Lightek and YouTube.').check();
+    await page.getByLabel('I reviewed this clip and its destinations.').check();
+    await page.getByRole('button',{name:'Submit to selected channels'}).click();
+    await page.waitForFunction(()=>[...document.querySelectorAll('small')].some(el=>el.textContent.includes('YouTube ·')));
+    assert(calls.some(([key,data])=>key==='asset.publish'&&data.youtube_consent&&data.youtube_made_for_kids===false));
     await page.getByRole('link',{name:'Exit Studio'}).click();
     await page.getByText('PWA home',{exact:true}).waitFor();
     assert.deepEqual(errors,[]);

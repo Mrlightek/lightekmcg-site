@@ -9,6 +9,7 @@ ActiveRecord::Schema.define do
   add_column :dymond_site_pages, :position, :integer
   add_column :dymond_site_sections, :position, :integer
   add_column :dymond_site_sections, :kind, :string
+  create_table(:studio_assets) { |t| t.integer :owner_id; t.integer :site_id; t.string :name; t.string :kind; t.string :status; t.string :request_key }
   create_table(:active_storage_blobs) { |t| t.string :key, null: false; t.string :filename, null: false; t.string :content_type; t.text :metadata; t.string :service_name, null: false; t.bigint :byte_size, null: false; t.string :checksum; t.datetime :created_at, null: false }
   create_table(:active_storage_attachments) { |t| t.string :name, null: false; t.string :record_type, null: false; t.bigint :record_id, null: false; t.bigint :blob_id, null: false; t.datetime :created_at, null: false }
 end
@@ -29,6 +30,8 @@ require ROOT.join('app/services/nevaeh_intelligences/structured_actions')
 require ROOT.join('app/services/studio/media_process')
 require ROOT.join('app/services/studio/native_blender/runtime')
 require ROOT.join('app/jobs/feature_showcase_job')
+require ROOT.join('app/models/studio_asset')
+require ROOT.join('app/jobs/studio_asset_ingest_job')
 require ROOT.join('app/jobs/nevaeh_os/goal_tick_job')
 require ROOT.join('app/controllers/feature_showcase_videos_controller')
 require ROOT.join('app/services/lightek_design/catalog')
@@ -228,6 +231,8 @@ class MarketingCopilotChecks < CampaignContentChecks
     assert_equal 'completed', showcase.reload.status
     assert_equal 6, showcase.clips.count
     assert showcase.clips.all?(&:ready?)
+    assert_equal showcase.clips.size,StudioAsset.where(site_id:@site.id,owner_id:@owner.id,kind:"video").count
+    assert_equal showcase.clips.first.file.blob.id,StudioAsset.find_by!(request_key:"growth-feature-clip-#{showcase.clips.first.id}").file.blob.id
     assert showcase.clips.all? { |clip| clip.file.download.start_with?("\x00\x00".b) }
     FileUtils.mkdir_p(ROOT.join('tmp'))
     File.binwrite(ROOT.join('tmp/feature-showcase-sample.mp4'), showcase.clips.first.file.download)

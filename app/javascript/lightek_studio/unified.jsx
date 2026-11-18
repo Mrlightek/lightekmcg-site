@@ -4,6 +4,7 @@ import {Download, Film, FolderOpen, Plus, Share2, Sparkles} from 'lucide-react';
 import {pending, progressLabel,uploadMessage, requestKey, sceneRecords, studioApi} from './api';
 import {Creation, Preview} from './create';
 import {Publish} from './publish';
+import {Assistant} from './assistant';
 
 const workspaces = [
   ['create',Sparkles,'AI Studio Create'],['timeline',Film,'Timeline & Edit'],
@@ -91,7 +92,7 @@ function Library({assets, selected, onSelect, upload, add, busy, next, more, ret
   </div>;
 }
 
-function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home,updateScene}) {
+function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home,updateScene,openCampaign}) {
   const {project,scene}=record;
   const [tab,setTab]=useState(tabFor(initialTab));
   const [saved,setSaved]=useState(()=>readTimeline(scene.settings?.timeline));
@@ -102,6 +103,11 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   const [assets,setAssets]=useState([]);
   const [next,setNext]=useState(null);
   const [jobs,setJobs]=useState([]);
+  const [localActivity,setLocalActivity]=useState([]);
+  useEffect(()=>api.onActivity(item=>{
+    if(item.scene_id!==scene.id)return;
+    setLocalActivity(rows=>[{...rows.find(row=>row.id===item.id),...item},...rows.filter(row=>row.id!==item.id&&row.id!==item.replace)].slice(0,40));
+  }),[api,scene.id]);
   const [ops,setOps]=useState({operations:[],publications:[]});
   const [inventory,setInventory]=useState(null);
   const [referenceAssets,setReferenceAssets]=useState([]);
@@ -119,7 +125,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   const refresh=useCallback(async ()=>{
     const id=++loadId.current;
     const [library,generation,delivery,references]=await Promise.allSettled([
-      api.call('assets.list',{scope_site:true}), api.call('ai.jobs',{scene_id:scene.id}), api.call('operations.list',{project_id:project.id}), api.call('assets.list',{surface:'ai_input',scope_site:true})
+      api.call('assets.list',{scope_site:true}), api.call('ai.jobs',{scene_id:scene.id}), api.call('operations.list',{project_id:project.id,...(!api.dashboard?{activity_scene_id:scene.id}:{})}), api.call('assets.list',{surface:'ai_input',scope_site:true})
     ]);
     if(!alive.current||id!==loadId.current)return;
     if(library.status==='fulfilled'&&Array.isArray(library.value?.assets)){
@@ -132,7 +138,9 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   },[api,scene.id,project.id]);
 
   useEffect(()=>{refresh();},[refresh]);
-  const working=!!waiting || [...assets,...jobs,...ops.operations,...ops.publications].some(item=>pending(item.status));
+  const persisted=ops.activity || [];
+  const activity=[...localActivity.filter(row=>!persisted.some(item=>item.id===row.id)),...persisted];
+  const working=!!waiting || [...activity,...assets,...jobs,...ops.operations,...ops.publications].some(item=>pending(item.status));
   useEffect(()=>{
     if(!working&&tab!=='publish')return;
     const timer=setInterval(refresh,4000);
@@ -232,6 +240,12 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
         </select></label>
         <button onClick={()=>{if(!dirty||window.confirm('Leave this scene and discard unsaved timeline changes?'))selectScene(null,tab);}} disabled={busy}>Projects</button>
         <button className="ls-primary" disabled={busy} onClick={()=>{go('publish');requestAnimationFrame(()=>document.getElementById('ls-export')?.scrollIntoView({block:'start'}));}}><Download size={16}/> Export MP4</button>
+        {!api.dashboard&&<Assistant api={api} project={project} scene={scene} tab={tab}
+          assetId={assets.some(item=>item.id===selected)?selected:null} artifactId={typeof selected==='string'&&/^render-\d+$/.test(selected)?Number(selected.slice(7)):null} activity={activity} refresh={refresh}
+          openCampaign={id=>id?openCampaign(id):go('publish')} openResult={item=>{
+            if(item.asset_id){setSelected(item.asset_id);go('library');}
+            else {setOperationId(item.operation_id);go('create');}
+          }} resume={id=>run(async()=>{await api.call('render.resume',{operation_id:id});await refresh();})}/>}
       </header>
       <div className="ls-content">
         {error&&<p className="ls-error" role="alert">{error}</p>}
@@ -243,7 +257,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
           openRender:id=>{setOperationId(id);go('create');},
           retry:id=>run(async()=>{await api.call('asset.retry',{asset_id:id});await refresh();}),
           more:before=>run(async()=>{const result=await api.call('assets.list',{scope_site:true,before});setAssets(items=>[...new Map([...items,...result.assets].map(item=>[item.id,item])).values()]);setNext(result.next_before);})}}/>}
-        {publishLoaded&&<div hidden={tab!=='publish'}><Publish {...{api,project,scene,clips:assets,operations:ops.operations,publications:ops.publications,selected,onSelect:setSelected,timeline,save,run,busy,refresh}}/></div>}
+        {publishLoaded&&<div hidden={tab!=='publish'}><Publish {...{api,project,scene,active:tab==='publish',clips:assets,operations:ops.operations,publications:ops.publications,selected,onSelect:setSelected,timeline,save,run,busy,refresh}}/></div>}
       </div>
     </main>
   </div>;
@@ -264,6 +278,12 @@ export default function LightekUnifiedStudio({api,route,home}) {
   },[api]);
   useEffect(()=>{loadProjects();},[loadProjects]);
   const record=projects.find(item=>item.scene.id===selected);
+  async function openCampaign(id){
+    const result=await api.call('bootstrap');
+    const records=sceneRecords(result.projects);
+    if(!records.some(item=>item.scene.id===id))return;
+    setProjects(records);selectScene(id,'publish');
+  }
   function selectScene(id,tab){
     setSelected(id);setInitialTab(tab);changeRoute(id,tab);
   }
@@ -281,7 +301,7 @@ export default function LightekUnifiedStudio({api,route,home}) {
   function updateScene(id,changes){
     setProjects(items=>items.map(item=>item.scene.id===id?{...item,scene:{...item.scene,...changes}}:item));
   }
-  if(record)return <Workspace key={record.scene.id} {...{api,record,projects,selectScene,home,initialTab,updateScene,
+  if(record)return <Workspace key={record.scene.id} {...{api,record,projects,selectScene,home,initialTab,updateScene,openCampaign,
     initialAsset:record.scene.id===route.scene?Number(new URLSearchParams(location.search).get('edit_asset'))||null:null}}/>;
   return <main className="ls-projects"><a href={home}>Exit Studio</a><h1>Lightek Studio</h1>
     {error&&<p role="alert" className="ls-error">{error}</p>}

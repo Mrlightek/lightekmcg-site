@@ -49,7 +49,7 @@
       return data
     }
 
-    async execute(request) {
+    async execute(request, {onReceipt} = {}) {
       if (
         !request ||
         typeof request !== "object"
@@ -97,6 +97,7 @@
         )
 
       let data = await this.parseResponse(response)
+      if (data.work_item_id) onReceipt?.(data)
       if (response.status === 202 && data.work_item_id) {
         data = await this.waitForExecution(data)
       }

@@ -77,7 +77,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
   const audioDriver=rig||tool?.driver==='audio';
   const job=jobs.find(item=>item.asset_id===selected);
   const asset=assets.find(item=>item.id===selected) || job;
-  const sceneOperations=operations.filter(item=>item.scene_id===scene.id&&!item.draft_preview&&['build_scene','edit_media'].includes(item.type));
+  const sceneOperations=operations.filter(item=>item.scene_id===scene.id&&(!item.draft_preview||item.id===operationId)&&['build_scene','edit_media'].includes(item.type));
   const chosenOperation=sceneOperations.find(item=>item.id===operationId);
   const operationVideo=chosenOperation?.status==='completed'&&chosenOperation.artifacts?.find(item=>item.kind==='video');
   const progress=chosenOperation ? (chosenOperation.cpu_resumable?'Recoverable':progressLabel(chosenOperation.status)) : progressLabel(job?.status || asset?.status);
@@ -204,7 +204,11 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
       </div>}
       {error&&<button onClick={()=>setDetails(failure)}>Operation Details</button>}
       {chosenOperation?.cpu_resumable&&<button disabled={busy} onClick={()=>submit(async()=>{await api.call('render.resume',{operation_id:chosenOperation.id});await refresh();})}>Resume Render from Checkpoint</button>}
-      {operationVideo&&<button disabled={busy} onClick={()=>submit(addRender)}>Save clip to Media Library</button>}
+      {operationVideo&&!chosenOperation.draft_preview&&<button disabled={busy} onClick={()=>submit(addRender)}>Save clip to Media Library</button>}
+      {!api.dashboard&&operationVideo&&!chosenOperation.draft_preview&&<button onClick={()=>{
+        onSelect('render-'+operationVideo.id);go('publish');
+      }}>Prepare to publish</button>}
+      {!api.dashboard&&!chosenOperation&&asset?.status==='ready'&&asset.kind==='video'&&<button onClick={()=>go('publish')}>Prepare to publish</button>}
       {!chosenOperation&&!rigPreview&&asset?.status==='ready'&&<button disabled={busy} onClick={()=>add(asset.id || asset.asset_id)}>Add to timeline</button>}
       <section className="ls-card"><div className="ls-row"><strong><Film size={16}/> Storyboard</strong><span>{elapsed.toFixed(1)}s</span><button onClick={()=>go('timeline')}>Open timeline</button></div>
         <div className="ls-strip">

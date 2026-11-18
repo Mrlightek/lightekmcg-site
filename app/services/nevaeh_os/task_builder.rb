@@ -100,15 +100,72 @@ module NevaehOs
       NevaehLanguageBinding.create!(creator: actor, name: attributes.fetch('name'), patterns: patterns, slots: slots,
         command_template: target, source_refs: [doc.slice(:path, :sha256, :title).stringify_keys], builder_spec: spec)
     end
+    def teach_studio!(actor:, site:, receipt_id:, phrase:)
+      Language.authorize!(actor)
+      unless phrase.is_a?(String) && phrase.strip.length.between?(3,120) && !phrase.match?(/[{}\r\n]/) && !phrase.strip.start_with?("/")
+        raise ArgumentError, "Use a short phrase with ordinary words"
+      end
+      phrase=phrase.strip
+      activity=Studio::Workers::Activity
+      item=activity.scope(actor,site.id).find(receipt_id)
+      access=Studio::PwaAccess.new("user_id"=>actor.id,"site_id"=>site.id)
+      inputs=item.args.fetch(1)
+      scene=access.scene!(inputs.fetch("scene_id"))
+      raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id==site.id
+      evidence=activity.row(item,access,scene)
+      raise ArgumentError, "Wait for a verified Studio result before teaching this phrase" unless evidence[:teach]
+      payload=studio_inputs(item.kind,inputs)
+      target={"kind"=>"capability","intent"=>item.kind,"payload"=>payload,"site_id"=>site.id}
+      worker=worker!(actor,Agents.resolve!("nevaeh",actor).id,target)
+      doc=NevaehIntelligences::SoftwareLibrary.new.documents.find { |entry| entry[:path]=="docs/lightek_pwa_acceptance.md" }
+      raise ArgumentError, "Studio capability documentation is unavailable" unless doc
+      actor.with_lock do
+        existing=NevaehLanguageBinding.where(creator:actor,status:"active").detect { |row| LanguageContract.match(row,phrase).any? }
+        return existing if existing && existing.command_template==target
+        raise ArgumentError, "This phrase already belongs to another task" if existing
+        binding=NevaehLanguageBinding.create!(creator:actor,name:phrase,patterns:[phrase],slots:{},
+          command_template:target,source_refs:[doc.slice(:path,:sha256,:title).stringify_keys],
+          builder_spec:{"schema"=>1,"studio_capture"=>true,"template_key"=>"capability:#{item.kind}",
+            "worker_id"=>worker.id,"fixed"=>payload,"sample_phrase"=>phrase,"expected"=>{},
+            "family"=>SecureRandom.uuid,"version"=>1})
+        verify!(binding:binding,actor:actor)
+        activate!(binding:binding,actor:actor)
+      end
+    end
+
+    def studio_inputs(capability, inputs)
+      keys=case capability
+      when "studio.workspace.ai.generate"
+        %w[scene_id recipe prompt genesis_worker_id input_asset_id driver_asset_id aspect_ratio seed steps]
+      when "studio.workspace.render.quote"
+        %w[scene_id scene_preset procedural_script_params routing_mode output]
+      when "studio.workspace.performance.preview"
+        %w[scene_id scene_playback]
+      when "studio.workspace.timeline.quote"
+        %w[scene_id source_asset_id source_artifact_id social_prepare]
+      else
+        raise ArgumentError, "This action cannot be taught"
+      end
+      inputs.slice(*keys)
+    end
+
     def validate!(binding, actor:, verified: true)
       raise ArgumentError, 'This extension belongs to another account' unless binding.creator_id == actor.id
       spec = binding.builder_spec
       raise ArgumentError, 'Unsupported builder package' unless spec['schema'] == 1
-      template = template!(actor, spec.fetch('template_key'))
-      fields = template[:fields]
-      fixed = spec.fetch('fixed'); slots = fields.except(*fixed.keys)
-      raise ArgumentError, 'The task input contract changed; save a new revision' unless (fixed.keys - fields.keys).empty? && slots == binding.slots &&
-        command(spec.fetch('template_key'), fixed.merge(slots.to_h { |field, _| [field, "{#{field}}"] })) == binding.command_template
+      if spec["studio_capture"]
+        command=binding.command_template
+        unless binding.slots.empty? && command["kind"]=="capability" &&
+            command["payload"]==studio_inputs(command["intent"],spec.fetch("fixed"))
+          raise ArgumentError, "The captured Studio command changed"
+        end
+      else
+        template = template!(actor, spec.fetch('template_key'))
+        fields = template[:fields]
+        fixed = spec.fetch('fixed'); slots = fields.except(*fixed.keys)
+        raise ArgumentError, 'The task input contract changed; save a new revision' unless (fixed.keys - fields.keys).empty? && slots == binding.slots &&
+          command(spec.fetch('template_key'), fixed.merge(slots.to_h { |field, _| [field, "{#{field}}"] })) == binding.command_template
+      end
       Language.sources!(binding)
       worker!(actor, spec.fetch('worker_id'), binding.command_template)
       if verified

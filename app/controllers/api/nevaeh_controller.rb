@@ -40,25 +40,18 @@ module Api
           .require(:capability)
           .to_s
 
-      payload =
-        params
-          .fetch(:payload, {})
-          .to_unsafe_h
+      raw_payload=params[:payload]
+      raise ArgumentError,"Use a JSON object for action inputs" if raw_payload && !raw_payload.respond_to?(:to_unsafe_h)
+      payload=raw_payload ? raw_payload.to_unsafe_h : {}
 
       subject =
         resolve_subject(
           params[:subject]
         )
 
-      event_type =
-        resolve_event_type!(
-          capability
-        )
-
-      worker_action =
-        resolve_worker_action!(
-          capability
-        )
+      if capability == "nevaeh.conversation"
+        return studio_conversation(actor,payload)
+      end
 
       payload["user_id"] = actor.id
       if capability.start_with?("community.", "studio.", "social.", "messaging.", "messages.", "susu.", "money.")
@@ -99,28 +92,8 @@ module Api
           SecureRandom.uuid
         end
 
-      result =
-        ::Nevaeh.handle(
-          event_type: event_type,
-          source: "lightek_pwa",
-          subject: subject,
-          actor: actor,
-
-          payload: payload,
-
-          context: {
-            "client" => "lightek_pwa",
-            "capability" => capability
-          },
-
-          args: [
-            worker_action,
-            payload
-          ],
-
-          correlation_id:
-            correlation_id
-        )
+      result = conversation(actor).execute_native(capability:capability,payload:payload,source:"lightek_pwa",
+        subject:subject,context:{"client"=>"lightek_pwa"},correlation_id:correlation_id)
 
       work_item =
         result.work_item
@@ -185,7 +158,7 @@ module Api
       end
     rescue ActionController::ParameterMissing,
            ActiveRecord::RecordNotFound,
-           ArgumentError,
+           ArgumentError, KeyError,
            Susu::Workers::Pwa::AccessDenied,
            LightekSocial::AccessDenied,
            LightekCommunity::AccessDenied,
@@ -212,6 +185,7 @@ module Api
         LightekPwa::Policy.new(user: current_user, site: receipt_site).authorize!
       end
       render json: {
+        correlation_id: work_item.correlation_id,
         status: work_item.done? ? "completed" : work_item.status,
         work_item_id: work_item.id, result: work_item.done? ? authorized_receipt_result(work_item.result, arguments) : nil,
         error: work_item.failed? ? work_item.error : nil
@@ -219,6 +193,42 @@ module Api
     end
 
     private
+
+    def conversation(actor)
+      NevaehOs::Conversation.new(actor:actor,host:request.host,origin:request.base_url)
+    end
+
+    def studio_conversation(actor,payload)
+      site=LightekPwa::SiteContext.resolve(request.host)
+      access=Studio::PwaAccess.new("user_id"=>actor.id,"site_id"=>site.id)
+      LightekPwa::Policy.new(user:actor,site:site).authorize!("studio")
+      if payload["action_id"]
+        action=NevaehOsAction.where(user:actor).find(payload["action_id"])
+        return render json:{status:"completed",result:NevaehOs::Receipts.for(action)}
+      end
+      if payload["teach"]
+        taught=NevaehOs::TaskBuilder.teach_studio!(actor:actor,site:site,receipt_id:payload.fetch("work_item_id"),phrase:payload["teach"])
+        return render json:{status:"completed",result:{text:"Shortcut saved and ready to use.",binding_id:taught.id}}
+      end
+
+      scene=access.scene!(payload.fetch("scene_id"))
+      raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id==site.id
+      text=payload.fetch("text")
+      raise ArgumentError,"Enter a message of 1–2000 characters" unless text.is_a?(String) && text.strip.length.between?(1,2000)
+      view=payload.fetch("view","create")
+      raise ArgumentError,"Choose a Studio workspace" unless %w[create timeline library publish].include?(view)
+      asset_id=payload["asset_id"]
+      asset_id=StudioAsset.for_actor(access).where(site_id:site.id).find(asset_id).id if asset_id
+      artifact_id=payload["artifact_id"]
+      if artifact_id
+        operation=scene.studio_operations.where(status:"completed").joins(:artifacts).where(artifacts:{id:artifact_id}).first!
+        artifact_id=operation.artifacts.find(artifact_id).id
+      end
+      context={"path"=>"/dashboard/studio-broadcasting/workspace/#{scene.id}","title"=>"Lightek Studio",
+        "site_id"=>site.id,"project_id"=>scene.studio_project_id,"scene_id"=>scene.id,"studio_view"=>view,"asset_id"=>asset_id,"artifact_id"=>artifact_id}
+      reply=conversation(actor).ask(text:text,request_key:payload.fetch("request_key"),page_context:context)
+      render json:{status:"completed",result:reply}
+    end
 
     def authorized_receipt_result(result, arguments)
       return result unless result.is_a?(Hash) && arguments["site_id"].present?
@@ -280,7 +290,5 @@ module Api
 
     def community_action(slug) = NevaehOrchestration::NativeContracts.community_action(slug)
     def workspace_action(slug) = NevaehOrchestration::NativeContracts.workspace_action(slug)
-    def resolve_event_type!(slug) = NevaehOrchestration::NativeContracts.resolve_event_type!(slug)
-    def resolve_worker_action!(slug) = NevaehOrchestration::NativeContracts.resolve_worker_action!(slug)
   end
 end

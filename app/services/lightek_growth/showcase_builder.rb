@@ -49,6 +49,7 @@ module LightekGrowth
         end
       end
       raise ArgumentError, 'The feature page or clips failed read-back' unless showcase.page.sections.exists?(kind: 'lightek_feature_showcase') && showcase.clips.all?(&:ready?)
+      showcase.clips.find_each { |clip| queue_studio_clip!(clip) }
       showcase.update!(status: 'completed', error: nil)
     end
     def approve!(id:)
@@ -69,6 +70,20 @@ module LightekGrowth
         'video_count'=>showcase.clips.count, 'page_published_at_creation'=>false,
         'text'=>"Feature showcase #{showcase.status}: native CMS draft plus captioned overview videos. Review the videos and page before publishing; these are not screen recordings.",
         'links'=>[{'label'=>'Review page and feature videos', 'url'=>Rails.application.routes.url_helpers.dashboard_marketing_copilot_path(site_id: @site.id, kit_id: showcase.marketing_kit_id)}]}
+    end
+
+    private
+
+    def queue_studio_clip!(clip)
+      @actor.with_lock do
+        asset=StudioAsset.find_or_initialize_by(owner:@actor,request_key:"growth-feature-clip-#{clip.id}")
+        if asset.new_record?
+          asset.assign_attributes(site:@site,name:clip.title.to_s.first(160),kind:"video",status:"uploaded")
+          asset.file.attach(clip.file.blob)
+          asset.save!
+        end
+        StudioAssetIngestJob.perform_later(asset.id) if asset.status=="uploaded"
+      end
     end
   end
 end

@@ -12,13 +12,17 @@
     <%= link_to 'Read the task builder guide', main_app.dashboard_nevaeh_guide_path(topic: 'task_builder') %>
   </aside>
   <article class="nc-panel">
+    <% spec = @task_extension&.builder_spec || {} %>
+    <% if spec['studio_capture'] %>
+      <h3>Studio shortcut</h3><p>This shortcut uses the saved inputs from a verified Studio result. Run the action with new inputs and teach another phrase to make a new shortcut.</p>
+    <% else %>
     <h3>1. Choose an executable action</h3>
     <%= form_with url: employee_nevaeh_factory_path, method: :get do %>
       <input type="hidden" name="tab" value="tasks">
       <label>Action<select name="template_key"><%= options_for_select(@task_templates.map { |row| [row[:title], row[:key]] }, @task_template[:key]) %></select></label>
       <button class="nc-button secondary">Use this action</button>
     <% end %>
-    <% spec = @task_extension&.builder_spec || {}; same = spec['template_key'] == @task_template[:key] %>
+    <% same = spec['template_key'] == @task_template[:key] %>
     <%= form_with url: employee_nevaeh_factory_task_extensions_path, data: {task_builder: true} do %>
       <input type="hidden" name="extension[template_key]" value="<%= @task_template[:key] %>">
       <input type="hidden" name="previous_id" value="<%= @task_extension&.id %>">
@@ -34,6 +38,7 @@
       <label>Example request<input name="extension[sample_phrase]" value="<%= spec['sample_phrase'] %>" required maxlength="1000" placeholder="prepare a page called About us on site 12"></label>
       <% @task_template[:fields].each do |field, type| %><label data-builder-expected="<%= field %>">Expected <%= field.humanize.downcase %> · <%= type %><input name="extension[expected][<%= field %>]" value="<%= spec.fetch('expected', {})[field] if same %>" maxlength="1000" placeholder="Required only when this input has no fixed value"></label><% end %>
       <button class="nc-button">Save new draft revision</button>
+    <% end %>
     <% end %>
     <% if @task_extension %>
       <hr class="nf-rule"><h3>5. Test, activate and use it</h3><p><strong><%= @task_extension.name %></strong> · <%= @task_extension.status %> · revision <%= spec['version'] %></p>

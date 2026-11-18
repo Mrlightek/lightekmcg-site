@@ -23,7 +23,7 @@ export function uploadMessage(error) {
 }
 
 const activityLabels={
-  'ai.generate':'Generation','render.quote':'3D render','performance.preview':'Character preview','timeline.quote':'Media export',
+  'ai.generate':'Generation','blender.preview':'3D draft','render.quote':'3D render','performance.preview':'Character preview','timeline.quote':'Media export',
   'asset.publish':'Publishing','artifact.publish':'Publishing'
 };
 

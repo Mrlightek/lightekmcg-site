@@ -139,6 +139,8 @@ module NevaehOs
         Studio::Compute::Guardrails::GENERATION_INPUTS
       when "studio.workspace.render.quote"
         %w[scene_id scene_preset procedural_script_params routing_mode output]
+      when "studio.workspace.blender.preview"
+        %w[scene_id scene_preset procedural_script_params]
       when "studio.workspace.performance.preview"
         %w[scene_id scene_playback]
       when "studio.workspace.timeline.quote"

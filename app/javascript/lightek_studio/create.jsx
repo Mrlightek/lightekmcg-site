@@ -45,7 +45,8 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
   const [reference,setReference]=useState('');
   const [source,setSource]=useState('');
   const [driver,setDriver]=useState('');
-  const [engine,setEngine]=useState('musetalk');
+  const [chosenEngine,setEngine]=useState('');
+  const engine=chosenEngine || inventory?.performances?.find(item=>item.configured)?.id || 'rhubarb';
   const [rigPreview,setRigPreview]=useState('');
   const [phase,setPhase]=useState('');
   const [signal,setSignal]=useState(null);
@@ -79,7 +80,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
   const audioDriver=rig||tool?.driver==='audio';
   const job=jobs.find(item=>item.asset_id===selected);
   const asset=assets.find(item=>item.id===selected) || job;
-  const sceneOperations=operations.filter(item=>item.scene_id===scene.id&&(!item.draft_preview||item.id===operationId)&&['build_scene','edit_media'].includes(item.type));
+  const sceneOperations=operations.filter(item=>item.scene_id===scene.id&&(!item.draft_preview||item.procedural_preview||item.id===operationId)&&['build_scene','edit_media'].includes(item.type));
   const chosenOperation=sceneOperations.find(item=>item.id===operationId);
   const operationVideo=chosenOperation?.status==='completed'&&chosenOperation.artifacts?.find(item=>item.kind==='video');
   const progress=chosenOperation ? (chosenOperation.cpu_resumable?'Recoverable':progressLabel(chosenOperation.status)) : progressLabel(job?.status || asset?.status);
@@ -102,13 +103,24 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
       await refresh();
     },uploadMessage);
   }
+  function chooseMode(id){
+    change(setMode,id);setOperationId(null);setRigPreview('');
+  }
+  function movieInputs(){
+    const {scene_preset,...procedural_script_params}=movie;
+    return {scene_id:scene.id,scene_preset,procedural_script_params};
+  }
+  async function previewMovie(){
+    const result=await api.call('blender.preview',{...movieInputs(),request_key:key+'-draft'});
+    setQuote(null);setOperationId(result.operation_id);
+    await refresh();
+  }
   async function generate() {
     let receipt;
     const recordReceipt=value=>{receipt=value;};
     if(mode==='movie'){
-      const {scene_preset,...parameters}=movie;
       const result=await api.call('render.quote',{
-        scene_id:scene.id,scene_preset,procedural_script_params:parameters,routing_mode:chosenPool,request_key:key
+        ...movieInputs(),routing_mode:chosenPool,request_key:key
       },recordReceipt);
       setQuote(result);setOperationId(result.operation_id);
       if(receipt)setReceipts(previous=>({...previous,['operation-'+result.operation_id]:receipt}));
@@ -149,19 +161,19 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
   }
 
   const canGenerate=neural?chosenWorker&&recipe?.ready&&prompt.trim()&&(!reference||mode==='image'||currentReference):
-    mode==='movie'?chosenPool:(rig?signal:tool?.configured)&&sources.some(item=>item.id===Number(source))&&drivers.some(item=>item.id===Number(driver));
+    (rig?signal:tool?.configured)&&sources.some(item=>item.id===Number(source))&&drivers.some(item=>item.id===Number(driver));
 
   return <div className="ls-create">
     <div className="ls-controls">
       <div className="ls-modes" aria-label="Production tool">
         {tools.map(([id,Icon,title,subtitle])=><button type="button" key={id} aria-pressed={mode===id} disabled={busy}
-          onClick={()=>{change(setMode,id);setOperationId(null);setRigPreview('');}}><Icon size={18}/><strong>{title}</strong>{subtitle&&<small>{subtitle}</small>}</button>)}
+          onClick={()=>chooseMode(id)}><Icon size={18}/><strong>{title}</strong>{subtitle&&<small>{subtitle}</small>}</button>)}
       </div>
       {inventoryError&&<div className="ls-card">
         <p role="alert">Studio couldn’t check worker availability.</p>
         <button type="button" onClick={retryInventory}>Retry worker check</button>
       </div>}
-      <form onSubmit={event=>{event.preventDefault();submit(generate);}}>
+      <form onSubmit={event=>{event.preventDefault();submit(mode==='movie'?previewMovie:generate);}}>
         {neural&&<>
           <label>Prompt<textarea rows="4" required maxLength="2000" value={prompt} onChange={event=>change(setPrompt,event.target.value)} placeholder="Describe your scene."/></label>
           {mode==='video'&&<MediaPicker title="Starting frame (optional)" items={referenceAssets} value={reference} onChange={value=>change(setReference,value)}
@@ -178,6 +190,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
             <label>Steps<input type="number" min="1" max="60" step="1" placeholder={recipe?.steps || 'Default'} value={steps} onChange={event=>change(setSteps,event.target.value)}/></label>
             </>}
           </div></details>}
+          {(inventoryError||(inventory&&(!chosenWorker||!recipe?.ready)))&&<button type="button" disabled={busy} onClick={()=>chooseMode('movie')}>Try a 3D draft</button>}
           {inventory&&(!chosenWorker||!recipe?.ready)&&<p className="ls-muted">{!inventory.connected?'Studio couldn’t reach the Genesis engine.':!chosenWorker?'No compatible Genesis worker is available for this tool.':recipe?.reason||'This workflow isn’t installed on the Genesis worker.'}</p>}
         </>}
         {mode==='movie'&&<>
@@ -185,8 +198,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
           <Options label="Camera" value={movie.camera} onChange={value=>change(setMovie,{...movie,camera:value})} options={[[ 'angle','Three-quarter' ],['front','Front'],['overhead','Overhead']]}/>
           <Options label="Lighting" value={movie.lighting} onChange={value=>change(setMovie,{...movie,lighting:value})} options={[[ 'soft','Soft' ],['bright','Bright'],['low','Low']]}/>
           <Options label="Animation" value={movie.motion} onChange={value=>change(setMovie,{...movie,motion:value})} options={[[ 'spin','Rotate' ],['slide','Slide'],['still','None']]}/>
-          <Options label="Render pool" value={chosenPool || ''} onChange={value=>change(setRoute,value)} options={pools.length?pools.map(id=>[id,poolLabel[id]]):[['',inventory?'No available render pool':unavailableLabel]]}/>
-          {chosenPool==='remote'&&<small>Supports procedural shapes, cameras, lights and motion.</small>}
+          <p className="ls-muted">Make a short preview with these settings.</p>
         </>}
         {mode==='character'&&<>
           <Options label="Engine" value={engine} onChange={value=>{change(setEngine,value);setSource('');setDriver('');setRigPreview('');}} options={[...engines,['rhubarb','Rhubarb · Character rig']]}/>
@@ -196,8 +208,15 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
           {rig&&!sources.length&&<a href={api.advanced(scene.id,'cast')}>Add a character to this scene</a>}
           {inventory&&!rig&&!tool?.configured&&<p className="ls-muted">This engine needs a configured character-performance worker.</p>}
         </>}
-        <button className="ls-primary" disabled={busy||!canGenerate}><Sparkles size={16}/>{mode==='movie'?'Get render price':'Generate'}</button>
+        <button className="ls-primary" disabled={busy||(mode==='movie'?['pending','running'].includes(chosenOperation?.status):!canGenerate)}><Sparkles size={16}/>{mode==='movie'?'Render draft':'Generate'}</button>
       </form>
+      {mode==='movie'&&pools.length>0&&<details className="ls-drawer"><summary>Full render</summary>
+        <div className="ls-fields">
+          <Options label="Render pool" value={chosenPool} onChange={value=>change(setRoute,value)} options={pools.map(id=>[id,poolLabel[id]])}/>
+          {chosenPool==='remote'&&<small>Supports procedural shapes, cameras, lights and motion.</small>}
+          <button type="button" disabled={busy} onClick={()=>submit(generate)}>Get render price</button>
+        </div>
+      </details>}
       {quote&&mode==='movie'&&<div className="ls-row">
         <strong>{new Intl.NumberFormat(undefined,{style:'currency',currency:quote.quote.currency||'USD'}).format(quote.quote.total_cents/100)}</strong>
         <button disabled={busy} onClick={()=>submit(async()=>{location.assign((await api.call('render.checkout',{operation_id:quote.operation_id})).checkout_url);})}>Continue to payment</button>
@@ -226,7 +245,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
       {!chosenOperation&&!rigPreview&&asset?.status==='ready'&&<button disabled={busy} onClick={()=>add(asset.id || asset.asset_id)}>Add to timeline</button>}
       <section className="ls-card"><div className="ls-row"><strong><Film size={16}/> Storyboard</strong><span>{elapsed.toFixed(1)}s</span><button onClick={()=>go('timeline')}>Open timeline</button></div>
         <div className="ls-strip">
-          {sceneOperations.map(item=><button key={item.id} aria-pressed={item.id===operationId} onClick={()=>{setRigPreview('');setOperationId(item.id);}}>{item.type==='build_scene'?'3D Movie':'Export'}<small>{item.cpu_resumable?'Recoverable':progressLabel(item.status)}</small></button>)}
+          {sceneOperations.map(item=><button key={item.id} aria-pressed={item.id===operationId} onClick={()=>{setRigPreview('');setOperationId(item.id);}}>{item.procedural_preview?'3D Draft':item.type==='build_scene'?'3D Movie':'Export'}<small>{item.cpu_resumable?'Recoverable':progressLabel(item.status)}</small></button>)}
           {jobs.map(item=><button key={item.asset_id} aria-pressed={!chosenOperation&&selected===item.asset_id} onClick={()=>{onSelect(item.asset_id);setRigPreview('');setOperationId(null);}}>{item.name}<small>{progressLabel(item.status)}</small></button>)}
           {!jobs.length&&!sceneOperations.length&&<p className="ls-muted">Your clips and renders will appear here.</p>}
         </div>

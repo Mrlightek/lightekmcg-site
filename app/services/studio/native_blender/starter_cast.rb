@@ -3,7 +3,16 @@ module Studio
   module NativeBlender
     class StarterCast
       KEYS=%w[rain_v3 snow_v4].freeze
+      QUEUE_GRACE=2.minutes
       def self.start(access:,payload:)
+        if payload["retry_asset_id"].present?
+          asset=StudioAsset.where(owner:access.user,site_id:access.site_id).find(payload["retry_asset_id"])
+          asset.with_lock do
+            raise ArgumentError,"Not a starter scene" unless asset.metadata["starter_cast"]
+            requeue(asset) if asset.status=="failed" || delayed?(asset)
+          end
+          return receipt(asset)
+        end
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"A starter scene request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,80}\z/)
         name=payload.fetch("name","My first character scene").to_s.strip
@@ -14,20 +23,30 @@ module Studio
           if asset
             raise ArgumentError,"This request belongs to another starter scene" unless asset.site_id==access.site_id && asset.metadata.dig("starter_cast","name")==name
           else
-            raise ArgumentError,"Wait for your current starter scene to finish" if StudioAsset.where(owner:access.user,status:%w[uploaded processing]).where("metadata ->> 'starter_cast' IS NOT NULL").exists?
+            raise ArgumentError,"Wait for your current starter scene to finish" if StudioAsset.where(owner:access.user,site_id:access.site_id,status:%w[uploaded processing]).where("metadata ->> 'starter_cast' IS NOT NULL").exists?
             asset=StudioAsset.create!(owner:access.user,site_id:access.site_id,name:name,kind:"blend",status:"uploaded",request_key:key,metadata:{"starter_cast"=>{"name"=>name,"phase"=>"queued"},"source"=>{"name"=>"Rain and Snow starter cast","credits"=>KEYS.map{|id|DemoCatalog.fetch(id).slice("name","credit","license","license_url","source_page")}}})
             StudioStarterCastJob.perform_later(asset.id)
           end
           if asset.status=="failed"
-            asset.update!(status:"uploaded",error_message:nil,metadata:asset.metadata.merge("starter_cast"=>asset.metadata.fetch("starter_cast").merge("phase"=>"queued")))
-            StudioStarterCastJob.perform_later(asset.id)
+            asset.with_lock { requeue(asset) if asset.status=="failed" }
           end
         end
         receipt(asset)
       end
+      def self.delayed?(asset)
+        asset.status=="uploaded" && asset.metadata.dig("starter_cast","phase")=="queued" &&
+          asset.updated_at < QUEUE_GRACE.ago
+      end
+
+      def self.requeue(asset)
+        asset.update!(status:"uploaded",error_message:nil,
+          metadata:asset.metadata.merge("starter_cast"=>asset.metadata.fetch("starter_cast").merge("phase"=>"queued","queued_at"=>Time.current.iso8601(6))))
+        StudioStarterCastJob.perform_later(asset.id)
+      end
+
       def self.receipt(asset)
         data=asset.metadata.fetch("starter_cast")
-        {asset_id:asset.id,name:asset.name,status:asset.status,phase:data["phase"],scene_id:data["scene_id"],project_id:data["project_id"],error:asset.error_message}
+        {asset_id:asset.id,name:asset.name,status:asset.status,phase:delayed?(asset) ? "delayed" : data["phase"],scene_id:data["scene_id"],project_id:data["project_id"],error:asset.error_message}
       end
       def self.status(access:,asset_id:nil)
         scope=StudioAsset.for_actor(access).where(site_id:access.site_id)

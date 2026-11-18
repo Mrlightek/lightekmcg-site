@@ -143,7 +143,7 @@
   function modifierControls(d) {
     const type=d.native_type||selected()?.object_type?.toUpperCase();if(!['MESH','CUBE','SPHERE','CYLINDER','PLANE'].includes(type))return '';
     const stack=modifierStack(d),button=(label,action,m,index,extra='')=>`<button type="button" class="btn sm" data-a="studioAuthorModifier" data-action="${action}" data-name="${esc(m.name)}" data-index="${index}" ${state.busy?'disabled':''} ${extra}>${label}</button>`;
-    return `<section class="sa-modifiers"><h4>Modifier stack · ${stack.length}</h4><p>Runs top to bottom in Blender. Save parameters or change order, then Update Blender viewport to review the result. Unsupported source modifiers stay preserved and read-only.</p>${stack.map((m,i)=>`<article class="sa-modifier" data-modifier-name="${esc(m.name)}"><h4>${i+1}. ${esc(m.name)} · ${esc(modifierSpecs[m.type]?.label||m.type)}</h4>${modifierSpecs[m.type]?`${toolForm('modifier','Update '+esc(m.name),`<input type="hidden" name="name" value="${esc(m.name)}"><input type="hidden" name="type" value="${esc(m.type)}">${modifierParameters(m.type,m.properties)}`)}<p>Viewport: ${m.show_viewport===undefined?'unknown · update viewport':m.show_viewport?'on':'off'} · Render: ${m.show_render===undefined?'unknown · update viewport':m.show_render?'on':'off'}</p><div class="pwa-post-actions">${button(m.show_viewport===false?'Enable viewport':'Disable viewport','viewport',m,i)}${m.show_viewport===undefined?button('Enable viewport','viewport-on',m,i):''}${button(m.show_render===false?'Enable render':'Disable render','render',m,i)}${m.show_render===undefined?button('Enable render','render-on',m,i):''}${button('Move up','move',m,i-1,i===0?'disabled':'')}${button('Move down','move',m,i+1,i===stack.length-1?'disabled':'')}${button('Remove','remove',m,i)}</div>`:'<p>Preserved from the native source · read-only in this stack.</p>'}</article>`).join('')||'<p>No modifiers yet.</p>'}${toolForm('modifier','Add modifier',input('name','Unique modifier name','Studio Subdivision')+`<label class="fld"><span>Modifier type</span><select name="type" data-modifier-type>${Object.entries(modifierSpecs).map(([key,spec])=>`<option value="${key}">${spec.label}</option>`).join('')}</select></label><div data-modifier-parameters>${modifierParameters('SUBSURF',{},true)}</div>`)}</section>`;
+    return `<section class="sa-modifiers"><h4>Modifier stack · ${stack.length}</h4><p>Runs top to bottom in Blender. Save parameters or change order, then Refresh 3D preview to review the result. Unsupported source modifiers stay preserved and read-only.</p>${stack.map((m,i)=>`<article class="sa-modifier" data-modifier-name="${esc(m.name)}"><h4>${i+1}. ${esc(m.name)} · ${esc(modifierSpecs[m.type]?.label||m.type)}</h4>${modifierSpecs[m.type]?`${toolForm('modifier','Update '+esc(m.name),`<input type="hidden" name="name" value="${esc(m.name)}"><input type="hidden" name="type" value="${esc(m.type)}">${modifierParameters(m.type,m.properties)}`)}<p>Viewport: ${m.show_viewport===undefined?'unknown · update viewport':m.show_viewport?'on':'off'} · Render: ${m.show_render===undefined?'unknown · update viewport':m.show_render?'on':'off'}</p><div class="pwa-post-actions">${button(m.show_viewport===false?'Enable viewport':'Disable viewport','viewport',m,i)}${m.show_viewport===undefined?button('Enable viewport','viewport-on',m,i):''}${button(m.show_render===false?'Enable render':'Disable render','render',m,i)}${m.show_render===undefined?button('Enable render','render-on',m,i):''}${button('Move up','move',m,i-1,i===0?'disabled':'')}${button('Move down','move',m,i+1,i===stack.length-1?'disabled':'')}${button('Remove','remove',m,i)}</div>`:'<p>Preserved from the native source · read-only in this stack.</p>'}</article>`).join('')||'<p>No modifiers yet.</p>'}${toolForm('modifier','Add modifier',input('name','Unique modifier name','Studio Subdivision')+`<label class="fld"><span>Modifier type</span><select name="type" data-modifier-type>${Object.entries(modifierSpecs).map(([key,spec])=>`<option value="${key}">${spec.label}</option>`).join('')}</select></label><div data-modifier-parameters>${modifierParameters('SUBSURF',{},true)}</div>`)}</section>`;
   }
   function skewControls(object = selected()) {
     const d = object?.definition || {}, draft = state.skewDraft;
@@ -157,7 +157,7 @@
   }
   ui.objectControls = object => {
     const control = skewControls(object);
-    return control ? `<div class="sa-dock sa-object-controls"><div class="sa-form-grid">${control}</div><div class="pwa-post-actions"><button class="btn sm" data-a="studioAuthorUndo">Undo</button><button class="btn sm" data-a="studioAuthorRedo">Redo</button><button class="btn sm" data-a="studioAuthorSync">Update Blender viewport</button></div></div>` : "";
+    return control ? `<div class="sa-dock sa-object-controls"><div class="sa-form-grid">${control}</div><div class="pwa-post-actions"><button class="btn sm" data-a="studioAuthorUndo">Undo</button><button class="btn sm" data-a="studioAuthorRedo">Redo</button><button class="btn sm" data-a="studioAuthorSync">Refresh 3D preview</button></div></div>` : "";
   };
   function model(d) {
     return (
@@ -391,7 +391,7 @@
       d = object?.definition || {};
     return (
       tools(record) +
-      `<section class="sa-dock" aria-label="Native production authoring"><header><div><span class="eb">PRODUCTION AUTHORING</span><h3>${esc(object?.name || "Select a scene element")}</h3></div><div class="pwa-post-actions"><button class="btn sm" data-a="studioAuthorUndo" ${state.busy ? "disabled" : ""}>Undo</button><button class="btn sm" data-a="studioAuthorRedo" ${state.busy ? "disabled" : ""}>Redo</button><button class="btn p sm" data-a="studioAuthorSync" ${state.busy ? "disabled" : ""}>Update Blender viewport</button></div></header><nav aria-label="Authoring tools">${["model", "sculpt", "rig", "animate", "nodes"].map((tab) => `<button class="btn sm ${state.tab === tab ? "p" : ""}" data-a="studioAuthorTab" data-tab="${tab}" aria-pressed="${state.tab === tab}">${tab === "model" ? "Model" : tab === "sculpt" ? "Sculpt" : tab === "rig" ? "Rig & weights" : tab === "animate" ? "Animate" : "Node graphs"}</button>`).join("")}</nav><div class="sa-transport"><button class="btn sm" data-a="studioAuthorPlay">${state.playing ? "Pause" : "Play preview"}</button><label>Frame <input data-authoring-frame type="range" min="${record.scene.settings.frame_start || 1}" max="${record.scene.settings.frame_end || 250}" value="${state.frame}"></label><output data-authoring-frame-label>${state.frame}</output><button class="btn sm" data-a="studioAuthorRenderFrame">Render this frame</button></div><p role="status" data-authoring-status>${esc(state.message || "Edits stay reversible. Update the Blender viewport to see the saved mesh, rig and graph result.")}</p>${object && !d.native_source_preview ? `<details class="sa-tools" open><summary>${esc(state.tab)} tools · ${d.authoring_commands?.length || 0} saved edits</summary><div class="sa-form-grid">${state.tab === "model" ? model(d) : state.tab === "sculpt" ? sculpt() : state.tab === "rig" ? rig(d) : state.tab === "animate" ? animate(d) : nodeForms(d)}</div></details>` : "<p>Select an object in the 3D view or Blender Outliner. Upload .blend files or resource ZIPs in the asset browser.</p>"}${previews.get(record.scene.id)?.image ? `<img class="sa-render" src="${esc(previews.get(record.scene.id).image)}" alt="Authoritative Blender authoring render">` : ""}</section>`
+      `<section class="sa-dock" aria-label="Native production authoring"><header><div><span class="eb">PRODUCTION AUTHORING</span><h3>${esc(object?.name || "Select a scene element")}</h3></div><div class="pwa-post-actions"><button class="btn sm" data-a="studioAuthorUndo" ${state.busy ? "disabled" : ""}>Undo</button><button class="btn sm" data-a="studioAuthorRedo" ${state.busy ? "disabled" : ""}>Redo</button><button class="btn p sm" data-a="studioAuthorSync" ${state.busy ? "disabled" : ""}>Refresh 3D preview</button></div></header><nav aria-label="Authoring tools">${["model", "sculpt", "rig", "animate", "nodes"].map((tab) => `<button class="btn sm ${state.tab === tab ? "p" : ""}" data-a="studioAuthorTab" data-tab="${tab}" aria-pressed="${state.tab === tab}">${tab === "model" ? "Model" : tab === "sculpt" ? "Sculpt" : tab === "rig" ? "Rig & weights" : tab === "animate" ? "Animate" : "Node graphs"}</button>`).join("")}</nav><div class="sa-transport"><button class="btn sm" data-a="studioAuthorPlay">${state.playing ? "Pause" : "Play preview"}</button><label>Frame <input data-authoring-frame type="range" min="${record.scene.settings.frame_start || 1}" max="${record.scene.settings.frame_end || 250}" value="${state.frame}"></label><output data-authoring-frame-label>${state.frame}</output><button class="btn sm" data-a="studioAuthorRenderFrame">Render this frame</button></div><p role="status" data-authoring-status>${esc(state.message || "Edits stay reversible. Update the Blender viewport to see the saved mesh, rig and graph result.")}</p>${object && !d.native_source_preview ? `<details class="sa-tools" open><summary>${esc(state.tab)} tools · ${d.authoring_commands?.length || 0} saved edits</summary><div class="sa-form-grid">${state.tab === "model" ? model(d) : state.tab === "sculpt" ? sculpt() : state.tab === "rig" ? rig(d) : state.tab === "animate" ? animate(d) : nodeForms(d)}</div></details>` : "<p>Select an object in the 3D view or Blender Outliner. Upload .blend files or resource ZIPs in the asset browser.</p>"}${previews.get(record.scene.id)?.image ? `<img class="sa-render" src="${esc(previews.get(record.scene.id).image)}" alt="Authoritative Blender authoring render">` : ""}</section>`
     );
   };
   A.studioAuthorTab = (b) => {
@@ -461,7 +461,7 @@
       await A.studioLoad(true);
       ST.selectedObjectId = result.object_id;
       state.message =
-        "Edit saved. Update Blender viewport to inspect the result.";
+        "Edit saved. Refresh 3D preview to inspect the result.";
     } finally {
       state.busy = false;
       render(1);
@@ -568,7 +568,7 @@
       const record = current();
       if (!record) return;
       state.busy = true;
-      state.message = "Blender is rebuilding the edited viewport…";
+      state.message = "Refreshing the 3D preview…";
       render(1);
       try {
         let result = await call("authoring.preview", {
@@ -591,7 +591,7 @@
         if (result.status !== "completed")
           throw Error(
             result.error ||
-              "The Blender preview is still processing; check Studio operations.",
+              "The preview is still processing; check Studio operations.",
           );
         const fresh = studioSceneRecord(id);
         if (
@@ -608,7 +608,7 @@
           transforms: Object.fromEntries((fresh.scene.objects || []).map(o => [o.id, structuredClone({ location:o.definition.location, rotation:o.definition.rotation, scale:o.definition.scale })])),
         });
         mergeInventory(fresh);
-        state.message = "Blender viewport and object metadata updated.";
+        state.message = "3D preview and object details updated.";
       } finally {
         state.busy = false;
         render(1);

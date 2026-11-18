@@ -1,13 +1,15 @@
 /* Production navigation and handoffs shared by every native Dashboard workspace. */
 (() => {
   if (!document.querySelector('#lightek-studio-dashboard')) return;
-  const modes = [['shots','Shots'],['media','Media'],['edit','Edit'],['color','Color'],['stage','Stage & FX'],['look','Look & materials'],['cast','Animation'],['ai','AI Studio'],['music','Music'],['deliver','Deliver']];
+  const modes = [['stage','Stage'],['cast','Cast'],['shots','Shots'],['edit','Edit'],['deliver','Export']];
+  const tools = [['script','Script'],['media','Media'],['music','Music'],['color','Color'],['ai','AI Studio'],
+    ['assets','Asset library'],['scene','Model & animate'],['camera','Camera & lighting'],['look','Look & materials']];
   const aliases = {'3d':'scene',timeline:'edit',performance:'cast',visual:'camera',publish:'deliver'};
-  const allowed = new Set([...modes.map(([key])=>key),'scene','camera','assets','script']);
+  const allowed = new Set([...modes,...tools].map(([key])=>key));
   const cpuPhases = {waiting_for_remote_capacity:'Waiting for render capacity',remote_pending:'Queued at Lightek',remote_running:'Preparing render at Lightek',waiting_for_cpu_slot:'Waiting for a render slot',rendering_frames:'Rendering frames',picture_encoded:'Finishing picture',completed:'Completed'};
   const state = {scene:null,hash:null,busy:false,jobs:[],project:null,jobError:'',jobLoading:false,timer:null};
   const selections = new Map();
-  const mode = () => { const key=location.hash.split('/')[3]||'edit';return aliases[key]|| (allowed.has(key)?key:'stage'); };
+  const mode = () => { const key=location.hash.split('/')[3]||current()?.scene.settings?.studio_entry||'edit';return aliases[key]|| (allowed.has(key)?key:'stage'); };
   const current = () => studioSceneRecord(studioCurrentSceneId());
   const call = async(action,payload)=>(await nevaeh.execute({capability:'studio.workspace.'+action,payload})).result;
   const busy = () => window.LightekStudioLook?.busy() || state.busy || window.LightekStudioShots?.busy() || window.LightekStudioDelivery?.busy() || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
@@ -38,10 +40,10 @@
     const campaignId=Number(record.scene.settings?.campaign_id);
     const campaignLink=Number.isSafeInteger(campaignId)&&campaignId>0?`<a class="production-breadcrumb" href="/dashboard/marketing/campaigns/${campaignId}/edit?site_id=${encodeURIComponent(document.querySelector('#lightek-studio-dashboard').dataset.siteId)}">Campaign brief ↗</a>`:'';
     const scene=record.scene,scenes=studioSceneRecords().filter(r=>r.project.id===record.project.id);
-    return `<header class="production-header"><a class="production-brand" href="${home}">LIGHTEK<span>STUDIO</span></a><div class="production-title"><a href="${home}" class="production-breadcrumb">Productions</a><h1>${E(record.project.name)}</h1>${campaignLink}</div><label class="production-scene"><span>Scene</span><select aria-label="Production scene" data-production-scene>${scenes.map(r=>`<option value="${r.scene.id}" ${r.scene.id===scene.id?'selected':''}>${E(r.scene.name)}</option>`).join('')}</select></label><span class="production-save" role="status" data-production-status>${E(status())}</span><a class="vw-btn" href="#/studio/${scene.id}/script" data-production-mode="script">Script</a><button class="vw-btn" data-production="save">Save changes</button></header><div class="production-toolbar"><nav aria-label="Production workspaces">${modes.map(([key,label])=>`<a href="#/studio/${scene.id}/${key}" data-production-mode="${key}">${label}</a>`).join('')}</nav><div class="production-tools"><a href="#/studio/${scene.id}/assets" data-production-mode="assets">Assets</a><button class="vw-btn" data-vw="save-template">Save show template</button></div></div><div class="production-context"><div><strong data-production-mode-title></strong><span data-production-description></span></div><nav aria-label="Scene tools"><a href="#/studio/${scene.id}/scene" data-production-mode="scene">Model & animate</a><a href="#/studio/${scene.id}/camera" data-production-mode="camera">Camera & lighting</a></nav></div>`;
+    return `<header class="production-header"><a class="production-brand" href="${home}">LIGHTEK<span>STUDIO</span></a><div class="production-title"><a href="${home}" class="production-breadcrumb">Productions</a><h1>${E(record.project.name)}</h1>${campaignLink}</div><label class="production-scene"><span>Scene</span><select aria-label="Production scene" data-production-scene>${scenes.map(r=>`<option value="${r.scene.id}" ${r.scene.id===scene.id?'selected':''}>${E(r.scene.name)}</option>`).join('')}</select></label><span class="production-save" role="status" data-production-status>${E(status())}</span><button class="vw-btn" data-production="save">Save changes</button></header><div class="production-toolbar"><nav aria-label="Production workspaces">${modes.map(([key,label])=>`<a href="#/studio/${scene.id}/${key}" data-production-mode="${key}">${label}</a>`).join('')}</nav><details class="production-more-tools"><summary>More tools</summary><nav aria-label="More production tools">${tools.map(([key,label])=>`<a href="#/studio/${scene.id}/${key}" data-production-mode="${key}">${label}</a>`).join('')}<button class="vw-btn" data-vw="save-template">Save show template</button></nav></details></div><div class="production-context"><div><strong data-production-mode-title></strong><span data-production-description></span></div></div>`;
   }
   const descriptions = {
-    look:['Look & materials','Save surface controls and scene finish, then review a Blender preview.'],
+    look:['Look & materials','Save surface controls and scene finish, then preview the scene.'],
     shots:['Direct the sequence','Order shots, choose cameras and timing, then render into your edit.'],
     ai:['AI Studio','Generate on your own worker, then use the result in this production.'],
     media:['Media pool','Import and organize source media for this production.'],
@@ -54,7 +56,7 @@
     deliver:['Finish and release','Review completed renders and export or publish the production.'],
     scene:['Build and animate','Select an object to model, sculpt, rig, animate or edit its nodes.'],
     camera:['Compose the shot','Camera, lighting and render settings for this scene.'],
-    assets:['Production assets','Import and reuse media, characters and Blender sources.']
+    assets:['Production assets','Import and reuse footage, recordings, characters and sets.']
   };
   function panel(record,key) {
     const ui=LightekStudioApp;
@@ -102,6 +104,7 @@
     shell.dataset.mode=key;
     heading.querySelector('[data-production=save]').hidden=!['shots','edit','color','media','music','script'].includes(key);
     heading.querySelectorAll('[data-production-mode]').forEach(el=>{const selected=el.dataset.productionMode===key;if(selected)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
+    if(heading.querySelector('.production-more-tools [aria-current]'))heading.querySelector('.production-more-tools').open=true;
     heading.querySelector('[data-production-mode-title]').textContent=descriptions[key][0];
     heading.querySelector('[data-production-description]').textContent=descriptions[key][1];
     const content=shell.querySelector('[data-production-content]');
@@ -116,7 +119,7 @@
   function renderJobs() {
     const el=app.querySelector('[data-production-job-list]');if(!el)return;
     const count=app.querySelector('[data-production-job-count]');if(count)count.textContent=state.jobs.length?`· ${state.jobs.length}`:'';
-    el.innerHTML=`<div class="production-job-toolbar"><p>Finished shots move into the same scene’s edit. Draft previews stay marked as previews.</p><button class="vw-btn" data-production="refresh-jobs" ${state.jobLoading?'disabled':''}>${state.jobLoading?'Checking…':'Refresh renders'}</button></div>${state.jobError?`<p role="alert">${E(state.jobError)}</p>`:''}${state.jobs.map(job=>`<article class="production-job"><div><strong>${job.shot?.shot_name?E(job.shot.shot_name):job.type==='edit_media'?'Episode master':'Scene render'} #${job.id}</strong><span>${E(job.status)}${job.draft_preview?' · Draft preview':''}</span>${job.cpu_progress?`<p>CPU economy · ${E(cpuPhases[job.cpu_progress.phase] || job.cpu_progress.phase)}${job.cpu_progress.total_frames?` · ${E(job.cpu_progress.completed_frames)} / ${E(job.cpu_progress.total_frames)} frames · ${E(job.cpu_progress.reused_frames)} reused`:''}${job.cpu_progress.elapsed_seconds!==undefined?` · ${E(job.cpu_progress.worker_elapsed_seconds??job.cpu_progress.elapsed_seconds)}s worker time`:''}${job.cpu_progress.blender_peak_rss_bytes?` · ${(Number(job.cpu_progress.blender_peak_rss_bytes)/1048576).toFixed(1)} MiB Blender peak`:''}</p>`:''}${job.error?`<p role="alert">${E(job.error)}</p>`:''}${job.cpu_resumable?`<button class="vw-btn" data-production="resume-render" data-operation="${job.id}">Resume saved frames · no new checkout</button>`:''}</div><div>${job.artifacts.map(a=>`<div class="production-artifact"><a href="${E(a.url)}" target="_blank" rel="noopener">${E(a.filename)}</a>${job.status==='completed'&&!job.draft_preview&&['video','audio','image','preview'].includes(a.kind)?`<button class="vw-btn" data-production="use-render" data-artifact="${a.id}">Add to edit</button>`:''}</div>`).join('')}</div></article>`).join('')||'<p class="production-job-empty">No renders loaded. Refresh to check this production.</p>'}`;
+    el.innerHTML=`<div class="production-job-toolbar"><p>Finished shots move into the same scene’s edit. Draft previews stay marked as previews.</p><button class="vw-btn" data-production="refresh-jobs" ${state.jobLoading?'disabled':''}>${state.jobLoading?'Checking…':'Refresh renders'}</button></div>${state.jobError?`<p role="alert">${E(state.jobError)}</p>`:''}${state.jobs.map(job=>`<article class="production-job"><div><strong>${job.shot?.shot_name?E(job.shot.shot_name):job.type==='edit_media'?'Episode master':'Scene render'} #${job.id}</strong><span>${E(job.status)}${job.draft_preview?' · Draft preview':''}</span>${job.cpu_progress?`<p>CPU economy · ${E(cpuPhases[job.cpu_progress.phase] || job.cpu_progress.phase)}${job.cpu_progress.total_frames?` · ${E(job.cpu_progress.completed_frames)} / ${E(job.cpu_progress.total_frames)} frames · ${E(job.cpu_progress.reused_frames)} reused`:''}${job.cpu_progress.elapsed_seconds!==undefined?` · ${E(job.cpu_progress.worker_elapsed_seconds??job.cpu_progress.elapsed_seconds)}s worker time`:''}${job.cpu_progress.blender_peak_rss_bytes?` · ${(Number(job.cpu_progress.blender_peak_rss_bytes)/1048576).toFixed(1)} MiB peak memory`:''}</p>`:''}${job.error?`<p role="alert">${E(job.error)}</p>`:''}${job.cpu_resumable?`<button class="vw-btn" data-production="resume-render" data-operation="${job.id}">Resume saved frames · no new checkout</button>`:''}</div><div>${job.artifacts.map(a=>`<div class="production-artifact"><a href="${E(a.url)}" target="_blank" rel="noopener">${E(a.filename)}</a>${job.status==='completed'&&!job.draft_preview&&['video','audio','image','preview'].includes(a.kind)?`<button class="vw-btn" data-production="use-render" data-artifact="${a.id}">Add to edit</button>`:''}</div>`).join('')}</div></article>`).join('')||'<p class="production-job-empty">No renders loaded. Refresh to check this production.</p>'}`;
   }
   async function loadJobs() {
     if(state.jobLoading)return;const project=state.project;state.jobLoading=true;renderJobs();

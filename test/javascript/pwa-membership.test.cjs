@@ -32,3 +32,24 @@ test('services page retains secondary navigation after primary navigation simpli
 });
 
 test('creator earnings lead with actual views and effective earnings per thousand',async()=>{const {ctx}=client();ctx.fetch=async()=>({data:{current_plan:'personal',plans:[],youtube_revenue:[{video_id:'abcdefghijk',views:10000,creator_cents:800,earnings_per_thousand_views_cents:80,period_start:'2026-01-01',period_end:'2026-01-31'}]}});await ctx.AF.membership();const html=ctx.R.membership();assert.match(html,/10,000 views/);assert.match(html,/\$8\.00 estimated earnings/);assert.match(html,/\$0\.80 per 1,000 views/);assert.match(html,/How view earnings are calculated/);});
+
+test('Studio exit returns to the main community from a member host and uses local home otherwise',()=>{
+ const {ctx,events}=client();
+ let link,insertions=0;
+ const app={before:element=>{link=element;insertions++;}};
+ ctx.document={
+  querySelector:selector=>selector==='#app'?app:selector==='#studio-app-exit'?link:null,
+  createElement:()=>({setAttribute(name,value){this[name]=value;}})
+ };
+ const refresh=()=>events['lightek.bootstrap.ready'].forEach(callback=>callback());
+ refresh();
+ assert.equal(link.href,'#/home');
+ ctx.window.LightekStorefront.state.bootstrap.member_source={origin:'https://lightek.example'};
+ refresh();
+ assert.equal(link.href,'https://lightek.example/lightek/index.html#/home');
+ assert.match(link.textContent,/Back to app/);
+ assert.equal(insertions,1);
+ ctx.window.LightekStorefront.state.bootstrap.member_source={origin:'javascript:alert(1)'};
+ refresh();
+ assert.equal(link.href,'#/home');
+});

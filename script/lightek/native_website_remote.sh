@@ -157,6 +157,7 @@ run_app bundle install --jobs 1
 if [[ "$LEGACY" = 1 ]];then docker compose --env-file "$ENV_FILE" -p "$PROJECT" -f "$BASE/compose.yml" stop web worker;fi
 MIGRATION_STARTED=1
 run_app bundle exec rails db:create db:migrate
+run_app bundle exec rails runner "LightekPwa::MemberRuntime.prepare!"
 install -d -m 0755 /run/lightek
 install -o "$APP_USER" -g "$APP_USER" -m 0600 "$STAGE/settings.json" /run/lightek/bootstrap.json
 run_app bundle exec rails runner script/lightek_website_bootstrap.rb

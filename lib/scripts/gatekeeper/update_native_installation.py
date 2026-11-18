@@ -317,6 +317,7 @@ class NativeUpdater:
                 self.migration_started = True
                 self.as_user(["bundle", "exec", "rails", "db:migrate"])
                 if self.config["component"] == "lightek_app":
+                    self.as_user(["bundle", "exec", "rails", "runner", "LightekPwa::MemberRuntime.prepare!"])
                     self.as_user(["env", "LIGHTEK_EXPECTED_SITE_HOST=" + self.config["domain"], "bundle", "exec", "rails", "lightek:site_binding:verify"])
                 self.as_user(["bundle", "exec", "rails", "assets:precompile"])
                 self.as_user(["bundle", "exec", "rails", "zeitwerk:check"])

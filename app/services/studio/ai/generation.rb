@@ -13,6 +13,10 @@ module Studio
         raise ArgumentError,"Seed must be between 0 and 4294967295" unless seed.between?(0,2**32-1)
         recipe_id=payload.fetch("recipe").to_s;model=payload.fetch("model","").to_s
         intent={"scene_id"=>scene.id,"prompt"=>prompt,"negative"=>negative,"seed"=>seed,"recipe"=>recipe_id,"model"=>model}
+        if payload["steps"].present?
+          raise ArgumentError,"Choose 1–60 sampling steps" unless payload["steps"].to_s.match?(/\A(?:[1-9]|[1-5][0-9]|60)\z/)
+          intent["steps"]=Integer(payload["steps"])
+        end
         if payload["input_asset_id"].present?
           raise ArgumentError,"Choose a starting image ID" unless payload["input_asset_id"].to_s.match?(/\A[1-9]\d*\z/)
           intent["input_asset_id"]=Integer(payload["input_asset_id"])
@@ -44,7 +48,7 @@ module Studio
             elsif intent["input_asset_id"]
               raise ArgumentError,"This workflow does not accept a starting image"
             end
-            _,graph=runtime.graph(recipe_id,prompt:prompt,negative:negative,seed:seed,model:model)
+            _,graph=runtime.graph(recipe_id,prompt:prompt,negative:negative,seed:seed,model:model,steps:intent["steps"])
             raise ArgumentError,"Choose an installed local model" if graph.values.any?{|n|n["class_type"]=="CheckpointLoaderSimple" && n.dig("inputs","ckpt_name").blank?}
             pending=StudioAsset.where(owner:access.user,status:%w[uploaded processing]).where("metadata ->> 'ai_intent' IS NOT NULL").count
             raise ArgumentError,"Wait for your current generations to finish" if pending>=2
@@ -60,7 +64,7 @@ module Studio
         receipt(asset)
       end
       def self.receipt(asset)
-        {asset_id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,phase:asset.metadata["ai_phase"],input_asset_id:asset.metadata.dig("ai_intent","input_asset_id"),input_url:asset.ai_input.attached? ? "/dashboard/studio-broadcasting/assets/#{asset.id}/input?site_id=#{asset.site_id}" : nil,error:asset.error_message,prompt:asset.metadata.dig("ai_intent","prompt"),shot_id:asset.metadata.dig("ai_intent","shot_id"),shot_name:asset.metadata.dig("ai_intent","shot_name"),seed:asset.metadata.dig("ai_intent","seed"),preview_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil}
+        {asset_id:asset.id,name:asset.name,kind:asset.kind,status:asset.status,recipe:asset.metadata.dig("ai_intent","recipe"),steps:asset.metadata.dig("ai_intent","steps") || asset.metadata.fetch("ai_graph",{}).values.find { |node| node["class_type"]=="KSampler" }&.dig("inputs","steps"),phase:asset.metadata["ai_phase"],input_asset_id:asset.metadata.dig("ai_intent","input_asset_id"),driver_asset_id:asset.metadata.dig("ai_intent","driver_asset_id"),input_url:asset.ai_input.attached? ? "/dashboard/studio-broadcasting/assets/#{asset.id}/input?site_id=#{asset.site_id}" : nil,error:asset.error_message,prompt:asset.metadata.dig("ai_intent","prompt"),shot_id:asset.metadata.dig("ai_intent","shot_id"),shot_name:asset.metadata.dig("ai_intent","shot_name"),seed:asset.metadata.dig("ai_intent","seed"),preview_url:asset.proxy.attached? ? "/api/lightek/pwa/assets/#{asset.id}/proxy" : nil}
       end
       def self.list(access:,scene_id:)
         scene=access.scene!(scene_id)

@@ -4,6 +4,7 @@ class StudioAsset < ApplicationRecord
   belongs_to :studio_project, optional: true
   has_one_attached :character_photo
   has_one_attached :ai_input
+  has_one_attached :performance_driver
   has_one_attached :file
   has_one_attached :bundle
   has_one_attached :native

@@ -46,3 +46,25 @@ Focused Active Record/Active Storage tests exercise a loopback HTTP engine fixtu
 Final verification must generate representative content on suitable production hardware, review output, and complete the integrated show workflow. Character acceptance must separately verify editable recurring characters, voiced/animated performances, rendered shots and episode assembly. See [Feature sprints](feature-sprints.md).
 
 Engine API reference: https://docs.comfy.org/development/comfyui-server/comms_routes
+
+## Dashboard workspace
+
+The sidebar opens Generate video, Workflows, Media library, Timeline, Character rigs and Export without leaving the production. Generate video keeps the prompt and preview side by side on desktop. Workflows opens the sampling controls, worker setup and performance tools. The inspector displays prompt history, worker activity, available device and VRAM readings, and the same export settings used by Timeline and Export. The worker activity panel shows the application's job phases and failure messages.
+
+Sampler recipes accept 1–60 steps and retain the actual value on the generation receipt. Workflows display their default when the user leaves the slider untouched. CUDA and free VRAM are read from the selected ComfyUI worker when available. A CPU worker or unavailable telemetry is labeled accordingly. Operator system and container logs remain on the host.
+
+### Performance worker setup
+
+**Workflows → Performance tools** can send prepared library media to these operator-configured adapters.
+
+| Engine | Source | Driver |
+| --- | --- | --- |
+| MuseTalk v1.5 | Portrait or footage | Audio recording |
+| LivePortrait | Portrait | Driving performance video |
+| FaceFusion | Portrait | Target performance video |
+
+The worker uses the staged media and saves a video into the same generation history and Timeline handoff. Videos and recordings must be 0.1–15 seconds. Use authorized source likenesses and performances.
+
+The Rails Studio worker reads `STUDIO_MUSETALK_IMAGE`, `STUDIO_LIVEPORTRAIT_IMAGE` and `STUDIO_FACEFUSION_IMAGE` independently. Set each to a locally installed, digest-pinned image after reviewing the engine, dependencies and weights for the intended use. Images need Python and FFmpeg on PATH, the corresponding engine and weights under `/opt/engine`, and working CUDA on the app worker host. The adapter runs the engine CLI without networking, with a read-only container root and a per-job working directory. The FaceFusion adapter selects `ghost_2_256`. Its image still needs compatible, approved detector and other dependency models. A LivePortrait commercial build needs the replacement detector required by upstream. An image manifest is operator configuration. Studio does not download model weights or install these images through Genesis.
+
+A configured adapter is selectable. Its ability to process representative footage and deliver acceptable output must be checked on the configured GPU. These adapters run on the app worker host. The remote Genesis connection is for the existing ComfyUI workflows.

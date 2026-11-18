@@ -25,7 +25,7 @@ const {JSDOM}=require('jsdom');
       }
       return {result};
     }};
-    function render(){app.innerHTML=LightekStudioAI.view(record)}
+    function render(){app.innerHTML=LightekStudioAI.view(record,mode)}
   `);
   vm.runInContext(fs.readFileSync('public/lightek/studio-ai.js','utf8'),context);
   const settle=async()=>{for(let i=0;i<12;i++)await new Promise(r=>setImmediate(r));};
@@ -36,6 +36,6 @@ const {JSDOM}=require('jsdom');
   const listed=Number(evaluate('requests.filter(r=>r.capability==="studio.workspace.assets.list").length'));document.querySelector('[data-ai=refresh]').click();await settle();assert(Number(evaluate('requests.filter(r=>r.capability==="studio.workspace.assets.list").length'))>listed);assert.equal(document.querySelector('[name=input_asset_id]').value,'11');
   const form=document.querySelector('[data-ai-form]');form.dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));await settle();
   const sent=JSON.parse(evaluate('JSON.stringify(requests.find(r=>r.capability.endsWith("ai.generate")))'));assert.equal(sent.payload.input_asset_id,'11');assert.equal(sent.payload.recipe,'wan22_image_video');assert.equal(sent.payload.prompt,'Animate this scene');assert.equal(sent.payload.scene_id,7);assert(!Object.hasOwn(sent.payload,'image_url'));
-  await change('[name=recipe]','image');assert.equal(document.querySelector('[name=input_asset_id]'),null);document.querySelector('[data-ai-form]').dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));await settle();const textOnly=JSON.parse(evaluate('JSON.stringify(requests.filter(r=>r.capability.endsWith("ai.generate")).at(-1))'));assert(!Object.hasOwn(textOnly.payload,'input_asset_id'));
+  evaluate("mode='workflows';render()");await change('[name=recipe]','image');assert.equal(document.querySelector('[name=input_asset_id]'),null);document.querySelector('[data-ai-form]').dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));await settle();const textOnly=JSON.parse(evaluate('JSON.stringify(requests.filter(r=>r.capability.endsWith("ai.generate")).at(-1))'));assert(!Object.hasOwn(textOnly.payload,'input_asset_id'));
   dom.window.close();console.log('STUDIO_AI_IMAGE_VIDEO_DOM_PASS workflow-specific image selection/preview, pagination/draft retention, source-bound submission and text-only separation');
 })().catch(error=>{console.error(error);process.exit(1)});

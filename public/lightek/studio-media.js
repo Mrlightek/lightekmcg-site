@@ -158,8 +158,13 @@
         const file=form.elements.file.files[0];if(!file||file.size>250*1024*1024)throw Error('Choose a file smaller than 250 MB.');
         const body=new FormData();body.append('file',file);body.append('purpose','studio_asset');
         const response=await fetch(window.LightekStudioUploadUrl||'/api/lightek/pwa/uploads',{method:'POST',credentials:'same-origin',headers:nevaeh.csrfHeaders(),body});const upload=await nevaeh.parseResponse(response);
-        await call('asset.import',{signed_id:upload.signed_id,name:form.elements.name.value.trim()||file.name,request_key:form.dataset.requestKey||=crypto.randomUUID()});
-        await loadAssets(true);toast('Import queued');
+        const imported=await call('asset.import',{signed_id:upload.signed_id,name:form.elements.name.value.trim()||file.name,request_key:form.dataset.requestKey||=crypto.randomUUID()});
+        const record=current();
+        if(window.LightekStudioProduction&&record&&/^(image|video|audio)\//.test(upload.content_type||file.type)){
+          LightekStudioEdit.openImportedAsset(imported.asset_id,record.scene.id);
+          LightekStudioProduction.go('edit');
+        }
+        await loadAssets(true);toast('Original saved to your media library');
       }else if(action==='json-preset'){
         const mode=form.elements.mode.value,record=studioSceneRecord(Number(form.elements.scene_id?.value)),beforeIds=record?.scene.objects.map(object=>object.id)||[];
         const result=await call('blender.preset.use',{key:form.dataset.key,mode,name:form.elements.name.value,title:form.elements.name.value,scene_id:record?.scene.id,lock_version:record?.scene.lock_version,object_id:form.elements.object_id?.value||undefined,asset_id:form.elements.asset_id?.value?Number(form.elements.asset_id.value):undefined,request_key:form.dataset.requestKey||=crypto.randomUUID()});timelineDrafts.delete(result.scene_id);sceneId=null;await A.studioLoad(true);ST.workspaceMode='3d';location.hash='#/studio/'+result.scene_id;LightekStudioApp.applied?.(result,{key:form.dataset.key,preset:true,beforeIds});render(1);toast('Blender template ready');
@@ -242,7 +247,7 @@
       const asset=library.items.find(a=>a.id===Number(id)&&a.status==='ready'&&['image','video','audio'].includes(a.kind));
       if(!asset)throw Error('Choose prepared video, audio or an image.');
       if(timeline.clips.length>=64)throw Error('This sequence supports up to 64 clips.');
-      const sourceEnd=Math.min(Number(asset.metadata?.duration)||5,600);
+      const sourceEnd=asset.kind==='image'?5:Math.min(Number(asset.metadata?.duration)||5,600);
       const first=Number(range.in??0),last=Number(range.out??sourceEnd);
       const lane=track??(asset.kind==='audio'?1:0);
       const ending=Math.max(0,...timeline.clips.filter(c=>c.track===lane).map(c=>c.start+lengthOf(c)));

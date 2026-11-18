@@ -11,3 +11,8 @@
 .dd-dashboard .studio-editor-launch :is(input:not([type=submit]),select){background:var(--dd-input-bg,#fff);color:var(--dd-input-text,#172033);border-color:var(--dd-input-border,#c5cedb)}
 .dd-dashboard .studio-editor-launch>p>a{color:var(--dd-accent,#2563eb)}
 .dd-dashboard .studio-editor-launch input[type=submit]{background:var(--dd-accent,#2563eb);color:var(--dd-button-text,#fff)}
+
+.lightek-editor{overflow:clip}
+.studio-editor-toolbar{position:sticky;top:0;z-index:5;background:#141a24}
+.studio-editor-toolbar nav [data-editor-action=continue]{background:#d6a95d;color:#18120b;border-color:#d6a95d;font-weight:700}
+.studio-editor-toolbar nav button{min-height:40px}

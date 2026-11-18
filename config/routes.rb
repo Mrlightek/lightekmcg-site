@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  post "/api/lightek/pwa/studio/workflows/:id/mcp", to: "api/lightek/pwa/studio_workflows#mcp"
   get "/dashboard/mail-transport", to: "dashboard/mail_transport#show", as: :dashboard_mail_transport
   post "/dashboard/mail-transport/test", to: "dashboard/mail_transport#test_delivery", as: :test_dashboard_mail_transport
   post "/dashboard/mail-transport/retire-gmail", to: "dashboard/mail_transport#retire_gmail", as: :retire_gmail_dashboard_mail_transport

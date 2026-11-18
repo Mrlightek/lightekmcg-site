@@ -3,6 +3,7 @@
 module NevaehOs
   module SpecialistContext
     TOPICS = {
+      "workflow"=>["ComfyUI CPU workflow through MCP","docs/studio/ai-studio.md",/\bcomfyui\b|comfy.*draft|cpu workflow/i],
       "wan"=>["Wan 2.2","docs/studio/genesis-image-to-video.md",/\bwan\b|image.to.video/i],
       "sd"=>["Stable Diffusion 1.5","docs/studio/genesis-workers.md",/stable diffusion|\bsd\s*1[.]5\b/i],
       "cpu"=>["Blender Cycles Economy","docs/studio/cpu-economy.md",/\bblender\b|\bcycles\b|cpu economy/i],
@@ -15,6 +16,7 @@ module NevaehOs
 
     def topic_for(capability,payload)
       case capability
+      when "studio.workspace.workflow.create" then "workflow"
       when "studio.workspace.ai.generate"
         return "wan" if Studio::Compute::Guardrails::WAN_RECIPES.include?(payload["recipe"])
         payload["recipe"]=="image" ? "sd" : "performance"
@@ -27,6 +29,8 @@ module NevaehOs
     def guidance(topic)
       rules=Studio::Compute::Guardrails
       case topic
+      when "workflow"
+        "In AI Studio Create, choose ComfyUI CPU Draft. With the workflow controller installed, try: A cube spins under soft lighting viewed from front. It makes a two-second 320×180 review draft through MCP, Blender and FFmpeg without neural models. Supported shapes are cube, sphere and cylinder; motion is spin, slide or still. Arbitrary scenes and full-quality exports are outside this draft workflow."
       when "wan"
         "In Create, pick Wan 2.2 and add a prompt or starting image. Auto uses the registered worker’s available VRAM. Economy caps the clip at 512×288, and Quality at 1280×704. Both cap at #{rules::WAN_FRAMES} frames. If memory is tight, start with Economy and 20 steps."
       when "sd"
@@ -61,7 +65,7 @@ module NevaehOs
       explicit=text.to_s.match?(/\A\s*(?:how|what|which|can|why|help|explain)\b/i)
       return unless explicit
       topic=topic_in(text)
-      return unless topic && (studio_context || text.match?(/\b(?:wan|blender|cycles|ffmpeg|musetalk|rhubarb|liveportrait|facefusion|stable diffusion)\b/i))
+      return unless topic && (studio_context || text.match?(/\b(?:comfyui|wan|blender|cycles|ffmpeg|musetalk|rhubarb|liveportrait|facefusion|stable diffusion)\b/i))
       source=evidence(topic)
       {"text"=>source.fetch(:studio_limits),"sources"=>[source],"status"=>"grounded"}
     end

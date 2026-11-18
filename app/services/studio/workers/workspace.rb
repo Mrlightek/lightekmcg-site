@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs social_accounts social_options project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[workflow_create look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs social_accounts social_options project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -48,6 +48,7 @@ module Studio
         inventory.merge(genesis_workers:worker, render_pools:Studio::Compute::ProceduralMovie.pools(site),
           performances:Studio::Ai::Performances.inventory)
       end
+      def workflow_create = Studio::Workflows::Production.start(access:@access,payload:@payload)
       def ai_setup_status = Studio::Ai::Setup.status(access:@access,payload:@payload)
       def ai_setup_install = Studio::Ai::Setup.start(access:@access,payload:@payload)
       def ai_generate

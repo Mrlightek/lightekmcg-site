@@ -76,6 +76,19 @@
       "ram_gib": 32,
       "free_disk_gib": 80,
       "vram_mib": 24576
+    },
+    "workflow": {
+      "name": "Studio workflow controller \u00b7 no neural models",
+      "models": [],
+      "devices": [
+        "cpu"
+      ],
+      "ram_gib": 2,
+      "ram_mib": 1536,
+      "available_mib": 1024,
+      "memory_limit_gib": 1,
+      "free_disk_gib": 6,
+      "vram_mib": 0
     }
   }
 }

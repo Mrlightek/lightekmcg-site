@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v107-genesis-diagnostics"
+const CACHE = "lightek-shell-v108-comfy-workflow"
 
 const SHELL = [
   "/lightek/index.html",
@@ -13,7 +13,7 @@ const SHELL = [
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
   "/lightek/nevaeh-reply-stream.js?v=1",
-  "/lightek/studio-unified.js?v=10",
+  "/lightek/studio-unified.js?v=11",
   "/lightek/studio-unified.css?v=4",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",

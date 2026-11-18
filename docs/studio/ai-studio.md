@@ -4,6 +4,44 @@ AI Studio connects self-hosted generation to the same production library, storyb
 
 [CPU procedural scene production](cpu-economy.md) is available through the existing native production workflow without installing diffusion models. Neural generation below is optional and requires a configured neural worker. Only infrastructure operators receive engine/model installation controls.
 
+## ComfyUI CPU workflow through MCP
+
+**Studio → AI Studio Create → ComfyUI CPU Draft** runs a four-node, model-free ComfyUI graph: job context → Blender render → FFmpeg assembly → Studio result. ComfyUI's custom nodes call a stateless, job-scoped MCP endpoint in Rails. Existing CPU queue, lease and federation routes execute the Blender child operation; ComfyUI does not load a video model or execute arbitrary Python supplied by a creator.
+
+This first workflow produces a **two-second, 320×180 review draft** of one procedural shape. Its supported prompt language is intentionally bounded:
+
+> A cube spins under soft lighting viewed from front
+
+Shapes: cube, sphere, cylinder. Motion: spins/rotates, slides, stays still. Optional lighting: soft, bright, low. Optional camera: front, angle, overhead. Unsupported scenes fail with an example instead of silently rendering unrelated content. This is a template planner, not an unrestricted language model. The scene plan and immutable render manifest remain in the operation receipt.
+
+The saved MP4 is previewed in Studio. It remains a private draft: existing restrictions on adding draft artifacts to an episode or publishing them still apply. Full-quality render/payment/export paths are unchanged. Character animation, speech/music composition, general Movie Masher exports, neural generation and general-purpose MCP access are not implemented by this four-node graph.
+
+### Install the workflow controller
+
+From the Dashboard workspace, **Open worker setup** opens the existing operator setup surface. Select **Studio workflow controller · no neural models**, CPU, and a registered application runtime you can manage. The package downloads no model weights, installs only the trusted `lightek_studio` custom node package, and enables that package through ComfyUI's custom-node whitelist. The root filesystem and node package remain read-only. Managed connections retain the existing private HTTPS/Vault route.
+
+For an operator-managed local engine on the main application host, the same bounded helper can install this package without creating a new server or a managed-worker identity. After deployment, run from the application directory as its OS user:
+
+```sh
+python3 script/studio/install_local_workflow.py --domain YOUR_EXISTING_HTTPS_APP_HOSTNAME
+```
+
+This uses the already installed sudo rule and root-owned package catalog. It installs the controller on loopback port 8188, preserves host ownership checks, and keeps the application’s existing local-runtime fallback. Use it only on the application host whose existing HTTPS hostname is supplied. A workflow controller on another host is connected through managed-worker setup instead. No automatic installation runs during deployment.
+
+The controller budget is 1 GiB RAM. Preflight requires at least 1536 MiB total RAM, 1024 MiB currently available, and 6 GiB free disk for the engine/build. A nominal 2 GB server can meet the total-memory threshold, but a busy host reporting 556 MiB available fails the headroom check. Free capacity or select another registered worker; the setup does not stop other applications or resize a server. Rendering still consumes resources on the selected CPU worker.
+
+A local proof with the pinned ComfyUI 0.3.76 / Torch 2.7.1 CPU runtime measured approximately 469 MiB peak ComfyUI RSS and produced a real two-second MP4 through the production MCP controller, Blender worker and FFmpeg assembler. This is one measured controller process, not a guarantee of total host/container usage. Production setup and a real PWA submission must still be verified on the selected installation.
+
+### MCP contract and recovery
+
+The authenticated Studio entry capability is `studio.workspace.workflow.create`, with `scene_id`, supported `prompt` and an idempotent `request_key`. Nevaeh retains the existing Gatekeeper/Dispatch path for this entry; the MCP tools are restricted to continuing the resulting job.
+
+`POST /api/lightek/pwa/studio/workflows/:id/mcp` supports MCP 2025-06-18 initialization, initialized notifications, tools/list and tools/call. Its only tools are `studio_render`, `studio_assemble` and `studio_result`, with empty argument objects. A signed one-hour Bearer token selects exactly one existing operation. The controller rechecks creator/project/site access; clients cannot choose users, scenes, shell commands, filenames or graphs. There is no public general-purpose OAuth MCP service in this release. The token and endpoint are generated server-side and never returned to the Studio browser.
+
+Render and assembly steps retain their operation/artifact IDs across repeated calls. Failed, cancelled, expired or revoked jobs cannot start a new step. Uncertain ComfyUI submissions are not automatically resubmitted. Inspect the existing operation and worker history before starting a new request.
+
+The integration test `script/studio/prove_comfy_workflow.py` starts real pinned ComfyUI, serves the Rails MCP controller on loopback, executes the Blender queue job, assembles with FFmpeg and validates the saved MP4 with ffprobe. CI preserves its output video as an artifact. It does not claim that a production instance is configured or that all Studio engines work.
+
 ## Generate and edit
 
 Open a production → **AI Studio**. The application checks the selected local or managed ComfyUI worker, its nodes and installed model names. Only ready recipes can be submitted. Choose a workflow, write the prompt, optionally a negative prompt, and keep or change the seed. The concept-image recipe also offers its installed checkpoint selector.

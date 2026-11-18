@@ -31,11 +31,12 @@ class StudioAiInstallJob < ApplicationJob
     end
   rescue StandardError=>error
     message=if error.is_a?(Gatekeeper::Fleet::Transport::RemoteFailure)
-      {"insufficient_memory"=>"This package needs more total and available RAM. Use a larger worker and retry.",
+      {"insufficient_memory"=>"This package needs more total or available RAM. Free capacity or select another registered worker, then retry.",
        "insufficient_disk"=>"This worker needs more free disk for the engine and models.","gpu_required"=>"Choose a CUDA worker for this package.",
        "gpu_unavailable"=>"An NVIDIA GPU, driver and container runtime must be ready on this worker.","insufficient_vram"=>"This package needs a GPU with more video memory.",
        "https_vhost_required"=>"The worker needs one active HTTPS website configuration.","worker_assigned_elsewhere"=>"This worker is already assigned to another website.",
        "installation_busy"=>"Another setup is running on this worker. Wait for it to finish.","model_checksum_mismatch"=>"Model verification failed. Retry to download the model again.",
+       "workflow_nodes_unavailable"=>"ComfyUI started but the trusted Lightek workflow nodes did not load. Check the worker node package.",
        "engine_health_failed"=>"The engine did not become healthy. Check worker capacity and its HTTPS connection."}[error.receipt["reason"]]
     end
     site&.with_lock do

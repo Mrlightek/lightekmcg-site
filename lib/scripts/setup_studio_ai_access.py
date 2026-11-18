@@ -30,6 +30,11 @@ def install(app_root, app_user, system_root=Path('/')):
     shutil.copyfile(Path(app_root) / 'config/studio_ai/packages.json', catalog)
     os.chown(catalog, 0, 0)
     catalog.chmod(0o600)
+    nodes=helper.parent / 'studio-comfy-nodes.py'
+    if nodes.is_symlink(): raise ValueError('Genesis node package must not be a symlink')
+    shutil.copyfile(Path(app_root) / 'lib/comfyui/lightek_studio/__init__.py',nodes)
+    os.chown(nodes,0,0)
+    nodes.chmod(0o600)
     policy = root / f'etc/sudoers.d/lightek-studio-ai-{app_user}'
     policy.parent.mkdir(parents=True, exist_ok=True)
     if policy.is_symlink():

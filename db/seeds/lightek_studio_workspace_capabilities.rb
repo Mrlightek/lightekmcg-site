@@ -2,6 +2,8 @@
 Studio::Workers::Workspace::ACTIONS.each do |action|
   slug = "studio.workspace.#{action.tr('_', '.')}"
   record = NevaehCapability.find_or_initialize_by(slug: slug)
+  next if ENV["LIGHTEK_PWA_SEED_MISSING_ONLY"] == "true" && record.persisted?
+
   record.assign_attributes(name: slug.humanize, domain: "studio", intent_name: "studio_workspace_#{action}",
     description: "Perform #{action.humanize.downcase} in the authenticated creator's Studio workspace.",
     handler: "Studio::Workers::Workspace", queue: "default", priority: 5, gatekeeper_capability: slug,
@@ -14,6 +16,7 @@ end
 # The paid render job authorizes this capability after Stripe confirms payment.
 # It is intentionally absent from the generic PWA execution action map.
 render_capability = NevaehCapability.find_or_initialize_by(slug: "studio.render.preview")
+unless ENV["LIGHTEK_PWA_SEED_MISSING_ONLY"] == "true" && render_capability.persisted?
 render_capability.assign_attributes(name: "Studio Render Preview", domain: "studio", intent_name: "render_studio_preview",
   description: "Build a paid Studio scene with Blender and persist its artifacts.", subject_type: "StudioOperation",
   handler: "Studio::Workers::Preview", queue: "studio", priority: 5, gatekeeper_capability: "studio.render.preview",
@@ -22,3 +25,4 @@ render_capability.assign_attributes(name: "Studio Render Preview", domain: "stud
   failure_policy: { "retries" => 0, "escalate" => true }, realtime: {}, input_adapter: {},
   metadata: { "surface" => "studio", "payment_required" => true }, knowledge_article_ids: [])
 render_capability.save!
+end

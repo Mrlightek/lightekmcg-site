@@ -20,12 +20,15 @@ def checked_members(archive):
         members.append(member)
         p=pathlib.PurePosixPath(member.name)
         if p.is_absolute() or '..' in p.parts or member.name in seen or not (member.isfile() or member.isdir()):raise ValueError('Unsafe backend archive')
-        if p.parts[0] not in {'database.dump','redis.rdb','keys.json','manifest.json','storage'}:raise ValueError('Unexpected backend archive member')
-        if p.parts[0]!='storage' and len(p.parts)!=1:raise ValueError('Unexpected backend archive path')
+        if p.parts[0] not in {'database.dump','redis.rdb','keys.json','manifest.json','storage','account.json','blobs'}:raise ValueError('Unexpected backend archive member')
+        if p.parts[0] not in {'storage','blobs'} and len(p.parts)!=1:raise ValueError('Unexpected backend archive path')
         total+=member.size
         if total>MAX_ARCHIVE:raise ValueError('Backend archive exceeds transfer allowance')
         seen.add(member.name)
-    if not {'database.dump','redis.rdb','keys.json','manifest.json'}.issubset(seen):raise ValueError('Incomplete backend archive')
+    legacy={'database.dump','redis.rdb','keys.json','manifest.json'}.issubset(seen)
+    account={'account.json','manifest.json'}.issubset(seen)
+    if legacy==account:raise ValueError('Incomplete or mixed backend archive')
+    if account and any(p.split('/')[0] in {'storage','database.dump','redis.rdb','keys.json'} for p in seen):raise ValueError('Account archive contains shared runtime material')
     return members
 
 class Transfer:
@@ -34,18 +37,24 @@ class Transfer:
         if self.action not in ACTIONS:raise ValueError('Unknown backend transfer action')
         if not re.fullmatch(r'[a-f0-9-]{36}',c['operation_key']) or not re.fullmatch(r'[a-f0-9-]{36}',c['member_key']):raise ValueError('Invalid transfer identity')
         if not re.fullmatch(r'[a-z0-9-]+(?:\.[a-z0-9-]+)+',c['domain']):raise ValueError('Invalid backend hostname')
-        self.base=pathlib.Path('/opt/lightek-sites')/c['domain'];self.root=self.base/'current'
+        self.account=bool(c.get('account_snapshot'));self.shared_source=bool(c.get('shared_source'))
+        if self.shared_source and not self.account:raise ValueError('Shared hosting requires the account-only protocol')
+        runtime=c.get('runtime_domain',c['domain'])
+        if not re.fullmatch(r'[a-z0-9-]+(?:\.[a-z0-9-]+)+',runtime):raise ValueError('Invalid runtime hostname')
+        if runtime!=c['domain'] and not (self.account and self.shared_source):raise ValueError('Only a shared account may use a different runtime')
+        self.base=pathlib.Path('/opt/lightek-sites')/runtime;self.root=self.base/'current'
         profile=c['deployment']
         if profile['app_root']!=str(self.root) or profile['env_file']!=str(self.base/'.env'):raise ValueError('Transfer must target its exact managed runtime')
         if not re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_-]*',profile['app_user']):raise ValueError('Invalid application user')
         managed=json.loads((self.base/'managed.json').read_text())
-        if managed['domain']!=c['domain'] or managed['owner_email']!=c['owner_email']:raise ValueError('Managed backend ownership mismatch')
-        worker='lightek-'+hashlib.sha256(c['domain'].encode()).hexdigest()[:12]+'-sidekiq'
+        if managed['domain']!=runtime or managed['owner_email']!=c.get('runtime_owner_email',c['owner_email']):raise ValueError('Managed backend ownership mismatch')
+        worker='lightek-'+hashlib.sha256(runtime.encode()).hexdigest()[:12]+'-sidekiq'
         if profile['worker_service'].removesuffix('.service')!=worker:raise ValueError('Worker does not belong to this backend')
         self.profile=profile;self.env=self.values();self.state=pathlib.Path('/var/lib/lightek/pwa-transfers')/c['operation_key']
         self.state.mkdir(parents=True,exist_ok=True,mode=0o700);self.state.chmod(0o700)
-        self.archive=self.state/'backend.tar';self.flag=self.root/'tmp/pwa-migration.lock'
+        self.archive=self.state/'backend.tar';self.flag=self.root/('tmp/pwa-accounts/'+c['member_key']+'.lock' if self.shared_source else 'tmp/pwa-migration.lock')
         binding=self.state/'binding.json';expected={k:c[k] for k in ['domain','member_key','owner_email']}
+        if self.account:expected.update(runtime=runtime,account=True,shared_source=self.shared_source)
         if binding.exists() and json.loads(binding.read_text())!=expected:raise ValueError('Transfer operation belongs to another backend')
         binding.write_text(json.dumps(expected));binding.chmod(0o600)
     def values(self):return {k:json.loads(v) for k,v in (line.split('=',1) for line in (self.base/'.env').read_text().splitlines() if '=' in line)}
@@ -63,7 +72,16 @@ class Transfer:
     def db(self,sql):
         return self.compose('exec','-T','-e','PGOPTIONS=-c default_transaction_read_only=off','db','sh','-c','psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"','transfer',sql,capture=True)
     def rails(self,action,**extra):
-        source='require "json"; c=JSON.parse(STDIN.read); puts "PWA_BACKEND="+JSON.generate(case c["action"]; when "rewrite" then LightekPwa::NativeBackend.rewrite!(c); when "activate" then LightekPwa::NativeBackend.activate!(c); else LightekPwa::NativeBackend.call(c); end)'
+        source='''require "json"; c=JSON.parse(STDIN.read); result = case c["action"]
+when "account_freeze" then LightekPwa::AccountSnapshot.new(c).freeze!
+when "account_thaw" then LightekPwa::AccountSnapshot.new(c).thaw!
+when "account_commit" then LightekPwa::AccountSnapshot.new(c).commit!(c.fetch("destination_hostname"))
+when "account_export" then LightekPwa::SourceRuntime.control { LightekPwa::AccountSnapshot.new(c).export!(c.fetch("directory")) }
+when "account_import" then LightekPwa::AccountSnapshot.import!(c,c.fetch("directory"))
+when "rewrite" then LightekPwa::NativeBackend.rewrite!(c)
+when "activate" then LightekPwa::NativeBackend.activate!(c)
+else LightekPwa::NativeBackend.call(c)
+end; puts "PWA_BACKEND="+JSON.generate(result)'''
         output=self.run(['sudo','-u',self.profile['app_user'],'-H','env','PGOPTIONS=-c default_transaction_read_only=off','python3',str(self.base/'run-app.py'),'bundle','exec','rails','runner',source],json.dumps({**self.c,'action':action,**extra}).encode(),True)
         line=next(x for x in output.decode().splitlines() if x.startswith('PWA_BACKEND='));return json.loads(line[12:])
     def worker(self,action):self.run(['systemctl',action,self.profile['worker_service']])
@@ -72,9 +90,16 @@ class Transfer:
         self.db('ALTER DATABASE '+name+' SET default_transaction_read_only = '+('on' if value else 'off'))
         self.db("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()")
     def freeze(self):
+        if self.shared_source:
+            proof=self.rails('account_freeze')
+            if proof['status']!='frozen':raise ValueError('Account did not accept the write hold')
+            return proof
         if self.flag.exists() and self.flag.read_text()!=self.c['operation_key']:raise ValueError('Another transfer owns the write freeze')
         self.flag.write_text(self.c['operation_key']);self.worker('stop');self.readonly(True)
     def thaw(self):
+        if self.shared_source:
+            if self.rails('account_thaw')['status']!='active':raise ValueError('Account write hold could not be released')
+            return
         if not self.flag.exists() or self.flag.read_text()!=self.c['operation_key']:raise ValueError('Write-freeze ownership mismatch')
         self.readonly(False);self.flag.unlink();self.worker('start')
         self.run(['passenger-config','restart-app',str(self.root),'--ignore-app-not-running'])
@@ -83,6 +108,9 @@ class Transfer:
         actual=(self.root/'storage').resolve()
         if actual!=expected or expected.is_symlink() or expected.parent.is_symlink():raise ValueError('Storage is outside its exact managed backend')
         return actual
+    def vhost_path(self):
+        prefix = 'lightek-app-'+self.c['member_key'] if self.shared_source and self.c['domain']!=self.c['runtime_domain'] else 'lightek-'+self.c['domain']
+        return pathlib.Path('/etc/apache2/sites-available')/(prefix+'-ssl.conf')
     def storage_digest(self,root):
         h=hashlib.sha256()
         for p in sorted(root.rglob('*')):
@@ -91,6 +119,7 @@ class Transfer:
         return h.hexdigest()
     def export(self):
         if self.archive.exists() and (self.state/'export.json').exists():return json.loads((self.state/'export.json').read_text())
+        if self.shared_source:return self.export_account()
         proof=self.rails('probe');self.freeze();proof=self.rails('probe')
         if shutil.disk_usage(self.base).free<1024*1024*1024:raise ValueError('Not enough space for a retained migration snapshot')
         # Snapshot uses this application's own dependency project and storage only.
@@ -114,6 +143,8 @@ class Transfer:
             if not self.flag.exists() or self.flag.read_text()!=self.c['operation_key']:raise ValueError('Destination write hold changed')
             return {'status':'reserved'}
         proof=self.rails('destination_probe');self.freeze()
+        # Reject customer work committed between preflight and the write hold.
+        proof=self.rails('destination_probe')
         (self.state/'destination-proof.json').write_text(json.dumps(proof))
         self.database_file(self.state/'destination-before.dump')
         self.compose('exec','-T','redis','redis-cli','SAVE')
@@ -141,6 +172,8 @@ class Transfer:
         destination=json.loads((self.state/'destination-proof.json').read_text())
         if destination['schema']!=manifest['schema']:raise ValueError('Source and destination schemas differ')
         if not self.flag.exists() or self.flag.read_text()!=self.c['operation_key']:raise ValueError('Destination write hold changed')
+        if self.account:return self.apply_account(target,manifest)
+        if (target/'account.json').exists():raise ValueError('Account archive cannot use the whole-runtime importer')
         keys=json.loads((target/'keys.json').read_text())
         if set(keys)-SECRET_KEYS:raise ValueError('Unexpected protected configuration')
         values=self.values();values.update(keys)
@@ -157,6 +190,44 @@ class Transfer:
         # Sessions are deliberately revoked; all other database table counts must match.
         if result['counts']!=manifest['counts'] or self.storage_digest(storage)!=manifest['storage_sha256']:raise ValueError('Imported backend verification failed')
         (self.state/'applied.json').write_text(json.dumps(result));return {**result,'status':'verified','sha256':self.c['sha256']}
+    def account_directory(self,name):
+        import pwd
+        directory=self.base/'shared/tmp/pwa-transfers'/self.c['operation_key']/name
+        directory.mkdir(parents=True,exist_ok=True,mode=0o700)
+        if any(path.is_symlink() for path in [directory.parent.parent,directory.parent,directory]):raise ValueError('Account snapshot paths cannot be symlinks')
+        user=pwd.getpwnam(self.profile['app_user'])
+        for path in [directory.parent.parent,directory.parent,directory]:
+            os.chown(path,user.pw_uid,user.pw_gid);path.chmod(0o700)
+        return directory
+    def export_account(self):
+        proof=self.freeze()
+        if shutil.disk_usage(self.base).free < int(proof['media_bytes'])*2 + 640*1024*1024:
+            self.thaw();raise ValueError('Not enough space for a retained account snapshot')
+        directory=self.account_directory('export')
+        proof=self.rails('account_export',directory=str(directory))
+        proof['source_hostname']=self.c['domain'];proof['source_sha']=self.run(['git','-C',str(self.root),'rev-parse','HEAD'],capture=True).decode().strip()
+        (directory/'manifest.json').write_text(json.dumps(proof))
+        with tarfile.open(str(self.archive)+'.partial','w') as archive:
+            for name in ['account.json','manifest.json','blobs']:archive.add(directory/name,arcname=name,recursive=True)
+        pathlib.Path(str(self.archive)+'.partial').replace(self.archive);self.archive.chmod(0o600)
+        if self.archive.stat().st_size>MAX_ARCHIVE:raise ValueError('Account snapshot exceeds transfer allowance')
+        receipt={**proof,'bytes':self.archive.stat().st_size,'sha256':digest(self.archive),'status':'frozen'}
+        (self.state/'export.json').write_text(json.dumps(receipt));return receipt
+    def apply_account(self,target,manifest):
+        if manifest.get('format')!='account-v1' or not (target/'account.json').is_file():raise ValueError('Expected an account-only snapshot')
+        directory=self.account_directory('import')
+        shutil.copytree(target,directory,dirs_exist_ok=True)
+        self.run(['chown','-R',self.profile['app_user']+':'+self.profile['app_user'],str(directory)])
+        storage=self.storage();backup=self.state/'destination-storage-before'
+        if not backup.exists():shutil.copytree(storage,backup)
+        proof=self.rails('account_import',directory=str(directory))
+        if proof['counts']!=manifest['counts'] or proof['member_key']!=self.c['member_key']:raise ValueError('Account import verification failed')
+        self.rails('rewrite',source_hostname=manifest['source_hostname'])
+        # The destination's own secrets remain in place. Shared jobs, sessions
+        # and Redis contents are never imported from the free hosting service.
+        self.compose('exec','-T','redis','redis-cli','FLUSHDB')
+        result={**proof,'status':'verified','sha256':self.c['sha256']}
+        (self.state/'applied.json').write_text(json.dumps(result));return result
     def call(self):
         a=self.action
         if a in {'probe','destination_probe'}:return self.rails(a)
@@ -185,7 +256,7 @@ class Transfer:
             (self.state/'activation-intent').write_text('1')
             # Protected env values must also reach Passenger after import.
             def quote(v):return '"'+str(v).replace('\\','\\\\').replace('"','\\"')+'"'
-            values=self.values();values['LIGHTEK_PWA_MEMBER_BACKEND']='false';(self.base/'.env').write_text(''.join(k+'='+json.dumps(str(v))+'\n' for k,v in values.items()));(self.base/'passenger-env.conf').write_text(''.join('SetEnv '+k+' '+quote(v)+'\n' for k,v in values.items()))
+            values=self.values();values['LIGHTEK_PWA_MEMBER_BACKEND']='false';values['LIGHTEK_PWA_SHARED_HOSTING']='false';(self.base/'.env').write_text(''.join(k+'='+json.dumps(str(v))+'\n' for k,v in values.items()));(self.base/'passenger-env.conf').write_text(''.join('SetEnv '+k+' '+quote(v)+'\n' for k,v in values.items()))
             self.run(['apache2ctl','configtest']);self.run(['systemctl','reload','apache2'])
             if self.flag.exists():self.thaw()
             else:self.readonly(False);self.worker('start');self.run(['passenger-config','restart-app',str(self.root),'--ignore-app-not-running'])
@@ -210,10 +281,14 @@ class Transfer:
             if self.flag.exists():self.thaw()
             (self.state/'aborted').write_text('1');return {'status':'aborted'}
         if a=='rollback_source':
+            if (self.state/'source-committed').exists():raise ValueError('Destination is active; reverse transfer is required')
             backup=self.state/'vhost-before'
             if backup.exists():
-                path=pathlib.Path('/etc/apache2/sites-available')/('lightek-'+self.c['domain']+'-ssl.conf');path.write_text(backup.read_text());self.run(['apache2ctl','configtest']);self.run(['systemctl','reload','apache2'])
+                path=self.vhost_path();path.write_text(backup.read_text());self.run(['apache2ctl','configtest']);self.run(['systemctl','reload','apache2'])
             if not (self.state/'source-restored').exists():
+                if self.shared_source:
+                    if self.flag.exists():self.thaw()
+                    (self.state/'source-restored').write_text('1');return {'status':'active'}
                 if self.flag.exists():self.thaw()
                 else:self.readonly(False);self.worker('start');self.run(['passenger-config','restart-app',str(self.root),'--ignore-app-not-running'])
                 (self.state/'source-restored').write_text('1')
@@ -221,16 +296,31 @@ class Transfer:
         if a=='redirect':
             host=self.c['destination_hostname']
             if not re.fullmatch(r'[a-z0-9-]+(?:\.[a-z0-9-]+)+',host):raise ValueError('Invalid redirect hostname')
-            path=pathlib.Path('/etc/apache2/sites-available')/('lightek-'+self.c['domain']+'-ssl.conf');text=path.read_text()
+            if self.shared_source:
+                proof=json.loads((self.state/'export.json').read_text())
+                if not self.archive.exists() or digest(self.archive)!=proof['sha256']:raise ValueError('Retained account snapshot is missing or changed')
+            path=self.vhost_path();text=path.read_text()
             if not (self.state/'vhost-before').exists():(self.state/'vhost-before').write_text(text)
-            text=re.sub(r'(?m)^PassengerAppRoot.*$', 'Redirect 307 / https://'+host+'/',text)
-            path.write_text(text);self.run(['apache2ctl','configtest']);self.run(['systemctl','reload','apache2']);return {'status':'redirecting'}
+            if self.shared_source:
+                marker='# LIGHTEK ACCOUNT CUTOVER BEGIN'
+                block=marker+'\nRewriteEngine On\nRewriteCond %{REQUEST_URI} !^/(?:__lightek/|up/?$|\\.well-known/)\nRewriteRule ^ https://'+host+'%{REQUEST_URI} [R=307,L]\n# LIGHTEK ACCOUNT CUTOVER END\n'
+                if marker in text:text=re.sub(r'# LIGHTEK ACCOUNT CUTOVER BEGIN.*?# LIGHTEK ACCOUNT CUTOVER END\n?',lambda _:block,text,flags=re.S)
+                else:text=text.replace('</VirtualHost>',block+'</VirtualHost>')
+            else:text=re.sub(r'(?m)^\s*PassengerAppRoot.*$', 'Redirect 307 / https://'+host+'/',text)
+            path.write_text(text);self.run(['apache2ctl','configtest']);self.run(['systemctl','reload','apache2'])
+            if self.shared_source:
+                receipt=self.rails('account_commit',destination_hostname=host)
+                (self.state/'source-committed').write_text(host);return receipt
+            return {'status':'redirecting'}
 
 def main():
     try:
         instance=Transfer(json.load(sys.stdin))
-        with pathlib.Path('/var/lock/lightek-site-'+instance.c['domain']+'.lock').open('a') as lock:
+        runtime_state=pathlib.Path('/var/lib/lightek/fleet')/hashlib.sha256(str(instance.root.resolve()).encode()).hexdigest()[:24]
+        runtime_state.mkdir(parents=True,exist_ok=True,mode=0o700)
+        with pathlib.Path('/var/lock/lightek-site-'+instance.c['domain']+'.lock').open('a') as lock,(runtime_state/'update.lock').open('a') as runtime_lock:
             fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            fcntl.flock(runtime_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
             print(json.dumps(instance.call()))
     except Exception as error:
         print(json.dumps({'status':'failed','error_class':type(error).__name__}));return 1

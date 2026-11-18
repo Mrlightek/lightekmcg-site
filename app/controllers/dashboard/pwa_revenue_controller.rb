@@ -86,6 +86,11 @@ class Dashboard::PwaRevenueController < DymondDash::ApplicationController
       pool_id: params.require(:pool_id), status: params.require(:status))
     redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Free-member server placement availability updated.'
   end
+  def set_pool_account_limit
+    LightekPwa::MemberBackends.set_account_limit!(site: @site, actor: current_user,
+      pool_id: params.require(:pool_id), max_members: params.require(:max_members))
+    redirect_to dashboard_pwa_revenue_path(site_id: @site.id), notice: 'Shared hosting account limit updated. No server purchase or resize was requested.'
+  end
   def retry_pool
     pool = LightekPwa::SharedPool.where(site: @site).find(params.require(:pool_id))
     raise ArgumentError, 'Only an unfinished shared-host installation can be retried' unless pool.status.in?(%w[provisioning failed])

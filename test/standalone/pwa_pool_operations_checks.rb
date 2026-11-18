@@ -190,7 +190,7 @@ class PwaPoolOperationsTest < PwaMemberBackendTest
       launch_readiness: {launch_candidate: false, paid_sales_ready: false, implementation_gaps: {}, configuration: {}, production_acceptance: {}},
       starter_offer: {plan: {'id'=>'nanode-1','label'=>'Nanode 1GB','monthly_cents'=>500}, region: 'us-mia', capacity: 1},
       membership: {enabled: false, setup_note: 'Preparing'}, packages: [], purchases: [], youtube_uploads: [], creator_earnings: [], receipts: [], learning_build: nil)
-    %i[retry_pool_dashboard_pwa_revenue_path dashboard_pwa_path smallest_pool_dashboard_pwa_revenue_path routing_dashboard_pwa_revenue_path status_dashboard_pwa_revenue_pool_path pools_dashboard_pwa_revenue_path finalize_views_dashboard_pwa_revenue_path import_dashboard_pwa_revenue_path prepare_nevaeh_dashboard_pwa_revenue_path].each { |name| view.define_singleton_method(name) { |**| '/dashboard/pwa/revenue' } }
+    %i[retry_pool_dashboard_pwa_revenue_path dashboard_pwa_path smallest_pool_dashboard_pwa_revenue_path routing_dashboard_pwa_revenue_path status_dashboard_pwa_revenue_pool_path limit_dashboard_pwa_revenue_pool_path pools_dashboard_pwa_revenue_path finalize_views_dashboard_pwa_revenue_path import_dashboard_pwa_revenue_path prepare_nevaeh_dashboard_pwa_revenue_path].each { |name| view.define_singleton_method(name) { |**| '/dashboard/pwa/revenue' } }
     view.define_singleton_method(:flash) { {} }
     view.define_singleton_method(:protect_against_forgery?) { false }
     html = view.render(template: 'dashboard/pwa_revenue/show')

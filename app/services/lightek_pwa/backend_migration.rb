@@ -32,11 +32,19 @@ module LightekPwa
     end
     def remote(side, action, extra = {})
       node, host = side == :source ? [@source_node, @backend.hostname] : [@target_node, @target_host]
-      profile = node.metadata.to_h.fetch('website_deployments', {}).fetch(host).fetch('fleet_config')
+      runtime_host = side == :source ? @backend.source_runtime_hostname : host
+      profile = node.metadata.to_h.fetch('website_deployments', {}).fetch(runtime_host).fetch('fleet_config')
       payload = {'domain'=>host, 'member_key'=>@backend.public_key, 'owner_email'=>@backend.user.email_address,
         'operation_key'=>@receipt.fetch('operation_key'), 'deployment'=>profile, 'action'=>action}.merge(extra)
+      if @backend.shared_account?
+        payload.merge!('account_snapshot'=>true, 'runtime_domain'=>runtime_host,
+          'runtime_owner_email'=>side == :source ? @backend.shared_pool.launch.owner.email_address : @backend.user.email_address,
+          'peer_key'=>@backend.peer&.key, 'peer_token_digest'=>@backend.peer&.token_digest,
+          'central_origin'=>"https://#{@backend.site.host}",
+          'shared_source'=>side == :source)
+      end
       # Transport clears the payload (including any chunk) on exit.
-      Gatekeeper::Fleet::Transport.run!(node: node, domain: host, requested_by: @backend.shared_pool.operator.email_address,
+      Gatekeeper::Fleet::Transport.run!(node: node, domain: runtime_host, requested_by: @backend.shared_pool.operator.email_address,
         operation_id: nil, payload: payload, script_name: 'pwa_backend_transfer.py')
     end
     def checkpoint(state, values = {})

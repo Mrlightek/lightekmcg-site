@@ -2,9 +2,9 @@ module LightekPwa
   class Plans
     class Unavailable < StandardError; end
     CATALOG = {
-      'community' => {name: 'Community', features: ['Watch and discover for free', 'Posts, communities and messages', 'Your public profile']},
-      'personal' => {name: 'Personal', features: ['Your own Lightek backend instance', 'Posts and uploads stored on your server', 'Discovery through the Lightek network']},
-      'business' => {name: 'Business / Agency', features: ['Your own business backend instance', 'White label branding and client management', 'Resell client server packages at your prices']}
+      'community' => {name: 'Community', features: ['Free shared hosting for your account and originals', 'Social discovery, communities and messages', 'Your public profile']},
+      'personal' => {name: 'Personal', features: ['Dedicated Lightek hosting', 'Your account and originals move to your own instance', 'Discovery through the Lightek network']},
+      'business' => {name: 'Business / Agency', features: ['Dedicated business hosting', 'White label branding and client management', 'Resell client server packages at your prices']}
     }.freeze
     def self.configuration(site) = site.manifest.to_h.fetch('pwa_commerce', {})
     def self.current(user, site)
@@ -27,7 +27,7 @@ module LightekPwa
         backend: (user && defined?(MemberBackend) && MemberBackend.find_by(user: user, site: site))&.summary,
         installation: record && LightekCommerce::Installations.summary(record.order),
         installation_path: record && "/my/installations/#{record.order_id}",
-        setup_note: 'Paid membership includes a separate backend instance. Existing central posts remain readable; new originals publish on your backend. Upgrading a shared backend transfers its stored content. Activation follows verified payment and server setup. Cancel renewal at any time; access continues through the paid period. Storage and transfer limits follow your selected server package.',
+        setup_note: 'Free accounts use shared hosting. Paid membership includes dedicated hosting: your account and its originals move to your own instance after verified payment, installation and migration. Other shared customers stay on shared hosting. Cancel renewal at any time; access continues through the paid period. Storage and transfer limits follow your selected server package.',
         plans: CATALOG.map do |key, plan|
           item = product(site, key)
           plan.merge(key: key, price_cents: key == 'community' ? 0 : item&.price_cents, available: key == 'community' || (enabled?(site) && item.present?))

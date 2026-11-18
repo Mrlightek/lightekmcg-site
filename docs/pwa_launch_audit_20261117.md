@@ -1,6 +1,6 @@
 # Lightek PWA launch audit and monetization plan
 
-Updated November 17, 2026, after merged PRs #312 and #313. Current follow-up: `feat/pwa-isolated-member-launch`, based on `develop` at `89cc4b79cbe40e87db3d8eb89d7f2fcf6179868f`. The new code has not been deployed. Earlier production observations below remain historical owner-session evidence.
+Updated November 18, 2026. Current follow-up: `fix/member-launch-acceptance`, based on `develop` at `0672d54f3be3a35a579651fd19cd582c27d03aa8`. This follow-up changes free membership to shared hosting (accounts in one runtime/database/worker) and paid membership to dedicated hosting, with an account-only migration. It also fills the missing Social capability used by the message recipient picker. These changes have not yet been deployed. Earlier production observations below are historical evidence; deployed acceptance remains required.
 
 ## Launch decision
 
@@ -48,9 +48,9 @@ Remaining UX acceptance: signed-out visitor, ordinary free creator/supporter, pa
 
 | Tier | Agreed service | Pricing approach |
 |---|---|---|
-| Community | Free participation plus separate member application on remote shared member servers, off the central Lightek host; bounded branded mailbox | Free. Capacity-bounded allocation implemented; the owner funds a separate shared server before signup delivery. Free hosting is a real platform acquisition cost. |
-| Personal | Move the same application to its own server; central discovery references continue | Target $9.99/month only if measured compute, storage/transfer, backups, mail, support, payment costs and margin fit. Actual configured hosting package controls the price. |
-| Business / Agency | Own business backend, brand, client management, feature controls/resale; optional verified custom-domain mail | Approximately $29–49 is a hypothesis, not a configured promise. Each client server/package separately billed. |
+| Community | Free participation and a separate customer account in one shared runtime per free-member server, off the central Lightek host; bounded branded mailbox | Free. Capacity-bounded allocation implemented; the owner funds a separate shared server before signup delivery. Free hosting is a real platform acquisition cost. |
+| Personal | Move that customer’s account and originals from shared hosting to dedicated hosting; central discovery references continue | Currently configured at $19.99/month. The operator controls retail, agency wholesale and minimum margins through existing hosting packages. |
+| Business / Agency | Own business backend, brand, client management, feature controls/resale; optional verified custom-domain mail | Currently configured at $49/month. The operator controls the price; each client server/package is separately billed. |
 
 $25 is a difficult entry price for social participation. The reason to charge is delivered infrastructure and business value. Market reference points from the earlier audit were US web X Premium at $8/month and Discord Nitro at $9.99/month; those do not demonstrate the cost of a dedicated Lightek backend. Recheck current prices before using them in external marketing.
 

@@ -105,6 +105,7 @@ class NativeUpdater:
         self.profile = config["deployment"]
         self.root = pathlib.Path(self.profile["app_root"]).resolve()
         if (self.root/"tmp/pwa-migration.lock").exists():raise ValueError("Member migration owns this runtime; retry the update after cutover")
+        if any((self.root/'tmp/pwa-accounts').glob('*.lock')):raise ValueError('A shared hosting account is moving; retry the update after cutover')
         self.user = pwd.getpwnam(self.profile["app_user"])
         self.state = state_base / hashlib.sha256(str(self.root).encode()).hexdigest()[:24]
         self.state.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -253,6 +254,8 @@ class NativeUpdater:
             raise ValueError("Native installation must be an existing Git checkout")
         with (self.state / "update.lock").open("w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if (self.root/'tmp/pwa-migration.lock').exists() or any((self.root/'tmp/pwa-accounts').glob('*.lock')):
+                raise ValueError('An account migration owns this runtime; retry after cutover')
             return self.deploy()
 
     def deploy(self):

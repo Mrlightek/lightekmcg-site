@@ -4,6 +4,7 @@ module LightekPwa
     belongs_to :site, class_name: 'DymondSite::Site'
     belongs_to :operator, class_name: 'User'
     belongs_to :launch, class_name: 'GatekeeperApplicationLaunch', optional: true
+    belongs_to :standby_launch, class_name: 'GatekeeperApplicationLaunch', optional: true
     belongs_to :node, class_name: 'GatekeeperNode', optional: true
     has_many :member_backends, class_name: 'LightekPwa::MemberBackend', dependent: :restrict_with_error
     before_validation { self.request_key ||= SecureRandom.uuid }

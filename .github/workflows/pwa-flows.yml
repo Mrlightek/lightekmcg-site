@@ -11,6 +11,12 @@ on:
       - 'app/services/lightek_pwa/**'
       - 'app/services/lightek_settings/site_domain.rb'
       - 'lib/tasks/site_binding.rake'
+      - 'lib/scripts/gatekeeper/pwa_backend_transfer.py'
+      - 'lib/scripts/gatekeeper/create_hosted_site.py'
+      - 'lib/scripts/gatekeeper/update_native_installation.py'
+      - 'lib/middleware/pwa_member_guard.rb'
+      - 'app/models/application_record.rb'
+      - 'app/models/concerns/pwa_member_storage_quota.rb'
       - 'script/lightek/website_deploy.sh'
       - 'app/services/studio/**'
       - 'app/controllers/api/**'
@@ -90,6 +96,7 @@ jobs:
           bash -n lib/scripts/gatekeeper/prepare_member_pool.sh script/lightek/native_website_remote.sh
           bundle exec ruby test/standalone/pwa_member_backend_checks.rb -n '/PwaMemberBackendTest|PwaMemberBoundaryTest/'
           bundle exec ruby test/standalone/pwa_member_runtime_checks.rb -n /PwaMemberRuntimeChecks/
+          bundle exec ruby test/standalone/shared_hosting_provisioning_checks.rb -n /SharedHostingProvisioningChecks/
           bundle exec ruby test/standalone/pwa_member_identity_checks.rb -n '/PwaMemberIdentityChecks/'
           bundle exec ruby test/standalone/pwa_view_settlement_checks.rb -n /PwaViewSettlementTest/
           python3 test/scripts/test_pwa_backend_transfer.py
@@ -122,6 +129,40 @@ jobs:
         run: |
           node test/javascript/community-browser.cjs
           node test/javascript/pwa-admin-browser.cjs
+
+  shared-hosting-postgres:
+    name: Shared hosting account isolation and dedicated migration
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lightek_shared_test
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+      - name: Install isolated dependencies
+        env:
+          BUNDLE_GEMFILE: test/standalone/Gemfile
+        run: bundle install
+      - name: Verify actual PostgreSQL holds and source-to-dedicated media transfer
+        env:
+          BUNDLE_GEMFILE: test/standalone/Gemfile
+          LIGHTEK_SHARED_HOSTING_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/lightek_shared_test
+        run: bundle exec ruby test/standalone/shared_hosting_checks.rb
+      - name: Verify original-data export against the repository PostgreSQL schema
+        env:
+          BUNDLE_GEMFILE: test/standalone/Gemfile
+          LIGHTEK_SHARED_HOSTING_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/lightek_shared_test
+          LIGHTEK_SHARED_HOSTING_FULL_SCHEMA: 'true'
+        run: bundle exec ruby test/standalone/shared_hosting_checks.rb -n '/round_trip|export_contains/'
 
   native-host:
     name: Native Rails with PostgreSQL and Redis

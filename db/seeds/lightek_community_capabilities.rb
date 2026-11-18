@@ -2,6 +2,8 @@
 LightekCommunity::Workers::Pwa::ACTIONS.each do |action|
   slug = "community.#{action.delete_prefix('community_').tr('_', '.')}"
   record = NevaehCapability.find_or_initialize_by(slug: slug)
+  next if ENV["LIGHTEK_PWA_SEED_MISSING_ONLY"] == "true" && record.persisted?
+
   record.assign_attributes(name: slug.humanize, domain: "community", intent_name: action,
     description: "Perform #{action.humanize.downcase} as the authenticated Lightek member within the current site.",
     handler: "LightekCommunity::Workers::Pwa", queue: "default", priority: 5,

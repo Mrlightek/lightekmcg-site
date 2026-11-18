@@ -29,7 +29,7 @@ class StudioWorkstationSaveJob < ApplicationJob
       asset.assign_attributes(site_id:session.site_id,studio_project:session.studio_scene.studio_project,name:"#{session.studio_scene.name} · native edit".first(160),kind:"blend",status:"processing",metadata:{"sources"=>session.metadata.fetch("credits",[]),"workstation_session"=>session.session_key,"bundle_relative_source"=>"scene.blend"})
       runtime.open_saved_file(session,"project.zip") do |file|
         raise "Saved package changed during save" unless runtime.digest(file)==receipt.fetch("bundle_sha256")
-        blob=ActiveStorage::Blob.create_and_upload!(io:file,filename:"project.zip",content_type:"application/zip",identify:false)
+        blob=ActiveStorage::Blob.create_and_upload!(io:file,filename:"project.zip",content_type:"application/zip",identify:false,metadata:LightekPwa::MediaOwnership.for(session) || {})
         asset.bundle.attach(blob)
       end
       asset.save!

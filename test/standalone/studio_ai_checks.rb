@@ -2,6 +2,7 @@
 require_relative "studio_production_checks"
 require "socket"
 require File.join(ROOT,"app/services/studio/compute/procedural_movie")
+require File.join(ROOT,"app/services/studio/providers/blender_provider")
 require File.join(ROOT,"app/services/studio/assets/ingestor")
 require File.join(ROOT,"app/services/studio/ai/setup")
 require File.join(ROOT,"app/services/studio/ai/runtime")
@@ -75,6 +76,46 @@ class StudioAiTest < StudioProductionTest
     output=generate(steps:"32")
     StudioAiGenerationJob.perform_now(output[:asset_id])
     assert_equal 32,@submitted.last.dig("prompt","3","inputs","steps")
+  end
+
+  def test_ai_local_genesis_is_selectable_without_an_installation_record
+    @models = ["sd-v1-5.safetensors"]
+    status = action("ai_status", scene_id: @scene.id)
+    assert_equal [{id: "local", label: "Local Genesis worker", video: true, image: true}], status[:genesis_workers]
+    assert_raises(ArgumentError) do
+      action("ai_generate", scene_id: @scene.id, recipe: "image", prompt: "Test", request_key: "wrong-worker", genesis_worker_id: 123)
+    end
+    receipt = action("ai_generate", scene_id: @scene.id, recipe: "image", prompt: "Test", request_key: "local-worker", genesis_worker_id: "local", seed: -1)
+    asset = StudioAsset.find(receipt[:asset_id])
+    assert_equal @models.first, asset.metadata.dig("ai_graph", "4", "inputs", "ckpt_name")
+    assert_equal "local", asset.metadata.dig("ai_intent", "genesis_worker_id")
+  end
+
+  def test_ai_procedural_draft_queues_without_payment_or_genesis
+    params = {scene_id: @scene.id, request_key: "procedural-draft", scene_preset: "sphere",
+      procedural_script_params: {camera: "angle", lighting: "soft", motion: "slide"}}
+    Studio::Ai::Runtime.stub(:new, ->(*) { flunk "Draft does not call Genesis" }) do
+      result = action("blender_preview", **params)
+      assert_equal result, action("blender_preview", **params)
+      assert_raises(ArgumentError) { action("blender_preview", **params.merge(scene_preset: "cube")) }
+      operation = StudioOperation.find(result[:operation_id])
+      assert_equal "pending", operation.status
+      assert_empty operation.cost_quote.to_h
+      assert_equal [320, 180, 2, 24], operation.manifest.fetch("scene").fetch("settings").values_at("resolution_x", "resolution_y", "samples", "frame_end")
+      assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.count { |job| job[:job] == StudioBlenderPreviewJob && job[:args] == [operation.id] && job[:queue] == "studio" }
+      Dir.mktmpdir("studio-draft-job-") do |root|
+        previous = ENV["BLENDER_OUTPUT_ROOT"]
+        ENV["BLENDER_OUTPUT_ROOT"] = root
+        Rails.stub(:root, Pathname(ROOT)) { StudioBlenderPreviewJob.perform_now(operation.id) }
+        assert_equal "completed", operation.reload.status
+        assert operation.artifacts.find_by!(kind: "video").file.attached?
+        draft = action("operations_list", project_id: @project.id).fetch(:operations).find { |entry| entry[:id] == operation.id }
+        assert draft[:procedural_preview]
+        assert draft[:draft_preview]
+      ensure
+        ENV["BLENDER_OUTPUT_ROOT"] = previous
+      end
+    end
   end
 
   def test_ai_economy_profile_scales_resolution_and_enforces_wan_budget

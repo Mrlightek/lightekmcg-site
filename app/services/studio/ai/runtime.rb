@@ -8,6 +8,13 @@ module Studio
     # This adapter talks to a local engine or a site-owned managed worker. The browser
     # cannot supply URLs, graphs, model paths or output filenames.
     class Runtime
+      LOCAL_WORKER_ID = "local"
+      SD15_CHECKPOINT = /sd[-_. ]?1[-_. ]?5|v1[-_.]5/i
+
+      def self.selection_id(identity)
+        identity["installation_id"] || (LOCAL_WORKER_ID if identity["mode"] == "local")
+      end
+
       def initialize(site:nil, identity:nil)
         identity ||= site&.manifest.to_h&.fetch("studio_ai_worker",nil)
         if identity && identity["mode"]!="local"

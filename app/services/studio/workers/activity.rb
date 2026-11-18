@@ -6,6 +6,7 @@ module Studio
       LABELS = {
         "studio.workspace.ai.generate"=>"Generation",
         "studio.workspace.render.quote"=>"3D render",
+        "studio.workspace.blender.preview"=>"3D draft",
         "studio.workspace.performance.preview"=>"Character preview",
         "studio.workspace.timeline.quote"=>"Media export",
         "studio.workspace.asset.publish"=>"Publishing",
@@ -18,6 +19,7 @@ module Studio
         scope(access.user, access.site_id)
           .where("CAST(args -> 1 ->> 'scene_id' AS TEXT) = ?",scene.id.to_s)
           .order(id: :desc).limit(40).filter_map do |item|
+            next if item.kind=="studio.workspace.blender.preview" && !item.args.dig(1,"scene_preset")
             next if item.kind=="studio.workspace.performance.preview" && item.args.dig(1,"operation_id")
             next if item.kind=="studio.workspace.timeline.quote" && item.args.dig(1,"social_prepare") && !item.result.to_h["operation_id"] && item.done?
             row(item,access,scene)
@@ -49,13 +51,13 @@ module Studio
           (status=="completed" && operation&.artifacts&.any? { |artifact| artifact.file.attached? })
         status="failed" if status.in?(%w[ready completed]) && !verified
         working=if verified && asset && asset.metadata["ai_profile"]
-          {"quality_profile"=>asset.metadata["ai_profile"],"genesis_worker_id"=>asset.metadata.dig("ai_worker","installation_id"),
+          {"quality_profile"=>asset.metadata["ai_profile"],"genesis_worker_id"=>asset.metadata.dig("ai_intent","genesis_worker_id") || asset.metadata.dig("ai_worker","installation_id"),
             "seed"=>asset.metadata.dig("ai_intent","seed")}.compact
         end
         {id:item.id,task_uuid:item.correlation_id,label:LABELS.fetch(item.kind),status:status,asset_id:asset&.id,
           operation_id:operation&.id,recovery:status.in?(%w[failed recoverable]) ? Studio::Compute::Recovery.advice(asset:asset,operation:operation,work_error:item.error,checkpoint:checkpoint) : nil,
           working_parameters:working,
-          teach:verified && Ability.new(access.user).can?(:manage,NevaehWorkflow)}
+          teach:verified && (item.kind!="studio.workspace.blender.preview" || item.args.dig(1,"scene_preset").present?) && Ability.new(access.user).can?(:manage,NevaehWorkflow)}
       end
 
       def retry_economy_inputs!(actor, site, receipt_id)

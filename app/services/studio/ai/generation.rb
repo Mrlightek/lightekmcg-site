@@ -21,7 +21,7 @@ module Studio
         intent["quality_profile"]=payload["quality_profile"] if payload.key?("quality_profile")
         if payload.key?("genesis_worker_id")
           worker_id=payload.fetch("genesis_worker_id")
-          raise ArgumentError, "Choose a registered generation worker" unless worker_id.is_a?(Integer) && worker_id.positive?
+          raise ArgumentError, "Choose a registered generation worker" unless worker_id == Runtime::LOCAL_WORKER_ID || (worker_id.is_a?(Integer) && worker_id.positive?)
           intent["genesis_worker_id"]=worker_id
         end
         if payload.key?("aspect_ratio")
@@ -52,7 +52,7 @@ module Studio
             end
             raise ArgumentError,"Wait for worker setup to finish before generating" if Setup.pending?(site)
             worker=site.manifest.to_h["studio_ai_worker"] || {"mode"=>"local"}
-            if intent["genesis_worker_id"] && worker["installation_id"] != intent["genesis_worker_id"]
+            if intent["genesis_worker_id"] && Runtime.selection_id(worker) != intent["genesis_worker_id"]
               raise ArgumentError, "This generation worker is no longer available for your workspace"
             end
             runtime=Runtime.new(site:site,identity:worker)
@@ -64,7 +64,7 @@ module Studio
               raise ArgumentError, "Choose an image-capable generation worker"
             end
             if recipe_id=="image" && intent["genesis_worker_id"]
-              checkpoints=status[:models].grep(/sd[-_. ]?1[-_. ]?5|v1[-_.]5/i)
+              checkpoints=status[:models].grep(Runtime::SD15_CHECKPOINT)
               model=checkpoints.first if model.empty?
               raise ArgumentError,"Choose an installed Stable Diffusion 1.5 checkpoint" unless checkpoints.include?(model) && model
             end

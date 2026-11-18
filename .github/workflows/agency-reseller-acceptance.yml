@@ -6,6 +6,7 @@ on:
       - 'config/initializers/lightek_agency_packages.rb'
       - 'config/routes/agency_demos.rb'
       - 'db/migrate/*agency_package*'
+      - 'db/migrate/*hosting_wholesale*'
       - 'test/standalone/agency_*checks.rb'
       - 'test/scripts/test_paid_instance_verification.py'
       - 'script/lightek/verify_paid_instance.py'

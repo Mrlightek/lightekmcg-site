@@ -19,7 +19,7 @@ ActiveRecord::Schema.define do
   create_table(:compute_providers){|t|t.string :slug}
   create_table(:dymond_bank_subscriptions){|t|t.string :status}
 end
-%w[20261028210000_expand_lightek_commerce_products 20261028220000_create_lightek_commerce_product_variants 20261112070000_connect_hosting_agencies_and_commerce 20261112080000_create_platform_shipping].each{|name|migrate_session_fixture(name)}
+%w[20261028210000_expand_lightek_commerce_products 20261028220000_create_lightek_commerce_product_variants 20261112070000_connect_hosting_agencies_and_commerce 20261112080000_create_platform_shipping 20261118001500_add_hosting_wholesale_prices].each{|name|migrate_session_fixture(name)}
 %w[app/models/lightek_commerce/product_variant app/models/lightek_shipping/quote app/services/lightek_shipping/quotes].each{|path|require Rails.root.join(path)}
 module DymondSite
   class Site

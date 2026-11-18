@@ -15,8 +15,8 @@ module LightekCommerce
       errors.add(:source_hosting_package, "must be a published Lightek package") unless source.active? && source.product.published? && source.product.site.tenant&.role == "super_admin"
       errors.add(:subscription_plan_id, "must match the Lightek package") unless subscription_plan_id == source.product.subscription_plan_id
       errors.add(:billing_interval, "must match the Lightek package") unless billing_interval == source.product.billing_interval && product_type == "lightek_instance"
-      minimum = LightekCommerce::MerchantPayouts.minimum_charge_cents(source.product.price_cents)
-      errors.add(:price_cents, "must cover the Lightek wholesale price and payment reserve (#{minimum} cents)") if price_cents.to_i < minimum
+      minimum = source.agency_minimum_price_cents
+      errors.add(:price_cents, "must cover the Lightek wholesale price, required agency margin and payment reserve (#{minimum} cents)") if price_cents.to_i < minimum
     rescue LightekAgency::PackagePolicy::Denied => error
       errors.add(:package_policy, error.message)
     end

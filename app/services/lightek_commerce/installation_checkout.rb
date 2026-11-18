@@ -15,7 +15,7 @@ module LightekCommerce
           raise Invalid, "Checkout product mismatch" unless order.items.one? && order.items.first.product_id == product.id && order.items.first.quantity == 1
           return order
         end
-        order = OrderPlacement.call(site: product.site, customer_email: actor.email_address, quantities: {product.id.to_s => 1})
+        order = OrderPlacement.call(site: product.site, customer_email: actor.email_address, quantities: {product.id.to_s => 1}, buyer: actor)
         order.update!(client_checkout_key: checkout_key)
         order
       end

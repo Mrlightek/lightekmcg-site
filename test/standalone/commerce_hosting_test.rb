@@ -71,6 +71,8 @@ source = Rails.root.join("db/migrate/20261112070000_connect_hosting_agencies_and
 source = source.sub("Migration[8.0]", "Migration[7.2]")
 eval(source, TOPLEVEL_BINDING)
 ConnectHostingAgenciesAndCommerce.new.migrate(:up)
+eval(Rails.root.join("db/migrate/20261118001500_add_hosting_wholesale_prices.rb").read, TOPLEVEL_BINDING)
+AddHostingWholesalePrices.new.migrate(:up)
 source = Rails.root.join("db/migrate/20261112073000_add_nested_reseller_sale_shares.rb").read
 source = source.sub("Migration[8.0]", "Migration[7.2]")
 eval(source, TOPLEVEL_BINDING)

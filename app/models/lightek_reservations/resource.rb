@@ -21,8 +21,12 @@ module LightekReservations
     def native_session? = %w[meeting video voice live].include?(kind) && join_url.blank?
     def server? = kind == 'server'
     def price_cents = product&.price_cents.to_i
-    def effective_cost_floor_cents = [cost_floor_cents, source_resource&.price_cents.to_i].max
-    def minimum_price_cents = LightekCommerce::MerchantPayouts.minimum_charge_cents(effective_cost_floor_cents)
+    def wholesale_charge_cents = product&.hosting_package&.agency_wholesale_cents || price_cents
+    def resale_minimum_price_cents
+      product&.hosting_package&.agency_minimum_price_cents || LightekCommerce::MerchantPayouts.minimum_charge_cents(price_cents)
+    end
+    def effective_cost_floor_cents = [cost_floor_cents, source_resource&.wholesale_charge_cents.to_i].max
+    def minimum_price_cents = [LightekCommerce::MerchantPayouts.minimum_charge_cents(effective_cost_floor_cents), source_resource&.resale_minimum_price_cents.to_i].max
     def snapshot
       {'resource_id' => id, 'name' => name, 'kind' => kind, 'price_cents' => price_cents,
         'product_id' => product_id, 'subscription_plan_id' => product&.subscription_plan_id,
@@ -40,7 +44,7 @@ module LightekReservations
         if source_resource
           errors.add(:source_resource, 'must be an approved platform server package') unless source_resource.server? && source_resource.published? && source_resource.product&.published? && source_resource.site.tenant&.role == 'super_admin'
           errors.add(:compute, 'must match the approved infrastructure package') unless compute == source_resource.compute && billing_interval == source_resource.billing_interval
-          errors.add(:cost_floor_cents, 'cannot undercut the platform reservation floor') if cost_floor_cents.to_i < source_resource.price_cents
+          errors.add(:cost_floor_cents, 'cannot undercut the platform reservation floor') if cost_floor_cents.to_i < source_resource.wholesale_charge_cents
           errors.add(:product, 'must use the approved subscription plan') unless product&.subscription_plan_id == source_resource.product&.subscription_plan_id
         elsif site&.tenant&.role != 'super_admin'
           errors.add(:source_resource, 'choose an approved platform server package')

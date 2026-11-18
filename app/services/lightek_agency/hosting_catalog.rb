@@ -19,8 +19,8 @@ module LightekAgency
       legacy.map { |resource| LightekReservations::Federation::Catalog.serialize(resource) } + packages.map do |package|
         product = package.product
         {'id' => "hosting:#{package.id}", 'name' => product.name, 'description' => product.short_description,
-          'price_cents' => product.price_cents, 'cost_floor_cents' => product.price_cents,
-          'minimum_price_cents' => LightekCommerce::MerchantPayouts.minimum_charge_cents(product.price_cents),
+          'price_cents' => package.agency_wholesale_cents, 'cost_floor_cents' => package.agency_wholesale_cents,
+          'minimum_price_cents' => package.agency_minimum_price_cents,
           'billing_interval' => 'monthly', 'package_policy' => PackagePolicy.for_product(product)}
       end
     end

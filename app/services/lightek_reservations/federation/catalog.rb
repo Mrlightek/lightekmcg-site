@@ -8,7 +8,7 @@ module LightekReservations
       end
       def serialize(resource)
         {'id'=>resource.id, 'name'=>resource.name, 'description'=>resource.description,
-          'price_cents'=>resource.price_cents, 'minimum_price_cents'=>resource.source_resource_id ? resource.minimum_price_cents : LightekCommerce::MerchantPayouts.minimum_charge_cents(resource.price_cents), 'cost_floor_cents'=>resource.source_resource_id ? resource.cost_floor_cents : resource.price_cents,
+          'price_cents'=>resource.source_resource_id ? resource.price_cents : resource.wholesale_charge_cents, 'minimum_price_cents'=>resource.source_resource_id ? resource.minimum_price_cents : resource.resale_minimum_price_cents, 'cost_floor_cents'=>resource.source_resource_id ? resource.cost_floor_cents : resource.wholesale_charge_cents,
           'billing_interval'=>resource.billing_interval, 'template_key'=>resource.template_key,
           'accommodations'=>resource.accommodations, 'published'=>resource.published?, 'source_id'=>resource.source_resource&.product&.hosting_package ? "hosting:#{resource.source_resource.product.hosting_package.id}" : resource.source_resource_id,
           'package_policy'=>LightekAgency::PackagePolicy.normalize(resource.product.respond_to?(:package_policy) ? resource.product.package_policy : {}), 'timezone'=>resource.timezone, 'notice_minutes'=>resource.notice_minutes}
@@ -22,7 +22,7 @@ module LightekReservations
         source = source_key.start_with?('hosting:') ? LightekAgency::HostingCatalog.materialize!(source_key) : approved.find(source_key)
         raise ArgumentError, 'Choose a priced offer above the protected platform floor' unless attributes.fetch('price_cents').to_s.match?(/\A[1-9]\d*\z/)
         price = Integer(attributes.fetch('price_cents'))
-        raise ArgumentError, 'Selling price is below the protected platform floor' if price < LightekCommerce::MerchantPayouts.minimum_charge_cents(source.price_cents)
+        raise ArgumentError, 'Selling price is below the protected platform floor' if price < source.resale_minimum_price_cents
         # The base floor is reserved centrally. Merchants never supply compute,
         # subscription IDs, fee rules, payout destinations, or ownership IDs.
         source.with_lock do
@@ -40,7 +40,7 @@ module LightekReservations
             product.save!
             resource.assign_attributes(name: attributes.fetch('name'), description: attributes['description'], kind: 'server',
               source_resource: source, product: product, template_key: attributes['template_key'].presence,
-              accommodations: source.accommodations, compute: source.compute, cost_floor_cents: source.price_cents,
+              accommodations: source.accommodations, compute: source.compute, cost_floor_cents: source.wholesale_charge_cents,
               billing_interval: source.billing_interval, timezone: source.timezone, notice_minutes: source.notice_minutes,
               published: product.published?)
             resource.save!

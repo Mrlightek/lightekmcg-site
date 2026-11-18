@@ -46,7 +46,7 @@ The implemented music workflows are documented in [patterns](music-patterns.md),
 
 Support the creator playing multiple roles, original digital characters, licensed cast likenesses, facial performance transfer, face replacement, lip sync, and compositing those performances into Blender sets and edited footage. Generated shots must become normal versioned production assets, editable and usable alongside recordings, animation, physics, simulation and music.
 
-The following are researched candidates, not installed or integrated engines:
+Studio has worker adapters for the following tools. See [Performance worker setup](ai-studio.md#performance-worker-setup) for the required images and media handoff.
 
 | Candidate | Relevant function | Integration constraint |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ The following are researched candidates, not installed or integrated engines:
 
 Sources checked 2026-11-11: [MuseTalk README](https://github.com/TMElyralab/MuseTalk), [LivePortrait license](https://github.com/KlingAIResearch/LivePortrait/blob/main/LICENSE), [FaceFusion model licenses](https://docs.facefusion.io/introduction/licenses).
 
-A real integration must pin an eligible code/model/dependency set, provision it through the existing instance/update pipeline, run bounded jobs on a suitable media worker, show actual progress and failures, and save the resulting shots with their production source references. No face-model downloads or AI-show rendering are implemented by this music change.
+A real integration must pin an eligible code/model/dependency set, provision it through the existing instance/update pipeline, run bounded jobs on a suitable media worker, show actual progress and failures, and save the resulting shots with their production source references. The adapters use operator-installed images. End-to-end GPU acceptance and representative show rendering remain pending.
 
 ## End-to-end acceptance target
 

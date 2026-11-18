@@ -31,11 +31,12 @@ module Studio
 
       def ai_status
         site=Studio::Ai::Setup.site_for(@access,@payload.fetch("scene_id"))
-        Studio::Ai::Runtime.new(site:site).inventory
+        Studio::Ai::Runtime.new(site:site).inventory(telemetry:true).merge(performances:Studio::Ai::Performances.inventory)
       end
       def ai_setup_status = Studio::Ai::Setup.status(access:@access,payload:@payload)
       def ai_setup_install = Studio::Ai::Setup.start(access:@access,payload:@payload)
       def ai_generate
+        return Studio::Ai::Performances.start(access:@access,payload:@payload) if Studio::Ai::Performances::RECIPES.key?(@payload["recipe"])
         Studio::Ai::Generation.start(access:@access,payload:@payload)
       end
       def ai_jobs
@@ -399,6 +400,11 @@ module Studio
           scope=scope.where(site_id:@access.site_id,id:ids)
         end
         scope=scope.where(kind:"image",status:"ready").joins(proxy_attachment: :blob).where(active_storage_blobs:{content_type:%w[image/png image/jpeg image/webp]}).where("active_storage_blobs.byte_size BETWEEN 1 AND ?",10.megabytes).includes(proxy_attachment: :blob) if @payload["surface"]=="ai_input"
+        if @payload["surface"]=="ai_performance"
+          scope=scope.where(site_id:@access.site_id,status:"ready",kind:%w[image video audio]).joins(proxy_attachment: :blob)
+            .where(active_storage_blobs:{content_type:Studio::Ai::Performances::MIME_EXTENSIONS.keys})
+            .where("active_storage_blobs.byte_size BETWEEN 1 AND ?",Studio::Ai::Performances::LIMIT)
+        end
         scope=scope.where("id < ?",Integer(@payload["before"])) if @payload["before"].present?
         scope=scope.where(site_id:@access.site_id) if @payload["scope_site"]
         scope=scope.where(kind:%w[blend audio video]) if @payload["surface"]=="performance"

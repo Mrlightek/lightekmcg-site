@@ -1,8 +1,8 @@
 /* Production navigation and handoffs shared by every native Dashboard workspace. */
 (() => {
   if (!document.querySelector('#lightek-studio-dashboard')) return;
-  const modes = [['stage','Stage'],['cast','Cast'],['shots','Shots'],['edit','Edit'],['deliver','Export']];
-  const tools = [['script','Script'],['media','Media'],['music','Music'],['color','Color'],['ai','AI Studio'],
+  const modes = [['ai','Generate video'],['workflows','Workflows'],['media','Media library'],['edit','Timeline'],['cast','Character rigs'],['deliver','Export']];
+  const tools = [['stage','Stage'],['shots','Shots'],['script','Script'],['music','Music'],['color','Color'],
     ['assets','Asset library'],['scene','Model & animate'],['camera','Camera & lighting'],['look','Look & materials']];
   const aliases = {'3d':'scene',timeline:'edit',performance:'cast',visual:'camera',publish:'deliver'};
   const allowed = new Set([...modes,...tools].map(([key])=>key));
@@ -40,12 +40,18 @@
     const campaignId=Number(record.scene.settings?.campaign_id);
     const campaignLink=Number.isSafeInteger(campaignId)&&campaignId>0?`<a class="production-breadcrumb" href="/dashboard/marketing/campaigns/${campaignId}/edit?site_id=${encodeURIComponent(document.querySelector('#lightek-studio-dashboard').dataset.siteId)}">Campaign brief ↗</a>`:'';
     const scene=record.scene,scenes=studioSceneRecords().filter(r=>r.project.id===record.project.id);
-    return `<header class="production-header"><a class="production-brand" href="${home}">LIGHTEK<span>STUDIO</span></a><div class="production-title"><a href="${home}" class="production-breadcrumb">Productions</a><h1>${E(record.project.name)}</h1>${campaignLink}</div><label class="production-scene"><span>Scene</span><select aria-label="Production scene" data-production-scene>${scenes.map(r=>`<option value="${r.scene.id}" ${r.scene.id===scene.id?'selected':''}>${E(r.scene.name)}</option>`).join('')}</select></label><span class="production-save" role="status" data-production-status>${E(status())}</span><button class="vw-btn" data-production="save">Save changes</button></header><div class="production-toolbar"><nav aria-label="Production workspaces">${modes.map(([key,label])=>`<a href="#/studio/${scene.id}/${key}" data-production-mode="${key}">${label}</a>`).join('')}</nav><details class="production-more-tools"><summary>More tools</summary><nav aria-label="More production tools">${tools.map(([key,label])=>`<a href="#/studio/${scene.id}/${key}" data-production-mode="${key}">${label}</a>`).join('')}<button class="vw-btn" data-vw="save-template">Save show template</button></nav></details></div><div class="production-context"><div><strong data-production-mode-title></strong><span data-production-description></span></div></div>`;
+    return `<header class="production-header"><a class="production-brand" href="${home}">LIGHTEK<span>STUDIO</span></a><div class="production-title"><a href="${home}" class="production-breadcrumb">Productions</a><h1>${E(record.project.name)}</h1>${campaignLink}</div><label class="production-scene"><span>Scene</span><select aria-label="Production scene" data-production-scene>${scenes.map(r=>`<option value="${r.scene.id}" ${r.scene.id===scene.id?'selected':''}>${E(r.scene.name)}</option>`).join('')}</select></label><span class="production-save" role="status" data-production-status>${E(status())}</span><button class="vw-btn" data-production="save">Save changes</button></header>`;
+  }
+  function workspaceNavigation(sceneId) {
+    const links=items=>items.map(([key,label])=>`<a href="#/studio/${sceneId}/${key}" data-production-mode="${key}">${label}</a>`).join('');
+    return `<aside class="production-sidebar"><nav aria-label="Production workspaces">${links(modes)}</nav>
+      <details class="production-more-tools"><summary>More tools</summary><nav aria-label="More production tools">${links(tools)}<button class="vw-btn" data-vw="save-template" data-project="${current().project.id}">Save show template</button></nav></details></aside>`;
   }
   const descriptions = {
     look:['Look & materials','Save surface controls and scene finish, then preview the scene.'],
     shots:['Direct the sequence','Order shots, choose cameras and timing, then render into your edit.'],
-    ai:['AI Studio','Generate on your own worker, then use the result in this production.'],
+    ai:['Generate video',''],
+    workflows:['Workflows',''],
     media:['Media pool','Import and organize source media for this production.'],
     color:['Color & finish','Adjust the selected shot while watching the program image.'],
     stage:['Stage your scene','Cast, sets and camera share this scene with your edit.'],
@@ -66,7 +72,7 @@
     if(['edit','color','media'].includes(key)&&window.LightekStudioEdit)return LightekStudioEdit.view(record,key);
     if(key==='stage')return LightekStudioVisual.view(record);
     if(key==='shots')return window.LightekStudioShots?.view(record)||'<p>Opening storyboard…</p>';
-    if(key==='ai')return window.LightekStudioAI?.view(record)||'<p>Opening AI Studio…</p>';
+    if(key==='ai'||key==='workflows')return window.LightekStudioAI?.view(record,key)||'<p>Opening AI Studio…</p>';
     if(key==='look')return window.LightekStudioLook?.view(record)||'';
     if(key==='music')return LightekStudioMusic.view(record);
     if(key==='assets')return `<div class="production-panel studio-dashboard-advanced">${R.studio('library')}</div>`;
@@ -98,15 +104,15 @@
     window.LightekStudioEdit?.beforeRender();
     const html=panel(record,key);
     let shell=app.querySelector('[data-production-shell]');
-    if(!shell){app.innerHTML='<section class="production-workspace" data-production-shell><div data-production-heading></div><div data-production-content></div><details class="production-jobs" data-production-jobs><summary>Renders & handoffs <span data-production-job-count></span></summary><div data-production-job-list></div></details></section>';shell=app.querySelector('[data-production-shell]');}
+    if(!shell){app.innerHTML='<section class="production-workspace" data-production-shell><div data-production-heading></div><div class="production-body"><div data-production-navigation></div><div data-production-content></div></div><details class="production-jobs" data-production-jobs><summary>Renders & handoffs <span data-production-job-count></span></summary><div data-production-job-list></div></details></section>';shell=app.querySelector('[data-production-shell]');}
     const heading=shell.querySelector('[data-production-heading]');
-    if(heading.dataset.scene!==String(record.scene.id)){heading.innerHTML=header(record);heading.dataset.scene=record.scene.id;}
+    if(heading.dataset.scene!==String(record.scene.id)){heading.innerHTML=header(record);shell.querySelector("[data-production-navigation]").innerHTML=workspaceNavigation(record.scene.id);heading.dataset.scene=record.scene.id;}
     shell.dataset.mode=key;
     heading.querySelector('[data-production=save]').hidden=!['shots','edit','color','media','music','script'].includes(key);
-    heading.querySelectorAll('[data-production-mode]').forEach(el=>{const selected=el.dataset.productionMode===key;if(selected)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
-    if(heading.querySelector('.production-more-tools [aria-current]'))heading.querySelector('.production-more-tools').open=true;
-    heading.querySelector('[data-production-mode-title]').textContent=descriptions[key][0];
-    heading.querySelector('[data-production-description]').textContent=descriptions[key][1];
+    shell.querySelector('[data-production-navigation]').querySelectorAll('[data-production-mode]').forEach(el=>{const selected=el.dataset.productionMode===key;if(selected)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
+    const extra=shell.querySelector('.production-more-tools');
+    if(extra.querySelector('[aria-current]'))extra.open=true;
+    shell.setAttribute('aria-label',descriptions[key][0]);
     const content=shell.querySelector('[data-production-content]');
     if(!window.LightekStudioEdit?.renderInto(content,html))content.innerHTML=html;
     shell.querySelectorAll('a[href="#/studio/library"]').forEach(a=>a.href=`#/studio/${record.scene.id}/assets`);

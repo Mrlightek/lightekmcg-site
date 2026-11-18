@@ -75,7 +75,7 @@ Apply `20261111190000_register_studio_character_performance`, restart Rails and 
 
 1. Creator camera/video capture and imported performance takes; synchronize multiple recorded performances against a shared scene clock.
 2. Image/video surfaces, keyed cutouts, masks, depth and per-layer effects composited with the character scene.
-3. Face/performance transfer and higher-quality lip sync, with separately reviewed code licenses, model-weight terms and compute requirements. No deepfake/face-replacement package has been installed or selected in this release.
+3. Face/performance transfer and higher-quality lip sync, with separately reviewed code licenses, model-weight terms and compute requirements. See [Performance worker setup](ai-studio.md#performance-worker-setup) for the operator-configured adapters.
 4. Episode/shot assembly and recurring-character continuity for template-based 3–10 minute shows, including multiple roles derived from one creator. Publish masters to Lightek and connected destinations; retain downloadable masters for other platforms.
 
 ## Acceptance

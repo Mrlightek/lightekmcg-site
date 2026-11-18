@@ -6,6 +6,7 @@ require File.join(ROOT,"app/services/studio/ai/setup")
 require File.join(ROOT,"app/services/studio/ai/runtime")
 require File.join(ROOT,"app/services/studio/ai/input_image")
 require File.join(ROOT,"app/services/studio/ai/generation")
+require File.join(ROOT,"app/services/studio/ai/performances")
 require File.join(ROOT,"app/jobs/studio_ai_generation_job")
 class StudioAiTest < StudioProductionTest
   StudioProductionTest.instance_methods(false).grep(/^test_/).each{|method|undef_method(method)}
@@ -35,6 +36,8 @@ class StudioAiTest < StudioProductionTest
           end
           nodes["Wan22ImageToVideoLatent"]={"input"=>{"optional"=>(@supports_input ? {"start_image"=>["IMAGE"]} : {})}} if nodes.key?("Wan22ImageToVideoLatent")
           nodes["CheckpointLoaderSimple"]={"input"=>{"required"=>{"ckpt_name"=>[@models]}}};nodes
+        when "/system_stats"
+          {"devices"=>[{"type"=>"cuda","vram_total"=>24.gigabytes,"vram_free"=>18.gigabytes,"name"=>"Registry device name"}]}
         when "/upload/image"
           @uploads<<body
           filename=body[/filename="([^"]+)"/,1]
@@ -61,6 +64,98 @@ class StudioAiTest < StudioProductionTest
   def generate(**extra)
     action("ai_generate",scene_id:@scene.id,prompt:"An expressive original character in a recording studio",negative:"blur",recipe:"image",seed:42,model:"local.safetensors",request_key:"ai-generate-request-123",**extra)
   end
+  def test_ai_bounded_steps_and_scoped_worker_telemetry
+    status=action("ai_status",scene_id:@scene.id)
+    assert_equal({type:"cuda",vram_total:24.gigabytes,vram_free:18.gigabytes},status[:device])
+    assert_equal 20,status[:recipes].first[:steps]
+    assert_equal %w[musetalk liveportrait facefusion],status[:performances].map { |item| item[:id] }
+    assert_raises(ArgumentError){generate(steps:61)}
+    assert_raises(ArgumentError){generate(steps:12.5)}
+    output=generate(steps:"32")
+    StudioAiGenerationJob.perform_now(output[:asset_id])
+    assert_equal 32,@submitted.last.dig("prompt","3","inputs","steps")
+  end
+
+  def test_ai_performance_uses_scoped_pinned_media
+    name = "STUDIO_MUSETALK_CPU_IMAGE"
+    settings = [name, "STUDIO_CPU_DEDICATED_QUEUE", "STUDIO_CPU_SHARED_STORAGE", "STUDIO_CPU_WORKER"]
+    before = settings.to_h { |key| [key, ENV[key]] }
+    ENV[name] = "registry.example/musetalk@sha256:" + "a"*64
+    ENV["STUDIO_CPU_DEDICATED_QUEUE"] = "1"
+    ENV["STUDIO_CPU_SHARED_STORAGE"] = "1"
+    ENV.delete("STUDIO_CPU_WORKER")
+    source=StudioAsset.create!(owner:@alice,site_id:@site.id,kind:"image",status:"ready",name:"Portrait",request_key:"portrait-fixture")
+    source.proxy.attach(io:StringIO.new(@image),filename:"portrait.png",content_type:"image/png")
+    source.update!(metadata:{"width"=>64,"height"=>64})
+    audio=recording
+    audio.file.attach(io:StringIO.new("fixture"),filename:"fixture.wav",content_type:"audio/wav") unless audio.file.attached?
+    audio.proxy.attach(audio.file.blob) unless audio.proxy.attached?
+    audio.update!(metadata:audio.metadata.merge("duration"=>1.0))
+    params={recipe:"musetalk",input_asset_id:source.id,driver_asset_id:audio.id,request_key:"performance-fixture",scene_id:@scene.id}
+    result=action("ai_generate",**params)
+    asset=StudioAsset.find(result[:asset_id])
+    assert_equal [[asset.id, "studio_cpu"], [asset.id, "studio"]],
+      ActiveJob::Base.queue_adapter.enqueued_jobs.select { |job| job[:job] == StudioAiGenerationJob && job[:args].first == asset.id }
+        .map { |job| [job[:args].first, job[:queue]] }
+    StudioAiGenerationJob.perform_now(asset.id)
+    assert_equal "uploaded", asset.reload.status
+    ENV["STUDIO_CPU_WORKER"] = "1"
+    assert_equal source.proxy.blob.id,asset.ai_input.blob.id
+    assert_equal audio.proxy.blob.id,asset.performance_driver.blob.id
+    assert_equal result,action("ai_generate",**params)
+    assert_raises(ArgumentError){action("ai_generate",**params.merge(request_key:"wrong-driver",driver_asset_id:source.id))}
+    Dir.mktmpdir do |fixture|
+      clip=File.join(fixture,"sample.mp4")
+      Studio::MediaProcess.run!(["ffmpeg","-v","error","-f","lavfi","-i","color=c=blue:s=64x64:r=24",
+        "-t","1","-c:v","libx264","-pix_fmt","yuv420p",clip])
+      invoked=[]
+      worker=lambda do |args,root:,image:,memory:,pull:|
+        invoked << [args,image,memory,pull]
+        assert File.file?(File.join(root,"source.png"))
+        assert File.file?(File.join(root,"driver.wav"))
+        ["cp",clip,File.join(root,"performance.mp4")]
+      end
+      FileUtils.mkdir_p(Rails.root.join("lib/scripts"))
+      FileUtils.cp(File.join(ROOT,"lib/scripts/studio_performance_worker.py"),Rails.root.join("lib/scripts"))
+      Studio::MediaProcess.stub(:container,worker) { StudioAiGenerationJob.perform_now(asset.id) }
+      assert_equal ["python","/work/studio_performance_worker.py","musetalk","/work/source.png","/work/driver.wav"],invoked.first[0]
+      assert_equal ENV[name],invoked.first[1]
+      assert_equal "12g", invoked.first[2]
+      assert_equal false, invoked.first[3]
+      docker = Studio::MediaProcess.stub(:cpu_limit, "2") do
+        Studio::MediaProcess.container(invoked.first[0], root: fixture, image: invoked.first[1], pull: invoked.first[3])
+      end
+      refute_includes docker, "--gpus"
+      assert_equal "never", docker[docker.index("--pull") + 1]
+      assert_equal "ready",asset.reload.status
+      assert asset.proxy.attached?
+      assert_equal "musetalk",action("ai_jobs",scene_id:@scene.id).first[:recipe]
+    end
+    queued = action("ai_generate", **params.merge(request_key: "performance-queue-timeout"))
+    pending = StudioAsset.find(queued[:asset_id])
+    pending.update!(created_at: 61.minutes.ago)
+    StudioAiGenerationJob.perform_now(pending.id, true)
+    assert_equal "failed", pending.reload.status
+    assert_match(/did not pick up/, pending.error_message)
+
+    interrupted = action("ai_generate", **params.merge(request_key: "performance-worker-timeout"))
+    running = StudioAsset.find(interrupted[:asset_id])
+    running.update!(status: "processing", metadata: running.metadata.merge(
+      "ai_phase" => "performing", "ai_started_at" => 36.minutes.ago.iso8601))
+    StudioAiGenerationJob.perform_now(running.id, true)
+    assert_equal "failed", running.reload.status
+    assert_match(/stopped before saving/, running.error_message)
+
+    ENV["STUDIO_CPU_SHARED_STORAGE"] = "0"
+    refute action("ai_status", scene_id: @scene.id)[:performances].first[:configured]
+    assert_raises(ArgumentError) { action("ai_generate", **params.merge(request_key: "no-shared-storage")) }
+    ENV["STUDIO_CPU_SHARED_STORAGE"] = "1"
+    ENV[name]="mutable:latest"
+    assert_raises(ArgumentError){action("ai_generate",**params.merge(request_key:"no-reviewed-image"))}
+  ensure
+    before&.each { |key, value| ENV[key] = value }
+  end
+
   def test_ai_local_submission_poll_ingest_and_idempotency
     receipt=generate
     assert_equal receipt,generate

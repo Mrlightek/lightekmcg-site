@@ -1,32 +1,152 @@
 /* Generative media stays in the production: prompt → local worker → saved asset → edit. */
 (() => {
   if(!document.querySelector('#lightek-studio-dashboard'))return;
-  const state={request:null,scene:0,loaded:false,loading:false,busy:false,status:null,setup:null,setupDraft:{},images:[],imageNext:null,imagesLoaded:false,jobs:[],error:'',timer:null,drafts:new Map()};
+  const state={request:null,scene:0,loaded:false,loading:false,busy:false,status:null,setup:null,setupDraft:{},images:[],imageNext:null,imagesLoaded:false,jobs:[],error:'',timer:null,drafts:new Map(),selectedJob:null,performanceAssets:[],performanceNext:null,performanceLoaded:false,performanceDraft:{}};
   const call=async(action,payload={})=>(await nevaeh.execute({capability:'studio.workspace.ai.'+action,payload:{scene_id:studioCurrentSceneId(),...payload}})).result;
-  const active=()=>window.LightekStudioProduction?.mode()==='ai';
+  const active=()=>['ai','workflows'].includes(window.LightekStudioProduction?.mode());
   function capture(){const form=app.querySelector('[data-ai-form]');if(form)state.drafts.set(state.scene,Object.fromEntries(new FormData(form)));}
   async function loadImages(before=null,scene=state.scene){
     const result=(await nevaeh.execute({capability:'studio.workspace.assets.list',payload:{scope_site:true,surface:'ai_input',...(before?{before}:{})}})).result;
     if(scene!==state.scene)return;let images=(result.assets||[]).filter(a=>a.kind==='image'&&a.status==='ready'&&a.proxy_url);const selected=Number(state.drafts.get(scene)?.input_asset_id);if(!before&&Number.isSafeInteger(selected)&&selected>0&&!images.some(a=>a.id===selected)){const extra=(await nevaeh.execute({capability:'studio.workspace.assets.list',payload:{scope_site:true,asset_ids:[selected]}})).result;images.push(...(extra.assets||[]).filter(a=>a.kind==='image'&&a.status==='ready'&&a.proxy_url));}if(scene!==state.scene)return;state.images=before?[...state.images,...images.filter(a=>!state.images.some(b=>b.id===a.id))]:images;state.imageNext=result.next_before;state.imagesLoaded=true;
   }
+  async function loadPerformanceAssets(before=null,scene=state.scene){
+    const result=(await nevaeh.execute({capability:'studio.workspace.assets.list',payload:{scope_site:true,surface:'ai_performance',...(before?{before}:{})}})).result;
+    if(scene!==state.scene)return;
+    const assets=result.assets||[];
+    state.performanceAssets=before?[...state.performanceAssets,...assets.filter(a=>!state.performanceAssets.some(b=>b.id===a.id))]:assets;
+    state.performanceNext=result.next_before;state.performanceLoaded=true;
+  }
+  function capturePerformance(){
+    const form=app.querySelector('[data-ai-performance]');
+    if(form)state.performanceDraft=Object.fromEntries(new FormData(form));
+  }
   async function refresh(){
     if(state.loading)return;state.loading=true;const scene=state.scene;
     try{
       const [status,jobs,setup]=await Promise.all([call('status'),call('jobs'),call('setup.status')]);
-      if(scene!==state.scene)return;if(status?.recipes?.some(r=>r.input_kind==='image')&&!state.imagesLoaded)await loadImages(null,scene);if(scene!==state.scene)return;state.status=status;state.jobs=jobs;state.setup=setup;state.error='';state.loaded=true;
+      if(scene!==state.scene)return;if(status?.recipes?.some(r=>r.input_kind==='image')&&!state.imagesLoaded)await loadImages(null,scene);if(scene!==state.scene)return;if(status?.performances?.some(item=>item.configured)&&!state.performanceLoaded)await loadPerformanceAssets(null,scene);if(scene!==state.scene)return;state.status=status;state.jobs=jobs;state.setup=setup;state.error='';state.loaded=true;
     }catch(error){if(scene===state.scene){state.error=error.message;state.loaded=true;}}
-    finally{state.loading=false;if(active()){if(scene===state.scene){capture();repaint();}else queueMicrotask(refresh);}}
+    finally{state.loading=false;if(active()){if(scene===state.scene){capture();capturePerformance();repaint();}else queueMicrotask(refresh);}}
     clearTimeout(state.timer);if(active()&&(state.jobs.some(j=>['uploaded','processing'].includes(j.status))||['queued','running'].includes(state.setup?.install?.status)))state.timer=setTimeout(refresh,5000);
   }
-  function view(record){
-    if(state.scene!==record.scene.id){capture();state.scene=record.scene.id;state.loaded=false;state.status=null;state.setup=null;state.setupDraft={};state.images=[];state.imagesLoaded=false;state.imageNext=null;state.jobs=[];state.error='';clearTimeout(state.timer);}
-    if(!state.loaded&&!state.loading)refresh();
-    const draft=state.drafts.get(state.scene)||{},status=state.status,ready=(status?.recipes||[]).filter(r=>r.ready),recipe=ready.find(r=>r.id===draft.recipe)||ready[0];
-    return `<section class="studio-ai production-panel" aria-label="AI Studio"><header><span class="eb">LIGHTEK / AI STUDIO</span><h2>Imagine it. Make it here.</h2><p>Use saved scenes and characters for CPU production, or an available neural workflow for generated media. Results stay in this production’s library.</p></header><p><a class="vw-btn" href="#/studio/${record.scene.id}/camera" data-production-mode="camera">CPU production settings</a> <a class="vw-btn" href="#/studio/${record.scene.id}/scene" data-production-mode="scene">Model & animate</a></p>${workerSetup()}<div class="ai-layout"><div><form data-ai-form>${draft.shot_id?`<input type="hidden" name="shot_id" value="${E(draft.shot_id)}"><input type="hidden" name="shot_name" value="${E(draft.shot_name||'')}"><p>Storyboard shot: ${E(draft.shot_name||draft.shot_id)}</p>`:''}<label class="fld"><span>What are we creating?</span><select name="recipe" ${ready.length?'':'disabled'}>${ready.map(r=>`<option value="${E(r.id)}" ${r.id===recipe?.id?'selected':''}>${E(r.name)} · ${E(r.kind)}</option>`).join('')||'<option>No ready generation workflows</option>'}</select></label><label class="fld"><span>Describe the shot</span><textarea name="prompt" maxlength="2000" required placeholder="An expressive character in a warmly lit recording studio, cinematic composition…">${E(draft.prompt||'')}</textarea></label>${recipe?.input_kind==='image'?`<label class="fld"><span>Starting image · prepared library still</span><select name="input_asset_id" required><option value="">Choose an image…</option>${state.images.map(a=>`<option value="${a.id}" ${String(a.id)===String(draft.input_asset_id)?'selected':''}>${E(a.name)}</option>`).join('')}</select></label>${state.images.find(a=>String(a.id)===String(draft.input_asset_id))?`<img alt="Starting image" style="max-width:100%;max-height:240px;object-fit:contain" src="${E(state.images.find(a=>String(a.id)===String(draft.input_asset_id)).proxy_url)}">`:''}<p>PNG, JPEG or WebP · up to 10 MB / 16 megapixels. The worker uses a center-cropped still at 1280 × 704 and retains a frozen source reference.</p>${state.imageNext?'<button type="button" class="vw-btn" data-ai="images-more">Load older images</button>':''}`:''}<details><summary>Refine the generation</summary><label class="fld"><span>Avoid in the result</span><textarea name="negative" maxlength="2000">${E(draft.negative||'')}</textarea></label><label class="fld"><span>Installed local model</span><select name="model">${(status?.models||[]).map(m=>`<option ${m===draft.model?'selected':''}>${E(m)}</option>`).join('')||'<option value="">Workflow-managed model</option>'}</select></label><label class="fld"><span>Seed · keep it to repeat a variation</span><input type="number" name="seed" min="0" max="4294967295" step="1" value="${E(draft.seed||Math.floor(Math.random()*4294967296))}"></label></details><button class="vw-btn" ${state.busy||!ready.length?'disabled':''}>${state.busy?'Submitting…':'Generate on my worker'}</button><p role="status">${state.error?E(state.error):state.loading?'Checking your worker…':status?.connected?ready.length?'Local engine connected. No hosted generation API is used.':'Engine connected; its installed nodes or models are not ready for these workflows.':E(status?.reason||'Checking your worker…')}</p><button class="vw-btn" type="button" data-ai="refresh">Check worker & jobs</button></form><aside class="ai-animation"><h3>Character animation</h3><p>Reusable Blender characters, dialogue takes and saved performances belong to the same production. Generated artwork is concept art; it is not automatically a rigged performer.</p><a class="vw-btn" href="#/studio/${record.scene.id}/cast" data-production-mode="cast">Open character direction</a><a class="vw-btn" href="#/studio/${record.scene.id}/stage" data-production-mode="stage">Stage the shot</a><p>The current toon rig and volume-driven mouth controls are basic. Speech analysis and editable mouth cues are available in Cast. Advanced character creation and motion generation remain in development.</p></aside></div><section class="ai-results"><h3>Generation jobs & results</h3>${state.jobs.map(j=>`<article class="ai-result"><header><strong>${E(j.name)}</strong><span>${E(j.status==='uploaded'?'Queued':j.status==='processing'?j.phase:j.status)}</span></header>${j.preview_url?(j.kind==='image'?`<img alt="${E(j.name)}" src="${E(j.preview_url)}">`:['video','audio'].includes(j.kind)?`<${j.kind} controls src="${E(j.preview_url)}"></${j.kind}>`:''):''}<p>${E(j.prompt||'')}</p>${j.input_url?`<a class="vw-btn" href="${E(j.input_url)}" target="_blank" rel="noopener">View saved starting image</a>`:''}<small>Seed ${j.seed??'—'}${j.input_asset_id?` · Starting image #${Number(j.input_asset_id)}`:''}</small>${j.error?`<p role="alert">${E(j.error)}</p>`:''}${j.status==='ready'&&['image','video','audio'].includes(j.kind)?`<button class="vw-btn" data-ai="use" data-id="${j.asset_id}" ${state.busy?'disabled':''}>Add result to edit</button>`:''}</article>`).join('')||'<p>No generations in this production yet. Submit a prompt once a local workflow is ready.</p>'}</section></div></section>`;
+  function jobState(job){
+    if(job.status==='uploaded')return 'Queued';
+    if(job.phase==='performing'&&job.status==='processing')return 'Creating your clip';
+    return job.status==='processing'?(job.phase||'Processing').replaceAll('_',' '):job.status;
   }
-  app.addEventListener('input',e=>{if(e.target.closest('[data-ai-form]'))capture();if(e.target.closest('[data-ai-setup]'))state.setupDraft=Object.fromEntries(new FormData(e.target.closest('[data-ai-setup]')));});
-  app.addEventListener('change',e=>{const setupForm=e.target.closest('[data-ai-setup]');if(setupForm&&e.target.name==='package_id'){const selected=state.setup.packages.find(p=>p.id===e.target.value),device=setupForm.elements.device;device.querySelector('[value=cpu]').disabled=!selected.devices.includes('cpu');if(!selected.devices.includes(device.value))device.value=selected.devices[0];}if(e.target.closest('[data-ai-form]')){capture();if(['recipe','input_asset_id'].includes(e.target.name))repaint();}if(e.target.closest('[data-ai-setup]'))state.setupDraft=Object.fromEntries(new FormData(e.target.closest('[data-ai-setup]')));});
+  const selectedJob=()=>state.jobs.find(job=>job.asset_id===state.selectedJob)||state.jobs.find(job=>job.preview_url)||state.jobs[0];
+  const gigabytes=bytes=>(bytes/1073741824).toFixed(1);
+  function workerInfo(){
+    const status=state.status,device=status?.device,install=state.setup?.install;
+    const connected=status?.connected;
+    return `<section class="ai-card ai-worker-status"><h3>Generation worker</h3>
+      <dl><dt>ComfyUI</dt><dd data-health="${connected?'ready':'waiting'}">${!state.loaded?'Checking…':connected?'Connected':'Unavailable'}</dd>
+      <dt>Device</dt><dd>${E(({cuda:'NVIDIA CUDA',cpu:'CPU',mps:'Apple Metal',xpu:'Intel XPU'})[device?.type]||'Unavailable')}</dd>
+      <dt>VRAM</dt><dd>${device?.vram_total?`${gigabytes(device.vram_free)} / ${gigabytes(device.vram_total)} GB free`:device?.type==='cpu'?'CPU worker':'Unavailable'}</dd></dl>
+      <button type="button" class="vw-btn" data-ai="refresh">Refresh worker</button>
+      <details><summary>Worker activity</summary>
+        ${install?.status?`<p>${E(install.message||install.progress_message||install.phase||install.status)}</p>`:''}
+        ${state.jobs.slice(0,6).map(job=>`<p><strong>${E(jobState(job))}</strong> · ${E(job.name)}${job.error?`<br>${E(job.error)}`:''}</p>`).join('')||'<p>No generation activity yet.</p>'}
+      </details></section>`;
+  }
+  function preview(job){
+    const output=job?.preview_url;
+    return `<section class="ai-card ai-player"><header><h3>Preview</h3>${job?`<span>${E(jobState(job))}</span>`:''}</header>
+      <div class="ai-monitor">${output?(job.kind==='video'? `<video aria-label="Generated video preview" controls playsinline preload="metadata" src="${E(output)}"></video>`:job.kind==='image'?`<img alt="${E(job.name)}" src="${E(output)}">`:job.kind==='audio'?`<audio controls src="${E(output)}"></audio>`:'<p>Open the result in the media library.</p>'):`<p>${job?'The preview will appear when this job finishes.':'Generate a shot to preview it here.'}</p>`}</div>
+      ${job?`<footer><strong>${E(job.name)}</strong>${job.status==='ready'&&output?`<button class="vw-btn" data-ai="use" data-id="${job.asset_id}" ${state.busy?'disabled':''}>Add result to edit</button>`:''}</footer>`:''}</section>`;
+  }
+  function historyPanel(job){
+    return `<section class="ai-card ai-history"><h3>Prompt history</h3>
+      ${state.jobs.length?`<div class="ai-history-list">${state.jobs.map(item=>`<button type="button" data-ai="select-job" data-id="${item.asset_id}" aria-pressed="${item===job}"><span>${E(item.name)}</span><small>${E(jobState(item))}</small></button>`).join('')}</div>`:'<p>No previous prompts.</p>'}
+      ${job?`<dl><dt>Prompt</dt><dd>${E(job.prompt||job.name)}</dd><dt>Seed</dt><dd>${E(job.seed??'—')}</dd><dt>Steps</dt><dd>${E(job.steps??'—')}</dd></dl>${job.input_url?`<a href="${E(job.input_url)}" target="_blank" rel="noopener">Starting image</a>`:''}${job.error?`<p role="alert">${E(job.error)}</p>`:''}`:''}</section>`;
+  }
+  function performancePanel(){
+    const engines=state.status?.performances;
+    if(!engines?.length)return '';
+    const ready=engines.filter(engine=>engine.configured),draft=state.performanceDraft;
+    const selected=ready.find(engine=>engine.id===draft.recipe)||ready[0];
+    const options=(kinds,selectedId)=>state.performanceAssets.filter(asset=>kinds.includes(asset.kind)).map(asset=>`<option value="${asset.id}" ${String(asset.id)===selectedId?'selected':''}>${E(asset.name)}</option>`).join('');
+    const driverLabel=selected?.driver==='audio'?'Dialogue recording':selected?.id==='facefusion'?'Target performance':'Driving performance';
+    return `<section class="ai-card ai-performance"><h3>Performance tools</h3>
+      <ul>${engines.map(engine=>`<li><strong>${E(engine.name)}</strong> · ${E(engine.action)} <small>${engine.configured?'CPU worker configured':'Currently unavailable'}</small></li>`).join('')}</ul>
+      ${selected?`<form data-ai-performance><label class="fld"><span>Performance workflow</span><select name="recipe">${ready.map(engine=>`<option value="${E(engine.id)}" ${engine===selected?'selected':''}>${E(engine.name)}</option>`).join('')}</select></label>
+      <label class="fld"><span>Source portrait or footage</span><select name="input_asset_id" required><option value="">Choose from the media library</option>${options(selected.source,draft.input_asset_id)}</select></label>
+      <label class="fld"><span>${driverLabel}</span><select name="driver_asset_id" required><option value="">Choose from the media library</option>${options([selected.driver],draft.driver_asset_id)}</select></label>
+      <p>Use prepared library media. Recordings and footage can run up to 15 seconds.</p>
+      ${state.performanceNext?'<button class="vw-btn" type="button" data-ai="performance-more">Load older media</button>':''}
+      <button class="vw-btn primary" ${state.busy?'disabled':''}>Generate performance</button></form>`:'<p>Performance tools will appear here when the Studio CPU workers are available.</p>'}</section>`;
+  }
+  function view(record,mode='ai'){
+    if(state.scene!==record.scene.id){capture();state.scene=record.scene.id;state.loaded=false;state.status=null;state.setup=null;state.setupDraft={};state.images=[];state.imagesLoaded=false;state.imageNext=null;state.jobs=[];state.selectedJob=null;state.performanceAssets=[];state.performanceLoaded=false;state.performanceNext=null;state.performanceDraft={};state.error='';clearTimeout(state.timer);}
+    if(!state.loaded&&!state.loading)refresh();
+    const draft=state.drafts.get(state.scene)||{},status=state.status,recipes=status?.recipes||[],ready=recipes.filter(r=>r.ready);
+    const eligible=mode==='ai'?ready.filter(r=>r.kind==='video'):ready;
+    const recipe=eligible.find(r=>r.id===draft.recipe)||eligible[0],job=selectedJob();
+    const input=state.images.find(image=>String(image.id)===String(draft.input_asset_id));
+    const seed=draft.seed??Math.floor(Math.random()*4294967296);
+    const steps=draft.steps??recipe?.steps;
+    const message=state.error||(!state.loaded?'Checking worker…':eligible.length?'':status?.reason||'No workflows are ready for this mode. Check Workflows for availability.');
+    return `<section class="studio-ai production-panel" aria-label="${mode==='workflows'?'Workflows':'AI Studio'}">
+      <header class="ai-heading"><h2>${mode==='workflows'?'Workflows':'Generate video'}</h2></header>
+      <div class="ai-desk"><div class="ai-main">
+      <div class="ai-layout">
+        <form class="ai-card ai-controls" data-ai-form>
+          <h3>${mode==='workflows'?'Workflow parameters':'Shot setup'}</h3>
+          ${draft.shot_id?`<input type="hidden" name="shot_id" value="${E(draft.shot_id)}"><input type="hidden" name="shot_name" value="${E(draft.shot_name||'')}"><p>Storyboard shot · ${E(draft.shot_name||draft.shot_id)}</p>`:''}
+          <label class="fld"><span>Workflow</span><select name="recipe" ${eligible.length?'':'disabled'}>${eligible.map(r=>`<option value="${E(r.id)}" ${r.id===recipe?.id?'selected':''}>${E(r.name)}</option>`).join('')||'<option>No ready workflows</option>'}</select></label>
+          <label class="fld"><span>Prompt</span><textarea name="prompt" maxlength="2000" required placeholder="Describe the subject, action, and camera angle">${E(draft.prompt||'')}</textarea></label>
+          ${recipe?.input_kind==='image'?`<label class="fld"><span>Starting image</span><select name="input_asset_id" required><option value="">Choose a library still</option>${state.images.map(a=>`<option value="${a.id}" ${a===input?'selected':''}>${E(a.name)}</option>`).join('')}</select></label>${input?`<img class="ai-input-preview" alt="Starting image" src="${E(input.proxy_url)}">`:''}${state.imageNext?'<button type="button" class="vw-btn" data-ai="images-more">Load older images</button>':''}`:''}
+          ${Number.isInteger(recipe?.steps)?`<label class="fld"><span>Sampling steps <output data-ai-step-value>${E(steps)}</output></span><input type="range" name="steps" min="1" max="60" step="1" value="${E(steps)}"></label>`:''}
+          <details ${mode==='workflows'?'open':''}><summary>Generation parameters</summary>
+            <label class="fld"><span>Negative prompt</span><textarea name="negative" maxlength="2000">${E(draft.negative||'')}</textarea></label>
+            ${recipe?.kind==='image'?`<label class="fld"><span>Checkpoint</span><select name="model">${(status?.models||[]).map(model=>`<option ${model===draft.model?'selected':''}>${E(model)}</option>`).join('')||'<option value="">Workflow-managed model</option>'}</select></label>`:''}
+            <label class="fld"><span>Seed</span><input type="number" name="seed" min="0" max="4294967295" step="1" value="${E(seed)}"></label>
+          </details>
+          <button class="vw-btn primary" ${state.busy||!recipe?'disabled':''}>${state.busy?'Submitting…':'Generate'}</button>
+          ${message?`<p role="status">${E(message)}</p>`:''}
+        </form>
+        ${preview(job)}
+      </div>
+      ${mode==='workflows'?`<section class="ai-card ai-recipes"><h3>Workflow availability</h3>${recipes.map(r=>`<div><strong>${E(r.name)}</strong><span>${E(r.ready?'Ready':r.reason||'Unavailable')}</span></div>`).join('')||'<p>Connect a generation worker to load its workflows.</p>'}</section>${performancePanel()}${workerSetup()}`:''}
+      </div><aside class="ai-inspector" aria-label="Generation inspector">
+        ${workerInfo()}
+        ${historyPanel(job)}
+        <section class="ai-card"><h3>Export</h3>${window.LightekStudioDelivery?.settings(LightekStudioTimeline.get())||''}<a class="vw-btn" href="#/studio/${record.scene.id}/deliver">Export settings</a></section>
+      </aside></div></section>`;
+  }
+  app.addEventListener('input',e=>{if(e.target.closest('[data-ai-form]')){
+      capture();
+      if(e.target.name==='steps')app.querySelector('[data-ai-step-value]').textContent=e.target.value;
+    }if(e.target.closest('[data-ai-setup]'))state.setupDraft=Object.fromEntries(new FormData(e.target.closest('[data-ai-setup]')));});
+  app.addEventListener('change',e=>{const setupForm=e.target.closest('[data-ai-setup]');if(setupForm&&e.target.name==='package_id'){const selected=state.setup.packages.find(p=>p.id===e.target.value),device=setupForm.elements.device;device.querySelector('[value=cpu]').disabled=!selected.devices.includes('cpu');if(!selected.devices.includes(device.value))device.value=selected.devices[0];}if(e.target.closest('[data-ai-form]')){capture();if(e.target.name==='recipe'){
+      const draft=state.drafts.get(state.scene);
+      delete draft.model;delete draft.steps;delete draft.input_asset_id;
+    }
+    if(['recipe','input_asset_id'].includes(e.target.name))repaint();}if(e.target.closest('[data-ai-setup]'))state.setupDraft=Object.fromEntries(new FormData(e.target.closest('[data-ai-setup]')));});
+  app.addEventListener('change',e=>{
+    if(!e.target.closest('[data-ai-performance]'))return;
+    capturePerformance();
+    if(e.target.name==='recipe'){
+      delete state.performanceDraft.input_asset_id;delete state.performanceDraft.driver_asset_id;
+      repaint();
+    }
+  });
   app.addEventListener('submit',async e=>{
+    const performance=e.target.closest('[data-ai-performance]');
+    if(performance){
+      e.preventDefault();if(state.busy)return;
+      capture();capturePerformance();const draft=state.performanceDraft;
+      const signature=JSON.stringify([state.scene,draft]);
+      if(state.request?.signature!==signature)state.request={signature,key:crypto.randomUUID()};
+      state.busy=true;state.error='';repaint();
+      try{
+        const result=await call('generate',{...draft,request_key:state.request.key});
+        state.selectedJob=result.asset_id;state.request=null;
+        await refresh();
+      }catch(error){state.error=error.message;}
+      finally{state.busy=false;if(active())repaint();}
+      return;
+    }
     const setupForm=e.target.closest('[data-ai-setup]');
     if(setupForm){
       e.preventDefault();if(state.busy)return;
@@ -36,13 +156,19 @@
     }
     const form=e.target.closest('[data-ai-form]');if(!form)return;e.preventDefault();if(state.busy)return;capture();const scene=state.scene,draft=state.drafts.get(scene);
     state.busy=true;state.error='';const signature=JSON.stringify([scene,draft]);if(state.request?.signature!==signature)state.request={signature,key:crypto.randomUUID()};const key=state.request.key;render();
-    try{await call('generate',{...draft,seed:Number(draft.seed),request_key:key});state.request=null;if(scene===state.scene){state.drafts.set(scene,{...draft,seed:String((Number(draft.seed)+1)%4294967296)});await refresh();}}
+    try{const result=await call('generate',{...draft,seed:Number(draft.seed),request_key:key});state.request=null;state.selectedJob=result.asset_id;if(scene===state.scene){state.drafts.set(scene,{...draft,seed:String((Number(draft.seed)+1)%4294967296)});await refresh();}}
     catch(error){state.error=error.message;}
     finally{state.busy=false;if(active())render();}
   });
   app.addEventListener('click',async e=>{
     const button=e.target.closest('[data-ai]');if(!button)return;
-    if(button.dataset.ai==='refresh'){capture();state.imagesLoaded=false;await refresh();}
+    if(button.dataset.ai==='select-job'){capture();state.selectedJob=Number(button.dataset.id);repaint();app.querySelector(`[data-ai="select-job"][data-id="${state.selectedJob}"]`)?.focus();}
+    if(button.dataset.ai==='refresh'){capture();state.imagesLoaded=false;state.performanceLoaded=false;await refresh();}
+    if(button.dataset.ai==='performance-more'&&!state.busy){
+      capture();capturePerformance();state.busy=true;
+      try{await loadPerformanceAssets(state.performanceNext);}catch(error){state.error=error.message;}
+      finally{state.busy=false;if(active())repaint();}
+    }
     if(button.dataset.ai==='images-more'&&!state.busy){capture();state.busy=true;try{await loadImages(state.imageNext);}catch(error){state.error=error.message;}finally{state.busy=false;if(active())repaint();}}
     if(button.dataset.ai==='use'&&!state.busy){state.busy=true;button.disabled=true;
       try{await A.studioAssetsReload();LightekStudioTimeline.insert(Number(button.dataset.id));LightekStudioProduction.go('edit',undefined,true);toast('Generated media added to the edit. Save changes to keep the placement.');}
@@ -51,10 +177,17 @@
   });
   window.addEventListener('hashchange',()=>{if(!active()){capture();clearTimeout(state.timer);}});
   function repaint(){
-    const focused=app.querySelector(':focus'),name=focused?.name,setup=!!focused?.closest('[data-ai-setup]');
+    const focused=app.querySelector(':focus'),name=focused?.name;
+    const scope=focused?.closest('[data-ai-performance]')?'[data-ai-performance]':focused?.closest('[data-ai-setup]')?'[data-ai-setup]':'[data-ai-form]';
+    const details=app.querySelector('[data-ai-form] details'),open=details?.open;
     const start=focused?.selectionStart,end=focused?.selectionEnd;
+    const player=app.querySelector('.ai-monitor video,.ai-monitor audio');
     render();
-    if(name){const target=app.querySelector(`${setup?'[data-ai-setup]':'[data-ai-form]'} [name="${CSS.escape(name)}"]`);target?.focus({preventScroll:true});if(typeof start==='number'&&target?.setSelectionRange)try{target.setSelectionRange(start,end);}catch(_){}}
+    const nextDetails=app.querySelector('[data-ai-form] details');
+    if(nextDetails&&open!==undefined)nextDetails.open=open;
+    const replacement=app.querySelector('.ai-monitor video,.ai-monitor audio');
+    if(player&&replacement&&player.getAttribute('src')===replacement.getAttribute('src'))replacement.replaceWith(player);
+    if(name){const target=app.querySelector(`${scope} [name="${CSS.escape(name)}"]`);target?.focus({preventScroll:true});if(typeof start==='number'&&target?.setSelectionRange)try{target.setSelectionRange(start,end);}catch(_){}}
   }
   function workerSetup(){
     const data=state.setup;if(data?.can_manage===false)return '<aside class="ai-worker"><h3>Optional neural generation</h3><p>Production infrastructure is managed by Lightek. No engine installation is required on your computer. CPU scene production uses the installed Studio runtime; neural generation becomes available when a suitable worker is configured.</p></aside>';if(!Array.isArray(data?.workers)||!Array.isArray(data?.packages))return '';

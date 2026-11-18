@@ -47,7 +47,7 @@ module Studio
           recipe
         end
       end
-      def inventory
+      def inventory(telemetry:false)
         nodes=json("/object_info")
         raise ArgumentError,"Invalid local engine inventory" unless nodes.is_a?(Hash)
         models=Array(nodes.dig("CheckpointLoaderSimple","input","required","ckpt_name",0))
@@ -58,18 +58,39 @@ module Studio
           missing_models=Array(recipe["required_models"]).reject do |spec|
             Array(nodes.dig(spec["node"],"input","required",spec["field"],0)).include?(spec["name"])
           end
-          {id:recipe["id"],name:recipe["name"],kind:recipe["kind"],input_kind:recipe["input_kind"],ready:!missing_inputs && missing.empty? && missing_models.empty? && (!needs_checkpoint || models.any?),reason:missing_inputs ? "Required image-conditioning inputs are not available on this engine" : missing.any? ? "Required engine nodes are not installed" : missing_models.any? ? "Required workflow models are not installed" : needs_checkpoint && models.empty? ? "Install a local checkpoint on the generation worker" : nil}
+          {id:recipe["id"],name:recipe["name"],kind:recipe["kind"],input_kind:recipe["input_kind"],steps:recipe_steps(recipe),ready:!missing_inputs && missing.empty? && missing_models.empty? && (!needs_checkpoint || models.any?),reason:missing_inputs ? "Required image-conditioning inputs are not available on this engine" : missing.any? ? "Required engine nodes are not installed" : missing_models.any? ? "Required workflow models are not installed" : needs_checkpoint && models.empty? ? "Install a local checkpoint on the generation worker" : nil}
         end
-        {connected:true,engine:"Self-hosted ComfyUI",recipes:available,models:models}
+        {connected:true,engine:"Self-hosted ComfyUI",recipes:available,models:models,device:telemetry ? device_status : nil}
       rescue SystemCallError,SocketError,Timeout::Error,IOError,OpenSSL::SSL::SSLError,ArgumentError,JSON::ParserError
         {connected:false,engine:"Self-hosted ComfyUI",recipes:[],models:[],reason:"Optional neural generation is unavailable on this installation. Infrastructure operators manage neural workers; CPU scene production uses the separate Studio runtime."}
       end
-      def graph(recipe_id,prompt:,negative:,seed:,model:)
+      def recipe_steps(recipe)
+        recipe.fetch("workflow").values.find { |node| node["class_type"]=="KSampler" }&.dig("inputs","steps")
+      end
+
+      def device_status
+        stats=JSON.parse(request("/system_stats",limit:128.kilobytes))
+        device=Array(stats["devices"]).find { |item| item.is_a?(Hash) && %w[cuda cpu mps xpu].include?(item["type"]) }
+        return unless device
+        total,free=device.values_at("vram_total","vram_free")
+        memory=device["type"]!="cpu" && total.is_a?(Integer) && free.is_a?(Integer) && total.positive? && free.between?(0,total)
+        {type:device["type"],vram_total:memory ? total : nil,vram_free:memory ? free : nil}
+      rescue SystemCallError,SocketError,Timeout::Error,IOError,OpenSSL::SSL::SSLError,ArgumentError,JSON::ParserError,TypeError
+        nil
+      end
+
+      def graph(recipe_id,prompt:,negative:,seed:,model:,steps:nil)
         recipe=recipes.find{|r|r["id"]==recipe_id} || raise(ArgumentError,"Choose an installed AI workflow")
         values={"$prompt"=>prompt,"$negative"=>negative,"$seed"=>seed,"$checkpoint"=>model}
         graph=recipe.fetch("workflow").deep_dup
         graph.each_value do |node|
           node.fetch("inputs").transform_values!{|value|values.fetch(value,value)}
+        end
+        if steps
+          raise ArgumentError,"This workflow uses fixed sampling steps" unless recipe_steps(recipe)
+          graph.each_value do |node|
+            node["inputs"]["steps"]=steps if node["class_type"]=="KSampler"
+          end
         end
         [recipe,graph]
       end

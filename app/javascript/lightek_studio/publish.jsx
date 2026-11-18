@@ -7,7 +7,7 @@ const tiktokSettings = [
   ['disable_comment','Disable comments'],['disable_duet','Disable duets'],['disable_stitch','Disable stitches'],
   ['brand_content_toggle','Branded content'],['brand_organic_toggle','Promotes my own brand'],['is_aigc','Contains AI-generated content']
 ];
-const ticker = status => (status || '').replaceAll('_',' ');
+const ticker = status => (status || '').replace(/_/g,' ');
 
 export function Publish({api,project,scene,clips,operations,publications,selected,onSelect,timeline,save,run,busy,refresh}) {
   const [accounts,setAccounts]=useState(null);

@@ -44,7 +44,13 @@
   <div data-turbo="false" data-unified-studio
        data-site-id="<%= @site.id %>" data-scene-id="<%= @scene&.id %>"
        data-workspace="<%= @workspace_mode %>" data-csrf-token="<%= form_authenticity_token %>"
-       data-home="<%= dashboard_media_studio_path(site_id: @site.id) %>"></div>
+       data-home="<%= dashboard_media_studio_path(site_id: @site.id) %>">
+    <section class="ls-projects">
+      <h1>Lightek Studio</h1>
+      <p role="status">Opening Studio…</p>
+      <%= link_to "Back to Studio projects", dashboard_media_studio_path(site_id: @site.id) %>
+    </section>
+  </div>
   <%= javascript_include_tag "/lightek/nevaeh-client.js?v=65", defer: true %>
-  <%= javascript_include_tag "/lightek/studio-unified.js?v=1", defer: true %>
+  <%= javascript_include_tag "/lightek/studio-unified.js?v=2", defer: true %>
 <% end %>

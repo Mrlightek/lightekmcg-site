@@ -76,6 +76,23 @@ class StudioCpuFederationTest < StudioCpuPoolTest
     vault = ->(**values) { raise "Wrong Vault consumer" unless values[:consumer] == "LightekReservations::Federation::Client"; {"token" => token.dup} }
     LightekVault::Service.stub(:checkout!, vault) { Net::HTTP.stub(:start, network) { yield } }
   end
+  def test_procedural_movie_uses_standard_studio_queue_without_dedicated_workers
+    queue=Studio::Compute::Queue
+    params={scene_id:@scene.id,scene_preset:"cube",routing_mode:"standard",request_key:SecureRandom.uuid,
+      procedural_script_params:{camera:"angle",lighting:"soft",motion:"spin"}}
+    operation=queue.stub(:dedicated?,false) do
+      assert_includes Studio::Compute::ProceduralMovie.pools(@site),"standard"
+      Studio::Billing::Quote.stub(:call,->(operation:,**_){operation.update!(cost_quote:{"total_cents"=>125,"currency"=>"USD"})}) do
+        StudioOperation.find(action("render_quote",**params).fetch(:operation_id))
+      end
+    end
+    assert_equal "standard",operation.metadata.fetch("cpu_routing_mode")
+    queue.stub(:dedicated?,true) do
+      refute queue.dedicated_for?(operation)
+      assert_equal "studio",queue.name(operation)
+    end
+  end
+
   def test_procedural_movie_quote_persists_the_selected_pool_and_snapshot
     ENV["STUDIO_CPU_REMOTE"]="1"
     params={scene_id:@scene.id,scene_preset:"cube",routing_mode:"remote",request_key:SecureRandom.uuid,

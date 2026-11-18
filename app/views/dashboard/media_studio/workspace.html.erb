@@ -1,3 +1,4 @@
+<% if @advanced_workspace %>
 <% content_for :page_title, "Lightek Studio" %>
 <% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
 <%= stylesheet_link_tag "/lightek/studio-visual.css?v=97" %>
@@ -36,3 +37,14 @@
 
 <%= javascript_include_tag "/lightek/studio-look.js?v=94", defer:true %>
 <%= stylesheet_link_tag "/lightek/studio-look.css?v=71" %>
+<% else %>
+  <% content_for :page_title, "Lightek Studio" %>
+  <% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
+  <%= stylesheet_link_tag "/lightek/studio-unified.css?v=1" %>
+  <div data-turbo="false" data-unified-studio
+       data-site-id="<%= @site.id %>" data-scene-id="<%= @scene&.id %>"
+       data-workspace="<%= @workspace_mode %>" data-csrf-token="<%= form_authenticity_token %>"
+       data-home="<%= dashboard_media_studio_path(site_id: @site.id) %>"></div>
+  <%= javascript_include_tag "/lightek/nevaeh-client.js?v=65", defer: true %>
+  <%= javascript_include_tag "/lightek/studio-unified.js?v=1", defer: true %>
+<% end %>

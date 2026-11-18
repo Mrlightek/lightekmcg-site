@@ -3114,6 +3114,7 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 </style>
 <link rel="manifest" href="/api/lightek/pwa/manifest">
 <meta name="theme-color" content="#07070a">
+<link rel="stylesheet" href="/lightek/studio-unified.css?v=1">
 <meta name="application-name" content="Lightek">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13224,7 +13225,7 @@ ct:b=>{CS.type=b.dataset.v;CS.s=1;render()},cb:()=>{CS.s--;render()},cx:()=>{CS.
 cd:b=>{const v=b.dataset.v;CS.dest.has(v)?CS.dest.delete(v):CS.dest.add(v);render(1)},
 pub:()=>{CS.pr=1;render(1);const t=setInterval(()=>{CS.pr+=14;if(CS.pr>=100){clearInterval(t);CS.done=1}if(location.hash=='#/create')render(1)},180)},
 again:()=>{Object.assign(CS,{s:0,type:'',title:'',desc:'',file:'',dest:new Set(['My Space']),pr:0,done:0});render()}};
-function render(keep){if(!window.LightekLiveReady){app.innerHTML='<div class="wrap pwa-page"><h1>Lightek</h1><p role="status">Loading your network…</p></div>';return}const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=R[r]?r:'home';const html=R[k](a);if(k!=='studio'||!window.LightekStudioVisual?.renderHomeInto(app,html))app.innerHTML=html;document.querySelectorAll('#primary-nav a').forEach(x=>x.classList.toggle('on',x.dataset.r==(k=='community'?'communities':k)));if(AF[k])AF[k](a);scrollTo(0,keep?y:0);app.classList.remove('fade');if(!keep){void app.offsetWidth;app.classList.add('fade')}}
+function render(keep){if(!window.LightekLiveReady){app.innerHTML='<div class="wrap pwa-page"><h1>Lightek</h1><p role="status">Loading your network…</p></div>';return}const y=scrollY,[r,a]=location.hash.slice(2).split('/'),k=R[r]?r:'home';const unified=k==='studio'&&meProfile()&&window.LightekUnifiedStudio?.pwa(app,a);if(!unified){window.LightekUnifiedStudio?.leave();const html=R[k](a);if(k!=='studio'||!window.LightekStudioVisual?.renderHomeInto(app,html))app.innerHTML=html;}document.querySelectorAll('#primary-nav a').forEach(x=>x.classList.toggle('on',x.dataset.r==(k=='community'?'communities':k)));if(!unified&&AF[k])AF[k](a);scrollTo(0,keep?y:0);app.classList.remove('fade');if(!keep){void app.offsetWidth;app.classList.add('fade')}}
 app.addEventListener('click',e=>{const s=e.target.closest('[data-sc]');if(s){e.preventDefault();document.getElementById(s.dataset.sc)?.scrollIntoView({behavior:'smooth'});return}const b=e.target.closest('[data-a]');if(b)A[b.dataset.a]?.(b,e)});
 app.addEventListener('input',e=>{
   const n=e.target.name;
@@ -13414,6 +13415,7 @@ addEventListener('hashchange',()=>{S.edit=false;render()});if(!location.hash)loc
 <script src="/lightek/membership.js"></script>
 <script src="/lightek/remote-content.js"></script>
 <script src="/lightek/bootstrap-adapter.js?v=93"></script>
+<script src="/lightek/studio-unified.js?v=1"></script>
 <script src="/lightek/application-settings.js?v=93"></script>
 
 <script src="/lightek/vendor/gsap/gsap.min.js"></script>

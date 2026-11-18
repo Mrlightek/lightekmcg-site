@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v102-nevaeh-studio"
+const CACHE = "lightek-shell-v103-nevaeh-replies"
 
 const SHELL = [
   "/lightek/index.html",
@@ -12,7 +12,8 @@ const SHELL = [
   "/lightek/youtube-publishing.js",
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
-  "/lightek/studio-unified.js?v=5",
+  "/lightek/nevaeh-reply-stream.js?v=1",
+  "/lightek/studio-unified.js?v=6",
   "/lightek/studio-unified.css?v=3",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",

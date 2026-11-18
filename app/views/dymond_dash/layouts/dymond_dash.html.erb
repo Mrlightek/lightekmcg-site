@@ -265,6 +265,6 @@
 </div>
 
 <%= render "shared/nevaeh_contextual_help" %>
-<% if current_user&.persisted? %><nevaeh-presence data-site-id="<%= @site.id if defined?(DymondSite::Site) && @site.is_a?(DymondSite::Site) %>"></nevaeh-presence><script src="/nevaeh/voice.js?v=3" defer></script><script src="/nevaeh/page-tasks.js?v=2" defer></script><script src="/nevaeh/presence.js?v=7" defer></script><% end %>
+<% if current_user&.persisted? %><nevaeh-presence data-site-id="<%= @site.id if defined?(DymondSite::Site) && @site.is_a?(DymondSite::Site) %>"></nevaeh-presence><script src="/nevaeh/voice.js?v=3" defer></script><script src="/nevaeh/page-tasks.js?v=2" defer></script><script src="/lightek/nevaeh-reply-stream.js?v=1" defer></script><script src="/nevaeh/presence.js?v=9" defer></script><% end %>
 </body>
 </html>

@@ -40,3 +40,5 @@ The sudo policy permits only the fixed helper under `/usr/local/lib/lightek`, wi
 - [Wan2.2 weights and Apache 2.0 license](https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/tree/ee6f4a40737a995bf5818954cfce6d59443b0f04)
 - [UMT5 encoder bundle](https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/tree/123acf1cc74bccbb9bfff8ac1ee72edc08c2341d)
 - [Official Wan2.2 template](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/video_wan2_2_5B_ti2v.json)
+
+See [Studio specialist limits and recovery](worker-guardrails.md) for the enforced worker budgets and retry options.

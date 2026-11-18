@@ -29,6 +29,10 @@ class StudioAiGenerationJob < ApplicationJob
       self.class.set(wait:6.minutes).perform_later(id)
       begin
         graph=asset.metadata.fetch("ai_graph").deep_dup
+        recipe=asset.metadata.dig("ai_intent","recipe")
+        policy=Studio::Compute::Guardrails
+        profile=policy.genesis_profile!(recipe,runtime.device_status,asset.metadata.fetch("ai_profile","auto"))
+        policy.genesis_graph!(graph,recipe,profile)
         if asset.metadata.dig("ai_intent","input_asset_id")
           bytes=Studio::Ai::InputImage.prepare(asset)
           name=runtime.upload_image(bytes,filename:"lightek-#{asset.id}-#{SecureRandom.hex(8)}.png")
@@ -36,6 +40,10 @@ class StudioAiGenerationJob < ApplicationJob
         end
         prompt_id=runtime.submit(graph)
         asset.update!(metadata:asset.metadata.merge("ai_prompt_id"=>prompt_id,"ai_phase"=>"generating"))
+      rescue Studio::Compute::Guardrails::Limit => error
+        asset.update!(status:"failed",error_message:error.message,metadata:asset.metadata.merge("ai_phase"=>"failed",
+          "ai_recovery"=>(error.suggestion["quality_profile"]=="economy" ? "economy" : nil)))
+        return
       rescue StandardError=>error
         asset.update!(status:"failed",error_message:error.is_a?(ArgumentError) ? error.message.first(400) : "The engine submission was not confirmed. Check its queue before generating again.",metadata:asset.metadata.merge("ai_phase"=>"submission_unconfirmed"))
         return
@@ -43,7 +51,13 @@ class StudioAiGenerationJob < ApplicationJob
     end
     if asset.metadata["ai_phase"]=="generating"
       result=runtime.result(asset.metadata.fetch("ai_prompt_id"))
-      raise ArgumentError,"The local engine failed to generate this media" if result&.dig("status","status_str")=="error"
+      if result&.dig("status","status_str")=="error"
+        if Studio::Compute::Recovery.memory_error?(result.dig("status","messages").to_json.first(16_000))
+          asset.update!(status:"failed",error_message:"The GPU ran short on memory.",metadata:asset.metadata.merge("ai_phase"=>"failed","ai_recovery"=>"economy"))
+          return
+        end
+        raise ArgumentError,"The local engine failed to generate this media"
+      end
       if !result || !result.dig("status","completed")
         raise ArgumentError,"Generation exceeded one hour. Check your local worker before submitting again." if Time.iso8601(asset.metadata.fetch("ai_started_at"))<1.hour.ago
         self.class.set(wait:5.seconds).perform_later(id);return

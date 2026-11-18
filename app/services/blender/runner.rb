@@ -32,6 +32,7 @@ module Blender
     end
 
     def call
+      Studio::Compute::Guardrails.economy_manifest!(execution_record.manifest)
       return Studio::Compute::CpuProfile.with_slot { execute } if Studio::Compute::CpuProfile.economy?(execution_record.manifest)
       execute
     end
@@ -152,7 +153,7 @@ module Blender
       script=Rails.root.join("blender/runner.py").to_s
       if Rails.env.production?
         image=Studio::NativeBlender::Runtime.image(:render)
-        ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory",Studio::Compute::CpuProfile.economy?(execution_record.manifest) ? "1g" : "4g","--cpus",Studio::Compute::CpuProfile.economy?(execution_record.manifest) ? "1" : Studio::MediaProcess.cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
+        ["docker","run","--rm","--name","lightek-render-#{SecureRandom.hex(8)}","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","256","--memory",Studio::Compute::CpuProfile.economy?(execution_record.manifest) ? Studio::Compute::Guardrails::CPU_MEMORY : "4g","--cpus",Studio::Compute::CpuProfile.economy?(execution_record.manifest) ? "1" : Studio::MediaProcess.cpu_limit,"--user","#{Process.uid}:#{Process.gid}","--tmpfs","/tmp:rw,nosuid,size=1g",
           "-v","#{output_directory}:/work:rw","-v","#{Rails.root.join("blender")}:/engine:ro",image,"blender","--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python","/engine/runner.py","--","/work/manifest.json","/work"]
       else
         [render_engine_binary,"--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python",script,"--",manifest_path.to_s,output_directory.to_s]
@@ -252,7 +253,7 @@ module Blender
       return 180 if execution_record.respond_to?(:metadata) && execution_record.metadata["performance_preview"]
       return 120 if execution_record.respond_to?(:metadata) && execution_record.metadata["asset_source_export"]
       return 60 if execution_record.respond_to?(:metadata) && execution_record.metadata["draft_preview"]
-      return 7200 if Studio::Compute::CpuProfile.economy?(execution_record.manifest)
+      return Studio::Compute::Guardrails::CPU_TIMEOUT if Studio::Compute::CpuProfile.economy?(execution_record.manifest)
       ENV.fetch(
         "STUDIO_RENDER_TIMEOUT_SECONDS",
         ENV.fetch("BLENDER_TIMEOUT_SECONDS", 900)

@@ -26,9 +26,19 @@ const origin = 'http://localhost:18447';
     const video={id:23,name:'Generated shot',kind:'video',status:'ready',metadata:{duration:5,width:540,height:960},proxy_url:'/video.mp4'};
     let generated=false,published=[],loads=0,recoverable=true,taught=false,frameImported=false,uploadAttempts=0;
 
+    let cable, subscription, finishReply;
+    await page.routeWebSocket('ws://localhost:18447/cable',socket=>{
+      cable=socket;
+      socket.onMessage(message=>{
+        const request=JSON.parse(message);
+        subscription=request.identifier;
+        socket.send(JSON.stringify({identifier:subscription,type:'confirm_subscription'}));
+      });
+    });
+
     await page.route(origin+'/**',async route=>{
       const url=new URL(route.request().url());
-      if(url.pathname.startsWith('/lightek/')&&!url.pathname.endsWith('.html')){
+      if((url.pathname.startsWith('/lightek/')&&!url.pathname.endsWith('.html'))||url.pathname==='/lightek/nevaeh-reply-stream.js'){
         const file=path.join(root,'public',url.pathname);
         return route.fulfill({body:fs.readFileSync(file),contentType:file.endsWith('.js')?'application/javascript':'text/css'});
       }
@@ -46,7 +56,13 @@ const origin = 'http://localhost:18447';
         let result;
         switch(key){
           case 'nevaeh.conversation':
-            if(data.teach){taught=true;result={text:'Shortcut saved and ready to use.'};}
+            if(data.text==='How do I use the timeline?'){
+              assert.equal(data.stream,true);
+              cable.send(JSON.stringify({identifier:subscription,message:{text:'You are in the timeline'}}));
+              await new Promise(resolve=>{finishReply=resolve;});
+            }
+            if(data.retry_economy){result={text:'I’ve queued an Economy retry.',work_item_id:97};}
+            else if(data.teach){taught=true;result={text:'Shortcut saved and ready to use.'};}
             else result={text:'You are in the '+data.view+' workspace.',status:'grounded'};
             break;
           case 'bootstrap': result={projects:[{id:3,name:'Production',unassigned_scenes:[scene]}]};break;
@@ -59,6 +75,7 @@ const origin = 'http://localhost:18447';
             loads++;
             result={
               activity:data.activity_scene_id?[{id:81,label:'Generation',status:'ready',asset_id:23,teach:true},
+                {id:83,label:'Generation',status:'failed',recovery:{action:'retry_economy',message:'Try Economy at up to 512 pixels.'}},
                 ...(recoverable?[{id:79,label:'3D render',status:'recoverable',operation_id:46}]:[])]:[],
               operations:[{id:46,type:'build_scene',scene_id:7,status:recoverable?'failed':'pending',cpu_resumable:recoverable,error:recoverable?'private diagnostic':null,artifacts:[]},
                 ...(data.activity_scene_id?[{id:71,type:'build_scene',scene_id:7,status:'completed',artifacts:[{id:77,kind:'video',filename:'Landscape render.mp4',url:'/video.mp4'}]}]:[])],
@@ -88,7 +105,7 @@ const origin = 'http://localhost:18447';
       return route.fulfill({contentType:'text/html',body:`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="/lightek/studio-unified.css">
         ${dashboard?'<div data-unified-studio data-site-id="2" data-scene-id="7" data-csrf-token="token" data-home="/dashboard/studio-broadcasting"></div>':'<div id="pwa"></div>'}
-        <script src="/lightek/nevaeh-client.js"></script><script src="/lightek/studio-unified.js"></script>
+        <script src="/lightek/nevaeh-client.js"></script><script src="/lightek/nevaeh-reply-stream.js"></script><script src="/lightek/studio-unified.js"></script>
         ${dashboard?'':'<script>const host=document.querySelector("#pwa");function renderStudio(){if(location.hash.startsWith("#/studio"))LightekUnifiedStudio.pwa(host,location.hash.split("/")[2]);else {LightekUnifiedStudio.leave();host.textContent="PWA home";}}renderStudio();addEventListener("hashchange",renderStudio);</script>'}`});
     });
     const workspace=origin+'/dashboard/studio-broadcasting/workspace/7?site_id=2';
@@ -180,6 +197,9 @@ const origin = 'http://localhost:18447';
     await page.getByRole('button',{name:'Nevaeh',exact:true}).click();
     await page.getByLabel('Message Nevaeh').fill('How do I use the timeline?');
     await page.getByRole('button',{name:'Send',exact:true}).click();
+    await page.getByText('You are in the timeline',{exact:true}).waitFor();
+    assert.equal(await page.getByText('You are in the timeline workspace.').count(),0);
+    finishReply();
     await page.getByText('You are in the timeline workspace.').waitFor();
     await page.getByRole('button',{name:'Media Library',exact:true}).click();
     await page.getByRole('button',{name:/Starting image/}).click();
@@ -189,6 +209,9 @@ const origin = 'http://localhost:18447';
     assert(calls.some(([key,data])=>key==='nevaeh.conversation'&&data.asset_id===21&&data.scene_id===7&&data.view==='library'));
     await page.getByRole('button',{name:'Activity',exact:true}).click();
     await page.getByText('Verified Result',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Retry in Economy'}).click();
+    await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(button=>button.textContent==='Retry in Economy'&&!button.disabled));
+    assert(calls.some(([key,data])=>key==='nevaeh.conversation'&&data.retry_economy===83));
     await page.getByRole('button',{name:'Resume from Checkpoint',exact:true}).click();
     await page.getByRole('button',{name:'Resume from Checkpoint',exact:true}).waitFor({state:'hidden'});
     assert.equal(calls.filter(([key])=>key==='render.resume').length,2);

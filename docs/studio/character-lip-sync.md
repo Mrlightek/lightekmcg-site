@@ -45,3 +45,5 @@ Analysis operations retain the exact audio blob as an attachment and are scoped 
 The sprint checks real offline recognition of a generated spoken test recording, request/source isolation, stale trims, cue validation, failure/retry behavior, saved corrections and independent episode copies. A native Blender check replays those actual cues, verifies dedicated shape-key animation and packed audio in the saved source, and renders two different speech poses. These checks establish the connection; representative human performances, language/rig quality, complete mixed productions and production container deployment remain part of integrated verification.
 
 Upstream: [Rhubarb Lip Sync documentation](https://github.com/DanielSWolf/rhubarb-lip-sync/blob/v1.14.0/README.adoc) · [Pinned release](https://github.com/DanielSWolf/rhubarb-lip-sync/releases/tag/v1.14.0).
+
+See [Studio specialist limits and recovery](worker-guardrails.md) for the enforced worker budgets and retry options.

@@ -11,9 +11,9 @@ module Studio
         return settings unless profile==ID
         width=Integer(settings.fetch("resolution_x",1280));height=Integer(settings.fetch("resolution_y",720))
         raise ArgumentError,"CPU source dimensions must be 16–16384 pixels" unless width.between?(16,16384) && height.between?(16,16384)
-        factor=[1.0,512.0/[width,height].max].min
+        factor=[1.0,Guardrails::CPU_EDGE.to_f/[width,height].max].min
         settings.merge("render_engine"=>"CYCLES","resolution_x"=>[(width*factor/2).floor*2,16].max,
-          "resolution_y"=>[(height*factor/2).floor*2,16].max,"resolution_percentage"=>100,"samples"=>Integer(settings.fetch("samples",8)).clamp(1,8))
+          "resolution_y"=>[(height*factor/2).floor*2,16].max,"resolution_percentage"=>100,"samples"=>Integer(settings.fetch("samples",Guardrails::CPU_SAMPLES)).clamp(1,Guardrails::CPU_SAMPLES))
       end
       # One slot per application worker host by default. A shared local lock root
       # can coordinate its processes; this is not cross-server federation.

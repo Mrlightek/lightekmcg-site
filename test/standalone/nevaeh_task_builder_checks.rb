@@ -3,6 +3,8 @@ require_relative 'nevaeh_ten_task_checks'
 require File.join(ROOT, 'db/migrate/20261114230000_create_nevaeh_manual_learning')
 require File.join(ROOT, 'db/migrate/20261116110000_add_nevaeh_task_builder')
 require File.join(ROOT,'app/services/studio/workers/activity')
+require File.join(ROOT,'app/services/studio/compute/guardrails')
+require File.join(ROOT,'app/services/nevaeh_os/specialist_context')
 require File.join(ROOT,'app/services/studio/pwa_access')
 CreateNevaehManualLearning.new.migrate(:up)
 AddNevaehTaskBuilder.new.migrate(:up)
@@ -136,6 +138,15 @@ class NevaehTaskBuilderChecks < NevaehTenTaskChecks
     NevaehCapability.find_by!(slug: 'susu.list').update!(enabled: false)
     assert_raises(Gatekeeper::AuthorizationDenied) { execute(action) }
   end
+  def test_studio_specialist_answers_with_the_installed_guide_and_limits
+    response=ask("How do I use Wan 2.2?")
+    assert_equal "grounded",response["status"]
+    assert_includes response["text"],"121 frames"
+    source=response["sources"].sole
+    assert_equal "docs/studio/genesis-image-to-video.md",source[:path]
+    assert source[:excerpt].present?
+  end
+
   def test_studio_shortcut_uses_verified_receipt_inputs_and_existing_language_binding
     slug="studio.workspace.ai.generate"
     NevaehCapability.create!(slug:slug,name:"Generate",domain:"studio",intent_name:"studio_ai_generate",
@@ -185,7 +196,7 @@ class NevaehTaskBuilderChecks < NevaehTenTaskChecks
   def test_marketing_request_uses_its_native_executor_instead_of_a_ten_task_guess
     result = ask('help me market my business', mode: 'reflect')
     assert_equal 'planned', result['status']
-    assert_includes result['text'], 'marketing_kit'
+    assert_equal 'marketing_kit', result.fetch('plan').dig('command','kind')
     assert_empty NevaehTaskDialogue.all
     assert_empty NevaehOsAction.all
     target = NevaehOs::TaskBuilder.command('marketing_kit', {'site_id'=>@site.id})

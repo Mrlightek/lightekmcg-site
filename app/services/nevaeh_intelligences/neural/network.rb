@@ -159,11 +159,18 @@ module NevaehIntelligences
             selected
           end
           break if token == 3
-          generated << @vocabulary[token]; prefix << token
+          generated << @vocabulary[token]
+          prefix << token
+          yield formatted_reply(generated) if block_given?
         end
+        text = formatted_reply(generated)
+        {'text' => text, 'tokens' => generated.length, 'engine' => 'native_neural', 'checkpoint_sha256' => Digest::SHA256.hexdigest(CanonicalJson.dump(@state))}
+      end
+      private
+      def formatted_reply(generated)
         text = generated.join(' ').gsub(/\s+([,.!?;:])/, '\\1').gsub(/([(\[])[ ]+/, '\\1')
         text = text.sub(/\A\p{L}/) { |letter| letter.upcase }
-        {'text' => text, 'tokens' => generated.length, 'engine' => 'native_neural', 'checkpoint_sha256' => Digest::SHA256.hexdigest(CanonicalJson.dump(@state))}
+        text
       end
     end
   end

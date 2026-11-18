@@ -3,7 +3,7 @@ module Studio
   module Ai
     class Generation
       ASPECT_DIMENSIONS = {"16:9"=>[768,432], "9:16"=>[432,768], "1:1"=>[512,512]}.freeze
-      VIDEO_RECIPES = %w[wan22_video wan22_image_video].freeze
+      VIDEO_RECIPES = Studio::Compute::Guardrails::WAN_RECIPES
 
       def self.start(access:,payload:)
         scene=access.scene!(payload.fetch("scene_id"))
@@ -17,6 +17,8 @@ module Studio
         raise ArgumentError,"Seed must be between 0 and 4294967295" unless seed.between?(0,2**32-1)
         recipe_id=payload.fetch("recipe").to_s;model=payload.fetch("model","").to_s
         intent={"scene_id"=>scene.id,"prompt"=>prompt,"negative"=>negative,"seed"=>seed,"recipe"=>recipe_id,"model"=>model}
+        Studio::Compute::Guardrails.preflight!("studio.workspace.ai.generate",payload)
+        intent["quality_profile"]=payload["quality_profile"] if payload.key?("quality_profile")
         if payload.key?("genesis_worker_id")
           worker_id=payload.fetch("genesis_worker_id")
           raise ArgumentError, "Choose a registered generation worker" unless worker_id.is_a?(Integer) && worker_id.positive?
@@ -54,15 +56,17 @@ module Studio
               raise ArgumentError, "This generation worker is no longer available for your workspace"
             end
             runtime=Runtime.new(site:site,identity:worker)
-            status=runtime.inventory(telemetry:intent.key?("genesis_worker_id"))
+            status=runtime.inventory(telemetry:true)
             if intent["genesis_worker_id"] && VIDEO_RECIPES.include?(recipe_id) && status.dig(:device,:type)!="cuda"
               raise ArgumentError, "Choose a video-capable generation worker"
             end
             if intent["genesis_worker_id"] && recipe_id=="image" && !%w[cpu cuda].include?(status.dig(:device,:type))
               raise ArgumentError, "Choose an image-capable generation worker"
             end
-            if recipe_id=="image" && intent["genesis_worker_id"] && model.empty?
-              model=status[:models].find { |name| name.match?(/sd[-_. ]?1[-_. ]?5|v1[-_.]5/i) } || raise(ArgumentError,"Stable Diffusion 1.5 is unavailable on this worker")
+            if recipe_id=="image" && intent["genesis_worker_id"]
+              checkpoints=status[:models].grep(/sd[-_. ]?1[-_. ]?5|v1[-_.]5/i)
+              model=checkpoints.first if model.empty?
+              raise ArgumentError,"Choose an installed Stable Diffusion 1.5 checkpoint" unless checkpoints.include?(model) && model
             end
             recipe=status[:recipes].find{|r|r[:id]==recipe_id && r[:ready]}
             raise ArgumentError,status[:reason] || "This workflow is not ready on your local worker" unless recipe
@@ -82,10 +86,12 @@ module Studio
                 node.fetch("inputs").merge!("width"=>width,"height"=>height) if node["class_type"]=="EmptyLatentImage"
               end
             end
+            profile=Studio::Compute::Guardrails.genesis_profile!(recipe_id,status[:device],intent.fetch("quality_profile","auto"))
+            Studio::Compute::Guardrails.genesis_graph!(graph,recipe_id,profile,prepare:true)
             raise ArgumentError,"Choose an installed local model" if graph.values.any?{|n|n["class_type"]=="CheckpointLoaderSimple" && n.dig("inputs","ckpt_name").blank?}
             pending=StudioAsset.where(owner:access.user,status:%w[uploaded processing]).where("metadata ->> 'ai_intent' IS NOT NULL").count
             raise ArgumentError,"Wait for your current generations to finish" if pending>=2
-            asset=StudioAsset.create!(owner:access.user,site_id:access.site_id,studio_project:scene.studio_project,name:prompt.first(120),kind:recipe[:kind],status:"uploaded",request_key:key,metadata:{"ai_intent"=>intent,"ai_graph"=>graph,"ai_phase"=>"queued","ai_engine"=>"self_hosted_comfyui","ai_worker"=>worker})
+            asset=StudioAsset.create!(owner:access.user,site_id:access.site_id,studio_project:scene.studio_project,name:prompt.first(120),kind:recipe[:kind],status:"uploaded",request_key:key,metadata:{"ai_intent"=>intent,"ai_graph"=>graph,"ai_profile"=>profile,"ai_phase"=>"queued","ai_engine"=>"self_hosted_comfyui","ai_worker"=>worker})
             if source
               blob=source.proxy.blob
               asset.ai_input.attach(blob)

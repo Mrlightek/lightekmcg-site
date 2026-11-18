@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_18_001500) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_18_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -3112,6 +3112,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_18_001500) do
     t.datetime "retire_after"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "hosting_mode", default: "shared_account", null: false
+    t.jsonb "account_receipt", default: {}, null: false
     t.index ["hostname"], name: "index_lightek_pwa_member_backends_on_hostname", unique: true
     t.index ["launch_id"], name: "index_lightek_pwa_member_backends_on_launch_id"
     t.index ["order_id"], name: "index_lightek_pwa_member_backends_on_order_id"
@@ -3243,11 +3245,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_18_001500) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "capacity_alert_state", default: "normal", null: false
+    t.bigint "standby_launch_id"
     t.index ["launch_id"], name: "index_lightek_pwa_shared_pools_on_launch_id"
     t.index ["node_id"], name: "index_lightek_pwa_shared_pools_on_node_id"
     t.index ["operator_id"], name: "index_lightek_pwa_shared_pools_on_operator_id"
     t.index ["request_key"], name: "index_lightek_pwa_shared_pools_on_request_key", unique: true
     t.index ["site_id"], name: "index_lightek_pwa_shared_pools_on_site_id"
+    t.index ["standby_launch_id"], name: "index_lightek_pwa_shared_pools_on_standby_launch_id"
   end
 
   create_table "lightek_pwa_surface_modules", force: :cascade do |t|
@@ -5906,6 +5910,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_18_001500) do
   add_foreign_key "lightek_pwa_purchases", "users"
   add_foreign_key "lightek_pwa_revenue_periods", "lightek_pwa_purchases", column: "purchase_id"
   add_foreign_key "lightek_pwa_shared_pools", "gatekeeper_application_launches", column: "launch_id"
+  add_foreign_key "lightek_pwa_shared_pools", "gatekeeper_application_launches", column: "standby_launch_id"
   add_foreign_key "lightek_pwa_shared_pools", "gatekeeper_nodes", column: "node_id"
   add_foreign_key "lightek_pwa_shared_pools", "users", column: "operator_id"
   add_foreign_key "lightek_pwa_surface_modules", "lightek_pwa_surfaces", column: "surface_id"

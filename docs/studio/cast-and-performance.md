@@ -4,9 +4,9 @@ This release connects a reusable native Blender character to a recorded performa
 
 ## Make an animation
 
-Open **Dashboard → Studio → Make an animation**. PWA members can start from **Studio** on their member workspace. Name the project and create it. Studio opens on **Stage**, where you can:
+Open **Dashboard → Studio → Make an animation**. PWA members can start from **Studio** on their member workspace. Tap **Start a scene** to open Stage. Use **Name your scene or change its format** if you want to set those options first. Studio opens on **Stage**, where you can:
 
-1. Choose **Use a template**, pick a starter, and customize hair and colors. Click the finished character to add it to the stage. Use **Customize** on a saved character to create a new version for your cast.
+1. Tap **Pick a character**, choose a starter and tap **Add to scene**. Studio puts the character on Stage when it’s ready. Open **Customize** for the name, hair and colors. Use **Customize** on a saved character to create a new version for your cast.
    Choose **Use a photo** for a photo-faced toon. Choose a centered, front-facing JPEG, PNG or WebP up to 10 MB. Studio fits the photo to the face; the toon body and mouth retain their animation controls. The uploaded photo is attached to the private character asset.
 2. Choose **Sets & props** to add a set. Select a character or set and use **Move**, **Rotate** or **Scale** to arrange it.
 3. Select your character and choose an **Action** such as Wave or Head nod. Each click adds the action after that character’s existing actions. You can also upload a recording and choose **Save & watch take**. Use **Cast** to edit action timing or refine the performance.

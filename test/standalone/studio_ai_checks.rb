@@ -1,6 +1,7 @@
 # Local engine protocol tests use a loopback HTTP fixture and real asset ingest.
 require_relative "studio_production_checks"
 require "socket"
+require File.join(ROOT,"app/services/studio/compute/procedural_movie")
 require File.join(ROOT,"app/services/studio/assets/ingestor")
 require File.join(ROOT,"app/services/studio/ai/setup")
 require File.join(ROOT,"app/services/studio/ai/runtime")
@@ -187,6 +188,24 @@ class StudioAiTest < StudioProductionTest
     assert_raises(ActiveRecord::RecordNotFound){action("ai_jobs",scene_id:other.id)}
     @models=[];assert_empty action("ai_status",scene_id:@scene.id)[:recipes].select{|r|r[:ready]}
   end
+  def test_ai_registered_worker_accepts_typed_portrait_and_automatic_seed
+    assert_empty action("ai_status",scene_id:@scene.id)[:genesis_workers]
+    @site.update!(manifest:@site.manifest.merge("studio_ai_worker"=>{"mode"=>"local","installation_id"=>18}))
+    @models=["v1-5-pruned-emaonly.safetensors"]
+    assert_equal [{id:18,label:"Genesis worker",video:true,image:true}], action("ai_status",scene_id:@scene.id)[:genesis_workers]
+    params={genesis_worker_id:18,aspect_ratio:"9:16",model:"",seed:-1}
+    assert_raises(ArgumentError){generate(**params.merge(genesis_worker_id:19))}
+    assert_raises(ArgumentError){generate(**params.merge(aspect_ratio:"4:3"))}
+    receipt=generate(**params)
+    assert_equal receipt,generate(**params)
+    assert_operator receipt[:seed],:>=,0
+    graph=StudioAsset.find(receipt[:asset_id]).metadata.fetch("ai_graph")
+    latent=graph.values.find { |node| node["class_type"]=="EmptyLatentImage" }
+    assert_equal [432,768],latent.fetch("inputs").values_at("width","height")
+    checkpoint=graph.values.find { |node| node["class_type"]=="CheckpointLoaderSimple" }
+    assert_equal @models.first,checkpoint.dig("inputs","ckpt_name")
+  end
+
   def test_ai_engine_failure_never_becomes_a_ready_asset
     receipt=generate;StudioAiGenerationJob.perform_now(receipt[:asset_id]);@completed=true;@engine_error=true
     StudioAiGenerationJob.perform_now(receipt[:asset_id]);asset=StudioAsset.find(receipt[:asset_id])

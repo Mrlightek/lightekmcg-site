@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v99-unified-studio-recovery"
+const CACHE = "lightek-shell-v101-studio-photo-uploads"
 
 const SHELL = [
   "/lightek/index.html",
@@ -12,8 +12,8 @@ const SHELL = [
   "/lightek/youtube-publishing.js",
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
-  "/lightek/studio-unified.js?v=2",
-  "/lightek/studio-unified.css?v=1",
+  "/lightek/studio-unified.js?v=4",
+  "/lightek/studio-unified.css?v=2",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",
   "/lightek/studio-native.js",

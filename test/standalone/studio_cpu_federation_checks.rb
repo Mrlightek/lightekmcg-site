@@ -1,5 +1,6 @@
 require_relative "studio_cpu_pool_checks"
 require "net/http"
+require File.join(ROOT,"app/services/studio/compute/procedural_movie")
 require File.join(ROOT, "lib/middleware/studio_cpu_request_limit")
 ActiveRecord::Schema.define do
   create_table(:cpu_federation_orders) { |t| t.string :status; t.datetime :paid_at; t.datetime :provisioned_at }
@@ -75,6 +76,25 @@ class StudioCpuFederationTest < StudioCpuPoolTest
     vault = ->(**values) { raise "Wrong Vault consumer" unless values[:consumer] == "LightekReservations::Federation::Client"; {"token" => token.dup} }
     LightekVault::Service.stub(:checkout!, vault) { Net::HTTP.stub(:start, network) { yield } }
   end
+  def test_procedural_movie_quote_persists_the_selected_pool_and_snapshot
+    ENV["STUDIO_CPU_REMOTE"]="1"
+    params={scene_id:@scene.id,scene_preset:"cube",routing_mode:"remote",request_key:SecureRandom.uuid,
+      procedural_script_params:{camera:"angle",lighting:"soft",motion:"spin"}}
+    result=Studio::Billing::Quote.stub(:call,->(operation:,**_){operation.update!(cost_quote:{"total_cents"=>125,"currency"=>"USD"})}) do
+      action("render_quote",**params)
+    end
+    assert_equal result,action("render_quote",**params)
+    operation=StudioOperation.find(result.fetch(:operation_id))
+    assert_equal "build_scene",operation.operation_type
+    assert Studio::Compute::Federation::Dispatch.enabled?(operation)
+    assert_equal operation.manifest,Contract.validate!(operation.manifest)
+    assert_equal [512,288,120],operation.manifest.dig("scene","settings").values_at("resolution_x","resolution_y","frame_end")
+    assert_equal [0,0,360],operation.manifest.dig("scene","objects",0,"definition","animation","frames",2,"rotation")
+    assert_raises(ArgumentError){action("render_quote",**params.merge(routing_mode:"local"))}
+    operation.update!(metadata:operation.metadata.merge("cpu_routing_mode"=>"local"))
+    refute Studio::Compute::Federation::Dispatch.enabled?(operation)
+  end
+
   def test_peer_authentication_grant_and_resource_isolation_are_enforced_over_http
     op = operation(status: "pending")
     response = http(:post, "/api/reservations/federation/studio/cpu", token: "wrong", data: {key: SecureRandom.hex(24), manifest: op.manifest})

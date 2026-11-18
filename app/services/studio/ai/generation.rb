@@ -2,6 +2,9 @@
 module Studio
   module Ai
     class Generation
+      ASPECT_DIMENSIONS = {"16:9"=>[768,432], "9:16"=>[432,768], "1:1"=>[512,512]}.freeze
+      VIDEO_RECIPES = %w[wan22_video wan22_image_video].freeze
+
       def self.start(access:,payload:)
         scene=access.scene!(payload.fetch("scene_id"))
         raise ActiveRecord::RecordNotFound unless scene.studio_project.site_id==access.site_id
@@ -10,9 +13,20 @@ module Studio
         raise ArgumentError,"Describe your shot in 1–2000 characters" unless prompt.length.between?(1,2000) && negative.length<=2000
         raise ArgumentError,"Invalid generation request key" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         seed=Integer(payload.fetch("seed",Digest::SHA256.hexdigest(key).first(8).to_i(16)))
+        seed=Digest::SHA256.hexdigest(key).first(8).to_i(16) if seed == -1 && payload.key?("genesis_worker_id")
         raise ArgumentError,"Seed must be between 0 and 4294967295" unless seed.between?(0,2**32-1)
         recipe_id=payload.fetch("recipe").to_s;model=payload.fetch("model","").to_s
         intent={"scene_id"=>scene.id,"prompt"=>prompt,"negative"=>negative,"seed"=>seed,"recipe"=>recipe_id,"model"=>model}
+        if payload.key?("genesis_worker_id")
+          worker_id=payload.fetch("genesis_worker_id")
+          raise ArgumentError, "Choose a registered generation worker" unless worker_id.is_a?(Integer) && worker_id.positive?
+          intent["genesis_worker_id"]=worker_id
+        end
+        if payload.key?("aspect_ratio")
+          aspect=payload.fetch("aspect_ratio")
+          raise ArgumentError, "Choose a supported image aspect ratio" unless recipe_id=="image" && ASPECT_DIMENSIONS.key?(aspect)
+          intent["aspect_ratio"]=aspect
+        end
         if payload["steps"].present?
           raise ArgumentError,"Choose 1–60 sampling steps" unless payload["steps"].to_s.match?(/\A(?:[1-9]|[1-5][0-9]|60)\z/)
           intent["steps"]=Integer(payload["steps"])
@@ -36,7 +50,20 @@ module Studio
             end
             raise ArgumentError,"Wait for worker setup to finish before generating" if Setup.pending?(site)
             worker=site.manifest.to_h["studio_ai_worker"] || {"mode"=>"local"}
-            runtime=Runtime.new(site:site,identity:worker);status=runtime.inventory
+            if intent["genesis_worker_id"] && worker["installation_id"] != intent["genesis_worker_id"]
+              raise ArgumentError, "This generation worker is no longer available for your workspace"
+            end
+            runtime=Runtime.new(site:site,identity:worker)
+            status=runtime.inventory(telemetry:intent.key?("genesis_worker_id"))
+            if intent["genesis_worker_id"] && VIDEO_RECIPES.include?(recipe_id) && status.dig(:device,:type)!="cuda"
+              raise ArgumentError, "Choose a video-capable generation worker"
+            end
+            if intent["genesis_worker_id"] && recipe_id=="image" && !%w[cpu cuda].include?(status.dig(:device,:type))
+              raise ArgumentError, "Choose an image-capable generation worker"
+            end
+            if recipe_id=="image" && intent["genesis_worker_id"] && model.empty?
+              model=status[:models].find { |name| name.match?(/sd[-_. ]?1[-_. ]?5|v1[-_.]5/i) } || raise(ArgumentError,"Stable Diffusion 1.5 is unavailable on this worker")
+            end
             recipe=status[:recipes].find{|r|r[:id]==recipe_id && r[:ready]}
             raise ArgumentError,status[:reason] || "This workflow is not ready on your local worker" unless recipe
             raise ArgumentError,"Choose an installed local model" unless model.empty? || status[:models].include?(model)
@@ -49,6 +76,12 @@ module Studio
               raise ArgumentError,"This workflow does not accept a starting image"
             end
             _,graph=runtime.graph(recipe_id,prompt:prompt,negative:negative,seed:seed,model:model,steps:intent["steps"])
+            if (aspect=intent["aspect_ratio"])
+              width,height=ASPECT_DIMENSIONS.fetch(aspect)
+              graph.each_value do |node|
+                node.fetch("inputs").merge!("width"=>width,"height"=>height) if node["class_type"]=="EmptyLatentImage"
+              end
+            end
             raise ArgumentError,"Choose an installed local model" if graph.values.any?{|n|n["class_type"]=="CheckpointLoaderSimple" && n.dig("inputs","ckpt_name").blank?}
             pending=StudioAsset.where(owner:access.user,status:%w[uploaded processing]).where("metadata ->> 'ai_intent' IS NOT NULL").count
             raise ArgumentError,"Wait for your current generations to finish" if pending>=2

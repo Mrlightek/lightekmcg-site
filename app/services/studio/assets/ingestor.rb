@@ -2,6 +2,7 @@ require "open3"
 require "timeout"
 require "tmpdir"
 require "fileutils"
+require "stringio"
 module Studio
   module Assets
     class Ingestor
@@ -16,7 +17,8 @@ module Studio
         @asset.update!(status: "processing", error_message: nil)
         with_source do |source|
           Studio::MediaProcess.temporary_directory("lightek-asset-") do |root|
-            input = @source_path || File.join(root,"source#{File.extname(@asset.file.filename.to_s)}")
+            extension = phone_image? ? ".heic" : File.extname(@asset.file.filename.to_s)
+            input = @source_path || File.join(root,"source#{extension}")
             FileUtils.cp(source.path,input) unless @source_path
             if %w[blend glb].include?(@asset.kind)
               convert_model(input, root)
@@ -25,6 +27,8 @@ module Studio
               @asset.native.attach(io: File.open(File.join(root,"native.blend")), filename: "#{@asset.file.filename.base}.blend", content_type: "application/x-blender") if File.file?(File.join(root,"native.blend"))
               @asset.metadata = @asset.metadata.merge(JSON.parse(File.read(File.join(root,"asset.json"))))
             else
+              image_proxy = phone_image? ? convert_phone_image(input,root) : nil
+              input = image_proxy if image_proxy
               stdout = run!([ENV.fetch("LIGHTEK_FFPROBE","ffprobe"),"-v","error","-protocol_whitelist","file,pipe","-show_streams","-show_format","-of","json",input], timeout: 30,root:root)
               data = JSON.parse(stdout)
               streams = Array(data["streams"])
@@ -32,7 +36,11 @@ module Studio
               stream = streams.find { |s| s["codec_type"] == (@asset.kind == "audio" ? "audio" : "video") }
               raise ArgumentError, "No compatible media stream found" unless stream
               @asset.metadata = { "duration" => data.dig("format","duration").to_f, "width" => stream["width"], "height" => stream["height"], "has_audio" => streams.any?{|s|s["codec_type"]=="audio"} }
-              @asset.proxy.attach(@asset.file.blob)
+              if image_proxy
+                @asset.proxy.attach(io:StringIO.new(File.binread(image_proxy)),filename:"photo.jpg",content_type:"image/jpeg",identify:false)
+              else
+                @asset.proxy.attach(@asset.file.blob)
+              end
               if @asset.kind != "audio"
                 preview=File.join(root,"preview.png")
                 run!([ENV.fetch("LIGHTEK_FFMPEG","ffmpeg"),"-v","error","-y","-protocol_whitelist","file,pipe","-i",input,"-frames:v","1","-vf","scale=480:-2",preview],root:root)
@@ -57,6 +65,19 @@ module Studio
           attachment.blob.open(tmpdir:Studio::MediaProcess.temp_root) { |source| yield source }
         end
       end
+      def phone_image?
+        @asset.kind=="image" && Studio::Assets::Upload::PHONE_IMAGE_TYPES.include?(@asset.file.blob.content_type)
+      end
+
+      def convert_phone_image(input,root)
+        output=File.join(root,"photo.jpg")
+        command=[ENV.fetch("LIGHTEK_IMAGE_CONVERT","convert"),"-limit","thread","1","-limit","memory","256MiB",
+          "-limit","map","256MiB","-limit","disk","512MiB","-limit","width","20000","-limit","height","20000",
+          "heic:#{input}[0]","-auto-orient","-resize","4096x4096>","-strip","-quality","86",output]
+        run!(command,timeout:30,root:root)
+        output
+      end
+
       def convert_model(input, root)
         script = Rails.root.join("blender/import_asset.py").to_s
         if Rails.env.production?
@@ -87,7 +108,7 @@ module Studio
 
       def run!(command, timeout: 90,root:nil)
         if Rails.env.production? && root
-          mapped=command.map{|argument|argument.start_with?(root) ? argument.sub(root,"/work") : argument}
+          mapped=command.map{|argument|argument.sub(/\A((?:heic:)?)#{Regexp.escape(root)}\//,'\1/work/')}
           command=Studio::MediaProcess.container(mapped,root:root,image:Studio::NativeBlender::Runtime.image(:media))
         end
         Studio::MediaProcess.run!(command,timeout:timeout)

@@ -3,7 +3,10 @@ module Studio
     module Federation
       class Dispatch
         def self.enabled?(operation)
-          (ENV["STUDIO_CPU_REMOTE"] == "1" || operation.metadata["remote_cpu"].is_a?(Hash)) && Queue.economy?(operation) && !StudioRemoteRender.exists?(studio_operation_id: operation.id)
+          receipt = operation.metadata["remote_cpu"].is_a?(Hash)
+          mode = operation.metadata["cpu_routing_mode"]
+          remote = receipt || mode == "remote" || (mode.nil? && ENV["STUDIO_CPU_REMOTE"] == "1")
+          remote && Queue.economy?(operation) && !StudioRemoteRender.exists?(studio_operation_id: operation.id)
         end
         def self.client(operation) = LightekReservations::Federation::Client.new(operation.studio_project.site)
         def self.cancel!(operation)

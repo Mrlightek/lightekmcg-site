@@ -1,7 +1,7 @@
 import React, {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Download, Film, FolderOpen, Plus, Share2, Sparkles} from 'lucide-react';
-import {pending, requestKey, sceneRecords, studioApi} from './api';
+import {pending, progressLabel,uploadMessage, requestKey, sceneRecords, studioApi} from './api';
 import {Creation, Preview} from './create';
 import {Publish} from './publish';
 
@@ -32,6 +32,7 @@ function Timeline({timeline, update, assets, save, busy, dirty, selected, onSele
   const [index,setIndex]=useState(0);
   const clip=timeline.clips[index];
   const current=assets.find(asset=>asset.id===(clip?.asset_id || selected));
+  const tracks=[...new Set(timeline.clips.map(item=>item.track || 0))].sort((a,b)=>a-b);
   function edit(key,value){
     update({...timeline,clips:timeline.clips.map((item,i)=>i===index?{...item,[key]:value}:item)});
   }
@@ -43,8 +44,11 @@ function Timeline({timeline, update, assets, save, busy, dirty, selected, onSele
     <Preview asset={current} title="Timeline clip preview"/>
     <div className="ls-row"><strong>Timeline</strong><span>{dirty?'Unsaved changes':'Saved'}</span>
       <button onClick={()=>go('library')}>Add media</button><button className="ls-primary" disabled={!dirty||busy} onClick={save}>Save edit</button></div>
-    <div className="ls-card ls-timeline"><div className="ls-strip">{timeline.clips.map((item,i)=><button key={i} aria-pressed={i===index} onClick={()=>{setIndex(i);onSelect(item.asset_id);}}>
-      <span>{assets.find(asset=>asset.id===item.asset_id)?.name || `Clip ${i+1}`}</span><small>{Number(item.start).toFixed(2)}s · {clipLength(item).toFixed(2)}s</small></button>)}</div>
+    <div className="ls-card ls-timeline">{tracks.map(track=><div className="ls-track" key={track}>
+      <strong>{timeline.tracks?.find(item=>item.id===track)?.name || `Track ${track+1}`}</strong>
+      <div className="ls-strip">{timeline.clips.map((item,i)=>(item.track || 0)===track&&<button key={i} aria-pressed={i===index} onClick={()=>{setIndex(i);onSelect(item.asset_id);}}>
+        <span>{assets.find(asset=>asset.id===item.asset_id)?.name || `Clip ${i+1}`}</span><small>{Number(item.start).toFixed(2)}s · {clipLength(item).toFixed(2)}s</small></button>)}</div>
+    </div>)}
       {!timeline.clips.length&&<p>Import a photo or video, or add a generated clip.</p>}
     </div>
     {clip&&<div className="ls-card ls-fields">
@@ -57,25 +61,33 @@ function Timeline({timeline, update, assets, save, busy, dirty, selected, onSele
   </div>;
 }
 
-function Library({assets, selected, onSelect, upload, add, busy, next, more, retry}) {
+function Library({assets, selected, onSelect, upload, add, busy, next, more, retry, renders, openRender}) {
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('all');
   const shown=assets.filter(item=>(filter==='all'||item.kind===filter)&&item.name.toLowerCase().includes(query.toLowerCase()));
   const media=assets.find(item=>item.id===selected);
   return <div className="ls-library">
-    <div className="ls-row"><label className="ls-upload"><Plus size={16}/> Import media<input type="file" accept="image/*,video/*,audio/*" disabled={busy} onChange={event=>{const file=event.target.files[0];event.target.value='';if(file)upload(file);}}/></label>
+    <div className="ls-row"><label className="ls-upload"><Plus size={16}/> Import media<input type="file" accept="image/*,video/*,audio/*,.heic,.heif,.avif,.blend,.glb" disabled={busy} onChange={event=>{const file=event.target.files[0];event.target.value='';if(file)upload(file);}}/></label>
       <input aria-label="Search media" placeholder="Search media" value={query} onChange={event=>setQuery(event.target.value)}/>
       <select aria-label="Filter media by type" value={filter} onChange={event=>setFilter(event.target.value)}><option value="all">All media</option><option value="video">Videos</option><option value="image">Images</option><option value="audio">Audio</option><option value="blend">Character rigs</option></select>
     </div>
     {media&&videoKinds.includes(media.kind)&&<Preview asset={media} title="Media preview"/>}
     <div className="ls-assets">{shown.map(item=><article className="ls-card" key={item.id}>
-      <button aria-pressed={selected===item.id} onClick={()=>onSelect(item.id)}>{item.thumbnail_url&&<img src={item.thumbnail_url} alt=""/>}<strong>{item.name}</strong><small>{item.kind} · {pending(item.status)?'Preparing':item.status}</small></button>
-      {item.error&&<small role="alert">{item.error}</small>}
+      <button aria-pressed={selected===item.id} onClick={()=>onSelect(item.id)}>{item.thumbnail_url&&<img src={item.thumbnail_url} alt=""/>}<strong>{item.name}</strong><small>{item.kind} · {progressLabel(item.status)}</small></button>
       {item.status==='failed'&&<button disabled={busy} onClick={()=>retry(item.id)}>Retry import</button>}
       {item.status==='ready'&&videoKinds.includes(item.kind)&&<button disabled={busy} onClick={()=>add(item.id)}>Add to timeline</button>}
     </article>)}</div>
     {!shown.length&&<p className="ls-muted">No media matches this view.</p>}
     {next&&<button onClick={()=>more(next)}>Load more media</button>}
+    {!!renders.length&&<section className="ls-library" aria-label="Renders">
+      <h2>Renders</h2>
+      <div className="ls-assets">{renders.map(item=><article className="ls-card" key={item.id}>
+        <button onClick={()=>openRender(item.id)} disabled={busy}>
+          <strong>{item.output?.fit==='cover'?'9:16 clip':item.type==='build_scene'?'3D movie':'Timeline export'}</strong>
+          <small>{item.cpu_resumable?'Recoverable':progressLabel(item.status)}</small>
+        </button>
+      </article>)}</div>
+    </section>}
   </div>;
 }
 
@@ -86,6 +98,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   const [timeline,setTimeline]=useState(saved);
   const [revision,setRevision]=useState(scene.lock_version);
   const [selected,setSelected]=useState(initialAsset || null);
+  const [operationId,setOperationId]=useState(null);
   const [assets,setAssets]=useState([]);
   const [next,setNext]=useState(null);
   const [jobs,setJobs]=useState([]);
@@ -105,14 +118,15 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   const refresh=useCallback(async ()=>{
     const id=++loadId.current;
-    const [library,generation,delivery]=await Promise.allSettled([
-      api.call('assets.list',{scope_site:true}), api.call('ai.jobs',{scene_id:scene.id}), api.call('operations.list',{project_id:project.id})
+    const [library,generation,delivery,references]=await Promise.allSettled([
+      api.call('assets.list',{scope_site:true}), api.call('ai.jobs',{scene_id:scene.id}), api.call('operations.list',{project_id:project.id}), api.call('assets.list',{surface:'ai_input',scope_site:true})
     ]);
     if(!alive.current||id!==loadId.current)return;
     if(library.status==='fulfilled'&&Array.isArray(library.value?.assets)){
       setAssets(previous=>[...library.value.assets,...previous.filter(item=>!library.value.assets.some(next=>next.id===item.id))]);
       setNext(library.value.next_before);
-    } else setError(library.reason?.message || 'The media library returned an incomplete response.');
+    } else setError('The Media Library is temporarily unavailable.');
+    if(references.status==='fulfilled'&&Array.isArray(references.value?.assets))setReferenceAssets(references.value.assets);
     if(generation.status==='fulfilled'&&Array.isArray(generation.value))setJobs(generation.value);
     if(delivery.status==='fulfilled'&&Array.isArray(delivery.value?.operations)&&Array.isArray(delivery.value?.publications))setOps(delivery.value);
   },[api,scene.id,project.id]);
@@ -129,7 +143,6 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
     let active=true;
     const load=()=>{
       api.call('ai.status',{scene_id:scene.id}).then(status=>{if(active)setInventory(status);}).catch(error=>{if(active)setInventory({reason:error.message});});
-      api.call('assets.list',{surface:'ai_input',scope_site:true}).then(result=>{if(active&&Array.isArray(result?.assets))setReferenceAssets(result.assets);}).catch(()=>{});
     };
     load();
     const timer=setInterval(load,20000);
@@ -197,9 +210,10 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
     if(asset?.status==='ready'){setWaiting(null);run(async()=>{await add(waiting);completeHandoff();});}
   },[waiting,busy,assets,timeline]);
   async function upload(file){
-    const result=await api.upload(file);
+    let result;
+    try {result=await api.upload(file,project.id);}
+    catch(error){throw Error(uploadMessage(error));}
     setSelected(result.asset_id);
-    if(!timeline.clips.length)setWaiting(result.asset_id);
     setMessage('Original saved. Preparing the preview.');
     await refresh();
   }
@@ -209,7 +223,6 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
     <aside className="ls-sidebar">
       <div className="ls-brand"><span>L</span><div><strong>LIGHTEK STUDIO</strong><small>AI Media &amp; Social Hub</small></div></div>
       <nav aria-label="Studio workspaces">{workspaces.map(([name,Icon,label])=><button type="button" key={name} aria-current={tab===name?'page':undefined} onClick={()=>go(name)} disabled={busy}><Icon size={17}/>{label}</button>)}</nav>
-      <div className="ls-health"><strong>ComfyUI Engine</strong><small>{inventory?.connected?'Connected':inventory?'Unavailable':'Open AI Create for worker status'}</small></div>
       <a className="ls-exit" href={home}>Exit Studio</a>
     </aside>
     <main className="ls-main">
@@ -223,9 +236,11 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
       <div className="ls-content">
         {error&&<p className="ls-error" role="alert">{error}</p>}
         {(message||waiting)&&<p className="ls-notice" role="status">{message || 'Preparing your media for the timeline.'}</p>}
-        {createLoaded&&<div hidden={tab!=='create'}><Creation {...{api,scene:{...scene,lock_version:revision},assets,referenceAssets,inventory,jobs,selected,onSelect:setSelected,add:id=>run(()=>add(id)),refresh,timeline,go,run,busy,onRevision:value=>{setRevision(value);updateScene(scene.id,{lock_version:value});}}}/></div>}
+        {createLoaded&&<div hidden={tab!=='create'}><Creation {...{api,project,scene:{...scene,lock_version:revision},assets,referenceAssets,inventory,jobs,operations:ops.operations,selected,onSelect:setSelected,add:id=>run(()=>add(id)),refresh,timeline,go,run,busy,operationId,setOperationId,onRevision:lock_version=>{setRevision(lock_version);updateScene(scene.id,{lock_version});}}}/></div>}
         {tab==='timeline'&&<Timeline {...{timeline,update:setTimeline,assets,save:()=>run(()=>save()),busy,dirty,selected,onSelect:setSelected,go,advanced:api.advanced(scene.id)}}/>}
         {tab==='library'&&<Library {...{assets,selected,onSelect:setSelected,busy,next,upload:file=>run(()=>upload(file)),add:id=>run(()=>add(id)),
+          renders:ops.operations.filter(item=>item.scene_id===scene.id&&!item.draft_preview&&['build_scene','edit_media'].includes(item.type)),
+          openRender:id=>{setOperationId(id);go('create');},
           retry:id=>run(async()=>{await api.call('asset.retry',{asset_id:id});await refresh();}),
           more:before=>run(async()=>{const result=await api.call('assets.list',{scope_site:true,before});setAssets(items=>[...new Map([...items,...result.assets].map(item=>[item.id,item])).values()]);setNext(result.next_before);})}}/>}
         {publishLoaded&&<div hidden={tab!=='publish'}><Publish {...{api,project,scene,clips:assets,operations:ops.operations,publications:ops.publications,selected,onSelect:setSelected,timeline,save,run,busy,refresh}}/></div>}
@@ -327,9 +342,10 @@ window.LightekUnifiedStudio={
     pwaHost=document.createElement('div');
     container.replaceChildren(pwaHost);
     pwaRoot=createRoot(pwaHost);
+    document.body.classList.add("lt-studio-unified");
     activeHash=location.hash;
     renderStudio(pwaRoot,studioApi(null),routeFrom(null,id),"#/home");
     return true;
   },
-  leave(){if(pwaRoot){pwaRoot.unmount();pwaRoot=null;pwaHost=null;}}
+  leave(){document.body.classList.remove("lt-studio-unified");if(pwaRoot){pwaRoot.unmount();pwaRoot=null;pwaHost=null;}}
 };

@@ -31,7 +31,17 @@ module Studio
 
       def ai_status
         site=Studio::Ai::Setup.site_for(@access,@payload.fetch("scene_id"))
-        Studio::Ai::Runtime.new(site:site).inventory(telemetry:true).merge(performances:Studio::Ai::Performances.inventory)
+        inventory=begin
+          Studio::Ai::Runtime.new(site:site).inventory(telemetry:true)
+        rescue ArgumentError => error
+          {connected:false,recipes:[],models:[],reason:error.message}
+        end
+        worker_id=site.manifest.to_h.dig("studio_ai_worker","installation_id")
+        device=inventory.dig(:device,:type)
+        worker=worker_id && inventory[:connected] && %w[cpu cuda].include?(device) ?
+          [{id:worker_id, label:"Genesis worker", video:device=="cuda", image:inventory[:models].any? { |name| name.match?(/sd[-_. ]?1[-_. ]?5|v1[-_.]5/i) }}] : []
+        inventory.merge(genesis_workers:worker, render_pools:Studio::Compute::ProceduralMovie.pools(site),
+          performances:Studio::Ai::Performances.inventory)
       end
       def ai_setup_status = Studio::Ai::Setup.status(access:@access,payload:@payload)
       def ai_setup_install = Studio::Ai::Setup.start(access:@access,payload:@payload)
@@ -214,6 +224,7 @@ module Studio
 
       def render_quote
         scene = @access.scene!(@payload.fetch("scene_id"))
+        return Studio::Compute::ProceduralMovie.quote(scene:scene, actor:@access.user, site_id:@access.site_id, payload:@payload) if @payload.key?("scene_preset")
         operation=nil
         if @payload["shot_id"].present?
           key=@payload.fetch("request_key").to_s
@@ -392,8 +403,16 @@ module Studio
 
       def timeline_quote
         scene=@access.scene!(@payload.fetch("scene_id"))
-        timeline=scene.settings.fetch("timeline")
-        assets=StudioAsset.for_actor(@access).where(id:timeline.fetch("clips").map{|c|c.fetch("asset_id")}).index_by(&:id)
+        if @payload.key?("source_asset_id")
+          asset=StudioAsset.for_actor(@access).where(site_id:@access.site_id,status:"ready",kind:"video").find(@payload.fetch("source_asset_id"))
+          duration=asset.metadata["duration"].to_f
+          raise ArgumentError,"Choose a clip between one frame and ten minutes long" unless duration.between?(1.0/30,600)
+          timeline=Studio::Editing::Timeline.format("portrait").merge("fit"=>"cover","clips"=>[{"asset_id"=>asset.id,"out"=>duration}])
+          assets={asset.id=>asset}
+        else
+          timeline=scene.settings.fetch("timeline")
+          assets=StudioAsset.for_actor(@access).where(site_id:@access.site_id,id:timeline.fetch("clips").map{|c|c.fetch("asset_id")}).index_by(&:id)
+        end
         timeline=Studio::Editing::Timeline.normalize(timeline,assets:assets)
         operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"edit_media",provider:"ffmpeg",capability:"studio.workspace.timeline.quote",status:"awaiting_payment",intent:{"user_id"=>@access.user.id},manifest:{"timeline"=>timeline})
         Studio::Billing::Quote.call(operation:operation,rail: :stripe_card)
@@ -693,17 +712,22 @@ module Studio
       end
 
       def asset_import
+        project=@access.projects.where(site_id:@access.site_id).find(@payload["project_id"]) if @payload["project_id"]
         asset = nil
         @access.user.with_lock do
           key = @payload.fetch("request_key").to_s
           raise ArgumentError,"Invalid import request key" unless key.match?(/\A[a-zA-Z0-9-]{16,100}\z/)
           asset = StudioAsset.where(owner_id:@access.user.id,site_id:@access.site_id).find_by(request_key:key)
+          if asset && project && asset.studio_project_id!=project.id
+            raise ArgumentError,"This upload belongs to another project"
+          end
           unless asset
-            blob=ActiveStorage::Blob.find_signed!(@payload.fetch("signed_id"))
+            blob=ActiveStorage::Blob.find_signed(@payload["signed_id"].to_s)
+            raise ArgumentError,"This upload expired. Choose the file again." unless blob
             raise ArgumentError,"Upload belongs to another account" unless blob.metadata["lightek_user_id"]==@access.user.id && blob.metadata["lightek_site_id"]==@access.site_id
             kind=blob.metadata["studio_kind"] || {"image"=>"image","video"=>"video","audio"=>"audio"}[blob.content_type.to_s.split('/').first]
             raise ArgumentError,"Unsupported asset type" unless %w[blend glb image audio video].include?(kind)
-            asset=StudioAsset.new(owner:@access.user,site_id:@access.site_id,name:@payload.fetch("name",blob.filename.to_s),kind:kind,request_key:key)
+            asset=StudioAsset.new(owner:@access.user,site_id:@access.site_id,studio_project:project,name:@payload.fetch("name",blob.filename.to_s),kind:kind,request_key:key)
             asset.file.attach(blob)
             asset.save!
           end
@@ -729,12 +753,12 @@ module Studio
         Studio::Compute::Lease.reconcile!(project.studio_operations)
         { publications: project.studio_publications.order(id: :desc).limit(30).map { |publication|
             { id: publication.id, status: publication.status, scheduled_at: publication.scheduled_at&.iso8601,
-              error: publication.error_message, post_id: publication.metadata.to_h["post_id"],remote_id:publication.metadata.dig("social_submission","media_id") || publication.metadata.dig("social_submission","remote_id"),platform:publication.platform } },
+              error: publication.error_message, post_id: publication.metadata.to_h["post_id"],youtube_preparation: publication.metadata["youtube_preparation"]==true,remote_id:publication.metadata.dig("social_submission","media_id") || publication.metadata.dig("social_submission","remote_id"),platform:publication.platform } },
           operations: project.studio_operations.where.not(operation_type:"speech_analysis").order(id: :desc).limit(30).map do |operation|
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,
             cpu_progress:operation.metadata["cpu_render_progress"],cpu_resumable:operation.status=="failed" && operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && !operation.metadata["draft_preview"] && operation.paid?,
-            output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset"),
+            output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset","fit"),
             shot:operation.metadata.slice("shot_id","shot_name"), scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
             artifacts: operation.artifacts.select { |artifact| artifact.file.attached? }.map do |artifact|
               { id: artifact.id, kind: artifact.kind, filename: artifact.filename,

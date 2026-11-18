@@ -1,6 +1,6 @@
 import React, {useEffect,useState} from 'react';
 import {Download, Globe, Send} from 'lucide-react';
-import {requestKey} from './api';
+import {progressLabel,requestKey} from './api';
 import {Preview} from './create';
 
 const tiktokSettings = [
@@ -88,8 +88,10 @@ export function Publish({api,project,scene,clips,operations,publications,selecte
   async function price() {
     const kind=quoteSource;
     if(kind==='timeline') await save();
-    const result=await api.call(kind==='timeline'?'timeline.quote':'render.quote',{scene_id:scene.id, ...(kind==='timeline'?{}:{output:'movie'})});
-    setQuote({...result,kind,fingerprint});
+    const action=kind==='scene'?'render.quote':'timeline.quote';
+    const input=kind==='scene'?{output:'movie'}:kind==='portrait'?{source_asset_id:asset.id}:{};
+    const result=await api.call(action,{scene_id:scene.id,...input});
+    setQuote({...result,kind,fingerprint,selection});
   }
 
   function statusOf(channel) {
@@ -143,11 +145,12 @@ export function Publish({api,project,scene,clips,operations,publications,selecte
         {item.youtube_preparation&&item.post_id&&youtubeOrigin&&item.id!==ytReceipt?.id&&<a href={new URL('/lightek/index.html#/youtube/'+item.post_id,youtubeOrigin).href}>Review and submit to Lightek YouTube</a>}</div>)}
     </section>}
     <section className="ls-card ls-export" id="ls-export"><h3>Export MP4</h3>
-      <label>Source<select value={quoteSource} onChange={event=>{setQuoteSource(event.target.value);setQuote(null);}}><option value="timeline">Timeline edit</option><option value="scene">Full 3D scene</option></select></label>
-      <button disabled={busy||(quoteSource==='timeline'&&!timeline.clips.length)} onClick={()=>run(price)}>Get export price</button>
+      <label>Source<select aria-label="Source" value={quoteSource} onChange={event=>{setQuoteSource(event.target.value);setQuote(null);}}><option value="timeline">Timeline edit</option><option value="scene">Full 3D scene</option><option value="portrait">Selected library clip · 9:16</option></select></label>
+      {quoteSource==='portrait'&&(!asset||asset.artifact_id)&&<p>Choose a video from the Media Library to crop it.</p>}
+      <button disabled={busy||(quoteSource==='timeline'&&!timeline.clips.length)||(quoteSource==='portrait'&&(!asset||asset.artifact_id))} onClick={()=>run(price)}>Get export price</button>
       {quote&&<div className="ls-row"><span>{new Intl.NumberFormat(undefined,{style:'currency',currency:quote.quote.currency||'USD'}).format(quote.quote.total_cents/100)}</span>
-        <button disabled={busy||(quote.kind==='timeline'&&quote.fingerprint!==fingerprint)} onClick={()=>run(async()=>{location.assign((await api.call('render.checkout',{operation_id:quote.operation_id})).checkout_url);})}>Continue to payment</button></div>}
-      {operations.filter(item=>!item.draft_preview&&item.scene_id===scene.id).map(item=><div key={item.id} className="ls-row"><span>Export #{item.id} · {ticker(item.status)}{item.error?' · '+item.error:''}</span>
+        <button disabled={busy||(quote.kind==='timeline'&&quote.fingerprint!==fingerprint)||(quote.kind==='portrait'&&quote.selection!==selection)} onClick={()=>run(async()=>{location.assign((await api.call('render.checkout',{operation_id:quote.operation_id})).checkout_url);})}>Continue to payment</button></div>}
+      {operations.filter(item=>!item.draft_preview&&item.scene_id===scene.id).map(item=><div key={item.id} className="ls-row"><span>{item.output?.fit==='cover'?'9:16 clip':'Studio export'} · {progressLabel(item.status)}</span>
         {item.artifacts.filter(row=>row.kind==='video').map(row=><a key={row.id} href={row.url} download>Download {row.filename}</a>)}</div>)}
     </section>
   </div>;

@@ -215,6 +215,48 @@ class PwaHttpIntegrationTest < LightekCommunityIntegrationTest
     client.get "/api/lightek/pwa?view=feed", headers: headers
     assert_equal 404, client.response.status
   end
+  def test_studio_phone_photo_upload_saves_original_and_browser_compatible_proxy
+    client=session_for
+    client.get "/test/csrf",headers:headers
+    auth=headers.merge("X-CSRF-Token"=>body(client).fetch("csrf_token"))
+    project=StudioProject.create!(owner:@alice,site:@site,name:"Phone photos")
+    Dir.mktmpdir do |directory|
+      path=File.join(directory,"IMG_4512.avif")
+      Studio::MediaProcess.run!(["ffmpeg","-v","error","-f","lavfi","-i","color=blue:s=64x48","-frames:v","1",
+        "-c:v","libaom-av1","-threads","1",path])
+      file=Rack::Test::UploadedFile.new(path,"application/octet-stream")
+      client.post "/api/lightek/pwa/uploads",headers:auth,params:{file:file,purpose:"studio_asset"}
+      assert_equal 201,client.response.status,client.response.body
+      assert_equal "image/avif",body(client)["content_type"]
+      payload={signed_id:body(client).fetch("signed_id"),name:"Phone photo",project_id:project.id,request_key:SecureRandom.uuid}
+      client.post "/api/nevaeh/execute",headers:auth,params:{capability:"studio.workspace.asset.import",payload:payload},as: :json
+      assert_equal 200,client.response.status,client.response.body
+      asset=StudioAsset.find(body(client).dig("result","asset_id"))
+      assert_equal project.id,asset.studio_project_id
+      assert_equal "uploaded",asset.status
+      StudioAssetIngestJob.perform_now(asset.id)
+      assert_equal "ready",asset.reload.status
+      assert_equal File.binread(path),asset.file.download
+      assert_equal "image/jpeg",asset.proxy.blob.content_type
+      assert_equal [64,48],asset.metadata.values_at("width","height")
+      assert asset.thumbnail.attached?
+      client.get "/api/lightek/pwa/assets/#{asset.id}/proxy",headers:headers
+      assert_equal 200,client.response.status
+      assert_equal "image/jpeg",client.response.media_type
+    end
+  end
+
+  def test_invalid_studio_upload_receipt_returns_a_retry_message
+    client=session_for
+    client.get "/test/csrf",headers:headers
+    auth=headers.merge("X-CSRF-Token"=>body(client).fetch("csrf_token"))
+    client.post "/api/nevaeh/execute",headers:auth,params:{capability:"studio.workspace.asset.import",
+      payload:{signed_id:"invalid-upload",request_key:SecureRandom.uuid}},as: :json
+    assert_equal 422,client.response.status,client.response.body
+    assert_equal "This upload expired. Choose the file again.",body(client)["error"]
+    assert_equal 0,StudioAsset.count
+  end
+
   def test_asset_import_is_actor_scoped_idempotent_and_served_privately
     Api::NevaehController.allow_forgery_protection = false
     blob=ActiveStorage::Blob.create_and_upload!(io:StringIO.new("glTFtest"),filename:"prop.glb",content_type:"model/gltf-binary",identify:false,

@@ -22,6 +22,8 @@ module Studio
         raise ArgumentError,"Choose 24, 25, 30, 48, 50 or 60 fps" unless [24,25,30,48,50,60].include?(fps)
         preset=data.fetch("export_preset","review")
         raise ArgumentError,"Unknown delivery preset" unless %w[review master].include?(preset)
+        fit=data.fetch("fit","contain")
+        raise ArgumentError,"Choose contain or cover" unless %w[contain cover].include?(fit)
         tracks=Array(data.fetch("tracks",[])).map do |track|
           track=track.to_h.deep_stringify_keys
           {"id"=>Integer(track.fetch("id")).clamp(0,15),"name"=>track.fetch("name", "Track").to_s.first(60),"gain"=>number(track.fetch("gain",1),0,4),"pan"=>number(track.fetch("pan",0),-1,1),"muted"=>ActiveModel::Type::Boolean.new.cast(track["muted"]),"solo"=>ActiveModel::Type::Boolean.new.cast(track["solo"])}
@@ -67,7 +69,9 @@ module Studio
           {"text"=>text,"start"=>first,"end"=>last,"x"=>number(title.fetch("x",40),-4096,4096),"y"=>number(title.fetch("y",40),-4096,4096),"size"=>number(title.fetch("size",48),8,300)}
         end
         {"output"=>output,"width"=>width,"height"=>height,"fps"=>fps,"export_preset"=>preset,"tracks"=>tracks,"titles"=>titles,
-         "clips"=>normalized.sort_by{|c|[c["track"],c["start"]]},"duration"=>duration}
+         "clips"=>normalized.sort_by{|c|[c["track"],c["start"]]},"duration"=>duration}.tap do |result|
+          result["fit"]=fit if fit=="cover"
+        end
       end
       def self.number(value,min,max)
         n=Float(value);raise ArgumentError,"Timeline value is outside its range" unless n.finite?&&n.between?(min,max);n
@@ -96,8 +100,15 @@ module Studio
         timeline["clips"].each_with_index do |clip,i|
           length=(clip["out"]-clip["in"])/clip.fetch("speed",1)
           if timeline["output"]=="video" && clip["kind"]!="audio"
+            width=(timeline["width"]*clip.fetch("scale",1)).round
+            height=(timeline["height"]*clip.fetch("scale",1)).round
+            sizing=if timeline["fit"]=="cover"
+              ["scale=#{width}:#{height}:force_original_aspect_ratio=increase:force_divisible_by=2","crop=#{width}:#{height}"]
+            else
+              ["scale=#{width}:#{height}:force_original_aspect_ratio=decrease"]
+            end
             visual=["trim=start=#{clip['in']}:end=#{clip['out']}","setpts=(PTS-STARTPTS)/#{clip.fetch('speed',1)}", "fps=#{timeline.fetch('fps',24)}",
-              "scale=#{(timeline['width']*clip.fetch('scale',1)).round}:#{(timeline['height']*clip.fetch('scale',1)).round}:force_original_aspect_ratio=decrease", "setsar=1",
+              *sizing, "setsar=1",
               "eq=brightness=#{clip.fetch('brightness',0)}:contrast=#{clip.fetch('contrast',1)}:saturation=#{clip.fetch('saturation',1)}", "format=yuva420p", "colorchannelmixer=aa=#{clip.fetch('opacity',1)}"]
             visual<<"fade=t=in:st=0:d=#{clip['fade_in']}:alpha=1" if clip.fetch('fade_in',0)>0
             visual<<"fade=t=out:st=#{length-clip['fade_out']}:d=#{clip['fade_out']}:alpha=1" if clip.fetch('fade_out',0)>0

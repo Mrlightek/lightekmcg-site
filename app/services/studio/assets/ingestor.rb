@@ -35,7 +35,8 @@ module Studio
               raise ArgumentError, "Unsupported media container" if data.dig("format","format_name").to_s.match?(/hls|concat|dash/)
               stream = streams.find { |s| s["codec_type"] == (@asset.kind == "audio" ? "audio" : "video") }
               raise ArgumentError, "No compatible media stream found" unless stream
-              @asset.metadata = { "duration" => data.dig("format","duration").to_f, "width" => stream["width"], "height" => stream["height"], "has_audio" => streams.any?{|s|s["codec_type"]=="audio"} }
+              @asset.metadata = @asset.metadata.merge("duration" => data.dig("format","duration").to_f,
+                "width" => stream["width"], "height" => stream["height"], "has_audio" => streams.any?{|s|s["codec_type"]=="audio"})
               if image_proxy
                 @asset.proxy.attach(io:StringIO.new(File.binread(image_proxy)),filename:"photo.jpg",content_type:"image/jpeg",identify:false)
               else

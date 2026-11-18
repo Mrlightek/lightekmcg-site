@@ -287,8 +287,16 @@ module Studio
       end
 
       def artifact_reuse
+        reuse_artifact
+      end
+
+      def reuse_artifact(allow_campaign_draft: false)
         project=@access.projects.find(@payload.fetch("project_id"))
         operation=project.studio_operations.where(status:"completed").joins(:artifacts).where(artifacts:{id:@payload.fetch("artifact_id")}).first!
+        private_source=operation.metadata["draft_preview"]==true
+        if private_source && !(allow_campaign_draft && operation.capability=="marketing.campaign.produce")
+          raise ArgumentError,"Export the full clip before sharing this draft"
+        end
         artifact=operation.artifacts.find(@payload.fetch("artifact_id"))
         raise ArgumentError,"Choose a completed image, video or audio artifact" unless artifact.file.attached? && %w[preview image video audio].include?(artifact.kind)
         asset=nil
@@ -297,7 +305,8 @@ module Studio
           asset=StudioAsset.find_by(owner_id:@access.user.id,request_key:key)
           unless asset
             asset=StudioAsset.new(owner:@access.user,site_id:@access.site_id,studio_project:project,name:(operation.metadata["shot_name"].presence || artifact.filename.to_s).first(160),
-              request_key:key,kind:artifact.kind=="preview" ? "image" : artifact.kind,status:"uploaded")
+              request_key:key,kind:artifact.kind=="preview" ? "image" : artifact.kind,status:"uploaded",
+              metadata:private_source ? {"private_social_source"=>true} : {})
             asset.file.attach(artifact.file.blob)
             asset.save!
             StudioAssetIngestJob.perform_later(asset.id)
@@ -307,6 +316,8 @@ module Studio
       end
 
       # A single retryable handoff from a completed production shot to its scene edit.
+      private :reuse_artifact
+
       def artifact_use
         scene=@access.scene!(@payload.fetch("scene_id"))
         project=scene.studio_project
@@ -357,6 +368,11 @@ module Studio
           if platform == "lightek_social" && @payload["youtube_preparation"] == true
             raise ArgumentError, "Review the clip before preparing it for YouTube" unless @payload["reviewed"] == true
             metadata["youtube_preparation"] = true
+            if @payload.key?("youtube_made_for_kids")
+              made_for_kids=@payload["youtube_made_for_kids"]
+              raise ArgumentError, "Confirm distribution rights and choose the YouTube audience" unless @payload["youtube_consent"]==true && [true,false].include?(made_for_kids)
+              metadata["youtube_submission"]={"consent"=>true,"made_for_kids"=>made_for_kids}
+            end
           end
           if %w[tiktok instagram].include?(platform)
             raise ArgumentError,'Review the video and social settings before submitting' unless @payload['reviewed']==true
@@ -371,6 +387,7 @@ module Studio
           raise ArgumentError,'This request key belongs to different publishing inputs' if publication && publication.metadata['input_fingerprint'] && publication.metadata['input_fingerprint']!=fingerprint
           unless publication
             operation = project.studio_operations.where(status: "completed").joins(:artifacts).where(artifacts: { id: @payload.fetch("artifact_id") }).first!
+            raise ArgumentError,"Export the full clip before sharing this draft" if operation.metadata["draft_preview"]
             artifact = operation.artifacts.find(@payload.fetch("artifact_id"))
             metadata["sources"] = Array(operation.manifest["credits"])
             raise ArgumentError,"OTT publishing requires a video master" if platform!="lightek_social" && !artifact.file.blob.content_type.start_with?("video/")
@@ -403,8 +420,22 @@ module Studio
 
       def timeline_quote
         scene=@access.scene!(@payload.fetch("scene_id"))
-        if @payload.key?("source_asset_id")
-          asset=StudioAsset.for_actor(@access).where(site_id:@access.site_id,status:"ready",kind:"video").find(@payload.fetch("source_asset_id"))
+        source_asset_id=@payload["source_asset_id"]
+        source_artifact_id=@payload["source_artifact_id"]
+        social=@payload["social_prepare"]==true
+        raise ArgumentError,"Choose one source clip" if source_asset_id && source_artifact_id
+        if source_artifact_id
+          source=scene.studio_operations.where(status:"completed").joins(:artifacts).where(artifacts:{id:source_artifact_id,kind:"video"}).first!
+          if source.metadata["draft_preview"] && source.capability!="marketing.campaign.produce"
+            raise ArgumentError,"Export the full clip before preparing it for social publishing"
+          end
+          @payload=@payload.merge("project_id"=>scene.studio_project_id,"artifact_id"=>source_artifact_id)
+          imported=reuse_artifact(allow_campaign_draft:social)
+          return imported unless imported[:status]=="ready"
+          source_asset_id=imported.fetch(:asset_id)
+        end
+        if source_asset_id
+          asset=StudioAsset.for_actor(@access).where(site_id:@access.site_id,status:"ready",kind:"video").find(source_asset_id)
           duration=asset.metadata["duration"].to_f
           raise ArgumentError,"Choose a clip between one frame and ten minutes long" unless duration.between?(1.0/30,600)
           timeline=Studio::Editing::Timeline.format("portrait").merge("fit"=>"cover","clips"=>[{"asset_id"=>asset.id,"out"=>duration}])
@@ -414,8 +445,18 @@ module Studio
           assets=StudioAsset.for_actor(@access).where(site_id:@access.site_id,id:timeline.fetch("clips").map{|c|c.fetch("asset_id")}).index_by(&:id)
         end
         timeline=Studio::Editing::Timeline.normalize(timeline,assets:assets)
-        operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"edit_media",provider:"ffmpeg",capability:"studio.workspace.timeline.quote",status:"awaiting_payment",intent:{"user_id"=>@access.user.id},manifest:{"timeline"=>timeline})
-        Studio::Billing::Quote.call(operation:operation,rail: :stripe_card)
+        operation=nil
+        scene.with_lock do
+          metadata={}
+          if social
+            raise ArgumentError,"Choose a clip for the publishing queue" unless source_asset_id
+            metadata["social_source"]=source_artifact_id ? "render-#{Integer(source_artifact_id)}" : Integer(source_asset_id).to_s
+            operation=scene.studio_operations.where(capability:"studio.workspace.timeline.quote",status:%w[awaiting_payment pending running completed])
+              .where("metadata ->> 'social_source' = ? AND CAST(intent ->> 'user_id' AS TEXT) = ?",metadata["social_source"],@access.user.id.to_s).recent_first.first
+          end
+          operation ||= scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"edit_media",provider:"ffmpeg",capability:"studio.workspace.timeline.quote",status:"awaiting_payment",intent:{"user_id"=>@access.user.id},manifest:{"timeline"=>timeline},metadata:metadata)
+          Studio::Billing::Quote.call(operation:operation,rail: :stripe_card) if operation.status=="awaiting_payment" && operation.cost_quote.blank?
+        end
         {operation_id:operation.id,quote:operation.reload.cost_quote,status:operation.status,operation_type:operation.operation_type}
       end
 
@@ -430,7 +471,7 @@ module Studio
       end
 
       def assets_list
-        scope=StudioAsset.for_actor(@access).order(id: :desc)
+        scope=StudioAsset.for_actor(@access).where("COALESCE(CAST(metadata ->> 'private_social_source' AS TEXT), 'false') NOT IN ('true', '1')").order(id: :desc)
         if @payload.key?("asset_ids")
           ids=@payload.fetch("asset_ids")
           raise ArgumentError,"Request at most 64 media references" unless ids.is_a?(Array) && ids.length<=64
@@ -689,6 +730,7 @@ module Studio
       def asset_publish
         scene=@access.scene!(@payload.fetch("scene_id"))
         asset=StudioAsset.for_actor(@access).where(status:"ready",kind:%w[image audio video]).find(@payload.fetch("asset_id"))
+        raise ArgumentError,"Export the full clip before sharing this draft" if asset.metadata["private_social_source"]
         source=asset.proxy.attached? ? asset.proxy.blob : asset.file.blob
         platform=@payload.fetch("platform","lightek_social")
         if platform!="lightek_social" && source.content_type!="video/mp4"
@@ -749,13 +791,23 @@ module Studio
       end
 
       def operations_list
-        project = @access.projects.find(@payload.fetch("project_id"))
+        projects=@access.projects
+        projects=projects.where(site_id:@access.site_id) if @payload["activity_scene_id"]
+        project=projects.find(@payload.fetch("project_id"))
         Studio::Compute::Lease.reconcile!(project.studio_operations)
-        { publications: project.studio_publications.order(id: :desc).limit(30).map { |publication|
+        activity = if @payload["activity_scene_id"]
+          scene=project.studio_scenes.where(id:@access.scene!(@payload["activity_scene_id"]).id).first!
+          Studio::Workers::Activity.for_scene(@access,scene)
+        end
+        {activity:activity, publications: project.studio_publications.order(id: :desc).limit(30).map { |publication|
             { id: publication.id, status: publication.status, scheduled_at: publication.scheduled_at&.iso8601,
-              error: publication.error_message, post_id: publication.metadata.to_h["post_id"],youtube_preparation: publication.metadata["youtube_preparation"]==true,remote_id:publication.metadata.dig("social_submission","media_id") || publication.metadata.dig("social_submission","remote_id"),platform:publication.platform } },
+              error: publication.error_message, post_id: publication.metadata.to_h["post_id"],youtube_preparation: publication.metadata["youtube_preparation"]==true,
+              youtube_status: publication.metadata["youtube_upload_id"] && LightekPwa::YoutubeUpload.find_by(id:publication.metadata["youtube_upload_id"])&.status,
+              youtube_submitted: publication.metadata["youtube_submission"].present?,remote_id:publication.metadata.dig("social_submission","media_id") || publication.metadata.dig("social_submission","remote_id"),platform:publication.platform } },
           operations: project.studio_operations.where.not(operation_type:"speech_analysis").order(id: :desc).limit(30).map do |operation|
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
+            campaign_draft: operation.capability=="marketing.campaign.produce",
+            social_source: operation.intent["user_id"]==@access.user.id ? operation.metadata["social_source"] : nil,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,
             cpu_progress:operation.metadata["cpu_render_progress"],cpu_resumable:operation.status=="failed" && operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && !operation.metadata["draft_preview"] && operation.paid?,
             output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset","fit"),

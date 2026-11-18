@@ -35,6 +35,10 @@ module NevaehOs
       raise ArgumentError,'Use a local application page as context' unless uri.scheme.nil? && uri.host.nil? && uri.fragment.nil? && uri.path.match?(/\A\/(?:dashboard|employee)(?:\/[a-zA-Z0-9_-]+)*\/?\z/)
       query=URI.decode_www_form(uri.query.to_s).select { |key,val| %w[site_id scene_id project_id].include?(key) && val.match?(/\A[1-9][0-9]{0,17}\z/) }.to_h
       query=raw.slice('site_id','scene_id','project_id').select { |_key,val| val.to_s.match?(/\A[1-9][0-9]{0,17}\z/) }.transform_values(&:to_s).merge(query)
+      if uri.path.start_with?('/dashboard/studio-broadcasting/workspace/')
+        query['studio_view']=raw['studio_view'] if %w[create timeline library publish].include?(raw['studio_view'])
+        %w[asset_id artifact_id].each { |key| query[key]=raw[key].to_s if raw[key].to_s.match?(/\A[1-9][0-9]{0,17}\z/) }
+      end
       {'path'=>uri.path,'title'=>raw['title'].to_s.first(160)}.merge(query)
     rescue URI::InvalidURIError
       raise ArgumentError,'Use a local application page as context'
@@ -66,7 +70,10 @@ module NevaehOs
         index=lines.index { |line| terms.any? { |term| line.downcase.include?(term) } } || 0
         {title:doc[:title],path:doc[:path],sha256:doc[:sha256],excerpt:lines[[index-2,0].max,14].join.first(1000)}
       end
-      summary="You're in #{info[2]}. I can help with this page's documented workflows and delegate connected tasks to the workforce."
+      studio_views={'create'=>'AI Studio Create','timeline'=>'Timeline & Edit','library'=>'Media Library','publish'=>'Social & Publish'}
+      region=studio_views.fetch(context['studio_view'],info[2])
+      summary="You're in #{region}. I can help with this page's documented workflows and delegate connected tasks to the workforce."
+      summary+=" Media is selected in this workspace." if context['asset_id'] || context['artifact_id']
       summary+="\n\nPage specialists: #{playbook[:actions].map { |task| task[:worker][:name] }.uniq.join(', ')}. Choose a page task to provide its missing inputs and delegate it." if playbook[:actions].any?
       summary+="\n\n#{sources.map { |source| source[:title]+"\n"+source[:excerpt] }.join("\n\n")}" if sources.any?
       summary+="\n\nDirect task connections are still needed for this area. The page's controls remain available; the capability audit can record the missing connections." if connected.empty?

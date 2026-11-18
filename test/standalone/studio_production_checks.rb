@@ -75,16 +75,39 @@ class StudioProductionTest < StudioMusicTest
     asset=StudioAsset.create!(owner:@alice,site:@site,name:"Wide clip",kind:"video",status:"ready",request_key:SecureRandom.uuid,metadata:{"duration"=>2.0})
     original=@scene.settings
     quote=Studio::Billing::Quote.stub(:call,->(operation:,**_){operation.update!(cost_quote:{"total_cents"=>125,"currency"=>"USD"})}) do
-      action("timeline_quote",scene_id:@scene.id,source_asset_id:asset.id)
+      params={scene_id:@scene.id,source_asset_id:asset.id,social_prepare:true}
+      receipt=action("timeline_quote",**params)
+      assert_equal receipt[:operation_id],action("timeline_quote",**params)[:operation_id]
+      receipt
     end
     operation=StudioOperation.find(quote.fetch(:operation_id))
     timeline=operation.manifest.fetch("timeline")
     assert_equal [1080,1920,"cover",2.0],timeline.values_at("width","height","fit","duration")
+    assert_equal asset.id.to_s,operation.metadata["social_source"]
     assert_equal original,@scene.reload.settings
     command=Studio::Editing::Timeline.command(timeline,paths:["wide.mp4"],output:"portrait.mp4")
     assert_includes command[command.index("-filter_complex")+1],"force_original_aspect_ratio=increase:force_divisible_by=2,crop=1080:1920"
     asset.update!(status:"uploaded")
     assert_raises(ActiveRecord::RecordNotFound){action("timeline_quote",scene_id:@scene.id,source_asset_id:asset.id)}
+  end
+
+  def test_production_campaign_can_prepare_social_export_without_exposing_its_draft_source
+    artifact=completed_shot(draft:true)
+    artifact.studio_operation.update!(capability:"marketing.campaign.produce")
+    params={scene_id:@scene.id,source_artifact_id:artifact.id,social_prepare:true}
+    assert_raises(ArgumentError){action("artifact_reuse",project_id:@project.id,artifact_id:artifact.id)}
+    waiting=action("timeline_quote",**params)
+    assert_equal "uploaded",waiting[:status]
+    source=StudioAsset.find(waiting[:asset_id])
+    assert source.metadata["private_social_source"]
+    source.update!(status:"ready",metadata:source.metadata.merge("duration"=>5.0))
+    refute_includes action("assets_list",scope_site:true)[:assets].map { |asset| asset[:id] },source.id
+    assert_raises(ArgumentError){action("asset_publish",scene_id:@scene.id,asset_id:source.id,request_key:SecureRandom.uuid)}
+    operation=Studio::Billing::Quote.stub(:call,->(operation:,**_){operation.update!(cost_quote:{"total_cents"=>125})}) do
+      StudioOperation.find(action("timeline_quote",**params).fetch(:operation_id))
+    end
+    assert_equal "render-#{artifact.id}",operation.metadata["social_source"]
+    assert_equal "cover",operation.manifest.dig("timeline","fit")
   end
 
   def test_production_export_snapshot_quotes_the_edit_and_survives_further_changes

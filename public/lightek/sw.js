@@ -1,9 +1,9 @@
-const CACHE = "lightek-shell-v101-studio-photo-uploads"
+const CACHE = "lightek-shell-v102-nevaeh-studio"
 
 const SHELL = [
   "/lightek/index.html",
   "/lightek/manifest.webmanifest",
-  "/lightek/nevaeh-client.js",
+  "/lightek/nevaeh-client.js?v=66",
   "/lightek/bootstrap-adapter.js?v=93",
   "/lightek/application-settings.js?v=93",
   "/lightek/community-app.js",
@@ -12,8 +12,8 @@ const SHELL = [
   "/lightek/youtube-publishing.js",
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
-  "/lightek/studio-unified.js?v=4",
-  "/lightek/studio-unified.css?v=2",
+  "/lightek/studio-unified.js?v=5",
+  "/lightek/studio-unified.css?v=3",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",
   "/lightek/studio-native.js",

@@ -4,6 +4,17 @@ module NevaehOs
     def initialize(actor:, host: nil, origin: nil)
       @actor, @host, @origin = actor, host, origin
     end
+    def execute_native(capability:, payload:, correlation_id:, source:, subject: nil, context: {})
+      if defined?(LightekPwa::SourceRuntime) && LightekPwa::SourceRuntime.member? &&
+          capability.start_with?("studio.workspace.") && !LightekPwa::SourceRuntime::MEMBER_STUDIO_ACTIONS.include?(capability)
+        raise LightekPwa::Policy::Denied,"This Studio action is unavailable on member hosting"
+      end
+      contract=NevaehOrchestration::NativeContracts
+      Nevaeh.handle(event_type:contract.resolve_event_type!(capability),source:source,actor:@actor,subject:subject,
+        capability_hint:capability,payload:payload,context:context.merge("capability"=>capability),
+        args:[contract.resolve_worker_action!(capability),payload],correlation_id:correlation_id)
+    end
+
     def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil, page_action: nil, dialogue_id: nil, dialogue_action: nil, dialogue_values: {})
       @page_context=PageContext.normalize(page_context)
       selected=NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(system_key:agent.to_s) || NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(id:agent.to_s.delete_prefix('custom-'))
@@ -13,14 +24,14 @@ module NevaehOs
         handled=TaskDialogues.handle(actor:@actor,text:text,request_key:request_key,dialogue_id:dialogue_id,action:dialogue_action,values:dialogue_values || {},mode:mode,context:@page_context,host:@host,origin:@origin)
         return handled if handled
       end
-      if !page_action && !page_sme && (task=PageWorkers.request_for(text,actor:@actor,context:@page_context))
+      if !builder_phrase && !page_action && !page_sme && (task=PageWorkers.request_for(text,actor:@actor,context:@page_context))
         return task if task['missing_inputs'].any?
         page_action=task['page_task'].slice(:key,:fingerprint).merge(inputs:{})
       end
-      if !page_action && !page_sme && (PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i)))
+      if !builder_phrase && !page_action && !page_sme && (PageContext.overview_question?(text) || (@page_context&.fetch('path')=='/dashboard/nevaeh' && text.strip.match?(/\Ahelp[?!.]?\z/i)))
         return overview.merge('page_context'=>@page_context,'influences'=>[])
       end
-      if !page_action && !page_sme && @page_context && PageContext.question?(text)
+      if !builder_phrase && !page_action && !page_sme && @page_context && PageContext.question?(text)
         return PageContext.help(@actor,@page_context,query:text).merge(status:'grounded',influences:[],page_context:@page_context)
       end
       command = page_action ? PageWorkers.prepare!(actor:@actor,context:@page_context,request:page_action) : Command.parse(text)
@@ -30,6 +41,9 @@ module NevaehOs
       end
       if persona.system_key.to_s.start_with?('page_')
         raise ArgumentError,'A page SME answers only its assigned documentation; ask Nevaeh to coordinate other work' unless command['kind']=='documentation_question' && command['topic']==persona.system_key.delete_prefix('page_') && !binding_id
+      end
+      if command["kind"]=="search" && !builder_phrase && !page_sme && @page_context&.key?("studio_view")
+        command=studio_request(text) || command
       end
       language = if binding_id
         Language.bind!(binding_id: binding_id, fingerprint: binding_fingerprint, values: language_slots, actor: @actor, interval_minutes: interval_minutes, agent_ref: persona.id.to_s)
@@ -164,6 +178,19 @@ module NevaehOs
         'checks'=>{'authenticated'=>true,'memory_requires_consent'=>true,'execution_status'=>result['status']}, 'persona'=>persona.name, 'mode'=>mode,
         'chart_accuracy'=>'illustrative', 'memory'=>result['memory'])
     end
+    def studio_request(text)
+      pattern=/\A(?:please )?(?:generate|make|create) (concept art|(?:a )?5[- ]second video) (?:of |for )?(.+)\z/im
+      match=pattern.match(text.strip)
+      return unless match
+      site=DymondSite::Site.find(@page_context.fetch("site_id"))
+      worker=site.manifest.to_h.dig("studio_ai_worker","installation_id")
+      raise ArgumentError,"Set up a Genesis worker before generating from this workspace" unless worker.is_a?(Integer)
+      recipe=match[1].casecmp?("concept art") ? "image" : "wan22_video"
+      {"kind"=>"capability","intent"=>"studio.workspace.ai.generate","site_id"=>site.id,
+        "payload"=>{"scene_id"=>Integer(@page_context.fetch("scene_id")),"recipe"=>recipe,"prompt"=>match[2],"genesis_worker_id"=>worker}
+          .merge(recipe=="image" ? {"aspect_ratio"=>"16:9"} : {"seed"=>-1})}
+    end
+
     def overview
       entries=Guide.catalog(actor:@actor).select { |entry| entry[:availability]=='connected' }
       examples=entries.select { |entry| entry[:example].present? }.first(6)

@@ -11,11 +11,12 @@ require File.join(ROOT, "app/models/concerns/susuable")
 require File.join(ROOT, "app/models/concerns/susu_lifecycle")
 require File.join(ROOT, "app/models/susu_group")
 ActiveRecord::Schema.define do
-  create_table(:pwa_http_work_items) { |t| t.json :args; t.json :result; t.string :status; t.text :error }
+  create_table(:pwa_http_work_items) { |t| t.json :args; t.json :result; t.string :kind; t.string :status; t.text :error }
 end
 module DymondDispatch
   class WorkItem < ApplicationRecord
     self.table_name = "pwa_http_work_items"
+    def correlation_id = "test-task-#{id}"
     def done? = status == "done"
     def failed? = status == "failed"
     def finished? = done? || failed?
@@ -44,6 +45,8 @@ class ApplicationController < ActionController::Base
 end
 require File.join(ROOT, "app/controllers/api/lightek_pwa_controller")
 require File.join(ROOT, "app/services/nevaeh_orchestration/native_contracts")
+require File.join(ROOT, "app/services/nevaeh_os/conversation")
+require File.join(ROOT, "app/services/studio/workers/activity")
 require File.join(ROOT, "app/controllers/api/nevaeh_controller")
 require File.join(ROOT,"app/controllers/posts_controller")
 require File.join(ROOT,"app/controllers/communities_controller")
@@ -243,6 +246,50 @@ class PwaHttpIntegrationTest < LightekCommunityIntegrationTest
       client.get "/api/lightek/pwa/assets/#{asset.id}/proxy",headers:headers
       assert_equal 200,client.response.status
       assert_equal "image/jpeg",client.response.media_type
+    end
+  end
+
+  def test_nevaeh_studio_activity_only_returns_own_tasks_for_the_active_scene
+    project=StudioProject.create!(owner:@alice,site:@site,name:"Activity")
+    scene=project.studio_scenes.first!
+    other_scene=project.studio_scenes.create!(name:"Other scene")
+    args={"scene_id"=>scene.id,"site_id"=>@site.id,"user_id"=>@alice.id}
+    register = -> (values) { DymondDispatch::WorkItem.create!(kind:"studio.workspace.ai.generate",args:["ai_generate",values],status:"queued") }
+    task=register.call(args)
+    register.call(args.merge("user_id"=>@bob.id))
+    register.call(args.merge("site_id"=>@other_site.id))
+    register.call(args.merge("scene_id"=>other_scene.id))
+    client=session_for
+    client.get "/test/csrf",headers:headers
+    auth=headers.merge("X-CSRF-Token"=>body(client).fetch("csrf_token"))
+    client.post "/api/nevaeh/execute",headers:auth,params:{capability:"studio.workspace.operations.list",
+      payload:{project_id:project.id,activity_scene_id:scene.id}},as: :json
+    assert_equal 200,client.response.status,client.response.body
+    activity=body(client).dig("result","activity")
+    assert_equal [task.id],activity.map { |row| row.fetch("id") }
+    assert_equal "queued",activity.sole.fetch("status")
+  end
+
+  def test_nevaeh_conversation_receives_authorized_studio_context
+    project=StudioProject.create!(owner:@alice,site:@site,name:"Studio context")
+    scene=project.studio_scenes.first!
+    client=session_for
+    client.get "/test/csrf",headers:headers
+    auth=headers.merge("X-CSRF-Token"=>body(client).fetch("csrf_token"))
+    fake=Object.new
+    fake.define_singleton_method(:ask) do |**args|
+      {"text"=>args.fetch(:text),"context"=>args.fetch(:page_context)}
+    end
+    NevaehOs::Conversation.stub(:new,fake) do
+      payload={text:"What can I do here?",request_key:SecureRandom.uuid,scene_id:scene.id,
+        view:"publish",project_id:9999,site_id:@other_site.id}
+      client.post "/api/nevaeh/execute",headers:auth,params:{capability:"nevaeh.conversation",payload:payload},as: :json
+      assert_equal 200,client.response.status,client.response.body
+      context=body(client).dig("result","context")
+      assert_equal [project.id,scene.id,@site.id,"publish"],context.values_at("project_id","scene_id","site_id","studio_view")
+      payload[:asset_id]=999999
+      client.post "/api/nevaeh/execute",headers:auth,params:{capability:"nevaeh.conversation",payload:payload},as: :json
+      assert_equal 422,client.response.status
     end
   end
 

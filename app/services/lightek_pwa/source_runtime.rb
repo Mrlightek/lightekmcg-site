@@ -62,6 +62,7 @@ module LightekPwa
       return true if path.start_with?('/lightek/', '/api/lightek/', '/pwa/member-session', '/identity/', '/session', '/passwords', '/account/setup/', '/__lightek/', '/up')
       if path == '/api/nevaeh/execute'
         capability = request.request_parameters['capability'].to_s
+        return true if capability == 'nevaeh.conversation'
         return MEMBER_STUDIO_ACTIONS.include?(capability) if capability.start_with?('studio.workspace.')
         return capability.match?(/\A(?:community\.|social\.|messages\.|messaging\.|studio\.(?:workspace\.|pwa\.|scene_object\.|scene\.))/)
       end

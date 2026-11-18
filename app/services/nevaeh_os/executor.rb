@@ -296,8 +296,9 @@ module NevaehOs
             payload['success_url'] ||= "#{command.fetch('origin')}/lightek/index.html#/susu"
             payload['cancel_url'] ||= payload['success_url']
           end
-          request = Nevaeh.handle(event_type:NevaehOrchestration::NativeContracts.resolve_event_type!(intent),source:'nevaeh_os',actor:actor,
-            capability_hint:intent,payload:payload,args:[NevaehOrchestration::NativeContracts.resolve_worker_action!(intent),payload],correlation_id:"nevaeh-os-child-#{action.id}")
+          payload["request_key"] ||= "studio-chat-#{action.id}" if intent.start_with?("studio.workspace.")
+          request = Conversation.new(actor:actor).execute_native(capability:intent,payload:payload,
+            source:"nevaeh_os",correlation_id:"nevaeh-os-child-#{action.id}")
           {'work_item_id'=>request.work_item.id,'capability'=>intent,'status'=>'dispatched'}
         else
           ticket = Marlon::Ticket.find(payload['ticket_id']) if payload['ticket_id']

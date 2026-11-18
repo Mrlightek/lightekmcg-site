@@ -16,6 +16,7 @@ module Studio
           LightekPwa::Network.require_studio_write!(user: @access.user, site: DymondSite::Site.find(@access.site_id),
             capability: "studio.workspace.#{@action.tr('_', '.')}")
         end
+        Studio::Compute::Guardrails.preflight!("studio.workspace.#{@action.tr('_', '.')}",@payload)
         public_send(@action)
       end
 
@@ -231,6 +232,7 @@ module Studio
           raise ArgumentError,"A shot quote request key is required" unless Studio::Shots::Board::KEY.match?(key)
           scene.with_lock do
             manifest,metadata=Studio::Shots::Board.snapshot(scene,@payload["shot_id"])
+            Studio::Compute::Guardrails.economy_manifest!(manifest)
             Studio::Compute::Federation::Contract.validate!(manifest) if ENV["STUDIO_CPU_REMOTE"] == "1" && Studio::Compute::CpuProfile.economy?(manifest)
             operation=scene.studio_operations.where("metadata ->> 'shot_request_key' = ?",key).first
             if operation
@@ -247,6 +249,7 @@ module Studio
             raise ArgumentError,"Export a shot of 1–2400 frames at a time" unless first>=1 && (last-first+1).between?(1,2400)
             manifest["outputs"]={"blend"=>true,"animation"=>true,"bundle"=>scene.blender_bundle.attached?}
           end
+          Studio::Compute::Guardrails.economy_manifest!(manifest)
           Studio::Compute::Federation::Contract.validate!(manifest) if ENV["STUDIO_CPU_REMOTE"] == "1" && Studio::Compute::CpuProfile.economy?(manifest)
           operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.render.preview",status:"awaiting_payment",intent:{"user_id"=>@access.user.id},manifest:manifest)
         end

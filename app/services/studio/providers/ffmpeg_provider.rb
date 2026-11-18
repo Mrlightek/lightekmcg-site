@@ -33,9 +33,9 @@ module Studio
           command=Studio::Editing::Timeline.command(timeline,paths:paths,output:output,title_paths:title_paths)
           if Rails.env.production?
             mapped=command.map{|argument|argument.gsub(root,"/work")}
-            command=Studio::MediaProcess.container(mapped,root:root,image:Studio::NativeBlender::Runtime.image(:media))
+            command=Studio::MediaProcess.container(mapped,root:root,image:Studio::NativeBlender::Runtime.image(:media),memory:Studio::Compute::Guardrails::MEDIA_MEMORY)
           end
-          Studio::MediaProcess.run!(command,timeout:900,cancel_if: -> { @operation.reload.status == "cancelled" })
+          Studio::MediaProcess.run!(command,timeout:Studio::Compute::Guardrails::EDIT_TIMEOUT,cancel_if: -> { @operation.reload.status == "cancelled" })
           raise "Media export did not produce an artifact" unless File.size?(output)
           artifact=@operation.artifacts.create!(kind:timeline["output"]=="audio" ? "audio" : "video",filename:"master.#{extension}")
           artifact.file.attach(io:File.open(output),filename:artifact.filename,content_type:extension=="wav" ? "audio/wav" : extension=="mov" ? "video/quicktime" : "video/mp4")

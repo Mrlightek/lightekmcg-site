@@ -90,3 +90,5 @@ python3 -m unittest test.operations.studio_media_setup_test test.operations.stud
 ```
 
 The new DOM test requires `jsdom`; the existing CI job already installs it. It checks editing state and rendered controls, not browser media playback or visual layout. Real FFmpeg tests inspect codecs, sample format, duration and actual stereo output. The Blender check reopens the generated source and inspects bound camera cuts, music markers and Lightek branding, including after a camera is renamed.
+
+See [Studio specialist limits and recovery](worker-guardrails.md) for the enforced worker budgets and retry options.

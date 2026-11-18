@@ -110,6 +110,8 @@ CreateStudioComputeLeases.new.migrate(:up)
 require File.join(ROOT, "db/migrate/20261116001000_create_studio_remote_renders")
 CreateStudioRemoteRenders.new.migrate(:up)
 require File.join(ROOT, "app/models/studio_remote_render")
+require File.join(ROOT, "app/services/studio/compute/guardrails")
+require File.join(ROOT, "app/services/studio/compute/recovery")
 %w[contract broker dispatch].each { |file| require File.join(ROOT, "app/services/studio/compute/federation", file) }
 require File.join(ROOT, "app/models/studio_compute_pool")
 require File.join(ROOT, "app/models/studio_compute_lease")

@@ -20,8 +20,9 @@ export function Assistant({api,project,scene,tab,assetId,artifactId,activity,ref
   const [teaching,setTeaching]=useState(null);
   const [phrase,setPhrase]=useState('');
   const speech=useRef(null);
+  const stream=useRef(null);
   const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;
-  useEffect(()=>()=>speech.current?.abort(),[]);
+  useEffect(()=>()=>{speech.current?.abort();stream.current?.close();},[]);
 
   const pendingActions=messages.filter(message=>message.actionId&&!message.finished).map(message=>message.actionId).join(',');
   useEffect(()=>{
@@ -52,11 +53,26 @@ export function Assistant({api,project,scene,tab,assetId,artifactId,activity,ref
     event.preventDefault();
     const instruction=text.trim();
     if(!instruction||busy)return;
+    const key=requestKey();
+    const replaceReply=value=>setMessages(items=>items.map(message=>message.key===key?{...message,...value}:message));
     setText('');setBusy(true);setError('');
-    setMessages(items=>[...items,{user:true,text:instruction}]);
+    setMessages(items=>[...items,{user:true,text:instruction},{key,text:'One moment…'}]);
+    const connection=window.NevaehReplyStream?.open(key,part=>replaceReply({text:part}));
+    stream.current=connection;
     try {
-      const reply=await api.converse({text:instruction,request_key:requestKey(),scene_id:scene.id,view:tab,asset_id:assetId,artifact_id:artifactId});
-      setMessages(items=>[...items,{text:reply.text,status:reply.status,actionId:reply.action_id}]);
+      const streaming=await connection?.ready;
+      const reply=await api.converse({text:instruction,request_key:key,stream:streaming===true,scene_id:scene.id,view:tab,asset_id:assetId,artifact_id:artifactId});
+      replaceReply({text:reply.text,status:reply.status,actionId:reply.action_id,sources:reply.sources});
+    } catch(problem){replaceReply({text:problem.message,status:'failed'});}
+    finally {connection?.close();stream.current=null;setBusy(false);}
+  }
+
+  async function retryEconomy(id){
+    setBusy(true);setError('');
+    try {
+      const answer=await api.converse({retry_economy:id});
+      setMessages(items=>[...items,{text:answer.text,status:'queued'}]);
+      await refresh();
     } catch(problem){setError(problem.message);}
     finally {setBusy(false);}
   }
@@ -98,6 +114,7 @@ export function Assistant({api,project,scene,tab,assetId,artifactId,activity,ref
           {!messages.length&&<p>Ask about this workspace or give Nevaeh a task.</p>}
           {messages.map((message,index)=><article key={index} className={message.user?'ls-assistant-user':'ls-assistant-reply'}>
             <strong>{message.user?'You':'Nevaeh'}</strong><p>{message.text}</p>
+            {message.sources?.length>0&&<details><summary>Sources</summary><ul>{message.sources.map((source,index)=><li key={index}>{source.title}</li>)}</ul></details>}
             {message.actionId&&<small>{states[message.status] || 'Needs attention'}</small>}
             {message.status==='completed'&&(message.campaign||message.marketing)&&<button onClick={()=>openCampaign(message.campaign)}>Open Publish queue</button>}
           </article>)}
@@ -112,6 +129,8 @@ export function Assistant({api,project,scene,tab,assetId,artifactId,activity,ref
         {!activity.length&&<p>Studio tasks will appear here as they run.</p>}
         {activity.map(item=><article className="ls-card" key={item.id}>
           <div className="ls-row"><strong>{item.label}</strong><span className="ls-progress">{states[item.status] || 'Processing'}</span></div>
+          {item.recovery&&<p>{item.recovery.message}</p>}
+          {item.recovery?.action==='retry_economy'&&<button disabled={busy} onClick={()=>retryEconomy(item.id)}>Retry in Economy</button>}
           {item.status==='recoverable'&&<button type="button" onClick={()=>resume(item.operation_id)}>Resume from Checkpoint</button>}
           {['ready','completed'].includes(item.status)&&<button onClick={()=>{openResult(item);setOpen(false);}}>Open result</button>}
           {item.task_uuid&&<details><summary>Receipt details</summary><small>{item.task_uuid}</small></details>}

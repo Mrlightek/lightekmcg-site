@@ -147,7 +147,11 @@ class NevaehDigitalFactoryTest < Minitest::Test
     assert_operator network.epoch(examples),:<,before/2
     refute_equal fingerprint,NevaehIntelligences::CanonicalJson.dump(network.state)
     assert_operator network.state['updates'],:>,0
-    assert_equal 'Hello welcome to the studio',network.generate(prompt:'hello person',temperature:0)['text']
+    frames=[]
+    result=network.generate(prompt:'hello person',temperature:0) { |text| frames<<text }
+    assert_equal 'Hello welcome to the studio',result['text']
+    assert_equal 'Hello',frames.first
+    assert_equal result['text'],frames.last
   end
   def test_training_persists_evaluates_and_explicitly_activates_checkpoint
     model,run,checkpoint=trained

@@ -77,6 +77,33 @@ class StudioAiTest < StudioProductionTest
     assert_equal 32,@submitted.last.dig("prompt","3","inputs","steps")
   end
 
+  def test_ai_economy_profile_scales_resolution_and_enforces_wan_budget
+    guard=Studio::Compute::Guardrails
+    constrained={type:"cuda",vram_total:12.gigabytes,vram_free:5.gigabytes}
+    assert_equal "economy",guard.genesis_profile!("wan22_video",constrained)
+    error=assert_raises(guard::Limit){guard.genesis_profile!("wan22_video",constrained,"quality")}
+    assert_equal "economy",error.suggestion.fetch("quality_profile")
+    assert_raises(guard::Limit){guard.genesis_profile!("wan22_video",constrained.merge(vram_free:3.gigabytes))}
+    node={"class_type"=>"Wan22ImageToVideoLatent","inputs"=>{"width"=>1280,"height"=>704,"length"=>121,"batch_size"=>1}}
+    guard.genesis_graph!({"latent"=>node},"wan22_video","economy",prepare:true)
+    assert_equal [512,272],node.fetch("inputs").values_at("width","height")
+    node["inputs"]["length"]=122
+    assert_raises(guard::Limit){guard.genesis_graph!({"latent"=>node},"wan22_video","economy")}
+  end
+
+  def test_ai_worker_rechecks_vram_before_submitting_and_offers_economy
+    asset=StudioAsset.find(generate[:asset_id])
+    runtime=Studio::Ai::Runtime.new
+    constrained={type:"cuda",vram_total:12.gigabytes,vram_free:5.gigabytes}
+    Studio::Ai::Runtime.stub(:new,runtime) do
+      runtime.stub(:device_status,constrained) { StudioAiGenerationJob.perform_now(asset.id) }
+    end
+    assert_empty @submitted
+    assert_equal "failed",asset.reload.status
+    assert_equal "economy",asset.metadata["ai_recovery"]
+    refute asset.proxy.attached?
+  end
+
   def test_ai_performance_uses_scoped_pinned_media
     name = "STUDIO_MUSETALK_CPU_IMAGE"
     settings = [name, "STUDIO_CPU_DEDICATED_QUEUE", "STUDIO_CPU_SHARED_STORAGE", "STUDIO_CPU_WORKER"]

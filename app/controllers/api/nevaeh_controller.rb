@@ -101,10 +101,7 @@ module Api
             # Dispatch owns execution.
       # The controller only waits briefly for short
       # request/response capabilities to finish.
-      deadline =
-        Process.clock_gettime(
-          Process::CLOCK_MONOTONIC
-        ) + 5.0
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + (params[:prefer_async] == true ? 0 : 5.0)
 
       loop do
         work_item.reload
@@ -156,6 +153,8 @@ module Api
             work_item.id
         }, status: :accepted
       end
+    rescue Studio::Compute::Guardrails::Limit => error
+      render json:{status:"failed",error:error.message,suggestion:error.suggestion},status: :unprocessable_entity
     rescue ActionController::ParameterMissing,
            ActiveRecord::RecordNotFound,
            ArgumentError, KeyError,
@@ -206,6 +205,14 @@ module Api
         action=NevaehOsAction.where(user:actor).find(payload["action_id"])
         return render json:{status:"completed",result:NevaehOs::Receipts.for(action)}
       end
+      if payload["retry_economy"]
+        capability="studio.workspace.ai.generate"
+        LightekPwa::Network.require_studio_write!(user:actor,site:site,capability:capability)
+        inputs=Studio::Workers::Activity.retry_economy_inputs!(actor,site,payload["retry_economy"])
+        id=SecureRandom.uuid
+        item=conversation(actor).execute_native(capability:capability,payload:inputs,source:"lightek_pwa",correlation_id:id).work_item
+        return render json:{status:"completed",result:{text:"I’ve queued an Economy retry.",work_item_id:item.id,task_uuid:id}}
+      end
       if payload["teach"]
         taught=NevaehOs::TaskBuilder.teach_studio!(actor:actor,site:site,receipt_id:payload.fetch("work_item_id"),phrase:payload["teach"])
         return render json:{status:"completed",result:{text:"Shortcut saved and ready to use.",binding_id:taught.id}}
@@ -226,7 +233,9 @@ module Api
       end
       context={"path"=>"/dashboard/studio-broadcasting/workspace/#{scene.id}","title"=>"Lightek Studio",
         "site_id"=>site.id,"project_id"=>scene.studio_project_id,"scene_id"=>scene.id,"studio_view"=>view,"asset_id"=>asset_id,"artifact_id"=>artifact_id}
-      reply=conversation(actor).ask(text:text,request_key:payload.fetch("request_key"),page_context:context)
+      key=payload.fetch("request_key")
+      stream=NevaehOs::ReplyStream.publisher(actor,key) if payload["stream"]==true
+      reply=conversation(actor).ask(text:text,request_key:key,page_context:context,&stream)
       render json:{status:"completed",result:reply}
     end
 

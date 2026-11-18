@@ -249,6 +249,33 @@ class PwaHttpIntegrationTest < LightekCommunityIntegrationTest
     end
   end
 
+  def test_studio_preflight_rejects_excessive_sampling_before_dispatch
+    client=session_for
+    client.get "/test/csrf",headers:headers
+    auth=headers.merge("X-CSRF-Token"=>body(client).fetch("csrf_token"))
+    count=DymondDispatch::WorkItem.count
+    client.post "/api/nevaeh/execute",headers:auth,params:{capability:"studio.workspace.ai.generate",
+      payload:{recipe:"wan22_video",steps:75}},as: :json
+    assert_equal 422,client.response.status,client.response.body
+    assert_equal({"steps"=>20,"quality_profile"=>"economy"},body(client)["suggestion"])
+    assert_equal count,DymondDispatch::WorkItem.count
+  end
+
+  def test_studio_economy_retry_reuses_only_scoped_failed_generation_inputs
+    project=StudioProject.create!(owner:@alice,site:@site,name:"Recovery")
+    scene=project.studio_scenes.first!
+    asset=StudioAsset.create!(owner:@alice,site:@site,studio_project:project,kind:"video",name:"Failed GPU job",status:"failed",
+      request_key:"failed-gpu-fixture",metadata:{"ai_profile"=>"quality","ai_recovery"=>"economy"})
+    args={"scene_id"=>scene.id,"site_id"=>@site.id,"user_id"=>@alice.id,"recipe"=>"wan22_video","steps"=>42,"prompt"=>"A tiny studio"}
+    item=DymondDispatch::WorkItem.create!(kind:"studio.workspace.ai.generate",args:["ai_generate",args],status:"done",result:{"asset_id"=>asset.id})
+    retry_inputs=Studio::Workers::Activity.retry_economy_inputs!(@alice,@site,item.id)
+    assert_equal ["economy",20,"A tiny studio"],retry_inputs.values_at("quality_profile","steps","prompt")
+    assert_equal "economy-retry-#{item.id}",retry_inputs["request_key"]
+    assert_raises(ActiveRecord::RecordNotFound){Studio::Workers::Activity.retry_economy_inputs!(@bob,@site,item.id)}
+    asset.update!(metadata:asset.metadata.merge("ai_profile"=>"economy"))
+    assert_raises(ArgumentError){Studio::Workers::Activity.retry_economy_inputs!(@alice,@site,item.id)}
+  end
+
   def test_nevaeh_studio_activity_only_returns_own_tasks_for_the_active_scene
     project=StudioProject.create!(owner:@alice,site:@site,name:"Activity")
     scene=project.studio_scenes.first!

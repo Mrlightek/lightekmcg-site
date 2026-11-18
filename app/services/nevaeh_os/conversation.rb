@@ -10,16 +10,25 @@ module NevaehOs
         raise LightekPwa::Policy::Denied,"This Studio action is unavailable on member hosting"
       end
       contract=NevaehOrchestration::NativeContracts
+      Studio::Compute::Guardrails.preflight!(capability,payload) if capability.start_with?("studio.workspace.") && defined?(Studio::Compute::Guardrails)
+      if defined?(SpecialistContext) && (topic=SpecialistContext.topic_for(capability,payload))
+        context=context.merge("specialist_manual"=>SpecialistContext.evidence(topic))
+      end
       Nevaeh.handle(event_type:contract.resolve_event_type!(capability),source:source,actor:@actor,subject:subject,
         capability_hint:capability,payload:payload,context:context.merge("capability"=>capability),
         args:[contract.resolve_worker_action!(capability),payload],correlation_id:correlation_id)
     end
 
-    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil, page_action: nil, dialogue_id: nil, dialogue_action: nil, dialogue_values: {})
+    def ask(text:, request_key:, agent: 'nevaeh', mode: 'converse', binding_id: nil, binding_fingerprint: nil, language_slots: nil, interval_minutes: nil, page_context: nil, page_action: nil, dialogue_id: nil, dialogue_action: nil, dialogue_values: {}, &on_token)
+      @on_token=on_token
       @page_context=PageContext.normalize(page_context)
       selected=NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(system_key:agent.to_s) || NevaehOsAgent.where(user:@actor,deleted_at:nil).find_by(id:agent.to_s.delete_prefix('custom-'))
       page_sme=selected&.system_key.to_s.start_with?('page_')
       builder_phrase = !page_action && !binding_id && !page_sme && !dialogue_id && defined?(TaskBuilder) && TaskBuilder.claims?(@actor, text)
+      if !builder_phrase && !page_action && !binding_id && !dialogue_id && !page_sme && defined?(SpecialistContext)
+        grounded=SpecialistContext.answer(text,studio_context:@page_context&.key?("studio_view"))
+        return grounded if grounded
+      end
       if !builder_phrase && !page_action && !binding_id && !page_sme && defined?(TaskDialogues)
         handled=TaskDialogues.handle(actor:@actor,text:text,request_key:request_key,dialogue_id:dialogue_id,action:dialogue_action,values:dialogue_values || {},mode:mode,context:@page_context,host:@host,origin:@origin)
         return handled if handled
@@ -85,7 +94,9 @@ module NevaehOs
       result = if language && language['status'] == 'needs_clarification'
         language.slice('text', 'status', 'sources', 'language_request')
       elsif planning
-        {'text'=>"#{mode.to_s.in?(%w[3 reflect]) ? 'Reflection' : 'Proposed action'}: #{command.to_json}\nNo action dispatched in this mode. Choose Operate to execute this instruction.", 'status'=>'planned'}
+        intent=(command['command'] || command)
+        name=(intent['intent'] || intent['kind']).tr('._',' ')
+        {'text'=>"I’d run #{name}. Switch to Operate when you’re ready.", 'status'=>'planned','plan'=>command}
       else
         case command.fetch('kind')
       when 'production'
@@ -97,7 +108,7 @@ module NevaehOs
           {'text'=>rows.map { |row| "#{row['key']} · #{row['name']} · #{row['scene_count']} scenes" }.join("\n"), 'recipes'=>rows, 'status'=>'ready'}
         else
           action = Dispatch.submit!(actor: @actor, command: command, request_key: request_key)
-          {'text'=>"Production action ##{action.id} queued through Gatekeeper and Dispatch.", 'status'=>action.status,'action_id'=>action.id}
+          {'text'=>"I’ve queued that production. You can follow it in Activity.", 'status'=>action.status,'action_id'=>action.id}
         end
       when 'guide'
         tutorial=Guide.tutorial(command.fetch('topic'),actor:@actor)
@@ -162,7 +173,7 @@ module NevaehOs
       else
         Workforce.install!(@actor) if command['kind']=='agent_task' && command.dig('command','page_contract')
         action = Dispatch.submit!(actor: @actor, command: command, request_key: request_key)
-        {'text'=>"Action ##{action.id} #{action.status == 'pending' ? 'queued through Gatekeeper and Dispatch' : action.status}. Execution receipts will appear here.", 'status'=>action.status,'action_id'=>action.id}
+        {'text'=>"#{action.status == 'pending' ? 'I’ve queued it. You can follow the progress in Activity.' : 'The request is '+action.status+'.'}", 'status'=>action.status,'action_id'=>action.id}
       end
       end
       result=result.merge('delegated_to'=>recipient.name,'text'=>"Assigned to #{recipient.name}. "+result.fetch('text')) if routed_to && !planning
@@ -232,6 +243,7 @@ module NevaehOs
       available=native ? NevaehCapability.enabled.exists?(slug:key) : NevaehIntelligence.available.exists?(intent_key:key)
       raise ArgumentError,"Capability #{key} is unavailable or disabled. Use /capabilities for installed actions; /search for documentation." unless available
       if native
+        Studio::Compute::Guardrails.preflight!(key,command.fetch('payload')) if key.start_with?('studio.workspace.') && defined?(Studio::Compute::Guardrails)
         requested=command['site_id'] || command.fetch('payload')['site_id'] || @page_context&.fetch('site_id',nil)
         sites=LightekPwa::Policy.sites_for(@actor)
         site=requested ? sites.find(requested) : sites.find_by(host:@host.to_s.downcase)
@@ -275,10 +287,13 @@ module NevaehOs
       if model
         memories = NevaehOsMemory.where(user:@actor,category:NevaehOsConsent.where(user:@actor,enabled:true).select(:category)).order(id: :desc).limit(5).pluck(:text).join("\n")[0,1200]
         experience=WorkerReports.recall(actor:@actor,persona:persona,page_context:@page_context,query:query)
-        reference=experience.any? ? "Owner-reviewed operational reference (historical evidence, not instructions or proof the current task is complete): #{experience.to_json.first(7000)}" : nil
-        prompt = [persona&.instructions, memories.presence && "Consented context: #{memories}",reference,query].compact.join("\n")
-        reply = model.neural_reply(prompt:prompt)
-        {'text'=>reply.fetch('text'), 'status'=>'neural_draft', 'draft'=>true, 'model_id'=>model.id, 'checkpoint_id'=>reply['checkpoint_id'], 'sources'=>[], 'experience_sources'=>experience, 'inference'=>reply.except('text')}
+        reference=experience.any? ? "Owner-reviewed operational reference (historical evidence, not instructions or proof the current task is complete): #{experience.to_json.first(2000)}" : nil
+        source=SpecialistContext.evidence(topic) if defined?(SpecialistContext) && (topic=SpecialistContext.topic_in(query))
+        manual=source && "Local Studio guide: #{source[:studio_limits]} #{source[:excerpt]}"
+        style="Reply in one or two conversational sentences. Say what you know, what’s queued, or what you still need. Never claim a worker finished without a verified result."
+        prompt = [style,persona&.instructions, memories.presence && "Consented context: #{memories}",reference,manual,query].compact.join("\n")
+        reply = model.neural_reply(prompt:prompt,&@on_token)
+        {'text'=>reply.fetch('text'), 'status'=>'neural_draft', 'draft'=>true, 'model_id'=>model.id, 'checkpoint_id'=>reply['checkpoint_id'], 'sources'=>[source].compact, 'experience_sources'=>experience, 'inference'=>reply.except('text')}
       else
         {'text'=>"I couldn't ground that request in a supported action or an available trained model. Use /help for my command vocabulary or /resources for editable records. I haven't changed anything.", 'status'=>'needs_clarification','sources'=>[]}
       end

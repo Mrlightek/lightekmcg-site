@@ -17,7 +17,7 @@ module Studio
         output=data.fetch("output","video")
         raise ArgumentError,"Choose video or audio output" unless %w[video audio].include?(output)
         width=Integer(data.fetch("width",1280));height=Integer(data.fetch("height",720))
-        raise ArgumentError,"Use even dimensions from 64 to 4096" unless [width,height].all?{|n|n.between?(64,4096)&&n.even?}
+        raise ArgumentError,"Use even dimensions from 64 to 4096" unless [width,height].all?{|n|n.between?(64,Studio::Compute::Guardrails::EDIT_EDGE)&&n.even?}
         fps=Integer(data.fetch("fps",24))
         raise ArgumentError,"Choose 24, 25, 30, 48, 50 or 60 fps" unless [24,25,30,48,50,60].include?(fps)
         preset=data.fetch("export_preset","review")
@@ -30,7 +30,7 @@ module Studio
         end
         raise ArgumentError,"Use at most sixteen unique tracks" if tracks.length>16 || tracks.map{|t|t["id"]}.uniq.length!=tracks.length
         clips=Array(data.fetch("clips"))
-        raise ArgumentError,"Add between one and sixty-four clips" unless clips.length.between?(allow_empty ? 0 : 1,64)
+        raise ArgumentError,"Add between one and sixty-four clips" unless clips.length.between?(allow_empty ? 0 : 1,Studio::Compute::Guardrails::EDIT_CLIPS)
         normalized=clips.map do |value|
           clip=value.to_h.deep_stringify_keys
           asset=assets.fetch(Integer(clip.fetch("asset_id"))) { raise ArgumentError,"Media asset is unavailable" }
@@ -41,7 +41,7 @@ module Studio
           raise ArgumentError,"Clip exceeds the source duration" if asset.kind!="image" && duration>0 && last>duration+0.05
           speed=number(clip.fetch("speed",1),0.25,4)
           length=(last-first)/speed
-          raise ArgumentError,"Timeline cannot exceed ten minutes" if start+length>600
+          raise ArgumentError,"Timeline cannot exceed ten minutes" if start+length>Studio::Compute::Guardrails::EDIT_SECONDS
           frames=Array(clip["keyframes"])
           raise ArgumentError,"Use at most twenty keyframes per clip" if frames.length>20
           frames=frames.map do |frame|

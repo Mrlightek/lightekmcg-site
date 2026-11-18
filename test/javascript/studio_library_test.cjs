@@ -36,8 +36,11 @@ window.addEventListener('hashchange',()=>render());
  try{
   const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.route('https://library.test/**',route=>route.fulfill({contentType:route.request().url().endsWith('.js')?'application/javascript':'text/html',body:route.request().url().endsWith('.js')?script:fixture}));
-  await page.goto('https://library.test/');await page.locator('[data-blender-demo]').waitFor();
-  assert.equal(await page.locator('[data-json-preset]').count(),0,'Blender files must lead the library');
+  await page.goto('https://library.test/');
+  await page.locator('[data-media-form=import]').waitFor();
+  assert.equal(await page.locator('[data-blender-demo]').count(),0,'the library opens on media');
+  await page.locator('[data-a="studioLibraryTab"][data-tab=blender]').click();
+  await page.locator('[data-blender-demo]').waitFor();
   await page.locator('[data-a="studioInstallBlenderLibrary"]').click();await page.waitForFunction(()=>requests.some(item=>item.capability.endsWith('blender.library.install')));
   await page.locator('[data-a="studioLibraryTab"][data-tab=presets]').click();
   await page.locator('[data-media-form=filter] input').fill('Stack The Facts');await page.locator('[data-media-form=filter] button').click();

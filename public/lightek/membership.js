@@ -80,15 +80,33 @@
     guarded.memberGateway=true;R.studio=guarded;
   }
   addEventListener('lightek.bootstrap.ready',studioPublishingGateway);
+  function communityOrigin(){
+    const source=window.LightekStorefront?.state.bootstrap?.member_source;
+    if(!source?.origin)return null;
+    try {
+      const url=new URL(source.origin);
+      return url.protocol==='https:'&&url.pathname==='/'&&!url.username&&!url.password&&!url.search&&!url.hash ? url.origin : null;
+    } catch (_) {
+      return null;
+    }
+  }
   function simplifyNavigation(){
     const primary=document.querySelector('#primary-nav'),tools=document.querySelector('#top .tools');
-    const source=window.LightekStorefront?.state.bootstrap?.member_source;
-    if(source?.origin){
-      try { const origin=new URL(source.origin);if(origin.protocol==='https:'&&origin.pathname==='/'){
-        if(primary){primary.innerHTML=`<a href="${esc(origin.origin)}/lightek/index.html#/home">Back to community</a><a href="#/create">Create</a><a href="#/studio">Studio</a><a href="#/space">My posts</a>`;}
-        if(tools&&!tools.querySelector('[data-member-central]'))tools.insertAdjacentHTML('beforeend',`<a class="hd2" data-member-central href="${esc(origin.origin)}/lightek/index.html#/membership">Membership & earnings</a>`);
-        return;
-      }} catch(_){}
+    const origin=communityOrigin(),home=origin?`${origin}/lightek/index.html#/home`:'#/home';
+    const studio=document.querySelector('#app');
+    if(studio){
+      let exit=document.querySelector('#studio-app-exit');
+      if(!exit){
+        exit=document.createElement('a');exit.id='studio-app-exit';
+        studio.before(exit);
+      }
+      exit.textContent='← Back to app';
+      exit.setAttribute('href',home);
+    }
+    if(origin){
+      if(primary)primary.innerHTML=`<a href="${esc(home)}">Back to community</a><a href="#/create">Create</a><a href="#/studio">Studio</a><a href="#/space">My posts</a>`;
+      if(tools&&!tools.querySelector('[data-member-central]'))tools.insertAdjacentHTML('beforeend',`<a class="hd2" data-member-central href="${esc(origin)}/lightek/index.html#/membership">Membership & earnings</a>`);
+      return;
     }
     if(primary)for(const link of [...primary.querySelectorAll('a')].slice(5))link.remove();
     if(tools){tools.querySelector('[data-installations-link]')?.remove();if(!tools.querySelector('[data-pwa-more]'))tools.insertAdjacentHTML('beforeend','<a class="hd2" href="#/services" data-pwa-more>More</a>');}

@@ -86,6 +86,9 @@ class StudioPerformanceTest < StudioAuthoringTest
     first=action("cast_create",name:"Marlon's performer",skin:"#925e43",wardrobe:"#64388b",hair:"#211916",request_key:key)
     assert_equal first,action("cast_create",name:"Marlon's performer",skin:"#925e43",wardrobe:"#64388b",hair:"#211916",request_key:key)
     assert_equal "processing",StudioAsset.find(first[:asset_id]).status
+    styled=action("cast_create",name:"Host",hair_style:"high_top",request_key:SecureRandom.uuid)
+    assert_equal "high_top",StudioAsset.find(styled[:asset_id]).metadata.dig("performer_build","hair_style")
+    assert_raises(ArgumentError){action("cast_create",hair_style:"unknown",request_key:SecureRandom.uuid)}
     assert_raises(ArgumentError){action("cast_create",skin:"ruby:execute",request_key:SecureRandom.uuid)}
   end
   def test_performance_failed_build_can_be_retried_and_build_queue_is_bounded
@@ -155,11 +158,45 @@ class StudioPerformanceTest < StudioAuthoringTest
     copied.update!(definition:copied.definition.except("performance"))
     assert_equal source["performance"],object.reload.definition["performance"]
   end
+  def test_delayed_character_receives_a_retry_without_creating_a_new_asset
+    result=action("cast_create",name:"Queued character",request_key:SecureRandom.uuid)
+    asset=StudioAsset.find(result[:asset_id])
+    assert_raises(ArgumentError){action("cast_retry",asset_id:asset.id)}
+    asset.update_columns(updated_at:3.minutes.ago)
+    assert Studio::Performance::Cast.inventory(asset.reload)["performer_delayed"]
+    assert_equal asset.id,action("cast_retry",asset_id:asset.id)[:asset_id]
+    refute Studio::Performance::Cast.inventory(asset.reload)["performer_delayed"]
+  end
+
+  def test_character_photo_is_pinned_reusable_and_scoped_to_uploader
+    photo=ActiveStorage::Blob.create_and_upload!(io:StringIO.new("photo fixture"),filename:"portrait.png",
+      content_type:"image/png",identify:false,metadata:{"lightek_user_id"=>@alice.id,"lightek_site_id"=>@site.id})
+    key=SecureRandom.uuid
+    payload={name:"Portrait actor",photo_signed_id:photo.signed_id,request_key:key}
+    result=action("cast_create",**payload)
+    original=StudioAsset.find(result[:asset_id])
+    assert_equal photo.id,original.character_photo.blob.id
+    assert original.metadata["photo_character"]
+    assert_equal result,action("cast_create",**payload)
+    assert_raises(ArgumentError){action("cast_create",name:"Another character",request_key:key)}
+    assert_raises(ArgumentError){action("cast_create",**payload.merge(user_id:@bob.id,site_id:@other_site.id,request_key:SecureRandom.uuid))}
+    original.update!(status:"ready")
+    copied=action("cast_create",name:"Portrait variation",copy_photo_from:original.id,request_key:SecureRandom.uuid)
+    assert_equal photo.id,StudioAsset.find(copied[:asset_id]).character_photo.blob.id
+    assert_raises(ActiveRecord::RecordNotFound){action("cast_create",name:"Foreign copy",copy_photo_from:original.id,user_id:@bob.id,site_id:@other_site.id,request_key:SecureRandom.uuid)}
+  end
+
   def test_performance_real_native_character_animated_movie_and_audible_voice
     skip "Set LIGHTEK_TEST_BLENDER=1" unless ENV["LIGHTEK_TEST_BLENDER"]=="1"
-    result=action("cast_create",name:"Lightek performer",request_key:SecureRandom.uuid)
+    image=Studio::MediaProcess.run!(["ffmpeg","-v","error","-f","lavfi","-i","color=c=orange:s=256x256",
+      "-frames:v","1","-threads","1","-f","image2pipe","-vcodec","png","pipe:1"])
+    photo=ActiveStorage::Blob.create_and_upload!(io:StringIO.new(image.b),filename:"portrait.png",content_type:"image/png",
+      identify:false,metadata:{"lightek_user_id"=>@alice.id,"lightek_site_id"=>@site.id})
+    result=action("cast_create",name:"Lightek photo performer",photo_signed_id:photo.signed_id,hair_style:"high_top",request_key:SecureRandom.uuid)
     Rails.stub(:root,Pathname(ROOT)) { StudioCharacterCreateJob.perform_now(result[:asset_id]) }
     actor=StudioAsset.find(result[:asset_id]);assert_equal "ready",actor.status;assert actor.metadata["character_profile"]
+    assert actor.metadata["photo_character"]
+    assert Studio::Performance::Cast.inventory(actor)["scenes"].flat_map { |scene| scene["objects"] }.any? { |object| object["name"]=="Face portrait" }
     placed=action("cast_place",scene_id:@scene.id,asset_id:actor.id,lock_version:@scene.reload.lock_version,request_key:SecureRandom.uuid)
     object=SceneObject.find(placed["object_id"])
     second=action("cast_place",scene_id:@scene.id,asset_id:actor.id,lock_version:@scene.reload.lock_version,request_key:SecureRandom.uuid)

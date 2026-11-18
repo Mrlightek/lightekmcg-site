@@ -2,6 +2,7 @@
 import bpy
 import json
 import math
+from pathlib import Path
 import sys
 from mathutils import Vector
 
@@ -48,9 +49,15 @@ head = sphere('Head', (0, 0, 1.88), (0.34, 0.28, 0.42), skin)
 head_parts = [head]
 head_parts += [sphere('Ear L', (-0.34, 0, 1.86), (0.065, 0.06, 0.12), skin), sphere('Ear R', (0.34, 0, 1.86), (0.065, 0.06, 0.12), skin)]
 head_parts += [sphere('Nose', (0, -0.285, 1.88), (0.065, 0.075, 0.10), skin)]
-head_parts += [sphere('Hair cap', (0, 0.035, 2.17), (0.33, 0.26, 0.18), hair)]
-for i in range(7):
-    head_parts.append(sphere('Hair curl', ((i-3)*0.085, -0.10, 2.22+0.03*math.sin(i)), (0.065, 0.13, 0.065), hair))
+hair_style = params.get('hair_style', 'curls')
+if hair_style == 'close':
+    head_parts.append(sphere('Close cut', (0, 0.026, 2.155), (0.31, 0.245, 0.14), hair))
+elif hair_style == 'high_top':
+    head_parts.append(sphere('High top', (0, 0.03, 2.25), (0.32, 0.24, 0.22), hair))
+else:
+    head_parts.append(sphere('Hair cap', (0, 0.035, 2.17), (0.33, 0.26, 0.18), hair))
+    for i in range(7):
+        head_parts.append(sphere('Hair curl', ((i-3)*0.085, -0.10, 2.22+0.03*math.sin(i)), (0.065, 0.13, 0.065), hair))
 
 # Joined eye parts share a blink shape without losing their individual materials.
 eye_parts = []
@@ -102,6 +109,39 @@ for label, (width, height, lift) in {
         point.co.x *= width
         point.co.z = 1.72 + (point.co.z-1.72)*height + lift
 head_parts.append(mouth)
+
+# A photo is a packed texture on a curved face panel. The rig still drives the head
+# and the existing mouth shapes, independently of the photo.
+portrait_path = Path(params_path).with_name('portrait.png')
+if portrait_path.is_file():
+    photo = bpy.data.images.load(str(portrait_path), check_existing=False)
+    photo.pack()
+    photo.filepath = '//portrait.png'
+    portrait = bpy.data.materials.new('Character portrait')
+    portrait.use_nodes = True
+    nodes = portrait.node_tree.nodes
+    texture = nodes.new('ShaderNodeTexImage'); texture.image = photo
+    portrait.node_tree.links.new(texture.outputs['Color'], nodes.get('Principled BSDF').inputs['Base Color'])
+    radius_x, radius_z, center_z = 0.258, 0.247, 2.0
+    vertices = [(0, -0.345, center_z)]
+    uvs = [(0.5, 0.66)]
+    for i in range(48):
+        angle = i * math.tau / 48
+        x, z = math.cos(angle), math.sin(angle)
+        vertices.append((radius_x*x, -0.332, center_z+radius_z*z))
+        uvs.append((0.5+0.47*x, 0.66+0.26*z))
+    triangles = [(0, 1+i, 1+(i+1)%48) for i in range(48)]
+    panel_mesh = bpy.data.meshes.new('Portrait surface')
+    panel_mesh.from_pydata(vertices, [], triangles)
+    panel_mesh.materials.append(portrait)
+    uv_layer = panel_mesh.uv_layers.new()
+    for loop in panel_mesh.loops:
+        uv_layer.data[loop.index].uv = uvs[loop.vertex_index]
+    panel = bpy.data.objects.new('Face portrait', panel_mesh)
+    scene.collection.objects.link(panel)
+    head_parts.append(panel)
+    mouth.location.y = -0.1
+
 
 arm_parts = {}
 for side, x in [('L', -0.43), ('R', 0.43)]:

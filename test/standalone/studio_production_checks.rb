@@ -16,6 +16,30 @@ class StudioProductionTest < StudioMusicTest
     assert_equal result,action("project_create",name:"New movie",request_key:key)
     assert_raises(ArgumentError){action("project_create",name:"Foreign",request_key:key,site_id:@other_site.id)}
   end
+  def test_animation_opens_on_stage_and_sets_render_aspect_ratio
+    before=ActiveJob::Base.queue_adapter.enqueued_jobs.size
+    key=SecureRandom.uuid
+    result=action("project_create",name:"Animated short",format:"portrait",studio_entry:"stage",request_key:key)
+    scene=StudioScene.find(result[:scene_id])
+    assert_equal "Scene 1",scene.name
+    assert_equal ["stage",1080,1920,30],scene.settings.values_at("studio_entry","resolution_x","resolution_y","fps")
+    assert_equal result,action("project_create",name:"Animated short",format:"portrait",studio_entry:"stage",request_key:key)
+    assert_equal before,ActiveJob::Base.queue_adapter.enqueued_jobs.size
+    assert_raises(ArgumentError){action("project_create",name:"Audio",format:"audio",studio_entry:"stage",request_key:SecureRandom.uuid)}
+  end
+
+  def test_play_scene_drafts_a_video_without_a_saved_character_take
+    @scene.scene_objects.create!(name:"Set",object_type:"cube",definition:{"location"=>[0,0,1]})
+    @scene.update!(settings:@scene.settings.merge("fps"=>24,"frame_start"=>8,"frame_end"=>100))
+    assert_raises(ArgumentError){action("performance_preview",scene_id:@scene.id)}
+    preview=action("performance_preview",scene_id:@scene.id,scene_playback:true)
+    assert_equal preview[:operation_id],action("performance_preview",scene_id:@scene.id,scene_playback:true)[:operation_id]
+    operation=StudioOperation.find(preview[:operation_id])
+    assert_equal [8,79],operation.manifest.dig("scene","settings").values_at("frame_start","frame_end")
+    assert operation.manifest.dig("outputs","animation")
+    assert operation.metadata.fetch("draft_preview")
+  end
+
   def test_production_empty_timeline_can_be_saved_but_not_exported
     result=action("timeline_save",scene_id:@scene.id,lock_version:@scene.lock_version,timeline:{"clips"=>[]})
     assert_empty result[:timeline]["clips"]

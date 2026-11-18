@@ -48,6 +48,8 @@ module Studio
         raise ArgumentError,"Name your production (up to 120 characters)" unless name.present? && name.length<=120
         raise ArgumentError,"A project request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         format=Studio::Editing::Timeline.format(@payload.fetch("format","landscape"))
+        animation=@payload["studio_entry"]=="stage"
+        raise ArgumentError,"Choose a video format for animation" if animation && format["output"]!="video"
         @access.user.with_lock do
           project=StudioProject.find_by(owner:@access.user,request_key:key)
           if project
@@ -55,7 +57,13 @@ module Studio
           else
             project=StudioProject.create!(owner:@access.user,site_id:@access.site_id,name:name,request_key:key)
             scene=project.studio_scenes.first!
-            scene.update!(name:"Sequence 01",settings:scene.settings.merge("compute_profile"=>"cpu_economy","render_engine"=>"CYCLES","timeline"=>format.merge("export_preset"=>"review","clips"=>[])))
+            settings=scene.settings.merge("compute_profile"=>"cpu_economy","render_engine"=>"CYCLES",
+              "timeline"=>format.merge("export_preset"=>"review","clips"=>[]))
+            if animation
+              settings.merge!("studio_entry"=>"stage","resolution_x"=>format.fetch("width"),
+                "resolution_y"=>format.fetch("height"),"fps"=>format.fetch("fps"))
+            end
+            scene.update!(name:animation ? "Scene 1" : "Sequence 01",settings:settings)
           end
           {project_id:project.id,scene_id:project.studio_scenes.first!.id}
         end
@@ -85,22 +93,33 @@ module Studio
         if @payload["operation_id"]
           operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview").find(@payload["operation_id"])
         else
-          raise ArgumentError,"Save a character performance first" unless scene.scene_objects.any? { |object| object.definition["performance"] || Array(object.definition["motion_clips"]).any? }
+          scene_playback=@payload["scene_playback"]==true
+          starts=scene.scene_objects.flat_map do |object|
+            [object.definition.dig("performance","start"),*Array(object.definition["motion_clips"]).map { |clip| clip["start"] }].compact
+          end
+          raise ArgumentError,"Save a character performance first" if !scene_playback && starts.empty?
+          raise ArgumentError,"Add a character or set before playing the scene" if scene_playback && scene.scene_objects.empty?
           @access.user.with_lock do
-            operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview",status:%w[pending running]).first
+            revision=scene.settings.fetch("native_revision",0)
+            operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview",status:%w[pending running]).detect do |preview|
+              (preview.metadata["scene_playback"]==true)==scene_playback && preview.metadata["native_revision"]==revision
+            end
             unless operation
               recent=StudioOperation.where(studio_project_id:@access.projects.select(:id),capability:"studio.workspace.performance.preview").where("created_at > ?",1.minute.ago).count
               raise ArgumentError,"Wait before requesting another performance preview" if recent>=4
               manifest=Blender::ManifestBuilder.new(scene).call.deep_dup
               settings=manifest["scene"]["settings"]
               fps=settings.fetch("fps",24).to_f/settings.fetch("fps_base",1)
-              first=scene.scene_objects.flat_map { |object| [object.definition.dig("performance","start"),*Array(object.definition["motion_clips"]).map{|clip|clip["start"]}].compact }.min
+              last=settings.fetch("frame_end",250)
+              first=scene_playback ? settings.fetch("frame_start",1) : 1+(starts.min*fps).round
+              first=[first,last].min
               width=settings.fetch("resolution_x",1280);height=settings.fetch("resolution_y",720)
               factor=320.0/[width,height].max
-              settings.merge!("resolution_x"=>(width*factor).round.clamp(64,320),"resolution_y"=>(height*factor).round.clamp(64,320),"samples"=>8,
-                "frame_start"=>1+(first*fps).round,"frame_end"=>[(first*fps+3*fps).round,settings.fetch("frame_end",250)].min,"frame_current"=>1+(first*fps).round)
+              settings.merge!("resolution_x"=>((width*factor/2).round*2).clamp(64,320),
+                "resolution_y"=>((height*factor/2).round*2).clamp(64,320),"samples"=>8,
+                "frame_start"=>first,"frame_end"=>[first+(3*fps).round-1,last].min,"frame_current"=>first)
               manifest["outputs"]={"animation"=>true,"blend"=>true}
-              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.performance.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"performance_preview"=>true,"draft_preview"=>true,"native_revision"=>scene.settings.fetch("native_revision",0)})
+              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.performance.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"performance_preview"=>true,"draft_preview"=>true,"scene_playback"=>scene_playback,"native_revision"=>revision})
               StudioBlenderPreviewJob.perform_later(operation.id)
             end
           end

@@ -13,7 +13,7 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
  assert.equal(w.R.studio('create'),'original-create','Existing production wizard stays available');
  w.render();await tick();
- assert.match(w.app.textContent,/No provider account or API key required/);
+ assert.match(w.app.textContent,/Build editable shapes, sets, stages, lights and animated effects/);
  assert.equal(w.app.querySelectorAll('[data-studio-create-form]').length,2);
  const form=w.app.querySelector('form');form.elements.scene_id.value='7';form.elements.name.value='My stage';form.elements.size.value='2';form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
  let req=requests.find(r=>r.capability==='studio.workspace.blender.create');assert.equal(req.payload.scene_id,7);assert.equal(req.payload.lock_version,3);assert.equal(req.payload.size,2);assert.equal(w.ST.workspaceMode,'3d');assert.equal(w.ST.selectedObjectId,9);assert.equal(w.location.hash,'#/studio/7');

@@ -60,7 +60,7 @@ async function check(software){
  await page.getByRole('button',{name:'Save workspace',exact:true}).click();await page.getByText('Saved to your account',{exact:true}).waitFor();
  await page.reload();await page.locator('.studio-viewport-canvas canvas').waitFor();await page.locator('[data-a=studioWorkspaceMode][data-mode=script]').first().click();
  assert.equal(await page.locator('[data-studio-script]').inputValue(),'INT. STUDIO — DAY\nIRIS: This is my scene.');
- await page.getByText('Add a preset or render a Blender camera preview',{exact:true}).click();
+ await page.getByText('Add a preset or preview the camera',{exact:true}).click();
  await page.getByRole('button',{name:'Apply to this scene / selected element',exact:true}).click();
  await page.locator('[data-studio-outcome]').waitFor();assert.equal(await page.locator('[data-studio-script]').inputValue(),'INT. STUDIO — DAY\nIRIS: This is my scene.');assert.match(await page.locator('[data-studio-outcome]').innerText(),/Show bible applied/);
  // Quick character application returns to the actual layout and selects the newly added shape.

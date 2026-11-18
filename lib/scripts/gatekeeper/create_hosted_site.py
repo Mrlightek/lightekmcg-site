@@ -17,6 +17,10 @@ import urllib.request
 BOOTSTRAP = r'''
 require "json"
 c = JSON.parse(STDIN.read)
+if c['pwa_member']
+  puts 'LIGHTEK_SITE=' + JSON.generate(LightekPwa::SharedAccountRuntime.install!(c))
+  exit
+end
 DymondSite::Site.transaction do
   owner = User.find_or_initialize_by(email_address: c.fetch("owner_email"))
   if owner.new_record?
@@ -105,6 +109,32 @@ class HostedSite:
             result = next(line.removeprefix("LIGHTEK_SITE=") for line in output.splitlines() if line.startswith("LIGHTEK_SITE="))
             return json.loads(result)
 
+    def prepare_shared_runtime(self):
+        if not self.config.get('pwa_member'):
+            return
+        domain = self.config['runtime_domain']
+        if not re.fullmatch(r'[a-z0-9-]+(?:\.[a-z0-9-]+)+', domain):
+            raise ValueError('Invalid shared runtime')
+        base = pathlib.Path('/opt/lightek-sites') / domain
+        if self.root != base / 'current' or pathlib.Path(self.profile['env_file']) != base / '.env':
+            raise ValueError('Account must use the exact shared runtime')
+        managed = json.loads((base / 'managed.json').read_text())
+        if managed['domain'] != domain or managed['owner_email'] != self.config['runtime_owner_email']:
+            raise ValueError('Shared runtime ownership mismatch')
+        values = {key: json.loads(value) for key, value in (line.split('=', 1) for line in (base / '.env').read_text().splitlines() if '=' in line)}
+        self.runtime_environment_changed = values.get('LIGHTEK_PWA_SHARED_HOSTING') != 'true' or values.get('LIGHTEK_PWA_MEMBER_BACKEND') != 'true'
+        values['LIGHTEK_PWA_MEMBER_BACKEND'] = 'true'
+        values['LIGHTEK_PWA_SHARED_HOSTING'] = 'true'
+        (base / '.env').write_text(''.join(key + '=' + json.dumps(str(value)) + '\n' for key, value in values.items()))
+        (base / '.env').chmod(0o600)
+        def quote(value):
+            return '"' + str(value).replace('\\', '\\\\').replace('"', '\\"') + '"'
+        (base / 'passenger-env.conf').write_text(''.join('SetEnv ' + key + ' ' + quote(value) + '\n' for key, value in values.items()))
+        (base / 'passenger-env.conf').chmod(0o600)
+        worker = 'lightek-' + hashlib.sha256(domain.encode()).hexdigest()[:12] + '-sidekiq'
+        if self.profile.get('worker_service', '').removesuffix('.service') != worker:
+            raise ValueError('Worker does not belong to the shared runtime')
+
     def validate_existing_hosts(self):
         for path in (self.system_root / "etc/apache2/sites-enabled").glob("*"):
             content = path.read_text()
@@ -114,6 +144,48 @@ class HostedSite:
                 parts = line.split()
                 if parts and parts[0].lower() in ("servername", "serveralias") and self.host in [part.lower() for part in parts[1:]]:
                     raise ValueError("Hostname already belongs to another virtual host")
+
+    def pause_standby(self):
+        standby = self.config.get('standby_runtime')
+        if not standby:
+            return None
+        domain = standby['domain']
+        if not re.fullmatch(r'[a-z0-9-]+(?:\.[a-z0-9-]+)+', domain) or domain == self.config['runtime_domain']:
+            raise ValueError('Invalid standby runtime')
+        base = pathlib.Path('/opt/lightek-sites') / domain
+        profile = standby['deployment']
+        if profile['app_root'] != str(base / 'current') or profile['env_file'] != str(base / '.env'):
+            raise ValueError('Standby runtime path differs')
+        managed = json.loads((base / 'managed.json').read_text())
+        if managed['domain'] != domain or managed['owner_email'] != standby['owner_email']:
+            raise ValueError('Standby runtime ownership differs')
+        worker = 'lightek-' + hashlib.sha256(domain.encode()).hexdigest()[:12] + '-sidekiq'
+        if profile['worker_service'].removesuffix('.service') != worker:
+            raise ValueError('Standby worker differs')
+        state = self.system_root / 'var/lib/lightek/fleet' / hashlib.sha256(str((base / 'current').resolve()).encode()).hexdigest()[:24]
+        state.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with (state / 'update.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            values = {key: json.loads(value) for key, value in (line.split('=', 1) for line in (base / '.env').read_text().splitlines() if '=' in line)}
+            compose = ['docker', 'compose', '--env-file', str(base / '.env'), '-p', values['PROJECT'], '-f', str(base / 'dependencies.yml')]
+            running = self.run(compose + ['ps', '--status', 'running', '--services'], capture=True).splitlines()
+            if 'db' not in running:
+                return {'domain': domain, 'state': 'offline'}
+            # Never pause an old runtime containing another customer or media.
+            check = 'c=JSON.parse(STDIN.read); puts "LIGHTEK_EMPTY="+JSON.generate(User.where.not(email_address:c.fetch("owner_email")).none? && !Post.exists? && !StudioProject.exists? && !ActiveStorage::Blob.exists?)'
+            command = ['sudo', '-u', profile['app_user'], '-H', 'python3', str(base / 'run-app.py'), 'bundle', 'exec', 'rails', 'runner', check]
+            output = self.run(command, input=json.dumps(standby).encode(), capture=True)
+            empty = next(line.removeprefix('LIGHTEK_EMPTY=') for line in output.splitlines() if line.startswith('LIGHTEK_EMPTY='))
+            if empty != 'true':
+                return {'domain': domain, 'state': 'preserved'}
+            self.run(['systemctl', 'stop', profile['worker_service']])
+            self.run(compose + ['stop'])
+            for suffix in ['', '-ssl']:
+                filename = 'lightek-' + domain + suffix + '.conf'
+                if (self.system_root / 'etc/apache2/sites-enabled' / filename).exists():
+                    self.run(['a2dissite', filename])
+            self.run(['apache2ctl', 'configtest']);self.run(['systemctl', 'reload', 'apache2'])
+            return {'domain': domain, 'state': 'paused'}
 
     def write_vhost(self, tls=False):
         suffix = "-ssl" if tls else ""
@@ -135,6 +207,7 @@ class HostedSite:
   PassengerRuby "{self.profile['ruby_bin']}/ruby"
   PassengerAppRoot "{self.root}"
   PassengerAppEnv production
+  IncludeOptional "{self.root.parent}/passenger-env.conf"
   <Directory "{self.root}/public">
     Require all granted
     Options -MultiViews
@@ -172,6 +245,12 @@ class HostedSite:
             def redirect_request(self, *args, **kwargs):
                 return None
         opener = urllib.request.build_opener(NoRedirect())
+        if self.config.get('pwa_member'):
+            with opener.open('https://' + self.host + '/api/lightek/pwa/backend-health', timeout=10) as response:
+                result = json.loads(response.read(32768))
+                if response.status != 200 or result.get('member_key') != self.key:
+                    raise ValueError('Shared account identity does not match')
+            return result
         url = "https://" + self.host + "/__lightek/site-health"
         with opener.open(urllib.request.Request(url, headers={"Cache-Control": "no-cache"}), timeout=10) as response:
             result = json.loads(response.read(32768))
@@ -190,18 +269,25 @@ class HostedSite:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             fcntl.flock(checkout_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.validate_existing_hosts()
+            self.prepare_shared_runtime()
             result = self.bootstrap()
             self.write_vhost()
             self.run(["certbot", "certonly", "--webroot", "-w", str(self.system_root / "var/www/lightek-acme" / self.host),
                 "-d", self.host, "--email", self.config["certificate_email"], "--agree-tos", "--non-interactive",
                 "--keep-until-expiring", "--cert-name", "lightek-app-" + self.key])
             self.write_vhost(tls=True)
+            if self.config.get('pwa_member') and self.runtime_environment_changed:
+                self.run(['systemctl', 'try-restart', self.profile['worker_service']])
+                self.run(['passenger-config', 'restart-app', str(self.root), '--ignore-app-not-running'])
             for attempt in range(12):
                 try:
                     health = self.verify()
-                    if health.get("site_id") != result.get("site_id"):
+                    if not self.config.get('pwa_member') and health.get("site_id") != result.get("site_id"):
                         raise ValueError("Application site identity mismatch")
                     result.update(status="succeeded", https_verified=True)
+                    if self.config.get('pwa_member'):
+                        result['standby_runtime'] = self.pause_standby()
+                        self.verify()
                     return result
                 except Exception:
                     if attempt == 11:

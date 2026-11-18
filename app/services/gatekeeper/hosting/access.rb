@@ -46,7 +46,11 @@ module Gatekeeper
         ids = account_ids(owner)
         nodes = GatekeeperNode.where(owner_type: "User", owner_id: ids).where.not(status: "decommissioned")
         values = GatekeeperProject.where(gatekeeper_node_id: nodes.select(:id)).pluck(:domain)
-        values += GatekeeperApplicationLaunch.where(owner_id: ids).where.not(status: "deleted").pluck(:domain)
+        launches = GatekeeperApplicationLaunch.where(owner_id: ids).where.not(status: "deleted")
+        if defined?(LightekPwa::SharedPool) && LightekPwa::SharedPool.table_exists?
+          launches = launches.where.not(id: LightekPwa::SharedPool.where.not(launch_id: nil).select(:launch_id))
+        end
+        values += launches.pluck(:domain)
         values += GatekeeperHostedApplication.where(owner_id: ids).where.not(status: "deleted").pluck(:domain)
         if defined?(DymondSite::Site)
           values += DymondSite::Site.where(tenant_type: "User", tenant_id: ids).pluck(:host, :manifest).reject { |_, manifest| manifest.to_h["network_ledger"] == true }.map(&:first)

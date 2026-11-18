@@ -37,7 +37,7 @@ class StudioEditorExportJob < ApplicationJob
         output = File.join(root, "output/video.mp4")
         raise "Movie Masher did not produce an export" unless File.size?(output)
         File.open(output, "rb") do |file|
-          blob = ActiveStorage::Blob.create_and_upload!(io: file, filename: "video.mp4", content_type: "video/mp4", identify: false)
+          blob = ActiveStorage::Blob.create_and_upload!(io: file, filename: "video.mp4", content_type: "video/mp4", identify: false, metadata: LightekPwa::MediaOwnership.for(operation) || {})
           complete!(operation, blob, "video", "#{operation.studio_project.name.parameterize.presence || 'video'}.mp4")
         end
       end

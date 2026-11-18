@@ -14,7 +14,7 @@ readarray -t CONFIG < <(python3 - <<'PY'
 import json
 c=json.load(open('settings.json'))
 for key in ['domain','release','email','bundler','source_sha']:print(c[key])
-print('1' if c.get('pwa_member') else '0')
+print('1' if c.get('pwa_member') or c.get('pwa_pool') else '0')
 print('1' if c.get('pwa_pool',{}).get('profile') == 'starter' else '0')
 PY
 )
@@ -29,6 +29,7 @@ APP_ROOT="$BASE/current"
 RELEASE_DIR="$BASE/releases/$RELEASE"
 ENV_FILE="$BASE/.env"
 [[ ! -f "$APP_ROOT/tmp/pwa-migration.lock" ]] || { echo "Member migration owns this runtime. Retry deployment after cutover." >&2;exit 1; }
+if compgen -G "$APP_ROOT/tmp/pwa-accounts/*.lock" >/dev/null; then echo 'A shared hosting account is moving. Retry deployment after cutover.' >&2;exit 1;fi
 RUBY_BIN="/home/$APP_USER/.rbenv/versions/3.3.6/bin"
 exec 9>"/var/lock/lightek-site-$DOMAIN.lock";flock -n 9
 exec 8>/var/lock/lightek-build.lock;flock -n 8
@@ -37,6 +38,8 @@ if [[ -e "$APP_ROOT" ]];then
  FLEET_KEY=$(readlink -f "$APP_ROOT" | tr -d '\n' | sha256sum | cut -c1-24)
  install -d -m 0700 "/var/lib/lightek/fleet/$FLEET_KEY"
  exec 7>"/var/lib/lightek/fleet/$FLEET_KEY/update.lock";flock -n 7
+ [[ ! -f "$APP_ROOT/tmp/pwa-migration.lock" ]] || exit 1
+ if compgen -G "$APP_ROOT/tmp/pwa-accounts/*.lock" >/dev/null; then exit 1;fi
 fi
 install -d -m 0755 "$BASE" "$BASE/releases"
 if [[ -f "$BASE/.env" ]];then
@@ -66,8 +69,10 @@ if p.exists():
 else:
  values=dict(POSTGRES_USER='lightek',POSTGRES_DB='lightek_production',POSTGRES_PASSWORD=secrets.token_hex(32),SECRET_KEY_BASE=secrets.token_hex(64),LOCKBOX_MASTER_KEY=secrets.token_hex(32),RAILS_MASTER_KEY=secrets.token_hex(16),LIGHTEK_VAULT_MASTER_KEY=base64.b64encode(secrets.token_bytes(32)).decode(),LIGHTEK_VAULT_KEY_VERSION='1',RAILS_ENV='production',RACK_ENV='production',MAIL_DELIVERY_METHOD='gmail_api')
  values.update(c.get('extra_env',{}))
- if c.get('pwa_member'):
-  values.update(LIGHTEK_PWA_MEMBER_BACKEND='true',LIGHTEK_PWA_MEMBER_STORAGE_BYTES=str(c['pwa_member']['storage_bytes']))
+if c.get('pwa_member') or c.get('pwa_pool'):
+ values.update(LIGHTEK_PWA_MEMBER_BACKEND='true')
+ if c.get('pwa_member'):values['LIGHTEK_PWA_MEMBER_STORAGE_BYTES']=str(c['pwa_member']['storage_bytes'])
+ if c.get('pwa_pool'):values['LIGHTEK_PWA_SHARED_HOSTING']='true'
 for name,start in [('POSTGRES_PORT',53000),('LIGHTEK_REDIS_PORT',54000),('APP_PORT',18080)]:
  if name not in values:
   for port in range(start,start+1000):

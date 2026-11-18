@@ -10,9 +10,43 @@ module LightekPwa
       blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview
       blender_runtime_status blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].map { |action| "studio.workspace.#{action.tr('_', '.')}" }.freeze
     def self.member? = ENV['LIGHTEK_PWA_MEMBER_BACKEND'] == 'true'
-    def self.frozen? = File.exist?(Rails.root.join('tmp/pwa-migration.lock'))
-    def self.writable!
-      raise ReadOnly, 'Your backend is moving. Please retry when migration finishes.' if frozen? && !Thread.current[:pwa_transfer_control]
+    def self.shared? = ENV['LIGHTEK_PWA_SHARED_HOSTING'] == 'true'
+    def self.site = Thread.current[:pwa_member_site]
+    def self.with_site(value)
+      previous = site
+      Thread.current[:pwa_member_site] = value
+      yield
+    ensure
+      Thread.current[:pwa_member_site] = previous
+    end
+    def self.account_flag(key)
+      raise ArgumentError, 'Invalid account key' unless key.to_s.match?(/\A[0-9a-f-]{36}\z/)
+      Rails.root.join('tmp/pwa-accounts', "#{key}.lock")
+    end
+    def self.frozen?
+      return true if File.exist?(Rails.root.join('tmp/pwa-migration.lock'))
+      return true if site&.manifest.to_h.dig('pwa_member', 'moved_to').present?
+      key = site&.manifest.to_h.dig('pwa_member', 'key')
+      key.present? && File.exist?(account_flag(key))
+    end
+    def self.writable!(record: nil)
+      return if Thread.current[:pwa_transfer_control]
+      moved = false
+      if shared? && record && DymondSite::Site.table_exists? && (%w[manifest tenant_type tenant_id] - DymondSite::Site.column_names).empty?
+        account_site = if record.is_a?(DymondSite::Site)
+          record
+        elsif record.is_a?(User)
+          DymondSite::Site.where(tenant: record).find { |row| row.manifest.dig('pwa_member', 'moved_to').present? }
+        elsif record.is_a?(Profile)
+          DymondSite::Site.where(tenant_type: 'User', tenant_id: record.user_id).find { |row| row.manifest.dig('pwa_member', 'moved_to').present? }
+        else
+          metadata = record.respond_to?(:metadata) && record.metadata.is_a?(Hash) ? record.metadata : {}
+          info = MediaOwnership.for(record) || metadata
+          DymondSite::Site.find_by(id: info['lightek_site_id']) if info['lightek_site_id']
+        end
+        moved = account_site&.manifest.to_h.dig('pwa_member', 'moved_to').present?
+      end
+      raise ReadOnly, 'Your account is moving to dedicated hosting. Please retry shortly.' if frozen? || moved
     end
     def self.control
       old = Thread.current[:pwa_transfer_control]; Thread.current[:pwa_transfer_control] = true
@@ -21,6 +55,7 @@ module LightekPwa
       Thread.current[:pwa_transfer_control] = old
     end
     def self.allowed_request?(request)
+      return true if request.get? && %w[/up /__lightek/release /__lightek/website-health /__lightek/site-health].include?(request.path)
       return false if frozen?
       path = request.path
       return true if request.get? && (path == '/' || path.start_with?('/site/'))

@@ -82,6 +82,9 @@ class Dashboard::ApplicationLaunchesController < ApplicationController
     scope = GatekeeperApplicationLaunch.all
     scope = scope.where(owner_id: Gatekeeper::Hosting::Access.account_ids(current_user)) unless Gatekeeper::Hosting::Access.super_admin?(current_user)
     launch = scope.find(params[:id])
+    if !Gatekeeper::Hosting::Access.super_admin?(current_user) && LightekPwa::SharedPool.where(launch_id: launch.id).exists?
+      raise Gatekeeper::Hosting::Access::Denied, 'Shared hosting infrastructure is managed by the platform operator'
+    end
     launch.with_lock do
       raise Gatekeeper::Hosting::Access::Denied, "Only failed installations can be retried" unless launch.status == "failed"
       launch.update!(status: "queued")

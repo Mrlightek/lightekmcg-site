@@ -70,6 +70,9 @@ module LightekPwa
       true
     end
     def authorize!(surface = nil)
+      if @site&.manifest.to_h.dig('pwa_member', 'hosting') == 'shared_account' && @user && @site.tenant != @user
+        raise Denied, 'This shared hosting account belongs to another customer'
+      end
       return true if super_admin?
       LightekAgency::PackagePolicy.authorize!(@user, surface || 'pwa') if defined?(LightekAgency::PackagePolicy)
       raise Denied, "Your access to this application is suspended" if membership&.status == "suspended"

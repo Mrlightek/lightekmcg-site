@@ -56,4 +56,12 @@ Platform super admins can edit each published package's direct monthly price, ag
 
 ## Fresh member runtime setup
 
-Native member installation and Fleet updates run `LightekPwa::MemberRuntime.prepare!` after migrations. On runtimes explicitly configured with `LIGHTEK_PWA_MEMBER_BACKEND=true`, it initializes completely empty PWA page/navigation and messaging/community/Studio capability registries from the repository seeds. Existing registries, including disabled entries and site overrides, are preserved. It does not load development accounts or the full development seed set. Member sign-in and a real post still require live acceptance after the update.
+Native member installation and Fleet updates run `LightekPwa::MemberRuntime.prepare!` after migrations. On runtimes explicitly configured with `LIGHTEK_PWA_MEMBER_BACKEND=true`, it initializes completely empty PWA page/navigation registries and fills missing messaging/social/community/Studio capabilities from the repository seeds. Existing capability records, including disabled entries, and site overrides are preserved. The message recipient picker uses the social recommendation contract, so social capabilities are included even if other registries already exist. It does not load development accounts or the full development seed set. Member sign-in and a real post still require live acceptance after the update.
+
+## Shared hosting → dedicated hosting
+
+Free customers now use accounts in one runtime/database/worker per shared server. Account hostnames are routes into that shared application. Paid Personal and Business customers get dedicated hosting. The paid move copies only the upgrading account's reviewed content graph and originals; it never copies the shared database or queue. The destination retains its own encryption keys, and only the customer's MFA and federation connection are rewrapped.
+
+The revenue panel controls default/round-robin placement, pause/resume and an existing host's shared account limit. The starter defaults to 25 accounts with 256 MB media each; limits are admission controls rather than proven load capacity. Capacity notifications remain Dashboard alerts, and spending/resize decisions stay with the operator. See [the deployment and upgrade runbook](pwa_launch_candidate.md#shared-hosting-and-dedicated-hosting) for retained data, rollback and live acceptance.
+
+A lone verified legacy customer runtime can become the shared host without moving its existing posts/files. The old empty pool runtime is retained as standby and paused only after a content/ownership check. Multiple legacy databases are preserved rather than merged automatically. Normal customers cannot retry or control the shared runtime's infrastructure through its former installation ownership.

@@ -146,6 +146,8 @@ capabilities.each do |definition|
           )
       )
 
+  next if ENV["LIGHTEK_PWA_SEED_MISSING_ONLY"] == "true" && capability.persisted?
+
   capability.assign_attributes(
     name:
       definition.fetch(

@@ -17,7 +17,7 @@ module LightekPwa
       raise Unavailable, 'Choose a supported provider region' unless catalog.fetch('regions').any? { |row| row['id'] == region }
       plan = smallest_plan!(catalog.fetch('plans'))
       {provider: provider, plan: plan, region: region,
-        capacity: 1}
+        capacity: 25}
     end
     def self.create_smallest_pool!(site:, actor:, region:, plan_id:, monthly_cents:, request_key:)
       operator!(site, actor)
@@ -36,12 +36,13 @@ module LightekPwa
       raise Unavailable, 'The selected server exceeds the approved monthly budget' if package.monthly_cost_ceiling_cents > budget
       catalog = Gatekeeper::Compute::LinodeCatalogService.call(provider: package.compute_provider, requested_by: actor.email_address, region: package.region)
       plan = catalog.fetch('plans').find { |p| p['id'] == package.provider_plan } or raise Unavailable, 'The shared hosting plan is unavailable'
-      raise Unavailable, 'The shared host needs at least 1.5 GB per member plus 1 GB for the host' unless plan['memory'].to_i >= Integer(max_members) * 1536 + 1024
+      raise Unavailable, 'Shared hosting needs at least 1 GB RAM' unless plan['memory'].to_i >= 1024
       raise Unavailable, 'Provider price exceeds the approved monthly budget' unless plan['monthly_cents'].to_i.positive? && plan['monthly_cents'].to_i <= budget
       raise Unavailable, 'Invalid shared-host request identity' unless request_key.to_s.match?(/\A[0-9a-f-]{36}\z/)
-      raise Unavailable, 'The shared host needs 6 GB disk per backend plus 10 GB for the host' unless plan['disk'].to_i >= Integer(max_members) * 6144 + 10240
+      raise Unavailable, 'Allow member storage plus 10 GB for the shared runtime' unless plan['disk'].to_i >= Integer(max_members) * 512 + 10240
       create_host!(site: site, actor: actor, max_members: max_members, budget: budget, request_key: request_key,
-        attributes: {template_id: package.gatekeeper_application_template_id, compute_provider_id: package.compute_provider_id, region: package.region, plan: package.provider_plan})
+        attributes: {template_id: package.gatekeeper_application_template_id, compute_provider_id: package.compute_provider_id, region: package.region, plan: package.provider_plan,
+          template_configuration: package.gatekeeper_application_template.attributes.slice('kind', 'image', 'container_port', 'credential_slug', 'rails_database', 'rails_worker', 'lightek_application').merge('pwa_pool' => {'profile' => 'shared'})})
     end
     def self.create_host!(site:, actor:, max_members:, budget:, request_key:, attributes:)
       operator!(site, actor)
@@ -144,6 +145,16 @@ module LightekPwa
         end
       end
     end
+    def self.set_account_limit!(site:, actor:, pool_id:, max_members:)
+      operator!(site, actor)
+      pool = SharedPool.where(site: site).find(pool_id)
+      pool.with_lock do
+        pool.isolated!
+        raise Unavailable, 'The account limit cannot be lower than reserved accounts' if Integer(max_members) < pool.occupied
+        pool.update!(max_members: Integer(max_members))
+      end
+      pool
+    end
     def self.connection!(backend)
       peer = backend.peer
       # This central row is discovery metadata, not an installed website. Do
@@ -169,7 +180,7 @@ module LightekPwa
         launch = backend.launch
         # Recover only a never-installed backend. Do not rotate a live peer,
         # replace a disabled credential, or race an installer already running.
-        unless backend.status.in?(%w[queued provisioning]) && (!launch || (launch.status.in?(%w[queued failed]) && launch.receipt.blank?))
+        unless backend.status.in?(%w[queued provisioning]) && (!backend.shared_account? || backend.account_receipt.blank?) && (!launch || (launch.status.in?(%w[queued failed]) && launch.receipt.blank?))
           raise Unavailable, 'Member connection credential is missing; an installed backend requires operator review'
         end
         peer.update!(token_digest: store_peer_credential!(backend: backend, key: peer.key))
@@ -189,6 +200,10 @@ module LightekPwa
       pool = backend.shared_pool
       pool.isolated!
       raise Unavailable, 'Shared hosting is unavailable' unless pool.status.in?(%w[ready paused])
+      if backend.shared_account?
+        connection = backend.with_lock { connection!(backend) }
+        return SharedAccounts.provision!(backend, connection: connection)
+      end
       backend.with_lock do
         # Retry must validate the federation credential even after a launch
         # record has been allocated; the installer still needs that credential.

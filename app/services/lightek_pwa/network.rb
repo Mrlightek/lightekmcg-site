@@ -22,6 +22,9 @@ module LightekPwa
        create_url: summary[:ready] ? summary[:url] + '/lightek/index.html#/create' : nil}
     end
     def self.require_local_write!(user:, site:)
+      if site&.manifest.to_h.dig('pwa_member', 'hosting') == 'shared_account'
+        raise Policy::Denied, 'Publish from your own shared hosting account' unless user && site.tenant == user
+      end
       destination = write_destination(user: user, site: site)
       return true unless destination
       raise Policy::Denied, destination[:ready] ? 'Publish on your own instance. Open My instance from the PWA.' : 'Your own instance is being set up. Open Membership to follow delivery.'

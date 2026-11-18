@@ -27,7 +27,7 @@ const origin = 'http://localhost:18447';
     let generated=false,published=[],loads=0,recoverable=true,taught=false,frameImported=false,uploadAttempts=0;
 
     let cable, subscription, finishReply;
-    let workerAvailability;
+    let workerAvailability, draft;
     await page.routeWebSocket('ws://localhost:18447/cable',socket=>{
       cable=socket;
       socket.onMessage(message=>{
@@ -85,9 +85,17 @@ const origin = 'http://localhost:18447';
                 {id:83,label:'Generation',status:'failed',recovery:{action:'retry_economy',message:'Try Economy at up to 512 pixels.'}},
                 ...(recoverable?[{id:79,label:'3D render',status:'recoverable',operation_id:46}]:[])]:[],
               operations:[{id:46,type:'build_scene',scene_id:7,status:recoverable?'failed':'pending',cpu_resumable:recoverable,error:recoverable?'private diagnostic':null,artifacts:[]},
+                ...(draft?[{...draft,status:'completed',artifacts:[{id:75,kind:'video',filename:'Draft.mp4',url:'/draft.mp4'}]}]:[]),
                 ...(data.activity_scene_id?[{id:71,type:'build_scene',scene_id:7,status:'completed',artifacts:[{id:77,kind:'video',filename:'Landscape render.mp4',url:'/video.mp4'}]}]:[])],
               publications:published
             };break;
+          case 'blender.preview':
+            assert.equal(data.scene_id,7);
+            assert.deepEqual(data.procedural_script_params,{camera:'angle',lighting:'soft',motion:'spin'});
+            assert.match(data.request_key,/-draft$/);
+            if(!url.pathname.startsWith('/dashboard'))assert.equal(request.prefer_async,true);
+            draft={id:70,scene_id:7,type:'build_scene',draft_preview:true,procedural_preview:true};
+            result={operation_id:70,status:'pending'};break;
           case 'render.quote': result={operation_id:46,quote:{currency:'USD',total_cents:300}};break;
           case 'render.resume': recoverable=false;result={operation_id:46,status:'pending'};break;
           case 'timeline.save': scene.settings.timeline=data.timeline;scene.lock_version++;result={timeline:data.timeline,lock_version:scene.lock_version};break;
@@ -106,6 +114,9 @@ const origin = 'http://localhost:18447';
           default: throw Error('Unexpected capability '+key);
         }
         return route.fulfill({json:{status:'completed',result}});
+      }
+      if(url.pathname==='/draft.mp4'&&process.env.STUDIO_DRAFT_VIDEO){
+        return route.fulfill({path:process.env.STUDIO_DRAFT_VIDEO,contentType:'video/mp4'});
       }
       if(url.pathname.endsWith('.mp4')||url.pathname.endsWith('.png'))return route.fulfill({status:204});
       const dashboard=url.pathname.startsWith('/dashboard');
@@ -145,6 +156,10 @@ const origin = 'http://localhost:18447';
     await page.waitForFunction(()=>!document.querySelector('.ls-controls button.ls-primary').disabled);
     assert(calls.some(([key,data])=>key==='ai.generate'&&data.aspect_ratio==='9:16'&&data.recipe==='image'&&data.genesis_worker_id===18));
     await page.getByRole('button',{name:'3D Procedural Movie'}).click();
+    await page.getByRole('button',{name:'Render draft',exact:true}).click();
+    await page.locator('video[src="/draft.mp4"]').waitFor();
+    assert.equal(await page.getByRole('button',{name:'Prepare to publish'}).count(),0);
+    await page.getByText('Full render',{exact:true}).click();
     await page.getByLabel('Render pool').selectOption('remote');
     await page.getByRole('button',{name:'Get render price'}).click();
     await page.getByRole('button',{name:'Resume Render from Checkpoint'}).waitFor();
@@ -244,10 +259,21 @@ const origin = 'http://localhost:18447';
     await page.getByRole('button',{name:'AI Studio Create',exact:true}).click();
     await page.getByRole('alert').getByText('Studio couldn’t check worker availability.').waitFor();
     assert.equal(await page.getByRole('option',{name:'No available worker'}).count(),0);
+    await page.getByRole('button',{name:'Try a 3D draft'}).click();
+    await page.getByRole('button',{name:'Render draft',exact:true}).click();
+    const draftPlayer=page.locator('video[src="/draft.mp4"]');
+    await draftPlayer.waitFor();
+    if(process.env.STUDIO_DRAFT_VIDEO){
+      await page.waitForFunction(()=>document.querySelector('video[src="/draft.mp4"]')?.readyState>=1);
+      assert.equal(await draftPlayer.evaluate(video=>video.duration),2);
+    }
+    assert.equal(await page.getByRole('button',{name:'Continue to payment'}).count(),0);
+    await page.getByRole('button',{name:'5s AI Video Wan 2.2'}).click();
     workerAvailability='standard';
     await page.getByRole('button',{name:'Retry worker check'}).click();
     await page.getByRole('option',{name:'No available worker'}).waitFor({state:'attached'});
     await page.getByRole('button',{name:/3D Procedural Movie/}).click();
+    await page.getByText('Full render',{exact:true}).click();
     await page.getByRole('option',{name:'Standard Studio Queue'}).waitFor({state:'attached'});
     await page.getByRole('button',{name:'Get render price'}).click();
     await page.getByRole('button',{name:'Continue to payment'}).waitFor();

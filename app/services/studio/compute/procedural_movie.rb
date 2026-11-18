@@ -18,15 +18,48 @@ module Studio
         result
       end
 
+      def self.preview(scene:, access:, payload:)
+        project = scene.studio_project
+        raise ActiveRecord::RecordNotFound unless project.site_id == access.site_id
+
+        key = payload.fetch("request_key").to_s
+        raise ArgumentError, "Use a valid render request key" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        manifest = build(scene, payload.fetch("scene_preset"), payload.fetch("procedural_script_params"), draft: true)
+        actor = access.user
+        capability = "studio.workspace.blender.preview"
+        operation = actor.with_lock do
+          previews = StudioOperation.where(capability: capability, studio_project_id: access.projects.select(:id))
+            .where("CAST(intent ->> 'user_id' AS TEXT) = ?", actor.id.to_s)
+            .where("metadata ->> 'procedural_preview_key' IS NOT NULL")
+          existing = previews.where("metadata ->> 'procedural_preview_key' = ?", key).first
+          if existing
+            unless existing.studio_scene_id == scene.id && existing.manifest == manifest
+              raise ArgumentError, "This request already belongs to a different preview"
+            end
+            next existing
+          end
+          active = previews.where(status: %w[pending running]).where("created_at > ?", 5.minutes.ago)
+          if active.exists? || previews.where("created_at > ?", 1.minute.ago).count >= 4
+            raise ArgumentError, "Wait for your current draft before starting another preview"
+          end
+
+          preview = scene.studio_operations.create!(studio_project: project, production: scene.production,
+            operation_type: "build_scene", provider: "blender", capability: capability, status: "pending",
+            intent: {"user_id"=>actor.id}, manifest: manifest,
+            metadata: {"draft_preview"=>true, "procedural_preview_key"=>key})
+          StudioBlenderPreviewJob.perform_later(preview.id)
+          preview
+        end
+        {operation_id: operation.id, status: operation.status}
+      end
+
       def self.quote(scene:, actor:, site_id:, payload:)
         project = scene.studio_project
         raise ActiveRecord::RecordNotFound unless project.site_id == site_id
         key = payload.fetch("request_key").to_s
         raise ArgumentError, "Use a valid render request key" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         mode = payload.fetch("routing_mode")
-        settings = payload.fetch("procedural_script_params")
-        raise ArgumentError, "Choose valid scene controls" unless settings.is_a?(Hash) && (settings.keys - %w[camera lighting motion]).empty?
-        manifest = build(scene, payload.fetch("scene_preset"), settings)
+        manifest = build(scene, payload.fetch("scene_preset"), payload.fetch("procedural_script_params"))
         scene.with_lock do
           operation = scene.studio_operations.where(capability: "studio.render.preview")
             .where("metadata ->> 'procedural_request_key' = ?",key).first
@@ -45,7 +78,11 @@ module Studio
         end
       end
 
-      def self.build(scene, preset, options)
+      def self.build(scene, preset, options, draft: false)
+        unless options.is_a?(Hash) && options.keys.sort == %w[camera lighting motion]
+          raise ArgumentError, "Choose valid scene controls"
+        end
+        fps, frame_count = draft ? [12, 24] : [24, 120]
         shape = SHAPES.fetch(preset) { raise ArgumentError, "Choose a shape" }
         camera = CAMERAS.fetch(options.fetch("camera")) { raise ArgumentError, "Choose a camera angle" }
         light = LIGHTS.fetch(options.fetch("lighting")) { raise ArgumentError, "Choose a lighting style" }
@@ -56,7 +93,7 @@ module Studio
           middle = motion=="spin" ? {"rotation"=>[0,0,180]} : {"location"=>[2,0,1]}
           ending = motion=="spin" ? {"rotation"=>[0,0,360]} : {"location"=>[0,0,1]}
           beginning = motion=="spin" ? {"rotation"=>[0,0,0]} : {"location"=>[0,0,1]}
-          definition["animation"]={"fps"=>24,"frames"=>[beginning.merge("frame"=>1),middle.merge("frame"=>60),ending.merge("frame"=>120)]}
+          definition["animation"]={"fps"=>fps,"frames"=>[beginning.merge("frame"=>1),middle.merge("frame"=>frame_count / 2),ending.merge("frame"=>frame_count)]}
         end
         records = [
           ["Subject",shape,definition],
@@ -65,11 +102,12 @@ module Studio
           ["Key light","point_light",{"location"=>[3,-4,6],"energy"=>light}]
         ]
         objects=records.each_with_index.map { |(name,type,controls),i| {"id"=>i+1,"name"=>name,"type"=>type,"definition"=>controls} }
-        settings=CpuProfile.settings({"compute_profile"=>CpuProfile::ID,"resolution_x"=>512,"resolution_y"=>288,
-          "fps"=>24,"frame_start"=>1,"frame_current"=>1,"frame_end"=>120,"active_camera_object_id"=>3})
+        settings=CpuProfile.settings({"compute_profile"=>CpuProfile::ID,"resolution_x"=>(draft ? 320 : 512), "resolution_y"=>(draft ? 180 : 288),
+          "samples"=>(draft ? 2 : Guardrails::CPU_SAMPLES), "fps"=>fps, "frame_start"=>1, "frame_current"=>1,
+          "frame_end"=>frame_count, "active_camera_object_id"=>3})
         Federation::Contract.validate!({"schema_version"=>"1.0","project"=>{"id"=>scene.studio_project_id,"name"=>scene.studio_project.name},
           "scene"=>{"id"=>scene.id,"name"=>scene.name,"settings"=>settings,"objects"=>objects},
-          "outputs"=>{"animation"=>true,"blend"=>true}})
+          "outputs"=>{"animation"=>true,"blend"=>!draft}})
       end
     end
   end

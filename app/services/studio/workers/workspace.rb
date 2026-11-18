@@ -32,16 +32,18 @@ module Studio
 
       def ai_status
         site=Studio::Ai::Setup.site_for(@access,@payload.fetch("scene_id"))
+        identity = site.manifest.to_h["studio_ai_worker"] || {"mode"=>"local"}
         inventory=begin
-          Studio::Ai::Runtime.new(site:site).inventory(telemetry:true)
+          Studio::Ai::Runtime.new(site:site, identity:identity).inventory(telemetry:true)
         rescue ArgumentError, ActiveRecord::RecordNotFound, LightekVault::Service::AccessDenied,
                LightekVault::Crypto::DecryptionError, LightekVault::MasterKey::ConfigurationError
           {connected:false,recipes:[],models:[],reason:"The configured Genesis worker could not be reached."}
         end
-        worker_id=site.manifest.to_h.dig("studio_ai_worker","installation_id")
+        worker_id=Studio::Ai::Runtime.selection_id(identity)
         device=inventory.dig(:device,:type)
         worker=worker_id && inventory[:connected] && %w[cpu cuda].include?(device) ?
-          [{id:worker_id, label:"Genesis worker", video:device=="cuda", image:inventory[:models].any? { |name| name.match?(/sd[-_. ]?1[-_. ]?5|v1[-_.]5/i) }}] : []
+          [{id:worker_id, label:worker_id == Studio::Ai::Runtime::LOCAL_WORKER_ID ? "Local Genesis worker" : "Genesis worker",
+            video:device=="cuda", image:inventory[:models].grep(Studio::Ai::Runtime::SD15_CHECKPOINT).any?}] : []
         inventory.merge(genesis_workers:worker, render_pools:Studio::Compute::ProceduralMovie.pools(site),
           performances:Studio::Ai::Performances.inventory)
       end
@@ -573,11 +575,15 @@ module Studio
       def blender_preview
         preview_capability=@action=="blender_authoring_preview" ? "studio.workspace.blender.authoring.preview" : "studio.workspace.blender.preview"
         scene=@access.scene!(@payload.fetch("scene_id"))
+        if @action=="blender_preview" && @payload.key?("scene_preset")
+          return Studio::Compute::ProceduralMovie.preview(scene:scene,access:@access,payload:@payload)
+        end
+        scope=scene.studio_operations.where(capability:preview_capability).where("metadata ->> 'procedural_preview_key' IS NULL")
         if @payload["operation_id"]
-          operation=scene.studio_operations.where(capability:preview_capability).find(@payload["operation_id"])
+          operation=scope.find(@payload["operation_id"])
         else
           @access.user.with_lock do
-            operation=scene.studio_operations.where(capability:preview_capability,status:%w[pending running]).first
+            operation=scope.where(status:%w[pending running]).first
             unless operation
               count=StudioOperation.where(capability:preview_capability,studio_project_id:@access.projects.select(:id)).where("created_at > ?",1.minute.ago).limit(100).to_a.count { |row| row.intent["user_id"].to_i==@access.user.id }
               raise ArgumentError,"Wait for the current draft renders before requesting another preview" if count>=6
@@ -816,6 +822,7 @@ module Studio
             cpu_progress:operation.metadata["cpu_render_progress"],cpu_resumable:operation.status=="failed" && operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && !operation.metadata["draft_preview"] && operation.paid?,
             output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset","fit"),
             shot:operation.metadata.slice("shot_id","shot_name"), scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
+            procedural_preview:operation.metadata["procedural_preview_key"].present?,
             artifacts: operation.artifacts.select { |artifact| artifact.file.attached? }.map do |artifact|
               { id: artifact.id, kind: artifact.kind, filename: artifact.filename,
                 url: Rails.application.routes.url_helpers.rails_blob_path(artifact.file, only_path: true) }

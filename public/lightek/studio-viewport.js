@@ -458,7 +458,7 @@ const buildObject = object => {
         for(const mesh of [...active.scene.children])mesh.traverse(child=>{if(child.isMesh&&!active.pickables.includes(child)&&child.visible)active.pickables.push(child);});
         updateHighlights(bridge()?.snapshot?.());applyTool(active.mode,bridge()?.snapshot?.());
         window.dispatchEvent(new CustomEvent('lightek:proxy-ready',{detail:{assetObjectId:object.id}}));
-      },undefined,()=>{if(active?.status)active.status.textContent='Viewport proxy unavailable. Native objects remain editable; use Blender draft preview to inspect the scene.';});
+      },undefined,()=>{if(active?.status)active.status.textContent='The 3D preview is unavailable. Use a camera preview to check your scene.';});
       break;
     }
     case "camera":
@@ -552,7 +552,7 @@ const refreshMeshCommands = (object, root, draft = window.LightekStudioMeshDraft
   const signature = JSON.stringify(commands);
   const result = root.userData.meshCommandSignature === signature
     ? root.userData.meshCommandResult : root.userData.nativeAnimation
-      ? {ok:false,reason:"This animated mesh needs a Blender viewport update for an accurate preview."}
+      ? {ok:false,reason:"Refresh the 3D preview to see this animated shape accurately."}
       : previewMeshCommands(root, commands);
   root.userData.meshCommandSignature = signature;
   root.userData.meshCommandResult = result;
@@ -1561,7 +1561,7 @@ const mountSoftware = (dom, state) => {
   canvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none';
   dom.canvasHost.append(canvas);
   const ctx = canvas.getContext('2d');
-  if (!ctx) { dom.status.textContent = 'This browser cannot draw a layout preview. Render a Blender draft frame above to inspect the scene.'; return; }
+  if (!ctx) { dom.status.textContent = 'This browser cannot draw the stage. Use a camera preview to check your scene.'; return; }
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(50,1,.01,10000);
   camera.up.set(0,0,1);
   const target = new THREE.Vector3();
@@ -1587,7 +1587,7 @@ const mountSoftware = (dom, state) => {
   dom.toolbar.querySelector('[data-studio-frame]').textContent='Frame scene';
   dom.toolbar.querySelector('[data-studio-frame]').onclick=()=>fit([]);
   dom.status.textContent='Software layout · WebGL unavailable';
-  dom.shell.querySelector('.studio-viewport-hint').textContent='Drag to orbit · wheel to zoom · click a shape to select · edit and save in Inspector. Use Blender draft preview for final appearance.';
+  dom.shell.querySelector('.studio-viewport-hint').textContent='Drag to orbit, scroll to zoom, or select an object to move it. Play the scene to check the camera view.';
   const point = (vector,width,height) => { const p=vector.clone().project(camera);return {x:(p.x+1)*width/2,y:(1-p.y)*height/2,z:p.z}; };
   const draw = () => {
     if (!active || active.shell!==dom.shell) return;

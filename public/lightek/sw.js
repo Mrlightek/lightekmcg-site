@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v93-fresh-install"
+const CACHE = "lightek-shell-v95-studio-return"
 
 const SHELL = [
   "/lightek/index.html",

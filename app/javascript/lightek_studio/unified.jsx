@@ -110,6 +110,8 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   }),[api,scene.id]);
   const [ops,setOps]=useState({operations:[],publications:[]});
   const [inventory,setInventory]=useState(null);
+  const [inventoryError,setInventoryError]=useState(false);
+  const [inventoryAttempt,setInventoryAttempt]=useState(0);
   const [referenceAssets,setReferenceAssets]=useState([]);
   const [publishLoaded,setPublishLoaded]=useState(tab==='publish');
   const [createLoaded,setCreateLoaded]=useState(tab==='create');
@@ -149,13 +151,21 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   useEffect(()=>{
     if(tab!=='create')return;
     let active=true;
-    const load=()=>{
-      api.call('ai.status',{scene_id:scene.id}).then(status=>{if(active)setInventory(status);}).catch(error=>{if(active)setInventory({reason:error.message});});
+    const load=async()=>{
+      try {
+        const status=await api.call('ai.status',{scene_id:scene.id});
+        if(!status || !Array.isArray(status.genesis_workers) || !Array.isArray(status.render_pools) || !Array.isArray(status.performances)){
+          throw Error('Incomplete worker status.');
+        }
+        if(active){setInventory(status);setInventoryError(false);}
+      }catch{
+        if(active){setInventory(null);setInventoryError(true);}
+      }
     };
     load();
     const timer=setInterval(load,20000);
     return()=>{active=false;clearInterval(timer);};
-  },[api,scene.id,tab]);
+  },[api,scene.id,tab,inventoryAttempt]);
   const clipIds=timeline.clips.map(clip=>clip.asset_id).join(',');
   useEffect(()=>{
     if(!clipIds)return;
@@ -250,7 +260,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
       <div className="ls-content">
         {error&&<p className="ls-error" role="alert">{error}</p>}
         {(message||waiting)&&<p className="ls-notice" role="status">{message || 'Preparing your media for the timeline.'}</p>}
-        {createLoaded&&<div hidden={tab!=='create'}><Creation {...{api,project,scene:{...scene,lock_version:revision},assets,referenceAssets,inventory,jobs,operations:ops.operations,selected,onSelect:setSelected,add:id=>run(()=>add(id)),refresh,timeline,go,run,busy,operationId,setOperationId,onRevision:lock_version=>{setRevision(lock_version);updateScene(scene.id,{lock_version});}}}/></div>}
+        {createLoaded&&<div hidden={tab!=='create'}><Creation {...{api,project,scene:{...scene,lock_version:revision},assets,referenceAssets,inventory,inventoryError,retryInventory:()=>{setInventoryError(false);setInventoryAttempt(attempt=>attempt+1);},jobs,operations:ops.operations,selected,onSelect:setSelected,add:id=>run(()=>add(id)),refresh,timeline,go,run,busy,operationId,setOperationId,onRevision:lock_version=>{setRevision(lock_version);updateScene(scene.id,{lock_version});}}}/></div>}
         {tab==='timeline'&&<Timeline {...{timeline,update:setTimeline,assets,save:()=>run(()=>save()),busy,dirty,selected,onSelect:setSelected,go,advanced:api.advanced(scene.id)}}/>}
         {tab==='library'&&<Library {...{assets,selected,onSelect:setSelected,busy,next,upload:file=>run(()=>upload(file)),add:id=>run(()=>add(id)),
           renders:ops.operations.filter(item=>item.scene_id===scene.id&&!item.draft_preview&&['build_scene','edit_media'].includes(item.type)),

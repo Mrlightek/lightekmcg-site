@@ -14,6 +14,7 @@ module Studio
         if ENV["STUDIO_CPU_REMOTE"] == "1" && LightekReservations::Federation::Client.config(site).present?
           result << "remote"
         end
+        result << "standard" unless Queue.dedicated?
         result
       end
 

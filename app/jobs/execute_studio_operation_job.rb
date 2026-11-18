@@ -74,6 +74,6 @@ class ExecuteStudioOperationJob < ApplicationJob
       Studio::Compute::Lease.check!
       operation.update!(status: "completed", completed_at: Time.current) unless operation.status == "cancelled"
     end
-    Blender::Runner.new(operation).clear_checkpoints! if operation.status == "completed" && Studio::Compute::Queue.economy?(operation)
+    Blender::Runner.new(operation).clear_checkpoints! if operation.provider=="blender" && operation.status == "completed" && Studio::Compute::Queue.economy?(operation)
   end
 end

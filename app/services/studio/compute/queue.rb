@@ -2,7 +2,8 @@ module Studio
   module Compute
     class Queue
       def self.economy?(operation)
-        operation.provider == "blender" && CpuProfile.economy?(operation.manifest)
+        (operation.provider == "blender" && CpuProfile.economy?(operation.manifest)) ||
+          (operation.provider == "layered_2d" && operation.manifest.dig("composition_2d","version")==1)
       end
 
       def self.name(operation)

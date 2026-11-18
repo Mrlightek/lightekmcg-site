@@ -137,6 +137,8 @@ module NevaehOs
       keys=case capability
       when "studio.workspace.ai.generate"
         Studio::Compute::Guardrails::GENERATION_INPUTS
+      when "studio.workspace.workflow.create", "studio.workspace.workflow.quote"
+        %w[scene_id prompt seed composition]
       when "studio.workspace.render.quote"
         %w[scene_id scene_preset procedural_script_params routing_mode output]
       when "studio.workspace.blender.preview"

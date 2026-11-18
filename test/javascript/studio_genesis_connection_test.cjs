@@ -31,6 +31,9 @@ function button(label){return [...window.document.querySelectorAll('button')].fi
   try{
     window.eval(fs.readFileSync(path.resolve(__dirname,'../../public/lightek/studio-unified.js'),'utf8'));
     window.LightekUnifiedStudio.pwa(window.document.querySelector('#app'),'7');
+    await until(()=>button('5s AI VideoWan 2.2'));
+    button('5s AI VideoWan 2.2').click();
+    await until(()=>button('Generate'));
     await until(()=>window.document.body.textContent.includes(reason));
     assert(button('Generate').disabled);
     assert(window.document.body.textContent.includes('engine_connection_refused'));

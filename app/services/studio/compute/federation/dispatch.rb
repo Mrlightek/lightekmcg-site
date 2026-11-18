@@ -6,7 +6,7 @@ module Studio
           receipt = operation.metadata["remote_cpu"].is_a?(Hash)
           mode = operation.metadata["cpu_routing_mode"]
           remote = receipt || mode == "remote" || (mode.nil? && ENV["STUDIO_CPU_REMOTE"] == "1")
-          remote && Queue.economy?(operation) && !StudioRemoteRender.exists?(studio_operation_id: operation.id)
+          operation.provider=="blender" && remote && Queue.economy?(operation) && !StudioRemoteRender.exists?(studio_operation_id: operation.id)
         end
         def self.client(operation) = LightekReservations::Federation::Client.new(operation.studio_project.site)
         def self.cancel!(operation)

@@ -1,5 +1,6 @@
 require_relative "campaign_studio_checks"
 require File.join(ROOT, "app/jobs/studio_editor_export_job")
+require File.join(ROOT, "app/services/lightek_pwa/media_ownership")
 require "base64"
 def Rails.root = Pathname(ROOT)
 
@@ -119,6 +120,11 @@ if ENV["STUDIO_EDITOR_RPC"] == "1"
   STDIN.each_line do |line|
     begin
       data = JSON.parse(line)
+      if data["ingest"]
+        StudioAsset.where(status: "uploaded").find_each { |asset| StudioAssetIngestJob.perform_now(asset.id) }
+        puts({ingest: true}.to_json)
+        next
+      end
       if data["jobs"]
         StudioOperation.where(status: "pending", capability: "studio.editor.export").find_each { |operation| StudioEditorExportJob.perform_now(operation.id) }
         puts({jobs: true}.to_json)

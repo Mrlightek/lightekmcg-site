@@ -16,7 +16,7 @@ function makeMedia(){
   let browser,page,server;
   try{
     makeMedia();console.log('Preparing real Rails fixture');const context=await Promise.race([ready,new Promise((_,reject)=>setTimeout(()=>reject(Error('Rails fixture failed to start: '+logs)),30000))]);
-    console.log('Rails fixture ready',context);browser=await chromium.launch({headless:true,args:['--no-sandbox','--no-zygote','--single-process','--use-gl=angle','--use-angle=swiftshader']});
+    console.log('Rails fixture ready',context);browser=await chromium.launch({headless:true,...(process.env.STUDIO_CHROMIUM_EXECUTABLE?{executablePath:process.env.STUDIO_CHROMIUM_EXECUTABLE}:{}),args:['--no-sandbox','--no-zygote','--single-process','--use-gl=angle','--use-angle=swiftshader']});
     page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[],failures=[];page.on("requestfailed",request=>console.log("REQUEST FAILED",request.url(),request.failure()));page.on('pageerror',error=>errors.push(error.message));
     server=http.createServer(async(request,response)=>{
       try{
@@ -41,6 +41,7 @@ function makeMedia(){
     await page.getByLabel('Project name').fill('Monday launch poster');await page.getByRole('button',{name:'Open Photo Studio'}).click();
     await page.waitForFunction(()=>document.querySelector('[data-editor-ready="true"]')&&window.LightekEditors?.photo?.FileSave);await page.locator('[data-editor-import]').setInputFiles(path.join(proof,'source.png'));
     await page.waitForFunction(()=>window.LightekEditors.photo.AppConfig.layers.some(layer=>layer.name==='source.png'&&layer.link?.complete));
+    await page.getByRole('status').filter({hasText:'Project saved to Lightek'}).waitFor();
     await page.frameLocator('#lightek-photo-editor').getByTitle('Duplicate layer',{exact:true}).click();
     await page.waitForFunction(()=>LightekEditors.photo.AppConfig.layers.length>=2);
     await page.getByRole('button',{name:'Save project',exact:true}).click();await page.getByRole('status').filter({hasText:'Project saved to Lightek'}).waitFor();
@@ -51,7 +52,16 @@ function makeMedia(){
     const png=await page.request.get(new URL(await page.getByRole('link',{name:/Download .*\.png/}).getAttribute('href'),page.url()).href);assert.equal(png.status(),200);fs.writeFileSync(path.join(proof,'export.png'),await png.body());
     const [backup]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Download project backup',exact:true}).click()]);await backup.saveAs(path.join(proof,'photo-backup.json'));
     await page.locator('[data-editor-restore]').setInputFiles(path.join(proof,'photo-backup.json'));await page.waitForFunction(()=>document.querySelector('[data-editor-ready="true"]')&&window.LightekEditors?.photo?.AppConfig.layers.length>=2);
-    await page.screenshot({path:path.join(proof,'photo-desktop.png'),fullPage:true});
+    if(!process.env.STUDIO_EDITOR_SKIP_SCREENSHOTS)await page.screenshot({path:path.join(proof,'photo-desktop.png'),fullPage:true});
+    await Promise.all([
+      page.waitForURL(url=>url.pathname.includes('/workspace/')&&url.searchParams.has('edit_asset')),
+      page.getByRole('button',{name:'Continue to video',exact:true}).click()
+    ]);
+    await rpc({ingest:true});
+    await page.locator('.ls-timeline button').filter({hasText:'Edited image.png'}).waitFor();
+    await page.waitForFunction(()=>!new URLSearchParams(location.search).has('edit_asset'));
+    await page.reload();
+    await page.locator('.ls-timeline button').filter({hasText:'Edited image.png'}).waitFor();
     await page.goto(`${origin}/dashboard/studio/editors/video/new?site_id=${context.site_id}`);await page.getByLabel('Project name').fill('Monday launch video');await page.getByRole('button',{name:'Open Video Studio'}).click();
     await page.waitForFunction(()=>document.querySelector('[data-editor-ready="true"]')&&window.LightekEditors?.editor?.selection?.mash);
     await page.locator('[data-editor-import]').setInputFiles(path.join(proof,'source.webm'));
@@ -65,8 +75,8 @@ function makeMedia(){
     await rpc({jobs:true});await page.getByRole('link',{name:/Download .*\.mp4/}).waitFor({timeout:20000});
     const mp4=await page.request.get(new URL(await page.getByRole('link',{name:/Download .*\.mp4/}).getAttribute('href'),page.url()).href);assert.equal(mp4.status(),200);fs.writeFileSync(path.join(proof,'export.mp4'),await mp4.body());
     const metadata=JSON.parse(execFileSync('ffprobe',['-v','error','-show_streams','-show_format','-of','json',path.join(proof,'export.mp4')],{encoding:'utf8'}));assert(metadata.streams.some(stream=>stream.codec_name==='h264'));assert(metadata.streams.some(stream=>stream.codec_type==='audio'));assert(Math.abs(Number(metadata.format.duration)-2)<0.2);
-    for(const width of [1440,1024,390]){await page.setViewportSize({width,height:1000});await page.screenshot({path:path.join(proof,`video-${width}.png`),fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Video overflow at ${width}`);for(const selector of ['.panel.player','.panel.timeline','.panel.inspector']){const panel=page.locator('#lightek-video-editor '+selector);assert(await panel.isVisible());const rect=await panel.boundingBox();assert(rect.x>=0&&rect.x+rect.width<=width+1,`${selector} is clipped at ${width}`);}}
-    await page.goto(photoURL);await page.waitForFunction(()=>document.querySelector('[data-editor-ready="true"]')&&window.LightekEditors?.photo?.FileSave);await page.screenshot({path:path.join(proof,'photo-mobile.png'),fullPage:true});
+    for(const width of [1440,1024,390]){await page.setViewportSize({width,height:1000});if(!process.env.STUDIO_EDITOR_SKIP_SCREENSHOTS)await page.screenshot({path:path.join(proof,`video-${width}.png`),fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Video overflow at ${width}`);for(const selector of ['.panel.player','.panel.timeline','.panel.inspector']){const panel=page.locator('#lightek-video-editor '+selector);assert(await panel.isVisible());const rect=await panel.boundingBox();assert(rect.x>=0&&rect.x+rect.width<=width+1,`${selector} is clipped at ${width}`);}}
+    await page.goto(photoURL);await page.waitForFunction(()=>document.querySelector('[data-editor-ready="true"]')&&window.LightekEditors?.photo?.FileSave);if(!process.env.STUDIO_EDITOR_SKIP_SCREENSHOTS)await page.screenshot({path:path.join(proof,'photo-mobile.png'),fullPage:true});
     assert.deepEqual(errors,[],'Browser JavaScript errors');assert.deepEqual(failures,[],'Missing local editor assets');
     console.log('OPEN_SOURCE_EDITORS_PASS actual miniPaint/Movie Masher: import, save, reopen, PNG/MP4 export, media-library persistence, 1440/1024/390; real Rails/ActiveStorage/FFmpeg');
   }catch(error){if(page){console.log('FAILED URL',page.url());fs.writeFileSync(path.join(proof,'failed.html'),await page.content());await page.screenshot({path:path.join(proof,'failed.png'),fullPage:true});}console.error(logs.slice(-4000));throw error;}finally{await browser?.close();server?.close();child.stdin.end();child.kill('SIGTERM');}

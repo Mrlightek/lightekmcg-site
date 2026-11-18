@@ -9,6 +9,7 @@ class Dashboard::ServerInstancesController < ApplicationController
     scope = Gatekeeper::Hosting::Access.nodes(current_user)
     @launches = GatekeeperApplicationLaunch.includes(:gatekeeper_node, :gatekeeper_application_template, :provisioning_request).order(id: :desc).limit(50)
     @launches = @launches.where(owner_id: Gatekeeper::Hosting::Access.account_ids(current_user)) unless Gatekeeper::Hosting::Access.super_admin?(current_user)
+    @launches = @launches.where.not(id: LightekPwa::SharedPool.where.not(launch_id: nil).select(:launch_id)) unless Gatekeeper::Hosting::Access.super_admin?(current_user)
     @node_counts = scope.group(:status).count
     @nodes = scope.includes(:compute_provider).order(:name).page(params[:page]).per(50)
   end

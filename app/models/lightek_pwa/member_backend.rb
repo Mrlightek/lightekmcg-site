@@ -11,6 +11,9 @@ module LightekPwa
     validates :user_id, uniqueness: {scope: :site_id}
     validates :public_key, uniqueness: true, format: {with: /\A[0-9a-f-]{36}\z/}
     validates :status, inclusion: {in: %w[queued provisioning shared_ready migrating dedicated_ready failed retired]}
+    validates :hosting_mode, inclusion: {in: %w[shared_account legacy_runtime]}
+    def shared_account? = hosting_mode == 'shared_account'
+    def source_runtime_hostname = shared_account? ? shared_pool.launch.domain : hostname
     def ready? = %w[shared_ready dedicated_ready].include?(status)
     def current_hostname = status == 'dedicated_ready' ? LightekCommerce::Installations.hostname(order) : hostname
     def current_node = status == 'dedicated_ready' ? order.gatekeeper_application_launch&.gatekeeper_node : shared_pool&.node

@@ -4,7 +4,7 @@ ActiveRecord::Schema.define do
   create_table(:lightek_agency_installed_packages) { |t| t.integer :user_id; t.string :source_key; t.boolean :runtime; t.json :policy, default: {} }
   create_table(:agency_profiles) { |t| t.integer :user_id; t.string :brand_name; t.string :accent_color, default: '#d4af37'; t.string :logo_url; t.string :support_email }
   create_table(:gatekeeper_nodes) { |t| t.string :hostname; t.json :metadata, default: {}; t.boolean :local, default: false }
-  create_table(:gatekeeper_application_launches) { |t| t.integer :gatekeeper_node_id; t.string :status }
+  create_table(:gatekeeper_application_launches) { |t| t.integer :gatekeeper_node_id; t.string :status; t.json :template_snapshot, default: {} }
   create_table(:gatekeeper_projects) { |t| t.string :domain; t.integer :gatekeeper_node_id }
   create_table(:gatekeeper_installations) { |t| t.string :domain; t.integer :gatekeeper_node_id }
   add_column :gatekeeper_nodes, :owner_type, :string
@@ -50,6 +50,8 @@ end
 require File.join(ROOT, 'app/services/lightek_pwa/native_backend')
 require File.join(ROOT, 'db/migrate/20261117140000_create_pwa_member_backends')
 CreatePwaMemberBackends.new.migrate(:up)
+require File.join(ROOT, 'db/migrate/20261118120000_add_shared_hosting_accounts')
+AddSharedHostingAccounts.new.migrate(:up)
 LightekReservations::Peer.reset_column_information
 %w[shared_pool member_backend member_ticket].each { |name| require File.join(ROOT, "app/models/lightek_pwa/#{name}") }
 %w[member_backends backend_migration source_runtime].each { |name| require File.join(ROOT, "app/services/lightek_pwa/#{name}") }
@@ -174,7 +176,7 @@ class PwaMemberBackendTest < PwaCommercialTest
     assert_raises(LightekPwa::MemberBackends::Unavailable) { @pool.isolated! }
   end
   def backend
-    @backend ||= LightekPwa::MemberBackend.create!(site: @site, user: @owner, shared_pool: @pool, hostname: 'free.test', status: 'shared_ready')
+    @backend ||= LightekPwa::MemberBackend.create!(site: @site, user: @owner, shared_pool: @pool, hostname: 'free.test', status: 'shared_ready', hosting_mode: 'legacy_runtime')
   end
   def test_free_peer_can_publish_only_for_its_backend_owner
     @peer.update!(order: nil, member_backend: backend)

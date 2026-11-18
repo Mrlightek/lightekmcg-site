@@ -35,7 +35,7 @@ class StudioEpisodeAssemblyJob < ApplicationJob
       info = probe(output,root)
       duration = Float(info.fetch('format').fetch('duration'))
       raise 'Episode runtime verification failed' unless (duration-sources.sum { |row| row['seconds'] }).abs<=0.5
-      blob = File.open(output,'rb') { |file| ActiveStorage::Blob.create_and_upload!(io:file,filename:'episode.mp4',content_type:'video/mp4',identify:false) }
+      blob = File.open(output,'rb') { |file| ActiveStorage::Blob.create_and_upload!(io:file,filename:'episode.mp4',content_type:'video/mp4',identify:false,metadata:LightekPwa::MediaOwnership.for(operation) || {}) }
       operation.production.with_lock do
         scenes = sources.map { |row| operation.production.studio_scenes.find(row['scene_id']) }.sort_by(&:id)
         scenes.each(&:lock!)

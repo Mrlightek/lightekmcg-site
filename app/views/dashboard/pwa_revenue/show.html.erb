@@ -9,14 +9,14 @@
     <table><thead><tr><th>Configuration</th><th>Status</th></tr></thead><tbody><% @launch_readiness[:configuration].each do |key, configured| %><tr><td><%= key.to_s.humanize %></td><td><%= configured ? 'Configured / enabled' : 'Needs setup' %></td></tr><% end %></tbody></table>
     <ul><% @launch_readiness[:production_acceptance].each_value do |item| %><li><%= item %></li><% end %></ul>
   </section>
-  <section><h2>Free-member hosting</h2>
-    <p>Free members use isolated application databases and storage on separate shared servers. Lightek's central host stores discovery references. A full or unavailable shared pool queues signup setup; it never falls back to the central server. The smallest starter uses a 1 GB server, a single reserved member space, 256 MB of member media storage, serialized application processes and a 2 GB swap reserve. This is a constrained pilot; full or paused pools queue new setups. Standard packages reserve 1.5 GB RAM per backend plus 1 GB for the host and allow 512 MB of media per member.</p>
+  <section><h2>Shared hosting — free accounts</h2>
+    <p>Free customers have separate accounts in one shared Lightek application, database, media store and worker on each free-member server. Account permissions and individual storage allowances keep their private content separate. Signup adds an account; it does not install another runtime. The central host stores discovery references. Paid upgrades move only that customer's account and originals to dedicated hosting. Full or paused shared servers queue new setups.</p>
     <table><thead><tr><th>Shared host</th><th>State</th><th>Capacity</th></tr></thead><tbody><% @shared_pools.each do |pool| %><tr><td><%= pool.name %></td><td><%= pool.status %></td><td><%= pool.occupied %> / <%= pool.max_members %></td></tr><% end %></tbody></table>
     <% @shared_pools.select { |pool| %w[provisioning failed].include?(pool.status) }.each do |pool| %>
       <%= button_to "Retry setup on existing server: #{pool.name}", retry_pool_dashboard_pwa_revenue_path(site_id: @site.id, pool_id: pool.id) %>
     <% end %>
     <% if @starter_offer %>
-      <p>Start small: <strong><%= @starter_offer[:plan]['label'] %> — <%= number_to_currency(@starter_offer[:plan]['monthly_cents'] / 100.0) %>/month</strong>, with <%= @starter_offer[:capacity] %> reserved member spaces. This is the smallest currently priced 1 GB-or-larger server, using the constrained starter profile. You receive a Dashboard notification when one space remains or reserved member capacity reaches 80%, and again when full. Upgrades remain your choice.</p>
+      <p>Start small: <strong><%= @starter_offer[:plan]['label'] %> — <%= number_to_currency(@starter_offer[:plan]['monthly_cents'] / 100.0) %>/month</strong>, with an initial limit of <%= @starter_offer[:capacity] %> shared accounts and 256 MB of media per account. The account limit is an admission control, not a load-test capacity claim. Dashboard notifications warn when one account space remains or 80% is reserved, and again when full. Server upgrades remain your choice.</p>
       <%= form_with url: smallest_pool_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
         <%= hidden_field_tag :request_key, SecureRandom.uuid %><%= hidden_field_tag :region, @starter_offer[:region] %><%= hidden_field_tag :plan_id, @starter_offer[:plan]['id'] %><%= hidden_field_tag :monthly_cents, @starter_offer[:plan]['monthly_cents'] %>
         <%= submit_tag @shared_pools.empty? ? 'Start with the smallest shared server' : 'Add another smallest shared server' %>
@@ -30,13 +30,17 @@
     <% end %>
     <p>Placement applies to new member backends. Existing backends stay on their server. Round robin skips full and paused servers; no placement ever falls back onto the central Lightek host.</p>
     <% @shared_pools.select { |pool| %w[ready paused].include?(pool.status) }.each do |pool| %>
+      <%= form_with url: limit_dashboard_pwa_revenue_pool_path(site_id: @site.id, pool_id: pool.id), data: {turbo: false} do %>
+        <label>Shared account limit for <%= pool.name %> <%= number_field_tag :max_members, pool.max_members, min: [pool.occupied, 1].max, max: 100, required: true %></label>
+        <%= submit_tag 'Save account limit' %>
+      <% end %>
       <%= button_to "#{pool.status == 'ready' ? 'Pause new placements on' : 'Resume placements on'} #{pool.name}", status_dashboard_pwa_revenue_pool_path(site_id: @site.id, pool_id: pool.id), params: {status: pool.status == 'ready' ? 'paused' : 'ready'} %>
     <% end %>
     <details><summary>Choose a different package or capacity</summary>
     <%= form_with url: pools_dashboard_pwa_revenue_path(site_id: @site.id), data: {turbo: false} do %>
       <%= hidden_field_tag :request_key, SecureRandom.uuid %>
       <label>Shared server package <%= select_tag :package_id, options_for_select(@pool_packages.map { |package| [package.product.name, package.id] }), include_blank: 'Choose package', required: true %></label>
-      <label>Member capacity <%= number_field_tag :max_members, 4, min: 1, max: 100, required: true %></label>
+      <label>Shared account limit <%= number_field_tag :max_members, 25, min: 1, max: 100, required: true %></label>
       <label>Approved monthly server budget (USD cents) <%= number_field_tag :monthly_budget_cents, nil, min: 1, required: true %></label>
       <p>This provisions a new paid server with the selected provider. The live provider price must fit this budget.</p><%= submit_tag 'Create separate shared server' %>
     <% end %>
@@ -49,7 +53,7 @@
   <section><h2>Creator support settlement</h2><p>Use Platform launch setup to open subscriptions, tips, live gifts and release of verified available principal. Support fees are additional and reviewed before checkout. Signed payment callbacks must include refunds and disputes. These releases are credits to payout accounts, not proof of delivery to a bank.</p>
     <table><thead><tr><th>Earning</th><th>Creator</th><th>Principal</th><th>State</th><th>Hold</th></tr></thead><tbody><% @creator_earnings.each do |earning| %><tr><td><%= earning.id %></td><td><%= earning.creator_payment.creator_id %></td><td><%= number_to_currency(earning.principal_cents / 100.0) %></td><td><%= earning.state %></td><td><%= earning.hold_reason %></td></tr><% end %></tbody></table>
   </section>
-  <section><h2>Membership</h2><p>Community is free. Each paid member receives a separately provisioned backend instance. Select existing hosting packages below; their current prices and capacity apply. Membership renews monthly until canceled.</p>
+  <section><h2>Dedicated hosting — paid membership</h2><p>Free community accounts use shared hosting. Paid members receive a dedicated Lightek instance with their own database, worker and content storage. Select existing hosting packages below; their current prices and capacity apply. Membership renews monthly until canceled.</p>
     <p><%= @membership[:setup_note] %></p>
     <% unless @membership[:enabled] %>
       <% if @launch_readiness[:paid_sales_ready] %>

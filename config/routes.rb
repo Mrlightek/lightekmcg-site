@@ -136,6 +136,7 @@ Rails.application.routes.draw do
   post '/dashboard/pwa/revenue/pools/:pool_id/retry', to: 'dashboard/pwa_revenue#retry_pool', as: :retry_pool_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/pool-routing', to: 'dashboard/pwa_revenue#configure_pool_routing', as: :routing_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/pool-status/:pool_id', to: 'dashboard/pwa_revenue#set_pool_status', as: :status_dashboard_pwa_revenue_pool
+  post '/dashboard/pwa/revenue/pool-limit/:pool_id', to: 'dashboard/pwa_revenue#set_pool_account_limit', as: :limit_dashboard_pwa_revenue_pool
   post '/dashboard/pwa/revenue/smallest-pool', to: 'dashboard/pwa_revenue#create_smallest_pool', as: :smallest_pool_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/pools', to: 'dashboard/pwa_revenue#create_pool', as: :pools_dashboard_pwa_revenue
   post '/dashboard/pwa/revenue/backends/:backend_id/retry', to: 'dashboard/pwa_revenue#retry_backend', as: :retry_backend_dashboard_pwa_revenue

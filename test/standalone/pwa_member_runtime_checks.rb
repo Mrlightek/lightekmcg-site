@@ -32,7 +32,7 @@ class PwaMemberRuntimeChecks < Minitest::Test
     assert LightekPwa::Surface.find_by!(key: 'create').enabled
     assert LightekPwa::Surface.find_by!(key: 'space').enabled
     assert LightekPwa::NavigationItem.find_by!(key: 'create').enabled
-    %w[community.post.create messages.send studio.pwa.bootstrap studio.workspace.assets.list].each do |slug|
+    %w[community.post.create messages.send social.people.recommend studio.pwa.bootstrap studio.workspace.assets.list].each do |slug|
       assert NevaehCapability.find_by!(slug: slug).enabled, slug
     end
   end
@@ -49,12 +49,23 @@ class PwaMemberRuntimeChecks < Minitest::Test
     assert_equal [false, 'Operator choice'], capability.reload.attributes.values_at('enabled', 'description')
   end
   def test_seed_failure_rolls_back_page_initialization
-    NevaehCapability.stub(:exists?, -> { raise 'seed boundary failed' }) do
+    NevaehCapability.stub(:find_or_initialize_by, ->(**) { raise 'seed boundary failed' }) do
       assert_raises(RuntimeError) { LightekPwa::MemberRuntime.prepare! }
     end
     assert_empty LightekPwa::Surface.all
     assert_empty LightekPwa::NavigationItem.all
     assert_empty NevaehCapability.all
+  end
+  def test_partial_registry_gets_social_picker_without_resetting_disabled_contracts
+    NevaehCapability.create!(slug: 'messages.send', enabled: false, description: 'Owner disabled')
+    LightekPwa::MemberRuntime.prepare!
+    assert NevaehCapability.find_by!(slug: 'social.people.recommend').enabled
+    assert_equal [false, 'Owner disabled'], NevaehCapability.find_by!(slug: 'messages.send').attributes.values_at('enabled', 'description')
+    ENV['LIGHTEK_PWA_SEED_MISSING_ONLY'] = 'prior-value'
+    LightekPwa::MemberRuntime.prepare!
+    assert_equal 'prior-value', ENV['LIGHTEK_PWA_SEED_MISSING_ONLY']
+  ensure
+    ENV.delete('LIGHTEK_PWA_SEED_MISSING_ONLY')
   end
   def test_nonmember_databases_are_untouched
     ENV['LIGHTEK_PWA_MEMBER_BACKEND'] = 'false'

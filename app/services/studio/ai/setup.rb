@@ -77,7 +77,7 @@ module Studio
         end
         {can_manage:true,install:state.slice("status","request_id","installation_id","package_id","device","phase","model","downloaded_bytes","total_bytes","message","progress_message"),
           workers:targets.map{|i|{id:i.id,domain:i.domain}},
-          packages:catalog.fetch("packages").map{|id,p|{id:id,name:p["name"],devices:p["devices"],ram_gib:p["ram_gib"],ram_mib:p["ram_mib"],available_mib:p["available_mib"],free_disk_gib:p["free_disk_gib"],vram_mib:p["vram_mib"]}},
+          packages:catalog.fetch("packages").map{|id,p|{id:id,name:p["name"],devices:p["devices"],ram_gib:p["ram_gib"],free_disk_gib:p["free_disk_gib"],vram_mib:p["vram_mib"]}},
           active:site.manifest.to_h["studio_ai_worker"].present?}
       end
       def self.transport(site, installation, state, actor, action:, token:nil)

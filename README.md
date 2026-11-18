@@ -158,6 +158,6 @@ See [the November 17 PWA audit](docs/pwa_launch_audit_20261117.md) for current f
 
 PWA revenue administration also offers **Teach Nevaeh**: prepare the PWA policy/audit as provenance-linked learning batches, review them, and train an enabled internal model through the existing sequential acceptance pipeline. See [the PWA business-model guide](docs/nevaeh/tutorials/pwa_business_model.md). KB synchronization and actual model-training status are reported separately; no missing executor is activated by learning the guide.
 
-### ComfyUI CPU workflow draft
+### Native 2D scenes and parallax
 
-Studio includes a model-free ComfyUI → job-scoped MCP → Blender/FFmpeg review-draft path. It supports a bounded procedural prompt language and requires an installed workflow controller with available memory. See [setup, limits and acceptance](docs/studio/ai-studio.md#comfyui-cpu-workflow-through-mcp). Production readiness requires a real submission and returned video on the selected worker.
+Studio opens **2D Scene & Parallax** independently of Genesis. A supported park prompt creates a seeded, editable layered scene; add prepared library images, change stacking and depth, save nested groups and render an H.264 preview. The CPU compositor uses FFmpeg and ImageMagick, without ComfyUI or Blender. Full exports reuse Dymond Bank checkout. See [scope, limits and acceptance](docs/studio/ai-studio.md#native-2d-scenes-and-parallax). Production PWA acceptance remains required after deployment.

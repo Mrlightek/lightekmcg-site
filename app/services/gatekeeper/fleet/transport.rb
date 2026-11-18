@@ -92,8 +92,7 @@ module Gatekeeper
             end
             if script_name == "install_studio_ai.py"
               catalog = Base64.strict_encode64(Rails.root.join("config/studio_ai/packages.json").read)
-              nodes = Base64.strict_encode64(Rails.root.join("lib/comfyui/lightek_studio/__init__.py").read)
-              script = "import base64,json\n_LIGHTEK_AI_CATALOG=json.loads(base64.b64decode('#{catalog}'))\n_LIGHTEK_STUDIO_NODES=base64.b64decode('#{nodes}').decode('utf-8')\n" + script
+              script = "import base64,json\n_LIGHTEK_AI_CATALOG=json.loads(base64.b64decode('#{catalog}'))\n" + script
             end
             command = "timeout --signal=TERM --kill-after=30s #{duration}s python3 -c #{Shellwords.escape(script)}"
             stdout = +""

@@ -4,7 +4,7 @@ module Studio
   module Workers
     module Activity
       LABELS = {
-        "studio.workspace.workflow.create"=>"ComfyUI workflow draft",
+        "studio.workspace.workflow.create"=>"2D scene render",
         "studio.workspace.ai.generate"=>"Generation",
         "studio.workspace.render.quote"=>"3D render",
         "studio.workspace.blender.preview"=>"3D draft",

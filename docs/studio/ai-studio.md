@@ -4,47 +4,46 @@ AI Studio connects self-hosted generation to the same production library, storyb
 
 [CPU procedural scene production](cpu-economy.md) is available through the existing native production workflow without installing diffusion models. Neural generation below is optional and requires a configured neural worker. Only infrastructure operators receive engine/model installation controls.
 
-## ComfyUI CPU workflow through MCP
+## Native 2D scenes and parallax
 
-**Studio → AI Studio Create → ComfyUI CPU Draft** runs a four-node, model-free ComfyUI graph: job context → Blender render → FFmpeg assembly → Studio result. ComfyUI's custom nodes call a stateless, job-scoped MCP endpoint in Rails. Existing CPU queue, lease and federation routes execute the Blender child operation; ComfyUI does not load a video model or execute arbitrary Python supplied by a creator.
+Studio Create opens **2D Scene & Parallax** in Dashboard and PWA. It checks the native media runtime independently of Genesis. A missing ComfyUI connection does not disable this tool. This path does not install or invoke ComfyUI, Torch, neural weights or Blender.
 
-This first workflow produces a **two-second, 320×180 review draft** of one procedural shape. Its supported prompt language is intentionally bounded:
+Enter **A nighttime park with a character sitting on a bench**, then generate a layout or render a preview. The bounded prompt parser supports daytime/nighttime parks, optional tree/bench counts, a seated character illustration and left/right camera movement. Omitted counts use seeded defaults (3–5 trees and 1–2 benches), with placement around the path and scene edges. Unsupported prompts return an example. This is procedural template composition, not a trained neural model or arbitrary prompt-to-video inference.
 
-> A cube spins under soft lighting viewed from front
+Six starter illustrations provide day/night skies, ground/path, an oak tree, a bench and a seated person. These are basic reusable artwork, not a rigged character system. Prepared library images can also become layers. Edit positions, sizes, fit, opacity, rotation and depth. Nested groups carry transforms, stacking contexts and inherited depth. Scene saves use optimistic locking and preserve other scene settings.
 
-Shapes: cube, sphere, cylinder. Motion: spins/rotates, slides, stays still. Optional lighting: soft, bright, low. Optional camera: front, angle, overhead. Unsupported scenes fail with an example instead of silently rendering unrelated content. This is a template planner, not an unrestricted language model. The scene plan and immutable render manifest remain in the operation receipt.
+**Z-index controls drawing order. Depth independently controls camera displacement**, so foreground assets move farther. The SVG editor preview loops forward and back; exports follow one camera move. Current motion is camera-driven parallax. Per-object keyframes, walking, speaking, interaction, rigging and physics are future work for this compositor.
 
-The saved MP4 is previewed in Studio. It remains a private draft: existing restrictions on adding draft artifacts to an episode or publishing them still apply. Full-quality render/payment/export paths are unchanged. Character animation, speech/music composition, general Movie Masher exports, neural generation and general-purpose MCP access are not implemented by this four-node graph.
+| Limit | Native compositor |
+| --- | --- |
+| Editable graph | 48 nodes, 24 image layers, four nesting levels, 64 KiB JSON |
+| Source images | Owned/site-scoped PNG/JPEG/WebP/GIF/AVIF; 25 MiB each, 64 MiB combined |
+| Private preview | At most 640 pixels on the long edge, two seconds, 12 fps |
+| Full export | Up to ten seconds, 24 fps; even dimensions, maximum 1920×1080 pixels in area |
+| Raster budget | Rotated layer edge at most 4096 pixels; total area at most six canvases |
+| Worker process | Existing media image, 512 MiB container cap, CPU slot, 180-second timeout |
 
-### Install the workflow controller
+Library images require raster signatures. Trusted template SVG bytes and source blobs are frozen onto each operation before queuing. Later scene edits cannot change a queued render. The renderer uses fixed local filenames without networking. The deployed media image needs Python 3, FFmpeg with SVG decoding/H.264 encoding, and ImageMagick. Readiness rasterizes a tiny SVG and processes the result; it checks the local runtime, not whether a separate worker consumes its queue. Creator requests never pull a runtime image.
 
-From the Dashboard workspace, **Open worker setup** opens the existing operator setup surface. Select **Studio workflow controller · no neural models**, CPU, and a registered application runtime you can manage. The package downloads no model weights, installs only the trusted `lightek_studio` custom node package, and enables that package through ComfyUI's custom-node whitelist. The root filesystem and node package remain read-only. Managed connections retain the existing private HTTPS/Vault route.
+Rendering uses `ExecuteStudioOperationJob`, existing leases/cancellation, CPU concurrency controls and shared storage. It uses the local Studio queue or configured dedicated CPU queue. The cross-installation Blender federation protocol does not accept this composition format. The 512 MiB cap is a bound, not a guarantee every scene fits or that a busy 2 GB host has sufficient headroom. Measure representative exports on the deployment host.
 
-For an operator-managed local engine on the main application host, the same bounded helper can install this package without creating a new server or a managed-worker identity. After deployment, run from the application directory as its OS user:
+Preview artifacts cannot enter reusable assets or publishing. **Get 2D export price** creates an immutable full-render snapshot and uses existing Dymond Bank quote/checkout, credentials and canonical signed callback. Only paid final operations execute. Completed full clips can enter the Media Library/Timeline handoff. No new payment credentials or callback are introduced.
 
-```sh
-python3 script/studio/install_local_workflow.py --domain YOUR_EXISTING_HTTPS_APP_HOSTNAME
-```
+### Capability and MCP contracts
 
-This uses the already installed sudo rule and root-owned package catalog. It installs the controller on loopback port 8188, preserves host ownership checks, and keeps the application’s existing local-runtime fallback. Use it only on the application host whose existing HTTPS hostname is supplied. A workflow controller on another host is connected through managed-worker setup instead. No automatic installation runs during deployment.
+Authenticated capabilities are `workflow.status`, `workflow.plan`, `workflow.save`, `workflow.create` and `workflow.quote` under the existing Studio workspace and PWA bridge. Creation accepts a scene ID, normalized composition (or supported prompt/seed) and idempotent request key. Saving requires the scene lock version. Actor, site, project and source ownership are rechecked on execution.
 
-The controller budget is 1 GiB RAM. Preflight requires at least 1536 MiB total RAM, 1024 MiB currently available, and 6 GiB free disk for the engine/build. A nominal 2 GB server can meet the total-memory threshold, but a busy host reporting 556 MiB available fails the headroom check. Free capacity or select another registered worker; the setup does not stop other applications or resize a server. Rendering still consumes resources on the selected CPU worker.
+Optional `POST /api/lightek/pwa/studio/workflows/:id/mcp` supports MCP initialization and job-scoped `studio_render`/`studio_result`. A signed one-hour token selects one existing job; callers cannot supply commands, files or other scenes. The browser does not require MCP to render. The native queue owns execution and operation/artifact identities.
 
-A local proof with the pinned ComfyUI 0.3.76 / Torch 2.7.1 CPU runtime measured approximately 469 MiB peak ComfyUI RSS and produced a real two-second MP4 through the production MCP controller, Blender worker and FFmpeg assembler. This is one measured controller process, not a guarantee of total host/container usage. Production setup and a real PWA submission must still be verified on the selected installation.
+### Validation and production acceptance
 
-### MCP contract and recovery
+`test/standalone/studio_native_workflow_checks.rb` exercises real Active Record/Active Storage submission, snapshots, save conflicts, tenant boundaries, idempotency, MCP scoping, unpaid rejection and native H.264 rendering. ComfyUI and Blender constructors fail the test if invoked. `test/operations/studio_layered_renderer_test.py` measures exported pixels to verify foreground movement exceeds background movement. DOM checks cover layout, edit, save and rendering while rejecting Genesis status calls.
 
-The authenticated Studio entry capability is `studio.workspace.workflow.create`, with `scene_id`, supported `prompt` and an idempotent `request_key`. Nevaeh retains the existing Gatekeeper/Dispatch path for this entry; the MCP tools are restricted to continuing the resulting job.
-
-`POST /api/lightek/pwa/studio/workflows/:id/mcp` supports MCP 2025-06-18 initialization, initialized notifications, tools/list and tools/call. Its only tools are `studio_render`, `studio_assemble` and `studio_result`, with empty argument objects. A signed one-hour Bearer token selects exactly one existing operation. The controller rechecks creator/project/site access; clients cannot choose users, scenes, shell commands, filenames or graphs. There is no public general-purpose OAuth MCP service in this release. The token and endpoint are generated server-side and never returned to the Studio browser.
-
-Render and assembly steps retain their operation/artifact IDs across repeated calls. Failed, cancelled, expired or revoked jobs cannot start a new step. Uncertain ComfyUI submissions are not automatically resubmitted. Inspect the existing operation and worker history before starting a new request.
-
-The integration test `script/studio/prove_comfy_workflow.py` starts real pinned ComfyUI, serves the Rails MCP controller on loopback, executes the Blender queue job, assembles with FFmpeg and validates the saved MP4 with ffprobe. CI preserves its output video as an artifact. It does not claim that a production instance is configured or that all Studio engines work.
+After deployment, submit a preview from the actual PWA, reopen saved layers, complete an authorized final checkout, inspect the full video, add it to Timeline and verify publishing. Local fixtures do not establish a real payment, production queue consumption, host memory headroom or completed episode production.
 
 ## Generate and edit
 
-Open a production → **AI Studio**. The application checks the selected local or managed ComfyUI worker, its nodes and installed model names. Only ready recipes can be submitted. Choose a workflow, write the prompt, optionally a negative prompt, and keep or change the seed. The concept-image recipe also offers its installed checkpoint selector.
+For optional neural tools, open a production → **AI Studio** and select Wan or Concept Art. The application checks the selected local or managed ComfyUI worker, its nodes and installed model names. Only ready recipes can be submitted. Choose a workflow, write the prompt, optionally a negative prompt, and keep or change the seed. The concept-image recipe also offers its installed checkpoint selector.
 
 | Workflow | Inputs and result |
 | --- | --- |

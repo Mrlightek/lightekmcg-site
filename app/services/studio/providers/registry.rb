@@ -2,6 +2,7 @@ module Studio
   module Providers
     class Registry
       PROVIDERS = {
+        "layered_2d" => "Studio::Providers::LayeredProvider",
         "blender" => "Studio::Providers::BlenderProvider",
         "ffmpeg" => "Studio::Providers::FfmpegProvider"
       }.freeze

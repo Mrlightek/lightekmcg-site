@@ -128,7 +128,7 @@ const origin = 'http://localhost:18447';
     });
     const workspace=origin+'/dashboard/studio-broadcasting/workspace/7?site_id=2';
     await page.goto(workspace+'#/studio/7/create');
-    await page.getByRole('button',{name:'5s AI Video Wan 2.2'}).waitFor();
+    await page.getByRole('button',{name:'5s AI Video Wan 2.2'}).click();
     await page.getByLabel('Prompt').fill('Orbit the host desk');
     await page.getByText('Advanced',{exact:true}).click();
     await page.getByRole('spinbutton',{name:/Seed/}).fill('42');

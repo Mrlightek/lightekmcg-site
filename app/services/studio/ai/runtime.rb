@@ -74,10 +74,7 @@ module Studio
           end
           {id:recipe["id"],name:recipe["name"],kind:recipe["kind"],input_kind:recipe["input_kind"],steps:recipe_steps(recipe),ready:!missing_inputs && missing.empty? && missing_models.empty? && (!needs_checkpoint || models.any?),reason:missing_inputs ? "Required image-conditioning inputs are not available on this engine" : missing.any? ? "Required engine nodes are not installed" : missing_models.any? ? "Required workflow models are not installed" : needs_checkpoint && models.empty? ? "Install a local checkpoint on the generation worker" : nil}
         end
-        workflow_nodes=%w[LightekStudioJob LightekBlenderRender LightekFFmpegAssembly LightekStudioResult]
-        workflow_ready=workflow_nodes.all? { |name| nodes.key?(name) }
-        {connected:true,engine:"Self-hosted ComfyUI",recipes:available,models:models,device:telemetry ? device_status : nil,
-          workflow:{ready:workflow_ready,reason:workflow_ready ? nil : "Install the trusted Lightek workflow node package on this ComfyUI worker."}}
+        {connected:true,engine:"Self-hosted ComfyUI",recipes:available,models:models,device:telemetry ? device_status : nil}
       rescue SystemCallError,SocketError,Timeout::Error,IOError,OpenSSL::SSL::SSLError,ArgumentError,JSON::ParserError,TypeError,KeyError => error
         code,reason=case error
         when EngineResponseError

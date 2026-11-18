@@ -22,7 +22,7 @@
 <%= javascript_include_tag "/lightek/studio-production.js?v=99", defer:true %>
 <%= javascript_include_tag "/lightek/studio-dashboard-context.js?v=1", defer:true %>
 <%= javascript_include_tag "/lightek/studio-edit-workbench.js?v=99", defer:true %>
-<%= javascript_include_tag "/lightek/studio-ai.js?v=100", defer:true %>
+<%= javascript_include_tag "/lightek/studio-ai.js?v=98", defer:true %>
 <%= javascript_include_tag "/lightek/studio-shots.js?v=67", defer:true %>
 <%= stylesheet_link_tag "/lightek/studio-shots.css?v=67" %>
 <%= javascript_include_tag "/lightek/studio-delivery.js?v=98", defer:true %>
@@ -40,7 +40,7 @@
 <% else %>
   <% content_for :page_title, "Lightek Studio" %>
   <% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
-  <%= stylesheet_link_tag "/lightek/studio-unified.css?v=4" %>
+  <%= stylesheet_link_tag "/lightek/studio-unified.css?v=5" %>
   <div data-turbo="false" data-unified-studio
        data-site-id="<%= @site.id %>" data-scene-id="<%= @scene&.id %>"
        data-workspace="<%= @workspace_mode %>" data-csrf-token="<%= form_authenticity_token %>"
@@ -52,5 +52,5 @@
     </section>
   </div>
   <%= javascript_include_tag "/lightek/nevaeh-client.js?v=66", defer: true %>
-  <%= javascript_include_tag "/lightek/studio-unified.js?v=11", defer: true %>
+  <%= javascript_include_tag "/lightek/studio-unified.js?v=12", defer: true %>
 <% end %>

@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[workflow_create look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs social_accounts social_options project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[workflow_status workflow_plan workflow_save workflow_quote workflow_create look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs social_accounts social_options project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -49,6 +49,15 @@ module Studio
           performances:Studio::Ai::Performances.inventory)
       end
       def workflow_create = Studio::Workflows::Production.start(access:@access,payload:@payload)
+      def workflow_plan = Studio::Workflows::Production.plan(access:@access,payload:@payload)
+      def workflow_save = Studio::Workflows::Production.save(access:@access,payload:@payload)
+      def workflow_quote = Studio::Workflows::Production.start(access:@access,payload:@payload,final:true)
+      def workflow_status
+        scene=Studio::Workflows::Production.scene!(@access,@payload.fetch("scene_id"))
+        queue=Studio::Compute::Queue.dedicated? ? Studio::Compute::Queue.dedicated_name : "studio"
+        Studio::Layered::Runtime.status.merge(queue:queue,assets:Studio::Layered::Composition.catalog,
+          composition:scene.settings["composition_2d"],lock_version:scene.lock_version)
+      end
       def ai_setup_status = Studio::Ai::Setup.status(access:@access,payload:@payload)
       def ai_setup_install = Studio::Ai::Setup.start(access:@access,payload:@payload)
       def ai_generate
@@ -818,6 +827,7 @@ module Studio
               youtube_submitted: publication.metadata["youtube_submission"].present?,remote_id:publication.metadata.dig("social_submission","media_id") || publication.metadata.dig("social_submission","remote_id"),platform:publication.platform } },
           operations: project.studio_operations.where.not(operation_type:"speech_analysis").order(id: :desc).limit(30).map do |operation|
           { id: operation.id, type: operation.operation_type, status: operation.status, error: operation.error_message,
+            layered_scene:!!operation.metadata["layered_scene"],layered_metrics:operation.metadata["layered_metrics"],
             campaign_draft: operation.capability=="marketing.campaign.produce",
             social_source: operation.intent["user_id"]==@access.user.id ? operation.metadata["social_source"] : nil,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,

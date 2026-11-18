@@ -26,8 +26,7 @@ class Api::Lightek::Pwa::StudioWorkflowsController < ActionController::API
       rescue StandardError=>error
         message=if error.is_a?(ArgumentError)
           error.message.first(300)
-        elsif input["name"]=="studio_assemble"
-          "The FFmpeg assembly step failed. Check the Studio media runtime on the application host."
+
         else
           "This job's workflow step failed. Check the CPU worker and its operation status."
         end

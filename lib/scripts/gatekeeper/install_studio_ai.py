@@ -15,10 +15,6 @@ import urllib.request
 
 ROOT = Path('/opt/lightek/genesis')
 CATALOG_PATH = Path('/usr/local/lib/lightek/studio-ai-packages.json')
-NODES_PATH = Path('/usr/local/lib/lightek/studio-comfy-nodes.py')
-
-def trusted_nodes():
-    return globals().get('_LIGHTEK_STUDIO_NODES') or NODES_PATH.read_text()
 
 
 def catalog():
@@ -62,8 +58,8 @@ def status(payload):
 
 def resources(package, device, memory_mib, available_mib, disk_bytes, gpu_mib=0, nvidia_runtime=False):
     if device not in package['devices']: raise ValueError('gpu_required')
-    minimum = package.get('ram_mib', package['ram_gib'] * 1024)
-    if memory_mib < minimum or available_mib < package.get('available_mib', minimum - 2048): raise ValueError('insufficient_memory')
+    minimum = package['ram_gib'] * 1024
+    if memory_mib < minimum or available_mib < minimum - 2048: raise ValueError('insufficient_memory')
     if disk_bytes < package['free_disk_gib'] * 1024**3: raise ValueError('insufficient_disk')
     if device == 'cuda' and not nvidia_runtime: raise ValueError('gpu_unavailable')
     if device == 'cuda' and gpu_mib < package['vram_mib']: raise ValueError('insufficient_vram')
@@ -130,21 +126,18 @@ def dockerfile(config, device):
 RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg libglib2.0-0 libgl1 && rm -rf /var/lib/apt/lists/*
 RUN git init /opt/ComfyUI && cd /opt/ComfyUI && git remote add origin https://github.com/Comfy-Org/ComfyUI.git && git fetch --depth=1 origin {commit} && git checkout --detach FETCH_HEAD && test "$(git rev-parse HEAD)" = "{commit}"
 RUN pip install --no-cache-dir torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/{index}
-RUN pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt requests==2.32.5 transformers==4.57.1 && pip freeze > /opt/lightek-genesis-requirements.txt
+RUN pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt && pip freeze > /opt/lightek-genesis-requirements.txt
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 HF_HUB_DISABLE_TELEMETRY=1 DO_NOT_TRACK=1
 WORKDIR /opt/ComfyUI
-COPY lightek_studio /data/custom_nodes/lightek_studio
 USER 10001:10001
 '''
 
 
-def compose(config, device, memory_gib, workflow=False, origin=None):
+def compose(config, device, memory_gib):
     command = ['python', 'main.py', '--listen', '0.0.0.0', '--port', '8188', '--disable-api-nodes', '--disable-all-custom-nodes',
                '--base-directory', '/data', '--output-directory', '/data/output', '--temp-directory', '/data/temp',
                '--input-directory', '/data/input', '--user-directory', '/data/user']
-    command += ['--database-url','sqlite:////data/user/comfy.db']
     command += ['--cpu'] if device == 'cpu' else ['--lowvram']
-    if workflow: command += ['--whitelist-custom-nodes','lightek_studio']
     service = {'image': f"lightek/genesis:{config['engine_commit'][:12]}-{device}", 'restart': 'unless-stopped',
         'user': '10001:10001', 'read_only': True, 'cap_drop': ['ALL'], 'security_opt': ['no-new-privileges:true'],
         'pids_limit': 512, 'mem_limit': f'{memory_gib}g', 'cpus': max(1, min(8, (os.cpu_count() or 2)-1)),
@@ -152,8 +145,6 @@ def compose(config, device, memory_gib, workflow=False, origin=None):
         'volumes': [str(ROOT / 'models')+':/data/models:ro'] + [str(ROOT / name)+':/data/'+name+':rw' for name in ('output','input','user','temp')],
         'command': command, 'logging': {'driver':'json-file','options':{'max-size':'10m','max-file':'3'}}}
     if device == 'cuda': service['deploy']={'resources':{'reservations':{'devices':[{'driver':'nvidia','count':1,'capabilities':['gpu']}]}}}
-    if workflow:
-        service['environment']={'LIGHTEK_STUDIO_ORIGIN': origin or ''}
     return {'services': {'genesis': service}}
 
 
@@ -217,8 +208,6 @@ def apply(payload):
         progress('building_engine')
         with tempfile.TemporaryDirectory(prefix='genesis-build-') as temporary:
             Path(temporary,'Dockerfile').write_text(dockerfile(config,device))
-            nodes=Path(temporary,'lightek_studio');nodes.mkdir()
-            (nodes/'__init__.py').write_text(trusted_nodes())
             image=compose(config,device,6)['services']['genesis']['image']
             run('docker','build','-t',image,temporary,timeout=2400)
         if device=='cuda': run('docker','run','--rm','--gpus','all',image,'python','-c','import torch; assert torch.cuda.is_available()',timeout=60)
@@ -227,8 +216,7 @@ def apply(payload):
             folder=ROOT/'models'/model['folder'];folder.mkdir(exist_ok=True);folder.chmod(0o755)
             download(model,folder,progress)
         progress('starting_engine')
-        definition=compose(config,device,package.get('memory_limit_gib',package['ram_gib']-2),
-                          workflow=payload['package_id']=='workflow',origin='https://'+payload['owner_domain'])
+        definition=compose(config,device,package['ram_gib']-2)
         compose_path=ROOT/'compose.json';atomic(compose_path,definition)
         run('docker','compose','-p','lightek-genesis','-f',str(compose_path),'up','-d',timeout=120)
         run('a2enmod','proxy','proxy_http','authz_core')
@@ -245,11 +233,8 @@ def apply(payload):
                 request=urllib.request.Request(url,headers={'Authorization':'Bearer '+payload['api_token']})
                 with urllib.request.build_opener(NoRedirect()).open(request,timeout=10) as response: nodes=json.loads(response.read(5*1024*1024+1))
                 if not isinstance(nodes,dict) or 'KSampler' not in nodes: raise ValueError('invalid_engine_inventory')
-                if payload['package_id']=='workflow' and not all(name in nodes for name in ('LightekStudioJob','LightekBlenderRender','LightekFFmpegAssembly','LightekStudioResult')):
-                    raise ValueError('workflow_nodes_unavailable')
                 state.update(status='ready',phase='ready',engine_commit=config['engine_commit'],engine_version=config['engine_version'],
-                             models=[m['name'] for m in config['models'] if m['id'] in package['models']],
-                             readiness='engine_and_workflow_nodes' if payload['package_id']=='workflow' else 'engine_and_model_files')
+                             models=[m['name'] for m in config['models'] if m['id'] in package['models']],readiness='engine_and_model_files')
                 atomic(state_path,state);return state
             except Exception:
                 if attempt==44: raise ValueError('engine_health_failed')

@@ -3,7 +3,7 @@
 module NevaehOs
   module SpecialistContext
     TOPICS = {
-      "workflow"=>["ComfyUI CPU workflow through MCP","docs/studio/ai-studio.md",/\bcomfyui\b|comfy.*draft|cpu workflow/i],
+      "workflow"=>["Lightek 2D scene and parallax","docs/studio/ai-studio.md",/\bparallax\b|2[.]?5?d scene|layered scene|native.*video/i],
       "wan"=>["Wan 2.2","docs/studio/genesis-image-to-video.md",/\bwan\b|image.to.video/i],
       "sd"=>["Stable Diffusion 1.5","docs/studio/genesis-workers.md",/stable diffusion|\bsd\s*1[.]5\b/i],
       "cpu"=>["Blender Cycles Economy","docs/studio/cpu-economy.md",/\bblender\b|\bcycles\b|cpu economy/i],
@@ -16,7 +16,7 @@ module NevaehOs
 
     def topic_for(capability,payload)
       case capability
-      when "studio.workspace.workflow.create" then "workflow"
+      when "studio.workspace.workflow.create","studio.workspace.workflow.quote","studio.workspace.workflow.plan","studio.workspace.workflow.save" then "workflow"
       when "studio.workspace.ai.generate"
         return "wan" if Studio::Compute::Guardrails::WAN_RECIPES.include?(payload["recipe"])
         payload["recipe"]=="image" ? "sd" : "performance"
@@ -30,7 +30,7 @@ module NevaehOs
       rules=Studio::Compute::Guardrails
       case topic
       when "workflow"
-        "In AI Studio Create, choose ComfyUI CPU Draft. With the workflow controller installed, try: A cube spins under soft lighting viewed from front. It makes a two-second 320×180 review draft through MCP, Blender and FFmpeg without neural models. Supported shapes are cube, sphere and cylinder; motion is spin, slide or still. Arbitrary scenes and full-quality exports are outside this draft workflow."
+        "In Create, choose 2D Scene & Parallax. Try: A nighttime park with a character sitting on a bench. Lightek supplies seeded tree and bench defaults. Edit reusable image layers and nested groups; z-index controls stacking while depth controls parallax. A private preview is at most two seconds, 640 pixels and 12 fps. Final exports use existing checkout, up to ten seconds, 24 fps and 1920×1080 pixels in area. The CPU renderer requires FFmpeg with SVG decoding and ImageMagick, without ComfyUI or Blender. This is a template compositor, not unrestricted neural generation or a rigged character animation system."
       when "wan"
         "In Create, pick Wan 2.2 and add a prompt or starting image. Auto uses the registered worker’s available VRAM. Economy caps the clip at 512×288, and Quality at 1280×704. Both cap at #{rules::WAN_FRAMES} frames. If memory is tight, start with Economy and 20 steps."
       when "sd"

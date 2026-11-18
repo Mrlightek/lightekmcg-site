@@ -92,20 +92,6 @@ class GenesisSetupTest(unittest.TestCase):
         dockerfile=genesis.dockerfile(self.config,'cpu')
         self.assertIn(self.config['engine_commit'],dockerfile);self.assertIn('torch==2.7.1',dockerfile)
         self.assertIn('USER 10001:10001',dockerfile)
-    def test_workflow_controller_has_no_models_and_only_trusted_nodes(self):
-        package=self.config['packages']['workflow']
-        self.assertEqual([],package['models'])
-        # A nominal 2 GB host reports less than 2048 MiB. Headroom is checked
-        # independently from total RAM; the production host's 556 MiB is low.
-        genesis.resources(package,'cpu',1945,1100,8*1024**3)
-        with self.assertRaisesRegex(ValueError,'insufficient_memory'):
-            genesis.resources(package,'cpu',1945,556,8*1024**3)
-        service=genesis.compose(self.config,'cpu',1,workflow=True,origin='https://studio.example.test')['services']['genesis']
-        self.assertIn('--disable-all-custom-nodes',service['command'])
-        self.assertEqual('lightek_studio',service['command'][-1])
-        self.assertEqual('1g',service['mem_limit'])
-        self.assertEqual('https://studio.example.test',service['environment']['LIGHTEK_STUDIO_ORIGIN'])
-        self.assertIn('/data/custom_nodes/lightek_studio',genesis.dockerfile(self.config,'cpu'))
     def test_status_ownership_and_no_mutation(self):
         payload={'domain':'worker.example.test','owner_domain':'studio.example.test','request_id':'request-12345'}
         state=payload|{'status':'running','phase':'downloading_model','downloaded_bytes':3,'total_bytes':6}
@@ -130,7 +116,7 @@ class GenesisSetupTest(unittest.TestCase):
         with patch.object(genesis,'ROOT',runtime),patch.object(genesis,'Path',side_effect=paths),patch.object(genesis,'catalog',return_value=self.config),\
              patch.object(genesis.os,'geteuid',return_value=0),patch.object(genesis.os,'chown'),\
              patch.object(genesis.shutil,'which',return_value='/usr/bin/docker'),patch.object(genesis.shutil,'disk_usage',return_value=type('Disk',(),{'free':100*1024**3})()),\
-             patch.object(genesis,'run',side_effect=lambda *a,**k:calls.append(a)),patch.object(genesis,'download') as download,patch.object(genesis,'trusted_nodes',return_value='NODE_CLASS_MAPPINGS = {}'),\
+             patch.object(genesis,'run',side_effect=lambda *a,**k:calls.append(a)),patch.object(genesis,'download') as download,\
              patch.object(genesis.urllib.request,'build_opener',return_value=Opener(Response(b'{"KSampler":{}}'))):
             receipt=genesis.apply(payload)
         self.assertEqual('ready',receipt['status']);self.assertEqual('engine_and_model_files',receipt['readiness'])
@@ -148,9 +134,6 @@ class GenesisSetupTest(unittest.TestCase):
         catalog=self.folder/'usr/local/lib/lightek/studio-ai-packages.json'
         self.assertEqual(0o700,helper.stat().st_mode&0o777);self.assertEqual(0o600,catalog.stat().st_mode&0o777)
         self.assertEqual(self.config,json.loads(catalog.read_text()))
-        nodes=self.folder/'usr/local/lib/lightek/studio-comfy-nodes.py'
-        self.assertEqual(0o600,nodes.stat().st_mode&0o777)
-        self.assertEqual((ROOT/'lib/comfyui/lightek_studio/__init__.py').read_text(),nodes.read_text())
         policy=(self.folder/'etc/sudoers.d/lightek-studio-ai-rails').read_text()
         self.assertIn('7200s /usr/bin/python3 /usr/local/lib/lightek/install_studio_ai.py',policy)
         self.assertEqual('visudo',command.call_args.args[0][0])

@@ -11,7 +11,12 @@ const workspaces = [
 ];
 const aliases={ai:'create',workflows:'create',stage:'create',edit:'timeline',color:'timeline',assets:'library',media:'library',deliver:'publish',cast:'create'};
 const tabFor=input=>workspaces.some(([name])=>name===input)?input:aliases[input]||'create';
-const emptyTimeline={output:'video',width:1280,height:720,fps:24,clips:[]};
+function readTimeline(value) {
+  return {
+    output:'video',width:1280,height:720,fps:24,...value,
+    clips:Array.isArray(value?.clips) ? value.clips.filter(clip=>clip && typeof clip==='object') : []
+  };
+}
 const formats={portrait:[1080,1920],square:[1080,1080],landscape:[1920,1080]};
 const videoKinds=['audio','image','video'];
 
@@ -77,7 +82,7 @@ function Library({assets, selected, onSelect, upload, add, busy, next, more, ret
 function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home,updateScene}) {
   const {project,scene}=record;
   const [tab,setTab]=useState(tabFor(initialTab));
-  const [saved,setSaved]=useState(scene.settings?.timeline || emptyTimeline);
+  const [saved,setSaved]=useState(()=>readTimeline(scene.settings?.timeline));
   const [timeline,setTimeline]=useState(saved);
   const [revision,setRevision]=useState(scene.lock_version);
   const [selected,setSelected]=useState(initialAsset || null);
@@ -104,12 +109,12 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
       api.call('assets.list',{scope_site:true}), api.call('ai.jobs',{scene_id:scene.id}), api.call('operations.list',{project_id:project.id})
     ]);
     if(!alive.current||id!==loadId.current)return;
-    if(library.status==='fulfilled'){
+    if(library.status==='fulfilled'&&Array.isArray(library.value?.assets)){
       setAssets(previous=>[...library.value.assets,...previous.filter(item=>!library.value.assets.some(next=>next.id===item.id))]);
       setNext(library.value.next_before);
-    } else setError(library.reason.message);
-    if(generation.status==='fulfilled')setJobs(generation.value);
-    if(delivery.status==='fulfilled')setOps(delivery.value);
+    } else setError(library.reason?.message || 'The media library returned an incomplete response.');
+    if(generation.status==='fulfilled'&&Array.isArray(generation.value))setJobs(generation.value);
+    if(delivery.status==='fulfilled'&&Array.isArray(delivery.value?.operations)&&Array.isArray(delivery.value?.publications))setOps(delivery.value);
   },[api,scene.id,project.id]);
 
   useEffect(()=>{refresh();},[refresh]);
@@ -124,7 +129,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
     let active=true;
     const load=()=>{
       api.call('ai.status',{scene_id:scene.id}).then(status=>{if(active)setInventory(status);}).catch(error=>{if(active)setInventory({reason:error.message});});
-      api.call('assets.list',{surface:'ai_input',scope_site:true}).then(result=>{if(active)setReferenceAssets(result.assets);}).catch(()=>{});
+      api.call('assets.list',{surface:'ai_input',scope_site:true}).then(result=>{if(active&&Array.isArray(result?.assets))setReferenceAssets(result.assets);}).catch(()=>{});
     };
     load();
     const timer=setInterval(load,20000);
@@ -135,7 +140,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
     if(!clipIds)return;
     let active=true;
     api.call('assets.list',{asset_ids:[...new Set(clipIds.split(',').map(Number))]}).then(result=>{
-      if(active)setAssets(items=>[...items,...result.assets.filter(item=>!items.some(old=>old.id===item.id))]);
+      if(active&&Array.isArray(result?.assets))setAssets(items=>[...items,...result.assets.filter(item=>!items.some(old=>old.id===item.id))]);
     }).catch(()=>{});
     return()=>{active=false;};
   },[api,clipIds]);
@@ -160,8 +165,9 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   async function save(value=timeline){
     if(JSON.stringify(value)===JSON.stringify(saved))return;
     const updated=await api.call('timeline.save',{scene_id:scene.id,lock_version:revision,timeline:value});
-    setRevision(updated.lock_version);setSaved(updated.timeline);setTimeline(updated.timeline);
-    updateScene(scene.id,{lock_version:updated.lock_version,settings:{...scene.settings,timeline:updated.timeline}});
+    const normalized=readTimeline(updated.timeline);
+    setRevision(updated.lock_version);setSaved(normalized);setTimeline(normalized);
+    updateScene(scene.id,{lock_version:updated.lock_version,settings:{...scene.settings,timeline:normalized}});
     setMessage('Edit saved.');
   }
   async function add(id){
@@ -278,9 +284,39 @@ function routeFrom(host,scene){
     tab:tab || (identifier==='library'?'library':host?.dataset.workspace)};
 }
 
+class StudioErrorBoundary extends React.Component {
+  state = {failed:false};
+
+  static getDerivedStateFromError() {
+    return {failed:true};
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+
+    const {api,home}=this.props;
+    const scene=routeFrom().scene || this.props.route.scene;
+    return <section className="ls-projects" aria-label="Lightek Studio recovery">
+      <h1>Lightek Studio</h1>
+      <p role="alert">Studio could not open this workspace.</p>
+      <div className="ls-row">
+        <button onClick={()=>location.reload()}>Reload Studio</button>
+        {scene&&<a href={api.advanced(scene)}>Open advanced editor</a>}
+        <a href={home}>Exit Studio</a>
+      </div>
+    </section>;
+  }
+}
+
+function renderStudio(root,api,route,home) {
+  root.render(<StudioErrorBoundary {...{api,route,home}}>
+    <LightekUnifiedStudio {...{api,route,home}}/>
+  </StudioErrorBoundary>);
+}
+
 const dashboardHost=document.querySelector('[data-unified-studio]');
 if(dashboardHost){
-  createRoot(dashboardHost).render(<LightekUnifiedStudio api={studioApi(dashboardHost)} route={routeFrom(dashboardHost)} home={dashboardHost.dataset.home}/>);
+  renderStudio(createRoot(dashboardHost),studioApi(dashboardHost),routeFrom(dashboardHost),dashboardHost.dataset.home);
 }
 let pwaHost,pwaRoot;
 window.LightekUnifiedStudio={
@@ -292,7 +328,7 @@ window.LightekUnifiedStudio={
     container.replaceChildren(pwaHost);
     pwaRoot=createRoot(pwaHost);
     activeHash=location.hash;
-    pwaRoot.render(<LightekUnifiedStudio api={studioApi(null)} route={routeFrom(null,id)} home="#/home"/>);
+    renderStudio(pwaRoot,studioApi(null),routeFrom(null,id),"#/home");
     return true;
   },
   leave(){if(pwaRoot){pwaRoot.unmount();pwaRoot=null;pwaHost=null;}}

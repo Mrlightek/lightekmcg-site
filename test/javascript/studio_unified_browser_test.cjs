@@ -4,7 +4,6 @@ const path = require('node:path');
 const {chromium} = require('playwright');
 const root = path.resolve(__dirname,'../..');
 const origin = 'http://localhost:18447';
-const blank = {output:'video',width:1280,height:720,fps:24,clips:[]};
 
 (async ()=>{
   const browser=await chromium.launch({
@@ -14,9 +13,12 @@ const blank = {output:'video',width:1280,height:720,fps:24,clips:[]};
   try {
     const page=await browser.newPage({viewport:{width:1280,height:900}});
     page.setDefaultTimeout(10000);
+    await page.addInitScript(() => {
+      Object.defineProperty(Crypto.prototype,'randomUUID',{value:undefined,configurable:true});
+    });
     const errors=[],calls=[];
     page.on('pageerror',error=>errors.push(error.message));
-    const scene={id:7,name:'Pilot',lock_version:1,settings:{timeline:structuredClone(blank)},
+    const scene={id:7,name:'Pilot',lock_version:1,settings:{timeline:{width:640,height:360}},
       objects:[{id:12,name:'Host',definition:{character_profile:{}}}]};
     const image={id:21,name:'Starting image',kind:'image',status:'ready',proxy_url:'/image.png'};
     const sound={id:22,name:'Voice recording',kind:'audio',status:'ready',metadata:{duration:4.1}};
@@ -81,6 +83,8 @@ const blank = {output:'video',width:1280,height:720,fps:24,clips:[]};
     const request=calls.find(([key])=>key==='ai.generate')[1];
     assert.deepEqual([request.recipe,request.seed,request.steps,request.input_asset_id],['wan22_image_video',42,21,21]);
     assert.equal(scene.settings.timeline.clips[0].asset_id,23);
+    assert.deepEqual([scene.settings.timeline.width,scene.settings.timeline.height],[640,360]);
+    assert.match(request.request_key,/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/);
 
     await page.getByRole('button',{name:'AI Studio Create',exact:true}).click();
     await page.getByRole('button',{name:'Concept Art SD 1.5'}).click();
@@ -127,6 +131,15 @@ const blank = {output:'video',width:1280,height:720,fps:24,clips:[]};
     await page.getByRole('link',{name:'Exit Studio'}).click();
     await page.getByText('PWA home',{exact:true}).waitFor();
     assert.deepEqual(errors,[]);
-    console.log('UNIFIED_STUDIO_PASS Wan reference, SD model, Rhubarb handoff, timeline persistence, social submission, export quote, mobile layout and PWA exit');
+
+    // Inject an unrecoverable render error and verify that PWA navigation survives.
+    await page.evaluate(()=>Object.defineProperty(Crypto.prototype,'getRandomValues',{value:undefined,configurable:true}));
+    await page.evaluate(()=>{location.hash='#/studio/7/timeline';});
+    const recovery=page.getByRole('region',{name:'Lightek Studio recovery'});
+    await recovery.getByRole('alert').waitFor();
+    assert.match(await recovery.getByRole('link',{name:'Open advanced editor'}).getAttribute('href'),/workspace\/7\?advanced=1/);
+    await recovery.getByRole('link',{name:'Exit Studio'}).click();
+    await page.getByText('PWA home',{exact:true}).waitFor();
+    console.log('UNIFIED_STUDIO_PASS legacy timeline, older browser startup, generation, saved edits, publishing requests, mobile layout and crash recovery');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

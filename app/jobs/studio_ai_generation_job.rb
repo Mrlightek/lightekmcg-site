@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 class StudioAiGenerationJob < ApplicationJob
   queue_as :studio
-  def perform(id)
+  self.enqueue_after_transaction_commit = true
+  def perform(id, monitor_performance = false)
     asset=StudioAsset.find(id)
+    return Studio::Ai::Performances.reconcile(asset) if monitor_performance
     return if %w[ready failed].include?(asset.status)
     return Studio::Ai::Performances.run(asset) if asset.metadata["ai_performance_image"]
     runtime=Studio::Ai::Runtime.new(site:DymondSite::Site.find(asset.site_id),identity:asset.metadata["ai_worker"] || {"mode"=>"local"});submit=false

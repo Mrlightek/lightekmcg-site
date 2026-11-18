@@ -29,7 +29,11 @@
     finally{state.loading=false;if(active()){if(scene===state.scene){capture();capturePerformance();repaint();}else queueMicrotask(refresh);}}
     clearTimeout(state.timer);if(active()&&(state.jobs.some(j=>['uploaded','processing'].includes(j.status))||['queued','running'].includes(state.setup?.install?.status)))state.timer=setTimeout(refresh,5000);
   }
-  const jobState=job=>job.status==='uploaded'?'Queued':job.status==='processing'?(job.phase||'Processing').replaceAll('_',' '):job.status;
+  function jobState(job){
+    if(job.status==='uploaded')return 'Queued';
+    if(job.phase==='performing'&&job.status==='processing')return 'Creating your clip';
+    return job.status==='processing'?(job.phase||'Processing').replaceAll('_',' '):job.status;
+  }
   const selectedJob=()=>state.jobs.find(job=>job.asset_id===state.selectedJob)||state.jobs.find(job=>job.preview_url)||state.jobs[0];
   const gigabytes=bytes=>(bytes/1073741824).toFixed(1);
   function workerInfo(){
@@ -64,13 +68,13 @@
     const options=(kinds,selectedId)=>state.performanceAssets.filter(asset=>kinds.includes(asset.kind)).map(asset=>`<option value="${asset.id}" ${String(asset.id)===selectedId?'selected':''}>${E(asset.name)}</option>`).join('');
     const driverLabel=selected?.driver==='audio'?'Dialogue recording':selected?.id==='facefusion'?'Target performance':'Driving performance';
     return `<section class="ai-card ai-performance"><h3>Performance tools</h3>
-      <ul>${engines.map(engine=>`<li><strong>${E(engine.name)}</strong> · ${E(engine.action)} <small>${engine.configured?'Worker configured':'Worker setup required'}</small></li>`).join('')}</ul>
+      <ul>${engines.map(engine=>`<li><strong>${E(engine.name)}</strong> · ${E(engine.action)} <small>${engine.configured?'CPU worker configured':'Currently unavailable'}</small></li>`).join('')}</ul>
       ${selected?`<form data-ai-performance><label class="fld"><span>Performance workflow</span><select name="recipe">${ready.map(engine=>`<option value="${E(engine.id)}" ${engine===selected?'selected':''}>${E(engine.name)}</option>`).join('')}</select></label>
       <label class="fld"><span>Source portrait or footage</span><select name="input_asset_id" required><option value="">Choose from the media library</option>${options(selected.source,draft.input_asset_id)}</select></label>
       <label class="fld"><span>${driverLabel}</span><select name="driver_asset_id" required><option value="">Choose from the media library</option>${options([selected.driver],draft.driver_asset_id)}</select></label>
       <p>Use prepared library media. Recordings and footage can run up to 15 seconds.</p>
       ${state.performanceNext?'<button class="vw-btn" type="button" data-ai="performance-more">Load older media</button>':''}
-      <button class="vw-btn primary" ${state.busy?'disabled':''}>Generate performance</button></form>`:'<p>An operator needs to configure a performance worker.</p>'}</section>`;
+      <button class="vw-btn primary" ${state.busy?'disabled':''}>Generate performance</button></form>`:'<p>Performance tools will appear here when the Studio CPU workers are available.</p>'}</section>`;
   }
   function view(record,mode='ai'){
     if(state.scene!==record.scene.id){capture();state.scene=record.scene.id;state.loaded=false;state.status=null;state.setup=null;state.setupDraft={};state.images=[];state.imagesLoaded=false;state.imageNext=null;state.jobs=[];state.selectedJob=null;state.performanceAssets=[];state.performanceLoaded=false;state.performanceNext=null;state.performanceDraft={};state.error='';clearTimeout(state.timer);}

@@ -21,7 +21,7 @@ Start with one worker per host, one render slot per host and one active operatio
 
 Before adding a second host, verify operation-lock exclusion across the actual mount: hold a `.locks` test file with `flock` on one host and confirm a nonblocking lock on another fails until the first releases it. Drain `studio_cpu` before disabling routing or removing its consumers; changing the environment does not move jobs already in Redis.
 
-The dedicated path currently covers economy operations executed by `ExecuteStudioOperationJob`, including its existing render/Nevaeh entry points. Separate native authoring-preview, asset-save, custom-profile, timeline, neural-generation and interactive-workstation jobs retain their existing routing. This is not a claim that every Studio task has moved off the application host.
+The dedicated path covers economy operations executed by `ExecuteStudioOperationJob`, including its existing render/Nevaeh entry points. The same queue also accepts short performance clips for [configured CPU performance engines](ai-studio.md#performance-worker-setup). Separate native authoring-preview, asset-save, custom-profile, timeline, ComfyUI generation and interactive-workstation jobs retain their existing routing. This is not a claim that every Studio task has moved off the application host.
 
 ## Ownership, interruption and recovery
 

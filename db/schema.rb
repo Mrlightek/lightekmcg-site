@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_17_170000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_18_001500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1381,9 +1381,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_17_170000) do
     t.boolean "active", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "wholesale_price_cents"
+    t.integer "reseller_minimum_margin_cents", default: 500, null: false
     t.index ["compute_provider_id"], name: "index_hosting_packages_on_compute_provider_id"
     t.index ["gatekeeper_application_template_id"], name: "idx_hosting_package_template"
     t.index ["product_id"], name: "index_hosting_packages_on_product_id", unique: true
+    t.check_constraint "reseller_minimum_margin_cents >= 0", name: "hosting_reseller_margin_nonnegative"
+    t.check_constraint "wholesale_price_cents IS NULL OR wholesale_price_cents > 0", name: "hosting_wholesale_positive"
   end
 
   create_table "job_items", force: :cascade do |t|

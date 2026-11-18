@@ -58,10 +58,10 @@ function makeMedia(){
       page.getByRole('button',{name:'Continue to video',exact:true}).click()
     ]);
     await rpc({ingest:true});
-    await page.locator('.ew-clip').filter({hasText:'Edited image.png'}).waitFor();
+    await page.locator('.ls-timeline button').filter({hasText:'Edited image.png'}).waitFor();
     await page.waitForFunction(()=>!new URLSearchParams(location.search).has('edit_asset'));
     await page.reload();
-    await page.locator('.ew-clip').filter({hasText:'Edited image.png'}).waitFor();
+    await page.locator('.ls-timeline button').filter({hasText:'Edited image.png'}).waitFor();
     await page.goto(`${origin}/dashboard/studio/editors/video/new?site_id=${context.site_id}`);await page.getByLabel('Project name').fill('Monday launch video');await page.getByRole('button',{name:'Open Video Studio'}).click();
     await page.waitForFunction(()=>document.querySelector('[data-editor-ready="true"]')&&window.LightekEditors?.editor?.selection?.mash);
     await page.locator('[data-editor-import]').setInputFiles(path.join(proof,'source.webm'));

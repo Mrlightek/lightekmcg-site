@@ -67,7 +67,7 @@ class StudioProductionTest < StudioMusicTest
       assert_equal calls.last[:success_url],calls.last[:cancel_url]
       assert_raises(ActiveRecord::RecordNotFound){action("render_checkout",operation_id:operation.id,site_id:@other_site.id,origin:"https://other.example",scope_site:true)}
       action("render_checkout",operation_id:operation.id,origin:"https://business.example")
-      assert_equal "https://business.example/lightek/index.html#/studio/#{@scene.id}",calls.last[:success_url]
+      assert_equal "https://business.example/lightek/index.html#/studio/#{@scene.id}/publish",calls.last[:success_url]
       assert_raises(ActiveRecord::RecordNotFound){action("render_checkout",operation_id:operation.id,user_id:@bob.id,site_id:@other_site.id,origin:"https://other.example",scope_site:true)}
     end
   end

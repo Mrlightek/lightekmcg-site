@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs social_accounts social_options project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -269,7 +269,7 @@ module Studio
         return_url = if @payload["scope_site"]
           "#{@payload.fetch('origin')}/dashboard/studio-broadcasting/workspace/#{operation.studio_scene_id}?site_id=#{@access.site_id}#/studio/#{operation.studio_scene_id}/deliver"
         else
-          "#{@payload.fetch('origin')}/lightek/index.html#/studio/#{operation.studio_scene_id}"
+          "#{@payload.fetch('origin')}/lightek/index.html#/studio/#{operation.studio_scene_id}/publish"
         end
         checkout = Studio::Billing::Checkout.call(operation: operation, payer: @access.user, success_url: return_url, cancel_url: return_url)
         { checkout_url: checkout.respond_to?(:url) ? checkout.url : checkout.fetch(:url) }
@@ -318,6 +318,21 @@ module Studio
         {status:"ready",asset_id:asset.id,scene_id:scene.id,lock_version:scene.reload.lock_version,timeline:scene.settings.fetch("timeline")}
       end
 
+      def social_accounts
+        project = @access.projects.where(site_id: @access.site_id).find(@payload.fetch("project_id"))
+        Studio::Broadcasting::Access.authorize!(@access.user, project.site)
+        connections = LightekMarketing::SocialConnection.where(site_id: project.site_id, enabled: true, provider: %w[tiktok instagram])
+        {connections: connections.order(:id).map { |row| {id: row.id, provider: row.provider, label: row.account_label} },
+         youtube_enabled: LightekPwa::YoutubePublishing.central_enabled?(project.site) || LightekReservations::Federation::Client.config(project.site).present?,
+         youtube_origin: "https://#{project.site.host}"}
+      end
+
+      def social_options
+        project = @access.projects.where(site_id: @access.site_id).find(@payload.fetch("project_id"))
+        connection = Studio::Publishers::SocialTransport.connection!(@payload.fetch("connection_id"), actor: @access.user, project: project)
+        {options: Studio::Publishers::TikTok.options!(connection: connection, actor: @access.user, project: project)}
+      end
+
       def artifact_publish
         project = @access.projects.find(@payload.fetch("project_id"))
         publication = nil
@@ -328,6 +343,10 @@ module Studio
           raise ArgumentError,"Choose a supported publishing destination" unless %w[lightek_social lightek_streaming octavia tiktok instagram].include?(platform)
           metadata = { "user_id" => @access.user.id, "site_id" => @access.site_id, "request_key" => key,
             "audience" => @payload.fetch("audience","everyone"), "title" => @payload["title"], "content" => @payload["content"], "community_slug" => @payload["community_slug"] }
+          if platform == "lightek_social" && @payload["youtube_preparation"] == true
+            raise ArgumentError, "Review the clip before preparing it for YouTube" unless @payload["reviewed"] == true
+            metadata["youtube_preparation"] = true
+          end
           if %w[tiktok instagram].include?(platform)
             raise ArgumentError,'Review the video and social settings before submitting' unless @payload['reviewed']==true
             connection=Studio::Publishers::SocialTransport.connection!(@payload.fetch('connection_id'),actor:@access.user,project:project)

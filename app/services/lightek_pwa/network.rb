@@ -5,7 +5,8 @@ module LightekPwa
     STUDIO_READS = %w[studio.pwa.bootstrap studio.workspace.assets.list studio.workspace.operations.list
       studio.workspace.look.status studio.workspace.ai.status studio.workspace.ai.setup.status studio.workspace.ai.jobs
       studio.workspace.writing.profiles studio.workspace.shots.list studio.workspace.starter.scene.status
-      studio.workspace.performance.analysis studio.workspace.blender.runtime.status].freeze
+      studio.workspace.performance.analysis studio.workspace.blender.runtime.status
+      studio.workspace.social.accounts studio.workspace.social.options].freeze
     def self.require_studio_write!(user:, site:, capability:)
       return true if STUDIO_READS.include?(capability)
       require_local_write!(user: user, site: site)

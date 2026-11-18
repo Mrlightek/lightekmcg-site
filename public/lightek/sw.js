@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v97-guided-studio"
+const CACHE = "lightek-shell-v98-unified-studio"
 
 const SHELL = [
   "/lightek/index.html",
@@ -12,6 +12,8 @@ const SHELL = [
   "/lightek/youtube-publishing.js",
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
+  "/lightek/studio-unified.js?v=1",
+  "/lightek/studio-unified.css?v=1",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",
   "/lightek/studio-native.js",

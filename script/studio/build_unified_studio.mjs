@@ -11,6 +11,7 @@ const notices = ['react','react-dom','scheduler','lucide-react'].map(name =>
 await build({
   absWorkingDir:root,entryPoints:['app/javascript/lightek_studio/unified.jsx'],
   banner:{js:'/*!\n'+notices.join('\n\n')+'\n*/'},
+  target:['safari14','chrome90','firefox90'],
   bundle:true,minify:true,legalComments:'eof',define:{'process.env.NODE_ENV':'"production"'},
   nodePaths:[path.join(packages,'node_modules')],outfile:'public/lightek/studio-unified.js'
 });

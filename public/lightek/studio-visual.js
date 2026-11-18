@@ -160,8 +160,8 @@
       <h1>${animation?'Make a scene':'What are we making?'}</h1>
       <p class="vw-home-intro">${animation?'Add a character, give them something to do, and watch your scene.':'Start a production or continue working on one below.'}</p>
       <form class="vw-start" data-vw-form="new" ${animation?'data-animation':''}>
-        ${animation?`<button class="vw-btn primary" type="submit">Start a scene</button><details class="vw-start-options"><summary>Name your scene or change its format</summary><label class="vw-field"><span>Project name</span><input name="name" aria-label="Project name" placeholder="Optional" maxlength="120"></label><label class="vw-field"><span>Format</span><select name="format" aria-label="Production format">${formats}</select></label></details>`:
-          `<label class="vw-field"><span>Project name</span><input name="name" aria-label="Project name" required maxlength="120"></label><label class="vw-field"><span>Format</span><select name="format" aria-label="Production format">${formats}<option value="audio">Audio</option></select></label><button class="vw-btn primary" type="submit">Create production</button>`}
+        <button class="vw-btn primary" type="submit">${animation?'Start a scene':'Start editing'}</button>
+        <details class="vw-start-options"><summary>${animation?'Name your scene or change its format':'Project name and format'}</summary><label class="vw-field"><span>Project name</span><input name="name" aria-label="Project name" placeholder="Optional" maxlength="120"></label><label class="vw-field"><span>Format</span><select name="format" aria-label="Production format">${formats}${animation?'':'<option value="audio">Audio</option>'}</select></label></details>
       </form>
       <div class="vw-message" data-vw-message role="status" ${state.message?'':'hidden'}>${esc(state.message)}</div>
       <section class="vw-continue"><h2>Continue a scene</h2><div class="vw-projects">${projects.map(({scene,project})=>`<a class="vw-project" href="${sceneUrl(scene.id,window.LightekStudioProduction&&scene.settings?.studio_entry==='stage'?'stage':'')}"><h3>${esc(project.name)}</h3><small>${esc(scene.name)}</small><span>Open →</span></a>`).join('')||'<p class="vw-help">Scenes you make will appear here.</p>'}</div></section>
@@ -249,8 +249,7 @@
   app.addEventListener('submit',e=>{const form=e.target.closest('[data-vw-form]');if(!form)return;e.preventDefault();const data=Object.fromEntries(new FormData(form)),kind=form.dataset.vwForm,scene=current()?.scene,object=selected(),clipIndex=state.clip;run(async()=>{
     if(kind==='new'){
       const native=!!window.LightekStudioProduction,animation=form.hasAttribute('data-animation');
-      const name=data.name.trim()||(animation?'My scene':'');
-      if(!name)throw Error('Give your project a name.');
+      const name=data.name.trim()||(animation?'My scene':'Untitled video');
       const originatingRoute=location.hash;
       const result=await call('project.create',{
         format:data.format||'landscape',...(animation?{studio_entry:'stage'}:{}),

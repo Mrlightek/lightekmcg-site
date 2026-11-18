@@ -5,10 +5,10 @@
   const initial=JSON.parse(host.querySelector('[data-editor-document]').textContent);
   const status=host.querySelector('[data-editor-status]');
   let editor,photo,dirty=false,busy=true,revision=Number(host.dataset.lockVersion),disposed=false;
-  let lastDocument=initial.document,exportKey=null;
+  let lastDocument=initial.document,exportKey=null,editTransfer=null;
   const key=()=>globalThis.crypto?.randomUUID?.()||Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
   const message=(text,error=false)=>{status.textContent=text;status.setAttribute('role',error?'alert':'status');};
-  const mark=()=>{dirty=true;exportKey=null;if(!busy)message('Unsaved changes');};
+  const mark=()=>{dirty=true;exportKey=null;editTransfer=null;if(!busy)message('Unsaved changes');};
   const surface=host.querySelector('iframe,#lightek-video-editor');surface.inert=true;
   host.querySelectorAll('[data-editor-action],[data-editor-import],[data-editor-restore],[data-editor-asset]').forEach(control=>control.disabled=true);
   const ready=()=>{busy=false;dirty=false;surface.inert=false;host.dataset.editorReady='true';host.querySelectorAll('[data-editor-action],[data-editor-import],[data-editor-restore],[data-editor-asset]').forEach(control=>control.disabled=false);};
@@ -30,7 +30,7 @@
     const source=await snapshot();const result=await request('/document',{method:'PUT',body:{document:source,lock_version:revision}});
     revision=result.lock_version;host.dataset.lockVersion=revision;dirty=false;lastDocument=source;editor?.saved();message('Project saved to Lightek');return source;
   }
-  function download(blob,name){const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+  function download(blob,name){const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
   async function backup(){download(new Blob([JSON.stringify(await snapshot())],{type:'application/json'}),`lightek-${kind}-project.json`);message('Project backup downloaded. Save project to keep a copy in Lightek.');}
   async function dimensions(file){
     const url=URL.createObjectURL(file);
@@ -60,12 +60,28 @@
       const added=await editor.add(definition(result.id,file.name,type,result.url,info),index);
       results.push(...added);mark();
     }
-    message(kind==='photo'?'Image added as an editable layer.':'Media added. Edit its clip in the timeline.');return results;
+    if(kind==='photo'&&files.length)await save();
+    else message('Media added. Edit its clip in the timeline.');
+    return results;
   }
   async function photoBlob(){
     const canvas=document.createElement('canvas'),size=photo.Layers.get_dimensions();canvas.width=size.width;canvas.height=size.height;
     photo.Layers.convert_layers_to_canvas(canvas.getContext('2d'));
     return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(Error('Could not export this image')),'image/png'));
+  }
+  async function continueToVideo(){
+    if(!photo.AppConfig.layers.some(layer=>layer.type&&layer.visible!==false))throw Error('Import an image to start your video.');
+    if(dirty||!lastDocument)await save();
+    message('Adding your image to the video…');
+    if(!editTransfer)editTransfer={key:key(),image:await photoBlob()};
+    const body=new FormData();
+    body.append('file',editTransfer.image,'Edited image.png');
+    body.append('request_key',editTransfer.key);
+    const result=await request('/media',{body});
+    const url=new URL(host.dataset.editorEditUrl,location.origin);
+    url.searchParams.set('edit_asset',result.id);
+    busy=false;
+    location.assign(url);
   }
   function showExport(data){
     const area=host.querySelector('[data-editor-exports]');let row=area.querySelector(`[data-operation="${Number(data.id)}"]`);
@@ -84,6 +100,7 @@
     return run(async()=>{
     if(button.dataset.editorAction==='save')return save();
     if(button.dataset.editorAction==='backup')return backup();
+    if(button.dataset.editorAction==='continue')return continueToVideo();
     const source=await save();exportKey ||= key();
     let body={request_key:exportKey,lock_version:revision};
     if(kind==='photo'){const form=new FormData();form.append('request_key',exportKey);form.append('lock_version',revision);form.append('image',await photoBlob(),'artwork.png');body=form;}
@@ -116,7 +133,7 @@
       photo.document.addEventListener('keydown',saveShortcut,true);
       photo.document.addEventListener('keydown',event=>{if(['Delete','Backspace'].includes(event.key)||((event.ctrlKey||event.metaKey)&&['z','y','v','x'].includes(event.key.toLowerCase())))mark();});
       ready();
-      message('Photo Studio ready. Use File → Open or Import media to add an image.');
+      message('Import an image to get started. You can save it here or continue to a video.');
     }else{
       const {Core,mount}=window.LightekMovieMasher;
       const font=Core.Defined.fromId('com.moviemasher.font.default');font.source=font.url=new URL('/lightek/editors/video/font.ttf',location.origin).href;

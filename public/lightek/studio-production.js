@@ -1,7 +1,7 @@
 /* Production navigation and handoffs shared by every native Dashboard workspace. */
 (() => {
   if (!document.querySelector('#lightek-studio-dashboard')) return;
-  const modes = [['ai','Generate video'],['workflows','Workflows'],['media','Media library'],['edit','Timeline'],['cast','Character rigs'],['deliver','Export']];
+  const modes = [['ai','Generate video'],['workflows','Workflows'],['media','Media library'],['edit','Edit'],['cast','Character rigs'],['deliver','Export']];
   const tools = [['stage','Stage'],['shots','Shots'],['script','Script'],['music','Music'],['color','Color'],
     ['assets','Asset library'],['scene','Model & animate'],['camera','Camera & lighting'],['look','Look & materials']];
   const aliases = {'3d':'scene',timeline:'edit',performance:'cast',visual:'camera',publish:'deliver'};
@@ -12,7 +12,7 @@
   const mode = () => { const key=location.hash.split('/')[3]||current()?.scene.settings?.studio_entry||'edit';return aliases[key]|| (allowed.has(key)?key:'stage'); };
   const current = () => studioSceneRecord(studioCurrentSceneId());
   const call = async(action,payload)=>(await nevaeh.execute({capability:'studio.workspace.'+action,payload})).result;
-  const busy = () => window.LightekStudioLook?.busy() || state.busy || window.LightekStudioShots?.busy() || window.LightekStudioDelivery?.busy() || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
+  const busy = () => window.LightekStudioLook?.busy() || window.LightekStudioEdit?.saving() || state.busy || window.LightekStudioShots?.busy() || window.LightekStudioDelivery?.busy() || window.LightekStudioAI?.busy() || ST.busy || window.LightekStudioMusic?.busy() || window.LightekStudioPerformance?.busy();
   function go(key,sceneId=studioCurrentSceneId(),internal=false) {
     if(busy()&&!internal){toast('Finish the current save or render request before switching.');return;}
     const target=aliases[key]||key;
@@ -103,6 +103,8 @@
     if(changedProject){state.project=record.project.id;state.jobs=[];state.jobError='';clearTimeout(state.timer);}
     window.LightekStudioEdit?.beforeRender();
     const html=panel(record,key);
+    const editAsset=Number(new URLSearchParams(location.search).get('edit_asset'));
+    if(key==='edit'&&editAsset&&record.scene.id===Number(document.querySelector('#lightek-studio-dashboard').dataset.sceneId))window.LightekStudioEdit?.openImportedAsset(editAsset,record.scene.id);
     let shell=app.querySelector('[data-production-shell]');
     if(!shell){app.innerHTML='<section class="production-workspace" data-production-shell><div data-production-heading></div><div class="production-body"><div data-production-navigation></div><div data-production-content></div></div><details class="production-jobs" data-production-jobs><summary>Renders & handoffs <span data-production-job-count></span></summary><div data-production-job-list></div></details></section>';shell=app.querySelector('[data-production-shell]');}
     const heading=shell.querySelector('[data-production-heading]');

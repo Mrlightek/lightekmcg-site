@@ -1,4 +1,8 @@
 require_relative 'commerce_hosting_test'
+require Rails.root.join('app/services/lightek_commerce/installation_checkout').to_s
+eval(Rails.root.join('db/migrate/20261031130001_add_client_checkout_key_to_commerce_orders.rb').read, TOPLEVEL_BINDING)
+AddClientCheckoutKeyToCommerceOrders.new.migrate(:up)
+require Rails.root.join('app/services/gatekeeper/hosting/retail_pricing').to_s
 source = Rails.root.join('db/migrate/20261108190000_create_lightek_resort_reservations.rb').read
 source = source.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
 source = source.lines.reject { |line| line.include?("add_column :lightek_commerce_orders, :payment_namespace") }.join
@@ -37,6 +41,55 @@ class AgencyResellerChecks < CommerceHostingTest
   end
   def buy(resource)
     LightekCommerce::OrderPlacement.call(site: @store, customer_email: 'client@example.test', quantities: {resource.product_id.to_s => 1})
+  end
+  def test_reseller_wholesale_and_direct_prices_are_independent
+    @base.update!(wholesale_price_cents: 1200, reseller_minimum_margin_cents: 500)
+    row = LightekAgency::HostingCatalog.rows.find { |r| r['id'] == "hosting:#{@base.id}" }
+    assert_equal 1200, row['price_cents']
+    assert_equal LightekCommerce::MerchantPayouts.minimum_charge_cents(1700), row['minimum_price_cents']
+    resource = offer(price_cents: 2100)
+    assert_equal 1200, resource.cost_floor_cents
+    order = buy(resource)
+    assert_equal 1200, order.items.sole.purchase_snapshot.dig('hosting', 'platform_charge_cents')
+    assert_equal 1200, LightekCommerce::MerchantPayouts.fee_quote(order)[:infrastructure_reserve_cents]
+    @base_product.update!(price_cents: 4000)
+    assert_equal 1200, @base.reload.agency_wholesale_cents
+    assert_equal 2100, buy(resource).items.sole.unit_price_cents
+    @base.update!(wholesale_price_cents: 2500)
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) { buy(resource) }
+    assert_equal 1200, order.items.sole.reload.purchase_snapshot.dig('hosting', 'platform_charge_cents')
+  end
+  def test_reseller_minimum_margin_cannot_be_bypassed_by_editing_offer
+    @base.update!(wholesale_price_cents: 1200, reseller_minimum_margin_cents: 1000)
+    assert_raises(ArgumentError) { offer(price_cents: 2000) }
+    resource = offer(price_cents: 2500)
+    refute resource.product.update(price_cents: 2000)
+    resource.reload
+    @base.update!(reseller_minimum_margin_cents: 2000)
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) { buy(resource) }
+  end
+  def test_reseller_agency_purchase_uses_wholesale_only_for_authenticated_agency
+    @base.update!(wholesale_price_cents: 1200)
+    order = LightekCommerce::InstallationCheckout.reserve!(actor: @agency, product: @base_product, checkout_key: SecureRandom.uuid)
+    assert_equal 1200, order.items.sole.unit_price_cents
+    assert_equal 'agency_wholesale', order.items.sole.purchase_snapshot['pricing_tier']
+    customer = User.create!(role: 'client', email_address: 'retail@example.test')
+    direct = LightekCommerce::InstallationCheckout.reserve!(actor: customer, product: @base_product, checkout_key: SecureRandom.uuid)
+    assert_equal 1500, direct.items.sole.unit_price_cents
+    assert_raises(LightekCommerce::OrderPlacement::Invalid) do
+      LightekCommerce::OrderPlacement.call(site: @site, customer_email: customer.email_address, quantities: {@base_product.id.to_s => 1}, buyer: @agency)
+    end
+    assert_equal 1500, LightekCommerce::OrderPlacement.call(site: @site, customer_email: @agency.email_address, quantities: {@base_product.id.to_s => 1}).items.sole.unit_price_cents
+  end
+  def test_reseller_real_product_validation_accepts_lower_price_and_margin_atomically
+    @base_product.update!(price_cents: 2500)
+    @base.update!(monthly_cost_ceiling_cents: 1200, minimum_margin_cents: 1000)
+    Gatekeeper::Hosting::PackagePurchase.stub(:validate!, ->(**) { true }) do
+      Gatekeeper::Hosting::RetailPricing.update!(package: @base.reload, actor: @site.tenant, price_cents: '1999', minimum_margin_cents: '500', wholesale_price_cents: '1899', reseller_minimum_margin_cents: '500')
+    end
+    assert_equal 1999, @base_product.reload.price_cents
+    assert_equal 1899, @base.reload.wholesale_price_cents
+    assert_equal 500, @base.minimum_margin_cents
   end
   def test_reseller_catalog_is_automatic_and_excludes_vendor_costs_and_credentials
     rows = LightekAgency::HostingCatalog.rows

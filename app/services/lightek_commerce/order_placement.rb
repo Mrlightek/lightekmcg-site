@@ -5,7 +5,7 @@ module LightekCommerce
 
     # Creates a pending order and atomically reserves local inventory.
     # The order is NEVER considered paid until a verified processor event settles it.
-    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil)
+    def self.call(site:, customer_email:, quantities:, shipping_quote: nil, growth_visit: nil, buyer: nil)
       LightekAgency::Demos.ensure_live_site!(site, error: Invalid) if defined?(LightekAgency::Demos)
       raise Invalid, "Empty cart" if quantities.blank?
       raise Invalid, "Too many line items" if quantities.size > 50
@@ -18,6 +18,9 @@ module LightekCommerce
           raise Invalid, "Shipping quote does not match this cart" unless shipping_quote.site_id == site.id && shipping_quote.expires_at > Time.current &&
             shipping_quote.cart_fingerprint == LightekShipping::Quotes.fingerprint(site, requested)
           raise Invalid, "This shipping quote already has a checkout" if Order.where(shipping_quote: shipping_quote).where.not(purpose: "shipping_label").exists?
+        end
+        if buyer && buyer.email_address != customer_email.to_s.strip.downcase
+          raise Invalid, "Buyer does not match checkout identity"
         end
         product_ids = requested.keys.map { |key| key.split(":").first.to_i }.uniq
         products = Product.where(site: site, id: product_ids).order(:id).lock.to_a
@@ -35,6 +38,7 @@ module LightekCommerce
           if product.product_type == "lightek_instance"
             raise Invalid, "Installation products must be purchased separately, quantity one" unless qty == 1 && requested.size == 1 && variant_id.nil?
           end
+          direct_package = nil
           if variant_id
             variant = ProductVariant.where(product: product, active: true).lock.find(variant_id)
             raise Invalid, "Insufficient inventory for #{product.name} / #{variant.name}" if variant.inventory_quantity < qty
@@ -47,20 +51,26 @@ module LightekCommerce
             product.update!(inventory_quantity: product.inventory_quantity - qty) if product.track_inventory?
             name = product.name
             price = product.price_cents
+            if buyer&.role == 'white_label' && (direct_package = product.hosting_package) && product.site.tenant&.role == 'super_admin'
+              direct_package.lock!
+              price = direct_package.agency_wholesale_cents
+            end
           end
           line_total = price * qty
           subtotal += line_total
           snapshot = {"product_type" => product.product_type, "billing_interval" => product.billing_interval,
             "track_inventory" => variant_id ? true : product.track_inventory?, "subscription_plan_id" => product.subscription_plan_id}
           package = product.respond_to?(:effective_hosting_package) ? product.effective_hosting_package : product.hosting_package
+          snapshot["pricing_tier"] = "agency_wholesale" if direct_package
           if package
             raise Invalid, "Hosting package is unavailable" unless package.active?
             raise Invalid, "Hosting package is unavailable" unless package.product.published?
             snapshot["hosting"] = package.snapshot
             if product.respond_to?(:source_hosting_package_id) && product.source_hosting_package_id
               package.product.lock!
-              floor = package.product.price_cents
-              raise Invalid, "Update this offer: its price no longer covers the Lightek package" if price < MerchantPayouts.minimum_charge_cents(floor)
+              package.lock!
+              floor = package.agency_wholesale_cents
+              raise Invalid, "Update this offer: its price no longer covers the Lightek package" if price < package.agency_minimum_price_cents
               snapshot["hosting"]["platform_charge_cents"] = floor
               snapshot["hosting"]["source_product_id"] = package.product_id
             end

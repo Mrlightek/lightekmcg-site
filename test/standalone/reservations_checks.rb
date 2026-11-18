@@ -50,7 +50,7 @@ ActiveRecord::Schema.define do
   create_table(:compute_providers) { |t| t.string :slug }
   create_table(:dymond_bank_subscriptions) { |t| t.string :status }
 end
-%w[20261112070000_connect_hosting_agencies_and_commerce 20261112073000_add_nested_reseller_sale_shares 20261112080000_create_platform_shipping 20261112083000_connect_federated_commerce_settlement].each do |name|
+%w[20261112070000_connect_hosting_agencies_and_commerce 20261112073000_add_nested_reseller_sale_shares 20261112080000_create_platform_shipping 20261112083000_connect_federated_commerce_settlement 20261118001500_add_hosting_wholesale_prices].each do |name|
   path = ROOT.join("db/migrate/#{name}.rb")
   source = path.read.gsub('Migration[8.0]', "Migration[#{ActiveRecord::VERSION::MAJOR >= 8 ? '8.0' : '7.2'}]")
   eval(source, TOPLEVEL_BINDING, path.to_s)

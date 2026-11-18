@@ -70,5 +70,5 @@ R.studio=id=>{
   app.addEventListener('click',e=>{const button=e.target.closest('[data-a]');if(button&&A[button.dataset.a]){e.preventDefault();Promise.resolve(A[button.dataset.a](button)).catch(error=>toast(error.message));}});
   window.addEventListener('hashchange',()=>{if(location.hash.startsWith('#/studio'))render();});
   document.addEventListener('turbo:before-cache',()=>{window.LightekMusicAudio?.stop();window.LightekStudioTimeline?.stop();});
-  document.addEventListener('DOMContentLoaded',()=>{if(!location.hash.startsWith('#/studio'))history.replaceState(null,'',location.pathname+location.search+'#/studio'+(root.dataset.sceneId?'/'+root.dataset.sceneId+(root.dataset.workspace&&root.dataset.workspace!=='stage'?'/'+root.dataset.workspace:''):''));A.studioLoad();},{once:true});
+  document.addEventListener('DOMContentLoaded',()=>{if(!location.hash.startsWith('#/studio'))history.replaceState(null,'',location.pathname+location.search+'#/studio'+(root.dataset.sceneId?'/'+root.dataset.sceneId+(root.dataset.workspace?'/'+root.dataset.workspace:''):''));A.studioLoad();},{once:true});
 })();

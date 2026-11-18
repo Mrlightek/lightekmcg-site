@@ -2,6 +2,18 @@
 
 This release connects a reusable native Blender character to a recorded performance, saved face/gesture cues, an animated preview and a movie export with audio. It is the character-performance step toward producing original Lightek shorts and episodes.
 
+## Make an animation
+
+Open **Dashboard → Studio → Make an animation**. PWA members can start from **Studio** on their member workspace. Name the project and create it. Studio opens on **Stage**, where you can:
+
+1. Choose **Use a template**, pick a starter, and customize hair and colors. Click the finished character to add it to the stage. Use **Customize** on a saved character to create a new version for your cast.
+   Choose **Use a photo** for a photo-faced toon. Choose a centered, front-facing JPEG, PNG or WebP up to 10 MB. Studio fits the photo to the face; the toon body and mouth retain their animation controls. The uploaded photo is attached to the private character asset.
+2. Choose **Sets & props** to add a set. Select a character or set and use **Move**, **Rotate** or **Scale** to arrange it.
+3. Select your character and choose an **Action** such as Wave or Head nod. Each click adds the action after that character’s existing actions. You can also upload a recording and choose **Save & watch take**. Use **Cast** to edit action timing or refine the performance.
+4. Press **Play scene**. The render worker prepares up to three seconds of draft video from the start of the scene. Use **Export** for a full scene video or to export your edit. Completed scenes can go into an edit or an episode master. [Episode workflow](../nevaeh/tutorials/production_director.md)
+
+If the Studio worker has not picked up a character build or starter-scene import after two minutes, Studio shows that status and offers **Retry** on the original job. Stage layout runs in the browser. Studio prepares character assets and renders previews and exports on the server. This workflow uses 3D characters and sets. It also accepts 2D stills and footage on the media timeline.
+
 ## Dashboard is the operating center
 
 Open **Dashboard → Studio & broadcasting → Shows & episodes**. Productions and saved show templates appear alongside their scenes. Each scene has **Cast & performance**, **Set & cameras** and **Edit & mix** entry points. The workspace opens inside Dashboard on the application’s own domain, using the existing Studio engine and authenticated API. **Cast library** lists reusable performers; release queues, channel scheduling and OTT settings stay in the same control room.

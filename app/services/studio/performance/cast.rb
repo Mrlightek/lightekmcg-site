@@ -4,8 +4,9 @@ module Studio
     class Cast
       CONTROLS=(%w[jaw_open smile blink brow_raise mouth_wide mouth_round] + %w[a b c d e f g h x].map{|shape|"viseme_#{shape}"}).freeze
       GESTURES=%w[head left_arm right_arm].freeze
+      QUEUE_GRACE=2.minutes
       def self.inventory(asset)
-        asset.metadata.slice("character_profile","performer_build","duration","has_audio","source_scene","missing_dependencies").merge("scenes"=>Array(asset.metadata["scenes"]).map do |scene|
+        asset.metadata.slice("character_profile","performer_build","photo_character","performer_phase","duration","has_audio","source_scene","missing_dependencies").merge("performer_delayed"=>delayed_build?(asset),"scenes"=>Array(asset.metadata["scenes"]).map do |scene|
           {"name"=>scene["name"],"objects"=>Array(scene["objects"]).map do |object|
             {"name"=>object["name"],"definition"=>object.fetch("definition",{}).slice("native_type","shape_keys","motion_actions").merge("bones"=>Array(object.dig("definition","bones")).map { |bone| bone.slice("name") })}
           end}
@@ -65,34 +66,72 @@ module Studio
         {asset_id:actor.id,name:actor.name}
       end
 
+      def self.creation_photo(access, payload)
+        if payload["photo_signed_id"].present?
+          photo=ActiveStorage::Blob.find_signed!(payload["photo_signed_id"])
+          unless photo.metadata["lightek_user_id"]==access.user.id && photo.metadata["lightek_site_id"]==access.site_id
+            raise ArgumentError,"Choose a photo you uploaded in this workspace"
+          end
+        elsif payload["copy_photo_from"].present?
+          original=StudioAsset.for_actor(access).where(site_id:access.site_id,status:"ready").find(payload["copy_photo_from"])
+          raise ArgumentError,"That character has no saved photo" unless original.character_photo.attached?
+          photo=original.character_photo.blob
+        else
+          return
+        end
+        unless %w[image/jpeg image/png image/webp].include?(photo.content_type) && photo.byte_size.between?(1,10.megabytes)
+          raise ArgumentError,"Choose a JPEG, PNG or WebP photo up to 10 MB"
+        end
+        photo
+      end
+
       def self.create(access:,payload:)
         values=%w[skin wardrobe hair].to_h do |field|
           value=payload.fetch(field,{"skin"=>"#925e43","wardrobe"=>"#64388b","hair"=>"#211916"}[field]).to_s
           raise ArgumentError,"Choose six-digit colors" unless value.match?(/\A#[0-9a-fA-F]{6}\z/)
           [field,value]
         end
+        if payload.key?("hair_style")
+          style=payload.fetch("hair_style").to_s
+          raise ArgumentError,"Choose curls, close cut or high top" unless %w[curls close high_top].include?(style)
+          values["hair_style"]=style
+        end
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"A performer request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
+        photo=creation_photo(access,payload)
         asset=nil
         access.user.with_lock do
           asset=StudioAsset.find_by(owner:access.user,request_key:key)
           if asset
-            raise ArgumentError,"This request key belongs to another build" unless asset.site_id==access.site_id && asset.metadata["performer_build"]==values
+            raise ArgumentError,"This request key belongs to another build" unless asset.site_id==access.site_id && asset.metadata["performer_build"]==values && asset.metadata["character_photo_blob_id"]==photo&.id
           else
             pending=StudioAsset.where(owner:access.user,status:"processing").where("metadata ->> 'performer_build' IS NOT NULL").count
             raise ArgumentError,"Wait for your current performer builds to finish" if pending>=4
-            asset=StudioAsset.create!(owner:access.user,site_id:access.site_id,name:payload.fetch("name","Lightek performer").to_s.first(160),kind:"blend",status:"processing",request_key:key,metadata:{"performer_build"=>values})
+            metadata={"performer_build"=>values,"performer_phase"=>"queued"}
+            metadata.merge!("character_photo_blob_id"=>photo.id,"photo_character"=>true) if photo
+            asset=StudioAsset.new(owner:access.user,site_id:access.site_id,name:payload.fetch("name","Lightek performer").to_s.first(160),kind:"blend",status:"processing",request_key:key,metadata:metadata)
+            asset.character_photo.attach(photo) if photo
+            asset.save!
             StudioCharacterCreateJob.perform_later(asset.id)
           end
         end
         {asset_id:asset.id,status:asset.status}
       end
 
+      def self.delayed_build?(asset)
+        phase=asset.metadata["performer_phase"]
+        asset.status=="processing" && asset.metadata["performer_build"].present? &&
+          ((phase=="queued" && asset.updated_at < QUEUE_GRACE.ago) || (phase.nil? && asset.updated_at < 20.minutes.ago))
+      end
+
       def self.retry(access:,payload:)
         asset=StudioAsset.for_actor(access).find(payload.fetch("asset_id"))
         asset.with_lock do
-          raise ArgumentError,"Only failed Lightek performer builds can be retried" unless asset.status=="failed" && asset.metadata["performer_build"]
-          asset.update!(status:"processing",error_message:nil)
+          unless asset.metadata["performer_build"] && (asset.status=="failed" || delayed_build?(asset))
+            raise ArgumentError,"Retry is available if this character fails or stays queued"
+          end
+          asset.update!(status:"processing",error_message:nil,
+            metadata:asset.metadata.merge("performer_phase"=>"queued","performer_queued_at"=>Time.current.iso8601(6)))
           StudioCharacterCreateJob.perform_later(asset.id)
         end
         {asset_id:asset.id,status:asset.status}

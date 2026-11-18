@@ -23,6 +23,18 @@ class StudioStarterCastTest < StudioProductionTest
     assert_includes asset.error_message,"4.4"
     assert_equal id,start_cast[:asset_id];assert_equal "uploaded",asset.reload.status
   end
+  def test_starter_cast_retries_the_original_delayed_asset_once
+    id=start_cast[:asset_id]
+    asset=StudioAsset.find(id)
+    asset.update_columns(updated_at:3.minutes.ago)
+    assert_equal "delayed",action("starter_scene_status",asset_id:id)[:phase]
+    assert_raises(ActiveRecord::RecordNotFound){action("starter_scene_create",retry_asset_id:id,site_id:@other_site.id)}
+    jobs=ActiveJob::Base.queue_adapter.enqueued_jobs.size
+    assert_equal id,action("starter_scene_create",retry_asset_id:id)[:asset_id]
+    assert_equal "queued",action("starter_scene_create",retry_asset_id:id)[:phase]
+    assert_equal jobs+1,ActiveJob::Base.queue_adapter.enqueued_jobs.size
+  end
+
   def test_starter_cast_uses_real_official_rigs_and_creates_a_native_project
     rain=ENV["STUDIO_STARTER_RAIN_ARCHIVE"];snow=ENV["STUDIO_STARTER_SNOW_ARCHIVE"]
     live=ENV["STUDIO_STARTER_LIVE_DOWNLOAD"]=="1"

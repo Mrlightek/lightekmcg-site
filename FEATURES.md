@@ -280,6 +280,7 @@ Guides: [reservations and payouts](docs/reservations_and_payouts.md), [rooms, gu
 | Remote CPU bridge | Opt-in peer-authenticated procedural movie rendering across independent installations, paid-client orchestration, bounded admission, idempotent retry/resume and streamed SHA-256 verified outputs. Native/rig/audio source transfer remains pending. See [Remote CPU rendering](docs/studio/remote-cpu-rendering.md). |
 | Native authoring | Outliner/Inspector, source-object transforms, visibility, duplication/removal, cameras, lights, material overrides, exposed Geometry Nodes parameters and named modifier stacks with typed values, viewport/render toggles, ordering, removal and undo. |
 | Advanced workstation/finishing | Existing Blender workspaces and a separate timeline/mix/export path with transforms, fades, speed, titles, picture adjustments, MP4/ProRes and WAV output contracts. |
+| Animation stage | Dedicated creator entry, editable character templates, photo-faced toons, character and set placement, one-click actions, draft playback and server-side export. |
 | Cast & Performance | Native toon creation or compatible packed character registration, placements, recorded audio takes, saved facial/gesture cues and animated preview/shot export. |
 | Show templates | Reusable scenes, cast, sets/cameras, production plans, scene objectives and independent episode/project copies. |
 | Music composition | Step sequencer, piano roll, instruments/samples, reusable multichannel patterns and linked song placements with repeat/transposition/strength/mute. |

@@ -67,7 +67,7 @@
     const html = tools(record);
     // Keep the actual workspace visible above the fold. Advanced controls remain available.
     const marker = html.indexOf('<section class="pwa-post">');
-    const controls = marker < 0 ? html : html.slice(0, marker) + `<details class="studio-authoring-options"><summary>Add a preset or render a Blender camera preview</summary>${html.slice(marker)}</details>`;
+    const controls = marker < 0 ? html : html.slice(0, marker) + `<details class="studio-authoring-options"><summary>Add a preset or preview the camera</summary>${html.slice(marker)}</details>`;
     return `<section class="pwa-post studio-start-guide"><b>Build your scene</b><p>Add a character or set from <a href="#/studio/library">Library</a> → see it in <button class="btn sm" data-a="studioWorkspaceMode" data-mode="3d">3D Layout</button> → select a visible shape and edit its Inspector → save the element. Use Script for the show bible and scene writing, then render a draft camera frame before exporting.</p><p>Library characters are geometric blocking mannequins. Import a rigged .blend project for a finished character.</p>${outcome?.sceneId === record.scene.id ? `<p role="status" data-studio-outcome>${E(outcome.text)}</p>` : ''}</section>${controls}`;
   };
   const inspector = ui.inspector;

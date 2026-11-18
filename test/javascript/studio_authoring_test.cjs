@@ -106,7 +106,7 @@ const fixture = require('./fixtures/studio_authoring_fixture.cjs');
     request = await page.evaluate(() => requests.at(-1));
     assert.equal(request.payload.command.kind, "node_link");
     await page
-      .getByRole("button", { name: "Update Blender viewport", exact: true })
+      .getByRole("button", { name: "Refresh 3D preview", exact: true })
       .click();
     await page.waitForFunction(() =>
       document

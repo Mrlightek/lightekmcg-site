@@ -127,7 +127,7 @@ const origin = 'http://localhost:18447';
         ${dashboard?'':'<script>const host=document.querySelector("#pwa");function renderStudio(){if(location.hash.startsWith("#/studio"))LightekUnifiedStudio.pwa(host,location.hash.split("/")[2]);else {LightekUnifiedStudio.leave();host.textContent="PWA home";}}renderStudio();addEventListener("hashchange",renderStudio);</script>'}`});
     });
     const workspace=origin+'/dashboard/studio-broadcasting/workspace/7?site_id=2';
-    await page.goto(workspace);
+    await page.goto(workspace+'#/studio/7/create');
     await page.getByRole('button',{name:'5s AI Video Wan 2.2'}).waitFor();
     await page.getByLabel('Prompt').fill('Orbit the host desk');
     await page.getByText('Advanced',{exact:true}).click();

@@ -412,7 +412,7 @@ module DymondSite
     self.table_name='test_sites'
   end
 end
-ActiveRecord::Schema.define { create_table(:test_sites) { |t| t.string :host } }
+ActiveRecord::Schema.define { create_table(:test_sites) { |t| t.string :host; t.json :manifest, default: {} } }
 class DymondDispatch::WorkItem
   def done? = status=='done'
   def failed? = status=='failed'

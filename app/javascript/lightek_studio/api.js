@@ -22,7 +22,14 @@ export function uploadMessage(error) {
   return 'Studio could not save this upload. Choose the file again to retry.';
 }
 
+const activityLabels={
+  'ai.generate':'Generation','render.quote':'3D render','performance.preview':'Character preview','timeline.quote':'Media export',
+  'asset.publish':'Publishing','artifact.publish':'Publishing'
+};
+
 export function studioApi(host) {
+  const activityListeners=new Set();
+  const notify=receipt=>activityListeners.forEach(listener=>listener(receipt));
   const site = host?.dataset.siteId;
   const query = site ? '?site_id=' + encodeURIComponent(site) : '';
   const prefix = '/dashboard/studio-broadcasting';
@@ -38,9 +45,24 @@ export function studioApi(host) {
     const capability = action === 'bootstrap' ? 'studio.pwa.bootstrap' : 'studio.workspace.' + action;
     const request = {capability, payload: action==='bootstrap'?{...payload,scope_site:true}:payload};
     if (!host) {
-      const data = await window.nevaeh.execute(request);
-      onReceipt?.(data.task_uuid || data.work_item_id);
-      return data.result;
+      const tracked=activityLabels[action] && !payload.operation_id;
+      const localId=tracked?requestKey():null;
+      const label=activityLabels[action];
+      let receiptId;
+      if(tracked)notify({id:localId,label,status:'queued',scene_id:payload.scene_id});
+      try {
+        const data=await window.nevaeh.execute(request,{onReceipt:receipt=>{
+          receiptId=receipt.work_item_id;
+          if(tracked)notify({id:receiptId,replace:localId,label,status:'running',scene_id:payload.scene_id,task_uuid:receipt.correlation_id});
+        }});
+        onReceipt?.(data.correlation_id || data.work_item_id);
+        if(tracked)notify({id:receiptId || localId,label,status:data.result?.status || 'processing',scene_id:payload.scene_id,
+          asset_id:data.result?.asset_id,operation_id:data.result?.operation_id,task_uuid:data.correlation_id});
+        return data.result;
+      } catch(error){
+        if(tracked)notify({id:receiptId || error.data?.work_item_id || localId,replace:localId,label,status:error.workItemId?'processing':'failed',scene_id:payload.scene_id});
+        throw error;
+      }
     }
     const response = await fetch(prefix + '/execute' + query, {
       method:'POST', credentials:'same-origin',
@@ -63,7 +85,14 @@ export function studioApi(host) {
     const data = await window.nevaeh.parseResponse(response);
     return call('asset.import',{signed_id:data.signed_id,name:file.name.slice(0,160),request_key:key,project_id:projectId});
   }
-  return {call,upload,dashboard:!!host,site,advanced:(scene,workspace='edit') => {
+  async function converse(payload) {
+    return (await window.nevaeh.execute({capability:'nevaeh.conversation',payload})).result;
+  }
+  function onActivity(listener) {
+    activityListeners.add(listener);
+    return ()=>activityListeners.delete(listener);
+  }
+  return {call,upload,converse,onActivity,dashboard:!!host,site,advanced:(scene,workspace='edit') => {
     const params = new URLSearchParams({advanced:'1',workspace});
     if (site) params.set('site_id',site);
     return prefix + '/workspace/' + scene + '?' + params;

@@ -41,6 +41,29 @@ class PwaYoutubePublishingTest < PwaCommercialTest
     assert_raises(LightekPwa::Policy::Denied) {submit(actor:@operator)}
     assert_empty LightekPwa::YoutubeUpload.all
   end
+  def test_studio_publication_dispatch_submits_consented_clip_to_youtube
+    project=StudioProject.create!(owner:@owner,site:@site,name:"Studio production")
+    scene=project.studio_scenes.first!
+    operation=project.studio_operations.create!(studio_scene:scene,operation_type:"edit_media",provider:"ffmpeg",
+      capability:"studio.workspace.timeline.quote",status:"completed")
+    artifact=operation.artifacts.create!(kind:"video",filename:"portrait.mp4")
+    artifact.file.attach(@post.media.first.blob)
+    payload={user_id:@owner.id,site_id:@site.id,project_id:project.id,artifact_id:artifact.id,
+      platform:"lightek_social",youtube_preparation:true,reviewed:true,youtube_made_for_kids:false,request_key:SecureRandom.uuid}
+    receipt=LightekPwa::Network.stub(:write_destination,nil) do
+      assert_raises(ArgumentError) { Studio::Workers::Workspace.perform("artifact_publish",payload) }
+      Studio::Workers::Workspace.perform("artifact_publish",payload.merge(youtube_consent:true))
+    end
+    publication=StudioPublication.find(receipt.fetch(:publication_id))
+    Studio::Publishers::LightekSocial.new(publication).call
+    upload=LightekPwa::YoutubeUpload.find(publication.reload.metadata.fetch("youtube_upload_id"))
+    assert_equal "queued",upload.status
+    assert_equal artifact.file.blob.id,upload.source_blob_id
+    assert_equal publication.metadata.fetch("post_id"),upload.post_id
+    Studio::Publishers::LightekSocial.new(publication).call
+    assert_equal 1,LightekPwa::YoutubeUpload.where(id:upload.id).count
+  end
+
   def test_original_is_retained_and_submission_identity_is_stable
     upload=submit
     assert_equal upload.id,submit.id

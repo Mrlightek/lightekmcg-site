@@ -2,6 +2,8 @@
 require_relative 'nevaeh_ten_task_checks'
 require File.join(ROOT, 'db/migrate/20261114230000_create_nevaeh_manual_learning')
 require File.join(ROOT, 'db/migrate/20261116110000_add_nevaeh_task_builder')
+require File.join(ROOT,'app/services/studio/workers/activity')
+require File.join(ROOT,'app/services/studio/pwa_access')
 CreateNevaehManualLearning.new.migrate(:up)
 AddNevaehTaskBuilder.new.migrate(:up)
 %w[models/nevaeh_manual_build models/nevaeh_language_binding services/nevaeh_os/language_contract services/nevaeh_os/language services/nevaeh_os/task_builder].each { |file| require File.join(ROOT, 'app', file) }
@@ -134,6 +136,40 @@ class NevaehTaskBuilderChecks < NevaehTenTaskChecks
     NevaehCapability.find_by!(slug: 'susu.list').update!(enabled: false)
     assert_raises(Gatekeeper::AuthorizationDenied) { execute(action) }
   end
+  def test_studio_shortcut_uses_verified_receipt_inputs_and_existing_language_binding
+    slug="studio.workspace.ai.generate"
+    NevaehCapability.create!(slug:slug,name:"Generate",domain:"studio",intent_name:"studio_ai_generate",
+      handler:"Studio::Workers::Workspace",queue:"default",event_types:["#{slug}.requested"])
+    access=Object.new
+    scene=Struct.new(:studio_project).new(Struct.new(:site_id).new(@site.id))
+    access.define_singleton_method(:scene!) { |_id| scene }
+    inputs={"scene_id"=>7,"recipe"=>"image","prompt"=>"Night city","genesis_worker_id"=>4,
+      "request_key"=>"previous-request","user_id"=>@actor.id,"site_id"=>@site.id}
+    item=Struct.new(:kind,:args).new(slug,["ai_generate",inputs])
+    scope=Object.new
+    scope.define_singleton_method(:find) { |_id| item }
+    activity=Studio::Workers::Activity
+    phrase="Make my night city artwork"
+    Studio::PwaAccess.stub(:new,access) do
+      activity.stub(:scope,scope) do
+        activity.stub(:row,{teach:false}) do
+          assert_raises(ArgumentError) { NevaehOs::TaskBuilder.teach_studio!(actor:@actor,site:@site,receipt_id:12,phrase:phrase) }
+        end
+        activity.stub(:row,{teach:true}) do
+          binding=NevaehOs::TaskBuilder.teach_studio!(actor:@actor,site:@site,receipt_id:12,phrase:phrase)
+          assert_equal "active",binding.status
+          assert_equal binding.id,NevaehOs::TaskBuilder.teach_studio!(actor:@actor,site:@site,receipt_id:12,phrase:phrase).id
+          refute binding.command_template["payload"].key?("request_key")
+          assert_equal "Night city",binding.command_template.dig("payload","prompt")
+        end
+      end
+    end
+    result=ask(phrase)
+    action=NevaehOsAction.find(result.fetch("action_id"))
+    assert_equal slug,action.command.dig("command","intent")
+    assert_equal @site.id,action.command.dig("command","site_id")
+  end
+
   def test_same_phrase_with_different_assigned_workers_requires_clarification
     first = draft; publish(first)
     manager = NevaehOsAgent.find_by!(user: @actor, system_key: 'nevaeh')

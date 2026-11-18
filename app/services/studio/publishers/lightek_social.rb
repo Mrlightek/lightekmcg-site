@@ -41,7 +41,12 @@ module Studio
             Studio::Spatial::Publication.attach!(publication,post)
           end
         end
-        publication.update!(metadata: metadata.merge("post_id" => post.id))
+        metadata["post_id"]=post.id
+        publication.update!(metadata:metadata)
+        if (youtube=metadata["youtube_submission"])
+          upload=::LightekPwa::YoutubePublishing.submit!(post:post,actor:user,consent:youtube.fetch("consent"),made_for_kids:youtube.fetch("made_for_kids"))
+          publication.update!(metadata:metadata.merge("youtube_upload_id"=>upload.id))
+        end
         { "post_id" => post.id, "url" => "/lightek/index.html#/post/#{post.id}" }
       end
     end

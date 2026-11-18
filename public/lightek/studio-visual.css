@@ -12,3 +12,49 @@ body.lt-visual #top,body.lt-visual #primary-nav,body.lt-visual>footer{display:no
 body.lt-visual #studio-app-exit{display:flex;align-items:center;position:sticky;top:0;z-index:20;box-sizing:border-box;height:44px;padding:0 16px;background:#101219;color:#f1d38f;border-bottom:1px solid #ffffff20;font:600 13px system-ui,sans-serif;text-decoration:none}
 #studio-app-exit:focus-visible{outline:2px solid #e5bb62;outline-offset:-4px}
 @media(min-width:761px){body.lt-visual #app:has(.visual-workbench:not(.vw-home)) .visual-workbench{height:calc(100dvh - 44px)}}
+
+/* The first actions stay visible on a phone, with editing controls available on demand. */
+.vw-home .vw-start[data-animation]{display:flex;flex-direction:column;align-items:stretch;max-width:440px}
+.vw-start-options,.vw-home-extra{padding:12px 14px;border:1px solid var(--vw-line);border-radius:10px}
+.vw-start-options summary,.vw-home-extra summary,.vw-timeline-drawer summary{cursor:pointer;line-height:24px}
+.vw-start-options .vw-field{margin-top:12px}
+.vw-home-extra{margin-top:12px}
+.vw-home .vw-projects:not(:has(.vw-project)){display:block}
+.vw-home .vw-project h3{margin:0 0 4px}
+.vw-guide{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 16px;background:#1b1d28;border-bottom:1px solid var(--vw-line)}
+.vw-guide p{margin:0;color:#e8e9ef;font-weight:600}
+.vw-guide>div{display:flex;flex-wrap:wrap;gap:8px}
+.vw-guide .vw-btn,.vw-home .vw-start button{min-height:44px}
+.vw-timeline-drawer summary{padding:6px 16px;background:#10131b}
+.visual-workbench[data-view]:not([data-view=edit]) .vw-transport :is([data-vw=play],[data-vw=stop],[data-vw-time],[data-vw-playhead]){display:none}
+@media(max-width:760px){
+  .vw-home{padding:22px 16px 32px}
+  .vw-home-intro{margin:0 0 18px}
+  .vw-home .vw-start{margin-bottom:12px}
+  .vw-start-options input,.vw-start-options select,.vw-dialog input:not([type=color]),.vw-dialog select{font-size:16px}
+  .vw-guide{align-items:flex-start;flex-direction:column;padding:12px 14px;position:sticky;top:44px;z-index:5}
+  .vw-guide>div{width:100%}
+  .vw-guide .vw-btn{flex:1}
+  body.lt-visual #app .visual-workbench[data-view]{height:auto;overflow:clip}
+  body.lt-visual #app .visual-workbench[data-view] .vw-body{height:auto}
+  body.lt-visual #app .visual-workbench[data-view] .studio-live-layout{height:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:none}
+  body.lt-visual #app .visual-workbench[data-view] .studio-viewport{grid-row:1;grid-column:1;min-height:290px}
+  body.lt-visual #app .visual-workbench[data-view] .studio-live-outliner{grid-column:1;grid-row:2;max-height:none;overflow:visible}
+  body.lt-visual #app .visual-workbench[data-view] .studio-live-inspector{grid-column:1;grid-row:3;max-height:none;overflow:visible}
+  .vw-categories{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .vw-categories button,.vw-inspector .vw-btn,.vw-pane-content .vw-btn{min-height:44px}
+  .vw-transport{padding:8px 14px;gap:8px}
+  .vw-transport .vw-btn{min-height:44px}
+  .vw-dialog{max-height:90dvh;padding:16px}
+}
+.vw-character-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border:0;padding:0;margin:12px 0}
+.vw-character-choices legend{padding:0;margin-bottom:6px}
+.vw-character-choices label{display:flex;position:relative;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border:1px solid #586074;border-radius:8px;cursor:pointer}
+.vw-character-choices label:has(input:checked){border-color:#e5bb62;background:#302719;color:#f5deb0}
+.vw-character-choices label:focus-within{outline:2px solid #e5bb62;outline-offset:2px}
+.vw-character-choices input{position:absolute;inline-size:1px;block-size:1px;opacity:0}
+.vw-character-swatch{position:relative;width:36px;height:44px;border-radius:45% 45% 30% 30%;background:linear-gradient(var(--hair) 0 28%,var(--skin) 28% 63%,var(--wardrobe) 63%)}
+.vw-character-swatch[data-hair=close]{border-radius:48% 48% 30% 30%;background:linear-gradient(var(--hair) 0 17%,var(--skin) 17% 63%,var(--wardrobe) 63%)}
+.vw-character-swatch[data-hair=high_top]{border-radius:20% 20% 30% 30%}
+.vw-character-customize{margin:12px 0}
+.vw-character-customize summary{cursor:pointer;min-height:32px}

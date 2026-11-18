@@ -75,6 +75,7 @@ on:
       - 'test/javascript/studio_finishing_test.cjs'
       - 'test/javascript/studio_performance_test.cjs'
       - 'test/javascript/studio_visual_test.cjs'
+      - 'test/javascript/studio_mobile_guided_test.cjs'
       - 'test/javascript/studio_music_ui_test.cjs'
       - 'test/javascript/studio_music_audio_test.cjs'
       - 'db/migrate/20261111190000_register_studio_character_performance.rb'
@@ -300,6 +301,7 @@ jobs:
           node test/javascript/studio_look_test.cjs
           node test/javascript/studio_visual_test.cjs
           node test/javascript/studio_dashboard_browser_test.cjs
+          node test/javascript/studio_mobile_guided_test.cjs
           node test/javascript/studio_dashboard_context_test.cjs
           node test/javascript/studio_edit_workbench_test.cjs
           node test/javascript/studio_delivery_test.cjs

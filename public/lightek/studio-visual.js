@@ -7,6 +7,8 @@
     return !root||(root.dataset.workspace==='stage'&&!root.dataset.sceneId);
   };
   const sceneUrl=(id,mode='')=>`#/studio/${id}${mode?'/'+mode:''}`;
+  const pendingCharacters=new Map();
+  const placementKey=(sceneId,assetId)=>sceneId+':'+assetId;
   const characterTemplates={
     host:{skin:'#925e43',wardrobe:'#64388b',hair:'#211916',hair_style:'curls'},
     explorer:{skin:'#70412f',wardrobe:'#326764',hair:'#1d1513',hair_style:'close'},
@@ -18,11 +20,12 @@
   const field=(name,label,value,type='number')=>`<label class="vw-field"><span>${label}</span><input name="${name}" type="${type}" ${type==='number'?'step="any"':''} value="${esc(value)}"></label>`;
   const enabled=()=>window.LightekStudioProduction?(!studioCurrentSceneId()||LightekStudioProduction.mode()==='stage'):!state.advanced;
   function notice(message){state.message=message;const el=app.querySelector('[data-vw-message]');if(el){el.hidden=!message;el.textContent=message;}}
-  async function run(fn){if(state.busy)return;state.busy=true;notice('Working…');try{await fn();}catch(error){notice(error.message||'The action failed. Try again.');if(state.mode==='render'){state.preview={error:error.message};showStage();}}finally{state.busy=false;}}
+  async function run(fn){if(state.busy)return;state.busy=true;notice('Working…');try{await fn();}catch(error){notice(error.message||'The action failed. Try again.');if(state.mode==='render'){state.preview={error:error.message};showStage();}}finally{state.busy=false;queueMicrotask(placeReadyCharacter);}}
   async function load(more=false){
     if(state.loading)return;state.loading=true;
     try{const result=await call('assets.list',{surface:'visual',...(more&&state.next?{before:state.next}:{})});state.assets=more?[...state.assets,...result.assets.filter(a=>!state.assets.some(b=>a.id===b.id))]:result.assets;window.LightekStudioTimeline.assets(state.assets);state.next=result.next_before;state.presets=result.media_presets||[];state.loaded=true;}
-    catch(e){notice(e.message);}finally{state.loading=false;if(app.querySelector('.vw-home'))render(1);else refresh(true);}
+    catch(e){notice(e.message);}finally{state.loading=false;if(app.querySelector('.vw-home'))updateHomeSection('.vw-template-grid', productionTemplates());else refresh(true);}
+    placeReadyCharacter();
     clearTimeout(state.assetTimer);
     if(location.hash.startsWith('#/studio')&&state.assets.some(a=>['uploaded','processing'].includes(a.status)||(a.metadata?.performer_build&&a.status==='ready'&&!a.metadata.character_profile)))state.assetTimer=setTimeout(()=>load(),4000);
   }
@@ -34,7 +37,7 @@
     if(state.starterLoading)return;state.starterLoading=true;
     try{const result=await call('starter.scene.status',state.starter?{asset_id:state.starter.asset_id}:{});state.starter=result?.asset_id?result:null;state.starterLoaded=true;if(state.starter?.phase==='ready'&&!studioSceneRecord(state.starter.scene_id))await A.studioLoad(true);}
     catch(error){state.starterLoaded=true;notice(error.message);}
-    finally{state.starterLoading=false;if(app.querySelector('.vw-home'))render(1);}
+    finally{state.starterLoading=false;updateHomeSection('.vw-starter-cast',starterPanel());}
     clearTimeout(state.starterTimer);
     if(app.querySelector('.vw-home')&&state.starter&&state.starter.phase!=='ready'&&state.starter.status!=='failed')state.starterTimer=setTimeout(starterPoll,4000);
   }
@@ -61,12 +64,28 @@
     const bar=(start,length,label,attrs,voice=false)=>`<button class="vw-clip ${voice?'voice':''}" style="left:${Math.max(0,start)/total*100}%;width:${Math.max(.5,length/total*100)}%" ${attrs}><span>${esc(label)}</span></button>`;
     return `<div class="vw-ruler"><span>Scene timeline</span><div>${Array.from({length:10},(_,i)=>`<i style="left:${i*10}%">${(i*total/10).toFixed(0)}s</i>`).join('')}</div></div>${voices.map(o=>{const p=o.definition.performance;return `<div class="vw-lane"><div class="vw-lane-label">${esc(o.name)} · voice</div><div class="vw-lane-track">${bar(p.start,p.duration,'Saved performance',`data-vw="select" data-id="${o.id}"`,true)}</div></div>`;}).join('')}${moving.map(o=>`<div class="vw-lane"><div class="vw-lane-label">${esc(o.name)} · actions</div><div class="vw-lane-track">${o.definition.motion_clips.map(clip=>bar(clip.start,clip.duration,o.definition.character_profile?.motions?.find(m=>m.id===clip.action_id)?.name||'Action',`data-vw="select" data-id="${o.id}"`)).join('')}</div></div>`).join('')}${tracks.map(track=>`<div class="vw-lane"><div class="vw-lane-label">${esc(t.tracks?.find(a=>a.id===track)?.name||'Media '+(Number(track)+1))}</div><div class="vw-lane-track">${t.clips.map((c,i)=>c.track===track?bar(c.start,clipLength(c),state.assets.find(a=>a.id===c.asset_id)?.name||'Media clip',`data-vw="clip" data-index="${i}" aria-pressed="${state.clip===i}"`):'').join('')}</div></div>`).join('')}${!voices.length&&!moving.length&&!tracks.length?'<p class="vw-empty-timeline">Add media from the left, or give a character a recording. Your clips appear here.</p>':''}`;
   }
-  function refresh(preserve=false){if(!enabled())return;if(preserve&&window.LightekStudioForms?.composing()){LightekStudioForms.defer();return;}const editing=preserve?window.LightekStudioForms?.capture():null;const form=preserve?app.querySelector('[data-vw-inspector] form'):null,saved=form?{kind:form.dataset.vwForm,values:Object.fromEntries(new FormData(form))}:null;const left=app.querySelector('[data-vw-assets]'),right=app.querySelector('[data-vw-inspector]'),tracks=app.querySelector('[data-vw-lanes]');if(left)left.innerHTML=assetsPanel();if(right){right.innerHTML=inspector();if(saved){const restored=right.querySelector(`[data-vw-form="${saved.kind}"]`);if(restored)for(const [name,value] of Object.entries(saved.values)){const input=restored.elements.namedItem(name);if(input)input.value=value;}}}if(tracks)tracks.innerHTML=lanes();const range=app.querySelector('[data-vw-playhead]');if(range)range.max=duration();if(preserve)window.LightekStudioForms?.restore(editing);}
-  function view(record){if(!document.querySelector('#lightek-studio-dashboard'))document.body.classList.add('lt-visual');ST.workspaceMode='3d';if(state.sceneId!==record.scene.id){state.sceneId=record.scene.id;state.clip=null;state.preview=null;state.mode='layout';state.poll++;}if(!state.loaded&&!state.loading)load();if(!state.starterLoaded&&!state.starterLoading)starterPoll();return `<main class="visual-workbench"><header class="vw-top"><a href="#/studio" class="vw-brand">LIGHTEK STUDIO</a><div><h1>${esc(record.project.name)}</h1><small>${esc(record.scene.name)}</small></div><div class="vw-actions"><a class="vw-btn" href="#/studio/${record.scene.id}/music">Music</a>${button('save-template','Save show template')}${button('advanced','Advanced tools')}${button('preview','Camera preview')}${button('export','Export')}</div></header><div class="vw-message" data-vw-message role="status" ${state.message?'':'hidden'}>${esc(state.message)}</div><div class="vw-body"><div class="studio-work-grid"><aside data-vw-assets>${assetsPanel()}</aside><aside data-vw-inspector>${inspector()}</aside></div></div><div class="vw-transport">${button('play-scene','▶ Play scene')}${button('play','Play edit')}${button('export','Export')}${button('stop','Stop edit')}<span class="vw-time" data-vw-time>00:00.0</span><input aria-label="Edit playhead" type="range" min="0" max="${duration()}" step="0.04" value="0" data-vw-playhead><small>Draft scene previews show up to 3 seconds</small></div><div class="vw-timeline" data-vw-lanes>${lanes()}</div></main>`;}
+  function refresh(preserve=false){if(!enabled())return;if(preserve&&window.LightekStudioForms?.composing()){LightekStudioForms.defer();return;}const editing=preserve?window.LightekStudioForms?.capture():null;const form=preserve?app.querySelector('[data-vw-inspector] form'):null,saved=form?{kind:form.dataset.vwForm,values:Object.fromEntries(new FormData(form))}:null;const left=app.querySelector('[data-vw-assets]'),right=app.querySelector('[data-vw-inspector]'),tracks=app.querySelector('[data-vw-lanes]');if(left)left.innerHTML=assetsPanel();if(right){right.innerHTML=inspector();if(saved){const restored=right.querySelector(`[data-vw-form="${saved.kind}"]`);if(restored)for(const [name,value] of Object.entries(saved.values)){const input=restored.elements.namedItem(name);if(input)input.value=value;}}}if(tracks)tracks.innerHTML=lanes();const range=app.querySelector('[data-vw-playhead]');if(range)range.max=duration();const guide=app.querySelector('[data-vw-guide]');if(guide&&current())guide.innerHTML=sceneGuide(current().scene);if(preserve)window.LightekStudioForms?.restore(editing);}
+  function sceneGuide(scene){
+    const cast=scene.objects.find(object=>object.definition?.character_profile);
+    const hasAction=scene.objects.some(object=>object.definition?.motion_clips?.length||object.definition?.performance);
+    if(!cast)return `<p>Who’s in your scene?</p><div>${button('create-character','Pick a character')} ${button('create-photo','Use a photo')}</div>`;
+    if(!hasAction)return `<p>Give your character something to do.</p><div>${button('select','Choose an action',`data-id="${cast.id}"`)} ${button('tab','Choose a set','data-id="sets"')}</div>`;
+    return `<p>Ready to watch your scene.</p><div>${button('play-scene','Play scene')} ${button('tab','Choose a set','data-id="sets"')}</div>`;
+  }
+  function view(record){if(!document.querySelector('#lightek-studio-dashboard'))document.body.classList.add('lt-visual');ST.workspaceMode='3d';if(state.sceneId!==record.scene.id){state.sceneId=record.scene.id;state.tab='characters';state.clip=null;state.preview=null;state.mode='layout';state.poll++;}if(!state.loaded&&!state.loading)load();return `<main class="visual-workbench" data-view="${state.mode}" data-vw-scene="${record.scene.id}"><header class="vw-top"><a href="#/studio" class="vw-brand">LIGHTEK STUDIO</a><div><h1>${esc(record.project.name)}</h1><small>${esc(record.scene.name)}</small></div><div class="vw-actions"><a class="vw-btn" href="#/studio/${record.scene.id}/music">Music</a>${button('save-template','Save show template')}${button('advanced','Advanced tools')}${button('preview','Camera preview')}${button('export','Export')}</div></header><div class="vw-message" data-vw-message role="status" ${state.message?'':'hidden'}>${esc(state.message)}</div><div class="vw-guide" data-vw-guide>${sceneGuide(record.scene)}</div><div class="vw-body"><div class="studio-work-grid"><aside data-vw-assets>${assetsPanel()}</aside><aside data-vw-inspector>${inspector()}</aside></div></div><div class="vw-transport">${button('play-scene','▶ Play scene')}${button('play','Play edit')}${button('export','Export')}${button('stop','Stop edit')}<span class="vw-time" data-vw-time>00:00.0</span><input aria-label="Edit playhead" type="range" min="0" max="${duration()}" step="0.04" value="0" data-vw-playhead><small>Draft previews show up to 3 seconds</small></div><details class="vw-timeline-drawer" ${state.mode==='edit'?'open':''}><summary>Timeline</summary><div class="vw-timeline" data-vw-lanes>${lanes()}</div></details></main>`;}
   function mountStage(viewport){if(!enabled()||!viewport.closest('.visual-workbench'))return;const overlays=document.createElement('div');overlays.innerHTML=`<div class="vw-stage-mode">${button('layout','Layout')}${button('edit','Media edit')}</div><div class="vw-media-stage"><canvas width="960" height="540" data-timeline-preview></canvas><span data-timeline-status role="status"></span></div><div class="vw-render-stage"></div>`;while(overlays.firstChild)viewport.append(overlays.firstChild);viewport.addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('application/x-lightek-asset'))e.preventDefault();});viewport.addEventListener('drop',e=>{e.preventDefault();const id=Number(e.dataTransfer.getData('application/x-lightek-asset'));if(id)run(()=>addAsset(id));});showStage();}
-  function showStage(){const media=app.querySelector('.vw-media-stage'),preview=app.querySelector('.vw-render-stage');if(media)media.dataset.visible=state.mode==='edit';if(preview){preview.dataset.visible=state.mode==='render';const p=state.preview;preview.innerHTML=p?.url&&!p.stale?`${p.video?`<video src="${esc(p.url)}" controls playsinline autoplay></video>`:`<img src="${esc(p.url)}" alt="Rendered camera preview">`}${button('layout','Back to layout')}`:`<div class="vw-render-progress">${p?.error?'':'<span class="vw-loader"></span>'}<strong>${esc(p?.error?'Preview failed':'Rendering your camera')}</strong><p>${esc(p?.error||p?.status||'Waiting for the render worker…')}</p>${button('layout','Back to layout')}</div>`;}}
+  function showStage(){const workbench=app.querySelector('.visual-workbench[data-view]');if(workbench){
+    workbench.dataset.view=state.mode;
+    if(state.mode==='edit'){const drawer=workbench.querySelector('.vw-timeline-drawer');if(drawer)drawer.open=true;}
+  }const media=app.querySelector('.vw-media-stage'),preview=app.querySelector('.vw-render-stage');if(media)media.dataset.visible=state.mode==='edit';if(preview){preview.dataset.visible=state.mode==='render';const p=state.preview;preview.innerHTML=p?.url&&!p.stale?`${p.video?`<video src="${esc(p.url)}" controls playsinline autoplay></video>`:`<img src="${esc(p.url)}" alt="Rendered camera preview">`}${button('layout','Back to layout')}`:`<div class="vw-render-progress">${p?.error?'':'<span class="vw-loader"></span>'}<strong>${esc(p?.error?'Preview failed':'Rendering your camera')}</strong><p>${esc(p?.error||p?.status||'Waiting for the render worker…')}</p>${button('layout','Back to layout')}</div>`;}}
   async function reload(){await A.studioLoad(true);const r=current();if(r)window.LightekStudioTimeline.set(r.scene.settings.timeline||{output:'video',width:1280,height:720,clips:[]});refresh();}
-  async function addAsset(id){const a=state.assets.find(a=>a.id===id);if(!a||a.status!=='ready')throw Error('Wait for this asset to finish processing.');const scene=current().scene,media=['audio','image','video'].includes(a.kind);if(window.LightekStudioTimeline.dirty?.())await window.LightekStudioTimeline.save();const result=await call(a.metadata?.character_profile?'cast.place':media?'asset.use':'asset.place',{asset_id:id,scene_id:scene.id,lock_version:scene.lock_version,placement:'append',request_key:key()});if(result.object_id)ST.selectedObjectId=result.object_id;await reload();notice(media?'Added to the media edit. Press Play edit to watch it.':'Added to the stage. Select Move to position it.');if(media){state.mode='edit';showStage();}}
+  function placeReadyCharacter(){
+    if(state.busy||!enabled()||!app.querySelector('[data-vw-scene]'))return;
+    const sceneId=current()?.scene.id;
+    const queued=[...pendingCharacters.values()].find(entry=>entry.sceneId===sceneId&&!entry.attempted&&state.assets.some(asset=>asset.id===entry.assetId&&asset.status==='ready'&&asset.metadata?.character_profile));
+    if(queued){queued.attempted=true;run(()=>addAsset(queued.assetId));}
+  }
+  async function addAsset(id){const a=state.assets.find(a=>a.id===id);if(!a||a.status!=='ready')throw Error('Wait for this asset to finish processing.');const scene=current().scene,media=['audio','image','video'].includes(a.kind);if(window.LightekStudioTimeline.dirty?.())await window.LightekStudioTimeline.save();const result=await call(a.metadata?.character_profile?'cast.place':media?'asset.use':'asset.place',{asset_id:id,scene_id:scene.id,lock_version:scene.lock_version,placement:'append',request_key:pendingCharacters.get(placementKey(scene.id,id))?.requestKey||key()});pendingCharacters.delete(placementKey(scene.id,id));if(result.object_id)ST.selectedObjectId=result.object_id;await reload();notice(media?'Added to the media edit. Press Play edit to watch it.':'Added to the stage. Select Move to position it.');if(media){state.mode='edit';showStage();}}
   async function preview(video=false,scenePlayback=false){const id=current().scene.id,token=++state.poll,frame=Number(current().scene.settings.frame_current||current().scene.settings.frame_start||1),action=video?'performance.preview':'blender.preview';window.LightekStudioTimeline.stop();state.mode='render';state.preview={status:'Queued'};showStage();notice('');let result=await call(action,{scene_id:id,frame,...(scenePlayback?{scene_playback:true}:{})});let attempts=0;while(token===state.poll&&current()?.scene.id===id){state.preview={...result,video};showStage();if(result.error||result.url||!['pending','running','queued'].includes(result.status))break;if(++attempts>=120){notice('Preview is still processing. You can return to layout and check it later.');break;}await new Promise(resolve=>setTimeout(resolve,2500));if(token!==state.poll||current()?.scene.id!==id)return;result=await call(action,{scene_id:id,frame,operation_id:result.operation_id});}if(token===state.poll&&!result.url&&!result.error&&!['pending','running','queued'].includes(result.status)){state.preview={error:'No preview was returned. Try playing the scene again.'};showStage();}if(result.stale)notice('The scene changed. Render a new preview.');}
   function dialog(html){
     const el=document.createElement('dialog');el.className='vw-dialog';el.innerHTML=html;
@@ -106,27 +125,68 @@
     const hasPhoto=!!asset?.metadata?.photo_character;
     const photoOption=hasPhoto?'Replace photo':'Use a photo';
     const draft={...characterTemplates.host,...asset?.metadata?.performer_build};
-    const presets=asset?'':`<label class="vw-field"><span>Character template</span><select data-vw-character-template><option value="host">Host</option><option value="explorer">Explorer</option><option value="performer">Performer</option></select></label>`;
-    return `<form data-vw-form="character" data-photo-source="${hasPhoto?asset.id:''}" ${photoMode?'data-require-photo':''}><h2>${asset?'Customize a copy':photoMode?'Create from a photo':'Create a character'}</h2>
-      ${presets}${field('name','Character name',asset?asset.name+' copy':'','text')}
-      <label class="vw-field"><span>Hair style</span><select name="hair_style">${[['curls','Curls'],['close','Close cut'],['high_top','High top']].map(([id,label])=>`<option value="${id}" ${draft.hair_style===id?'selected':''}>${label}</option>`).join('')}</select></label>
-      <div class="vw-row three">${field('skin','Skin',draft.skin,'color')}${field('wardrobe','Jacket',draft.wardrobe,'color')}${field('hair','Hair',draft.hair,'color')}</div>
-      <details class="vw-photo-choice" ${photoMode?'open':''}><summary>${photoOption}</summary>
-        <label class="vw-field"><span>Portrait photo</span><input type="file" data-vw-character-photo accept="image/jpeg,image/png,image/webp"></label>
-        <p>Choose a front-facing portrait with the face centered. Studio adds a toon body, movement and an animated mouth.</p>
-        <img data-vw-photo-preview class="vw-photo-preview" alt="Selected portrait" hidden>
+    const presets=asset||photoMode?'':`<fieldset class="vw-character-choices"><legend>Pick a character</legend>${Object.entries(characterTemplates).map(([id,style])=>`<label><input type="radio" name="character_choice" value="${id}" data-vw-character-template ${id==='host'?'checked':''}><span class="vw-character-swatch" style="--skin:${style.skin};--wardrobe:${style.wardrobe};--hair:${style.hair}" data-hair="${style.hair_style}" aria-hidden="true"></span><strong>${id[0].toUpperCase()+id.slice(1)}</strong></label>`).join('')}</fieldset>`;
+    const photo=`<div class="vw-photo-source"><label class="vw-field"><span>Portrait photo</span><input type="file" data-vw-character-photo accept="image/jpeg,image/png,image/webp"></label>
+      <p>Use a centered, front-facing photo. Studio adds a body and an animated mouth.</p>
+      <img data-vw-photo-preview class="vw-photo-preview" alt="Selected portrait" hidden></div>`;
+    return `<form data-vw-form="character" data-photo-source="${hasPhoto?asset.id:''}" ${photoMode?'data-require-photo':''} ${asset?'':'data-place-character'}><h2>${asset?'Customize a copy':photoMode?'Use a photo':'Choose your character'}</h2>
+      ${presets}${photoMode?photo:''}
+      <details class="vw-character-customize" ${asset?'open':''}><summary>Customize</summary>
+        ${field('name','Character name',asset?asset.name+' copy':'','text')}
+        <label class="vw-field"><span>Hair style</span><select name="hair_style">${[['curls','Curls'],['close','Close cut'],['high_top','High top']].map(([id,label])=>`<option value="${id}" ${draft.hair_style===id?'selected':''}>${label}</option>`).join('')}</select></label>
+        <div class="vw-row three">${field('skin','Skin',draft.skin,'color')}${field('wardrobe','Jacket',draft.wardrobe,'color')}${field('hair','Hair',draft.hair,'color')}</div>
+        ${photoMode?'':`<details class="vw-photo-choice"><summary>${photoOption}</summary>${photo}</details>`}
       </details>
-      <p data-vw-character-error role="alert"></p><div class="vw-actions">${button('close','Cancel')}<button type="submit" class="vw-btn primary">Save character</button></div></form>`;
+      <p data-vw-character-error role="alert"></p><div class="vw-actions">${button('close','Cancel')}<button type="submit" class="vw-btn primary">${asset?'Save character':'Add to scene'}</button></div></form>`;
+  }
+  function updateHomeSection(selector,html,replaceFocused=false){
+    const section=app.querySelector('.vw-home '+selector);
+    if(section&&(replaceFocused||!section.contains(app.ownerDocument.activeElement))&&section.outerHTML!==html)section.outerHTML=html;
+  }
+  function productionTemplates(){
+    return `<div class="vw-template-grid">${state.presets.filter(p=>p.project_template).map(p=>`<article class="vw-template"><h3>${esc(p.name)}</h3><p>${esc(p.description||'')}</p>${button('template','Use template',`data-id="${esc(p.key)}"`)}</article>`).join('')||(state.loaded?'<p>No show templates available.</p>':'<p>Loading show templates…</p>')}</div>`;
   }
   const priorStudio=R.studio;
-  R.studio=id=>{const home=!id||['create','templates'].includes(id);if(!document.querySelector('#lightek-studio-dashboard'))document.body.classList.toggle('lt-visual',enabled()&&(home||/^\d+$/.test(String(id))));if(!enabled()||!home||!ST.loaded)return priorStudio(id);if(!state.loaded&&!state.loading)load();if(!state.starterLoaded&&!state.starterLoading)starterPoll();return `<main class="visual-workbench vw-home"><div class="vw-brand">LIGHTEK STUDIO</div><h1>${animationStart()?'Make an animation':'What are we making?'}</h1><p class="vw-home-intro">${window.LightekStudioProduction?animationStart()?'Create a character, choose a set and give your cast something to do.':'Start a production. Import footage, write music, build scenes and finish your edit.':'Start a scene. Add your cast, build a set, and give it a performance.'}</p><form class="vw-start" data-vw-form="new" ${animationStart()?'data-animation':''}>${window.LightekStudioProduction?`<label class="vw-field"><span>Production format</span><select name="format" aria-label="Production format"><option value="landscape">Landscape · website, YouTube & OTT</option><option value="portrait">Portrait · TikTok, Reels & Shorts</option><option value="square">Square · social & product features</option>${animationStart()?'':'<option value="audio">Audio · voice, music & podcasts</option>'}</select></label>`:''}<input name="name" aria-label="Project name" placeholder="Name your project" required maxlength="120"><button class="vw-btn primary">${window.LightekStudioProduction&& !animationStart()?'Create production →':'Create animation →'}</button></form>${starterPanel()}<h2>Continue a production</h2><div class="vw-projects">${studioSceneRecords().filter(r=>!r.project.is_template).map(({scene,project})=>`<a class="vw-project" href="${sceneUrl(scene.id,scene.settings?.studio_entry==='stage'?'stage':'')}"><small>${esc(project.name)}</small><h3>${esc(scene.name)}</h3><span class="vw-btn">Open studio →</span></a>`).join('')||'<p class="vw-help">Your saved scenes will appear here.</p>'}</div><details><summary>Start from a production template</summary>${[...new Map(studioSceneRecords().filter(r=>r.project.is_template).map(r=>[r.project.id,r.project])).values()].map(p=>`<article class="vw-template"><h3>${esc(p.name)}</h3><p>Your saved show setup · create an independent episode.</p>${button('episode','Create episode',`data-id="${p.id}"`)}</article>`).join('')}<p class="vw-help">Templates supply scene structure, cameras and production notes. Add your own cast and recordings.</p><div class="vw-template-grid">${state.presets.filter(p=>p.project_template).map(p=>`<article class="vw-template"><h3>${esc(p.name)}</h3><p>${esc(p.description||'')}</p>${button('template','Use template',`data-id="${esc(p.key)}"`)}</article>`).join('')||'<p>Loading production templates…</p>'}</div></details><div class="vw-message" data-vw-message role="status" ${state.message?'':'hidden'}>${esc(state.message)}</div>${window.LightekStudioProduction?'<p><a class="vw-btn" href="/dashboard/studio-broadcasting?site_id='+encodeURIComponent(document.querySelector('#lightek-studio-dashboard').dataset.siteId)+'">Back to production library</a></p>':'<p>'+button('advanced','Advanced studio & publishing tools')+'</p>'}</main>`;};
+  R.studio=id=>{
+    const home=!id||['create','templates'].includes(id);
+    const dashboard=document.querySelector('#lightek-studio-dashboard');
+    if(!dashboard)document.body.classList.toggle('lt-visual',enabled()&&(home||/^\d+$/.test(String(id))));
+    if(!enabled()||!home||(!ST.loaded&&!app.querySelector('.vw-home')))return priorStudio(id);
+    if(!state.loaded&&!state.loading)load();
+    if(!state.starterLoaded&&!state.starterLoading)starterPoll();
+    const animation=animationStart(),projects=studioSceneRecords().filter(record=>!record.project.is_template);
+    const formats='<option value="landscape">Landscape</option><option value="portrait">Portrait</option><option value="square">Square</option>';
+    return `<main class="visual-workbench vw-home">
+      <h1>${animation?'Make a scene':'What are we making?'}</h1>
+      <p class="vw-home-intro">${animation?'Add a character, give them something to do, and watch your scene.':'Start a production or continue working on one below.'}</p>
+      <form class="vw-start" data-vw-form="new" ${animation?'data-animation':''}>
+        ${animation?`<button class="vw-btn primary" type="submit">Start a scene</button><details class="vw-start-options"><summary>Name your scene or change its format</summary><label class="vw-field"><span>Project name</span><input name="name" aria-label="Project name" placeholder="Optional" maxlength="120"></label><label class="vw-field"><span>Format</span><select name="format" aria-label="Production format">${formats}</select></label></details>`:
+          `<label class="vw-field"><span>Project name</span><input name="name" aria-label="Project name" required maxlength="120"></label><label class="vw-field"><span>Format</span><select name="format" aria-label="Production format">${formats}<option value="audio">Audio</option></select></label><button class="vw-btn primary" type="submit">Create production</button>`}
+      </form>
+      <div class="vw-message" data-vw-message role="status" ${state.message?'':'hidden'}>${esc(state.message)}</div>
+      <section class="vw-continue"><h2>Continue a scene</h2><div class="vw-projects">${projects.map(({scene,project})=>`<a class="vw-project" href="${sceneUrl(scene.id,window.LightekStudioProduction&&scene.settings?.studio_entry==='stage'?'stage':'')}"><h3>${esc(project.name)}</h3><small>${esc(scene.name)}</small><span>Open →</span></a>`).join('')||'<p class="vw-help">Scenes you make will appear here.</p>'}</div></section>
+      <details class="vw-home-extra"><summary>Try an example scene</summary>${starterPanel()}</details>
+      <details class="vw-home-extra"><summary>Start from a show template</summary>${[...new Map(studioSceneRecords().filter(r=>r.project.is_template).map(r=>[r.project.id,r.project])).values()].map(p=>`<article class="vw-template"><h3>${esc(p.name)}</h3>${button('episode','Create episode',`data-id="${p.id}"`)}</article>`).join('')}${productionTemplates()}</details>
+      ${dashboard?`<a class="vw-btn" href="/dashboard/studio-broadcasting?site_id=${encodeURIComponent(dashboard.dataset.siteId)}">Production library</a>`:button('advanced','Advanced studio & publishing tools')}
+    </main>`;
+  };
   window.LightekStudioVisual={enabled,view,mountStage};
   const bridge=window.LightekStudioViewportBridge,priorSelect=bridge.selectObject;
   bridge.selectObject=id=>{if(!enabled()||!app.querySelector('.visual-workbench'))return priorSelect(id);ST.selectedObjectId=id===null?null:Number(id);state.clip=null;refresh();window.dispatchEvent(new CustomEvent('lightek:visual-selection'));};
   app.addEventListener('dragstart',e=>{const asset=e.target.closest('.vw-asset');if(asset)e.dataTransfer.setData('application/x-lightek-asset',asset.dataset.id);});
   app.addEventListener('click',e=>{const b=e.target.closest('[data-vw]');if(!b)return;const action=b.dataset.vw;
-    if(action==='tab'){state.tab=b.dataset.id;refresh();return;}
-    if(action==='select'){bridge.selectObject(Number(b.dataset.id));return;}
+    if(action==='tab'){
+      const guided=!!b.closest('[data-vw-guide]');
+      state.tab=b.dataset.id;refresh();
+      if(guided)app.querySelector('[data-vw-assets]')?.scrollIntoView?.({block:'nearest'});
+      return;
+    }
+    if(action==='select'){
+      const guided=!!b.closest('[data-vw-guide]');
+      bridge.selectObject(Number(b.dataset.id));
+      if(guided)app.querySelector('[data-vw-inspector]')?.scrollIntoView?.({block:'nearest'});
+      return;
+    }
     if(action==='clip'){state.clip=Number(b.dataset.index);ST.selectedObjectId=null;refresh();return;}
     if(action==='advanced'&&window.LightekStudioProduction){LightekStudioProduction.go('scene');return;}
     if(action==='return'&&window.LightekStudioProduction){LightekStudioProduction.go('stage');return;}
@@ -143,9 +203,9 @@
     run(async()=>{
       if(action==='starter-cast'){
         const retry=state.starter&&(state.starter.status==='failed'||state.starter.phase==='delayed');
-        const name=app.querySelector('[data-vw-form=new] [name=name]')?.value.trim()||'My first character scene';
+        const name='Rain and Snow';
         const payload=retry?{retry_asset_id:state.starter.asset_id}:{name,request_key:state.starterKey||=key()};
-        state.starter=await call('starter.scene.create',payload);notice('');render(1);await starterPoll();
+        state.starter=await call('starter.scene.create',payload);notice('');updateHomeSection('.vw-starter-cast',starterPanel(),true);await starterPoll();
       }
       if(action==='refresh'||action==='more'){await load(action==='more');notice('Assets refreshed.');}
       if(action==='add')await addAsset(Number(b.dataset.id));
@@ -188,20 +248,26 @@
   app.addEventListener('input',e=>{if(e.target.matches('[data-vw-playhead]')){const value=Number(e.target.value);if(state.mode==='edit')window.LightekStudioTimeline.seek(value);app.querySelector('[data-vw-time]').textContent=`${Math.floor(value/60).toString().padStart(2,'0')}:${(value%60).toFixed(1).padStart(4,'0')}`;}});
   app.addEventListener('submit',e=>{const form=e.target.closest('[data-vw-form]');if(!form)return;e.preventDefault();const data=Object.fromEntries(new FormData(form)),kind=form.dataset.vwForm,scene=current()?.scene,object=selected(),clipIndex=state.clip;run(async()=>{
     if(kind==='new'){
-      if(!data.name.trim())throw Error('Give your project a name.');
       const native=!!window.LightekStudioProduction,animation=form.hasAttribute('data-animation');
+      const name=data.name.trim()||(animation?'My scene':'');
+      if(!name)throw Error('Give your project a name.');
+      const originatingRoute=location.hash;
       const result=await call('project.create',{
         format:data.format||'landscape',...(animation?{studio_entry:'stage'}:{}),
-        name:data.name,request_key:form.dataset.requestKey||=key()
+        name,request_key:form.dataset.requestKey||=key()
       });
       await reload();
+      if(location.hash!==originatingRoute)return;
       location.hash=sceneUrl(result.scene_id,native&&animation?'stage':'');render(1);
-      notice(animation||!native?'Your stage is ready. Add a character or choose a set.':'Your production is ready. Import media to begin editing.');
+      notice(animation?'':'Import media to begin editing.');
     }
     if(kind==='episode'||kind==='save-template'){if(!data.name.trim())throw Error('Enter a name.');const result=await call(kind==='episode'?'template.use':'template.save',{project_id:Number(form.dataset.project),name:data.name.trim(),request_key:form.dataset.requestKey||=key()});form.closest('dialog').close();await reload();if(kind==='episode'){location.hash='#/studio/'+result.scene_id;render(1);}notice(kind==='episode'?'Your independent episode is ready.':'Show template saved. Find it under production templates on the Studio home screen.');}
     if(kind==='character'){
       const dialog=form.closest('dialog'),file=form.querySelector('[data-vw-character-photo]').files[0],submit=form.querySelector('button[type="submit"]');
-      if(!data.name.trim()){dialog.querySelector('[data-vw-character-error]').textContent='Give your character a name.';return;}
+      const defaultName=form.hasAttribute('data-require-photo')?'Photo character':data.character_choice?data.character_choice[0].toUpperCase()+data.character_choice.slice(1):'Character';
+      const {character_choice,...settings}=data;
+      const name=data.name.trim()||defaultName;
+      const submitLabel=submit.textContent;
       if(form.hasAttribute('data-require-photo')&&!file){dialog.querySelector('[data-vw-character-error]').textContent='Choose a portrait photo.';return;}
       if(file?.size>10*1024*1024){dialog.querySelector('[data-vw-character-error]').textContent='Choose a photo up to 10 MB.';return;}
       submit.disabled=true;
@@ -213,11 +279,14 @@
           photoOptions.photo_signed_id=form.uploadedPhoto.signedId;
         }else if(form.dataset.photoSource)photoOptions.copy_photo_from=Number(form.dataset.photoSource);
         submit.textContent='Saving character…';
-        await call('cast.create',{...data,...photoOptions,request_key:form.dataset.requestKey||=key()});
-        dialog.close();await load();notice('Creating your character. Add it from Characters when ready.');
+        const result=await call('cast.create',{...settings,name,...photoOptions,request_key:form.dataset.requestKey||=key()});
+        if(scene&&result.asset_id&&form.hasAttribute('data-place-character'))pendingCharacters.set(placementKey(scene.id,result.asset_id),{sceneId:scene.id,assetId:result.asset_id,requestKey:key()});
+        dialog.close();
+        await load();state.tab='characters';refresh();
+        notice(form.hasAttribute('data-place-character')?'Preparing your character for this scene.':'Preparing your character.');
       }catch(error){
         dialog.querySelector('[data-vw-character-error]').textContent=error.message;
-      }finally{submit.disabled=false;submit.textContent='Save character';}
+      }finally{submit.disabled=false;submit.textContent=submitLabel;}
     }
     if(kind==='transform'){await bridge.commitTransform(object.id,{location:[0,1,2].map(i=>Number(data['p'+i]))});await reload();notice('Position saved.');}
     if(kind==='clip'){const t=timeline();Object.assign(t.clips[clipIndex],Object.fromEntries(Object.entries(data).map(([k,v])=>[k,Number(v)])));window.LightekStudioTimeline.set(t);await window.LightekStudioTimeline.save();refresh();notice('Clip saved.');}
@@ -243,10 +312,14 @@
   window.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(Math.abs(e.clientX-d.x)<5||d.sceneId!==current()?.scene.id||!d.width)return;run(async()=>{const t=timeline();t.clips[d.index].start=Math.max(0,Math.round((d.start+(e.clientX-d.x)/d.width*d.total)*100)/100);window.LightekStudioTimeline.set(t);await window.LightekStudioTimeline.save();refresh();notice('Clip moved.');});});
   window.addEventListener('hashchange',()=>{state.poll++;window.LightekStudioTimeline.stop();if(!location.hash.startsWith('#/studio'))document.body.classList.remove('lt-visual');});
   window.LightekStudioVisual.renderHomeInto=(root,html)=>{
-    const home=root.querySelector('.vw-home');if(!home)return false;
+    const home=root.querySelector('.vw-home');
+    const openDialog=root.querySelector('.visual-workbench[data-vw-scene] dialog[open]');
+    if(!home&&!openDialog)return false;
     const template=document.createElement('template');template.innerHTML=html;
-    const next=template.content.querySelector('.vw-home');if(!next)return false;
-    for(const selector of ['.vw-projects','.vw-template-grid','.vw-starter-cast']){const old=home.querySelector(selector),updated=next.querySelector(selector);if(old&&updated)old.replaceWith(updated);}
+    if(openDialog&&root.querySelector('[data-vw-scene]')?.dataset.vwScene===template.content.querySelector('[data-vw-scene]')?.dataset.vwScene)return true;
+    if(!home)return false;
+    const next=template.content.querySelector('.vw-home');if(!next||home.querySelector('[data-vw-form=new]')?.hasAttribute('data-animation')!==next.querySelector('[data-vw-form=new]')?.hasAttribute('data-animation'))return false;
+    for(const selector of ['.vw-projects','.vw-template-grid','.vw-starter-cast']){const old=home.querySelector(selector),updated=next.querySelector(selector);if(old&&updated&&!old.contains(root.ownerDocument.activeElement)&&old.outerHTML!==updated.outerHTML)old.replaceWith(updated);}
     return true;
   };
 })();

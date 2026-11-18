@@ -28,6 +28,12 @@ class StudioAiTest < StudioProductionTest
         end
         body=socket.read(headers.fetch("content-length","0").to_i)
         method,path=first.split(" ");type="application/json"
+        if path=="/object_info" && @inventory_http_status
+          bytes="private upstream response"
+          socket.write("HTTP/1.1 #{@inventory_http_status} Error\r\nContent-Length: #{bytes.bytesize}\r\nConnection: close\r\n\r\n#{bytes}")
+          socket.close
+          next
+        end
         response=case path.split("?").first
         when "/object_info"
           recipe=JSON.parse(File.read(File.join(ROOT,"config/studio_ai/workflows/image.json")))
@@ -76,6 +82,37 @@ class StudioAiTest < StudioProductionTest
     output=generate(steps:"32")
     StudioAiGenerationJob.perform_now(output[:asset_id])
     assert_equal 32,@submitted.last.dig("prompt","3","inputs","steps")
+  end
+
+  def test_ai_connection_failures_have_specific_safe_diagnostics
+    runtime=Studio::Ai::Runtime.new
+    failures={
+      Errno::ECONNREFUSED.new("private address")=>"engine_connection_refused",
+      Timeout::Error.new("private address")=>"engine_timeout",
+      Studio::Ai::Runtime::EngineResponseError.new(401)=>"engine_authentication",
+      Studio::Ai::Runtime::EngineResponseError.new(404)=>"engine_route_missing",
+      Studio::Ai::Runtime::EngineResponseError.new(502)=>"engine_http_error",
+      JSON::ParserError.new("private response body")=>"engine_invalid_json"
+    }
+    failures.each do |failure,code|
+      runtime.stub(:json,->(*) { raise failure }) do
+        status=runtime.inventory(telemetry:true)
+        refute status[:connected]
+        assert_equal code,status[:reason_code]
+        refute_match(/private/,JSON.generate(status))
+        refute_empty status[:reason]
+      end
+    end
+  end
+
+  def test_ai_http_inventory_errors_are_classified_without_disclosing_the_response
+    {401=>"engine_authentication",404=>"engine_route_missing",502=>"engine_http_error"}.each do |status,code|
+      @inventory_http_status=status
+      result=action("ai_status",scene_id:@scene.id)
+      refute result[:connected]
+      assert_equal code,result[:reason_code]
+      refute_match(/private upstream response/,JSON.generate(result))
+    end
   end
 
   def test_ai_local_genesis_is_selectable_without_an_installation_record
@@ -257,7 +294,7 @@ class StudioAiTest < StudioProductionTest
     @models=[];assert_empty action("ai_status",scene_id:@scene.id)[:recipes].select{|r|r[:ready]}
   end
   def test_ai_registered_worker_accepts_typed_portrait_and_automatic_seed
-    assert_empty action("ai_status",scene_id:@scene.id)[:genesis_workers]
+    assert_equal Studio::Ai::Runtime::LOCAL_WORKER_ID,action("ai_status",scene_id:@scene.id)[:genesis_workers].first.fetch(:id)
     @site.update!(manifest:@site.manifest.merge("studio_ai_worker"=>{"mode"=>"local","installation_id"=>18}))
     @models=["v1-5-pruned-emaonly.safetensors"]
     assert_equal [{id:18,label:"Genesis worker",video:true,image:true}], action("ai_status",scene_id:@scene.id)[:genesis_workers]

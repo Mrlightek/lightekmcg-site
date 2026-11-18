@@ -10,6 +10,13 @@ module Studio
     class Runtime
       LOCAL_WORKER_ID = "local"
       SD15_CHECKPOINT = /sd[-_. ]?1[-_. ]?5|v1[-_.]5/i
+      class EngineResponseError < ArgumentError
+        attr_reader :status
+        def initialize(status)
+          @status = Integer(status)
+          super("ComfyUI returned HTTP #{@status}")
+        end
+      end
 
       def self.selection_id(identity)
         identity["installation_id"] || (LOCAL_WORKER_ID if identity["mode"] == "local")
@@ -37,7 +44,7 @@ module Studio
         result="".b
         Net::HTTP.start(uri.hostname,uri.port,nil,use_ssl:uri.scheme=="https",open_timeout:3,read_timeout:20) do |http|
           http.request(request) do |response|
-            raise ArgumentError,"The local AI engine rejected this operation (#{response.code})" unless response.is_a?(Net::HTTPSuccess)
+            raise EngineResponseError,response.code unless response.is_a?(Net::HTTPSuccess)
             response.read_body do |chunk|
               result<<chunk
               raise ArgumentError,"AI result exceeds the supported size" if result.bytesize>limit
@@ -68,8 +75,32 @@ module Studio
           {id:recipe["id"],name:recipe["name"],kind:recipe["kind"],input_kind:recipe["input_kind"],steps:recipe_steps(recipe),ready:!missing_inputs && missing.empty? && missing_models.empty? && (!needs_checkpoint || models.any?),reason:missing_inputs ? "Required image-conditioning inputs are not available on this engine" : missing.any? ? "Required engine nodes are not installed" : missing_models.any? ? "Required workflow models are not installed" : needs_checkpoint && models.empty? ? "Install a local checkpoint on the generation worker" : nil}
         end
         {connected:true,engine:"Self-hosted ComfyUI",recipes:available,models:models,device:telemetry ? device_status : nil}
-      rescue SystemCallError,SocketError,Timeout::Error,IOError,OpenSSL::SSL::SSLError,ArgumentError,JSON::ParserError
-        {connected:false,engine:"Self-hosted ComfyUI",recipes:[],models:[],reason:"Optional neural generation is unavailable on this installation. Infrastructure operators manage neural workers; CPU scene production uses the separate Studio runtime."}
+      rescue SystemCallError,SocketError,Timeout::Error,IOError,OpenSSL::SSL::SSLError,ArgumentError,JSON::ParserError,TypeError,KeyError => error
+        code,reason=case error
+        when EngineResponseError
+          if [401,403].include?(error.status)
+            ["engine_authentication","ComfyUI rejected Studio's authentication. An infrastructure operator must repair the saved worker credential or proxy access."]
+          elsif error.status==404
+            ["engine_route_missing","The configured worker responded, but its ComfyUI API route was not found. Check the worker proxy and API address."]
+          else
+            ["engine_http_error","The configured ComfyUI service returned HTTP #{error.status}. Check the service and its proxy."]
+          end
+        when Errno::ECONNREFUSED
+          ["engine_connection_refused","The configured ComfyUI connection was refused. Check that ComfyUI is running and listening on the address and port used by the Rails application."]
+        when Timeout::Error
+          ["engine_timeout","The configured ComfyUI service timed out. Check worker health and network reachability from the Rails application."]
+        when SocketError
+          ["engine_dns_error","Rails could not resolve the configured ComfyUI worker. Check the worker hostname and DNS."]
+        when OpenSSL::SSL::SSLError
+          ["engine_tls_error","Rails could not verify the ComfyUI worker's HTTPS connection. Check its certificate and proxy."]
+        when JSON::ParserError
+          ["engine_invalid_json","The ComfyUI inventory response or installed workflow is not valid JSON. Check that the configured route serves the ComfyUI API."]
+        when ArgumentError,TypeError,KeyError
+          ["engine_inventory_invalid","Studio could not read the ComfyUI inventory or installed workflow definitions. Check the API and deployed workflow files."]
+        else
+          ["engine_connection_error","The ComfyUI connection was interrupted. Check worker health and the connection from Rails."]
+        end
+        {connected:false,engine:"Self-hosted ComfyUI",recipes:[],models:[],reason_code:code,reason:reason}
       end
       def recipe_steps(recipe)
         recipe.fetch("workflow").values.find { |node| node["class_type"]=="KSampler" }&.dig("inputs","steps")

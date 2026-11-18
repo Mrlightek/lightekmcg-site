@@ -17,8 +17,10 @@ module Studio
         Dir.mktmpdir("lightek-edit-") do |root|
           paths=[]
           timeline["clips"].each_with_index do |clip,i|
-            file=File.join(root,"source-#{i}#{File.extname(assets.fetch(clip['asset_id']).file.filename.to_s)}")
-            File.open(file,"wb"){|out|assets.fetch(clip['asset_id']).file.blob.download{|chunk|out.write(chunk)}}
+            asset=assets.fetch(clip["asset_id"])
+            source=asset.kind=="image" && asset.proxy.attached? ? asset.proxy : asset.file
+            file=File.join(root,"source-#{i}#{File.extname(source.filename.to_s)}")
+            File.open(file,"wb"){|out|source.blob.download{|chunk|out.write(chunk)}}
             paths<<file
           end
           extension=timeline["output"]=="audio" ? "wav" : timeline["export_preset"]=="master" ? "mov" : "mp4"

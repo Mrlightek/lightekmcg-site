@@ -71,6 +71,22 @@ class StudioProductionTest < StudioMusicTest
       assert_raises(ActiveRecord::RecordNotFound){action("render_checkout",operation_id:operation.id,user_id:@bob.id,site_id:@other_site.id,origin:"https://other.example",scope_site:true)}
     end
   end
+  def test_production_portrait_crop_quotes_a_ready_library_clip
+    asset=StudioAsset.create!(owner:@alice,site:@site,name:"Wide clip",kind:"video",status:"ready",request_key:SecureRandom.uuid,metadata:{"duration"=>2.0})
+    original=@scene.settings
+    quote=Studio::Billing::Quote.stub(:call,->(operation:,**_){operation.update!(cost_quote:{"total_cents"=>125,"currency"=>"USD"})}) do
+      action("timeline_quote",scene_id:@scene.id,source_asset_id:asset.id)
+    end
+    operation=StudioOperation.find(quote.fetch(:operation_id))
+    timeline=operation.manifest.fetch("timeline")
+    assert_equal [1080,1920,"cover",2.0],timeline.values_at("width","height","fit","duration")
+    assert_equal original,@scene.reload.settings
+    command=Studio::Editing::Timeline.command(timeline,paths:["wide.mp4"],output:"portrait.mp4")
+    assert_includes command[command.index("-filter_complex")+1],"force_original_aspect_ratio=increase:force_divisible_by=2,crop=1080:1920"
+    asset.update!(status:"uploaded")
+    assert_raises(ActiveRecord::RecordNotFound){action("timeline_quote",scene_id:@scene.id,source_asset_id:asset.id)}
+  end
+
   def test_production_export_snapshot_quotes_the_edit_and_survives_further_changes
     asset=recording
     format=Studio::Editing::Timeline.format("portrait")

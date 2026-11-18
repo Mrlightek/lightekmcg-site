@@ -2,6 +2,8 @@
 module Studio
   module Assets
     class Upload
+      PHONE_IMAGE_TYPES = %w[image/heic image/heif image/avif].freeze
+
       def self.call(file:,user:,site:,purpose:)
         raise ArgumentError, "Choose a media file" unless file.respond_to?(:tempfile)
         raise ArgumentError, "File must be smaller than 250 MB" if file.size > 250.megabytes
@@ -15,7 +17,14 @@ module Studio
         end
         type = Marcel::MimeType.for(file.tempfile, name: file.original_filename, declared_type: file.content_type)
         allowed = Post::MEDIA_TYPES
-        type = studio_kind=="blend" ? "application/x-blender" : "model/gltf-binary" if studio_kind
+        if purpose=="studio_asset"
+          detected = Marcel::MimeType.for(file.tempfile)
+          if PHONE_IMAGE_TYPES.include?(detected)
+            studio_kind = "image"
+            type = detected
+          end
+        end
+        type = studio_kind=="blend" ? "application/x-blender" : "model/gltf-binary" if %w[blend glb].include?(studio_kind)
         raise ArgumentError, "Unsupported media type" unless studio_kind || allowed.include?(type)
         blob = ActiveStorage::Blob.create_and_upload!(io: file.tempfile, filename: file.original_filename,
           content_type: type, identify: false,

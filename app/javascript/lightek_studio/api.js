@@ -9,6 +9,19 @@ export function requestKey() {
 }
 export const pending = status => ['queued', 'uploaded', 'processing', 'pending', 'running', 'draft', 'publishing'].includes(status);
 
+export function progressLabel(status) {
+  if (['uploaded','pending','queued','draft'].includes(status)) return 'Queued';
+  if (['processing','running','publishing'].includes(status)) return 'Processing on Worker';
+  return ({ready:'Ready in Library',completed:'Completed',awaiting_payment:'Awaiting payment',
+    failed:'Needs attention',cancelled:'Cancelled',recoverable:'Recoverable',expired:'Recoverable'})[status] || '';
+}
+
+export function uploadMessage(error) {
+  if (error.status === 413) return 'This file is too large. Choose a smaller file and try again.';
+  if (error.status === 422) return error.message;
+  return 'Studio could not save this upload. Choose the file again to retry.';
+}
+
 export function studioApi(host) {
   const site = host?.dataset.siteId;
   const query = site ? '?site_id=' + encodeURIComponent(site) : '';
@@ -21,10 +34,14 @@ export function studioApi(host) {
     if (data && typeof data === 'object') return Object.fromEntries(Object.entries(data).map(([key,value]) => [key,rewrite(value)]));
     return data;
   }
-  async function call(action, payload = {}) {
+  async function call(action, payload = {}, onReceipt) {
     const capability = action === 'bootstrap' ? 'studio.pwa.bootstrap' : 'studio.workspace.' + action;
     const request = {capability, payload: action==='bootstrap'?{...payload,scope_site:true}:payload};
-    if (!host) return (await window.nevaeh.execute(request)).result;
+    if (!host) {
+      const data = await window.nevaeh.execute(request);
+      onReceipt?.(data.task_uuid || data.work_item_id);
+      return data.result;
+    }
     const response = await fetch(prefix + '/execute' + query, {
       method:'POST', credentials:'same-origin',
       headers:{Accept:'application/json','Content-Type':'application/json','X-CSRF-Token':host.dataset.csrfToken},
@@ -34,7 +51,7 @@ export function studioApi(host) {
     if (data.status !== 'completed') throw Error(data.error || 'Studio could not complete this action.');
     return rewrite(data.result);
   }
-  async function upload(file, key = requestKey()) {
+  async function upload(file, projectId, key = requestKey()) {
     const body = new FormData();
     body.append('file',file);
     body.append('purpose','studio_asset');
@@ -44,10 +61,10 @@ export function studioApi(host) {
       body
     });
     const data = await window.nevaeh.parseResponse(response);
-    return call('asset.import',{signed_id:data.signed_id,name:file.name.slice(0,160),request_key:key});
+    return call('asset.import',{signed_id:data.signed_id,name:file.name.slice(0,160),request_key:key,project_id:projectId});
   }
-  return {call,upload,dashboard:!!host,site,advanced:scene => {
-    const params = new URLSearchParams({advanced:'1',workspace:'edit'});
+  return {call,upload,dashboard:!!host,site,advanced:(scene,workspace='edit') => {
+    const params = new URLSearchParams({advanced:'1',workspace});
     if (site) params.set('site_id',site);
     return prefix + '/workspace/' + scene + '?' + params;
   }};

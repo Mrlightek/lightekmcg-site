@@ -147,7 +147,7 @@ class ApplicationJob < ActiveJob::Base; end
    app/services/studio/publishers/base app/services/studio/publishers/lightek_social
    app/services/studio/director/pwa_intent app/jobs/studio_publication_dispatch_job
    app/services/gatekeeper/studio_live_policy app/services/studio/pwa_access app/services/studio/workers/workspace app/services/studio/workers/project_creation
-   app/services/studio/live/encoder app/services/studio/live/sessions app/models/studio_asset app/services/studio/media_process app/services/studio/assets/bundle_import app/services/studio/assets/ingestor app/services/studio/editing/timeline app/services/studio/providers/ffmpeg_provider app/jobs/studio_asset_ingest_job
+   app/services/studio/live/encoder app/services/studio/live/sessions app/models/studio_asset app/services/studio/media_process app/services/studio/assets/bundle_import app/services/studio/assets/upload app/services/studio/assets/ingestor app/services/studio/editing/timeline app/services/studio/providers/ffmpeg_provider app/jobs/studio_asset_ingest_job
    app/services/lightek_pwa/money app/models/lightek_social/top_person app/services/lightek_community/audience app/models/community app/models/post app/models/lightek_community/membership app/models/lightek_community/engagement
    app/models/lightek_messaging/conversation app/models/lightek_messaging/participant app/models/lightek_messaging/message
    app/services/lightek_messaging/access_denied app/services/lightek_messaging/send_message

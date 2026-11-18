@@ -135,6 +135,20 @@ jobs:
             # before it starts workers; do not restart Rails again afterward.
             systemctl is-active --quiet apache2
             curl --fail --silent --show-error --retry 8 --retry-connrefused --retry-delay 2 --max-time 20 https://lightekmcg.com/up -o /dev/null
+            # Read-only ComfyUI probe using the deployed application's environment.
+            # Report service/API/credential failures without printing URLs or secrets.
+            # Optional generation failures do not take the rest of the platform offline.
+            sudo -u lightek -H env -u GEM_HOME -u GEM_PATH timeout 180 bash -lc '
+              set -e
+              set -a
+              source /etc/lightek/lightekmcg-site.env
+              set +a
+              export RAILS_ENV=production
+              export RBENV_ROOT=/home/lightek/.rbenv
+              export PATH=/home/lightek/.rbenv/versions/3.3.6/bin:/home/lightek/.rbenv/bin:/usr/local/bin:/usr/bin:/bin
+              cd /var/www/lightekmcg-site
+              bin/rails runner script/studio/diagnose_genesis.rb
+            ' || echo 'STUDIO_GENESIS_DIAGNOSTIC_INCOMPLETE: read-only probe failed or exceeded 180 seconds'
           LIGHTEK_DEPLOY
 
           DEPLOYED_SHA="$(grep '^GATEKEEPER_DEPLOYED_SHA=' deploy-output.txt | tail -1 | cut -d= -f2-)"

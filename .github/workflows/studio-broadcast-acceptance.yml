@@ -309,6 +309,7 @@ jobs:
           node test/javascript/studio_cpu_economy_test.cjs
           node test/javascript/studio_ai_image_video_test.cjs
           node test/javascript/studio_core_access_test.cjs
+          node test/javascript/studio_genesis_connection_test.cjs
           node test/javascript/studio_music_ui_test.cjs
           node test/javascript/studio_music_patterns_test.cjs
           node test/javascript/studio_music_automation_test.cjs

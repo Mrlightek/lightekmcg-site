@@ -35,9 +35,10 @@ module Studio
         identity = site.manifest.to_h["studio_ai_worker"] || {"mode"=>"local"}
         inventory=begin
           Studio::Ai::Runtime.new(site:site, identity:identity).inventory(telemetry:true)
-        rescue ArgumentError, ActiveRecord::RecordNotFound, LightekVault::Service::AccessDenied,
+        rescue ArgumentError, URI::InvalidURIError, KeyError, ActiveRecord::RecordNotFound, LightekVault::Service::AccessDenied,
                LightekVault::Crypto::DecryptionError, LightekVault::MasterKey::ConfigurationError
-          {connected:false,recipes:[],models:[],reason:"The configured Genesis worker could not be reached."}
+          {connected:false,recipes:[],models:[],reason_code:"worker_configuration_invalid",
+            reason:"Studio could not load this website's saved Genesis worker configuration or credential. An infrastructure operator must check the worker assignment and Vault access."}
         end
         worker_id=Studio::Ai::Runtime.selection_id(identity)
         device=inventory.dig(:device,:type)

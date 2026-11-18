@@ -34,8 +34,9 @@ module Studio
         site=Studio::Ai::Setup.site_for(@access,@payload.fetch("scene_id"))
         inventory=begin
           Studio::Ai::Runtime.new(site:site).inventory(telemetry:true)
-        rescue ArgumentError => error
-          {connected:false,recipes:[],models:[],reason:error.message}
+        rescue ArgumentError, ActiveRecord::RecordNotFound, LightekVault::Service::AccessDenied,
+               LightekVault::Crypto::DecryptionError, LightekVault::MasterKey::ConfigurationError
+          {connected:false,recipes:[],models:[],reason:"The configured Genesis worker could not be reached."}
         end
         worker_id=site.manifest.to_h.dig("studio_ai_worker","installation_id")
         device=inventory.dig(:device,:type)

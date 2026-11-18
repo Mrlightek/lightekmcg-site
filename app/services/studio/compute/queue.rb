@@ -7,8 +7,12 @@ module Studio
 
       def self.name(operation)
         return "studio" if Federation::Dispatch.enabled?(operation)
-        return "studio" unless economy?(operation) && dedicated?
+        return "studio" unless dedicated_for?(operation)
         dedicated_name
+      end
+
+      def self.dedicated_for?(operation)
+        economy?(operation) && dedicated? && operation.metadata["cpu_routing_mode"] != "standard"
       end
 
       def self.dedicated_name

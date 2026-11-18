@@ -27,6 +27,7 @@ const origin = 'http://localhost:18447';
     let generated=false,published=[],loads=0,recoverable=true,taught=false,frameImported=false,uploadAttempts=0;
 
     let cable, subscription, finishReply;
+    let workerAvailability;
     await page.routeWebSocket('ws://localhost:18447/cable',socket=>{
       cable=socket;
       socket.onMessage(message=>{
@@ -67,7 +68,13 @@ const origin = 'http://localhost:18447';
             break;
           case 'bootstrap': result={projects:[{id:3,name:'Production',unassigned_scenes:[scene]}]};break;
           case 'assets.list': result={assets:data.surface==='ai_input'?[image,...(frameImported?[uploadedFrame]:[])]:[image,sound,...(frameImported?[uploadedFrame]:[]),...(generated?[video]:[])]};break;
-          case 'ai.status': result={connected:true,device:{type:'cpu'},models:['sd-v1-5.safetensors'],genesis_workers:[{id:18,label:'Genesis worker',video:true,image:true}],render_pools:['local','remote'],performances:[{id:'musetalk',source:['image','video'],driver:'audio',configured:true}],recipes:['wan22_video','wan22_image_video','image'].map(id=>({id,ready:true,steps:20}))};break;
+          case 'ai.status':
+            if(workerAvailability==='error')return route.fulfill({status:503,json:{error:'Worker status request unavailable'}});
+            if(workerAvailability==='standard'){
+              result={connected:false,recipes:[],genesis_workers:[],render_pools:['standard'],performances:[]};
+              break;
+            }
+            result={connected:true,device:{type:'cpu'},models:['sd-v1-5.safetensors'],genesis_workers:[{id:18,label:'Genesis worker',video:true,image:true}],render_pools:['local','remote'],performances:[{id:'musetalk',source:['image','video'],driver:'audio',configured:true}],recipes:['wan22_video','wan22_image_video','image'].map(id=>({id,ready:true,steps:20}))};break;
           case 'asset.import': frameImported=true;result={asset_id:24,status:'uploaded'};break;
           case 'ai.generate': generated=true;result={asset_id:23,status:'uploaded'};break;
           case 'ai.jobs': result=generated?[{...video,asset_id:23,preview_url:video.proxy_url}]:[];break;
@@ -233,6 +240,18 @@ const origin = 'http://localhost:18447';
     await page.getByRole('button',{name:'Submit to selected channels'}).click();
     await page.waitForFunction(()=>[...document.querySelectorAll('small')].some(el=>el.textContent.includes('YouTube ·')));
     assert(calls.some(([key,data])=>key==='asset.publish'&&data.youtube_consent&&data.youtube_made_for_kids===false));
+    workerAvailability='error';
+    await page.getByRole('button',{name:'AI Studio Create',exact:true}).click();
+    await page.getByRole('alert').getByText('Studio couldn’t check worker availability.').waitFor();
+    assert.equal(await page.getByRole('option',{name:'No available worker'}).count(),0);
+    workerAvailability='standard';
+    await page.getByRole('button',{name:'Retry worker check'}).click();
+    await page.getByRole('option',{name:'No available worker'}).waitFor({state:'attached'});
+    await page.getByRole('button',{name:/3D Procedural Movie/}).click();
+    await page.getByRole('option',{name:'Standard Studio Queue'}).waitFor({state:'attached'});
+    await page.getByRole('button',{name:'Get render price'}).click();
+    await page.getByRole('button',{name:'Continue to payment'}).waitFor();
+    assert(calls.some(([key,data])=>key==='render.quote'&&data.routing_mode==='standard'));
     await page.getByRole('link',{name:'Exit Studio'}).click();
     await page.getByText('PWA home',{exact:true}).waitFor();
     assert.deepEqual(errors,[]);

@@ -18,7 +18,7 @@ const tools = [
 const engines = [['musetalk','MuseTalk'],['liveportrait','LivePortrait'],['facefusion','FaceFusion']];
 const presetOptions = [['cube','Cube'],['sphere','Sphere'],['cylinder','Cylinder']];
 const movieDefaults = {scene_preset:'cube',camera:'angle',lighting:'soft',motion:'spin'};
-const poolLabel = {local:'Local CPU Pool',remote:'Central Remote CPU Pool'};
+const poolLabel = {standard:'Standard Studio Queue',local:'Local CPU Pool',remote:'Central Remote CPU Pool'};
 
 function Options({label,value,onChange,options}) {
   return <label>{label}<select aria-label={label} value={value} onChange={event=>onChange(event.target.value)}>
@@ -34,7 +34,7 @@ function MediaPicker({title,items,value,onChange,upload,accept,empty='Choose fro
   </div>;
 }
 
-export function Creation({api,project,scene,assets,referenceAssets,inventory,jobs,operations,selected,onSelect,add,refresh,timeline,go,run,busy,onRevision,operationId,setOperationId}) {
+export function Creation({api,project,scene,assets,referenceAssets,inventory,inventoryError,retryInventory,jobs,operations,selected,onSelect,add,refresh,timeline,go,run,busy,onRevision,operationId,setOperationId}) {
   const [mode,setMode]=useState('video');
   const [prompt,setPrompt]=useState('');
   const [seed,setSeed]=useState('-1');
@@ -71,6 +71,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
   const chosenWorker=workers.find(item=>String(item.id)===worker) || workers[0];
   const tool=inventory?.performances?.find(item=>item.id===engine);
   const pools=inventory?.render_pools || [];
+  const unavailableLabel=inventoryError?'Status unavailable':'Checking availability…';
   const chosenPool=pools.includes(route)?route:pools[0];
   const readyMedia=assets.filter(item=>item.status==='ready'&&item.proxy_url);
   const sources=rig?(scene.objects || []).filter(item=>item.definition?.character_profile):readyMedia.filter(item=>(tool?.source || []).includes(item.kind));
@@ -156,6 +157,10 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
         {tools.map(([id,Icon,title,subtitle])=><button type="button" key={id} aria-pressed={mode===id} disabled={busy}
           onClick={()=>{change(setMode,id);setOperationId(null);setRigPreview('');}}><Icon size={18}/><strong>{title}</strong>{subtitle&&<small>{subtitle}</small>}</button>)}
       </div>
+      {inventoryError&&<div className="ls-card">
+        <p role="alert">Studio couldn’t check worker availability.</p>
+        <button type="button" onClick={retryInventory}>Retry worker check</button>
+      </div>}
       <form onSubmit={event=>{event.preventDefault();submit(generate);}}>
         {neural&&<>
           <label>Prompt<textarea rows="4" required maxLength="2000" value={prompt} onChange={event=>change(setPrompt,event.target.value)} placeholder="Describe your scene."/></label>
@@ -164,7 +169,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
           {mode==='video'&&reference&&!currentReference&&<small role="status">Preparing the starting frame</small>}
           {mode==='image'&&<Options label="Aspect ratio" value={aspect} onChange={value=>change(setAspect,value)} options={['16:9','9:16','1:1'].map(id=>[id,id])}/>}
           <Options label="Genesis worker" value={chosenWorker?String(chosenWorker.id):''} onChange={value=>change(setWorker,value)}
-            options={workers.length?workers.map(item=>[String(item.id),item.label]):[['','No available worker']]}/>
+            options={workers.length?workers.map(item=>[String(item.id),item.label]):[['',inventory?'No available worker':unavailableLabel]]}/>
           {<details className="ls-drawer"><summary><Sliders size={16}/> Advanced</summary><div className="ls-fields">
             <Options label="Quality" value={quality} onChange={value=>change(setQuality,value)}
               options={[[ 'auto','Auto' ],[ 'economy','Economy' ],[ 'quality','Quality' ]]}/>
@@ -173,14 +178,14 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
             <label>Steps<input type="number" min="1" max="60" step="1" placeholder={recipe?.steps || 'Default'} value={steps} onChange={event=>change(setSteps,event.target.value)}/></label>
             </>}
           </div></details>}
-          {inventory&&(!chosenWorker||!recipe?.ready)&&<p className="ls-muted">This tool is currently unavailable.</p>}
+          {inventory&&(!chosenWorker||!recipe?.ready)&&<p className="ls-muted">{!inventory.connected?'Studio couldn’t reach the Genesis engine.':!chosenWorker?'No compatible Genesis worker is available for this tool.':recipe?.reason||'This workflow isn’t installed on the Genesis worker.'}</p>}
         </>}
         {mode==='movie'&&<>
           <Options label="Scene preset" value={movie.scene_preset} onChange={value=>change(setMovie,{...movie,scene_preset:value})} options={presetOptions}/>
           <Options label="Camera" value={movie.camera} onChange={value=>change(setMovie,{...movie,camera:value})} options={[[ 'angle','Three-quarter' ],['front','Front'],['overhead','Overhead']]}/>
           <Options label="Lighting" value={movie.lighting} onChange={value=>change(setMovie,{...movie,lighting:value})} options={[[ 'soft','Soft' ],['bright','Bright'],['low','Low']]}/>
           <Options label="Animation" value={movie.motion} onChange={value=>change(setMovie,{...movie,motion:value})} options={[[ 'spin','Rotate' ],['slide','Slide'],['still','None']]}/>
-          <Options label="Render pool" value={chosenPool || ''} onChange={value=>change(setRoute,value)} options={pools.length?pools.map(id=>[id,poolLabel[id]]):[['','No available render pool']]}/>
+          <Options label="Render pool" value={chosenPool || ''} onChange={value=>change(setRoute,value)} options={pools.length?pools.map(id=>[id,poolLabel[id]]):[['',inventory?'No available render pool':unavailableLabel]]}/>
           {chosenPool==='remote'&&<small>Supports procedural shapes, cameras, lights and motion.</small>}
         </>}
         {mode==='character'&&<>
@@ -189,7 +194,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,job
           <MediaPicker title={audioDriver?'Driver audio':'Driving video'} items={drivers} value={driver}
             onChange={value=>change(setDriver,value)} upload={file=>upload(setDriver,file)} accept={audioDriver?'audio/*':'video/*'}/>
           {rig&&!sources.length&&<a href={api.advanced(scene.id,'cast')}>Add a character to this scene</a>}
-          {inventory&&!rig&&!tool?.configured&&<p className="ls-muted">This engine is currently unavailable.</p>}
+          {inventory&&!rig&&!tool?.configured&&<p className="ls-muted">This engine needs a configured character-performance worker.</p>}
         </>}
         <button className="ls-primary" disabled={busy||!canGenerate}><Sparkles size={16}/>{mode==='movie'?'Get render price':'Generate'}</button>
       </form>

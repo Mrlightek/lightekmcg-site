@@ -27,14 +27,15 @@ class Product < ActiveRecord::Base; end
 class Agreement < ActiveRecord::Base; end
 class HostingPackage < ActiveRecord::Base
   belongs_to :product
-  def snapshot = {'package_id' => id}
+  def snapshot = {'package_id' => id, 'minimum_margin_cents' => minimum_margin_cents}
 end
 module Gatekeeper
   module Hosting
     module Access; class Denied < StandardError; end; end
     class PackagePurchase
-      class << self; attr_accessor :reject; end
-      def self.validate!(**)
+      class << self; attr_accessor :reject, :snapshot; end
+      def self.validate!(snapshot:, **)
+        self.snapshot = snapshot
         raise Access::Denied, 'Provider quote unavailable' if reject
       end
     end
@@ -63,8 +64,8 @@ class HostingRetailPricingChecks < ActionDispatch::IntegrationTest
     Gatekeeper::Hosting::PackagePurchase.reject = false
     Dashboard::HostingPackagesController.allow_forgery_protection = false
   end
-  def change(price, role: 'super_admin')
-    patch "/dashboard/hosting/packages/#{@package.id}", params: {package: {price_cents: price}}, headers: {'X-Test-Role' => role}
+  def change(price, margin: nil, role: 'super_admin')
+    patch "/dashboard/hosting/packages/#{@package.id}", params: {package: {price_cents: price}.merge(margin.nil? ? {} : {minimum_margin_cents: margin})}, headers: {'X-Test-Role' => role}
   end
   def test_price_change_preserves_existing_billing_and_availability
     agreement = Agreement.create!(price_cents: 10_000, processor_reference: 'sub_existing')
@@ -74,6 +75,36 @@ class HostingRetailPricingChecks < ActionDispatch::IntegrationTest
     assert @package.reload.active?
     assert_equal [10_000, 'sub_existing'], agreement.reload.attributes.values_at('price_cents', 'processor_reference')
     assert_match(/Existing subscriptions/, flash[:notice])
+  end
+  def test_operator_can_lower_personal_price_and_margin_together
+    @package.update!(monthly_cost_ceiling_cents: 1200, minimum_margin_cents: 1000)
+    agreement = Agreement.create!(price_cents: 2500, processor_reference: 'sub_personal')
+    change('1999', margin: '600')
+    assert_response :redirect
+    assert_equal 1999, @package.product.reload.price_cents
+    assert_equal 600, @package.reload.minimum_margin_cents
+    assert_equal 600, Gatekeeper::Hosting::PackagePurchase.snapshot.fetch("minimum_margin_cents")
+    assert_equal 2500, agreement.reload.price_cents
+  end
+  def test_rejected_update_rolls_back_margin_and_price
+    Gatekeeper::Hosting::PackagePurchase.reject = true
+    change('4900', margin: '1000')
+    assert_equal 2000, @package.reload.minimum_margin_cents
+    assert_equal 10_000, @package.product.reload.price_cents
+  end
+  def test_lower_margin_still_requires_cost_and_fee_coverage
+    change('2500', margin: '100')
+    assert_match(/payment fees/, flash[:alert])
+    assert_equal 2000, @package.reload.minimum_margin_cents
+    assert_equal 10_000, @package.product.reload.price_cents
+  end
+  def test_invalid_margins_are_rejected_without_changes
+    ['0', '-1', '6.00', '', 'oops'].each do |margin|
+      change('4900', margin: margin)
+      assert_equal 2000, @package.reload.minimum_margin_cents
+      assert_equal 10_000, @package.product.reload.price_cents
+      assert_match(/whole-cent/, flash[:alert])
+    end
   end
   def test_margin_and_payment_fee_floor_is_enforced
     change('4500')
@@ -95,7 +126,7 @@ class HostingRetailPricingChecks < ActionDispatch::IntegrationTest
   end
   def test_nonoperators_cannot_edit_or_toggle
     ['client', 'white_label', 'member'].each do |role|
-      change('4900', role: role)
+      change('4900', margin: '1000', role: role)
       assert_response :forbidden
       assert_equal 10_000, @package.product.reload.price_cents
     end

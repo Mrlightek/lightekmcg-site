@@ -49,3 +49,7 @@ The normal deployment and fleet update paths run `lightek:site_binding:verify` w
 For a legacy site such as the imported `192.168.64.2` record, a platform super admin can select it in PWA Administration and click **Use [current dashboard domain] for this website**. The target comes from the request serving the dashboard, not a submitted hostname. The action keeps the same site ID, pages, posts, communities and PWA settings, checks the expected previous hostname and unique domain, and writes an audit event. Ordinary tenant owners/editors cannot rebind a domain. Public-domain sites and provisioning-managed identities must use the existing Network & Domains workflow so infrastructure reservations do not drift.
 
 No hardcoded Lightek production hostname is substituted into customer records. No data migration or reseed is needed for this change. Full authenticated production acceptance still requires deploying it and using the repair control on the affected installation.
+
+## Hosting membership prices
+
+Platform super admins can edit each published package's monthly price and minimum margin together at `/dashboard/hosting/packages`. Enter whole cents (for example, `1999` is $19.99). Lowering a selling price may require lowering that package's minimum margin explicitly. The vendor cost ceiling, payment-fee reserve and live provider availability checks still apply. Both changes save atomically; a failed check preserves both previous values. Existing orders and processor subscriptions retain their agreed prices and purchase snapshots.

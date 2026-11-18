@@ -31,8 +31,9 @@ class Dashboard::HostingPackagesController < ApplicationController
   def update
     package = HostingPackage.find(params[:id])
     if params[:package].present?
-      values = params.require(:package).permit(:price_cents)
-      Gatekeeper::Hosting::RetailPricing.update!(package: package, actor: current_user, price_cents: values[:price_cents])
+      values = params.require(:package).permit(:price_cents, :minimum_margin_cents)
+      Gatekeeper::Hosting::RetailPricing.update!(package: package, actor: current_user,
+        price_cents: values[:price_cents], minimum_margin_cents: values[:minimum_margin_cents])
       redirect_to dashboard_hosting_packages_path, notice: "Monthly price updated for new checkouts. Existing subscriptions keep their agreed price."
     else
       package.update!(active: !package.active?)

@@ -191,7 +191,15 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
             </>}
           </div></details>}
           {(inventoryError||(inventory&&(!chosenWorker||!recipe?.ready)))&&<button type="button" disabled={busy} onClick={()=>chooseMode('movie')}>Try a 3D draft</button>}
-          {inventory&&(!chosenWorker||!recipe?.ready)&&<p className="ls-muted">{!inventory.connected?'Studio couldn’t reach the Genesis engine.':!chosenWorker?'No compatible Genesis worker is available for this tool.':recipe?.reason||'This workflow isn’t installed on the Genesis worker.'}</p>}
+          {inventory&&(!chosenWorker||!recipe?.ready)&&<div className="ls-card" role="status">
+            <p>{!inventory.connected ? inventory.reason || 'Studio couldn’t reach the Genesis engine.' :
+              !recipe?.ready ? recipe?.reason || 'This workflow isn’t installed on the Genesis worker.' :
+              !inventory.device ? 'ComfyUI responded, but Studio could not read the worker device information.' :
+              mode==='video'&&inventory.device.type!=='cuda' ? 'ComfyUI is connected, but this Wan workflow requires a CUDA worker. The connected worker reports a different device type.' :
+              'ComfyUI is connected, but no compatible Genesis worker is available for this tool.'}</p>
+            {inventory.reason_code&&<small>Connection check: {inventory.reason_code}</small>}
+            <button type="button" disabled={busy} onClick={retryInventory}>Recheck ComfyUI connection</button>
+          </div>}
         </>}
         {mode==='movie'&&<>
           <Options label="Scene preset" value={movie.scene_preset} onChange={value=>change(setMovie,{...movie,scene_preset:value})} options={presetOptions}/>

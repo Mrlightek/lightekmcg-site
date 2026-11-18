@@ -23,6 +23,22 @@ Setup pauses new generation for this website and rejects changes while the websi
 
 ## Host integration
 
+### Connection diagnosis
+
+Studio preserves the backend connection-check reason and offers **Recheck ComfyUI connection** without clearing the prompt. A disabled Generate button with a failed connection check means no inference request has been submitted. It does not prove that ComfyUI or its models are absent.
+
+The check distinguishes refused connections, timeouts, DNS/TLS failures, HTTP authentication errors, missing API routes, invalid inventory responses, and invalid saved worker configuration. HTTP response bodies, endpoints and credentials are not returned in diagnostics. A reachable engine with an unavailable recipe or incompatible device is reported separately from a connection failure.
+
+Production deployment runs the read-only `script/studio/diagnose_genesis.rb` probe with the application environment. Search deployment logs for `studio_genesis`: the first result checks the local engine; subsequent results check saved worker identities for sites with Studio projects. The probe is bounded to 180 seconds and does not install software, submit prompts, change worker assignments or read out credentials. Incomplete diagnostics are explicitly marked and do not fail the entire platform deployment.
+
+An operator can run the same check from the deployed application directory with its production environment loaded:
+
+```sh
+RAILS_ENV=production bin/rails runner script/studio/diagnose_genesis.rb
+```
+
+Use the reported error to repair the service, configured endpoint, HTTPS proxy or saved worker credential. Do not replace an existing ComfyUI installation or select an unrelated account's worker as a diagnostic fallback. A successful connection probe is followed by an actual sample generation and output review before declaring neural generation operational.
+
 The container binds only `127.0.0.1:8188`, runs as UID 10001 with a read-only root filesystem, bounded RAM/CPU/logs, and read-only model mounts. Apache proxies `/lightek-ai/` over the worker's existing HTTPS hostname and requires a random Bearer token. The token lives in Vault and root-readable Apache configuration, never in scene manifests or browser responses. One website owns the managed runtime on a host; another website cannot overwrite it. This release manages one Genesis container per host.
 
 Native deployment and fleet update install a root-owned helper plus root-owned catalog. For an existing server managed outside those deployment paths, its administrator can install the same narrowly scoped helper:

@@ -32,7 +32,11 @@ export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTem
   timer=setTimeout(poll,1000);return()=>{stopped=true;clearTimeout(timer);};
  },[api,receipt?.operation_id,active]);
  function changed(){setKey(requestKey());setReceipt(null);setQuote(null);}
- function character(index,field,value){changed();setCharacters(rows=>rows.map((row,i)=>i===index?{...row,[field]:value}:row));}
+ function character(index,field,value){
+  changed();setCharacters(rows=>rows.map((row,i)=>i===index?{...row,[field]:value,
+   ...(field==='cast_asset_id'?{motion_action_id:''}:{}),
+   ...(field==='motion_action_id'&&value?{body_action:'still'}:{})}:row));
+ }
  function turn(index,field,value){changed();setTurns(rows=>rows.map((row,i)=>i===index?{...row,[field]:value}:row));}
  function perform(action){run(async()=>{setError('');try{await action();}catch(cause){setError(cause.message);}});}
  const valid=characters.every((row,index)=>row.name.trim()&&(!handoff||!performers.some(actor=>String(actor.id)===row.cast_asset_id&&!actor.metadata.character_profile.reach_bindings?.[index===0?'right':'left']))&&attentionAvailable(row.attention,performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile,catalog?.scene_templates.find(item=>item.key===template)?.contact_targets||[],true)&&actingAvailable(row,performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile)&&contactAvailable(row.contact,performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile,catalog?.scene_templates.find(item=>item.key===template)?.contact_targets||[],row.entrance))&&new Set(turns.map(row=>row.speaker)).size===2&&turns.every(row=>row.dialogue.trim()||row.audio_asset_id);
@@ -42,7 +46,7 @@ export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTem
   <ProductionTemplates {...{api,scene,catalog,run,busy}} openScene={openTemplateScene}/>
   {revision&&!receipt&&<p role="status">Revising {revision.inputs.shot_name||'dialogue'}. Prepare a new take to keep the original in the sequence.</p>}
   <label>Shot name<input disabled={active} maxLength={120} value={shotName} onChange={event=>{changed();setShotName(event.target.value);}} placeholder="Opening exchange"/></label>
-  <label>Dialogue scene setup<select disabled={active||!catalog} value={template} onChange={event=>{const setup=event.target.value;changed();setTemplate(setup);setCharacters(rows=>rows.map(row=>({...row,contact:null,attention:null,...(setup==='counter_handoff'?{body_action:'still',entrance:'none'}:{})})));}}>{catalog?.scene_templates.map(row=><option key={row.key} value={row.key} disabled={!row.available}>{row.name}</option>)}</select></label>
+  <label>Dialogue scene setup<select disabled={active||!catalog} value={template} onChange={event=>{const setup=event.target.value;changed();setTemplate(setup);setCharacters(rows=>rows.map(row=>({...row,contact:null,attention:null,...(setup==='counter_handoff'?{body_action:'still',entrance:'none',motion_action_id:''}:{})})));}}>{catalog?.scene_templates.map(row=><option key={row.key} value={row.key} disabled={!row.available}>{row.name}</option>)}</select></label>
   {handoff&&<p>{characters[0].name||'Character 1'} passes the parcel to {characters[1].name||'Character 2'} while the dialogue plays. The counter supports the parcel.</p>}
   {characters.map((row,index)=><fieldset key={index} disabled={active}><legend>Character {index+1}</legend>
    <label>Character {index+1} name<input maxLength="60" value={row.name} onChange={event=>character(index,'name',event.target.value)}/></label>
@@ -53,7 +57,7 @@ export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTem
    {!row.cast_asset_id&&<PortraitField label={`Character ${index+1} portrait mask`} assets={assets} value={row.portrait_asset_id} onChange={value=>character(index,'portrait_asset_id',value)} disabled={active}/>}
    <ActingFields contactActive={handoff||!!row.contact} prefix={`Character ${index+1}`} value={row} onChange={(field,value)=>character(index,field,value)} disabled={active} mechanicsActive={handoff} profile={performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile}/>
    <AttentionFields prefix={`Character ${index+1}`} partner value={row.attention} onChange={value=>character(index,'attention',value)} targets={catalog?.scene_templates.find(item=>item.key===template)?.contact_targets||[]} profile={performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile} disabled={active}/>
-   {!handoff&&<ContactFields prefix={`Character ${index+1}`} value={row.contact} onChange={value=>{changed();setCharacters(rows=>rows.map((item,i)=>i===index?{...item,contact:value,...(value?{body_action:'still'}:{})}:item));}} targets={catalog?.scene_templates.find(item=>item.key===template)?.contact_targets||[]} profile={performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile} disabled={active} entrance={row.entrance}/>}
+   {!handoff&&<ContactFields prefix={`Character ${index+1}`} value={row.contact} onChange={value=>{changed();setCharacters(rows=>rows.map((item,i)=>i===index?{...item,contact:value,...(value?{body_action:'still',motion_action_id:''}:{})}:item));}} targets={catalog?.scene_templates.find(item=>item.key===template)?.contact_targets||[]} profile={performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile} disabled={active} entrance={row.entrance}/>}
    <label>Character {index+1} stock voice<select value={row.voice} onChange={event=>character(index,'voice',event.target.value)}><option value="en-us">English · US</option><option value="en-gb">English · UK</option></select></label>
   </fieldset>)}
   {turns.map((row,index)=><fieldset key={index} disabled={active}><legend>Speaking turn {index+1}</legend>
@@ -65,7 +69,7 @@ export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTem
   <button type="button" disabled={active||turns.length>=4} onClick={()=>{changed();setTurns(rows=>[...rows,{speaker:rows[rows.length-1].speaker===0?1:0,dialogue:'',audio_asset_id:''}]);}}>Add speaking turn</button>
   <button type="button" disabled={busy||active||!restored||!valid} onClick={()=>perform(async()=>{
    const result=await api.call('character.scene.prepare',{scene_id:scene.id,request_key:key,mode:'dialogue',scene_template:template,...(shotName.trim()?{shot_name:shotName.trim()}:{}),
-    characters:characters.map(({name,voice,skin,wardrobe,hair,hair_style,cast_asset_id,portrait_asset_id,emotion,body_action,entrance,contact,attention})=>({...((contact&&!handoff)?{contact}:{}),...(attention?{attention}:{}),emotion,body_action,entrance,name:name.trim(),voice,skin,wardrobe,hair,...(!cast_asset_id&&hair_style&&hair_style!=='curls'?{hair_style}:{}),...(cast_asset_id?{cast_asset_id:Number(cast_asset_id)}:portrait_asset_id?{portrait_asset_id:Number(portrait_asset_id)}:{})})),
+    characters:characters.map(({name,voice,skin,wardrobe,hair,hair_style,cast_asset_id,portrait_asset_id,emotion,body_action,motion_action_id,entrance,contact,attention})=>({...((contact&&!handoff)?{contact}:{}),...(attention?{attention}:{}),emotion,body_action,...(motion_action_id?{motion_action_id}:{}),entrance,name:name.trim(),voice,skin,wardrobe,hair,...(!cast_asset_id&&hair_style&&hair_style!=='curls'?{hair_style}:{}),...(cast_asset_id?{cast_asset_id:Number(cast_asset_id)}:portrait_asset_id?{portrait_asset_id:Number(portrait_asset_id)}:{})})),
     turns:turns.map(({speaker,dialogue,audio_asset_id})=>({speaker,dialogue:dialogue.trim(),...(audio_asset_id?{audio_asset_id:Number(audio_asset_id)}:{})}))});setReceipt(result);
   })}>Prepare dialogue scene</button>
   {receipt&&<p role="status">{receipt.status} · {receipt.phase?.replaceAll('_',' ')}</p>}

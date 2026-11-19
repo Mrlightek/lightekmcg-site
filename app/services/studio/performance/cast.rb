@@ -68,7 +68,7 @@ module Studio
       end
 
       def self.register(access:,payload:)
-        source=StudioAsset.for_actor(access).find(payload.fetch("asset_id"))
+        source=StudioAsset.for_actor(access).where(site_id:access.site_id).find(payload.fetch("asset_id"))
         values=profile(source,payload.fetch("profile"))
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"A cast request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
@@ -76,7 +76,7 @@ module Studio
         access.user.with_lock do
           actor=StudioAsset.find_by(owner:access.user,request_key:key)
           if actor
-            raise ArgumentError,"This request key belongs to another character" unless actor.site_id==access.site_id && actor.metadata["cast_source_asset_id"]==source.id
+            raise ArgumentError,"This request key belongs to another character" unless actor.site_id==access.site_id && actor.metadata["cast_source_asset_id"]==source.id && actor.metadata["character_profile"]==values
           else
             actor=StudioAsset.new(owner:access.user,site_id:access.site_id,name:payload.fetch("name",source.name).to_s.first(160),kind:"blend",status:"ready",request_key:key,
               metadata:source.metadata.merge("character_profile"=>values,"cast_source_asset_id"=>source.id))

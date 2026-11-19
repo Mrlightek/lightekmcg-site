@@ -144,7 +144,15 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
     skip "Set LIGHTEK_TEST_CHARACTER_SCENE=1 with native tools" unless ENV["LIGHTEK_TEST_CHARACTER_SCENE"]=="1"
     previous=ENV["BLENDER_OUTPUT_ROOT"];ENV["BLENDER_OUTPUT_ROOT"]=Dir.mktmpdir("dialogue-output-")
     Rails.stub(:root,Pathname(ROOT)) do
-      characters=[{name:"Sentinel",voice:"en-us",hair_style:"high_top"},{name:"Beacon",voice:"en-gb",hair_style:"close"}]
+      source=action("cast_create",name:"Prepared rig",style:"illustrated",hair_style:"high_top",request_key:SecureRandom.uuid)
+      StudioCharacterCreateJob.perform_now(source[:asset_id])
+      profile=StudioAsset.find(source[:asset_id]).metadata.fetch("character_profile")
+      registered=action("cast_register",asset_id:source[:asset_id],name:"Imported Cast",
+        profile:profile.slice("source_scene","bindings","bones"),request_key:SecureRandom.uuid)
+      motion=profile.fetch("motions").find { |row| row["name"]=="Point right" }
+      assert motion
+      characters=[{name:"Sentinel",voice:"en-us",cast_asset_id:registered[:asset_id],motion_action_id:motion.fetch("id")},{name:"Beacon",voice:"en-gb",hair_style:"close"}]
+      assert_raises(ArgumentError) { dialogue(characters:[characters.first.merge(motion_action_id:"missing"),characters.last]) }
       turns=[{speaker:0,dialogue:"Stay alert."},{speaker:1,dialogue:"I am ready."},{speaker:0,dialogue:"Follow my lead."}]
       parent=StudioOperation.find(dialogue(shot_name:"Opening exchange",characters:characters,turns:turns)[:operation_id])
       StudioCharacterSceneJob.perform_now(parent.id)
@@ -154,6 +162,8 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
       assert_equal "Opening exchange",target.name
       cast=target.scene_objects.select { |object| object.definition["dialogue_initialized"] }
       assert_equal 2,cast.size
+      clips=cast.find { |object| object.name=="Sentinel" }.definition.fetch("motion_clips")
+      assert_equal [motion["id"],motion["id"]],clips.map { |clip| clip.fetch("action_id") }
       assert_equal 2,cast.map { |object| object.definition["asset_id"] }.uniq.size
       assert_equal ["en-us","en-gb"],parent.manifest.dig("inputs","characters").map { |row| row["voice"] }
       takes=cast.flat_map { |object| object.definition["performance_takes"] }.sort_by { |take| take["start"] }
@@ -189,6 +199,8 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
           source_names={obj.get('lightek_source_object') for obj in scene.objects}
           assert {'High top','Close cut'} <= source_names
           assert all(rig.animation_data for rig in rigs)
+          assert sum(track.name.startswith('LightekMotion_') and not track.mute
+                     for rig in rigs for track in rig.animation_data.nla_tracks)==2
           faces=[obj for obj in scene.objects if obj.get('lightek_source_object')=='FaceBrows' and obj.data.shape_keys and 'brow_raise' in obj.data.shape_keys.key_blocks]
           assert len(faces)==2
           mouth_meshes=[obj for obj in scene.objects if obj.get('lightek_source_object')=='FaceMouth' and obj.data.shape_keys and any(key.name.startswith('viseme_') for key in obj.data.shape_keys.key_blocks)]

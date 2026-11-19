@@ -71,7 +71,9 @@ The native CI preserves the MP4 and `.blend` proof. Production acceptance still 
 
 ## Arrange performances into a sequence
 
-In Performed Short, expand **Arrange performances into a sequence**. It lists your completed character performances in this project (up to 100). Choose two to twelve clips, move them earlier/later, and set in/out points in seconds. Reusing the same performance more than once is supported. Each trim must cover at least one twelfth of a second and stay within its current reviewed performance. A private review cut may last up to thirty seconds, with at most 50 MiB per source and 100 MiB total source bytes.
+In Performed Short, expand **Arrange performances into a sequence**. It lists your completed character performances in this project (up to 100). Choose two to twelve clips, move them earlier/later, and set in/out points in seconds. Reusing the same performance more than once is supported. Each trim must cover at least one twelfth of a second and stay within its current reviewed performance. A private review cut may last up to 60 seconds, with at most 50 MiB per source and 100 MiB total source bytes.
+
+Choose **Revise take for clip** to reopen a performance created from this source scene with its saved Cast. Prepare and preview the revision, then choose **Use revised take in clip** to place it back into that same clip. Studio keeps your trim points where they fit and flags any adjustments for a shorter take. A changed cut needs a new sequence preview and review before export.
 
 **Preview sequence cut** freezes selected preview blobs and ordered trims into a separate durable operation. FFmpeg uses the existing Timeline renderer to produce a 320×180, 24 fps private review MP4, preserving clip audio and adding silence where a clip has no audio. Picture order, trim duration, audio order and final runtime are verified in tests. No Cast is rebuilt and no Blender or Genesis call is required for this assembly step.
 

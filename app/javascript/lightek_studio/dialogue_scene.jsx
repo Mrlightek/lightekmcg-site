@@ -6,12 +6,15 @@ import {ProductionTemplates} from './production_templates';
 import {ActingFields,actingDefaults,actingAvailable} from './acting';
 import {ContactFields,contactAvailable} from './contact';
 const defaults=[{name:'Sentinel',voice:'en-us',skin:'#925e43',wardrobe:'#344e78',hair:'#211916',cast_asset_id:''},{name:'Beacon',voice:'en-gb',skin:'#b57955',wardrobe:'#945228',hair:'#211916',cast_asset_id:''}];
-export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene,revision}){
+export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene,revision,onRevisionReady}){
  const [characters,setCharacters]=useState(defaults.map(row=>({...actingDefaults,...row}))),[turns,setTurns]=useState([{speaker:0,dialogue:'Stay alert.',audio_asset_id:''},{speaker:1,dialogue:'I am ready.',audio_asset_id:''}]);
  const [shotName,setShotName]=useState('');
  const [catalog,setCatalog]=useState(null),[template,setTemplate]=useState('studio'),[receipt,setReceipt]=useState(null),[quote,setQuote]=useState(null),[key,setKey]=useState(requestKey),[error,setError]=useState(''),[restored,setRestored]=useState(false);
  const handoff=template==='counter_handoff';
  const active=['pending','running'].includes(receipt?.status);
+ useEffect(()=>{
+  if(revision&&receipt?.status==='completed'&&receipt.operation_id)onRevisionReady?.(receipt);
+ },[revision,receipt,onRevisionReady]);
  const performers=assets.filter(asset=>asset.kind==='blend'&&asset.status==='ready'&&asset.metadata?.character_profile);
  const recordings=assets.filter(asset=>asset.kind==='audio'&&asset.status==='ready'&&Number(asset.metadata?.duration)>=.2&&Number(asset.metadata?.duration)<=2.8);
  useEffect(()=>{let alive=true;

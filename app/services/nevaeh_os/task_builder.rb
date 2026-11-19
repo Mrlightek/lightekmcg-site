@@ -137,6 +137,10 @@ module NevaehOs
       keys=case capability
       when "studio.workspace.ai.generate"
         Studio::Compute::Guardrails::GENERATION_INPUTS
+      when "studio.workspace.sequence.prepare"
+        %w[scene_id name shots]
+      when "studio.workspace.sequence.quote"
+        %w[operation_id reviewed]
       when "studio.workspace.character.template.use"
         %w[scene_id source template_key project_id name]
       when "studio.workspace.character.scene.prepare"

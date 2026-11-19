@@ -24,6 +24,9 @@ on:
       - 'blender/create_performer.py'
       - 'blender/runner.py'
       - 'app/jobs/studio_character_scene_job.rb'
+      - 'app/jobs/studio_sequence_preview_job.rb'
+      - 'test/standalone/studio_sequence_checks.rb'
+      - 'test/javascript/studio_sequence_test.cjs'
       - 'test/javascript/studio_native_workflow_test.cjs'
       - 'test/operations/studio_layered_renderer_test.py'
       - '.github/workflows/studio-native-workflow.yml'
@@ -37,6 +40,8 @@ jobs:
     env:
       LIGHTEK_TEST_BLENDER: '1'
       LIGHTEK_TEST_CHARACTER_SCENE: '1'
+      STUDIO_SEQUENCE_PROOF_VIDEO: /tmp/lightek-sequence-review.mp4
+      STUDIO_SEQUENCE_PROOF_SOURCES: '["/tmp/lightek-character-scene.mp4","/tmp/lightek-dialogue-scene.mp4"]'
       STUDIO_DIALOGUE_PROOF_VIDEO: /tmp/lightek-dialogue-scene.mp4
       STUDIO_DIALOGUE_PROOF_BLEND: /tmp/lightek-dialogue-scene.blend
       STUDIO_TEMPLATE_PROOF_VIDEO: /tmp/lightek-template-scene.mp4
@@ -69,6 +74,8 @@ jobs:
         run: bundle exec ruby test/standalone/studio_scene_templates_checks.rb --name '/StudioSceneTemplatesTest/'
       - name: Verify two-character dialogue, reactions and repeated speaking turns
         run: bundle exec ruby test/standalone/studio_dialogue_scene_checks.rb --name '/StudioDialogueSceneTest/'
+      - name: Verify sequence cuts and full-source timeline handoff
+        run: bundle exec ruby test/standalone/studio_sequence_checks.rb --name '/StudioSequenceTest/'
       - name: Measure parallax in exported pixels
         run: |
           python3 test/operations/studio_layered_renderer_test.py
@@ -87,6 +94,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_character_scene_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_scene_templates_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_dialogue_scene_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_sequence_test.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: native-2d-parallax-proof
@@ -98,4 +106,5 @@ jobs:
             /tmp/lightek-template-scene.mp4
             /tmp/lightek-dialogue-scene.mp4
             /tmp/lightek-dialogue-scene.blend
+            /tmp/lightek-sequence-review.mp4
           if-no-files-found: error

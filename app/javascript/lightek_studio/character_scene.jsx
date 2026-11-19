@@ -2,10 +2,11 @@ import React,{useEffect,useState} from 'react';
 import {requestKey} from './api';
 import {ProductionTemplates} from './production_templates';
 import {DialogueSceneComposer} from './dialogue_scene';
+import {SequenceComposer} from './sequence';
 export function CharacterSceneComposer(props){
  const [mode,setMode]=useState(null),[error,setError]=useState('');
  useEffect(()=>{let alive=true;setMode(null);props.api.call('character.scene.status',{scene_id:props.scene.id}).then(result=>{if(alive)setMode(result.inputs?.mode==='dialogue'?'dialogue':'single');}).catch(cause=>{if(alive){setError(cause.message);setMode('single');}});return()=>{alive=false;};},[props.api,props.scene.id]);
- return <><div className="ls-row" role="group" aria-label="Performance type"><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='single'} onClick={()=>setMode('single')}>One-character study</button><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='dialogue'} onClick={()=>setMode('dialogue')}>Two-character dialogue</button></div>{error&&<p role="alert">{error}</p>}{mode==='dialogue'?<DialogueSceneComposer {...props}/>:mode==='single'?<SingleCharacterSceneComposer {...props}/>:<p role="status">Loading saved performance…</p>}</>;
+ return <><div className="ls-row" role="group" aria-label="Performance type"><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='single'} onClick={()=>setMode('single')}>One-character study</button><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='dialogue'} onClick={()=>setMode('dialogue')}>Two-character dialogue</button></div>{error&&<p role="alert">{error}</p>}{mode==='dialogue'?<DialogueSceneComposer {...props}/>:mode==='single'?<SingleCharacterSceneComposer {...props}/>:<p role="status">Loading saved performance…</p>}<SequenceComposer {...props}/></>;
 }
 function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene}){
  const [name,setName]=useState('Sentinel'),[dialogue,setDialogue]=useState('We protect this city.');

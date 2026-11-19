@@ -22,7 +22,7 @@ November 17 launch follow-up: membership, services, creator support and YouTube 
 | Keep books and reconcile statements | Finance → Books & accounting | [Enterprise operations](docs/enterprise-directory-and-accounting.md) |
 | Read and send business email | Communications → Mail | [Mail operations](docs/mail/operations.md) |
 | Book services or host a production room | Reservations & Experiences; Rooms & guests | [Reservations](docs/reservations_and_payouts.md) · [Rooms](docs/studio/session-rooms-and-audience.md) |
-| Prepare an illustrated performed short | Scene setups, production/saved-show launchers, reusable Cast, one-character studies or bounded two-character dialogue, phoneme cues, listener reactions and camera coverage | [Scope and acceptance](docs/studio/performed-short.md) |
+| Prepare an illustrated performed short | Scene setups, production/saved-show launchers, reusable Cast, one-character studies or bounded two-character dialogue, phoneme cues, listener reactions, camera coverage and ordered/trimmed sequence review with full-source Timeline handoff | [Scope and acceptance](docs/studio/performed-short.md) |
 | Compose and render layered 2D scenes | Native CPU compositor with editable assets, group/layer position animation, parallax and optional Blender project handoff | [Scope and setup](docs/studio/ai-studio.md#native-2d-scenes-and-parallax) |
 | Create media or go live | Studio & broadcasting | [Editors](docs/studio/open-source-editors.md) · [Live production](docs/studio/session-rooms-and-audience.md) |
 | Manage servers, domains or client releases | Servers & applications; Network & Domains; Customer Updates | [Hosting](docs/server-application-management.md) · [Fleet updates](docs/customer_fleet_updates.md) |

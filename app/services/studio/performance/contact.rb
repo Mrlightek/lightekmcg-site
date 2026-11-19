@@ -8,7 +8,7 @@ module Studio
         (object["type"] || object["object_type"])=="cube" && !%w[character_profile character_key blocking_actor director_speaker body_part animation story_relation authoring_commands].any? { |key| definition[key].present? }
       end
       def self.targets(objects)
-        objects.select { |object| static_cube?(object) }.first(16).map { |object| {id:object.fetch("id").to_s,name:object.fetch("name"),faces:FACES.keys} }
+        objects.select { |object| static_cube?(object) && object.dig("definition","contact_response")!="counter_handoff" }.first(16).map { |object| {id:object.fetch("id").to_s,name:object.fetch("name"),faces:FACES.keys} }
       end
       def self.inputs(payload)
         return {} unless payload["contact"].present?
@@ -30,6 +30,9 @@ module Studio
         return unless (cue=character["contact"])
         target=staging.fetch("objects").find { |object| object["id"].to_s==cue["target_id"] }
         raise ArgumentError,"Choose a static cube prop from this scene setup" unless target && static_cube?(target)
+        if target.dig("definition","contact_response")=="counter_handoff" && staging["key"]!=SceneTemplates::HANDOFF_KEY
+          raise ArgumentError,"Use the two-character counter handoff setup for this parcel"
+        end
         %w[location rotation scale].each do |key|
           values=target.fetch("definition").fetch(key,key=="scale" ? [1,1,1] : [0,0,0])
           raise ArgumentError,"Contact targets need finite transforms" unless values.is_a?(Array) && values.size==3 && values.all? { |v| v.is_a?(Numeric) && v.finite? && v.abs<=1000 }

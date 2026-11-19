@@ -6,6 +6,21 @@ module Studio
       LAUNCH_CAPABILITY="studio.workspace.character.template.use"
       GESTURES=%w[wave_right nod shake still].freeze
       CAMERA_MODES=%w[character template].freeze
+      HANDOFF_KEY="counter_handoff"
+      def self.counter_handoff
+        [
+          {"id"=>"parcel","name"=>"Exchange parcel","type"=>"cube","definition"=>{
+            "location"=>[-0.18,-0.32,1.16],"scale"=>[0.095,0.08,0.125],
+            "material"=>{"color"=>[0.68,0.30,0.07]},"contact_response"=>"counter_handoff"}},
+          {"id"=>"counter","name"=>"Exchange counter","type"=>"cube","definition"=>{
+            "location"=>[0,-0.32,1.005],"scale"=>[0.55,0.07,0.03],
+            "material"=>{"color"=>[0.06,0.13,0.18]}}},
+          {"id"=>"stand","name"=>"Counter pedestal","type"=>"cube","definition"=>{
+            "location"=>[0,-0.32,0.4875],"scale"=>[0.16,0.065,0.4875],
+            "material"=>{"color"=>[0.045,0.09,0.13]}}}
+        ]
+      end
+
       def self.control_panel
         [{"id"=>"panel","name"=>"Control panel","type"=>"cube","definition"=>{"location"=>[0.78,0.05,1.2],"scale"=>[0.16,0.12,0.24],"material"=>{"color"=>[0.09,0.16,0.24]}}},
          {"id"=>"button","name"=>"Activation button","type"=>"cube","definition"=>{"location"=>[0.78,-0.095,1.2],"scale"=>[0.08,0.025,0.08],"material"=>{"color"=>[0.05,0.65,0.8]},"contact_response"=>"button_press"}},
@@ -39,9 +54,11 @@ module Studio
         scene_rows.insert(4,{key:"grasp",name:"Physical finger grasp",description:"Torque-limited fingers close around a free sphere, lift it through friction and release it onto a table. The character faces the table and looks down at the sphere before reaching.",defaults:defaults("studio").merge("dialogue"=>"A real grip.","gesture"=>"still","camera_mode"=>"template","mechanics"=>{"action"=>"grasp","version"=>2,"target_id"=>"ball"}),available:true})
         scene_rows.insert(5,{key:"grasp_acting",name:"Pedestal pickup · acting beats",description:"Gaze leads the reach, a weight check marks lift-off, breathing and grip adjustments sustain the hold, then placement and follow-through.",defaults:defaults("studio").merge("dialogue"=>"There we go.","gesture"=>"still","camera_mode"=>"template","mechanics"=>{"action"=>"grasp","version"=>3,"target_id"=>"ball"}),available:true})
         scene_rows.insert(6,{key:VerifiedGrasp::KEY,name:"Pick up, inspect and return",description:"Validated eight-second contact action with a reusable weighted hand. Requires a contact_biped v1 character and the calibrated ball.",defaults:defaults("studio").merge("dialogue"=>"","gesture"=>"still","camera_mode"=>"template","mechanics"=>{"action"=>"grasp","version"=>4,"target_id"=>"ball"}),required_profile:"contact_biped",available:true})
+        scene_rows << {key:HANDOFF_KEY,name:"Pass a parcel across the counter",description:"The first character slides a parcel into reach, both hands briefly share it, and the second character slides it the rest of the way. The counter supports the prop throughout.",defaults:defaults("studio"),available:true,dialogue_only:true}
         scene_rows.each do |row|
           objects=case row[:key]
           when "studio" then []
+          when HANDOFF_KEY then []
           when "control_panel" then control_panel
           when "bench" then bench
           when "carry" then Carry.objects
@@ -96,6 +113,10 @@ module Studio
       end
       def self.snapshot(access:,source:,key:,performer_count:1)
         return {"key"=>"studio","name"=>"Plain character stage","settings"=>{},"objects"=>[],"assets"=>[]} if key=="studio"
+        if key==HANDOFF_KEY
+          raise ArgumentError,"The counter handoff needs two performers" unless performer_count==2
+          return {"key"=>key,"name"=>"Pass a parcel across the counter","settings"=>{},"objects"=>counter_handoff,"assets"=>[]}
+        end
         if key==VerifiedGrasp::KEY
           objects=VerifiedGrasp.objects;settings={"fps"=>24,"camera_cuts"=>[{"camera_id"=>"grasp_wide","frame"=>1},{"camera_id"=>"grasp_close","frame"=>79},{"camera_id"=>"grasp_recovery","frame"=>145}]};name="Pick up, inspect and return"
         elsif key=="grasp_acting"

@@ -32,7 +32,7 @@ module Studio
             raise ArgumentError,"Use up to 48 scene nodes" if count>48
             raise ArgumentError,"Invalid scene node" unless node.is_a?(Hash)
             group=node.key?("children")
-            allowed=group ? %w[id name children x y scale rotation z_index depth opacity] : %w[id name template asset_id x y width height rotation z_index depth opacity fit]
+            allowed=group ? %w[id name children x y scale rotation z_index depth opacity motion] : %w[id name template asset_id x y width height rotation z_index depth opacity fit motion]
             id=node.fetch("id").to_s
             raise ArgumentError,"Scene instances need unique stable identifiers" unless id.match?(/\A[a-zA-Z0-9_-]{1,64}\z/) && !ids.include?(id)
             raise ArgumentError,"Unsupported scene controls" unless node.keys.difference(allowed).empty?
@@ -41,6 +41,7 @@ module Studio
               "x"=>number(node.fetch("x",group ? 0 : 0.5),-2,2),"y"=>number(node.fetch("y",group ? 0 : 0.5),-2,2),
               "rotation"=>number(node.fetch("rotation",0),-180,180),"opacity"=>number(node.fetch("opacity",1),0,1)}
             result["depth"]=number(node["depth"],0,1) if node.key?("depth")
+            result["motion"]=Motion.normalize(node["motion"]) if node.key?("motion")
             if group
               result["scale"]=number(node.fetch("scale",1),0.1,2)
               result["children"]=visit.call(node["children"],level+1)
@@ -79,22 +80,24 @@ module Studio
       end
       def self.flatten(graph)
         width=graph.fetch("canvas").fetch("width");height=graph.fetch("canvas").fetch("height");output=[]
-        visit=lambda do |nodes,x,y,scale,rotation,depth,opacity|
+        visit=lambda do |nodes,x,y,scale,rotation,depth,opacity,motions|
           nodes.each_with_index.sort_by { |node,index| [node.fetch("z_index",0),index] }.each do |node,_|
             angle=rotation*Math::PI/180
             dx=node.fetch("x",0)*width*scale;dy=node.fetch("y",0)*height*scale
             nx=x+dx*Math.cos(angle)-dy*Math.sin(angle);ny=y+dx*Math.sin(angle)+dy*Math.cos(angle)
             nr=rotation+node.fetch("rotation",0);nd=node.fetch("depth",depth);alpha=opacity*node.fetch("opacity",1)
+            tracks=motions
+            tracks=motions+[Motion.transform(node["motion"],width:width,height:height,scale:scale,rotation:rotation)] if node["motion"]
             if node.key?("children")
-              visit.call(node["children"],nx,ny,scale*node.fetch("scale",1),nr,nd,alpha)
+              visit.call(node["children"],nx,ny,scale*node.fetch("scale",1),nr,nd,alpha,tracks)
             else
               output<<node.slice("id","name","template","asset_id","fit").merge("x"=>nx,"y"=>ny,
                 "width"=>node.fetch("width")*width*scale,"height"=>node.fetch("height")*height*scale,
-                "rotation"=>nr,"depth"=>nd,"opacity"=>alpha,"order"=>output.length)
+                "rotation"=>nr,"depth"=>nd,"opacity"=>alpha,"order"=>output.length,"motions"=>tracks)
             end
           end
         end
-        visit.call(graph.fetch("nodes"),0,0,1,0,0,1)
+        visit.call(graph.fetch("nodes"),0,0,1,0,0,1,[])
         output
       end
       def self.displacement(graph,layer,time)

@@ -41,15 +41,24 @@ async function check(surface){
   await until(()=>window.document.body.textContent.includes('Use a supported scene prompt'));
   set(field('Scene prompt'),'A nighttime park with a character sitting on a bench');
   button('Generate layout').click();await until(()=>window.document.querySelector('[data-layer-id="sky"]'));
+  set(field('Asset or group'),'group');
+  set(field('Apply motion preset'),'float');
   set(field('Asset or group'),'sky');await until(()=>window.document.querySelector('[aria-label="Selected layer controls"]'));
   set(field('Parallax depth'),'.7');await until(()=>window.document.querySelector('[data-layer-depth="0.7"]'));
-  button('Save scene layers').click();await until(()=>saved);assert.equal(saved.nodes[0].children[0].depth,.7);
+  set(field('Camera move X (%)'),0);
+  set(field('Apply motion preset'),'drift_right');await until(()=>field('Motion duration (seconds)'));
+  set(field('Keyframe 2 X offset (%)'),4);
+  button('Add keyframe').click();await until(()=>button('Remove keyframe 2'));button('Remove keyframe 2').click();
+  set(field('Preview position'),1.5);
+  await until(()=>Math.abs(Number(window.document.querySelector('[data-layer-id="sky"]').dataset.motionX)-12.8)<.001);
+  assert(Math.abs(Number(window.document.querySelector('[data-layer-id="sky"]').dataset.motionY)+7.2)<.001);
+  button('Save scene layers').click();await until(()=>saved);assert.equal(saved.nodes[0].children[0].depth,.7);assert.equal(saved.nodes[0].children[0].motion.duration,3);assert(saved.nodes[0].motion.loop);
   await until(()=>!button('Render 2D preview').disabled);button('Render 2D preview').click();
   await until(()=>window.document.querySelector('video[src="/workflow-proof.mp4"]'));
-  assert.equal(submitted.scene_id,7);assert.equal(submitted.composition.nodes[0].children[0].depth,.7);
+  assert.equal(submitted.scene_id,7);assert.equal(submitted.composition.nodes[0].children[0].depth,.7);assert.equal(submitted.composition.nodes[0].children[0].motion.keyframes[1].x,.04);
   assert.deepEqual(Object.keys(submitted).sort(),['composition','request_key','scene_id']);
   assert.equal(genesisCalls,0,'Native Studio must not query Genesis');
-  console.log(surface+': native layout, layer edit, save, render and video return passed without Genesis');
+  console.log(surface+': native layout, depth/motion edit, scrub, save, render and video return passed without Genesis');
  }finally{window.LightekUnifiedStudio?.leave();window.close();}
 }
 (async()=>{await check('pwa');await check('dashboard');})().catch(error=>{console.error(error);process.exitCode=1;});

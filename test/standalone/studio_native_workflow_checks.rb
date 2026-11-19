@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 require_relative "studio_ai_checks"
 require_relative "studio_cpu_pool_checks"
-%w[app/services/studio/layered/composition app/services/studio/layered/templates app/services/studio/layered/runtime app/services/studio/workflows/scene_plan app/services/studio/workflows/production app/services/studio/providers/layered_provider].each { |file| require File.join(ROOT,file) }
+%w[app/services/studio/layered/motion app/services/studio/layered/composition app/services/studio/layered/templates app/services/studio/layered/runtime app/services/studio/workflows/scene_plan app/services/studio/workflows/production app/services/studio/providers/layered_provider].each { |file| require File.join(ROOT,file) }
 module Api; module Lightek; module Pwa; end; end; end
 require File.join(ROOT,"app/controllers/api/lightek/pwa/studio_workflows_controller")
 require "rack/mock"
@@ -40,6 +40,36 @@ class StudioNativeWorkflowTest < StudioAiTest
     assert_raises(ArgumentError) { Studio::Workflows::ScenePlan.parse("A dragon flies") }
     unsafe=first.deep_dup;unsafe["camera"]["x"]="1; system('evil')"
     assert_raises(ArgumentError) { Studio::Layered::Composition.normalize(unsafe) }
+  end
+  def test_asset_and_group_tracks_obey_parent_transforms_and_preview_time
+    motion=Studio::Layered::Motion
+    composition=graph
+    composition["camera"]={"x"=>0,"y"=>0}
+    composition["nodes"]=[{"id"=>"rig","rotation"=>90,"scale"=>2,"motion"=>motion.preset("drift_right",amount:0.1,duration:4),
+      "children"=>[{"id"=>"part","template"=>"bench","width"=>0.1,"height"=>0.1,"motion"=>motion.preset("float",amount:0.1,duration:4)}]}]
+    normalized=Studio::Layered::Composition.normalize(composition)
+    layer=Studio::Layered::Composition.flatten(normalized).first
+    assert_equal 2,layer["motions"].length
+    offsets=layer["motions"].map { |track| motion.offset(track,2) }
+    assert_in_delta 32,offsets[0][0],0.0001
+    assert_in_delta 72,offsets[1][0],0.0001
+    assert_in_delta 0,offsets[1][1],0.0001
+    assert_equal [0.0,0.0],motion.offset(layer["motions"][1],4)
+    assert_equal [64.0,0.0],motion.offset(layer["motions"][0],8)
+    preview=Studio::Workflows::Production.preview(normalized)
+    assert_equal normalized["nodes"].first["motion"],preview["nodes"].first["motion"]
+    assert_equal 2,preview["canvas"]["duration"]
+    looped=motion.preset("sway")
+    assert_raises(ArgumentError) { motion.normalize(looped.merge("duration"=>0)) }
+    assert_raises(ArgumentError) { motion.normalize(looped.merge("loop"=>"true")) }
+    bad=looped.deep_dup;bad["keyframes"][1]["t"]=0
+    assert_raises(ArgumentError) { motion.normalize(bad) }
+    bad=looped.deep_dup;bad["keyframes"].last["x"]=0.1
+    assert_raises(ArgumentError) { motion.normalize(bad) }
+    bad=looped.deep_dup;bad["keyframes"][1]["x"]="evil"
+    assert_raises(ArgumentError) { motion.normalize(bad) }
+    park=Studio::Workflows::ScenePlan.parse("A nighttime park with a character sitting on a bench and a gentle breeze",seed:42)
+    assert Studio::Layered::Composition.flatten(park).select { |item| item["template"]=="tree.oak" }.all? { |item| item["motions"].any? }
   end
   def test_nested_compositions_save_and_reopen_without_overwriting_other_settings
     at_root do
@@ -105,7 +135,9 @@ class StudioNativeWorkflowTest < StudioAiTest
       Blender::Runner.stub(:new, ->(*) { flunk "Blender must not be called" }) do
         at_root do
           assert action("workflow_status",scene_id:@scene.id)[:ready]
-          operation=StudioOperation.find(workflow[:operation_id])
+          moving=Studio::Workflows::ScenePlan.parse("A nighttime park with a character sitting on a bench and a gentle breeze",seed:42)
+          moving["camera"]={"x"=>0,"y"=>0}
+          operation=StudioOperation.find(workflow(composition:moving)[:operation_id])
           ExecuteStudioOperationJob.perform_now(operation.id)
           assert_equal "completed",operation.reload.status,operation.error_message
           artifact=operation.artifacts.find_by!(kind:"video")

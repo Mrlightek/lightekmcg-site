@@ -12,11 +12,17 @@ Enter **A nighttime park with a character sitting on a bench**, then generate a 
 
 Six starter illustrations provide day/night skies, ground/path, an oak tree, a bench and a seated person. These are basic reusable artwork, not a rigged character system. Prepared library images can also become layers. Edit positions, sizes, fit, opacity, rotation and depth. Nested groups carry transforms, stacking contexts and inherited depth. Scene saves use optimistic locking and preserve other scene settings.
 
-**Z-index controls drawing order. Depth independently controls camera displacement**, so foreground assets move farther. The SVG editor preview loops forward and back; exports follow one camera move. Current motion is camera-driven parallax. Per-object keyframes, walking, speaking, interaction, rigging and physics are future work for this compositor.
+**Z-index controls drawing order. Depth independently controls camera displacement**, so foreground assets move farther. The editor preview and renderer use the same clip clock. Pause or scrub Preview position to inspect a frame; the preview repeats the clip while export plays it once.
+
+Select any asset or nested group and apply **Sway**, **Float**, **Drift left** or **Drift right**. Motion consists of 2–12 linear position keyframes, expressed as X/Y offsets in the parent's coordinates. Edit offsets and keyframe times, set a 0.25–10 second duration, and choose looping or one-shot playback. Loop endpoints stay identical. A group's motion moves all its children; child motion adds to inherited group movement. Static parent rotation and scale also transform a child's motion. Layer order and parallax depth stay independent from these tracks.
+
+Append **and a gentle breeze** to a supported park prompt to give its trees seeded sway tracks. For example: **A nighttime park with a character sitting on a bench and a gentle breeze**. Tree movement is translation of the existing illustrations, not mesh deformation or physical wind simulation.
+
+Animation tracks are saved with the composition and frozen into queued renders and full-export quotes. A two-second preview retains the full track duration and original clip timing; it does not compress a longer animation into two seconds. Changing output size scales normalized offsets with the canvas. These tracks do not rescale assets or animate their rotation/opacity. Walking cycles, speaking, rigging, physics and arbitrary character performances remain future work for this compositor.
 
 | Limit | Native compositor |
 | --- | --- |
-| Editable graph | 48 nodes, 24 image layers, four nesting levels, 64 KiB JSON |
+| Editable graph | 48 nodes, 24 image layers, four nesting levels, 64 KiB JSON; 2–12 keyframes per node, ±30% offsets |
 | Source images | Owned/site-scoped PNG/JPEG/WebP/GIF/AVIF; 25 MiB each, 64 MiB combined |
 | Private preview | At most 640 pixels on the long edge, two seconds, 12 fps |
 | Full export | Up to ten seconds, 24 fps; even dimensions, maximum 1920×1080 pixels in area |
@@ -37,7 +43,7 @@ Optional `POST /api/lightek/pwa/studio/workflows/:id/mcp` supports MCP initializ
 
 ### Validation and production acceptance
 
-`test/standalone/studio_native_workflow_checks.rb` exercises real Active Record/Active Storage submission, snapshots, save conflicts, tenant boundaries, idempotency, MCP scoping, unpaid rejection and native H.264 rendering. ComfyUI and Blender constructors fail the test if invoked. `test/operations/studio_layered_renderer_test.py` measures exported pixels to verify foreground movement exceeds background movement. DOM checks cover layout, edit, save and rendering while rejecting Genesis status calls.
+`test/standalone/studio_native_workflow_checks.rb` exercises real Active Record/Active Storage submission, snapshots, save conflicts, tenant boundaries, idempotency, MCP scoping, unpaid rejection and native H.264 rendering. ComfyUI and Blender constructors fail the test if invoked. `test/operations/studio_layered_renderer_test.py` measures exported pixels to verify foreground movement exceeds background movement. DOM checks cover layout, layer/group motion controls, deterministic preview scrubbing, saving and rendering while rejecting Genesis status calls. Encoded-pixel tests also verify loop return positions and one-shot asset displacement with a stationary camera.
 
 After deployment, submit a preview from the actual PWA, reopen saved layers, complete an authorized final checkout, inspect the full video, add it to Timeline and verify publishing. Local fixtures do not establish a real payment, production queue consumption, host memory headroom or completed episode production.
 

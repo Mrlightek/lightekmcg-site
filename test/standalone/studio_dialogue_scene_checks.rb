@@ -29,6 +29,19 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
     assert_raises(ActiveRecord::RecordNotFound) { dialogue(characters:[{name:"A",cast_asset_id:999999},{name:"B"}]) }
     assert_raises(ArgumentError) { action("performance_preview",scene_id:@scene.id,preview_seconds:9) }
   end
+  def test_counter_handoff_supplies_its_own_overlapping_contacts
+    options=action("character_scene_catalog",scene_id:@scene.id).fetch(:scene_templates)
+    assert options.find { |row| row[:key]=="counter_handoff" }.fetch(:dialogue_only)
+    assert_raises(ArgumentError) { prepare(scene_template:"counter_handoff") }
+    assert_raises(ArgumentError) do
+      dialogue(scene_template:"counter_handoff",characters:[{name:"Sender",entrance:"from_left"},{name:"Receiver"}])
+    end
+    receipt=dialogue(scene_template:"counter_handoff",shot_name:"The delivery")
+    giver,receiver=receipt.dig(:inputs,"characters").map { |row| row.fetch("contact") }
+    assert_equal ["right","left"],[giver,receiver].map { |cue| cue.fetch("hand") }
+    assert_operator receiver.values_at("start","reach").sum,:<,giver.values_at("start","reach","hold").sum
+  end
+
   def test_each_owned_recording_is_frozen_on_the_parent
     audio=recording;blob=audio.file.blob
     result=dialogue(turns:[{speaker:0,dialogue:"",audio_asset_id:audio.id},{speaker:1,dialogue:"",audio_asset_id:audio.id}])
@@ -46,6 +59,53 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
     action("performance_remove",scene_id:@scene.id,object_id:object.id,lock_version:@scene.reload.lock_version)
     refute object.reload.definition.key?("listener_reactions")
   end
+  def test_counter_handoff_keeps_a_supported_prop_in_both_hands_before_release
+    skip "Set LIGHTEK_TEST_CHARACTER_SCENE=1 with native tools" unless ENV["LIGHTEK_TEST_CHARACTER_SCENE"]=="1"
+    previous=ENV["BLENDER_OUTPUT_ROOT"]
+    Dir.mktmpdir("handoff-output-") do |root|
+      ENV["BLENDER_OUTPUT_ROOT"]=root
+      Rails.stub(:root,Pathname(ROOT)) do
+        value=dialogue(scene_template:"counter_handoff",shot_name:"The delivery")
+        parent=StudioOperation.find(value[:operation_id])
+        StudioCharacterSceneJob.perform_now(parent.id)
+        preview=StudioOperation.find_by(id:parent.reload.metadata["preview_id"])
+        assert_equal "completed",parent.status,[parent.error_message,preview&.error_message].join(" / ")
+        scene=StudioScene.find(parent.metadata.fetch("scene_id"))
+        assert_equal [1],scene.settings.fetch("camera_cuts").map { |cut| cut["frame"] }
+        video=preview.artifacts.find_by!(kind:"video")
+        assert video.file.attached?
+        if (path=ENV["STUDIO_HANDOFF_PROOF_VIDEO"])
+          video.file.blob.open { |file| FileUtils.cp(file.path,path) }
+        end
+        preview.artifacts.find_by!(kind:"blend").file.blob.open do |file|
+          script=File.join(root,"verify_handoff.py")
+          File.write(script,<<~PYTHON)
+            import bpy,json
+            scene=bpy.context.scene
+            reports=json.loads(scene['lightek_contact_report'])
+            assert [row['hand'] for row in reports]==['right','left']
+            assert all(row['max_contact_error'] <= 0.002 and row['max_wrist_error'] <= 0.002 for row in reports)
+            parcel=bpy.data.objects['Exchange parcel']
+            counter=bpy.data.objects['Exchange counter']
+            samples=[]
+            for frame in range(1,scene.frame_end+1):
+                scene.frame_set(frame)
+                assert abs(parcel.location.z-parcel.dimensions.z/2-counter.location.z-counter.dimensions.z/2)<0.001
+                samples.append(parcel.location.x)
+            assert min(samples)<-0.17 and max(samples)>0.17
+            assert all(b>=a-0.0001 for a,b in zip(samples,samples[1:]))
+            assert all(abs(samples[i])<0.001 for i in range(32,37))
+            print('COUNTER_HANDOFF_VERIFIED')
+          PYTHON
+          result=Studio::MediaProcess.run!([ENV.fetch("BLENDER_BIN","blender"),"-b",file.path,"--python-exit-code","1","--python",script],timeout:60)
+          assert_includes result,"COUNTER_HANDOFF_VERIFIED"
+        end
+      end
+    end
+  ensure
+    ENV["BLENDER_OUTPUT_ROOT"]=previous if defined?(previous)
+  end
+
   def test_real_two_character_scene_has_separate_speech_reactions_and_camera_cuts
     skip "Set LIGHTEK_TEST_CHARACTER_SCENE=1 with native tools" unless ENV["LIGHTEK_TEST_CHARACTER_SCENE"]=="1"
     previous=ENV["BLENDER_OUTPUT_ROOT"];ENV["BLENDER_OUTPUT_ROOT"]=Dir.mktmpdir("dialogue-output-")

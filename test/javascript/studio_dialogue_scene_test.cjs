@@ -1,8 +1,8 @@
 const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const {JSDOM}=require('jsdom');
-async function check(dashboard,restore=false){
+async function check(dashboard,restore=false,handoff=false){
  const dom=new JSDOM(dashboard?'<div data-unified-studio data-site-id="2" data-scene-id="7" data-workspace="create"></div>':'<div id="app"></div>',{url:'https://studio.example/#/studio/7/create',runScripts:'outside-only',pretendToBeVisual:true});
  const {window}=dom;let submitted,quoted,retried=0,attempt=restore?1:0;
- const inputs={mode:'dialogue',scene_template:'studio',characters:[{name:'Sentinel',voice:'en-us',colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'}},{name:'Beacon',voice:'en-gb',colors:{skin:'#b57955',wardrobe:'#945228',hair:'#211916'}}],turns:[{speaker:0,dialogue:'Stay alert.'},{speaker:1,dialogue:'I am ready.'}]};
+ const inputs={mode:'dialogue',scene_template:handoff?'counter_handoff':'studio',characters:[{name:'Sentinel',voice:'en-us',colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'}},{name:'Beacon',voice:'en-gb',colors:{skin:'#b57955',wardrobe:'#945228',hair:'#211916'}}],turns:[{speaker:0,dialogue:'Stay alert.'},{speaker:1,dialogue:'I am ready.'}]};
  window.nevaeh={execute:async({capability,payload})=>{
   let result;switch(capability.replace(/^studio\.(pwa|workspace)\./,'')){
    case 'bootstrap':result={projects:[{id:3,name:'Production',unassigned_scenes:[{id:7,name:'Pilot',settings:{},lock_version:1}]}]};break;
@@ -11,7 +11,7 @@ async function check(dashboard,restore=false){
    case 'operations.list':result={operations:[],publications:[]};break;
    case 'workflow.status':result={ready:true,assets:[]};break;
    case 'ai.status':throw Error('Dialogue must not query Genesis');
-   case 'character.scene.catalog':result={scene_templates:[{key:'studio',name:'Plain stage',available:true}],production_templates:[],saved_templates:[],default_scene_template:'studio'};break;
+   case 'character.scene.catalog':result={scene_templates:[{key:'studio',name:'Plain stage',available:true},{key:'counter_handoff',name:'Pass a parcel across the counter',available:true,dialogue_only:true}],production_templates:[],saved_templates:[],default_scene_template:'studio'};break;
    case 'character.scene.prepare':submitted=payload;attempt=1;result={operation_id:80,status:'pending',phase:'queued'};break;
    case 'character.scene.status':result=!attempt?{status:'idle'}:attempt===1?{operation_id:80,inputs,status:'failed',phase:'analyzing_speech',error:'Worker interrupted'}:{operation_id:80,inputs,status:'completed',phase:'ready',scene_id:9,cast_asset_ids:[71,72],url:'/dialogue-proof.mp4'};break;
    case 'character.scene.retry':retried++;attempt=2;result={operation_id:80,status:'pending',phase:'queued'};break;
@@ -32,11 +32,17 @@ async function check(dashboard,restore=false){
   await until(()=>button('Prepare dialogue scene')&&!button('Prepare dialogue scene').disabled);
   assert.equal(field('Character 2 stock voice').value,'en-gb');
   if(!restore){
+   if(handoff){
+    set(field('Dialogue scene setup'),'counter_handoff');
+    await until(()=>window.document.body.textContent.includes('Sentinel passes the parcel to Beacon'));
+    assert(field('Character 1 entrance').disabled);
+    assert(!field('Character 1 facial cue').disabled);
+   }
    set(field('Shot name'),'First exchange');
    set(field('Character 1 hairstyle'),'high_top');
    button('Add speaking turn').click();await until(()=>field('Turn 3 line'));set(field('Turn 3 line'),'Follow my lead.');
    await until(()=>!button('Prepare dialogue scene').disabled);button('Prepare dialogue scene').click();
-   await until(()=>submitted);assert.equal(submitted.mode,'dialogue');assert.equal(submitted.shot_name,'First exchange');assert.equal(submitted.characters[0].hair_style,'high_top');assert.equal(submitted.characters.length,2);assert.equal(submitted.turns.length,3);assert.equal(submitted.turns[2].speaker,0);assert.equal(submitted.turns[2].dialogue,'Follow my lead.');
+   await until(()=>submitted);assert.equal(submitted.mode,'dialogue');assert.equal(submitted.scene_template,handoff?'counter_handoff':'studio');assert(!submitted.characters.some(row=>row.contact));assert.equal(submitted.shot_name,'First exchange');assert.equal(submitted.characters[0].hair_style,'high_top');assert.equal(submitted.characters.length,2);assert.equal(submitted.turns.length,3);assert.equal(submitted.turns[2].speaker,0);assert.equal(submitted.turns[2].dialogue,'Follow my lead.');
   }
   await until(()=>button('Retry dialogue preparation'));button('Retry dialogue preparation').click();
   await until(()=>window.document.querySelector('video[src="/dialogue-proof.mp4"]'));assert.equal(retried,1);
@@ -55,4 +61,4 @@ async function check(dashboard,restore=false){
   console.log((dashboard?'Dashboard':'PWA')+': '+(restore?'reload recovery':'three-turn submission')+', failure/retry, preview, editable link and existing quote passed');
  }finally{window.LightekUnifiedStudio?.leave();window.close();}
 }
-(async()=>{await check(false);await check(true);await check(false,true);})().catch(error=>{console.error(error);process.exitCode=1;});
+(async()=>{await check(false);await check(true,false,true);await check(false,true,true);})().catch(error=>{console.error(error);process.exitCode=1;});

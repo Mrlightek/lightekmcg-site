@@ -28,6 +28,7 @@ def apply(objects,created,settings):
     indexed={str(item['id']):item for item in objects};prepared=[]
     # Group nonoverlapping contacts so repeated presses share one response track.
     responses={}
+    handoffs={}
     for item in rows:
         cue=item['definition']['prop_contact'];key=str(cue['target_object_id'])
         target=created.get(key);target_data=indexed.get(key)
@@ -35,6 +36,24 @@ def apply(objects,created,settings):
         if any(target_data.get('definition',{}).get(name) for name in ('animation','story_relation','authoring_commands')):raise RuntimeError('Animated or authored contact props are not supported yet')
         if cue['face']=='front' and target_data['definition'].get('contact_response')=='button_press':
             responses.setdefault(key,[]).append(cue)
+        if target_data['definition'].get('contact_response')=='counter_handoff':
+            handoffs.setdefault(key,[]).append(cue)
+    for key,cues in handoffs.items():
+        poses=sorted(cues,key=lambda cue:cue['start'])
+        if len(poses)!=2 or [cue['face'] for cue in poses]!=['left','right']:
+            raise RuntimeError('The counter handoff needs two opposite palm contacts')
+        _,giver_hit,giver_leave,giver_end=phase(poses[0])
+        receiver_start,receiver_hit,receiver_leave,_=phase(poses[1])
+        if not giver_hit<receiver_start<receiver_hit<giver_leave<giver_end<receiver_leave:
+            raise RuntimeError('The receiver must make contact before the giver releases')
+        prop=created[key]
+        origin=prop.location.copy()
+        for frame in range(first,last+1):
+            t=(frame-1)/fps
+            approach=smooth((t-giver_hit)/(receiver_start-giver_hit))
+            depart=smooth((t-giver_end)/(receiver_leave-giver_end))
+            prop.location=origin+Vector((.18*(approach+depart),0,0))
+            prop.keyframe_insert(data_path='location',frame=frame,group='Lightek counter handoff')
     for key,cues in responses.items():
         target=created[key];base=target.location.copy()
         intervals=sorted((phase(cue)[1],phase(cue)[2]) for cue in cues)
@@ -54,7 +73,9 @@ def apply(objects,created,settings):
         upper=rig.pose.bones.get(binding['upper']);lower=rig.pose.bones.get(binding['forearm'])
         if rig.type!='ARMATURE' or not upper or not lower or lower.parent!=upper or not lower.bone.use_connect:raise RuntimeError('Contact needs a connected two-bone arm')
         if hand.parent!=rig or hand.parent_type!='BONE' or hand.parent_bone!=lower.name:raise RuntimeError('The registered hand must belong to its forearm bone')
-        target=created[str(cue['target_object_id'])];point=Vector(cue['point'])
+        target_id=str(cue['target_object_id'])
+        target=created[target_id];point=Vector(cue['point'])
+        handoff=target_id in handoffs
         normal_local=point.normalized();face_q=Vector((0,-1,0)).rotation_difference(normal_local)
         contact_anchor=Vector(binding['contact_anchor']);wrist_anchor=Vector(binding['wrist_anchor'])
         a,b=upper.bone.length,lower.bone.length
@@ -79,13 +100,18 @@ def apply(objects,created,settings):
             palm0=h0 @ contact_anchor;contact=target_world @ point
             face_world=target_world.to_quaternion() @ face_q;normal=(target_world.to_quaternion() @ normal_local).normalized()
             approach=contact+normal*.08
+            if handoff:
+                approach.z+=.06
+                side_approach=Vector((approach.x,palm0.y,palm0.z+.25))
             lift=palm0+normal*(approach-palm0).dot(normal)
             lift.z=approach.z
             if t<start or t>end:
                 palm=palm0;turn=0
             elif t<hit:
                 r=(t-start)/(hit-start)
-                if r<.35:palm=palm0.lerp(lift,smooth(r/.35))
+                if handoff and r<.35:palm=palm0.lerp(side_approach,smooth(r/.35))
+                elif handoff and r<.75:palm=side_approach.lerp(approach,smooth((r-.35)/.4))
+                elif r<.35:palm=palm0.lerp(lift,smooth(r/.35))
                 elif r<.75:palm=lift.lerp(approach,smooth((r-.35)/.4))
                 else:palm=approach.lerp(contact,smooth((r-.75)/.25))
                 turn=smooth(r/.35)
@@ -93,6 +119,8 @@ def apply(objects,created,settings):
             else:
                 r=(t-leave)/(end-leave)
                 if r<.25:palm=contact.lerp(approach,smooth(r/.25))
+                elif handoff and r<.65:palm=approach.lerp(side_approach,smooth((r-.25)/.4))
+                elif handoff:palm=side_approach.lerp(palm0,smooth((r-.65)/.35))
                 elif r<.65:palm=approach.lerp(lift,smooth((r-.25)/.4))
                 else:palm=lift.lerp(palm0,smooth((r-.65)/.35))
                 turn=1-smooth((r-.65)/.35)

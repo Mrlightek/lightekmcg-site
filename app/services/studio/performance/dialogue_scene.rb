@@ -4,6 +4,12 @@ module Studio
     # Two identities, ordered turns and reproducible direction; all renders and
     # checkout still belong to the existing CharacterScene operation.
     class DialogueScene < CharacterScene
+      HANDOFF_WIDE_END=64
+      HANDOFF_CONTACTS=[
+        {"target_id"=>"parcel","hand"=>"right","face"=>"left","start"=>0.50,"reach"=>0.67,"hold"=>1.83,"release"=>0.67},
+        {"target_id"=>"parcel","hand"=>"left","face"=>"right","start"=>2.00,"reach"=>0.67,"hold"=>1.83,"release"=>0.67}
+      ].map(&:freeze).freeze
+
       def self.start(access:,payload:)
         raise ArgumentError,"Coordinated mechanics currently support one-character studies" if payload["mechanics"].present? || Array(payload["characters"]).any? { |row| row.is_a?(Hash) && row["mechanics"].present? }
         source=access.scene!(payload.fetch("scene_id"))
@@ -13,8 +19,16 @@ module Studio
         characters=payload.fetch("characters")
         turns=payload.fetch("turns")
         raise ArgumentError,"Choose exactly two characters" unless characters.is_a?(Array) && characters.size==2 && characters.all? { |row| row.is_a?(Hash) }
+        template=payload.fetch("scene_template","studio").to_s
+        handoff=template==SceneTemplates::HANDOFF_KEY
         sources=[]
-        characters=characters.map do |row|
+        characters=characters.map.with_index do |row,index|
+          if handoff
+            if row["contact"].present? || row.fetch("body_action","still")!="still" || row.fetch("entrance","none")!="none"
+              raise ArgumentError,"The counter handoff supplies its own arm action and staging"
+            end
+            row=row.merge("contact"=>HANDOFF_CONTACTS.fetch(index))
+          end
           name=row.fetch("name").to_s.strip
           raise ArgumentError,"Name each character using 1–60 characters" unless name.length.between?(1,60) && !name.include?("\0")
           voice=row.fetch("voice","en-us").to_s
@@ -54,11 +68,10 @@ module Studio
           result
         end
         raise ArgumentError,"Give both characters at least one speaking turn" unless turns.map { |row| row["speaker"] }.uniq.size==2
-        template=payload.fetch("scene_template","studio").to_s
         staging=SceneTemplates.snapshot(access:access,source:source,key:template,performer_count:2)
         characters.each { |character| Contact.validate_target!(character,staging);Attention.validate!(character,staging,dialogue:true) }
         contacts=characters.filter_map { |character| character["contact"] }
-        if contacts.size==2 && contacts[0]["target_id"]==contacts[1]["target_id"] && contacts[0]["start"]<contacts[1].values_at("start","reach","hold","release").sum && contacts[1]["start"]<contacts[0].values_at("start","reach","hold","release").sum
+        if !handoff && contacts.size==2 && contacts[0]["target_id"]==contacts[1]["target_id"] && contacts[0]["start"]<contacts[1].values_at("start","reach","hold","release").sum && contacts[1]["start"]<contacts[0].values_at("start","reach","hold","release").sum
           raise ArgumentError,"Use non-overlapping contact times when characters share a prop"
         end
         inputs={"mode"=>"dialogue","characters"=>characters,"turns"=>turns,"scene_template"=>template,"camera_mode"=>"dialogue"}.merge(shot_name(payload))
@@ -87,6 +100,7 @@ module Studio
           end
         end
         scene=access.scene!(operation.metadata.fetch("scene_id"))
+        handoff=inputs["scene_template"]==SceneTemplates::HANDOFF_KEY
         actors=inputs.fetch("characters").each_with_index.map do |character,index|
           phase(operation,"building_character_#{index+1}")
           if character["cast_asset_id"]
@@ -117,6 +131,7 @@ module Studio
           {"start"=>start,"duration"=>asset.metadata.fetch("duration")}
         end
         seconds=[(time+0.1).ceil,*inputs["characters"].map { |character| [Contact.ending(character).ceil,Attention.ending(character).ceil].max }].max
+        seconds=[6,seconds].max if handoff
         raise ArgumentError,"Keep the complete conversation within eight seconds. Shorten a line or remove a turn." unless seconds<=8
         objects=actors.each_with_index.map do |actor,index|
           check!(operation)
@@ -124,8 +139,9 @@ module Studio
           object=scene.scene_objects.find(result.fetch("object_id"))
           unless object.definition["dialogue_initialized"]
             base=operation.manifest.dig("staging","actor_transform") || {"location"=>[0,0,0],"rotation"=>[0,0,0],"scale"=>[1,1,1]}
-            center=base.fetch("location",[0,0,0]);location=[center[0]+(index==0 ? -1.0 : 1.0),center[1],center[2]]
-            object.update!(name:inputs["characters"][index]["name"],definition:object.definition.merge("location"=>location,"rotation"=>[0,0,index==0 ? 10 : -10],"scale"=>[1,1,1],"dialogue_initialized"=>true,"dialogue_character"=>index))
+            spacing=handoff ? 0.56 : 1.0
+            center=base.fetch("location",[0,0,0]);location=[center[0]+(index==0 ? -spacing : spacing),center[1],center[2]]
+            object.update!(name:inputs["characters"][index]["name"],definition:object.definition.merge("location"=>location,"rotation"=>[0,0,handoff ? 0 : (index==0 ? 10 : -10)],"scale"=>[1,1,1],"dialogue_initialized"=>true,"dialogue_character"=>index))
           end
           object
         end
@@ -157,12 +173,23 @@ module Studio
               object.reload.update!(definition:object.definition.merge("listener_reactions"=>reactions))
             end
             center=objects.map { |object| object.definition["location"] }.transpose.map { |values| values.sum/2.0 }
-            wide=scene.scene_objects.create!(name:"Dialogue two-shot",object_type:"camera",definition:{"location"=>[center[0],center[1]-6,center[2]+1.25],"look_at"=>[center[0],center[1],center[2]+1.25],"camera_type"=>"ORTHO","ortho_scale"=>6.8,"sensor_fit"=>"HORIZONTAL"})
+            wide_position=[center[0],center[1]-6,center[2]+1.25]
+            wide_position=[center[0]+0.45,center[1]-6,center[2]+2.45] if handoff
+            wide=scene.scene_objects.create!(name:"Dialogue two-shot",object_type:"camera",definition:{"location"=>wide_position,"look_at"=>[center[0],center[1],center[2]+1.25],"camera_type"=>"ORTHO","ortho_scale"=>handoff ? 3.9 : 6.8,"sensor_fit"=>"HORIZONTAL"})
             close=objects.each_with_index.map do |object,index|
               p=object.definition["location"]
               scene.scene_objects.create!(name:"#{inputs['characters'][index]['name']} · reverse",object_type:"camera",definition:{"location"=>[p[0]+(index==0 ? 0.45 : -0.45),p[1]-5,p[2]+1.8],"look_at"=>[p[0],p[1],p[2]+1.8],"camera_type"=>"ORTHO","ortho_scale"=>2.8,"sensor_fit"=>"HORIZONTAL"})
             end
             cuts=[{"camera_id"=>wide.id,"frame"=>1}]+inputs["turns"].each_with_index.map { |turn,i| {"camera_id"=>close[turn["speaker"]].id,"frame"=>1+(timing[i]["start"]*12).round} }
+            if handoff
+              # Keep both hands in frame until the receiver has released the parcel.
+              cuts=cuts.reject { |cut| cut["frame"]>1 && cut["frame"]<HANDOFF_WIDE_END }
+              resume_at=(HANDOFF_WIDE_END-1)/12.0
+              speaking=timing.index { |turn| turn["start"]<resume_at && turn["start"]+turn["duration"]>resume_at }
+              if speaking && cuts.none? { |cut| cut["frame"]==HANDOFF_WIDE_END }
+                cuts.insert(1,{"camera_id"=>close[inputs["turns"][speaking]["speaker"]].id,"frame"=>HANDOFF_WIDE_END})
+              end
+            end
             presets=Array(scene.settings["blender_presets"]).deep_dup;presets.each { |preset| preset["camera_cuts"]=[] }
             scene.update!(settings:scene.settings.merge("frame_end"=>seconds*12,"camera_cuts"=>cuts,"active_camera_object_id"=>wide.id,"blender_presets"=>presets,"dialogue_scene_cameras"=>true,"dialogue_timing"=>timing,"native_revision"=>scene.settings.fetch("native_revision",0)+1))
           end

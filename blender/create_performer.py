@@ -155,14 +155,21 @@ if portrait_path.is_file():
     portrait.use_nodes = True
     nodes = portrait.node_tree.nodes
     texture = nodes.new('ShaderNodeTexImage'); texture.image = photo
-    portrait.node_tree.links.new(texture.outputs['Color'], nodes.get('Principled BSDF').inputs['Base Color'])
+    if illustrated:
+        emission=nodes.new('ShaderNodeEmission')
+        portrait.node_tree.links.new(texture.outputs['Color'], emission.inputs['Color'])
+        portrait.node_tree.links.new(emission.outputs[0], nodes.get('Material Output').inputs['Surface'])
+    else:
+        portrait.node_tree.links.new(texture.outputs['Color'], nodes.get('Principled BSDF').inputs['Base Color'])
     radius_x, radius_z, center_z = 0.258, 0.247, 2.0
-    vertices = [(0, -0.345, center_z)]
+    # The illustrated mask sits behind the editable eyelids, brows and mouth.
+    depth = -0.235 if illustrated else -0.345
+    vertices = [(0, depth, center_z)]
     uvs = [(0.5, 0.66)]
     for i in range(48):
         angle = i * math.tau / 48
         x, z = math.cos(angle), math.sin(angle)
-        vertices.append((radius_x*x, -0.332, center_z+radius_z*z))
+        vertices.append((radius_x*x, depth+0.013, center_z+radius_z*z))
         uvs.append((0.5+0.47*x, 0.66+0.26*z))
     triangles = [(0, 1+i, 1+(i+1)%48) for i in range(48)]
     panel_mesh = bpy.data.meshes.new('Portrait surface')
@@ -174,7 +181,8 @@ if portrait_path.is_file():
     panel = bpy.data.objects.new('Face portrait', panel_mesh)
     scene.collection.objects.link(panel)
     head_parts.append(panel)
-    mouth.location.y = -0.1
+    if not illustrated:
+        mouth.location.y = -0.1
 
 
 arm_parts = {};forearm_parts={}

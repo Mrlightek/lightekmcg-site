@@ -20,6 +20,11 @@ on:
       - 'blender/performance.py'
       - 'blender/contacts.py'
       - 'blender/mechanics.py'
+      - 'blender/physics/**'
+      - 'docker/studio-media/physics-requirements.txt'
+      - 'test/operations/studio_physics_test.py'
+      - 'test/standalone/studio_grasp_checks.rb'
+      - 'test/javascript/studio_grasp_test.cjs'
       - 'blender/bench_v1.py'
       - 'blender/*_v*.py'
       - 'blender/create_side_views.py'
@@ -80,13 +85,24 @@ jobs:
       - name: Install native media tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg imagemagick blender espeak-ng
+          sudo apt-get install -y ffmpeg imagemagick blender espeak-ng python3-venv
           mkdir -p "$RUNNER_TEMP/rhubarb"
           curl --fail --location --retry 2 https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -o "$RUNNER_TEMP/rhubarb.zip"
           echo "a9a9074862cff47b2d59b8bf399a678a3b0b74f9452ad6ad94cb292913dd8667  $RUNNER_TEMP/rhubarb.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/rhubarb.zip" -d "$RUNNER_TEMP/rhubarb"
           chmod 755 "$RUNNER_TEMP/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb"
           echo "LIGHTEK_RHUBARB=$RUNNER_TEMP/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb" >> "$GITHUB_ENV"
+      - name: Install and verify CPU contact dynamics
+        run: |
+          python3 -m venv "$RUNNER_TEMP/studio-physics"
+          "$RUNNER_TEMP/studio-physics/bin/pip" install -r docker/studio-media/physics-requirements.txt
+          echo "STUDIO_PHYSICS_PYTHON=$RUNNER_TEMP/studio-physics/bin/python" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/studio-physics/bin/python" test/operations/studio_physics_test.py
+      - name: Verify articulated grasp through the real character preview path
+        env:
+          STUDIO_GRASP_PROOF_VIDEO: /tmp/lightek-grasp.mp4
+          STUDIO_GRASP_PROOF_BLEND: /tmp/lightek-grasp.blend
+        run: bundle exec ruby test/standalone/studio_grasp_checks.rb --name '/StudioGraspTest/'
       - name: Verify isolated workflow and real native video
         run: bundle exec ruby test/standalone/studio_native_workflow_checks.rb --name '/StudioNativeWorkflowTest/'
       - name: Verify a real illustrated character scene with speech
@@ -147,6 +163,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_contact_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_mechanics_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_carry_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_grasp_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_attention_test.cjs
       - uses: actions/upload-artifact@v4
         with:
@@ -156,6 +173,8 @@ jobs:
             /tmp/lightek-park.blend
             /tmp/lightek-directional.mp4
             /tmp/lightek-directional.blend
+            /tmp/lightek-grasp.mp4
+            /tmp/lightek-grasp.blend
             /tmp/lightek-carry.mp4
             /tmp/lightek-carry.blend
             /tmp/lightek-attention.mp4

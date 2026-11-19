@@ -9,6 +9,7 @@ module Studio
       DRIVERS={"bench:1"=>{"files"=>%w[bench_v1.py kinematics_v1.py],"speech_start"=>3.4,"phases"=>{"walk"=>[0,2],"turn"=>[2,2.5],"sit"=>[2.5,3.25],"seated"=>[3.25,6.4],"stand"=>[6.4,7.25],"rest"=>[7.25,8]}},
                "carry:1"=>{"files"=>%w[carry_v1.py biped_v2.py views_v1.py spatial_frame_v1.py bench_v1.py kinematics_v1.py],"speech_start"=>2.3,"phases"=>{"reach"=>[0,0.75],"grip"=>[0.75,1],"lift"=>[1,1.75],"turn_out"=>[1.75,2.25],"walk"=>[2.25,4.25],"turn_in"=>[4.25,4.75],"place"=>[4.75,5.5],"release"=>[5.5,6],"rest"=>[6,8]}}}
       DRIVERS["bench:2"]={"files"=>%w[bench_v2.py biped_v2.py views_v1.py spatial_frame_v1.py bench_v1.py kinematics_v1.py],"speech_start"=>3.4,"phases"=>DRIVERS.fetch("bench:1").fetch("phases")}
+      DRIVERS["grasp:1"]={"files"=>%w[grasp_v1.py biped_v3.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v1.py physics/human_v1.json],"speech_start"=>3.0,"phases"=>{"reach"=>[0,1],"close"=>[1,2],"lift"=>[2,3],"hold"=>[3,4],"lower"=>[4,5],"open"=>[5,6],"withdraw"=>[6,8]}}
       DRIVERS.freeze
       def self.bindings
         {"profile"=>PROFILE,"version"=>VERSION,"rig"=>"PerformerRig","body"=>"Body","support"=>"Pelvis support",
@@ -38,6 +39,7 @@ module Studio
         return unless (cue=character["mechanics"])
         raise ArgumentError,"The coordinated performance owns its own movement and contacts" if character["contact"] || character["entrance"]!="none" || character["body_action"]!="still" || character["gesture"]!="still"
         raise ArgumentError,"Clear saved source motion before using coordinated mechanics" if staging.dig("actor_motion","motion_clips").present?
+        return Grasp.validate!(cue,staging) if cue["action"]=="grasp"
         return Carry.validate!(cue,staging) if cue["action"]=="carry"
         target=staging.fetch("objects").find { |object| object["id"].to_s==cue["target_id"] }
         raise ArgumentError,"Choose the calibrated bench seat" unless target && Contact.static_cube?(target) && target.dig("definition","mechanics_seat")==VERSION
@@ -47,7 +49,7 @@ module Studio
       def self.validate_profile!(character,profile)
         return unless character["mechanics"]
         raise ArgumentError,"Build a new illustrated performer with version 1 mechanics bindings" unless profile["mechanics"]==bindings
-        if character.dig("mechanics","action")=="carry" || character.dig("mechanics","version")==2
+        if %w[carry grasp].include?(character.dig("mechanics","action")) || character.dig("mechanics","version")==2
           raise ArgumentError,"Build a performer with front and side view bindings" unless profile.dig("views","version")==1
         end
       end
@@ -67,6 +69,10 @@ module Studio
           plan={"driver"=>cue["action"],"version"=>cue["version"],"profile"=>PROFILE,"target_object_id"=>target.id,"driver_fingerprint"=>driver_fingerprint(cue["action"],cue["version"]),"source_blob_id"=>object.definition.dig("character_profile","source_blob_id"),
                 "phases"=>DRIVERS.fetch("#{cue['action']}:#{cue['version']}").fetch("phases").deep_dup}
           plan["support_object_ids"]=Carry.supports(scene) if cue["action"]=="carry"
+          if cue["action"]=="grasp"
+            plan["support_object_ids"]=Grasp.supports(scene)
+            plan["physical_profile"]=Grasp.physical_profile
+          end
           object.update!(definition:object.definition.merge("location"=>[0,-0.24,0],"rotation"=>[0,0,0],"scale"=>[1,1,1],"mechanics_plan"=>plan))
           scene.update!(settings:scene.settings.merge("native_revision"=>scene.settings.fetch("native_revision",0)+1))
         end

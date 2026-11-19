@@ -5,6 +5,7 @@ from mathutils.bvhtree import BVHTree
 
 def geometry(root, depsgraph, exclude=()):
     vertices, triangles = [], []
+    exclude=set(exclude) | {child for obj in exclude for child in obj.children_recursive}
     for obj in [root]+list(root.children_recursive):
         if obj.type!='MESH' or obj in exclude or obj.get('lightek_view')=='side':
             continue
@@ -101,6 +102,16 @@ def validate(objects,created,settings,contacts=()):
                     if body and mesh(other) and intersects(body,mesh(other)):
                         raise RuntimeError('Environment collision at frame '+str(frame)+': '+item['name']+' / '+other['name'])
                     for cue in active:
+                        if 'physics_sphere_radius_m' in cue:
+                            from mathutils import Vector
+                            center=created[str(other['id'])].matrix_world.translation
+                            for capsule in cue['capsules']:
+                                half=capsule['lightek_capsule_half_length_m'];radius=capsule['lightek_capsule_radius_m']
+                                a=capsule.matrix_world @ Vector((0,0,-half));b=capsule.matrix_world @ Vector((0,0,half));axis=b-a
+                                nearest=a+axis*max(0,min(1,(center-a).dot(axis)/axis.length_squared))
+                                if (center-nearest).length < cue['physics_sphere_radius_m']+radius-.002:
+                                    raise RuntimeError('Physical finger penetrates its load at frame '+str(frame))
+                            continue
                         contact_mesh=geometry(cue['contact_mesh'],depsgraph)
                         if contact_mesh and mesh(other) and intersects(contact_mesh,mesh(other)):
                             target=created[str(other['id'])];plane=target.matrix_world @ cue['point'];normal=(target.matrix_world.to_quaternion() @ cue['normal']).normalized()

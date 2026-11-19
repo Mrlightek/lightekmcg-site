@@ -2,8 +2,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 async function check(dashboard,restore=false,variant='bench'){
  const dom=new JSDOM(dashboard?'<div data-unified-studio data-site-id="2" data-scene-id="7" data-workspace="create"></div>':'<div id="app"></div>',{url:'https://studio.example/#/studio/7/create',runScripts:'outside-only',pretendToBeVisual:true});
  const {window}=dom;let submitted,attempt=restore?1:0,retried=0,quoted;
- const carrying=variant==='carry',focusing=variant==='attention',target=carrying?'parcel':'seat';
- const inputs={name:'Sentinel',dialogue:'We can build this world together.',voice:'en-us',colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'},emotion:'friendly',body_action:'still',entrance:'none',gesture:'still',scene_template:'bench',camera_mode:'character',mechanics:{action:carrying?'carry':'bench',version:focusing?2:1,target_id:target},...(focusing?{attention:{kind:'camera',start:3.25,end:6.4}}:{})};
+ const carrying=variant==='carry',grasping=variant==='grasp',focusing=variant==='attention',target=grasping?'ball':carrying?'parcel':'seat';
+ const inputs={name:'Sentinel',dialogue:'We can build this world together.',voice:'en-us',colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'},emotion:'friendly',body_action:'still',entrance:'none',gesture:'still',scene_template:'bench',camera_mode:'character',mechanics:{action:grasping?'grasp':carrying?'carry':'bench',version:focusing?2:1,target_id:target},...(focusing?{attention:{kind:'camera',start:3.25,end:6.4}}:{})};
  window.nevaeh={execute:async({capability,payload})=>{let result;switch(capability.replace(/^studio\.(pwa|workspace)\./,'')){
   case 'bootstrap':result={projects:[{id:3,name:'Production',unassigned_scenes:[{id:7,name:'Pilot',settings:{},lock_version:1}]}]};break;
   case 'assets.list':result={assets:[{id:61,name:'Legacy performer',kind:'blend',status:'ready',metadata:{character_profile:{bindings:{jaw_open:{}},motions:[]}}}]};break;
@@ -25,6 +25,7 @@ async function check(dashboard,restore=false,variant='bench'){
   window.eval(fs.readFileSync(path.resolve(__dirname,'../../public/lightek/studio-unified.js'),'utf8'));if(!dashboard)window.LightekUnifiedStudio.pwa(window.document.querySelector('#app'),'7');
   await until(()=>button('Performed ShortCharacter · voice · cuts'));button('Performed ShortCharacter · voice · cuts').click();
   await until(()=>field('Coordinated action')?.value===target);
+  if(grasping){assert(window.document.body.textContent.includes('Fingers and thumb bend'));assert(field('Coordinated action').textContent.includes('Close fingers'));}
   assert(field('body action').disabled);assert(field('entrance').disabled);assert(field('Starter action').disabled);assert.equal(field('Starter action').value,'still');
   if(!restore){
    set(field('Reusable performer'),'61');await until(()=>button('Prepare performed short').disabled);assert(window.document.body.textContent.includes('version 1 mechanics bindings'));

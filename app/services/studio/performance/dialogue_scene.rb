@@ -24,6 +24,7 @@ module Studio
             raise ArgumentError,"Choose six-digit character colors" unless color.match?(/\A#[a-fA-F0-9]{6}\z/)
             [field,color]
           end
+          colors["hair_style"]=Cast.hair_style(row["hair_style"]) if row.key?("hair_style") && row["cast_asset_id"].blank?
           result={"name"=>name,"voice"=>voice,"colors"=>colors}.merge(Acting.inputs(row)).merge(Contact.inputs(row)).merge(Attention.inputs(row))
           if row["cast_asset_id"].present?
             actor=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"blend",status:"ready").find(row["cast_asset_id"])
@@ -60,7 +61,7 @@ module Studio
         if contacts.size==2 && contacts[0]["target_id"]==contacts[1]["target_id"] && contacts[0]["start"]<contacts[1].values_at("start","reach","hold","release").sum && contacts[1]["start"]<contacts[0].values_at("start","reach","hold","release").sum
           raise ArgumentError,"Use non-overlapping contact times when characters share a prop"
         end
-        inputs={"mode"=>"dialogue","characters"=>characters,"turns"=>turns,"scene_template"=>template,"camera_mode"=>"dialogue"}
+        inputs={"mode"=>"dialogue","characters"=>characters,"turns"=>turns,"scene_template"=>template,"camera_mode"=>"dialogue"}.merge(shot_name(payload))
         operation=access.user.with_lock do
           scope=source.studio_project.studio_operations.where(capability:CAPABILITY).where("CAST(intent ->> 'user_id' AS TEXT) = ?",access.user.id.to_s)
           previous=scope.where("metadata ->> 'request_key' = ?",key).first
@@ -80,7 +81,7 @@ module Studio
         access=check!(operation);inputs=operation.manifest.fetch("inputs");tag="dialogue-scene-#{operation.id}"
         operation.with_lock do
           unless operation.metadata["scene_id"]
-            scene=operation.studio_project.studio_scenes.create!(production:operation.production,name:inputs["characters"].map { |row| row["name"] }.join(" & ")+" · dialogue",settings:StudioScene.default_settings.merge("render_engine"=>"CYCLES","compute_profile"=>"cpu_economy","resolution_x"=>640,"resolution_y"=>360,"samples"=>1,"fps"=>12,"frame_start"=>1,"frame_end"=>36,"world_color"=>[0.02,0.03,0.05,1]))
+            scene=operation.studio_project.studio_scenes.create!(production:operation.production,name:inputs["shot_name"] || inputs["characters"].map { |row| row["name"] }.join(" & ")+" · dialogue",settings:StudioScene.default_settings.merge("render_engine"=>"CYCLES","compute_profile"=>"cpu_economy","resolution_x"=>640,"resolution_y"=>360,"samples"=>1,"fps"=>12,"frame_start"=>1,"frame_end"=>36,"world_color"=>[0.02,0.03,0.05,1]))
             SceneTemplates.apply!(scene,operation.manifest.fetch("staging"),access:access)
             operation.update!(metadata:operation.metadata.merge("scene_id"=>scene.id))
           end

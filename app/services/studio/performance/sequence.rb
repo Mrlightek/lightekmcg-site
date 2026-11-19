@@ -4,6 +4,7 @@ module Studio
   module Performance
     class Sequence
       CAPABILITY="studio.workspace.sequence.prepare"
+      MAX_SECONDS=60
       PREVIEW_SETTINGS=%w[resolution_x resolution_y samples frame_current].freeze
       def self.canonical(value)
         case value
@@ -45,7 +46,7 @@ module Studio
         rows=scene.studio_project.studio_operations.where(capability:CharacterScene::CAPABILITY,status:"completed").where("CAST(intent ->> 'user_id' AS TEXT) = ?",access.user.id.to_s).order(id: :desc).limit(100).map do |parent|
           begin
             row=source(access,parent.id)
-            {operation_id:parent.id,name:row[:scene].name,scene_id:row[:scene].id,seconds:row[:seconds],available:true,full_export_ready:!!full_export(row)}
+            {operation_id:parent.id,name:row[:scene].name,scene_id:row[:scene].id,can_revise:parent.studio_scene_id==scene.id,seconds:row[:seconds],available:true,full_export_ready:!!full_export(row)}
           rescue ArgumentError,ActiveRecord::RecordNotFound,KeyError => error
             {operation_id:parent.id,name:parent.manifest.dig("inputs","name") || "Character performance #{parent.id}",available:false,error:error.message}
           end
@@ -76,7 +77,7 @@ module Studio
           {"preparation_id"=>row[:parent].id,"scene_id"=>row[:scene].id,"artifact_id"=>row[:artifact].id,"blob_id"=>row[:artifact].file.blob.id,"signature"=>row[:signature],"in"=>first,"out"=>last,"seconds"=>last-first,"name"=>row[:scene].name}
         end
         raise ArgumentError,"Keep total sequence source files within 100 MB" if rows.uniq { |row| row["blob_id"] }.sum { |row| ActiveStorage::Blob.find(row["blob_id"]).byte_size }>100.megabytes
-        raise ArgumentError,"Keep the review cut within thirty seconds" if rows.sum { |row| row["seconds"] }>30
+        raise ArgumentError,"Keep the review cut within #{MAX_SECONDS} seconds" if rows.sum { |row| row["seconds"] }>MAX_SECONDS
         inputs={"name"=>name,"shots"=>rows.map { |row| {"operation_id"=>row["preparation_id"],"in"=>row["in"],"out"=>row["out"]} }}
         operation=access.user.with_lock do
           scope=source_scene.studio_project.studio_operations.where(capability:CAPABILITY).where("CAST(intent ->> 'user_id' AS TEXT) = ?",access.user.id.to_s)

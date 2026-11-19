@@ -12,6 +12,12 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
     assert_equal "dialogue",result.dig(:inputs,"mode")
     assert_equal 2,result.dig(:inputs,"characters").size
     assert_equal result,action("character_scene_status",scene_id:@scene.id)
+    StudioOperation.find(result[:operation_id]).update!(status:"failed")
+    styled=dialogue(request_key:"styled-dialogue-123",shot_name:"  Opening close-up  ",
+      characters:[{name:"Sentinel",hair_style:"high_top"},{name:"Beacon",hair_style:"close"}])
+    assert_equal "Opening close-up",styled.dig(:inputs,"shot_name")
+    assert_equal %w[high_top close],styled.dig(:inputs,"characters").map { |row| row.dig("colors","hair_style") }
+    assert_raises(ArgumentError) { dialogue(characters:[{name:"Sentinel",hair_style:"missing"},{name:"Beacon"}]) }
     assert_raises(ArgumentError) { dialogue(turns:[{speaker:0,dialogue:"Changed."},{speaker:1,dialogue:"Ready."}]) }
     assert_raises(ArgumentError) { dialogue(characters:[]) }
     assert_raises(ArgumentError) { dialogue(characters:[{name:"Same"},{name:"same"}]) }
@@ -44,10 +50,14 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
     skip "Set LIGHTEK_TEST_CHARACTER_SCENE=1 with native tools" unless ENV["LIGHTEK_TEST_CHARACTER_SCENE"]=="1"
     previous=ENV["BLENDER_OUTPUT_ROOT"];ENV["BLENDER_OUTPUT_ROOT"]=Dir.mktmpdir("dialogue-output-")
     Rails.stub(:root,Pathname(ROOT)) do
-      parent=StudioOperation.find(dialogue(turns:[{speaker:0,dialogue:"Stay alert."},{speaker:1,dialogue:"I am ready."},{speaker:0,dialogue:"Follow my lead."}])[:operation_id]);StudioCharacterSceneJob.perform_now(parent.id)
+      characters=[{name:"Sentinel",voice:"en-us",hair_style:"high_top"},{name:"Beacon",voice:"en-gb",hair_style:"close"}]
+      turns=[{speaker:0,dialogue:"Stay alert."},{speaker:1,dialogue:"I am ready."},{speaker:0,dialogue:"Follow my lead."}]
+      parent=StudioOperation.find(dialogue(shot_name:"Opening exchange",characters:characters,turns:turns)[:operation_id])
+      StudioCharacterSceneJob.perform_now(parent.id)
       assert_equal "completed",parent.reload.status,parent.error_message
       receipt=action("character_scene_status",operation_id:parent.id);assert receipt[:url]
       target=StudioScene.find(receipt[:scene_id]);refute_equal @scene.id,target.id
+      assert_equal "Opening exchange",target.name
       cast=target.scene_objects.select { |object| object.definition["dialogue_initialized"] }
       assert_equal 2,cast.size
       assert_equal 2,cast.map { |object| object.definition["asset_id"] }.uniq.size
@@ -82,6 +92,8 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
           assert len([sound for sound in bpy.data.sounds if sound.packed_file])==3
           rigs=[obj for obj in scene.objects if obj.type=='ARMATURE']
           assert len(rigs)==2
+          source_names={obj.get('lightek_source_object') for obj in scene.objects}
+          assert {'High top','Close cut'} <= source_names
           assert all(rig.animation_data for rig in rigs)
           faces=[obj for obj in scene.objects if obj.get('lightek_source_object')=='FaceBrows' and obj.data.shape_keys and 'brow_raise' in obj.data.shape_keys.key_blocks]
           assert len(faces)==2

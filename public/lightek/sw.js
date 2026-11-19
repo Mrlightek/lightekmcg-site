@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v123-verified-pickup"
+const CACHE = "lightek-shell-v124-scene-finishing"
 
 const SHELL = [
   "/lightek/index.html",
@@ -13,7 +13,7 @@ const SHELL = [
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
   "/lightek/nevaeh-reply-stream.js?v=1",
-  "/lightek/studio-unified.js?v=25",
+  "/lightek/studio-unified.js?v=26",
   "/lightek/studio-unified.css?v=6",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",

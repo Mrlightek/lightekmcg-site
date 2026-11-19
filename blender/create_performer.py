@@ -51,7 +51,15 @@ def sphere(name, location, scale, mat):
     if illustrated:
         count=32
         points=[(math.cos(i*math.tau/count),math.sin(i*math.tau/count)) for i in range(count)]
-        if name=='Head': points=[(-.8,.5),(-.65,.9),(.6,1),(.93,.55),(.72,-.55),(.25,-1),(-.3,-1),(-.82,-.5)]
+        if name=='Head':
+            points=[(-.86,.5),(-.8,.72),(-.66,.9),(-.45,.97),(.42,.98),(.62,.91),
+                    (.79,.76),(.88,.55),(.84,-.22),(.75,-.49),(.52,-.77),(.28,-.95),
+                    (.11,-1),(-.11,-1),(-.32,-.93),(-.58,-.74),(-.77,-.48),(-.85,-.18)]
+        if name=='Neck':
+            points=[(-.72,1),(.72,1),(.67,-.32),(.95,-.85),(.52,-1),(-.52,-1),(-.95,-.85),(-.67,-.32)]
+        if name=='High top':
+            points=[(-1,-.48),(-.98,.48),(-.86,.78),(-.64,.94),(-.39,.98),(.5,.98),
+                    (.73,.88),(.9,.67),(1,.44),(.99,-.42),(.77,-.68),(-.79,-.68)]
         if name=='Shirt': points=[(-1,1),(1,1),(.45,-.5),(0,-1),(-.45,-.5)]
         if name=='Jacket body': points=[(-.6,1),(.6,1),(1,.7),(.8,-.5),(.5,-1),(-.5,-1),(-.8,-.5),(-1,.7)]
         count=len(points)
@@ -70,7 +78,7 @@ def sphere(name, location, scale, mat):
 
 body = sphere('Jacket body', (0,0,1.17) if illustrated else (0,0,.98), (.40,.24,.34) if illustrated else (.40,.24,.52), wardrobe)
 sphere('Shirt', (0, -0.21, 1.12), (0.22, 0.045, 0.30), black)
-sphere('Neck', (0, 0, 1.49), (0.14, 0.14, 0.20), skin)
+sphere('Neck', (0, 0.025 if illustrated else 0, 1.49), (0.14, 0.14, 0.20), skin)
 head = sphere('Head', (0, 0, 1.88), (0.34, 0.28, 0.42), skin)
 head_parts = [head]
 head_parts += [sphere('Ear L', (-0.34, 0, 1.86), (0.065, 0.06, 0.12), skin), sphere('Ear R', (0.34, 0, 1.86), (0.065, 0.06, 0.12), skin)]

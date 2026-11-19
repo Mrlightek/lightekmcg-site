@@ -12,8 +12,10 @@ async function check(dashboard,restore=false){
    case 'workflow.status':result={ready:true,assets:[]};break;
    case 'ai.status':throw Error('Sequence must not query Genesis');
    case 'character.scene.catalog':result={scene_templates:[{key:'studio',name:'Plain stage',available:true}],production_templates:[],saved_templates:[],default_scene_template:'studio'};break;
-   case 'character.scene.status':result={status:'idle'};break;
-   case 'sequence.catalog':result={performances:[{operation_id:21,name:'Opening',scene_id:91,seconds:3,available:true},{operation_id:22,name:'Reply',scene_id:92,seconds:4,available:true}]};break;
+   case 'character.scene.status':result=payload.operation_id===22
+    ?{status:'completed',cast_asset_id:41,inputs:{name:'Sentinel',shot_name:'Reply',dialogue:'Ready.',colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'}}}
+    :{status:'idle'};break;
+   case 'sequence.catalog':result={performances:[{operation_id:21,name:'Opening',scene_id:91,seconds:3,available:true},{operation_id:22,name:'Reply',scene_id:92,can_revise:true,seconds:4,available:true}]};break;
    case 'sequence.prepare':submitted=payload;attempt=1;result={operation_id:80,status:'pending',inputs};break;
    case 'sequence.status':result=!attempt?{status:'idle'}:attempt===1?{operation_id:80,status:'failed',error:'Worker interrupted',inputs}:{operation_id:80,status:'completed',url:'/sequence-proof.mp4',inputs};break;
    case 'sequence.retry':attempt=2;result={operation_id:80,status:'pending',inputs};break;
@@ -33,7 +35,18 @@ async function check(dashboard,restore=false){
   await until(()=>window.document.querySelector('[aria-label="Performance sequence editor"]'));
   const panel=window.document.querySelector('[aria-label="Performance sequence editor"]');panel.open=true;panel.dispatchEvent(new window.Event('toggle'));
   await until(()=>button('Preview sequence cut')&&!button('Preview sequence cut').disabled);
-  if(!restore){button('Move clip 2 earlier').click();await until(()=>field('Clip 1 performance').value==='22');set(field('Clip 1 in'),'.5');await until(()=>Number(field('Clip 1 in').value)===.5);button('Preview sequence cut').click();await until(()=>submitted);assert.equal(submitted.shots[0].operation_id,22);assert.equal(submitted.shots[0].in,.5);assert.equal(submitted.shots[1].operation_id,21);}
+  if(!restore){
+   button('Move clip 2 earlier').click();await until(()=>field('Clip 1 performance').value==='22');
+   set(field('Clip 1 in'),'.5');await until(()=>Number(field('Clip 1 in').value)===.5);
+   button('Revise take for clip 1').click();
+   await until(()=>field('Shot name').value==='Reply');
+   assert.equal(field('Reusable performer').value,'41');
+   assert.equal(field('Spoken line').value,'Ready.');
+   assert.equal(Number(field('Clip 1 in').value),.5);
+   button('Preview sequence cut').click();
+   await until(()=>submitted);
+   assert.equal(submitted.shots[0].operation_id,22);assert.equal(submitted.shots[0].in,.5);assert.equal(submitted.shots[1].operation_id,21);
+  }
   await until(()=>button('Retry sequence preview'));button('Retry sequence preview').click();await until(()=>window.document.querySelector('video[src="/sequence-proof.mp4"]'));
   assert(button('Prepare sequence export').disabled);const reviewed=field('I reviewed this sequence');reviewed.click();await until(()=>!button('Prepare sequence export').disabled);
   button('Prepare sequence export').click();await until(()=>button('Price Opening'));assert.equal(quoted.reviewed,true);button('Price Opening').click();await until(()=>sourceQuoted);assert.equal(sourceQuoted.operation_id,21);

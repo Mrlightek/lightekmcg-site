@@ -5,6 +5,12 @@ module Studio
     class CharacterScene
       class Waiting < StandardError; end
       CAPABILITY="studio.workspace.character.scene.prepare"
+      def self.shot_name(payload)
+        name=payload["shot_name"].to_s.strip
+        raise ArgumentError,"Use a shot name of up to 120 characters" if name.length>120 || name.include?("\0")
+        name.present? ? {"shot_name"=>name} : {}
+      end
+
       def self.start(access:,payload:)
         payload=VerifiedGrasp.from_prompt(payload)
         raise ArgumentError,"The validated pickup is a silent action" if VerifiedGrasp.active?(payload) && payload["audio_asset_id"].present?
@@ -32,6 +38,10 @@ module Studio
         raise ArgumentError,"Choose an available starter action" unless SceneTemplates::GESTURES.include?(gesture)
         staging=SceneTemplates.snapshot(access:access,source:source,key:template_key)
         inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors,"scene_template"=>template_key,"camera_mode"=>camera_mode,"gesture"=>gesture}.merge(Acting.inputs(payload)).merge(Contact.inputs(payload)).merge(Mechanics.inputs(payload)).merge(Attention.inputs(payload))
+        inputs.merge!(shot_name(payload))
+        if payload.key?("hair_style") && !VerifiedGrasp.active?(inputs) && payload["cast_asset_id"].blank?
+          colors["hair_style"]=Cast.hair_style(payload["hair_style"])
+        end
         inputs["driver_fingerprint"]=Mechanics.driver_fingerprint("grasp",4) if VerifiedGrasp.active?(inputs)
         Contact.validate_target!(inputs,staging)
         Mechanics.validate!(inputs,staging)
@@ -85,7 +95,7 @@ module Studio
         operation=find(access,id)
         child=operation.studio_project.studio_operations.find_by(id:operation.metadata["preview_id"])
         artifact=child&.status=="completed" && child.artifacts.find_by(kind:"video")
-        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","entrance","contact","mechanics","attention"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
+        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("shot_name","name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","entrance","contact","mechanics","attention"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
           scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],cast_asset_ids:operation.metadata["cast_asset_ids"],duration_seconds:operation.metadata["duration_seconds"],turn_timing:operation.metadata["dialogue_timing"],preview_operation_id:child&.id,
           url:artifact && artifact.file.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}.compact
       end
@@ -162,7 +172,7 @@ module Studio
         raise ArgumentError,"This action implementation changed; prepare a new take" if verified && inputs["driver_fingerprint"]!=Mechanics.driver_fingerprint("grasp",4)
         operation.with_lock do
           unless operation.metadata["scene_id"]
-            scene=operation.studio_project.studio_scenes.create!(production:operation.production,name:"#{inputs['name']} · performed short",settings:StudioScene.default_settings.merge("render_engine"=>"CYCLES","compute_profile"=>"cpu_economy","resolution_x"=>640,"resolution_y"=>360,"samples"=>1,"fps"=>(verified ? 24 : 12),"frame_start"=>1,"frame_end"=>36,"world_color"=>[0.02,0.03,0.05,1]))
+            scene=operation.studio_project.studio_scenes.create!(production:operation.production,name:inputs["shot_name"] || "#{inputs['name']} · performed short",settings:StudioScene.default_settings.merge("render_engine"=>"CYCLES","compute_profile"=>"cpu_economy","resolution_x"=>640,"resolution_y"=>360,"samples"=>1,"fps"=>(verified ? 24 : 12),"frame_start"=>1,"frame_end"=>36,"world_color"=>[0.02,0.03,0.05,1]))
             SceneTemplates.apply!(scene,operation.manifest.fetch("staging"),access:access)
             operation.update!(metadata:operation.metadata.merge("scene_id"=>scene.id))
           end

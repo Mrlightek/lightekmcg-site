@@ -13,7 +13,7 @@ async function check(dashboard,restore=false){
    case 'ai.status':throw Error('Dialogue must not query Genesis');
    case 'character.scene.catalog':result={scene_templates:[{key:'studio',name:'Plain stage',available:true}],production_templates:[],saved_templates:[],default_scene_template:'studio'};break;
    case 'character.scene.prepare':submitted=payload;attempt=1;result={operation_id:80,status:'pending',phase:'queued'};break;
-   case 'character.scene.status':result=!attempt?{status:'idle'}:attempt===1?{operation_id:80,inputs,status:'failed',phase:'analyzing_speech',error:'Worker interrupted'}:{operation_id:80,inputs,status:'completed',phase:'ready',scene_id:9,url:'/dialogue-proof.mp4'};break;
+   case 'character.scene.status':result=!attempt?{status:'idle'}:attempt===1?{operation_id:80,inputs,status:'failed',phase:'analyzing_speech',error:'Worker interrupted'}:{operation_id:80,inputs,status:'completed',phase:'ready',scene_id:9,cast_asset_ids:[71,72],url:'/dialogue-proof.mp4'};break;
    case 'character.scene.retry':retried++;attempt=2;result={operation_id:80,status:'pending',phase:'queued'};break;
    case 'character.scene.quote':quoted=payload;result={operation_id:82,status:'awaiting_payment',quote:{total_cents:550,currency:'USD'}};break;
    default:throw Error(capability);
@@ -32,15 +32,26 @@ async function check(dashboard,restore=false){
   await until(()=>button('Prepare dialogue scene')&&!button('Prepare dialogue scene').disabled);
   assert.equal(field('Character 2 stock voice').value,'en-gb');
   if(!restore){
+   set(field('Shot name'),'First exchange');
+   set(field('Character 1 hairstyle'),'high_top');
    button('Add speaking turn').click();await until(()=>field('Turn 3 line'));set(field('Turn 3 line'),'Follow my lead.');
    await until(()=>!button('Prepare dialogue scene').disabled);button('Prepare dialogue scene').click();
-   await until(()=>submitted);assert.equal(submitted.mode,'dialogue');assert.equal(submitted.characters.length,2);assert.equal(submitted.turns.length,3);assert.equal(submitted.turns[2].speaker,0);assert.equal(submitted.turns[2].dialogue,'Follow my lead.');
+   await until(()=>submitted);assert.equal(submitted.mode,'dialogue');assert.equal(submitted.shot_name,'First exchange');assert.equal(submitted.characters[0].hair_style,'high_top');assert.equal(submitted.characters.length,2);assert.equal(submitted.turns.length,3);assert.equal(submitted.turns[2].speaker,0);assert.equal(submitted.turns[2].dialogue,'Follow my lead.');
   }
   await until(()=>button('Retry dialogue preparation'));button('Retry dialogue preparation').click();
   await until(()=>window.document.querySelector('video[src="/dialogue-proof.mp4"]'));assert.equal(retried,1);
   const link=[...window.document.querySelectorAll('a')].find(el=>el.textContent==='Open editable dialogue scene');assert(link.href.includes('9'));
   button('Get dialogue export price').click();await until(()=>quoted);assert.equal(quoted.operation_id,80);
   await until(()=>button('Continue to dialogue checkout'));
+  button('Revise take with same cast').click();
+  await until(()=>field('Character 1 performer').value==='71');
+  assert.equal(field('Character 2 performer').value,'72');
+  assert.equal(field('Character 1 hairstyle'),undefined);
+  set(field('Turn 1 line'),'Wait for me.');
+  submitted=null;button('Prepare dialogue scene').click();
+  await until(()=>submitted);
+  assert.deepEqual(Array.from(submitted.characters,row=>row.cast_asset_id),[71,72]);
+  assert.equal(submitted.turns[0].dialogue,'Wait for me.');
   console.log((dashboard?'Dashboard':'PWA')+': '+(restore?'reload recovery':'three-turn submission')+', failure/retry, preview, editable link and existing quote passed');
  }finally{window.LightekUnifiedStudio?.leave();window.close();}
 }

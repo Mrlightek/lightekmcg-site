@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import {HairStyleField} from './performer_look';
 import {requestKey} from './api';
 import {ProductionTemplates} from './production_templates';
 import {DialogueSceneComposer} from './dialogue_scene';
@@ -8,12 +9,23 @@ import {ContactFields,contactAvailable} from './contact';
 import {MechanicsFields,mechanicsAvailable} from './mechanics';
 import {AttentionFields,attentionAvailable} from './attention';
 export function CharacterSceneComposer(props){
- const [mode,setMode]=useState(null),[error,setError]=useState('');
+ const [mode,setMode]=useState(null),[error,setError]=useState(''),[revision,setRevision]=useState(null);
  useEffect(()=>{let alive=true;setMode(null);props.api.call('character.scene.status',{scene_id:props.scene.id}).then(result=>{if(alive)setMode(result.inputs?.mode==='dialogue'?'dialogue':'single');}).catch(cause=>{if(alive){setError(cause.message);setMode('single');}});return()=>{alive=false;};},[props.api,props.scene.id]);
- return <><div className="ls-row" role="group" aria-label="Performance type"><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='single'} onClick={()=>setMode('single')}>One-character study</button><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='dialogue'} onClick={()=>setMode('dialogue')}>Two-character dialogue</button></div>{error&&<p role="alert">{error}</p>}{mode==='dialogue'?<DialogueSceneComposer {...props}/>:mode==='single'?<SingleCharacterSceneComposer {...props}/>:<p role="status">Loading saved performance…</p>}<SequenceComposer {...props}/></>;
+ async function revise(operationId){
+  setError('');
+  try{
+   const take=await props.api.call('character.scene.status',{operation_id:operationId});
+   if(take.status!=='completed')throw Error('Finish the take before revising it.');
+   setMode(take.inputs?.mode==='dialogue'?'dialogue':'single');
+   setRevision({take,key:requestKey()});
+  }catch(cause){setError(cause.message);}
+ }
+ const form={...props,revision:revision?.take};
+ return <><div className="ls-row" role="group" aria-label="Performance type"><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='single'} onClick={()=>{if(mode!=='single'){setRevision(null);setMode('single');}}}>One-character study</button><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='dialogue'} onClick={()=>{if(mode!=='dialogue'){setRevision(null);setMode('dialogue');}}}>Two-character dialogue</button></div>{error&&<p role="alert">{error}</p>}{mode==='dialogue'?<DialogueSceneComposer key={revision?.key||props.scene.id} {...form}/>:mode==='single'?<SingleCharacterSceneComposer key={revision?.key||props.scene.id} {...form}/>:<p role="status">Loading saved performance…</p>}<SequenceComposer {...props} onRevise={revise}/></>;
 }
-function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene}){
+function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene,revision}){
  const [name,setName]=useState('Sentinel'),[dialogue,setDialogue]=useState('We protect this city.');
+ const [shotName,setShotName]=useState(''),[hairStyle,setHairStyle]=useState('curls');
  const [skin,setSkin]=useState('#925e43'),[wardrobe,setWardrobe]=useState('#344e78'),[hair,setHair]=useState('#211916');
  const [cast,setCast]=useState(''),[audio,setAudio]=useState(''),[voice,setVoice]=useState('en-us');
  const [catalog,setCatalog]=useState(null),[sceneTemplate,setSceneTemplate]=useState('studio'),[cameraMode,setCameraMode]=useState('character'),[gesture,setGesture]=useState('wave_right');
@@ -27,7 +39,7 @@ function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTem
  const active=['pending','running'].includes(receipt?.status);
  useEffect(()=>{
   let alive=true;
-  Promise.all([api.call('character.scene.catalog',{scene_id:scene.id}),api.call('character.scene.status',{scene_id:scene.id})]).then(([choices,result])=>{
+  Promise.all([api.call('character.scene.catalog',{scene_id:scene.id}),(revision?Promise.resolve(revision):api.call('character.scene.status',{scene_id:scene.id}))]).then(([choices,result])=>{
    if(!alive)return;setCatalog(choices);
    if(result.status==='idle'||result.inputs?.mode==='dialogue'){
     const key=choices.default_scene_template||'studio';setSceneTemplate(key);
@@ -35,10 +47,10 @@ function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTem
     if(defaults){setAttention(defaults.attention||null);setMechanics(defaults.mechanics||null);setContact(defaults.contact||null);setActing({...actingDefaults,...Object.fromEntries(Object.keys(actingDefaults).map(key=>[key,defaults[key]||actingDefaults[key]]))});setName(defaults.name);setDialogue(defaults.dialogue);setGesture(defaults.gesture);setCameraMode(defaults.camera_mode);if(defaults.cast_asset_id)setCast(String(defaults.cast_asset_id));}
     return;
    }
-   setReceipt(result);
-   const input=result.inputs;if(input){setAttention(input.attention||null);setMechanics(input.mechanics||null);setContact(input.contact||null);setActing({...actingDefaults,...Object.fromEntries(Object.keys(actingDefaults).map(key=>[key,input[key]||actingDefaults[key]]))});setName(input.name);setDialogue(input.dialogue);setVoice(input.voice);setSkin(input.colors.skin);setWardrobe(input.colors.wardrobe);setHair(input.colors.hair);setCast(input.cast_asset_id?String(input.cast_asset_id):'');setAudio(input.audio_asset_id?String(input.audio_asset_id):'');setSceneTemplate(input.scene_template||'studio');setCameraMode(input.camera_mode||'character');setGesture(input.gesture||'wave_right');}
+   if(!revision)setReceipt(result);
+   const input=result.inputs;if(input){setShotName(input.shot_name||'');setHairStyle(input.colors.hair_style||'curls');setAttention(input.attention||null);setMechanics(input.mechanics||null);setContact(input.contact||null);setActing({...actingDefaults,...Object.fromEntries(Object.keys(actingDefaults).map(key=>[key,input[key]||actingDefaults[key]]))});setName(input.name);setDialogue(input.dialogue);setVoice(input.voice);setSkin(input.colors.skin);setWardrobe(input.colors.wardrobe);setHair(input.colors.hair);setCast(String((revision&&result.cast_asset_id)||input.cast_asset_id||''));setAudio(input.audio_asset_id?String(input.audio_asset_id):'');setSceneTemplate(input.scene_template||'studio');setCameraMode(input.camera_mode||'character');setGesture(input.gesture||'wave_right');}
   }).catch(cause=>{if(alive)setError(cause.message);}).finally(()=>{if(alive)setRestored(true);});return()=>{alive=false;};
- },[api,scene.id]);
+ },[api,scene.id,revision]);
  useEffect(()=>{
   if(!active)return;let stopped=false,timer;
   const poll=async()=>{
@@ -53,6 +65,8 @@ function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTem
   <p>Create a character study with dialogue or a validated silent pickup action. Preparation creates an editable scene and reusable Cast asset.</p>
   <p className="ls-muted">Starter artwork tests the production workflow. Choose Pick up, inspect and return for the calibrated articulated-hand study. Detailed character art and additional action profiles remain further work.</p>
   <ProductionTemplates {...{api,scene,catalog,run,busy}} openScene={openTemplateScene}/>
+  {revision&&!receipt&&<p role="status">Revising {revision.inputs.shot_name||revision.inputs.name}. Prepare a new take to keep the original in the sequence.</p>}
+  <label>Shot name<input disabled={active} maxLength={120} value={shotName} onChange={event=>change(setShotName,event.target.value)} placeholder="Opening close-up"/></label>
   <label>Scene setup<select disabled={active||!catalog} value={sceneTemplate} onChange={event=>{
    const value=event.target.value;change(setSceneTemplate,value);const defaults=catalog.scene_templates.find(row=>row.key===value)?.defaults;
    if(defaults){setAttention(defaults.attention||null);setMechanics(defaults.mechanics||null);setContact(defaults.contact||null);setActing({...actingDefaults,...Object.fromEntries(Object.keys(actingDefaults).map(key=>[key,defaults[key]||actingDefaults[key]]))});setName(defaults.name);setDialogue(defaults.dialogue);setGesture(defaults.gesture);setCameraMode(defaults.camera_mode);setCast(defaults.cast_asset_id?String(defaults.cast_asset_id):'');}
@@ -68,19 +82,21 @@ function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTem
   <ContactFields value={contact} onChange={value=>{change(setContact,value);if(value){setActing(prior=>({...prior,body_action:'still'}));setGesture('still');}}} targets={catalog?.scene_templates.find(row=>row.key===sceneTemplate)?.contact_targets||[]} profile={performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile} disabled={active||!!mechanics} entrance={acting.entrance}/>
   <label>Character name<input disabled={active} maxLength="60" value={name} onChange={event=>change(setName,event.target.value)}/></label>
   {!cast&&<div className="ls-fields">{[['Skin',skin,setSkin],['Wardrobe',wardrobe,setWardrobe],['Hair',hair,setHair]].map(([label,value,setter])=><label key={label}>{label}<input disabled={active} type="color" value={value} onChange={event=>change(setter,event.target.value)}/></label>)}</div>}
+  {!cast&&!verified&&<HairStyleField value={hairStyle} onChange={value=>change(setHairStyle,value)} disabled={active}/>}
   {verified&&<label>Action direction<input disabled={active} maxLength={240} value={instruction} onChange={event=>change(setInstruction,event.target.value)}/><span className="ls-muted">This selects the reviewed pickup action; timing and physical limits stay fixed.</span></label>}
   <label hidden={verified}>Dialogue recording<select disabled={active} value={audio} onChange={event=>change(setAudio,event.target.value)}><option value="">Synthesize a stock voice from the line</option>{recordings.map(recording=><option key={recording.id} value={recording.id}>{recording.name}</option>)}</select></label>
   <p className="ls-muted">Prepared recordings must last 0.2–2.8 seconds. Import recordings in Media Library; longer performances remain available in the advanced Cast workspace.</p>
   <label hidden={verified}>Spoken line<textarea disabled={active} maxLength="80" value={dialogue} onChange={event=>change(setDialogue,event.target.value)} placeholder="We protect this city."/></label>
   {!verified&&!audio&&<label>Stock voice<select disabled={active} value={voice} onChange={event=>change(setVoice,event.target.value)}><option value="en-us">English · US</option><option value="en-gb">English · UK</option></select></label>}
   <button type="button" disabled={busy||active||!restored||(verified&&cast&&!performers.some(actor=>String(actor.id)===cast))||!name.trim()||(!verified&&!dialogue.trim()&&!audio)||!actingAvailable(acting,performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile)||!attentionAvailable(attention,performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile,catalog?.scene_templates.find(row=>row.key===sceneTemplate)?.contact_targets||[])||!mechanicsAvailable(mechanics,performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile,catalog?.scene_templates.find(row=>row.key===sceneTemplate)?.mechanics_targets||[])||!contactAvailable(contact,performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile,catalog?.scene_templates.find(row=>row.key===sceneTemplate)?.contact_targets||[],acting.entrance)} onClick={()=>perform(async()=>{
-   const result=await api.call('character.scene.prepare',{scene_id:scene.id,request_key:key,...acting,...(contact?{contact}:{}),...(mechanics?{mechanics}:{}),...(attention?{attention}:{}),name:name.trim(),dialogue:verified?'':dialogue.trim(),...(verified?{action_prompt:instruction}:{}),voice,skin,wardrobe,hair,scene_template:sceneTemplate,camera_mode:cameraMode,gesture,...(cast?{cast_asset_id:Number(cast)}:{}),...(!verified&&audio?{audio_asset_id:Number(audio)}:{})});setReceipt(result);
+   const result=await api.call('character.scene.prepare',{scene_id:scene.id,request_key:key,...acting,...(contact?{contact}:{}),...(mechanics?{mechanics}:{}),...(attention?{attention}:{}),name:name.trim(),...(shotName.trim()?{shot_name:shotName.trim()}:{}),...(!cast&&!verified&&hairStyle!=='curls'?{hair_style:hairStyle}:{}),dialogue:verified?'':dialogue.trim(),...(verified?{action_prompt:instruction}:{}),voice,skin,wardrobe,hair,scene_template:sceneTemplate,camera_mode:cameraMode,gesture,...(cast?{cast_asset_id:Number(cast)}:{}),...(!verified&&audio?{audio_asset_id:Number(audio)}:{})});setReceipt(result);
   })}>Prepare performed short</button>
   {receipt&&<p role="status">{receipt.status} · {receipt.phase?.replaceAll('_',' ')}</p>}
   {receipt?.error&&<p role="alert">{receipt.error}</p>}
   {receipt?.status==='failed'&&<button type="button" disabled={busy} onClick={()=>perform(async()=>setReceipt(await api.call('character.scene.retry',{operation_id:receipt.operation_id})))}>Retry character preparation</button>}
   {receipt?.url&&<video aria-label="Performed character preview" src={receipt.url} controls playsInline preload="metadata"/>}
   {receipt?.status==='completed'&&<>
+   {receipt.cast_asset_id&&<button type="button" disabled={busy} onClick={()=>change(setCast,String(receipt.cast_asset_id))}>Revise take with same performer</button>}
    <a href={api.native(receipt.scene_id,'performance')}>Open editable character scene</a>
    <button type="button" disabled={busy} onClick={()=>perform(async()=>setQuote(await api.call('character.scene.quote',{operation_id:receipt.operation_id})))}>Get performed shot export price</button>
   </>}

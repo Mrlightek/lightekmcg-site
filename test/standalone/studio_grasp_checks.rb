@@ -41,7 +41,7 @@ class StudioGraspTest < StudioMechanicsTest
       assert_equal "completed",parent.reload.status,parent.error_message
       scene=StudioScene.find(parent.metadata["scene_id"]);actor=scene.scene_objects.find { |row| row.definition["mechanics_plan"] }
       assert_equal Studio::Performance::Grasp.physical_profile,actor.definition.dig("mechanics_plan","physical_profile")
-      assert_equal 3,scene.settings["camera_cuts"].size
+      assert_equal(grasp_version==3 ? 5 : 3,scene.settings["camera_cuts"].size)
       preview=StudioOperation.find(parent.metadata["preview_id"])
       preview.artifacts.find_by!(kind:"video").file.blob.open { |file| FileUtils.cp(file.path,ENV["STUDIO_GRASP_PROOF_VIDEO"]) if ENV["STUDIO_GRASP_PROOF_VIDEO"] }
       preview.artifacts.find_by!(kind:"blend").file.blob.open do |file|
@@ -66,7 +66,7 @@ class StudioGraspTest < StudioMechanicsTest
           assert abs(positions[-1].z-1)<.002 and abs(positions[-1].x+.83)<.01
           assert abs(positions[-1].z-positions[-12].z)<.002
           assert all(abs(p.x+.83)<.135 and abs(p.y+.24)<.155 for p in positions[-12:])
-          if #{grasp_version}==2:
+          if #{grasp_version}>=2:
               rig=next(obj for obj in root.children_recursive if obj.type=='ARMATURE')
               for frame in range(1,97):
                   scene.frame_set(frame);bpy.context.view_layer.update()
@@ -78,9 +78,34 @@ class StudioGraspTest < StudioMechanicsTest
                       shoulder=rig.matrix_world @ upper.head
                       assert ((rig.matrix_world @ lower.head)-shoulder).dot(front)>=-.002
                       assert ((rig.matrix_world @ lower.tail)-shoulder).dot(front)>=-.002
-              assert report['object_attention']['head_nod_deg'][0]>=20
+              assert report['object_attention']['head_nod_deg'][0]>=(10 if #{grasp_version}==3 else 20)
               assert report['object_attention']['pupil_down_m']>.02
-              assert all(obj.data.shape_keys.key_blocks.get('grasp_look_down_v2') for obj in root.children_recursive if obj.get('lightek_source_object') in ('FaceEyes','Side pupil','Side pupil reverse'))
+              assert all(obj.data.shape_keys.key_blocks.get('grasp_look_down_v#{grasp_version}') for obj in root.children_recursive if obj.get('lightek_source_object') in ('FaceEyes','Side pupil','Side pupil reverse'))
+          if #{grasp_version}==3:
+              assert report['body_clearance_checked_frames']==96
+              assert report['object_attention']['gaze_established_s']<report['object_attention']['reach_starts_s']
+              assert report['hold_finger_adjustment_rad']>.005 and report['hold_load_travel_m']>.001
+              assert report['min_hold_contacts']>=4
+              assert set(report['acting_beats_s'])=={'commit','engage_lift','hold_assess','place_disengage'}
+              hips=[];body=[];chest=[];held=[];heads=[]
+              jacket=next(obj for obj in root.children_recursive if obj.get('lightek_source_object')=='Jacket body')
+              for frame in range(1,97):
+                  scene.frame_set(frame);bpy.context.view_layer.update()
+                  hips.append(root.location.x);body.append(rig.pose.bones['Body'].matrix.translation.z);chest.append(jacket.scale.z);heads.append(rig.pose.bones['Head'].matrix.to_quaternion())
+                  if 37<=frame<=54:held.append(prop.matrix_world.translation.copy())
+              assert max(hips)-min(hips)>.004 and max(body)-min(body)>.02
+              assert max(chest)-min(chest)>.001
+              assert all((a-b).length>.00001 for a,b in zip(held,held[1:])),held
+              assert heads[-1].rotation_difference(heads[60]).angle>.2
+              assert bpy.data.objects['Articulated contact hand'].animation_data
+              # Camera changes must not re-start acting or alter world poses.
+              scene.frame_set(40);bpy.context.view_layer.update()
+              baseline=[bone.matrix.copy() for bone in rig.pose.bones]
+              for camera in [obj for obj in scene.objects if obj.type=='CAMERA']:
+                  scene.camera=camera;bpy.context.view_layer.update()
+                  assert all(max(abs(a-b) for ra,rb in zip(matrix,bone.matrix) for a,b in zip(ra,rb))<1e-7 for matrix,bone in zip(baseline,rig.pose.bones))
+              assert report['pedestal_contact']['condim']==6
+
           assert 'Lightek contact simulation.json' in bpy.data.texts
           assert any(sound.packed_file for sound in bpy.data.sounds)
           print('ARTICULATED_CONTACT_GRASP_VERIFIED',report)

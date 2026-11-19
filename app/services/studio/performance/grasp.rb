@@ -18,6 +18,12 @@ module Studio
           {"id"=>"grasp_close","name"=>"Finger contact close-up","type"=>"camera","definition"=>{"location"=>[-1.15,0.5,1.65],"look_at"=>[-0.83,-0.24,1.07],"camera_type"=>"ORTHO","ortho_scale"=>0.65}}
         ]
       end
+      def self.acting_objects
+        result=objects.deep_dup
+        result.find { |row| row["id"]=="ball" }["definition"]["mechanics_grasp_version"]=3
+        result << {"id"=>"grasp_medium","name"=>"Hold assessment profile","type"=>"camera","definition"=>{"location"=>[-1.4,-3.0,1.55],"look_at"=>[-1.02,-0.35,1.40],"camera_type"=>"ORTHO","ortho_scale"=>2.4}}
+        result
+      end
       def self.validate!(cue,staging)
         raise ArgumentError,"Choose the calibrated contact sphere" unless cue["target_id"]==staging.fetch("objects").find { |row| row.dig("definition","mechanics_grasp")==1 }&.fetch("id")&.to_s
         CALIBRATION.each do |role,expected|

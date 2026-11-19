@@ -171,3 +171,30 @@ The media and workstation Docker builds install the pinned CPU dependencies in `
 New Physical finger grasp selections use `{action: "grasp", version: 2, target_id: "ball"}`. The performer stands to the side of the table, faces the sphere, and reaches in front of the body. This corrects v1's frontal-camera staging, which placed the sphere behind the character. V1 source/fingerprints remain available for existing takes; new v2 takes use a separate driver and biped revision.
 
 The arm solver rejects a wrist or elbow behind its shoulder plane and keeps the existing reach/flexion limits. Native acceptance measures facing against the sphere and both elbow/wrist front-plane margins at every frame. Profile artwork follows the body direction. A downward head nod and a downward pupil shape draw attention to the near handling target, preserving the blink and speech shapes. This stylized head/pupil treatment is not a calibrated general eyeball gaze solver; the earlier independently aimed attention system remains separate. The ball/finger contact simulation, mass, force limits and free release are unchanged.
+
+### Directed pedestal pickup v3
+
+Choose **Pedestal pickup · acting beats** in Performed Short, with **Template cameras and cuts**. It selects scene setup `grasp_acting` and `{action: "grasp", version: 3, target_id: "ball"}`. V1 and v2 source files/fingerprints remain intact. The character is quietly focused, already facing the pedestal, with bent knees and the left hand prepared to handle a light 200 g ball. The 9 cm sphere starts on a 36 × 40 cm top at 0.955 m; the action arc is register → reach → grip → test weight → lift → assess → replace → release → withdraw → settle. The action stays eight seconds at 12 fps.
+
+| Time (seconds) | Directed action |
+| --- | --- |
+| 0.00–0.17 | Establish downward pupil/head attention on the ball. Begin chest expansion and a 6 mm forward hip commitment; feet stay planted. |
+| 0.25–1.25 | Reach toward the ball after the gaze lead. Body-relative elbow/wrist limits keep the arm in front of the shoulder. |
+| 1.25–1.83 | Close the opposed thumb and finger links with 40 ms finger offsets and 25 ms joint offsets, using capped motor torque. |
+| 1.83–2.25 | Take weight with a 2–8 mm palm rise and a 1 mm resistance-check pulse; the prop moves only through contact forces. |
+| 2.25–3.00 | Raise the ball to roughly 15 cm clearance. Maintain attention on the load. |
+| 3.00–4.50 | Sustain a 2 mm vertical/2 mm lateral hand loop. Index/middle targets add 0.018 rad during 3.25–3.75; thumb targets add 0.010 rad during 3.58–4.00. The solver determines the actual finger motion under torque/contact limits. Chest, body height and lateral hip position continue changing. |
+| 4.50–5.50 | Lower onto the pedestal before opening the grip. |
+| 5.50–6.17 | Release fingers in sequence; thumb release starts at 5.75. Confirm placement with the gaze. |
+| 6.17–6.58 | Clear the sphere by moving the open hand 7 cm away from it, lifting 1.2 cm. This clearance precedes the sideways arm retreat so the fingers do not swipe the ball. |
+| 6.58–7.50 | Retract the hand toward its preparation area. Ease the body upward by 2.5 cm starting at 6.17. |
+| 6.83–7.00 | One blink after clearance, with its peak at 6.92. |
+| 7.00–8.00 | Reduce pupil offset and head angle, with the head recovery delayed one frame behind its cue. End at about 12° downward head angle. Breathing and a 1.5 mm lateral weight shift remain active through the last frame. |
+
+Breathing uses unequal keyed intervals: the first inhale peaks at 1.08 s, the first exhale reaches its low point at 2.83 s, then peaks at 3.75/6.50 s and low points at 5.58/7.83 s. Chest scale varies by up to 0.6%; body-height breath motion spans about 3 mm. The hip shift and chest/head timing use one deterministic timeline; no fresh random jitter is generated on a retry or a camera cut. Wide/hand close-up/assessment profile coverage cuts at frames 1, 16, 37, 55 and 75 without restarting the performance.
+
+The v3 pedestal contact profile enables six-dimensional contact with a 2 mm rolling-friction length. This lets the placed sphere lose residual spin through contact instead of adding a freeze or attachment. The profile is pinned with the driver.
+
+V3 owns its gaze timing; competing attention inputs are rejected and the separate attention selector is disabled. The native source embeds per-frame acting states, the four named beats, contact samples and limits. Existing source-bound facial/voice controls remain available. The visible gaze treatment remains a stylized head/pupil drawing control, not a calibrated eyeball simulation. Proxy artwork and this bounded hand/IK model do not establish indistinguishable human performance.
+
+Acceptance retains the measured free-load lift, torque, ground/wrist continuity, forward shoulder-plane limits and pedestal/environment checks. It additionally checks hand/forearm/load clearance against the core body, actual ball movement at every sampled hold frame, actual finger adjustment under contact, chest/hip/body changes and head recovery. Intentional finger/ball and palm/table contacts retain their existing sub-2 mm solver tolerance; other detected intersections fail. Solver checks include weak-grip failure, support before opening, an open withdrawn hand and repeatability. These are sampled native-frame checks, not a proof of collision freedom at arbitrary retimed subframes.

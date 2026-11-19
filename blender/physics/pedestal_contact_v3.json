@@ -1,0 +1,7 @@
+{
+  "id": "pedestal_surface_v3",
+  "condim": 6,
+  "priority": 1,
+  "friction": [1.0, 0.005, 0.002],
+  "rolling_friction_length_m": 0.002
+}

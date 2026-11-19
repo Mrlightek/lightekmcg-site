@@ -37,6 +37,7 @@ module Studio
         scene_rows.insert(2,{key:"bench",name:"Walk, sit and stand",description:"A calibrated eight-second bench performance with planted feet and seat support.",defaults:defaults("studio").merge("dialogue"=>"We can build this world together.","gesture"=>"still","mechanics"=>{"action"=>"bench","version"=>2,"target_id"=>"seat"}),available:true})
         scene_rows.insert(3,{key:"carry",name:"Pick up, carry and put down",description:"A calibrated parcel grip, walk and release onto a second table.",defaults:defaults("studio").merge("dialogue"=>"I have got it. Let us move.","gesture"=>"still","mechanics"=>{"action"=>"carry","version"=>1,"target_id"=>"parcel"}),available:true})
         scene_rows.insert(4,{key:"grasp",name:"Physical finger grasp",description:"Torque-limited fingers close around a free sphere, lift it through friction and release it onto a table. The character faces the table and looks down at the sphere before reaching.",defaults:defaults("studio").merge("dialogue"=>"A real grip.","gesture"=>"still","camera_mode"=>"template","mechanics"=>{"action"=>"grasp","version"=>2,"target_id"=>"ball"}),available:true})
+        scene_rows.insert(5,{key:"grasp_acting",name:"Pedestal pickup · acting beats",description:"Gaze leads the reach, a weight check marks lift-off, breathing and grip adjustments sustain the hold, then placement and follow-through.",defaults:defaults("studio").merge("dialogue"=>"There we go.","gesture"=>"still","camera_mode"=>"template","mechanics"=>{"action"=>"grasp","version"=>3,"target_id"=>"ball"}),available:true})
         scene_rows.each do |row|
           objects=case row[:key]
           when "studio" then []
@@ -44,11 +45,12 @@ module Studio
           when "bench" then bench
           when "carry" then Carry.objects
           when "grasp" then Grasp.objects
+          when "grasp_acting" then Grasp.acting_objects
           when "current" then scene.scene_objects.map { |object| {"id"=>object.id,"name"=>object.name,"type"=>object.object_type,"definition"=>object.definition} }
           else Studio::Library::Catalog.objects(row[:key].delete_prefix("library:")).each_with_index.map { |object,i| object.merge("id"=>i+1) }
           end
           row[:contact_targets]=Contact.targets(objects)
-          row[:mechanics_targets]=objects.select { |obj| obj.dig("definition","mechanics_seat")==1 || obj.dig("definition","mechanics_carry")==1 || obj.dig("definition","mechanics_grasp")==1 }.map { |obj| {id:obj["id"].to_s,name:obj["name"],action:obj.dig("definition","mechanics_grasp")==1 ? "grasp" : obj.dig("definition","mechanics_carry")==1 ? "carry" : "bench",version:obj.dig("definition","mechanics_seat")==1 || obj.dig("definition","mechanics_grasp")==1 ? 2 : 1} }
+          row[:mechanics_targets]=objects.select { |obj| obj.dig("definition","mechanics_seat")==1 || obj.dig("definition","mechanics_carry")==1 || obj.dig("definition","mechanics_grasp")==1 }.map { |obj| {id:obj["id"].to_s,name:obj["name"],action:obj.dig("definition","mechanics_grasp")==1 ? "grasp" : obj.dig("definition","mechanics_carry")==1 ? "carry" : "bench",version:obj.dig("definition","mechanics_grasp_version") || (obj.dig("definition","mechanics_seat")==1 || obj.dig("definition","mechanics_grasp")==1 ? 2 : 1)} }
         end
         production_rows=Studio::NativeBlender::MediaPresets.items.select { |row| row["project_template"] && !row["requires_asset"] }.map { |row| row.slice("key","name","category","scene_count","description") }
         saved=access.projects.where(site_id:access.site_id,is_template:true).order(:name,:id).limit(100).map { |project| {id:project.id,name:project.name,scene_count:project.studio_scenes.count} }
@@ -92,7 +94,9 @@ module Studio
       end
       def self.snapshot(access:,source:,key:,performer_count:1)
         return {"key"=>"studio","name"=>"Plain character stage","settings"=>{},"objects"=>[],"assets"=>[]} if key=="studio"
-        if key=="grasp"
+        if key=="grasp_acting"
+          objects=Grasp.acting_objects;settings={"fps"=>12,"camera_cuts"=>[{"camera_id"=>"grasp_wide","frame"=>1},{"camera_id"=>"grasp_close","frame"=>16},{"camera_id"=>"grasp_medium","frame"=>37},{"camera_id"=>"grasp_close","frame"=>55},{"camera_id"=>"grasp_wide","frame"=>75}]};name="Pedestal pickup · acting beats"
+        elsif key=="grasp"
           objects=Grasp.objects;settings={"fps"=>12,"camera_cuts"=>[{"camera_id"=>"grasp_wide","frame"=>1},{"camera_id"=>"grasp_close","frame"=>13},{"camera_id"=>"grasp_wide","frame"=>85}]};name="Physical finger grasp"
         elsif key=="carry"
           objects=Carry.objects;settings={};name="Pick up, carry and put down"
@@ -179,7 +183,7 @@ module Studio
         end
         settings["camera_cuts"]=authored.filter_map do |cut|
           frame=1+((cut.fetch("frame")-1)*12/fps).round
-          {"camera_id"=>map.fetch(cut.fetch("camera_id")),"frame"=>frame} if frame.between?(1,staging["key"]=="grasp" ? 96 : 36)
+          {"camera_id"=>map.fetch(cut.fetch("camera_id")),"frame"=>frame} if frame.between?(1,%w[grasp grasp_acting].include?(staging["key"]) ? 96 : 36)
         end.uniq { |cut| cut["frame"] }.sort_by { |cut| cut["frame"] }
         scene.update!(settings:settings.merge(scene.settings).merge("template_source"=>staging.slice("key","name")))
       end

@@ -11,6 +11,7 @@ module Studio
       DRIVERS["bench:2"]={"files"=>%w[bench_v2.py biped_v2.py views_v1.py spatial_frame_v1.py bench_v1.py kinematics_v1.py],"speech_start"=>3.4,"phases"=>DRIVERS.fetch("bench:1").fetch("phases")}
       DRIVERS["grasp:1"]={"files"=>%w[grasp_v1.py biped_v3.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v1.py physics/human_v1.json],"speech_start"=>3.0,"phases"=>{"reach"=>[0,1],"close"=>[1,2],"lift"=>[2,3],"hold"=>[3,4],"lower"=>[4,5],"open"=>[5,6],"withdraw"=>[6,8]}}
       DRIVERS["grasp:2"]={"files"=>%w[grasp_v2.py biped_v4.py biped_v3.py grasp_look_v2.py views_v1.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v1.py physics/human_v1.json],"speech_start"=>3.0,"phases"=>DRIVERS.fetch("grasp:1").fetch("phases")}
+      DRIVERS["grasp:3"]={"files"=>%w[grasp_v3.py grasp_acting_v3.py biped_v4.py biped_v3.py grasp_look_v3.py views_v1.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v3.py physics/human_v1.json physics/pedestal_contact_v3.json],"speech_start"=>3.25,"phases"=>{"commit"=>[0,22.0/12],"engage_lift"=>[22.0/12,3],"hold_assess"=>[3,4.5],"place_disengage"=>[4.5,8]}}
       DRIVERS.freeze
       def self.bindings
         {"profile"=>PROFILE,"version"=>VERSION,"rig"=>"PerformerRig","body"=>"Body","support"=>"Pelvis support",
@@ -40,6 +41,7 @@ module Studio
         return unless (cue=character["mechanics"])
         raise ArgumentError,"The coordinated performance owns its own movement and contacts" if character["contact"] || character["entrance"]!="none" || character["body_action"]!="still" || character["gesture"]!="still"
         raise ArgumentError,"Clear saved source motion before using coordinated mechanics" if staging.dig("actor_motion","motion_clips").present?
+        raise ArgumentError,"The acting grasp owns its gaze timing" if cue["action"]=="grasp" && cue["version"]==3 && character["attention"]
         return Grasp.validate!(cue,staging) if cue["action"]=="grasp"
         return Carry.validate!(cue,staging) if cue["action"]=="carry"
         target=staging.fetch("objects").find { |object| object["id"].to_s==cue["target_id"] }
@@ -50,7 +52,7 @@ module Studio
       def self.validate_profile!(character,profile)
         return unless character["mechanics"]
         raise ArgumentError,"Build a new illustrated performer with version 1 mechanics bindings" unless profile["mechanics"]==bindings
-        if character.dig("mechanics","action")=="grasp" && character.dig("mechanics","version")==2
+        if character.dig("mechanics","action")=="grasp" && character.dig("mechanics","version")>=2
           binding=profile["attention_binding"]
           raise ArgumentError,"The facing grasp needs a calibrated head and eyes" unless binding && binding["rig"]=="PerformerRig" && binding["head"]=="Head" && binding["eye_anchor"]
         end

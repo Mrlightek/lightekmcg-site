@@ -24,7 +24,7 @@ async function check(dashboard){
   window.eval(fs.readFileSync(path.resolve(__dirname,'../../public/lightek/studio-unified.js'),'utf8'));
   if(!dashboard)window.LightekUnifiedStudio.pwa(window.document.querySelector('#app'),'7');
   await until(()=>button('Performed ShortCharacter · voice · cuts'));button('Performed ShortCharacter · voice · cuts').click();
-  await until(()=>button('Prepare performed short'));button('Prepare performed short').click();
+  await until(()=>button('Prepare performed short')&&!button('Prepare performed short').disabled);button('Prepare performed short').click();
   await until(()=>window.document.querySelector('video[src="/performed-proof.mp4"]'));
   assert.equal(submitted.scene_id,7);assert.equal(submitted.name,'Sentinel');assert.equal(submitted.dialogue,'We protect this city.');assert(checked);
   const link=[...window.document.querySelectorAll('a')].find(el=>el.textContent==='Open editable character scene');assert(link.href.includes('9'));

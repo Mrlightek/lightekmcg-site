@@ -105,7 +105,7 @@ module Studio
           blob=attachment.blob
           {"id"=>asset.id,"blob_id"=>blob.id,"native"=>asset.kind=="blend" && asset.native.attached?}
         end.uniq
-        result={"key"=>key,"name"=>name,"settings"=>settings.except("library_requests","json_preset_requests","cast_receipts","performance_receipts","motion_receipts","look_receipts","shot_board","shot_board_receipts","workspace","timeline","music","authoring_history","authoring_redo","character_scene_cameras"),"objects"=>objects,"assets"=>assets}
+        result={"key"=>key,"name"=>name,"settings"=>settings.except("library_requests","json_preset_requests","cast_receipts","performance_receipts","motion_receipts","look_receipts","shot_board","shot_board_receipts","workspace","timeline","music","authoring_history","authoring_redo","character_scene_cameras","dialogue_scene_cameras","dialogue_timing"),"objects"=>objects,"assets"=>assets}
         result["actor_transform"]=transform if transform.present?
         result["actor_motion"]=motion if motion && motion["motion_clips"]
         raise ArgumentError,"This scene setup is too large for a performed-short snapshot" if JSON.generate(result).bytesize>256.kilobytes

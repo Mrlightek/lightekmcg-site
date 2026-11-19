@@ -1,7 +1,13 @@
 import React,{useEffect,useState} from 'react';
 import {requestKey} from './api';
 import {ProductionTemplates} from './production_templates';
-export function CharacterSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene}){
+import {DialogueSceneComposer} from './dialogue_scene';
+export function CharacterSceneComposer(props){
+ const [mode,setMode]=useState(null),[error,setError]=useState('');
+ useEffect(()=>{let alive=true;setMode(null);props.api.call('character.scene.status',{scene_id:props.scene.id}).then(result=>{if(alive)setMode(result.inputs?.mode==='dialogue'?'dialogue':'single');}).catch(cause=>{if(alive){setError(cause.message);setMode('single');}});return()=>{alive=false;};},[props.api,props.scene.id]);
+ return <><div className="ls-row" role="group" aria-label="Performance type"><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='single'} onClick={()=>setMode('single')}>One-character study</button><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='dialogue'} onClick={()=>setMode('dialogue')}>Two-character dialogue</button></div>{error&&<p role="alert">{error}</p>}{mode==='dialogue'?<DialogueSceneComposer {...props}/>:mode==='single'?<SingleCharacterSceneComposer {...props}/>:<p role="status">Loading saved performance…</p>}</>;
+}
+function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene}){
  const [name,setName]=useState('Sentinel'),[dialogue,setDialogue]=useState('We protect this city.');
  const [skin,setSkin]=useState('#925e43'),[wardrobe,setWardrobe]=useState('#344e78'),[hair,setHair]=useState('#211916');
  const [cast,setCast]=useState(''),[audio,setAudio]=useState(''),[voice,setVoice]=useState('en-us');
@@ -15,7 +21,7 @@ export function CharacterSceneComposer({api,scene,assets,busy,run,refresh,openTe
   let alive=true;
   Promise.all([api.call('character.scene.catalog',{scene_id:scene.id}),api.call('character.scene.status',{scene_id:scene.id})]).then(([choices,result])=>{
    if(!alive)return;setCatalog(choices);
-   if(result.status==='idle'){
+   if(result.status==='idle'||result.inputs?.mode==='dialogue'){
     const key=choices.default_scene_template||'studio';setSceneTemplate(key);
     const defaults=choices.scene_templates.find(row=>row.key===key)?.defaults;
     if(defaults){setName(defaults.name);setDialogue(defaults.dialogue);setGesture(defaults.gesture);setCameraMode(defaults.camera_mode);if(defaults.cast_asset_id)setCast(String(defaults.cast_asset_id));}

@@ -6,6 +6,8 @@ module Studio
       class Waiting < StandardError; end
       CAPABILITY="studio.workspace.character.scene.prepare"
       def self.start(access:,payload:)
+        return DialogueScene.start(access:access,payload:payload) if payload["mode"]=="dialogue"
+        raise ArgumentError,"Choose single or dialogue mode" if payload["mode"].present? && payload["mode"]!="single"
         source=access.scene!(payload.fetch("scene_id"))
         raise ActiveRecord::RecordNotFound unless source.studio_project.site_id==access.site_id
         key=payload.fetch("request_key").to_s
@@ -73,8 +75,8 @@ module Studio
         operation=find(access,id)
         child=operation.studio_project.studio_operations.find_by(id:operation.metadata["preview_id"])
         artifact=child&.status=="completed" && child.artifacts.find_by(kind:"video")
-        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
-          scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],preview_operation_id:child&.id,
+        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
+          scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],cast_asset_ids:operation.metadata["cast_asset_ids"],duration_seconds:operation.metadata["duration_seconds"],turn_timing:operation.metadata["dialogue_timing"],preview_operation_id:child&.id,
           url:artifact && artifact.file.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}.compact
       end
       def self.retry(access:,id:)
@@ -115,7 +117,36 @@ module Studio
         check!(operation)
         operation.update!(metadata:operation.metadata.merge(values).merge("phase"=>name))
       end
+      # Shared by one-performer studies and bounded dialogue scenes. Source blobs
+      # are frozen on the parent operation before a background worker runs.
+      def self.prepare_audio(operation,access,inputs,tag,scene)
+        audio=StudioAsset.find_by(owner:access.user,request_key:tag+"-voice")
+        unless audio&.file&.attached?
+          Studio::MediaProcess.temporary_directory("character-voice-") do |root|
+            file=File.join(root,"voice.wav")
+            if inputs["audio_blob_id"]
+              blob=operation.performance_sources.blobs.find(inputs["audio_blob_id"])
+              input=File.join(root,"recording-source")
+              blob.open { |source| FileUtils.cp(source.path,input) }
+              duration=inputs.fetch("audio_duration")
+              command=["ffmpeg","-v","error","-y","-protocol_whitelist","file,pipe","-i",input,"-t",duration.to_s,"-vn","-ac","1","-ar","22050",file]
+              command=Studio::MediaProcess.container(command.map { |part| part.sub(root,"/work") },root:root,image:Studio::NativeBlender::Runtime.image(:media)) if Rails.env.production?
+              Studio::MediaProcess.run!(command,timeout:30)
+            else
+              ScreenplayEngine::AudioSynthesizer.synthesize!(text:inputs.fetch("dialogue"),path:file,voice:inputs["voice"],speed:180)
+              command=["ffprobe","-v","error","-show_entries","format=duration","-of","json",file]
+              command=Studio::MediaProcess.container(command.map { |part| part.sub(root,"/work") },root:root,image:Studio::NativeBlender::Runtime.image(:media)) if Rails.env.production?
+              duration=Float(JSON.parse(Studio::MediaProcess.run!(command,timeout:20)).fetch("format").fetch("duration"))
+            end
+            raise ArgumentError,"Use a shorter line or recording lasting 0.2–2.8 seconds" unless duration.finite? && duration.between?(0.2,2.8)
+            audio=StudioAsset.new(owner:access.user,site_id:access.site_id,studio_project:scene.studio_project,name:inputs["name"]+" · dialogue",kind:"audio",status:"ready",request_key:tag+"-voice",metadata:{"duration"=>duration,"has_audio"=>true,"synthetic_voice"=>!inputs["audio_blob_id"],"transcript"=>inputs["dialogue"]})
+            audio.file.attach(io:File.open(file),filename:"dialogue.wav",content_type:"audio/wav",identify:false);audio.save!
+          end
+        end
+        audio
+      end
       def self.prepare(operation)
+        return DialogueScene.prepare(operation) if operation.manifest.dig("inputs","mode")=="dialogue"
         access=check!(operation);inputs=operation.manifest.fetch("inputs");tag="character-scene-#{operation.id}"
         operation.with_lock do
           unless operation.metadata["scene_id"]
@@ -140,29 +171,7 @@ module Studio
         end
         raise Waiting,"Waiting for the character worker" unless actor.reload.status=="ready" && actor.metadata["character_profile"]
         phase(operation,"preparing_dialogue",{"cast_asset_id"=>actor.id})
-        audio=StudioAsset.find_by(owner:access.user,request_key:tag+"-voice")
-        unless audio&.file&.attached?
-          Studio::MediaProcess.temporary_directory("character-voice-") do |root|
-            file=File.join(root,"voice.wav")
-            if inputs["audio_blob_id"]
-              blob=operation.performance_sources.blobs.find(inputs["audio_blob_id"])
-              input=File.join(root,"recording-source")
-              blob.open { |source| FileUtils.cp(source.path,input) }
-              duration=inputs.fetch("audio_duration")
-              command=["ffmpeg","-v","error","-y","-protocol_whitelist","file,pipe","-i",input,"-t",duration.to_s,"-vn","-ac","1","-ar","22050",file]
-              command=Studio::MediaProcess.container(command.map { |part| part.sub(root,"/work") },root:root,image:Studio::NativeBlender::Runtime.image(:media)) if Rails.env.production?
-              Studio::MediaProcess.run!(command,timeout:30)
-            else
-              ScreenplayEngine::AudioSynthesizer.synthesize!(text:inputs.fetch("dialogue"),path:file,voice:inputs["voice"],speed:180)
-              command=["ffprobe","-v","error","-show_entries","format=duration","-of","json",file]
-              command=Studio::MediaProcess.container(command.map { |part| part.sub(root,"/work") },root:root,image:Studio::NativeBlender::Runtime.image(:media)) if Rails.env.production?
-              duration=Float(JSON.parse(Studio::MediaProcess.run!(command,timeout:20)).fetch("format").fetch("duration"))
-            end
-            raise ArgumentError,"Use a shorter line or recording lasting 0.2–2.8 seconds" unless duration.finite? && duration.between?(0.2,2.8)
-            audio=StudioAsset.new(owner:access.user,site_id:access.site_id,studio_project:scene.studio_project,name:inputs["name"]+" · dialogue",kind:"audio",status:"ready",request_key:tag+"-voice",metadata:{"duration"=>duration,"has_audio"=>true,"synthetic_voice"=>!inputs["audio_blob_id"],"transcript"=>inputs["dialogue"]})
-            audio.file.attach(io:File.open(file),filename:"dialogue.wav",content_type:"audio/wav",identify:false);audio.save!
-          end
-        end
+        audio=prepare_audio(operation,access,inputs,tag,scene)
         phase(operation,"analyzing_speech")
         placement=Cast.place(access:access,payload:{"scene_id"=>scene.id,"asset_id"=>actor.id,"lock_version"=>scene.reload.lock_version,"request_key"=>tag+"-place"})
         object=scene.scene_objects.find(placement.fetch("object_id"))

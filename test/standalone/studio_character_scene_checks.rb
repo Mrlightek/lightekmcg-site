@@ -5,6 +5,7 @@ require File.join(ROOT,"app/services/studio/native_blender/media_presets")
 require File.join(ROOT,"app/services/studio/native_blender/preset_use")
 require File.join(ROOT,"app/services/studio/performance/scene_templates")
 require File.join(ROOT,"app/services/studio/performance/character_scene")
+require File.join(ROOT,"app/services/studio/performance/dialogue_scene")
 require File.join(ROOT,"app/jobs/studio_character_scene_job")
 class StudioCharacterSceneTest < StudioLipSyncTest
   StudioLipSyncTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }

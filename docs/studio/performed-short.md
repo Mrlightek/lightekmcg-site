@@ -10,6 +10,18 @@ Open Studio Create → **Performed Short** in Dashboard or PWA. This guided entr
 6. Open the editable character scene to change Cast, face/gesture cues, body motion, cameras or scene settings. Saved project/show templates retain this scene, Cast bindings and takes; copying to an episode remaps camera cuts to its copied camera objects. The character remains a reusable Cast asset, and the generated/copied audio remains a separate owned recording.
 7. Request the full shot export price. Repeated requests for the same current scene reuse its quote. Checkout, payment settlement, immutable source capture, full MP4/Blender output and failed paid-render recovery use the existing Studio/Dymond Bank paths.
 
+## Two-character dialogue
+
+Choose **Two-character dialogue** in Performed Short. Name two distinct characters and choose an existing Cast asset or build an illustrated performer for each. Each character has a separate US/UK stock voice; each speaking turn can instead use an owned 0.2–2.8-second recording (at most 10 MiB).
+
+Add two to four ordered turns, with at least one turn per character and up to 80 text characters per turn. The worker measures actual recordings, adds a short opening and gaps, and rejects a complete conversation longer than eight seconds. Shorten the lines or remove a turn and prepare a new request if this limit is reached. Timings are derived from real audio, not estimated from text.
+
+Preparation creates a separate editable scene, positions the two performers one metre either side of the template blocking center, and preserves the template floor height. Characters keep the same Cast asset across repeated turns. A two-shot opens the scene; slightly angled frontal close cameras alternate with the speakers so the flat illustrated artwork remains visible. Dialogue coverage replaces template camera cuts for this mode. Complex sets may need manual blocking/camera adjustment in the editable scene.
+
+Every turn uses its own saved recording and phoneme analysis. Takes append to the existing performer, with a 0.25-second gap. Silent listener overlays add a small head reaction and raised brows when those controls are bound; they never add an extra voice or animate the listener's mouth. These are basic listening reactions, not full emotional acting or conversational gaze inference. Reaction timing is checked against the listener's own takes.
+
+The same prepare/status/retry/quote capabilities accept `mode: dialogue`, `characters` (exactly two) and `turns` (two to four). Speaker indices are 0 and 1. The actor/site boundaries, immutable input recordings, source identity checks, saved preparation recovery and existing Dymond Bank export path still apply. Returning to the source scene restores the latest saved performance mode and inputs. Single-character requests retain their existing format and three-second behavior. No new provider credentials or Genesis connection is required.
+
 ## Production and saved-show templates
 
 Expand **Start a production or saved show**, choose an available production template or your authorized saved show, and name the new project. **Create template production** calls the existing JSON preset builder or saved-template copy path. It retains the template's scenes, production metadata and saved brief, without rendering or publishing an episode.
@@ -30,7 +42,7 @@ Imported set-model sources receive independent asset records sharing frozen sour
 
 The illustrated starter uses flat editable mesh drawings and emission materials, compatible with the existing performer face keys and three pose bones. It is a simple puppet, not detailed production character art, an automatic character designer, a complete human rig or a finished-show quality claim. Existing Cast assets can supply richer authored art and animation through their own bindings. Unbound arm gestures are omitted; speech still requires a registered mouth binding.
 
-The scene is a technical character study toward original episodic animation. Full-body walking/combat choreography, detailed expressions, multiple speakers, arbitrary scene scripts, automatic conversion of layered-compositor backgrounds and production-quality visual review remain further work. No likeness or voice cloning is introduced.
+The scene is a technical character study toward original episodic animation. Full-body walking/combat choreography, detailed expressions, larger ensembles, arbitrary scene scripts, automatic conversion of layered-compositor backgrounds and production-quality visual review remain further work. No likeness or voice cloning is introduced.
 
 ## Execution and recovery
 
@@ -42,10 +54,12 @@ Preparation uses the Studio queue. Durable receipts retain the new scene, reusab
 
 The deployed Studio media image already includes stock speech and the pinned Rhubarb 1.14.0 package. Synthesis is local eSpeak-ng; phonetic Rhubarb analysis is offline and should be reviewed against the voice recording. This is not professional voice acting or exact word alignment. Neural voices remain separate optional tools.
 
-Preview rendering uses the existing CPU Economy configuration: one CPU render slot by default, 320-pixel preview edge, 12 fps, three seconds and up to eight samples. Existing character build/import and analysis container limits still apply; this workflow does not establish free memory on a busy 2 GB host. Inspect and measure the intended installation.
+Preview rendering uses the existing CPU Economy configuration: one CPU render slot by default, 320-pixel preview edge, 12 fps, three seconds for a single study or up to eight seconds for bounded dialogue, and up to eight samples. Existing character build/import and analysis container limits still apply; this workflow does not establish free memory on a busy 2 GB host. Inspect and measure the intended installation.
 
 ## Acceptance
 
 `test/standalone/studio_character_scene_checks.rb` covers actor boundaries, input limits, duplicate requests, retries and quote gating. With `LIGHTEK_TEST_CHARACTER_SCENE=1`, it builds a real illustrated character, synthesizes real speech, runs pinned Rhubarb, saves a phoneme take and camera cuts, renders a three-second MP4, checks audible PCM and reopens the Blender output to inspect changing mouth/bone values, camera switching, packed sound and editable controls. DOM checks cover the Dashboard and PWA flow without Genesis status calls.
 
 The native CI preserves the MP4 and `.blend` proof. Production acceptance still requires a real PWA submission, worker execution, owner review, authorized full checkout and final Timeline/publishing verification. `studio_scene_templates_checks.rb` additionally verifies catalog coverage, production/saved-show creation, isolation, frozen sets, copied model sources and a real rooftop-template performance render. Local test output does not establish completed episode production.
+
+`studio_dialogue_scene_checks.rb` adds request/source isolation and a real three-turn render with two Cast identities, separate audible voices, alternating cameras, phoneme cues, listener reactions and retry reuse. The saved Blender source is reopened to inspect its editable animation and packed recordings. `studio_dialogue_scene_test.cjs` covers both PWA and Dashboard submission, recovery, retry, preview and export quote. Audio mixdown supports both Ubuntu Blender 4.0 settings and newer operator arguments.

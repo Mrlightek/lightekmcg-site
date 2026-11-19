@@ -128,6 +128,8 @@ module Studio
         if @payload["operation_id"]
           operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview").find(@payload["operation_id"])
         else
+          seconds=Float(@payload.fetch("preview_seconds",3))
+          raise ArgumentError,"Choose a preview lasting 0.25–8 seconds" unless seconds.finite? && seconds.between?(0.25,8)
           scene_playback=@payload["scene_playback"]==true
           starts=scene.scene_objects.flat_map do |object|
             [object.definition.dig("performance","start"),*Array(object.definition["motion_clips"]).map { |clip| clip["start"] }].compact
@@ -137,7 +139,7 @@ module Studio
           @access.user.with_lock do
             revision=scene.settings.fetch("native_revision",0)
             operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview",status:%w[pending running]).detect do |preview|
-              (preview.metadata["scene_playback"]==true)==scene_playback && preview.metadata["native_revision"]==revision
+              (preview.metadata["scene_playback"]==true)==scene_playback && preview.metadata.fetch("preview_seconds",3)==seconds && preview.metadata["native_revision"]==revision
             end
             unless operation
               recent=StudioOperation.where(studio_project_id:@access.projects.select(:id),capability:"studio.workspace.performance.preview").where("created_at > ?",1.minute.ago).count
@@ -152,9 +154,9 @@ module Studio
               factor=320.0/[width,height].max
               settings.merge!("resolution_x"=>((width*factor/2).round*2).clamp(64,320),
                 "resolution_y"=>((height*factor/2).round*2).clamp(64,320),"samples"=>8,
-                "frame_start"=>first,"frame_end"=>[first+(3*fps).round-1,last].min,"frame_current"=>first)
+                "frame_start"=>first,"frame_end"=>[first+(seconds*fps).round-1,last].min,"frame_current"=>first)
               manifest["outputs"]={"animation"=>true,"blend"=>true}
-              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.performance.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"performance_preview"=>true,"draft_preview"=>true,"scene_playback"=>scene_playback,"native_revision"=>revision})
+              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.performance.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"performance_preview"=>true,"draft_preview"=>true,"scene_playback"=>scene_playback,"preview_seconds"=>seconds,"native_revision"=>revision})
               StudioBlenderPreviewJob.perform_later(operation.id)
             end
           end
@@ -897,6 +899,11 @@ module Studio
               child.studio_scene = copy
               child.save!
               object_ids[object.id]=child.id
+            end
+            copy.scene_objects.each do |object|
+              next unless object.definition['listener_reactions']
+              cues=object.definition['listener_reactions'].map { |cue| cue.merge('speaker_object_id'=>object_ids.fetch(cue.fetch('speaker_object_id'))) }
+              object.update!(definition:object.definition.merge('listener_reactions'=>cues))
             end
             settings=copy.settings.except("library_requests", "json_preset_requests", "cast_receipts", "performance_receipts", "motion_receipts", "look_receipts")
             settings["active_camera_object_id"]=object_ids[scene.settings["active_camera_object_id"]] if scene.settings["active_camera_object_id"]

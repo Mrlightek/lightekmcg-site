@@ -81,6 +81,9 @@ module Studio
           elsif definition['performance_takes'].present?
             raise ArgumentError,'This character has a dialogue sequence. Append a take or remove its sequence explicitly.'
           end
+          if definition['listener_reactions']
+            definition['listener_reactions']=Array(definition['listener_reactions']).reject { |cue| start<cue['start']+cue['duration'] && start+duration>cue['start'] }
+          end
           object.update!(definition:definition.merge('performance'=>take))
           fps=scene.settings.fetch("fps",24).to_f/scene.settings.fetch("fps_base",1)
           ending=((start+duration)*fps).ceil
@@ -95,7 +98,7 @@ module Studio
       def self.remove(access:,payload:)
         scene=access.scene!(payload.fetch("scene_id"));scene.with_lock do
           scene.lock_version=Integer(payload.fetch("lock_version"))
-          object=scene.scene_objects.find(payload.fetch("object_id"));object.update!(definition:object.definition.except("performance","performance_takes","director_gaze_cues"))
+          object=scene.scene_objects.find(payload.fetch("object_id"));object.update!(definition:object.definition.except("performance","performance_takes","director_gaze_cues","listener_reactions"))
           scene.update!(settings:scene.settings.merge("native_revision"=>scene.settings.fetch("native_revision",0).to_i+1))
         end
         {scene_id:scene.id,lock_version:scene.lock_version}

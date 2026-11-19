@@ -2,11 +2,11 @@ const assert=require('node:assert/strict');const fs=require('node:fs');const pat
 async function check(dashboard,restore=false,handoff=false){
  const dom=new JSDOM(dashboard?'<div data-unified-studio data-site-id="2" data-scene-id="7" data-workspace="create"></div>':'<div id="app"></div>',{url:'https://studio.example/#/studio/7/create',runScripts:'outside-only',pretendToBeVisual:true});
  const {window}=dom;let submitted,quoted,retried=0,attempt=restore?1:0;
- const inputs={mode:'dialogue',scene_template:handoff?'counter_handoff':'studio',characters:[{name:'Sentinel',voice:'en-us',colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'}},{name:'Beacon',voice:'en-gb',colors:{skin:'#b57955',wardrobe:'#945228',hair:'#211916'}}],turns:[{speaker:0,dialogue:'Stay alert.'},{speaker:1,dialogue:'I am ready.'}]};
+ const inputs={mode:'dialogue',scene_template:handoff?'counter_handoff':'studio',characters:[{name:'Sentinel',voice:'en-us',portrait_asset_id:31,colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'}},{name:'Beacon',voice:'en-gb',colors:{skin:'#b57955',wardrobe:'#945228',hair:'#211916'}}],turns:[{speaker:0,dialogue:'Stay alert.'},{speaker:1,dialogue:'I am ready.'}]};
  window.nevaeh={execute:async({capability,payload})=>{
   let result;switch(capability.replace(/^studio\.(pwa|workspace)\./,'')){
    case 'bootstrap':result={projects:[{id:3,name:'Production',unassigned_scenes:[{id:7,name:'Pilot',settings:{},lock_version:1}]}]};break;
-   case 'assets.list':result={assets:[]};break;
+   case 'assets.list':result={assets:[{id:31,name:'Sentinel portrait',kind:'image',status:'ready'},{id:32,name:'Beacon portrait',kind:'image',status:'ready'}]};break;
    case 'ai.jobs':result=[];break;
    case 'operations.list':result={operations:[],publications:[]};break;
    case 'workflow.status':result={ready:true,assets:[]};break;
@@ -31,6 +31,7 @@ async function check(dashboard,restore=false,handoff=false){
   if(!restore){await until(()=>button('Two-character dialogue')&&!button('Two-character dialogue').disabled);button('Two-character dialogue').click();}
   await until(()=>button('Prepare dialogue scene')&&!button('Prepare dialogue scene').disabled);
   assert.equal(field('Character 2 stock voice').value,'en-gb');
+  if(restore)assert.equal(field('Character 1 portrait mask').value,'31');
   if(!restore){
    if(handoff){
     set(field('Dialogue scene setup'),'counter_handoff');
@@ -40,9 +41,11 @@ async function check(dashboard,restore=false,handoff=false){
    }
    set(field('Shot name'),'First exchange');
    set(field('Character 1 hairstyle'),'high_top');
+   set(field('Character 1 portrait mask'),'31');
+   set(field('Character 2 portrait mask'),'32');
    button('Add speaking turn').click();await until(()=>field('Turn 3 line'));set(field('Turn 3 line'),'Follow my lead.');
    await until(()=>!button('Prepare dialogue scene').disabled);button('Prepare dialogue scene').click();
-   await until(()=>submitted);assert.equal(submitted.mode,'dialogue');assert.equal(submitted.scene_template,handoff?'counter_handoff':'studio');assert(!submitted.characters.some(row=>row.contact));assert.equal(submitted.shot_name,'First exchange');assert.equal(submitted.characters[0].hair_style,'high_top');assert.equal(submitted.characters.length,2);assert.equal(submitted.turns.length,3);assert.equal(submitted.turns[2].speaker,0);assert.equal(submitted.turns[2].dialogue,'Follow my lead.');
+   await until(()=>submitted);assert.equal(submitted.mode,'dialogue');assert.equal(submitted.scene_template,handoff?'counter_handoff':'studio');assert(!submitted.characters.some(row=>row.contact));assert.equal(submitted.shot_name,'First exchange');assert.equal(submitted.characters[0].hair_style,'high_top');assert.deepEqual(Array.from(submitted.characters,row=>row.portrait_asset_id),[31,32]);assert.equal(submitted.characters.length,2);assert.equal(submitted.turns.length,3);assert.equal(submitted.turns[2].speaker,0);assert.equal(submitted.turns[2].dialogue,'Follow my lead.');
   }
   await until(()=>button('Retry dialogue preparation'));button('Retry dialogue preparation').click();
   await until(()=>window.document.querySelector('video[src="/dialogue-proof.mp4"]'));assert.equal(retried,1);
@@ -53,10 +56,12 @@ async function check(dashboard,restore=false,handoff=false){
   await until(()=>field('Character 1 performer').value==='71');
   assert.equal(field('Character 2 performer').value,'72');
   assert.equal(field('Character 1 hairstyle'),undefined);
+  assert.equal(field('Character 1 portrait mask'),undefined);
   set(field('Turn 1 line'),'Wait for me.');
   submitted=null;button('Prepare dialogue scene').click();
   await until(()=>submitted);
   assert.deepEqual(Array.from(submitted.characters,row=>row.cast_asset_id),[71,72]);
+  assert(submitted.characters.every(row=>!row.portrait_asset_id));
   assert.equal(submitted.turns[0].dialogue,'Wait for me.');
   console.log((dashboard?'Dashboard':'PWA')+': '+(restore?'reload recovery':'three-turn submission')+', failure/retry, preview, editable link and existing quote passed');
  }finally{window.LightekUnifiedStudio?.leave();window.close();}

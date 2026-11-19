@@ -40,6 +40,8 @@ module Studio
           end
           colors["hair_style"]=Cast.hair_style(row["hair_style"]) if row.key?("hair_style") && row["cast_asset_id"].blank?
           result={"name"=>name,"voice"=>voice,"colors"=>colors}.merge(Acting.inputs(row)).merge(Contact.inputs(row)).merge(Attention.inputs(row))
+          photo=portrait_input(access,row,result)
+          sources<<photo if photo
           if row["cast_asset_id"].present?
             actor=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"blend",status:"ready").find(row["cast_asset_id"])
             profile=actor.metadata["character_profile"]
@@ -107,7 +109,8 @@ module Studio
             actor=StudioAsset.for_actor(access).find(character["cast_asset_id"])
             raise ArgumentError,"The reusable character changed. Start a new dialogue." unless actor.metadata["character_profile"]==character["cast_profile"] && actor.native.blob.id==character.dig("cast_profile","source_blob_id")
           else
-            result=Cast.create(access:access,payload:character.fetch("colors").merge("name"=>character["name"],"style"=>"illustrated","request_key"=>"#{tag}-cast-#{index}"))
+            photo=operation.performance_sources.blobs.find(character["portrait_blob_id"]) if character["portrait_blob_id"]
+            result=Cast.create(access:access,photo:photo,payload:character.fetch("colors").merge("name"=>character["name"],"style"=>"illustrated","request_key"=>"#{tag}-cast-#{index}"))
             actor=StudioAsset.find(result[:asset_id]);Cast.retry(access:access,payload:{"asset_id"=>actor.id}) if actor.status=="failed"
             actor.update!(metadata:actor.metadata.merge("performer_phase"=>"queued")) if actor.metadata["performer_phase"]=="building" && actor.updated_at<10.minutes.ago
             StudioCharacterCreateJob.perform_now(actor.id) unless actor.metadata["character_profile"]

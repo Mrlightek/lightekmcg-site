@@ -108,13 +108,26 @@ module Studio
         photo
       end
 
+      def self.library_photo(access, id)
+        asset=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"image",status:"ready").find(id)
+        original=asset.file.blob if asset.file.attached?
+        if original && %w[image/jpeg image/png image/webp].include?(original.content_type) && original.byte_size.between?(1,10.megabytes)
+          return original
+        end
+        proxy=asset.proxy.blob if asset.proxy.attached?
+        unless proxy && %w[image/jpeg image/png image/webp].include?(proxy.content_type) && proxy.byte_size.between?(1,10.megabytes)
+          raise ArgumentError,"Choose a processed JPEG, PNG or WebP portrait up to 10 MB"
+        end
+        proxy
+      end
+
       def self.hair_style(value)
         style=value.to_s
         raise ArgumentError,"Choose curls, close cut or high top" unless %w[curls close high_top].include?(style)
         style
       end
 
-      def self.create(access:,payload:)
+      def self.create(access:,payload:,photo:nil)
         values=%w[skin wardrobe hair].to_h do |field|
           value=payload.fetch(field,{"skin"=>"#925e43","wardrobe"=>"#64388b","hair"=>"#211916"}[field]).to_s
           raise ArgumentError,"Choose six-digit colors" unless value.match?(/\A#[0-9a-fA-F]{6}\z/)
@@ -127,8 +140,8 @@ module Studio
         end
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"A performer request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
-        photo=creation_photo(access,payload)
-        raise ArgumentError,"Illustrated performers use editable drawn faces" if photo && %w[illustrated physical].include?(values["style"])
+        photo||=creation_photo(access,payload)
+        raise ArgumentError,"The calibrated physical performer uses its own face geometry" if photo && values["style"]=="physical"
         asset=nil
         access.user.with_lock do
           asset=StudioAsset.find_by(owner:access.user,request_key:key)

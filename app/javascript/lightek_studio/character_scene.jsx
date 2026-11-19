@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useState} from 'react';
-import {HairStyleField} from './performer_look';
+import {HairStyleField,PortraitField} from './performer_look';
 import {requestKey} from './api';
 import {ProductionTemplates} from './production_templates';
 import {DialogueSceneComposer} from './dialogue_scene';
@@ -32,7 +32,7 @@ export function CharacterSceneComposer(props){
 }
 function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene,revision,onRevisionReady}){
  const [name,setName]=useState('Sentinel'),[dialogue,setDialogue]=useState('We protect this city.');
- const [shotName,setShotName]=useState(''),[hairStyle,setHairStyle]=useState('curls');
+ const [shotName,setShotName]=useState(''),[hairStyle,setHairStyle]=useState('curls'),[portrait,setPortrait]=useState('');
  const [skin,setSkin]=useState('#925e43'),[wardrobe,setWardrobe]=useState('#344e78'),[hair,setHair]=useState('#211916');
  const [cast,setCast]=useState(''),[audio,setAudio]=useState(''),[voice,setVoice]=useState('en-us');
  const [catalog,setCatalog]=useState(null),[sceneTemplate,setSceneTemplate]=useState('studio'),[cameraMode,setCameraMode]=useState('character'),[gesture,setGesture]=useState('wave_right');
@@ -58,7 +58,7 @@ function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTem
     return;
    }
    if(!revision)setReceipt(result);
-   const input=result.inputs;if(input){setShotName(input.shot_name||'');setHairStyle(input.colors.hair_style||'curls');setAttention(input.attention||null);setMechanics(input.mechanics||null);setContact(input.contact||null);setActing({...actingDefaults,...Object.fromEntries(Object.keys(actingDefaults).map(key=>[key,input[key]||actingDefaults[key]]))});setName(input.name);setDialogue(input.dialogue);setVoice(input.voice);setSkin(input.colors.skin);setWardrobe(input.colors.wardrobe);setHair(input.colors.hair);setCast(String((revision&&result.cast_asset_id)||input.cast_asset_id||''));setAudio(input.audio_asset_id?String(input.audio_asset_id):'');setSceneTemplate(input.scene_template||'studio');setCameraMode(input.camera_mode||'character');setGesture(input.gesture||'wave_right');}
+   const input=result.inputs;if(input){setShotName(input.shot_name||'');setPortrait(String(input.portrait_asset_id||''));setHairStyle(input.colors.hair_style||'curls');setAttention(input.attention||null);setMechanics(input.mechanics||null);setContact(input.contact||null);setActing({...actingDefaults,...Object.fromEntries(Object.keys(actingDefaults).map(key=>[key,input[key]||actingDefaults[key]]))});setName(input.name);setDialogue(input.dialogue);setVoice(input.voice);setSkin(input.colors.skin);setWardrobe(input.colors.wardrobe);setHair(input.colors.hair);setCast(String((revision&&result.cast_asset_id)||input.cast_asset_id||''));setAudio(input.audio_asset_id?String(input.audio_asset_id):'');setSceneTemplate(input.scene_template||'studio');setCameraMode(input.camera_mode||'character');setGesture(input.gesture||'wave_right');}
   }).catch(cause=>{if(alive)setError(cause.message);}).finally(()=>{if(alive)setRestored(true);});return()=>{alive=false;};
  },[api,scene.id,revision]);
  useEffect(()=>{
@@ -93,13 +93,14 @@ function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTem
   <label>Character name<input disabled={active} maxLength="60" value={name} onChange={event=>change(setName,event.target.value)}/></label>
   {!cast&&<div className="ls-fields">{[['Skin',skin,setSkin],['Wardrobe',wardrobe,setWardrobe],['Hair',hair,setHair]].map(([label,value,setter])=><label key={label}>{label}<input disabled={active} type="color" value={value} onChange={event=>change(setter,event.target.value)}/></label>)}</div>}
   {!cast&&!verified&&<HairStyleField value={hairStyle} onChange={value=>change(setHairStyle,value)} disabled={active}/>}
+  {!cast&&!verified&&<PortraitField assets={assets} value={portrait} onChange={value=>change(setPortrait,value)} disabled={active}/>}
   {verified&&<label>Action direction<input disabled={active} maxLength={240} value={instruction} onChange={event=>change(setInstruction,event.target.value)}/><span className="ls-muted">This selects the reviewed pickup action; timing and physical limits stay fixed.</span></label>}
   <label hidden={verified}>Dialogue recording<select disabled={active} value={audio} onChange={event=>change(setAudio,event.target.value)}><option value="">Synthesize a stock voice from the line</option>{recordings.map(recording=><option key={recording.id} value={recording.id}>{recording.name}</option>)}</select></label>
   <p className="ls-muted">Prepared recordings must last 0.2–2.8 seconds. Import recordings in Media Library; longer performances remain available in the advanced Cast workspace.</p>
   <label hidden={verified}>Spoken line<textarea disabled={active} maxLength="80" value={dialogue} onChange={event=>change(setDialogue,event.target.value)} placeholder="We protect this city."/></label>
   {!verified&&!audio&&<label>Stock voice<select disabled={active} value={voice} onChange={event=>change(setVoice,event.target.value)}><option value="en-us">English · US</option><option value="en-gb">English · UK</option></select></label>}
   <button type="button" disabled={busy||active||!restored||(verified&&cast&&!performers.some(actor=>String(actor.id)===cast))||!name.trim()||(!verified&&!dialogue.trim()&&!audio)||!actingAvailable(acting,performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile)||!attentionAvailable(attention,performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile,catalog?.scene_templates.find(row=>row.key===sceneTemplate)?.contact_targets||[])||!mechanicsAvailable(mechanics,performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile,catalog?.scene_templates.find(row=>row.key===sceneTemplate)?.mechanics_targets||[])||!contactAvailable(contact,performers.find(actor=>String(actor.id)===cast)?.metadata?.character_profile,catalog?.scene_templates.find(row=>row.key===sceneTemplate)?.contact_targets||[],acting.entrance)} onClick={()=>perform(async()=>{
-   const result=await api.call('character.scene.prepare',{scene_id:scene.id,request_key:key,...acting,...(contact?{contact}:{}),...(mechanics?{mechanics}:{}),...(attention?{attention}:{}),name:name.trim(),...(shotName.trim()?{shot_name:shotName.trim()}:{}),...(!cast&&!verified&&hairStyle!=='curls'?{hair_style:hairStyle}:{}),dialogue:verified?'':dialogue.trim(),...(verified?{action_prompt:instruction}:{}),voice,skin,wardrobe,hair,scene_template:sceneTemplate,camera_mode:cameraMode,gesture,...(cast?{cast_asset_id:Number(cast)}:{}),...(!verified&&audio?{audio_asset_id:Number(audio)}:{})});setReceipt(result);
+   const result=await api.call('character.scene.prepare',{scene_id:scene.id,request_key:key,...acting,...(contact?{contact}:{}),...(mechanics?{mechanics}:{}),...(attention?{attention}:{}),name:name.trim(),...(shotName.trim()?{shot_name:shotName.trim()}:{}),...(!cast&&!verified&&hairStyle!=='curls'?{hair_style:hairStyle}:{}),dialogue:verified?'':dialogue.trim(),...(verified?{action_prompt:instruction}:{}),voice,skin,wardrobe,hair,scene_template:sceneTemplate,camera_mode:cameraMode,gesture,...(cast?{cast_asset_id:Number(cast)}:!verified&&portrait?{portrait_asset_id:Number(portrait)}:{}),...(!verified&&audio?{audio_asset_id:Number(audio)}:{})});setReceipt(result);
   })}>Prepare performed short</button>
   {receipt&&<p role="status">{receipt.status} · {receipt.phase?.replaceAll('_',' ')}</p>}
   {receipt?.error&&<p role="alert">{receipt.error}</p>}

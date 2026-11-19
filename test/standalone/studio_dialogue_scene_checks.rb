@@ -29,6 +29,26 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
     assert_raises(ActiveRecord::RecordNotFound) { dialogue(characters:[{name:"A",cast_asset_id:999999},{name:"B"}]) }
     assert_raises(ArgumentError) { action("performance_preview",scene_id:@scene.id,preview_seconds:9) }
   end
+  def portrait_fixture(color, owner:@alice, site:@site)
+    image=Studio::MediaProcess.run!(["ffmpeg","-v","error","-f","lavfi","-i","color=c=#{color}:s=64x64",
+      "-frames:v","1","-threads","1","-f","image2pipe","-vcodec","png","pipe:1"])
+    asset=StudioAsset.new(owner:owner,site:site,kind:"image",status:"ready",name:"Portrait fixture",request_key:SecureRandom.uuid)
+    asset.file.attach(io:StringIO.new(image.b),filename:"portrait.png",content_type:"image/png",identify:false)
+    asset.save!
+    asset
+  end
+
+  def test_portraits_are_scoped_and_frozen_on_the_preparation
+    foreign=portrait_fixture("red",owner:@bob,site:@other_site)
+    assert_raises(ActiveRecord::RecordNotFound) { prepare(portrait_asset_id:foreign.id) }
+    portrait=portrait_fixture("orange")
+    assert_raises(ArgumentError) { prepare(portrait_asset_id:portrait.id,cast_asset_id:123) }
+    value=prepare(portrait_asset_id:portrait.id)
+    parent=StudioOperation.find(value[:operation_id])
+    assert_equal portrait.id,value.dig(:inputs,"portrait_asset_id")
+    assert_equal [portrait.file.blob.id],parent.performance_sources.blobs.pluck(:id)
+  end
+
   def test_counter_handoff_supplies_its_own_overlapping_contacts
     options=action("character_scene_catalog",scene_id:@scene.id).fetch(:scene_templates)
     assert options.find { |row| row[:key]=="counter_handoff" }.fetch(:dialogue_only)
@@ -65,11 +85,20 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
     Dir.mktmpdir("handoff-output-") do |root|
       ENV["BLENDER_OUTPUT_ROOT"]=root
       Rails.stub(:root,Pathname(ROOT)) do
-        value=dialogue(scene_template:"counter_handoff",shot_name:"The delivery")
+        sender=portrait_fixture("#a7684a")
+        receiver=portrait_fixture("#715048")
+        characters=[{name:"Sentinel",portrait_asset_id:sender.id},{name:"Beacon",portrait_asset_id:receiver.id}]
+        value=dialogue(scene_template:"counter_handoff",shot_name:"The delivery",characters:characters)
         parent=StudioOperation.find(value[:operation_id])
+        frozen_photo_ids=[sender,receiver].map { |asset| asset.file.blob.id }
+        sender.file.attach(portrait_fixture("blue").file.blob)
+        assert_equal frozen_photo_ids.sort,parent.performance_sources.blobs.pluck(:id).sort
         StudioCharacterSceneJob.perform_now(parent.id)
         preview=StudioOperation.find_by(id:parent.reload.metadata["preview_id"])
         assert_equal "completed",parent.status,[parent.error_message,preview&.error_message].join(" / ")
+        casts=parent.metadata.fetch("cast_asset_ids").map { |id| StudioAsset.find(id) }
+        assert_equal frozen_photo_ids,casts.map { |asset| asset.character_photo.blob.id }
+        assert casts.all? { |asset| asset.metadata.dig("character_profile","bindings","viseme_a").present? }
         scene=StudioScene.find(parent.metadata.fetch("scene_id"))
         assert_equal [1],scene.settings.fetch("camera_cuts").map { |cut| cut["frame"] }
         video=preview.artifacts.find_by!(kind:"video")
@@ -83,6 +112,11 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
             import bpy,json
             scene=bpy.context.scene
             reports=json.loads(scene['lightek_contact_report'])
+            masks=[obj for obj in scene.objects if obj.get('lightek_source_object')=='Face portrait']
+            assert len(masks)==2
+            assert all(obj.parent_type=='BONE' and obj.parent_bone=='Head' for obj in masks)
+            assert all(any(node.type=='TEX_IMAGE' and node.image.packed_file
+                           for node in obj.active_material.node_tree.nodes) for obj in masks)
             assert [row['hand'] for row in reports]==['right','left']
             assert all(row['max_contact_error'] <= 0.002 and row['max_wrist_error'] <= 0.002 for row in reports)
             parcel=bpy.data.objects['Exchange parcel']

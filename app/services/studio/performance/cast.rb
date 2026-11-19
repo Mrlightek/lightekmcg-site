@@ -54,7 +54,7 @@ module Studio
           end
           binding
         end
-        {"version"=>2,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach}
+        {"version"=>2,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach,"mechanics"=>Mechanics.register(objects,raw["mechanics"])}
       end
 
       def self.register(access:,payload:)

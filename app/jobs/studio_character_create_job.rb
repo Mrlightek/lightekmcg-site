@@ -28,7 +28,7 @@ class StudioCharacterCreateJob < ApplicationJob
       %w[a b c d e f g h x].each{|shape|bindings["viseme_#{shape}"]={"object"=>"FaceMouth","key"=>"viseme_#{shape}"}}
       bones={"head"=>{"object"=>"PerformerRig","bone"=>"Head"},"left_arm"=>{"object"=>"PerformerRig","bone"=>"Arm.L"},"right_arm"=>{"object"=>"PerformerRig","bone"=>"Arm.R"}}
       reach=asset.metadata.dig("performer_build","style")=="illustrated" ? %w[left right].to_h { |side| letter=side=="left" ? "L" : "R";[side,{"rig"=>"PerformerRig","upper"=>"Arm.#{letter}","forearm"=>"Forearm.#{letter}","hand"=>"Hand #{letter}","wrist_anchor"=>[0,0,0.12],"contact_anchor"=>[0,0.004,0]}] } : {}
-      profile=Studio::Performance::Cast.profile(asset,{"source_scene"=>"Lightek Performer","bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach})
+      profile=Studio::Performance::Cast.profile(asset,{"source_scene"=>"Lightek Performer","bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach,"mechanics"=>(asset.metadata.dig("performer_build","style")=="illustrated" ? Studio::Performance::Mechanics.bindings : nil)})
       asset.update!(metadata:asset.metadata.merge("character_profile"=>profile,"performer_phase"=>"ready"))
     end
   rescue StandardError=>error

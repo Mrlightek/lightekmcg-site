@@ -11,6 +11,11 @@ module Studio
          {"id"=>"button","name"=>"Activation button","type"=>"cube","definition"=>{"location"=>[0.78,-0.095,1.2],"scale"=>[0.08,0.025,0.08],"material"=>{"color"=>[0.05,0.65,0.8]},"contact_response"=>"button_press"}},
          {"id"=>"stand","name"=>"Panel stand","type"=>"cube","definition"=>{"location"=>[0.78,0.1,0.5],"scale"=>[0.06,0.06,0.5],"material"=>{"color"=>[0.12,0.16,0.20]}}}]
       end
+      def self.bench
+        [{"id"=>"ground","name"=>"Bench ground","type"=>"plane","definition"=>{"location"=>[0,0,0],"scale"=>[4,4,1],"material"=>{"color"=>[0.045,0.065,0.08]}}},{"id"=>"seat","name"=>"Bench seat","type"=>"cube","definition"=>{"location"=>[0,0.27,0.40],"scale"=>[0.8,0.19,0.04],"mechanics_seat"=>1,"material"=>{"color"=>[0.30,0.16,0.07]}}},
+         {"id"=>"back","name"=>"Bench back","type"=>"cube","definition"=>{"location"=>[0,0.50,0.72],"scale"=>[0.8,0.035,0.26],"material"=>{"color"=>[0.30,0.16,0.07]}}},
+         *[-0.6,0.6].map.with_index { |x,i| {"id"=>"bench_leg_#{i}","name"=>"Bench leg #{i+1}","type"=>"cube","definition"=>{"location"=>[x,0.29,0.18],"scale"=>[0.04,0.13,0.18],"material"=>{"color"=>[0.09,0.10,0.12]}}} }]
+      end
       def self.recipes
         Studio::Library::Catalog.items.select { |row| row["target"]=="scene" && !%w[characters fx].include?(row["category"]) }
       end
@@ -29,14 +34,17 @@ module Studio
         current={key:"current",name:"Current scene set",description:"Use this scene's editable sets, lights and cameras in a separate short. Replace its blocking cast with the chosen performer.",defaults:current_defaults.merge("cast_asset_id"=>actor&.id),available:!scene.blender_source.attached? && !scene.settings["native_blender_asset_id"]}
         scene_rows=[{key:"studio",name:"Plain character stage",description:"A clean stage for checking performance and speech.",defaults:defaults("studio"),available:true},current]+recipes.map { |row| {key:"library:#{row['key']}",name:row["name"],description:row["description"],defaults:defaults(row["key"]),available:true} }
         scene_rows.insert(1,{key:"control_panel",name:"Control-panel interaction",description:"An editable panel and activation button with reachable face-center targets.",defaults:defaults("studio").merge("dialogue"=>"Panel activated.","gesture"=>"still"),available:true})
+        scene_rows.insert(2,{key:"bench",name:"Walk, sit and stand",description:"A calibrated eight-second bench performance with planted feet and seat support.",defaults:defaults("studio").merge("dialogue"=>"We can build this world together.","gesture"=>"still","mechanics"=>{"action"=>"bench","version"=>1,"target_id"=>"seat"}),available:true})
         scene_rows.each do |row|
           objects=case row[:key]
           when "studio" then []
           when "control_panel" then control_panel
+          when "bench" then bench
           when "current" then scene.scene_objects.map { |object| {"id"=>object.id,"name"=>object.name,"type"=>object.object_type,"definition"=>object.definition} }
           else Studio::Library::Catalog.objects(row[:key].delete_prefix("library:")).each_with_index.map { |object,i| object.merge("id"=>i+1) }
           end
           row[:contact_targets]=Contact.targets(objects)
+          row[:mechanics_targets]=objects.select { |obj| obj.dig("definition","mechanics_seat")==1 }.map { |obj| {id:obj["id"].to_s,name:obj["name"]} }
         end
         production_rows=Studio::NativeBlender::MediaPresets.items.select { |row| row["project_template"] && !row["requires_asset"] }.map { |row| row.slice("key","name","category","scene_count","description") }
         saved=access.projects.where(site_id:access.site_id,is_template:true).order(:name,:id).limit(100).map { |project| {id:project.id,name:project.name,scene_count:project.studio_scenes.count} }
@@ -80,7 +88,9 @@ module Studio
       end
       def self.snapshot(access:,source:,key:,performer_count:1)
         return {"key"=>"studio","name"=>"Plain character stage","settings"=>{},"objects"=>[],"assets"=>[]} if key=="studio"
-        if key=="control_panel"
+        if key=="bench"
+          objects=bench;settings={};name="Walk, sit and stand"
+        elsif key=="control_panel"
           objects=control_panel
           objects.each { |object| object["definition"]["location"][0]-=1.0 } if performer_count==2
           settings={};name="Control-panel interaction"

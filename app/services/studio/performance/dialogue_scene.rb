@@ -5,6 +5,7 @@ module Studio
     # checkout still belong to the existing CharacterScene operation.
     class DialogueScene < CharacterScene
       def self.start(access:,payload:)
+        raise ArgumentError,"Coordinated mechanics currently support one-character studies" if payload["mechanics"].present? || Array(payload["characters"]).any? { |row| row.is_a?(Hash) && row["mechanics"].present? }
         source=access.scene!(payload.fetch("scene_id"))
         raise ActiveRecord::RecordNotFound unless source.studio_project.site_id==access.site_id
         key=payload.fetch("request_key").to_s

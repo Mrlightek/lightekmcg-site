@@ -909,6 +909,9 @@ module Studio
               object_ids[object.id]=child.id
             end
             copy.scene_objects.each do |object|
+              if (plan=object.definition['mechanics_plan'])
+                object.update!(definition:object.definition.merge('mechanics_plan'=>plan.merge('target_object_id'=>object_ids.fetch(plan.fetch('target_object_id')))))
+              end
               if (contact=object.definition['prop_contact'])
                 object.update!(definition:object.definition.merge('prop_contact'=>contact.merge('target_object_id'=>object_ids.fetch(contact.fetch('target_object_id')))))
               end

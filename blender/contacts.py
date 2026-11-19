@@ -2,6 +2,7 @@
 import json
 import math
 import bpy
+import kinematics_v1 as kinematics
 from mathutils import Vector, Matrix
 
 TOLERANCE=0.002
@@ -107,8 +108,7 @@ def apply(objects,created,settings):
                 bend=reference-axis*reference.dot(axis)
                 if bend.length<.0001:bend=Vector((0,0,-1))-axis*axis.dot(Vector((0,0,-1)))
                 if bend.length<.0001:bend=Vector((1,0,0))-axis*axis.x
-                along=(a*a-b*b+d*d)/(2*d);height=math.sqrt(max(0,a*a-along*along))
-                elbow=shoulder+axis*along+bend.normalized()*height
+                elbow=kinematics.elbow(shoulder,local,a,b,bend)
                 q1=(u0.to_quaternion() @ Vector((0,1,0))).rotation_difference((elbow-shoulder).normalized()) @ u0.to_quaternion()
                 q2=(l0.to_quaternion() @ Vector((0,1,0))).rotation_difference((local-elbow).normalized()) @ l0.to_quaternion()
                 upper.matrix=Matrix.LocRotScale(shoulder,q1,Vector((1,1,1)));bpy.context.view_layer.update()
@@ -128,7 +128,7 @@ def apply(objects,created,settings):
                 errors.append((hand.matrix_world @ contact_anchor-target.matrix_world @ point).length)
                 wrist_errors.append((hand.matrix_world @ wrist_anchor-rig.matrix_world @ lower.tail).length)
         if not errors or max(errors)>TOLERANCE or max(wrist_errors)>TOLERANCE:raise RuntimeError('Rendered palm contact did not meet the 2 mm tolerance')
-        prepared.append({'actor_id':str(item['id']),'target_id':str(cue['target_object_id']),'hand':hand,'first':1+round(start*fps),'last':1+round(end*fps),'point':point,'normal':normal_local})
+        prepared.append({'actor_id':str(item['id']),'target_id':str(cue['target_object_id']),'contact_mesh':hand,'first':1+round(start*fps),'last':1+round(end*fps),'point':point,'normal':normal_local})
         reports.append({'actor_id':item['id'],'target_id':cue['target_object_id'],'hand':cue['hand'],'measured_frames':len(errors),'max_contact_error':max(errors),'max_wrist_error':max(wrist_errors),'tolerance':TOLERANCE})
     scene['lightek_contact_report']=json.dumps(reports);scene.frame_set(original);bpy.context.view_layer.update()
     return prepared

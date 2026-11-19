@@ -97,14 +97,14 @@ def validate(objects,created,settings,contacts=()):
             if direction.get('collision_detection',True) and mesh(item):
                 for other in colliders:
                     active=[cue for cue in contacts if cue['actor_id']==str(item['id']) and cue['target_id']==str(other['id']) and cue['first']<=frame<=cue['last']]
-                    body=geometry(root,depsgraph,exclude=[cue['hand'] for cue in active]) if active else mesh(item)
+                    body=geometry(root,depsgraph,exclude=[cue['contact_mesh'] for cue in active]) if active else mesh(item)
                     if body and mesh(other) and intersects(body,mesh(other)):
                         raise RuntimeError('Environment collision at frame '+str(frame)+': '+item['name']+' / '+other['name'])
                     for cue in active:
-                        hand_mesh=geometry(cue['hand'],depsgraph)
-                        if hand_mesh and mesh(other) and intersects(hand_mesh,mesh(other)):
+                        contact_mesh=geometry(cue['contact_mesh'],depsgraph)
+                        if contact_mesh and mesh(other) and intersects(contact_mesh,mesh(other)):
                             target=created[str(other['id'])];plane=target.matrix_world @ cue['point'];normal=(target.matrix_world.to_quaternion() @ cue['normal']).normalized()
-                            if min((vertex-plane).dot(normal) for vertex in hand_mesh[0]) < -0.002:
-                                raise RuntimeError('Hand penetrates its contact prop at frame '+str(frame))
+                            if min((vertex-plane).dot(normal) for vertex in contact_mesh[0]) < -0.002:
+                                raise RuntimeError('Contact mesh penetrates its support prop at frame '+str(frame))
     scene.frame_set(current)
     bpy.context.view_layer.update()

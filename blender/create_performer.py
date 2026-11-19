@@ -62,7 +62,7 @@ def sphere(name, location, scale, mat):
     return obj
 
 
-body = sphere('Jacket body', (0, 0, 0.98), (0.40, 0.24, 0.52), wardrobe)
+body = sphere('Jacket body', (0,0,1.17) if illustrated else (0,0,.98), (.40,.24,.34) if illustrated else (.40,.24,.52), wardrobe)
 sphere('Shirt', (0, -0.21, 1.12), (0.22, 0.045, 0.30), black)
 sphere('Neck', (0, 0, 1.49), (0.14, 0.14, 0.20), skin)
 head = sphere('Head', (0, 0, 1.88), (0.34, 0.28, 0.42), skin)
@@ -170,9 +170,14 @@ for side, x in [('L', -0.43), ('R', 0.43)]:
         forearm_parts[side]=[sphere('Lower sleeve '+side,(x,0,.99),(.07,.12,.09),wardrobe),sphere('Hand '+side,(x,-.01,.72),(.10,.09,.12),skin)]
     else:
         arm_parts[side] = [sphere('Sleeve '+side, (x, 0, 1.05), (0.12, 0.14, 0.36), wardrobe), sphere('Hand '+side, (x, -0.01, 0.72), (0.10, 0.09, 0.12), skin)]
-leg_parts = {}
+leg_parts = {};shin_parts={}
 for side,x in [('L',-.17),('R',.17)]:
-    leg_parts[side]=[sphere('Trouser leg '+side, (x, 0, 0.43), (0.15, 0.16, 0.43), trousers),sphere('Boot '+side, (x, -0.09, 0.08), (0.17, 0.24, 0.10), black)]
+    if illustrated:
+        leg_parts[side]=[sphere('Thigh '+side,(x,0,.67),(.13,.14,.20),trousers)]
+        shin_parts[side]=[sphere('Calf '+side,(x,0,.29),(.11,.12,.19),trousers),sphere('Boot '+side,(x,-.09,.104),(.15,.20,.10),black)]
+    else:
+        leg_parts[side]=[sphere('Trouser leg '+side,(x,0,.43),(.15,.16,.43),trousers),sphere('Boot '+side,(x,-.09,.08),(.17,.24,.10),black)]
+if illustrated:sphere('Pelvis support',(0,0,.78),(.30,.14,.08),trousers)
 sphere('Jacket pin', (0.24, -0.221, 1.28), (0.035, 0.025, 0.035), gold)
 
 rig = bpy.data.objects.new('PerformerRig', bpy.data.armatures.new('Performer bones')); scene.collection.objects.link(rig)
@@ -180,16 +185,27 @@ bpy.context.view_layer.objects.active = rig; rig.select_set(True); bpy.ops.objec
 for name, a, b in [('Head', (0, 0, 1.48), (0, 0, 2.2)), ('Arm.L', (-0.35, 0, 1.35), (-0.43, 0, 0.72)), ('Arm.R', (0.35, 0, 1.35), (0.43, 0, 0.72)), ('Leg.L',(-.17,0,.86),(-.17,0,.08)), ('Leg.R',(.17,0,.86),(.17,0,.08))]:
     bone = rig.data.edit_bones.new(name); bone.head = a; bone.tail = b
 if illustrated:
+    body=rig.data.edit_bones.new('Body');body.head=(0,0,.86);body.tail=(0,0,1.4)
+    for name in ('Head','Arm.L','Arm.R','Leg.L','Leg.R'):rig.data.edit_bones[name].parent=body
+    for side,x in [('L',-.17),('R',.17)]:
+        upper=rig.data.edit_bones['Leg.'+side];upper.tail=(x,0,.48)
+        lower=rig.data.edit_bones.new('Shin.'+side);lower.head=upper.tail;lower.tail=(x,0,.104);lower.parent=upper;lower.use_connect=True
     for side,x in [('L',-.43),('R',.43)]:
         upper=rig.data.edit_bones['Arm.'+side];upper.tail=(x,0,1.08)
         lower=rig.data.edit_bones.new('Forearm.'+side);lower.head=upper.tail;lower.tail=(x,-.01,.84);lower.parent=upper;lower.use_connect=True
 bpy.ops.object.mode_set(mode='OBJECT')
 parts_by_bone=[('Head', head_parts), ('Arm.L', arm_parts['L']), ('Arm.R', arm_parts['R']),('Leg.L',leg_parts['L']),('Leg.R',leg_parts['R'])]
-if illustrated:parts_by_bone += [('Forearm.'+side,parts) for side,parts in forearm_parts.items()]
+if illustrated:parts_by_bone += [('Forearm.'+side,parts) for side,parts in forearm_parts.items()]+[('Shin.'+side,parts) for side,parts in shin_parts.items()]
 for bone_name,parts in parts_by_bone:
     for obj in parts:
         world = obj.matrix_world.copy(); obj.parent = rig; obj.parent_type = 'BONE'; obj.parent_bone = bone_name
         bpy.context.view_layer.update(); obj.matrix_world = world
+
+if illustrated:
+    for obj in list(scene.objects):
+        if obj.type=='MESH' and obj.parent is None:
+            world=obj.matrix_world.copy();obj.parent=rig;obj.parent_type='BONE';obj.parent_bone='Body'
+            bpy.context.view_layer.update();obj.matrix_world=world
 
 # Stashed native Actions are reusable clips, not automatically playing animation.
 for name, bone_name, axis, amplitude in [('Head nod','Head',0,.25),('Look left and right','Head',2,.35),('Wave right','Arm.R',2,.7)]:

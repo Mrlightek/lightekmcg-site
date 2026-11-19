@@ -27,7 +27,7 @@ class StudioSceneTemplatesTest < StudioCharacterSceneTest
     camera=@scene.scene_objects.create!(name:"Master",object_type:"camera",definition:{location:[0,-5,1.2]})
     @scene.update!(settings:@scene.settings.merge("camera_cuts"=>[{"camera_id"=>camera.id,"frame"=>1}]))
     prop=@scene.scene_objects.create!(name:"Contact prop",object_type:"cube",definition:{location:[1,0,1]})
-    actor=@scene.scene_objects.create!(name:"Contact actor",object_type:"cube",definition:{prop_contact:{target_object_id:prop.id}})
+    actor=@scene.scene_objects.create!(name:"Contact actor",object_type:"cube",definition:{prop_contact:{target_object_id:prop.id},mechanics_plan:{target_object_id:prop.id,version:1,driver_fingerprint:"pinned-driver"}})
     template=action("template_save",project_id:@project.id,name:"My recurring show",request_key:SecureRandom.uuid)
     assert catalog[:saved_templates].any? { |row| row[:id]==template[:project_id] }
     result=launch(source:"saved",project_id:template[:project_id])
@@ -37,6 +37,8 @@ class StudioSceneTemplatesTest < StudioCharacterSceneTest
     copied_actor=copy.scene_objects.find_by!(name:"Contact actor")
     copied_prop=copy.scene_objects.find_by!(name:"Contact prop")
     assert_equal copied_prop.id,copied_actor.definition.dig("prop_contact","target_object_id")
+    assert_equal copied_prop.id,copied_actor.definition.dig("mechanics_plan","target_object_id")
+    assert_equal "pinned-driver",copied_actor.definition.dig("mechanics_plan","driver_fingerprint")
     refute_equal prop.id,copied_prop.id
     foreign=StudioProject.create!(owner:@bob,site:@other_site,name:"Foreign template",is_template:true)
     assert_raises(ActiveRecord::RecordNotFound) { launch(source:"saved",project_id:foreign.id,request_key:"foreign-launch-123") }

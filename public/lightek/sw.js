@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v117-prop-contact"
+const CACHE = "lightek-shell-v118-character-mechanics"
 
 const SHELL = [
   "/lightek/index.html",

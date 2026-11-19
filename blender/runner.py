@@ -12,6 +12,7 @@ import performance
 import relationships
 import spatial_checks
 import contacts
+import mechanics
 import rehearsal
 import motion
 import appearance
@@ -914,7 +915,7 @@ def stage_manifest(manifest):
     if settings.get('_director_rehearsal'):
         report=rehearsal.plan(objects,created,settings)
     relationships.apply(objects, created)
-    contact_data=contacts.apply(objects,created,settings)
+    contact_data=mechanics.apply(objects,created,settings)+contacts.apply(objects,created,settings)
     if report is None:
         spatial_checks.validate(objects, created, settings,contact_data)
     else:

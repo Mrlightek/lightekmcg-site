@@ -25,12 +25,13 @@ module Studio
         end
         template_key=payload.fetch("scene_template","studio").to_s
         camera_mode=payload.fetch("camera_mode","character").to_s
-        gesture=payload.fetch("gesture",(payload["contact"].present? || %w[point_left point_right].include?(payload["body_action"])) ? "still" : SceneTemplates.defaults(template_key)["gesture"]).to_s
+        gesture=payload.fetch("gesture",(payload["mechanics"].present? || payload["contact"].present? || %w[point_left point_right].include?(payload["body_action"])) ? "still" : SceneTemplates.defaults(template_key)["gesture"]).to_s
         raise ArgumentError,"Choose character coverage or template cameras" unless SceneTemplates::CAMERA_MODES.include?(camera_mode)
         raise ArgumentError,"Choose an available starter action" unless SceneTemplates::GESTURES.include?(gesture)
         staging=SceneTemplates.snapshot(access:access,source:source,key:template_key)
-        inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors,"scene_template"=>template_key,"camera_mode"=>camera_mode,"gesture"=>gesture}.merge(Acting.inputs(payload)).merge(Contact.inputs(payload))
+        inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors,"scene_template"=>template_key,"camera_mode"=>camera_mode,"gesture"=>gesture}.merge(Acting.inputs(payload)).merge(Contact.inputs(payload)).merge(Mechanics.inputs(payload))
         Contact.validate_target!(inputs,staging)
+        Mechanics.validate!(inputs,staging)
         Acting.gesture!(inputs)
         audio=nil;actor=nil
         if payload["audio_asset_id"].present?
@@ -45,6 +46,7 @@ module Studio
           profile=actor.metadata["character_profile"]
           raise ArgumentError,"Choose a registered Cast performer" unless actor.native.attached? && profile && profile["source_blob_id"]==actor.native.blob.id
           Contact.validate_profile!(inputs,profile)
+          Mechanics.validate_profile!(inputs,profile)
           inputs.merge!("cast_asset_id"=>actor.id,"cast_profile"=>profile)
         end
         operation=access.user.with_lock do
@@ -78,7 +80,7 @@ module Studio
         operation=find(access,id)
         child=operation.studio_project.studio_operations.find_by(id:operation.metadata["preview_id"])
         artifact=child&.status=="completed" && child.artifacts.find_by(kind:"video")
-        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","entrance","contact"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
+        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","entrance","contact","mechanics"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
           scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],cast_asset_ids:operation.metadata["cast_asset_ids"],duration_seconds:operation.metadata["duration_seconds"],turn_timing:operation.metadata["dialogue_timing"],preview_operation_id:child&.id,
           url:artifact && artifact.file.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}.compact
       end
@@ -175,6 +177,7 @@ module Studio
         raise Waiting,"Waiting for the character worker" unless actor.reload.status=="ready" && actor.metadata["character_profile"]
         Acting.validate!(inputs,actor.metadata.fetch("character_profile"))
         Contact.validate_profile!(inputs,actor.metadata.fetch("character_profile"))
+        Mechanics.validate_profile!(inputs,actor.metadata.fetch("character_profile"))
         phase(operation,"preparing_dialogue",{"cast_asset_id"=>actor.id})
         audio=prepare_audio(operation,access,inputs,tag,scene)
         phase(operation,"analyzing_speech")
@@ -197,12 +200,13 @@ module Studio
           expressions=Acting.expressions(inputs,actor.metadata.fetch("character_profile"),duration)
           kind=inputs.fetch("gesture");binding={"wave_right"=>"right_arm","nod"=>"head","shake"=>"head"}[kind]
           gestures=binding && actor.metadata.dig("character_profile","bones").key?(binding) ? [{"kind"=>kind,"start"=>0,"end"=>duration,"strength"=>0.45}] : []
-          Take.save(access:access,payload:{"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.reload.lock_version,"audio_asset_id"=>audio.id,"source_out"=>duration,"start"=>(inputs.fetch("entrance","none")=="none" ? 0.1 : 1.0),"lip_sync_mode"=>"phoneme","analysis_id"=>analysis[:id],"expressions"=>expressions,"gestures"=>gestures,"request_key"=>tag+"-take"})
+          Take.save(access:access,payload:{"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.reload.lock_version,"audio_asset_id"=>audio.id,"source_out"=>duration,"start"=>(inputs["mechanics"] ? 3.4 : inputs.fetch("entrance","none")=="none" ? 0.1 : 1.0),"lip_sync_mode"=>"phoneme","analysis_id"=>analysis[:id],"expressions"=>expressions,"gestures"=>gestures,"request_key"=>tag+"-take"})
         end
         take=object.reload.definition.fetch("performance")
         Acting.apply!(access:access,scene:scene,object:object,character:inputs,turns:[take],key:tag+"-acting")
         Contact.apply!(scene:scene,object:object,character:inputs)
-        seconds=[3,(take["start"]+take["duration"]+0.1).ceil,Contact.ending(inputs).ceil].max
+        Mechanics.apply!(scene:scene,object:object,character:inputs)
+        seconds=[inputs["mechanics"] ? 8 : 3,(take["start"]+take["duration"]+0.1).ceil,Contact.ending(inputs).ceil].max
         scene.with_lock { scene.update!(settings:scene.settings.merge("frame_end"=>seconds*12)) } unless scene.reload.settings["frame_end"]==seconds*12
         phase(operation,"directing_cameras")
         unless scene.reload.settings["character_scene_cameras"]
@@ -216,7 +220,7 @@ module Studio
               location=object.definition.fetch("location",[0,0,0])
               wide=scene.scene_objects.create!(name:"Character wide",object_type:"camera",definition:{"location"=>[location[0],location[1]-5,location[2]+1.2],"look_at"=>[location[0],location[1],location[2]+1.2],"camera_type"=>"ORTHO","sensor_fit"=>"HORIZONTAL","ortho_scale"=>5.2})
               close=scene.scene_objects.create!(name:"Character close",object_type:"camera",definition:{"location"=>[location[0],location[1]-5,location[2]+(inputs["contact"] ? 1.55 : 1.85)],"look_at"=>[location[0],location[1],location[2]+(inputs["contact"] ? 1.55 : 1.85)],"camera_type"=>"ORTHO","sensor_fit"=>"HORIZONTAL","ortho_scale"=>(inputs["contact"] ? 3.6 : 2.5)})
-              settings={"camera_cuts"=>[{"camera_id"=>wide.id,"frame"=>1},{"camera_id"=>close.id,"frame"=>19}],"active_camera_object_id"=>wide.id}
+              settings={"camera_cuts"=>(inputs["mechanics"] ? [{"camera_id"=>wide.id,"frame"=>1}] : [{"camera_id"=>wide.id,"frame"=>1},{"camera_id"=>close.id,"frame"=>19}]),"active_camera_object_id"=>wide.id}
             end
             scene.update!(settings:scene.settings.merge(settings).merge("character_scene_cameras"=>true,"native_revision"=>scene.settings.fetch("native_revision",0)+1))
           end

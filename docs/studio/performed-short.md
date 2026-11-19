@@ -70,6 +70,13 @@ The native CI preserves the MP4 and `.blend` proof. Production acceptance still 
 `studio_dialogue_scene_checks.rb` adds request/source isolation and a real three-turn render with two Cast identities, separate audible voices, alternating cameras, phoneme cues, listener reactions and retry reuse. The saved Blender source is reopened to inspect its editable animation and packed recordings. `studio_dialogue_scene_test.cjs` covers both PWA and Dashboard submission, recovery, retry, preview and export quote. Audio mixdown supports both Ubuntu Blender 4.0 settings and newer operator arguments.
 
 
+
+## Use a Blender character and its saved animations
+
+Import a packed, standalone .blend through **Media Library**. In Performed Short, expand **Bring in a Blender character**, choose a source scene, and bind its jaw-open shape key. Map extra face or gesture controls where available. Save the character to Cast, then choose it as a reusable performer.
+
+Choose **Saved Blender action** to place an action from that character’s rig into its speaking turns. Studio retimes or trims the action to fit each turn. Use the prop presets separately when an action needs calibrated hand contact.
+
 ## Build Cast from a portrait
 
 Import a tightly cropped, front-facing image in **Media Library**. In Performed Short, choose a new illustrated performer and select its **Portrait mask**. For dialogue, choose a portrait for each new performer independently. Use a ready JPEG, PNG or WebP up to 10 MB. The image travels with the new Cast asset and the face keeps its editable mouth, eye and brow controls. The illustrated treatment works best with centered artwork whose features align with the base face. Reuse the resulting Cast in later shots to keep its appearance and rig.

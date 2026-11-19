@@ -43,7 +43,7 @@ module Studio
         end
         template_key=payload.fetch("scene_template","studio").to_s
         camera_mode=payload.fetch("camera_mode","character").to_s
-        gesture=payload.fetch("gesture",(payload["mechanics"].present? || payload["contact"].present? || %w[point_left point_right].include?(payload["body_action"])) ? "still" : SceneTemplates.defaults(template_key)["gesture"]).to_s
+        gesture=payload.fetch("gesture",(payload["mechanics"].present? || payload["contact"].present? || payload["motion_action_id"].present? || %w[point_left point_right].include?(payload["body_action"])) ? "still" : SceneTemplates.defaults(template_key)["gesture"]).to_s
         raise ArgumentError,"Choose character coverage or template cameras" unless SceneTemplates::CAMERA_MODES.include?(camera_mode)
         raise ArgumentError,"Choose an available starter action" unless SceneTemplates::GESTURES.include?(gesture)
         staging=SceneTemplates.snapshot(access:access,source:source,key:template_key)
@@ -70,6 +70,7 @@ module Studio
           actor=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"blend",status:"ready").find(payload["cast_asset_id"])
           profile=actor.metadata["character_profile"]
           raise ArgumentError,"Choose a registered Cast performer" unless actor.native.attached? && profile && profile["source_blob_id"]==actor.native.blob.id
+          Acting.saved_motion(profile,inputs["motion_action_id"]) if inputs["motion_action_id"]
           Contact.validate_profile!(inputs,profile)
           Mechanics.validate_profile!(inputs,profile)
           Attention.validate_profile!(inputs,profile)
@@ -107,7 +108,7 @@ module Studio
         operation=find(access,id)
         child=operation.studio_project.studio_operations.find_by(id:operation.metadata["preview_id"])
         artifact=child&.status=="completed" && child.artifacts.find_by(kind:"video")
-        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("portrait_asset_id","shot_name","name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","entrance","contact","mechanics","attention"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
+        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("portrait_asset_id","shot_name","name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","motion_action_id","entrance","contact","mechanics","attention"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
           scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],cast_asset_ids:operation.metadata["cast_asset_ids"],duration_seconds:operation.metadata["duration_seconds"],turn_timing:operation.metadata["dialogue_timing"],preview_operation_id:child&.id,
           url:artifact && artifact.file.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}.compact
       end

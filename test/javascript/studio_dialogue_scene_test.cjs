@@ -1,12 +1,15 @@
 const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const {JSDOM}=require('jsdom');
 async function check(dashboard,restore=false,handoff=false){
  const dom=new JSDOM(dashboard?'<div data-unified-studio data-site-id="2" data-scene-id="7" data-workspace="create"></div>':'<div id="app"></div>',{url:'https://studio.example/#/studio/7/create',runScripts:'outside-only',pretendToBeVisual:true});
- const {window}=dom;let submitted,quoted,retried=0,attempt=restore?1:0;
+ const {window}=dom;let submitted,registration,quoted,retried=0,attempt=restore?1:0;
  const inputs={mode:'dialogue',scene_template:handoff?'counter_handoff':'studio',characters:[{name:'Sentinel',voice:'en-us',portrait_asset_id:31,colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'}},{name:'Beacon',voice:'en-gb',colors:{skin:'#b57955',wardrobe:'#945228',hair:'#211916'}}],turns:[{speaker:0,dialogue:'Stay alert.'},{speaker:1,dialogue:'I am ready.'}]};
  window.nevaeh={execute:async({capability,payload})=>{
   let result;switch(capability.replace(/^studio\.(pwa|workspace)\./,'')){
    case 'bootstrap':result={projects:[{id:3,name:'Production',unassigned_scenes:[{id:7,name:'Pilot',settings:{},lock_version:1}]}]};break;
-   case 'assets.list':result={assets:[{id:31,name:'Sentinel portrait',kind:'image',status:'ready'},{id:32,name:'Beacon portrait',kind:'image',status:'ready'}]};break;
+   case 'assets.list':result={assets:[{id:31,name:'Sentinel portrait',kind:'image',status:'ready'},{id:32,name:'Beacon portrait',kind:'image',status:'ready'},
+    {id:61,name:'Prepared character',kind:'blend',status:'ready',native_url:'/character.blend',metadata:{scenes:[{name:'Rig stage',objects:[{name:'Face',definition:{shape_keys:[{name:'Basis'},{name:'Open'}]}},{name:'Armature',definition:{bones:[{name:'Head'}]}}]}]}},
+    ...(registration?[{id:71,name:'Imported performer',kind:'blend',status:'ready',metadata:{character_profile:{bindings:{jaw_open:{}},motions:[{id:'point-right',name:'Point right'}]}}}]:[])]};break;
+   case 'cast.register':registration=payload;result={asset_id:71,name:payload.name};break;
    case 'ai.jobs':result=[];break;
    case 'operations.list':result={operations:[],publications:[]};break;
    case 'workflow.status':result={ready:true,assets:[]};break;
@@ -31,6 +34,16 @@ async function check(dashboard,restore=false,handoff=false){
   if(!restore){await until(()=>button('Two-character dialogue')&&!button('Two-character dialogue').disabled);button('Two-character dialogue').click();}
   await until(()=>button('Prepare dialogue scene')&&!button('Prepare dialogue scene').disabled);
   assert.equal(field('Character 2 stock voice').value,'en-gb');
+  if(!handoff){
+   set(field('Blender character file'),'61');await until(()=>field('Blender source scene')?.value==='Rig stage');
+   const jaw=window.document.querySelector('[aria-label="Face: Jaw open"]');
+   set(jaw,'1');await until(()=>!button('Save to Cast').disabled);
+   button('Save to Cast').click();
+   await until(()=>registration);
+   assert.deepEqual({...registration.profile.bindings.jaw_open},{object:'Face',key:'Open'});
+   assert.equal(registration.asset_id,61);
+   await until(()=>window.document.body.textContent.includes('Prepared character is ready'));
+  }
   if(restore)assert.equal(field('Character 1 portrait mask').value,'31');
   if(!restore){
    if(handoff){
@@ -57,12 +70,14 @@ async function check(dashboard,restore=false,handoff=false){
   assert.equal(field('Character 2 performer').value,'72');
   assert.equal(field('Character 1 hairstyle'),undefined);
   assert.equal(field('Character 1 portrait mask'),undefined);
+  if(!handoff)set(field('Character 1 saved Blender action'),'point-right');
   set(field('Turn 1 line'),'Wait for me.');
   submitted=null;button('Prepare dialogue scene').click();
   await until(()=>submitted);
   assert.deepEqual(Array.from(submitted.characters,row=>row.cast_asset_id),[71,72]);
   assert(submitted.characters.every(row=>!row.portrait_asset_id));
   assert.equal(submitted.turns[0].dialogue,'Wait for me.');
+  if(!handoff)assert.equal(submitted.characters[0].motion_action_id,'point-right');
   console.log((dashboard?'Dashboard':'PWA')+': '+(restore?'reload recovery':'three-turn submission')+', failure/retry, preview, editable link and existing quote passed');
  }finally{window.LightekUnifiedStudio?.leave();window.close();}
 }

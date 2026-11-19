@@ -61,3 +61,6 @@ Relationships are restricted to objects in the same scene. Relative parenting cy
 The Blender renderer checks every integer frame, up to 2400 frames per scene. It checks directed character spacing and evaluated mesh intersections against other characters and scene geometry, including an enclosing solid prop. It allows level floor contact while checking penetration beneath a floor. It does **not** add a rigid-body solver, automatic obstacle avoidance, or continuous subframe collision detection. It detects and stops invalid blocking for correction. Mesh topology and costumes can require manual review; intended intersections can be managed through explicit scene collision settings.
 
 Spatial rules operate on saved 3D characters, sets, positions and cameras. They do not randomize faces, move actors to a new layout during rendering, or treat a blurred flat background as a rebuilt 3D environment.
+
+
+The separate [Physical finger grasp study](../../studio/performed-short.md#cpu-contact-physics-physical-finger-grasp-v1) now adds a CPU contact solver for an articulated hand and a free sphere. Its character body still uses calibrated IK. This does not turn the general story blocking validator into whole-body dynamics or arbitrary grasping.

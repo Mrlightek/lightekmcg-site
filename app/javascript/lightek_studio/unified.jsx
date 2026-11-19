@@ -10,7 +10,7 @@ const workspaces = [
   ['create',Sparkles,'AI Studio Create'],['timeline',Film,'Timeline & Edit'],
   ['library',FolderOpen,'Media Library'],['publish',Share2,'Social & Publish']
 ];
-const aliases={ai:'create',workflows:'create',stage:'create',edit:'timeline',color:'timeline',assets:'library',media:'library',deliver:'publish',cast:'create'};
+const aliases={performed:'create',ai:'create',workflows:'create',stage:'create',edit:'timeline',color:'timeline',assets:'library',media:'library',deliver:'publish',cast:'create'};
 const tabFor=input=>workspaces.some(([name])=>name===input)?input:aliases[input]||'timeline';
 function readTimeline(value) {
   return {
@@ -84,7 +84,7 @@ function Library({assets, selected, onSelect, upload, add, busy, next, more, ret
       <h2>Renders</h2>
       <div className="ls-assets">{renders.map(item=><article className="ls-card" key={item.id}>
         <button onClick={()=>openRender(item.id)} disabled={busy}>
-          <strong>{item.output?.fit==='cover'?'9:16 clip':item.type==='build_scene'?'3D movie':'Timeline export'}</strong>
+          <strong>{item.output?.fit==='cover'?'9:16 clip':item.layered_scene?'2D scene':item.type==='build_scene'?'3D movie':'Timeline export'}</strong>
           <small>{item.cpu_resumable?'Recoverable':progressLabel(item.status)}</small>
         </button>
       </article>)}</div>
@@ -92,7 +92,7 @@ function Library({assets, selected, onSelect, upload, add, busy, next, more, ret
   </div>;
 }
 
-function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home,updateScene,openCampaign}) {
+function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home,updateScene,openCampaign,openTemplateScene}) {
   const {project,scene}=record;
   const [tab,setTab]=useState(tabFor(initialTab));
   const [saved,setSaved]=useState(()=>readTimeline(scene.settings?.timeline));
@@ -115,6 +115,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
   const [referenceAssets,setReferenceAssets]=useState([]);
   const [publishLoaded,setPublishLoaded]=useState(tab==='publish');
   const [createLoaded,setCreateLoaded]=useState(tab==='create');
+  const [creationMode,setCreationMode]=useState(initialTab==='performed'?'performed':'workflow');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
@@ -149,7 +150,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
     return()=>clearInterval(timer);
   },[working,tab,refresh]);
   useEffect(()=>{
-    if(tab!=='create')return;
+    if(tab!=='create'||['workflow','movie','performed'].includes(creationMode))return;
     let active=true;
     const load=async()=>{
       try {
@@ -165,7 +166,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
     load();
     const timer=setInterval(load,20000);
     return()=>{active=false;clearInterval(timer);};
-  },[api,scene.id,tab,inventoryAttempt]);
+  },[api,scene.id,tab,creationMode,inventoryAttempt]);
   const clipIds=timeline.clips.map(clip=>clip.asset_id).join(',');
   useEffect(()=>{
     if(!clipIds)return;
@@ -266,7 +267,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
       <div className="ls-content">
         {error&&<p className="ls-error" role="alert">{error}</p>}
         {(message||waiting)&&<p className="ls-notice" role="status">{message || 'Preparing your media for the timeline.'}</p>}
-        {createLoaded&&<div hidden={tab!=='create'}><Creation {...{api,project,scene:{...scene,lock_version:revision},assets,referenceAssets,inventory,inventoryError,retryInventory:()=>{setInventoryError(false);setInventoryAttempt(attempt=>attempt+1);},jobs,operations:ops.operations,selected,onSelect:setSelected,add:id=>run(()=>add(id)),refresh,timeline,go,run,busy,operationId,setOperationId,onRevision:lock_version=>{setRevision(lock_version);updateScene(scene.id,{lock_version});}}}/></div>}
+        {createLoaded&&<div hidden={tab!=='create'}><Creation {...{api,project,initialMode:initialTab==='performed'?'performed':'workflow',openTemplateScene,scene:{...scene,lock_version:revision},assets,referenceAssets,inventory,inventoryError,onMode:setCreationMode,onCompositionSaved:({composition,lock_version})=>{setRevision(lock_version);updateScene(scene.id,{lock_version,settings:{...scene.settings,composition_2d:composition}});},retryInventory:()=>{setInventoryError(false);setInventoryAttempt(attempt=>attempt+1);},jobs,operations:ops.operations,selected,onSelect:setSelected,add:id=>run(()=>add(id)),refresh,timeline,go,run,busy,operationId,setOperationId,onRevision:lock_version=>{setRevision(lock_version);updateScene(scene.id,{lock_version});}}}/></div>}
         {tab==='timeline'&&<Timeline {...{timeline,update:setTimeline,assets,save:()=>run(()=>save()),busy,dirty,selected,onSelect:setSelected,go,advanced:api.advanced(scene.id)}}/>}
         {tab==='library'&&<Library {...{assets,selected,onSelect:setSelected,busy,next,upload:file=>run(()=>upload(file)),add:id=>run(()=>add(id)),
           renders:ops.operations.filter(item=>item.scene_id===scene.id&&!item.draft_preview&&['build_scene','edit_media'].includes(item.type)),
@@ -301,6 +302,11 @@ export default function LightekUnifiedStudio({api,route,home}) {
     if(!records.some(item=>item.scene.id===id))return;
     setProjects(records);selectScene(id,'publish');
   }
+  async function openTemplateScene(id){
+    const result=await api.call('bootstrap');const records=sceneRecords(result.projects);
+    if(!records.some(item=>item.scene.id===id))throw Error('The prepared template scene is unavailable. Refresh Studio.');
+    setProjects(records);selectScene(id,'performed');
+  }
   function selectScene(id,tab){
     setSelected(id);setInitialTab(tab);changeRoute(id,tab);
   }
@@ -319,7 +325,7 @@ export default function LightekUnifiedStudio({api,route,home}) {
   function updateScene(id,changes){
     setProjects(items=>items.map(item=>item.scene.id===id?{...item,scene:{...item.scene,...changes}}:item));
   }
-  if(record)return <Workspace key={record.scene.id} {...{api,record,projects,selectScene,home,initialTab,updateScene,openCampaign,
+  if(record)return <Workspace key={record.scene.id} {...{api,record,projects,selectScene,home,initialTab,updateScene,openCampaign,openTemplateScene,
     initialAsset:record.scene.id===route.scene?Number(new URLSearchParams(location.search).get('edit_asset'))||null:null}}/>;
   return <main className="ls-projects"><a href={home}>Exit Studio</a><h1>Lightek Studio</h1>
     {error&&<p role="alert" className="ls-error">{error}</p>}

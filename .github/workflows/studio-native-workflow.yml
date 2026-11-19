@@ -1,0 +1,225 @@
+name: Studio native 2D workflow
+on:
+  pull_request:
+    paths:
+      - 'app/services/studio/**'
+      - 'app/services/nevaeh_os/specialist_context.rb'
+      - 'app/services/nevaeh_os/task_builder.rb'
+      - 'app/javascript/lightek_studio/**'
+      - 'app/jobs/execute_studio_operation_job.rb'
+      - 'app/models/studio_operation.rb'
+      - 'lib/scripts/studio_layered_renderer.py'
+      - 'lib/scripts/studio_layered_blender.py'
+      - 'public/lightek/assets2d/**'
+      - 'public/lightek/studio-unified.*'
+      - 'test/standalone/studio_native_workflow_checks.rb'
+      - 'test/standalone/studio_character_scene_checks.rb'
+      - 'test/standalone/studio_scene_templates_checks.rb'
+      - 'test/standalone/studio_dialogue_scene_checks.rb'
+      - 'test/javascript/studio_dialogue_scene_test.cjs'
+      - 'blender/performance.py'
+      - 'blender/contacts.py'
+      - 'blender/mechanics.py'
+      - 'blender/physics/**'
+      - 'blender/profiles/**'
+      - 'test/standalone/studio_verified_grasp_checks.rb'
+      - 'test/javascript/studio_verified_grasp_test.cjs'
+      - 'docker/studio-media/physics-requirements.txt'
+      - 'test/operations/studio_physics_test.py'
+      - 'test/operations/studio_grasp_acting_test.py'
+      - 'test/standalone/studio_grasp_checks.rb'
+      - 'test/standalone/studio_grasp_facing_checks.rb'
+      - 'test/standalone/studio_grasp_acting_checks.rb'
+      - 'test/javascript/studio_grasp_test.cjs'
+      - 'test/javascript/studio_grasp_acting_test.cjs'
+      - 'blender/bench_v1.py'
+      - 'blender/*_v*.py'
+      - 'blender/create_side_views.py'
+      - 'app/jobs/studio_character_create_job.rb'
+      - 'test/standalone/studio_directional_checks.rb'
+      - 'test/standalone/studio_carry_checks.rb'
+      - 'test/standalone/studio_attention_checks.rb'
+      - 'test/javascript/studio_carry_test.cjs'
+      - 'test/javascript/studio_attention_test.cjs'
+      - 'blender/kinematics_v1.py'
+      - 'test/standalone/studio_mechanics_checks.rb'
+      - 'test/javascript/studio_mechanics_test.cjs'
+      - 'blender/spatial_checks.py'
+      - 'test/standalone/studio_contact_checks.rb'
+      - 'test/javascript/studio_contact_test.cjs'
+      - 'test/standalone/studio_acting_checks.rb'
+      - 'test/javascript/studio_acting_test.cjs'
+      - 'test/operations/studio_performance_audio_test.py'
+      - 'test/javascript/studio_scene_templates_test.cjs'
+      - 'test/javascript/studio_character_scene_test.cjs'
+      - 'blender/create_performer.py'
+      - 'blender/runner.py'
+      - 'app/jobs/studio_character_scene_job.rb'
+      - 'app/jobs/studio_sequence_preview_job.rb'
+      - 'test/standalone/studio_sequence_checks.rb'
+      - 'test/javascript/studio_sequence_test.cjs'
+      - 'test/javascript/studio_native_workflow_test.cjs'
+      - 'test/operations/studio_layered_renderer_test.py'
+      - '.github/workflows/studio-native-workflow.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-2d:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      LIGHTEK_TEST_BLENDER: '1'
+      LIGHTEK_TEST_CHARACTER_SCENE: '1'
+      STUDIO_ACTING_PROOF_VIDEO: /tmp/lightek-acting-study.mp4
+      STUDIO_ACTING_DIALOGUE_PROOF_VIDEO: /tmp/lightek-acting-dialogue.mp4
+      STUDIO_SEQUENCE_PROOF_VIDEO: /tmp/lightek-sequence-review.mp4
+      STUDIO_SEQUENCE_PROOF_SOURCES: '["/tmp/lightek-character-scene.mp4","/tmp/lightek-dialogue-scene.mp4"]'
+      STUDIO_DIALOGUE_PROOF_VIDEO: /tmp/lightek-dialogue-scene.mp4
+      STUDIO_DIALOGUE_PROOF_BLEND: /tmp/lightek-dialogue-scene.blend
+      STUDIO_TEMPLATE_PROOF_VIDEO: /tmp/lightek-template-scene.mp4
+      STUDIO_CHARACTER_PROOF_VIDEO: /tmp/lightek-character-scene.mp4
+      STUDIO_CHARACTER_PROOF_BLEND: /tmp/lightek-character-scene.blend
+      STUDIO_NATIVE_PROOF_BLEND: /tmp/lightek-park.blend
+      BUNDLE_GEMFILE: test/standalone/Gemfile
+      STUDIO_NATIVE_PROOF_VIDEO: /tmp/lightek-native-2d.mp4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.6'
+          bundler-cache: true
+      - name: Install native media tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg imagemagick blender espeak-ng python3-venv
+          mkdir -p "$RUNNER_TEMP/rhubarb"
+          curl --fail --location --retry 2 https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -o "$RUNNER_TEMP/rhubarb.zip"
+          echo "a9a9074862cff47b2d59b8bf399a678a3b0b74f9452ad6ad94cb292913dd8667  $RUNNER_TEMP/rhubarb.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/rhubarb.zip" -d "$RUNNER_TEMP/rhubarb"
+          chmod 755 "$RUNNER_TEMP/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb"
+          echo "LIGHTEK_RHUBARB=$RUNNER_TEMP/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb" >> "$GITHUB_ENV"
+      - name: Install and verify CPU contact dynamics
+        run: |
+          python3 -m venv "$RUNNER_TEMP/studio-physics"
+          "$RUNNER_TEMP/studio-physics/bin/pip" install -r docker/studio-media/physics-requirements.txt
+          echo "STUDIO_PHYSICS_PYTHON=$RUNNER_TEMP/studio-physics/bin/python" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/studio-physics/bin/python" test/operations/studio_physics_test.py
+          "$RUNNER_TEMP/studio-physics/bin/python" test/operations/studio_grasp_acting_test.py
+      - name: Verify articulated grasp through the real character preview path
+        env:
+          STUDIO_GRASP_PROOF_VIDEO: /tmp/lightek-grasp.mp4
+          STUDIO_GRASP_PROOF_BLEND: /tmp/lightek-grasp.blend
+        run: bundle exec ruby test/standalone/studio_grasp_checks.rb --name '/StudioGraspTest/'
+      - name: Verify table-facing reach and object attention
+        env:
+          STUDIO_GRASP_PROOF_VIDEO: /tmp/lightek-facing-grasp.mp4
+          STUDIO_GRASP_PROOF_BLEND: /tmp/lightek-facing-grasp.blend
+        run: bundle exec ruby test/standalone/studio_grasp_facing_checks.rb --name '/StudioGraspFacingTest/'
+      - name: Verify directed grasp acting, gaze lead and living holds
+        env:
+          STUDIO_GRASP_PROOF_VIDEO: /tmp/lightek-directed-grasp.mp4
+          STUDIO_GRASP_PROOF_BLEND: /tmp/lightek-directed-grasp.blend
+        run: bundle exec ruby test/standalone/studio_grasp_acting_checks.rb --name '/StudioGraspActingTest/'
+      - name: Verify calibrated pickup and reusable weighted hand
+        env:
+          STUDIO_VERIFIED_PROOF_VIDEO: /tmp/lightek-verified-pickup.mp4
+          STUDIO_VERIFIED_PROOF_BLEND: /tmp/lightek-verified-pickup.blend
+        run: bundle exec ruby test/standalone/studio_verified_grasp_checks.rb --name '/StudioVerifiedGraspTest/'
+      - name: Verify isolated workflow and real native video
+        run: bundle exec ruby test/standalone/studio_native_workflow_checks.rb --name '/StudioNativeWorkflowTest/'
+      - name: Verify a real illustrated character scene with speech
+        run: bundle exec ruby test/standalone/studio_character_scene_checks.rb --name '/StudioCharacterSceneTest/'
+      - name: Verify templates reach real performed scenes
+        run: bundle exec ruby test/standalone/studio_scene_templates_checks.rb --name '/StudioSceneTemplatesTest/'
+      - name: Verify two-character dialogue, reactions and repeated speaking turns
+        run: bundle exec ruby test/standalone/studio_dialogue_scene_checks.rb --name '/StudioDialogueSceneTest/'
+      - name: Verify editable step-in entrances, pointing and facial cues
+        run: bundle exec ruby test/standalone/studio_acting_checks.rb --name '/StudioActingTest/'
+      - name: Verify coordinated walking, sitting and support contacts
+        env:
+          STUDIO_MECHANICS_PROOF_VIDEO: /tmp/lightek-mechanics.mp4
+          STUDIO_MECHANICS_PROOF_BLEND: /tmp/lightek-mechanics.blend
+        run: bundle exec ruby test/standalone/studio_mechanics_checks.rb --name '/StudioMechanicsTest/'
+      - name: Verify side-facing walking and turning before sitting
+        env:
+          STUDIO_MECHANICS_PROOF_VIDEO: /tmp/lightek-directional.mp4
+          STUDIO_MECHANICS_PROOF_BLEND: /tmp/lightek-directional.blend
+        run: bundle exec ruby test/standalone/studio_directional_checks.rb --name '/StudioDirectionalTest/'
+      - name: Verify rigid grip, carried-prop collisions and supported release
+        env:
+          STUDIO_CARRY_PROOF_VIDEO: /tmp/lightek-carry.mp4
+          STUDIO_CARRY_PROOF_BLEND: /tmp/lightek-carry.blend
+        run: bundle exec ruby test/standalone/studio_carry_checks.rb --name '/StudioCarryTest/'
+      - name: Verify head focal points, active-camera address and local surface frames
+        env:
+          STUDIO_ATTENTION_PROOF_VIDEO: /tmp/lightek-attention.mp4
+          STUDIO_PARTNER_PROOF_VIDEO: /tmp/lightek-partner-attention.mp4
+        run: bundle exec ruby test/standalone/studio_attention_checks.rb --name '/StudioAttentionTest/'
+      - name: Verify hand contact, button response and rejection cases
+        env:
+          STUDIO_CONTACT_DIALOGUE_PROOF_VIDEO: /tmp/lightek-contact-dialogue.mp4
+          STUDIO_CONTACT_PROOF_VIDEO: /tmp/lightek-contact.mp4
+        run: bundle exec ruby test/standalone/studio_contact_checks.rb --name '/StudioContactTest/'
+      - name: Verify sequence cuts and full-source timeline handoff
+        run: bundle exec ruby test/standalone/studio_sequence_checks.rb --name '/StudioSequenceTest/'
+      - name: Measure parallax in exported pixels
+        run: |
+          python3 test/operations/studio_layered_renderer_test.py
+          python3 test/operations/studio_performance_audio_test.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify PWA and Dashboard controls without Genesis
+        run: |
+          npm ci --prefix vendor/studio-editors --ignore-scripts --no-audit --no-fund
+          node script/studio/build_unified_studio.mjs
+          git diff --exit-code -- public/lightek/studio-unified.js
+          npm install --prefix "$RUNNER_TEMP/studio-native" jsdom@26.1.0
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_native_workflow_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_genesis_connection_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_character_scene_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_scene_templates_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_dialogue_scene_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_sequence_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_acting_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_contact_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_mechanics_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_carry_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_grasp_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_grasp_acting_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_verified_grasp_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_attention_test.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-2d-parallax-proof
+          path: |
+            /tmp/lightek-native-2d.mp4
+            /tmp/lightek-park.blend
+            /tmp/lightek-directional.mp4
+            /tmp/lightek-directional.blend
+            /tmp/lightek-verified-pickup.mp4
+            /tmp/lightek-verified-pickup.blend
+            /tmp/lightek-directed-grasp.mp4
+            /tmp/lightek-directed-grasp.blend
+            /tmp/lightek-facing-grasp.mp4
+            /tmp/lightek-facing-grasp.blend
+            /tmp/lightek-grasp.mp4
+            /tmp/lightek-grasp.blend
+            /tmp/lightek-carry.mp4
+            /tmp/lightek-carry.blend
+            /tmp/lightek-attention.mp4
+            /tmp/lightek-partner-attention.mp4
+            /tmp/lightek-mechanics.mp4
+            /tmp/lightek-mechanics.blend
+            /tmp/lightek-contact.mp4
+            /tmp/lightek-contact-dialogue.mp4
+            /tmp/lightek-character-scene.mp4
+            /tmp/lightek-character-scene.blend
+            /tmp/lightek-template-scene.mp4
+            /tmp/lightek-dialogue-scene.mp4
+            /tmp/lightek-dialogue-scene.blend
+            /tmp/lightek-sequence-review.mp4
+            /tmp/lightek-acting-study.mp4
+            /tmp/lightek-acting-dialogue.mp4
+          if-no-files-found: error

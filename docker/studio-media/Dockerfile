@@ -1,3 +1,9 @@
+FROM ubuntu:24.04 AS physics
+RUN apt-get update && apt-get install -y --no-install-recommends python3-venv ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY physics-requirements.txt /opt/lightek-physics/requirements.txt
+RUN python3 -m venv /opt/lightek-physics/venv \
+ && /opt/lightek-physics/venv/bin/pip install --no-cache-dir -r /opt/lightek-physics/requirements.txt
+
 FROM ubuntu:24.04 AS voice
 RUN apt-get update && apt-get install -y --no-install-recommends python3-venv espeak-ng libgomp1 ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY voice/requirements.txt /opt/lightek-voice/requirements.txt
@@ -21,6 +27,7 @@ RUN curl --fail --location --retry 2 https://github.com/DanielSWolf/rhubarb-lip-
 
 FROM ubuntu:24.04
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-numpy libx11-6 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6 libgl1 libegl1 libxext6 libtbb12 libgomp1 libfreetype6 libpulse0 libxrandr2 libxcursor1 libxinerama1 libdbus-1-3 ffmpeg imagemagick espeak-ng fonts-dejavu-core ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=physics /opt/lightek-physics /opt/lightek-physics
 COPY --from=blender /opt/blender /opt/blender
 COPY --from=blender /opt/rhubarb /opt/rhubarb
 RUN ln -s /opt/blender/blender /usr/local/bin/blender

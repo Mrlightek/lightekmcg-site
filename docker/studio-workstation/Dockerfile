@@ -1,3 +1,9 @@
+FROM ubuntu:24.04 AS physics
+RUN apt-get update && apt-get install -y --no-install-recommends python3-venv ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY physics-requirements.txt /opt/lightek-physics/requirements.txt
+RUN python3 -m venv /opt/lightek-physics/venv \
+ && /opt/lightek-physics/venv/bin/pip install --no-cache-dir -r /opt/lightek-physics/requirements.txt
+
 FROM ubuntu:24.04 AS blender
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils && rm -rf /var/lib/apt/lists/*
 RUN curl --fail --location --retry 2 https://download.blender.org/release/Blender4.5/blender-4.5.16-linux-x64.tar.xz -o /tmp/blender.tar.xz \
@@ -8,6 +14,7 @@ FROM ubuntu:24.04
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-numpy libx11-6 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6 libgl1 libegl1 libxext6 libtbb12 libgomp1 libfreetype6 libpulse0 libxrandr2 libxcursor1 libxinerama1 libdbus-1-3 ffmpeg xvfb openbox x11vnc novnc websockify xdotool ca-certificates fonts-dejavu-core libgl1-mesa-dri libegl-mesa0 libglx-mesa0 tini && rm -rf /var/lib/apt/lists/*
 COPY start.sh /usr/local/bin/lightek-workstation
 COPY socket_proxy.py /usr/local/bin/lightek-desktop-socket.py
+COPY --from=physics /opt/lightek-physics /opt/lightek-physics
 COPY --from=blender /opt/blender /opt/blender
 RUN ln -s /opt/blender/blender /usr/local/bin/blender
 ENV HOME=/tmp DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 PYTHONDONTWRITEBYTECODE=1

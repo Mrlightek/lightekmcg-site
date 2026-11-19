@@ -19,6 +19,11 @@ module Studio
           timeline["clips"].each_with_index do |clip,i|
             asset=assets.fetch(clip["asset_id"])
             source=asset.kind=="image" && asset.proxy.attached? ? asset.proxy : asset.file
+            if (references=@operation.manifest["sequence_source_blobs"])
+              blob_id=references.fetch(asset.id.to_s)
+              source=@operation.performance_sources.find { |attachment| attachment.blob_id==blob_id }
+              raise ArgumentError,"The frozen sequence source is unavailable" unless source
+            end
             file=File.join(root,"source-#{i}#{File.extname(source.filename.to_s)}")
             File.open(file,"wb"){|out|source.blob.download{|chunk|out.write(chunk)}}
             paths<<file

@@ -1,0 +1,20 @@
+{
+  "id": "adult_grasp_v1",
+  "version": 1,
+  "units": {"length": "m", "mass": "kg", "time": "s", "angle": "rad", "torque": "N m"},
+  "gravity_m_s2": 9.80665,
+  "body_mass_kg": 75.0,
+  "segment_mass_fractions": {"upper_arm": 0.028, "forearm": 0.016, "hand": 0.006},
+  "elbow_flexion_deg": [5.0, 145.0],
+  "finger_flexion_deg": [[0.0, 90.0], [0.0, 110.0], [0.0, 80.0]],
+  "finger_torque_limit_nm": 0.35,
+  "finger_motor_stiffness_nm_rad": 3.0,
+  "finger_motor_damping_nm_s_rad": 0.08,
+  "friction": [1.0, 0.005, 0.0001],
+  "prop_mass_kg": 0.2,
+  "prop_radius_m": 0.045,
+  "timestep_s": 0.002,
+  "duration_s": 8.0,
+  "fps": 12,
+  "penetration_tolerance_m": 0.002
+}

@@ -4,9 +4,66 @@ AI Studio connects self-hosted generation to the same production library, storyb
 
 [CPU procedural scene production](cpu-economy.md) is available through the existing native production workflow without installing diffusion models. Neural generation below is optional and requires a configured neural worker. Only infrastructure operators receive engine/model installation controls.
 
+## Performed character scenes
+
+**Performed Short** connects reusable Cast, an illustrated starter, local stock speech or recordings, phoneme analysis, a saved gesture, a camera cut and a private preview. See [workflow, limits and acceptance](performed-short.md).
+
+## Native 2D scenes and parallax
+
+Studio Create opens **2D Scene & Parallax** in Dashboard and PWA. It checks the native media runtime independently of Genesis. A missing ComfyUI connection does not disable this tool. Native video rendering does not install or invoke ComfyUI, Torch, neural weights or Blender. The optional project handoff described below uses Blender to save an editable scene.
+
+Enter **A nighttime park with a character sitting on a bench**, then generate a layout or render a preview. The bounded prompt parser supports daytime/nighttime parks, optional tree/bench counts, a seated character illustration and left/right camera movement. Omitted counts use seeded defaults (3–5 trees and 1–2 benches), with placement around the path and scene edges. Unsupported prompts return an example. This is procedural template composition, not a trained neural model or arbitrary prompt-to-video inference.
+
+Six starter illustrations provide day/night skies, ground/path, an oak tree, a bench and a seated person. These are basic reusable artwork, not a rigged character system. Prepared library images can also become layers. Edit positions, sizes, fit, opacity, rotation and depth. Nested groups carry transforms, stacking contexts and inherited depth. Scene saves use optimistic locking and preserve other scene settings.
+
+**Z-index controls drawing order. Depth independently controls camera displacement**, so foreground assets move farther. The editor preview and renderer use the same clip clock. Pause or scrub Preview position to inspect a frame; the preview repeats the clip while export plays it once.
+
+Select any asset or nested group and apply **Sway**, **Float**, **Drift left** or **Drift right**. Motion consists of 2–12 linear position keyframes, expressed as X/Y offsets in the parent's coordinates. Edit offsets and keyframe times, set a 0.25–10 second duration, and choose looping or one-shot playback. Loop endpoints stay identical. A group's motion moves all its children; child motion adds to inherited group movement. Static parent rotation and scale also transform a child's motion. Layer order and parallax depth stay independent from these tracks.
+
+Append **and a gentle breeze** to a supported park prompt to give its trees seeded sway tracks. For example: **A nighttime park with a character sitting on a bench and a gentle breeze**. Tree movement is translation of the existing illustrations, not mesh deformation or physical wind simulation.
+
+Animation tracks are saved with the composition and frozen into queued renders and full-export quotes. A two-second preview retains the full track duration and original clip timing; it does not compress a longer animation into two seconds. Changing output size scales normalized offsets with the canvas. These tracks do not rescale assets or animate their rotation/opacity. Walking cycles, speaking, rigging, physics and arbitrary character performances remain future work for this compositor.
+
+| Limit | Native compositor |
+| --- | --- |
+| Editable graph | 48 nodes, 24 image layers, four nesting levels, 64 KiB JSON; 2–12 keyframes per node, ±30% offsets |
+| Source images | Owned/site-scoped PNG/JPEG/WebP/GIF/AVIF; 25 MiB each, 64 MiB combined |
+| Private preview | At most 640 pixels on the long edge, two seconds, 12 fps |
+| Full export | Up to ten seconds, 24 fps; even dimensions, maximum 1920×1080 pixels in area |
+| Raster budget | Rotated layer edge at most 4096 pixels; total area at most six canvases |
+| Worker process | Existing media image, 512 MiB container cap, CPU slot, 180-second timeout |
+
+Library images require raster signatures. Trusted template SVG bytes and source blobs are frozen onto each operation before queuing. Later scene edits cannot change a queued render. The renderer uses fixed local filenames without networking. The deployed media image needs Python 3, FFmpeg with SVG decoding/H.264 encoding, and ImageMagick. Readiness rasterizes a tiny SVG and processes the result; it checks the local runtime, not whether a separate worker consumes its queue. Creator requests never pull a runtime image.
+
+Rendering uses `ExecuteStudioOperationJob`, existing leases/cancellation, CPU concurrency controls and shared storage. It uses the local Studio queue or configured dedicated CPU queue. The cross-installation Blender federation protocol does not accept this composition format. The 512 MiB cap is a bound, not a guarantee every scene fits or that a busy 2 GB host has sufficient headroom. Measure representative exports on the deployment host.
+
+Preview artifacts cannot enter reusable assets or publishing. **Get 2D export price** creates an immutable full-render snapshot and uses existing Dymond Bank quote/checkout, credentials and canonical signed callback. Only paid final operations execute. Completed full clips can enter the Media Library/Timeline handoff. No new payment credentials or callback are introduced.
+
+### Optional Blender project handoff
+
+Enable **Include editable Blender project with full export** before requesting the export price. The server checks Blender availability before creating that quote. After the existing full-export checkout succeeds, the same operation produces the native MP4 and a downloadable **scene.blend**. Unpaid jobs and private previews cannot create Blender projects. A failed paid export offers **Retry saved export**, reusing the immutable operation and existing payment instead of creating a new charge. The checkbox is opt-in; 2D previews and ordinary video exports keep their independent compositor path.
+
+The project contains packed RGBA textures, a separate mesh plane for every illustrated layer, a group-empty hierarchy, an orthographic camera and sampled editable position animation. Plane spacing preserves draw order. Original parallax depth, node IDs, asset keys and source-node JSON remain as custom properties; the full scene graph is retained as a non-executable JSON text block. Base transforms and inherited group/parallax movement are baked into the plane positions and per-frame animation; this is not a round-trip native rig or an automatically reconstructed full 3D scene. Groups remain available for further editing.
+
+Textures are self-contained; the project does not depend on the worker's temporary files. Blender runs without auto-execution, without network access in production, with one CPU thread, a 512 MiB container cap and a 90-second project-build timeout. No Blender render is required for the handoff. The generated project uses a CPU Cycles scene with denoising disabled for compatibility. Test representative projects on the deployed media worker; resource caps do not guarantee sufficient headroom on a busy host.
+
+Asset keys such as `tree.oak` and `character.seated` provide the future binding point for mesh/rig equivalents. Automatic mesh replacement, inferred geometry, rig conversion and high-quality 3D animation remain future work. The current result is an editable 2.5D project with flat artwork.
+
+### Capability and MCP contracts
+
+Authenticated capabilities are `workflow.status`, `workflow.plan`, `workflow.save`, `workflow.create` and `workflow.quote` under the existing Studio workspace and PWA bridge. Creation accepts a scene ID, normalized composition (or supported prompt/seed) and idempotent request key. Saving requires the scene lock version. Actor, site, project and source ownership are rechecked on execution.
+
+Optional `POST /api/lightek/pwa/studio/workflows/:id/mcp` supports MCP initialization and job-scoped `studio_render`/`studio_result`. A signed one-hour token selects one existing job; callers cannot supply commands, files or other scenes. The browser does not require MCP to render. The native queue owns execution and operation/artifact identities.
+
+### Validation and production acceptance
+
+`test/standalone/studio_native_workflow_checks.rb` exercises real Active Record/Active Storage submission, snapshots, save conflicts, tenant boundaries, idempotency, MCP scoping, unpaid rejection and native H.264 rendering. ComfyUI and Blender constructors fail the test if invoked. `test/operations/studio_layered_renderer_test.py` measures exported pixels to verify foreground movement exceeds background movement. DOM checks cover layout, layer/group motion controls, deterministic preview scrubbing, saving and rendering while rejecting Genesis status calls. Encoded-pixel tests also verify loop return positions and one-shot asset displacement with a stationary camera.
+
+After deployment, submit a preview from the actual PWA, reopen saved layers, complete an authorized final checkout, inspect the full video, add it to Timeline and verify publishing. Local fixtures do not establish a real payment, production queue consumption, host memory headroom or completed episode production. The optional Blender test saves and reopens the project, verifies packed sources, identity/group metadata and frame-dependent positions.
+
 ## Generate and edit
 
-Open a production → **AI Studio**. The application checks the selected local or managed ComfyUI worker, its nodes and installed model names. Only ready recipes can be submitted. Choose a workflow, write the prompt, optionally a negative prompt, and keep or change the seed. The concept-image recipe also offers its installed checkpoint selector.
+For optional neural tools, open a production → **AI Studio** and select Wan or Concept Art. The application checks the selected local or managed ComfyUI worker, its nodes and installed model names. Only ready recipes can be submitted. Choose a workflow, write the prompt, optionally a negative prompt, and keep or change the seed. The concept-image recipe also offers its installed checkpoint selector.
 
 | Workflow | Inputs and result |
 | --- | --- |

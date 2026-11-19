@@ -17,12 +17,46 @@ def frame_at(seconds, fps):
 def apply_sequence(root, objects, definition):
     takes=definition.get('performance_takes')
     if not takes:
-        return apply(root,objects,definition)
-    if not isinstance(takes,list) or len(takes)>32:
-        raise RuntimeError('Use at most 32 character dialogue takes')
-    base=str(definition.get('performance_instance',root.name))
-    for index,take in enumerate(takes):
-        apply(root,objects,dict(definition,performance=take,performance_instance=base+'_take_'+str(index)))
+        apply(root,objects,definition)
+    else:
+        if not isinstance(takes,list) or len(takes)>32:
+            raise RuntimeError('Use at most 32 character dialogue takes')
+        base=str(definition.get('performance_instance',root.name))
+        for index,take in enumerate(takes):
+            apply(root,objects,dict(definition,performance=take,performance_instance=base+'_take_'+str(index)))
+    apply_listener_reactions(objects, definition)
+
+
+def apply_listener_reactions(objects, definition):
+    # Reactions are silent overlays: they never create sound strips or mouth
+    # keys, and the manager only places them outside this character's speech.
+    cues=definition.get('listener_reactions',[])
+    if not isinstance(cues,list) or len(cues)>4:
+        raise RuntimeError('Use at most four listener reactions')
+    profile=definition['character_profile']
+    fps=bpy.context.scene.render.fps/bpy.context.scene.render.fps_base
+    takes=definition.get('performance_takes') or [definition.get('performance')]
+    for cue in cues:
+        start=float(cue['start']);duration=float(cue['duration']);end=start+duration
+        if cue.get('kind')!='listen' or not all(math.isfinite(v) for v in (start,duration)) or start<0 or duration<0.1 or end>8:
+            raise RuntimeError('Invalid listener reaction timing')
+        if any(take and start<take['start']+take['duration']-0.001 and end>take['start']+0.001 for take in takes):
+            raise RuntimeError('Listener reactions cannot overlap this character speech')
+        binding=profile['bindings'].get('brow_raise')
+        if binding:
+            mesh=objects[binding['object']]
+            key=mesh.data.shape_keys.key_blocks[binding['key']]
+            for t,value in ((start,0),(start+min(.12,duration/3),.32),(end-min(.12,duration/3),.32),(end,0)):
+                key.value=value
+                key.keyframe_insert(data_path='value',frame=frame_at(t,fps),group='Lightek listening')
+        binding=profile.get('bones',{}).get('head')
+        if binding:
+            rig=objects[binding['object']];bone=rig.pose.bones[binding['bone']]
+            bone.rotation_mode='XYZ'
+            for i in range(17):
+                ratio=i/16
+                bone.rotation_euler=(math.sin(ratio*math.tau)*math.sin(ratio*math.pi)*.10,0,0)
+                bone.keyframe_insert(data_path='rotation_euler',frame=frame_at(start+ratio*duration,fps),group='Lightek listening')
 
 
 def apply(root, objects, definition):
@@ -150,7 +184,19 @@ def mux_movie(path, force=False):
     # Mix the native scene, including its existing score, volume automation and
     # our packed voice strips. A character must not erase a project's soundtrack.
     mixed = os.path.splitext(path)[0] + '-mix.wav'
-    bpy.ops.sound.mixdown(filepath=mixed, check_existing=False, container='WAV', codec='PCM', format='S24', mixrate=48000, channels='STEREO')
+    # Ubuntu 24.04's Blender 4.0 reads these from render settings; newer
+    # Blender versions expose them as mixdown operator arguments.
+    options=dict(filepath=mixed, check_existing=False, container='WAV', codec='PCM', format='S24')
+    properties=bpy.ops.sound.mixdown.get_rna_type().properties
+    if 'mixrate' in properties:
+        options['mixrate']=48000
+    else:
+        scene.render.ffmpeg.audio_mixrate=48000
+    if 'channels' in properties:
+        options['channels']='STEREO'
+    else:
+        scene.render.ffmpeg.audio_channels='STEREO'
+    bpy.ops.sound.mixdown(**options)
     output = os.path.splitext(path)[0] + '-audio.mp4'
     args = ['ffmpeg', '-v', 'error', '-y', '-filter_complex_threads', '1', '-i', path,
             '-protocol_whitelist', 'file,pipe', '-i', mixed, '-map', '0:v:0', '-map', '1:a:0',

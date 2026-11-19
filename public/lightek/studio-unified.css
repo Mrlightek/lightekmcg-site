@@ -93,3 +93,5 @@
   .ls-assistant{position:static;flex:1 0 100%;width:100%;max-height:42vh;max-height:42dvh;padding:10px;box-shadow:none}
   .ls-assistant form{gap:6px}
 }
+.ls-layered{display:grid;gap:12px}.ls-layered-preview{width:100%;max-height:440px;border:1px solid var(--ls-line);border-radius:10px;background:#121820}.ls-layered .ls-fields{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}.ls-layered .ls-row{align-items:end;flex-wrap:wrap}.ls-layered label{display:grid;gap:5px}
+.ls-motion{grid-column:1/-1;display:grid;gap:10px;border-top:1px solid #ffffff20;padding-top:12px}.ls-motion details{min-width:0}.ls-motion .ls-fields{margin:10px 0}.ls-layered output{font-variant-numeric:tabular-nums}

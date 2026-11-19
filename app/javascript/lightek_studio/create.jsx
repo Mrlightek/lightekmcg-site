@@ -1,5 +1,7 @@
 import React, {useEffect,useState} from 'react';
 import {Sparkles, Film, Sliders, Play, Box, Image as ImageIcon, Video, UserCheck} from 'lucide-react';
+import {LayeredComposer} from './layered';
+import {CharacterSceneComposer} from './character_scene';
 import {progressLabel, requestKey, uploadMessage, waitFor} from './api';
 
 export function Preview({asset, url, title = 'Studio Preview Monitor'}) {
@@ -12,6 +14,7 @@ export function Preview({asset, url, title = 'Studio Preview Monitor'}) {
 }
 
 const tools = [
+  ['workflow',Film,'2D Scene & Parallax','Lightek renderer'],['performed',UserCheck,'Performed Short','Character · voice · cuts'],
   ['video',Video,'5s AI Video','Wan 2.2'],['image',ImageIcon,'Concept Art','SD 1.5'],
   ['movie',Box,'3D Procedural Movie',''],['character',UserCheck,'Character Performance & Lip-Sync','']
 ];
@@ -34,8 +37,11 @@ function MediaPicker({title,items,value,onChange,upload,accept,empty='Choose fro
   </div>;
 }
 
-export function Creation({api,project,scene,assets,referenceAssets,inventory,inventoryError,retryInventory,jobs,operations,selected,onSelect,add,refresh,timeline,go,run,busy,onRevision,operationId,setOperationId}) {
-  const [mode,setMode]=useState('video');
+export function Creation({api,project,scene,assets,referenceAssets,inventory,inventoryError,retryInventory,jobs,operations,selected,onSelect,add,refresh,timeline,go,run,busy,onRevision,onCompositionSaved,onMode,openTemplateScene,initialMode,operationId,setOperationId}) {
+  const [mode,setMode]=useState(initialMode||'workflow');
+  const [composition,setComposition]=useState(()=>scene.settings?.composition_2d||null);
+  const [nativeReady,setNativeReady]=useState(false);
+  const [blenderHandoff,setBlenderHandoff]=useState(false);
   const [prompt,setPrompt]=useState('');
   const [seed,setSeed]=useState('-1');
   const [steps,setSteps]=useState('');
@@ -93,7 +99,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
     run(async()=>{
       setError('');
       try {await action();}
-      catch(cause){if(cause.name!=='AbortError'){setError(cause.data?.suggestion?cause.message:message(cause));setFailure({error:cause.message,suggestion:cause.data?.suggestion,receipt:cause.workItemId || cause.data?.work_item_id});}}
+      catch(cause){if(cause.name!=='AbortError'){setError(cause.data?.suggestion||(mode==='workflow'?cause.message:message(cause)));setFailure({error:cause.message,suggestion:cause.data?.suggestion,receipt:cause.workItemId || cause.data?.work_item_id});}}
     });
   }
   function upload(setter,file) {
@@ -104,7 +110,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
     },uploadMessage);
   }
   function chooseMode(id){
-    change(setMode,id);setOperationId(null);setRigPreview('');
+    change(setMode,id);onMode?.(id);setOperationId(null);setRigPreview('');
   }
   function movieInputs(){
     const {scene_preset,...procedural_script_params}=movie;
@@ -118,7 +124,12 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
   async function generate() {
     let receipt;
     const recordReceipt=value=>{receipt=value;};
-    if(mode==='movie'){
+    if(mode==='workflow'){
+      let graph=composition;
+      if(!graph){graph=(await api.call('workflow.plan',{scene_id:scene.id,prompt:prompt.trim()})).composition;setComposition(graph);}
+      const result=await api.call('workflow.create',{scene_id:scene.id,composition:graph,request_key:key},recordReceipt);
+      setOperationId(result.operation_id);await refresh();
+    }else if(mode==='movie'){
       const result=await api.call('render.quote',{
         ...movieInputs(),routing_mode:chosenPool,request_key:key
       },recordReceipt);
@@ -160,7 +171,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
     onSelect(result.asset_id);await refresh();go('library');
   }
 
-  const canGenerate=neural?chosenWorker&&recipe?.ready&&prompt.trim()&&(!reference||mode==='image'||currentReference):
+  const canGenerate=mode==='workflow'?nativeReady&&(composition||prompt.trim()):neural?chosenWorker&&recipe?.ready&&prompt.trim()&&(!reference||mode==='image'||currentReference):
     (rig?signal:tool?.configured)&&sources.some(item=>item.id===Number(source))&&drivers.some(item=>item.id===Number(driver));
 
   return <div className="ls-create">
@@ -169,11 +180,15 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
         {tools.map(([id,Icon,title,subtitle])=><button type="button" key={id} aria-pressed={mode===id} disabled={busy}
           onClick={()=>chooseMode(id)}><Icon size={18}/><strong>{title}</strong>{subtitle&&<small>{subtitle}</small>}</button>)}
       </div>
-      {inventoryError&&<div className="ls-card">
+      {inventoryError&&!['workflow','performed'].includes(mode)&&<div className="ls-card">
         <p role="alert">Studio couldn’t check worker availability.</p>
         <button type="button" onClick={retryInventory}>Retry worker check</button>
       </div>}
-      <form onSubmit={event=>{event.preventDefault();submit(mode==='movie'?previewMovie:generate);}}>
+      {mode==='performed'&&<CharacterSceneComposer key={scene.id} {...{api,scene,assets,busy,run,refresh,openTemplateScene}}/>}
+      <form hidden={mode==='performed'} onSubmit={event=>{event.preventDefault();submit(mode==='movie'?previewMovie:generate);}}>
+        {mode==='workflow'&&<LayeredComposer {...{api,scene,assets,composition,prompt,run,busy}} onReady={setNativeReady}
+          setPrompt={value=>{change(setPrompt,value);setComposition(null);}}
+          update={value=>change(setComposition,value)} onSaved={onCompositionSaved}/>}
         {neural&&<>
           <label>Prompt<textarea rows="4" required maxLength="2000" value={prompt} onChange={event=>change(setPrompt,event.target.value)} placeholder="Describe your scene."/></label>
           {mode==='video'&&<MediaPicker title="Starting frame (optional)" items={referenceAssets} value={reference} onChange={value=>change(setReference,value)}
@@ -216,8 +231,12 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
           {rig&&!sources.length&&<a href={api.advanced(scene.id,'cast')}>Add a character to this scene</a>}
           {inventory&&!rig&&!tool?.configured&&<p className="ls-muted">This engine needs a configured character-performance worker.</p>}
         </>}
-        <button className="ls-primary" disabled={busy||(mode==='movie'?['pending','running'].includes(chosenOperation?.status):!canGenerate)}><Sparkles size={16}/>{mode==='movie'?'Render draft':'Generate'}</button>
+        <button className="ls-primary" disabled={busy||(mode==='movie'?['pending','running'].includes(chosenOperation?.status):!canGenerate)}><Sparkles size={16}/>{mode==='movie'?'Render draft':mode==='workflow'?'Render 2D preview':'Generate'}</button>
       </form>
+      {mode==='workflow'&&composition&&<label><input type="checkbox" checked={blenderHandoff} onChange={event=>change(setBlenderHandoff,event.target.checked)}/>Include editable Blender project with full export</label>}
+      {mode==='workflow'&&composition&&<button type="button" disabled={busy||!nativeReady} onClick={()=>submit(async()=>{
+        const result=await api.call('workflow.quote',{scene_id:scene.id,composition,blender_handoff:blenderHandoff,request_key:key+'-final'});setQuote(result);setOperationId(result.operation_id);await refresh();
+      })}>Get 2D export price</button>}
       {mode==='movie'&&pools.length>0&&<details className="ls-drawer"><summary>Full render</summary>
         <div className="ls-fields">
           <Options label="Render pool" value={chosenPool} onChange={value=>change(setRoute,value)} options={pools.map(id=>[id,poolLabel[id]])}/>
@@ -225,7 +244,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
           <button type="button" disabled={busy} onClick={()=>submit(generate)}>Get render price</button>
         </div>
       </details>}
-      {quote&&mode==='movie'&&<div className="ls-row">
+      {quote&&['movie','workflow'].includes(mode)&&<div className="ls-row">
         <strong>{new Intl.NumberFormat(undefined,{style:'currency',currency:quote.quote.currency||'USD'}).format(quote.quote.total_cents/100)}</strong>
         <button disabled={busy} onClick={()=>submit(async()=>{location.assign((await api.call('render.checkout',{operation_id:quote.operation_id})).checkout_url);})}>Continue to payment</button>
       </div>}
@@ -244,7 +263,8 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
         if(failure.suggestion.steps)setSteps(String(failure.suggestion.steps));
         change(setQuality,'economy');
       }}>Use Economy settings</button>}
-      {chosenOperation?.cpu_resumable&&<button disabled={busy} onClick={()=>submit(async()=>{await api.call('render.resume',{operation_id:chosenOperation.id});await refresh();})}>Resume Render from Checkpoint</button>}
+      {chosenOperation?.cpu_resumable&&<button disabled={busy} onClick={()=>submit(async()=>{await api.call('render.resume',{operation_id:chosenOperation.id});await refresh();})}>{chosenOperation.layered_scene?'Retry saved export':'Resume Render from Checkpoint'}</button>}
+      {chosenOperation?.status==='completed'&&!chosenOperation.draft_preview&&chosenOperation.artifacts?.filter(item=>item.kind==='blend').map(item=><a key={item.id} href={item.url} download>Download Blender project</a>)}
       {operationVideo&&!chosenOperation.draft_preview&&<button disabled={busy} onClick={()=>submit(addRender)}>Save clip to Media Library</button>}
       {!api.dashboard&&operationVideo&&!chosenOperation.draft_preview&&<button onClick={()=>{
         onSelect('render-'+operationVideo.id);go('publish');
@@ -253,7 +273,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
       {!chosenOperation&&!rigPreview&&asset?.status==='ready'&&<button disabled={busy} onClick={()=>add(asset.id || asset.asset_id)}>Add to timeline</button>}
       <section className="ls-card"><div className="ls-row"><strong><Film size={16}/> Storyboard</strong><span>{elapsed.toFixed(1)}s</span><button onClick={()=>go('timeline')}>Open timeline</button></div>
         <div className="ls-strip">
-          {sceneOperations.map(item=><button key={item.id} aria-pressed={item.id===operationId} onClick={()=>{setRigPreview('');setOperationId(item.id);}}>{item.procedural_preview?'3D Draft':item.type==='build_scene'?'3D Movie':'Export'}<small>{item.cpu_resumable?'Recoverable':progressLabel(item.status)}</small></button>)}
+          {sceneOperations.map(item=><button key={item.id} aria-pressed={item.id===operationId} onClick={()=>{setRigPreview('');setOperationId(item.id);}}>{item.layered_scene?'2D Scene':item.procedural_preview?'3D Draft':item.type==='build_scene'?'3D Movie':'Export'}<small>{item.cpu_resumable?'Recoverable':progressLabel(item.status)}</small></button>)}
           {jobs.map(item=><button key={item.asset_id} aria-pressed={!chosenOperation&&selected===item.asset_id} onClick={()=>{onSelect(item.asset_id);setRigPreview('');setOperationId(null);}}>{item.name}<small>{progressLabel(item.status)}</small></button>)}
           {!jobs.length&&!sceneOperations.length&&<p className="ls-muted">Your clips and renders will appear here.</p>}
         </div>

@@ -4,19 +4,33 @@ import json
 import math
 from pathlib import Path
 import sys
+sys.path.insert(0,str(Path(__file__).parent))
 from mathutils import Vector
 
 params_path, output = sys.argv[sys.argv.index('--') + 1:]
 with open(params_path, encoding='utf-8') as handle:
     params = json.load(handle)
+if params.get('style')=='physical':
+    import contact_character_v1
+    contact_character_v1.build(params)
+    bpy.ops.wm.save_as_mainfile(filepath=output,compress=True)
+    sys.exit(0)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
 scene.name = 'Lightek Performer'
+illustrated = params.get('style') == 'illustrated'
 
 
 def material(name, hex_color, roughness=0.5):
     color = tuple(int(hex_color[i:i+2], 16)/255 for i in (1, 3, 5)) + (1,)
     m = bpy.data.materials.new(name); m.diffuse_color = color; m.use_nodes = True
+    if illustrated:
+        nodes=m.node_tree.nodes;nodes.clear()
+        emission=nodes.new('ShaderNodeEmission');output=nodes.new('ShaderNodeOutputMaterial')
+        linear=tuple(c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4 for c in color[:3])
+        emission.inputs['Color'].default_value=(*linear,1)
+        m.node_tree.links.new(emission.outputs[0],output.inputs['Surface'])
+        return m
     node = m.node_tree.nodes.get('Principled BSDF')
     node.inputs['Base Color'].default_value = color
     node.inputs['Roughness'].default_value = roughness
@@ -34,6 +48,26 @@ trousers = material('Trousers', '#19212f')
 
 
 def sphere(name, location, scale, mat):
+    if illustrated:
+        count=32
+        points=[(math.cos(i*math.tau/count),math.sin(i*math.tau/count)) for i in range(count)]
+        if name=='Head':
+            points=[(-.86,.5),(-.8,.72),(-.66,.9),(-.45,.97),(.42,.98),(.62,.91),
+                    (.79,.76),(.88,.55),(.84,-.22),(.75,-.49),(.52,-.77),(.28,-.95),
+                    (.11,-1),(-.11,-1),(-.32,-.93),(-.58,-.74),(-.77,-.48),(-.85,-.18)]
+        if name=='Neck':
+            points=[(-.72,1),(.72,1),(.67,-.32),(.95,-.85),(.52,-1),(-.52,-1),(-.95,-.85),(-.67,-.32)]
+        if name=='High top':
+            points=[(-1,-.48),(-.98,.48),(-.86,.78),(-.64,.94),(-.39,.98),(.5,.98),
+                    (.73,.88),(.9,.67),(1,.44),(.99,-.42),(.77,-.68),(-.79,-.68)]
+        if name=='Shirt': points=[(-1,1),(1,1),(.45,-.5),(0,-1),(-.45,-.5)]
+        if name=='Jacket body': points=[(-.6,1),(.6,1),(1,.7),(.8,-.5),(.5,-1),(-.5,-1),(-.8,-.5),(-1,.7)]
+        count=len(points)
+        vertices=[(x*scale[0],0,z*scale[2]) for x,z in points]+[(x*scale[0]*1.04,.004,z*scale[2]*1.04) for x,z in points]
+        mesh=bpy.data.meshes.new(name+' drawing');mesh.from_pydata(vertices,[],[list(range(count)),list(range(count,count*2))]);mesh.materials.append(mat);mesh.materials.append(black)
+        mesh.polygons[1].material_index=1
+        obj=bpy.data.objects.new(name,mesh);scene.collection.objects.link(obj);obj.location=location
+        return obj
     bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=20, location=location)
     obj = bpy.context.object; obj.name = name
     obj.scale = scale; bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
@@ -42,9 +76,9 @@ def sphere(name, location, scale, mat):
     return obj
 
 
-body = sphere('Jacket body', (0, 0, 0.98), (0.40, 0.24, 0.52), wardrobe)
+body = sphere('Jacket body', (0,0,1.17) if illustrated else (0,0,.98), (.40,.24,.34) if illustrated else (.40,.24,.52), wardrobe)
 sphere('Shirt', (0, -0.21, 1.12), (0.22, 0.045, 0.30), black)
-sphere('Neck', (0, 0, 1.49), (0.14, 0.14, 0.20), skin)
+sphere('Neck', (0, 0.025 if illustrated else 0, 1.49), (0.14, 0.14, 0.20), skin)
 head = sphere('Head', (0, 0, 1.88), (0.34, 0.28, 0.42), skin)
 head_parts = [head]
 head_parts += [sphere('Ear L', (-0.34, 0, 1.86), (0.065, 0.06, 0.12), skin), sphere('Ear R', (0.34, 0, 1.86), (0.065, 0.06, 0.12), skin)]
@@ -143,23 +177,53 @@ if portrait_path.is_file():
     mouth.location.y = -0.1
 
 
-arm_parts = {}
+arm_parts = {};forearm_parts={}
 for side, x in [('L', -0.43), ('R', 0.43)]:
-    arm_parts[side] = [sphere('Sleeve '+side, (x, 0, 1.05), (0.12, 0.14, 0.36), wardrobe), sphere('Hand '+side, (x, -0.01, 0.72), (0.10, 0.09, 0.12), skin)]
-for x in (-0.17, 0.17):
-    sphere('Trouser leg', (x, 0, 0.43), (0.15, 0.16, 0.43), trousers)
-    sphere('Boot', (x, -0.09, 0.08), (0.17, 0.24, 0.10), black)
+    if illustrated:
+        arm_parts[side]=[sphere('Upper sleeve '+side,(x,0,1.21),(.12,.14,.15),wardrobe)]
+        forearm_parts[side]=[sphere('Lower sleeve '+side,(x,0,.99),(.07,.12,.09),wardrobe),sphere('Hand '+side,(x,-.01,.72),(.10,.09,.12),skin)]
+    else:
+        arm_parts[side] = [sphere('Sleeve '+side, (x, 0, 1.05), (0.12, 0.14, 0.36), wardrobe), sphere('Hand '+side, (x, -0.01, 0.72), (0.10, 0.09, 0.12), skin)]
+leg_parts = {};shin_parts={}
+for side,x in [('L',-.17),('R',.17)]:
+    if illustrated:
+        leg_parts[side]=[sphere('Thigh '+side,(x,0,.67),(.13,.14,.20),trousers)]
+        shin_parts[side]=[sphere('Calf '+side,(x,0,.29),(.11,.12,.19),trousers),sphere('Boot '+side,(x,-.09,.104),(.15,.20,.10),black)]
+    else:
+        leg_parts[side]=[sphere('Trouser leg '+side,(x,0,.43),(.15,.16,.43),trousers),sphere('Boot '+side,(x,-.09,.08),(.17,.24,.10),black)]
+if illustrated:sphere('Pelvis support',(0,0,.78),(.30,.14,.08),trousers)
 sphere('Jacket pin', (0.24, -0.221, 1.28), (0.035, 0.025, 0.035), gold)
 
 rig = bpy.data.objects.new('PerformerRig', bpy.data.armatures.new('Performer bones')); scene.collection.objects.link(rig)
 bpy.context.view_layer.objects.active = rig; rig.select_set(True); bpy.ops.object.mode_set(mode='EDIT')
-for name, a, b in [('Head', (0, 0, 1.48), (0, 0, 2.2)), ('Arm.L', (-0.35, 0, 1.35), (-0.43, 0, 0.72)), ('Arm.R', (0.35, 0, 1.35), (0.43, 0, 0.72))]:
+for name, a, b in [('Head', (0, 0, 1.48), (0, 0, 2.2)), ('Arm.L', (-0.35, 0, 1.35), (-0.43, 0, 0.72)), ('Arm.R', (0.35, 0, 1.35), (0.43, 0, 0.72)), ('Leg.L',(-.17,0,.86),(-.17,0,.08)), ('Leg.R',(.17,0,.86),(.17,0,.08))]:
     bone = rig.data.edit_bones.new(name); bone.head = a; bone.tail = b
+if illustrated:
+    body=rig.data.edit_bones.new('Body');body.head=(0,0,.86);body.tail=(0,0,1.4)
+    for name in ('Head','Arm.L','Arm.R','Leg.L','Leg.R'):rig.data.edit_bones[name].parent=body
+    for side,x in [('L',-.17),('R',.17)]:
+        upper=rig.data.edit_bones['Leg.'+side];upper.tail=(x,0,.48)
+        lower=rig.data.edit_bones.new('Shin.'+side);lower.head=upper.tail;lower.tail=(x,0,.104);lower.parent=upper;lower.use_connect=True
+    for side,x in [('L',-.43),('R',.43)]:
+        upper=rig.data.edit_bones['Arm.'+side];upper.tail=(x,0,1.08)
+        lower=rig.data.edit_bones.new('Forearm.'+side);lower.head=upper.tail;lower.tail=(x,-.01,.84);lower.parent=upper;lower.use_connect=True
 bpy.ops.object.mode_set(mode='OBJECT')
-for bone_name, parts in [('Head', head_parts), ('Arm.L', arm_parts['L']), ('Arm.R', arm_parts['R'])]:
+parts_by_bone=[('Head', head_parts), ('Arm.L', arm_parts['L']), ('Arm.R', arm_parts['R']),('Leg.L',leg_parts['L']),('Leg.R',leg_parts['R'])]
+if illustrated:parts_by_bone += [('Forearm.'+side,parts) for side,parts in forearm_parts.items()]+[('Shin.'+side,parts) for side,parts in shin_parts.items()]
+for bone_name,parts in parts_by_bone:
     for obj in parts:
         world = obj.matrix_world.copy(); obj.parent = rig; obj.parent_type = 'BONE'; obj.parent_bone = bone_name
         bpy.context.view_layer.update(); obj.matrix_world = world
+
+if illustrated:
+    for obj in list(scene.objects):
+        if obj.type=='MESH' and obj.parent is None:
+            world=obj.matrix_world.copy();obj.parent=rig;obj.parent_type='BONE';obj.parent_bone='Body'
+            bpy.context.view_layer.update();obj.matrix_world=world
+
+if illustrated:
+    import create_side_views
+    create_side_views.build(rig)
 
 # Stashed native Actions are reusable clips, not automatically playing animation.
 for name, bone_name, axis, amplitude in [('Head nod','Head',0,.25),('Look left and right','Head',2,.35),('Wave right','Arm.R',2,.7)]:
@@ -174,12 +238,39 @@ for name, bone_name, axis, amplitude in [('Head nod','Head',0,.25),('Look left a
     strip=track.strips.new(name,1,action)
     if slot is not None and hasattr(strip,'action_slot'):strip.action_slot=slot
     track.mute=True;animation.action=None
+# Additional illustrated puppet Actions are opt-in. Existing saved sources and
+# the legacy toon motion vocabulary retain their own registered identities.
+if illustrated:
+    for name in ('Step in place','Point left','Point right'):
+        animation=rig.animation_data_create();animation.action=None
+        for pose in rig.pose.bones: pose.rotation_mode='XYZ';pose.rotation_euler=(0,0,0)
+        for frame in (1,7,13,19,25):
+            ratio=(frame-1)/24
+            if name=='Step in place':
+                for bone_name,sign,amplitude in [('Leg.L',1,.28),('Leg.R',-1,.28),('Arm.L',-1,.14),('Arm.R',1,.14)]:
+                    bone=rig.pose.bones[bone_name];bone.rotation_euler=(0,0,sign*math.sin(ratio*math.tau)*amplitude)
+                    bone.keyframe_insert(data_path='rotation_euler',frame=frame,group=bone_name)
+            else:
+                side='L' if name=='Point left' else 'R'
+                bone=rig.pose.bones['Arm.'+side]
+                amount=0 if frame in (1,25) else (1 if side=='L' else -1)*1.15
+                bone.rotation_euler=(0,0,amount);bone.keyframe_insert(data_path='rotation_euler',frame=frame,group='Arm.'+side)
+        action=animation.action;action.name=name
+        slot=getattr(animation,'action_slot',None)
+        track=animation.nla_tracks.new();track.name='Source · '+name
+        strip=track.strips.new(name,1,action)
+        if slot is not None and hasattr(strip,'action_slot'):strip.action_slot=slot
+        track.mute=True;animation.action=None
+    for pose in rig.pose.bones:pose.rotation_euler=(0,0,0)
 scene.frame_set(1)
 
 camera = bpy.data.objects.new('Portrait camera', bpy.data.cameras.new('Portrait lens')); scene.collection.objects.link(camera)
 camera.location = (0, -5, 1.7); camera.rotation_euler = (Vector((0, 0, 1.5))-camera.location).to_track_quat('-Z', 'Y').to_euler(); camera.data.lens = 60; scene.camera = camera
 for name, loc, power, size in [('Key', (3, -4, 5), 800, 4), ('Fill', (-3, -2, 3), 400, 4), ('Rim', (1, 2, 4), 900, 3)]:
     light = bpy.data.objects.new(name, bpy.data.lights.new(name, 'AREA')); scene.collection.objects.link(light); light.location = loc; light.data.energy = power; light.data.shape = 'DISK'; light.data.size = size; light.rotation_euler = (Vector((0, 0, 1.3))-light.location).to_track_quat('-Z', 'Y').to_euler()
+if illustrated:
+    scene.view_settings.view_transform='Standard'
+    scene['lightek_character_style']='illustrated'
 scene.world = bpy.data.worlds.new('Studio world'); scene.world.color = (0.07, 0.08, 0.12)
 scene.render.engine = 'CYCLES'; scene.cycles.samples = 8; scene.render.resolution_x = 512; scene.render.resolution_y = 512; scene.render.resolution_percentage = 100
 bpy.ops.wm.save_as_mainfile(filepath=output)

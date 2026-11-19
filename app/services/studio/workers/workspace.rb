@@ -909,6 +909,9 @@ module Studio
               object_ids[object.id]=child.id
             end
             copy.scene_objects.each do |object|
+              if (contact=object.definition['prop_contact'])
+                object.update!(definition:object.definition.merge('prop_contact'=>contact.merge('target_object_id'=>object_ids.fetch(contact.fetch('target_object_id')))))
+              end
               next unless object.definition['listener_reactions']
               cues=object.definition['listener_reactions'].map { |cue| cue.merge('speaker_object_id'=>object_ids.fetch(cue.fetch('speaker_object_id'))) }
               object.update!(definition:object.definition.merge('listener_reactions'=>cues))

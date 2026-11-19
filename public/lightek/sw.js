@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v116-guided-acting"
+const CACHE = "lightek-shell-v117-prop-contact"
 
 const SHELL = [
   "/lightek/index.html",

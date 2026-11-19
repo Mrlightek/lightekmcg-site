@@ -11,6 +11,7 @@ import authoring
 import performance
 import relationships
 import spatial_checks
+import contacts
 import rehearsal
 import motion
 import appearance
@@ -913,11 +914,12 @@ def stage_manifest(manifest):
     if settings.get('_director_rehearsal'):
         report=rehearsal.plan(objects,created,settings)
     relationships.apply(objects, created)
+    contact_data=contacts.apply(objects,created,settings)
     if report is None:
-        spatial_checks.validate(objects, created, settings)
+        spatial_checks.validate(objects, created, settings,contact_data)
     else:
         try:
-            spatial_checks.validate(objects, created, settings)
+            spatial_checks.validate(objects, created, settings,contact_data)
         except RuntimeError as error:
             report['unresolved'].append(str(error))
         report['status']='needs_attention' if report['unresolved'] else 'ready'

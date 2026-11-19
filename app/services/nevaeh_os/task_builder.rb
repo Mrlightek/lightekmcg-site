@@ -144,7 +144,7 @@ module NevaehOs
       when "studio.workspace.character.template.use"
         %w[scene_id source template_key project_id name]
       when "studio.workspace.character.scene.prepare"
-        %w[scene_id name dialogue voice skin wardrobe hair cast_asset_id audio_asset_id scene_template camera_mode gesture mode characters turns emotion body_action entrance]
+        %w[scene_id name dialogue voice skin wardrobe hair cast_asset_id audio_asset_id scene_template camera_mode gesture mode characters turns emotion body_action entrance contact]
       when "studio.workspace.workflow.create", "studio.workspace.workflow.quote"
         %w[scene_id prompt seed composition blender_handoff]
       when "studio.workspace.render.quote"

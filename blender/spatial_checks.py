@@ -3,10 +3,10 @@ import math
 import bpy
 from mathutils.bvhtree import BVHTree
 
-def geometry(root, depsgraph):
+def geometry(root, depsgraph, exclude=()):
     vertices, triangles = [], []
     for obj in [root]+list(root.children_recursive):
-        if obj.type!='MESH':
+        if obj.type!='MESH' or obj in exclude:
             continue
         evaluated=obj.evaluated_get(depsgraph)
         mesh=evaluated.to_mesh()
@@ -39,7 +39,7 @@ def intersects(a,b):
     hit,normal,_,_=tree_b.ray_cast(a[0][0]+direction*0.0001,direction)
     return hit is not None and normal.dot(direction)>0.001
 
-def validate(objects,created,settings):
+def validate(objects,created,settings,contacts=()):
     direction=settings.get('spatial_direction') or {}
     cast=[item for item in objects if (item.get('definition',{}).get('director_speaker') or item.get('definition',{}).get('blocking_actor') or item.get('definition',{}).get('character_profile')) and str(item['id']) in created]
     if not cast:
@@ -96,7 +96,15 @@ def validate(objects,created,settings):
                     raise RuntimeError('Character collision at frame '+str(frame)+': '+item['name']+' / '+other['name'])
             if direction.get('collision_detection',True) and mesh(item):
                 for other in colliders:
-                    if mesh(other) and intersects(mesh(item),mesh(other)):
+                    active=[cue for cue in contacts if cue['actor_id']==str(item['id']) and cue['target_id']==str(other['id']) and cue['first']<=frame<=cue['last']]
+                    body=geometry(root,depsgraph,exclude=[cue['hand'] for cue in active]) if active else mesh(item)
+                    if body and mesh(other) and intersects(body,mesh(other)):
                         raise RuntimeError('Environment collision at frame '+str(frame)+': '+item['name']+' / '+other['name'])
+                    for cue in active:
+                        hand_mesh=geometry(cue['hand'],depsgraph)
+                        if hand_mesh and mesh(other) and intersects(hand_mesh,mesh(other)):
+                            target=created[str(other['id'])];plane=target.matrix_world @ cue['point'];normal=(target.matrix_world.to_quaternion() @ cue['normal']).normalized()
+                            if min((vertex-plane).dot(normal) for vertex in hand_mesh[0]) < -0.002:
+                                raise RuntimeError('Hand penetrates its contact prop at frame '+str(frame))
     scene.frame_set(current)
     bpy.context.view_layer.update()

@@ -1,4 +1,5 @@
 require_relative 'studio_director_producer_checks'
+require File.join(ROOT,'app/services/lightek_pwa/media_ownership')
 require File.join(ROOT,'app/services/studio/director/finishing')
 require File.join(ROOT,'app/services/studio/director/relationships')
 require File.join(ROOT,'app/services/studio/director/personality')

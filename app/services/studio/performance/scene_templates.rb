@@ -6,6 +6,11 @@ module Studio
       LAUNCH_CAPABILITY="studio.workspace.character.template.use"
       GESTURES=%w[wave_right nod shake still].freeze
       CAMERA_MODES=%w[character template].freeze
+      def self.control_panel
+        [{"id"=>"panel","name"=>"Control panel","type"=>"cube","definition"=>{"location"=>[0.78,0.05,1.2],"scale"=>[0.16,0.12,0.24],"material"=>{"color"=>[0.09,0.16,0.24]}}},
+         {"id"=>"button","name"=>"Activation button","type"=>"cube","definition"=>{"location"=>[0.78,-0.095,1.2],"scale"=>[0.08,0.025,0.08],"material"=>{"color"=>[0.05,0.65,0.8]},"contact_response"=>"button_press"}},
+         {"id"=>"stand","name"=>"Panel stand","type"=>"cube","definition"=>{"location"=>[0.78,0.1,0.5],"scale"=>[0.06,0.06,0.5],"material"=>{"color"=>[0.12,0.16,0.20]}}}]
+      end
       def self.recipes
         Studio::Library::Catalog.items.select { |row| row["target"]=="scene" && !%w[characters fx].include?(row["category"]) }
       end
@@ -23,6 +28,16 @@ module Studio
         current_defaults["name"]=actor.name if actor
         current={key:"current",name:"Current scene set",description:"Use this scene's editable sets, lights and cameras in a separate short. Replace its blocking cast with the chosen performer.",defaults:current_defaults.merge("cast_asset_id"=>actor&.id),available:!scene.blender_source.attached? && !scene.settings["native_blender_asset_id"]}
         scene_rows=[{key:"studio",name:"Plain character stage",description:"A clean stage for checking performance and speech.",defaults:defaults("studio"),available:true},current]+recipes.map { |row| {key:"library:#{row['key']}",name:row["name"],description:row["description"],defaults:defaults(row["key"]),available:true} }
+        scene_rows.insert(1,{key:"control_panel",name:"Control-panel interaction",description:"An editable panel and activation button with reachable face-center targets.",defaults:defaults("studio").merge("dialogue"=>"Panel activated.","gesture"=>"still"),available:true})
+        scene_rows.each do |row|
+          objects=case row[:key]
+          when "studio" then []
+          when "control_panel" then control_panel
+          when "current" then scene.scene_objects.map { |object| {"id"=>object.id,"name"=>object.name,"type"=>object.object_type,"definition"=>object.definition} }
+          else Studio::Library::Catalog.objects(row[:key].delete_prefix("library:")).each_with_index.map { |object,i| object.merge("id"=>i+1) }
+          end
+          row[:contact_targets]=Contact.targets(objects)
+        end
         production_rows=Studio::NativeBlender::MediaPresets.items.select { |row| row["project_template"] && !row["requires_asset"] }.map { |row| row.slice("key","name","category","scene_count","description") }
         saved=access.projects.where(site_id:access.site_id,is_template:true).order(:name,:id).limit(100).map { |project| {id:project.id,name:project.name,scene_count:project.studio_scenes.count} }
         {scene_templates:scene_rows,production_templates:production_rows,saved_templates:saved,default_scene_template:current[:available] && scene.scene_objects.exists? ? "current" : "studio"}
@@ -63,9 +78,13 @@ module Studio
         end
         operation.metadata.fetch("result")
       end
-      def self.snapshot(access:,source:,key:)
+      def self.snapshot(access:,source:,key:,performer_count:1)
         return {"key"=>"studio","name"=>"Plain character stage","settings"=>{},"objects"=>[],"assets"=>[]} if key=="studio"
-        if key=="current"
+        if key=="control_panel"
+          objects=control_panel
+          objects.each { |object| object["definition"]["location"][0]-=1.0 } if performer_count==2
+          settings={};name="Control-panel interaction"
+        elsif key=="current"
           raise ArgumentError,"Open packed native source scenes in the advanced editor; choose an editable scene setup for this short" if source.blender_source.attached? || source.settings["native_blender_asset_id"]
           settings=source.settings.deep_dup
           objects=source.scene_objects.map { |object| {"id"=>object.id,"name"=>object.name,"type"=>object.object_type,"definition"=>object.definition.deep_dup} }
@@ -123,7 +142,7 @@ module Studio
         end
         map={}
         staging.fetch("objects").each_with_index do |object,index|
-          definition=object.fetch("definition").deep_dup
+          definition=object.fetch("definition").deep_dup.merge("template_source_object_id"=>object.fetch("id").to_s)
           definition["asset_id"]=copies.fetch(definition["asset_id"]) if object["type"]=="imported_asset"
           child=scene.scene_objects.create!(name:object.fetch("name"),object_type:object.fetch("type"),position:index,definition:definition)
           map[object.fetch("id")]=child.id

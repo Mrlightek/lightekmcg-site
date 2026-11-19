@@ -18,6 +18,10 @@ on:
       - 'test/standalone/studio_dialogue_scene_checks.rb'
       - 'test/javascript/studio_dialogue_scene_test.cjs'
       - 'blender/performance.py'
+      - 'blender/contacts.py'
+      - 'blender/spatial_checks.py'
+      - 'test/standalone/studio_contact_checks.rb'
+      - 'test/javascript/studio_contact_test.cjs'
       - 'test/standalone/studio_acting_checks.rb'
       - 'test/javascript/studio_acting_test.cjs'
       - 'test/operations/studio_performance_audio_test.py'
@@ -80,6 +84,11 @@ jobs:
         run: bundle exec ruby test/standalone/studio_dialogue_scene_checks.rb --name '/StudioDialogueSceneTest/'
       - name: Verify editable step-in entrances, pointing and facial cues
         run: bundle exec ruby test/standalone/studio_acting_checks.rb --name '/StudioActingTest/'
+      - name: Verify hand contact, button response and rejection cases
+        env:
+          STUDIO_CONTACT_DIALOGUE_PROOF_VIDEO: /tmp/lightek-contact-dialogue.mp4
+          STUDIO_CONTACT_PROOF_VIDEO: /tmp/lightek-contact.mp4
+        run: bundle exec ruby test/standalone/studio_contact_checks.rb --name '/StudioContactTest/'
       - name: Verify sequence cuts and full-source timeline handoff
         run: bundle exec ruby test/standalone/studio_sequence_checks.rb --name '/StudioSequenceTest/'
       - name: Measure parallax in exported pixels
@@ -102,12 +111,15 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_dialogue_scene_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_sequence_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_acting_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_contact_test.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: native-2d-parallax-proof
           path: |
             /tmp/lightek-native-2d.mp4
             /tmp/lightek-park.blend
+            /tmp/lightek-contact.mp4
+            /tmp/lightek-contact-dialogue.mp4
             /tmp/lightek-character-scene.mp4
             /tmp/lightek-character-scene.blend
             /tmp/lightek-template-scene.mp4

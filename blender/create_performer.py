@@ -163,9 +163,13 @@ if portrait_path.is_file():
     mouth.location.y = -0.1
 
 
-arm_parts = {}
+arm_parts = {};forearm_parts={}
 for side, x in [('L', -0.43), ('R', 0.43)]:
-    arm_parts[side] = [sphere('Sleeve '+side, (x, 0, 1.05), (0.12, 0.14, 0.36), wardrobe), sphere('Hand '+side, (x, -0.01, 0.72), (0.10, 0.09, 0.12), skin)]
+    if illustrated:
+        arm_parts[side]=[sphere('Upper sleeve '+side,(x,0,1.21),(.12,.14,.15),wardrobe)]
+        forearm_parts[side]=[sphere('Lower sleeve '+side,(x,0,.99),(.07,.12,.09),wardrobe),sphere('Hand '+side,(x,-.01,.72),(.10,.09,.12),skin)]
+    else:
+        arm_parts[side] = [sphere('Sleeve '+side, (x, 0, 1.05), (0.12, 0.14, 0.36), wardrobe), sphere('Hand '+side, (x, -0.01, 0.72), (0.10, 0.09, 0.12), skin)]
 leg_parts = {}
 for side,x in [('L',-.17),('R',.17)]:
     leg_parts[side]=[sphere('Trouser leg '+side, (x, 0, 0.43), (0.15, 0.16, 0.43), trousers),sphere('Boot '+side, (x, -0.09, 0.08), (0.17, 0.24, 0.10), black)]
@@ -175,8 +179,14 @@ rig = bpy.data.objects.new('PerformerRig', bpy.data.armatures.new('Performer bon
 bpy.context.view_layer.objects.active = rig; rig.select_set(True); bpy.ops.object.mode_set(mode='EDIT')
 for name, a, b in [('Head', (0, 0, 1.48), (0, 0, 2.2)), ('Arm.L', (-0.35, 0, 1.35), (-0.43, 0, 0.72)), ('Arm.R', (0.35, 0, 1.35), (0.43, 0, 0.72)), ('Leg.L',(-.17,0,.86),(-.17,0,.08)), ('Leg.R',(.17,0,.86),(.17,0,.08))]:
     bone = rig.data.edit_bones.new(name); bone.head = a; bone.tail = b
+if illustrated:
+    for side,x in [('L',-.43),('R',.43)]:
+        upper=rig.data.edit_bones['Arm.'+side];upper.tail=(x,0,1.08)
+        lower=rig.data.edit_bones.new('Forearm.'+side);lower.head=upper.tail;lower.tail=(x,-.01,.84);lower.parent=upper;lower.use_connect=True
 bpy.ops.object.mode_set(mode='OBJECT')
-for bone_name, parts in [('Head', head_parts), ('Arm.L', arm_parts['L']), ('Arm.R', arm_parts['R']),('Leg.L',leg_parts['L']),('Leg.R',leg_parts['R'])]:
+parts_by_bone=[('Head', head_parts), ('Arm.L', arm_parts['L']), ('Arm.R', arm_parts['R']),('Leg.L',leg_parts['L']),('Leg.R',leg_parts['R'])]
+if illustrated:parts_by_bone += [('Forearm.'+side,parts) for side,parts in forearm_parts.items()]
+for bone_name,parts in parts_by_bone:
     for obj in parts:
         world = obj.matrix_world.copy(); obj.parent = rig; obj.parent_type = 'BONE'; obj.parent_bone = bone_name
         bpy.context.view_layer.update(); obj.matrix_world = world

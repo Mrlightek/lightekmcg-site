@@ -41,7 +41,20 @@ module Studio
           next [] unless object.dig("definition","native_type")=="ARMATURE"
           Array(object.dig("definition","motion_actions")).map{|action|action.slice("id","name","source","slot","frame_start","frame_end").merge("rig"=>object["name"],"fps"=>source_fps)}
         end.first(64)
-        {"version"=>2,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones}
+        reach=raw.fetch("reach_bindings",{}).to_h.slice("left","right").transform_values do |binding|
+          binding=binding.to_h.slice("rig","upper","forearm","hand","wrist_anchor","contact_anchor")
+          rig=objects.find { |object| object["name"]==binding["rig"] && object.dig("definition","native_type")=="ARMATURE" }
+          hand=objects.find { |object| object["name"]==binding["hand"] && object.dig("definition","native_type")=="MESH" }
+          chain=rig && Array(rig.dig("definition","bones"))
+          lower=chain && chain.find { |bone| bone["name"]==binding["forearm"] }
+          raise ArgumentError,"Bind a hand mesh and a connected two-bone arm from this source" unless hand && lower && lower["parent"]==binding["upper"] && chain.any? { |bone| bone["name"]==binding["upper"] }
+          %w[wrist_anchor contact_anchor].each do |key|
+            vector=binding[key]
+            raise ArgumentError,"Use three finite hand-local anchor values within two units" unless vector.is_a?(Array) && vector.size==3 && vector.all? { |v| v.is_a?(Numeric) && v.finite? && v.abs<=2 }
+          end
+          binding
+        end
+        {"version"=>2,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach}
       end
 
       def self.register(access:,payload:)

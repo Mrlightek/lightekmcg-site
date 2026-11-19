@@ -23,11 +23,12 @@ module Studio
             raise ArgumentError,"Choose six-digit character colors" unless color.match?(/\A#[a-fA-F0-9]{6}\z/)
             [field,color]
           end
-          result={"name"=>name,"voice"=>voice,"colors"=>colors}.merge(Acting.inputs(row))
+          result={"name"=>name,"voice"=>voice,"colors"=>colors}.merge(Acting.inputs(row)).merge(Contact.inputs(row))
           if row["cast_asset_id"].present?
             actor=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"blend",status:"ready").find(row["cast_asset_id"])
             profile=actor.metadata["character_profile"]
             raise ArgumentError,"Choose a registered Cast performer" unless actor.native.attached? && profile && profile["source_blob_id"]==actor.native.blob.id
+            Contact.validate_profile!(result,profile)
             result.merge!("cast_asset_id"=>actor.id,"cast_profile"=>profile);sources<<actor.native.blob
           end
           result
@@ -51,7 +52,12 @@ module Studio
         end
         raise ArgumentError,"Give both characters at least one speaking turn" unless turns.map { |row| row["speaker"] }.uniq.size==2
         template=payload.fetch("scene_template","studio").to_s
-        staging=SceneTemplates.snapshot(access:access,source:source,key:template)
+        staging=SceneTemplates.snapshot(access:access,source:source,key:template,performer_count:2)
+        characters.each { |character| Contact.validate_target!(character,staging) }
+        contacts=characters.filter_map { |character| character["contact"] }
+        if contacts.size==2 && contacts[0]["target_id"]==contacts[1]["target_id"] && contacts[0]["start"]<contacts[1].values_at("start","reach","hold","release").sum && contacts[1]["start"]<contacts[0].values_at("start","reach","hold","release").sum
+          raise ArgumentError,"Use non-overlapping contact times when characters share a prop"
+        end
         inputs={"mode"=>"dialogue","characters"=>characters,"turns"=>turns,"scene_template"=>template,"camera_mode"=>"dialogue"}
         operation=access.user.with_lock do
           scope=source.studio_project.studio_operations.where(capability:CAPABILITY).where("CAST(intent ->> 'user_id' AS TEXT) = ?",access.user.id.to_s)
@@ -92,6 +98,7 @@ module Studio
           raise Waiting,"Waiting for the character worker" unless actor.reload.status=="ready" && actor.metadata["character_profile"]
           raise ArgumentError,"The character source changed. Register its current version before preparing dialogue." unless actor.native.attached? && actor.native.blob.id==actor.metadata.dig("character_profile","source_blob_id")
           Acting.validate!(character,actor.metadata.fetch("character_profile"))
+          Contact.validate_profile!(character,actor.metadata.fetch("character_profile"))
           actor
         end
         phase(operation,"preparing_dialogue",{"cast_asset_ids"=>actors.map(&:id)})
@@ -105,7 +112,7 @@ module Studio
           start=time;time+=asset.metadata.fetch("duration")+0.25
           {"start"=>start,"duration"=>asset.metadata.fetch("duration")}
         end
-        seconds=(time+0.1).ceil
+        seconds=[(time+0.1).ceil,*inputs["characters"].map { |character| Contact.ending(character).ceil }].max
         raise ArgumentError,"Keep the complete conversation within eight seconds. Shorten a line or remove a turn." unless seconds<=8
         objects=actors.each_with_index.map do |actor,index|
           check!(operation)
@@ -134,6 +141,7 @@ module Studio
         objects.each_with_index do |object,index|
           turns=timing.each_with_index.filter_map { |value,i| value if inputs["turns"][i]["speaker"]==index }
           Acting.apply!(access:access,scene:scene,object:object,character:inputs["characters"][index],turns:turns,key:"#{tag}-acting-#{index}")
+          Contact.apply!(scene:scene,object:object,character:inputs["characters"][index])
         end
         phase(operation,"directing_conversation",{"duration_seconds"=>seconds,"dialogue_timing"=>timing})
         scene.with_lock do

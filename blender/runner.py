@@ -11,6 +11,9 @@ import authoring
 import performance
 import relationships
 import spatial_checks
+import contacts
+import mechanics
+import attention_v1
 import rehearsal
 import motion
 import appearance
@@ -681,6 +684,15 @@ def export_project_bundle(output_directory, manifest):
 
 def apply_json_presets(settings, created):
     scene = bpy.context.scene
+    cuts=settings.get('camera_cuts',[])
+    if not isinstance(cuts,list) or len(cuts)>16: raise ValueError('Use at most sixteen camera cuts')
+    previous=0
+    for index,cut in enumerate(cuts):
+        if set(cut)!={'camera_id','frame'} or type(cut['frame']) is not int or not previous<cut['frame']<=scene.frame_end: raise ValueError('Invalid camera cut')
+        camera=created.get(str(cut['camera_id']))
+        if camera is None or camera.type!='CAMERA': raise ValueError('Camera cut source is unavailable')
+        marker=scene.timeline_markers.new('Lightek cut '+str(index+1),frame=cut['frame']);marker.camera=camera
+        previous=cut['frame']
     for preset in settings.get('blender_presets', []):
         token = str(preset['instance'])
         prefix = 'LightekPreset_' + token
@@ -904,16 +916,7 @@ def stage_manifest(manifest):
     if settings.get('_director_rehearsal'):
         report=rehearsal.plan(objects,created,settings)
     relationships.apply(objects, created)
-    if report is None:
-        spatial_checks.validate(objects, created, settings)
-    else:
-        try:
-            spatial_checks.validate(objects, created, settings)
-        except RuntimeError as error:
-            report['unresolved'].append(str(error))
-        report['status']='needs_attention' if report['unresolved'] else 'ready'
-        bpy.context.scene['lightek_rehearsal_report']=json.dumps(report)
-
+    contact_data=mechanics.apply(objects,created,settings)+contacts.apply(objects,created,settings)
     active_id = settings.get("active_camera_object_id")
     selected = created.get(str(active_id)) if active_id is not None else None
     if selected is None and settings.get("active_camera"):
@@ -926,6 +929,17 @@ def stage_manifest(manifest):
         bpy.context.scene.camera = None
     ensure_camera()
     apply_json_presets(settings, created)
+    attention_v1.apply(objects,created)
+    if report is None:
+        spatial_checks.validate(objects, created, settings,contact_data)
+    else:
+        try:
+            spatial_checks.validate(objects, created, settings,contact_data)
+        except RuntimeError as error:
+            report['unresolved'].append(str(error))
+        report['status']='needs_attention' if report['unresolved'] else 'ready'
+        bpy.context.scene['lightek_rehearsal_report']=json.dumps(report)
+
     if "look" in settings: appearance.look(bpy.context.scene, settings["look"])
     if bpy.context.scene.camera.data.type == 'PANO':
         bpy.context.scene.render.engine = 'CYCLES'

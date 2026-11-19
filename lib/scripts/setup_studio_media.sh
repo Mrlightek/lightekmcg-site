@@ -43,3 +43,10 @@ printf '%s' 'Nevaeh voice is ready.' | docker run --rm --interactive --network n
   --pids-limit 128 --memory 2g --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,size=512m \
   --tmpfs /run/lightek-voice:rw,exec,nosuid,nodev,size=16m,mode=1777 --env TMPDIR=/run/lightek-voice \
   "$STUDIO_SPEECH_IMAGE" /opt/lightek-voice/venv/bin/python /opt/lightek-voice/synthesize.py --output /tmp/nevaeh-health.wav
+
+# Contact physics must be installed in the render image before accepting a grasp job.
+STUDIO_PHYSICS_IMAGE="${STUDIO_RENDER_WORKER_IMAGE:-$STUDIO_RUNTIME_IMAGE}"
+docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --pids-limit 128 --memory 256m --cpus "$STUDIO_RUNTIME_CPUS" --user "$(id -u):$(id -g)" \
+  --env PYTHONDONTWRITEBYTECODE=1 --env OPENBLAS_NUM_THREADS=1 \
+  "$STUDIO_PHYSICS_IMAGE" /opt/lightek-physics/venv/bin/python -c 'import mujoco; assert mujoco.__version__ == "3.3.7"; print("LIGHTEK_CONTACT_PHYSICS_READY=" + mujoco.__version__)'

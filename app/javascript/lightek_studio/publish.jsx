@@ -199,7 +199,7 @@ export function Publish({api,project,scene,active,clips,operations,publications,
       {quote&&<div className="ls-row"><span>{new Intl.NumberFormat(undefined,{style:'currency',currency:quote.quote.currency||'USD'}).format(quote.quote.total_cents/100)}</span>
         <button disabled={busy||(quote.kind==='timeline'&&quote.fingerprint!==fingerprint)||(quote.kind==='portrait'&&quote.selection!==selection)} onClick={()=>run(async()=>{location.assign((await api.call('render.checkout',{operation_id:quote.operation_id})).checkout_url);})}>Continue to payment</button></div>}
       {operations.filter(item=>!item.draft_preview&&item.scene_id===scene.id).map(item=><div key={item.id} className="ls-row"><span>{item.output?.fit==='cover'?'9:16 clip':'Studio export'} · {progressLabel(item.status)}</span>
-        {item.artifacts.filter(row=>row.kind==='video').map(row=><a key={row.id} href={row.url} download>Download {row.filename}</a>)}</div>)}
+        {item.artifacts.filter(row=>['video','blend'].includes(row.kind)).map(row=><a key={row.id} href={row.url} download>Download {row.filename}</a>)}</div>)}
     </section>
   </div>;
 }

@@ -1,0 +1,2 @@
+const {check}=require('./studio_mechanics_test.cjs');const {check:dialogue}=require('./studio_acting_test.cjs');
+(async()=>{for(const dashboard of [false,true])for(const restore of [false,true])await check(dashboard,restore,'attention');for(const dashboard of [false,true])await dialogue(dashboard,false,true);await dialogue(false,true,true);})().catch(error=>{console.error(error);process.exitCode=1;});

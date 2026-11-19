@@ -2,7 +2,7 @@
 module Studio
   module Workers
     class Workspace
-      ACTIONS = %w[workflow_status workflow_plan workflow_save workflow_quote workflow_create look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs social_accounts social_options project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
+      ACTIONS = %w[sequence_catalog sequence_prepare sequence_status sequence_retry sequence_quote character_scene_catalog character_template_use character_scene_prepare character_scene_status character_scene_retry character_scene_quote workflow_status workflow_plan workflow_save workflow_quote workflow_create look_status look_save material_save motion_save performance_analyze performance_analysis ai_setup_status ai_setup_install shots_save shots_list starter_scene_create starter_scene_status ai_status ai_generate ai_jobs social_accounts social_options project_create artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove performance_preview content_generate writing_profiles scene_save project_delete template_save template_use render_quote render_resume render_checkout operations_list artifact_reuse artifact_publish director_execute visual_save asset_import assets_list timeline_save timeline_quote asset_place asset_use asset_publish asset_retry library_apply blender_template_use blender_camera_create blender_camera_save blender_demo_import blender_prepare blender_preset_use blender_object_save blender_preview blender_runtime_status blender_library_install blender_create blender_asset_save blender_authoring_edit blender_authoring_preview].freeze
       def self.perform(action, payload = {}) = new(action, payload).perform
       def initialize(action, payload)
         @action = action.to_s
@@ -19,6 +19,23 @@ module Studio
         Studio::Compute::Guardrails.preflight!("studio.workspace.#{@action.tr('_', '.')}",@payload)
         public_send(@action)
       end
+
+      def sequence_catalog = Studio::Performance::Sequence.catalog(access:@access,scene_id:@payload.fetch("scene_id"))
+      def sequence_prepare = Studio::Performance::Sequence.start(access:@access,payload:@payload)
+      def sequence_status
+        @payload["operation_id"] ? Studio::Performance::Sequence.receipt(access:@access,id:@payload["operation_id"]) : Studio::Performance::Sequence.latest(access:@access,scene_id:@payload.fetch("scene_id"))
+      end
+      def sequence_retry = Studio::Performance::Sequence.retry(access:@access,id:@payload.fetch("operation_id"))
+      def sequence_quote = Studio::Performance::Sequence.quote(access:@access,payload:@payload)
+
+      def character_scene_catalog = Studio::Performance::SceneTemplates.catalog(access:@access,scene_id:@payload.fetch("scene_id"))
+      def character_template_use = Studio::Performance::SceneTemplates.launch(access:@access,payload:@payload)
+      def character_scene_prepare = Studio::Performance::CharacterScene.start(access:@access,payload:@payload)
+      def character_scene_status
+        @payload["operation_id"] ? Studio::Performance::CharacterScene.receipt(access:@access,id:@payload["operation_id"]) : Studio::Performance::CharacterScene.latest(access:@access,scene_id:@payload.fetch("scene_id"))
+      end
+      def character_scene_retry = Studio::Performance::CharacterScene.retry(access:@access,id:@payload.fetch("operation_id"))
+      def character_scene_quote = Studio::Performance::CharacterScene.quote(access:@access,payload:@payload)
 
       def shots_save = Studio::Shots::Board.save(access:@access,payload:@payload)
       def shots_list = Studio::Shots::Board.list(access:@access,scene_id:@payload.fetch("scene_id"))
@@ -119,6 +136,8 @@ module Studio
         if @payload["operation_id"]
           operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview").find(@payload["operation_id"])
         else
+          seconds=Float(@payload.fetch("preview_seconds",3))
+          raise ArgumentError,"Choose a preview lasting 0.25–8 seconds" unless seconds.finite? && seconds.between?(0.25,8)
           scene_playback=@payload["scene_playback"]==true
           starts=scene.scene_objects.flat_map do |object|
             [object.definition.dig("performance","start"),*Array(object.definition["motion_clips"]).map { |clip| clip["start"] }].compact
@@ -128,7 +147,7 @@ module Studio
           @access.user.with_lock do
             revision=scene.settings.fetch("native_revision",0)
             operation=scene.studio_operations.where(capability:"studio.workspace.performance.preview",status:%w[pending running]).detect do |preview|
-              (preview.metadata["scene_playback"]==true)==scene_playback && preview.metadata["native_revision"]==revision
+              (preview.metadata["scene_playback"]==true)==scene_playback && preview.metadata.fetch("preview_seconds",3)==seconds && preview.metadata["native_revision"]==revision
             end
             unless operation
               recent=StudioOperation.where(studio_project_id:@access.projects.select(:id),capability:"studio.workspace.performance.preview").where("created_at > ?",1.minute.ago).count
@@ -143,9 +162,9 @@ module Studio
               factor=320.0/[width,height].max
               settings.merge!("resolution_x"=>((width*factor/2).round*2).clamp(64,320),
                 "resolution_y"=>((height*factor/2).round*2).clamp(64,320),"samples"=>8,
-                "frame_start"=>first,"frame_end"=>[first+(3*fps).round-1,last].min,"frame_current"=>first)
+                "frame_start"=>first,"frame_end"=>[first+(seconds*fps).round-1,last].min,"frame_current"=>first)
               manifest["outputs"]={"animation"=>true,"blend"=>true}
-              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.performance.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"performance_preview"=>true,"draft_preview"=>true,"scene_playback"=>scene_playback,"native_revision"=>revision})
+              operation=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,operation_type:"build_scene",provider:"blender",capability:"studio.workspace.performance.preview",status:"pending",intent:{"user_id"=>@access.user.id},manifest:manifest,metadata:{"performance_preview"=>true,"draft_preview"=>true,"scene_playback"=>scene_playback,"preview_seconds"=>seconds,"native_revision"=>revision})
               StudioBlenderPreviewJob.perform_later(operation.id)
             end
           end
@@ -276,7 +295,9 @@ module Studio
         Studio::Compute::Lease.reconcile!(StudioOperation.where(id: operation.id))
         enqueue=false
         operation.with_lock do
-          raise ArgumentError,"Only a paid CPU economy movie can resume" unless operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && operation.paid? && !operation.metadata["draft_preview"]
+          eligible=(operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest)) ||
+            (operation.provider=="layered_2d" && operation.manifest.dig("composition_2d","version")==1)
+          raise ArgumentError,"Only a paid CPU render can retry" unless eligible && operation.paid? && !operation.metadata["draft_preview"]
           return {operation_id:operation.id,status:operation.status} if %w[pending running completed].include?(operation.status)
           raise ArgumentError,"Only failed renders can resume" unless operation.status=="failed"
           metadata = operation.metadata.deep_dup
@@ -831,7 +852,7 @@ module Studio
             campaign_draft: operation.capability=="marketing.campaign.produce",
             social_source: operation.intent["user_id"]==@access.user.id ? operation.metadata["social_source"] : nil,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,
-            cpu_progress:operation.metadata["cpu_render_progress"],cpu_resumable:operation.status=="failed" && operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && !operation.metadata["draft_preview"] && operation.paid?,
+            cpu_progress:operation.metadata["cpu_render_progress"],cpu_resumable:operation.status=="failed" && ((operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest)) || (operation.provider=="layered_2d" && operation.manifest.dig("composition_2d","version")==1)) && !operation.metadata["draft_preview"] && operation.paid?,
             output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset","fit"),
             shot:operation.metadata.slice("shot_id","shot_name"), scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
             procedural_preview:operation.metadata["procedural_preview_key"].present?,
@@ -887,8 +908,28 @@ module Studio
               child.save!
               object_ids[object.id]=child.id
             end
+            copy.scene_objects.each do |object|
+              if (aim=object.definition['attention_plan']) && aim['target_object_id']
+                object.update!(definition:object.definition.merge('attention_plan'=>aim.merge('target_object_id'=>object_ids.fetch(aim.fetch('target_object_id')))))
+              end
+              if (plan=object.definition['mechanics_plan'])
+                refs=plan['support_object_ids']&.transform_values { |id| object_ids.fetch(id) }
+                copied_plan=plan.merge('target_object_id'=>object_ids.fetch(plan.fetch('target_object_id')))
+                copied_plan['support_object_ids']=refs if refs
+                object.update!(definition:object.definition.merge('mechanics_plan'=>copied_plan))
+              end
+              if (contact=object.definition['prop_contact'])
+                object.update!(definition:object.definition.merge('prop_contact'=>contact.merge('target_object_id'=>object_ids.fetch(contact.fetch('target_object_id')))))
+              end
+              next unless object.definition['listener_reactions']
+              cues=object.definition['listener_reactions'].map { |cue| cue.merge('speaker_object_id'=>object_ids.fetch(cue.fetch('speaker_object_id'))) }
+              object.update!(definition:object.definition.merge('listener_reactions'=>cues))
+            end
             settings=copy.settings.except("library_requests", "json_preset_requests", "cast_receipts", "performance_receipts", "motion_receipts", "look_receipts")
             settings["active_camera_object_id"]=object_ids[scene.settings["active_camera_object_id"]] if scene.settings["active_camera_object_id"]
+            if settings["camera_cuts"]
+              settings["camera_cuts"]=settings["camera_cuts"].map { |cut| cut.merge("camera_id"=>object_ids.fetch(cut.fetch("camera_id"))) }
+            end
             settings=Studio::Shots::Board.copy_settings(settings,object_ids) if settings["shot_board"]
             copy.update!(settings:settings)
           end

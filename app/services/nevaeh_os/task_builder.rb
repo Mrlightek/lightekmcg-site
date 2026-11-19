@@ -137,14 +137,22 @@ module NevaehOs
       keys=case capability
       when "studio.workspace.ai.generate"
         Studio::Compute::Guardrails::GENERATION_INPUTS
+      when "studio.workspace.sequence.prepare"
+        %w[scene_id name shots]
+      when "studio.workspace.sequence.quote"
+        %w[operation_id reviewed]
+      when "studio.workspace.character.template.use"
+        %w[scene_id source template_key project_id name]
+      when "studio.workspace.character.scene.prepare"
+        %w[scene_id name dialogue voice skin wardrobe hair cast_asset_id audio_asset_id scene_template camera_mode gesture mode characters turns emotion body_action entrance contact mechanics attention action_prompt]
       when "studio.workspace.workflow.create", "studio.workspace.workflow.quote"
-        %w[scene_id prompt seed composition]
+        %w[scene_id prompt seed composition blender_handoff]
       when "studio.workspace.render.quote"
         %w[scene_id scene_preset procedural_script_params routing_mode output]
       when "studio.workspace.blender.preview"
         %w[scene_id scene_preset procedural_script_params]
       when "studio.workspace.performance.preview"
-        %w[scene_id scene_playback]
+        %w[scene_id scene_playback preview_seconds]
       when "studio.workspace.timeline.quote"
         %w[scene_id source_asset_id source_artifact_id social_prepare]
       else

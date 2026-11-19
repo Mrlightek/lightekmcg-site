@@ -138,12 +138,14 @@ class NevaehWorkforceHttpChecks < NevaehOsHttpTest
     refute rows.any? { |row| row['id']==NevaehOsAgent.find_by!(user:@other,system_key:'sage').id }
   end
   def test_page_context_is_immediate_sanitized_and_does_not_read_form_values
-    post :page_context,params:{page_context:{path:'/dashboard/studio-broadcasting',search:'?site_id=12&token=private',title:'My Studio',password:'do-not-read'}},format: :json
+    post :page_context,params:{page_context:{path:'/dashboard/studio-broadcasting',search:'?site_id=12&token=private-page-context-7b2b2c',title:'My Studio',password:'do-not-read'}},format: :json
     assert_response :success
     result=JSON.parse(response.body)
     assert_equal 'Studio & production',result.dig('page','area')
     assert_equal '12',result.dig('page','site_id')
-    refute_includes response.body,'private';refute_includes response.body,'do-not-read'
+    assert_equal %w[area path site_id title],result.fetch('page').keys.sort
+    refute_includes response.body,'private-page-context-7b2b2c';refute_includes response.body,'do-not-read'
+    refute result.fetch('page').key?('password')
     assert result['specialists'].any? { |row| row['key']=='producer' }
   end
   def test_goal_create_is_csrf_protected_and_creates_a_reviewable_draft

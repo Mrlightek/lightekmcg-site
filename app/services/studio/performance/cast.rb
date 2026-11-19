@@ -41,7 +41,30 @@ module Studio
           next [] unless object.dig("definition","native_type")=="ARMATURE"
           Array(object.dig("definition","motion_actions")).map{|action|action.slice("id","name","source","slot","frame_start","frame_end").merge("rig"=>object["name"],"fps"=>source_fps)}
         end.first(64)
-        {"version"=>2,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones}
+        reach=raw.fetch("reach_bindings",{}).to_h.slice("left","right").transform_values do |binding|
+          binding=binding.to_h.slice("rig","upper","forearm","hand","wrist_anchor","contact_anchor")
+          rig=objects.find { |object| object["name"]==binding["rig"] && object.dig("definition","native_type")=="ARMATURE" }
+          hand=objects.find { |object| object["name"]==binding["hand"] && object.dig("definition","native_type")=="MESH" }
+          chain=rig && Array(rig.dig("definition","bones"))
+          lower=chain && chain.find { |bone| bone["name"]==binding["forearm"] }
+          raise ArgumentError,"Bind a hand mesh and a connected two-bone arm from this source" unless hand && lower && lower["parent"]==binding["upper"] && chain.any? { |bone| bone["name"]==binding["upper"] }
+          %w[wrist_anchor contact_anchor].each do |key|
+            vector=binding[key]
+            raise ArgumentError,"Use three finite hand-local anchor values within two units" unless vector.is_a?(Array) && vector.size==3 && vector.all? { |v| v.is_a?(Numeric) && v.finite? && v.abs<=2 }
+          end
+          binding
+        end
+        attention=raw["attention_binding"]
+        if attention.present?
+          head=bones["head"];anchor=attention["eye_anchor"]
+          raise ArgumentError,"Calibrate attention to the registered head and eye position" unless attention.keys.sort==%w[eye_anchor head rig] && head && attention["rig"]==head["object"] && attention["head"]==head["bone"] && anchor.is_a?(Array) && anchor.size==3 && anchor.all? { |value| value.is_a?(Numeric) && value.finite? && value.abs<=5 }
+        end
+        views=raw["views"]
+        if views.present?
+          meshes=objects.select { |row| row.dig("definition","native_type")=="MESH" }.map { |row| row["name"] }
+          raise ArgumentError,"Register distinct source front and side drawing sets" unless views.keys.sort==%w[front side version] && views["version"]==1 && %w[front side].all? { |key| views[key].is_a?(Array) && views[key].any? && (views[key]-meshes).empty? } && (views["front"] & views["side"]).empty?
+        end
+        {"version"=>2,"views"=>views,"attention_binding"=>attention,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach,"mechanics"=>Mechanics.register(objects,raw["mechanics"])}
       end
 
       def self.register(access:,payload:)
@@ -96,9 +119,14 @@ module Studio
           raise ArgumentError,"Choose curls, close cut or high top" unless %w[curls close high_top].include?(style)
           values["hair_style"]=style
         end
+        if payload.key?("style")
+          raise ArgumentError,"Choose toon, illustrated or physical" unless %w[toon illustrated physical].include?(payload["style"])
+          values["style"]=payload["style"]
+        end
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"A performer request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         photo=creation_photo(access,payload)
+        raise ArgumentError,"Illustrated performers use editable drawn faces" if photo && %w[illustrated physical].include?(values["style"])
         asset=nil
         access.user.with_lock do
           asset=StudioAsset.find_by(owner:access.user,request_key:key)

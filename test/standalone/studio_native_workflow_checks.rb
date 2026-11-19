@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 require_relative "studio_ai_checks"
 require_relative "studio_cpu_pool_checks"
-%w[app/services/studio/layered/composition app/services/studio/layered/templates app/services/studio/layered/runtime app/services/studio/workflows/scene_plan app/services/studio/workflows/production app/services/studio/providers/layered_provider].each { |file| require File.join(ROOT,file) }
+%w[app/services/studio/layered/motion app/services/studio/layered/composition app/services/studio/layered/templates app/services/studio/layered/runtime app/services/studio/workflows/scene_plan app/services/studio/workflows/production app/services/studio/providers/layered_provider].each { |file| require File.join(ROOT,file) }
 module Api; module Lightek; module Pwa; end; end; end
 require File.join(ROOT,"app/controllers/api/lightek/pwa/studio_workflows_controller")
 require "rack/mock"
@@ -40,6 +40,36 @@ class StudioNativeWorkflowTest < StudioAiTest
     assert_raises(ArgumentError) { Studio::Workflows::ScenePlan.parse("A dragon flies") }
     unsafe=first.deep_dup;unsafe["camera"]["x"]="1; system('evil')"
     assert_raises(ArgumentError) { Studio::Layered::Composition.normalize(unsafe) }
+  end
+  def test_asset_and_group_tracks_obey_parent_transforms_and_preview_time
+    motion=Studio::Layered::Motion
+    composition=graph
+    composition["camera"]={"x"=>0,"y"=>0}
+    composition["nodes"]=[{"id"=>"rig","rotation"=>90,"scale"=>2,"motion"=>motion.preset("drift_right",amount:0.1,duration:4),
+      "children"=>[{"id"=>"part","template"=>"bench","width"=>0.1,"height"=>0.1,"motion"=>motion.preset("float",amount:0.1,duration:4)}]}]
+    normalized=Studio::Layered::Composition.normalize(composition)
+    layer=Studio::Layered::Composition.flatten(normalized).first
+    assert_equal 2,layer["motions"].length
+    offsets=layer["motions"].map { |track| motion.offset(track,2) }
+    assert_in_delta 32,offsets[0][0],0.0001
+    assert_in_delta 72,offsets[1][0],0.0001
+    assert_in_delta 0,offsets[1][1],0.0001
+    assert_equal [0.0,0.0],motion.offset(layer["motions"][1],4)
+    assert_equal [64.0,0.0],motion.offset(layer["motions"][0],8)
+    preview=Studio::Workflows::Production.preview(normalized)
+    assert_equal normalized["nodes"].first["motion"],preview["nodes"].first["motion"]
+    assert_equal 2,preview["canvas"]["duration"]
+    looped=motion.preset("sway")
+    assert_raises(ArgumentError) { motion.normalize(looped.merge("duration"=>0)) }
+    assert_raises(ArgumentError) { motion.normalize(looped.merge("loop"=>"true")) }
+    bad=looped.deep_dup;bad["keyframes"][1]["t"]=0
+    assert_raises(ArgumentError) { motion.normalize(bad) }
+    bad=looped.deep_dup;bad["keyframes"].last["x"]=0.1
+    assert_raises(ArgumentError) { motion.normalize(bad) }
+    bad=looped.deep_dup;bad["keyframes"][1]["x"]="evil"
+    assert_raises(ArgumentError) { motion.normalize(bad) }
+    park=Studio::Workflows::ScenePlan.parse("A nighttime park with a character sitting on a bench and a gentle breeze",seed:42)
+    assert Studio::Layered::Composition.flatten(park).select { |item| item["template"]=="tree.oak" }.all? { |item| item["motions"].any? }
   end
   def test_nested_compositions_save_and_reopen_without_overwriting_other_settings
     at_root do
@@ -105,7 +135,9 @@ class StudioNativeWorkflowTest < StudioAiTest
       Blender::Runner.stub(:new, ->(*) { flunk "Blender must not be called" }) do
         at_root do
           assert action("workflow_status",scene_id:@scene.id)[:ready]
-          operation=StudioOperation.find(workflow[:operation_id])
+          moving=Studio::Workflows::ScenePlan.parse("A nighttime park with a character sitting on a bench and a gentle breeze",seed:42)
+          moving["camera"]={"x"=>0,"y"=>0}
+          operation=StudioOperation.find(workflow(composition:moving)[:operation_id])
           ExecuteStudioOperationJob.perform_now(operation.id)
           assert_equal "completed",operation.reload.status,operation.error_message
           artifact=operation.artifacts.find_by!(kind:"video")
@@ -122,6 +154,70 @@ class StudioNativeWorkflowTest < StudioAiTest
           assert_equal artifact.id,rpc(operation,"tools/call",{name:"studio_result",arguments:{}})[1].dig("result","structuredContent","artifact_id")
         end
       end
+    end
+  end
+  def test_optional_blender_handoff_rejects_previews_and_unavailable_workers
+    at_root do
+      assert_raises(ArgumentError) { workflow(blender_handoff:true) }
+      assert_raises(ArgumentError) { workflow(blender_handoff:"yes") }
+      Studio::NativeBlender::Runtime.stub(:status,{ready:false}) do
+        assert_raises(ArgumentError) { action("workflow_quote",scene_id:@scene.id,composition:graph,blender_handoff:true,request_key:"unavailable-blender") }
+      end
+      assert_empty StudioOperation.where(capability:Studio::Workflows::Production::CAPABILITY)
+    end
+  end
+  def test_real_paid_blender_handoff_has_packed_editable_planes_and_animation
+    skip "Set LIGHTEK_TEST_BLENDER=1 for the optional project handoff" unless ENV["LIGHTEK_TEST_BLENDER"]=="1"
+    at_root do
+      composition=Studio::Workflows::ScenePlan.parse("A nighttime park with a character sitting on a bench and a gentle breeze",seed:42)
+      composition["canvas"].merge!("duration"=>2,"fps"=>12)
+      quote=->(operation:,**_) { operation.update!(cost_quote:{"principal_cents"=>500,"total_cents"=>550},status:"awaiting_payment") }
+      result=Studio::Billing::Quote.stub(:call,quote) do
+        action("workflow_quote",scene_id:@scene.id,composition:composition,blender_handoff:true,request_key:"blender-final-123")
+      end
+      operation=StudioOperation.find(result[:operation_id])
+      assert_raises(ArgumentError) { Studio::Workflows::Production.enqueue(operation) }
+      payment=DymondBank::Transaction.create!(payable:operation,status:"succeeded",amount_cents:550)
+      operation.payment_succeeded!(payment)
+      ExecuteStudioOperationJob.perform_now(operation.id)
+      assert_equal "completed",operation.reload.status,operation.error_message
+      blend=operation.artifacts.find_by!(kind:"blend")
+      blend.file.blob.open do |file|
+        script=File.join(Dir.mktmpdir,"inspect-handoff.py")
+        File.write(script,<<~PYTHON)
+          import bpy,json
+          scene=bpy.context.scene
+          planes=[obj for obj in scene.objects if obj.type=='MESH']
+          assert len(planes)==#{Studio::Layered::Composition.flatten(composition).length}
+          assert all(obj.get('lightek_node_id') and obj.get('lightek_asset_key') for obj in planes)
+          assert all(image.packed_file for image in bpy.data.images if image.type=='IMAGE')
+          assert bpy.data.texts['Lightek scene graph.json'].use_module is False
+          assert any(obj.parent and obj.parent.type=='EMPTY' for obj in planes)
+          tree=next(obj for obj in planes if obj.get('lightek_asset_key')=='tree.oak')
+          scene.frame_set(1);start=tree.location.copy();scene.frame_set(7)
+          assert (tree.location-start).length>0.0001
+          assert [scene.render.resolution_x,scene.render.resolution_y,scene.frame_end]==[640,360,24]
+          scene.frame_set(1);scene.cycles.samples=1;scene.render.resolution_percentage=25
+          from pathlib import Path
+          import struct
+          preview=Path(__file__).with_suffix('.png');scene.render.filepath=str(preview)
+          bpy.ops.render.render(write_still=True)
+          data=preview.read_bytes();assert data.startswith(bytes([137,80,78,71,13,10,26,10]))
+          assert struct.unpack('>II',data[16:24])==(160,90)
+          print('LIGHTEK_HANDOFF_VERIFIED')
+        PYTHON
+        output=Studio::MediaProcess.run!([ENV.fetch("BLENDER_BIN","blender"),"--background","--disable-autoexec",file.path,"--python-exit-code","1","--python",script],timeout:60)
+        assert_includes output,"LIGHTEK_HANDOFF_VERIFIED"
+        FileUtils.cp(file.path,ENV["STUDIO_NATIVE_PROOF_BLEND"]) if ENV["STUDIO_NATIVE_PROOF_BLEND"]
+      end
+      assert operation.artifacts.exists?(kind:"video")
+      operation.update!(status:"failed")
+      before=ActiveJob::Base.queue_adapter.enqueued_jobs.count
+      payments=DymondBank::Transaction.count
+      assert_equal operation.id,action("render_resume",operation_id:operation.id)[:operation_id]
+      action("render_resume",operation_id:operation.id)
+      assert_equal before+1,ActiveJob::Base.queue_adapter.enqueued_jobs.count
+      assert_equal payments,DymondBank::Transaction.count
     end
   end
   def test_final_export_uses_shared_quote_and_rejects_unpaid_execution

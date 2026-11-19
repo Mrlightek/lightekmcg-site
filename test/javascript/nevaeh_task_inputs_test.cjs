@@ -32,7 +32,7 @@ test('retrying identical inputs reuses the action request key',async()=>{
 });
 
 test('campaign receipts show safe review links as text and ignore external URLs',()=>{
-  const start=source.indexOf('function renderReceipt(a){'),end=source.indexOf('\n',start);
+  const start=source.indexOf('function renderReceipt(a){'),end=source.indexOf('\nfunction renderAgentJobs(',start);
   assert(start>=0 && end>start);
   const receipt=new Element('div');receipt.replaceChildren=function(){this.children=[];};
   const context={document:{createElement:tag=>new Element(tag)},$:()=>receipt};

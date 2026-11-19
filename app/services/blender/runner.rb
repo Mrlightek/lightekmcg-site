@@ -250,7 +250,10 @@ module Blender
 
     def timeout_seconds
       return 180 if execution_record.respond_to?(:metadata) && execution_record.metadata["director_rehearsal"]
-      return 180 if execution_record.respond_to?(:metadata) && execution_record.metadata["performance_preview"]
+      if execution_record.respond_to?(:metadata) && execution_record.metadata["performance_preview"]
+        pickup=Array(execution_record.manifest.dig("scene","objects")).any? { |row| row.dig("definition","mechanics_plan","driver")=="grasp" && row.dig("definition","mechanics_plan","version")==4 }
+        return pickup ? 600 : 180
+      end
       return 120 if execution_record.respond_to?(:metadata) && execution_record.metadata["asset_source_export"]
       return 60 if execution_record.respond_to?(:metadata) && execution_record.metadata["draft_preview"]
       return Studio::Compute::Guardrails::CPU_TIMEOUT if Studio::Compute::CpuProfile.economy?(execution_record.manifest)

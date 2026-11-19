@@ -21,6 +21,30 @@ def run(command,timeout=30):
     if result.returncode:
         raise RuntimeError(command[0]+' failed: '+result.stderr.decode(errors='replace')[-1200:])
     return result.stdout.decode().strip()
+
+def motion_expression(tracks,axis):
+    """Only bounded numeric tracks can produce FFmpeg expressions."""
+    if not isinstance(tracks,list) or len(tracks)>4: raise ValueError('Invalid motion tracks')
+    expressions=[]
+    for track in tracks:
+        if not isinstance(track,dict) or set(track)!={'duration','loop','keyframes'}: raise ValueError('Invalid motion track')
+        period=track['duration'];points=track['keyframes']
+        if type(period) not in (int,float) or not math.isfinite(period) or not .25<=period<=10 or type(track['loop']) is not bool: raise ValueError('Invalid motion duration')
+        if not isinstance(points,list) or not 2<=len(points)<=12: raise ValueError('Invalid keyframe count')
+        for point in points:
+            if not isinstance(point,dict) or set(point)!={'t','x','y'}: raise ValueError('Invalid keyframe')
+            if not all(type(point[key]) in (int,float) and math.isfinite(point[key]) for key in point): raise ValueError('Invalid motion values')
+            if not 0<=point['t']<=1 or max(abs(point['x']),abs(point['y']))>65536: raise ValueError('Invalid motion bounds')
+        if points[0]['t']!=0 or points[-1]['t']!=1 or any(a['t']>=b['t'] for a,b in zip(points,points[1:])): raise ValueError('Invalid keyframe order')
+        if track['loop'] and any(points[0][key]!=points[-1][key] for key in ('x','y')): raise ValueError('Discontinuous motion loop')
+        phase=f'mod(t,{period:.9f})/{period:.9f}' if track['loop'] else f'min(t/{period:.9f},1)'
+        expression=f'{points[-1][axis]:.9f}'
+        for a,b in reversed(list(zip(points,points[1:]))):
+            value=f'({a[axis]:.9f})+({b[axis]-a[axis]:.9f})*(({phase})-({a["t"]:.9f}))/({b["t"]-a["t"]:.9f})'
+            expression=f'if(lte({phase},{b["t"]:.9f}),{value},{expression})'
+        expressions.append('('+expression+')')
+    return '+'.join(expressions) or '0'
+
 for index,layer in enumerate(layers):
     source=layer['source']
     if not re.fullmatch(r'source-\d+\.(svg|png)',source) or (root/source).is_symlink() or (root/source).resolve().parent!=root: raise ValueError('Invalid source')
@@ -28,6 +52,9 @@ for index,layer in enumerate(layers):
     if not all(isinstance(value,(int,float)) and math.isfinite(value) for value in values): raise ValueError('Invalid layer values')
     w=max(1,round(layer['width']));h=max(1,round(layer['height']))
     if max(w,h)>4096 or not 0<=layer['depth']<=1 or not 0<=layer['opacity']<=1: raise ValueError('Invalid layer bounds')
+    # Validate before starting any image decoder; expressions are never client supplied.
+    layer['_motion_x']=motion_expression(layer.get('motions',[]),'x')
+    layer['_motion_y']=motion_expression(layer.get('motions',[]),'y')
     output=root/f'layer-{index}.png'
     fit=layer.get('fit','stretch')
     resize=['-resize',f'{w}x{h}!'] if fit=='stretch' else ['-resize',f'{w}x{h}'+('^' if fit=='cover' else ''),'-gravity','center','-extent',f'{w}x{h}']
@@ -49,11 +76,12 @@ filters=[];previous='0:v'
 for index,(_,layer,w,h) in enumerate(rendered):
     dx=float(spec['camera']['x'])*width*layer['depth'];dy=float(spec['camera']['y'])*height*layer['depth']
     label=f'v{index}'
-    x=f'{layer["x"]-w/2:.6f}-({dx:.6f})*t/{duration:.6f}'
-    y=f'{layer["y"]-h/2:.6f}-({dy:.6f})*t/{duration:.6f}'
+    x=f'{layer["x"]-w/2:.6f}-({dx:.6f})*t/{duration:.6f}+({layer["_motion_x"]})'
+    y=f'{layer["y"]-h/2:.6f}-({dy:.6f})*t/{duration:.6f}+({layer["_motion_y"]})'
     filters.append(f'[{previous}][{index+1}:v]overlay=x=\'{x}\':y=\'{y}\':eval=frame:format=auto[{label}]')
     previous=label
-command+=['-filter_complex',';'.join(filters),'-map',f'[{previous}]','-t',str(duration),'-r',str(fps),'-an','-c:v','libx264',
+(root/'filters.ffgraph').write_text(';'.join(filters))
+command+=['-filter_complex_script',str(root/'filters.ffgraph'),'-map',f'[{previous}]','-t',str(duration),'-r',str(fps),'-an','-c:v','libx264',
     '-threads','1','-preset','veryfast','-crf','20','-pix_fmt','yuv420p','-movflags','+faststart',str(root/'scene.mp4')]
 run(command,timeout=150)
 metrics={'engine':'lightek_2d','layers':len(layers),'duration':duration,'width':width,'height':height,

@@ -33,7 +33,6 @@ jobs:
     env:
       LIGHTEK_TEST_BLENDER: '1'
       LIGHTEK_TEST_CHARACTER_SCENE: '1'
-      LIGHTEK_RHUBARB: ${{ runner.temp }}/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb
       STUDIO_TEMPLATE_PROOF_VIDEO: /tmp/lightek-template-scene.mp4
       STUDIO_CHARACTER_PROOF_VIDEO: /tmp/lightek-character-scene.mp4
       STUDIO_CHARACTER_PROOF_BLEND: /tmp/lightek-character-scene.blend
@@ -54,7 +53,8 @@ jobs:
           curl --fail --location --retry 2 https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -o "$RUNNER_TEMP/rhubarb.zip"
           echo "a9a9074862cff47b2d59b8bf399a678a3b0b74f9452ad6ad94cb292913dd8667  $RUNNER_TEMP/rhubarb.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/rhubarb.zip" -d "$RUNNER_TEMP/rhubarb"
-          chmod 755 "$LIGHTEK_RHUBARB"
+          chmod 755 "$RUNNER_TEMP/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb"
+          echo "LIGHTEK_RHUBARB=$RUNNER_TEMP/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb" >> "$GITHUB_ENV"
       - name: Verify isolated workflow and real native video
         run: bundle exec ruby test/standalone/studio_native_workflow_checks.rb --name '/StudioNativeWorkflowTest/'
       - name: Verify a real illustrated character scene with speech

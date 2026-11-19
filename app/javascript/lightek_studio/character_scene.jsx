@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from 'react';
+import React,{useCallback,useEffect,useState} from 'react';
 import {HairStyleField} from './performer_look';
 import {requestKey} from './api';
 import {ProductionTemplates} from './production_templates';
@@ -11,19 +11,26 @@ import {AttentionFields,attentionAvailable} from './attention';
 export function CharacterSceneComposer(props){
  const [mode,setMode]=useState(null),[error,setError]=useState(''),[revision,setRevision]=useState(null);
  useEffect(()=>{let alive=true;setMode(null);props.api.call('character.scene.status',{scene_id:props.scene.id}).then(result=>{if(alive)setMode(result.inputs?.mode==='dialogue'?'dialogue':'single');}).catch(cause=>{if(alive){setError(cause.message);setMode('single');}});return()=>{alive=false;};},[props.api,props.scene.id]);
- async function revise(operationId){
-  setError('');
-  try{
-   const take=await props.api.call('character.scene.status',{operation_id:operationId});
-   if(take.status!=='completed')throw Error('Finish the take before revising it.');
-   setMode(take.inputs?.mode==='dialogue'?'dialogue':'single');
-   setRevision({take,key:requestKey()});
-  }catch(cause){setError(cause.message);}
+ function revise(operationId,slot){
+  props.run(async()=>{
+   setError('');
+   try{
+    const take=await props.api.call('character.scene.status',{operation_id:operationId});
+    if(take.status!=='completed')throw Error('Finish the take before revising it.');
+    setMode(take.inputs?.mode==='dialogue'?'dialogue':'single');
+    setRevision({take,slot,operationId,key:requestKey()});
+   }catch(cause){setError(cause.message);}
+  });
  }
- const form={...props,revision:revision?.take};
- return <><div className="ls-row" role="group" aria-label="Performance type"><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='single'} onClick={()=>{if(mode!=='single'){setRevision(null);setMode('single');}}}>One-character study</button><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='dialogue'} onClick={()=>{if(mode!=='dialogue'){setRevision(null);setMode('dialogue');}}}>Two-character dialogue</button></div>{error&&<p role="alert">{error}</p>}{mode==='dialogue'?<DialogueSceneComposer key={revision?.key||props.scene.id} {...form}/>:mode==='single'?<SingleCharacterSceneComposer key={revision?.key||props.scene.id} {...form}/>:<p role="status">Loading saved performance…</p>}<SequenceComposer {...props} onRevise={revise}/></>;
+ const revisionKey=revision?.key;
+ const onRevisionReady=useCallback(receipt=>{
+  setRevision(current=>current?.key===revisionKey&&current?.replacementId!==receipt.operation_id
+    ?{...current,replacementId:receipt.operation_id}:current);
+ },[revisionKey]);
+ const form={...props,revision:revision?.take,onRevisionReady};
+ return <><div className="ls-row" role="group" aria-label="Performance type"><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='single'} onClick={()=>{if(mode!=='single'){setRevision(null);setMode('single');}}}>One-character study</button><button type="button" disabled={!mode||props.busy} aria-pressed={mode==='dialogue'} onClick={()=>{if(mode!=='dialogue'){setRevision(null);setMode('dialogue');}}}>Two-character dialogue</button></div>{error&&<p role="alert">{error}</p>}{mode==='dialogue'?<DialogueSceneComposer key={revision?.key||props.scene.id} {...form}/>:mode==='single'?<SingleCharacterSceneComposer key={revision?.key||props.scene.id} {...form}/>:<p role="status">Loading saved performance…</p>}<SequenceComposer {...props} onRevise={revise} revision={revision}/></>;
 }
-function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene,revision}){
+function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTemplateScene,revision,onRevisionReady}){
  const [name,setName]=useState('Sentinel'),[dialogue,setDialogue]=useState('We protect this city.');
  const [shotName,setShotName]=useState(''),[hairStyle,setHairStyle]=useState('curls');
  const [skin,setSkin]=useState('#925e43'),[wardrobe,setWardrobe]=useState('#344e78'),[hair,setHair]=useState('#211916');
@@ -37,6 +44,9 @@ function SingleCharacterSceneComposer({api,scene,assets,busy,run,refresh,openTem
  const performers=assets.filter(asset=>asset.kind==='blend'&&asset.status==='ready'&&asset.metadata?.character_profile&&(!verified||asset.metadata.character_profile.mechanics?.profile==='contact_biped'));
  const recordings=assets.filter(asset=>asset.kind==='audio'&&asset.status==='ready'&&Number(asset.metadata?.duration)>=.2&&Number(asset.metadata?.duration)<=2.8);
  const active=['pending','running'].includes(receipt?.status);
+ useEffect(()=>{
+  if(revision&&receipt?.status==='completed'&&receipt.operation_id)onRevisionReady?.(receipt);
+ },[revision,receipt,onRevisionReady]);
  useEffect(()=>{
   let alive=true;
   Promise.all([api.call('character.scene.catalog',{scene_id:scene.id}),(revision?Promise.resolve(revision):api.call('character.scene.status',{scene_id:scene.id}))]).then(([choices,result])=>{

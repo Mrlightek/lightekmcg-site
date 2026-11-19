@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v115-sequence-workflow"
+const CACHE = "lightek-shell-v116-guided-acting"
 
 const SHELL = [
   "/lightek/index.html",
@@ -13,7 +13,7 @@ const SHELL = [
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
   "/lightek/nevaeh-reply-stream.js?v=1",
-  "/lightek/studio-unified.js?v=18",
+  "/lightek/studio-unified.js?v=19",
   "/lightek/studio-unified.css?v=6",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",

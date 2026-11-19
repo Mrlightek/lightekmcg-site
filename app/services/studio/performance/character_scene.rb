@@ -25,11 +25,12 @@ module Studio
         end
         template_key=payload.fetch("scene_template","studio").to_s
         camera_mode=payload.fetch("camera_mode","character").to_s
-        gesture=payload.fetch("gesture",SceneTemplates.defaults(template_key)["gesture"]).to_s
+        gesture=payload.fetch("gesture",%w[point_left point_right].include?(payload["body_action"]) ? "still" : SceneTemplates.defaults(template_key)["gesture"]).to_s
         raise ArgumentError,"Choose character coverage or template cameras" unless SceneTemplates::CAMERA_MODES.include?(camera_mode)
         raise ArgumentError,"Choose an available starter action" unless SceneTemplates::GESTURES.include?(gesture)
         staging=SceneTemplates.snapshot(access:access,source:source,key:template_key)
-        inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors,"scene_template"=>template_key,"camera_mode"=>camera_mode,"gesture"=>gesture}
+        inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors,"scene_template"=>template_key,"camera_mode"=>camera_mode,"gesture"=>gesture}.merge(Acting.inputs(payload))
+        Acting.gesture!(inputs)
         audio=nil;actor=nil
         if payload["audio_asset_id"].present?
           audio=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"audio",status:"ready").find(payload["audio_asset_id"])
@@ -75,7 +76,7 @@ module Studio
         operation=find(access,id)
         child=operation.studio_project.studio_operations.find_by(id:operation.metadata["preview_id"])
         artifact=child&.status=="completed" && child.artifacts.find_by(kind:"video")
-        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
+        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","entrance"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
           scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],cast_asset_ids:operation.metadata["cast_asset_ids"],duration_seconds:operation.metadata["duration_seconds"],turn_timing:operation.metadata["dialogue_timing"],preview_operation_id:child&.id,
           url:artifact && artifact.file.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}.compact
       end
@@ -170,6 +171,7 @@ module Studio
           StudioCharacterCreateJob.perform_now(actor.id) unless actor.metadata["character_profile"]
         end
         raise Waiting,"Waiting for the character worker" unless actor.reload.status=="ready" && actor.metadata["character_profile"]
+        Acting.validate!(inputs,actor.metadata.fetch("character_profile"))
         phase(operation,"preparing_dialogue",{"cast_asset_id"=>actor.id})
         audio=prepare_audio(operation,access,inputs,tag,scene)
         phase(operation,"analyzing_speech")
@@ -189,11 +191,15 @@ module Studio
           raise Waiting,"Waiting for speech analysis" if %w[pending running].include?(analysis_status)
           raise ArgumentError,"The speech worker could not analyze this recording" unless analysis_status=="completed"
           duration=audio.metadata.fetch("duration")
-          expressions=actor.metadata.dig("character_profile","bindings").key?("smile") ? [{"control"=>"smile","start"=>0,"end"=>duration,"value"=>0.35}] : []
+          expressions=Acting.expressions(inputs,actor.metadata.fetch("character_profile"),duration)
           kind=inputs.fetch("gesture");binding={"wave_right"=>"right_arm","nod"=>"head","shake"=>"head"}[kind]
           gestures=binding && actor.metadata.dig("character_profile","bones").key?(binding) ? [{"kind"=>kind,"start"=>0,"end"=>duration,"strength"=>0.45}] : []
-          Take.save(access:access,payload:{"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.reload.lock_version,"audio_asset_id"=>audio.id,"source_out"=>duration,"start"=>0.1,"lip_sync_mode"=>"phoneme","analysis_id"=>analysis[:id],"expressions"=>expressions,"gestures"=>gestures,"request_key"=>tag+"-take"})
+          Take.save(access:access,payload:{"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.reload.lock_version,"audio_asset_id"=>audio.id,"source_out"=>duration,"start"=>(inputs.fetch("entrance","none")=="none" ? 0.1 : 1.0),"lip_sync_mode"=>"phoneme","analysis_id"=>analysis[:id],"expressions"=>expressions,"gestures"=>gestures,"request_key"=>tag+"-take"})
         end
+        take=object.reload.definition.fetch("performance")
+        Acting.apply!(access:access,scene:scene,object:object,character:inputs,turns:[take],key:tag+"-acting")
+        seconds=[3,(take["start"]+take["duration"]+0.1).ceil].max
+        scene.with_lock { scene.update!(settings:scene.settings.merge("frame_end"=>seconds*12)) } unless scene.reload.settings["frame_end"]==seconds*12
         phase(operation,"directing_cameras")
         unless scene.reload.settings["character_scene_cameras"]
           scene.with_lock do
@@ -214,7 +220,7 @@ module Studio
         phase(operation,"rendering_preview")
         preview=scene.studio_operations.find_by(id:operation.metadata["preview_id"])
         unless preview
-          result=Studio::Workers::Workspace.perform("performance_preview",{"user_id"=>access.user.id,"site_id"=>access.site_id,"scene_id"=>scene.id,"scene_playback"=>true})
+          result=Studio::Workers::Workspace.perform("performance_preview",{"user_id"=>access.user.id,"site_id"=>access.site_id,"scene_id"=>scene.id,"scene_playback"=>true,"preview_seconds"=>seconds})
           preview=scene.studio_operations.find(result[:operation_id]);phase(operation,"rendering_preview",{"preview_id"=>preview.id})
         end
         preview.update!(status:"pending",error_message:nil) if preview.status=="failed"

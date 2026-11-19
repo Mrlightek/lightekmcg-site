@@ -23,7 +23,7 @@ module Studio
             raise ArgumentError,"Choose six-digit character colors" unless color.match?(/\A#[a-fA-F0-9]{6}\z/)
             [field,color]
           end
-          result={"name"=>name,"voice"=>voice,"colors"=>colors}
+          result={"name"=>name,"voice"=>voice,"colors"=>colors}.merge(Acting.inputs(row))
           if row["cast_asset_id"].present?
             actor=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"blend",status:"ready").find(row["cast_asset_id"])
             profile=actor.metadata["character_profile"]
@@ -91,6 +91,7 @@ module Studio
           end
           raise Waiting,"Waiting for the character worker" unless actor.reload.status=="ready" && actor.metadata["character_profile"]
           raise ArgumentError,"The character source changed. Register its current version before preparing dialogue." unless actor.native.attached? && actor.native.blob.id==actor.metadata.dig("character_profile","source_blob_id")
+          Acting.validate!(character,actor.metadata.fetch("character_profile"))
           actor
         end
         phase(operation,"preparing_dialogue",{"cast_asset_ids"=>actors.map(&:id)})
@@ -99,7 +100,7 @@ module Studio
           character=inputs["characters"][turn["speaker"]]
           prepare_audio(operation,access,character.merge(turn),"#{tag}-line-#{index}",scene)
         end
-        time=0.35
+        time=inputs["characters"].any? { |character| character.fetch("entrance","none")!="none" } ? 1.1 : 0.35
         timing=audio.map do |asset|
           start=time;time+=asset.metadata.fetch("duration")+0.25
           {"start"=>start,"duration"=>asset.metadata.fetch("duration")}
@@ -126,9 +127,13 @@ module Studio
           raise Waiting,"Waiting for speech analysis" if %w[pending running].include?(status)
           raise ArgumentError,"The speech worker could not analyze this turn" unless status=="completed"
           profile=actors[turn["speaker"]].metadata.fetch("character_profile");duration=timing[index]["duration"]
-          expressions=profile.fetch("bindings").key?("brow_raise") ? [{"control"=>"brow_raise","start"=>0,"end"=>[duration,0.6].min,"value"=>0.2}] : []
+          expressions=Acting.expressions(inputs["characters"][turn["speaker"]],profile,duration)
           gestures=profile.fetch("bones").key?("head") ? [{"kind"=>"nod","start"=>0,"end"=>[duration,1.0].min,"strength"=>0.2}] : []
           Take.save(access:access,payload:{"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.reload.lock_version,"audio_asset_id"=>audio[index].id,"source_out"=>duration,"start"=>timing[index]["start"],"append"=>true,"lip_sync_mode"=>"phoneme","analysis_id"=>analysis[:id],"expressions"=>expressions,"gestures"=>gestures,"request_key"=>key})
+        end
+        objects.each_with_index do |object,index|
+          turns=timing.each_with_index.filter_map { |value,i| value if inputs["turns"][i]["speaker"]==index }
+          Acting.apply!(access:access,scene:scene,object:object,character:inputs["characters"][index],turns:turns,key:"#{tag}-acting-#{index}")
         end
         phase(operation,"directing_conversation",{"duration_seconds"=>seconds,"dialogue_timing"=>timing})
         scene.with_lock do

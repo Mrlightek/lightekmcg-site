@@ -166,17 +166,17 @@ if portrait_path.is_file():
 arm_parts = {}
 for side, x in [('L', -0.43), ('R', 0.43)]:
     arm_parts[side] = [sphere('Sleeve '+side, (x, 0, 1.05), (0.12, 0.14, 0.36), wardrobe), sphere('Hand '+side, (x, -0.01, 0.72), (0.10, 0.09, 0.12), skin)]
-for x in (-0.17, 0.17):
-    sphere('Trouser leg', (x, 0, 0.43), (0.15, 0.16, 0.43), trousers)
-    sphere('Boot', (x, -0.09, 0.08), (0.17, 0.24, 0.10), black)
+leg_parts = {}
+for side,x in [('L',-.17),('R',.17)]:
+    leg_parts[side]=[sphere('Trouser leg '+side, (x, 0, 0.43), (0.15, 0.16, 0.43), trousers),sphere('Boot '+side, (x, -0.09, 0.08), (0.17, 0.24, 0.10), black)]
 sphere('Jacket pin', (0.24, -0.221, 1.28), (0.035, 0.025, 0.035), gold)
 
 rig = bpy.data.objects.new('PerformerRig', bpy.data.armatures.new('Performer bones')); scene.collection.objects.link(rig)
 bpy.context.view_layer.objects.active = rig; rig.select_set(True); bpy.ops.object.mode_set(mode='EDIT')
-for name, a, b in [('Head', (0, 0, 1.48), (0, 0, 2.2)), ('Arm.L', (-0.35, 0, 1.35), (-0.43, 0, 0.72)), ('Arm.R', (0.35, 0, 1.35), (0.43, 0, 0.72))]:
+for name, a, b in [('Head', (0, 0, 1.48), (0, 0, 2.2)), ('Arm.L', (-0.35, 0, 1.35), (-0.43, 0, 0.72)), ('Arm.R', (0.35, 0, 1.35), (0.43, 0, 0.72)), ('Leg.L',(-.17,0,.86),(-.17,0,.08)), ('Leg.R',(.17,0,.86),(.17,0,.08))]:
     bone = rig.data.edit_bones.new(name); bone.head = a; bone.tail = b
 bpy.ops.object.mode_set(mode='OBJECT')
-for bone_name, parts in [('Head', head_parts), ('Arm.L', arm_parts['L']), ('Arm.R', arm_parts['R'])]:
+for bone_name, parts in [('Head', head_parts), ('Arm.L', arm_parts['L']), ('Arm.R', arm_parts['R']),('Leg.L',leg_parts['L']),('Leg.R',leg_parts['R'])]:
     for obj in parts:
         world = obj.matrix_world.copy(); obj.parent = rig; obj.parent_type = 'BONE'; obj.parent_bone = bone_name
         bpy.context.view_layer.update(); obj.matrix_world = world
@@ -194,6 +194,30 @@ for name, bone_name, axis, amplitude in [('Head nod','Head',0,.25),('Look left a
     strip=track.strips.new(name,1,action)
     if slot is not None and hasattr(strip,'action_slot'):strip.action_slot=slot
     track.mute=True;animation.action=None
+# Additional illustrated puppet Actions are opt-in. Existing saved sources and
+# the legacy toon motion vocabulary retain their own registered identities.
+if illustrated:
+    for name in ('Step in place','Point left','Point right'):
+        animation=rig.animation_data_create();animation.action=None
+        for pose in rig.pose.bones: pose.rotation_mode='XYZ';pose.rotation_euler=(0,0,0)
+        for frame in (1,7,13,19,25):
+            ratio=(frame-1)/24
+            if name=='Step in place':
+                for bone_name,sign,amplitude in [('Leg.L',1,.28),('Leg.R',-1,.28),('Arm.L',-1,.14),('Arm.R',1,.14)]:
+                    bone=rig.pose.bones[bone_name];bone.rotation_euler=(0,0,sign*math.sin(ratio*math.tau)*amplitude)
+                    bone.keyframe_insert(data_path='rotation_euler',frame=frame,group=bone_name)
+            else:
+                side='L' if name=='Point left' else 'R'
+                bone=rig.pose.bones['Arm.'+side]
+                amount=0 if frame in (1,25) else (1 if side=='L' else -1)*1.15
+                bone.rotation_euler=(0,0,amount);bone.keyframe_insert(data_path='rotation_euler',frame=frame,group='Arm.'+side)
+        action=animation.action;action.name=name
+        slot=getattr(animation,'action_slot',None)
+        track=animation.nla_tracks.new();track.name='Source · '+name
+        strip=track.strips.new(name,1,action)
+        if slot is not None and hasattr(strip,'action_slot'):strip.action_slot=slot
+        track.mute=True;animation.action=None
+    for pose in rig.pose.bones:pose.rotation_euler=(0,0,0)
 scene.frame_set(1)
 
 camera = bpy.data.objects.new('Portrait camera', bpy.data.cameras.new('Portrait lens')); scene.collection.objects.link(camera)

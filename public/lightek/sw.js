@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v122-directed-grasp"
+const CACHE = "lightek-shell-v123-verified-pickup"
 
 const SHELL = [
   "/lightek/index.html",

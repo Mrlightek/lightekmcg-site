@@ -6,6 +6,8 @@ module Studio
       class Waiting < StandardError; end
       CAPABILITY="studio.workspace.character.scene.prepare"
       def self.start(access:,payload:)
+        payload=VerifiedGrasp.from_prompt(payload)
+        raise ArgumentError,"The validated pickup is a silent action" if VerifiedGrasp.active?(payload) && payload["audio_asset_id"].present?
         return DialogueScene.start(access:access,payload:payload) if payload["mode"]=="dialogue"
         raise ArgumentError,"Choose single or dialogue mode" if payload["mode"].present? && payload["mode"]!="single"
         source=access.scene!(payload.fetch("scene_id"))
@@ -30,6 +32,7 @@ module Studio
         raise ArgumentError,"Choose an available starter action" unless SceneTemplates::GESTURES.include?(gesture)
         staging=SceneTemplates.snapshot(access:access,source:source,key:template_key)
         inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors,"scene_template"=>template_key,"camera_mode"=>camera_mode,"gesture"=>gesture}.merge(Acting.inputs(payload)).merge(Contact.inputs(payload)).merge(Mechanics.inputs(payload)).merge(Attention.inputs(payload))
+        inputs["driver_fingerprint"]=Mechanics.driver_fingerprint("grasp",4) if VerifiedGrasp.active?(inputs)
         Contact.validate_target!(inputs,staging)
         Mechanics.validate!(inputs,staging)
         Attention.validate!(inputs,staging)
@@ -40,7 +43,7 @@ module Studio
           raise ArgumentError,"Use a recording lasting 0.2–2.8 seconds for this first short scene" unless audio.file.attached? && audio.file.blob.byte_size<=10.megabytes && audio.metadata["duration"].to_f.between?(0.2,2.8)
           inputs.merge!("audio_asset_id"=>audio.id,"audio_blob_id"=>audio.file.blob.id,"audio_duration"=>audio.metadata["duration"].to_f)
         else
-          raise ArgumentError,"Enter a short spoken line or choose a recording" if text.empty?
+          raise ArgumentError,"Enter a short spoken line or choose a recording" if text.empty? && !VerifiedGrasp.active?(inputs)
         end
         if payload["cast_asset_id"].present?
           actor=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"blend",status:"ready").find(payload["cast_asset_id"])
@@ -59,7 +62,7 @@ module Studio
             next previous
           end
           raise ArgumentError,"Wait for your current character scene" if scope.where(status:%w[pending running]).exists? || scope.where("created_at > ?",1.minute.ago).count>=3
-          op=source.studio_operations.create!(studio_project:source.studio_project,production:source.production,operation_type:"character_scene",provider:"studio",capability:CAPABILITY,status:"pending",intent:{"user_id"=>access.user.id},manifest:{"inputs"=>inputs,"staging"=>staging},metadata:{"request_key"=>key,"phase"=>"queued","attempt"=>0,"deadline"=>10.minutes.from_now.iso8601})
+          op=source.studio_operations.create!(studio_project:source.studio_project,production:source.production,operation_type:"character_scene",provider:"studio",capability:CAPABILITY,status:"pending",intent:{"user_id"=>access.user.id},manifest:{"inputs"=>inputs,"staging"=>staging},metadata:{"request_key"=>key,"phase"=>"queued","attempt"=>0,"deadline"=>(VerifiedGrasp.active?(inputs) ? 15 : 10).minutes.from_now.iso8601})
           op.performance_sources.attach(audio.file.blob) if audio
           op.performance_sources.attach(actor.native.blob) if actor
           op
@@ -90,7 +93,7 @@ module Studio
         operation=find(access,id)
         operation.with_lock do
           raise ArgumentError,"Only failed preparations can retry" unless operation.status=="failed"
-          operation.update!(status:"pending",error_message:nil,completed_at:nil,metadata:operation.metadata.merge("attempt"=>operation.metadata.fetch("attempt",0)+1,"deadline"=>10.minutes.from_now.iso8601))
+          operation.update!(status:"pending",error_message:nil,completed_at:nil,metadata:operation.metadata.merge("attempt"=>operation.metadata.fetch("attempt",0)+1,"deadline"=>(VerifiedGrasp.active?(operation.manifest.fetch("inputs")) ? 15 : 10).minutes.from_now.iso8601))
         end
         StudioCharacterSceneJob.perform_later(operation.id)
         receipt(access:access,id:id)
@@ -155,9 +158,11 @@ module Studio
       def self.prepare(operation)
         return DialogueScene.prepare(operation) if operation.manifest.dig("inputs","mode")=="dialogue"
         access=check!(operation);inputs=operation.manifest.fetch("inputs");tag="character-scene-#{operation.id}"
+        verified=VerifiedGrasp.active?(inputs)
+        raise ArgumentError,"This action implementation changed; prepare a new take" if verified && inputs["driver_fingerprint"]!=Mechanics.driver_fingerprint("grasp",4)
         operation.with_lock do
           unless operation.metadata["scene_id"]
-            scene=operation.studio_project.studio_scenes.create!(production:operation.production,name:"#{inputs['name']} · performed short",settings:StudioScene.default_settings.merge("render_engine"=>"CYCLES","compute_profile"=>"cpu_economy","resolution_x"=>640,"resolution_y"=>360,"samples"=>1,"fps"=>12,"frame_start"=>1,"frame_end"=>36,"world_color"=>[0.02,0.03,0.05,1]))
+            scene=operation.studio_project.studio_scenes.create!(production:operation.production,name:"#{inputs['name']} · performed short",settings:StudioScene.default_settings.merge("render_engine"=>"CYCLES","compute_profile"=>"cpu_economy","resolution_x"=>640,"resolution_y"=>360,"samples"=>1,"fps"=>(verified ? 24 : 12),"frame_start"=>1,"frame_end"=>36,"world_color"=>[0.02,0.03,0.05,1]))
             SceneTemplates.apply!(scene,operation.manifest.fetch("staging"),access:access)
             operation.update!(metadata:operation.metadata.merge("scene_id"=>scene.id))
           end
@@ -166,9 +171,9 @@ module Studio
         phase(operation,"building_character")
         if inputs["cast_asset_id"]
           actor=StudioAsset.for_actor(access).find(inputs["cast_asset_id"])
-          raise ArgumentError,"The reusable character changed. Start a new scene using its current version." unless actor.metadata["character_profile"]==inputs["cast_profile"]
+          raise ArgumentError,"The reusable character changed. Start a new scene using its current version." unless actor.metadata["character_profile"]==inputs["cast_profile"] && actor.native.blob.id==inputs.dig("cast_profile","source_blob_id")
         else
-          result=Cast.create(access:access,payload:inputs.fetch("colors").merge("name"=>inputs["name"],"style"=>"illustrated","request_key"=>tag+"-cast"))
+          result=Cast.create(access:access,payload:inputs.fetch("colors").merge("name"=>inputs["name"],"style"=>(verified ? "physical" : "illustrated"),"request_key"=>tag+"-cast"))
           actor=StudioAsset.find(result[:asset_id])
           Cast.retry(access:access,payload:{"asset_id"=>actor.id}) if actor.status=="failed"
           if actor.metadata["performer_phase"]=="building" && actor.updated_at<10.minutes.ago
@@ -182,7 +187,7 @@ module Studio
         Mechanics.validate_profile!(inputs,actor.metadata.fetch("character_profile"))
         Attention.validate_profile!(inputs,actor.metadata.fetch("character_profile"))
         phase(operation,"preparing_dialogue",{"cast_asset_id"=>actor.id})
-        audio=prepare_audio(operation,access,inputs,tag,scene)
+        audio=prepare_audio(operation,access,inputs,tag,scene) unless verified
         phase(operation,"analyzing_speech")
         placement=Cast.place(access:access,payload:{"scene_id"=>scene.id,"asset_id"=>actor.id,"lock_version"=>scene.reload.lock_version,"request_key"=>tag+"-place"})
         object=scene.scene_objects.find(placement.fetch("object_id"))
@@ -193,7 +198,7 @@ module Studio
           definition["motion_clips"]=motion["motion_clips"] if motion && motion["asset_id"]==actor.id && motion["character_profile"]==actor.metadata["character_profile"]
           object.update!(definition:definition.merge("template_performer_initialized"=>true))
         end
-        unless object.definition["performance"]
+        unless verified || object.definition["performance"]
           analysis=LipSync.start(access:access,payload:{"scene_id"=>scene.id,"audio_asset_id"=>audio.id,"source_out"=>audio.metadata.fetch("duration"),"dialogue"=>inputs["dialogue"],"recognizer"=>"phonetic","request_key"=>tag+"-speech-#{operation.metadata['attempt']}"})
           StudioLipSyncJob.perform_now(analysis[:id])
           analysis_status=StudioOperation.find(analysis[:id]).status
@@ -205,12 +210,13 @@ module Studio
           gestures=binding && actor.metadata.dig("character_profile","bones").key?(binding) ? [{"kind"=>kind,"start"=>0,"end"=>duration,"strength"=>0.45}] : []
           Take.save(access:access,payload:{"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.reload.lock_version,"audio_asset_id"=>audio.id,"source_out"=>duration,"start"=>(inputs["mechanics"] ? Mechanics.speech_start(inputs) : inputs.fetch("entrance","none")=="none" ? 0.1 : 1.0),"lip_sync_mode"=>"phoneme","analysis_id"=>analysis[:id],"expressions"=>expressions,"gestures"=>gestures,"request_key"=>tag+"-take"})
         end
-        take=object.reload.definition.fetch("performance")
-        Acting.apply!(access:access,scene:scene,object:object,character:inputs,turns:[take],key:tag+"-acting")
+        take=object.reload.definition["performance"] || {"start"=>0,"duration"=>0}
+        Acting.apply!(access:access,scene:scene,object:object,character:inputs,turns:[take],key:tag+"-acting") unless verified
         Contact.apply!(scene:scene,object:object,character:inputs)
         Mechanics.apply!(scene:scene,object:object,character:inputs)
         seconds=[inputs["mechanics"] ? 8 : 3,(take["start"]+take["duration"]+0.1).ceil,Contact.ending(inputs).ceil,Attention.ending(inputs).ceil].max
-        scene.with_lock { scene.update!(settings:scene.settings.merge("frame_end"=>seconds*12)) } unless scene.reload.settings["frame_end"]==seconds*12
+        rate=verified ? 24 : 12
+        scene.with_lock { scene.update!(settings:scene.settings.merge("frame_end"=>seconds*rate,"fps"=>rate)) } unless scene.reload.settings["frame_end"]==seconds*rate
         phase(operation,"directing_cameras")
         unless scene.reload.settings["character_scene_cameras"]
           scene.with_lock do

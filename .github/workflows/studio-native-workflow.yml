@@ -21,6 +21,9 @@ on:
       - 'blender/contacts.py'
       - 'blender/mechanics.py'
       - 'blender/physics/**'
+      - 'blender/profiles/**'
+      - 'test/standalone/studio_verified_grasp_checks.rb'
+      - 'test/javascript/studio_verified_grasp_test.cjs'
       - 'docker/studio-media/physics-requirements.txt'
       - 'test/operations/studio_physics_test.py'
       - 'test/operations/studio_grasp_acting_test.py'
@@ -64,7 +67,7 @@ permissions:
 jobs:
   native-2d:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       LIGHTEK_TEST_BLENDER: '1'
       LIGHTEK_TEST_CHARACTER_SCENE: '1'
@@ -118,6 +121,11 @@ jobs:
           STUDIO_GRASP_PROOF_VIDEO: /tmp/lightek-directed-grasp.mp4
           STUDIO_GRASP_PROOF_BLEND: /tmp/lightek-directed-grasp.blend
         run: bundle exec ruby test/standalone/studio_grasp_acting_checks.rb --name '/StudioGraspActingTest/'
+      - name: Verify calibrated pickup and reusable weighted hand
+        env:
+          STUDIO_VERIFIED_PROOF_VIDEO: /tmp/lightek-verified-pickup.mp4
+          STUDIO_VERIFIED_PROOF_BLEND: /tmp/lightek-verified-pickup.blend
+        run: bundle exec ruby test/standalone/studio_verified_grasp_checks.rb --name '/StudioVerifiedGraspTest/'
       - name: Verify isolated workflow and real native video
         run: bundle exec ruby test/standalone/studio_native_workflow_checks.rb --name '/StudioNativeWorkflowTest/'
       - name: Verify a real illustrated character scene with speech
@@ -180,6 +188,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_carry_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_grasp_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_grasp_acting_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_verified_grasp_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_attention_test.cjs
       - uses: actions/upload-artifact@v4
         with:
@@ -189,6 +198,8 @@ jobs:
             /tmp/lightek-park.blend
             /tmp/lightek-directional.mp4
             /tmp/lightek-directional.blend
+            /tmp/lightek-verified-pickup.mp4
+            /tmp/lightek-verified-pickup.blend
             /tmp/lightek-directed-grasp.mp4
             /tmp/lightek-directed-grasp.blend
             /tmp/lightek-facing-grasp.mp4

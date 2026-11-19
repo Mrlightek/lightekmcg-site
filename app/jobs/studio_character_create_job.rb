@@ -14,6 +14,8 @@ class StudioCharacterCreateJob < ApplicationJob
     Dir.mktmpdir("lightek-performer-") do |root|
       FileUtils.cp(Rails.root.join("blender/create_performer.py"),File.join(root,"create_performer.py"))
       FileUtils.cp(Rails.root.join("blender/create_side_views.py"),File.join(root,"create_side_views.py"))
+      %w[contact_character_v1.py hand_rig_v1.py hand_surface_v1.py].each { |file|FileUtils.cp(Rails.root.join("blender",file),File.join(root,file)) }
+      FileUtils.mkdir_p(File.join(root,"profiles"));FileUtils.cp(Rails.root.join("blender/profiles/contact_biped_v1.json"),File.join(root,"profiles/contact_biped_v1.json"))
       File.write(File.join(root,"params.json"),asset.metadata.fetch("performer_build").to_json)
       prepare_photo(asset,root) if asset.character_photo.attached?
       output=File.join(root,"performer.blend")
@@ -31,7 +33,11 @@ class StudioCharacterCreateJob < ApplicationJob
       reach=asset.metadata.dig("performer_build","style")=="illustrated" ? %w[left right].to_h { |side| letter=side=="left" ? "L" : "R";[side,{"rig"=>"PerformerRig","upper"=>"Arm.#{letter}","forearm"=>"Forearm.#{letter}","hand"=>"Hand #{letter}","wrist_anchor"=>[0,0,0.12],"contact_anchor"=>[0,0.004,0]}] } : {}
       view_names=Array(asset.metadata["scenes"]).flat_map { |row| Array(row["objects"]) }.select { |row| row.dig("definition","native_type")=="MESH" }.map { |row| row["name"] }
       views=reach.any? ? {"version"=>1,"front"=>view_names.reject { |name| name.start_with?("Side ") },"side"=>view_names.select { |name| name.start_with?("Side ") }} : nil
-      profile=Studio::Performance::Cast.profile(asset,{"source_scene"=>"Lightek Performer","bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach,"views"=>views,"attention_binding"=>{"rig"=>"PerformerRig","head"=>"Head","eye_anchor"=>[0,-0.317,1.99]},"mechanics"=>(asset.metadata.dig("performer_build","style")=="illustrated" ? Studio::Performance::Mechanics.bindings : nil)})
+      physical=asset.metadata.dig("performer_build","style")=="physical"
+      if physical
+        bones={"head"=>{"object"=>"ContactRig","bone"=>"Part.head"},"left_arm"=>{"object"=>"ContactRig","bone"=>"Part.upperL"},"right_arm"=>{"object"=>"ContactRig","bone"=>"Part.upperR"}}
+      end
+      profile=Studio::Performance::Cast.profile(asset,{"source_scene"=>"Lightek Performer","bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach,"views"=>views,"attention_binding"=>(physical ? {"rig"=>"ContactRig","head"=>"Part.head","eye_anchor"=>[0.09,0,0]} : {"rig"=>"PerformerRig","head"=>"Head","eye_anchor"=>[0,-0.317,1.99]}),"mechanics"=>(physical ? Studio::Performance::VerifiedGrasp::BINDINGS : asset.metadata.dig("performer_build","style")=="illustrated" ? Studio::Performance::Mechanics.bindings : nil)})
       asset.update!(metadata:asset.metadata.merge("character_profile"=>profile,"performer_phase"=>"ready"))
     end
   rescue StandardError=>error

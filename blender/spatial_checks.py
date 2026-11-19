@@ -105,6 +105,11 @@ def validate(objects,created,settings,contacts=()):
                         if 'physics_sphere_radius_m' in cue:
                             from mathutils import Vector
                             center=created[str(other['id'])].matrix_world.translation
+                            if cue.get('physics_skin'):
+                                skin=geometry(cue['contact_mesh'],depsgraph)
+                                tree=BVHTree.FromPolygons(skin[0],skin[1],all_triangles=True);near=tree.find_nearest(center)
+                                if near[0] is None or (center-near[0]).dot(near[1])<0 or near[3]<cue['physics_sphere_radius_m']-.002:raise RuntimeError('Physical hand skin penetrates its load at frame '+str(frame))
+                                continue
                             for capsule in cue['capsules']:
                                 half=capsule['lightek_capsule_half_length_m'];radius=capsule['lightek_capsule_radius_m']
                                 a=capsule.matrix_world @ Vector((0,0,-half));b=capsule.matrix_world @ Vector((0,0,half));axis=b-a

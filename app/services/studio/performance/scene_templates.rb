@@ -38,6 +38,7 @@ module Studio
         scene_rows.insert(3,{key:"carry",name:"Pick up, carry and put down",description:"A calibrated parcel grip, walk and release onto a second table.",defaults:defaults("studio").merge("dialogue"=>"I have got it. Let us move.","gesture"=>"still","mechanics"=>{"action"=>"carry","version"=>1,"target_id"=>"parcel"}),available:true})
         scene_rows.insert(4,{key:"grasp",name:"Physical finger grasp",description:"Torque-limited fingers close around a free sphere, lift it through friction and release it onto a table. The character faces the table and looks down at the sphere before reaching.",defaults:defaults("studio").merge("dialogue"=>"A real grip.","gesture"=>"still","camera_mode"=>"template","mechanics"=>{"action"=>"grasp","version"=>2,"target_id"=>"ball"}),available:true})
         scene_rows.insert(5,{key:"grasp_acting",name:"Pedestal pickup · acting beats",description:"Gaze leads the reach, a weight check marks lift-off, breathing and grip adjustments sustain the hold, then placement and follow-through.",defaults:defaults("studio").merge("dialogue"=>"There we go.","gesture"=>"still","camera_mode"=>"template","mechanics"=>{"action"=>"grasp","version"=>3,"target_id"=>"ball"}),available:true})
+        scene_rows.insert(6,{key:VerifiedGrasp::KEY,name:"Pick up, inspect and return",description:"Validated eight-second contact action with a reusable weighted hand. Requires a contact_biped v1 character and the calibrated ball.",defaults:defaults("studio").merge("dialogue"=>"","gesture"=>"still","camera_mode"=>"template","mechanics"=>{"action"=>"grasp","version"=>4,"target_id"=>"ball"}),required_profile:"contact_biped",available:true})
         scene_rows.each do |row|
           objects=case row[:key]
           when "studio" then []
@@ -45,6 +46,7 @@ module Studio
           when "bench" then bench
           when "carry" then Carry.objects
           when "grasp" then Grasp.objects
+          when VerifiedGrasp::KEY then VerifiedGrasp.objects
           when "grasp_acting" then Grasp.acting_objects
           when "current" then scene.scene_objects.map { |object| {"id"=>object.id,"name"=>object.name,"type"=>object.object_type,"definition"=>object.definition} }
           else Studio::Library::Catalog.objects(row[:key].delete_prefix("library:")).each_with_index.map { |object,i| object.merge("id"=>i+1) }
@@ -94,7 +96,9 @@ module Studio
       end
       def self.snapshot(access:,source:,key:,performer_count:1)
         return {"key"=>"studio","name"=>"Plain character stage","settings"=>{},"objects"=>[],"assets"=>[]} if key=="studio"
-        if key=="grasp_acting"
+        if key==VerifiedGrasp::KEY
+          objects=VerifiedGrasp.objects;settings={"fps"=>24,"camera_cuts"=>[{"camera_id"=>"grasp_wide","frame"=>1},{"camera_id"=>"grasp_close","frame"=>79},{"camera_id"=>"grasp_recovery","frame"=>145}]};name="Pick up, inspect and return"
+        elsif key=="grasp_acting"
           objects=Grasp.acting_objects;settings={"fps"=>12,"camera_cuts"=>[{"camera_id"=>"grasp_wide","frame"=>1},{"camera_id"=>"grasp_close","frame"=>16},{"camera_id"=>"grasp_medium","frame"=>37},{"camera_id"=>"grasp_close","frame"=>55},{"camera_id"=>"grasp_wide","frame"=>75}]};name="Pedestal pickup · acting beats"
         elsif key=="grasp"
           objects=Grasp.objects;settings={"fps"=>12,"camera_cuts"=>[{"camera_id"=>"grasp_wide","frame"=>1},{"camera_id"=>"grasp_close","frame"=>13},{"camera_id"=>"grasp_wide","frame"=>85}]};name="Physical finger grasp"
@@ -182,8 +186,9 @@ module Studio
           preset["camera_cuts"]=[]
         end
         settings["camera_cuts"]=authored.filter_map do |cut|
-          frame=1+((cut.fetch("frame")-1)*12/fps).round
-          {"camera_id"=>map.fetch(cut.fetch("camera_id")),"frame"=>frame} if frame.between?(1,%w[grasp grasp_acting].include?(staging["key"]) ? 96 : 36)
+          target_fps=staging["key"]==VerifiedGrasp::KEY ? 24 : 12
+          frame=1+((cut.fetch("frame")-1)*target_fps/fps).round
+          {"camera_id"=>map.fetch(cut.fetch("camera_id")),"frame"=>frame} if frame.between?(1,staging["key"]==VerifiedGrasp::KEY ? 192 : %w[grasp grasp_acting].include?(staging["key"]) ? 96 : 36)
         end.uniq { |cut| cut["frame"] }.sort_by { |cut| cut["frame"] }
         scene.update!(settings:settings.merge(scene.settings).merge("template_source"=>staging.slice("key","name")))
       end

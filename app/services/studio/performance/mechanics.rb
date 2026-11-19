@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require "digest"
+require_relative "verified_grasp"
 module Studio
   module Performance
     # Scene ViewModel: immutable, versioned action plans consume source rig contracts.
@@ -12,6 +13,7 @@ module Studio
       DRIVERS["grasp:1"]={"files"=>%w[grasp_v1.py biped_v3.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v1.py physics/human_v1.json],"speech_start"=>3.0,"phases"=>{"reach"=>[0,1],"close"=>[1,2],"lift"=>[2,3],"hold"=>[3,4],"lower"=>[4,5],"open"=>[5,6],"withdraw"=>[6,8]}}
       DRIVERS["grasp:2"]={"files"=>%w[grasp_v2.py biped_v4.py biped_v3.py grasp_look_v2.py views_v1.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v1.py physics/human_v1.json],"speech_start"=>3.0,"phases"=>DRIVERS.fetch("grasp:1").fetch("phases")}
       DRIVERS["grasp:3"]={"files"=>%w[grasp_v3.py grasp_acting_v3.py biped_v4.py biped_v3.py grasp_look_v3.py views_v1.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v3.py physics/human_v1.json physics/pedestal_contact_v3.json],"speech_start"=>3.25,"phases"=>{"commit"=>[0,22.0/12],"engage_lift"=>[22.0/12,3],"hold_assess"=>[3,4.5],"place_disengage"=>[4.5,8]}}
+      DRIVERS["grasp:4"]={"files"=>VerifiedGrasp::FILES,"speech_start"=>0,"phases"=>VerifiedGrasp::PHASES}
       DRIVERS.freeze
       def self.bindings
         {"profile"=>PROFILE,"version"=>VERSION,"rig"=>"PerformerRig","body"=>"Body","support"=>"Pelvis support",
@@ -20,6 +22,7 @@ module Studio
       end
       def self.register(objects,raw)
         return nil if raw.blank?
+        return VerifiedGrasp.register(objects,raw) if raw["profile"]=="contact_biped"
         raise ArgumentError,"Unsupported mechanics calibration" unless raw==bindings
         rig=objects.find { |row| row["name"]==raw["rig"] && row.dig("definition","native_type")=="ARMATURE" }
         bones=Array(rig&.dig("definition","bones"))
@@ -42,6 +45,7 @@ module Studio
         raise ArgumentError,"The coordinated performance owns its own movement and contacts" if character["contact"] || character["entrance"]!="none" || character["body_action"]!="still" || character["gesture"]!="still"
         raise ArgumentError,"Clear saved source motion before using coordinated mechanics" if staging.dig("actor_motion","motion_clips").present?
         raise ArgumentError,"The acting grasp owns its gaze timing" if cue["action"]=="grasp" && cue["version"]==3 && character["attention"]
+        return VerifiedGrasp.validate!(character,staging) if VerifiedGrasp.active?(character)
         return Grasp.validate!(cue,staging) if cue["action"]=="grasp"
         return Carry.validate!(cue,staging) if cue["action"]=="carry"
         target=staging.fetch("objects").find { |object| object["id"].to_s==cue["target_id"] }
@@ -51,6 +55,10 @@ module Studio
       end
       def self.validate_profile!(character,profile)
         return unless character["mechanics"]
+        if VerifiedGrasp.active?(character)
+          raise ArgumentError,"Create or choose a contact_biped v1 character for this action" unless profile["mechanics"]==VerifiedGrasp::BINDINGS
+          return
+        end
         raise ArgumentError,"Build a new illustrated performer with version 1 mechanics bindings" unless profile["mechanics"]==bindings
         if character.dig("mechanics","action")=="grasp" && character.dig("mechanics","version")>=2
           binding=profile["attention_binding"]
@@ -78,9 +86,9 @@ module Studio
           plan["support_object_ids"]=Carry.supports(scene) if cue["action"]=="carry"
           if cue["action"]=="grasp"
             plan["support_object_ids"]=Grasp.supports(scene)
-            plan["physical_profile"]=Grasp.physical_profile
+            plan["physical_profile"]=VerifiedGrasp.active?(character) ? VerifiedGrasp.profile : Grasp.physical_profile
           end
-          object.update!(definition:object.definition.merge("location"=>[0,-0.24,0],"rotation"=>[0,0,0],"scale"=>[1,1,1],"mechanics_plan"=>plan))
+          object.update!(definition:object.definition.merge("location"=>(VerifiedGrasp.active?(character) ? [0,0,0] : [0,-0.24,0]),"rotation"=>[0,0,0],"scale"=>[1,1,1],"mechanics_plan"=>plan))
           scene.update!(settings:scene.settings.merge("native_revision"=>scene.settings.fetch("native_revision",0)+1))
         end
       end

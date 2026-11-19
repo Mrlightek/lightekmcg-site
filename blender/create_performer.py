@@ -10,6 +10,11 @@ from mathutils import Vector
 params_path, output = sys.argv[sys.argv.index('--') + 1:]
 with open(params_path, encoding='utf-8') as handle:
     params = json.load(handle)
+if params.get('style')=='physical':
+    import contact_character_v1
+    contact_character_v1.build(params)
+    bpy.ops.wm.save_as_mainfile(filepath=output,compress=True)
+    sys.exit(0)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
 scene.name = 'Lightek Performer'

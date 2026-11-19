@@ -120,13 +120,13 @@ module Studio
           values["hair_style"]=style
         end
         if payload.key?("style")
-          raise ArgumentError,"Choose toon or illustrated" unless %w[toon illustrated].include?(payload["style"])
+          raise ArgumentError,"Choose toon, illustrated or physical" unless %w[toon illustrated physical].include?(payload["style"])
           values["style"]=payload["style"]
         end
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"A performer request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         photo=creation_photo(access,payload)
-        raise ArgumentError,"Illustrated performers use editable drawn faces" if photo && values["style"]=="illustrated"
+        raise ArgumentError,"Illustrated performers use editable drawn faces" if photo && %w[illustrated physical].include?(values["style"])
         asset=nil
         access.user.with_lock do
           asset=StudioAsset.find_by(owner:access.user,request_key:key)

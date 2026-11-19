@@ -9,6 +9,8 @@ module Studio
         Studio::Workflows::Production.scene!(access,@operation.studio_scene_id)
         LightekPwa::Policy.new(user:actor,site:@operation.studio_project.site).authorize!("studio")
         raise ArgumentError,"Checkout is required before final rendering" unless @operation.metadata["draft_preview"] || @operation.paid?
+        handoff=@operation.manifest["blender_handoff"]==true
+        raise ArgumentError,"Private previews cannot export Blender projects" if handoff && @operation.metadata["draft_preview"]
         graph=Studio::Layered::Composition.normalize(@operation.manifest.fetch("composition_2d"))
         if @operation.metadata["draft_preview"]
           canvas=graph.fetch("canvas")
@@ -26,7 +28,7 @@ module Studio
               blob.open { |file| FileUtils.cp(file.path,File.join(root,path)) }
               layer["source"]=path;layer["source_kind"]=kind
             end
-            spec={"canvas"=>graph.fetch("canvas"),"camera"=>graph.fetch("camera"),"layers"=>layers}
+            spec={"canvas"=>graph.fetch("canvas"),"camera"=>graph.fetch("camera"),"layers"=>layers,"composition"=>graph}
             File.write(File.join(root,"render.json"),JSON.generate(spec))
             FileUtils.cp(Rails.root.join("lib/scripts/studio_layered_renderer.py"),File.join(root,"renderer.py"))
             command=["python3",File.join(root,"renderer.py"),File.join(root,"render.json"),root]
@@ -34,6 +36,17 @@ module Studio
               image:Studio::NativeBlender::Runtime.image(:media),memory:"512m",pull:false) if Rails.env.production?
             @operation.update!(metadata:@operation.metadata.merge("workflow_phase"=>"compositing"))
             Studio::MediaProcess.run!(command,timeout:180,cancel_if: -> { @operation.reload.status=="cancelled" },on_tick: -> { Studio::Compute::Lease.heartbeat! })
+            if handoff
+              FileUtils.cp(Rails.root.join("lib/scripts/studio_layered_blender.py"),File.join(root,"blender-handoff.py"))
+              command=[ENV.fetch("BLENDER_BIN","blender"),"--background","--factory-startup","--disable-autoexec","--threads","1","--python-exit-code","1","--python",File.join(root,"blender-handoff.py"),"--",File.join(root,"render.json"),root]
+              if Rails.env.production?
+                command[0]="blender"
+                command=Studio::MediaProcess.container(command.map { |part| part.sub(root,"/work") },root:root,
+                  image:Studio::NativeBlender::Runtime.image(:media),memory:"512m",pull:false)
+              end
+              @operation.update!(metadata:@operation.metadata.merge("workflow_phase"=>"building_blender_project"))
+              Studio::MediaProcess.run!(command,timeout:90,cancel_if: -> { @operation.reload.status=="cancelled" },on_tick: -> { Studio::Compute::Lease.heartbeat! })
+            end
             Studio::Compute::Lease.check!
             path=File.join(root,"scene.mp4")
             raise ArgumentError,"The compositor did not produce a bounded video" unless File.size?(path) && File.size(path)<=64.megabytes
@@ -42,6 +55,13 @@ module Studio
               artifact=@operation.artifacts.find_or_initialize_by(kind:"video",filename:"scene.mp4")
               artifact.file.attach(io:File.open(path),filename:"scene.mp4",content_type:"video/mp4",identify:false)
               artifact.save!
+              if handoff
+                blend=File.join(root,"scene.blend")
+                raise ArgumentError,"Blender did not produce a bounded project" unless File.size?(blend) && File.size(blend)<=128.megabytes
+                project=@operation.artifacts.find_or_initialize_by(kind:"blend",filename:"scene.blend")
+                project.file.attach(io:File.open(blend),filename:"scene.blend",content_type:"application/octet-stream",identify:false)
+                project.save!
+              end
               metrics=JSON.parse(File.read(File.join(root,"metrics.json")))
               @operation.update!(metadata:@operation.metadata.merge("workflow_phase"=>"completed","layered_metrics"=>metrics))
             end

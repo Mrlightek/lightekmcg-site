@@ -56,6 +56,12 @@ module Studio
       end
       def self.start(access:,payload:,final:false)
         scene=scene!(access,payload.fetch("scene_id"))
+        handoff=payload.fetch("blender_handoff",false)
+        raise ArgumentError,"Blender handoff must be true or false" unless [true,false].include?(handoff)
+        raise ArgumentError,"Blender projects are available with full exports" if handoff && !final
+        if handoff && !Studio::NativeBlender::Runtime.status[:ready]
+          raise ArgumentError,"The optional Blender worker is unavailable. Export the 2D video or configure the Studio media runtime."
+        end
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"Use a valid workflow request key" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         graph=if payload["composition"]
@@ -70,14 +76,14 @@ module Studio
           scope=StudioOperation.where(capability:CAPABILITY,studio_project_id:access.projects.select(:id)).where("CAST(intent ->> 'user_id' AS TEXT) = ?",access.user.id.to_s)
           previous=scope.where("metadata ->> 'workflow_request_key' = ?",key).first
           if previous
-            raise ArgumentError,"This request belongs to a different render" unless previous.studio_scene_id==scene.id && previous.metadata["scene_plan"]==graph && previous.metadata["draft_preview"]==!final
+            raise ArgumentError,"This request belongs to a different render" unless previous.studio_scene_id==scene.id && previous.metadata["scene_plan"]==graph && previous.metadata["draft_preview"]==!final && !!previous.manifest["blender_handoff"]==handoff
             next previous
           end
           raise ArgumentError,"Wait for your current scene render" if scope.where(status:%w[pending running]).exists? || scope.where("created_at > ?",1.minute.ago).count>=4
           rendered=final ? graph : preview(graph)
           op=scene.studio_operations.create!(studio_project:scene.studio_project,production:scene.production,
             operation_type:"edit_media",provider:"layered_2d",capability:CAPABILITY,status:final ? "awaiting_payment" : "pending",
-            intent:{"user_id"=>access.user.id},manifest:{"composition_2d"=>rendered},metadata:{"draft_preview"=>!final,"layered_scene"=>true,
+            intent:{"user_id"=>access.user.id},manifest:{"composition_2d"=>rendered,"blender_handoff"=>handoff},metadata:{"draft_preview"=>!final,"layered_scene"=>true,
               "workflow_request_key"=>key,"scene_plan"=>graph,"workflow_nonce"=>SecureRandom.hex(24),"workflow_phase"=>"queued","cpu_routing_mode"=>"local"})
           blobs={}
           source_map.each_with_index do |(name,source),index|

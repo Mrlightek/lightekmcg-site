@@ -40,6 +40,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
   const [mode,setMode]=useState('workflow');
   const [composition,setComposition]=useState(()=>scene.settings?.composition_2d||null);
   const [nativeReady,setNativeReady]=useState(false);
+  const [blenderHandoff,setBlenderHandoff]=useState(false);
   const [prompt,setPrompt]=useState('');
   const [seed,setSeed]=useState('-1');
   const [steps,setSteps]=useState('');
@@ -230,8 +231,9 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
         </>}
         <button className="ls-primary" disabled={busy||(mode==='movie'?['pending','running'].includes(chosenOperation?.status):!canGenerate)}><Sparkles size={16}/>{mode==='movie'?'Render draft':mode==='workflow'?'Render 2D preview':'Generate'}</button>
       </form>
+      {mode==='workflow'&&composition&&<label><input type="checkbox" checked={blenderHandoff} onChange={event=>change(setBlenderHandoff,event.target.checked)}/>Include editable Blender project with full export</label>}
       {mode==='workflow'&&composition&&<button type="button" disabled={busy||!nativeReady} onClick={()=>submit(async()=>{
-        const result=await api.call('workflow.quote',{scene_id:scene.id,composition,request_key:key+'-final'});setQuote(result);setOperationId(result.operation_id);await refresh();
+        const result=await api.call('workflow.quote',{scene_id:scene.id,composition,blender_handoff:blenderHandoff,request_key:key+'-final'});setQuote(result);setOperationId(result.operation_id);await refresh();
       })}>Get 2D export price</button>}
       {mode==='movie'&&pools.length>0&&<details className="ls-drawer"><summary>Full render</summary>
         <div className="ls-fields">
@@ -260,6 +262,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
         change(setQuality,'economy');
       }}>Use Economy settings</button>}
       {chosenOperation?.cpu_resumable&&<button disabled={busy} onClick={()=>submit(async()=>{await api.call('render.resume',{operation_id:chosenOperation.id});await refresh();})}>Resume Render from Checkpoint</button>}
+      {chosenOperation?.status==='completed'&&!chosenOperation.draft_preview&&chosenOperation.artifacts?.filter(item=>item.kind==='blend').map(item=><a key={item.id} href={item.url} download>Download Blender project</a>)}
       {operationVideo&&!chosenOperation.draft_preview&&<button disabled={busy} onClick={()=>submit(addRender)}>Save clip to Media Library</button>}
       {!api.dashboard&&operationVideo&&!chosenOperation.draft_preview&&<button onClick={()=>{
         onSelect('render-'+operationVideo.id);go('publish');

@@ -156,6 +156,63 @@ class StudioNativeWorkflowTest < StudioAiTest
       end
     end
   end
+  def test_optional_blender_handoff_rejects_previews_and_unavailable_workers
+    at_root do
+      assert_raises(ArgumentError) { workflow(blender_handoff:true) }
+      assert_raises(ArgumentError) { workflow(blender_handoff:"yes") }
+      Studio::NativeBlender::Runtime.stub(:status,{ready:false}) do
+        assert_raises(ArgumentError) { action("workflow_quote",scene_id:@scene.id,composition:graph,blender_handoff:true,request_key:"unavailable-blender") }
+      end
+      assert_empty StudioOperation.where(capability:Studio::Workflows::Production::CAPABILITY)
+    end
+  end
+  def test_real_paid_blender_handoff_has_packed_editable_planes_and_animation
+    skip "Set LIGHTEK_TEST_BLENDER=1 for the optional project handoff" unless ENV["LIGHTEK_TEST_BLENDER"]=="1"
+    at_root do
+      composition=Studio::Workflows::ScenePlan.parse("A nighttime park with a character sitting on a bench and a gentle breeze",seed:42)
+      composition["canvas"].merge!("duration"=>2,"fps"=>12)
+      quote=->(operation:,**_) { operation.update!(cost_quote:{"principal_cents"=>500,"total_cents"=>550},status:"awaiting_payment") }
+      result=Studio::Billing::Quote.stub(:call,quote) do
+        action("workflow_quote",scene_id:@scene.id,composition:composition,blender_handoff:true,request_key:"blender-final-123")
+      end
+      operation=StudioOperation.find(result[:operation_id])
+      assert_raises(ArgumentError) { Studio::Workflows::Production.enqueue(operation) }
+      payment=DymondBank::Transaction.create!(payable:operation,status:"succeeded",amount_cents:550)
+      operation.payment_succeeded!(payment)
+      ExecuteStudioOperationJob.perform_now(operation.id)
+      assert_equal "completed",operation.reload.status,operation.error_message
+      blend=operation.artifacts.find_by!(kind:"blend")
+      blend.file.blob.open do |file|
+        script=File.join(Dir.mktmpdir,"inspect-handoff.py")
+        File.write(script,<<~PYTHON)
+          import bpy,json
+          scene=bpy.context.scene
+          planes=[obj for obj in scene.objects if obj.type=='MESH']
+          assert len(planes)==#{Studio::Layered::Composition.flatten(composition).length}
+          assert all(obj.get('lightek_node_id') and obj.get('lightek_asset_key') for obj in planes)
+          assert all(image.packed_file for image in bpy.data.images if image.type=='IMAGE')
+          assert bpy.data.texts['Lightek scene graph.json'].use_module is False
+          assert any(obj.parent and obj.parent.type=='EMPTY' for obj in planes)
+          tree=next(obj for obj in planes if obj.get('lightek_asset_key')=='tree.oak')
+          scene.frame_set(1);start=tree.location.copy();scene.frame_set(7)
+          assert (tree.location-start).length>0.0001
+          assert [scene.render.resolution_x,scene.render.resolution_y,scene.frame_end]==[640,360,24]
+          scene.frame_set(1);scene.cycles.samples=1;scene.render.resolution_percentage=25
+          from pathlib import Path
+          import struct
+          preview=Path(__file__).with_suffix('.png');scene.render.filepath=str(preview)
+          bpy.ops.render.render(write_still=True)
+          data=preview.read_bytes();assert data.startswith(bytes([137,80,78,71,13,10,26,10]))
+          assert struct.unpack('>II',data[16:24])==(160,90)
+          print('LIGHTEK_HANDOFF_VERIFIED')
+        PYTHON
+        output=Studio::MediaProcess.run!([ENV.fetch("BLENDER_BIN","blender"),"--background","--disable-autoexec",file.path,"--python-exit-code","1","--python",script],timeout:60)
+        assert_includes output,"LIGHTEK_HANDOFF_VERIFIED"
+        FileUtils.cp(file.path,ENV["STUDIO_NATIVE_PROOF_BLEND"]) if ENV["STUDIO_NATIVE_PROOF_BLEND"]
+      end
+      assert operation.artifacts.exists?(kind:"video")
+    end
+  end
   def test_final_export_uses_shared_quote_and_rejects_unpaid_execution
     at_root do
       quote=lambda do |operation:,**_|

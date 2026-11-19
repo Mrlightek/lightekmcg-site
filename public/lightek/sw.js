@@ -1,4 +1,4 @@
-const CACHE = "lightek-shell-v110-layer-motion"
+const CACHE = "lightek-shell-v111-blender-handoff"
 
 const SHELL = [
   "/lightek/index.html",
@@ -13,7 +13,7 @@ const SHELL = [
   "/lightek/remote-content.js",
   "/lightek/studio-app.js",
   "/lightek/nevaeh-reply-stream.js?v=1",
-  "/lightek/studio-unified.js?v=13",
+  "/lightek/studio-unified.js?v=14",
   "/lightek/studio-unified.css?v=6",
   "/lightek/studio-media.js",
   "/lightek/studio-community-hub.js",

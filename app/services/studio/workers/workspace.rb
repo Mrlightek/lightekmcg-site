@@ -909,8 +909,14 @@ module Studio
               object_ids[object.id]=child.id
             end
             copy.scene_objects.each do |object|
+              if (aim=object.definition['attention_plan']) && aim['target_object_id']
+                object.update!(definition:object.definition.merge('attention_plan'=>aim.merge('target_object_id'=>object_ids.fetch(aim.fetch('target_object_id')))))
+              end
               if (plan=object.definition['mechanics_plan'])
-                object.update!(definition:object.definition.merge('mechanics_plan'=>plan.merge('target_object_id'=>object_ids.fetch(plan.fetch('target_object_id')))))
+                refs=plan['support_object_ids']&.transform_values { |id| object_ids.fetch(id) }
+                copied_plan=plan.merge('target_object_id'=>object_ids.fetch(plan.fetch('target_object_id')))
+                copied_plan['support_object_ids']=refs if refs
+                object.update!(definition:object.definition.merge('mechanics_plan'=>copied_plan))
               end
               if (contact=object.definition['prop_contact'])
                 object.update!(definition:object.definition.merge('prop_contact'=>contact.merge('target_object_id'=>object_ids.fetch(contact.fetch('target_object_id')))))

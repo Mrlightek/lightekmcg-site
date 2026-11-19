@@ -4,6 +4,7 @@ import json
 import math
 from pathlib import Path
 import sys
+sys.path.insert(0,str(Path(__file__).parent))
 from mathutils import Vector
 
 params_path, output = sys.argv[sys.argv.index('--') + 1:]
@@ -206,6 +207,10 @@ if illustrated:
         if obj.type=='MESH' and obj.parent is None:
             world=obj.matrix_world.copy();obj.parent=rig;obj.parent_type='BONE';obj.parent_bone='Body'
             bpy.context.view_layer.update();obj.matrix_world=world
+
+if illustrated:
+    import create_side_views
+    create_side_views.build(rig)
 
 # Stashed native Actions are reusable clips, not automatically playing animation.
 for name, bone_name, axis, amplitude in [('Head nod','Head',0,.25),('Look left and right','Head',2,.35),('Wave right','Arm.R',2,.7)]:

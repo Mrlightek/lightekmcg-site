@@ -13,6 +13,7 @@ import relationships
 import spatial_checks
 import contacts
 import mechanics
+import attention_v1
 import rehearsal
 import motion
 import appearance
@@ -916,16 +917,6 @@ def stage_manifest(manifest):
         report=rehearsal.plan(objects,created,settings)
     relationships.apply(objects, created)
     contact_data=mechanics.apply(objects,created,settings)+contacts.apply(objects,created,settings)
-    if report is None:
-        spatial_checks.validate(objects, created, settings,contact_data)
-    else:
-        try:
-            spatial_checks.validate(objects, created, settings,contact_data)
-        except RuntimeError as error:
-            report['unresolved'].append(str(error))
-        report['status']='needs_attention' if report['unresolved'] else 'ready'
-        bpy.context.scene['lightek_rehearsal_report']=json.dumps(report)
-
     active_id = settings.get("active_camera_object_id")
     selected = created.get(str(active_id)) if active_id is not None else None
     if selected is None and settings.get("active_camera"):
@@ -938,6 +929,17 @@ def stage_manifest(manifest):
         bpy.context.scene.camera = None
     ensure_camera()
     apply_json_presets(settings, created)
+    attention_v1.apply(objects,created)
+    if report is None:
+        spatial_checks.validate(objects, created, settings,contact_data)
+    else:
+        try:
+            spatial_checks.validate(objects, created, settings,contact_data)
+        except RuntimeError as error:
+            report['unresolved'].append(str(error))
+        report['status']='needs_attention' if report['unresolved'] else 'ready'
+        bpy.context.scene['lightek_rehearsal_report']=json.dumps(report)
+
     if "look" in settings: appearance.look(bpy.context.scene, settings["look"])
     if bpy.context.scene.camera.data.type == 'PANO':
         bpy.context.scene.render.engine = 'CYCLES'

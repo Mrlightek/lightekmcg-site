@@ -1,8 +1,9 @@
 const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const {JSDOM}=require('jsdom');
-async function check(dashboard,restore=false){
+async function check(dashboard,restore=false,attention=false){
  const dom=new JSDOM(dashboard?'<div data-unified-studio data-site-id="2" data-scene-id="7" data-workspace="create"></div>':'<div id="app"></div>',{url:'https://studio.example/#/studio/7/create',runScripts:'outside-only',pretendToBeVisual:true});
  const {window}=dom;let submitted,quoted,retried=0,attempt=restore?1:0;
  const inputs={mode:'dialogue',scene_template:'studio',characters:[{name:'Sentinel',voice:'en-us',emotion:'friendly',body_action:'point_right',entrance:'from_left',colors:{skin:'#925e43',wardrobe:'#344e78',hair:'#211916'}},{name:'Beacon',voice:'en-gb',emotion:'curious',body_action:'point_left',entrance:'from_right',colors:{skin:'#b57955',wardrobe:'#945228',hair:'#211916'}}],turns:[{speaker:0,dialogue:'Stay alert.'},{speaker:1,dialogue:'I am ready.'}]};
+ if(attention){inputs.characters[0].attention={kind:'partner',start:0,end:8};inputs.characters[1].attention={kind:'camera',start:0,end:8};}
  window.nevaeh={execute:async({capability,payload})=>{
   let result;switch(capability.replace(/^studio\.(pwa|workspace)\./,'')){
    case 'bootstrap':result={projects:[{id:3,name:'Production',unassigned_scenes:[{id:7,name:'Pilot',settings:{},lock_version:1}]}]};break;
@@ -35,10 +36,12 @@ async function check(dashboard,restore=false){
    set(field('Character 1 facial cue'),'friendly');set(field('Character 1 body action'),'point_right');set(field('Character 1 entrance'),'from_left');
    set(field('Character 2 facial cue'),'curious');set(field('Character 2 body action'),'point_left');set(field('Character 2 entrance'),'from_right');
    set(field('Character 1 performer'),'61');await until(()=>button('Prepare dialogue scene').disabled);assert([...field('Character 1 body action').options].find(option=>option.value==='point_right').disabled);assert(window.document.body.textContent.includes('Choose an action supported by this saved performer'));set(field('Character 1 performer'),'');await until(()=>!button('Prepare dialogue scene').disabled);
+   if(attention){set(field('Character 1 attention target'),'partner');set(field('Character 2 attention target'),'camera');}
    button('Add speaking turn').click();await until(()=>field('Turn 3 line'));set(field('Turn 3 line'),'Follow my lead.');
    await until(()=>!button('Prepare dialogue scene').disabled);button('Prepare dialogue scene').click();
-   await until(()=>submitted);assert.equal(submitted.mode,'dialogue');assert.equal(submitted.characters.length,2);assert.equal(submitted.turns.length,3);assert.equal(submitted.turns[2].speaker,0);assert.equal(submitted.turns[2].dialogue,'Follow my lead.');assert.equal(submitted.characters[0].body_action,'point_right');assert.equal(submitted.characters[0].emotion,'friendly');assert.equal(submitted.characters[0].entrance,'from_left');assert.equal(submitted.characters[1].entrance,'from_right');assert.equal(submitted.characters[1].emotion,'curious');
+   await until(()=>submitted);assert.equal(submitted.mode,'dialogue');assert.equal(submitted.characters.length,2);assert.equal(submitted.turns.length,3);assert.equal(submitted.turns[2].speaker,0);assert.equal(submitted.turns[2].dialogue,'Follow my lead.');assert.equal(submitted.characters[0].body_action,'point_right');assert.equal(submitted.characters[0].emotion,'friendly');assert.equal(submitted.characters[0].entrance,'from_left');assert.equal(submitted.characters[1].entrance,'from_right');assert.equal(submitted.characters[1].emotion,'curious');if(attention){assert.equal(submitted.characters[0].attention.kind,'partner');assert.equal(submitted.characters[1].attention.kind,'camera');}
   }
+  if(attention&&restore){assert.equal(field('Character 1 attention target').value,'partner');assert.equal(field('Character 2 attention target').value,'camera');}
   if(restore){assert.equal(field('Character 1 body action').value,'point_right');assert.equal(field('Character 2 entrance').value,'from_right');}
   await until(()=>button('Retry dialogue preparation'));button('Retry dialogue preparation').click();
   await until(()=>window.document.querySelector('video[src="/dialogue-proof.mp4"]'));assert.equal(retried,1);
@@ -48,4 +51,5 @@ async function check(dashboard,restore=false){
   console.log((dashboard?'Dashboard':'PWA')+': guided acting '+(restore?'reload recovery':'three-turn submission')+', failure/retry, preview, editable link and existing quote passed');
  }finally{window.LightekUnifiedStudio?.leave();window.close();}
 }
-(async()=>{await check(false);await check(true);await check(false,true);})().catch(error=>{console.error(error);process.exitCode=1;});
+module.exports={check};
+if(require.main===module)(async()=>{await check(false);await check(true);await check(false,true);})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -83,9 +83,9 @@ class StudioDialogueSceneTest < StudioCharacterSceneTest
           rigs=[obj for obj in scene.objects if obj.type=='ARMATURE']
           assert len(rigs)==2
           assert all(rig.animation_data for rig in rigs)
-          faces=[obj for obj in scene.objects if obj.type=='MESH' and obj.data.shape_keys and 'brow_raise' in obj.data.shape_keys.key_blocks]
+          faces=[obj for obj in scene.objects if obj.get('lightek_source_object')=='FaceBrows' and obj.data.shape_keys and 'brow_raise' in obj.data.shape_keys.key_blocks]
           assert len(faces)==2
-          mouth_meshes=[obj for obj in scene.objects if obj.type=='MESH' and obj.data.shape_keys and any(key.name.startswith('viseme_') for key in obj.data.shape_keys.key_blocks)]
+          mouth_meshes=[obj for obj in scene.objects if obj.get('lightek_source_object')=='FaceMouth' and obj.data.shape_keys and any(key.name.startswith('viseme_') for key in obj.data.shape_keys.key_blocks)]
           assert len(mouth_meshes)==2
           reactions=[];mouths=[]
           for frame in range(1,scene.frame_end+1):

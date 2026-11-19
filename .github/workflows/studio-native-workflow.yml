@@ -21,6 +21,14 @@ on:
       - 'blender/contacts.py'
       - 'blender/mechanics.py'
       - 'blender/bench_v1.py'
+      - 'blender/*_v*.py'
+      - 'blender/create_side_views.py'
+      - 'app/jobs/studio_character_create_job.rb'
+      - 'test/standalone/studio_directional_checks.rb'
+      - 'test/standalone/studio_carry_checks.rb'
+      - 'test/standalone/studio_attention_checks.rb'
+      - 'test/javascript/studio_carry_test.cjs'
+      - 'test/javascript/studio_attention_test.cjs'
       - 'blender/kinematics_v1.py'
       - 'test/standalone/studio_mechanics_checks.rb'
       - 'test/javascript/studio_mechanics_test.cjs'
@@ -94,6 +102,21 @@ jobs:
           STUDIO_MECHANICS_PROOF_VIDEO: /tmp/lightek-mechanics.mp4
           STUDIO_MECHANICS_PROOF_BLEND: /tmp/lightek-mechanics.blend
         run: bundle exec ruby test/standalone/studio_mechanics_checks.rb --name '/StudioMechanicsTest/'
+      - name: Verify side-facing walking and turning before sitting
+        env:
+          STUDIO_MECHANICS_PROOF_VIDEO: /tmp/lightek-directional.mp4
+          STUDIO_MECHANICS_PROOF_BLEND: /tmp/lightek-directional.blend
+        run: bundle exec ruby test/standalone/studio_directional_checks.rb --name '/StudioDirectionalTest/'
+      - name: Verify rigid grip, carried-prop collisions and supported release
+        env:
+          STUDIO_CARRY_PROOF_VIDEO: /tmp/lightek-carry.mp4
+          STUDIO_CARRY_PROOF_BLEND: /tmp/lightek-carry.blend
+        run: bundle exec ruby test/standalone/studio_carry_checks.rb --name '/StudioCarryTest/'
+      - name: Verify head focal points, active-camera address and local surface frames
+        env:
+          STUDIO_ATTENTION_PROOF_VIDEO: /tmp/lightek-attention.mp4
+          STUDIO_PARTNER_PROOF_VIDEO: /tmp/lightek-partner-attention.mp4
+        run: bundle exec ruby test/standalone/studio_attention_checks.rb --name '/StudioAttentionTest/'
       - name: Verify hand contact, button response and rejection cases
         env:
           STUDIO_CONTACT_DIALOGUE_PROOF_VIDEO: /tmp/lightek-contact-dialogue.mp4
@@ -123,12 +146,20 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_acting_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_contact_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_mechanics_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_carry_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_attention_test.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: native-2d-parallax-proof
           path: |
             /tmp/lightek-native-2d.mp4
             /tmp/lightek-park.blend
+            /tmp/lightek-directional.mp4
+            /tmp/lightek-directional.blend
+            /tmp/lightek-carry.mp4
+            /tmp/lightek-carry.blend
+            /tmp/lightek-attention.mp4
+            /tmp/lightek-partner-attention.mp4
             /tmp/lightek-mechanics.mp4
             /tmp/lightek-mechanics.blend
             /tmp/lightek-contact.mp4

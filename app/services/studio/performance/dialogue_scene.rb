@@ -24,12 +24,13 @@ module Studio
             raise ArgumentError,"Choose six-digit character colors" unless color.match?(/\A#[a-fA-F0-9]{6}\z/)
             [field,color]
           end
-          result={"name"=>name,"voice"=>voice,"colors"=>colors}.merge(Acting.inputs(row)).merge(Contact.inputs(row))
+          result={"name"=>name,"voice"=>voice,"colors"=>colors}.merge(Acting.inputs(row)).merge(Contact.inputs(row)).merge(Attention.inputs(row))
           if row["cast_asset_id"].present?
             actor=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"blend",status:"ready").find(row["cast_asset_id"])
             profile=actor.metadata["character_profile"]
             raise ArgumentError,"Choose a registered Cast performer" unless actor.native.attached? && profile && profile["source_blob_id"]==actor.native.blob.id
             Contact.validate_profile!(result,profile)
+            Attention.validate_profile!(result,profile)
             result.merge!("cast_asset_id"=>actor.id,"cast_profile"=>profile);sources<<actor.native.blob
           end
           result
@@ -54,7 +55,7 @@ module Studio
         raise ArgumentError,"Give both characters at least one speaking turn" unless turns.map { |row| row["speaker"] }.uniq.size==2
         template=payload.fetch("scene_template","studio").to_s
         staging=SceneTemplates.snapshot(access:access,source:source,key:template,performer_count:2)
-        characters.each { |character| Contact.validate_target!(character,staging) }
+        characters.each { |character| Contact.validate_target!(character,staging);Attention.validate!(character,staging,dialogue:true) }
         contacts=characters.filter_map { |character| character["contact"] }
         if contacts.size==2 && contacts[0]["target_id"]==contacts[1]["target_id"] && contacts[0]["start"]<contacts[1].values_at("start","reach","hold","release").sum && contacts[1]["start"]<contacts[0].values_at("start","reach","hold","release").sum
           raise ArgumentError,"Use non-overlapping contact times when characters share a prop"
@@ -100,6 +101,7 @@ module Studio
           raise ArgumentError,"The character source changed. Register its current version before preparing dialogue." unless actor.native.attached? && actor.native.blob.id==actor.metadata.dig("character_profile","source_blob_id")
           Acting.validate!(character,actor.metadata.fetch("character_profile"))
           Contact.validate_profile!(character,actor.metadata.fetch("character_profile"))
+          Attention.validate_profile!(character,actor.metadata.fetch("character_profile"))
           actor
         end
         phase(operation,"preparing_dialogue",{"cast_asset_ids"=>actors.map(&:id)})
@@ -113,7 +115,7 @@ module Studio
           start=time;time+=asset.metadata.fetch("duration")+0.25
           {"start"=>start,"duration"=>asset.metadata.fetch("duration")}
         end
-        seconds=[(time+0.1).ceil,*inputs["characters"].map { |character| Contact.ending(character).ceil }].max
+        seconds=[(time+0.1).ceil,*inputs["characters"].map { |character| [Contact.ending(character).ceil,Attention.ending(character).ceil].max }].max
         raise ArgumentError,"Keep the complete conversation within eight seconds. Shorten a line or remove a turn." unless seconds<=8
         objects=actors.each_with_index.map do |actor,index|
           check!(operation)
@@ -164,6 +166,7 @@ module Studio
             scene.update!(settings:scene.settings.merge("frame_end"=>seconds*12,"camera_cuts"=>cuts,"active_camera_object_id"=>wide.id,"blender_presets"=>presets,"dialogue_scene_cameras"=>true,"dialogue_timing"=>timing,"native_revision"=>scene.settings.fetch("native_revision",0)+1))
           end
         end
+        objects.each_with_index { |object,index| Attention.apply!(scene:scene,object:object,character:inputs["characters"][index],partner:objects[1-index]) }
         phase(operation,"rendering_preview")
         preview=scene.studio_operations.find_by(id:operation.metadata["preview_id"])
         unless preview

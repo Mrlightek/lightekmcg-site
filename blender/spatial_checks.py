@@ -6,7 +6,7 @@ from mathutils.bvhtree import BVHTree
 def geometry(root, depsgraph, exclude=()):
     vertices, triangles = [], []
     for obj in [root]+list(root.children_recursive):
-        if obj.type!='MESH' or obj in exclude:
+        if obj.type!='MESH' or obj in exclude or obj.get('lightek_view')=='side':
             continue
         evaluated=obj.evaluated_get(depsgraph)
         mesh=evaluated.to_mesh()

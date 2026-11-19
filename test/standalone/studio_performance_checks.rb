@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require_relative "studio_authoring_checks"
+require File.join(ROOT,"app/services/studio/performance/carry")
 require File.join(ROOT,"app/services/studio/performance/mechanics")
 require File.join(ROOT,"app/services/studio/performance/cast")
 require File.join(ROOT,"app/services/studio/performance/audio_envelope")

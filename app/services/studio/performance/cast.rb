@@ -54,7 +54,17 @@ module Studio
           end
           binding
         end
-        {"version"=>2,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach,"mechanics"=>Mechanics.register(objects,raw["mechanics"])}
+        attention=raw["attention_binding"]
+        if attention.present?
+          head=bones["head"];anchor=attention["eye_anchor"]
+          raise ArgumentError,"Calibrate attention to the registered head and eye position" unless attention.keys.sort==%w[eye_anchor head rig] && head && attention["rig"]==head["object"] && attention["head"]==head["bone"] && anchor.is_a?(Array) && anchor.size==3 && anchor.all? { |value| value.is_a?(Numeric) && value.finite? && value.abs<=5 }
+        end
+        views=raw["views"]
+        if views.present?
+          meshes=objects.select { |row| row.dig("definition","native_type")=="MESH" }.map { |row| row["name"] }
+          raise ArgumentError,"Register distinct source front and side drawing sets" unless views.keys.sort==%w[front side version] && views["version"]==1 && %w[front side].all? { |key| views[key].is_a?(Array) && views[key].any? && (views[key]-meshes).empty? } && (views["front"] & views["side"]).empty?
+        end
+        {"version"=>2,"views"=>views,"attention_binding"=>attention,"motions"=>motions,"source_scene"=>source["name"],"source_blob_id"=>asset.native.blob.id,"objects"=>objects.map{|o|o["name"]},"bindings"=>bindings,"bones"=>bones,"reach_bindings"=>reach,"mechanics"=>Mechanics.register(objects,raw["mechanics"])}
       end
 
       def self.register(access:,payload:)

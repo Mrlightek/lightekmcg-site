@@ -6,6 +6,10 @@ module Studio
     class Mechanics
       PROFILE="illustrated_biped".freeze
       VERSION=1
+      DRIVERS={"bench:1"=>{"files"=>%w[bench_v1.py kinematics_v1.py],"speech_start"=>3.4,"phases"=>{"walk"=>[0,2],"turn"=>[2,2.5],"sit"=>[2.5,3.25],"seated"=>[3.25,6.4],"stand"=>[6.4,7.25],"rest"=>[7.25,8]}},
+               "carry:1"=>{"files"=>%w[carry_v1.py biped_v2.py views_v1.py spatial_frame_v1.py bench_v1.py kinematics_v1.py],"speech_start"=>2.3,"phases"=>{"reach"=>[0,0.75],"grip"=>[0.75,1],"lift"=>[1,1.75],"turn_out"=>[1.75,2.25],"walk"=>[2.25,4.25],"turn_in"=>[4.25,4.75],"place"=>[4.75,5.5],"release"=>[5.5,6],"rest"=>[6,8]}}}
+      DRIVERS["bench:2"]={"files"=>%w[bench_v2.py biped_v2.py views_v1.py spatial_frame_v1.py bench_v1.py kinematics_v1.py],"speech_start"=>3.4,"phases"=>DRIVERS.fetch("bench:1").fetch("phases")}
+      DRIVERS.freeze
       def self.bindings
         {"profile"=>PROFILE,"version"=>VERSION,"rig"=>"PerformerRig","body"=>"Body","support"=>"Pelvis support",
          "arms"=>%w[L R].to_h { |side| [side,{"upper"=>"Arm.#{side}","lower"=>"Forearm.#{side}","hand"=>"Hand #{side}"}] },
@@ -27,13 +31,14 @@ module Studio
       def self.inputs(payload)
         return {} if payload["mechanics"].blank?
         raw=payload["mechanics"]
-        raise ArgumentError,"Choose the versioned bench performance" unless raw.is_a?(Hash) && raw.keys.sort==%w[action target_id version] && raw["action"]=="bench" && raw["version"]==VERSION && raw["target_id"].to_s.match?(/\A[a-zA-Z0-9_-]{1,80}\z/)
+        raise ArgumentError,"Choose a supported versioned character performance" unless raw.is_a?(Hash) && raw.keys.sort==%w[action target_id version] && raw["version"].is_a?(Integer) && DRIVERS.key?("#{raw['action']}:#{raw['version']}") && raw["target_id"].to_s.match?(/\A[a-zA-Z0-9_-]{1,80}\z/)
         {"mechanics"=>raw.merge("target_id"=>raw["target_id"].to_s)}
       end
       def self.validate!(character,staging)
         return unless (cue=character["mechanics"])
-        raise ArgumentError,"Bench performance coordinates its own movement and contacts" if character["contact"] || character["entrance"]!="none" || character["body_action"]!="still" || character["gesture"]!="still"
+        raise ArgumentError,"The coordinated performance owns its own movement and contacts" if character["contact"] || character["entrance"]!="none" || character["body_action"]!="still" || character["gesture"]!="still"
         raise ArgumentError,"Clear saved source motion before using coordinated mechanics" if staging.dig("actor_motion","motion_clips").present?
+        return Carry.validate!(cue,staging) if cue["action"]=="carry"
         target=staging.fetch("objects").find { |object| object["id"].to_s==cue["target_id"] }
         raise ArgumentError,"Choose the calibrated bench seat" unless target && Contact.static_cube?(target) && target.dig("definition","mechanics_seat")==VERSION
         definition=target.fetch("definition");location=definition["location"];scale=definition["scale"]
@@ -42,9 +47,15 @@ module Studio
       def self.validate_profile!(character,profile)
         return unless character["mechanics"]
         raise ArgumentError,"Build a new illustrated performer with version 1 mechanics bindings" unless profile["mechanics"]==bindings
+        if character.dig("mechanics","action")=="carry" || character.dig("mechanics","version")==2
+          raise ArgumentError,"Build a performer with front and side view bindings" unless profile.dig("views","version")==1
+        end
       end
-      def self.driver_fingerprint
-        Digest::SHA256.hexdigest(%w[bench_v1.py kinematics_v1.py].map { |name| Rails.root.join("blender",name).binread }.join)
+      def self.speech_start(character)
+        DRIVERS.fetch("#{character.dig('mechanics','action')}:#{character.dig('mechanics','version')}").fetch("speech_start")
+      end
+      def self.driver_fingerprint(action="bench",version=1)
+        Digest::SHA256.hexdigest(DRIVERS.fetch("#{action}:#{version}").fetch("files").map { |name| Rails.root.join("blender",name).binread }.join)
       end
       def self.apply!(scene:,object:,character:)
         return unless (cue=character["mechanics"])
@@ -52,9 +63,10 @@ module Studio
           return if object.reload.definition["mechanics_plan"]
           validate_profile!(character,object.definition.fetch("character_profile"))
           target=scene.scene_objects.find { |row| row.definition["template_source_object_id"]==cue["target_id"] }
-          raise ArgumentError,"The frozen bench seat is missing" unless target
-          plan={"driver"=>"bench","version"=>VERSION,"profile"=>PROFILE,"target_object_id"=>target.id,"driver_fingerprint"=>driver_fingerprint,"source_blob_id"=>object.definition.dig("character_profile","source_blob_id"),
-                "phases"=>{"walk"=>[0,2],"turn"=>[2,2.5],"sit"=>[2.5,3.25],"seated"=>[3.25,6.4],"stand"=>[6.4,7.25],"rest"=>[7.25,8]}}
+          raise ArgumentError,"The frozen mechanics target is missing" unless target
+          plan={"driver"=>cue["action"],"version"=>cue["version"],"profile"=>PROFILE,"target_object_id"=>target.id,"driver_fingerprint"=>driver_fingerprint(cue["action"],cue["version"]),"source_blob_id"=>object.definition.dig("character_profile","source_blob_id"),
+                "phases"=>DRIVERS.fetch("#{cue['action']}:#{cue['version']}").fetch("phases").deep_dup}
+          plan["support_object_ids"]=Carry.supports(scene) if cue["action"]=="carry"
           object.update!(definition:object.definition.merge("location"=>[0,-0.24,0],"rotation"=>[0,0,0],"scale"=>[1,1,1],"mechanics_plan"=>plan))
           scene.update!(settings:scene.settings.merge("native_revision"=>scene.settings.fetch("native_revision",0)+1))
         end

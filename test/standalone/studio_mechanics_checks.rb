@@ -1,13 +1,14 @@
 require_relative "studio_contact_checks"
 class StudioMechanicsTest < StudioContactTest
   StudioContactTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
+  def mechanics_version = 1
   def bench(**extra)
-    prepare(scene_template:"bench",gesture:"still",dialogue:"We can build this world together.",emotion:"friendly",mechanics:{action:"bench",version:1,target_id:"seat"},**extra)
+    prepare(scene_template:"bench",gesture:"still",dialogue:"We can build this world together.",emotion:"friendly",mechanics:{action:"bench",version:mechanics_version,target_id:"seat"},**extra)
   end
   def test_versioned_mechanics_inputs_profiles_and_frozen_targets
     result=bench;assert_equal result,bench
-    assert_equal 1,result.dig(:inputs,"mechanics","version")
-    assert_raises(ArgumentError) { bench(mechanics:{action:"bench",version:2,target_id:"seat"}) }
+    assert_equal mechanics_version,result.dig(:inputs,"mechanics","version")
+    assert_raises(ArgumentError) { bench(mechanics:{action:"bench",version:99,target_id:"seat"}) }
     assert_raises(ArgumentError) { bench(mechanics:{action:"script",version:1,target_id:"seat"}) }
     assert_raises(ArgumentError) { bench(mechanics:{action:"bench",version:1,target_id:"foreign"}) }
     assert_raises(ArgumentError) { bench(entrance:"from_left") }
@@ -40,8 +41,8 @@ class StudioMechanicsTest < StudioContactTest
       parent=StudioOperation.find(bench[:operation_id]);StudioCharacterSceneJob.perform_now(parent.id)
       assert_equal "completed",parent.reload.status,parent.error_message
       scene=StudioScene.find(parent.metadata["scene_id"]);actor=scene.scene_objects.find { |row| row.definition["mechanics_plan"] }
-      assert_equal 1,actor.definition.dig("mechanics_plan","version")
-      assert_equal Studio::Performance::Mechanics.driver_fingerprint,actor.definition.dig("mechanics_plan","driver_fingerprint")
+      assert_equal mechanics_version,actor.definition.dig("mechanics_plan","version")
+      assert_equal Studio::Performance::Mechanics.driver_fingerprint("bench",mechanics_version),actor.definition.dig("mechanics_plan","driver_fingerprint")
       assert_equal 96,scene.settings["frame_end"]
       assert_in_delta 3.4,actor.definition.dig("performance","start"),0.001
       assert_equal 1,scene.settings["camera_cuts"].size
@@ -54,7 +55,7 @@ class StudioMechanicsTest < StudioContactTest
           import bpy,json
           from mathutils import Vector
           scene=bpy.context.scene;root=bpy.data.objects['Sentinel'];report=json.loads(root['lightek_mechanics_report'])
-          assert report['version']==1 and report['frames']==96 and report['support_frames']>20, report
+          assert report['version']==#{mechanics_version} and report['frames']==96 and report['support_frames']>20, report
           assert max(report['max_limb_error'],report['max_seat_error'],report['max_ground_error'])<.002, report
           rig=next(obj for obj in root.children_recursive if obj.type=='ARMATURE')
           support=next(obj for obj in root.children_recursive if obj.get('lightek_source_object')=='Pelvis support')
@@ -72,6 +73,15 @@ class StudioMechanicsTest < StudioContactTest
           assert positions[-1]-positions[0]>.79 and max(yaws)>.3 and yaws[-1]<.001
           assert max(support_heights)-min(support_heights)>.24
           assert max((points[i]-anchors[0][i]).length for points in anchors for i in range(2))<.002
+          if #{mechanics_version}==2:
+              scene.frame_set(1)
+              assert (root.rotation_quaternion @ Vector((0,-1,0))).dot(Vector((1,0,0)))>.999
+              front=next(obj for obj in root.children_recursive if obj.get('lightek_source_object')=='Head')
+              side=next(obj for obj in root.children_recursive if obj.get('lightek_source_object')=='Side Head')
+              assert front.hide_render and not side.hide_render
+              scene.frame_set(31)
+              assert not front.hide_render and side.hide_render
+              assert (root.rotation_quaternion @ Vector((0,-1,0))).dot(Vector((0,-1,0)))>.999
           assert rig.animation_data and all(foot.animation_data for foot in feet)
           assert any(sound.packed_file for sound in bpy.data.sounds)
           print('MECHANICS_SUPPORT_VERIFIED',report)

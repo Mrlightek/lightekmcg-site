@@ -130,7 +130,7 @@ class StudioPerformanceTest < StudioAuthoringTest
     assert_equal 200,client.response.status,client.response.body
     assert_includes client.response.body,"Production library"
     assert_includes client.response.body,actor.name
-    client.get "/dashboard/studio-broadcasting/workspace/#{@scene.id}",params:{workspace:"performance"},headers:headers.merge("Accept"=>"text/html")
+    client.get "/dashboard/studio-broadcasting/workspace/#{@scene.id}",params:{workspace:"performance",advanced:"1"},headers:headers.merge("Accept"=>"text/html")
     assert_equal 200,client.response.status,client.response.body
     refute_includes client.response.body,"<iframe"
     assert_includes client.response.body,"lightek-studio-dashboard"

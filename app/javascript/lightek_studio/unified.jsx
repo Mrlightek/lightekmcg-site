@@ -150,7 +150,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
     return()=>clearInterval(timer);
   },[working,tab,refresh]);
   useEffect(()=>{
-    if(tab!=='create'||['workflow','movie'].includes(creationMode))return;
+    if(tab!=='create'||['workflow','movie','performed'].includes(creationMode))return;
     let active=true;
     const load=async()=>{
       try {

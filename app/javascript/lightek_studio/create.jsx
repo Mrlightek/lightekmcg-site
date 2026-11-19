@@ -1,6 +1,7 @@
 import React, {useEffect,useState} from 'react';
 import {Sparkles, Film, Sliders, Play, Box, Image as ImageIcon, Video, UserCheck} from 'lucide-react';
 import {LayeredComposer} from './layered';
+import {CharacterSceneComposer} from './character_scene';
 import {progressLabel, requestKey, uploadMessage, waitFor} from './api';
 
 export function Preview({asset, url, title = 'Studio Preview Monitor'}) {
@@ -13,7 +14,7 @@ export function Preview({asset, url, title = 'Studio Preview Monitor'}) {
 }
 
 const tools = [
-  ['workflow',Film,'2D Scene & Parallax','Lightek renderer'],
+  ['workflow',Film,'2D Scene & Parallax','Lightek renderer'],['performed',UserCheck,'Performed Short','Character · voice · cuts'],
   ['video',Video,'5s AI Video','Wan 2.2'],['image',ImageIcon,'Concept Art','SD 1.5'],
   ['movie',Box,'3D Procedural Movie',''],['character',UserCheck,'Character Performance & Lip-Sync','']
 ];
@@ -179,11 +180,12 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
         {tools.map(([id,Icon,title,subtitle])=><button type="button" key={id} aria-pressed={mode===id} disabled={busy}
           onClick={()=>chooseMode(id)}><Icon size={18}/><strong>{title}</strong>{subtitle&&<small>{subtitle}</small>}</button>)}
       </div>
-      {inventoryError&&mode!=='workflow'&&<div className="ls-card">
+      {inventoryError&&!['workflow','performed'].includes(mode)&&<div className="ls-card">
         <p role="alert">Studio couldn’t check worker availability.</p>
         <button type="button" onClick={retryInventory}>Retry worker check</button>
       </div>}
-      <form onSubmit={event=>{event.preventDefault();submit(mode==='movie'?previewMovie:generate);}}>
+      {mode==='performed'&&<CharacterSceneComposer {...{api,scene,assets,busy,run,refresh}}/>}
+      <form hidden={mode==='performed'} onSubmit={event=>{event.preventDefault();submit(mode==='movie'?previewMovie:generate);}}>
         {mode==='workflow'&&<LayeredComposer {...{api,scene,assets,composition,prompt,run,busy}} onReady={setNativeReady}
           setPrompt={value=>{change(setPrompt,value);setComposition(null);}}
           update={value=>change(setComposition,value)} onSaved={onCompositionSaved}/>}

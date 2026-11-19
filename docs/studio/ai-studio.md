@@ -4,6 +4,10 @@ AI Studio connects self-hosted generation to the same production library, storyb
 
 [CPU procedural scene production](cpu-economy.md) is available through the existing native production workflow without installing diffusion models. Neural generation below is optional and requires a configured neural worker. Only infrastructure operators receive engine/model installation controls.
 
+## Performed character scenes
+
+**Performed Short** connects reusable Cast, an illustrated starter, local stock speech or recordings, phoneme analysis, a saved gesture, a camera cut and a private preview. See [workflow, limits and acceptance](performed-short.md).
+
 ## Native 2D scenes and parallax
 
 Studio Create opens **2D Scene & Parallax** in Dashboard and PWA. It checks the native media runtime independently of Genesis. A missing ComfyUI connection does not disable this tool. Native video rendering does not install or invoke ComfyUI, Torch, neural weights or Blender. The optional project handoff described below uses Blender to save an editable scene.

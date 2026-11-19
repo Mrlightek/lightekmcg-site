@@ -681,6 +681,15 @@ def export_project_bundle(output_directory, manifest):
 
 def apply_json_presets(settings, created):
     scene = bpy.context.scene
+    cuts=settings.get('camera_cuts',[])
+    if not isinstance(cuts,list) or len(cuts)>16: raise ValueError('Use at most sixteen camera cuts')
+    previous=0
+    for index,cut in enumerate(cuts):
+        if set(cut)!={'camera_id','frame'} or type(cut['frame']) is not int or not previous<cut['frame']<=scene.frame_end: raise ValueError('Invalid camera cut')
+        camera=created.get(str(cut['camera_id']))
+        if camera is None or camera.type!='CAMERA': raise ValueError('Camera cut source is unavailable')
+        marker=scene.timeline_markers.new('Lightek cut '+str(index+1),frame=cut['frame']);marker.camera=camera
+        previous=cut['frame']
     for preset in settings.get('blender_presets', []):
         token = str(preset['instance'])
         prefix = 'LightekPreset_' + token

@@ -13,6 +13,11 @@ on:
       - 'public/lightek/assets2d/**'
       - 'public/lightek/studio-unified.*'
       - 'test/standalone/studio_native_workflow_checks.rb'
+      - 'test/standalone/studio_character_scene_checks.rb'
+      - 'test/javascript/studio_character_scene_test.cjs'
+      - 'blender/create_performer.py'
+      - 'blender/runner.py'
+      - 'app/jobs/studio_character_scene_job.rb'
       - 'test/javascript/studio_native_workflow_test.cjs'
       - 'test/operations/studio_layered_renderer_test.py'
       - '.github/workflows/studio-native-workflow.yml'
@@ -25,6 +30,10 @@ jobs:
     timeout-minutes: 15
     env:
       LIGHTEK_TEST_BLENDER: '1'
+      LIGHTEK_TEST_CHARACTER_SCENE: '1'
+      LIGHTEK_RHUBARB: ${{ runner.temp }}/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb
+      STUDIO_CHARACTER_PROOF_VIDEO: /tmp/lightek-character-scene.mp4
+      STUDIO_CHARACTER_PROOF_BLEND: /tmp/lightek-character-scene.blend
       STUDIO_NATIVE_PROOF_BLEND: /tmp/lightek-park.blend
       BUNDLE_GEMFILE: test/standalone/Gemfile
       STUDIO_NATIVE_PROOF_VIDEO: /tmp/lightek-native-2d.mp4
@@ -37,9 +46,16 @@ jobs:
       - name: Install native media tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg imagemagick blender
+          sudo apt-get install -y ffmpeg imagemagick blender espeak-ng
+          mkdir -p "$RUNNER_TEMP/rhubarb"
+          curl --fail --location --retry 2 https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -o "$RUNNER_TEMP/rhubarb.zip"
+          echo "a9a9074862cff47b2d59b8bf399a678a3b0b74f9452ad6ad94cb292913dd8667  $RUNNER_TEMP/rhubarb.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/rhubarb.zip" -d "$RUNNER_TEMP/rhubarb"
+          chmod 755 "$LIGHTEK_RHUBARB"
       - name: Verify isolated workflow and real native video
         run: bundle exec ruby test/standalone/studio_native_workflow_checks.rb --name '/StudioNativeWorkflowTest/'
+      - name: Verify a real illustrated character scene with speech
+        run: bundle exec ruby test/standalone/studio_character_scene_checks.rb --name '/StudioCharacterSceneTest/'
       - name: Measure parallax in exported pixels
         run: python3 test/operations/studio_layered_renderer_test.py
       - uses: actions/setup-node@v4
@@ -53,10 +69,13 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/studio-native" jsdom@26.1.0
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_native_workflow_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_genesis_connection_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_character_scene_test.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: native-2d-parallax-proof
           path: |
             /tmp/lightek-native-2d.mp4
             /tmp/lightek-park.blend
+            /tmp/lightek-character-scene.mp4
+            /tmp/lightek-character-scene.blend
           if-no-files-found: error

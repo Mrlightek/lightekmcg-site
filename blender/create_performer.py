@@ -12,11 +12,19 @@ with open(params_path, encoding='utf-8') as handle:
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
 scene.name = 'Lightek Performer'
+illustrated = params.get('style') == 'illustrated'
 
 
 def material(name, hex_color, roughness=0.5):
     color = tuple(int(hex_color[i:i+2], 16)/255 for i in (1, 3, 5)) + (1,)
     m = bpy.data.materials.new(name); m.diffuse_color = color; m.use_nodes = True
+    if illustrated:
+        nodes=m.node_tree.nodes;nodes.clear()
+        emission=nodes.new('ShaderNodeEmission');output=nodes.new('ShaderNodeOutputMaterial')
+        linear=tuple(c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4 for c in color[:3])
+        emission.inputs['Color'].default_value=(*linear,1)
+        m.node_tree.links.new(emission.outputs[0],output.inputs['Surface'])
+        return m
     node = m.node_tree.nodes.get('Principled BSDF')
     node.inputs['Base Color'].default_value = color
     node.inputs['Roughness'].default_value = roughness
@@ -34,6 +42,18 @@ trousers = material('Trousers', '#19212f')
 
 
 def sphere(name, location, scale, mat):
+    if illustrated:
+        count=32
+        points=[(math.cos(i*math.tau/count),math.sin(i*math.tau/count)) for i in range(count)]
+        if name=='Head': points=[(-.8,.5),(-.65,.9),(.6,1),(.93,.55),(.72,-.55),(.25,-1),(-.3,-1),(-.82,-.5)]
+        if name=='Shirt': points=[(-1,1),(1,1),(.45,-.5),(0,-1),(-.45,-.5)]
+        if name=='Jacket body': points=[(-.6,1),(.6,1),(1,.7),(.8,-.5),(.5,-1),(-.5,-1),(-.8,-.5),(-1,.7)]
+        count=len(points)
+        vertices=[(x*scale[0],0,z*scale[2]) for x,z in points]+[(x*scale[0]*1.04,.004,z*scale[2]*1.04) for x,z in points]
+        mesh=bpy.data.meshes.new(name+' drawing');mesh.from_pydata(vertices,[],[list(range(count)),list(range(count,count*2))]);mesh.materials.append(mat);mesh.materials.append(black)
+        mesh.polygons[1].material_index=1
+        obj=bpy.data.objects.new(name,mesh);scene.collection.objects.link(obj);obj.location=location
+        return obj
     bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=20, location=location)
     obj = bpy.context.object; obj.name = name
     obj.scale = scale; bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
@@ -180,6 +200,9 @@ camera = bpy.data.objects.new('Portrait camera', bpy.data.cameras.new('Portrait 
 camera.location = (0, -5, 1.7); camera.rotation_euler = (Vector((0, 0, 1.5))-camera.location).to_track_quat('-Z', 'Y').to_euler(); camera.data.lens = 60; scene.camera = camera
 for name, loc, power, size in [('Key', (3, -4, 5), 800, 4), ('Fill', (-3, -2, 3), 400, 4), ('Rim', (1, 2, 4), 900, 3)]:
     light = bpy.data.objects.new(name, bpy.data.lights.new(name, 'AREA')); scene.collection.objects.link(light); light.location = loc; light.data.energy = power; light.data.shape = 'DISK'; light.data.size = size; light.rotation_euler = (Vector((0, 0, 1.3))-light.location).to_track_quat('-Z', 'Y').to_euler()
+if illustrated:
+    scene.view_settings.view_transform='Standard'
+    scene['lightek_character_style']='illustrated'
 scene.world = bpy.data.worlds.new('Studio world'); scene.world.color = (0.07, 0.08, 0.12)
 scene.render.engine = 'CYCLES'; scene.cycles.samples = 8; scene.render.resolution_x = 512; scene.render.resolution_y = 512; scene.render.resolution_percentage = 100
 bpy.ops.wm.save_as_mainfile(filepath=output)

@@ -1,7 +1,7 @@
 module LightekPwa
   class SourceRuntime
     class ReadOnly < StandardError; end
-    MEMBER_STUDIO_ACTIONS = %w[workflow_status workflow_plan workflow_save workflow_quote render_checkout render_resume workflow_create look_status look_save material_save motion_save performance_analyze performance_analysis
+    MEMBER_STUDIO_ACTIONS = %w[character_scene_prepare character_scene_status character_scene_retry character_scene_quote workflow_status workflow_plan workflow_save workflow_quote render_checkout render_resume workflow_create look_status look_save material_save motion_save performance_analyze performance_analysis
       shots_save shots_list starter_scene_create starter_scene_status ai_setup_status ai_status ai_jobs project_create
       artifact_use music_save music_place cast_create cast_retry cast_register cast_place performance_save performance_remove
       performance_preview content_generate writing_profiles scene_save project_delete template_save template_use

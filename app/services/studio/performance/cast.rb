@@ -96,9 +96,14 @@ module Studio
           raise ArgumentError,"Choose curls, close cut or high top" unless %w[curls close high_top].include?(style)
           values["hair_style"]=style
         end
+        if payload.key?("style")
+          raise ArgumentError,"Choose toon or illustrated" unless %w[toon illustrated].include?(payload["style"])
+          values["style"]=payload["style"]
+        end
         key=payload.fetch("request_key").to_s
         raise ArgumentError,"A performer request key is required" unless key.match?(/\A[a-zA-Z0-9_-]{8,100}\z/)
         photo=creation_photo(access,payload)
+        raise ArgumentError,"Illustrated performers use editable drawn faces" if photo && values["style"]=="illustrated"
         asset=nil
         access.user.with_lock do
           asset=StudioAsset.find_by(owner:access.user,request_key:key)

@@ -10,6 +10,7 @@ async function check(dashboard){
    case 'operations.list':result={operations:[],publications:[]};break;
    case 'workflow.status':result={ready:true,assets:[]};break;
    case 'ai.status':throw Error('Performed Short must not query Genesis');
+   case 'character.scene.catalog':result={scene_templates:[{key:'studio',name:'Plain stage',available:true,defaults:{name:'Sentinel',dialogue:'We protect this city.',gesture:'wave_right',camera_mode:'character'}}],production_templates:[],saved_templates:[],default_scene_template:'studio'};break;
    case 'character.scene.prepare':submitted=payload;result={operation_id:80,status:'pending',phase:'queued'};break;
    case 'character.scene.status':checked++;if(!submitted){result={status:'idle'};break;}result={operation_id:80,status:'completed',phase:'ready',scene_id:9,cast_asset_id:10,preview_operation_id:81,url:'/performed-proof.mp4'};break;
    case 'character.scene.quote':quoted=payload;result={operation_id:82,status:'awaiting_payment',quote:{total_cents:550,currency:'USD'}};break;

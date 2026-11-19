@@ -1,6 +1,9 @@
 require_relative "studio_lip_sync_checks"
 require File.join(ROOT,"app/services/screenplay_engine/neural_voice")
 require File.join(ROOT,"app/services/screenplay_engine/audio_synthesizer")
+require File.join(ROOT,"app/services/studio/native_blender/media_presets")
+require File.join(ROOT,"app/services/studio/native_blender/preset_use")
+require File.join(ROOT,"app/services/studio/performance/scene_templates")
 require File.join(ROOT,"app/services/studio/performance/character_scene")
 require File.join(ROOT,"app/jobs/studio_character_scene_job")
 class StudioCharacterSceneTest < StudioLipSyncTest

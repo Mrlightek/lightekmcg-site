@@ -14,6 +14,8 @@ on:
       - 'public/lightek/studio-unified.*'
       - 'test/standalone/studio_native_workflow_checks.rb'
       - 'test/standalone/studio_character_scene_checks.rb'
+      - 'test/standalone/studio_scene_templates_checks.rb'
+      - 'test/javascript/studio_scene_templates_test.cjs'
       - 'test/javascript/studio_character_scene_test.cjs'
       - 'blender/create_performer.py'
       - 'blender/runner.py'
@@ -32,6 +34,7 @@ jobs:
       LIGHTEK_TEST_BLENDER: '1'
       LIGHTEK_TEST_CHARACTER_SCENE: '1'
       LIGHTEK_RHUBARB: ${{ runner.temp }}/rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb
+      STUDIO_TEMPLATE_PROOF_VIDEO: /tmp/lightek-template-scene.mp4
       STUDIO_CHARACTER_PROOF_VIDEO: /tmp/lightek-character-scene.mp4
       STUDIO_CHARACTER_PROOF_BLEND: /tmp/lightek-character-scene.blend
       STUDIO_NATIVE_PROOF_BLEND: /tmp/lightek-park.blend
@@ -56,6 +59,8 @@ jobs:
         run: bundle exec ruby test/standalone/studio_native_workflow_checks.rb --name '/StudioNativeWorkflowTest/'
       - name: Verify a real illustrated character scene with speech
         run: bundle exec ruby test/standalone/studio_character_scene_checks.rb --name '/StudioCharacterSceneTest/'
+      - name: Verify templates reach real performed scenes
+        run: bundle exec ruby test/standalone/studio_scene_templates_checks.rb --name '/StudioSceneTemplatesTest/'
       - name: Measure parallax in exported pixels
         run: python3 test/operations/studio_layered_renderer_test.py
       - uses: actions/setup-node@v4
@@ -70,6 +75,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_native_workflow_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_genesis_connection_test.cjs
           NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_character_scene_test.cjs
+          NODE_PATH="$RUNNER_TEMP/studio-native/node_modules" node test/javascript/studio_scene_templates_test.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: native-2d-parallax-proof
@@ -78,4 +84,5 @@ jobs:
             /tmp/lightek-park.blend
             /tmp/lightek-character-scene.mp4
             /tmp/lightek-character-scene.blend
+            /tmp/lightek-template-scene.mp4
           if-no-files-found: error

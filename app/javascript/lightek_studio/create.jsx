@@ -37,8 +37,8 @@ function MediaPicker({title,items,value,onChange,upload,accept,empty='Choose fro
   </div>;
 }
 
-export function Creation({api,project,scene,assets,referenceAssets,inventory,inventoryError,retryInventory,jobs,operations,selected,onSelect,add,refresh,timeline,go,run,busy,onRevision,onCompositionSaved,onMode,operationId,setOperationId}) {
-  const [mode,setMode]=useState('workflow');
+export function Creation({api,project,scene,assets,referenceAssets,inventory,inventoryError,retryInventory,jobs,operations,selected,onSelect,add,refresh,timeline,go,run,busy,onRevision,onCompositionSaved,onMode,openTemplateScene,initialMode,operationId,setOperationId}) {
+  const [mode,setMode]=useState(initialMode||'workflow');
   const [composition,setComposition]=useState(()=>scene.settings?.composition_2d||null);
   const [nativeReady,setNativeReady]=useState(false);
   const [blenderHandoff,setBlenderHandoff]=useState(false);
@@ -184,7 +184,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
         <p role="alert">Studio couldn’t check worker availability.</p>
         <button type="button" onClick={retryInventory}>Retry worker check</button>
       </div>}
-      {mode==='performed'&&<CharacterSceneComposer {...{api,scene,assets,busy,run,refresh}}/>}
+      {mode==='performed'&&<CharacterSceneComposer {...{api,scene,assets,busy,run,refresh,openTemplateScene}}/>}
       <form hidden={mode==='performed'} onSubmit={event=>{event.preventDefault();submit(mode==='movie'?previewMovie:generate);}}>
         {mode==='workflow'&&<LayeredComposer {...{api,scene,assets,composition,prompt,run,busy}} onReady={setNativeReady}
           setPrompt={value=>{change(setPrompt,value);setComposition(null);}}

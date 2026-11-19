@@ -21,7 +21,13 @@ module Studio
           raise ArgumentError,"Choose six-digit colors" unless color.match?(/\A#[a-fA-F0-9]{6}\z/)
           [field,color]
         end
-        inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors}
+        template_key=payload.fetch("scene_template","studio").to_s
+        camera_mode=payload.fetch("camera_mode","character").to_s
+        gesture=payload.fetch("gesture",SceneTemplates.defaults(template_key)["gesture"]).to_s
+        raise ArgumentError,"Choose character coverage or template cameras" unless SceneTemplates::CAMERA_MODES.include?(camera_mode)
+        raise ArgumentError,"Choose an available starter action" unless SceneTemplates::GESTURES.include?(gesture)
+        staging=SceneTemplates.snapshot(access:access,source:source,key:template_key)
+        inputs={"name"=>name,"dialogue"=>text,"voice"=>voice,"colors"=>colors,"scene_template"=>template_key,"camera_mode"=>camera_mode,"gesture"=>gesture}
         audio=nil;actor=nil
         if payload["audio_asset_id"].present?
           audio=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"audio",status:"ready").find(payload["audio_asset_id"])
@@ -40,11 +46,11 @@ module Studio
           scope=source.studio_project.studio_operations.where(capability:CAPABILITY).where("CAST(intent ->> 'user_id' AS TEXT) = ?",access.user.id.to_s)
           previous=scope.where("metadata ->> 'request_key' = ?",key).first
           if previous
-            raise ArgumentError,"This request key belongs to another character scene" unless previous.studio_scene_id==source.id && previous.manifest["inputs"]==inputs
+            raise ArgumentError,"This request key belongs to another character scene" unless previous.studio_scene_id==source.id && previous.manifest["inputs"]==inputs && previous.manifest["staging"]==staging
             next previous
           end
           raise ArgumentError,"Wait for your current character scene" if scope.where(status:%w[pending running]).exists? || scope.where("created_at > ?",1.minute.ago).count>=3
-          op=source.studio_operations.create!(studio_project:source.studio_project,production:source.production,operation_type:"character_scene",provider:"studio",capability:CAPABILITY,status:"pending",intent:{"user_id"=>access.user.id},manifest:{"inputs"=>inputs},metadata:{"request_key"=>key,"phase"=>"queued","attempt"=>0,"deadline"=>10.minutes.from_now.iso8601})
+          op=source.studio_operations.create!(studio_project:source.studio_project,production:source.production,operation_type:"character_scene",provider:"studio",capability:CAPABILITY,status:"pending",intent:{"user_id"=>access.user.id},manifest:{"inputs"=>inputs,"staging"=>staging},metadata:{"request_key"=>key,"phase"=>"queued","attempt"=>0,"deadline"=>10.minutes.from_now.iso8601})
           op.performance_sources.attach(audio.file.blob) if audio
           op.performance_sources.attach(actor.native.blob) if actor
           op
@@ -67,7 +73,7 @@ module Studio
         operation=find(access,id)
         child=operation.studio_project.studio_operations.find_by(id:operation.metadata["preview_id"])
         artifact=child&.status=="completed" && child.artifacts.find_by(kind:"video")
-        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
+        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
           scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],preview_operation_id:child&.id,
           url:artifact && artifact.file.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}.compact
       end
@@ -114,6 +120,7 @@ module Studio
         operation.with_lock do
           unless operation.metadata["scene_id"]
             scene=operation.studio_project.studio_scenes.create!(production:operation.production,name:"#{inputs['name']} · performed short",settings:StudioScene.default_settings.merge("render_engine"=>"CYCLES","compute_profile"=>"cpu_economy","resolution_x"=>640,"resolution_y"=>360,"samples"=>1,"fps"=>12,"frame_start"=>1,"frame_end"=>36,"world_color"=>[0.02,0.03,0.05,1]))
+            SceneTemplates.apply!(scene,operation.manifest.fetch("staging"),access:access)
             operation.update!(metadata:operation.metadata.merge("scene_id"=>scene.id))
           end
         end
@@ -159,6 +166,13 @@ module Studio
         phase(operation,"analyzing_speech")
         placement=Cast.place(access:access,payload:{"scene_id"=>scene.id,"asset_id"=>actor.id,"lock_version"=>scene.reload.lock_version,"request_key"=>tag+"-place"})
         object=scene.scene_objects.find(placement.fetch("object_id"))
+        unless object.definition["template_performer_initialized"]
+          source=operation.manifest.fetch("staging")
+          definition=object.definition.merge(source.fetch("actor_transform",{}))
+          motion=source["actor_motion"]
+          definition["motion_clips"]=motion["motion_clips"] if motion && motion["asset_id"]==actor.id && motion["character_profile"]==actor.metadata["character_profile"]
+          object.update!(definition:definition.merge("template_performer_initialized"=>true))
+        end
         unless object.definition["performance"]
           analysis=LipSync.start(access:access,payload:{"scene_id"=>scene.id,"audio_asset_id"=>audio.id,"source_out"=>audio.metadata.fetch("duration"),"dialogue"=>inputs["dialogue"],"recognizer"=>"phonetic","request_key"=>tag+"-speech-#{operation.metadata['attempt']}"})
           StudioLipSyncJob.perform_now(analysis[:id])
@@ -167,16 +181,25 @@ module Studio
           raise ArgumentError,"The speech worker could not analyze this recording" unless analysis_status=="completed"
           duration=audio.metadata.fetch("duration")
           expressions=actor.metadata.dig("character_profile","bindings").key?("smile") ? [{"control"=>"smile","start"=>0,"end"=>duration,"value"=>0.35}] : []
-          gestures=actor.metadata.dig("character_profile","bones").key?("right_arm") ? [{"kind"=>"wave_right","start"=>0,"end"=>duration,"strength"=>0.45}] : []
+          kind=inputs.fetch("gesture");binding={"wave_right"=>"right_arm","nod"=>"head","shake"=>"head"}[kind]
+          gestures=binding && actor.metadata.dig("character_profile","bones").key?(binding) ? [{"kind"=>kind,"start"=>0,"end"=>duration,"strength"=>0.45}] : []
           Take.save(access:access,payload:{"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.reload.lock_version,"audio_asset_id"=>audio.id,"source_out"=>duration,"start"=>0.1,"lip_sync_mode"=>"phoneme","analysis_id"=>analysis[:id],"expressions"=>expressions,"gestures"=>gestures,"request_key"=>tag+"-take"})
         end
         phase(operation,"directing_cameras")
         unless scene.reload.settings["character_scene_cameras"]
           scene.with_lock do
-            wide=scene.scene_objects.where(object_type:"camera").first!
-            wide.update!(name:"Character wide",definition:{"location"=>[0,-5,1.2],"look_at"=>[0,0,1.2],"camera_type"=>"ORTHO","sensor_fit"=>"HORIZONTAL","ortho_scale"=>5.2})
-            close=scene.scene_objects.create!(name:"Character close",object_type:"camera",definition:{"location"=>[0,-5,1.85],"look_at"=>[0,0,1.85],"camera_type"=>"ORTHO","sensor_fit"=>"HORIZONTAL","ortho_scale"=>2.5})
-            scene.update!(settings:scene.settings.merge("character_scene_cameras"=>true,"camera_cuts"=>[{"camera_id"=>wide.id,"frame"=>1},{"camera_id"=>close.id,"frame"=>19}],"native_revision"=>scene.settings.fetch("native_revision",0)+1))
+            cameras=scene.scene_objects.where(object_type:"camera").order(:position,:id).to_a
+            if inputs["camera_mode"]=="template" && cameras.any?
+              cuts=scene.settings["camera_cuts"].presence || cameras.first(2).each_with_index.map { |camera,index| {"camera_id"=>camera.id,"frame"=>index==0 ? 1 : 19} }
+              first=cameras.find { |camera| camera.id==cuts.first["camera_id"] } || cameras.first
+              settings={"camera_cuts"=>cuts,"active_camera_object_id"=>first.id}
+            else
+              location=object.definition.fetch("location",[0,0,0])
+              wide=scene.scene_objects.create!(name:"Character wide",object_type:"camera",definition:{"location"=>[location[0],location[1]-5,location[2]+1.2],"look_at"=>[location[0],location[1],location[2]+1.2],"camera_type"=>"ORTHO","sensor_fit"=>"HORIZONTAL","ortho_scale"=>5.2})
+              close=scene.scene_objects.create!(name:"Character close",object_type:"camera",definition:{"location"=>[location[0],location[1]-5,location[2]+1.85],"look_at"=>[location[0],location[1],location[2]+1.85],"camera_type"=>"ORTHO","sensor_fit"=>"HORIZONTAL","ortho_scale"=>2.5})
+              settings={"camera_cuts"=>[{"camera_id"=>wide.id,"frame"=>1},{"camera_id"=>close.id,"frame"=>19}],"active_camera_object_id"=>wide.id}
+            end
+            scene.update!(settings:scene.settings.merge(settings).merge("character_scene_cameras"=>true,"native_revision"=>scene.settings.fetch("native_revision",0)+1))
           end
         end
         phase(operation,"rendering_preview")

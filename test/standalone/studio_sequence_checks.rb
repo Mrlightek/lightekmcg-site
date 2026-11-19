@@ -15,15 +15,15 @@ class DymondBank::Transaction
 end
 class StudioSequenceTest < StudioCharacterSceneTest
   StudioCharacterSceneTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
-  def fixture_performance(name,color,tone,cast:nil)
-    scene=@project.studio_scenes.create!(name:name,settings:StudioScene.default_settings.merge("fps"=>12,"frame_start"=>1,"frame_end"=>24,"resolution_x"=>640,"resolution_y"=>360))
+  def fixture_performance(name,color,tone,cast:nil,seconds:2)
+    scene=@project.studio_scenes.create!(name:name,settings:StudioScene.default_settings.merge("fps"=>12,"frame_start"=>1,"frame_end"=>12*seconds,"resolution_x"=>640,"resolution_y"=>360))
     scene.scene_objects.create!(name:"Sentinel",object_type:"imported_asset",definition:{"asset_id"=>cast.id,"character_profile"=>cast.metadata["character_profile"]}) if cast
     manifest=Blender::ManifestBuilder.new(scene).call.deep_dup
     manifest["scene"]["settings"].merge!("resolution_x"=>320,"resolution_y"=>180,"samples"=>8)
     preview=scene.studio_operations.create!(studio_project:@project,capability:"studio.workspace.performance.preview",operation_type:"build_scene",provider:"blender",status:"completed",intent:{user_id:@alice.id},manifest:manifest,metadata:{draft_preview:true})
     Dir.mktmpdir do |root|
       file=File.join(root,"source.mp4")
-      Studio::MediaProcess.run!(["ffmpeg","-v","error","-y","-f","lavfi","-i","color=c=#{color}:s=320x180:r=24:d=2","-f","lavfi","-i","sine=frequency=#{tone}:duration=2","-c:v","libx264","-threads","1","-pix_fmt","yuv420p","-c:a","aac","-shortest",file])
+      Studio::MediaProcess.run!(["ffmpeg","-v","error","-y","-f","lavfi","-i","color=c=#{color}:s=320x180:r=24:d=#{seconds}","-f","lavfi","-i","sine=frequency=#{tone}:duration=#{seconds}","-c:v","libx264","-threads","1","-pix_fmt","yuv420p","-c:a","aac","-shortest",file])
       artifact=preview.artifacts.create!(kind:"video",filename:"source.mp4");artifact.file.attach(io:File.open(file),filename:"source.mp4",content_type:"video/mp4",identify:false)
     end
     scene.studio_operations.create!(studio_project:@project,capability:Studio::Performance::CharacterScene::CAPABILITY,operation_type:"character_scene",provider:"studio",status:"completed",intent:{user_id:@alice.id},manifest:{inputs:{name:name}},metadata:{scene_id:scene.id,preview_id:preview.id})
@@ -52,6 +52,22 @@ class StudioSequenceTest < StudioCharacterSceneTest
     assert_raises(ArgumentError) { action("sequence_retry",operation_id:result[:operation_id]) }
     refute action("sequence_catalog",scene_id:@scene.id)[:performances].find { |row| row[:operation_id]==fixtures[0].id }[:available]
   end
+  def test_a_full_minute_can_render_and_longer_cuts_are_rejected
+    Rails.stub(:root,Pathname(ROOT)) do
+      opening=fixture_performance("Opening","red",220,seconds:8)
+      reply=fixture_performance("Reply","blue",440,seconds:8)
+      shots=[{operation_id:opening.id},{operation_id:reply.id}]*4
+      assert_raises(ArgumentError) { cut(shots:shots) }
+      shots[-1]=shots.last.merge(out:4)
+      value=cut(shots:shots)
+      assert_equal 60,value[:seconds]
+      StudioSequencePreviewJob.perform_now(value[:operation_id])
+      status=action("sequence_status",operation_id:value[:operation_id])
+      assert_equal "completed",status[:status],status[:error]
+      assert status[:url].present?
+    end
+  end
+
   def test_named_character_continuity_and_interrupted_worker_recovery
     cast_a=ready_actor;cast_b=ready_actor
     first=fixture_performance("Shot A","red",220,cast:cast_a)

@@ -1,10 +1,11 @@
 import React,{useEffect,useState} from 'react';
 import {requestKey} from './api';
+const maxSeconds=60;
 export function SequenceComposer(props){
- const [open,setOpen]=useState(false);
- return <details className="ls-drawer" aria-label="Performance sequence editor" onToggle={event=>setOpen(event.currentTarget.open)}><summary>Arrange performances into a sequence</summary>{open&&<SequenceEditor {...props}/>}</details>;
+ const [opened,setOpened]=useState(false);
+ return <details className="ls-drawer" aria-label="Performance sequence editor" onToggle={event=>{if(event.currentTarget.open)setOpened(true);}}><summary>Arrange performances into a sequence</summary>{opened&&<SequenceEditor key={props.scene.id} {...props}/>}</details>;
 }
-function SequenceEditor({api,scene,busy,run}){
+function SequenceEditor({api,scene,busy,run,onRevise}){
  const [catalog,setCatalog]=useState([]),[shots,setShots]=useState([]),[name,setName]=useState('Scene sequence'),[receipt,setReceipt]=useState(null),[quote,setQuote]=useState(null),[sourceQuotes,setSourceQuotes]=useState({}),[key,setKey]=useState(requestKey),[error,setError]=useState(''),[ready,setReady]=useState(false),[reviewed,setReviewed]=useState(false);
  const active=['pending','running'].includes(receipt?.status);
  useEffect(()=>{let alive=true;
@@ -23,7 +24,7 @@ function SequenceEditor({api,scene,busy,run}){
  function perform(action){run(async()=>{setError('');try{await action();}catch(cause){setError(cause.message);}});}
  function move(index,offset){changed();setShots(rows=>{const copy=rows.slice();[copy[index],copy[index+offset]]=[copy[index+offset],copy[index]];return copy;});}
  const available=catalog.filter(row=>row.available),seconds=shots.reduce((sum,row)=>sum+Number(row.out)-Number(row.in),0);
- const valid=shots.length>=2&&shots.length<=12&&seconds>0&&seconds<=30&&shots.every(row=>Number.isFinite(row.in)&&Number.isFinite(row.out)&&row.in>=0&&row.out-row.in>=1/12&&catalog.some(item=>item.operation_id===row.operation_id&&item.available&&row.out<=item.seconds));
+ const valid=shots.length>=2&&shots.length<=12&&seconds>0&&seconds<=maxSeconds&&shots.every(row=>Number.isFinite(row.in)&&Number.isFinite(row.out)&&row.in>=0&&row.out-row.in>=1/12&&catalog.some(item=>item.operation_id===row.operation_id&&item.available&&row.out<=item.seconds));
  const money=quote=>new Intl.NumberFormat(undefined,{style:'currency',currency:quote.currency||'USD'}).format(quote.total_cents/100);
  return <section aria-label="Sequence cut">
   <p>Select reviewed performances from this project, put them in order and trim their edges. Named characters must reuse the same Cast identity across shots. The private review cut keeps their dialogue. Final delivery uses full source exports and the existing Timeline checkout.</p>
@@ -32,11 +33,12 @@ function SequenceEditor({api,scene,busy,run}){
   <label>Sequence name<input maxLength="120" disabled={active} value={name} onChange={event=>{changed();setName(event.target.value);}}/></label>
   {shots.map((shot,index)=><fieldset key={index} disabled={active}><legend>Sequence clip {index+1}</legend>
    <label>Clip {index+1} performance<select value={shot.operation_id} onChange={event=>{changed();const id=Number(event.target.value),row=catalog.find(item=>item.operation_id===id);setShots(rows=>rows.map((item,i)=>i===index?{operation_id:id,in:0,out:row.seconds}:item));}}>{catalog.map(row=><option key={row.operation_id} value={row.operation_id} disabled={!row.available}>{row.name}{!row.available?' · needs a fresh preview':''}</option>)}</select></label>
+   <p className="ls-muted">Timeline start: {shots.slice(0,index).reduce((sum,row)=>sum+Number(row.out)-Number(row.in),0).toFixed(2)} s · clip length: {(Number(shot.out)-Number(shot.in)).toFixed(2)} s</p>
    <div className="ls-fields">{['in','out'].map(field=><label key={field}>Clip {index+1} {field} (seconds)<input type="number" step="0.083333" min="0" value={shot[field]} onChange={event=>{changed();const value=Number(event.target.value);setShots(rows=>rows.map((row,i)=>i===index?{...row,[field]:value}:row));}}/></label>)}</div>
-   <div className="ls-row"><button type="button" disabled={index===0} onClick={()=>move(index,-1)}>Move clip {index+1} earlier</button><button type="button" disabled={index===shots.length-1} onClick={()=>move(index,1)}>Move clip {index+1} later</button><button type="button" onClick={()=>{changed();setShots(rows=>rows.filter((_,i)=>i!==index));}}>Remove clip {index+1}</button></div>
+   <div className="ls-row">{catalog.some(row=>row.operation_id===shot.operation_id&&row.can_revise)&&<button type="button" disabled={busy} onClick={()=>onRevise(shot.operation_id)}>Revise take for clip {index+1}</button>}<button type="button" disabled={index===0} onClick={()=>move(index,-1)}>Move clip {index+1} earlier</button><button type="button" disabled={index===shots.length-1} onClick={()=>move(index,1)}>Move clip {index+1} later</button><button type="button" onClick={()=>{changed();setShots(rows=>rows.filter((_,i)=>i!==index));}}>Remove clip {index+1}</button></div>
   </fieldset>)}
   <button type="button" disabled={active||!available.length||shots.length>=12} onClick={()=>{changed();const row=available[0];setShots(rows=>[...rows,{operation_id:row.operation_id,in:0,out:row.seconds}]);}}>Add sequence clip</button>
-  <p>{Number.isFinite(seconds)?seconds.toFixed(2):'—'} seconds · 2–12 clips · up to 30 seconds per review cut</p>
+  <p>{Number.isFinite(seconds)?seconds.toFixed(2):'—'} seconds · 2–12 clips · up to {maxSeconds} seconds per review cut</p>
   <button type="button" disabled={busy||active||!ready||!name.trim()||!valid} onClick={()=>perform(async()=>setReceipt(await api.call('sequence.prepare',{scene_id:scene.id,request_key:key,name:name.trim(),shots})))}>Preview sequence cut</button>
   {receipt&&<p role="status">Sequence {receipt.status}</p>}{receipt?.error&&<p role="alert">{receipt.error}</p>}
   {receipt?.status==='failed'&&<button type="button" disabled={busy} onClick={()=>perform(async()=>setReceipt(await api.call('sequence.retry',{operation_id:receipt.operation_id})))}>Retry sequence preview</button>}

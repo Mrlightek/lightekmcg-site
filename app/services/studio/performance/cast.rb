@@ -108,17 +108,19 @@ module Studio
         photo
       end
 
+      def self.hair_style(value)
+        style=value.to_s
+        raise ArgumentError,"Choose curls, close cut or high top" unless %w[curls close high_top].include?(style)
+        style
+      end
+
       def self.create(access:,payload:)
         values=%w[skin wardrobe hair].to_h do |field|
           value=payload.fetch(field,{"skin"=>"#925e43","wardrobe"=>"#64388b","hair"=>"#211916"}[field]).to_s
           raise ArgumentError,"Choose six-digit colors" unless value.match?(/\A#[0-9a-fA-F]{6}\z/)
           [field,value]
         end
-        if payload.key?("hair_style")
-          style=payload.fetch("hair_style").to_s
-          raise ArgumentError,"Choose curls, close cut or high top" unless %w[curls close high_top].include?(style)
-          values["hair_style"]=style
-        end
+        values["hair_style"]=hair_style(payload["hair_style"]) if payload.key?("hair_style")
         if payload.key?("style")
           raise ArgumentError,"Choose toon, illustrated or physical" unless %w[toon illustrated physical].include?(payload["style"])
           values["style"]=payload["style"]

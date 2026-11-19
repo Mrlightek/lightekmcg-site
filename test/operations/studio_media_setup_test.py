@@ -9,7 +9,7 @@ ROOT=Path(__file__).resolve().parents[2]
 class StudioMediaSetupTest(unittest.TestCase):
     def assert_restricted_runtime_probes(self, commands):
         probes=[command for command in commands if command[0]=='run']
-        self.assertEqual(len(probes),4)
+        self.assertEqual(len(probes),5)
         node=next(command for command in probes if 'node' in command)
         self.assertEqual(node[-3:],['node','/opt/lightek-editors/movie-render.cjs','--health'])
         self.assertEqual(node[node.index('--memory')+1],'256m')
@@ -26,6 +26,14 @@ class StudioMediaSetupTest(unittest.TestCase):
         self.assertIn('TMPDIR=/run/lightek-voice',speech)
         self.assertIn('/tmp:rw,nosuid,size=512m',speech)
         self.assertEqual(speech[-4:],['/opt/lightek-voice/venv/bin/python','/opt/lightek-voice/synthesize.py','--output','/tmp/nevaeh-health.wav'])
+        rhubarb=next(command for command in probes if '/opt/rhubarb/rhubarb' in command)
+        self.assertEqual(rhubarb[-2:],['/opt/rhubarb/rhubarb','--version'])
+        physics=next(command for command in probes if '/opt/lightek-physics/venv/bin/python' in command)
+        self.assertEqual(physics[physics.index('--memory')+1],'256m')
+        self.assertEqual(physics[-2],'-c')
+        self.assertIn('import mujoco',physics[-1])
+        self.assertIn('LIGHTEK_CONTACT_PHYSICS_READY',physics[-1])
+        self.assertIn('OPENBLAS_NUM_THREADS=1',physics)
         for probe in probes:
             with self.subTest(engine=probe[-3:]):
                 if probe is not speech:
@@ -87,8 +95,8 @@ if '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.4.0')
             self.assertEqual((folder/"trace.speech").read_text(),"Nevaeh voice is ready.")
             self.assertIn('LIGHTEK_BLENDER_RUNTIME_READY',result.stdout)
 
-    def test_either_failed_runtime_probe_stops_setup(self):
-        for engine in ['node','blender','/opt/rhubarb/rhubarb','/opt/lightek-voice/synthesize.py']:
+    def test_failed_runtime_probe_stops_setup(self):
+        for engine in ['node','blender','/opt/rhubarb/rhubarb','/opt/lightek-voice/synthesize.py','/opt/lightek-physics/venv/bin/python']:
             with self.subTest(engine=engine), tempfile.TemporaryDirectory() as directory:
                 folder=Path(directory); binary=folder/'docker'
                 binary.write_text("#!/usr/bin/env python3\nimport os,sys\nargs=sys.argv[1:]\nif args==['info','--format','{{.NCPU}}']:print('1')\nif args and args[0]=='run' and os.environ['FAIL_ENGINE'] in args:sys.exit(7)\nif '--python-expr' in args:print('LIGHTEK_BLENDER_RUNTIME_READY=4.4.0')\n")

@@ -12,7 +12,14 @@ module Studio
         raise ArgumentError,"Choose a supported facial cue" unless EMOTIONS.include?(emotion)
         raise ArgumentError,"Choose a supported body action" unless ACTIONS.key?(action)
         raise ArgumentError,"Choose a supported entrance" unless ENTRANCES.include?(entrance)
-        {"emotion"=>emotion,"body_action"=>action,"entrance"=>entrance}
+        values={"emotion"=>emotion,"body_action"=>action,"entrance"=>entrance}
+        if payload["motion_action_id"].present?
+          if payload["cast_asset_id"].blank? || action!="still" || payload["contact"].present? || payload["mechanics"].present? || (payload["gesture"].present? && payload["gesture"]!="still")
+            raise ArgumentError,"Use a saved Cast motion without another arm action, prop contact or gesture"
+          end
+          values["motion_action_id"]=payload["motion_action_id"].to_s
+        end
+        values
       end
       def self.expressions(character,profile,duration)
         emotion=character.fetch("emotion","neutral")
@@ -30,9 +37,14 @@ module Studio
           raise ArgumentError,"Use a head gesture or no added gesture with a pointing action on that arm"
         end
       end
+      def self.saved_motion(profile,id)
+        Array(profile["motions"]).find { |item| item["id"]==id } ||
+          raise(ArgumentError,"Choose a motion from this Cast performer")
+      end
       def self.validate!(character,profile)
         gesture!(character)
         expressions(character,profile,1)
+        saved_motion(profile,character["motion_action_id"]) if character["motion_action_id"]
         motion(profile,ACTIONS.fetch(character.fetch("body_action","still"))) if character.fetch("body_action","still")!="still"
         motion(profile,"Step in place") if character.fetch("entrance","none")!="none"
       end
@@ -40,8 +52,19 @@ module Studio
         action=motion(profile,name);seconds=(action.fetch("frame_end")-action.fetch("frame_start"))/Float(action.fetch("fps"))
         {"id"=>id,"action_id"=>action.fetch("id"),"source_in"=>action.fetch("frame_start"),"source_out"=>action.fetch("frame_end"),"start"=>start,"speed"=>seconds/duration,"repeat"=>1,"mode"=>"REPLACE"}
       end
+      def self.saved_clip(motion,id,turn)
+        first=motion.fetch("frame_start")
+        last=motion.fetch("frame_end")
+        fps=Float(motion.fetch("fps"))
+        seconds=(last-first)/fps
+        available=[turn.fetch("duration"),0.25].max
+        speed=(seconds/available).clamp(0.25,4)
+        source_out=[last,first+available*speed*fps].min
+        {"id"=>id,"action_id"=>motion.fetch("id"),"source_in"=>first,"source_out"=>source_out,
+          "start"=>turn.fetch("start"),"speed"=>speed,"repeat"=>1,"mode"=>"REPLACE"}
+      end
       def self.apply!(access:,scene:,object:,character:,turns:,key:)
-        return if character.fetch("emotion","neutral")=="neutral" && character.fetch("body_action","still")=="still" && character.fetch("entrance","none")=="none"
+        return if character.fetch("emotion","neutral")=="neutral" && character.fetch("body_action","still")=="still" && character.fetch("entrance","none")=="none" && character["motion_action_id"].blank?
         scene.with_lock do
           return if object.reload.definition["guided_acting_applied"]
           profile=object.definition.fetch("character_profile");validate!(character,profile)
@@ -49,7 +72,10 @@ module Studio
           if entrance!="none"
             clips<<clip(profile,"Step in place",key+"-step",0,0.85)
           end
-          if action!="still"
+          if (id=character["motion_action_id"])
+            motion=saved_motion(profile,id)
+            turns.each_with_index { |turn,index| clips<<saved_clip(motion,key+"-saved-#{index}",turn) }
+          elsif action!="still"
             turns.each_with_index { |turn,index| clips<<clip(profile,ACTIONS.fetch(action),key+"-point-#{index}",turn["start"],[turn["duration"],0.25].max) }
           end
           if clips.any?
@@ -61,7 +87,7 @@ module Studio
             location=definition.fetch("location",[0,0,0]);first=location.dup;first[0]+=entrance=="from_left" ? -0.8 : 0.8
             definition["animation"]={"fps"=>12,"frames"=>[{"frame"=>1,"location"=>first},{"frame"=>12,"location"=>location}]}
           end
-          object.update!(definition:definition.merge("guided_acting_applied"=>true,"acting_direction"=>character.slice("emotion","body_action","entrance")))
+          object.update!(definition:definition.merge("guided_acting_applied"=>true,"acting_direction"=>character.slice("emotion","body_action","entrance","motion_action_id")))
           scene.update!(settings:scene.settings.merge("native_revision"=>scene.settings.fetch("native_revision",0)+1))
         end
       end

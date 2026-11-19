@@ -46,6 +46,7 @@ module Studio
             actor=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"blend",status:"ready").find(row["cast_asset_id"])
             profile=actor.metadata["character_profile"]
             raise ArgumentError,"Choose a registered Cast performer" unless actor.native.attached? && profile && profile["source_blob_id"]==actor.native.blob.id
+            Acting.saved_motion(profile,result["motion_action_id"]) if result["motion_action_id"]
             Contact.validate_profile!(result,profile)
             Attention.validate_profile!(result,profile)
             result.merge!("cast_asset_id"=>actor.id,"cast_profile"=>profile);sources<<actor.native.blob
@@ -158,7 +159,7 @@ module Studio
           raise ArgumentError,"The speech worker could not analyze this turn" unless status=="completed"
           profile=actors[turn["speaker"]].metadata.fetch("character_profile");duration=timing[index]["duration"]
           expressions=Acting.expressions(inputs["characters"][turn["speaker"]],profile,duration)
-          gestures=profile.fetch("bones").key?("head") ? [{"kind"=>"nod","start"=>0,"end"=>[duration,1.0].min,"strength"=>0.2}] : []
+          gestures=!inputs["characters"][turn["speaker"]]["motion_action_id"] && profile.fetch("bones").key?("head") ? [{"kind"=>"nod","start"=>0,"end"=>[duration,1.0].min,"strength"=>0.2}] : []
           Take.save(access:access,payload:{"scene_id"=>scene.id,"object_id"=>object.id,"lock_version"=>scene.reload.lock_version,"audio_asset_id"=>audio[index].id,"source_out"=>duration,"start"=>timing[index]["start"],"append"=>true,"lip_sync_mode"=>"phoneme","analysis_id"=>analysis[:id],"expressions"=>expressions,"gestures"=>gestures,"request_key"=>key})
         end
         objects.each_with_index do |object,index|

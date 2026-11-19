@@ -1,8 +1,9 @@
 require_relative "studio_mechanics_checks"
 class StudioGraspTest < StudioMechanicsTest
   StudioMechanicsTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
+  def grasp_version = 1
   def grasp(**extra)
-    prepare(scene_template:"grasp",camera_mode:"template",gesture:"still",dialogue:"A real grip.",mechanics:{action:"grasp",version:1,target_id:"ball"},**extra)
+    prepare(scene_template:"grasp",camera_mode:"template",gesture:"still",dialogue:"A real grip.",mechanics:{action:"grasp",version:grasp_version,target_id:"ball"},**extra)
   end
   def test_scoped_physics_template_inputs_and_profile
     first=grasp;assert_equal first,grasp
@@ -65,6 +66,21 @@ class StudioGraspTest < StudioMechanicsTest
           assert abs(positions[-1].z-1)<.002 and abs(positions[-1].x+.83)<.01
           assert abs(positions[-1].z-positions[-12].z)<.002
           assert all(abs(p.x+.83)<.135 and abs(p.y+.24)<.155 for p in positions[-12:])
+          if #{grasp_version}==2:
+              rig=next(obj for obj in root.children_recursive if obj.type=='ARMATURE')
+              for frame in range(1,97):
+                  scene.frame_set(frame);bpy.context.view_layer.update()
+                  front=root.matrix_world.to_quaternion() @ Vector((0,-1,0))
+                  target=prop.matrix_world.translation-root.matrix_world.translation;target.z=0
+                  assert front.dot(target.normalized())>.99, (frame,front,target)
+                  for side in ('L','R'):
+                      upper=rig.pose.bones['Arm.'+side];lower=rig.pose.bones['Forearm.'+side]
+                      shoulder=rig.matrix_world @ upper.head
+                      assert ((rig.matrix_world @ lower.head)-shoulder).dot(front)>=-.002
+                      assert ((rig.matrix_world @ lower.tail)-shoulder).dot(front)>=-.002
+              assert report['object_attention']['head_nod_deg'][0]>=20
+              assert report['object_attention']['pupil_down_m']>.02
+              assert all(obj.data.shape_keys.key_blocks.get('grasp_look_down_v2') for obj in root.children_recursive if obj.get('lightek_source_object') in ('FaceEyes','Side pupil','Side pupil reverse'))
           assert 'Lightek contact simulation.json' in bpy.data.texts
           assert any(sound.packed_file for sound in bpy.data.sounds)
           print('ARTICULATED_CONTACT_GRASP_VERIFIED',report)

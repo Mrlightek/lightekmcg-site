@@ -24,6 +24,7 @@ on:
       - 'docker/studio-media/physics-requirements.txt'
       - 'test/operations/studio_physics_test.py'
       - 'test/standalone/studio_grasp_checks.rb'
+      - 'test/standalone/studio_grasp_facing_checks.rb'
       - 'test/javascript/studio_grasp_test.cjs'
       - 'blender/bench_v1.py'
       - 'blender/*_v*.py'
@@ -103,6 +104,11 @@ jobs:
           STUDIO_GRASP_PROOF_VIDEO: /tmp/lightek-grasp.mp4
           STUDIO_GRASP_PROOF_BLEND: /tmp/lightek-grasp.blend
         run: bundle exec ruby test/standalone/studio_grasp_checks.rb --name '/StudioGraspTest/'
+      - name: Verify table-facing reach and object attention
+        env:
+          STUDIO_GRASP_PROOF_VIDEO: /tmp/lightek-facing-grasp.mp4
+          STUDIO_GRASP_PROOF_BLEND: /tmp/lightek-facing-grasp.blend
+        run: bundle exec ruby test/standalone/studio_grasp_facing_checks.rb --name '/StudioGraspFacingTest/'
       - name: Verify isolated workflow and real native video
         run: bundle exec ruby test/standalone/studio_native_workflow_checks.rb --name '/StudioNativeWorkflowTest/'
       - name: Verify a real illustrated character scene with speech
@@ -173,6 +179,8 @@ jobs:
             /tmp/lightek-park.blend
             /tmp/lightek-directional.mp4
             /tmp/lightek-directional.blend
+            /tmp/lightek-facing-grasp.mp4
+            /tmp/lightek-facing-grasp.blend
             /tmp/lightek-grasp.mp4
             /tmp/lightek-grasp.blend
             /tmp/lightek-carry.mp4

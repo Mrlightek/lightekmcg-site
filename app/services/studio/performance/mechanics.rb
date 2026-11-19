@@ -10,6 +10,7 @@ module Studio
                "carry:1"=>{"files"=>%w[carry_v1.py biped_v2.py views_v1.py spatial_frame_v1.py bench_v1.py kinematics_v1.py],"speech_start"=>2.3,"phases"=>{"reach"=>[0,0.75],"grip"=>[0.75,1],"lift"=>[1,1.75],"turn_out"=>[1.75,2.25],"walk"=>[2.25,4.25],"turn_in"=>[4.25,4.75],"place"=>[4.75,5.5],"release"=>[5.5,6],"rest"=>[6,8]}}}
       DRIVERS["bench:2"]={"files"=>%w[bench_v2.py biped_v2.py views_v1.py spatial_frame_v1.py bench_v1.py kinematics_v1.py],"speech_start"=>3.4,"phases"=>DRIVERS.fetch("bench:1").fetch("phases")}
       DRIVERS["grasp:1"]={"files"=>%w[grasp_v1.py biped_v3.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v1.py physics/human_v1.json],"speech_start"=>3.0,"phases"=>{"reach"=>[0,1],"close"=>[1,2],"lift"=>[2,3],"hold"=>[3,4],"lower"=>[4,5],"open"=>[5,6],"withdraw"=>[6,8]}}
+      DRIVERS["grasp:2"]={"files"=>%w[grasp_v2.py biped_v4.py biped_v3.py grasp_look_v2.py views_v1.py biped_v2.py spatial_frame_v1.py bench_v1.py kinematics_v1.py physics/grasp_v1.py physics/human_v1.json],"speech_start"=>3.0,"phases"=>DRIVERS.fetch("grasp:1").fetch("phases")}
       DRIVERS.freeze
       def self.bindings
         {"profile"=>PROFILE,"version"=>VERSION,"rig"=>"PerformerRig","body"=>"Body","support"=>"Pelvis support",
@@ -49,6 +50,10 @@ module Studio
       def self.validate_profile!(character,profile)
         return unless character["mechanics"]
         raise ArgumentError,"Build a new illustrated performer with version 1 mechanics bindings" unless profile["mechanics"]==bindings
+        if character.dig("mechanics","action")=="grasp" && character.dig("mechanics","version")==2
+          binding=profile["attention_binding"]
+          raise ArgumentError,"The facing grasp needs a calibrated head and eyes" unless binding && binding["rig"]=="PerformerRig" && binding["head"]=="Head" && binding["eye_anchor"]
+        end
         if %w[carry grasp].include?(character.dig("mechanics","action")) || character.dig("mechanics","version")==2
           raise ArgumentError,"Build a performer with front and side view bindings" unless profile.dig("views","version")==1
         end

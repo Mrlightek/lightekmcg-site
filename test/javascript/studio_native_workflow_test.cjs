@@ -4,7 +4,7 @@ const path=require('node:path');
 const {JSDOM}=require('jsdom');
 async function check(surface){
  const dom=new JSDOM('<div id="app"></div>',{url:'https://studio.example/lightek/index.html#/studio/7/create',runScripts:'outside-only',pretendToBeVisual:true});
- const {window}=dom;let submitted,saved,quoted,genesisCalls=0;
+ const {window}=dom;let submitted,saved,quoted,resumed=false,genesisCalls=0;
  const graph={version:1,seed:42,canvas:{width:640,height:360,fps:24,duration:4},camera:{x:.08,y:0},nodes:[{id:'group',name:'Environment',children:[{id:'sky',name:'Night sky',template:'sky.night',x:.5,y:.5,width:1,height:1,z_index:0,depth:0,opacity:1,rotation:0,fit:'stretch'}],x:0,y:0,scale:1,rotation:0,z_index:0,depth:.2,opacity:1}]};
  window.nevaeh={execute:async({capability,payload})=>{
   let result;
@@ -16,9 +16,10 @@ async function check(surface){
    case 'workflow.status':result={ready:true,message:'2D compositor tools available.',assets:[{key:'sky.night',name:'Night sky',url:'/lightek/assets2d/sky-night.svg'}]};break;
    case 'workflow.plan':if(payload.prompt==='A dragon flies')throw Error('Use a supported scene prompt, such as: A nighttime park with a character sitting on a bench.');result={composition:JSON.parse(JSON.stringify(graph))};break;
    case 'workflow.save':assert.equal(payload.lock_version,1);saved=payload.composition;result={composition:saved,lock_version:2};break;
+   case 'render.resume':assert.equal(payload.operation_id,71);resumed=true;result={operation_id:71,status:'pending'};break;
    case 'workflow.quote':quoted=payload;result={operation_id:71,status:'awaiting_payment',quote:{total_cents:550,currency:'USD'}};break;
    case 'workflow.create':submitted=payload;result={operation_id:70,status:'pending'};break;
-   case 'operations.list':result={operations:submitted?[{id:70,type:'edit_media',status:'completed',scene_id:7,draft_preview:true,layered_scene:true,artifacts:[{id:77,kind:'video',filename:'scene.mp4',url:'/workflow-proof.mp4'}]}]:[],publications:[]};break;
+   case 'operations.list':result={operations:submitted?[{id:70,type:'edit_media',status:'completed',scene_id:7,draft_preview:true,layered_scene:true,artifacts:[{id:77,kind:'video',filename:'scene.mp4',url:'/workflow-proof.mp4'}]}].concat(quoted?[{id:71,type:'edit_media',scene_id:7,status:resumed?'completed':'failed',cpu_resumable:!resumed,layered_scene:true,draft_preview:false,artifacts:resumed?[{id:78,kind:'blend',filename:'scene.blend',url:'/scene.blend'}]:[]}]:[]):[],publications:[]};break;
    default:throw Error(capability);
   }
   return {result};
@@ -60,6 +61,8 @@ async function check(surface){
   assert.deepEqual(Object.keys(submitted).sort(),['composition','request_key','scene_id']);
   field('Include editable Blender project').click();
   button('Get 2D export price').click();await until(()=>quoted);assert.equal(quoted.blender_handoff,true);assert.equal(quoted.scene_id,7);
+  await until(()=>button('Retry saved export'));button('Retry saved export').click();
+  await until(()=>window.document.querySelector('a[href="/scene.blend"]'));assert(resumed);
   assert.equal(genesisCalls,0,'Native Studio must not query Genesis');
   console.log(surface+': native layout, depth/motion edit, scrub, save, render and video return passed without Genesis');
  }finally{window.LightekUnifiedStudio?.leave();window.close();}

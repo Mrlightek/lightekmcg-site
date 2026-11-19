@@ -211,6 +211,13 @@ class StudioNativeWorkflowTest < StudioAiTest
         FileUtils.cp(file.path,ENV["STUDIO_NATIVE_PROOF_BLEND"]) if ENV["STUDIO_NATIVE_PROOF_BLEND"]
       end
       assert operation.artifacts.exists?(kind:"video")
+      operation.update!(status:"failed")
+      before=ActiveJob::Base.queue_adapter.enqueued_jobs.count
+      payments=DymondBank::Transaction.count
+      assert_equal operation.id,action("render_resume",operation_id:operation.id)[:operation_id]
+      action("render_resume",operation_id:operation.id)
+      assert_equal before+1,ActiveJob::Base.queue_adapter.enqueued_jobs.count
+      assert_equal payments,DymondBank::Transaction.count
     end
   end
   def test_final_export_uses_shared_quote_and_rejects_unpaid_execution

@@ -261,7 +261,7 @@ export function Creation({api,project,scene,assets,referenceAssets,inventory,inv
         if(failure.suggestion.steps)setSteps(String(failure.suggestion.steps));
         change(setQuality,'economy');
       }}>Use Economy settings</button>}
-      {chosenOperation?.cpu_resumable&&<button disabled={busy} onClick={()=>submit(async()=>{await api.call('render.resume',{operation_id:chosenOperation.id});await refresh();})}>Resume Render from Checkpoint</button>}
+      {chosenOperation?.cpu_resumable&&<button disabled={busy} onClick={()=>submit(async()=>{await api.call('render.resume',{operation_id:chosenOperation.id});await refresh();})}>{chosenOperation.layered_scene?'Retry saved export':'Resume Render from Checkpoint'}</button>}
       {chosenOperation?.status==='completed'&&!chosenOperation.draft_preview&&chosenOperation.artifacts?.filter(item=>item.kind==='blend').map(item=><a key={item.id} href={item.url} download>Download Blender project</a>)}
       {operationVideo&&!chosenOperation.draft_preview&&<button disabled={busy} onClick={()=>submit(addRender)}>Save clip to Media Library</button>}
       {!api.dashboard&&operationVideo&&!chosenOperation.draft_preview&&<button onClick={()=>{

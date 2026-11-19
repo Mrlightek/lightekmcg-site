@@ -276,7 +276,9 @@ module Studio
         Studio::Compute::Lease.reconcile!(StudioOperation.where(id: operation.id))
         enqueue=false
         operation.with_lock do
-          raise ArgumentError,"Only a paid CPU economy movie can resume" unless operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && operation.paid? && !operation.metadata["draft_preview"]
+          eligible=(operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest)) ||
+            (operation.provider=="layered_2d" && operation.manifest.dig("composition_2d","version")==1)
+          raise ArgumentError,"Only a paid CPU render can retry" unless eligible && operation.paid? && !operation.metadata["draft_preview"]
           return {operation_id:operation.id,status:operation.status} if %w[pending running completed].include?(operation.status)
           raise ArgumentError,"Only failed renders can resume" unless operation.status=="failed"
           metadata = operation.metadata.deep_dup
@@ -831,7 +833,7 @@ module Studio
             campaign_draft: operation.capability=="marketing.campaign.produce",
             social_source: operation.intent["user_id"]==@access.user.id ? operation.metadata["social_source"] : nil,
             quote: operation.status=="awaiting_payment" ? operation.cost_quote : nil,
-            cpu_progress:operation.metadata["cpu_render_progress"],cpu_resumable:operation.status=="failed" && operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest) && !operation.metadata["draft_preview"] && operation.paid?,
+            cpu_progress:operation.metadata["cpu_render_progress"],cpu_resumable:operation.status=="failed" && ((operation.provider=="blender" && operation.manifest.dig("outputs","animation") && Studio::Compute::CpuProfile.economy?(operation.manifest)) || (operation.provider=="layered_2d" && operation.manifest.dig("composition_2d","version")==1)) && !operation.metadata["draft_preview"] && operation.paid?,
             output: operation.manifest.to_h["timeline"]&.slice("output","width","height","fps","export_preset","fit"),
             shot:operation.metadata.slice("shot_id","shot_name"), scene_id:operation.studio_scene_id, draft_preview:!!operation.metadata["draft_preview"],
             procedural_preview:operation.metadata["procedural_preview_key"].present?,

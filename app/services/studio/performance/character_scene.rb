@@ -11,6 +11,16 @@ module Studio
         name.present? ? {"shot_name"=>name} : {}
       end
 
+      def self.portrait_input(access, payload, inputs)
+        return if payload["portrait_asset_id"].blank?
+        if payload["cast_asset_id"].present? || VerifiedGrasp.active?(inputs)
+          raise ArgumentError,"Choose a new illustrated performer to apply a portrait"
+        end
+        photo=Cast.library_photo(access,payload["portrait_asset_id"])
+        inputs.merge!("portrait_asset_id"=>Integer(payload["portrait_asset_id"]),"portrait_blob_id"=>photo.id)
+        photo
+      end
+
       def self.start(access:,payload:)
         payload=VerifiedGrasp.from_prompt(payload)
         raise ArgumentError,"The validated pickup is a silent action" if VerifiedGrasp.active?(payload) && payload["audio_asset_id"].present?
@@ -47,6 +57,7 @@ module Studio
         Mechanics.validate!(inputs,staging)
         Attention.validate!(inputs,staging)
         Acting.gesture!(inputs)
+        portrait=portrait_input(access,payload,inputs)
         audio=nil;actor=nil
         if payload["audio_asset_id"].present?
           audio=StudioAsset.for_actor(access).where(site_id:access.site_id,kind:"audio",status:"ready").find(payload["audio_asset_id"])
@@ -73,6 +84,7 @@ module Studio
           end
           raise ArgumentError,"Wait for your current character scene" if scope.where(status:%w[pending running]).exists? || scope.where("created_at > ?",1.minute.ago).count>=3
           op=source.studio_operations.create!(studio_project:source.studio_project,production:source.production,operation_type:"character_scene",provider:"studio",capability:CAPABILITY,status:"pending",intent:{"user_id"=>access.user.id},manifest:{"inputs"=>inputs,"staging"=>staging},metadata:{"request_key"=>key,"phase"=>"queued","attempt"=>0,"deadline"=>(VerifiedGrasp.active?(inputs) ? 15 : 10).minutes.from_now.iso8601})
+          op.performance_sources.attach(portrait) if portrait
           op.performance_sources.attach(audio.file.blob) if audio
           op.performance_sources.attach(actor.native.blob) if actor
           op
@@ -95,7 +107,7 @@ module Studio
         operation=find(access,id)
         child=operation.studio_project.studio_operations.find_by(id:operation.metadata["preview_id"])
         artifact=child&.status=="completed" && child.artifacts.find_by(kind:"video")
-        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("shot_name","name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","entrance","contact","mechanics","attention"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
+        {operation_id:operation.id,inputs:operation.manifest["inputs"].slice("portrait_asset_id","shot_name","name","dialogue","voice","colors","cast_asset_id","audio_asset_id","scene_template","camera_mode","gesture","mode","characters","turns","emotion","body_action","entrance","contact","mechanics","attention"),status:operation.status,phase:operation.metadata["phase"],error:operation.error_message,
           scene_id:operation.metadata["scene_id"],cast_asset_id:operation.metadata["cast_asset_id"],cast_asset_ids:operation.metadata["cast_asset_ids"],duration_seconds:operation.metadata["duration_seconds"],turn_timing:operation.metadata["dialogue_timing"],preview_operation_id:child&.id,
           url:artifact && artifact.file.attached? ? Rails.application.routes.url_helpers.rails_blob_path(artifact.file,only_path:true) : nil}.compact
       end
@@ -183,7 +195,8 @@ module Studio
           actor=StudioAsset.for_actor(access).find(inputs["cast_asset_id"])
           raise ArgumentError,"The reusable character changed. Start a new scene using its current version." unless actor.metadata["character_profile"]==inputs["cast_profile"] && actor.native.blob.id==inputs.dig("cast_profile","source_blob_id")
         else
-          result=Cast.create(access:access,payload:inputs.fetch("colors").merge("name"=>inputs["name"],"style"=>(verified ? "physical" : "illustrated"),"request_key"=>tag+"-cast"))
+          photo=operation.performance_sources.blobs.find(inputs["portrait_blob_id"]) if inputs["portrait_blob_id"]
+          result=Cast.create(access:access,photo:photo,payload:inputs.fetch("colors").merge("name"=>inputs["name"],"style"=>(verified ? "physical" : "illustrated"),"request_key"=>tag+"-cast"))
           actor=StudioAsset.find(result[:asset_id])
           Cast.retry(access:access,payload:{"asset_id"=>actor.id}) if actor.status=="failed"
           if actor.metadata["performer_phase"]=="building" && actor.updated_at<10.minutes.ago

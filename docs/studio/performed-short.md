@@ -69,6 +69,11 @@ The native CI preserves the MP4 and `.blend` proof. Production acceptance still 
 
 `studio_dialogue_scene_checks.rb` adds request/source isolation and a real three-turn render with two Cast identities, separate audible voices, alternating cameras, phoneme cues, listener reactions and retry reuse. The saved Blender source is reopened to inspect its editable animation and packed recordings. `studio_dialogue_scene_test.cjs` covers both PWA and Dashboard submission, recovery, retry, preview and export quote. Audio mixdown supports both Ubuntu Blender 4.0 settings and newer operator arguments.
 
+
+## Build Cast from a portrait
+
+Import a tightly cropped, front-facing image in **Media Library**. In Performed Short, choose a new illustrated performer and select its **Portrait mask**. For dialogue, choose a portrait for each new performer independently. Use a ready JPEG, PNG or WebP up to 10 MB. The image travels with the new Cast asset and the face keeps its editable mouth, eye and brow controls. The illustrated treatment works best with centered artwork whose features align with the base face. Reuse the resulting Cast in later shots to keep its appearance and rig.
+
 ## Arrange performances into a sequence
 
 In Performed Short, expand **Arrange performances into a sequence**. It lists your completed character performances in this project (up to 100). Choose two to twelve clips, move them earlier/later, and set in/out points in seconds. Reusing the same performance more than once is supported. Each trim must cover at least one twelfth of a second and stay within its current reviewed performance. A private review cut may last up to 60 seconds, with at most 50 MiB per source and 100 MiB total source bytes.

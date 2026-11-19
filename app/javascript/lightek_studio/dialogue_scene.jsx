@@ -1,6 +1,6 @@
 import {AttentionFields,attentionAvailable} from './attention';
 import React,{useEffect,useState} from 'react';
-import {HairStyleField} from './performer_look';
+import {HairStyleField,PortraitField} from './performer_look';
 import {requestKey} from './api';
 import {ProductionTemplates} from './production_templates';
 import {ActingFields,actingDefaults,actingAvailable} from './acting';
@@ -22,7 +22,7 @@ export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTem
    if(!alive)return;setCatalog(choices);setTemplate(choices.default_scene_template||'studio');
    if(saved.inputs?.mode==='dialogue'){
     if(!revision)setReceipt(saved);setShotName(saved.inputs.shot_name||'');setTemplate(saved.inputs.scene_template);
-    setCharacters(saved.inputs.characters.map((row,index)=>({...actingDefaults,...row,...row.colors,...(saved.inputs.scene_template==='counter_handoff'?{contact:null}:{}),cast_asset_id:String((revision&&saved.cast_asset_ids?.[index])||row.cast_asset_id||'')})));
+    setCharacters(saved.inputs.characters.map((row,index)=>({...actingDefaults,...row,...row.colors,portrait_asset_id:String(row.portrait_asset_id||''),...(saved.inputs.scene_template==='counter_handoff'?{contact:null}:{}),cast_asset_id:String((revision&&saved.cast_asset_ids?.[index])||row.cast_asset_id||'')})));
     setTurns(saved.inputs.turns.map(row=>({...row,audio_asset_id:row.audio_asset_id?String(row.audio_asset_id):''})));
    }
   }).catch(cause=>{if(alive)setError(cause.message);}).finally(()=>{if(alive)setRestored(true);});return()=>{alive=false;};
@@ -50,6 +50,7 @@ export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTem
    {handoff&&row.cast_asset_id&&performers.some(actor=>String(actor.id)===row.cast_asset_id&&!actor.metadata.character_profile.reach_bindings?.[index===0?'right':'left'])&&<p role="alert">This performer needs a bound {index===0?'right':'left'} hand for the handoff.</p>}
    {!row.cast_asset_id&&<div className="ls-fields">{['skin','wardrobe','hair'].map(field=><label key={field}>Character {index+1} {field}<input type="color" value={row[field]} onChange={event=>character(index,field,event.target.value)}/></label>)}</div>}
    {!row.cast_asset_id&&<HairStyleField label={`Character ${index+1} hairstyle`} value={row.hair_style} onChange={value=>character(index,'hair_style',value)} disabled={active}/>}
+   {!row.cast_asset_id&&<PortraitField label={`Character ${index+1} portrait mask`} assets={assets} value={row.portrait_asset_id} onChange={value=>character(index,'portrait_asset_id',value)} disabled={active}/>}
    <ActingFields contactActive={handoff||!!row.contact} prefix={`Character ${index+1}`} value={row} onChange={(field,value)=>character(index,field,value)} disabled={active} mechanicsActive={handoff} profile={performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile}/>
    <AttentionFields prefix={`Character ${index+1}`} partner value={row.attention} onChange={value=>character(index,'attention',value)} targets={catalog?.scene_templates.find(item=>item.key===template)?.contact_targets||[]} profile={performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile} disabled={active}/>
    {!handoff&&<ContactFields prefix={`Character ${index+1}`} value={row.contact} onChange={value=>{changed();setCharacters(rows=>rows.map((item,i)=>i===index?{...item,contact:value,...(value?{body_action:'still'}:{})}:item));}} targets={catalog?.scene_templates.find(item=>item.key===template)?.contact_targets||[]} profile={performers.find(actor=>String(actor.id)===row.cast_asset_id)?.metadata?.character_profile} disabled={active} entrance={row.entrance}/>}
@@ -64,7 +65,7 @@ export function DialogueSceneComposer({api,scene,assets,busy,run,refresh,openTem
   <button type="button" disabled={active||turns.length>=4} onClick={()=>{changed();setTurns(rows=>[...rows,{speaker:rows[rows.length-1].speaker===0?1:0,dialogue:'',audio_asset_id:''}]);}}>Add speaking turn</button>
   <button type="button" disabled={busy||active||!restored||!valid} onClick={()=>perform(async()=>{
    const result=await api.call('character.scene.prepare',{scene_id:scene.id,request_key:key,mode:'dialogue',scene_template:template,...(shotName.trim()?{shot_name:shotName.trim()}:{}),
-    characters:characters.map(({name,voice,skin,wardrobe,hair,hair_style,cast_asset_id,emotion,body_action,entrance,contact,attention})=>({...((contact&&!handoff)?{contact}:{}),...(attention?{attention}:{}),emotion,body_action,entrance,name:name.trim(),voice,skin,wardrobe,hair,...(!cast_asset_id&&hair_style&&hair_style!=='curls'?{hair_style}:{}),...(cast_asset_id?{cast_asset_id:Number(cast_asset_id)}:{})})),
+    characters:characters.map(({name,voice,skin,wardrobe,hair,hair_style,cast_asset_id,portrait_asset_id,emotion,body_action,entrance,contact,attention})=>({...((contact&&!handoff)?{contact}:{}),...(attention?{attention}:{}),emotion,body_action,entrance,name:name.trim(),voice,skin,wardrobe,hair,...(!cast_asset_id&&hair_style&&hair_style!=='curls'?{hair_style}:{}),...(cast_asset_id?{cast_asset_id:Number(cast_asset_id)}:portrait_asset_id?{portrait_asset_id:Number(portrait_asset_id)}:{})})),
     turns:turns.map(({speaker,dialogue,audio_asset_id})=>({speaker,dialogue:dialogue.trim(),...(audio_asset_id?{audio_asset_id:Number(audio_asset_id)}:{})}))});setReceipt(result);
   })}>Prepare dialogue scene</button>
   {receipt&&<p role="status">{receipt.status} · {receipt.phase?.replaceAll('_',' ')}</p>}

@@ -1,4 +1,3 @@
 :queues:
   - default
-  - studio
   - mailers

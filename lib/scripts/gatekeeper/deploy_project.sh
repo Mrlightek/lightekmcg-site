@@ -187,6 +187,9 @@ if [[ -f "${APP_ROOT}/lib/scripts/gatekeeper/${SIDEKIQ_SERVICE}.service" ]]; the
 fi
 systemctl restart "${SIDEKIQ_SERVICE}"
 systemctl is-active --quiet "${SIDEKIQ_SERVICE}"
+worker_pid="$(systemctl show --property=MainPID --value "${SIDEKIQ_SERVICE}")"
+[[ "$worker_pid" =~ ^[1-9][0-9]*$ ]] || { echo "ERROR: Sidekiq has no main process" >&2; exit 1; }
+run_rails "LIGHTEK_STUDIO_SIDEKIQ_PID='$worker_pid' bundle exec rails runner script/studio/verify_queue_consumer.rb"
 
 echo "[cable] Refresh installed standalone WebSocket backend"
 if systemctl cat "${APP_NAME}-cable.service" >/dev/null 2>&1; then

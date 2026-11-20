@@ -23,6 +23,14 @@
       <% if @operation.error_message.present? %><p><%= @operation.error_message %></p><% end %>
       <p>Attempt <%= @operation.metadata.fetch("attempt") %> · <%= @operation.manifest.fetch("frames") %> frames ·
         <%= Studio::Pipeline::CharacterAnimation::RESOLUTIONS.fetch(@operation.manifest.fetch("resolution")) %></p>
+      <% if @operation.status == "pending" %>
+        <p>Waiting for a Studio worker to start. This page refreshes automatically.</p>
+        <% if Studio::Pipeline::CharacterAnimation.queue_retry_available?(@operation) %>
+          <p>This job has been waiting for over two minutes. Retry the same job and keep your settings.</p>
+          <%= button_to "Retry queued job", retry_queued_studio_character_animation_path(@operation, site_id: @site.id),
+                params: {attempt: @operation.metadata.fetch("attempt")}, class: "primary" %>
+        <% end %>
+      <% end %>
       <% if @operation.status == "awaiting_manual_login" %>
         <p>On the Studio worker host, run this command as the worker user in a graphical session. Finish signing in, then quit the Mixamo CLI.</p>
         <pre><%= Studio::Pipeline::CharacterAnimation::LOGIN_COMMAND %></pre>

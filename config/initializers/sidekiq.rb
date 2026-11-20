@@ -4,6 +4,11 @@ Sidekiq.configure_server do |config|
   # Interactive replies must not wait behind renders, training or other jobs.
   # One speech slot per ordinary worker process bounds neural CPU/memory use.
   unless ENV['STUDIO_CPU_WORKER']=='1'
+    # Reserve a slot for Studio even when the default queue is backed up.
+    config.capsule('studio') do |capsule|
+      capsule.concurrency = 1
+      capsule.queues = %w[studio]
+    end
     config.capsule('nevaeh_voice') do |capsule|
       capsule.concurrency=1
       capsule.queues=%w[nevaeh_voice]

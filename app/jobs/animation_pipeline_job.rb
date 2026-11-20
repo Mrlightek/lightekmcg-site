@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require "json"
 
 class AnimationPipelineJob < ApplicationJob
   queue_as :studio
@@ -21,6 +22,7 @@ class AnimationPipelineJob < ApplicationJob
     project = operation.studio_project
     Studio::Pipeline::Access.new(project.owner, project.site)
     mode = operation.metadata.fetch("mode")
+    credential_input = mode == "full" ? JSON.generate(Studio::Pipeline::MixamoCredentials.checkout(project.owner)) : nil
     stdout = stderr = ""
     status = nil
     Studio::MediaProcess.temporary_directory("character-animation-") do |directory|
@@ -40,7 +42,7 @@ class AnimationPipelineJob < ApplicationJob
         "RENDER_RESOLUTION" => settings.fetch("resolution")
       }.transform_values(&:to_s)
       stdout, stderr, status = Open3.capture3(env, "bash", Rails.root.join("script/run_pipeline.sh").to_s,
-        "--#{mode}", chdir: Rails.root.to_s, binmode: true)
+        "--#{mode}", chdir: Rails.root.to_s, binmode: true, stdin_data: credential_input)
 
       animated_path = File.join(directory, "animated.fbx")
       if mode == "full" && status.exitstatus != 42 && File.size?(animated_path)
@@ -53,7 +55,7 @@ class AnimationPipelineJob < ApplicationJob
 
     if status.exitstatus == 42 && mode == "full"
       finish(operation, attempt, "awaiting_manual_login", stdout, stderr, status.exitstatus, uploads,
-        "Mixamo requires an interactive sign-in.")
+        "The studio operator needs to reconnect the animation service.")
     elsif status.success?
       finish(operation, attempt, "completed", stdout, stderr, status.exitstatus, uploads)
     else
@@ -69,6 +71,7 @@ class AnimationPipelineJob < ApplicationJob
     finish(operation, attempt, "failed", stdout, failure_log, status&.exitstatus,
       uploads.except("video"), "The Studio worker could not finish this attempt. See the job logs.")
   ensure
+    credential_input&.clear
     uploads&.each_value { |blob| blob.purge_later unless blob.attachments.exists? }
   end
 

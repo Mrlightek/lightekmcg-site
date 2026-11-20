@@ -18,15 +18,34 @@
       </div>
     </header>
     <section class="panel" aria-labelledby="character-status">
-      <h2 id="character-status" role="status"><%= @operation.status == "pending" ? "Queued" : @operation.status.humanize %></h2>
+      <h2 id="character-status" role="status"><%= Studio::Pipeline::CharacterAnimation.status_label(@operation) %></h2>
       <% if alert.present? %><p role="alert"><%= alert %></p><% end %>
-      <% if @operation.error_message.present? %><p><%= @operation.error_message %></p><% end %>
+      <% if @operation.status == "awaiting_manual_login" %>
+        <p>The animation service needs attention from the studio operator. Your settings are saved.</p>
+      <% elsif @operation.error_message.present? %>
+        <p><%= @operation.error_message %></p>
+      <% end %>
       <p>Attempt <%= @operation.metadata.fetch("attempt") %> · <%= @operation.manifest.fetch("frames") %> frames ·
         <%= Studio::Pipeline::CharacterAnimation::RESOLUTIONS.fetch(@operation.manifest.fetch("resolution")) %></p>
+      <% if @operation.status == "pending" %>
+        <p>Waiting for a Studio worker to start. This page refreshes automatically.</p>
+        <% if Studio::Pipeline::CharacterAnimation.queue_retry_available?(@operation) %>
+          <p>This job has been waiting for over two minutes. Retry the same job and keep your settings.</p>
+          <%= button_to "Retry queued job", retry_queued_studio_character_animation_path(@operation, site_id: @site.id),
+                params: {attempt: @operation.metadata.fetch("attempt")}, class: "primary" %>
+        <% end %>
+      <% end %>
       <% if @operation.status == "awaiting_manual_login" %>
-        <p>On the Studio worker host, run this command as the worker user in a graphical session. Finish signing in, then quit the Mixamo CLI.</p>
-        <pre><%= Studio::Pipeline::CharacterAnimation::LOGIN_COMMAND %></pre>
-        <%= button_to "Retry Job After Login", retry_login_studio_character_animation_path(@operation, site_id: @site.id), class: "primary" %>
+        <% if @mixamo_operator %>
+          <p>Update the saved Mixamo connection if needed. If Adobe requires verification, complete it on the worker host before retrying.</p>
+          <p><%= link_to "Mixamo connection settings", studio_pipeline_path(site_id: @site.id, anchor: "mixamo-connection") %></p>
+          <details>
+            <summary>Worker sign-in command</summary>
+            <p>Run this as the worker user in a graphical session. Quit the CLI when verification is complete.</p>
+            <pre><%= Studio::Pipeline::CharacterAnimation::LOGIN_COMMAND %></pre>
+          </details>
+        <% end %>
+        <%= button_to "Retry animation", retry_login_studio_character_animation_path(@operation, site_id: @site.id), class: "primary" %>
       <% end %>
     </section>
 
@@ -51,7 +70,7 @@
       </section>
     <% end %>
 
-    <% if @operation.metadata["logged_attempt"] %>
+    <% if @operation.metadata["logged_attempt"] && (@mixamo_operator || @operation.metadata["exit_code"].to_i != 42) %>
       <section class="panel" aria-labelledby="character-logs">
         <h2 id="character-logs">Job logs</h2>
         <p>Attempt <%= @operation.metadata.fetch("logged_attempt") %><% if @operation.metadata["exit_code"] %> · Exit <%= @operation.metadata["exit_code"] %><% end %></p>

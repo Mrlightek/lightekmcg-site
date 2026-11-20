@@ -106,7 +106,7 @@ def submit_form(page, field):
         field.press("Enter")
 
 
-def auto_login(page):
+def auto_login(page, email=None, password=None):
     open_index(page)
     state = wait_state(page)
     if state == "ready":
@@ -118,8 +118,6 @@ def auto_login(page):
         if button:
             button.click()
 
-    email = os.environ.get("MIXAMO_EMAIL")
-    password = os.environ.get("MIXAMO_PASSWORD")
     submitted_email = submitted_password = False
     deadline = time.monotonic() + 45
     while time.monotonic() < deadline:
@@ -294,7 +292,7 @@ def main():
                 if args.action == "check":
                     check(page)
                 elif args.action == "auto-login":
-                    auto_login(page)
+                    auto_login(page, os.environ.get("MIXAMO_EMAIL"), os.environ.get("MIXAMO_PASSWORD"))
                 elif args.action == "login":
                     manual_login(page)
                 else:

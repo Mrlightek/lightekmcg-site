@@ -4,6 +4,7 @@ module Studio
   module Pipeline
     class CharacterAnimation
       CAPABILITY = "studio.pipeline.character_animation"
+      QUEUE_RETRY_AFTER = 2.minutes
       MAX_FRAMES = 900
       RESOLUTIONS = {"640x360" => "640 × 360", "1280x720" => "1280 × 720", "720x720" => "720 × 720"}.freeze
       DEFAULTS = {
@@ -32,6 +33,21 @@ module Studio
         enqueue(operation, 1)
       end
 
+      def self.queue_retry_available?(operation)
+        operation.status == "pending" && operation.updated_at <= QUEUE_RETRY_AFTER.ago
+      end
+
+      def retry_queued(operation, expected_attempt)
+        attempt = operation.with_lock do
+          unless self.class.queue_retry_available?(operation) && operation.metadata["attempt"].to_s == expected_attempt
+            raise ArgumentError, "This queued attempt has changed. Check the current job status."
+          end
+          operation.update!(error_message: nil, updated_at: Time.current)
+          operation.metadata.fetch("attempt")
+        end
+        enqueue(operation, attempt, queued_retry: true)
+      end
+
       def retry_login(operation)
         resubmit(operation, "full") do
           raise ArgumentError, "The job is not waiting for a Mixamo login" unless operation.status == "awaiting_manual_login"
@@ -45,6 +61,14 @@ module Studio
             raise ArgumentError, "Render-only requires a finished attempt and a downloaded animated FBX"
           end
           validate(operation.manifest.merge(inputs.slice("frames", "resolution")))
+        end
+      end
+
+      def self.status_label(operation)
+        case operation.status
+        when "pending" then "Queued"
+        when "awaiting_manual_login" then "Waiting for studio operator"
+        else operation.status.humanize
         end
       end
 
@@ -66,19 +90,25 @@ module Studio
         enqueue(operation, attempt)
       end
 
-      def enqueue(operation, attempt)
+      def enqueue(operation, attempt, queued_retry: false)
         return operation if AnimationPipelineJob.perform_later(operation.id, attempt)
 
-        mark_queue_failure(operation, attempt)
-      rescue ActiveJob::EnqueueError
-        mark_queue_failure(operation, attempt)
+        mark_queue_failure(operation, attempt, queued_retry: queued_retry)
+      rescue ActiveJob::EnqueueError, RedisClient::Error
+        mark_queue_failure(operation, attempt, queued_retry: queued_retry)
       end
 
-      def mark_queue_failure(operation, attempt)
+      def mark_queue_failure(operation, attempt, queued_retry:)
         operation.with_lock do
           if operation.status == "pending" && operation.metadata["attempt"] == attempt
             mode = operation.metadata["mode"]
-            state = mode == "full" && attempt > 1 ? "awaiting_manual_login" : "failed"
+            state = if queued_retry
+              "pending"
+            elsif mode == "full" && attempt > 1
+              "awaiting_manual_login"
+            else
+              "failed"
+            end
             operation.update!(status: state, error_message: "The Studio worker queue could not accept this attempt.")
           end
         end

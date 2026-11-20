@@ -1,0 +1,10 @@
+<% attachments = LightekBlog::Images.for_entry(entry) %>
+<% if attachments.any? %>
+  <div class="journal-images" aria-label="Article images">
+    <% attachments.each do |attachment| %>
+      <% path = dashboard ? image_dashboard_blog_path(entry, attachment_id: attachment.id, site_id: entry.site_id) :
+        website_blog_image_path(slug: entry.slug, attachment_id: attachment.id) %>
+      <%= image_tag path, alt: attachment.blob.filename.base.tr("-_", " "), loading: "lazy", decoding: "async" %>
+    <% end %>
+  </div>
+<% end %>

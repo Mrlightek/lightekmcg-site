@@ -1,7 +1,7 @@
 <%= render "dashboard/shared/business_workspace", active: "Design & Content" %>
 <% content_for :page_title, "Design & Content" %>
 <%= render "dashboard/settings_home/style" %>
-<%= stylesheet_link_tag "/lightek/site-content.css?v=20261114" %>
+<%= stylesheet_link_tag "/lightek/site-content.css?v=20261120" %>
 <%= javascript_include_tag "/lightek/site-content.js?v=1",defer:true %>
 <main class="lt-settings content-hub"><div class="tl-page-heading"><h1>Design & Content</h1></div>
 
@@ -21,7 +21,7 @@
 <details class="content-library"><summary>Browse page designs & starter layouts</summary>
 <%= render "template_library", designs: LightekDesign::Catalog.selectable_designs(user: current_user, active: LightekDesign::Catalog.design_for(@site)) %>
 </details>
-<details class="tl-upload"><summary>Import your own HTML & CSS</summary><%= render "html_upload" %></details>
+<details class="tl-upload" <%= "open" if params[:import_id].present? %>><summary>Import your own HTML, CSS & JavaScript</summary><%= render "html_upload" %></details>
 <details class="tl-commerce"><summary>Shop templates with live checkout</summary><%= render "industry_designs" %></details>
 <%= render "template_branding" %>
 <%= render "template_inquiries" %>

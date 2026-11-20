@@ -54,7 +54,7 @@ module DymondSite
     def self.find(key) = Struct.new(:schema).new(LightekDesign::CommerceSections.definitions.first['fields'])
   end
 end
-%w[catalog fonts studio_blocks studio_document studio_context studio_catalog commerce_sections website_designs html_document html_import].each { |name| require Rails.root.join("app/services/lightek_design/#{name}").to_s }
+%w[catalog fonts studio_blocks studio_document studio_context studio_catalog commerce_sections starter_library website_designs html_document html_import].each { |name| require Rails.root.join("app/services/lightek_design/#{name}").to_s }
 require Rails.root.join('app/services/lightek_settings/website_identity').to_s
 require Rails.root.join('app/services/lightek_commerce/industry_starters').to_s
 require Rails.root.join('app/jobs/lightek_design/html_import_job').to_s
@@ -89,6 +89,24 @@ class ImportPersistenceChecks < Minitest::Test
     LightekDesign::HtmlImportJob.perform_now(record.id)
     assert_equal 'complete', record.reload.settings.dig('html_import', 'status')
     assert_equal 1, @site.pages.count
+  end
+  def test_companion_javascript_is_retained_and_previewed_in_isolation
+    javascript = StringIO.new("document.querySelector('h1').textContent = '</script><script>example';")
+    javascript.define_singleton_method(:original_filename) { "app.js" }
+    html = StringIO.new('<main><h1>Original</h1></main><script src="app.js"></script><script>unreviewed()</script>')
+    html.define_singleton_method(:original_filename) { "index.html" }
+    upload = LightekDesign::HtmlImport.enqueue!(user: @user, site: @site, html_file: html,
+      js_file: javascript, create_page: true)
+    meta = upload.settings.fetch("html_import")
+    assert_equal "complete", meta["status"]
+    assert_equal "app.js", meta["js_filename"]
+    preview = Nokogiri::HTML5.parse(LightekDesign::HtmlImport.interactive_preview(meta))
+    assert_equal 1, preview.css("script").size
+    script = preview.at_css("script")
+    assert_equal meta["javascript"], Base64.strict_decode64(script["src"].split(",", 2).last)
+    assert_includes preview.at_css('meta[http-equiv="Content-Security-Policy"]')["content"], "script-src 'nonce-#{script['nonce']}'"
+    refute_includes @site.pages.first.sections.first.data.to_json, "unreviewed"
+    refute_includes @site.pages.first.sections.first.data.to_json, "document.querySelector"
   end
   def test_complete_job_retains_source_and_is_idempotent
     record = LightekDesign::HtmlImport.enqueue!(background: true, user: @user, site: @site, html_file: file('lightek_website'), create_page: true)

@@ -12,6 +12,11 @@ module LightekBlog
         entry.post.assign_attributes(title:values["title"].to_s.strip,content:values["content"].to_s,
           visibility:entry.status=="published" ? "public" : "private",moderation_state:entry.status=="published" ? "published" : "hidden")
         raise ArgumentError,"Give your article a title and body." if entry.post.title.blank? || entry.post.content.blank?
+        if values["images"].present?
+          existing = entry.post.media.blobs.to_a
+          uploads = Images.uploads!(values["images"], existing_count: existing.length)
+          entry.post.media = existing + uploads if uploads.any?
+        end
         # Shared Post is the source for the website and PWA/community feed.
         entry.post.metadata=entry.post.metadata.to_h.merge("website_article"=>{"slug"=>entry.slug,"url"=>"/blog/#{entry.slug}"})
         entry.valid? # Validate before writing the shared post; keep form errors.

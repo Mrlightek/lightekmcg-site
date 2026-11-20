@@ -16,11 +16,12 @@ class AgencyTrialRequestsController < ApplicationController
     email = values[:email_address].to_s.strip.downcase
     if params[:website_url].blank?
       trial_request = @site.with_lock do
-        raise ActiveRecord::RecordNotFound unless LightekAgency::Trial.public_site?(@site)
+        operator = LightekAgency::Trial.public_operator(@site)
+        raise ActiveRecord::RecordNotFound unless operator
         scope = LightekAgency::TrialRequest.where(site: @site, email_address: email)
         next if scope.where('created_at > ?', 1.hour.ago).exists?
 
-        scope.create!(operator: @site.tenant, first_name: values[:first_name], last_name: values[:last_name])
+        scope.create!(operator: operator, first_name: values[:first_name], last_name: values[:last_name])
       end
       queue_confirmation!(trial_request) if trial_request
     end

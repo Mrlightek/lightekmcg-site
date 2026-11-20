@@ -13,7 +13,7 @@ module LightekAgency
     end
 
     def available?
-      Trial.public_site?(site) && site.tenant_id == operator_id
+      Trial.public_operator(site)&.id == operator_id
     end
 
     def pending_confirmation? = confirmed_at.nil? && created_at >= 24.hours.ago

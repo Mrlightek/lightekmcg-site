@@ -15,6 +15,14 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     access=LightekCommunity::Access.new(user:current_user,site_id:@site.id)
     @communities=access.communities.select{|community|access.super_admin? || community.member?(current_user.profile)}
     site = @site
+    if site.tenant.is_a?(User)
+      demo_site = LightekAgency::DemoSetting.find_by(agency: site.tenant, public_enabled: true)&.public_site
+      if demo_site&.tenant == site.tenant && demo_site.host.present?
+        @break_demo_url = request_demo_url(host: demo_site.host, protocol: "https", port: nil)
+      elsif current_user.role.in?(%w[super_admin white_label]) && LightekAgency::Demos.agencies(current_user).exists?(id: site.tenant_id)
+        @break_demo_settings_path = dashboard_demos_path(agency_id: site.tenant_id)
+      end
+    end
     actor = Studio::PwaAccess.new("user_id"=>current_user.id, "site_id"=>site.id)
     @library_assets = StudioAsset.for_actor(actor).where(site_id: site.id, status: "ready", kind: %w[image audio video]).includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }
     @stage_assets = StudioAsset.for_actor(actor).where(site_id:site.id,status:"ready",kind:%w[blend glb]).includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }

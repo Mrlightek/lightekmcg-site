@@ -25,6 +25,7 @@
     const volume = q('[data-break-volume]');
     const nextButton = q('[data-break-next]');
     const status = q('[data-break-status]');
+    const demo = window.LightekBreakDemo?.boot(panel);
     const key = 'lightek:holding-break:v1:' + panel.dataset.breakScope;
     let active = false, queue = [], index = 0, visual, music, timer, audio, mixer;
     let breakId = 0, itemId = 0;
@@ -40,6 +41,7 @@
     try {
       const saved = JSON.parse(localStorage.getItem(key) || 'null');
       if (saved) {
+        demo?.restore(saved.demo);
         for (const [field, value] of [[brand, saved.brand], [heading, saved.heading], [message, saved.message], [volume, saved.volume]]) {
           if (typeof value === 'string') field.value = value;
         }
@@ -54,7 +56,7 @@
     q('[data-break-save]').addEventListener('click', () => {
       try {
         localStorage.setItem(key, JSON.stringify({
-          ...slate(), volume: volume.value, music: musicChoice.value, items: items.map(item => item.value)
+          ...slate(), demo: demo?.enabled(), volume: volume.value, music: musicChoice.value, items: items.map(item => item.value)
         }));
         status.textContent = 'Break settings saved to this browser.';
       } catch {
@@ -182,17 +184,21 @@
       draw(ctx) {
         if (designer) designer.draw(ctx);
         else drawSlate(ctx, slate());
-        if (!active || !visual?.ready) return;
-        const { element } = visual;
-        const w = element.videoWidth || element.naturalWidth;
-        const h = element.videoHeight || element.naturalHeight;
-        if (!(w && h)) return;
-        const scale = Math.min(1280 / w, 720 / h);
-        ctx.fillStyle = '#0b121b';
-        ctx.fillRect(0, 0, 1280, 720);
-        ctx.drawImage(element, (1280 - w * scale) / 2, (720 - h * scale) / 2, w * scale, h * scale);
+        if (!active) return;
+        if (visual?.ready) drawVisual(ctx, visual.element);
+        demo?.draw(ctx);
       }
     };
+
+    function drawVisual(ctx, element) {
+      const w = element.videoWidth || element.naturalWidth;
+      const h = element.videoHeight || element.naturalHeight;
+      if (!(w && h)) return;
+      const scale = Math.min(1280 / w, 720 / h);
+      ctx.fillStyle = '#0b121b';
+      ctx.fillRect(0, 0, 1280, 720);
+      ctx.drawImage(element, (1280 - w * scale) / 2, (720 - h * scale) / 2, w * scale, h * scale);
+    }
   }
 
   window.LightekHoldingBreak = { boot };

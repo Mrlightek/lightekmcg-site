@@ -1,5 +1,5 @@
 <% content_for :page_title, "Live Studio" %>
-<%= stylesheet_link_tag "/lightek/live/studio.css?v=7" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=8" %>
 <%= javascript_include_tag "/lightek/live/comments.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/show-presentation.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/overlay.js?v=1", defer: true %>
@@ -7,8 +7,13 @@
 <%= javascript_include_tag "/lightek/live/graphics.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/broadcast-look.js?v=2", defer: true %>
 <%= javascript_include_tag "/lightek/live/slate-design.js?v=1", defer: true %>
-<%= javascript_include_tag "/lightek/live/holding-break.js?v=2", defer: true %>
-<%= javascript_include_tag "/lightek/live/studio.js?v=16", defer: true %>
+<% if @break_demo_url %>
+  <%= javascript_include_tag "/lightek/vendor/qrcode-generator/qrcode.js", defer: true %>
+  <%= javascript_include_tag "/lightek/live/break-demo.js?v=1", defer: true %>
+<% end %>
+<%= javascript_include_tag "/lightek/live/holding-break.js?v=3", defer: true %>
+<%= javascript_include_tag "/lightek/live/effects.js?v=1", defer: true %>
+<%= javascript_include_tag "/lightek/live/studio.js?v=17", defer: true %>
 <%= javascript_include_tag '/lightek/vendor/livekit-2.23.0.umd.js', defer: true %>
 <%= javascript_include_tag '/lightek/live/audience.js?v=3', defer: true %>
 <main class="ll-studio" data-live-studio data-create-url="<%= dashboard_live_sessions_path(site_id: @site.id) %>">
@@ -27,6 +32,7 @@
 <div data-session-director><h3>Choose your program layout</h3><div class="production-presets"><button type="button" data-stage-preset="gallery">Panel</button><button type="button" data-stage-preset="presenter">Presenter</button><button type="button" data-stage-preset="split">Interview</button><button type="button" data-stage-preset="fullscreen">Featured guest</button></div><p>Connect an open room to see its guests in the program. Choose a layout, then save to reuse it for this room.</p><details data-presentation-options><summary>Customize layout & branding</summary><div data-presentation-fields><label>Stage layout<select data-presentation="layout"><option value="gallery">Branded panel / gallery</option><option value="presenter">Presenter + guest sidebar</option><option value="split">Side by side interview</option><option value="fullscreen">Featured guest / screen</option></select></label><label>Show title<input data-presentation="title" maxlength="120"></label><label>Subtitle<input data-presentation="subtitle" maxlength="120"></label><label>Brand<input data-presentation="brand" maxlength="120"></label><label>Background<input type="color" value="#142f2c" data-presentation="background"></label><label>Accent<input type="color" value="#d6edac" data-presentation="accent"></label><label>Scrolling banner<input data-presentation="ticker" maxlength="300"></label><label>Featured participant<select data-presentation="featured"><option value="">Automatic / shared screen first</option></select></label><label>Style participant<select data-style-person><option value="">Choose a connected participant</option></select></label><label><input type="checkbox" data-person-style="visible" checked> Show this guest’s video in program</label><label>Program order · lower first<input type="number" min="0" max="49" step="1" value="0" data-person-style="order"></label><label>Program audio · 0 mute / 1 unity<input type="range" min="0" max="1" step="0.05" value="1" data-person-style="audio_gain"></label><p>Video visibility and audio level are independent. These controls affect the broadcast mix, not admission or the guest’s microphone.</p><label>Display name<input data-person-style="name" maxlength="80"></label><label>Lower-third role / title<input data-person-style="role" maxlength="80"></label><label>Camera effect<select data-person-style="effect"><option value="clean">Clean</option><option value="mono">Monochrome</option><option value="warm">Warm</option><option value="cool">Cool</option><option value="soft">Soft focus</option></select></label><label>Frame<select data-person-style="fit"><option value="contain">Fit full image</option><option value="cover">Fill / crop</option></select></label><label><input type="checkbox" data-person-style="mirror"> Mirror this guest</label></div></details><button type="button" data-restore-room-presentation>Use this room’s saved presentation</button><button type="button" data-save-presentation>Save this room’s presentation</button><p data-presentation-status>Adjustments update the program preview. Save to reuse this room’s stage.</p></div><p data-session-status>Connect when the host opens the room. Gallery output includes up to 12 tiles; choose presenter, interview, or featured layouts above. The composed session can also become a live screen inside your Blender/GLB stage.</p></details>
       <%= render "dashboard/live_broadcasts/production_setup" %>
       <%= render "dashboard/live_broadcasts/program_graphics" %>
+      <%= render "dashboard/live_broadcasts/effects" %>
       <%= render "dashboard/live_broadcasts/broadcast_look" %>
       <%= render "dashboard/live_broadcasts/holding_break" %>
       <%= render "dashboard/live_broadcasts/library_sources" %>

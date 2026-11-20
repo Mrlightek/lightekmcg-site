@@ -52,3 +52,5 @@
 .ll-motion-controls [hidden],.ll-motion-monitor [hidden]{display:none}
 .ll-motion-controls [data-effects-library] .ll-motion-actions{margin-top:8px}
 .ll-motion-controls [data-effects-delete]{margin-top:6px}
+
+.ll-studio [data-look-score][hidden]{display:none}

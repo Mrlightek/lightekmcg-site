@@ -11,9 +11,10 @@ class StudioBroadcastChannel < ApplicationCable::Channel
     Rails.logger.error("[StudioLive] subscription failed class=#{error.class.name}")
     reject
   end
-  def start(_data = {})
+  def start(data = {})
     ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user.reload, operation: @operation)
     authorize_source!
+    input_format = Studio::Live::Encoder.capture_format(data.fetch("capture_container", "webm"))
     @operation.with_lock do
       raise Studio::Live::Encoder::Failure, "This session was already started. Start a new session." unless @operation.status == "draft"
       @operation.update!(status: "connecting")
@@ -24,7 +25,7 @@ class StudioBroadcastChannel < ApplicationCable::Channel
     hls = %w[lightek simulcast channel_input].include?(@operation.metadata["destination"])
     output = hls ? Studio::Live::Encoder.hls_path(@operation.id) : test ? Studio::Live::Encoder.recording_path(@operation.id) : Studio::Live::Destination.output!(current_user, provider: @operation.metadata.fetch("destination"))
     relay = @operation.metadata["destination"] == "simulcast" ? Studio::Live::Destination.output!(current_user, provider: "restream") : nil
-    @encoder = Studio::Live::Encoder.new(output: output, test: test, hls: hls, relay_output: relay, on_event: method(:encoder_event)).start!
+    @encoder = Studio::Live::Encoder.new(output: output, test: test, hls: hls, relay_output: relay, input_format: input_format, on_event: method(:encoder_event)).start!
     transmit({event: "ready"})
   rescue StandardError => error
     fail_session(error)

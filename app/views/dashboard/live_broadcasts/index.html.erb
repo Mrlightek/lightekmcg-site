@@ -1,11 +1,11 @@
 <% content_for :page_title, "Live Studio" %>
-<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=11" %>
 <%= javascript_include_tag "/lightek/live/comments.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/show-presentation.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/overlay.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/production.js?v=3", defer: true %>
 <%= javascript_include_tag "/lightek/live/graphics.js?v=1", defer: true %>
-<%= javascript_include_tag "/lightek/live/broadcast-look.js?v=2", defer: true %>
+<%= javascript_include_tag "/lightek/live/broadcast-look.js?v=4", defer: true %>
 <%= javascript_include_tag "/lightek/live/slate-design.js?v=1", defer: true %>
 <% if @break_demo_url || @break_agency_demo_url %>
   <%= javascript_include_tag "/lightek/vendor/qrcode-generator/qrcode.js", defer: true %>
@@ -15,10 +15,10 @@
 <%= javascript_include_tag "/lightek/vendor/gsap/gsap.min.js", defer: true %>
 <%= javascript_include_tag "/lightek/live/effects-motion.js?v=2", defer: true %>
 <%= javascript_include_tag "/lightek/live/effects.js?v=3", defer: true %>
-<%= javascript_include_tag "/lightek/live/studio.js?v=18", defer: true %>
+<%= javascript_include_tag "/lightek/live/studio.js?v=19", defer: true %>
 <%= javascript_include_tag '/lightek/vendor/livekit-2.23.0.umd.js', defer: true %>
 <%= javascript_include_tag '/lightek/live/audience.js?v=3', defer: true %>
-<main class="ll-studio" data-tour-page="live" data-live-studio data-create-url="<%= dashboard_live_sessions_path(site_id: @site.id) %>">
+<main class="ll-studio" data-tour-page="live" data-live-studio data-encoder="<%= @encoder_ready ? 'ready' : 'missing' %>" data-create-url="<%= dashboard_live_sessions_path(site_id: @site.id) %>">
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
   <header class="ll-header"><div><span class="ll-eyebrow">LIGHTEK / STUDIO</span><h1>Your work. On air.</h1><p>Build, share and broadcast from Lightek.</p></div><span class="ll-badge" data-state>Preview only</span></header>
   <nav class="ll-workflow-links" aria-label="Live production steps"><a href="#live-guests">1 · Guests</a><a href="#live-program">2 · Program & stage</a><a href="#live-destinations">3 · Broadcast</a><a href="#live-audience">4 · Audience</a></nav>

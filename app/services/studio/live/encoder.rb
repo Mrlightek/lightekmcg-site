@@ -8,6 +8,11 @@ module Studio
     class Encoder
       class Failure < StandardError; end
       MAX_CHUNK = 1_048_576
+      CAPTURE_FORMATS = { "webm" => "webm", "mp4" => "mov" }.freeze
+
+      def self.capture_format(container)
+        CAPTURE_FORMATS.fetch(container) { raise Failure, "This capture format is unsupported. Reopen Live Studio and try again." }
+      end
       def self.available?
         _out, status = Open3.capture2(ENV.fetch("LIGHTEK_FFMPEG", "ffmpeg"), "-version", err: File::NULL)
         status.success?
@@ -23,9 +28,11 @@ module Studio
         Rails.root.join("tmp","studio_live_hls",id.to_s)
       end
       def self.hls_path(id) = hls_directory(id).join("index.m3u8")
-      def initialize(output:, test:, on_event:, hls: false, relay_output: nil)
+      def initialize(output:, test:, on_event:, hls: false, relay_output: nil, input_format: "webm")
         @output, @test, @on_event, @hls = output.to_s, test, on_event, hls
         @relay_output = relay_output
+        raise Failure, "Unsupported encoder input." unless CAPTURE_FORMATS.value?(input_format)
+        @input_format = input_format
         @mutex = Mutex.new
         @sequence = 0
         @started = @last_input = monotonic
@@ -33,7 +40,7 @@ module Studio
       def start!
         FileUtils.mkdir_p(File.dirname(@output), mode: 0o700) if @test || @hls
         args = [ENV.fetch("LIGHTEK_FFMPEG", "ffmpeg"), "-hide_banner", "-loglevel", "error", "-nostats", "-nostdin", "-y",
-          "-protocol_whitelist", "pipe", "-fflags", "+genpts", "-probesize", "1000000", "-analyzeduration", "1000000", "-f", "webm", "-i", "pipe:0",
+          "-protocol_whitelist", "pipe", "-fflags", "+genpts", "-probesize", "1000000", "-analyzeduration", "1000000", "-f", @input_format, "-i", "pipe:0",
           "-map", "0:v:0", "-map", "0:a:0", "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
           "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-threads", "2", "-r", "24", "-g", "48", "-b:v", "1800k", "-maxrate", "1800k", "-bufsize", "3600k",
           "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-progress", "pipe:1"]

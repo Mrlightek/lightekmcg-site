@@ -10,8 +10,7 @@ const markup = partial.replace(/<%= render "dashboard\/live_broadcasts\/broadcas
 const dom = new JSDOM('<main>' + markup + '</main>', { runScripts: 'outside-only', url: 'https://studio.test' });
 const { window } = dom;
 const createElement = window.document.createElement.bind(window.document);
-const work = createCanvas(300, 150);
-window.document.createElement = name => name === 'canvas' ? work : createElement(name);
+window.document.createElement = name => name === 'canvas' ? createCanvas(300, 150) : createElement(name);
 window.eval(readFileSync('public/lightek/live/broadcast-look.js', 'utf8'));
 const root = window.document.querySelector('main');
 const look = window.LightekBroadcastLook.boot(root);
@@ -22,16 +21,39 @@ const program = createCanvas(1280, 720);
 const ctx = program.getContext('2d');
 const pixel = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data);
 
-for (const style of ['news', 'sports']) {
+for (const style of ['studio', 'news', 'breaking', 'sports']) {
   ctx.clearRect(0, 0, 1280, 720);
   field('frame').value = style;
+  field('frame').dispatchEvent(new window.Event('change'));
+  assert.equal(root.querySelector('[data-look-score]').hidden, style !== 'sports');
+  if (style === 'sports') field('score').value = 'ATL 24 · NY 17 · FINAL';
+  field('frame-color').value = '#ff0000';
+  field('headline').value = 'Come to Lightek!';
   apply();
   look.drawFrame(ctx);
-  for (const [x, y] of [[640, 4], [640, 715], [4, 360], [1275, 360]]) {
-    assert.equal(pixel(x, y)[3], 255, style + ' covers all four edges');
+  for (const [x, y] of [[640, 4], [640, 715], [4, 360], [1275, 360], [640, 360], [1200, 655]]) {
+    assert.equal(pixel(x, y)[3], 0, style + ' preserves the open program and the picture edges');
   }
-  assert.equal(pixel(640, 360)[3], 0, style + ' leaves the program picture open');
+  assert(pixel(33, 24)[3] > 100, style + ' draws a subtle inset bracket');
+  assert(pixel(88, 640)[3] > 230, style + ' keeps the headline plate at lower left');
+  const [red, green] = pixel(88, 640);
+  assert(red - green < 35, 'the chosen panel tint does not turn into an opaque red strip');
+  const topX = style === 'studio' ? 1220 : 55;
+  assert(pixel(topX, 55)[3] > 120, style + ' draws a compact identity plate');
+  if (style === 'sports') assert(pixel(1190, 70)[3] > 230, 'sports score draws in the upper right');
 }
+field('frame').value = 'news';
+field('texture').value = 'scanlines';
+apply();
+ctx.clearRect(0, 0, 1280, 720);
+look.drawFrame(ctx);
+const textured = pixel(80, 640);
+field('texture').value = 'none';
+apply();
+ctx.clearRect(0, 0, 1280, 720);
+look.drawFrame(ctx);
+assert.notDeepEqual(pixel(80, 640), textured, 'the panel texture selector changes the rendered pixels');
+assert.equal(pixel(700, 360)[3], 0, 'textures are confined to the graphic plates');
 
 const camera = createCanvas(640, 360);
 camera.videoWidth = 640;
@@ -70,6 +92,7 @@ assert.equal(pixel(0, 0)[3], 0, 'clear removes the frame');
 const themeField = (kind, key) => root.querySelector('[data-look-themes="' + kind + '"] [data-theme-' + key + ']');
 field('frame').value = 'news';
 field('frame-color').value = '#32689e';
+field('texture').value = 'brushed';
 field('brand').value = 'Evening Desk';
 themeField('frame', 'name').value = 'Evening';
 themeField('frame', 'save').click();
@@ -86,6 +109,7 @@ field('motion').checked = false;
 themeField('frame', 'load').click();
 assert.equal(field('frame-color').value, '#32689e', 'load restores the saved palette');
 assert.equal(field('brand').value, 'Evening Desk');
+assert.equal(field('texture').value, 'brushed', 'theme restores the panel texture');
 assert.equal(field('backdrop').value, 'off', 'loading the frame leaves the background draft alone');
 look.drawFrame(ctx);
 assert.equal(pixel(0, 0)[3], 0, 'loading a theme does not put it on air');
@@ -94,9 +118,18 @@ assert.equal(field('backdrop').value, 'minimal');
 assert.equal(field('speed').value, '1200');
 assert.equal(field('motion').checked, true);
 assert.equal(field('key').value, 'blue', 'loading a background retains the current camera calibration');
+const key = 'lightek:broadcast-themes:v1:' + root.querySelector('[data-broadcast-look]').dataset.themeScope + ':frame';
+const stored = JSON.parse(window.localStorage.getItem(key));
+delete stored[0].values.texture;
+window.localStorage.setItem(key, JSON.stringify(stored));
 const reopened = root.cloneNode(true);
 window.LightekBroadcastLook.boot(reopened);
-assert.equal(reopened.querySelector('[data-look-themes="frame"] [data-theme-list]').options[1].value, 'Evening');
+const legacyList = reopened.querySelector('[data-look-themes="frame"] [data-theme-list]');
+assert.equal(legacyList.options[1].value, 'Evening');
+legacyList.value = 'Evening';
+reopened.querySelector('[data-look="texture"]').value = 'none';
+reopened.querySelector('[data-look-themes="frame"] [data-theme-load]').click();
+assert.equal(reopened.querySelector('[data-look="texture"]').value, 'auto', 'older themes use the style texture');
 themeField('frame', 'delete').click();
 assert.equal(themeField('frame', 'list').options.length, 1, 'delete removes the frame theme');
 assert.equal(themeField('background', 'list').options.length, 2, 'background theme remains available');
@@ -132,7 +165,7 @@ applied.then(() => {
   assert.equal(look.drawKeyedCamera(ctx, camera, rect, 0), true);
   assert.deepEqual(pixel(640, 360), [170, 51, 187, 255], 'uploaded image fills the keyed background');
   dom.window.close();
-  console.log('STUDIO_LIVE_BROADCAST_LOOK_PASS four frame edges, transparent center, green and blue key, still and animated backdrops, local image');
+  console.log('STUDIO_LIVE_BROADCAST_LOOK_PASS inset frames, open picture, compact headline, textures, score, green and blue key, still and animated backdrops, local image');
 }).catch(error => {
   dom.window.close();
   console.error(error);

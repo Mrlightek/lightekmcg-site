@@ -1,0 +1,50 @@
+<% content_for :page_title, 'Agency demos' %>
+<%= stylesheet_link_tag '/lightek/people-workspace.css' %>
+<main class="lp-workspace">
+  <header class="lp-heading">
+    <div><h1>Agency demos</h1><p>Invite a prospect to try Lightek Agency. Their subscription is <%= number_to_currency(LightekAgency::Trial::ANNUAL_PRICE_CENTS / 100, precision: 0) %> per year.</p></div>
+  </header>
+
+  <section class="lp-card">
+    <h2>Create agency demo</h2>
+    <% if @sites.empty? %>
+      <p>Create a Lightek storefront under your operator account to take membership payments.</p>
+    <% else %>
+      <%= form_with scope: :trial, url: dashboard_agency_trials_path, class: 'lp-form' do |f| %>
+        <div class="lp-grid">
+          <div><%= f.label :brand_name, 'Agency name' %><%= f.text_field :brand_name, maxlength: 120, required: true %></div>
+          <div><%= f.label :email_address, 'Prospect email' %><%= f.email_field :email_address, required: true %></div>
+          <div><%= f.label :first_name %><%= f.text_field :first_name, required: true %></div>
+          <div><%= f.label :last_name %><%= f.text_field :last_name, required: true %></div>
+          <div><%= f.label :duration_days, 'Trial length in days' %><%= f.number_field :duration_days, value: 3, min: 1, max: 90, required: true %></div>
+          <% if @sites.one? %>
+            <%= f.hidden_field :billing_site_id, value: @sites.first.id %>
+          <% else %>
+            <div><%= f.label :billing_site_id, 'Lightek billing storefront' %><%= f.collection_select :billing_site_id, @sites, :id, :name, {prompt: 'Select a storefront'}, required: true %></div>
+          <% end %>
+        </div>
+        <%= f.submit 'Create demo and invite', class: 'lp-button' %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="lp-card">
+    <h2>Invited agencies</h2>
+    <% @trials.each do |trial| %>
+      <p><strong><%= trial.brand_name %></strong> · <%= trial.prospect.email_address %> ·
+        <%= if trial.paid_access?
+              "Paid through #{l(trial.paid_through.to_date, format: :long)}"
+            elsif trial.activated_at?
+              'Membership ended'
+            elsif trial.preview_open?
+              "Demo until #{l(trial.expires_at.to_date, format: :long)}"
+            else
+              'Demo ended'
+            end %></p>
+      <% if trial.prospect.password_setup_required? %>
+        <%= button_to 'Send setup invitation', resend_dashboard_agency_trial_path(trial), class: 'lp-button secondary' %>
+      <% end %>
+    <% end %>
+    <% if @trials.empty? %><p>No agency demos yet.</p><% end %>
+  </section>
+</main>

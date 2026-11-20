@@ -29,6 +29,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg imagemagick
       - name: Client setup, scoped navigation and hosting handoff
         run: ruby test/standalone/agency_workspace_checks.rb
+      - name: Agency trials, annual checkout and membership renewal
+        run: ruby test/standalone/agency_trial_membership_checks.rb
       - name: Wholesale catalog, immutable pricing and package inheritance
         run: ruby test/standalone/agency_reseller_checks.rb
       - name: Installed permissions, request quotas and shared storage accounting

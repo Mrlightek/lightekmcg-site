@@ -9,3 +9,9 @@ end
 
 get '/dashboard/reseller-packages', to: 'dashboard/reseller_packages#index', as: :dashboard_reseller_packages
 post '/dashboard/reseller-packages', to: 'dashboard/reseller_packages#create'
+
+resources :dashboard_agency_trials, path: '/dashboard/agency-trials', controller: 'dashboard/agency_trials',
+  only: %i[index create show update] do
+  post :upgrade, on: :member
+  post :resend, on: :member
+end

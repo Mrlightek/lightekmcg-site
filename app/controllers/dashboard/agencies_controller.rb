@@ -30,6 +30,9 @@ class Dashboard::AgenciesController < ApplicationController
     User.transaction do
       scope = current_user.role == "super_admin" ? User.where(role: "client") : current_user.agency_clients.where(role: "client")
       user = scope.find(params.require(:user_id))
+      if defined?(LightekAgency::Trial) && LightekAgency::Trial.table_exists? && LightekAgency::Trial.exists?(prospect_id: user.id)
+        return redirect_to dashboard_agencies_path, alert: "This agency trial activates through its annual checkout."
+      end
       user.update!(role: "white_label", agency: user.agency || current_user)
       user.create_agency_profile!(brand_name: params.require(:brand_name))
       if defined?(LightekPeople::Lifecycle) && LightekPeople::LifecycleCase.table_exists?

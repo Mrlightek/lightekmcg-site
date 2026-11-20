@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 # Run without Rails, gems, database, or private repository credentials.
 require "minitest/autorun"
+require_relative "../../app/services/lightek_commerce/subscription_events"
 
 module Rails
   def self.application = Application.new

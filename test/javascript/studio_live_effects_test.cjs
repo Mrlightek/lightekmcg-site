@@ -36,9 +36,19 @@ window.Worker = class {
   postMessage(data) { this.scope.onmessage({ data }); }
   terminate() {}
 };
+window.eval(readFileSync('public/lightek/vendor/gsap/gsap.min.js', 'utf8'));
 window.eval(source('effects-motion'));
 window.eval(source('effects'));
 const effects = window.LightekLiveEffects.boot(root);
+const frame = window.LightekLiveMotion.animate({
+  duration: 3000, entrance: .6, exit: .6, stagger: .12, easing: 'none'
+});
+assert.equal(frame(.05).subtitle, 0, 'subtitle waits for its position on the GSAP timeline');
+assert(frame(.05).edge > 0 && frame(.05).heading === 0, 'the accent and text enter at different times');
+assert.equal(frame(.5).subtitle, 1);
+assert(frame(.95).exit < 1, 'the final frames are driven by the exit tween');
+assert.equal(frame(.05).subtitle, 0, 'scrubbing backward resets the staggered reveal');
+
 const program = createCanvas(1280, 720);
 const ctx = program.getContext('2d');
 const base = '#213243';
@@ -81,6 +91,22 @@ for (const kind of ['nameplate', 'opener', 'sweep', 'traces', 'rings', 'confetti
 }
 select('nameplate');
 field('title').value = 'Studio Sessions';
+field('entrance').value = '1';
+field('easing').value = 'none';
+const graphicName = root.querySelector('[data-effects-name]');
+const saved = root.querySelector('[data-effects-saved]');
+graphicName.value = 'Friday show';
+click('save');
+select('rings');
+field('title').value = 'Different headline';
+click('load');
+assert.equal(saved.value, 'Friday show');
+assert.equal(field('kind').value, 'nameplate');
+assert.equal(field('title').value, 'Studio Sessions');
+assert.equal(field('entrance').value, '1');
+assert.equal(field('easing').value, 'none');
+click('delete');
+assert.equal(saved.options.length, 1);
 click('export');
 const download = root.querySelector('[data-effects-download]');
 assert.equal(download.hidden, false);

@@ -36,8 +36,9 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
 <a class="lt-skip" href="#main-content">Skip to content</a>
 <% if @preview && !@studio_preview_definition %><aside class="lt-preview-banner">Design preview · <%= link_to "Back to website designs", dashboard_website_designs_path(site_id: @site.id) %></aside><% end %>
 <% content_has_header = @preview ? definition["sections"].any? { |entry| entry["chrome_header"] } : @page.sections.any? { |record| LightekDesign::Catalog.section_definition(record.kind)&.fetch("chrome_header", false) } %>
-<% theme_header = !@preview && studio_theme_chrome("header") %>
-<% if theme_header %><%= studio_render_section(theme_header, theme_header.fetch("data")) %><% elsif !content_has_header %>
+<% wrapped_header = studio_wrapped_page_header?(definition) %>
+<% theme_header = !@preview && !wrapped_header && studio_theme_chrome("header") %>
+<% if theme_header %><%= studio_render_section(theme_header, theme_header.fetch("data")) %><% elsif !content_has_header && !wrapped_header %>
 <header class="lt-design-<%= navigation_style %>">
 <% if !@preview && @site.nav_menu && @site.nav_menu.roots.any? %>
   <%= render "lightek_design/site_navigation", design_key: navigation_style %>

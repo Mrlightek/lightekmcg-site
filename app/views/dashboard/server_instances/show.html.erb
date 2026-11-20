@@ -1,5 +1,6 @@
 <% content_for :page_title, @node.name %>
 <%= render "dashboard/infrastructure/styles" %>
+<%= javascript_include_tag "/lightek/server-delete-confirmation.js?v=1", type: "module" %>
 <div class="infra">
   <%= link_to "← Servers & applications", dashboard_servers_path, class: "infra-back" %>
   <header class="infra-hero"><div><span class="infra-eyebrow">Infrastructure / Server workspace</span><h1><%= @node.name %></h1><p><%= @node.display_host %> · <%= @node.compute_provider&.name || @node.provider %></p></div><%= infrastructure_status_badge(@node.status) %></header>
@@ -47,19 +48,20 @@
     <details class="infra-panel infra-delete"><summary>Delete this server instance</summary>
       <p>This permanently deletes the provider instance, its local data and every hosted application. The server record and operation history remain for audit. Account subscriptions are managed separately.</p>
       <%= form_with url: dashboard_server_path(@node), method: :delete, skip_default_ids: false, class: "infra-form" do |f| %>
-        <div class="infra-field" data-controller="clipboard">
+        <div class="infra-field">
           <%= label_tag "server-delete-name", "Server name" %>
           <%= tag.input type: "text", id: "server-delete-name", value: @node.name, readonly: true,
-            dir: "auto", data: {clipboard_target: "source"} %>
+            dir: "auto", data: {server_name_source: true} %>
           <div class="infra-actions">
-            <%= button_tag "Copy server name", type: "button", class: "infra-button", data: {action: "clipboard#copy"} %>
+            <%= button_tag "Use server name", type: "button", class: "infra-button", data: {use_server_name: true} %>
+            <%= button_tag "Copy server name", type: "button", class: "infra-button", data: {copy_server_name: true} %>
           </div>
-          <small role="status" data-clipboard-target="status"></small>
+          <small role="status" data-server-name-status></small>
         </div>
         <div class="infra-field">
-          <%= f.label :confirmation, "Paste server name to confirm" %>
+          <%= f.label :confirmation, "Confirm server name" %>
           <%= f.text_field :confirmation, required: true, autocomplete: "off", autocapitalize: "none", spellcheck: false,
-            aria: {describedby: "server-delete-help"} %>
+            aria: {describedby: "server-delete-help"}, data: {server_name_confirmation: true} %>
           <small id="server-delete-help">The name must match exactly.</small>
         </div>
         <div class="infra-form-footer"><p>Review the applications above before continuing.</p><%= f.submit "Permanently delete server", class: "infra-button infra-button-danger" %></div>

@@ -33,6 +33,21 @@ module Studio
         enqueue(operation, 1)
       end
 
+      def self.queue_retry_available?(operation)
+        operation.status == "pending" && operation.updated_at <= QUEUE_RETRY_AFTER.ago
+      end
+
+      def retry_queued(operation, expected_attempt)
+        attempt = operation.with_lock do
+          unless self.class.queue_retry_available?(operation) && operation.metadata["attempt"].to_s == expected_attempt
+            raise ArgumentError, "This queued attempt has changed. Check the current job status."
+          end
+          operation.update!(error_message: nil, updated_at: Time.current)
+          operation.metadata.fetch("attempt")
+        end
+        enqueue(operation, attempt, queued_retry: true)
+      end
+
       def retry_login(operation)
         resubmit(operation, "full") do
           raise ArgumentError, "The job is not waiting for a Mixamo login" unless operation.status == "awaiting_manual_login"
@@ -47,21 +62,6 @@ module Studio
           end
           validate(operation.manifest.merge(inputs.slice("frames", "resolution")))
         end
-      end
-
-      def self.queue_retry_available?(operation)
-        operation.status == "pending" && operation.updated_at <= QUEUE_RETRY_AFTER.ago
-      end
-
-      def retry_queued(operation, expected_attempt)
-        attempt = operation.with_lock do
-          unless self.class.queue_retry_available?(operation) && operation.metadata["attempt"].to_s == expected_attempt
-            raise ArgumentError, "This queued attempt has changed. Check the current job status."
-          end
-          operation.update!(error_message: nil, updated_at: Time.current)
-          operation.metadata.fetch("attempt")
-        end
-        enqueue(operation, attempt, queued_retry: true)
       end
 
       def self.file(operation, kind)

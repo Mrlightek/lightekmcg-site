@@ -1,0 +1,94 @@
+# frozen_string_literal: true
+
+require "fileutils"
+require "tmpdir"
+
+module Studio
+  module Broadcasting
+    class PlayoutMedia
+      Segment = Data.define(:key, :path, :duration)
+      SCALE = "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1"
+      CODECS = %w[-c:v libx264 -preset ultrafast -tune zerolatency -threads 2 -pix_fmt yuv420p -r 24 -g 48 -keyint_min 48 -sc_threshold 0
+        -b:v 1300k -maxrate 1300k -bufsize 2600k -c:a aac -b:a 96k -ar 44100 -ac 2].freeze
+      FILE_NAME = /\Asegment-\d+\.ts\z/
+      def self.root = Rails.root.join("storage", "studio-playout")
+      def self.channel_path(id) = root.join("channels", Integer(id).to_s)
+      def self.airing_path(id) = root.join("airings", Integer(id).to_s)
+      def self.ffmpeg = ENV.fetch("LIGHTEK_FFMPEG", "ffmpeg")
+
+      def self.prepare!(airing)
+        root = airing_path(airing.id)
+        FileUtils.mkdir_p(root, mode: 0o700)
+        File.open(root.join("prepare.lock"), File::RDWR | File::CREAT, 0o600) do |lock|
+          return unless lock.flock(File::LOCK_EX | File::LOCK_NB) && airing.reload.status == "preparing"
+          actor = Studio::PwaAccess.new("user_id" => airing.operator_id, "site_id" => airing.channel.site_id)
+          Studio::Broadcasting::Access.authorize!(airing.operator, airing.channel.site)
+          airing.touch
+          airing.rundown.each_with_index do |item, index|
+            asset = StudioAsset.for_actor(actor).where(site_id: airing.channel.site_id, status: "ready", kind: "video").find(item.fetch("asset_id"))
+            raise ArgumentError, "A scheduled source has changed." unless asset.proxy.attached? && asset.proxy.blob.id == item.fetch("blob_id")
+            heartbeat = Time.current
+            still_preparing = lambda do
+              next false if Time.current - heartbeat < 2
+              heartbeat = Time.current
+              airing.reload.status != "preparing" || !Airing.where(id: airing.id, status: "preparing").update_all(updated_at: heartbeat).positive?
+            end
+            asset.proxy.blob.open(tmpdir: Studio::MediaProcess.temp_root) do |source|
+              encode!(root.join(index.to_s), source: source.path, seconds: item.fetch("seconds"), sponsor: item.fetch("sponsor"),
+                audio: asset.metadata["has_audio"], cancel_if: still_preparing)
+            end
+          end
+          airing.with_lock { airing.update!(status: "ready") if airing.status == "preparing" }
+        end
+      end
+
+      def self.standby(channel_id)
+        path = channel_path(channel_id).join("standby")
+        encode!(path, seconds: 2) unless path.join("index.m3u8").file?
+        segments(path).first || raise("Standby media is unavailable")
+      end
+
+      def self.encode!(directory, seconds:, source: nil, audio: false, sponsor: "", cancel_if: nil)
+        FileUtils.mkdir_p(directory, mode: 0o700)
+        Dir.mktmpdir("encode-", directory) do |temp|
+          filters = [SCALE, "tpad=stop_mode=clone:stop_duration=2"]
+          if sponsor.present?
+            text_path = File.join(temp, "sponsor.txt")
+            File.write(text_path, sponsor)
+            filters << "drawtext=textfile='#{text_path.gsub(/[':\\]/) { |character| "\\#{character}" }}':expansion=none:fontsize=29:fontcolor=white:box=1:boxcolor=black@0.8:boxborderw=14:x=46:y=h-th-46"
+          end
+          command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-nostdin", "-filter_threads", "1"]
+          command += if source
+            ["-protocol_whitelist", "file", "-format_whitelist", "mov,mp4,m4a,3gp,3g2,mj2,matroska,webm,mpegts,avi,mpeg", "-threads", "2", "-i", source]
+          else
+            %w[-f lavfi -i color=c=0x101821:s=1280x720:r=24]
+          end
+          command += %w[-f lavfi -i anullsrc=r=44100:cl=stereo] unless audio
+          command += ["-map", "0:v:0", "-map", audio ? "0:a:0" : "1:a:0", "-vf", filters.join(","), "-af", "apad",
+            "-t", seconds.to_s, *CODECS, "-f", "hls", "-hls_time", "2", "-hls_list_size", "0", "-hls_flags", "independent_segments",
+            "-hls_segment_filename", File.join(temp, "segment-%06d.ts"), File.join(temp, "index.m3u8")]
+          Studio::MediaProcess.run!(command, timeout: [seconds * 3 + 60, 24_000].min, cancel_if: cancel_if)
+          media = segments(Pathname(temp))
+          raise "Prepared media is shorter than the rundown slot" if media.sum(&:duration) < seconds - 0.1
+          media.each { |segment| File.rename(segment.path, directory.join(segment.key)) }
+          File.rename(File.join(temp, "index.m3u8"), directory.join("index.m3u8"))
+        end
+      end
+
+      def self.segments(directory)
+        duration = nil
+        directory.join("index.m3u8").read.lines(chomp: true).filter_map do |line|
+          if line.start_with?("#EXTINF:")
+            duration = Float(line.delete_prefix("#EXTINF:").split(",").first)
+            next
+          elsif FILE_NAME.match?(line) && duration&.positive?
+            path = directory.join(line)
+            Segment.new(line, path, duration) if path.file?
+          end
+        end
+      rescue Errno::ENOENT
+        []
+      end
+    end
+  end
+end

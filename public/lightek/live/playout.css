@@ -1,0 +1,8 @@
+.ll-playout .ll-panel{margin-bottom:16px}
+.ll-playout-actions{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:end;margin:12px 0}
+.ll-playout-actions label{flex:1 1 150px;min-width:0}
+.ll-playout .ll-playout-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr));align-items:end;gap:12px;margin:12px 0;border:1px solid #354550;border-radius:8px;padding:10px 12px 12px;min-width:0}
+.ll-playout-row legend{padding:0 6px;color:#d6e7e2;font-weight:650}
+.ll-playout-row .ll-playout-actions{margin:0;gap:4px}
+.ll-playout-list{padding-inline-start:24px}
+.ll-playout-list li{padding-block:3px}

@@ -24,6 +24,22 @@ module LightekSales
       LightekSales::Access.prospecting_allowed?(site) ? tasks : tasks.where.not(record_type: 'LightekSales::SocialProspect')
     end
 
+    def self.in_queue_order
+      reply_priority = <<~SQL.squish
+        CASE WHEN lightek_sales_tasks.status = 'open' AND lightek_sales_tasks.record_type = 'LightekSales::SocialProspect'
+          AND (SELECT activity.body FROM lightek_sales_activities activity
+               WHERE activity.site_id = lightek_sales_tasks.site_id
+                 AND activity.record_type = lightek_sales_tasks.record_type
+                 AND activity.record_id = lightek_sales_tasks.record_id AND activity.kind = 'outreach'
+               ORDER BY activity.created_at DESC, activity.id DESC LIMIT 1) LIKE 'Reply received%'
+        THEN 1 ELSE 0 END
+      SQL
+      select('lightek_sales_tasks.*', Arel.sql("#{reply_priority} AS prospect_reply_priority"))
+        .order(Arel.sql('prospect_reply_priority DESC'), :due_at, :id)
+    end
+
+    def reply_priority? = has_attribute?(:prospect_reply_priority) && self[:prospect_reply_priority] == 1
+
     private def sales_owner_has_site_access
       super if new_record? || owner_id_changed?
     end

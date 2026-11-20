@@ -1,4 +1,5 @@
 <article class="sales-task">
+  <% if task.reply_priority? %><span class="sales-badge">Reply received</span><% end %>
   <div class="sales-task-heading"><div><span class="sales-badge"><%= task.status.humanize %><%= ' · Due' if task.status == 'open' && task.due_at <= Time.current %></span><h3><%= task.title %></h3><p><%= link_to (task.record.respond_to?(:email) && task.record.is_a?(LightekMarketing::Contact) ? task.record.email : task.record.name), record_url(task.record_kind, task.record) %></p></div><div><strong><%= task.due_at.strftime('%b %-d, %Y · %H:%M') %></strong><small><%= Time.zone.name %></small><small><%= task.owner.email_address %></small></div></div>
   <div class="sales-task-actions">
     <%= link_to 'Add to calendar', calendar_dashboard_sales_task_path(site_id: @site.id, id: task.id), class: 'sales-button secondary', data: {turbo: false} %>

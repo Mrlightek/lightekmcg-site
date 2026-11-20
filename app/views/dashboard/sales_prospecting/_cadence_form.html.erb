@@ -1,0 +1,14 @@
+<details>
+  <summary>Apply a cadence</summary>
+  <%= form_with url: cadence_dashboard_sales_prospect_path(prospect, site_id: @site.id), scope: :cadence,
+    namespace: 'enrollment', class: 'sales-form' do |form| %>
+    <div class="sales-form-grid">
+      <label>Cadence<%= form.collection_select :cadence_id, @cadences, :id, :name, {include_blank: 'Choose a cadence'}, required: true %></label>
+      <label>Assigned to<%= form.collection_select :owner_id, @owners, :id, :email_address,
+        {selected: (@owners.find { |owner| owner.id == current_user.id } || @owners.first).id}, required: true %></label>
+      <label>Start time (<%= Time.zone.name %>)<%= form.datetime_local_field :starts_at,
+        value: Time.current.strftime('%Y-%m-%dT%H:%M'), required: true %></label>
+    </div>
+    <div class="sales-actions"><%= form.submit 'Schedule cadence', class: 'sales-button' %></div>
+  <% end %>
+</details>

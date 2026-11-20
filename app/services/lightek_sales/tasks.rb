@@ -63,7 +63,7 @@ module LightekSales
       return @workspace.find(kind, id) unless kind == 'prospect'
       raise ActiveRecord::RecordNotFound unless LightekSales::Access.prospecting_allowed?(@site)
 
-      prospect = SocialProspect.where(site: @site, provider: 'x').lock.find(id)
+      prospect = SocialProspect.where(site: @site).lock.find(id)
       raise ArgumentError, 'This prospect is marked Do not contact.' if prospect.contact_blocked_at?
 
       prospect

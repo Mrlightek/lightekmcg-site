@@ -2,7 +2,7 @@
 <%= javascript_include_tag '/lightek/sales-prospecting.js?v=1', type: 'module' %>
 <main class="sales-workspace">
   <%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %>
-  <%= render 'dashboard/shared/business_workspace', active: 'Prospecting' %>
+  <%= render 'dashboard/shared/business_workspace', active: 'Sales' %>
   <header class="sales-header">
     <div><h1>Prospecting</h1><p>Find public X posts from people looking for services you offer.</p></div>
     <%= form_with url: dashboard_sales_prospecting_path, method: :get, class: 'sales-site' do %>
@@ -10,6 +10,7 @@
       <%= submit_tag 'Switch', class: 'sales-button secondary' %>
     <% end %>
   </header>
+  <%= render 'dashboard/sales/tabs', active_tab: 'prospecting', manage_routing: @manage_connection %>
   <% if flash[:alert] %><p class="sales-errors" role="alert"><%= flash[:alert] %></p><% end %>
   <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
 

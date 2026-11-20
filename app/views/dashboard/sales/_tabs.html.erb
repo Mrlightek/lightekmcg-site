@@ -1,0 +1,23 @@
+<% tabs = [
+  ['today', 'Today', dashboard_sales_path(site_id: @site.id, tab: 'today')],
+  ['intake', 'Inquiry inbox', dashboard_sales_intake_path(site_id: @site.id)]
+] %>
+<% if LightekAgency::PackagePolicy.allowed?(@site.tenant, 'marketing') &&
+      LightekAgency::PackagePolicy.allowed?(@site.tenant, 'commerce') %>
+  <% tabs << ['prospecting', 'Prospecting', dashboard_sales_prospecting_path(site_id: @site.id)] %>
+<% end %>
+<% tabs.concat([
+  ['tasks', 'Tasks', dashboard_sales_path(site_id: @site.id, tab: 'tasks')],
+  ['leads', 'Leads', dashboard_sales_path(site_id: @site.id, tab: 'leads')],
+  ['pipeline', 'Deal pipeline', dashboard_sales_path(site_id: @site.id, tab: 'pipeline')],
+  ['accounts', 'Companies', dashboard_sales_path(site_id: @site.id, tab: 'accounts')],
+  ['contacts', 'Contacts', dashboard_sales_path(site_id: @site.id, tab: 'contacts')]
+]) %>
+<% if manage_routing %>
+  <% tabs << ['routing', 'Lead routing', dashboard_sales_path(site_id: @site.id, tab: 'routing')] %>
+<% end %>
+<nav class="sales-tabs" aria-label="Sales workspaces">
+  <% tabs.each do |tab, label, path| %>
+    <%= link_to label, path, aria: {current: active_tab == tab ? 'page' : nil} %>
+  <% end %>
+</nav>

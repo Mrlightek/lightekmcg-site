@@ -50,6 +50,7 @@
     } catch {
       status.textContent = 'Saved break settings are unavailable in this browser.';
     }
+    const designer = window.LightekSlateDesign?.boot(panel, slate());
     q('[data-break-save]').addEventListener('click', () => {
       try {
         localStorage.setItem(key, JSON.stringify({
@@ -179,7 +180,8 @@
       },
       stop,
       draw(ctx) {
-        drawSlate(ctx, slate());
+        if (designer) designer.draw(ctx);
+        else drawSlate(ctx, slate());
         if (!active || !visual?.ready) return;
         const { element } = visual;
         const w = element.videoWidth || element.naturalWidth;

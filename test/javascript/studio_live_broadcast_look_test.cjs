@@ -112,11 +112,29 @@ window.URL.revokeObjectURL = () => {};
 window.Image = Image;
 Object.defineProperty(field('image'), 'files', { value: [new window.File(['fixture'], 'set.png', { type: 'image/png' })] });
 field('backdrop').value = 'image';
+const notice = root.querySelector('[data-broadcast-look-status]');
+const applied = new Promise((resolve, reject) => {
+  const observer = new window.MutationObserver(() => {
+    if (!notice.textContent.startsWith('Applied.')) return;
+    clearTimeout(timeout);
+    observer.disconnect();
+    resolve();
+  });
+  const timeout = setTimeout(() => {
+    observer.disconnect();
+    reject(Error(notice.textContent));
+  }, 4000);
+  observer.observe(notice, { childList: true });
+});
 apply();
 
-setImmediate(() => {
+applied.then(() => {
   assert.equal(look.drawKeyedCamera(ctx, camera, rect, 0), true);
   assert.deepEqual(pixel(640, 360), [170, 51, 187, 255], 'uploaded image fills the keyed background');
   dom.window.close();
   console.log('STUDIO_LIVE_BROADCAST_LOOK_PASS four frame edges, transparent center, green and blue key, still and animated backdrops, local image');
+}).catch(error => {
+  dom.window.close();
+  console.error(error);
+  process.exitCode = 1;
 });

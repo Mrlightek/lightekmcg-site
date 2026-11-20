@@ -1,9 +1,7 @@
 <details class="ll-config" data-holding-break data-break-scope="<%= current_user.id %>:<%= @site.id %>" data-break-brand="<%= @site.name %>">
   <summary>Holding screen & commercial breaks</summary>
   <p class="ll-note">The holding screen hides the camera and screen and mutes microphones and guests. Start a break manually to play your lineup. If a source drops unexpectedly, viewers see the slate.</p>
-  <label>Brand or show name<input type="text" maxlength="60" value="<%= @site.name %>" data-break-brand-input></label>
-  <label>Heading<input type="text" maxlength="70" value="Back in a moment." data-break-heading></label>
-  <label>Message<input type="text" maxlength="120" value="Stay with us." data-break-message></label>
+  <%= render "dashboard/live_broadcasts/slate_design" %>
   <% break_visuals = @library_assets.select { |asset| %w[image video].include?(asset.kind) } %>
   <% 1.upto(3) do |position| %>
     <label>Break item <%= position %><select data-break-item>

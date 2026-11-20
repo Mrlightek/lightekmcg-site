@@ -339,6 +339,7 @@ jobs:
           node test/javascript/studio_live_graphics_test.cjs
           node test/javascript/studio_live_broadcast_look_test.cjs
           node test/javascript/studio_live_holding_break_test.cjs
+          node test/javascript/studio_live_slate_design_test.cjs
           node test/javascript/studio_live_guest_program_test.cjs
           node test/javascript/studio_live_show_presentation_test.cjs
           node test/javascript/studio_live_production_test.cjs

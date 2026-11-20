@@ -176,7 +176,7 @@ module LightekSales
 
         lead = Lead.find_by(site: @site, email: email.to_s.strip.downcase)
         lead ||= @workspace.save!('lead', {name: name, email: email, company: company.to_s.strip.presence || name,
-          source: prospect.provider, next_step: "Follow up on the #{prospect.provider_label} conversation.", follow_up_on: Date.current + 1})
+          source: prospect.provider, next_step: "Follow up with the #{prospect.provider_label} prospect.", follow_up_on: Date.current + 1})
         prospect.update!(lead: lead)
         lead
       end

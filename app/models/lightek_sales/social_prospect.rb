@@ -6,7 +6,8 @@ module LightekSales
 
     X_ID = /\A[0-9]{1,25}\z/
     X_USERNAME = /\A[a-z0-9_]{1,15}\z/
-    PROVIDER_LABELS = {'x' => 'X', 'facebook' => 'Facebook', 'linkedin' => 'LinkedIn', 'reddit' => 'Reddit'}.freeze
+    PROVIDER_LABELS = {'x' => 'X', 'facebook' => 'Facebook', 'linkedin' => 'LinkedIn',
+      'reddit' => 'Reddit', 'google_maps' => 'Google Maps'}.freeze
 
     belongs_to :site, class_name: 'DymondSite::Site'
     belongs_to :lead, class_name: 'LightekSales::Lead', optional: true
@@ -20,6 +21,9 @@ module LightekSales
     validates :web_username, format: {with: X_USERNAME}, allow_nil: true
     validates :web_profile_url, :web_source_url, presence: true, length: {maximum: 1024}, unless: :x?
     validates :web_display_name, length: {maximum: 120}, allow_nil: true
+    validates :web_display_name, presence: true, if: :maps?
+    validates :business_website_url, length: {maximum: 1024}, allow_nil: true
+    validates :website_finding, length: {maximum: 1000}, allow_nil: true
     validates :outreach_status, inclusion: {in: %w[ready sending sent uncertain]}
     validates :contact_permission, length: {maximum: 250}
     validate do
@@ -27,6 +31,7 @@ module LightekSales
     end
 
     def x? = provider == 'x'
+    def maps? = provider == 'google_maps'
     def web_only? = !x? || web_username.present?
     def provider_label = PROVIDER_LABELS.fetch(provider)
 

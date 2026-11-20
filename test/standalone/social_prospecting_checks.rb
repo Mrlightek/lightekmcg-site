@@ -11,6 +11,8 @@ require ROOT.join('db/migrate/20261120120100_add_web_identity_to_sales_social_pr
 AddWebIdentityToSalesSocialProspects.new.migrate(:up)
 require ROOT.join('db/migrate/20261120120200_add_prospecting_web_sources_and_cadences')
 AddProspectingWebSourcesAndCadences.new.migrate(:up)
+require ROOT.join('db/migrate/20261120120300_add_google_maps_business_prospect_fields')
+AddGoogleMapsBusinessProspectFields.new.migrate(:up)
 
 %w[secret audit_event].each { |name| require ROOT.join("app/models/lightek_vault/#{name}") }
 %w[master_key crypto policy service].each { |name| require ROOT.join("app/services/lightek_vault/#{name}") }
@@ -287,6 +289,48 @@ class SocialProspectingChecks < GrowthFoundationChecks
     assert_equal ['canceled', 'canceled'], tasks.pluck(:status)
     foreign = LightekSales::ProspectingCadences.new(actor: @other, site: @foreign_site)
     assert_raises(ActiveRecord::RecordNotFound) { foreign.apply!(**options, prospect_id: prospect.id) }
+  end
+
+  def test_prospecting_saves_google_maps_business_and_a_website_finding
+    save_path = save_web_dashboard_sales_prospecting_path(site_id: @site.id)
+    details = {provider: 'google_maps', display_name: 'Peachtree Accounting',
+      listing_url: 'https://maps.app.goo.gl/examplePlace?g_st=ic', website_url: 'https://accounting.example.test/contact#about',
+      website_finding: 'The mobile contact form does not submit.'}
+    Net::HTTP.stub(:start, ->(*) { flunk 'Saving a Maps link must not contact any external site' }) do
+      2.times do
+        post save_path, params: details.merge(authenticity_token: token), headers: headers
+        assert_response :see_other
+      end
+      prospect = LightekSales::SocialProspect.where(site: @site, provider: 'google_maps').sole
+      assert_equal 'Peachtree Accounting', prospect.name
+      assert_equal 'https://maps.app.goo.gl/examplePlace', prospect.source_url
+      assert_equal 'https://accounting.example.test/contact', prospect.business_website_url
+
+      get dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: prospect.id), headers: headers
+      assert_response :success
+      page = Nokogiri::HTML(response.body)
+      search = page.at_css('form[action="https://www.google.com/maps/search/"]')
+      assert_equal '1', search.at_css('input[name="api"]')['value']
+      assert search.at_css('input[name="query"]')
+      assert_includes response.body, details.fetch(:website_finding)
+      assert_equal prospect.business_website_url, page.at_css('[data-prospect-draft] a')['href']
+      assert_includes response.body, 'Schedule follow-up'
+      assert_nil @prospecting.account
+    end
+
+    web = LightekSales::WebProspecting.new(actor: @owner, site: @site)
+    assert_raises(ArgumentError) do
+      web.save_maps_business!(listing_url: 'https://maps.app.goo.gl.example.test/fake',
+        name: 'Wrong domain', website_url: nil, finding: nil)
+    end
+    assert_raises(ArgumentError) do
+      web.save_maps_business!(listing_url: details[:listing_url], name: details[:display_name],
+        website_url: 'javascript:alert(1)', finding: nil)
+    end
+    prospect = web.save_maps_business!(listing_url: 'https://maps.google.com/?cid=12345', name: 'A second business',
+      website_url: nil, finding: 'No website listed.')
+    assert_equal 'https://www.google.com/maps?cid=12345', prospect.profile_url
+    assert_nil prospect.business_website_url
   end
 
   def test_prospecting_follow_up_uses_the_sales_queue_and_honors_do_not_contact

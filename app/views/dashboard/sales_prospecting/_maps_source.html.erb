@@ -1,0 +1,21 @@
+<details>
+  <summary>Google Maps</summary>
+  <%= form_tag "https://#{source.fetch(:host)}#{source.fetch(:search_path)}", method: :get, enforce_utf8: false,
+    target: '_blank', rel: 'noopener noreferrer', data: {turbo: false}, class: 'sales-filters sales-editor' do %>
+    <%= hidden_field_tag :api, '1', id: nil %>
+    <label>Business type and location<%= search_field_tag :query, nil, required: true, maxlength: 200,
+      id: 'google_maps_search_query', placeholder: 'Accounting firms in Atlanta, GA' %></label>
+    <button type="submit" class="sales-button secondary">Search on Google Maps</button>
+  <% end %>
+  <%= form_with url: save_web_dashboard_sales_prospecting_path(site_id: @site.id), class: 'sales-form sales-editor' do %>
+    <%= hidden_field_tag :provider, 'google_maps', id: nil %>
+    <div class="sales-form-grid">
+      <label>Business name<%= text_field_tag :display_name, nil, required: true, maxlength: 120, id: 'google_maps_display_name' %></label>
+      <label>Google Maps share link<%= url_field_tag :listing_url, nil, required: true, maxlength: 1024, id: 'google_maps_listing_url' %></label>
+      <label>Business website (optional)<%= url_field_tag :website_url, nil, maxlength: 1024, id: 'google_maps_website_url' %></label>
+      <label>Website finding (optional)<%= text_area_tag :website_finding, nil, rows: 2, maxlength: 1000,
+        id: 'google_maps_website_finding', placeholder: 'The mobile contact form does not submit.' %></label>
+    </div>
+    <div class="sales-actions"><button type="submit" class="sales-button">Save business prospect</button></div>
+  <% end %>
+</details>

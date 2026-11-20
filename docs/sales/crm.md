@@ -38,6 +38,11 @@ page link. From the saved prospect, copy your draft and open the profile
 to send it where that platform allows messaging. The author link is
 required because the platform’s shared post link may omit the author.
 
+Use **Google Maps** to search by business type and location. Save a place
+link, the business name, and optionally its website and a specific
+website finding. Open the website to review it, then write a draft or
+schedule an assigned follow-up from the same prospect record.
+
 Use **Create cadence** to save a reusable set of steps. Enter the action
 and number of days after the start time for each step, then open a
 prospect to apply it to an owner. Applying the same cadence again

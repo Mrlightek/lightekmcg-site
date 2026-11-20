@@ -15,6 +15,7 @@ resources :dashboard_agency_trials, path: '/dashboard/agency-trials', controller
   post :upgrade, on: :member
   post :resend, on: :member
   patch :publish, on: :collection
+  patch :pricing, on: :collection
 end
 
 get '/request-agency-demo', to: 'agency_trial_requests#new', as: :request_agency_demo

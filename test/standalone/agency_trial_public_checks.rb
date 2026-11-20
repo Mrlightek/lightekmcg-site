@@ -7,7 +7,14 @@ CreateLightekAgencyTrialRequests.new.migrate(:up)
 require ROOT.join('app/models/lightek_agency/trial')
 require ROOT.join('app/models/lightek_agency/trial_request')
 LightekAgency::TrialRequest.generated_token_verifier = User.generated_token_verifier
-ActiveRecord::Base.connection.add_column(:users, :access_suspended_at, :datetime)
+ActiveRecord::Schema.define do
+  add_column :users, :access_suspended_at, :datetime
+  add_column :lightek_commerce_products, :slug, :string
+  add_column :lightek_commerce_products, :currency, :string, default: 'usd'
+  add_column :lightek_commerce_products, :track_inventory, :boolean, default: false
+  add_column :lightek_commerce_products, :inventory_quantity, :integer, default: 0
+end
+LightekCommerce::Product.reset_column_information
 User.reset_column_information
 class User
   def access_active? = access_suspended_at.nil?
@@ -101,6 +108,17 @@ class AgencyTrialPublicChecks < AgencyDemoChecks
     patch publish_dashboard_agency_trials_path, params: {site_id: @site.id, enabled: '0'}
     assert_redirected_to dashboard_agency_trials_path
     assert_raises(ActiveRecord::RecordNotFound) { get request_agency_demo_path }
+  end
+
+  def test_public_agency_trial_price_is_set_from_dashboard_and_shown_on_request_form
+    login(@platform)
+    patch pricing_dashboard_agency_trials_path, params: {site_id: @site.id, annual_price: '275.25'}
+    assert_redirected_to dashboard_agency_trials_path
+    assert_equal 27_525, LightekAgency::Trial.annual_price_cents(@site)
+    get dashboard_agency_trials_path
+    assert_select 'input[name="annual_price"][value="275.25"]'
+    get request_agency_demo_path
+    assert_includes response.body, '$275.25'
   end
 
   def test_public_agency_trial_is_bound_to_the_published_website

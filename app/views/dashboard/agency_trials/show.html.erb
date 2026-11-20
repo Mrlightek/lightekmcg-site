@@ -33,8 +33,10 @@
         <p>Waiting for payment confirmation. Refresh this page to check your membership.</p>
       <% end %>
       <p>Your membership unlocks client management, white-label branding, and reseller tools. Hosting is purchased separately. The membership renews annually, plus applicable tax.</p>
-      <% price = number_to_currency(LightekAgency::Trial::ANNUAL_PRICE_CENTS / 100, precision: 0) %>
-      <%= button_to "Upgrade for #{price}/year", upgrade_dashboard_agency_trial_path(@trial), class: 'lp-button', form: {data: {turbo: false}} %>
+      <% price_cents = @trial.checkout_price_cents %>
+      <% price = number_to_currency(price_cents.fdiv(100)) %>
+      <%= button_to "Upgrade for #{price}/year", upgrade_dashboard_agency_trial_path(@trial), class: 'lp-button',
+        params: {price_cents: price_cents}, form: {data: {turbo: false}} %>
     <% end %>
   </section>
 </main>

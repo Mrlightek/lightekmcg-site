@@ -21,9 +21,9 @@ require Rails.root.join('app/jobs/lightek_agency/membership_expiry_job').to_s
 class AgencyTrialMembershipChecks < CommerceHostingTest
   CommerceHostingTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
 
-  def invite(site: @site)
+  def invite(site: @site, email: 'nia@example.test')
     LightekAgency::Trial.invite!(operator: @operator, billing_site: site, duration_days: 3,
-      brand_name: 'Northside Media', identity: {first_name: 'Nia', last_name: 'Jones', email_address: 'nia@example.test'})
+      brand_name: 'Northside Media', identity: {first_name: 'Nia', last_name: 'Jones', email_address: email})
   end
 
   def subscription_data(order, period_end: 1.year.from_now)
@@ -34,11 +34,11 @@ class AgencyTrialMembershipChecks < CommerceHostingTest
     end
   end
 
-  def checkout_event(order, payment_status: 'paid')
+  def checkout_event(order, payment_status: 'paid', checkout_id: 'cs_agency', subscription_id: 'sub_agency')
     OpenStruct.new(type: 'checkout.session.completed', data: OpenStruct.new(object: OpenStruct.new(
-      id: 'cs_agency', metadata: LightekCommerce::PaymentIdentity.metadata(order), mode: 'subscription',
-      payment_status: payment_status, subscription: 'sub_agency', currency: 'usd', amount_subtotal: 20_000,
-      amount_total: 20_000, total_details: OpenStruct.new(amount_tax: 0, amount_shipping: 0))))
+      id: checkout_id, metadata: LightekCommerce::PaymentIdentity.metadata(order), mode: 'subscription',
+      payment_status: payment_status, subscription: subscription_id, currency: 'usd', amount_subtotal: order.subtotal_cents,
+      amount_total: order.total_cents, total_details: OpenStruct.new(amount_tax: 0, amount_shipping: 0))))
   end
 
   def test_invitation_and_pending_checkout_keep_the_prospect_unprivileged
@@ -60,6 +60,40 @@ class AgencyTrialMembershipChecks < CommerceHostingTest
     LightekCommerce::StripeEvents.process!(checkout_event(order, payment_status: 'unpaid'))
     assert_equal 'client', trial.prospect.reload.role
     assert_nil trial.reload.paid_through
+  end
+
+  def test_price_updates_apply_to_new_orders_and_preserve_existing_checkout_amounts
+    trial = invite
+    order = trial.reserve_order!(expected_price_cents: 20_000)
+
+    %w[0.49 250.001 -1].each do |invalid|
+      assert_raises(LightekAgency::Trial::Invalid) { LightekAgency::Trial.set_annual_price!(@site, dollars: invalid) }
+    end
+    LightekAgency::Trial.set_annual_price!(@site, dollars: '249.50')
+    assert_equal 24_950, LightekAgency::Trial.annual_price_cents(@site)
+    assert_equal 20_000, trial.checkout_price_cents
+    assert_equal order.id, trial.reserve_order!(expected_price_cents: 20_000).id
+
+    next_trial = invite(email: 'second@example.test')
+    assert_raises(LightekAgency::Trial::Invalid) { next_trial.reserve_order!(expected_price_cents: 20_000) }
+    assert_nil next_trial.reload.order
+    next_order = next_trial.reserve_order!(expected_price_cents: 24_950)
+    assert_equal 24_950, next_order.subtotal_cents
+    assert_equal 24_950, next_order.items.sole.unit_price_cents
+
+    order.update!(payment_reference: 'cs_agency')
+    Stripe::Subscription.stub(:retrieve, subscription_data(order)) do
+      LightekCommerce::StripeEvents.process!(checkout_event(order))
+    end
+    assert trial.reload.paid_access?
+    assert_equal 20_000, order.reload.commerce_subscription.amount_cents
+
+    next_order.update!(payment_reference: 'cs_agency_next')
+    Stripe::Subscription.stub(:retrieve, subscription_data(next_order)) do
+      LightekCommerce::StripeEvents.process!(checkout_event(next_order, checkout_id: 'cs_agency_next', subscription_id: 'sub_agency_next'))
+    end
+    assert next_trial.reload.paid_access?
+    assert_equal 24_950, next_order.reload.commerce_subscription.amount_cents
   end
 
   def test_purchase_activates_the_same_user_and_replay_creates_one_profile
@@ -89,6 +123,7 @@ class AgencyTrialMembershipChecks < CommerceHostingTest
       LightekCommerce::StripeEvents.process!(checkout_event(order))
     end
     original_end = trial.reload.paid_through
+    LightekAgency::Trial.set_annual_price!(@site, dollars: '300')
     start_of_renewal = original_end + 1.minute
     invoice = {'id' => 'in_agency_renewal', 'subscription' => 'sub_agency', 'status' => 'paid', 'currency' => 'usd',
       'amount_paid' => 20_000, 'subtotal' => 20_000, 'tax' => 0, 'total' => 20_000, 'billing_reason' => 'subscription_cycle'}
@@ -99,6 +134,7 @@ class AgencyTrialMembershipChecks < CommerceHostingTest
     assert_operator trial.reload.paid_through, :>, original_end + 11.months
     assert_equal 1, LightekCommerce::BillingInvoice.count
     assert_equal 'agency_membership', trial.paid_order.purpose
+    assert_equal 20_000, trial.paid_order.subtotal_cents
     assert LightekCommerce::MerchantPayouts.ineligible_reason(trial.paid_order)
     LightekAgency::MembershipExpiryJob.new.perform(trial.id)
     assert_equal 'white_label', trial.prospect.reload.role

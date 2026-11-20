@@ -6,7 +6,8 @@ module LightekAgency
 
     DEFAULT_DURATION_DAYS = 3
     PUBLIC_SITE_FLAG = 'public_agency_trial'
-    ANNUAL_PRICE_CENTS = 20_000
+    DEFAULT_ANNUAL_PRICE_CENTS = 20_000
+    MIN_ANNUAL_PRICE_CENTS = 50
     SAMPLE_WHOLESALE_DOLLARS = 30
     ORDER_PURPOSE = 'agency_membership'
     PRODUCT_SLUG = 'lightek-agency-annual-membership'
@@ -55,14 +56,52 @@ module LightekAgency
       paid_order&.status.in?(%w[paid fulfilled partially_refunded])
     end
 
-    def reserve_order!
+    def self.annual_price_cents(site)
+      LightekCommerce::Product.find_by(site: site, slug: PRODUCT_SLUG)&.price_cents || DEFAULT_ANNUAL_PRICE_CENTS
+    end
+
+    def self.set_annual_price!(site, dollars:)
+      amount = dollars.to_s.strip
+      price_cents = (BigDecimal(amount) * 100).to_i if amount.match?(/\A\d{1,6}(?:\.\d{1,2})?\z/)
+      unless price_cents && price_cents >= MIN_ANNUAL_PRICE_CENTS
+        raise Invalid, 'Enter an annual price from $0.50 to $999,999.99, with up to two decimal places.'
+      end
+
+      with_membership_offer(site) { |offer| offer.update!(price_cents: price_cents) }
+    end
+
+    def self.with_membership_offer(site)
+      site.with_lock do
+        offer = LightekCommerce::Product.find_or_create_by!(site: site, slug: PRODUCT_SLUG) do |item|
+          item.assign_attributes(name: 'Lightek Agency membership', product_type: 'service', billing_interval: 'year',
+            price_cents: DEFAULT_ANNUAL_PRICE_CENTS, published: false, currency: 'usd', track_inventory: false, inventory_quantity: 0)
+        end
+        offer.with_lock do
+          unless !offer.published? && offer.product_type == 'service' && offer.billing_interval == 'year' &&
+              offer.currency == 'usd' && offer.price_cents.positive?
+            raise Invalid, 'The annual membership offer needs operator review.'
+          end
+
+          yield offer
+        end
+      end
+    end
+
+    def checkout_price_cents
+      order&.status == 'pending_payment' ? order.subtotal_cents : self.class.annual_price_cents(billing_site)
+    end
+
+    def reserve_order!(expected_price_cents: nil)
       with_lock do
         raise Invalid, 'Agency access is already active.' if paid_access?
         remove_agency_access! if activated_at?
         raise Invalid, 'This login cannot purchase the agency membership.' unless prospect.reload.role == 'client' && prospect.agency_id.in?([nil, operator_id])
 
         existing = order
-        return existing if existing&.status == 'pending_payment'
+        if existing&.status == 'pending_payment'
+          verify_checkout_price!(expected_price_cents, existing.subtotal_cents)
+          return existing
+        end
         if existing&.commerce_subscription&.status.in?(%w[active trialing past_due unpaid incomplete paused])
           raise Invalid, 'Your existing subscription needs billing attention. Contact Lightek support before starting another checkout.'
         end
@@ -72,27 +111,19 @@ module LightekAgency
           raise Invalid, 'The agency billing storefront is unavailable.'
         end
 
-        product = billing_site.with_lock do
-          LightekCommerce::Product.find_or_create_by!(site: billing_site, slug: PRODUCT_SLUG) do |item|
-            item.assign_attributes(name: 'Lightek Agency membership', product_type: 'service', billing_interval: 'year',
-              price_cents: ANNUAL_PRICE_CENTS, published: false, currency: 'usd', track_inventory: false, inventory_quantity: 0)
-          end
+        self.class.with_membership_offer(billing_site) do |offer|
+          price_cents = offer.price_cents
+          verify_checkout_price!(expected_price_cents, price_cents)
+          purchase = LightekCommerce::Order.create!(site: billing_site, hosting_owner: prospect, customer_email: prospect.email_address,
+            purpose: ORDER_PURPOSE, currency: 'usd', status: 'pending_payment', stock_reserved: false,
+            subtotal_cents: price_cents, total_cents: price_cents)
+          purchase.items.create!(product: offer, name: offer.name, quantity: 1,
+            unit_price_cents: price_cents, line_total_cents: price_cents,
+            purchase_snapshot: {'billing_interval' => 'year', 'product_type' => 'service', 'track_inventory' => false})
+          update!(order: purchase)
+          LightekCommerce::ReservationExpiryJob.set(wait: 35.minutes).perform_later(purchase.id)
+          purchase
         end
-        product.lock!
-        unless !product.published? && product.product_type == 'service' && product.billing_interval == 'year' &&
-            product.currency == 'usd' && product.price_cents == ANNUAL_PRICE_CENTS
-          raise Invalid, 'The annual membership offer needs operator review.'
-        end
-
-        purchase = LightekCommerce::Order.create!(site: billing_site, hosting_owner: prospect, customer_email: prospect.email_address,
-          purpose: ORDER_PURPOSE, currency: 'usd', status: 'pending_payment', stock_reserved: false,
-          subtotal_cents: ANNUAL_PRICE_CENTS, total_cents: ANNUAL_PRICE_CENTS)
-        purchase.items.create!(product: product, name: product.name, quantity: 1,
-          unit_price_cents: ANNUAL_PRICE_CENTS, line_total_cents: ANNUAL_PRICE_CENTS,
-          purchase_snapshot: {'billing_interval' => 'year', 'product_type' => 'service', 'track_inventory' => false})
-        update!(order: purchase)
-        LightekCommerce::ReservationExpiryJob.set(wait: 35.minutes).perform_later(purchase.id)
-        purchase
       end
     end
 
@@ -104,14 +135,17 @@ module LightekAgency
       trial.with_lock do
         return unless trial.order_id == order.id && order.paid_at?
 
+        line = order.items.sole
+        price_cents = line.unit_price_cents
         payment = receipt ? receipt.settlement_order : order
-        return unless payment&.paid_at? && payment.status.in?(%w[paid fulfilled]) &&
-          payment.subtotal_cents == ANNUAL_PRICE_CENTS
+        return unless payment&.paid_at? && payment.status.in?(%w[paid fulfilled]) && payment.subtotal_cents == price_cents
 
         subscription = order.commerce_subscription
-        unless order.hosting_owner_id == trial.prospect_id && trial.billing_site_id == order.site_id &&
+        unless price_cents.positive? && line.quantity == 1 && line.line_total_cents == price_cents &&
+            line.purchase_snapshot['billing_interval'] == 'year' && order.subtotal_cents == price_cents &&
+            order.hosting_owner_id == trial.prospect_id && trial.billing_site_id == order.site_id &&
             subscription&.billing_interval == 'year' && subscription.currency == 'usd' &&
-            subscription.amount_cents == ANNUAL_PRICE_CENTS && order.subtotal_cents == ANNUAL_PRICE_CENTS
+            subscription.amount_cents == price_cents
           raise Invalid, 'Agency payment does not match the invited account and annual offer.'
         end
 
@@ -151,6 +185,12 @@ module LightekAgency
     end
 
     private
+
+    def verify_checkout_price!(expected_price_cents, actual_price_cents)
+      return if expected_price_cents.nil? || Integer(expected_price_cents.to_s, 10, exception: false) == actual_price_cents
+
+      raise Invalid, 'The checkout price changed. Review the annual price and try again.'
+    end
 
     def remove_agency_access!
       prospect.with_lock do

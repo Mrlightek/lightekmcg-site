@@ -4,7 +4,7 @@
   <section class="auth-panel">
     <div class="auth-card">
       <h1>Try Lightek Agency</h1>
-      <p class="auth-intro">Explore the agency workspace for <%= LightekAgency::Trial::DEFAULT_DURATION_DAYS %> days. If you decide to upgrade, agency membership is <%= number_to_currency(LightekAgency::Trial::ANNUAL_PRICE_CENTS / 100, precision: 0) %> per year.</p>
+      <p class="auth-intro">Explore the agency workspace for <%= LightekAgency::Trial::DEFAULT_DURATION_DAYS %> days. If you decide to upgrade, agency membership is <%= number_to_currency(LightekAgency::Trial.annual_price_cents(@site).fdiv(100)) %> per year.</p>
       <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
       <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
       <%= form_with scope: :trial_request, url: request_agency_demo_path, data: {turbo: false} do |f| %>

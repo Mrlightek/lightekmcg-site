@@ -2,7 +2,7 @@ class Dashboard::AgencyTrialsController < ApplicationController
   layout 'dymond_dash/layouts/dymond_dash'
   protect_from_forgery with: :exception
   before_action :private_response
-  before_action :require_operator!, only: %i[index create resend publish]
+  before_action :require_operator!, only: %i[index create resend publish pricing]
   before_action :load_prospect_trial, only: %i[show update upgrade]
   rate_limit to: 5, within: 3.minutes, only: :resend
 
@@ -37,6 +37,12 @@ class Dashboard::AgencyTrialsController < ApplicationController
     redirect_to dashboard_agency_trials_path, notice: notice, status: :see_other
   end
 
+  def pricing
+    site = LightekAgency::Trial.billing_sites(current_user).find(params.require(:site_id))
+    LightekAgency::Trial.set_annual_price!(site, dollars: params.require(:annual_price))
+    redirect_to dashboard_agency_trials_path, notice: 'Annual price saved for new checkouts.', status: :see_other
+  end
+
   def show; end
 
   def update
@@ -49,7 +55,7 @@ class Dashboard::AgencyTrialsController < ApplicationController
   end
 
   def upgrade
-    order = @trial.reserve_order!
+    order = @trial.reserve_order!(expected_price_cents: params.require(:price_cents))
     url = dashboard_agency_trial_url(@trial)
     checkout = LightekCommerce::StripeCheckout.start!(order: order, success_url: dashboard_agency_trial_url(@trial, checkout: 'returned'), cancel_url: url)
     redirect_to checkout.url, allow_other_host: true, status: :see_other

@@ -2,15 +2,24 @@
 <%= stylesheet_link_tag '/lightek/people-workspace.css' %>
 <main class="lp-workspace">
   <header class="lp-heading">
-    <div><h1>Agency demos</h1><p>Invite a prospect to try Lightek Agency. Their subscription is <%= number_to_currency(LightekAgency::Trial::ANNUAL_PRICE_CENTS / 100, precision: 0) %> per year.</p></div>
+    <div><h1>Agency demos</h1><p>Publish a demo for your website or invite a prospect directly.</p></div>
   </header>
 
   <section class="lp-card">
     <h2>Public agency demo</h2>
-    <p>Share this form on your website or in Live Studio. Visitors enter their own details and confirm their email to start the demo.</p>
+    <p>Share this form on your website or in Live Studio. Price changes apply to new checkouts. Existing checkouts and subscriptions keep their agreed price.</p>
     <% @sites.each do |site| %>
       <div>
         <strong><%= site.name %></strong>
+        <%= form_with url: pricing_dashboard_agency_trials_path, method: :patch, class: 'lp-form' do %>
+          <%= hidden_field_tag :site_id, site.id %>
+          <div>
+            <%= label_tag "annual_price_#{site.id}", 'Annual membership price (USD)' %>
+            <%= number_field_tag :annual_price, format('%.2f', LightekAgency::Trial.annual_price_cents(site).fdiv(100)),
+              id: "annual_price_#{site.id}", min: LightekAgency::Trial::MIN_ANNUAL_PRICE_CENTS.fdiv(100), max: '999999.99', step: '0.01', required: true %>
+          </div>
+          <%= submit_tag 'Save annual price', class: 'lp-button secondary' %>
+        <% end %>
         <% if LightekAgency::Trial.public_site?(site) %>
           <% url = request_agency_demo_url(host: site.host, protocol: 'https', port: nil) %>
           <p><%= link_to url, url %></p>

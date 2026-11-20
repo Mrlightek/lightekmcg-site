@@ -35,3 +35,14 @@
 @media(max-width:600px){.ll-slate-fields{grid-template-columns:minmax(0,1fr)}}
 
 .ll-effects-preview{display:block;width:min(100%,500px);height:auto;margin:12px 0;border-radius:8px;border:1px solid var(--ll-line);background:#0b121b}
+
+.ll-motion-editor{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(230px,1fr);gap:18px;padding:14px 0 0;align-items:start}
+.ll-motion-monitor,.ll-motion-controls{min-width:0}
+.ll-motion-monitor .ll-effects-preview{width:100%;max-width:none;margin:0 0 10px;background-color:#17202b;background-image:conic-gradient(#202c3a 25%,transparent 0 50%,#202c3a 0 75%,transparent 0);background-size:24px 24px}
+.ll-motion-actions{display:flex;flex-wrap:wrap;gap:7px}
+.ll-motion-actions [data-effects-cue]{background:#c4e6d0;color:#12251a;border-color:#c4e6d0}
+.ll-motion-placement{margin:8px 0}
+.ll-motion-placement summary{cursor:pointer}
+[data-live-effects] [hidden]{display:none}
+@media(max-width:850px){.ll-motion-editor{grid-template-columns:minmax(0,1fr)}}
+.ll-motion-actions [data-effects-download]{align-self:center;font-weight:650;text-decoration:underline;text-underline-offset:3px}

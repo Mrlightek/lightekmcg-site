@@ -7,6 +7,7 @@ get '/dashboard/sales/prospecting/x/callback', to: 'dashboard/sales_prospecting#
 post '/dashboard/sales/prospecting/disconnect', to: 'dashboard/sales_prospecting#disconnect', as: :disconnect_dashboard_sales_prospecting
 post '/dashboard/sales/prospecting/search', to: 'dashboard/sales_prospecting#search', as: :search_dashboard_sales_prospecting
 post '/dashboard/sales/prospecting/save', to: 'dashboard/sales_prospecting#save', as: :save_dashboard_sales_prospecting
+post '/dashboard/sales/prospecting/save-web', to: 'dashboard/sales_prospecting#save_web', as: :save_web_dashboard_sales_prospecting
 post '/dashboard/sales/prospecting/:id/message', to: 'dashboard/sales_prospecting#message', as: :message_dashboard_sales_prospect
 post '/dashboard/sales/prospecting/:id/block', to: 'dashboard/sales_prospecting#block_contact', as: :block_contact_dashboard_sales_prospect
 post '/dashboard/sales/prospecting/:id/lead', to: 'dashboard/sales_prospecting#lead', as: :lead_dashboard_sales_prospect

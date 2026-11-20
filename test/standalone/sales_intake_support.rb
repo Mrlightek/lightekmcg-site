@@ -48,6 +48,7 @@ module LightekAgency
     class Denied < StandardError; end
     class << self
       attr_accessor :allowed, :reserved, :released
+      def allowed?(*) = allowed
       def authorize!(*args)
         raise Denied, 'Commerce disabled' unless allowed
         true

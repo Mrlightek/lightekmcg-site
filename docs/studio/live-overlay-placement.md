@@ -63,3 +63,11 @@ To reuse a design, name it and select **Save theme** in the matching creator. Fr
 Open **Holding screen & commercial breaks** and customize the site's slate. Choose up to three images or videos from the Studio library in playback order and, optionally, a separate music bed. Save settings to reuse the lineup in this browser. Select **Holding screen** to run the break or **Skip to next item** to advance it. Images play for ten seconds. Videos play to the end with their own audio. The slate returns after the lineup. **Resume program** ends the break and restores the live program. An unexpected source loss shows only the slate. Use a private recording to check the audience audio on playback.
 
 The **Holding slate designer** includes layouts, typography, colors, a logo, background artwork, and an optional website, handle, or sponsor line. Use **Artwork only** to show an externally designed card across the frame. Choose **Apply & save slate** when the private draft is ready. The applied slate covers both manual breaks and source interruptions.
+
+### Register viewers for demos
+
+When the website’s agency has enabled public demo requests, select **Show demo registration QR during breaks** and save the break settings. The registration URL and QR appear on the slate and commercials during manually started breaks. The link opens the agency’s existing public demo form and uses its usual email confirmation.
+
+### Cue animated effects
+
+In **Special effects layer**, design a burst, confetti cue or light sweep, or import a local GIF. Set its position, size, opacity and duration. Choose **Preview effect** to rehearse off air, **Cue on program** to play it above the live picture, and **Clear effects layer** to take it off air. Titles, comments and frames remain above effects. A holding screen clears the effect.

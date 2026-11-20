@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_20_120100) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_20_120300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -3634,6 +3634,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_120100) do
     t.check_constraint "amount_cents >= 0 AND probability >= 0 AND probability <= 100", name: "sales_opportunity_amount_probability"
   end
 
+  create_table "lightek_sales_prospecting_cadences", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.json "steps", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "name"], name: "idx_sales_prospecting_cadence_name", unique: true
+    t.index ["site_id"], name: "index_lightek_sales_prospecting_cadences_on_site_id"
+  end
+
   create_table "lightek_sales_quotes", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "opportunity_id", null: false
@@ -3686,7 +3696,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_120100) do
     t.bigint "contacted_by_id"
     t.string "provider", null: false
     t.string "remote_id"
-    t.string "source_post_id", null: false
+    t.string "source_post_id"
     t.string "sender_id"
     t.string "outreach_status", default: "ready", null: false
     t.string "provider_message_id"
@@ -3696,10 +3706,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_120100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "web_username"
+    t.string "web_profile_url"
+    t.string "web_source_url"
+    t.string "web_display_name"
+    t.string "business_website_url"
+    t.text "website_finding"
     t.index ["contacted_by_id"], name: "index_lightek_sales_social_prospects_on_contacted_by_id"
     t.index ["lead_id"], name: "index_lightek_sales_social_prospects_on_lead_id"
     t.index ["saved_by_id"], name: "index_lightek_sales_social_prospects_on_saved_by_id"
     t.index ["site_id", "provider", "remote_id"], name: "idx_lightek_sales_social_prospect_identity", unique: true
+    t.index ["site_id", "provider", "web_profile_url"], name: "idx_sales_prospect_web_profile", unique: true, where: "(web_profile_url IS NOT NULL)"
     t.index ["site_id", "provider", "web_username"], name: "idx_lightek_sales_social_prospect_web_identity", unique: true, where: "(web_username IS NOT NULL)"
     t.index ["site_id"], name: "index_lightek_sales_social_prospects_on_site_id"
   end
@@ -5984,6 +6000,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_120100) do
   add_foreign_key "lightek_sales_opportunities", "lightek_marketing_contacts", column: "contact_id"
   add_foreign_key "lightek_sales_opportunities", "lightek_sales_accounts", column: "account_id"
   add_foreign_key "lightek_sales_opportunities", "users", column: "owner_id"
+  add_foreign_key "lightek_sales_prospecting_cadences", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_quotes", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_quotes", "lightek_commerce_orders", column: "order_id"
   add_foreign_key "lightek_sales_quotes", "lightek_sales_opportunities", column: "opportunity_id"

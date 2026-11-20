@@ -113,9 +113,10 @@ module Studio
           autoplay: @config["autoplay"], captions: @config["captions"]}
       end
       def channel_card(channel)
+        playback = channel.managed_playout? ? "#{@origin}#{channel.managed_path}" : channel.playback_url
         {id: "channel-#{channel.id}", title: channel.name, description: channel.description, image_url: channel.image_url, is_live: true, badge: "LIVE",
-          action: {type: "play", id: "play-channel-#{channel.id}", label: "Watch live", content_id: "channel-#{channel.id}", playback_url: channel.playback_url,
-            stream_format: URI.parse(channel.playback_url).path.end_with?(".m3u8") ? "hls" : "mp4", captions: @config["captions"], autoplay: @config["autoplay"]}}
+          action: {type: "play", id: "play-channel-#{channel.id}", label: "Watch live", content_id: "channel-#{channel.id}", playback_url: playback,
+            stream_format: URI.parse(playback).path.end_with?(".m3u8") ? "hls" : "mp4", captions: @config["captions"], autoplay: @config["autoplay"]}}
       end
       def active_channels
         scope = Channel.where(site_id: site.id, status: "published").order(:position, :id)
@@ -128,7 +129,13 @@ module Studio
           item = card(slot.post)
           item&.merge(starts_at: slot.starts_at.iso8601, ends_at: slot.ends_at.iso8601, subtitle: slot.starts_at <= Time.current ? "On now" : "Up next")
         end
-        row("program-guide", "On now & up next", items) if items.any?
+        airings = Airing.where(channel_id: active_channels.where(managed_playout: true).select(:id))
+          .where(status: %w[ready on_air]).includes(:channel).order(:starts_at).limit(50)
+        items += airings.map do |slot|
+          channel_card(slot.channel).merge(id: "airing-#{slot.id}", title: slot.title, starts_at: slot.starts_at.iso8601,
+            ends_at: slot.ends_at.iso8601, subtitle: slot.status == "on_air" ? "On now" : "Up next")
+        end
+        row("program-guide", "On now & up next", items.sort_by { |item| item[:starts_at] }.first(50)) if items.any?
       end
     end
   end

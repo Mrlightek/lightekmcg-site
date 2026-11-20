@@ -132,3 +132,9 @@ pwa_member_capacity_alerts:
   queue: default
   active_job: true
   description: 'Notify the pool operator before free-member hosting fills; never resize automatically'
+
+studio_channel_playout_sweep:
+  cron: "* * * * *"
+  class: "Studio::Broadcasting::PlayoutSweepJob"
+  queue: default
+  active_job: true

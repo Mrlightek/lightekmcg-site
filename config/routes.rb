@@ -740,6 +740,11 @@ get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 
+get "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/channel_playout#show", as: :dashboard_channel_playout
+post "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/channel_playout#create"
+post "/dashboard/live/channels/:channel_id/rundown/:airing_id/command", to: "dashboard/channel_playout#command", as: :dashboard_channel_playout_command
+get "/gatekeeper/linear/:channel_id/:name", to: "linear_channel_streams#show", format: false,
+  constraints: { channel_id: /[0-9]+/, name: /index\.m3u8|out-[0-9]+\.ts/ }
 get "/dashboard/live/production", to: "dashboard/live_broadcasts#production", as: :dashboard_live_production
 post "/dashboard/live/production", to: "dashboard/live_broadcasts#save_production"
 get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_20_200000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_20_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1641,6 +1641,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_200000) do
     t.datetime "confirmed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "business_type", default: "general", null: false
     t.index ["operator_id"], name: "index_lightek_agency_trial_requests_on_operator_id"
     t.index ["site_id", "email_address", "created_at"], name: "index_agency_trial_requests_on_site_and_email"
     t.index ["site_id"], name: "index_lightek_agency_trial_requests_on_site_id"
@@ -1660,6 +1661,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_200000) do
     t.datetime "paid_through"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "business_type", default: "general", null: false
     t.index ["billing_site_id"], name: "index_lightek_agency_trials_on_billing_site_id"
     t.index ["operator_id"], name: "index_lightek_agency_trials_on_operator_id"
     t.index ["order_id"], name: "index_lightek_agency_trials_on_order_id", unique: true

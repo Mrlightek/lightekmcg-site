@@ -1,0 +1,11 @@
+<% content_for :title, 'Start your Lightek Agency demo' %>
+<main class="auth-shell">
+  <%= render 'authentication/story' %>
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h1>Start your agency demo</h1>
+      <p class="auth-intro">Confirm your email and choose a password for your private workspace. Your <%= LightekAgency::Trial::DEFAULT_DURATION_DAYS %>-day demo is free.</p>
+      <%= button_to 'Confirm email and start demo', confirm_agency_demo_path(params[:token]), class: 'auth-submit', form: {data: {turbo: false}} %>
+    </div>
+  </section>
+</main>

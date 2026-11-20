@@ -19,6 +19,7 @@ on:
       - 'public/lightek/accounting-live.js'
       - 'test/standalone/enterprise*'
       - 'test/standalone/agency_demo_checks.rb'
+      - 'test/standalone/agency_trial_public_checks.rb'
       - 'config/schedule.yml'
       - 'db/migrate/*agency_demos*'
       - 'public/lightek/mfa-enrollment*'
@@ -73,7 +74,7 @@ jobs:
       - name: Verify authentication, tenant permissions and bookkeeping workflows
         env:
           MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render
-        run: ruby test/standalone/agency_demo_checks.rb
+        run: ruby test/standalone/agency_trial_public_checks.rb
       - name: Verify branded MFA challenge and security behavior
         env:
           MFA_QR_CAPTURE_DIR: /tmp/mfa-qr-render

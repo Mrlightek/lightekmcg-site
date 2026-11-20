@@ -5,6 +5,12 @@
     <div><span class="lp-eyebrow"><%= @agency_profile&.brand_name.presence || 'Lightek' %></span>
       <h1>Your workspace</h1><p>Your websites, services and account, together in one place.</p></div>
   </header>
+  <% if @agency_trial %>
+    <section class="lp-card">
+      <h2><%= @agency_trial.brand_name %></h2>
+      <%= link_to (@agency_trial.preview_open? ? 'Open agency demo' : 'View agency membership'), dashboard_agency_trial_path(@agency_trial), class: 'lp-button' %>
+    </section>
+  <% end %>
   <section class="lp-card">
     <h2>Your websites</h2>
     <% @demos.each do |demo| %><p><%= link_to demo.name, dashboard_demo_path(demo), class: 'lp-button secondary' %> · <%= demo.active? ? "Demo until #{demo.expires_at.to_date}" : demo.status.humanize %></p><% end %>

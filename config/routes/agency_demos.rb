@@ -9,3 +9,16 @@ end
 
 get '/dashboard/reseller-packages', to: 'dashboard/reseller_packages#index', as: :dashboard_reseller_packages
 post '/dashboard/reseller-packages', to: 'dashboard/reseller_packages#create'
+
+resources :dashboard_agency_trials, path: '/dashboard/agency-trials', controller: 'dashboard/agency_trials',
+  only: %i[index create show update] do
+  post :upgrade, on: :member
+  post :resend, on: :member
+  patch :publish, on: :collection
+  patch :pricing, on: :collection
+end
+
+get '/request-agency-demo', to: 'agency_trial_requests#new', as: :request_agency_demo
+post '/request-agency-demo', to: 'agency_trial_requests#create'
+get '/request-agency-demo/confirm/:token', to: 'agency_trial_requests#show', as: :confirm_agency_demo
+post '/request-agency-demo/confirm/:token', to: 'agency_trial_requests#activate'

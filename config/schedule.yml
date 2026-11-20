@@ -5,6 +5,12 @@ agency_demo_cleanup:
   queue: default
   active_job: true
 
+agency_membership_expiry:
+  cron: "*/5 * * * *"
+  class: "LightekAgency::MembershipExpiryJob"
+  queue: default
+  active_job: true
+
 susu_cycle_reminders:
   cron: "0 9 * * *" # Daily at 9:00 AM
   class: "SusuCycleReminderJob"

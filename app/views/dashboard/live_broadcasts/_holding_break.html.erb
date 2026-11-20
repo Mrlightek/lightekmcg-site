@@ -19,12 +19,22 @@
     <% end %>
   </select></label>
   <label>Music level<input type="range" min="0" max="1" step="0.05" value="0.25" data-break-volume></label>
-  <% if @break_demo_url %>
-    <label><input type="checkbox" data-break-demo="<%= @break_demo_url %>"> Show demo registration QR during breaks</label>
-    <%= link_to "Open the public demo form", @break_demo_url, target: "_blank", rel: "noopener" %>
+  <% if @break_agency_demo_url || @break_demo_url %>
+    <label><input type="checkbox" data-break-demo="<%= @break_agency_demo_url || @break_demo_url %>"> Show demo registration QR during breaks</label>
+    <% if @break_agency_demo_url && @break_demo_url %>
+      <label>Demo form for the QR<select data-break-demo-target>
+        <option value="<%= @break_agency_demo_url %>">Agency membership demo</option>
+        <option value="<%= @break_demo_url %>">Client workspace demo</option>
+      </select></label>
+    <% end %>
+    <% if @break_agency_demo_url %><%= link_to 'Open the agency demo form', @break_agency_demo_url, target: '_blank', rel: 'noopener' %><% end %>
+    <% if @break_demo_url %><%= link_to 'Open the client demo form', @break_demo_url, target: '_blank', rel: 'noopener' %><% end %>
+    <% if @break_agency_settings_path %><%= link_to 'Agency demo settings', @break_agency_settings_path %><% end %>
   <% else %>
-    <p class="ll-note">Enable public demo requests for this website’s agency to add a registration QR.
-      <% if @break_demo_settings_path %><%= link_to "Open demo settings", @break_demo_settings_path %><% end %>
+    <p class="ll-note">
+      Enable a public demo form to add a registration QR.
+      <% if @break_agency_settings_path %><%= link_to 'Agency demo settings', @break_agency_settings_path %><% end %>
+      <% if @break_demo_settings_path %><%= link_to 'Client demo settings', @break_demo_settings_path %><% end %>
     </p>
   <% end %>
   <button type="button" data-break-save>Save break settings</button>

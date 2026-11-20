@@ -355,6 +355,7 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   resources :studio_character_animations, path: "/studio/pipeline/characters", only: %i[create show] do
     member do
       post :retry_login
+      post :retry_queued
       post :render_only
       get :preview, format: false
     end

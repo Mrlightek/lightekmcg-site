@@ -43,6 +43,10 @@ class StudioCharacterAnimationsController < ApplicationController
     update_operation { @pipeline.retry_login(@operation) }
   end
 
+  def retry_queued
+    update_operation { @pipeline.retry_queued(@operation, params[:attempt].to_s) }
+  end
+
   def render_only
     update_operation { @pipeline.render_only(@operation, animation_params) }
   end

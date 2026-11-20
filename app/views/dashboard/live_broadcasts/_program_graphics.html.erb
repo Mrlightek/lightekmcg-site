@@ -1,0 +1,16 @@
+<details class="ll-config" data-live-graphics>
+  <summary>Program graphics</summary>
+  <div class="ll-grid">
+    <label>Title<input type="text" maxlength="80" data-graphic="title"></label>
+    <label>Subtitle<input type="text" maxlength="120" data-graphic="subtitle"></label>
+    <label>Placement<select data-graphic="layout">
+      <option value="lower">Lower third</option>
+      <option value="corner">Top left</option>
+      <option value="title">Centered title</option>
+    </select></label>
+    <label>Accent<input type="color" value="#b5f58b" data-graphic="accent"></label>
+  </div>
+  <button type="button" data-show-graphic>Show / update graphic</button>
+  <button type="button" data-hide-graphic disabled>Hide graphic</button>
+  <p role="status" data-graphic-status>Graphic hidden.</p>
+</details>

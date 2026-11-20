@@ -45,3 +45,7 @@ Pending local changes must be saved to the production setup to survive navigatio
 Focused Rails/HTTP checks cover version 3 round trips, scene locks, asset/site/access boundaries, malformed values, downgrade protection, template/episode independence and rendering the actual Live page controls. DOM checks cover valid/invalid edits, reset, setup save/load and legacy default restoration. A real PNG/native-canvas test checks pixel placement, aspect padding, alpha blend, off-screen clipping, hidden/zero-opacity output and canvas-state restoration.
 
 The existing Chromium library/program test is extended with actual program-canvas position/opacity/holding pixels and version 3 source loading/saving. It is queued for CI; Chromium cannot launch in the implementation container, so that browser result is not claimed as locally passed. Real devices, multi-person sessions and destination playback remain in the integrated verification sprint.
+
+## Create a graphic in Live Studio
+
+Open **Program graphics**, enter a title and optional subtitle, choose a placement and accent color, then select **Show / update graphic**. Check the program preview before broadcasting. **Hide graphic** removes it from the program. Graphics are local to the current Studio session and appear in the same canvas as the library image and featured comment. The holding screen hides the graphic and ending the session clears it. A private recording can verify the combined output.

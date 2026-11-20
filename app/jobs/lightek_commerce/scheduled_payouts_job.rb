@@ -46,6 +46,7 @@ module LightekCommerce
             Order.where(site_id: sites.select(:id), status: 'fulfilled', merchant_transfer_ref: nil)
               .where.not(paid_at: nil).find_each do |order|
               begin
+                next if MerchantPayouts.ineligible_reason(order)
                 MerchantPayouts.request!(order: order, merchant: merchant)
               rescue StandardError => error
                 failed << "Order ##{order.id}: #{error.message}"

@@ -13,7 +13,7 @@ class StudioBroadcastChannel < ApplicationCable::Channel
   end
   def start(_data = {})
     ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user.reload, operation: @operation)
-    Studio::Live::Sessions.authorize_content!(@operation,current_user)
+    authorize_source!
     @operation.with_lock do
       raise Studio::Live::Encoder::Failure, "This session was already started. Start a new session." unless @operation.status == "draft"
       @operation.update!(status: "connecting")
@@ -21,7 +21,7 @@ class StudioBroadcastChannel < ApplicationCable::Channel
     end
     Rails.logger.info("[StudioLive] encoder starting operation=#{@operation.id} user=#{current_user.id}")
     test = @operation.metadata["destination"] == "test"
-    hls = %w[lightek simulcast].include?(@operation.metadata["destination"])
+    hls = %w[lightek simulcast channel_input].include?(@operation.metadata["destination"])
     output = hls ? Studio::Live::Encoder.hls_path(@operation.id) : test ? Studio::Live::Encoder.recording_path(@operation.id) : Studio::Live::Destination.output!(current_user, provider: @operation.metadata.fetch("destination"))
     relay = @operation.metadata["destination"] == "simulcast" ? Studio::Live::Destination.output!(current_user, provider: "restream") : nil
     @encoder = Studio::Live::Encoder.new(output: output, test: test, hls: hls, relay_output: relay, on_event: method(:encoder_event)).start!
@@ -51,16 +51,23 @@ class StudioBroadcastChannel < ApplicationCable::Channel
     end
     ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user.reload, operation: @operation)
     LightekPwa::Policy.new(user: current_user, site: @operation.studio_project.site).authorize!("watch") if %w[lightek simulcast].include?(@operation.metadata["destination"])
-    Studio::Live::Sessions.authorize_content!(@operation,current_user)
+    authorize_source!
     Studio::Live::Sessions.scope.where(id: @operation.id, status: %w[draft connecting live]).update_all(updated_at: Time.current)
     @last_heartbeat = Time.current
-  rescue ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, LightekPwa::Policy::Denied, ActiveRecord::RecordNotFound => error
+  rescue ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied, ActiveRecord::RecordNotFound => error
     fail_session(error)
   end
   def unsubscribed
     stop
   end
   private
+  def authorize_source!
+    Studio::Live::Sessions.authorize_content!(@operation, current_user)
+    if @operation.metadata["destination"] == "channel_input"
+      Studio::Broadcasting::Access.authorize!(current_user, @operation.studio_project.site)
+    end
+  end
+
   # Action Cable's debug action/transmit logger must never print media chunks or tickets.
   def logger
     @silent_logger ||= ActiveSupport::Logger.new(File::NULL)

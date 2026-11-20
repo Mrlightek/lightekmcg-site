@@ -9,6 +9,14 @@ Sidekiq.configure_server do |config|
       capsule.concurrency = 1
       capsule.queues = %w[studio]
     end
+    config.capsule('playout') do |capsule|
+      capsule.concurrency = 2
+      capsule.queues = %w[playout]
+    end
+    config.capsule('playout_prepare') do |capsule|
+      capsule.concurrency = 1
+      capsule.queues = %w[playout_prepare]
+    end
     config.capsule('nevaeh_voice') do |capsule|
       capsule.concurrency=1
       capsule.queues=%w[nevaeh_voice]

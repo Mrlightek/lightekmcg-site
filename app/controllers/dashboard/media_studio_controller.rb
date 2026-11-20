@@ -118,7 +118,7 @@ class Dashboard::MediaStudioController < Dashboard::SettingsHomeController
   end
   def save_channel
     record = params[:id].present? ? channels.find(params[:id]) : channels.new
-    record.update!(params.require(:channel).permit(:name, :description, :playback_url, :image_url, :status, :position, :lock_version))
+    record.update!(params.require(:channel).permit(:name, :description, :managed_playout, :playback_url, :image_url, :status, :position, :lock_version))
     back("Channel saved.")
   end
   def schedule

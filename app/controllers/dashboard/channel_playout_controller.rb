@@ -1,0 +1,69 @@
+# frozen_string_literal: true
+
+class Dashboard::ChannelPlayoutController < Dashboard::SettingsHomeController
+  skip_before_action :require_settings_operator!
+  protect_from_forgery with: :exception
+  before_action :load_channel
+  rescue_from LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied, ::Gatekeeper::StudioLivePolicy::Denied do |error|
+    render plain: error.message, status: :forbidden
+  end
+  rescue_from ArgumentError, KeyError, ActiveRecord::RecordInvalid do |error|
+    redirect_to dashboard_channel_playout_path(@channel, site_id: @site.id), alert: error.message, status: :see_other
+  end
+
+  def show
+    actor = Studio::PwaAccess.new("user_id" => current_user.id, "site_id" => @site.id)
+    @videos = StudioAsset.for_actor(actor).where(site_id: @site.id, status: "ready", kind: "video")
+      .includes(proxy_attachment: :blob).order(id: :desc).limit(100)
+      .select { |asset| asset.proxy.attached? && asset.metadata["duration"].to_f >= 2 }
+    @airings = @channel.airings.order(starts_at: :desc).limit(40)
+    @inputs = inputs.order(id: :desc).limit(20).select { |operation| input_ready?(operation) }
+    @relays = %w[tiktok restream].filter_map do |provider|
+      [Studio::Live::Destination.provider!(provider).fetch(:label), provider] if Studio::Live::Destination.configured?(current_user, provider: provider)
+    end
+    @playlist = @channel.managed_path
+  end
+
+  def create
+    raw = params.require(:airing).permit(:title, :starts_at, :relay, rows: %i[kind asset_id seconds label sponsor])
+    source = raw[:rows]
+    rows = source.respond_to?(:values) ? source.values.map(&:to_h) : []
+    airing = Studio::Broadcasting::Airing.schedule!(channel: @channel, operator: current_user, title: raw[:title],
+      starts_at: Time.zone.parse(raw[:starts_at].to_s), relay: raw[:relay].presence, rows: rows)
+    Studio::Broadcasting::PrepareAiringJob.perform_later(airing.id)
+    back("Rundown scheduled. Check preparation status before airtime.")
+  end
+
+  def command
+    airing = @channel.airings.find(params[:airing_id])
+    input = inputs.find(params.require(:input_id)) if params[:command] == "break"
+    raise ArgumentError, "Start a private channel contribution and wait for it to send video." if input && !input_ready?(input)
+    airing.command!(params[:command], input: input)
+    back(params[:command] == "cancel" ? "Rundown cancelled." : "Playout change requested.")
+  end
+
+  private
+
+  def load_channel
+    response.set_header("Cache-Control", "private, no-store")
+    ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user)
+    @site = Studio::Broadcasting::Access.site(user: current_user, host: request.host, id: params[:site_id])
+    raise ActiveRecord::RecordNotFound unless @site
+    Studio::Broadcasting::Access.authorize!(current_user, @site)
+    @channel = Studio::Broadcasting::Channel.where(site_id: @site.id, managed_playout: true).find(params[:channel_id])
+  end
+
+  def inputs
+    Studio::Live::Sessions.for_user(current_user).joins(:studio_project)
+      .where(status: "live", studio_projects: { site_id: @site.id })
+      .where("studio_live_operations.metadata ->> 'destination' = ?", "channel_input")
+  end
+
+  def input_ready?(operation)
+    operation.updated_at > 25.seconds.ago && Studio::Live::Encoder.hls_path(operation.id).file?
+  end
+
+  def back(notice)
+    redirect_to dashboard_channel_playout_path(@channel, site_id: @site.id), notice: notice, status: :see_other
+  end
+end

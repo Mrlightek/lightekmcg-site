@@ -1,0 +1,102 @@
+<% content_for :page_title, "#{@channel.name} · Channel playout" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<%= javascript_include_tag "/lightek/live/playout.js?v=1", defer: true %>
+
+<main class="ll-studio ll-playout">
+  <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
+  <header class="ll-header">
+    <div><h1><%= @channel.name %></h1><p>Channel rundown &amp; playout</p></div>
+    <span class="ll-badge"><%= { "published" => "Published channel", "draft" => "Private preview", "off_air" => "Off air" }.fetch(@channel.status) %></span>
+  </header>
+
+  <section class="ll-panel" aria-labelledby="channel-control">
+    <h2 id="channel-control">Channel control</h2>
+    <div class="ll-playout-actions">
+      <%= link_to "Open live contribution in a new tab", dashboard_live_path(site_id: @site.id, contribution: "1"), target: "_blank", rel: "noopener" %>
+      <%= link_to "Open channel playlist", @playlist %>
+      <%= link_to "Refresh status", dashboard_channel_playout_path(@channel, site_id: @site.id) %>
+    </div>
+    <p class="ll-note">Preview your camera, screen, or guest feed in Live Studio and start a private contribution. Keep that tab open while you take it to air.</p>
+    <% @airings.each do |airing| %>
+      <details class="ll-config" <%= "open" if airing.status == "on_air" %>>
+        <summary><strong><%= airing.title %></strong> · <%= l(airing.starts_at, format: :short) %> <%= airing.starts_at.strftime("%Z") %> · <%= airing.status.humanize %></summary>
+        <% if airing.error_message.present? %><p role="status"><%= airing.error_message %></p><% end %>
+        <% if airing.status == "on_air" %>
+          <% if airing.state["input"] %>
+            <p>Live cut-in selected</p>
+            <%= form_with url: dashboard_channel_playout_command_path(@channel, airing, site_id: @site.id), class: "ll-playout-actions" do |form| %>
+              <%= form.button "Resume where we left off", name: "command", value: "resume" %>
+              <%= form.button "Rejoin at current airtime", name: "command", value: "clock" %>
+              <%= form.button "Skip to next segment", name: "command", value: "next" %>
+            <% end %>
+          <% elsif @inputs.any? %>
+            <%= form_with url: dashboard_channel_playout_command_path(@channel, airing, site_id: @site.id), class: "ll-playout-actions" do |form| %>
+              <label>Live contribution <%= form.select :input_id, @inputs.map { |input| [input.metadata["title"], input.id] }, { prompt: "Choose a ready contribution" }, required: true %></label>
+              <%= form.button "Break in", name: "command", value: "break" %>
+            <% end %>
+          <% else %>
+            <p class="ll-note">Start a private contribution, then refresh to select it here.</p>
+          <% end %>
+        <% elsif airing.status.in?(%w[preparing ready]) %>
+          <%= button_to "Cancel airing", dashboard_channel_playout_command_path(@channel, airing, site_id: @site.id), params: { command: "cancel" } %>
+        <% end %>
+        <ol class="ll-playout-list">
+          <% airing.rundown.each do |row| %>
+            <li><%= Studio::Broadcasting::Airing::SLOT_TYPES.fetch(row["kind"]) %> · <%= row["label"] %> · <%= row["seconds"] %>s<%= " · #{row["sponsor"]}" if row["sponsor"].present? %></li>
+          <% end %>
+        </ol>
+        <% if airing.events.any? %>
+          <details class="ll-config"><summary>As-aired log</summary>
+            <ol class="ll-playout-list">
+              <% airing.events.reverse_each do |event| %>
+                <li><time datetime="<%= event["at"] %>"><%= Time.zone.parse(event["at"]).strftime("%H:%M:%S %Z") %></time> · <%= event["type"].humanize %>
+                  <% details = event.values_at("label", "sponsor", "mode", "provider").select(&:present?) %>
+                  <%= " · #{details.join(' · ')}" if details.any? %></li>
+              <% end %>
+            </ol>
+          </details>
+        <% end %>
+      </details>
+    <% end %>
+    <% if @airings.empty? %><p>No rundowns scheduled yet.</p><% end %>
+  </section>
+
+  <section class="ll-panel" aria-labelledby="make-rundown">
+    <h2 id="make-rundown">Schedule a rundown</h2>
+    <% if @channel.status == "off_air" %>
+      <p>Set the channel to Draft for a private test or On air for viewers before scheduling.</p>
+    <% elsif @videos.empty? %>
+      <p>Add a video to your Studio asset library or upload one from <%= link_to "Live Studio", dashboard_live_path(site_id: @site.id) %>. It appears here after processing.</p>
+    <% else %>
+      <%= form_with url: dashboard_channel_playout_path(@channel, site_id: @site.id), scope: :airing, data: { rundown_editor: true } do |form| %>
+        <div class="ll-playout-actions">
+          <label>Show title <%= form.text_field :title, maxlength: 120, required: true %></label>
+          <label>Airtime (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, required: true %></label>
+          <label>Also send to <%= form.select :relay, @relays, { include_blank: "Channel only" }, disabled: @channel.status != "published" %></label>
+        </div>
+        <p class="ll-note">Rows air in order. Leave duration blank to use the full video in whole seconds. Sponsor text appears over that row’s video.</p>
+        <div data-rundown-rows></div>
+        <template data-rundown-row>
+          <fieldset class="ll-playout-row">
+            <legend>Rundown row</legend>
+            <label>Slot <select data-field="kind"><%= options_for_select(Studio::Broadcasting::Airing::SLOT_TYPES.map { |value, name| [name, value] }, "segment") %></select></label>
+            <label>Library video <select data-field="asset_id" required><option value="">Choose a video</option><%= options_for_select(@videos.map { |asset| ["#{asset.name} · #{asset.metadata["duration"].to_f.floor}s", asset.id] }) %></select></label>
+            <label>Label <input data-field="label" maxlength="120"></label>
+            <label>Duration in seconds <input type="number" data-field="seconds" min="2" max="7200"></label>
+            <label>Sponsor text <input data-field="sponsor" maxlength="80"></label>
+            <div class="ll-playout-actions">
+              <button type="button" data-move="up" aria-label="Move row up">↑</button>
+              <button type="button" data-move="down" aria-label="Move row down">↓</button>
+              <button type="button" data-remove-row>Remove row</button>
+            </div>
+          </fieldset>
+        </template>
+        <div class="ll-playout-actions">
+          <button type="button" data-add-row>Add row</button>
+          <%= form.submit "Schedule broadcast" %>
+        </div>
+      <% end %>
+    <% end %>
+  </section>
+</main>

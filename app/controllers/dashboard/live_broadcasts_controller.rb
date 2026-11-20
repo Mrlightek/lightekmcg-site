@@ -4,7 +4,7 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
   before_action { ::Gatekeeper::StudioLivePolicy.authorize!(user: current_user) }
   protect_from_forgery with: :exception
   before_action :private_response
-  rescue_from ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, LightekPwa::Policy::Denied, with: :denied
+  rescue_from ::Gatekeeper::StudioLivePolicy::Denied, LightekCommunity::AccessDenied, LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied, with: :denied
   rescue_from Studio::Live::Destination::Unavailable, Studio::Live::Encoder::Failure, Studio::Live::Sessions::Busy, ArgumentError, with: :invalid
   def index
     @encoder_ready = Studio::Live::Encoder.available?
@@ -44,6 +44,14 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     if params[:scene_id].present?
       selected=Studio::Live::ProductionPreset.new(user:current_user,site:site).scene!(params[:scene_id])
       @production_scenes.unshift(selected) unless @production_scenes.any?{|scene|scene.id==selected.id}
+    end
+    @playout_channels = []
+    begin
+      Studio::Broadcasting::Access.authorize!(current_user, site)
+      @playout_available = true
+      @playout_channels = Studio::Broadcasting::Channel.where(site_id: site.id, managed_playout: true).order(:position, :id).to_a
+    rescue LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied
+      # Live capture can be enabled independently of channel administration.
     end
     @restream_chat_url = Studio::Live::Audience.chat_url(current_user)
     settings = Studio::Live::Audience.settings(current_user)

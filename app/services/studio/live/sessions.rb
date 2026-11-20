@@ -23,9 +23,13 @@ module Studio
       def self.create!(user:, destination:, title:, site: nil, community_slug: nil, audience: "everyone")
         ::Gatekeeper::StudioLivePolicy.authorize!(user: user)
         LightekPwa::Policy.new(user: user, site: site).authorize!("watch") if %w[lightek simulcast].include?(destination) && site
-        raise ArgumentError, "Choose a supported destination." unless %w[test tiktok restream lightek simulcast].include?(destination)
+        raise ArgumentError, "Choose a supported destination." unless %w[test tiktok restream lightek simulcast channel_input].include?(destination)
+        if destination == "channel_input"
+          raise ArgumentError, "Choose a site for the channel contribution." unless site
+          Studio::Broadcasting::Access.authorize!(user, site)
+        end
         provider = destination == "simulcast" ? "restream" : destination
-        if !%w[test lightek].include?(destination) && !Destination.configured?(user, provider: provider)
+        if !%w[test lightek channel_input].include?(destination) && !Destination.configured?(user, provider: provider)
           raise Destination::Unavailable, "Configure your #{Destination.provider!(provider)[:label]} streaming destination first."
         end
         raise Encoder::Failure, "FFmpeg is not installed on the application server." unless Encoder.available?
@@ -39,7 +43,7 @@ module Studio
           raise Busy, "End your current broadcast session before starting another." if for_user(user).where(status: %w[draft connecting live]).exists?
           raise Busy, "The broadcaster is at capacity. Try again after another session ends." if scope.where(status: %w[draft connecting live]).count >= 2
           project = StudioProject.create!(owner: user, site: site, name: title, description: "Lightek browser broadcast")
-          operation=StudioLiveOperation.create!(studio_project: project, platform: %w[test lightek simulcast].include?(destination) ? "lightek_streaming" : "tiktok", status: "draft", credential_ref: %w[test lightek].include?(destination) ? nil : Destination.slug(user, provider: provider),
+          operation=StudioLiveOperation.create!(studio_project: project, platform: %w[test lightek simulcast channel_input].include?(destination) ? "lightek_streaming" : "tiktok", status: "draft", credential_ref: %w[test lightek channel_input].include?(destination) ? nil : Destination.slug(user, provider: provider),
             metadata: {"broadcaster" => "browser_v1", "owner_id" => user.id, "destination" => destination, "title" => title})
           if %w[lightek simulcast].include?(destination)
             access=LightekCommunity::Access.new(user:user,site_id:site&.id)

@@ -1,6 +1,6 @@
 class LightekBlogController < ApplicationController
   skip_authorization_check
-  allow_unauthenticated_access only:%i[index show feed]
+  allow_unauthenticated_access only:%i[index show feed image]
   helper LightekDesign::StudioHelper
   helper DymondDash::TemplateSchemaHelper
   before_action :load_site
@@ -21,6 +21,10 @@ class LightekBlogController < ApplicationController
     @entry=entries.find_by!(slug:params[:slug])
     @page=Struct.new(:title,:theme,:sections).new(@entry.post.title,nil,[])
     render layout:website_layout
+  end
+  def image
+    entry = entries.find_by!(slug: params[:slug])
+    LightekBlog::Images.deliver(self, LightekBlog::Images.blob!(entry, params[:attachment_id]))
   end
   def feed
     xml=Nokogiri::XML::Builder.new(encoding:"UTF-8") do |rss|

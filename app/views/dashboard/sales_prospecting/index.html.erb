@@ -1,10 +1,10 @@
 <% content_for :page_title, 'Prospecting · Sales & CRM' %>
-<%= javascript_include_tag '/lightek/sales-prospecting.js?v=1', type: 'module' %>
+<%= javascript_include_tag '/lightek/sales-prospecting.js?v=2', type: 'module' %>
 <main class="sales-workspace">
   <%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %>
   <%= render 'dashboard/shared/business_workspace', active: 'Sales' %>
   <header class="sales-header">
-    <div><h1>Prospecting</h1><p>Find public X posts from people looking for services you offer.</p></div>
+    <div><h1>Prospecting</h1><p>Find buyers, save the source, and schedule your next conversation.</p></div>
     <%= form_with url: dashboard_sales_prospecting_path, method: :get, class: 'sales-site' do %>
       <label>Business website<%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %></label>
       <%= submit_tag 'Switch', class: 'sales-button secondary' %>
@@ -27,6 +27,50 @@
         placeholder: 'https://x.com/username/status/123456789' %></label>
       <button type="submit" class="sales-button">Save prospect</button>
     <% end %>
+  </section>
+
+  <section class="sales-panel">
+    <h2>Other prospecting sources</h2>
+    <% LightekSales::WebProspecting::SOURCES.each do |provider, source| %>
+      <% if provider == 'google_maps' %>
+        <%= render 'dashboard/sales_prospecting/maps_source', source: source %>
+      <% else %>
+        <%= render 'dashboard/sales_prospecting/web_source', provider: provider, source: source %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="sales-panel" id="cadences">
+    <h2>Outreach cadences</h2>
+    <p>Save a follow-up plan and reuse it on a prospect. Each step creates a Sales task.</p>
+    <% @cadences.each do |cadence| %>
+      <details>
+        <summary><%= cadence.name %> · <%= pluralize(cadence.steps.length, 'step') %></summary>
+        <ol>
+          <% cadence.steps.each do |step| %><li>Day <%= step.fetch('days') %> · <%= step.fetch('title') %></li><% end %>
+        </ol>
+      </details>
+    <% end %>
+    <details>
+      <summary>Create cadence</summary>
+      <%= form_with url: cadences_dashboard_sales_prospecting_path(site_id: @site.id), scope: :cadence,
+        class: 'sales-form sales-editor' do |form| %>
+        <label>Cadence name<%= form.text_field :name, required: true, maxlength: 120 %></label>
+        <fieldset>
+          <legend>Follow-up steps</legend>
+          <div data-cadence-steps class="sales-form">
+            <%= render 'dashboard/sales_prospecting/cadence_step', days: 0, removable: false %>
+          </div>
+          <template data-cadence-step-template>
+            <%= render 'dashboard/sales_prospecting/cadence_step', days: nil, removable: true %>
+          </template>
+        </fieldset>
+        <div class="sales-actions">
+          <button type="button" class="sales-button secondary" data-add-cadence-step>Add step</button>
+          <%= form.submit 'Save cadence', class: 'sales-button' %>
+        </div>
+      <% end %>
+    </details>
   </section>
 
   <section class="sales-panel">
@@ -94,9 +138,13 @@
     <% if @prospects.empty? %><p>Save a promising result to review their account and follow up.</p><% end %>
     <% @prospects.each do |prospect| %>
       <article class="sales-panel">
+        <small><%= prospect.provider_label %></small>
         <h3><%= link_to prospect.name, prospect.profile_url, rel: 'noreferrer' %></h3>
         <div class="sales-actions">
-          <%= link_to 'View source post', prospect.source_url, rel: 'noreferrer' %>
+          <%= link_to (prospect.maps? ? 'View Maps listing' : 'View source post'), prospect.source_url, rel: 'noreferrer' %>
+          <% if prospect.maps? && prospect.business_website_url.present? %>
+            <%= link_to 'Review business website', prospect.business_website_url, target: '_blank', rel: 'noopener noreferrer' %>
+          <% end %>
           <% unless @selected_prospect %>
             <%= link_to 'Open prospect', dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: prospect.id) %>
           <% end %>
@@ -105,11 +153,15 @@
           <% end %>
           <% if prospect.lead %><%= link_to prospect.lead.name, dashboard_sales_record_path(kind: 'lead', id: prospect.lead.id, site_id: @site.id) %><% end %>
         </div>
+        <% if prospect.website_finding.present? %><p><strong>Website finding:</strong> <%= prospect.website_finding %></p><% end %>
         <% if prospect.contact_blocked_at? %>
           <p><strong>Do not contact</strong></p>
         <% else %>
           <% if @owners.any? %>
             <%= render 'dashboard/sales_prospecting/follow_up_form', prospect: prospect %>
+            <% if @selected_prospect && @cadences.any? %>
+              <%= render 'dashboard/sales_prospecting/cadence_form', prospect: prospect %>
+            <% end %>
           <% end %>
           <% unless prospect.web_only? %>
             <p><%= {'ready' => 'No message sent', 'sending' => 'Send started. Check the conversation on X before contacting again.',
@@ -118,18 +170,24 @@
           <% end %>
           <% if prospect.outreach_status == 'ready' %>
             <details>
-              <summary>Draft a DM for X</summary>
-              <div class="sales-form" data-x-dm-draft>
-                <label>Message<%= text_area_tag "x_web_dm_#{prospect.id}", nil, rows: 4, maxlength: 2000,
-                  autocomplete: 'off', data: {x_dm_text: true} %></label>
+              <summary><%= prospect.maps? ? 'Draft outreach' : "Draft a DM for #{prospect.provider_label}" %></summary>
+              <div class="sales-form" data-prospect-draft>
+                <label>Message<%= text_area_tag "prospect_dm_#{prospect.id}", nil, rows: 4, maxlength: 2000,
+                  autocomplete: 'off', data: {prospect_draft_text: true} %></label>
                 <div class="sales-actions">
-                  <button type="button" class="sales-button secondary" data-copy-x-dm>Copy draft</button>
-                  <% x_message_label = prospect.web_only? ? 'Open X profile' : 'Open DM on X' %>
-                  <%= link_to x_message_label, (prospect.thread_url || prospect.profile_url), class: 'sales-button secondary',
-                    target: '_blank', rel: 'noopener noreferrer' %>
+                  <button type="button" class="sales-button secondary" data-copy-prospect-draft>Copy draft</button>
+                  <% if prospect.maps? %>
+                    <%= link_to 'Open business contact source', prospect.business_website_url.presence || prospect.profile_url,
+                      class: 'sales-button secondary', target: '_blank', rel: 'noopener noreferrer' %>
+                  <% else %>
+                    <% message_label = prospect.web_only? ? "Open #{prospect.provider_label} profile" : 'Open DM on X' %>
+                    <%= link_to message_label, (prospect.thread_url || prospect.profile_url), class: 'sales-button secondary',
+                      target: '_blank', rel: 'noopener noreferrer' %>
+                  <% end %>
                 </div>
-                <% if prospect.web_only? %><small>On the X profile, choose Message if available.</small><% end %>
-                <small role="status" data-x-dm-status>Paste your draft into X to review and send it.</small>
+                <% if prospect.web_only? && !prospect.maps? %><small>Open the profile and choose the message option if available.</small><% end %>
+                <small role="status" data-prospect-draft-status><%= prospect.maps? ? 'Use the business’s published contact channel to review and send your draft.' :
+                  "Paste your draft into #{prospect.provider_label} to review and send it." %></small>
               </div>
             </details>
           <% end %>
@@ -153,7 +211,7 @@
               <label>Name<%= f.text_field :name, required: true, maxlength: 160 %></label>
               <label>Email they shared<%= f.email_field :email, required: true, maxlength: 254 %></label>
               <label>Company (optional)<%= f.text_field :company, maxlength: 160 %></label>
-              <label><%= check_box_tag :confirmed, '1', false, required: true, id: "lead_confirmed_#{prospect.id}" %> This person shared their email and agreed to link it to their X account.</label>
+              <label><%= check_box_tag :confirmed, '1', false, required: true, id: "lead_confirmed_#{prospect.id}" %> This person shared their email and agreed to link it to this prospect record.</label>
               <%= f.submit 'Save CRM lead', class: 'sales-button' %>
             <% end %>
           </details>

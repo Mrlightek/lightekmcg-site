@@ -37,7 +37,7 @@
     </section>
   <% elsif @tab == 'tasks' %>
     <section class="sales-panel"><h2>Scheduled follow-through</h2><p>Due dates surface tasks here automatically. Completing a task records its result; review the relationship’s next step separately.</p><nav class="sales-tabs" aria-label="Task status"><% %w[open completed canceled].each do |status| %><%= link_to status.humanize, dashboard_sales_path(site_id: @site.id, tab: 'tasks', task_status: status, owner_id: @owner_id), aria: {current: @task_status == status ? 'page' : nil} %><% end %></nav>
-      <% @tasks.each do |task| %><%= render 'task', task: task %><% end %><% if @tasks.empty? %><p class="sales-empty">No <%= @task_status %> tasks. Schedule one from a prospect or other sales record.</p><% end %><small>Showing up to 100 tasks, earliest due dates first.</small>
+      <% @tasks.each do |task| %><%= render 'task', task: task %><% end %><% if @tasks.empty? %><p class="sales-empty">No <%= @task_status %> tasks. Schedule one from a prospect or other sales record.</p><% end %><small>Showing up to 100 tasks. Open tasks with a recorded reply come first, then earliest due dates.</small>
     </section>
   <% elsif @tab == 'pipeline' %>
     <section class="sales-board" aria-label="Deal stages">

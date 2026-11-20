@@ -1,0 +1,19 @@
+<details>
+  <summary><%= source.fetch(:label) %></summary>
+  <%= form_tag "https://#{source.fetch(:host)}#{source.fetch(:search_path)}", method: :get, enforce_utf8: false,
+    target: '_blank', rel: 'noopener noreferrer', data: {turbo: false}, class: 'sales-filters sales-editor' do %>
+    <label>Keywords or phrase<%= search_field_tag source.fetch(:search_parameter), nil, required: true,
+      maxlength: 200, id: "#{provider}_search_query" %></label>
+    <button type="submit" class="sales-button secondary">Search on <%= source.fetch(:label) %></button>
+  <% end %>
+  <%= form_with url: save_web_dashboard_sales_prospecting_path(site_id: @site.id), class: 'sales-form sales-editor' do %>
+    <%= hidden_field_tag :provider, provider, id: nil %>
+    <div class="sales-form-grid">
+      <label>Post link<%= url_field_tag :post_url, nil, required: true, maxlength: 1024, id: "#{provider}_post_url" %></label>
+      <label>Author profile or page link<%= url_field_tag :profile_url, nil, required: true, maxlength: 1024,
+        id: "#{provider}_profile_url" %></label>
+      <label>Display name (optional)<%= text_field_tag :display_name, nil, maxlength: 120, id: "#{provider}_display_name" %></label>
+    </div>
+    <div class="sales-actions"><button type="submit" class="sales-button">Save prospect</button></div>
+  <% end %>
+</details>

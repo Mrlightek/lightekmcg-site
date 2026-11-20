@@ -19,5 +19,10 @@ const repo=path.resolve(__dirname,'../..'),preview=process.env.SITE_CONTENT_PREV
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'themed article fits '+width);await page.screenshot({path:path.join(preview,'article-'+width+'.png'),fullPage:true});
   await page.goto('http://localhost:19322/journal');assert(await page.getByRole('link',{name:'Own every layer',exact:true}).isVisible());assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'journal fits '+width);
  }
- assert.deepEqual(errors,[]);console.log('SITE_CONTENT_BROWSER_PASS 1440/1024/390: top editing actions, collapsed library, theme file/home selection, article formatting/focus/slugs and shared live navigation');
+ await page.goto('http://localhost:19322/interactive');
+ const interactive=page.frameLocator('iframe[title="Interactive design preview"]');
+ assert.equal(await interactive.locator('output').textContent(),'Ready');
+ await interactive.getByRole('button',{name:'Try it'}).click();
+ assert.equal(await interactive.locator('output').textContent(),'Interactive and isolated');
+ assert.deepEqual(errors,[]);console.log('SITE_CONTENT_BROWSER_PASS 1440/1024/390: editing actions, theme selection, article editing, shared navigation and isolated JavaScript preview');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

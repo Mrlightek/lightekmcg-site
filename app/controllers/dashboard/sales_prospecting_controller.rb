@@ -63,7 +63,17 @@ class Dashboard::SalesProspectingController < Dashboard::SettingsHomeController
   end
 
   def save_web
-    @prospecting.save_web_post!(params[:post_url])
+    provider = params[:provider].presence || 'x'
+    if provider == 'x'
+      @prospecting.save_web_post!(params[:post_url])
+    elsif provider == 'google_maps'
+      LightekSales::WebProspecting.new(actor: current_user, site: @site).save_maps_business!(
+        listing_url: params[:listing_url], name: params[:display_name], website_url: params[:website_url],
+        finding: params[:website_finding])
+    else
+      LightekSales::WebProspecting.new(actor: current_user, site: @site).save!(
+        provider: provider, post_url: params[:post_url], profile_url: params[:profile_url], name: params[:display_name])
+    end
     redirect_to dashboard_sales_prospecting_path(site_id: @site.id), notice: 'Prospect saved.', status: :see_other
   end
 
@@ -91,13 +101,30 @@ class Dashboard::SalesProspectingController < Dashboard::SettingsHomeController
       notice: 'Outreach outcome recorded.', status: :see_other
   end
 
+  def create_cadence
+    values = params.require(:cadence).permit(:name, steps: %i[days title]).to_h
+    LightekSales::ProspectingCadences.new(actor: current_user, site: @site).create!(
+      name: values[:name], steps: values[:steps])
+    redirect_to dashboard_sales_prospecting_path(site_id: @site.id, anchor: 'cadences'),
+      notice: 'Cadence saved.', status: :see_other
+  end
+
+  def apply_cadence
+    prospect = prospects.find(params[:id])
+    values = params.require(:cadence).permit(:cadence_id, :owner_id, :starts_at)
+    LightekSales::ProspectingCadences.new(actor: current_user, site: @site).apply!(
+      cadence_id: values[:cadence_id], prospect_id: prospect.id, owner_id: values[:owner_id], starts_at: values[:starts_at])
+    redirect_to dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: prospect.id),
+      notice: 'Cadence follow-ups are in Sales tasks.', status: :see_other
+  end
+
   def lead
-    raise ArgumentError, 'Confirm the prospect shared this email and agreed to link it to their X account.' unless params[:confirmed] == '1'
+    raise ArgumentError, 'Confirm the prospect shared this email and agreed to link it to their social account.' unless params[:confirmed] == '1'
 
     values = params.require(:lead).permit(:name, :email, :company)
     lead = @prospecting.link_lead!(prospects.find(params[:id]), name: values[:name], email: values[:email], company: values[:company])
     redirect_to dashboard_sales_record_path(kind: 'lead', id: lead.id, site_id: @site.id),
-      notice: 'X prospect linked to the Sales lead.', status: :see_other
+      notice: 'Prospect linked to the Sales lead.', status: :see_other
   end
 
   private
@@ -113,13 +140,14 @@ class Dashboard::SalesProspectingController < Dashboard::SettingsHomeController
   end
 
   def prospects
-    LightekSales::SocialProspect.where(site: @site, provider: 'x')
+    LightekSales::SocialProspect.where(site: @site)
   end
 
   def load_page
     @account = @prospecting.account
     @manage_connection = LightekAgency::Access.manage_members?(current_user, @site)
     @owners = LightekSales::Access.owners_for(@site).order(:email_address).to_a
+    @cadences = LightekSales::ProspectingCadence.where(site: @site).order(:name).to_a
     @selected_prospect = prospects.includes(:lead).find(params[:prospect_id]) if params[:prospect_id].present?
     @prospects = @selected_prospect ? [@selected_prospect] : prospects.includes(:lead).order(id: :desc).limit(50)
     if @selected_prospect

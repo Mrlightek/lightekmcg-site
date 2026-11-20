@@ -34,8 +34,8 @@ class Dashboard::SalesController < Dashboard::SettingsHomeController
     tasks = LightekSales::Task.visible_in_sales(@site).includes(:owner, :record)
     tasks = tasks.where(owner_id: @owner_id) if @owner_id
     @task_status = params[:task_status].to_s.in?(%w[open completed canceled]) ? params[:task_status] : 'open'
-    @tasks = tasks.where(status: @task_status).order(:due_at, :id).limit(100)
-    @due_tasks = tasks.due.order(:due_at, :id).limit(100)
+    @tasks = tasks.where(status: @task_status).in_queue_order.limit(100)
+    @due_tasks = tasks.due.in_queue_order.limit(100)
     @intake_count = LightekSales::IntakeEntry.where(site: @site, status: %w[awaiting_review needs_review]).count
     if @tab == 'pipeline'
       @stage_counts = deals.group(:stage).count

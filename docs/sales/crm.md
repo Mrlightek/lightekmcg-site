@@ -32,6 +32,24 @@ follow-up**. Due tasks appear in **Today**, and all tasks are available in
 to review task history or use **Log outreach** to record a manual outcome.
 Marking a prospect **Do not contact** cancels any open prospect follow-ups.
 
+Under **Other prospecting sources**, open Facebook, LinkedIn, or Reddit
+search in a new tab. Save a post together with its author’s profile or
+page link. From the saved prospect, copy your draft and open the profile
+to send it where that platform allows messaging. The author link is
+required because the platform’s shared post link may omit the author.
+
+Use **Google Maps** to search by business type and location. Save a place
+link, the business name, and optionally its website and a specific
+website finding. Open the website to review it, then write a draft or
+schedule an assigned follow-up from the same prospect record.
+
+Use **Create cadence** to save a reusable set of steps. Enter the action
+and number of days after the start time for each step, then open a
+prospect to apply it to an owner. Applying the same cadence again
+retains the original tasks. Steps appear in Sales Tasks and do not send
+messages. When the latest logged outreach outcome is **Reply received**,
+open tasks for that prospect appear ahead of other tasks in the queue.
+
 For API-backed search and sending, an owner or account
 manager can register the displayed callback URL in an X Web App, paste the
 app’s OAuth client ID and secret, and choose **Continue to X**. Sign in as the
@@ -58,10 +76,7 @@ an existing conversation on X.
 
 When a prospect voluntarily shares their email and agrees to link it to their
 X identity, choose **Create or link a CRM lead**. An existing lead with that
-email keeps its history. A new lead uses the `x` routing source. Apply the
-`create_lightek_sales_social_prospects` migration in the normal deployment.
-Facebook, Instagram, and LinkedIn use different provider permissions and
-are outside this X workflow.
+email keeps its history. A new lead uses its provider as the routing source.
 
 ## Companies and contacts
 

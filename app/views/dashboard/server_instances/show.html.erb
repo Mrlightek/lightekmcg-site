@@ -47,7 +47,21 @@
     <details class="infra-panel infra-delete"><summary>Delete this server instance</summary>
       <p>This permanently deletes the provider instance, its local data and every hosted application. The server record and operation history remain for audit. Account subscriptions are managed separately.</p>
       <%= form_with url: dashboard_server_path(@node), method: :delete, skip_default_ids: false, class: "infra-form" do |f| %>
-        <div class="infra-field"><%= f.label :confirmation, "Type #{@node.name} to confirm" %><%= f.text_field :confirmation, required: true, autocomplete: "off", spellcheck: false, aria: {describedby: "server-delete-help"} %><small id="server-delete-help">The name must match exactly. This action permanently removes the cloud instance.</small></div>
+        <div class="infra-field" data-controller="clipboard">
+          <%= label_tag "server-delete-name", "Server name" %>
+          <%= tag.input type: "text", id: "server-delete-name", value: @node.name, readonly: true,
+            dir: "auto", data: {clipboard_target: "source"} %>
+          <div class="infra-actions">
+            <%= button_tag "Copy server name", type: "button", class: "infra-button", data: {action: "clipboard#copy"} %>
+          </div>
+          <small role="status" data-clipboard-target="status"></small>
+        </div>
+        <div class="infra-field">
+          <%= f.label :confirmation, "Paste server name to confirm" %>
+          <%= f.text_field :confirmation, required: true, autocomplete: "off", autocapitalize: "none", spellcheck: false,
+            aria: {describedby: "server-delete-help"} %>
+          <small id="server-delete-help">The name must match exactly.</small>
+        </div>
         <div class="infra-form-footer"><p>Review the applications above before continuing.</p><%= f.submit "Permanently delete server", class: "infra-button infra-button-danger" %></div>
       <% end %>
     </details>

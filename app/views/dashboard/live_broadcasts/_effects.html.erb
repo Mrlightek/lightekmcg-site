@@ -1,24 +1,48 @@
 <details class="ll-config" data-live-effects>
-  <summary>Special effects layer</summary>
-  <canvas width="1280" height="720" class="ll-effects-preview" data-effects-preview aria-label="Private animation preview"></canvas>
-  <div class="ll-slate-fields">
-    <label>Animation<select data-effect="kind">
-      <option value="burst">Spark burst</option>
-      <option value="confetti">Confetti</option>
-      <option value="sweep">Light sweep</option>
-      <option value="gif">Animated GIF</option>
-    </select></label>
-    <label>GIF file<input type="file" accept=".gif,image/gif" data-effect="file"></label>
-    <label>Color<input type="color" value="#f7c460" data-effect="color"></label>
-    <label>Size (%)<input type="range" min="8" max="90" value="35" data-effect="size"></label>
-    <label>Horizontal position (%)<input type="range" min="0" max="100" value="50" data-effect="x"></label>
-    <label>Vertical position (%)<input type="range" min="0" max="100" value="45" data-effect="y"></label>
-    <label>Opacity (%)<input type="range" min="10" max="100" value="85" data-effect="opacity"></label>
-    <label>Cue length (seconds)<input type="number" min="1" max="30" value="3" data-effect="seconds"></label>
-    <label><input type="checkbox" data-effect="loop"> Loop until cleared</label>
+  <summary>Motion graphics &amp; GIFs</summary>
+  <div class="ll-motion-editor">
+    <div class="ll-motion-monitor">
+      <canvas width="1280" height="720" class="ll-effects-preview" data-effects-preview aria-label="Private motion graphics preview"></canvas>
+      <div class="ll-motion-actions">
+        <button type="button" data-effects-try>Play preview</button>
+        <button type="button" data-effects-cue>Cue on program</button>
+        <button type="button" data-effects-clear>Clear program layer</button>
+        <button type="button" data-effects-export>Create GIF</button>
+        <a data-effects-download hidden download="lightek-motion.gif">Save GIF</a>
+      </div>
+      <p class="ll-note" role="status" data-effects-status>Adjust the design in private. Cue it when you’re ready to show viewers.</p>
+    </div>
+    <div class="ll-motion-controls">
+      <label>Preset<select data-effect="kind">
+        <option value="nameplate">Editorial lower third</option>
+        <option value="opener">Segment title</option>
+        <option value="sweep">Cinematic light sweep</option>
+        <option value="traces">Silk light trails</option>
+        <option value="rings">Spotlight rings</option>
+        <option value="confetti">Metallic celebration</option>
+        <option value="gif">Import an animated GIF</option>
+      </select></label>
+      <div class="ll-slate-fields" data-effect-text-controls>
+        <label>Headline<input type="text" maxlength="44" value="Lightek Live" data-effect="title"></label>
+        <label>Subtitle<input type="text" maxlength="64" value="On air" data-effect="subtitle"></label>
+      </div>
+      <label data-effect-gif-controls hidden>GIF file<input type="file" accept=".gif,image/gif" data-effect="file"></label>
+      <div class="ll-slate-fields" data-effect-palette>
+        <label>Primary color<input type="color" value="#d6aa58" data-effect="color"></label>
+        <label>Accent color<input type="color" value="#c3def7" data-effect="accent"></label>
+      </div>
+      <details class="ll-motion-placement">
+        <summary>Placement &amp; timing</summary>
+        <div class="ll-slate-fields">
+          <label>Width (%)<input type="range" min="8" max="90" value="38" data-effect="size"></label>
+          <label>Horizontal position (%)<input type="range" min="0" max="100" value="25" data-effect="x"></label>
+          <label>Vertical position (%)<input type="range" min="0" max="100" value="80" data-effect="y"></label>
+          <label>Opacity (%)<input type="range" min="10" max="100" value="100" data-effect="opacity"></label>
+          <label>Cue length (seconds)<input type="number" min="1" max="30" value="3" data-effect="seconds"></label>
+          <label><input type="checkbox" data-effect="loop"> Loop until cleared</label>
+        </div>
+      </details>
+      <p class="ll-note" data-effect-export-note>GIF downloads are transparent, 480 × 270, and up to six seconds.</p>
+    </div>
   </div>
-  <button type="button" data-effects-try>Preview effect</button>
-  <button type="button" data-effects-cue>Cue on program</button>
-  <button type="button" data-effects-clear>Clear effects layer</button>
-  <p class="ll-note" role="status" data-effects-status>Preview stays private. Cue uses the current settings.</p>
 </details>

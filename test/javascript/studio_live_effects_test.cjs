@@ -3,7 +3,7 @@ const { readFileSync } = require('node:fs');
 const { runInNewContext } = require('node:vm');
 const { JSDOM } = require('jsdom');
 const { createCanvas, ImageData } = require('@napi-rs/canvas');
-const { GifWriter } = require('../../public/lightek/vendor/omggif/omggif.js');
+const { GifWriter, GifReader } = require('../../public/lightek/vendor/omggif/omggif.js');
 
 const source = name => readFileSync('public/lightek/live/' + name + '.js', 'utf8');
 const markup = readFileSync('app/views/dashboard/live_broadcasts/_effects.html.erb', 'utf8');
@@ -19,15 +19,24 @@ window.ImageData = ImageData;
 Object.defineProperty(window.performance, 'now', { value: () => 10000 });
 window.requestAnimationFrame = () => 0;
 window.cancelAnimationFrame = () => {};
+let exported;
+window.URL.createObjectURL = blob => { assert.equal(blob.type, 'image/gif'); return 'blob:https://studio.test/generated'; };
+window.URL.revokeObjectURL = () => {};
 window.Worker = class {
-  postMessage(data) {
-    const self = { postMessage: result => this.onmessage({ data: result }) };
-    const decoder = readFileSync('public/lightek/vendor/omggif/omggif.js', 'utf8');
-    runInNewContext(decoder + '\n' + source('effects-gif-worker'), { self, importScripts() {}, console });
-    self.onmessage({ data });
+  constructor(url) {
+    const exporting = url.includes('export');
+    this.scope = { postMessage: result => {
+      if (exporting && result.bytes) exported = new Uint8Array(result.bytes);
+      this.onmessage({ data: result });
+    }};
+    const omggif = readFileSync('public/lightek/vendor/omggif/omggif.js', 'utf8');
+    runInNewContext(omggif + '\n' + source(exporting ? 'effects-gif-export-worker' : 'effects-gif-worker'),
+      { self: this.scope, importScripts() {}, console });
   }
+  postMessage(data) { this.scope.onmessage({ data }); }
   terminate() {}
 };
+window.eval(source('effects-motion'));
 window.eval(source('effects'));
 const effects = window.LightekLiveEffects.boot(root);
 const program = createCanvas(1280, 720);
@@ -57,6 +66,37 @@ click('clear');
 blank();
 effects.draw(ctx, 13750);
 assert.deepEqual(pixels(), original, 'clear removes only the effect');
+const select = kind => {
+  field('kind').value = kind;
+  field('kind').dispatchEvent(new window.Event('change', { bubbles: true }));
+};
+for (const kind of ['nameplate', 'opener', 'sweep', 'traces', 'rings', 'confetti']) {
+  select(kind);
+  click('cue');
+  blank();
+  effects.draw(ctx, 11150);
+  assert.notDeepEqual(pixels(), original, kind + ' is visible on program');
+  assert.deepEqual(pixel(0, 0), [33, 50, 67, 255]);
+  click('clear');
+}
+select('nameplate');
+field('title').value = 'Studio Sessions';
+click('export');
+const download = root.querySelector('[data-effects-download]');
+assert.equal(download.hidden, false);
+assert.equal(download.getAttribute('href'), 'blob:https://studio.test/generated');
+const generated = new GifReader(exported);
+assert.equal(generated.width, 480);
+assert.equal(generated.height, 270);
+assert.equal(generated.numFrames(), 36);
+const rgba = new Uint8Array(generated.width * generated.height * 4);
+generated.decodeAndBlitFrameRGBA(15, rgba);
+assert.equal(rgba[3], 0, 'export keeps the background transparent');
+assert(rgba.some((value, index) => index % 4 === 3 && value === 255), 'the exported motion is visible');
+blank();
+effects.draw(ctx, 11150);
+assert.deepEqual(pixels(), original, 'GIF export cannot touch the program');
+
 
 (async () => {
   // Two frames with a partial redraw and a transparent pixel in frame two.
@@ -81,5 +121,5 @@ assert.deepEqual(pixels(), original, 'clear removes only the effect');
   assert.deepEqual(pixel(800, 324), [255, 0, 0, 255], 'a transparent GIF pixel retains the prior frame');
   click('clear');
   window.close();
-  console.log('STUDIO_LIVE_EFFECTS_PASS private preview, transparent program layer, expiry, clear, and animated GIF');
+  console.log('STUDIO_LIVE_EFFECTS_PASS presets, private preview, transparent program layer, expiry, clear, GIF creation and import');
 })().catch(error => { window.close(); console.error(error); process.exitCode = 1; });

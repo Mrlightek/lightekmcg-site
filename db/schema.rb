@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_20_120300) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_20_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1630,6 +1630,41 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_120300) do
     t.index ["site_id", "user_id"], name: "idx_agency_site_member", unique: true
     t.index ["site_id"], name: "index_lightek_agency_site_memberships_on_site_id"
     t.index ["user_id"], name: "index_lightek_agency_site_memberships_on_user_id"
+  end
+
+  create_table "lightek_agency_trial_requests", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "operator_id", null: false
+    t.string "email_address", null: false
+    t.string "first_name", null: false
+    t.string "last_name", null: false
+    t.datetime "confirmed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["operator_id"], name: "index_lightek_agency_trial_requests_on_operator_id"
+    t.index ["site_id", "email_address", "created_at"], name: "index_agency_trial_requests_on_site_and_email"
+    t.index ["site_id"], name: "index_lightek_agency_trial_requests_on_site_id"
+  end
+
+  create_table "lightek_agency_trials", force: :cascade do |t|
+    t.bigint "prospect_id", null: false
+    t.bigint "operator_id", null: false
+    t.bigint "billing_site_id", null: false
+    t.bigint "order_id"
+    t.bigint "paid_order_id"
+    t.string "brand_name", null: false
+    t.string "sample_client_name", default: "Oak Street Books", null: false
+    t.integer "sample_retail_dollars", default: 49, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "activated_at"
+    t.datetime "paid_through"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["billing_site_id"], name: "index_lightek_agency_trials_on_billing_site_id"
+    t.index ["operator_id"], name: "index_lightek_agency_trials_on_operator_id"
+    t.index ["order_id"], name: "index_lightek_agency_trials_on_order_id", unique: true
+    t.index ["paid_order_id"], name: "index_lightek_agency_trials_on_paid_order_id"
+    t.index ["prospect_id"], name: "index_lightek_agency_trials_on_prospect_id", unique: true
   end
 
   create_table "lightek_audience_leases", force: :cascade do |t|
@@ -5751,6 +5786,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_120300) do
   add_foreign_key "lightek_agency_site_memberships", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_agency_site_memberships", "users"
   add_foreign_key "lightek_agency_site_memberships", "users", column: "granted_by_id"
+  add_foreign_key "lightek_agency_trial_requests", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_agency_trial_requests", "users", column: "operator_id"
+  add_foreign_key "lightek_agency_trials", "dymond_site_sites", column: "billing_site_id"
+  add_foreign_key "lightek_agency_trials", "lightek_commerce_orders", column: "order_id"
+  add_foreign_key "lightek_agency_trials", "lightek_commerce_orders", column: "paid_order_id"
+  add_foreign_key "lightek_agency_trials", "users", column: "operator_id"
+  add_foreign_key "lightek_agency_trials", "users", column: "prospect_id"
   add_foreign_key "lightek_audience_leases", "users"
   add_foreign_key "lightek_blog_entries", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_blog_entries", "posts", on_delete: :cascade

@@ -43,6 +43,7 @@
           <div><%= f.label :email_address, 'Prospect email' %><%= f.email_field :email_address, required: true %></div>
           <div><%= f.label :first_name %><%= f.text_field :first_name, required: true %></div>
           <div><%= f.label :last_name %><%= f.text_field :last_name, required: true %></div>
+          <div><%= f.label :business_type %><%= f.select :business_type, LightekAgency::Trial::BUSINESS_TYPES.invert.to_a, selected: 'general' %></div>
           <div><%= f.label :duration_days, 'Trial length in days' %><%= f.number_field :duration_days, value: LightekAgency::Trial::DEFAULT_DURATION_DAYS, min: 1, max: 90, required: true %></div>
           <% if @sites.one? %>
             <%= f.hidden_field :billing_site_id, value: @sites.first.id %>

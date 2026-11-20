@@ -1,13 +1,14 @@
 <% content_for :page_title, @demo.name %><%= stylesheet_link_tag '/lightek/people-workspace.css' %>
-<main class="lp-workspace"><header class="lp-heading"><div><span class="lp-eyebrow">YOUR DEMO</span><h1><%= @demo.name %></h1><p>Expires <%= @demo.expires_at.to_fs(:long) %>. This temporary workspace uses your agency’s instance.</p></div></header>
+<main class="lp-workspace"<% if @demo.active? && @demo.client_id == current_user.id %> data-tour-page="client-demo" data-tour-auto<% end %>><header class="lp-heading" data-tour-step="client-demo" data-tour-title="Your demo workspace" data-tour-body="Look here for the demo expiration date. Use your trial to explore business tools and website editing."><div><span class="lp-eyebrow">YOUR DEMO</span><h1><%= @demo.name %></h1><p>Expires <%= @demo.expires_at.to_fs(:long) %>. This temporary workspace uses your agency’s instance.</p></div></header>
 <section class="lp-card"><h2><%= @demo.active? ? 'Make it yours' : 'Demo finished' %></h2>
 <% if @demo.active? && @demo.site %>
   <p>Explore your business workspace and edit your website. Live store payments and outbound campaigns are disabled in demos.</p>
-  <%= link_to 'Open demo workspace', dashboard_business_hub_path(site_id: @demo.site_id), class: 'lp-button' %>
-  <%= link_to 'Choose a design', dashboard_website_designs_path(site_id: @demo.site_id), class: 'lp-button secondary' %>
+  <%= link_to 'Open demo workspace', dashboard_business_hub_path(site_id: @demo.site_id), class: 'lp-button', data: {tour_step: 'client-demo', tour_title: 'Open the workspace', tour_body: 'Open your business workspace to try the tools available in the demo.', tour_try: true} %>
+  <%= link_to 'Choose a design', dashboard_website_designs_path(site_id: @demo.site_id), class: 'lp-button secondary',
+    data: {tour_step: 'client-demo', tour_title: 'Try a website design', tour_body: 'Browse designs and edit your demo website before choosing an installation.', tour_try: true} %>
 <% else %><p>The temporary demo is no longer available. Your client account still shows any purchased services.</p><% end %>
 </section>
-<section class="lp-card"><h2>Your own instance</h2>
+<section class="lp-card"><h2 data-tour-step="client-demo" data-tour-title="Review your upgrade" data-tour-body="If your agency configured an upgrade, review the plan here and continue to checkout when ready.">Your own instance</h2>
 <% if @order %><p>Upgrade: <%= @order.status.humanize %>. Your demo is removed after the paid instance passes verification.</p><%= link_to 'View installation', installation_path(@order), class: 'lp-button' %><% end %>
 <% if @demo.active? && current_user.id == @demo.client_id && @setting&.upgrade_product %>
   <p><strong><%= @setting.upgrade_product.name %></strong> · <%= number_to_currency(@setting.upgrade_product.price_cents / 100.0) %> / <%= @setting.upgrade_product.billing_interval.humanize %></p>

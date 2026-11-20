@@ -1,7 +1,9 @@
-const CACHE = "lightek-shell-v129-pipeline-hub"
+const CACHE = "lightek-shell-v130-guided-tour"
 
 const SHELL = [
   "/lightek/index.html",
+  "/lightek/guided-tour.css?v=1",
+  "/lightek/guided-tour.js?v=1",
   "/lightek/manifest.webmanifest",
   "/lightek/nevaeh-client.js?v=66",
   "/lightek/bootstrap-adapter.js?v=93",

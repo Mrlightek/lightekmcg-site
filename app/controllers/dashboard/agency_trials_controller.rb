@@ -21,7 +21,7 @@ class Dashboard::AgencyTrialsController < ApplicationController
       authorize_platform_storefront!(site, bind: true)
       LightekAgency::Trial.invite!(operator: current_user, billing_site: site,
         identity: fields.permit(:first_name, :last_name, :email_address).to_h.symbolize_keys,
-        brand_name: fields[:brand_name], duration_days: fields[:duration_days])
+        brand_name: fields[:brand_name], business_type: fields[:business_type].presence || 'general', duration_days: fields[:duration_days])
     end
     if trial.prospect.password_setup_invitation_error
       redirect_to dashboard_agency_trials_path, alert: 'Demo created. Use Send setup invitation to retry the email.'
@@ -56,7 +56,7 @@ class Dashboard::AgencyTrialsController < ApplicationController
     @trial.with_lock do
       raise LightekAgency::Trial::Invalid, 'Your demo has ended.' unless @trial.preview_open?
 
-      @trial.update!(params.require(:trial).permit(:brand_name, :sample_client_name, :sample_retail_dollars))
+      @trial.update!(params.require(:trial).permit(:brand_name, :sample_client_name, :sample_retail_dollars, :business_type))
     end
     redirect_to dashboard_agency_trial_path(@trial), notice: 'Agency demo saved.'
   end

@@ -1,0 +1,60 @@
+.lightek-tour {
+  position: fixed;
+  inset: 16px auto auto 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: min(350px, calc(100vw - 32px));
+  max-width: none;
+  overflow: visible;
+  background: transparent;
+  color: #f8fafc;
+  color-scheme: dark;
+  font: 14px/1.5 system-ui, sans-serif;
+}
+.lightek-tour::backdrop { background: rgb(3 7 18 / 65%); }
+.lightek-tour[data-has-spotlight="true"]::backdrop { background: transparent; }
+.lightek-tour-spotlight {
+  position: fixed;
+  box-shadow: 0 0 0 150vmax rgb(3 7 18 / 65%);
+  border: 2px solid #f4ce79;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.lightek-tour [hidden] { display: none; }
+.lightek-tour-panel {
+  position: relative;
+  padding: 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: #162131;
+  border: 1px solid #465167;
+  border-radius: 12px;
+  box-shadow: 0 12px 35px #03071266;
+}
+.lightek-tour-header, .lightek-tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.lightek-tour-header { justify-content: space-between; color: #c4cfdf; font-size: 12px; }
+.lightek-tour-actions { justify-content: flex-end; margin-top: 14px; }
+.lightek-tour h2 { margin: 8px 0 4px; font: 650 19px/1.3 system-ui, sans-serif; }
+.lightek-tour h2:focus { outline: none; }
+.lightek-tour p { margin: 0; color: #e4ebf6; }
+.lightek-tour button, .lightek-tour-trigger {
+  border: 1px solid #77839a;
+  border-radius: 6px;
+  padding: 4px 10px;
+  min-height: 34px;
+  background: transparent;
+  color: inherit;
+  font: 600 13px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+.lightek-tour button:disabled { opacity: .55; cursor: default; }
+.lightek-tour button:hover:not(:disabled), .lightek-tour-trigger:hover { border-color: #e9bc66; }
+.lightek-tour button:focus-visible, .lightek-tour-trigger:focus-visible { outline: 2px solid #e9bc66; outline-offset: 3px; }
+.lightek-tour button.lightek-tour-next { background: #f4ce79; color: #1b1405; border-color: #f4ce79; }
+[data-tour-app="pwa"] .lightek-tour-trigger { position: fixed; right: 14px; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 29; background: #162131; color: #f8fafc; }

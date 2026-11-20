@@ -1,0 +1,76 @@
+<% case business_type
+when 'web_design' %>
+  <section class="lp-card agency-demo-preview" data-agency-preview>
+    <h2>Design Studio preview</h2>
+    <p>Try the same edit-and-preview workflow on a sample homepage.</p>
+    <div class="agency-demo-editor">
+      <div class="lp-form">
+        <div data-tour-step="agency-demo" data-tour-title="Edit a page section" data-tour-body="Change the headline to see how editing a section updates the website preview." data-tour-try>
+          <%= label_tag :demo_headline, 'Hero headline' %>
+          <%= text_field_tag :demo_headline, 'Build a better website', maxlength: 80, data: {demo_input: 'headline'} %>
+        </div>
+        <div data-tour-step="agency-demo" data-tour-title="Preview the design" data-tour-body="Switch the accent to try a different look. Design Studio lets you review changes before publishing." data-tour-try>
+          <%= label_tag :demo_theme, 'Accent color' %>
+          <%= select_tag :demo_theme, options_for_select([['Gold', 'gold'], ['Blue', 'blue'], ['Green', 'green']]),
+            data: {demo_input: 'theme'} %>
+        </div>
+      </div>
+      <div class="agency-demo-canvas" data-demo-canvas data-theme="gold">
+        <p>Sample homepage</p>
+        <h3 data-demo-output="headline">Build a better website</h3>
+        <span>View our work</span>
+      </div>
+    </div>
+  </section>
+<% when 'marketing' %>
+  <section class="lp-card agency-demo-preview" data-agency-preview>
+    <h2>Prospecting and CRM preview</h2>
+    <p>Run a practice search and decide what to do with the lead.</p>
+    <div class="agency-demo-editor">
+      <div class="lp-form">
+        <div data-tour-step="agency-demo" data-tour-title="Find a prospect" data-tour-body="Choose an example search to see a sample match. In Prospecting, searches help you find businesses and save the source alongside the lead." data-tour-try>
+          <%= label_tag :demo_prospect, 'Practice search' %>
+          <%= select_tag :demo_prospect, options_for_select([['Bakeries in Atlanta', 'Peachtree Bakery · Local search'], ['Salons in Baltimore', 'Harbor Hair Studio · Local search']]),
+            data: {demo_input: 'prospect'} %>
+        </div>
+        <div data-tour-step="agency-demo" data-tour-title="Work the lead" data-tour-body="Try a CRM status for the sample lead. In your workspace, you can also assign an owner and schedule a follow-up." data-tour-try>
+          <%= label_tag :demo_lead_status, 'Lead status' %>
+          <%= select_tag :demo_lead_status, options_for_select(%w[New Contacted Qualified]), data: {demo_input: 'status'} %>
+        </div>
+        <div data-tour-step="agency-demo" data-tour-title="Plan the next follow-up" data-tour-body="Choose when you would reach out again. In Sales &amp; CRM, the follow-up date helps the lead show up when it needs attention." data-tour-try>
+          <%= label_tag :demo_follow_up, 'Next follow-up' %>
+          <%= select_tag :demo_follow_up, options_for_select(['Today', 'In three days', 'Next week']),
+            data: {demo_input: 'follow-up'} %>
+        </div>
+      </div>
+      <div class="agency-demo-result" aria-live="polite">
+        <p>Sample result</p>
+        <h3 data-demo-output="prospect">Peachtree Bakery · Local search</h3>
+        <p>CRM status <strong data-demo-output="status">New</strong></p>
+        <p>Follow-up <strong data-demo-output="follow-up">Today</strong></p>
+      </div>
+    </div>
+  </section>
+<% when 'ecommerce', 'services', 'media' %>
+  <%
+    workflow = {
+      'ecommerce' => ['Commerce preview', 'Set up a product', 'Try the price field you would use on a storefront product.', 'Product price', ['$25.00', '$49.00', '$75.00'], 'Sample product · Starter package'],
+      'services' => ['Reservations preview', 'Define a bookable service', 'Choose a duration customers would see when booking an appointment.', 'Appointment length', ['30 minutes', '60 minutes', '90 minutes'], 'Sample service · Client consultation'],
+      'media' => ['Media Studio preview', 'Plan a production', 'Choose a format to see the type of project you could open in Studio.', 'Production format', ['Short social video', 'Live show', 'Podcast episode'], 'Sample production · Launch campaign']
+    }.fetch(business_type)
+    heading, title, instructions, label, options, sample = workflow
+  %>
+  <section class="lp-card agency-demo-preview" data-agency-preview>
+    <h2><%= heading %></h2>
+    <div class="agency-demo-editor">
+      <div class="lp-form" data-tour-step="agency-demo" data-tour-title="<%= title %>" data-tour-body="<%= instructions %>" data-tour-try>
+        <%= label_tag :demo_workflow, label %>
+        <%= select_tag :demo_workflow, options_for_select(options), data: {demo_input: 'workflow'} %>
+      </div>
+      <div class="agency-demo-result">
+        <h3><%= sample %></h3>
+        <p data-demo-output="workflow"><%= options.first %></p>
+      </div>
+    </div>
+  </section>
+<% end %>

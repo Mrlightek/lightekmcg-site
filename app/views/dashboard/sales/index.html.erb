@@ -1,7 +1,7 @@
 <% content_for :page_title, 'Sales & CRM' %>
-<main class="sales-workspace">
+<main class="sales-workspace" data-tour-page="sales">
   <%= render 'header' %>
-  <section class="sales-toolbar">
+  <section class="sales-toolbar" data-tour-step="sales" data-tour-title="Find leads and deals" data-tour-body="Filter by record, owner, or forecast month. Use the toolbar to add a lead or deal.">
     <%= form_with url: dashboard_sales_path, method: :get, class: 'sales-filters' do %>
       <%= hidden_field_tag :site_id, @site.id, id: 'sales_filter_site_id' %><%= hidden_field_tag :tab, @tab %>
       <label>Find a record<%= search_field_tag :q, params[:q], placeholder: 'Name or contact email', maxlength: 160 %></label>
@@ -11,7 +11,7 @@
     <% end %>
     <div class="sales-actions"><%= link_to '+ New lead', new_dashboard_sales_record_path(kind: 'lead', site_id: @site.id), class: 'sales-button' %><%= link_to '+ New deal', new_dashboard_sales_record_path(kind: 'opportunity', site_id: @site.id), class: 'sales-button secondary' %></div>
   </section>
-  <section class="sales-summary" aria-label="Sales overview">
+  <section class="sales-summary" data-tour-step="sales" data-tour-title="Check your pipeline" data-tour-body="See active leads, open deals, and what needs your attention." aria-label="Sales overview">
     <article><span>Active leads</span><strong><%= @lead_count %></strong><small>New, contacted or qualified</small></article>
     <article><span>Open deals</span><strong><%= @deal_count %></strong><small>Discovery through negotiation</small></article>
     <article><span>Your sales rhythm</span><strong class="sales-summary-copy">One clear next step.</strong><small>Review due follow-ups, then move a relationship forward.</small></article>

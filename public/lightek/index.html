@@ -3123,11 +3123,13 @@ h1,h2,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-
 
 <link rel="stylesheet" href="/lightek/community-app.css">
 <link rel="stylesheet" href="/lightek/studio-performance.css?v=70">
-</head><body>
+<link rel="stylesheet" href="/lightek/guided-tour.css?v=1">
+<script src="/lightek/guided-tour.js?v=1" defer></script>
+</head><body data-tour-app="pwa">
 <header id="top"><a class="logo" href="#/home">LIGHTEK</a>
-<div class="tools"><a class="hd2" href="#/messages">Messages</a><a class="btn p sm" href="/session/new?return_to=%2Flightek%2Findex.html%23%2Fcreate">+ Create</a><a class="hd2" href="/session/new?return_to=%2Flightek%2Findex.html%23%2Fspace">Sign in</a></div></header>
-<nav id="primary-nav" aria-label="Primary"><a href="#/home" data-r="home">Home</a><a href="#/watch" data-r="watch">Watch</a><a href="#/clips" data-r="clips">Clips</a><a href="#/explore" data-r="explore">Explore</a><a href="#/communities" data-r="communities">Communities</a></nav>
-<main id="app"></main><div id="toast" role="status"></div>
+<div class="tools" data-tour-step="pwa" data-tour-title="Create and connect" data-tour-body="Create a post, open your profile, or check your messages here when those tools are available."><a class="hd2" href="#/messages">Messages</a><a class="btn p sm" href="/session/new?return_to=%2Flightek%2Findex.html%23%2Fcreate">+ Create</a><a class="hd2" href="/session/new?return_to=%2Flightek%2Findex.html%23%2Fspace">Sign in</a></div></header>
+<nav id="primary-nav" aria-label="Primary" data-tour-step="pwa" data-tour-title="Explore Lightek" data-tour-body="Use the tabs to watch, discover communities, and open the spaces available in this app."><a href="#/home" data-r="home">Home</a><a href="#/watch" data-r="watch">Watch</a><a href="#/clips" data-r="clips">Clips</a><a href="#/explore" data-r="explore">Explore</a><a href="#/communities" data-r="communities">Communities</a></nav>
+<main id="app"></main><button type="button" class="lightek-tour-trigger" data-tour-open hidden>Take a tour</button><div id="toast" role="status"></div>
 <script>
 const $=s=>document.querySelector(s),J=a=>a.join(''),app=$('#app'),E=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const art=i=>{const h=[40,18,350,210,160,280,30,330][i%8];return `background:radial-gradient(120% 90% at 20% 10%,hsl(${h} 60% 38%),transparent 60%),linear-gradient(160deg,hsl(${(h+30)%360} 40% 16%),#0a0a0e)`};

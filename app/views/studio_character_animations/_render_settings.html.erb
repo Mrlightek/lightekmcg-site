@@ -1,0 +1,9 @@
+<% pipeline = Studio::Pipeline::CharacterAnimation %>
+<div class="field-pair">
+  <label>Frames at 30 FPS
+    <%= form.number_field :frames, value: settings.fetch("frames"), min: 1, max: pipeline::MAX_FRAMES, step: 1, required: true %>
+  </label>
+  <label>Resolution
+    <%= form.select :resolution, pipeline::RESOLUTIONS.map { |value, label| [label, value] }, selected: settings.fetch("resolution") %>
+  </label>
+</div>

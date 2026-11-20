@@ -10,6 +10,8 @@ class StudioAsset < ApplicationRecord
   has_one_attached :native
   has_one_attached :proxy
   has_one_attached :thumbnail
+  has_one_attached :pipeline_base
+  has_many_attached :pipeline_sidecars
   validates :name, presence: true, length: { maximum: 160 }
   validates :kind, inclusion: { in: %w[image audio video blend glb] }
   validates :status, inclusion: { in: %w[uploaded processing ready failed] }

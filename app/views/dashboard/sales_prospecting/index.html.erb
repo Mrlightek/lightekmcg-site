@@ -82,14 +82,24 @@
   <% end %>
 
   <section class="sales-panel">
-    <h2>Saved prospects</h2>
+    <div class="sales-panel-title">
+      <h2><%= @selected_prospect ? 'Saved prospect' : 'Saved prospects' %></h2>
+      <div class="sales-actions">
+        <% if @selected_prospect %>
+          <%= link_to 'All saved prospects', dashboard_sales_prospecting_path(site_id: @site.id), class: 'sales-button secondary' %>
+        <% end %>
+        <%= link_to 'Sales tasks', dashboard_sales_path(site_id: @site.id, tab: 'tasks'), class: 'sales-button secondary' %>
+      </div>
+    </div>
     <% if @prospects.empty? %><p>Save a promising result to review their account and follow up.</p><% end %>
     <% @prospects.each do |prospect| %>
       <article class="sales-panel">
-        <h3><%= link_to (prospect.web_only? ? "@#{prospect.web_username}" : "X profile #{prospect.remote_id}"),
-          prospect.profile_url, rel: 'noreferrer' %></h3>
+        <h3><%= link_to prospect.name, prospect.profile_url, rel: 'noreferrer' %></h3>
         <div class="sales-actions">
           <%= link_to 'View source post', prospect.source_url, rel: 'noreferrer' %>
+          <% unless @selected_prospect %>
+            <%= link_to 'Open prospect', dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: prospect.id) %>
+          <% end %>
           <% if !prospect.web_only? && !prospect.contact_blocked_at? && prospect.outreach_status != 'ready' %>
             <%= link_to 'Open conversation on X', prospect.thread_url, target: '_blank', rel: 'noopener noreferrer' %>
           <% end %>
@@ -98,6 +108,9 @@
         <% if prospect.contact_blocked_at? %>
           <p><strong>Do not contact</strong></p>
         <% else %>
+          <% if @owners.any? %>
+            <%= render 'dashboard/sales_prospecting/follow_up_form', prospect: prospect %>
+          <% end %>
           <% unless prospect.web_only? %>
             <p><%= {'ready' => 'No message sent', 'sending' => 'Send started. Check the conversation on X before contacting again.',
               'uncertain' => 'Delivery unconfirmed. Check the conversation on X before contacting again.',
@@ -144,6 +157,9 @@
               <%= f.submit 'Save CRM lead', class: 'sales-button' %>
             <% end %>
           </details>
+        <% end %>
+        <% if @selected_prospect %>
+          <%= render 'dashboard/sales_prospecting/history', prospect: prospect %>
         <% end %>
       </article>
     <% end %>

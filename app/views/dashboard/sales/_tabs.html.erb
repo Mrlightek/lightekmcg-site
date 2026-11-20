@@ -2,8 +2,7 @@
   ['today', 'Today', dashboard_sales_path(site_id: @site.id, tab: 'today')],
   ['intake', 'Inquiry inbox', dashboard_sales_intake_path(site_id: @site.id)]
 ] %>
-<% if LightekAgency::PackagePolicy.allowed?(@site.tenant, 'marketing') &&
-      LightekAgency::PackagePolicy.allowed?(@site.tenant, 'commerce') %>
+<% if LightekSales::Access.prospecting_allowed?(@site) %>
   <% tabs << ['prospecting', 'Prospecting', dashboard_sales_prospecting_path(site_id: @site.id)] %>
 <% end %>
 <% tabs.concat([

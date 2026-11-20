@@ -5,6 +5,7 @@ function boot(){
  let screen,camera,mic,audio,mixer,micNode,gain,analyser,silent,program,canvas,paintTimer,clockTimer,ws,recorder,identifier,active=false,stopping=false,holding=false,muted=true,queue=[],pending=null,sequence=0,queuedBytes=0,started=0,connectTimer,transportPhase='idle',cameraBusy=false,captureGeneration=0;
  let productionSetup=null,stage=null,stageLoading=false,sessionSource=null,sessionLoading=false,presentationDraft={participants:{}};
  const comments=window.LightekLiveComments?.boot(root);
+ const broadcastLook=window.LightekBroadcastLook?.boot(root);
  const graphics=window.LightekLiveGraphics?.boot(root);
  const overlay=window.LightekLiveOverlay?.boot(root);
  const showPresentation=window.LightekLiveShowPresentation?new window.LightekLiveShowPresentation():null;
@@ -28,13 +29,14 @@ function boot(){
    let pictureReady=false;const mode=q('[data-layout]').value,video=mode==='library'?libraryVisual?.element:mode==='camera'?cameraVideo:source,selected=mode==='camera'?camera:screen;
    if(!holding&&mode==='session'&&sessionSource?.ready){sessionSource.paint(ctx);pictureReady=true;}
    else if(!holding&&mode==='stage'&&stage?.ready){const roomStage=q('[data-stage-subject-source]')?.value==='session';if(roomStage&&sessionSource?.ready)sessionSource.paint(canvas.getContext('2d'));stage.setSubject(roomStage?sessionSource?.canvas:cameraVideo,{enabled:!!q('[data-stage-subject]')?.checked&&(roomStage?sessionSource?.ready:live(camera)),key:!roomStage&&!!q('[data-stage-key]')?.checked,color:q('[data-stage-color]')?.value||'#00ff00',threshold:Number(q('[data-stage-threshold]')?.value||.4),x:Number(q('[data-stage-x]')?.value||0),depth:Number(q('[data-stage-depth]')?.value||0),z:Number(q('[data-stage-z]')?.value||1.5),height:Number(q('[data-stage-height]')?.value||3)});ctx.drawImage(stage.render(performance.now()),0,0,1280,720);pictureReady=true;}
-   else if(!holding&&(mode==='library'?libraryVisual?.ready:live(selected)&&video.readyState>=2)){const width=video.videoWidth||video.naturalWidth,height=video.videoHeight||video.naturalHeight;const ratio=Math.min(1280/width,720/height),w=width*ratio,h=height*ratio;ctx.drawImage(video,(1280-w)/2,(720-h)/2,w,h);pictureReady=true;
+   else if(!holding&&(mode==='library'?libraryVisual?.ready:live(selected)&&video.readyState>=2)){const width=video.videoWidth||video.naturalWidth,height=video.videoHeight||video.naturalHeight;const ratio=Math.min(1280/width,720/height),w=width*ratio,h=height*ratio;const rect=[(1280-w)/2,(720-h)/2,w,h];if(mode!=='camera'||!broadcastLook?.drawKeyedCamera(ctx,video,rect,performance.now()))ctx.drawImage(video,...rect);pictureReady=true;
     if(mode==='combined'&&live(camera)&&cameraVideo.readyState>=2){ctx.fillStyle='#b5f58b';ctx.fillRect(916,496,328,188);ctx.fillStyle='#0b121b';ctx.fillRect(920,500,320,180);const r=Math.min(320/cameraVideo.videoWidth,180/cameraVideo.videoHeight),cw=cameraVideo.videoWidth*r,ch=cameraVideo.videoHeight*r;ctx.drawImage(cameraVideo,920+(320-cw)/2,500+(180-ch)/2,cw,ch);}
    }
    else{ctx.fillStyle='#b5f58b';ctx.font='22px sans-serif';ctx.fillText('LIGHTEK / LIVE',90,110);ctx.fillStyle='#f2f5fa';ctx.font='bold 56px sans-serif';ctx.fillText('Back in a moment.',90,340);ctx.fillStyle='#a7b4c6';ctx.font='24px sans-serif';ctx.fillText('Building Lightek. Stay with us.',90,390);}
    if(!holding&&libraryOverlay?.complete&&libraryOverlay.naturalWidth){if(overlay)overlay.draw(ctx,libraryOverlay);else ctx.drawImage(libraryOverlay,0,0,1280,720);}
    if(!holding&&pictureReady)graphics?.draw(ctx, Boolean(comments?.selected));
    if(!holding&&pictureReady)comments?.draw(ctx,q('[data-presentation=accent]')?.value);
+   if(!holding&&pictureReady)broadcastLook?.drawFrame(ctx);
    if(analyser){const bins=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(bins);const level=Math.sqrt(bins.reduce((sum,v)=>sum+((v-128)/128)**2,0)/bins.length);q('[data-meter]').value=muted||holding?0:Math.min(1,level*4);}
   }
   paint();paintTimer=setInterval(paint,1000/24);program=canvas.captureStream(24);mixer.stream.getAudioTracks().forEach(track=>program.addTrack(track));preview.srcObject=program;await preview.play();q('[data-placeholder]').hidden=true;await audio.resume();

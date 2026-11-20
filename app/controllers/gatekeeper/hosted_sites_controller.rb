@@ -8,6 +8,9 @@ module Gatekeeper
     def show
       @page = params[:slug].present? ? @site.pages.published.find_by!(slug: params[:slug]) : @site.home_page
       raise ActiveRecord::RecordNotFound unless @page&.published?
+      unless LightekDesign::Catalog.active?(@site)
+        @design_key = LightekDesign::WebsiteDesigns.imported_release_key(site: @site, page: @page)
+      end
       render "lightek_design/page", layout: "lightek_design/website"
     end
 

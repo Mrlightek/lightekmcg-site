@@ -21,6 +21,17 @@ module LightekDesign
     def studio_theme_section?(entry)
       entry && ((entry["chrome_header"] && studio_theme_chrome("header")) || (entry["chrome_footer"] && studio_theme_chrome("footer")))
     end
+    def studio_wrapped_page_header?(definition)
+      sections = if @preview
+        definition.fetch("sections").map { |entry| [entry, entry["data"]] }
+      else
+        @page.sections.map { |record| [Catalog.section_definition(record.kind), record.data] }
+      end
+
+      sections.any? do |entry, data|
+        entry&.fetch("block", nil) == "html" && HtmlDocument.wrapped_page_header?(data.to_h["html"])
+      end
+    end
     def studio_bound_html(source)
       navigation = if !@preview && LightekDesign::SiteTheme.current(@site) && @site.nav_menu
         @_studio_bound_navigation ||= render("lightek_design/bound_navigation", site: @site)

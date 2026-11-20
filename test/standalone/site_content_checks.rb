@@ -37,6 +37,7 @@ module DymondSite
     self.table_name='dymond_site_pages'
     belongs_to :site,class_name:'DymondSite::Site'
     has_many :sections,class_name:'DymondSite::Section'
+    scope :published, -> { where(published: true) }
     def theme = nil
   end
   class Section < ApplicationRecord
@@ -137,6 +138,7 @@ end
 require Rails.root.join('app/models/website_template_inquiry')
 require Rails.root.join('app/services/lightek_commerce/industry_starters')
 require Rails.root.join('app/controllers/dashboard/website_designs_controller')
+require Rails.root.join('app/controllers/gatekeeper/hosted_sites_controller')
 require Rails.root.join('app/jobs/lightek_design/html_import_job')
 require Rails.root.join('app/controllers/dashboard/design_studio_controller')
 Dashboard::DesignStudioController.layout false
@@ -147,6 +149,7 @@ Rails.application.routes.append do
   get '/dashboard/design-studio',to:'dashboard/design_studio#index',as: :dashboard_design_studio_index
   get '/dashboard/design-studio/:id/edit',to:'dashboard/design_studio#edit',as: :edit_dashboard_design_studio
   get '/dashboard/design-content',to:'dashboard/website_designs#index'
+  get '/site/:slug',to:'gatekeeper/hosted_sites#show'
   post '/dashboard/website/designs/themes',to:'dashboard/website_designs#install_theme',as: :dashboard_website_themes
   post '/dashboard/website/designs/themes/:template_id/activate',to:'dashboard/website_designs#activate_theme',as: :activate_dashboard_website_theme
   post '/dashboard/website/designs/upload',to:'dashboard/website_designs#upload_html',as: :upload_dashboard_website_designs
@@ -489,5 +492,56 @@ class SiteContentChecks < ActionDispatch::IntegrationTest
     end
     get route, params: {site_id: @foreign.id, import_id: import.id}, headers: headers
     assert_response :not_found
+  end
+
+  def test_site_wrapped_import_header_replaces_generated_navigation_on_the_published_page
+    source = StringIO.new(<<~HTML)
+      <div id="public">
+        <header class="pub-head"><a class="brand" href="#main">Lightek</a>
+          <nav aria-label="Primary"><a href="#main">Platform</a></nav><a class="demo" href="#demo">Book a demo</a>
+        </header>
+        <main id="main"><h1>Welcome</h1><section id="demo">Demo details</section></main>
+      </div>
+      <div id="app" hidden><header><nav aria-label="Workspace"><a href="#app">Workspace</a></nav></header></div>
+    HTML
+    source.define_singleton_method(:original_filename) { 'index.html' }
+    css = StringIO.new('.pub-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px}.pub-head nav{margin-inline:auto}[hidden]{display:none!important}')
+    css.define_singleton_method(:original_filename) { 'styles.css' }
+    record = LightekDesign::HtmlImport.enqueue!(site: @site, user: @user, html_file: source, css_file: css, create_page: true)
+    metadata = record.settings.fetch('html_import')
+    page = @site.pages.find(metadata.fetch('page_id'))
+    @site.reload.update!(manifest: @site.manifest.merge('hosted_application_key' => 'hosting-test'))
+    assert_nil @site.active_template
+
+    get "/site/#{page.slug}"
+    assert_response :not_found
+    page.update!(published: true)
+    get "/site/#{page.slug}"
+    assert_response :success
+    markup = Nokogiri::HTML5(response.body)
+    assert_equal 1, markup.css('header.pub-head').size
+    assert_empty markup.css('body > header')
+    assert_equal 'Book a demo', markup.at_css('header.pub-head a.demo').text
+    assert_equal '#demo', markup.at_css('header.pub-head a.demo')['href']
+
+    theme = install
+    LightekDesign::SiteTheme.activate!(site: @site, user: @user, template_id: theme.id)
+    get "/site/#{page.slug}"
+    assert_response :success
+    markup = Nokogiri::HTML5(response.body)
+    assert_equal 1, markup.css('header.pub-head').size
+    assert_empty markup.css('body > header, body > lightek-html header')
+    assert_equal 'Platform', markup.at_css('header.pub-head nav').text.strip
+
+    if ENV['SITE_CONTENT_PREVIEW_DIR']
+      FileUtils.mkdir_p(ENV['SITE_CONTENT_PREVIEW_DIR'])
+      File.write(File.join(ENV['SITE_CONTENT_PREVIEW_DIR'], 'wrapped-header.html'), response.body)
+    end
+  end
+
+  def test_site_hidden_or_section_local_headers_do_not_replace_website_navigation
+    refute LightekDesign::HtmlDocument.wrapped_page_header?('<div hidden><header><nav>Hidden workspace</nav></header></div>')
+    refute LightekDesign::HtmlDocument.wrapped_page_header?('<div><article><header><nav>Article links</nav></header></article></div>')
+    refute LightekDesign::HtmlDocument.wrapped_page_header?('<div><header><h2>Heading only</h2></header></div>')
   end
 end

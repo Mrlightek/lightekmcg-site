@@ -98,7 +98,7 @@ export function studioApi(host) {
     if (site) params.set('site_id',site);
     return prefix + '/workspace/' + scene + '?' + params;
   }
-  return {call,upload,converse,onActivity,dashboard:!!host,site,advanced,
+  return {call,upload,converse,onActivity,dashboard:!!host,site,advanced,pipeline:"/studio/pipeline"+query,
     native:(scene,workspace)=>host?advanced(scene,workspace):`#/studio/${scene}/${workspace}`,
     editor:(kind,scene)=>{
       if(!host || !['photo','video'].includes(kind))return null;

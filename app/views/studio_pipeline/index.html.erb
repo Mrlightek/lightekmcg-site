@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <%= csrf_meta_tags %>
+  <title>Pipeline Hub · Lightek Studio</title>
+  <%= stylesheet_link_tag "/lightek/pipeline-hub.css" %>
+  <script type="importmap">{"imports":{"three":"/lightek/vendor/three/three.module.js"}}</script>
+  <%= javascript_include_tag "/lightek/pipeline-hub.js", type: "module" %>
+</head>
+<body>
+  <main class="pipeline" id="pipeline-hub" data-site-id="<%= @site.id %>">
+    <header class="pipeline-header">
+      <div><%= link_to "Lightek Studio", "/lightek/#/studio", class: "pipeline-brand" %>
+      <h1>Pipeline Hub</h1><p><%= @site.name %></p></div>
+      <nav aria-label="Pipeline tools">
+        <button type="button" data-action="watcher">Connect export folder</button>
+        <button type="button" data-action="upload" class="primary">Ingest &amp; normalize</button>
+      </nav>
+    </header>
+    <p class="notice" id="hub-notice" role="status" aria-live="polite"></p>
+    <%= render "studio_character_animations/launch" %>
+    <section aria-labelledby="asset-tracker-title">
+      <div class="section-head"><h2 id="asset-tracker-title">Asset tracker</h2><a href="#composer">Go to scene composer ↓</a></div>
+      <div class="asset-board" id="asset-board" aria-busy="true"></div>
+    </section>
+    <section id="composer" aria-labelledby="composer-title">
+      <div class="section-head"><h2 id="composer-title">Scene composer</h2><button type="button" class="primary" data-action="render">Render video</button></div>
+      <div class="composer-grid">
+        <aside class="panel">
+          <label>Find scene-ready assets <input type="search" id="asset-search" autocomplete="off" placeholder="Search by name"></label>
+          <div id="ready-library" class="ready-library"></div>
+          <h3>Scene objects</h3><div id="scene-objects"></div>
+        </aside>
+        <div class="panel viewport">
+          <div class="view-toolbar" role="group" aria-label="Viewport tools">
+            <button type="button" data-action="orbit" aria-pressed="true">Orbit</button>
+            <button type="button" data-action="translate" aria-pressed="false">Move</button>
+            <button type="button" data-action="frame">Frame all</button>
+          </div>
+          <div id="scene-viewport" aria-label="Interactive 3D scene"></div>
+          <p id="viewport-status" role="status">Add a scene-ready asset to begin.</p>
+        </div>
+        <aside class="panel">
+          <h3>Object properties</h3><div id="object-inspector"><p>Select an object.</p></div>
+          <h3>Render settings</h3>
+          <form id="render-options">
+            <label>Engine <select name="engine"><option value="CYCLES">Cycles</option><option value="EEVEE">EEVEE Next</option></select></label>
+            <label>Lighting <select name="lighting">
+              <option value="studio_soft">Studio soft</option><option value="dramatic_rim">Dramatic rim</option><option value="outdoor_day">Outdoor day</option>
+            </select></label>
+            <label>Resolution <select name="resolution"><option>1280×720</option><option>1920×1080</option><option>640×360</option><option>720×720</option></select></label>
+            <div class="field-pair"><label>Seconds <input name="seconds" type="number" min="0.1" max="30" step="0.1" value="4" required></label>
+              <label>FPS <input name="fps" type="number" min="1" max="30" value="24" required></label></div>
+            <p class="muted">The render uses your current viewport camera.</p>
+          </form>
+        </aside>
+      </div>
+    </section>
+    <section aria-labelledby="renders-title"><div class="section-head"><h2 id="renders-title">Render history</h2></div><div id="render-list"></div></section>
+  </main>
+  <dialog id="upload-dialog">
+    <form id="upload-form">
+      <div class="section-head"><h2>Ingest &amp; normalize</h2><button type="button" data-close aria-label="Close upload">Close</button></div>
+      <label>Source stage <select name="mode"><option value="props">Voxel, props or animated model</option><option value="base">Base mesh for Mixamo</option></select></label>
+      <label class="drop-target" id="upload-target">Drop a model or choose a file
+        <input name="file" type="file" required accept=".fbx,.glb,.gltf,.unitypackage"></label>
+      <label data-sidecars>Sidecar files <input name="sidecars" type="file" multiple></label>
+      <label data-sidecars>Or sidecar folder <input name="sidecarFolder" type="file" webkitdirectory multiple></label>
+      <p data-sidecars class="muted">For glTF or FBX with external textures or buffers, include the files beside the model or select their folder.</p>
+      <label data-model-path hidden>Unity model path <input name="model_path" maxlength="512" placeholder="Assets/Props/Beacon.fbx"></label>
+      <p data-model-path hidden class="muted">Use the asset path when the package contains multiple portable models.</p>
+      <button class="primary" type="submit">Upload export</button>
+      <p id="upload-status" role="status"></p>
+    </form>
+  </dialog>
+  <dialog id="preview-dialog"><div class="section-head"><h2 id="preview-title">3D preview</h2><button type="button" data-close>Close</button></div>
+    <div id="asset-viewport"></div><p id="preview-status" role="status"></p>
+  </dialog>
+  <dialog id="watcher-dialog"><div class="section-head"><h2>Connect export folder</h2><button type="button" data-close>Close</button></div>
+    <p>Run the Studio watcher on the computer where you export FBX and GLB files.</p>
+    <p><%= link_to "Download sync_exports.py", "/lightek/sync_exports.py", download: "sync_exports.py" %></p>
+    <button type="button" id="issue-watcher">Generate 24-hour upload token</button>
+    <label hidden id="watcher-token-label">Upload token <input id="watcher-token" type="password" readonly></label>
+    <button type="button" id="copy-watcher" hidden>Copy token</button>
+    <pre id="watcher-instructions" hidden></pre><p id="watcher-status" role="status"></p>
+  </dialog>
+</body>
+</html>

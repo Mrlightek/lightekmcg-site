@@ -8,6 +8,7 @@
 <% unless @site %><section class="mc-panel"><h2>Choose a workspace</h2><p class="mc-muted">Select your application above to open its production library.</p></section><% else %>
 <div class="mc-library-toolbar"><h2>Production library</h2><span><%= @production_projects.size %> productions · <%= @site.host %></span></div>
 <section class="mc-project-grid" aria-label="Production library">
+<article class="mc-project mc-new"><h3>Pipeline Hub</h3><p>Import 3D exports, hand off a character, and render a scene.</p><%= link_to "Open Pipeline Hub", studio_pipeline_path(site_id: @site.id), class: "mc-button mc-primary", data: {turbo: false} %></article>
 <article class="mc-project mc-new"><h3>Photo & graphics</h3><p>Edit images with layers, selections, brushes, text and filters.</p><%= link_to "Create artwork",dashboard_studio_editor_new_path(kind:"photo",site_id:@site.id),class:"mc-button mc-primary",data:{turbo:false} %></article>
 <article class="mc-project mc-new"><h3>Animation</h3><p>Create a character, choose a set, and direct the action.</p><%= link_to "Make an animation",dashboard_production_workspace_path(site_id:@site.id,workspace:"stage",advanced:1),class:"mc-button mc-primary",data:{turbo:false} %></article>
 <article class="mc-project mc-new"><h3>Music &amp; audio</h3><p>Build a beat, record a performance, mix and score your video.</p><%= link_to "Make music",dashboard_production_workspace_path(site_id:@site.id,workspace:"music"),class:"mc-button mc-primary",data:{turbo:false} %></article>

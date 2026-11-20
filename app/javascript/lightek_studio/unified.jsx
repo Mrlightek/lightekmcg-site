@@ -243,6 +243,7 @@ function Workspace({api,record,initialTab,initialAsset,projects,selectScene,home
       <div className="ls-brand"><span>L</span><div><strong>LIGHTEK STUDIO</strong><small>Create, edit, score and publish</small></div></div>
       <nav aria-label="Studio workspaces">{workspaces.map(([name,Icon,label])=><button type="button" key={name} aria-current={tab===name?'page':undefined} onClick={()=>go(name)} disabled={busy}><Icon size={17}/>{label}</button>)}</nav>
       <nav aria-label="More Studio tools">
+        <a href={api.pipeline} onClick={event=>{if(busy || dirty&&!window.confirm('Open Pipeline Hub and discard unsaved timeline changes?'))event.preventDefault();}}>Pipeline Hub</a>
         <a href={api.native(scene.id,'music')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Music and discard unsaved timeline changes?'))event.preventDefault();}}>Music &amp; audio</a>
         <a href={api.native(scene.id,'stage')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Animation and discard unsaved timeline changes?'))event.preventDefault();}}>Animation &amp; characters</a>
         {api.dashboard&&<a href={api.editor('photo')} onClick={event=>{if(busy || dirty&&!window.confirm('Open Photo Studio and discard unsaved timeline changes?'))event.preventDefault();}}>Photo &amp; graphics</a>}
@@ -328,6 +329,7 @@ export default function LightekUnifiedStudio({api,route,home}) {
   if(record)return <Workspace key={record.scene.id} {...{api,record,projects,selectScene,home,initialTab,updateScene,openCampaign,openTemplateScene,
     initialAsset:record.scene.id===route.scene?Number(new URLSearchParams(location.search).get('edit_asset'))||null:null}}/>;
   return <main className="ls-projects"><a href={home}>Exit Studio</a><h1>Lightek Studio</h1>
+    <p><a href={api.pipeline}>Open Pipeline Hub</a></p>
     {error&&<p role="alert" className="ls-error">{error}</p>}
     {load==='loading'?<p role="status">Opening your projects…</p>:load==='failed'?<button onClick={loadProjects}>Try again</button>:<>
       {selected&&!record&&<p role="status">The selected scene is unavailable. Choose a project below.</p>}

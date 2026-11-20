@@ -13,16 +13,41 @@
   }
 
   const frameStyles = {
-    studio: { badge: 'LIVE', corner: 36, line: 2, align: 'right' },
-    news: { badge: 'NEWS DESK', corner: 48, line: 2, align: 'left' },
-    sports: { badge: 'SPORTS DESK', corner: 62, line: 3, align: 'left' }
+    studio: { badge: 'LIVE', tint: '#42311f', accent: '#e3b76c', base: '#171720', texture: 'brushed', rail: 2 },
+    news: { badge: 'NEWS DESK', tint: '#294c7b', accent: '#b3d8ff', base: '#101e31', texture: 'scanlines', rail: 2 },
+    breaking: { badge: 'BREAKING', tint: '#8e2735', accent: '#f47877', base: '#2c1823', texture: 'scanlines', rail: 3 },
+    sports: { badge: 'SPORTS DESK', tint: '#244c48', accent: '#c7f178', base: '#132521', texture: 'mesh', rail: 3 }
   };
 
-  function panel(ctx, x, y, w, h, tint, clipped) {
+  function textureTile(kind) {
+    if (kind === 'none') return null;
+    const tile = document.createElement('canvas');
+    tile.width = tile.height = 64;
+    const ctx = tile.getContext('2d');
+    if (kind === 'brushed') {
+      for (let y = 0; y < 64; y += 2) {
+        const x = (y * 29) % 64;
+        ctx.fillStyle = y % 6 === 0 ? '#ffffff18' : '#00000036';
+        ctx.fillRect(x, y, 64 - x, 1);
+        ctx.fillRect(0, y, x / 2, 1);
+      }
+    } else if (kind === 'scanlines') {
+      ctx.fillStyle = '#ffffff13';
+      for (let y = 0; y < 64; y += 4) ctx.fillRect(0, y, 64, 1);
+    } else if (kind === 'mesh') {
+      ctx.fillStyle = '#d7f8ed2f';
+      for (let y = 0; y < 64; y += 8) {
+        for (let x = y % 16 ? 4 : 0; x < 64; x += 8) ctx.fillRect(x, y, 2, 2);
+      }
+    }
+    return tile;
+  }
+
+  function panel(ctx, x, y, w, h, style, settings, clipped) {
     const background = ctx.createLinearGradient(x, y, x + w, y + h);
-    background.addColorStop(0, '#101721');
-    background.addColorStop(.78, '#171d29');
-    background.addColorStop(1, tint + '75');
+    background.addColorStop(0, style.base);
+    background.addColorStop(.64, style.base);
+    background.addColorStop(1, settings.frameColor);
     ctx.fillStyle = background;
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -32,33 +57,33 @@
     ctx.lineTo(x, y + h);
     ctx.closePath();
     ctx.fill();
+    if (settings.pattern) {
+      ctx.fillStyle = settings.pattern;
+      ctx.fill();
+    }
   }
 
   function drawFrame(ctx, settings) {
     const style = frameStyles[settings.frame];
     if (!style) return;
-    const { accent, frameColor } = settings;
-    const inset = 24;
+    const { accent } = settings;
     const left = 44;
-    const top = 46;
+    const top = 44;
     const sports = settings.frame === 'sports';
+    const studio = settings.frame === 'studio';
+    const breaking = settings.frame === 'breaking';
+    const bevel = sports ? 14 : 0;
     ctx.save();
-    ctx.globalAlpha = 1;
-    ctx.filter = 'none';
-    ctx.globalCompositeOperation = 'source-over';
 
-    // Brackets leave the picture open and keep accents inside the overscan margin.
+    // Discreet corner marks and localized plates preserve the camera composition.
     ctx.strokeStyle = accent;
-    ctx.globalAlpha = .72;
-    ctx.lineWidth = style.line;
+    ctx.globalAlpha = studio ? .58 : .74;
+    ctx.lineWidth = style.rail;
     ctx.beginPath();
-    for (const [x, y, dx, dy] of [
-      [inset, inset, 1, 1], [width - inset, inset, -1, 1],
-      [inset, height - inset, 1, -1], [width - inset, height - inset, -1, -1]
-    ]) {
-      ctx.moveTo(x, y + dy * 23);
+    for (const [x, y, dx, dy] of [[24, 24, 1, 1], [1256, 24, -1, 1], [24, 696, 1, -1], [1256, 696, -1, -1]]) {
+      ctx.moveTo(x, y + dy * 19);
       ctx.lineTo(x, y);
-      ctx.lineTo(x + dx * style.corner, y);
+      ctx.lineTo(x + dx * (sports ? 58 : 34), y);
     }
     ctx.stroke();
     ctx.globalAlpha = 1;
@@ -66,37 +91,48 @@
     const label = settings.badge || style.badge;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = '700 15px system-ui';
-    const labelWidth = Math.ceil(ctx.measureText(label).width);
-    ctx.font = '650 19px system-ui';
+    ctx.font = '750 15px system-ui';
+    const badgeWidth = Math.ceil(ctx.measureText(label).width) + 22;
+    ctx.font = '650 20px system-ui';
     const brandWidth = Math.min(395, Math.ceil(ctx.measureText(settings.brand).width));
-    const labelInset = sports ? 14 : 11;
-    const brandX = labelWidth + labelInset * 2 + 17;
-    const plateWidth = brandX + brandWidth + 22;
-    const x = style.align === 'right' ? width - left - plateWidth : left;
-    panel(ctx, x, top, plateWidth, 44, frameColor, sports ? 12 : 0);
+    const brandOffset = badgeWidth + 23;
+    const identityWidth = brandOffset + brandWidth + 24;
+    const x = studio ? width - left - identityWidth : left;
+    panel(ctx, x, top, identityWidth, 44, style, settings, bevel);
     ctx.fillStyle = accent;
-    ctx.fillRect(x + 9, top + 8, labelWidth + labelInset * 2 - 8, 28);
-    ctx.font = '700 15px system-ui';
+    ctx.fillRect(x + 8, top + 8, badgeWidth, 28);
+    ctx.font = '750 15px system-ui';
     ctx.fillStyle = settings.accentInk;
-    ctx.fillText(label, x + labelInset, top + 22);
-    ctx.fillStyle = '#f6f4ef';
-    ctx.font = '650 19px system-ui';
-    ctx.fillText(settings.brand, x + brandX, top + 22, brandWidth);
+    ctx.fillText(label, x + 19, top + 22);
+    ctx.fillStyle = '#f8f7f3';
+    ctx.font = '650 20px system-ui';
+    ctx.fillText(settings.brand, x + brandOffset, top + 22, brandWidth);
+
+    if (sports && settings.score) {
+      ctx.font = '700 23px ui-monospace, monospace';
+      const scoreWidth = Math.min(418, Math.ceil(ctx.measureText(settings.score).width) + 34);
+      const scoreX = width - left - scoreWidth;
+      panel(ctx, scoreX, top, scoreWidth, 44, style, settings, bevel);
+      ctx.fillStyle = accent;
+      ctx.fillRect(scoreX, top + 42, scoreWidth, 2);
+      ctx.fillStyle = '#f8f7f3';
+      ctx.fillText(settings.score, scoreX + 17, top + 23, scoreWidth - 34);
+    }
 
     if (settings.headline) {
-      const bottom = height - left;
-      const h = 52;
-      const y = bottom - h;
-      ctx.font = sports ? '750 24px system-ui' : '650 24px system-ui';
-      const textWidth = Math.min(900, Math.ceil(ctx.measureText(settings.headline).width));
-      const w = Math.max(216, textWidth + 48);
-      panel(ctx, left, y, w, h, frameColor, sports ? 14 : 0);
+      const h = breaking ? 61 : 52;
+      const y = height - left - h;
+      ctx.font = breaking ? '750 29px system-ui' : '650 24px system-ui';
+      const textWidth = Math.min(890, Math.ceil(ctx.measureText(settings.headline).width));
+      const w = Math.max(breaking ? 312 : 216, textWidth + 52);
+      panel(ctx, left, y, w, h, style, settings, bevel);
       ctx.fillStyle = accent;
-      ctx.fillRect(left, y, 3, h);
-      ctx.fillStyle = '#f6f4ef';
+      ctx.fillRect(left, y, style.rail, h);
+      if (breaking) ctx.fillRect(left, y, w, 3);
+      ctx.fillStyle = '#f8f7f3';
       ctx.fillText(settings.headline, left + 23, y + h / 2, w - 46);
     }
+
     ctx.restore();
   }
 
@@ -154,7 +190,7 @@
     }
   }
 
-  function bindThemes(panel, field, kind, names) {
+  function bindThemes(panel, field, kind, names, onLoad) {
     const controls = panel.querySelector('[data-look-themes="' + kind + '"]');
     if (!controls) return;
     const get = selector => controls.querySelector(selector);
@@ -211,13 +247,14 @@
       if (!selected) return void (status.textContent = 'Choose a saved theme.');
       for (const name of names) {
         const control = field(name);
-        const value = selected.values[name];
+        const value = selected.values[name] ?? (name === 'texture' ? 'auto' : undefined);
         if (control.type === 'checkbox') {
           control.checked = value === true;
         } else if (typeof value === 'string' && (control.tagName !== 'SELECT' || Array.from(control.options).some(option => option.value === value))) {
           control.value = value;
         }
       }
+      onLoad?.();
       name.value = selected.name;
       status.textContent = 'Theme loaded into the controls. Apply it to the program when ready.';
     });
@@ -234,8 +271,24 @@
     const status = panel.querySelector('[data-broadcast-look-status]');
     const work = document.createElement('canvas');
     const keyContext = work.getContext('2d', { willReadFrequently: true });
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = width;
+    frameCanvas.height = height;
+    const frameContext = frameCanvas.getContext('2d');
     let settings, revision = 0;
-    bindThemes(panel, field, 'frame', ['frame', 'brand', 'headline', 'badge', 'frame-color', 'accent']);
+    const frameChoice = field('frame');
+    const showScoreControl = () => { panel.querySelector('[data-look-score]').hidden = frameChoice.value !== 'sports'; };
+    showScoreControl();
+    frameChoice.addEventListener('change', () => {
+      const choice = frameStyles[frameChoice.value];
+      if (choice) {
+        field('frame-color').value = choice.tint;
+        field('accent').value = choice.accent;
+        field('texture').value = 'auto';
+      }
+      showScoreControl();
+    });
+    bindThemes(panel, field, 'frame', ['frame', 'brand', 'headline', 'badge', 'frame-color', 'accent', 'texture'], showScoreControl);
     bindThemes(panel, field, 'background', ['backdrop', 'base-color', 'backdrop-color', 'motion', 'speed']);
 
     function loadImage(file) {
@@ -265,6 +318,7 @@
         brand: field('brand').value.trim().slice(0, 40) || 'Lightek MCG',
         headline: field('headline').value.trim().slice(0, 90),
         badge: field('badge').value.trim().slice(0, 16),
+        score: field('score').value.trim().slice(0, 40),
         frameColor: field('frame-color').value,
         accent: field('accent').value,
         backdrop: field('backdrop').value,
@@ -287,6 +341,14 @@
           next.image = await loadImage(field('image').files[0]);
         }
         if (pending !== revision) return;
+        const style = frameStyles[next.frame];
+        if (style) {
+          const texture = field('texture').value;
+          const tile = textureTile(texture === 'auto' ? style.texture : texture);
+          next.pattern = tile && frameContext.createPattern(tile, 'repeat');
+        }
+        frameContext.clearRect(0, 0, width, height);
+        drawFrame(frameContext, next);
         settings = next;
         status.textContent = next.backdrop === 'off' ? 'Frame settings applied.' : 'Applied. The backdrop appears in Camera only.';
       } catch (error) {
@@ -299,12 +361,21 @@
       settings = null;
       field('frame').value = field('backdrop').value = 'off';
       field('image').value = '';
+      showScoreControl();
       status.textContent = 'Frame and backdrop cleared.';
     }
     panel.querySelector('[data-clear-broadcast-look]').addEventListener('click', clear);
 
     return {
-      drawFrame: ctx => { if (settings) drawFrame(ctx, settings); },
+      drawFrame: ctx => {
+        if (!frameStyles[settings?.frame]) return;
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.filter = 'none';
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(frameCanvas, 0, 0);
+        ctx.restore();
+      },
       drawKeyedCamera(ctx, camera, rect, time) {
         if (!settings || settings.backdrop === 'off') return false;
         const scale = Math.min(1, 640 / camera.videoWidth, 360 / camera.videoHeight);

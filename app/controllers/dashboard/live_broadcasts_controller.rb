@@ -26,7 +26,7 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
     if defined?(LightekAgency::Trial)
       agency_demo_site = site if LightekAgency::Trial.public_site?(site)
       if !agency_demo_site && current_user.role == 'super_admin'
-        agency_demo_site = LightekAgency::Trial.billing_sites(current_user).order(:id).detect { |entry| LightekAgency::Trial.public_site?(entry) }
+        agency_demo_site = LightekAgency::Trial.publication_sites(current_user).order(:id).detect { |entry| LightekAgency::Trial.public_site?(entry) }
         @break_agency_settings_path = dashboard_agency_trials_path unless agency_demo_site
       end
       if agency_demo_site

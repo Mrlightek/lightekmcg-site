@@ -5,6 +5,7 @@ module LightekAgency
     self.table_name = 'lightek_agency_trials'
 
     DEFAULT_DURATION_DAYS = 3
+    PLATFORM_HOST = 'lightekmcg.com'
     PUBLIC_SITE_FLAG = 'public_agency_trial'
     DEFAULT_ANNUAL_PRICE_CENTS = 20_000
     MIN_ANNUAL_PRICE_CENTS = 50
@@ -24,13 +25,34 @@ module LightekAgency
     }
 
     def self.billing_sites(operator)
-      DymondSite::Site.where(tenant: operator).where.not(id: Demo.where.not(site_id: nil).select(:site_id))
+      owned = DymondSite::Site.where(tenant: operator)
+      platform = DymondSite::Site.find_by(host: PLATFORM_HOST)
+      if platform && LightekPwa::Policy.platform_operator(platform) == operator
+        owned = owned.or(DymondSite::Site.where(id: platform.id))
+      end
+      owned.where.not(id: Demo.where.not(site_id: nil).select(:site_id))
     end
 
-    def self.public_site?(site)
-      site&.tenant.is_a?(User) && site.tenant.role == 'super_admin' && site.tenant.access_active? &&
-        site.manifest.to_h[PUBLIC_SITE_FLAG] == true && site.manifest.to_h['agency_demo'].blank?
+    def self.publication_sites(operator)
+      platform = DymondSite::Site.find_by(host: PLATFORM_HOST)
+      return billing_sites(operator) unless platform
+
+      assigned = LightekPwa::Policy.platform_operator(platform)
+      return DymondSite::Site.none if assigned && assigned != operator
+
+      DymondSite::Site.where(id: platform.id)
+        .where.not(id: Demo.where.not(site_id: nil).select(:site_id))
     end
+
+    def self.public_operator(site)
+      return unless site&.manifest.to_h[PUBLIC_SITE_FLAG] == true && site.manifest.to_h['agency_demo'].blank?
+      return if site.host != PLATFORM_HOST && DymondSite::Site.exists?(host: PLATFORM_HOST)
+
+      operator = site.host == PLATFORM_HOST ? LightekPwa::Policy.platform_operator(site) : site.tenant
+      operator if operator.is_a?(User) && operator.role == 'super_admin' && operator.access_active?
+    end
+
+    def self.public_site?(site) = public_operator(site).present?
 
     def self.invite!(operator:, billing_site:, identity:, brand_name:, duration_days:, skip_invitation: false)
       raise Invalid, 'Platform operator access required.' unless operator.role == 'super_admin'

@@ -1,22 +1,24 @@
 <% content_for :page_title, 'Lightek Agency' %>
 <%= stylesheet_link_tag '/lightek/people-workspace.css' %>
-<main class="lp-workspace">
+<main class="lp-workspace"<% if @trial.preview_open? %> data-tour-page="agency-demo" data-tour-auto<% end %>>
   <header class="lp-heading"><div><h1><%= @trial.brand_name %></h1><p>Lightek Agency</p></div></header>
 
   <% if @trial.preview_open? %>
     <section class="lp-card">
-      <h2>Try your agency workspace</h2>
+      <h2 data-tour-step="agency-demo" data-tour-title="Your agency demo" data-tour-body="Try your agency branding and client pricing here. Check this page for your demo end date.">Try your agency workspace</h2>
       <p>Your demo ends on <%= l(@trial.expires_at.to_date, format: :long) %>. Your agency name carries over when you upgrade.</p>
       <%= form_with model: @trial, scope: :trial, url: dashboard_agency_trial_path(@trial), class: 'lp-form' do |f| %>
         <div class="lp-grid">
-          <div><%= f.label :brand_name, 'Agency name' %><%= f.text_field :brand_name, maxlength: 120, required: true %></div>
-          <div><%= f.label :sample_client_name, 'Sample client' %><%= f.text_field :sample_client_name, maxlength: 120, required: true %></div>
-          <div><%= f.label :sample_retail_dollars, 'Sample hosting resale price per month (USD)' %>
+          <div data-tour-step="agency-demo" data-tour-title="Name your agency" data-tour-body="Enter the name you want clients to see. It carries over if you activate your membership." data-tour-try><%= f.label :brand_name, 'Agency name' %><%= f.text_field :brand_name, maxlength: 120, required: true %></div>
+          <div data-tour-step="agency-demo" data-tour-title="Try a sample client" data-tour-body="Give the sample client a name to see how a hosting offer would look for them." data-tour-try><%= f.label :sample_client_name, 'Sample client' %><%= f.text_field :sample_client_name, maxlength: 120, required: true %></div>
+          <div data-tour-step="agency-demo" data-tour-title="Set a sample price" data-tour-body="Try a monthly resale price. Save your changes to see your estimated margin against the sample wholesale cost." data-tour-try><%= f.label :sample_retail_dollars, 'Sample hosting resale price per month (USD)' %>
             <%= f.number_field :sample_retail_dollars, min: LightekAgency::Trial::SAMPLE_WHOLESALE_DOLLARS, max: 10_000, required: true %></div>
         </div>
         <p>Preview a hosting offer for <strong><%= @trial.sample_client_name %></strong>. Sample wholesale cost <strong><%= number_to_currency(LightekAgency::Trial::SAMPLE_WHOLESALE_DOLLARS, precision: 0) %>/month</strong>.
            Your sample margin is <strong><%= number_to_currency(@trial.sample_retail_dollars - LightekAgency::Trial::SAMPLE_WHOLESALE_DOLLARS, precision: 0) %>/month</strong> before fees.</p>
-        <%= f.submit 'Save demo changes', class: 'lp-button secondary' %>
+        <%= f.submit 'Save demo changes', class: 'lp-button secondary',
+          data: {tour_step: 'agency-demo', tour_title: 'Save and compare your margin',
+            tour_body: 'Save the demo to see the difference between your resale price and the sample wholesale cost.', tour_try: true} %>
       <% end %>
     </section>
   <% elsif !@trial.activated_at? %>
@@ -36,7 +38,9 @@
       <% price_cents = @trial.checkout_price_cents %>
       <% price = number_to_currency(price_cents.fdiv(100)) %>
       <%= button_to "Upgrade for #{price}/year", upgrade_dashboard_agency_trial_path(@trial), class: 'lp-button',
-        params: {price_cents: price_cents}, form: {data: {turbo: false}} %>
+        params: {price_cents: price_cents}, form: {data: {turbo: false}},
+        data: {tour_step: 'agency-demo', tour_title: 'Activate your agency when ready',
+          tour_body: 'Review the annual price here. When you are ready, upgrade to unlock client management, white-label branding, and reseller tools with this login.'} %>
     <% end %>
   </section>
 </main>

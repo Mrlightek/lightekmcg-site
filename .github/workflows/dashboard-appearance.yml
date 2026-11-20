@@ -7,6 +7,8 @@ on:
       - 'app/views/dashboard/**'
       - 'app/views/dymond_dash/**'
       - 'public/lightek/dashboard.*'
+      - 'public/lightek/guided-tour.*'
+      - 'test/javascript/lightek_guided_tour_browser_test.cjs'
       - 'public/lightek/dashboard-forms.css'
       - 'test/javascript/dashboard_forms_browser_test.cjs'
       - 'test/support/export_dashboard_forms.rb'
@@ -69,6 +71,10 @@ jobs:
         env:
           NODE_PATH: /tmp/dashboard-ci/node_modules
         run: node test/javascript/dashboard_navigation_browser_test.cjs
+      - name: Verify first-visit tours, replay, and upgrade guidance
+        env:
+          NODE_PATH: /tmp/dashboard-ci/node_modules
+        run: node test/javascript/lightek_guided_tour_browser_test.cjs
       - name: Verify order and product forms in Chromium and WebKit
         env:
           NODE_PATH: /tmp/dashboard-ci/node_modules

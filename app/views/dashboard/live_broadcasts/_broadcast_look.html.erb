@@ -1,18 +1,19 @@
 <details class="ll-config" data-broadcast-look data-theme-scope="<%= current_user.id %>:<%= @site.id %>">
   <summary>Broadcast frame & green screen</summary>
   <fieldset>
-    <legend>Broadcast frame theme creator</legend>
+    <legend>Broadcast frame</legend>
     <div class="ll-grid">
       <label>Style<select data-look="frame">
         <option value="off">No frame</option>
+        <option value="studio">Studio signature</option>
         <option value="news">News desk</option>
         <option value="sports">Sports desk</option>
       </select></label>
       <label>Network or show name<input type="text" maxlength="40" placeholder="Lightek MCG" data-look="brand"></label>
       <label>Bottom headline<input type="text" maxlength="90" data-look="headline"></label>
       <label>Badge label<input type="text" maxlength="16" placeholder="Use style label" data-look="badge"></label>
-      <label>Frame color<input type="color" value="#0b1324" data-look="frame-color"></label>
-      <label>Accent<input type="color" value="#b5f58b" data-look="accent"></label>
+      <label>Panel tint<input type="color" value="#0b1324" data-look="frame-color"></label>
+      <label>Accent<input type="color" value="#d6aa58" data-look="accent"></label>
     </div>
     <%= render "dashboard/live_broadcasts/broadcast_themes", kind: "frame" %>
   </fieldset>

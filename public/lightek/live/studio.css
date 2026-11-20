@@ -19,3 +19,10 @@
 
 .ll-overlay-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
 [data-overlay-controls]{min-width:0;margin:16px 0}
+
+[data-broadcast-look] fieldset{min-width:0;border:1px solid var(--ll-line);border-radius:10px;margin:12px 0;padding:14px}
+[data-broadcast-look] legend{font-weight:650;padding:0 6px}
+[data-broadcast-look] .ll-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+[data-broadcast-look] .ll-grid label{min-width:0}
+@media(max-width:600px){[data-broadcast-look] .ll-grid{grid-template-columns:minmax(0,1fr)}}
+.ll-theme-controls{border-top:1px solid var(--ll-line);margin-top:12px;padding-top:12px}

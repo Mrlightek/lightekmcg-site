@@ -7,9 +7,4 @@
   <% end %>
 </header>
 <p><%= link_to 'Growth & attribution', dashboard_growth_path(site_id: @site.id) %></p>
-<nav class="sales-tabs" aria-label="Sales workspaces">
-  <% [['today', 'Today'], ['intake', 'Inquiry inbox'], ['tasks', 'Tasks'], ['leads', 'Leads'], ['pipeline', 'Deal pipeline'], ['accounts', 'Companies'], ['contacts', 'Contacts'], ['routing', 'Lead routing']].each do |tab, label| %>
-    <% next if tab == 'routing' && !@manage_routing %>
-    <%= link_to label, (tab == 'intake' ? dashboard_sales_intake_path(site_id: @site.id) : dashboard_sales_path(site_id: @site.id, tab: tab)), aria: {current: @tab == tab ? 'page' : nil} %>
-  <% end %>
-</nav>
+<%= render 'dashboard/sales/tabs', active_tab: @tab, manage_routing: @manage_routing %>

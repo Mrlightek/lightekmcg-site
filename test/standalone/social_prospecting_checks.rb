@@ -7,6 +7,8 @@ eval(vault_migration.gsub(', using: :gin', ''), TOPLEVEL_BINDING)
 CreateLightekVault.new.migrate(:up)
 require ROOT.join('db/migrate/20261120120000_create_lightek_sales_social_prospects')
 CreateLightekSalesSocialProspects.new.migrate(:up)
+require ROOT.join('db/migrate/20261120120100_add_web_identity_to_sales_social_prospects')
+AddWebIdentityToSalesSocialProspects.new.migrate(:up)
 
 %w[secret audit_event].each { |name| require ROOT.join("app/models/lightek_vault/#{name}") }
 %w[master_key crypto policy service].each { |name| require ROOT.join("app/services/lightek_vault/#{name}") }
@@ -115,6 +117,49 @@ class SocialProspectingChecks < GrowthFoundationChecks
     post message_dashboard_sales_prospect_path(prospect, site_id: @site.id),
       params: {authenticity_token: token, confirmed: confirmed, contact_permission: 'The source post invited this account to send a DM.',
         outreach_text: 'I saw your invitation to discuss website design.'}, headers: headers
+  end
+
+  def test_prospecting_saves_web_post_links_without_x_credentials
+    save_path = save_web_dashboard_sales_prospecting_path(site_id: @site.id)
+    prospects = LightekSales::SocialProspect.where(site: @site)
+    Net::HTTP.stub(:start, ->(*) { flunk 'Saving a web post must not call X' }) do
+      [
+        'https://x.com.evil.example/TaylorWorks/status/123',
+        'https://x.com/i/web/status/123',
+        'https://user:pass@x.com/TaylorWorks/status/123'
+      ].each do |url|
+        post save_path, params: {authenticity_token: token, post_url: url}, headers: headers
+        assert_response :see_other
+      end
+      assert_empty prospects
+
+      post save_path, params: {authenticity_token: token, post_url: 'https://x.com/TaylorWorks/status/123?s=20'}, headers: headers
+      assert_redirected_to dashboard_sales_prospecting_path(site_id: @site.id)
+      prospect = prospects.sole
+      assert_equal @owner, prospect.saved_by
+      assert_nil prospect.sender_id
+      assert_nil prospect.remote_id
+      assert_equal 'https://x.com/taylorworks/status/123', prospect.source_url
+      assert_equal 'https://x.com/taylorworks', prospect.profile_url
+
+      get dashboard_sales_prospecting_path(site_id: @site.id), headers: headers
+      assert_response :success
+      page = Nokogiri::HTML(response.body)
+      assert_equal save_path, page.at_css('form:has(input[name="post_url"])')['action']
+      assert_equal prospect.profile_url, page.at_css('details [data-x-dm-draft] a')['href']
+
+      message_http(prospect)
+      assert_response :see_other
+      assert_equal 'ready', prospect.reload.outreach_status
+      post block_contact_dashboard_sales_prospect_path(prospect, site_id: @site.id),
+        params: {authenticity_token: token}, headers: headers
+      assert prospect.reload.contact_blocked_at?
+      post save_path, params: {authenticity_token: token, post_url: 'https://twitter.com/TAYLORWORKS/status/456/photo/1'}, headers: headers
+      assert_equal prospect, prospects.sole
+      assert prospect.reload.contact_blocked_at?
+      assert_equal '123', prospect.source_post_id
+      assert_empty LightekVault::Secret.all
+    end
   end
 
   def test_prospecting_oauth_verifies_state_and_refreshes_the_vault_connection

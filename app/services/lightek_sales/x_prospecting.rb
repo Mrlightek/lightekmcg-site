@@ -14,6 +14,7 @@ module LightekSales
     class Uncertain < Error; end
 
     API = 'https://api.x.com'
+    WEB_HOSTS = %w[x.com www.x.com mobile.x.com twitter.com www.twitter.com mobile.twitter.com].freeze
     PURPOSE = 'social_prospecting'
     SCOPES = %w[tweet.read users.read dm.write offline.access].freeze
     CONSUMER = name
@@ -109,8 +110,20 @@ module LightekSales
       raise Error, 'This search result expired. Search again to save it.'
     end
 
+    def save_web_post!(url)
+      authorize!
+      username, post_id = web_post_identity(url)
+      raise ArgumentError, 'Paste the full X post link, including the author’s username and /status/.' unless username
+
+      SocialProspect.create_or_find_by!(site: @site, provider: 'x', web_username: username) do |prospect|
+        prospect.assign_attributes(saved_by: @actor, source_post_id: post_id)
+      end
+    end
+
     def send!(prospect, text:, permission:)
       authorize!
+      raise Error, 'Open the prospect’s profile to message them on X.' if prospect.web_only?
+
       text, permission = text.to_s.strip, permission.to_s.strip
       raise ArgumentError, 'Write a message of 1–2000 characters.' unless text.length.between?(1, 2000)
       raise ArgumentError, 'Record how the person invited a DM to this account.' unless permission.length.between?(5, 250)
@@ -158,6 +171,19 @@ module LightekSales
     end
 
     private
+
+    def web_post_identity(url)
+      url = url.to_s.strip
+      return unless url.bytesize.between?(1, 2048)
+
+      uri = URI.parse(url)
+      return unless uri.is_a?(URI::HTTPS) && WEB_HOSTS.include?(uri.host&.downcase) && uri.port == 443 && uri.userinfo.nil?
+
+      match = uri.path.match(%r{\A/([a-zA-Z0-9_]{1,15})/status/([0-9]{1,25})(?:/(?:photo|video)/[1-9][0-9]*)?/?\z})
+      [match[1].downcase, match[2]] if match && !match[1].casecmp?('i')
+    rescue URI::InvalidURIError
+      nil
+    end
 
     def slug = "lightek-x-prospecting-site-#{@site.id}"
     def app_slug = "#{slug}-oauth-app"

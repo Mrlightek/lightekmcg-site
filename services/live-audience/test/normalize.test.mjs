@@ -3,3 +3,12 @@ test('TikTok chat uses nested identity and plain bounded text',()=>{const e=tikt
 test('unknown counts stay unknown and joins are observed events',()=>{assert.equal(tiktokEvent('viewers',{}).viewer_count,null);assert.equal(tiktokEvent('viewers',{viewerCount:'143'}).viewer_count,143);assert.equal(tiktokEvent('member',{memberCount:31}).viewer_count,31);assert.equal(tiktokEvent('viewers',{viewerCount:-1}).viewer_count,null);});
 test('gift streaks retain repeat state without charging money',()=>{const e=tiktokEvent('gift',{giftId:5,repeatCount:4,repeatEnd:true});assert.equal(e.repeat_count,4);assert.equal(e.repeat_end,true);assert.equal(e.text,'Gift received');});
 test('SSN accepts documented message envelopes and labels the platform',()=>{const e=ssnEvent({data:{chatname:'Person',chatmessage:'<b>Hello</b>',type:'tiktok',id:8}});assert.equal(e.platform,'tiktok');assert.equal(e.text,'Hello');assert.equal(e.id,'8');assert.equal(ssnEvent({action:'getSettings'}),null);assert.equal(ssnEvent({data:[]}),null);});
+
+test('SSN viewer updates carry observed counts without generating a chat message', () => {
+  assert.deepEqual(ssnEvent({data: {type: 'youtube', event: 'viewer_update', meta: 0}}),
+    {source: 'ssn', platform: 'youtube', type: 'viewers', viewer_count: 0});
+  assert.equal(ssnEvent({type: 'twitch', event: 'viewer_update', meta: 123}).viewer_count, 123);
+  for (const meta of [null, false, '', -1, {}, 'unavailable']) {
+    assert.equal(ssnEvent({type: 'twitch', event: 'viewer_update', meta}), null);
+  }
+});

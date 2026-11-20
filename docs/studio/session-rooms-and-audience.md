@@ -74,3 +74,5 @@ Apply migration `20261112150000_add_direct_production_rooms` and restart Rails/S
 ## Feature a comment on the program
 
 [Audience comment graphics](live-audience-graphics.md) let the operator select an available community, room, TikTok or SSN chat message for the composed video. Incoming messages remain off-screen until selected; holding/end/release clears the selection. The Restream iframe remains separate.
+
+For platform counts in the Audience Desk, enable **Show viewer count** in Social Stream Ninja. Individual platform counts appear when that source sends viewer updates. The direct TikTok reader reports counts independently of the Restream video feed. Recent named participants come from received activity, including chat and TikTok join events. Use the displayed observation times when comparing counts across platforms.

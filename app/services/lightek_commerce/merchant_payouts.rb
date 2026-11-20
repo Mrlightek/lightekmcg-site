@@ -57,25 +57,44 @@ module LightekCommerce
         platform_fee_cents: platform_fee, upstream_share_cents: upstream, net_cents: available - upstream}
     end
 
+    def self.ineligible_reason(order, quote: nil)
+      return "Use the creator earnings workspace" if %w[creator_support creator_support_renewal].include?(order.purpose)
+      return "Only fulfilled orders are eligible" unless order.status == "fulfilled"
+      return "Order is not paid" unless order.paid_at.present?
+      return "Refund requires manual settlement" if order.refunded_cents.to_i.positive?
+      if order.payment_provider == "network"
+        return "Missing network payment reference" if order.network_reference.blank?
+        return nil
+      end
+
+      checkout_paid = order.payment_provider == "stripe" && order.payment_reference.to_s.start_with?("cs_")
+      renewal_paid = order.payment_provider == "stripe_invoice" && order.payment_reference.present? &&
+        BillingInvoice.exists?(settlement_order_id: order.id, processor_reference: order.payment_reference)
+      return "Only verified store payments may fund earnings releases" unless checkout_paid || renewal_paid
+      return "Net transfer amount is zero" unless (quote || fee_quote(order))[:net_cents].positive?
+    end
+
     def self.request!(order:, merchant:)
-      raise Invalid, "Creator support uses the creator earnings workspace" if %w[creator_support creator_support_renewal].include?(order.purpose)
       if order.payment_provider == "network"
         raise Invalid, "Order does not belong to your store" unless order.site.tenant == merchant
+        return order if order.merchant_transfer_ref.present?
+        reason = ineligible_reason(order)
+        raise Invalid, reason if reason
+        raise Invalid, "Outstanding refund prevents payout" if order.refunds.where(status: "pending").exists?
         NetworkCheckout.action!(order: order, action: "payout")
+        raise Invalid, "Network release receipt is not available yet. Retry to reconcile." unless order.reload.merchant_transfer_ref.present?
         return order
       end
+
+      transfer_error = nil
       order.with_lock do
-        raise Invalid, "Platform funds have not been reconciled for earnings release" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
         raise Invalid, "Order does not belong to your store" unless
           LightekSettings::WebsiteIdentity.sites_for(merchant).where(tenant: merchant).exists?(id: order.site_id)
         return order if order.merchant_transfer_ref.present?
-        checkout_paid = order.payment_provider == "stripe" && order.payment_reference.to_s.start_with?("cs_")
-        renewal_paid = order.payment_provider == "stripe_invoice" && BillingInvoice.exists?(settlement_order_id: order.id, processor_reference: order.payment_reference)
-        raise Invalid, "Only verified store payments may fund earnings releases" unless checkout_paid || renewal_paid
-        raise Invalid, "Only fulfilled, nonrefunded orders are eligible" unless order.status == "fulfilled"
-        raise Invalid, "Order is not paid" unless order.paid_at.present?
+        reason = ineligible_reason(order)
+        raise Invalid, reason if reason
+        raise Invalid, "Platform funds have not been reconciled for earnings release" unless ENV["LIGHTEK_COMMERCE_MERCHANT_TRANSFERS_ENABLED"] == "true"
         raise Invalid, "Outstanding refund prevents payout" if order.refunds.where(status: "pending").exists?
-        raise Invalid, "Partially refunded order requires manual settlement" if order.refunded_cents.to_i.positive?
         DymondBank::StripeService.sync_connect_status!(merchant)
         raise Invalid, "Complete payout account verification before requesting funds" unless merchant.stripe_connect_ready?
         RevenueSharing.record!(order)
@@ -91,15 +110,17 @@ module LightekCommerce
             metadata: PaymentIdentity.metadata(order),
             idempotency_key: PaymentIdentity.key(order, 'merchant-transfer-v1')
           )
+        rescue DymondBank::StripeService::StripeError, DymondBank::StripeService::ConfigurationError => error
+          order.update!(merchant_transfer_error: error.message.slice(0, 1000))
+          transfer_error = error
+        else
           order.update!(merchant_transfer_ref: transfer.id,
             merchant_transfer_amount_cents: quote.fetch(:net_cents),
             merchant_transfer_completed_at: Time.current)
-        rescue StandardError => e
-          order.update!(merchant_transfer_error: "#{e.class}: #{e.message}".slice(0, 1000))
-          raise
         end
-        order
       end
+      raise transfer_error if transfer_error
+      order
     end
   end
 end

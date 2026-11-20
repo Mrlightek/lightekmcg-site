@@ -7,11 +7,13 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
     if LightekReservations::Federation::Client.config(@site) && @site.tenant == current_user
       begin
         LightekReservations::Federation::Client.new(@site).synchronize_payouts!(merchant: current_user)
-      rescue LightekReservations::Federation::Client::Unavailable => error
+        @payout_status = {state: current_user.reload.stripe_connect_ready? ? 'ready' : 'needs_information'}
+      rescue LightekReservations::Federation::Client::Unavailable
+        @payout_status = {state: 'unavailable'}
         flash.now[:alert] = 'Payout status could not be verified. Please retry.'
       end
     end
-    @payout_status = LightekPayments::PayoutAccounts.status(current_user) unless LightekReservations::Federation::Client.config(@site)
+    @payout_status ||= LightekPayments::PayoutAccounts.status(current_user) if @site.tenant == current_user
     @payout_schedule = LightekCommerce::PayoutSchedule.for!(current_user)
     @orders = LightekCommerce::Order.where(site: @site, status: "fulfilled")
       .includes(:refunds).order(created_at: :desc).limit(100)
@@ -19,11 +21,11 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
 
   def schedule
     site = LightekSettings::WebsiteIdentity.sites_for(current_user).find(params.require(:site_id))
+    raise ActiveRecord::RecordNotFound unless site.tenant == current_user
     cadence = params.require(:cadence)
     raise ArgumentError, 'Choose weekly or every two weeks' unless %w[weekly biweekly].include?(cadence)
     if LightekReservations::Federation::Client.config(site)
       client = LightekReservations::Federation::Client.new(site)
-      raise ActiveRecord::RecordNotFound unless site.tenant == current_user
       client.request('payouts', method: :patch, body: {cadence: cadence, enabled: params[:enabled] == '1', merchant_chain: LightekCommerce::NetworkCheckout.chain(site), store_name: site.name})
       client.synchronize_payouts!(merchant: current_user)
       return redirect_to dashboard_commerce_payouts_path(site_id: site.id), notice: 'Your network payout preference has been saved.'
@@ -44,7 +46,8 @@ class Dashboard::CommercePayoutsController < Dashboard::CommerceBaseController
     LightekCommerce::MerchantPayouts.request!(order: order, merchant: current_user)
     redirect_to dashboard_commerce_payouts_path(site_id: site.id),
       notice: "Earnings released to your payout account. Bank arrival depends on your payout schedule."
-  rescue LightekCommerce::MerchantPayouts::Invalid, DymondBank::StripeService::StripeError,
+  rescue LightekCommerce::MerchantPayouts::Invalid, LightekReservations::Federation::Client::Unavailable,
+      DymondBank::StripeService::StripeError,
       DymondBank::StripeService::ConfigurationError => e
     redirect_to dashboard_commerce_payouts_path(site_id: params[:site_id]), alert: "Earnings could not be released. Check payout verification and available funds, then retry."
   end

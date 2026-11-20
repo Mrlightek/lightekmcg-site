@@ -3,7 +3,7 @@
 class StudioCharacterAnimationsController < ApplicationController
   protect_from_forgery with: :exception
   before_action :character_workspace
-  before_action :find_operation, except: :create
+  before_action :find_operation, except: %i[create save_mixamo]
   before_action { response.set_header("Cache-Control", "private, no-store") }
 
   rescue_from ActiveRecord::RecordNotFound do
@@ -21,7 +21,19 @@ class StudioCharacterAnimationsController < ApplicationController
     redirect_to studio_pipeline_path(site_id: @site.id, anchor: "character-animation"), alert: error.message, status: :see_other
   end
 
+  def save_mixamo
+    credentials = params.expect(mixamo_credentials: %i[email password])
+    Studio::Pipeline::MixamoCredentials.save!(user: current_user, email: credentials[:email],
+      password: credentials[:password])
+    redirect_to studio_pipeline_path(site_id: @site.id, anchor: "mixamo-connection"),
+      notice: "Mixamo credentials saved. Studio will reconnect when it needs a new session.", status: :see_other
+  rescue ArgumentError, Studio::Pipeline::MixamoCredentials::Unavailable => error
+    redirect_to studio_pipeline_path(site_id: @site.id, anchor: "mixamo-connection"),
+      alert: error.message, status: :see_other
+  end
+
   def show
+    @mixamo_operator = Studio::Pipeline::MixamoCredentials.operator?(current_user)
     @video = pipeline_file("video")
     @animated = pipeline_file("package")
     render layout: false

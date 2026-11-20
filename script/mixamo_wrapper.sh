@@ -31,17 +31,24 @@ trap 'rm -rf -- "$transfer"' EXIT
 cli() {
     local result code=0
     result=$(env -u MIXAMO_EMAIL -u MIXAMO_PASSWORD timeout --kill-after=10s 300s \
-        "$python" main.py "$@" 2>&1) || code=$?
+        "$python" main.py "$@" </dev/null 2>&1) || code=$?
     # Match explicit negative auth messages before positive ones.
     if (( code == 42 )) || grep -Eiq \
         'logged in[[:space:]]*[:=][[:space:]]*(false|no)|not (logged|signed) in|unauthenticated|session[[:space:]]+(has[[:space:]]+|is[[:space:]]+)?expired|login required|sign-in required' <<<"$result"; then
-        login
+        return 42
     fi
     if (( code != 0 )); then
         printf '%s\n' "$result" >&2
         return 1
     fi
     printf '%s\n' "$result"
+}
+
+checked_cli() {
+    local code=0
+    cli "$@" || code=$?
+    if (( code == 42 )); then login; fi
+    return "$code"
 }
 
 case ${MIXAMO_CLI_MODE:-auto} in
@@ -60,16 +67,26 @@ if [[ $mode == interactive ]]; then
     if (( code == 42 )); then login; fi
     (( code == 0 )) || fail "Mixamo transfer failed (exit $code)"
 else
-    cli status >"$transfer/status"
+    code=0
+    cli status >"$transfer/status" || code=$?
+    if (( code == 42 )); then
+        # Forks using the upstream Chromium profile can renew the session too.
+        [[ -d screens && -f browser.py && ! -t 0 ]] || login
+        env -u MIXAMO_EMAIL -u MIXAMO_PASSWORD timeout --kill-after=10s 75s \
+            "$python" "$here/mixamo_cli.py" renew || login
+        checked_cli status >"$transfer/status"
+    elif (( code != 0 )); then
+        exit "$code"
+    fi
     grep -Eiq 'logged in[[:space:]]*[:=][[:space:]]*(true|yes)|session active|^logged in[.!]?$|^authenticated([.!]|[[:space:]]*[:=][[:space:]]*true)?$' "$transfer/status" ||
         fail 'Mixamo status did not confirm authentication'
-    cli upload "$source_fbx"
+    checked_cli upload "$source_fbx"
     if [[ -z $id ]]; then
-        cli list "$name" >"$transfer/list"
+        checked_cli list "$name" >"$transfer/list"
         id=$("$python" "$here/mixamo_cli.py" match -- "$name" "$transfer/list")
     fi
-    cli select "$id"
-    cli download "$transfer/animated.fbx" format=fbx skin=true fps=30
+    checked_cli select "$id"
+    checked_cli download "$transfer/animated.fbx" format=fbx skin=true fps=30
 fi
 [[ -s $transfer/animated.fbx ]] || fail 'Mixamo did not write an animated FBX'
 mv -fT -- "$transfer/animated.fbx" "$output"

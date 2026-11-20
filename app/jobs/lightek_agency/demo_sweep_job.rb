@@ -6,6 +6,7 @@ module LightekAgency
         DemoCleanupJob.perform_later(demo.id)
       end
       DemoRequest.where(status: 'pending').where('expires_at < ?', 7.days.ago).delete_all
+      TrialRequest.where('created_at < ?', 7.days.ago).delete_all if defined?(TrialRequest) && TrialRequest.table_exists?
     end
   end
 end

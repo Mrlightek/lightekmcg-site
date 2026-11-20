@@ -1,6 +1,6 @@
 <% content_for :page_title, 'Client demos' %><%= stylesheet_link_tag '/lightek/people-workspace.css' %>
 <main class="lp-workspace"><header class="lp-heading"><div><span class="lp-eyebrow">AGENCY / DEMOS</span><h1>Let clients try it.</h1><p>Create a temporary workspace here. Clients can upgrade to their own instance from their demo.</p></div>
-<% if current_user.role == 'super_admin' %><%= link_to 'Create agency demo', dashboard_agency_trials_path, class: 'lp-button secondary' %><% end %>
+<% if current_user.role == 'super_admin' %><%= link_to 'Agency demos', dashboard_agency_trials_path, class: 'lp-button secondary' %><% end %>
 </header>
 <%= form_with url: dashboard_demos_path, method: :get do |f| %><%= f.label :agency_id, 'Agency' %><%= f.collection_select :agency_id, @agencies, :id, :email_address, selected: @agency.id %><%= f.submit 'Switch', class: 'lp-button secondary' %><% end %>
 <section class="lp-card"><h2>Demo settings</h2>

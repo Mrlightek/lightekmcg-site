@@ -1,0 +1,19 @@
+<% content_for :title, 'Request a Lightek Agency demo' %>
+<main class="auth-shell">
+  <%= render 'authentication/story' %>
+  <section class="auth-panel">
+    <div class="auth-card">
+      <h1>Try Lightek Agency</h1>
+      <p class="auth-intro">Explore the agency workspace for <%= LightekAgency::Trial::DEFAULT_DURATION_DAYS %> days. If you decide to upgrade, agency membership is <%= number_to_currency(LightekAgency::Trial::ANNUAL_PRICE_CENTS / 100, precision: 0) %> per year.</p>
+      <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+      <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
+      <%= form_with scope: :trial_request, url: request_agency_demo_path, data: {turbo: false} do |f| %>
+        <div class="auth-field"><%= f.label :first_name %><%= f.text_field :first_name, class: 'auth-input auth-input-plain', autocomplete: 'given-name', maxlength: 100, required: true %></div>
+        <div class="auth-field"><%= f.label :last_name %><%= f.text_field :last_name, class: 'auth-input auth-input-plain', autocomplete: 'family-name', maxlength: 100, required: true %></div>
+        <div class="auth-field"><%= f.label :email_address, 'Email' %><%= f.email_field :email_address, class: 'auth-input auth-input-plain', autocomplete: 'email', maxlength: 254, required: true %></div>
+        <div hidden aria-hidden="true"><%= text_field_tag :website_url, nil, tabindex: -1, autocomplete: 'off' %></div>
+        <%= f.submit 'Request my agency demo', class: 'auth-submit' %>
+      <% end %>
+    </div>
+  </section>
+</main>

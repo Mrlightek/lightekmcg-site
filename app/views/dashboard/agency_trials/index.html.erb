@@ -6,7 +6,25 @@
   </header>
 
   <section class="lp-card">
-    <h2>Create agency demo</h2>
+    <h2>Public agency demo</h2>
+    <p>Share this form on your website or in Live Studio. Visitors enter their own details and confirm their email to start the demo.</p>
+    <% @sites.each do |site| %>
+      <div>
+        <strong><%= site.name %></strong>
+        <% if LightekAgency::Trial.public_site?(site) %>
+          <% url = request_agency_demo_url(host: site.host, protocol: 'https', port: nil) %>
+          <p><%= link_to url, url %></p>
+          <%= button_to 'Close public requests', publish_dashboard_agency_trials_path, method: :patch, params: {site_id: site.id, enabled: '0'}, class: 'lp-button secondary' %>
+        <% else %>
+          <%= button_to 'Enable public requests', publish_dashboard_agency_trials_path, method: :patch, params: {site_id: site.id, enabled: '1'}, class: 'lp-button' %>
+        <% end %>
+      </div>
+    <% end %>
+    <% if @sites.empty? %><p>Add a Lightek storefront to publish the request form.</p><% end %>
+  </section>
+
+  <section class="lp-card">
+    <h2>Send a private invitation</h2>
     <% if @sites.empty? %>
       <p>Create a Lightek storefront under your operator account to take membership payments.</p>
     <% else %>
@@ -16,7 +34,7 @@
           <div><%= f.label :email_address, 'Prospect email' %><%= f.email_field :email_address, required: true %></div>
           <div><%= f.label :first_name %><%= f.text_field :first_name, required: true %></div>
           <div><%= f.label :last_name %><%= f.text_field :last_name, required: true %></div>
-          <div><%= f.label :duration_days, 'Trial length in days' %><%= f.number_field :duration_days, value: 3, min: 1, max: 90, required: true %></div>
+          <div><%= f.label :duration_days, 'Trial length in days' %><%= f.number_field :duration_days, value: LightekAgency::Trial::DEFAULT_DURATION_DAYS, min: 1, max: 90, required: true %></div>
           <% if @sites.one? %>
             <%= f.hidden_field :billing_site_id, value: @sites.first.id %>
           <% else %>
@@ -29,7 +47,7 @@
   </section>
 
   <section class="lp-card">
-    <h2>Invited agencies</h2>
+    <h2>Agency demos</h2>
     <% @trials.each do |trial| %>
       <p><strong><%= trial.brand_name %></strong> · <%= trial.prospect.email_address %> ·
         <%= if trial.paid_access?

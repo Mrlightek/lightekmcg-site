@@ -2,7 +2,7 @@ class Dashboard::AgencyTrialsController < ApplicationController
   layout 'dymond_dash/layouts/dymond_dash'
   protect_from_forgery with: :exception
   before_action :private_response
-  before_action :require_operator!, only: %i[index create resend]
+  before_action :require_operator!, only: %i[index create resend publish]
   before_action :load_prospect_trial, only: %i[show update upgrade]
   rate_limit to: 5, within: 3.minutes, only: :resend
 
@@ -25,6 +25,16 @@ class Dashboard::AgencyTrialsController < ApplicationController
     else
       redirect_to dashboard_agency_trials_path, notice: 'Agency demo created. The private setup invitation is queued.'
     end
+  end
+
+  def publish
+    site = LightekAgency::Trial.billing_sites(current_user).find(params.require(:site_id))
+    enabled = params[:enabled] == '1'
+    site.with_lock do
+      site.update!(manifest: site.manifest.to_h.merge(LightekAgency::Trial::PUBLIC_SITE_FLAG => enabled))
+    end
+    notice = enabled ? 'Public agency demo requests are open.' : 'Public agency demo requests are closed.'
+    redirect_to dashboard_agency_trials_path, notice: notice, status: :see_other
   end
 
   def show; end

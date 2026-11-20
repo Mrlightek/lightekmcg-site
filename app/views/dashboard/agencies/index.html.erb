@@ -6,7 +6,7 @@
     <div><span class="infra-eyebrow">Agency workspace</span><h1>Your clients, ready for business.</h1><p>Create a client account, choose hosting and follow their setup from one place.</p></div>
     <% if @agency %><%= link_to 'Add a client', '#new-client', class: 'infra-button infra-button-primary' %><% end %>
     <% if current_user.role == 'super_admin' %>
-      <%= link_to 'Create agency demo', dashboard_agency_trials_path, class: 'infra-button' %>
+      <%= link_to 'Agency demos', dashboard_agency_trials_path, class: 'infra-button' %>
     <% end %>
   </header>
   <% if @agencies.size > 1 %>

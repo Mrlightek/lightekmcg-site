@@ -49,7 +49,12 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
 <% end %>
 </header>
 <% end %>
-<main id="main-content"><%= yield %></main>
+<main id="main-content">
+<% if !@preview && defined?(LightekAgency::Trial) && LightekAgency::Trial.public_site?(@site) %>
+  <aside class="lt-agency-demo-link"><%= link_to 'Request an agency demo', main_app.request_agency_demo_path %></aside>
+<% end %>
+<%= yield %>
+</main>
 <% theme_footer = !@preview && studio_theme_chrome("footer") %>
 <% if theme_footer %><%= studio_render_section(theme_footer, theme_footer.fetch("data")) %><% end %>
 <% unless theme_footer || @preview || @page.sections.any? { |section| %w[vinylctrl_waitlist ybnc_footer].include?(section.kind) || LightekDesign::Catalog.section_definition(section.kind)&.fetch("chrome_footer", false) } %>

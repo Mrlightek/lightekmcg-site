@@ -39,6 +39,7 @@ module LightekCommerce
         if %w[paid fulfilled partially_refunded refunded].include?(order.status)
           LightekPwa::CreatorSupport.record!(order: order) if defined?(LightekPwa::CreatorSupport) && %w[paid fulfilled].include?(order.status)
           LightekPwa::BusinessActivation.call!(order: order) if defined?(LightekPwa::BusinessActivation)
+          LightekAgency::Trial.settle!(order: order) if order.purpose == "agency_membership"
           # Stripe retries also recover a lost provisioning enqueue after settlement.
           # The provisioning job's order-bound advisory lock prevents duplicate allocation.
           if order.purpose != "reservation_change" && %w[paid fulfilled].include?(order.status) && order.paid_at? && !order.provisioned_at? &&
@@ -78,6 +79,7 @@ module LightekCommerce
         LightekShipping::LabelJob.perform_later(order.id) if order.purpose == "shipping_label"
         LightekPwa::CreatorSupport.record!(order: order) if defined?(LightekPwa::CreatorSupport)
         LightekPwa::BusinessActivation.call!(order: order) if defined?(LightekPwa::BusinessActivation)
+        LightekAgency::Trial.settle!(order: order) if order.purpose == "agency_membership"
         RevenueSharing.record!(order)
         OrderConfirmationJob.perform_later(order.id)
         PaidInstanceProvisioningJob.perform_later(order.id) if order.purpose != "reservation_change" && order.items.any? { |item| item.product.product_type == "lightek_instance" }

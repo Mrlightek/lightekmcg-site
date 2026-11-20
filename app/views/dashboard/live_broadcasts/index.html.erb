@@ -7,11 +7,11 @@
 <%= javascript_include_tag "/lightek/live/graphics.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/broadcast-look.js?v=2", defer: true %>
 <%= javascript_include_tag "/lightek/live/slate-design.js?v=1", defer: true %>
-<% if @break_demo_url %>
+<% if @break_demo_url || @break_agency_demo_url %>
   <%= javascript_include_tag "/lightek/vendor/qrcode-generator/qrcode.js", defer: true %>
-  <%= javascript_include_tag "/lightek/live/break-demo.js?v=1", defer: true %>
+  <%= javascript_include_tag "/lightek/live/break-demo.js?v=2", defer: true %>
 <% end %>
-<%= javascript_include_tag "/lightek/live/holding-break.js?v=3", defer: true %>
+<%= javascript_include_tag "/lightek/live/holding-break.js?v=4", defer: true %>
 <%= javascript_include_tag "/lightek/live/effects.js?v=1", defer: true %>
 <%= javascript_include_tag "/lightek/live/studio.js?v=17", defer: true %>
 <%= javascript_include_tag '/lightek/vendor/livekit-2.23.0.umd.js', defer: true %>

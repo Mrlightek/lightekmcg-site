@@ -41,7 +41,7 @@
     try {
       const saved = JSON.parse(localStorage.getItem(key) || 'null');
       if (saved) {
-        demo?.restore(saved.demo);
+        demo?.restore(saved.demo, saved.demoTarget);
         for (const [field, value] of [[brand, saved.brand], [heading, saved.heading], [message, saved.message], [volume, saved.volume]]) {
           if (typeof value === 'string') field.value = value;
         }
@@ -56,7 +56,7 @@
     q('[data-break-save]').addEventListener('click', () => {
       try {
         localStorage.setItem(key, JSON.stringify({
-          ...slate(), demo: demo?.enabled(), volume: volume.value, music: musicChoice.value, items: items.map(item => item.value)
+          ...slate(), demo: demo?.enabled(), demoTarget: demo?.target(), volume: volume.value, music: musicChoice.value, items: items.map(item => item.value)
         }));
         status.textContent = 'Break settings saved to this browser.';
       } catch {

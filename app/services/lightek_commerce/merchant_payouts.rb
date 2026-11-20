@@ -58,6 +58,7 @@ module LightekCommerce
     end
 
     def self.ineligible_reason(order, quote: nil)
+      return "Lightek agency membership fees belong to the platform" if order.purpose == "agency_membership"
       return "Use the creator earnings workspace" if %w[creator_support creator_support_renewal].include?(order.purpose)
       return "Only fulfilled orders are eligible" unless order.status == "fulfilled"
       return "Order is not paid" unless order.paid_at.present?

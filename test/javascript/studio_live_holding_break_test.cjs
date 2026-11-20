@@ -9,7 +9,9 @@ const {window} = new JSDOM(`<div data-holding-break data-break-brand="Client Stu
   <select data-break-item><option value="24" data-kind="video">Commercial</option></select>
   <select data-break-music><option value="19">Music</option></select>
   <input value="0.25" data-break-volume><button data-break-save></button><button data-break-next></button>
-  <input type="checkbox" data-break-demo="https://demo.example.test/request-demo"><span data-break-status></span></div>`, {url:'https://studio.test', runScripts:'outside-only'});
+  <input type="checkbox" data-break-demo="https://demo.example.test/request-demo">
+  <select data-break-demo-target><option value="https://demo.example.test/request-demo">Client</option>
+  <option value="https://demo.example.test/request-agency-demo">Agency</option></select><span data-break-status></span></div>`, {url:'https://studio.test', runScripts:'outside-only'});
 const created = [];
 const createElement = window.document.createElement.bind(window.document);
 window.document.createElement = name => {
@@ -80,5 +82,16 @@ assert.equal(music.hasAttribute('src'), false);
 image.dispatchEvent(event('load'));
 studio.draw(canvas);
 assert.equal(pictures.length, 2, 'stale media cannot return after the program resumes');
+const selection = q('[data-break-demo-target]');
+selection.value = selection.options[1].value;
+q('[data-break-demo]').checked = true;
+q('[data-break-save]').click();
+const saved = JSON.parse(window.localStorage.getItem('lightek:holding-break:v1:1:2'));
+assert.equal(saved.demoTarget, 'https://demo.example.test/request-agency-demo');
+selection.selectedIndex = 0;
+const demo = window.LightekBreakDemo.boot(q('[data-holding-break]'));
+demo.restore(saved.demo, saved.demoTarget);
+demo.draw(canvas);
+assert.deepEqual(lines.slice(-2), ['Request an agency demo', 'demo.example.test/request-agency-demo']);
 window.close();
 console.log('STUDIO_HOLDING_BREAK_PASS customer slate, settings, spot order, isolated audio, and stop');

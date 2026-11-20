@@ -23,6 +23,16 @@ class Dashboard::LiveBroadcastsController < Dashboard::SettingsHomeController
         @break_demo_settings_path = dashboard_demos_path(agency_id: site.tenant_id)
       end
     end
+    if defined?(LightekAgency::Trial)
+      agency_demo_site = site if LightekAgency::Trial.public_site?(site)
+      if !agency_demo_site && current_user.role == 'super_admin'
+        agency_demo_site = LightekAgency::Trial.billing_sites(current_user).order(:id).detect { |entry| LightekAgency::Trial.public_site?(entry) }
+        @break_agency_settings_path = dashboard_agency_trials_path unless agency_demo_site
+      end
+      if agency_demo_site
+        @break_agency_demo_url = request_agency_demo_url(host: agency_demo_site.host, protocol: 'https', port: nil)
+      end
+    end
     actor = Studio::PwaAccess.new("user_id"=>current_user.id, "site_id"=>site.id)
     @library_assets = StudioAsset.for_actor(actor).where(site_id: site.id, status: "ready", kind: %w[image audio video]).includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }
     @stage_assets = StudioAsset.for_actor(actor).where(site_id:site.id,status:"ready",kind:%w[blend glb]).includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }

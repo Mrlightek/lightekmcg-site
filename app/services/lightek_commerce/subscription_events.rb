@@ -59,6 +59,7 @@ module LightekCommerce
       record = BillingInvoice.find_or_initialize_by(processor_reference: invoice.fetch("id"))
       if record.persisted?
         LightekPwa::CreatorSupport.record!(order: record.settlement_order, original_order: subscription.order) if defined?(LightekPwa::CreatorSupport) && record.settlement_order
+        settle_agency_renewal!(subscription, invoice, record)
         return record
       end
       original = subscription.order
@@ -73,7 +74,7 @@ module LightekCommerce
         # for review, rather than creating an incorrect merchant transfer.
         if subtotal.positive? && invoice["total"].to_i == record.amount_paid_cents && subtotal + tax.to_i == record.amount_paid_cents
           renewal = Order.create!(site: original.site, customer_email: original.customer_email, currency: record.currency,
-            status: "fulfilled", purpose: original.purpose == "creator_support" ? "creator_support_renewal" : "subscription_renewal", stock_reserved: false, revenue_share_snapshot: original.revenue_share_snapshot,
+            status: "fulfilled", purpose: renewal_purpose(original), stock_reserved: false, revenue_share_snapshot: original.revenue_share_snapshot,
             subtotal_cents: subtotal, tax_cents: tax.to_i, total_cents: record.amount_paid_cents,
             payment_provider: "stripe_invoice", payment_reference: record.processor_reference,
             paid_at: record.paid_at, fulfilled_at: record.paid_at, fulfillment_reference: record.processor_reference)
@@ -85,10 +86,27 @@ module LightekCommerce
         end
       end
       record.save!
+      settle_agency_renewal!(subscription, invoice, record)
       LightekPwa::CreatorSupport.record!(order: record.settlement_order, original_order: original) if defined?(LightekPwa::CreatorSupport) && record.settlement_order
       LightekPwa::RevenueEligibility.record!(subscription: subscription, reference: "invoice:#{record.processor_reference}") if defined?(LightekPwa::RevenueEligibility)
       record
     end
+
+    def self.renewal_purpose(order)
+      case order.purpose
+      when "creator_support" then "creator_support_renewal"
+      when "agency_membership" then "agency_membership"
+      else "subscription_renewal"
+      end
+    end
+    private_class_method :renewal_purpose
+
+    def self.settle_agency_renewal!(subscription, invoice, receipt)
+      return unless invoice["billing_reason"] == "subscription_cycle" && subscription.order.purpose == "agency_membership"
+
+      LightekAgency::Trial.settle!(order: subscription.order, receipt: receipt)
+    end
+    private_class_method :settle_agency_renewal!
 
     def self.apply!(subscription:, data:)
       item = data.fetch("items").fetch("data").first || {}

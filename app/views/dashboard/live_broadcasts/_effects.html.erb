@@ -1,8 +1,11 @@
-<details class="ll-config" data-live-effects>
+<details class="ll-config" data-live-effects data-effects-scope="<%= current_user.id %>:<%= @site.id %>">
   <summary>Motion graphics &amp; GIFs</summary>
   <div class="ll-motion-editor">
     <div class="ll-motion-monitor">
       <canvas width="1280" height="720" class="ll-effects-preview" data-effects-preview aria-label="Private motion graphics preview"></canvas>
+      <label data-effects-scrub-controls>Preview position
+        <input type="range" min="0" max="100" value="42" data-effects-scrub>
+      </label>
       <div class="ll-motion-actions">
         <button type="button" data-effects-try>Play preview</button>
         <button type="button" data-effects-cue>Cue on program</button>
@@ -25,6 +28,8 @@
       <div class="ll-slate-fields" data-effect-text-controls>
         <label>Headline<input type="text" maxlength="44" value="Lightek Live" data-effect="title"></label>
         <label>Subtitle<input type="text" maxlength="64" value="On air" data-effect="subtitle"></label>
+        <label>Logo image<input type="file" accept="image/png,image/jpeg,image/webp" data-effect="logo"></label>
+        <button type="button" data-effects-remove-logo hidden>Remove logo</button>
       </div>
       <label data-effect-gif-controls hidden>GIF file<input type="file" accept=".gif,image/gif" data-effect="file"></label>
       <div class="ll-slate-fields" data-effect-palette>
@@ -41,6 +46,33 @@
           <label>Cue length (seconds)<input type="number" min="1" max="30" value="3" data-effect="seconds"></label>
           <label><input type="checkbox" data-effect="loop"> Loop until cleared</label>
         </div>
+      </details>
+      <details class="ll-motion-placement" data-effect-animation>
+        <summary>Entrance &amp; exit</summary>
+        <div class="ll-slate-fields">
+          <label>Entrance easing<select data-effect="easing">
+            <option value="power2.out">Smooth</option>
+            <option value="sine.inOut">Gentle</option>
+            <option value="back.out(1.4)">Overshoot</option>
+            <option value="none">Linear</option>
+          </select></label>
+          <label>Entrance (seconds)<input type="number" min="0" max="4" step="0.05" value="0.55" data-effect="entrance"></label>
+          <label>Exit (seconds)<input type="number" min="0" max="4" step="0.05" value="0.5" data-effect="exit"></label>
+          <label data-effect-stagger>Layer delay (seconds)<input type="number" min="0" max="1" step="0.01" value="0.07" data-effect="stagger"></label>
+        </div>
+        <p class="ll-note">Short cues fit the entrance and exit into the available time.</p>
+      </details>
+      <details class="ll-motion-placement" data-effects-library>
+        <summary>Saved graphics</summary>
+        <div class="ll-slate-fields">
+          <label>Saved on this browser<select data-effects-saved></select></label>
+          <label>Graphic name<input type="text" maxlength="60" data-effects-name></label>
+        </div>
+        <div class="ll-motion-actions">
+          <button type="button" data-effects-load>Load graphic</button>
+          <button type="button" data-effects-save>Save graphic</button>
+        </div>
+        <button type="button" data-effects-delete hidden>Remove from saved graphics</button>
       </details>
       <p class="ll-note" data-effect-export-note>GIF downloads are transparent, 480 × 270, and up to six seconds.</p>
     </div>

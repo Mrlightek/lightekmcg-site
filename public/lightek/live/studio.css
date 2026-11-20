@@ -46,3 +46,9 @@
 [data-live-effects] [hidden]{display:none}
 @media(max-width:850px){.ll-motion-editor{grid-template-columns:minmax(0,1fr)}}
 .ll-motion-actions [data-effects-download]{align-self:center;font-weight:650;text-decoration:underline;text-underline-offset:3px}
+
+.ll-motion-monitor [data-effects-scrub-controls]{display:grid;gap:3px;margin-bottom:10px}
+.ll-motion-monitor [data-effects-scrub]{width:100%;margin:0}
+.ll-motion-controls [hidden],.ll-motion-monitor [hidden]{display:none}
+.ll-motion-controls [data-effects-library] .ll-motion-actions{margin-top:8px}
+.ll-motion-controls [data-effects-delete]{margin-top:6px}

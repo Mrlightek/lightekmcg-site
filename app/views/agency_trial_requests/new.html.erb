@@ -11,6 +11,11 @@
         <div class="auth-field"><%= f.label :first_name %><%= f.text_field :first_name, class: 'auth-input auth-input-plain', autocomplete: 'given-name', maxlength: 100, required: true %></div>
         <div class="auth-field"><%= f.label :last_name %><%= f.text_field :last_name, class: 'auth-input auth-input-plain', autocomplete: 'family-name', maxlength: 100, required: true %></div>
         <div class="auth-field"><%= f.label :email_address, 'Email' %><%= f.email_field :email_address, class: 'auth-input auth-input-plain', autocomplete: 'email', maxlength: 254, required: true %></div>
+        <div class="auth-field">
+          <%= f.label :business_type, 'What kind of business do you run?' %>
+          <%= f.select :business_type, LightekAgency::Trial::BUSINESS_TYPES.invert.to_a,
+            {include_blank: 'Choose your business type'}, class: 'auth-input auth-input-plain', required: true %>
+        </div>
         <div hidden aria-hidden="true"><%= text_field_tag :website_url, nil, tabindex: -1, autocomplete: 'off' %></div>
         <%= f.submit 'Request my agency demo', class: 'auth-submit' %>
       <% end %>

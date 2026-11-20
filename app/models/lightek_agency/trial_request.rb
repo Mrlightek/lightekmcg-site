@@ -5,6 +5,7 @@ module LightekAgency
     belongs_to :site, class_name: 'DymondSite::Site'
     belongs_to :operator, class_name: 'User'
     normalizes :email_address, with: ->(email) { email.strip.downcase }
+    validates :business_type, inclusion: {in: Trial::BUSINESS_TYPES.keys}
     validates :first_name, :last_name, presence: true, length: {maximum: 100}
     validates :email_address, presence: true, length: {maximum: 254}, format: {with: URI::MailTo::EMAIL_REGEXP}
 
@@ -31,7 +32,7 @@ module LightekAgency
           else
             Trial.invite!(operator: operator, billing_site: site,
               identity: {first_name: first_name, last_name: last_name, email_address: email_address},
-              brand_name: 'My agency', duration_days: Trial::DEFAULT_DURATION_DAYS, skip_invitation: true)
+              brand_name: 'My agency', business_type: business_type, duration_days: Trial::DEFAULT_DURATION_DAYS, skip_invitation: true)
           end
           update!(confirmed_at: Time.current)
           [trial, prospect.nil?]
@@ -51,7 +52,7 @@ module LightekAgency
         return if Demo.where(client: prospect, created_client: true).exists?
 
         Trial.create!(prospect: prospect, operator: operator, billing_site: site,
-          brand_name: 'My agency', expires_at: Trial::DEFAULT_DURATION_DAYS.days.from_now)
+          brand_name: 'My agency', business_type: business_type, expires_at: Trial::DEFAULT_DURATION_DAYS.days.from_now)
       end
     end
   end

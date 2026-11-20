@@ -3,7 +3,7 @@
   <div class="dd-user"><div class="dd-avatar"><%= current_user.email_address.to_s.first.upcase %></div><div><div class="dd-user-name"><%= current_user.email_address %></div><small class="dd-brand-sub"><%= current_user.role.to_s.humanize %></small></div></div>
   <% if agency_branding&.support_email.present? %><div class="dd-user"><%= mail_to agency_branding.support_email, "Contact support", class: "dd-nav-item" %></div><% end %>
   <nav class="dd-nav" aria-label="Workspaces">
-    <div class="dd-nav-search" data-navigation-search hidden>
+    <div class="dd-nav-search" data-navigation-search hidden data-tour-step="dashboard" data-tour-title="Find a tool" data-tour-body="Use the navigation menu to explore your workspaces. Search by task, such as orders, Studio, or clients." data-tour-fallback="[data-dashboard-menu]">
       <label for="dd-tool-search">Find a tool</label>
       <input id="dd-tool-search" type="search" placeholder="Try orders, studio, clients…" autocomplete="off" aria-controls="dd-navigation-groups" data-tool-search>
     </div>

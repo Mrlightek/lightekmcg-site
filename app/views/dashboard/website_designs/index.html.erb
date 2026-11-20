@@ -3,7 +3,7 @@
 <%= render "dashboard/settings_home/style" %>
 <%= stylesheet_link_tag "/lightek/site-content.css?v=20261120" %>
 <%= javascript_include_tag "/lightek/site-content.js?v=1",defer:true %>
-<main class="lt-settings content-hub"><div class="tl-page-heading"><h1>Design & Content</h1></div>
+<main class="lt-settings content-hub" data-tour-page="website"><div class="tl-page-heading" data-tour-step="website" data-tour-title="Design and content" data-tour-body="Choose the website you want to edit before changing its design or pages."><h1>Design & Content</h1></div>
 
 <p class="intro">Choose a website, preview a design, then apply its appearance or add an editable starter page.</p>
 <%= form_with url: dashboard_website_designs_path, method: :get, local: true, class: "tl-site-picker" do %>
@@ -14,11 +14,11 @@
   <%= submit_tag "Choose website",class:"content-button" %>
 <% end %>
 <% if @site %>
-<nav class="content-actions" aria-label="Website editing"><%= link_to "Open Pages & Sections",dymond_dash.pages_path(site_id:@site.id),class:"content-button primary" %><%= link_to "Open Design Studio",dashboard_design_studio_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Write & manage articles",dashboard_blog_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Manage store",dashboard_commerce_path(site_id:@site.id),class:"content-button" %></nav>
+<nav class="content-actions" data-tour-step="website" data-tour-title="Edit your website" data-tour-body="Open Pages &amp; Sections for content or Design Studio to work on the layout." aria-label="Website editing"><%= link_to "Open Pages & Sections",dymond_dash.pages_path(site_id:@site.id),class:"content-button primary" %><%= link_to "Open Design Studio",dashboard_design_studio_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Write & manage articles",dashboard_blog_index_path(site_id:@site.id),class:"content-button" %><%= link_to "Manage store",dashboard_commerce_path(site_id:@site.id),class:"content-button" %></nav>
 <%= render "site_themes" %>
 <p><%= link_to "Sign-in & account branding →", dashboard_authentication_branding_path(site_id: @site.id) %></p>
 <p>Editing <strong><%= @site.name %></strong> · <%= @site.host %></p>
-<details class="content-library"><summary>Browse page designs & starter layouts</summary>
+<details class="content-library"><summary data-tour-step="website" data-tour-title="Browse starter designs" data-tour-body="Preview a design before applying it or using it as the starting point for a page.">Browse page designs & starter layouts</summary>
 <%= render "template_library", designs: LightekDesign::Catalog.selectable_designs(user: current_user, active: LightekDesign::Catalog.design_for(@site)) %>
 </details>
 <details class="tl-upload" <%= "open" if params[:import_id].present? %>><summary>Import your own HTML, CSS & JavaScript</summary><%= render "html_upload" %></details>

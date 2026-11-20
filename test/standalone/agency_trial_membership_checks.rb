@@ -6,6 +6,10 @@ ActiveRecord::Schema.define do
 end
 require Rails.root.join('db/migrate/20261120190000_create_lightek_agency_trials').to_s
 CreateLightekAgencyTrials.new.migrate(:up)
+require Rails.root.join('db/migrate/20261120200000_create_lightek_agency_trial_requests').to_s
+CreateLightekAgencyTrialRequests.new.migrate(:up)
+require Rails.root.join('db/migrate/20261120210000_add_business_type_to_agency_demos').to_s
+AddBusinessTypeToAgencyDemos.new.migrate(:up)
 
 require Rails.root.join('app/models/lightek_agency/demo').to_s
 require Rails.root.join('app/services/lightek_agency/demos').to_s

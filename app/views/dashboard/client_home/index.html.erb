@@ -1,12 +1,12 @@
 <% content_for :page_title, "Your workspace" %>
 <%= stylesheet_link_tag '/lightek/people-workspace.css' %>
 <main class="lp-workspace" data-client-home>
-  <header class="lp-heading">
+  <header class="lp-heading" data-tour-step="dashboard" data-tour-title="Your workspace" data-tour-body="Find the demos, websites, and services linked to this account.">
     <div><span class="lp-eyebrow"><%= @agency_profile&.brand_name.presence || 'Lightek' %></span>
       <h1>Your workspace</h1><p>Your websites, services and account, together in one place.</p></div>
   </header>
   <% if @agency_trial %>
-    <section class="lp-card">
+    <section class="lp-card"<% if @agency_trial.preview_open? %> data-tour-step="dashboard" data-tour-title="Open your agency demo" data-tour-body="Start here to try agency branding and client pricing. A short tour is available inside the demo."<% end %>>
       <h2><%= @agency_trial.brand_name %></h2>
       <%= link_to (@agency_trial.preview_open? ? 'Open agency demo' : 'View agency membership'), dashboard_agency_trial_path(@agency_trial), class: 'lp-button' %>
     </section>
@@ -25,7 +25,7 @@
     <% if @agency_profile&.support_email.present? %><p><%= mail_to @agency_profile.support_email, 'Contact your agency' %></p><% end %>
   </section>
   <section class="lp-card">
-    <h2>Your services</h2><p>View purchased applications and their installation status.</p>
+    <h2>Your services</h2><p data-tour-step="dashboard" data-tour-title="Your services" data-tour-body="Use this section to open your applications, check their setup, or view your reservations.">View purchased applications and their installation status.</p>
     <% @installations.each do |order, installation| %>
       <div><h3><%= installation[:hostname] %></h3><p><%= installation[:state].to_s.humanize %></p>
         <% if installation[:ready] %><%= link_to 'Launch admin dashboard', "#{installation[:url]}/dashboard/", class: 'lp-button', target: '_blank', rel: 'noopener' %><% end %>

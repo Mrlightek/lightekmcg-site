@@ -1,8 +1,8 @@
 <% content_for :page_title, "Clients & agencies" %>
 <%= render "dashboard/infrastructure/styles" %>
 <%= stylesheet_link_tag '/lightek/agency-workspace.css' %>
-<main class="infra agency-workspace">
-  <header class="infra-hero">
+<main class="infra agency-workspace" data-tour-page="agency">
+  <header class="infra-hero" data-tour-step="agency" data-tour-title="Client management" data-tour-body="Add client logins and track who has completed setup.">
     <div><span class="infra-eyebrow">Agency workspace</span><h1>Your clients, ready for business.</h1><p>Create a client account, choose hosting and follow their setup from one place.</p></div>
     <% if @agency %><%= link_to 'Add a client', '#new-client', class: 'infra-button infra-button-primary' %><% end %>
     <% if current_user.role == 'super_admin' %>
@@ -18,7 +18,7 @@
     </section>
   <% end %>
   <% if @agency %>
-    <section class="infra-panel" id="new-client" aria-labelledby="new-client-title">
+    <section class="infra-panel" id="new-client" data-tour-step="agency" data-tour-title="Invite a client" data-tour-body="Add the client’s name and email. They receive a private password setup invitation." aria-labelledby="new-client-title">
       <div class="infra-panel-header"><div><h2 id="new-client-title">Add a client</h2><p><%= @agency.agency_profile&.brand_name || @agency.email_address %> · The client receives a private password setup invitation.</p></div></div>
       <%= form_with scope: :client, url: create_client_dashboard_agency_path(@agency), class: 'infra-form' do |f| %>
         <div class="infra-fields">
@@ -61,7 +61,7 @@
         <% end %>
       </section>
     <% end %>
-    <section class="infra-panel" aria-labelledby="agency-clients-title">
+    <section class="infra-panel" aria-labelledby="agency-clients-title" data-tour-step="agency" data-tour-title="Open a client" data-tour-body="Search for a client, then open their setup to manage hosting and access.">
       <div class="infra-panel-header"><div><h2 id="agency-clients-title">Your clients</h2><p>Open a client to continue setup or manage their websites.</p></div></div>
       <%= form_with url: dashboard_agencies_path, method: :get, class: 'agency-switch' do |f| %>
         <%= f.hidden_field :agency_id, value: @agency.id %>

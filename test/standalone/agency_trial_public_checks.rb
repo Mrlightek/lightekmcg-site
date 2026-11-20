@@ -4,6 +4,10 @@ require ROOT.join('db/migrate/20261120190000_create_lightek_agency_trials')
 require ROOT.join('db/migrate/20261120200000_create_lightek_agency_trial_requests')
 CreateLightekAgencyTrials.new.migrate(:up)
 CreateLightekAgencyTrialRequests.new.migrate(:up)
+require ROOT.join('db/migrate/20261117145500_create_pwa_platform_operators')
+CreatePwaPlatformOperators.new.migrate(:up)
+require ROOT.join('app/models/lightek_pwa/platform_operator')
+require ROOT.join('app/services/lightek_pwa/policy')
 require ROOT.join('app/models/lightek_agency/trial')
 require ROOT.join('app/models/lightek_agency/trial_request')
 LightekAgency::TrialRequest.generated_token_verifier = User.generated_token_verifier
@@ -40,6 +44,7 @@ class AgencyTrialPublicChecks < AgencyDemoChecks
   end
 
   def teardown
+    LightekPwa::PlatformOperator.delete_all
     LightekAgency::TrialRequest.delete_all
     LightekAgency::Trial.delete_all
     super
@@ -119,6 +124,33 @@ class AgencyTrialPublicChecks < AgencyDemoChecks
     assert_select 'input[name="annual_price"][value="275.25"]'
     get request_agency_demo_path
     assert_includes response.body, '$275.25'
+  end
+
+  def test_public_agency_trial_prefers_the_platform_domain_and_preserves_legacy_ownership
+    canonical = DymondSite::Site.create!(tenant: @other, name: 'Lightek', host: 'lightekmcg.com')
+    assert_raises(ActiveRecord::RecordNotFound) { get request_agency_demo_path }
+    login(@platform)
+    get dashboard_agency_trials_path
+    assert_select 'input[name="trial[billing_site_id]"][value=?]', canonical.id.to_s
+    assert_select 'a[href=?]', "https://#{@site.host}/request-agency-demo", count: 0
+    assert_raises(ActiveRecord::RecordNotFound) do
+      patch publish_dashboard_agency_trials_path, params: {site_id: @site.id, enabled: '1'}
+    end
+
+    patch publish_dashboard_agency_trials_path, params: {site_id: canonical.id, enabled: '1'}
+    assert_redirected_to dashboard_agency_trials_path
+    assert_equal @other, canonical.reload.tenant
+    assert_equal @platform, LightekPwa::Policy.platform_operator(canonical)
+    host! canonical.host
+    get request_agency_demo_path
+    assert_response :success
+    request = request_trial
+    post confirm_agency_demo_path(request.generate_token_for(:confirmation))
+    assert_response :redirect
+    trial = LightekAgency::Trial.sole
+    assert_equal @platform, trial.operator
+    assert_equal canonical, trial.billing_site
+    assert LightekAgency::Trial.billing_sites(@platform).exists?(id: canonical.id)
   end
 
   def test_public_agency_trial_is_bound_to_the_published_website

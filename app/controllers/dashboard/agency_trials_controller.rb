@@ -10,16 +10,19 @@ class Dashboard::AgencyTrialsController < ApplicationController
     LightekCommerce::StripeCheckout::Unavailable, with: :invalid!
 
   def index
-    @sites = LightekAgency::Trial.billing_sites(current_user).order(:name)
+    @sites = LightekAgency::Trial.publication_sites(current_user).order(:name)
     @trials = LightekAgency::Trial.where(operator: current_user).includes(:prospect, :paid_order).order(created_at: :desc).limit(100)
   end
 
   def create
     fields = params.require(:trial)
-    site = LightekAgency::Trial.billing_sites(current_user).find(fields.require(:billing_site_id))
-    trial = LightekAgency::Trial.invite!(operator: current_user, billing_site: site,
-      identity: fields.permit(:first_name, :last_name, :email_address).to_h.symbolize_keys,
-      brand_name: fields[:brand_name], duration_days: fields[:duration_days])
+    site = LightekAgency::Trial.publication_sites(current_user).find(fields.require(:billing_site_id))
+    trial = site.with_lock do
+      authorize_platform_storefront!(site, bind: true)
+      LightekAgency::Trial.invite!(operator: current_user, billing_site: site,
+        identity: fields.permit(:first_name, :last_name, :email_address).to_h.symbolize_keys,
+        brand_name: fields[:brand_name], duration_days: fields[:duration_days])
+    end
     if trial.prospect.password_setup_invitation_error
       redirect_to dashboard_agency_trials_path, alert: 'Demo created. Use Send setup invitation to retry the email.'
     else
@@ -28,9 +31,10 @@ class Dashboard::AgencyTrialsController < ApplicationController
   end
 
   def publish
-    site = LightekAgency::Trial.billing_sites(current_user).find(params.require(:site_id))
+    site = LightekAgency::Trial.publication_sites(current_user).find(params.require(:site_id))
     enabled = params[:enabled] == '1'
     site.with_lock do
+      authorize_platform_storefront!(site, bind: enabled)
       site.update!(manifest: site.manifest.to_h.merge(LightekAgency::Trial::PUBLIC_SITE_FLAG => enabled))
     end
     notice = enabled ? 'Public agency demo requests are open.' : 'Public agency demo requests are closed.'
@@ -38,8 +42,11 @@ class Dashboard::AgencyTrialsController < ApplicationController
   end
 
   def pricing
-    site = LightekAgency::Trial.billing_sites(current_user).find(params.require(:site_id))
-    LightekAgency::Trial.set_annual_price!(site, dollars: params.require(:annual_price))
+    site = LightekAgency::Trial.publication_sites(current_user).find(params.require(:site_id))
+    site.with_lock do
+      authorize_platform_storefront!(site, bind: true)
+      LightekAgency::Trial.set_annual_price!(site, dollars: params.require(:annual_price))
+    end
     redirect_to dashboard_agency_trials_path, notice: 'Annual price saved for new checkouts.', status: :see_other
   end
 
@@ -70,6 +77,15 @@ class Dashboard::AgencyTrialsController < ApplicationController
   end
 
   private
+
+  def authorize_platform_storefront!(site, bind:)
+    return unless site.host == LightekAgency::Trial::PLATFORM_HOST
+
+    assigned = LightekPwa::Policy.platform_operator(site)
+    raise ActiveRecord::RecordNotFound if assigned && assigned != current_user
+
+    LightekPwa::Policy.bind_platform!(site: site, actor: current_user) if bind && !assigned
+  end
 
   def private_response
     response.headers['Cache-Control'] = 'no-store, private'

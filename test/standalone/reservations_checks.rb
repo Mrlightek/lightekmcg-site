@@ -136,13 +136,16 @@ module DymondBank
   end
   SubscriptionPlan.create!(id: 1, slug: 'resort', name: 'Resort', currency: 'usd', features_json: [])
   module StripeService
+    class StripeError < StandardError; end
+    class ConfigurationError < StandardError; end
     def self.sync_connect_status!(_) = true
     def self.create_transfer(**args)
+      raise StripeError, 'Transfer rejected' if fail_transfer
       self.transfers ||= []
       transfers << args
       OpenStruct.new(id: "tr_#{args[:idempotency_key]}")
     end
-    class << self; attr_accessor :transfers; end
+    class << self; attr_accessor :transfers, :fail_transfer; end
   end
 end
 module Gatekeeper
@@ -472,7 +475,7 @@ class ReservationsChecks < Minitest::Test
     assert_equal 7, schedule.interval_days
   end
   def fulfilled_order(site: @site)
-    order = LightekCommerce::Order.create!(site: site, customer_email: @guest.email_address, total_cents: 10000, subtotal_cents: 10000, status: 'fulfilled', paid_at: Time.current, payment_provider: 'stripe', payment_reference: 'cs_test_fulfilled')
+    order = LightekCommerce::Order.create!(site: site, customer_email: @guest.email_address, total_cents: 10000, subtotal_cents: 10000, status: 'fulfilled', paid_at: Time.current, payment_provider: 'stripe', payment_reference: "cs_test_fulfilled_#{SecureRandom.hex(8)}")
     order
   end
   def test_automatic_release_is_idempotent
@@ -484,6 +487,43 @@ class ReservationsChecks < Minitest::Test
     assert order.reload.merchant_transfer_ref
     assert schedule.reload.next_run_at > Time.current
   end
+  def test_ineligible_fulfilled_orders_do_not_hold_the_release_schedule
+    order = fulfilled_order
+    manual = fulfilled_order
+    manual.update!(payment_provider: 'manual')
+    refunded = fulfilled_order
+    refunded.update!(refunded_cents: 100)
+    schedule = LightekCommerce::PayoutSchedule.for!(@owner)
+    schedule.update!(next_run_at: 1.minute.ago)
+
+    LightekCommerce::ScheduledPayoutsJob.new.perform
+
+    assert_equal 1, DymondBank::StripeService.transfers.size
+    assert order.reload.merchant_transfer_ref
+    assert_nil manual.reload.merchant_transfer_ref
+    assert_nil refunded.reload.merchant_transfer_ref
+    assert_nil schedule.reload.last_error
+    assert schedule.next_run_at > Time.current
+  end
+
+  def test_failed_manual_transfer_is_visible_and_can_be_retried
+    order = fulfilled_order
+    DymondBank::StripeService.fail_transfer = true
+
+    assert_raises(DymondBank::StripeService::StripeError) do
+      LightekCommerce::MerchantPayouts.request!(order: order, merchant: @owner)
+    end
+    assert_equal 'Transfer rejected', order.reload.merchant_transfer_error
+    assert_nil order.merchant_transfer_ref
+
+    DymondBank::StripeService.fail_transfer = false
+    LightekCommerce::MerchantPayouts.request!(order: order, merchant: @owner)
+    assert order.reload.merchant_transfer_ref
+    assert_nil order.merchant_transfer_error
+  ensure
+    DymondBank::StripeService.fail_transfer = false
+  end
+
   def test_payout_does_not_capture_another_merchants_orders_even_for_super_admin
     foreign_order = fulfilled_order(site: @foreign_site)
     schedule = LightekCommerce::PayoutSchedule.for!(@owner)

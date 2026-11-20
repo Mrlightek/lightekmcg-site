@@ -5,6 +5,7 @@ function boot(){
  let screen,camera,mic,audio,mixer,micNode,gain,analyser,silent,program,canvas,paintTimer,clockTimer,ws,recorder,identifier,active=false,stopping=false,holding=false,muted=true,queue=[],pending=null,sequence=0,queuedBytes=0,started=0,connectTimer,transportPhase='idle',cameraBusy=false,captureGeneration=0;
  let productionSetup=null,stage=null,stageLoading=false,sessionSource=null,sessionLoading=false,presentationDraft={participants:{}};
  const comments=window.LightekLiveComments?.boot(root);
+ const graphics=window.LightekLiveGraphics?.boot(root);
  const overlay=window.LightekLiveOverlay?.boot(root);
  const showPresentation=window.LightekLiveShowPresentation?new window.LightekLiveShowPresentation():null;
  let libraryVisual=null,libraryOverlay=null,libraryBed=null,libraryBedGain=null,libraryVideoGain=null,libraryBusy=false;
@@ -32,6 +33,7 @@ function boot(){
    }
    else{ctx.fillStyle='#b5f58b';ctx.font='22px sans-serif';ctx.fillText('LIGHTEK / LIVE',90,110);ctx.fillStyle='#f2f5fa';ctx.font='bold 56px sans-serif';ctx.fillText('Back in a moment.',90,340);ctx.fillStyle='#a7b4c6';ctx.font='24px sans-serif';ctx.fillText('Building Lightek. Stay with us.',90,390);}
    if(!holding&&libraryOverlay?.complete&&libraryOverlay.naturalWidth){if(overlay)overlay.draw(ctx,libraryOverlay);else ctx.drawImage(libraryOverlay,0,0,1280,720);}
+   if(!holding&&pictureReady)graphics?.draw(ctx, Boolean(comments?.selected));
    if(!holding&&pictureReady)comments?.draw(ctx,q('[data-presentation=accent]')?.value);
    if(analyser){const bins=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(bins);const level=Math.sqrt(bins.reduce((sum,v)=>sum+((v-128)/128)**2,0)/bins.length);q('[data-meter]').value=muted||holding?0:Math.min(1,level*4);}
   }
@@ -84,7 +86,7 @@ function boot(){
   const entry=pending;
   try{const bytes=new Uint8Array(await entry.blob.arrayBuffer());if(!active||pending!==entry)return;let raw='';for(let i=0;i<bytes.length;i+=32768)raw+=String.fromCharCode(...bytes.subarray(i,i+32768));send('chunk',{sequence:entry.sequence,live_chunk:btoa(raw)});entry.timer=setTimeout(()=>{if(active&&pending===entry)fail('The server did not acknowledge capture within 10 seconds. Check the broadcaster service log before starting another test.');},10000);}catch(e){fail(e.message);}
  }
- function finish(text){comments?.clear();active=false;stopping=false;clearTimeout(connectTimer);clearTimeout(pending?.timer);clearInterval(clockTimer);if(recorder?.state!=='inactive')recorder?.stop();queue=[];pending=null;queuedBytes=0;ws?.close();badge.textContent='Preview only';badge.dataset.active='false';status.textContent=text;controls();}
+ function finish(text){comments?.clear();graphics?.clear();active=false;stopping=false;clearTimeout(connectTimer);clearTimeout(pending?.timer);clearInterval(clockTimer);if(recorder?.state!=='inactive')recorder?.stop();queue=[];pending=null;queuedBytes=0;ws?.close();badge.textContent='Preview only';badge.dataset.active='false';status.textContent=text;controls();}
  function fail(text){message(text);finish('Session stopped. Preview stays local.');}
  function startRecorder(){
   if(!active||stopping)return;
@@ -118,7 +120,7 @@ function boot(){
   }catch(e){fail(e.message);}
  }
  function stop(){if(!active||stopping)return;stopping=true;controls();status.textContent='Stopping capture…';if(recorder?.state==='recording')recorder.stop();else{try{send('stop');}catch{finish('Session stopped.');}}}
- function release(){if(active)return message('Stop the session before releasing capture.');comments?.clear();captureGeneration++;sessionSource?.dispose();sessionSource=null;stage?.dispose();stage=null;disposeLibrary();disableCamera();screen?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());program?.getTracks().forEach(t=>t.stop());silent?.stop();audio?.close();clearInterval(paintTimer);screen=mic=program=audio=gain=analyser=null;muted=true;hold(false);preview.srcObject=null;source.srcObject=null;q('[data-placeholder]').hidden=false;sourceStatus();q('[data-meter]').value=0;status.textContent='Capture released.';}
+ function release(){if(active)return message('Stop the session before releasing capture.');comments?.clear();graphics?.clear();captureGeneration++;sessionSource?.dispose();sessionSource=null;stage?.dispose();stage=null;disposeLibrary();disableCamera();screen?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());program?.getTracks().forEach(t=>t.stop());silent?.stop();audio?.close();clearInterval(paintTimer);screen=mic=program=audio=gain=analyser=null;muted=true;hold(false);preview.srcObject=null;source.srcObject=null;q('[data-placeholder]').hidden=false;sourceStatus();q('[data-meter]').value=0;status.textContent='Capture released.';}
  function setPresentation(values){presentationDraft=values;root.querySelectorAll('[data-presentation]').forEach(input=>input.value=values[input.dataset.presentation]??'');sessionSource?.configure(values);if(q('[data-style-person]')?.value)q('[data-style-person]').dispatchEvent(new Event('change'));root.dispatchEvent(new CustomEvent('lightek:presentation-loaded'));}
  function roomPresentation(values){setPresentation(showPresentation?.forRoom(values)||values);}
  function applyShowPresentation(values){if(!showPresentation)throw Error('Reopen Live Studio after deployment.');setPresentation(showPresentation.apply(values,{...presentationDraft,...sessionSource?.presentation}));q('[data-presentation-status]').textContent='Production styling loaded locally. Guest settings remain specific to this room.';}

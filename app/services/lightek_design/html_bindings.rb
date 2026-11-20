@@ -30,8 +30,15 @@ module LightekDesign
         link.remove_attribute("target")
       end
       if theme && navigation_html
-        fragment.css('header button').each{|button|button.remove if button['aria-controls'].present? || button['aria-label'].to_s.match?(/menu/i) || button['class'].to_s.match?(/ham|burger|menu/)}
-        fragment.css('header nav,[data-lightek-navigation]').each { |nav| nav.inner_html=navigation_html }
+        selector = '[data-lightek-navigation]'
+        unless HtmlDocument.wrapped_page_header?(html)
+          fragment.css('header button').each{|button|button.remove if button['aria-controls'].present? || button['aria-label'].to_s.match?(/menu/i) || button['class'].to_s.match?(/ham|burger|menu/)}
+          selector = "header nav,#{selector}"
+        end
+        fragment.css(selector).each do |nav|
+          nav.inner_html = navigation_html
+          nav.add_class("lt-bound-navigation")
+        end
       end
       HtmlDocument.clean_html(fragment.to_html)
     end

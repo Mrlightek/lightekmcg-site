@@ -28,6 +28,21 @@ module LightekDesign
       {"copy" => text_nodes(fragment).map(&:text), "links" => fragment.css("a[href]").map { |node| node["href"] }, "images" => fragment.css("img[src]").map { |node| node["src"] }}
     end
 
+    # A standalone page can put its navigation under layout divs. A header
+    # inside an article, main section, or hidden app shell is local content.
+    def self.wrapped_page_header?(html)
+      return false unless html.to_s.match?(/<header\b/i)
+
+      Nokogiri::HTML5.fragment(html).css("div header nav").any? do |nav|
+        header = nav.ancestors("header").first
+        wrappers = header.ancestors.select(&:element?)
+        visible = ([nav] + nav.ancestors.select(&:element?)).none? do |node|
+          node.key?("hidden") || node["aria-hidden"] == "true" || node["style"].to_s.match?(/(?:\A|;)\s*display\s*:\s*none\b/i)
+        end
+        visible && wrappers.all? { |node| node.name == "div" }
+      end
+    end
+
     def self.render_html(source)
       fragment = Nokogiri::HTML5.fragment(source.fetch("html"))
       text_nodes(fragment).each_with_index { |node, index| node.content = source["copy"][index] if source["copy"].length > index }

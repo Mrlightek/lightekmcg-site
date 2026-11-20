@@ -18,6 +18,13 @@ const repo=path.resolve(__dirname,'../..'),preview=process.env.SITE_CONTENT_PREV
   await page.goto('http://localhost:19322/article');await page.locator('lightek-html').first().waitFor();const nav=page.locator('lightek-html nav').first();assert(await nav.locator('a[href="/blog"]').count()>0);assert(await nav.locator('a[href^="/commerce/shop?site_id="]').count()>0);assert.equal(await page.locator('lightek-html').count(),2,'one shared header/footer');
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'themed article fits '+width);await page.screenshot({path:path.join(preview,'article-'+width+'.png'),fullPage:true});
   await page.goto('http://localhost:19322/journal');assert(await page.getByRole('link',{name:'Own every layer',exact:true}).isVisible());assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'journal fits '+width);
+  await page.goto('http://localhost:19322/wrapped-header');
+  const header=page.locator('lightek-html header.pub-head');
+  await header.waitFor();
+  const brand=await header.getByRole('link',{name:'Lightek',exact:true}).boundingBox(),demo=await header.getByRole('link',{name:'Book a demo',exact:true}).boundingBox();
+  assert(brand.x+brand.width<=demo.x||brand.y+brand.height<=demo.y,'brand and demo remain separate at '+width);
+  assert(demo.x+demo.width<=width,'demo stays inside the viewport at '+width);
+  assert.equal(await page.locator('body > header').count(),0,'no extra default navigation');
  }
  await page.goto('http://localhost:19322/interactive');
  const interactive=page.frameLocator('iframe[title="Interactive design preview"]');

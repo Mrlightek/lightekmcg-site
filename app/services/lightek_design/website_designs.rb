@@ -25,6 +25,18 @@ module LightekDesign
       site
     end
 
+    def self.imported_release_key(site:, page:)
+      key = site.manifest.to_h.fetch("lightek_design_imports", {}).find do |release, page_id|
+        release.match?(/\Ald_release_\d+_v\d+\z/) && page_id.to_s == page.id.to_s
+      end&.first
+      return unless key
+
+      Catalog.fetch(key)
+      key
+    rescue KeyError
+      nil
+    end
+
     # Site row lock serializes both import and template creation. A stored page ID
     # protects edited/renamed/published starter pages from later imports.
     def self.import!(site:, design:)

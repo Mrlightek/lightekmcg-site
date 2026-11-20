@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_20_210000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -5293,6 +5293,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_210000) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "managed_playout", default: false, null: false
     t.index ["site_id"], name: "index_studio_broadcast_channels_on_site_id"
   end
 
@@ -5306,6 +5307,26 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_210000) do
     t.index ["channel_id", "starts_at"], name: "index_studio_broadcast_programs_on_channel_id_and_starts_at"
     t.index ["channel_id"], name: "index_studio_broadcast_programs_on_channel_id"
     t.index ["post_id"], name: "index_studio_broadcast_programs_on_post_id"
+  end
+
+  create_table "studio_channel_airings", force: :cascade do |t|
+    t.bigint "channel_id", null: false
+    t.bigint "operator_id", null: false
+    t.string "title", null: false
+    t.string "relay"
+    t.string "status", default: "preparing", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.jsonb "rundown", default: [], null: false
+    t.jsonb "events", default: [], null: false
+    t.jsonb "state", default: {}, null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["channel_id", "starts_at"], name: "index_studio_channel_airings_on_channel_id_and_starts_at"
+    t.index ["channel_id"], name: "index_studio_channel_airings_on_channel_id"
+    t.index ["operator_id"], name: "index_studio_channel_airings_on_operator_id"
+    t.index ["status", "starts_at"], name: "index_studio_channel_airings_on_status_and_starts_at"
   end
 
   create_table "studio_compute_leases", force: :cascade do |t|
@@ -6194,6 +6215,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_210000) do
   add_foreign_key "studio_broadcast_channels", "dymond_site_sites", column: "site_id", on_delete: :cascade
   add_foreign_key "studio_broadcast_programs", "posts", on_delete: :cascade
   add_foreign_key "studio_broadcast_programs", "studio_broadcast_channels", column: "channel_id", on_delete: :cascade
+  add_foreign_key "studio_channel_airings", "studio_broadcast_channels", column: "channel_id", on_delete: :cascade
+  add_foreign_key "studio_channel_airings", "users", column: "operator_id", on_delete: :cascade
   add_foreign_key "studio_compute_leases", "studio_operations"
   add_foreign_key "studio_live_operations", "productions"
   add_foreign_key "studio_live_operations", "studio_projects"

@@ -49,3 +49,11 @@ The existing Chromium library/program test is extended with actual program-canva
 ## Create a graphic in Live Studio
 
 Open **Program graphics**, enter a title and optional subtitle, choose a placement and accent color, then select **Show / update graphic**. Check the program preview before broadcasting. **Hide graphic** removes it from the program. Graphics are local to the current Studio session and appear in the same canvas as the library image and featured comment. The holding screen hides the graphic and ending the session clears it. A private recording can verify the combined output.
+
+## Frame the broadcast and replace the camera background
+
+Open **Broadcast frame & green screen**. Choose News desk or Sports desk, set the name and optional headline, and select **Apply to program**. The frame works with every program layout. It stays off the holding screen.
+
+For a virtual backdrop, use **Camera only** with a physical green or blue screen. Select a studio backdrop or a local PNG, JPEG, or WebP image, then apply it. Set the screen color to match your setup. Lower key strength to remove weaker green or blue tones, or raise it if parts of the presenter disappear. **Animate studio backdrop** adds motion to the built-in designs. Check a private recording to see the composite before broadcasting.
+
+To reuse a design, name it and select **Save theme** in the matching creator. Frame themes save the style, badge, text and palette. Background themes save the studio pattern, palette and motion settings. Camera key controls stay independent. Select a saved theme, choose **Load theme**, then **Apply to program**. Themes are saved per website in this browser.

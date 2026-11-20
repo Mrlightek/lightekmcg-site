@@ -1,0 +1,51 @@
+<details class="ll-config" data-broadcast-look data-theme-scope="<%= current_user.id %>:<%= @site.id %>">
+  <summary>Broadcast frame & green screen</summary>
+  <fieldset>
+    <legend>Broadcast frame theme creator</legend>
+    <div class="ll-grid">
+      <label>Style<select data-look="frame">
+        <option value="off">No frame</option>
+        <option value="news">News desk</option>
+        <option value="sports">Sports desk</option>
+      </select></label>
+      <label>Network or show name<input type="text" maxlength="40" placeholder="Lightek MCG" data-look="brand"></label>
+      <label>Bottom headline<input type="text" maxlength="90" data-look="headline"></label>
+      <label>Badge label<input type="text" maxlength="16" placeholder="Use style label" data-look="badge"></label>
+      <label>Frame color<input type="color" value="#0b1324" data-look="frame-color"></label>
+      <label>Accent<input type="color" value="#b5f58b" data-look="accent"></label>
+    </div>
+    <%= render "dashboard/live_broadcasts/broadcast_themes", kind: "frame" %>
+  </fieldset>
+  <fieldset>
+    <legend>Background theme creator</legend>
+    <p>Choose Camera only and use an evenly lit physical green or blue screen. Use the preview to tune the key.</p>
+    <div class="ll-grid">
+      <label>Backdrop<select data-look="backdrop">
+        <option value="off">Camera background</option>
+        <option value="news">News wall</option>
+        <option value="sports">Arena lights</option>
+        <option value="minimal">Gradient wash</option>
+        <option value="image">Custom image</option>
+      </select></label>
+      <label>Base color<input type="color" value="#091020" data-look="base-color"></label>
+      <label>Backdrop color<input type="color" value="#223d74" data-look="backdrop-color"></label>
+      <label>Screen color<select data-look="key">
+        <option value="green">Green screen</option>
+        <option value="blue">Blue screen</option>
+      </select></label>
+      <label>Key strength<input type="range" min="5" max="65" value="24" data-look="strength"></label>
+      <label><input type="checkbox" data-look="motion"> Animate studio backdrop</label>
+      <label>Motion speed<select data-look="speed">
+        <option value="3500">Slow</option>
+        <option value="2300" selected>Normal</option>
+        <option value="1200">Fast</option>
+      </select></label>
+      <label>Custom image<input type="file" accept="image/png,image/jpeg,image/webp" data-look="image"></label>
+    </div>
+    <%= render "dashboard/live_broadcasts/broadcast_themes", kind: "background" %>
+    <p class="ll-note">Saved background themes reuse the designed patterns. Select an image file again to use it on a later show.</p>
+  </fieldset>
+  <button type="button" data-apply-broadcast-look>Apply to program</button>
+  <button type="button" data-clear-broadcast-look>Clear frame and backdrop</button>
+  <p role="status" data-broadcast-look-status></p>
+</details>

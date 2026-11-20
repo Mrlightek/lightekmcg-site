@@ -1,0 +1,112 @@
+<% content_for :page_title, 'Prospecting · Sales & CRM' %>
+<main class="sales-workspace">
+  <%= stylesheet_link_tag '/lightek/sales-workspace.css?v=4' %>
+  <%= render 'dashboard/shared/business_workspace', active: 'Prospecting' %>
+  <header class="sales-header">
+    <div><h1>Prospecting</h1><p>Find public X posts from people looking for services you offer.</p></div>
+    <%= form_with url: dashboard_sales_prospecting_path, method: :get, class: 'sales-site' do %>
+      <label>Business website<%= select_tag :site_id, options_from_collection_for_select(@sites, :id, :name, @site.id) %></label>
+      <%= submit_tag 'Switch', class: 'sales-button secondary' %>
+    <% end %>
+  </header>
+  <% if flash[:alert] %><p class="sales-errors" role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+
+  <section class="sales-panel">
+    <h2>X account</h2>
+    <% if @account %>
+      <p>Connected as <strong>@<%= @account.fetch('username') %></strong></p>
+      <% if @manage_connection %><%= button_to 'Disconnect X', disconnect_dashboard_sales_prospecting_path(site_id: @site.id), class: 'sales-button secondary' %><% end %>
+      <%= form_with url: search_dashboard_sales_prospecting_path(site_id: @site.id), class: 'sales-form' do %>
+        <label>Keywords or phrase<%= text_field_tag :keywords, @keywords, required: true, minlength: 2, maxlength: 200, placeholder: '"looking for a web designer"' %></label>
+        <%= submit_tag 'Search recent posts', class: 'sales-button' %>
+      <% end %>
+    <% end %>
+    <% if @manage_connection %>
+      <details <%= 'open' unless @account %>>
+        <summary><%= @account ? 'Reconnect X' : 'Connect X' %></summary>
+        <p>Register this callback URL in your X Web App before connecting. X API access and credits are required.</p>
+        <label>Callback URL<input type="text" value="<%= x_callback_dashboard_sales_prospecting_url %>" readonly></label>
+        <%= form_with url: authorize_x_dashboard_sales_prospecting_path(site_id: @site.id), class: 'sales-form', data: {turbo: false}, local: true do %>
+          <label>OAuth 2.0 client ID<%= text_field_tag :x_client_id, nil, autocomplete: 'off', required: true, maxlength: 4096 %></label>
+          <label>OAuth 2.0 client secret<%= password_field_tag :x_client_secret, nil, autocomplete: 'off', required: true, maxlength: 4096 %></label>
+          <%= submit_tag 'Continue to X', class: 'sales-button' %>
+        <% end %>
+      </details>
+      <details>
+        <summary>Use an existing access token</summary>
+        <p>Use an OAuth 2.0 user access token from your X developer app with <code>tweet.read</code>, <code>users.read</code> and <code>dm.write</code>. X API access and credits are required.</p>
+        <%= form_with url: connect_dashboard_sales_prospecting_path(site_id: @site.id), class: 'sales-form' do %>
+          <label>X user access token<%= password_field_tag :x_access_token, nil, autocomplete: 'off', required: true, maxlength: 4096 %></label>
+          <%= submit_tag 'Verify and save in Vault', class: 'sales-button' %>
+        <% end %>
+      </details>
+    <% elsif !@account %>
+      <p>Ask the website owner or account manager to connect an X account.</p>
+    <% end %>
+  </section>
+
+  <% if @results %>
+    <section class="sales-panel">
+      <h2>Matching posts</h2>
+      <% if @results.empty? %><p>No recent posts matched. Try another phrase.</p><% end %>
+      <% @results.each do |result| %>
+        <article class="sales-follow-up">
+          <div>
+            <strong><%= result[:name] %> · @<%= result[:username] %></strong>
+            <p><%= result[:text] %></p>
+            <%= link_to 'Read the post on X', "https://x.com/i/web/status/#{result[:post_id]}", rel: 'noreferrer' %>
+          </div>
+          <%= button_to 'Save prospect', save_dashboard_sales_prospecting_path(site_id: @site.id),
+            params: {selection: result[:selection]}, class: 'sales-button secondary' %>
+        </article>
+      <% end %>
+    </section>
+  <% end %>
+
+  <section class="sales-panel">
+    <h2>Saved prospects</h2>
+    <% if @prospects.empty? %><p>Save a promising result to review their account and follow up.</p><% end %>
+    <% @prospects.each do |prospect| %>
+      <article class="sales-panel">
+        <h3><%= link_to "X profile #{prospect.remote_id}", prospect.profile_url, rel: 'noreferrer' %></h3>
+        <div class="sales-actions">
+          <%= link_to 'View source post', prospect.source_url, rel: 'noreferrer' %>
+          <%= link_to 'Open conversation on X', prospect.thread_url, rel: 'noreferrer' %>
+          <% if prospect.lead %><%= link_to prospect.lead.name, dashboard_sales_record_path(kind: 'lead', id: prospect.lead.id, site_id: @site.id) %><% end %>
+        </div>
+        <% if prospect.contact_blocked_at? %>
+          <p><strong>Do not contact</strong></p>
+        <% else %>
+          <p><%= {'ready' => 'No message sent', 'sending' => 'Send started. Check the conversation on X before contacting again.',
+            'uncertain' => 'Delivery unconfirmed. Check the conversation on X before contacting again.',
+            'sent' => "X accepted message #{prospect.provider_message_id}"}[prospect.outreach_status] %></p>
+          <% if @account && prospect.outreach_status == 'ready' %>
+            <details>
+              <summary>Write a direct message</summary>
+              <%= form_with url: message_dashboard_sales_prospect_path(prospect, site_id: @site.id), class: 'sales-form' do %>
+                <label>How did this person invite your account to DM them?<%= text_field_tag :contact_permission, nil, required: true, maxlength: 250, id: "contact_permission_#{prospect.id}" %></label>
+                <label>Message<%= text_area_tag :outreach_text, nil, rows: 4, required: true, maxlength: 2000, id: "outreach_text_#{prospect.id}" %></label>
+                <label><%= check_box_tag :confirmed, '1', false, required: true, id: "message_confirmed_#{prospect.id}" %> Send this message to this X account now.</label>
+                <%= submit_tag 'Send direct message', class: 'sales-button' %>
+              <% end %>
+            </details>
+          <% end %>
+          <%= button_to 'Mark do not contact', block_contact_dashboard_sales_prospect_path(prospect, site_id: @site.id), class: 'sales-button secondary' %>
+        <% end %>
+        <% unless prospect.lead || prospect.contact_blocked_at? %>
+          <details>
+            <summary>Create or link a CRM lead</summary>
+            <%= form_with url: lead_dashboard_sales_prospect_path(prospect, site_id: @site.id), scope: :lead, namespace: "prospect_#{prospect.id}", class: 'sales-form' do |f| %>
+              <label>Name<%= f.text_field :name, required: true, maxlength: 160 %></label>
+              <label>Email they shared<%= f.email_field :email, required: true, maxlength: 254 %></label>
+              <label>Company (optional)<%= f.text_field :company, maxlength: 160 %></label>
+              <label><%= check_box_tag :confirmed, '1', false, required: true, id: "lead_confirmed_#{prospect.id}" %> This person shared their email and agreed to link it to their X account.</label>
+              <%= f.submit 'Save CRM lead', class: 'sales-button' %>
+            <% end %>
+          </details>
+        <% end %>
+      </article>
+    <% end %>
+  </section>
+</main>

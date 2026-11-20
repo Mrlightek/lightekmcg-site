@@ -19,6 +19,39 @@ Website form intake, reviewed CSV imports and assigned follow-up tasks are avail
 
 For a person buying without a formal company, use a clear relationship/account label that you can recognize. A company record represents a sales relationship; it does not create a platform user, managed client or server installation.
 
+## Discover prospects on X
+
+Open **Business → Prospecting** and select a website. An owner or account
+manager can register the displayed callback URL in an X Web App, paste the
+app’s OAuth client ID and secret, and choose **Continue to X**. Sign in as the
+account the agency will use. Lightek verifies the account and saves encrypted
+credentials in Vault. The OAuth connection renews tokens as needed. X API
+access and credits are required.
+
+An existing OAuth 2.0 user access token with `tweet.read`, `users.read` and
+`dm.write` can also be saved directly. Replace manually supplied tokens when
+they expire. Disconnecting removes Lightek's access to the credentials for
+that website.
+
+Search recent public posts for a phrase such as `"looking for a web designer"`.
+Review the match and save the author as a prospect. Saving another post by
+the same account opens the same prospect record. Lightek retains X IDs for
+the account and source post so the team can open them on X.
+
+When someone has invited your connected account to DM them, record that context,
+write the message, and confirm the individual send. A receipt means X accepted
+the request. If the status stays at **Send started** or **Delivery unconfirmed**,
+check the thread on X before following up. Use **Mark do not contact** to prevent
+further messages through this workspace. Use the thread link for continuing
+an existing conversation on X.
+
+When a prospect voluntarily shares their email and agrees to link it to their
+X identity, choose **Create or link a CRM lead**. An existing lead with that
+email keeps its history. A new lead uses the `x` routing source. Apply the
+`create_lightek_sales_social_prospects` migration in the normal deployment.
+Facebook, Instagram, and LinkedIn use different provider permissions and
+are outside this X workflow.
+
 ## Companies and contacts
 
 Create and edit company accounts under **Companies**. Their detail pages show associated people and deals, with shortcuts to add either. Deal pages link back to their company and contact.

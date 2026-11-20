@@ -2,6 +2,22 @@
 
 Open **Dashboard → Sales & CRM → Inquiry inbox** for new interest, and **Tasks** to manage the promises your team needs to keep. The selected business website remains the boundary for every inquiry, lead, task and source rule.
 
+## Collect sales inquiries from campaigns
+
+Open **Inquiry inbox → Open your public sales inquiry form** to preview the
+website's `/sales/inquiry` page. Share that URL for direct inquiries, or
+share a tracked placement URL from **Growth** or **Marketing copilot** to
+measure campaign results. Both campaign forms prefill the sales inquiry page
+when the website has Commerce enabled. You can enter a different destination
+for campaigns that should go to a product or another page.
+
+Visitors can ask about pricing, a demo, or their needs without signing in.
+Submissions appear under **Unreviewed form submissions**. Review and accept
+them to create or link a lead and schedule follow-up. Use the
+`sales_inquiry` lead source for owner routing. Campaign attribution comes
+from the existing first-party tracking link when available. The form uses
+manual review and collects no marketing subscription.
+
 ## Review an existing website inquiry
 
 1. Open Inquiry inbox and find **Unreviewed form submissions**.

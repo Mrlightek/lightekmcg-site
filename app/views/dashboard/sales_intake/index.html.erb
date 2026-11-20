@@ -9,7 +9,10 @@
   </section>
   <section class="sales-two-col">
     <article class="sales-panel"><span class="sales-eyebrow">ALREADY ON YOUR WEBSITE</span><h2>Unreviewed form submissions</h2><p>These are saved inquiries from this website. Choose which belong in your sales pipeline.</p>
-      <% @inquiries.each do |inquiry| %><div class="sales-follow-up"><div><strong><%= inquiry.fields['name'].presence || "Inquiry ##{inquiry.id}" %></strong><small><%= inquiry.template_key.humanize %> · <%= inquiry.section_key %> · <%= inquiry.created_at.to_fs(:short) %></small></div><%= button_to 'Review inquiry', capture_dashboard_sales_intake_path(site_id: @site.id), params: {inquiry_id: inquiry.id}, class: 'sales-button secondary' %></div><% end %>
+      <% if WebsiteTemplateInquiry.sales_form_available?(@site) %>
+        <p><%= link_to 'Open your public sales inquiry form', sales_inquiry_url(host: @site.host, protocol: 'https') %></p>
+      <% end %>
+      <% @inquiries.each do |inquiry| %><div class="sales-follow-up"><div><strong><%= inquiry.fields['name'].presence || "Inquiry ##{inquiry.id}" %></strong><small><%= inquiry.native_sales_form? ? 'Sales inquiry form' : [inquiry.template_key.humanize, inquiry.section_key].join(' · ') %> · <%= inquiry.created_at.to_fs(:short) %></small></div><%= button_to 'Review inquiry', capture_dashboard_sales_intake_path(site_id: @site.id), params: {inquiry_id: inquiry.id}, class: 'sales-button secondary' %></div><% end %>
       <% if @inquiries.empty? %><p class="sales-empty">Every saved inquiry has an inbox entry.</p><% end %><small>Latest 50 uncaptured submissions. Review does not reserve a service or subscribe anyone to marketing.</small>
     </article>
     <article class="sales-panel"><span class="sales-eyebrow">BRING YOUR CONTACT LIST</span><h2>Stage a CSV for review</h2><p>Use headers <code>name,email</code>. Optional: <code>company,phone,message,source</code>. Each row becomes an inbox entry; leads are created only when accepted.</p>

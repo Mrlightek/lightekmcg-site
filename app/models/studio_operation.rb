@@ -1,5 +1,5 @@
 class StudioOperation < ApplicationRecord
-  STATUSES = %w[awaiting_planning awaiting_approval awaiting_payment pending running completed failed cancelled].freeze
+  STATUSES = %w[awaiting_planning awaiting_approval awaiting_payment awaiting_manual_login pending running completed failed cancelled].freeze
 
   has_one_attached :blender_bundle
   has_many_attached :layer_sources

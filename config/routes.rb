@@ -350,6 +350,21 @@ get "/employee/nevaeh/capabilities/:key", to: "employee/nevaeh_capabilities#show
   mount DymondKb::Engine => "/kb"
   get "/catalog", to: "dymond_catalog/catalog#index"
   mount DymondCatalog::Engine => "/catalog"
+  get "/studio/pipeline", to: "api/studio/pipeline#page", as: :studio_pipeline
+  resources :studio_character_animations, path: "/studio/pipeline/characters", only: %i[create show] do
+    member do
+      post :retry_login
+      post :render_only
+      get :preview, format: false
+    end
+  end
+  get "/api/v1/assets/pipeline", to: "api/studio/pipeline#index"
+  post "/api/v1/assets/ingest", to: "api/studio/pipeline#ingest"
+  post "/api/v1/assets/pipeline/watcher_token", to: "api/studio/pipeline#watcher_token"
+  post "/api/v1/assets/pipeline/:id/mixamo", to: "api/studio/pipeline#mixamo"
+  get "/api/v1/assets/pipeline/:id/:flavor", to: "api/studio/pipeline#asset", as: :studio_pipeline_asset
+  post "/api/v1/pipeline/renders", to: "api/studio/pipeline#render_video"
+  get "/api/v1/pipeline/renders/:id/file", to: "api/studio/pipeline#video", as: :studio_pipeline_video
   get "/studio", to: "dymond_studio/studio#index"
   mount DymondStudio::Engine => "/studio"
   resource :session

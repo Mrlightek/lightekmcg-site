@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <%= csrf_meta_tags %>
+  <% if @operation.status.in?(%w[pending running]) %><meta http-equiv="refresh" content="8"><% end %>
+  <title>Character job <%= @operation.id %> · Lightek Studio</title>
+  <%= stylesheet_link_tag "/lightek/pipeline-hub.css" %>
+</head>
+<body>
+  <main class="pipeline">
+    <header class="pipeline-header">
+      <div>
+        <%= link_to "Pipeline Hub", studio_pipeline_path(site_id: @site.id, anchor: "character-animation"), class: "pipeline-brand" %>
+        <h1><%= @operation.manifest.fetch("animation") %></h1>
+        <p>Character job <%= @operation.id %> · <%= @site.name %></p>
+      </div>
+    </header>
+    <section class="panel" aria-labelledby="character-status">
+      <h2 id="character-status" role="status"><%= @operation.status == "pending" ? "Queued" : @operation.status.humanize %></h2>
+      <% if alert.present? %><p role="alert"><%= alert %></p><% end %>
+      <% if @operation.error_message.present? %><p><%= @operation.error_message %></p><% end %>
+      <p>Attempt <%= @operation.metadata.fetch("attempt") %> · <%= @operation.manifest.fetch("frames") %> frames ·
+        <%= Studio::Pipeline::CharacterAnimation::RESOLUTIONS.fetch(@operation.manifest.fetch("resolution")) %></p>
+      <% if @operation.status == "awaiting_manual_login" %>
+        <p>On the Studio worker host, run this command as the worker user in a graphical session. Finish signing in, then quit the Mixamo CLI.</p>
+        <pre><%= Studio::Pipeline::CharacterAnimation::LOGIN_COMMAND %></pre>
+        <%= button_to "Retry Job After Login", retry_login_studio_character_animation_path(@operation, site_id: @site.id), class: "primary" %>
+      <% end %>
+    </section>
+
+    <% if @video %>
+      <section class="panel" aria-labelledby="character-preview">
+        <h2 id="character-preview">Render preview</h2>
+        <p>Rendered on attempt <%= @video.record.metadata.fetch("attempt") %></p>
+        <%= video_tag preview_studio_character_animation_path(@operation, site_id: @site.id),
+              controls: true, playsinline: true, preload: "metadata", class: "character-video" %>
+        <p><%= link_to "Download MP4", preview_studio_character_animation_path(@operation, site_id: @site.id, download: 1) %></p>
+      </section>
+    <% end %>
+
+    <% if @animated && @operation.status.in?(%w[completed failed]) %>
+      <section class="panel" aria-labelledby="character-rerender">
+        <h2 id="character-rerender">Render settings</h2>
+        <p>Use the downloaded Mixamo animation to render again.</p>
+        <%= form_with url: render_only_studio_character_animation_path(@operation, site_id: @site.id), scope: :character_animation, local: true do |form| %>
+          <%= render "studio_character_animations/render_settings", form: form, settings: @operation.manifest %>
+          <%= form.submit "Re-run Render Only", class: "primary" %>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if @operation.metadata["logged_attempt"] %>
+      <section class="panel" aria-labelledby="character-logs">
+        <h2 id="character-logs">Job logs</h2>
+        <p>Attempt <%= @operation.metadata.fetch("logged_attempt") %><% if @operation.metadata["exit_code"] %> · Exit <%= @operation.metadata["exit_code"] %><% end %></p>
+        <% {"stdout" => "Standard output", "stderr" => "Standard error"}.each do |key, title| %>
+          <details>
+            <summary><%= title %></summary>
+            <pre class="character-log"><%= @operation.metadata[key].presence || "No output" %></pre>
+          </details>
+        <% end %>
+      </section>
+    <% end %>
+  </main>
+</body>
+</html>

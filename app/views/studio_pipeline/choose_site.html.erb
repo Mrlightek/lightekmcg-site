@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose a Studio workspace</title><%= stylesheet_link_tag "/lightek/pipeline-hub.css" %></head>
+<body><main class="pipeline"><h1>Choose a Studio workspace</h1>
+<% @sites.each do |site| %><p><%= link_to site.name, studio_pipeline_path(site_id: site.id) %></p><% end %>
+<% if @sites.empty? %><p>No Studio workspaces are available to this account.</p><% end %>
+</main></body></html>

@@ -57,3 +57,9 @@ Open **Broadcast frame & green screen**. Choose News desk or Sports desk, set th
 For a virtual backdrop, use **Camera only** with a physical green or blue screen. Select a studio backdrop or a local PNG, JPEG, or WebP image, then apply it. Set the screen color to match your setup. Lower key strength to remove weaker green or blue tones, or raise it if parts of the presenter disappear. **Animate studio backdrop** adds motion to the built-in designs. Check a private recording to see the composite before broadcasting.
 
 To reuse a design, name it and select **Save theme** in the matching creator. Frame themes save the style, badge, text and palette. Background themes save the studio pattern, palette and motion settings. Camera key controls stay independent. Select a saved theme, choose **Load theme**, then **Apply to program**. Themes are saved per website in this browser.
+
+## Run a holding break
+
+Open **Holding screen & commercial breaks** and customize the site's slate. Choose up to three images or videos from the Studio library in playback order and, optionally, a separate music bed. Save settings to reuse the lineup in this browser. Select **Holding screen** to run the break or **Skip to next item** to advance it. Images play for ten seconds. Videos play to the end with their own audio. The slate returns after the lineup. **Resume program** ends the break and restores the live program. An unexpected source loss shows only the slate. Use a private recording to check the audience audio on playback.
+
+The **Holding slate designer** includes layouts, typography, colors, a logo, background artwork, and an optional website, handle, or sponsor line. Use **Artwork only** to show an externally designed card across the frame. Choose **Apply & save slate** when the private draft is ready. The applied slate covers both manual breaks and source interruptions.

@@ -1,0 +1,37 @@
+<fieldset class="ll-slate-design" data-slate-design>
+  <legend>Holding slate designer</legend>
+  <canvas width="1280" height="720" data-slate-preview aria-label="Holding slate draft preview"></canvas>
+  <div class="ll-slate-fields">
+    <label>Brand or show name<input type="text" maxlength="60" value="<%= @site.name %>" data-break-brand-input data-slate-field="brand"></label>
+    <label>Heading<input type="text" maxlength="70" value="Back in a moment." data-break-heading data-slate-field="heading"></label>
+    <label>Message<input type="text" maxlength="120" value="Stay with us." data-break-message data-slate-field="message"></label>
+    <label>Website, handle, or sponsor line<input type="text" maxlength="80" data-slate-field="footer"></label>
+    <label>Layout<select data-slate-field="layout">
+      <option value="editorial">Editorial</option>
+      <option value="centered">Centered</option>
+      <option value="artwork">Artwork only</option>
+    </select></label>
+    <label>Typography<select data-slate-field="font">
+      <option value="sans">Modern sans</option>
+      <option value="serif">Editorial serif</option>
+      <option value="mono">Monospace</option>
+    </select></label>
+    <label>Background color<input type="color" value="#0b121b" data-slate-field="base"></label>
+    <label>Text color<input type="color" value="#f2f5fa" data-slate-field="text"></label>
+    <label>Accent color<input type="color" value="#b5f58b" data-slate-field="accent"></label>
+    <% images = @library_assets.select { |asset| asset.kind == "image" } %>
+    <% [["logo", "Logo"], ["background", "Background artwork"]].each do |kind, label| %>
+      <label><%= label %><select data-slate-field="<%= kind %>">
+        <option value="">None</option>
+        <% images.each do |asset| %><option value="<%= asset.id %>"><%= asset.name %></option><% end %>
+      </select></label>
+    <% end %>
+    <label>Artwork fit<select data-slate-field="fit">
+      <option value="cover">Fill the frame</option>
+      <option value="contain">Show the whole image</option>
+    </select></label>
+    <label>Artwork shading<input type="range" min="0" max="85" value="54" data-slate-field="shade"></label>
+  </div>
+  <button type="button" data-slate-apply>Apply &amp; save slate</button>
+  <p class="ll-note" role="status" data-slate-status>Design in the preview, then apply it to the holding screen. Saved slates are stored in this browser.</p>
+</fieldset>

@@ -22,15 +22,22 @@ const program = createCanvas(1280, 720);
 const ctx = program.getContext('2d');
 const pixel = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data);
 
-for (const style of ['news', 'sports']) {
+for (const style of ['studio', 'news', 'sports']) {
   ctx.clearRect(0, 0, 1280, 720);
   field('frame').value = style;
+  field('frame-color').value = '#ff0000';
+  field('headline').value = 'Come to Lightek!';
   apply();
   look.drawFrame(ctx);
-  for (const [x, y] of [[640, 4], [640, 715], [4, 360], [1275, 360]]) {
-    assert.equal(pixel(x, y)[3], 255, style + ' covers all four edges');
+  for (const [x, y] of [[640, 4], [640, 715], [4, 360], [1275, 360], [640, 360], [1200, 655]]) {
+    assert.equal(pixel(x, y)[3], 0, style + ' preserves the open program and the picture edges');
   }
-  assert.equal(pixel(640, 360)[3], 0, style + ' leaves the program picture open');
+  assert(pixel(33, 24)[3] > 100, style + ' draws a subtle inset bracket');
+  assert(pixel(88, 640)[3] > 230, style + ' keeps the headline plate at lower left');
+  const [red, green] = pixel(88, 640);
+  assert(red - green < 35, 'the chosen panel tint does not turn into an opaque red strip');
+  const topX = style === 'studio' ? 1220 : 55;
+  assert(pixel(topX, 55)[3] > 120, style + ' draws a compact identity plate');
 }
 
 const camera = createCanvas(640, 360);
@@ -132,7 +139,7 @@ applied.then(() => {
   assert.equal(look.drawKeyedCamera(ctx, camera, rect, 0), true);
   assert.deepEqual(pixel(640, 360), [170, 51, 187, 255], 'uploaded image fills the keyed background');
   dom.window.close();
-  console.log('STUDIO_LIVE_BROADCAST_LOOK_PASS four frame edges, transparent center, green and blue key, still and animated backdrops, local image');
+  console.log('STUDIO_LIVE_BROADCAST_LOOK_PASS inset frames, open picture, compact headline, green and blue key, still and animated backdrops, local image');
 }).catch(error => {
   dom.window.close();
   console.error(error);

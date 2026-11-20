@@ -12,44 +12,91 @@
     return luminance > .179 ? '#000' : '#fff';
   }
 
+  const frameStyles = {
+    studio: { badge: 'LIVE', corner: 36, line: 2, align: 'right' },
+    news: { badge: 'NEWS DESK', corner: 48, line: 2, align: 'left' },
+    sports: { badge: 'SPORTS DESK', corner: 62, line: 3, align: 'left' }
+  };
+
+  function panel(ctx, x, y, w, h, tint, clipped) {
+    const background = ctx.createLinearGradient(x, y, x + w, y + h);
+    background.addColorStop(0, '#101721');
+    background.addColorStop(.78, '#171d29');
+    background.addColorStop(1, tint + '75');
+    ctx.fillStyle = background;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w - clipped, y);
+    ctx.lineTo(x + w, y + clipped);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   function drawFrame(ctx, settings) {
-    if (settings.frame === 'off') return;
+    const style = frameStyles[settings.frame];
+    if (!style) return;
+    const { accent, frameColor } = settings;
+    const inset = 24;
+    const left = 44;
+    const top = 46;
     const sports = settings.frame === 'sports';
     ctx.save();
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = settings.frameColor;
-    ctx.fillRect(0, 0, width, 34);
-    ctx.fillRect(0, height - 39, width, 39);
-    ctx.fillRect(0, 34, 10, height - 73);
-    ctx.fillRect(width - 10, 34, 10, height - 73);
 
-    ctx.fillStyle = settings.accent;
-    ctx.fillRect(10, 32, width - 20, 2);
-    ctx.fillRect(10, height - 40, width - 20, 2);
-    for (const x of [0, width - 10]) {
-      ctx.fillRect(x, 34, 10, 28);
-      ctx.fillRect(x, height - 67, 10, 28);
-    }
-    const badgeWidth = sports ? 144 : 96;
+    // Brackets leave the picture open and keep accents inside the overscan margin.
+    ctx.strokeStyle = accent;
+    ctx.globalAlpha = .72;
+    ctx.lineWidth = style.line;
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(badgeWidth + (sports ? 20 : 0), 0);
-    ctx.lineTo(badgeWidth, 32);
-    ctx.lineTo(0, 32);
-    ctx.fill();
+    for (const [x, y, dx, dy] of [
+      [inset, inset, 1, 1], [width - inset, inset, -1, 1],
+      [inset, height - inset, 1, -1], [width - inset, height - inset, -1, -1]
+    ]) {
+      ctx.moveTo(x, y + dy * 23);
+      ctx.lineTo(x, y);
+      ctx.lineTo(x + dx * style.corner, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
 
+    const label = settings.badge || style.badge;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 14px system-ui';
+    ctx.font = '700 15px system-ui';
+    const labelWidth = Math.ceil(ctx.measureText(label).width);
+    ctx.font = '650 19px system-ui';
+    const brandWidth = Math.min(395, Math.ceil(ctx.measureText(settings.brand).width));
+    const labelInset = sports ? 14 : 11;
+    const brandX = labelWidth + labelInset * 2 + 17;
+    const plateWidth = brandX + brandWidth + 22;
+    const x = style.align === 'right' ? width - left - plateWidth : left;
+    panel(ctx, x, top, plateWidth, 44, frameColor, sports ? 12 : 0);
+    ctx.fillStyle = accent;
+    ctx.fillRect(x + 9, top + 8, labelWidth + labelInset * 2 - 8, 28);
+    ctx.font = '700 15px system-ui';
     ctx.fillStyle = settings.accentInk;
-    ctx.fillText(settings.badge || (sports ? 'SPORTS DESK' : 'NEWS'), 18, 16, badgeWidth - 36);
-    ctx.fillStyle = settings.frameInk;
-    ctx.font = 'bold 17px system-ui';
-    ctx.fillText(settings.brand, badgeWidth + 30, 16, width - badgeWidth - 56);
-    ctx.font = '600 20px system-ui';
-    ctx.fillText(settings.headline, 28, height - 19, width - 56);
+    ctx.fillText(label, x + labelInset, top + 22);
+    ctx.fillStyle = '#f6f4ef';
+    ctx.font = '650 19px system-ui';
+    ctx.fillText(settings.brand, x + brandX, top + 22, brandWidth);
+
+    if (settings.headline) {
+      const bottom = height - left;
+      const h = 52;
+      const y = bottom - h;
+      ctx.font = sports ? '750 24px system-ui' : '650 24px system-ui';
+      const textWidth = Math.min(900, Math.ceil(ctx.measureText(settings.headline).width));
+      const w = Math.max(216, textWidth + 48);
+      panel(ctx, left, y, w, h, frameColor, sports ? 14 : 0);
+      ctx.fillStyle = accent;
+      ctx.fillRect(left, y, 3, h);
+      ctx.fillStyle = '#f6f4ef';
+      ctx.fillText(settings.headline, left + 23, y + h / 2, w - 46);
+    }
     ctx.restore();
   }
 
@@ -228,10 +275,9 @@
         strength: Number(field('strength').value),
         motion: field('motion').checked
       };
-      if (!isColor(next.accent)) next.accent = '#b5f58b';
+      if (!isColor(next.accent)) next.accent = '#d6aa58';
       next.accentInk = accentInk(next.accent);
       if (!isColor(next.frameColor)) next.frameColor = '#0b1324';
-      next.frameInk = accentInk(next.frameColor);
       if (!isColor(next.baseColor)) next.baseColor = '#091020';
       if (!isColor(next.color)) next.color = '#223d74';
       try {

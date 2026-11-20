@@ -8,6 +8,7 @@
   </header>
   <% if flash[:alert] %><div class="sales-errors" role="alert"><%= flash[:alert] %></div><% end %>
   <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <% sales_destination = sales_inquiry_path if WebsiteTemplateInquiry.sales_form_available?(@site) %>
   <section class="sales-two-col">
     <article class="sales-panel"><span class="sales-eyebrow">START WITH SOMETHING PEOPLE CAN BUY</span><h2>Your offer is the foundation.</h2>
       <% if @brief.complete? %><dl class="marketing-brief"><% {'offering'=>'Offer', 'audience'=>'Customer', 'customer_problem'=>'Problem', 'value_proposition'=>'Value', 'goal'=>'Goal'}.each do |field, label| %><div><dt><%= label %></dt><dd><%= @brief.public_send(field) %></dd></div><% end %></dl><%= link_to 'Refine the business brief', dashboard_growth_path(site_id: @site.id, anchor: 'business-brief'), class: 'sales-button secondary' %>
@@ -17,8 +18,8 @@
       <%= form_with url: prepare_dashboard_marketing_kit_path(site_id: @site.id), scope: :kit, class: 'sales-form' do |f| %>
         <%= hidden_field_tag :request_key, SecureRandom.uuid %>
         <div class="sales-form-grid"><label>Time per day<%= f.select :minutes_per_day, [['15 minutes',15], ['30 minutes',30], ['60 minutes',60]], selected: 30 %></label><label>Where will you share it?<%= f.select :source, LightekGrowth::MarketingCopilot::SOURCES.map { |source| [source.humanize, source] }, selected: 'manual' %></label></div>
-        <label>Customer destination<%= f.text_field :destination_path, value: '/', required: true, maxlength: 500, placeholder: '/contact' %><small>A real page on <%= @site.host %> where a customer can inquire or buy.</small></label>
-        <label>Call to action<%= f.text_field :cta_label, value: 'Learn more', required: true, maxlength: 60, placeholder: 'Book a conversation' %></label>
+        <label>Customer destination<%= f.text_field :destination_path, value: sales_destination || '/', required: true, maxlength: 500, placeholder: '/shop' %><small><% if sales_destination %><%= link_to 'Preview the sales inquiry page', sales_inquiry_url(host: @site.host, protocol: 'https') %>. Submissions go to the Sales inquiry inbox.<% else %>Use a live page on <%= @site.host %> where a customer can inquire or buy.<% end %></small></label>
+        <label>Call to action<%= f.text_field :cta_label, value: sales_destination ? 'Talk to sales' : 'Learn more', required: true, maxlength: 60, placeholder: 'Book a conversation' %></label>
         <%= f.submit 'Prepare my seven-day kit', class: 'sales-button', disabled: !@brief.complete? %>
       <% end %><p><small>This prepares drafts. Review and publish through the existing campaign tools. Daily blocks are suggested human focus time; rendering and provider processing can take longer.</small></p>
     </article>

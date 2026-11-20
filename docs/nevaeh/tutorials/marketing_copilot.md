@@ -31,7 +31,7 @@ Preparation saves:
 
 ```text
 /marketing SITE_ID
-/marketing SITE_ID {"minutes_per_day":30,"source":"linkedin","destination_path":"/contact","cta_label":"Book a conversation"}
+/marketing SITE_ID {"minutes_per_day":30,"source":"linkedin","destination_path":"/sales/inquiry","cta_label":"Book a conversation"}
 help me market my business
 prepare my marketing kit for site 12
 ```

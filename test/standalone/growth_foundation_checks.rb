@@ -21,11 +21,17 @@ AddDailyGrowthPlans.new.migrate(:up)
 require ROOT.join('app/controllers/growth_links_controller')
 require ROOT.join('app/controllers/dashboard/growth_controller')
 require ROOT.join('app/controllers/website_template_inquiries_controller')
+require ROOT.join('app/controllers/sales_inquiries_controller')
+class SalesInquiriesController
+  # Private auth layout/branding is outside the standalone request harness.
+  helper_method :authentication_branding
+  def authentication_branding = OpenStruct.new(name: 'Lightek Test', logo_url: nil, platform?: true)
+end
 # Only the storefront's view helpers and remote checkout are boundary fixtures.
 module LightekDesign::StudioHelper; end
 module DymondDash; module TemplateSchemaHelper; end; end
 require ROOT.join('app/controllers/commerce_controller')
-[GrowthLinksController, Dashboard::GrowthController, WebsiteTemplateInquiriesController, CommerceController].each do |controller|
+[GrowthLinksController, Dashboard::GrowthController, WebsiteTemplateInquiriesController, SalesInquiriesController, CommerceController].each do |controller|
   controller.prepend_view_path ROOT.join('app/views')
   controller.layout false
 end
@@ -104,6 +110,72 @@ class GrowthFoundationChecks < LifecycleQuoteChecks
     2.times { LightekCommerce::StripeEvents.process!(event) }
     order.reload
   end
+  def test_growth_native_sales_form_carries_campaign_into_the_inbox_and_lead
+    @link = @growth.create_link!(values: {campaign_id: @campaign.id, label: 'Sales CTA', source: 'linkedin',
+      medium: 'social', destination_path: sales_inquiry_path})
+    https!
+    visit_link
+    follow_redirect!
+    assert_response :success
+    assert_equal 'private, no-store', response.headers['Cache-Control']
+    assert_select 'form[action=?]', sales_inquiry_path
+    csrf = Nokogiri::HTML(response.body).at_css('input[name="authenticity_token"]')['value']
+    post sales_inquiry_path(site_id: @foreign_site.id), params: {authenticity_token: csrf,
+      sales_submission: {name: 'New Prospect', email: 'PROSPECT@example.test', company: 'Prospect Co',
+        message: 'Can we see a demo?', subscribed_at: Time.current}}
+    assert_redirected_to sales_inquiry_path
+    inquiry = WebsiteTemplateInquiry.last
+    assert_equal @site.id, inquiry.site_id
+    assert inquiry.native_sales_form?
+    assert_equal @link.id, inquiry.growth_attribution.link_id
+    assert_equal %w[company email message name], inquiry.fields.keys.sort
+    follow_redirect!
+    assert_select 'h1', 'Inquiry received'
+    assert_equal 0, LightekSales::Lead.count
+
+    get dashboard_sales_intake_path(site_id: @site.id), headers: headers
+    assert_response :success
+    assert_includes response.body, 'New Prospect'
+    assert_includes response.body, 'https://lightek.test/sales/inquiry'
+    lead = process(inquiry)
+    assert_equal 'prospect@example.test', lead.email
+    assert_equal 'sales_inquiry', lead.source
+    assert_equal inquiry.growth_attribution, lead.growth_attribution
+    assert_equal 1, LightekSales::Task.where(site: @site, record: lead).count
+    assert_equal 0, LightekMarketing::Contact.count
+    assert_equal 1, funnel.stages['Inquiry']
+    assert_equal 1, funnel.stages['Lead']
+  end
+
+  def test_growth_native_sales_form_enforces_host_csrf_and_validation
+    https!
+    visit_link
+    get sales_inquiry_path
+    assert LightekGrowth::Visit.exists?(site: @site)
+    csrf = Nokogiri::HTML(response.body).at_css('input[name="authenticity_token"]')['value']
+    submission = {name: ' Test Prospect ', email: 'invalid email', message: ' Need help '}
+    assert_raises(ActionController::InvalidAuthenticityToken) do
+      post sales_inquiry_path, params: {sales_submission: submission}
+    end
+    post sales_inquiry_path, params: {authenticity_token: csrf, sales_submission: submission}
+    assert_response :unprocessable_entity
+    assert_select '[role=alert]', /valid email/
+    assert_select 'input[name="sales_submission[name]"][value="Test Prospect"]'
+    post sales_inquiry_path, params: {authenticity_token: csrf, website_url: 'bot'}
+    assert_response :see_other
+    assert_equal 0, WebsiteTemplateInquiry.count
+
+    post sales_inquiry_path, params: {authenticity_token: csrf, sales_submission: submission.merge(email: 'buyer@example.test')},
+      headers: {'Sec-GPC' => '1'}
+    assert_response :see_other
+    assert_nil WebsiteTemplateInquiry.last.growth_attribution
+    host! 'unknown.example.test'
+    assert_raises(ActiveRecord::RecordNotFound) { get sales_inquiry_path }
+    host! @site.host
+    LightekAgency::PackagePolicy.allowed = false
+    assert_raises(ActiveRecord::RecordNotFound) { get sales_inquiry_path }
+  end
+
   def test_growth_visit_to_inquiry_deal_quote_order_payment_and_delivery
     visit_link
     assert_response :see_other

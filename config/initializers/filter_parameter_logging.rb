@@ -20,3 +20,6 @@ Rails.application.config.filter_parameters += [:client_secret, :account_session,
 # Member sign-in tickets are short-lived bearer credentials.
 Rails.application.config.filter_parameters += [:ticket]
 Rails.application.config.filter_redirect += [%r{/pwa/member-session}]
+
+Rails.application.config.filter_parameters += [:sales_submission, :outreach_text, :contact_permission, :selection]
+Rails.application.config.filter_redirect += [%r{[?&](?:code_challenge|state)=}]

@@ -46,6 +46,10 @@ on:
       - 'config/routes/growth.rb'
       - 'db/migrate/*growth_foundation*'
       - 'test/standalone/growth_foundation_checks.rb'
+      - 'test/standalone/social_prospecting_checks.rb'
+      - 'app/views/dashboard/sales_prospecting/**'
+      - 'app/controllers/sales_inquiries_controller.rb'
+      - 'app/views/sales_inquiries/**'
       - 'test/standalone/daily_growth_checks.rb'
       - 'test/standalone/campaign_content_checks.rb'
       - 'test/standalone/publication_calendar_checks.rb'
@@ -148,6 +152,8 @@ jobs:
         run: gem install activerecord:8.0.4 activestorage:8.0.4 actionpack:8.0.4 railties:8.0.4 activejob:8.0.4 sqlite3:2.10.2 minitest:5.27.0 uri:1.1.2 --no-document
       - name: Verify sales lifecycle, routing, consent, isolation and forecasts
         run: ruby test/standalone/campaign_performance_checks.rb
+      - name: Verify social prospecting, Vault isolation and message receipts
+        run: ruby test/standalone/social_prospecting_checks.rb --name '/test_prospecting_/'
       - name: Verify native CMS audit evidence, permissions, fixes and recovery
         run: ruby test/standalone/website_audit_checks.rb --name '/test_site_|test_audit_/'
       - uses: actions/setup-node@v4

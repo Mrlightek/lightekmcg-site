@@ -29,11 +29,12 @@
       <% if @brief.persisted? %><p><small>Updated <%= @brief.updated_at.to_fs(:long) %> by <%= @brief.updated_by.email_address %> · revision <%= @brief.lock_version %></small></p><% end %>
     </article>
     <article id="campaign-links" class="sales-panel"><span class="sales-eyebrow">02 / CONNECT YOUR CAMPAIGN</span><h2>Create a tracked link</h2><p>Use a different link for each channel or placement. Visitors stay on <strong><%= @site.host %></strong>.</p>
+      <% sales_destination = sales_inquiry_path if WebsiteTemplateInquiry.sales_form_available?(@site) %>
       <% if @campaigns.any? %><%= form_with url: dashboard_growth_links_path(site_id: @site.id), scope: :link, class: 'sales-form' do |f| %>
         <label>Campaign<%= f.select :campaign_id, options_from_collection_for_select(@campaigns, :id, :name), {}, required: true %></label>
         <label>Placement name<%= f.text_field :label, placeholder: 'Instagram profile — November offer', required: true, maxlength: 160 %></label>
         <div class="sales-form-grid"><label>Source<%= f.text_field :source, placeholder: 'instagram', pattern: '[a-z0-9][a-z0-9_-]{0,79}', required: true, maxlength: 80 %></label><label>Medium<%= f.text_field :medium, placeholder: 'social', pattern: '[a-z0-9][a-z0-9_-]{0,79}', required: true, maxlength: 80 %></label></div>
-        <label>Destination path<%= f.text_field :destination_path, value: '/', placeholder: '/shop', required: true, maxlength: 500 %><small>A page on this website, starting with /. No query string or external URL.</small></label>
+        <label>Destination path<%= f.text_field :destination_path, value: sales_destination || '/', placeholder: '/shop', required: true, maxlength: 500 %><small><% if sales_destination %><%= link_to 'Preview the sales inquiry page', sales_inquiry_url(host: @site.host, protocol: 'https') %> or enter another page on this website.<% else %>Enter a page on this website, starting with /.<% end %></small></label>
         <%= f.submit 'Create tracking link', class: 'sales-button' %>
       <% end %><% else %><p class="sales-empty">Create your first campaign before adding a tracking link.</p><%= link_to 'Create a campaign', dashboard_marketing_campaigns_path(site_id: @site.id), class: 'sales-button' %><% end %>
       <aside class="sales-coach"><h3>What gets remembered?</h3><p>The last tracked link opened before an inquiry or direct checkout, within 30 days. Existing leads and orders keep their original attribution. Signing into another device does not merge visitors.</p><p>Browser privacy signals are respected. No IP addresses, browser fingerprints or submitted answers are stored in visit records.</p></aside>

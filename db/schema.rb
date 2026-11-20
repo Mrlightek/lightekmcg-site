@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_20_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_20_120100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -3685,9 +3685,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_120000) do
     t.bigint "saved_by_id", null: false
     t.bigint "contacted_by_id"
     t.string "provider", null: false
-    t.string "remote_id", null: false
+    t.string "remote_id"
     t.string "source_post_id", null: false
-    t.string "sender_id", null: false
+    t.string "sender_id"
     t.string "outreach_status", default: "ready", null: false
     t.string "provider_message_id"
     t.string "contact_permission"
@@ -3695,10 +3695,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_120000) do
     t.datetime "contact_blocked_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "web_username"
     t.index ["contacted_by_id"], name: "index_lightek_sales_social_prospects_on_contacted_by_id"
     t.index ["lead_id"], name: "index_lightek_sales_social_prospects_on_lead_id"
     t.index ["saved_by_id"], name: "index_lightek_sales_social_prospects_on_saved_by_id"
     t.index ["site_id", "provider", "remote_id"], name: "idx_lightek_sales_social_prospect_identity", unique: true
+    t.index ["site_id", "provider", "web_username"], name: "idx_lightek_sales_social_prospect_web_identity", unique: true, where: "(web_username IS NOT NULL)"
     t.index ["site_id"], name: "index_lightek_sales_social_prospects_on_site_id"
   end
 

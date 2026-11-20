@@ -46,7 +46,8 @@ module LightekSales
       values = mapping.to_h { |key, field| [key, inquiry.fields[field].to_s.strip] }.slice(*IntakeRule::TARGETS)
       site.with_lock do
         IntakeEntry.find_or_create_by!(site: site, origin_key: "website:#{inquiry.id}") do |entry|
-          entry.assign_attributes(origin: 'website', inquiry: inquiry, source: rule&.source || 'website',
+          source = rule&.source || (inquiry.native_sales_form? ? 'sales_inquiry' : 'website')
+          entry.assign_attributes(origin: 'website', inquiry: inquiry, source: source,
             payload: values, original: inquiry.fields, created_by: actor)
         end
       end

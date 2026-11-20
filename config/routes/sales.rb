@@ -1,3 +1,15 @@
+get '/sales/inquiry', to: 'sales_inquiries#new', as: :sales_inquiry, format: false
+post '/sales/inquiry', to: 'sales_inquiries#create', format: false
+get '/dashboard/sales/prospecting', to: 'dashboard/sales_prospecting#index', as: :dashboard_sales_prospecting
+post '/dashboard/sales/prospecting/connect', to: 'dashboard/sales_prospecting#connect', as: :connect_dashboard_sales_prospecting
+post '/dashboard/sales/prospecting/authorize-x', to: 'dashboard/sales_prospecting#authorize_x', as: :authorize_x_dashboard_sales_prospecting
+get '/dashboard/sales/prospecting/x/callback', to: 'dashboard/sales_prospecting#x_callback', as: :x_callback_dashboard_sales_prospecting
+post '/dashboard/sales/prospecting/disconnect', to: 'dashboard/sales_prospecting#disconnect', as: :disconnect_dashboard_sales_prospecting
+post '/dashboard/sales/prospecting/search', to: 'dashboard/sales_prospecting#search', as: :search_dashboard_sales_prospecting
+post '/dashboard/sales/prospecting/save', to: 'dashboard/sales_prospecting#save', as: :save_dashboard_sales_prospecting
+post '/dashboard/sales/prospecting/:id/message', to: 'dashboard/sales_prospecting#message', as: :message_dashboard_sales_prospect
+post '/dashboard/sales/prospecting/:id/block', to: 'dashboard/sales_prospecting#block_contact', as: :block_contact_dashboard_sales_prospect
+post '/dashboard/sales/prospecting/:id/lead', to: 'dashboard/sales_prospecting#lead', as: :lead_dashboard_sales_prospect
 get '/dashboard/sales/intake', to: 'dashboard/sales_intake#index', as: :dashboard_sales_intake
 post '/dashboard/sales/intake/upload', to: 'dashboard/sales_intake#upload', as: :upload_dashboard_sales_intake
 post '/dashboard/sales/intake/capture', to: 'dashboard/sales_intake#capture', as: :capture_dashboard_sales_intake

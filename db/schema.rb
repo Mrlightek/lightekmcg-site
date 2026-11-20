@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_19_220000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_20_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -3679,6 +3679,29 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_19_220000) do
     t.index ["site_id"], name: "index_lightek_sales_routing_rules_on_site_id"
   end
 
+  create_table "lightek_sales_social_prospects", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "lead_id"
+    t.bigint "saved_by_id", null: false
+    t.bigint "contacted_by_id"
+    t.string "provider", null: false
+    t.string "remote_id", null: false
+    t.string "source_post_id", null: false
+    t.string "sender_id", null: false
+    t.string "outreach_status", default: "ready", null: false
+    t.string "provider_message_id"
+    t.string "contact_permission"
+    t.datetime "contacted_at"
+    t.datetime "contact_blocked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contacted_by_id"], name: "index_lightek_sales_social_prospects_on_contacted_by_id"
+    t.index ["lead_id"], name: "index_lightek_sales_social_prospects_on_lead_id"
+    t.index ["saved_by_id"], name: "index_lightek_sales_social_prospects_on_saved_by_id"
+    t.index ["site_id", "provider", "remote_id"], name: "idx_lightek_sales_social_prospect_identity", unique: true
+    t.index ["site_id"], name: "index_lightek_sales_social_prospects_on_site_id"
+  end
+
   create_table "lightek_sales_tasks", force: :cascade do |t|
     t.bigint "site_id", null: false
     t.bigint "owner_id", null: false
@@ -5966,6 +5989,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_19_220000) do
   add_foreign_key "lightek_sales_quotes", "users", column: "created_by_id"
   add_foreign_key "lightek_sales_routing_rules", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_routing_rules", "users", column: "owner_id"
+  add_foreign_key "lightek_sales_social_prospects", "dymond_site_sites", column: "site_id"
+  add_foreign_key "lightek_sales_social_prospects", "lightek_sales_leads", column: "lead_id"
+  add_foreign_key "lightek_sales_social_prospects", "users", column: "contacted_by_id"
+  add_foreign_key "lightek_sales_social_prospects", "users", column: "saved_by_id"
   add_foreign_key "lightek_sales_tasks", "dymond_site_sites", column: "site_id"
   add_foreign_key "lightek_sales_tasks", "users", column: "completed_by_id"
   add_foreign_key "lightek_sales_tasks", "users", column: "created_by_id"

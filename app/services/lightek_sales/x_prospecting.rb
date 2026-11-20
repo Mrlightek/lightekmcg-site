@@ -17,7 +17,7 @@ module LightekSales
     WEB_HOSTS = %w[x.com www.x.com mobile.x.com twitter.com www.twitter.com mobile.twitter.com].freeze
     PURPOSE = 'social_prospecting'
     SCOPES = %w[tweet.read users.read dm.write offline.access].freeze
-    OUTREACH_OUTCOMES = ['Message sent on X', 'Reply received', 'No response', 'Not a fit'].freeze
+    OUTREACH_OUTCOMES = ['Message sent', 'Reply received', 'No response', 'Not a fit'].freeze
     CONSUMER = name
 
     def initialize(actor:, site:)
@@ -123,7 +123,7 @@ module LightekSales
 
     def send!(prospect, text:, permission:)
       authorize!
-      raise Error, 'Open the prospect’s profile to message them on X.' if prospect.web_only?
+      raise Error, "Open the prospect’s profile to message them on #{prospect.provider_label}." if prospect.web_only?
 
       text, permission = text.to_s.strip, permission.to_s.strip
       raise ArgumentError, 'Write a message of 1–2000 characters.' unless text.length.between?(1, 2000)
@@ -176,7 +176,7 @@ module LightekSales
 
         lead = Lead.find_by(site: @site, email: email.to_s.strip.downcase)
         lead ||= @workspace.save!('lead', {name: name, email: email, company: company.to_s.strip.presence || name,
-          source: 'x', next_step: 'Follow up on the X conversation.', follow_up_on: Date.current + 1})
+          source: prospect.provider, next_step: "Follow up on the #{prospect.provider_label} conversation.", follow_up_on: Date.current + 1})
         prospect.update!(lead: lead)
         lead
       end

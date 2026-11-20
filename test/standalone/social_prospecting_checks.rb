@@ -9,11 +9,16 @@ require ROOT.join('db/migrate/20261120120000_create_lightek_sales_social_prospec
 CreateLightekSalesSocialProspects.new.migrate(:up)
 require ROOT.join('db/migrate/20261120120100_add_web_identity_to_sales_social_prospects')
 AddWebIdentityToSalesSocialProspects.new.migrate(:up)
+require ROOT.join('db/migrate/20261120120200_add_prospecting_web_sources_and_cadences')
+AddProspectingWebSourcesAndCadences.new.migrate(:up)
 
 %w[secret audit_event].each { |name| require ROOT.join("app/models/lightek_vault/#{name}") }
 %w[master_key crypto policy service].each { |name| require ROOT.join("app/services/lightek_vault/#{name}") }
 require ROOT.join('app/models/lightek_sales/social_prospect')
+require ROOT.join('app/models/lightek_sales/prospecting_cadence')
 require ROOT.join('app/services/lightek_sales/x_prospecting')
+require ROOT.join('app/services/lightek_sales/web_prospecting')
+require ROOT.join('app/services/lightek_sales/prospecting_cadences')
 require ROOT.join('app/controllers/dashboard/sales_prospecting_controller')
 Dashboard::SalesProspectingController.prepend_view_path ROOT.join('app/views')
 Dashboard::SalesProspectingController.layout false
@@ -24,6 +29,7 @@ class SocialProspectingChecks < GrowthFoundationChecks
   TOKEN = 'test-x-user-token-checkout'
 
   def setup
+    LightekSales::ProspectingCadence.delete_all
     LightekSales::SocialProspect.delete_all
     LightekVault::AuditEvent.delete_all
     LightekVault::Secret.delete_all
@@ -146,7 +152,7 @@ class SocialProspectingChecks < GrowthFoundationChecks
       assert_response :success
       page = Nokogiri::HTML(response.body)
       assert_equal save_path, page.at_css('form:has(input[name="post_url"])')['action']
-      assert_equal prospect.profile_url, page.at_css('details [data-x-dm-draft] a')['href']
+      assert_equal prospect.profile_url, page.at_css('details [data-prospect-draft] a')['href']
 
       message_http(prospect)
       assert_response :see_other
@@ -193,6 +199,94 @@ class SocialProspectingChecks < GrowthFoundationChecks
         assert_equal 2, @calls.count { |request| request.path == '/2/oauth2/token' }
       end
     end
+  end
+
+  def test_prospecting_saves_facebook_linkedin_and_reddit_without_api_requests
+    examples = {
+      'facebook' => ['https://m.facebook.com/share/p/PfBID123/?tracking=test', 'https://facebook.com/people/Taylor-Works/123/',
+        'https://www.facebook.com/profile.php?id=123'],
+      'linkedin' => ['https://www.linkedin.com/feed/update/urn:li:activity:1234/?trk=test', 'https://linkedin.com/in/Taylor-Works/',
+        'https://www.linkedin.com/in/taylor-works'],
+      'reddit' => ['https://www.reddit.com/r/smallbusiness/s/abc123?share_id=test', 'https://old.reddit.com/u/TaylorWorks/?x=y',
+        'https://www.reddit.com/user/taylorworks']
+    }
+    save_path = save_web_dashboard_sales_prospecting_path(site_id: @site.id)
+
+    Net::HTTP.stub(:start, ->(*) { flunk 'Browser handoffs must not use provider APIs' }) do
+      examples.each do |provider, (post_url, profile_url, canonical)|
+        2.times do
+          post save_path, params: {provider: provider, post_url: post_url, profile_url: profile_url,
+            display_name: 'Taylor Works', authenticity_token: token}, headers: headers
+          assert_response :see_other
+        end
+        prospect = LightekSales::SocialProspect.where(site: @site, provider: provider).sole
+        assert_equal canonical, prospect.profile_url
+        assert_equal 'Taylor Works', prospect.name
+        refute_includes prospect.source_url, 'test'
+        get dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: prospect.id), headers: headers
+        assert_response :success
+        page = Nokogiri::HTML(response.body)
+        assert_equal canonical, page.at_css('[data-prospect-draft] a')['href']
+        assert_includes response.body, "Search on #{prospect.provider_label}"
+        message_http(prospect)
+        assert_equal 'ready', prospect.reload.outreach_status
+      end
+    end
+
+    web = LightekSales::WebProspecting.new(actor: @owner, site: @site)
+    assert_raises(ArgumentError) do
+      web.save!(provider: 'linkedin', post_url: examples.fetch('linkedin')[0],
+        profile_url: 'https://www.linkedin.com/in/%2e%2e', name: 'Bad link')
+    end
+    assert_raises(ArgumentError) do
+      web.save!(provider: 'facebook', post_url: 'https://facebook.com.evil.example/a/posts/123',
+        profile_url: examples.fetch('facebook')[1], name: 'Bad link')
+    end
+    linkedin = LightekSales::SocialProspect.find_by!(site: @site, provider: 'linkedin')
+    lead = @prospecting.link_lead!(linkedin, name: 'Taylor Works', email: 'linkedin@example.test', company: 'Taylor Works')
+    assert_equal 'linkedin', lead.source
+  end
+
+  def test_prospecting_cadence_schedules_once_and_prioritizes_logged_replies
+    prospect = @prospecting.save_web_post!('https://x.com/TaylorWorks/status/123')
+    other = @prospecting.save_web_post!('https://x.com/OtherProspect/status/456')
+    start = 1.day.ago.change(sec: 0)
+    today_path = dashboard_sales_path(site_id: @site.id, owner_id: @member.id)
+    post cadences_dashboard_sales_prospecting_path(site_id: @site.id),
+      params: {authenticity_token: token, cadence: {name: 'Founder interest',
+        steps: [{days: 0, title: 'Review reply'}, {days: 2, title: 'Close the loop'}]}},
+      headers: headers
+    cadence = LightekSales::ProspectingCadence.where(site: @site).sole
+    focused_path = dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: prospect.id)
+    get focused_path, headers: headers
+    assert_includes response.body, 'Apply a cadence'
+
+    options = {cadence_id: cadence.id, owner_id: @member.id, starts_at: start.iso8601}
+    2.times do
+      post cadence_dashboard_sales_prospect_path(prospect, site_id: @site.id),
+        params: {authenticity_token: token, cadence: options}, headers: headers
+      assert_redirected_to focused_path
+    end
+    tasks = LightekSales::Task.where(record: prospect).order(:due_at)
+    assert_equal ['Review reply', 'Close the loop'], tasks.pluck(:title)
+    assert_equal [start, start + 2.days], tasks.pluck(:due_at)
+    assert_equal [@member.id], tasks.distinct.pluck(:owner_id)
+    LightekSales::Tasks.new(actor: @owner, site: @site).create!(kind: 'prospect', id: other.id,
+      values: {title: 'Older due task', owner_id: @member.id, due_at: 2.days.ago})
+
+    @prospecting.record_outreach!(prospect, outcome: 'Reply received', notes: 'Asked for a quote')
+    get today_path, headers: headers
+    assert_includes response.body, 'Reply received'
+    assert_operator response.body.index('Review reply'), :<, response.body.index('Older due task')
+    @prospecting.record_outreach!(prospect, outcome: 'No response', notes: '')
+    get today_path, headers: headers
+    assert_operator response.body.index('Older due task'), :<, response.body.index('Review reply')
+
+    post block_contact_dashboard_sales_prospect_path(prospect, site_id: @site.id),
+      params: {authenticity_token: token}, headers: headers
+    assert_equal ['canceled', 'canceled'], tasks.pluck(:status)
+    foreign = LightekSales::ProspectingCadences.new(actor: @other, site: @foreign_site)
+    assert_raises(ActiveRecord::RecordNotFound) { foreign.apply!(**options, prospect_id: prospect.id) }
   end
 
   def test_prospecting_follow_up_uses_the_sales_queue_and_honors_do_not_contact

@@ -1,0 +1,8 @@
+<div class="sales-filters" data-cadence-step>
+  <label>Days after start<%= number_field_tag 'cadence[steps][][days]', days, id: nil, min: 0, max: 999, required: true %></label>
+  <label>Next action<%= text_field_tag 'cadence[steps][][title]', nil, id: nil, maxlength: 300,
+    placeholder: 'Check for a reply', required: true %></label>
+  <% if removable %>
+    <button type="button" class="sales-button secondary" data-remove-cadence-step>Remove step</button>
+  <% end %>
+</div>

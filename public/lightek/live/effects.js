@@ -16,8 +16,20 @@
     const gifContext = gifCanvas.getContext('2d');
     const exportButton = panel.querySelector('[data-effects-export]');
     const download = panel.querySelector('[data-effects-download]');
+    const scrub = panel.querySelector('[data-effects-scrub]');
+    const logoInput = field('logo');
+    const removeLogo = panel.querySelector('[data-effects-remove-logo]');
+    const library = panel.querySelector('[data-effects-library]');
+    const libraryKey = 'lightek:live-motion:v1:' + panel.dataset.effectsScope;
+    const saved = library.querySelector('[data-effects-saved]');
+    const graphicName = library.querySelector('[data-effects-name]');
+    const loadGraphic = library.querySelector('[data-effects-load]');
+    const deleteGraphic = library.querySelector('[data-effects-delete]');
+    const graphicFields = ['kind', 'title', 'subtitle', 'color', 'accent', 'x', 'y', 'size',
+      'opacity', 'seconds', 'entrance', 'exit', 'stagger', 'easing'];
     let program, draft, animationRequest, gif, worker, revision = 0, workerTimer, displayedFrame;
     let exportWorker, exportTimer, downloadUrl;
+    let logo, logoData, designRevision = 0;
 
     function render(ctx, cue, now) {
       const elapsed = Math.max(0, now - cue.start);
@@ -48,8 +60,14 @@
     function cue() {
       const kind = field('kind').value;
       if (kind === 'gif' && !gif) throw Error('Load a GIF before adding it to the layer.');
-      const pct = (name, fallback) => Math.max(0, Math.min(100, Number(field(name).value) || fallback)) / 100;
-      return {
+      const number = (name, min, max, fallback) => {
+        const input = field(name);
+        const value = Number(input.value);
+        return input.value && Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+      };
+      const pct = (name, fallback) => number(name, 0, 100, fallback) / 100;
+      const easing = field('easing').value;
+      const effect = {
         kind,
         color: field('color').value,
         accent: field('accent').value,
@@ -60,10 +78,17 @@
         size: pct('size', 35) * width,
         opacity: pct('opacity', 85),
         gif: kind === 'gif' ? gif : null,
+        logo: motion.textKinds.has(kind) ? logo : null,
         loop: field('loop').checked,
-        duration: Math.max(1, Math.min(30, Number(field('seconds').value) || 3)) * 1000,
+        duration: number('seconds', 1, 30, 3) * 1000,
+        entrance: number('entrance', 0, 4, .55),
+        exit: number('exit', 0, 4, .5),
+        stagger: motion.textKinds.has(kind) ? number('stagger', 0, 1, .07) : 0,
+        easing: motion.eases.has(easing) ? easing : 'power2.out',
         start: performance.now()
       };
+      if (!effect.gif) effect.animation = motion.animate(effect);
+      return effect;
     }
 
     function cancelDecode() {
@@ -79,6 +104,7 @@
       if (!file) return;
       if (field('kind').value !== 'gif') {
         field('kind').value = 'gif';
+        designRevision++;
         selectPreset();
       }
       if (file.size > 3 * 1024 * 1024) {
@@ -123,7 +149,9 @@
       preview.clearRect(0, 0, width, height);
       if (field('kind').value === 'gif' && !gif) return;
       const sample = cue();
-      render(preview, sample, sample.start + sample.duration * .42);
+      // A one-shot preview expires at the end, so sample the final instant just before it.
+      const position = Math.min(.999999, Number(scrub.value) / 100);
+      render(preview, sample, sample.start + sample.duration * position);
     }
 
     function selectPreset() {
@@ -138,14 +166,147 @@
       panel.querySelector('[data-effect-gif-controls]').hidden = kind !== 'gif';
       panel.querySelector('[data-effect-palette]').hidden = kind === 'gif';
       panel.querySelector('[data-effect-export-note]').hidden = kind === 'gif';
+      panel.querySelector('[data-effect-animation]').hidden = kind === 'gif';
+      panel.querySelector('[data-effect-stagger]').hidden = !motion.textKinds.has(kind);
+      panel.querySelector('[data-effects-scrub-controls]').hidden = kind === 'gif';
       exportButton.hidden = kind === 'gif';
+      library.querySelector('[data-effects-save]').disabled = kind === 'gif';
       showPoster();
     }
-    field('kind').addEventListener('change', selectPreset);
+    field('kind').addEventListener('change', () => {
+      designRevision++;
+      selectPreset();
+    });
+    scrub.addEventListener('input', showPoster);
     panel.addEventListener('input', event => {
-      if (event.target.matches('input[data-effect]:not([type="file"])')) showPoster();
+      if (event.target.matches('input[data-effect]:not([type="file"]), [data-effect="easing"]')) showPoster();
     });
     selectPreset();
+
+    function readImage(url) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = url;
+      });
+    }
+
+    function setLogo(image, data) {
+      logo = image;
+      logoData = data;
+      logoInput.value = '';
+      removeLogo.hidden = !logo;
+      showPoster();
+    }
+
+    logoInput.addEventListener('change', async () => {
+      const file = logoInput.files[0];
+      if (!file) return;
+      const current = ++designRevision;
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 3 * 1024 * 1024) {
+        note.textContent = 'Choose a PNG, JPEG, or WebP logo up to 3 MB.';
+        logoInput.value = '';
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      try {
+        const image = await readImage(url);
+        if (current !== designRevision) return;
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(1, 256 / Math.max(image.width, image.height));
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        setLogo(canvas, canvas.toDataURL('image/png'));
+        note.textContent = 'Logo added to the graphic.';
+      } catch {
+        if (current === designRevision) note.textContent = 'The logo could not be opened.';
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    });
+
+    removeLogo.addEventListener('click', () => {
+      designRevision++;
+      setLogo(null, null);
+      note.textContent = 'Logo removed.';
+    });
+
+    function savedGraphics() {
+      const entries = JSON.parse(localStorage.getItem(libraryKey) || '[]');
+      return Array.isArray(entries) ? entries : [];
+    }
+
+    function updateLibrary(entries, name = '') {
+      saved.replaceChildren(new Option('Choose a graphic', ''));
+      entries.forEach(item => saved.add(new Option(item.name, item.name)));
+      saved.value = name;
+      loadGraphic.disabled = !saved.value;
+      deleteGraphic.hidden = !saved.value;
+    }
+
+    try { updateLibrary(savedGraphics()); }
+    catch { updateLibrary([]); }
+    saved.addEventListener('change', () => {
+      designRevision++;
+      loadGraphic.disabled = !saved.value;
+      deleteGraphic.hidden = !saved.value;
+    });
+    loadGraphic.addEventListener('click', async () => {
+      const current = ++designRevision;
+      try {
+        const graphic = savedGraphics().find(item => item.name === saved.value);
+        if (!graphic || !Array.from(field('kind').options).some(option =>
+          option.value !== 'gif' && option.value === graphic.fields.kind)) return;
+        const data = /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(graphic.logo) ? graphic.logo : null;
+        const image = data ? await readImage(data) : null;
+        if (current !== designRevision) return;
+        field('kind').value = graphic.fields.kind;
+        selectPreset();
+        graphicFields.forEach(key => {
+          if (typeof graphic.fields[key] === 'string') field(key).value = graphic.fields[key];
+        });
+        field('loop').checked = graphic.loop === true;
+        graphicName.value = graphic.name;
+        setLogo(image, data);
+        note.textContent = 'Saved graphic loaded into private preview.';
+      } catch {
+        note.textContent = 'That graphic could not be loaded.';
+      }
+    });
+
+    library.querySelector('[data-effects-save]').addEventListener('click', () => {
+      const name = graphicName.value.trim();
+      if (!name) {
+        graphicName.focus();
+        note.textContent = 'Enter a name for this graphic.';
+        return;
+      }
+      try {
+        const entries = savedGraphics().filter(item => item.name !== name);
+        const fields = Object.fromEntries(graphicFields.map(key => [key, field(key).value]));
+        entries.push({ name, fields, loop: field('loop').checked,
+          logo: motion.textKinds.has(fields.kind) ? logoData : null });
+        localStorage.setItem(libraryKey, JSON.stringify(entries));
+        updateLibrary(entries, name);
+        note.textContent = 'Graphic saved to this browser.';
+      } catch {
+        note.textContent = 'The browser could not save this graphic.';
+      }
+    });
+
+    deleteGraphic.addEventListener('click', () => {
+      designRevision++;
+      try {
+        const entries = savedGraphics().filter(item => item.name !== saved.value);
+        localStorage.setItem(libraryKey, JSON.stringify(entries));
+        updateLibrary(entries);
+        note.textContent = 'Graphic removed from saved graphics.';
+      } catch {
+        note.textContent = 'The browser could not remove this graphic.';
+      }
+    });
 
     function stopExport() {
       clearTimeout(exportTimer);
@@ -232,6 +393,7 @@
     panel.querySelector('[data-effects-clear]').addEventListener('click', clear);
     const dispose = () => {
       revision++;
+      designRevision++;
       cancelDecode();
       stopExport();
       clearDownload();

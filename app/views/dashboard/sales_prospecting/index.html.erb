@@ -22,6 +22,11 @@
         id: 'x_web_search_query', placeholder: '"looking for a web designer"' %></label>
       <button type="submit" class="sales-button secondary">Search on X</button>
     <% end %>
+    <%= form_with url: save_web_dashboard_sales_prospecting_path(site_id: @site.id), class: 'sales-filters sales-editor' do %>
+      <label>X post link<%= url_field_tag :post_url, nil, required: true, maxlength: 2048, autocomplete: 'off',
+        placeholder: 'https://x.com/username/status/123456789' %></label>
+      <button type="submit" class="sales-button">Save prospect</button>
+    <% end %>
   </section>
 
   <section class="sales-panel">
@@ -81,10 +86,11 @@
     <% if @prospects.empty? %><p>Save a promising result to review their account and follow up.</p><% end %>
     <% @prospects.each do |prospect| %>
       <article class="sales-panel">
-        <h3><%= link_to "X profile #{prospect.remote_id}", prospect.profile_url, rel: 'noreferrer' %></h3>
+        <h3><%= link_to (prospect.web_only? ? "@#{prospect.web_username}" : "X profile #{prospect.remote_id}"),
+          prospect.profile_url, rel: 'noreferrer' %></h3>
         <div class="sales-actions">
           <%= link_to 'View source post', prospect.source_url, rel: 'noreferrer' %>
-          <% if !prospect.contact_blocked_at? && prospect.outreach_status != 'ready' %>
+          <% if !prospect.web_only? && !prospect.contact_blocked_at? && prospect.outreach_status != 'ready' %>
             <%= link_to 'Open conversation on X', prospect.thread_url, target: '_blank', rel: 'noopener noreferrer' %>
           <% end %>
           <% if prospect.lead %><%= link_to prospect.lead.name, dashboard_sales_record_path(kind: 'lead', id: prospect.lead.id, site_id: @site.id) %><% end %>
@@ -92,9 +98,11 @@
         <% if prospect.contact_blocked_at? %>
           <p><strong>Do not contact</strong></p>
         <% else %>
-          <p><%= {'ready' => 'No message sent', 'sending' => 'Send started. Check the conversation on X before contacting again.',
-            'uncertain' => 'Delivery unconfirmed. Check the conversation on X before contacting again.',
-            'sent' => "X accepted message #{prospect.provider_message_id}"}[prospect.outreach_status] %></p>
+          <% unless prospect.web_only? %>
+            <p><%= {'ready' => 'No message sent', 'sending' => 'Send started. Check the conversation on X before contacting again.',
+              'uncertain' => 'Delivery unconfirmed. Check the conversation on X before contacting again.',
+              'sent' => "X accepted message #{prospect.provider_message_id}"}[prospect.outreach_status] %></p>
+          <% end %>
           <% if prospect.outreach_status == 'ready' %>
             <details>
               <summary>Draft a DM for X</summary>
@@ -103,14 +111,16 @@
                   autocomplete: 'off', data: {x_dm_text: true} %></label>
                 <div class="sales-actions">
                   <button type="button" class="sales-button secondary" data-copy-x-dm>Copy draft</button>
-                  <%= link_to 'Open DM on X', prospect.thread_url, class: 'sales-button secondary',
+                  <% x_message_label = prospect.web_only? ? 'Open X profile' : 'Open DM on X' %>
+                  <%= link_to x_message_label, (prospect.thread_url || prospect.profile_url), class: 'sales-button secondary',
                     target: '_blank', rel: 'noopener noreferrer' %>
                 </div>
+                <% if prospect.web_only? %><small>On the X profile, choose Message if available.</small><% end %>
                 <small role="status" data-x-dm-status>Paste your draft into X to review and send it.</small>
               </div>
             </details>
           <% end %>
-          <% if @account && prospect.outreach_status == 'ready' %>
+          <% if @account && !prospect.web_only? && prospect.outreach_status == 'ready' %>
             <details>
               <summary>Write a direct message</summary>
               <%= form_with url: message_dashboard_sales_prospect_path(prospect, site_id: @site.id), class: 'sales-form' do %>

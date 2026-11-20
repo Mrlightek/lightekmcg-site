@@ -62,6 +62,11 @@ class Dashboard::SalesProspectingController < Dashboard::SettingsHomeController
     redirect_to dashboard_sales_prospecting_path(site_id: @site.id), notice: 'Prospect saved.', status: :see_other
   end
 
+  def save_web
+    @prospecting.save_web_post!(params[:post_url])
+    redirect_to dashboard_sales_prospecting_path(site_id: @site.id), notice: 'Prospect saved.', status: :see_other
+  end
+
   def message
     raise ArgumentError, 'Confirm sending this exact message to this account.' unless params[:confirmed] == '1'
 

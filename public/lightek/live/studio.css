@@ -33,3 +33,5 @@
 .ll-slate-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}
 .ll-slate-fields label{min-width:0}
 @media(max-width:600px){.ll-slate-fields{grid-template-columns:minmax(0,1fr)}}
+
+.ll-effects-preview{display:block;width:min(100%,500px);height:auto;margin:12px 0;border-radius:8px;border:1px solid var(--ll-line);background:#0b121b}

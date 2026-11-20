@@ -7,6 +7,7 @@ function boot(){
  const comments=window.LightekLiveComments?.boot(root);
  const broadcastLook=window.LightekBroadcastLook?.boot(root);
  const holdingBreak=window.LightekHoldingBreak?.boot(root);
+ const effects=window.LightekLiveEffects?.boot(root);
  const graphics=window.LightekLiveGraphics?.boot(root);
  const overlay=window.LightekLiveOverlay?.boot(root);
  const showPresentation=window.LightekLiveShowPresentation?new window.LightekLiveShowPresentation():null;
@@ -20,7 +21,7 @@ function boot(){
  function message(text){error.textContent=text||'';error.hidden=!text;}
  function controls(){q('[data-start]').disabled=active||productionSetup?.busy()||!supported||root.dataset.encoder!=='ready';q('[data-stop]').disabled=!active||stopping;q('[data-title]').disabled=active;q('[data-destination]').disabled=active;}
  function micUI(){q('[data-mic]').setAttribute('aria-pressed',String(!muted));q('[data-mic]').textContent=muted?'Enable microphone':'Mute microphone';q('[data-mic-status]').textContent=holding?'Muted during holding screen':muted?'Microphone off':'Microphone on';if(gain)gain.gain.value=muted||holding?0:1;libraryMix();}
- function hold(value,playBreak=false){if(value&&holding)return;holdingBreak?.stop();if(value)comments?.clear();holding=value;q('[data-hold]').setAttribute('aria-pressed',String(value));q('[data-hold]').textContent=value?'Resume program':'Holding screen';micUI();if(value&&playBreak&&audio&&mixer)holdingBreak?.start(audio,mixer);}
+ function hold(value,playBreak=false){if(value&&holding)return;holdingBreak?.stop();if(value){comments?.clear();effects?.clear();}holding=value;q('[data-hold]').setAttribute('aria-pressed',String(value));q('[data-hold]').textContent=value?'Resume program':'Holding screen';micUI();if(value&&playBreak&&audio&&mixer)holdingBreak?.start(audio,mixer);}
  async function ensureProgram(){
   if(program){await audio.resume();return;}
   audio=new (window.AudioContext||window.webkitAudioContext)();mixer=audio.createMediaStreamDestination();
@@ -35,6 +36,7 @@ function boot(){
    }
    else{holdingBreak?.draw(ctx);}
    if(!holding&&libraryOverlay?.complete&&libraryOverlay.naturalWidth){if(overlay)overlay.draw(ctx,libraryOverlay);else ctx.drawImage(libraryOverlay,0,0,1280,720);}
+   if(!holding&&pictureReady)effects?.draw(ctx,performance.now());
    if(!holding&&pictureReady)graphics?.draw(ctx, Boolean(comments?.selected));
    if(!holding&&pictureReady)comments?.draw(ctx,q('[data-presentation=accent]')?.value);
    if(!holding&&pictureReady)broadcastLook?.drawFrame(ctx);
@@ -89,7 +91,7 @@ function boot(){
   const entry=pending;
   try{const bytes=new Uint8Array(await entry.blob.arrayBuffer());if(!active||pending!==entry)return;let raw='';for(let i=0;i<bytes.length;i+=32768)raw+=String.fromCharCode(...bytes.subarray(i,i+32768));send('chunk',{sequence:entry.sequence,live_chunk:btoa(raw)});entry.timer=setTimeout(()=>{if(active&&pending===entry)fail('The server did not acknowledge capture within 10 seconds. Check the broadcaster service log before starting another test.');},10000);}catch(e){fail(e.message);}
  }
- function finish(text){holdingBreak?.stop();comments?.clear();graphics?.clear();active=false;stopping=false;clearTimeout(connectTimer);clearTimeout(pending?.timer);clearInterval(clockTimer);if(recorder?.state!=='inactive')recorder?.stop();queue=[];pending=null;queuedBytes=0;ws?.close();badge.textContent='Preview only';badge.dataset.active='false';status.textContent=text;controls();}
+ function finish(text){effects?.clear();holdingBreak?.stop();comments?.clear();graphics?.clear();active=false;stopping=false;clearTimeout(connectTimer);clearTimeout(pending?.timer);clearInterval(clockTimer);if(recorder?.state!=='inactive')recorder?.stop();queue=[];pending=null;queuedBytes=0;ws?.close();badge.textContent='Preview only';badge.dataset.active='false';status.textContent=text;controls();}
  function fail(text){message(text);finish('Session stopped. Preview stays local.');}
  function startRecorder(){
   if(!active||stopping)return;
@@ -123,7 +125,7 @@ function boot(){
   }catch(e){fail(e.message);}
  }
  function stop(){if(!active||stopping)return;holdingBreak?.stop();stopping=true;controls();status.textContent='Stopping capture…';if(recorder?.state==='recording')recorder.stop();else{try{send('stop');}catch{finish('Session stopped.');}}}
- function release(){if(active)return message('Stop the session before releasing capture.');holdingBreak?.stop();comments?.clear();graphics?.clear();captureGeneration++;sessionSource?.dispose();sessionSource=null;stage?.dispose();stage=null;disposeLibrary();disableCamera();screen?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());program?.getTracks().forEach(t=>t.stop());silent?.stop();audio?.close();clearInterval(paintTimer);screen=mic=program=audio=gain=analyser=null;muted=true;hold(false);preview.srcObject=null;source.srcObject=null;q('[data-placeholder]').hidden=false;sourceStatus();q('[data-meter]').value=0;status.textContent='Capture released.';}
+ function release(){if(active)return message('Stop the session before releasing capture.');effects?.clear();holdingBreak?.stop();comments?.clear();graphics?.clear();captureGeneration++;sessionSource?.dispose();sessionSource=null;stage?.dispose();stage=null;disposeLibrary();disableCamera();screen?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());program?.getTracks().forEach(t=>t.stop());silent?.stop();audio?.close();clearInterval(paintTimer);screen=mic=program=audio=gain=analyser=null;muted=true;hold(false);preview.srcObject=null;source.srcObject=null;q('[data-placeholder]').hidden=false;sourceStatus();q('[data-meter]').value=0;status.textContent='Capture released.';}
  function setPresentation(values){presentationDraft=values;root.querySelectorAll('[data-presentation]').forEach(input=>input.value=values[input.dataset.presentation]??'');sessionSource?.configure(values);if(q('[data-style-person]')?.value)q('[data-style-person]').dispatchEvent(new Event('change'));root.dispatchEvent(new CustomEvent('lightek:presentation-loaded'));}
  function roomPresentation(values){setPresentation(showPresentation?.forRoom(values)||values);}
  function applyShowPresentation(values){if(!showPresentation)throw Error('Reopen Live Studio after deployment.');setPresentation(showPresentation.apply(values,{...presentationDraft,...sessionSource?.presentation}));q('[data-presentation-status]').textContent='Production styling loaded locally. Guest settings remain specific to this room.';}

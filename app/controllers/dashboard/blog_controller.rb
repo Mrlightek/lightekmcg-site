@@ -18,6 +18,11 @@ class Dashboard::BlogController < ApplicationController
     response.set_header("X-Robots-Tag","noindex, nofollow")
     render "lightek_blog/show",layout:LightekDesign::Catalog.active?(@site) ? "lightek_design/website" : "lightek_blog"
   end
+  def image
+    LightekDesign::SiteTheme.authorize!(@site, current_user)
+    entry = LightekBlog::Entry.where(site: @site).find(params[:id])
+    LightekBlog::Images.deliver(self, LightekBlog::Images.blob!(entry, params[:attachment_id]))
+  end
   private
   def load_site
     @sites=LightekSettings::WebsiteIdentity.sites_for(current_user).order(:name)
@@ -27,7 +32,7 @@ class Dashboard::BlogController < ApplicationController
   end
   def save_article
     @entry=LightekBlog::Entry.where(site:@site).find(params[:id]) if params[:id]
-    @entry=LightekBlog::Editor.save!(site:@site,user:current_user,entry:@entry,attributes:params.require(:article).permit(:title,:content,:slug,:excerpt,:category,:status,:lock_version).to_h)
+    @entry=LightekBlog::Editor.save!(site:@site,user:current_user,entry:@entry,attributes:params.require(:article).permit(:title,:content,:slug,:excerpt,:category,:status,:lock_version,images: []).to_h)
     redirect_to dashboard_blog_index_path(site_id:@site.id,entry_id:@entry.id),status: :see_other,notice:"Article saved as #{@entry.status}."
   end
   def invalid_article(error)

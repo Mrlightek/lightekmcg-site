@@ -1,0 +1,9 @@
+<% content_for :page_title, "Interactive design preview" %>
+<%= stylesheet_link_tag "/lightek/site-content.css?v=20261120" %>
+<main class="content-hub">
+  <%= link_to "Back to Design & Content", dashboard_website_designs_path(site_id: @site.id) %>
+  <h1><%= @design_name %></h1>
+  <p>The uploaded JavaScript runs inside this private interactive preview. Editable website sections use the converted HTML and CSS.</p>
+  <%= tag.iframe title: "Interactive design preview", class: "content-interactive-preview",
+    sandbox: "allow-scripts", referrerpolicy: "no-referrer", srcdoc: @preview_document %>
+</main>

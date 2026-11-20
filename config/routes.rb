@@ -43,10 +43,12 @@ Rails.application.routes.draw do
   post "/dashboard/website/designs/themes", to: "dashboard/website_designs#install_theme", as: :dashboard_website_themes
   post "/dashboard/website/designs/themes/:template_id/activate", to: "dashboard/website_designs#activate_theme", as: :activate_dashboard_website_theme
   resources :blog, only: %i[index show], param: :slug, controller: "lightek_blog", as: :website_blog
+  get "/blog/:slug/images/:attachment_id", to: "lightek_blog#image", as: :website_blog_image
   get "/journal.xml", to: "lightek_blog#feed", as: :website_blog_feed
   namespace :dashboard do
     resources :blog, only: %i[index create update], controller: "blog" do
       get :preview, on: :member
+      get "images/:attachment_id", to: "blog#image", on: :member, as: :image
     end
   end
   draw :reservations
@@ -686,6 +688,7 @@ get "/dashboard/bank", to: "dashboard/financial_operations#index", as: :dashboar
   post "/dashboard/website/designs/apply", to: "dashboard/website_designs#apply", as: :apply_dashboard_website_designs
   post "/dashboard/website/designs/import", to: "dashboard/website_designs#import", as: :import_dashboard_website_designs
   post "/dashboard/website/designs/convert", to: "dashboard/website_designs#convert_html", as: :convert_dashboard_website_designs
+  get "/dashboard/website/designs/interactive-preview", to: "dashboard/website_designs#interactive_html", as: :interactive_dashboard_website_designs
   post "/dashboard/website/designs/upload", to: "dashboard/website_designs#upload_html", as: :upload_dashboard_website_designs
   patch "/dashboard/website/designs/fonts", to: "dashboard/website_designs#update_fonts", as: :fonts_dashboard_website_designs
 # END LIGHTEK WEBSITE DESIGNS

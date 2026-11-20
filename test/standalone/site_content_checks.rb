@@ -82,6 +82,7 @@ require Rails.root.join('db/migrate/20261112170000_create_lightek_blog_entries')
 CreateLightekBlogEntries.new.migrate(:up)
 require Rails.root.join('app/models/lightek_blog/entry')
 require Rails.root.join('app/services/lightek_blog/editor')
+require Rails.root.join('app/services/lightek_blog/images')
 module DymondDash
   module TemplateSchemaHelper
     def theme_styles(*) = ''
@@ -99,10 +100,12 @@ Dashboard::BlogController.layout false
 ApplicationController.prepend_view_path Rails.root.join('app/views')
 Rails.application.routes.append do
   resources :website_blog,only:%i[index show],path:'blog',param: :slug,controller:'lightek_blog'
+  get '/blog/:slug/images/:attachment_id',to:'lightek_blog#image',as: :website_blog_image
   get '/journal.xml',to:'lightek_blog#feed',as: :website_blog_feed
   namespace :dashboard do
     resources :blog,only:%i[index create update],controller:'blog' do
       get :preview,on: :member
+      get 'images/:attachment_id',to:'blog#image',on: :member,as: :image
     end
   end
   get '/dashboard/website/designs',to:'dashboard/blog#index',as: :dashboard_website_designs
@@ -134,6 +137,7 @@ end
 require Rails.root.join('app/models/website_template_inquiry')
 require Rails.root.join('app/services/lightek_commerce/industry_starters')
 require Rails.root.join('app/controllers/dashboard/website_designs_controller')
+require Rails.root.join('app/jobs/lightek_design/html_import_job')
 require Rails.root.join('app/controllers/dashboard/design_studio_controller')
 Dashboard::DesignStudioController.layout false
 Dashboard::WebsiteDesignsController.layout false
@@ -145,6 +149,8 @@ Rails.application.routes.append do
   get '/dashboard/design-content',to:'dashboard/website_designs#index'
   post '/dashboard/website/designs/themes',to:'dashboard/website_designs#install_theme',as: :dashboard_website_themes
   post '/dashboard/website/designs/themes/:template_id/activate',to:'dashboard/website_designs#activate_theme',as: :activate_dashboard_website_theme
+  post '/dashboard/website/designs/upload',to:'dashboard/website_designs#upload_html',as: :upload_dashboard_website_designs
+  get '/dashboard/website/designs/interactive-preview',to:'dashboard/website_designs#interactive_html',as: :interactive_dashboard_website_designs
 end
 Rails.application.routes.append do
   %w[campaign_performance website_audits].each { |file| eval(File.read(Rails.root.join("config/routes/#{file}.rb")), binding) }
@@ -411,5 +417,77 @@ class SiteContentChecks < ActionDispatch::IntegrationTest
     patch "/dashboard/blog/#{entry.id}",params:{site_id:@foreign.id,article:{title:'Bad'}},headers:headers
     assert_response :not_found
     assert_equal 'First story',entry.post.reload.title
+  end
+
+  def test_site_article_uploads_images_and_respects_publication_and_website_scope
+    png = Base64.strict_decode64('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jQ1sAAAAASUVORK5CYII=')
+    attributes = {title: 'Photo story', slug: 'photo-story', content: 'First article with an image', status: 'draft'}
+    Tempfile.create(['article-cover', '.png']) do |file|
+      file.binmode
+      file.write(png)
+      file.flush
+      post '/dashboard/blog', params: {site_id: @site.id,
+        article: attributes.merge(images: [Rack::Test::UploadedFile.new(file.path, 'image/png')])}, headers: headers
+    end
+    assert_response :see_other
+    entry = LightekBlog::Entry.find_by!(site: @site, slug: 'photo-story')
+    id = entry.post.media_attachments.sole.id
+    private_image = "/dashboard/blog/#{entry.id}/images/#{id}"
+    public_image = "/blog/photo-story/images/#{id}"
+
+    get private_image, params: {site_id: @site.id}, headers: headers
+    assert_response :success
+    assert_equal png, response.body.b
+    assert_equal 'image/png', response.media_type
+    get private_image, params: {site_id: @foreign.id}, headers: headers
+    assert_response :not_found
+    get public_image
+    assert_response :not_found
+
+    patch "/dashboard/blog/#{entry.id}", params: {site_id: @site.id,
+      article: attributes.merge(status: 'published', lock_version: entry.lock_version)}, headers: headers
+    assert_response :see_other
+    get '/blog/photo-story'
+    assert_response :success
+    assert_includes response.body, public_image
+    get public_image
+    assert_response :success
+    assert_equal png, response.body.b
+  end
+
+  def test_site_design_uploads_a_companion_script_and_serves_an_owner_scoped_preview
+    Tempfile.create(['index', '.html']) do |html|
+      Tempfile.create(['app', '.js']) do |javascript|
+        html.write('<main><button type="button">Try it</button><output>Ready</output></main><script>document.querySelector("output").textContent = "Unapproved inline script";</script>')
+        javascript.write(<<~JS)
+          document.querySelector('button').addEventListener('click', () => {
+            let isolated = false;
+            try { void parent.document.body; } catch { isolated = true; }
+            document.querySelector('output').textContent = isolated ? 'Interactive and isolated' : 'Same origin';
+          });
+        JS
+        html.flush
+        javascript.flush
+        post '/dashboard/website/designs/upload', params: {site_id: @site.id, name: 'Interactive design',
+          html_file: Rack::Test::UploadedFile.new(html.path, 'text/html'),
+          js_file: Rack::Test::UploadedFile.new(javascript.path, 'text/javascript')}, headers: headers
+      end
+    end
+    assert_response :see_other, response.request.flash[:alert]
+    import = LightekDesign::HtmlImport.records_for(user: @user, site: @site).sole
+    assert_equal 'complete', import.settings.dig('html_import', 'status')
+    assert_equal "html-import-#{import.id}", URI(response.location).fragment
+    route = '/dashboard/website/designs/interactive-preview'
+    get route, params: {site_id: @site.id, import_id: import.id}, headers: headers
+    assert_response :success
+    frame = Nokogiri::HTML5(response.body).at_css('iframe')
+    assert_equal 'allow-scripts', frame['sandbox']
+    assert_equal 'Ready', Nokogiri::HTML5(frame['srcdoc']).at_css('output').text
+    if ENV['SITE_CONTENT_PREVIEW_DIR']
+      FileUtils.mkdir_p(ENV['SITE_CONTENT_PREVIEW_DIR'])
+      File.write(File.join(ENV['SITE_CONTENT_PREVIEW_DIR'], 'interactive.html'), response.body)
+    end
+    get route, params: {site_id: @foreign.id, import_id: import.id}, headers: headers
+    assert_response :not_found
   end
 end

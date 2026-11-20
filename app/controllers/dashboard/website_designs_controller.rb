@@ -59,16 +59,25 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
   end
 
   def upload_html
-    record = LightekDesign::HtmlImport.enqueue!(user: current_user, site: @site, html_file: params[:html_file], css_file: params[:css_file], name: params[:name], create_page: params[:create_page] == "1", product_selector: params[:product_selector])
+    record = LightekDesign::HtmlImport.enqueue!(user: current_user, site: @site, html_file: params[:html_file], css_file: params[:css_file],
+      js_file: params[:js_file], name: params[:name], create_page: params[:create_page] == "1", product_selector: params[:product_selector])
     redirect_after_html_import(record)
   rescue ArgumentError => error
-    redirect_to dashboard_website_designs_path(site_id: @site.id), alert: error.message
+    redirect_to dashboard_website_designs_path(site_id: @site.id), status: :see_other, alert: error.message
   end
 
   def convert_html
     record = LightekDesign::HtmlImport.records_for(user: current_user, site: @site).find(params.require(:import_id))
     LightekDesign::HtmlImportJob.perform_now(record.id)
     redirect_after_html_import(record.reload)
+  end
+
+  def interactive_html
+    record = LightekDesign::HtmlImport.records_for(user: current_user, site: @site).find(params.require(:import_id))
+    @preview_document = LightekDesign::HtmlImport.interactive_preview(record.settings.fetch("html_import"))
+    @design_name = record.name
+    response.set_header("Cache-Control", "private, no-store")
+    response.set_header("X-Robots-Tag", "noindex, nofollow")
   end
 
   def preview
@@ -113,10 +122,13 @@ class Dashboard::WebsiteDesignsController < Dashboard::SettingsHomeController
 
   def redirect_after_html_import(record)
     meta = record.settings.fetch("html_import")
+    location = dashboard_website_designs_path(site_id: @site.id, import_id: record.id, anchor: "html-import-#{record.id}")
     if meta["status"] == "complete"
-      redirect_to dashboard_website_designs_path(site_id: @site.id), notice: "Design converted and saved to the design library.#{' Your draft page is ready in Pages & Sections.' if meta['page_id']}"
+      redirect_to location, status: :see_other,
+        notice: "Design converted and saved to the design library.#{' Your draft page is ready in Pages & Sections.' if meta['page_id']}"
     else
-      redirect_to dashboard_website_designs_path(site_id: @site.id), alert: meta["error"].presence || "Conversion did not complete. Use Convert now to retry the saved source."
+      redirect_to location, status: :see_other,
+        alert: meta["error"].presence || "Conversion did not complete. Use Convert now to retry the saved source."
     end
   end
 

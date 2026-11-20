@@ -1,0 +1,23 @@
+<section class="sales-follow-through">
+  <h3>Activity history</h3>
+  <%= form_with url: outreach_dashboard_sales_prospect_path(prospect, site_id: @site.id), scope: :outreach,
+    class: 'sales-form' do |form| %>
+    <div class="sales-form-grid">
+      <label>Outreach outcome<%= form.select :outcome, LightekSales::XProspecting::OUTREACH_OUTCOMES,
+        {include_blank: 'Choose an outcome'}, required: true %></label>
+      <label>Notes<%= form.text_area :notes, rows: 2, maxlength: 1000 %></label>
+    </div>
+    <div class="sales-actions"><%= form.submit 'Log outreach', class: 'sales-button secondary' %></div>
+  <% end %>
+  <% @prospect_activities.each do |activity| %>
+    <div class="sales-timeline">
+      <div>
+        <strong><%= activity.kind == 'outreach' ? 'Outreach logged' : activity.kind.humanize %></strong>
+        <time datetime="<%= activity.created_at.iso8601 %>"><%= activity.created_at.to_fs(:short) %></time>
+      </div>
+      <p><%= activity.body %></p>
+      <small><%= activity.actor.email_address %></small>
+    </div>
+  <% end %>
+  <% if @prospect_activities.empty? %><p>No activity yet.</p><% end %>
+</section>

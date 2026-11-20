@@ -21,7 +21,18 @@ For a person buying without a formal company, use a clear relationship/account l
 
 ## Discover prospects on X
 
-Open **Business → Prospecting** and select a website. An owner or account
+Open **Sales & CRM → Prospecting** and select a website. Choose **Search on X**
+to search in your browser. Paste a full X post link containing the author's
+username into **X post link** and choose **Save prospect**. You can copy a DM
+draft and open the profile to send it on X if messaging is available.
+
+From any saved prospect, assign a next action and due time with **Schedule
+follow-up**. Due tasks appear in **Today**, and all tasks are available in
+**Tasks** with the existing owner filter and task controls. Open the prospect
+to review task history or use **Log outreach** to record a manual outcome.
+Marking a prospect **Do not contact** cancels any open prospect follow-ups.
+
+For API-backed search and sending, an owner or account
 manager can register the displayed callback URL in an X Web App, paste the
 app’s OAuth client ID and secret, and choose **Continue to X**. Sign in as the
 account the agency will use. Lightek verifies the account and saves encrypted

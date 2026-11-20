@@ -76,8 +76,19 @@ class Dashboard::SalesProspectingController < Dashboard::SettingsHomeController
 
   def block_contact
     prospect = prospects.find(params[:id])
-    prospect.with_lock { prospect.update!(contact_blocked_at: prospect.contact_blocked_at || Time.current) }
+    prospect.with_lock do
+      prospect.update!(contact_blocked_at: prospect.contact_blocked_at || Time.current)
+      LightekSales::Tasks.new(actor: current_user, site: @site).cancel_prospect_follow_ups!(prospect)
+    end
     redirect_to dashboard_sales_prospecting_path(site_id: @site.id), notice: 'This prospect is marked Do not contact.', status: :see_other
+  end
+
+  def outreach
+    prospect = prospects.find(params[:id])
+    values = params.require(:outreach).permit(:outcome, :notes)
+    @prospecting.record_outreach!(prospect, outcome: values[:outcome], notes: values[:notes])
+    redirect_to dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: prospect.id),
+      notice: 'Outreach outcome recorded.', status: :see_other
   end
 
   def lead
@@ -108,6 +119,12 @@ class Dashboard::SalesProspectingController < Dashboard::SettingsHomeController
   def load_page
     @account = @prospecting.account
     @manage_connection = LightekAgency::Access.manage_members?(current_user, @site)
-    @prospects = prospects.includes(:lead).order(id: :desc).limit(50)
+    @owners = LightekSales::Access.owners_for(@site).order(:email_address).to_a
+    @selected_prospect = prospects.includes(:lead).find(params[:prospect_id]) if params[:prospect_id].present?
+    @prospects = @selected_prospect ? [@selected_prospect] : prospects.includes(:lead).order(id: :desc).limit(50)
+    if @selected_prospect
+      @prospect_activities = LightekSales::Activity.where(site: @site, record: @selected_prospect)
+        .includes(:actor).order(created_at: :desc, id: :desc).limit(50)
+    end
   end
 end

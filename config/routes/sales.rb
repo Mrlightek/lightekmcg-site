@@ -10,6 +10,7 @@ post '/dashboard/sales/prospecting/save', to: 'dashboard/sales_prospecting#save'
 post '/dashboard/sales/prospecting/save-web', to: 'dashboard/sales_prospecting#save_web', as: :save_web_dashboard_sales_prospecting
 post '/dashboard/sales/prospecting/:id/message', to: 'dashboard/sales_prospecting#message', as: :message_dashboard_sales_prospect
 post '/dashboard/sales/prospecting/:id/block', to: 'dashboard/sales_prospecting#block_contact', as: :block_contact_dashboard_sales_prospect
+post '/dashboard/sales/prospecting/:id/outreach', to: 'dashboard/sales_prospecting#outreach', as: :outreach_dashboard_sales_prospect
 post '/dashboard/sales/prospecting/:id/lead', to: 'dashboard/sales_prospecting#lead', as: :lead_dashboard_sales_prospect
 get '/dashboard/sales/intake', to: 'dashboard/sales_intake#index', as: :dashboard_sales_intake
 post '/dashboard/sales/intake/upload', to: 'dashboard/sales_intake#upload', as: :upload_dashboard_sales_intake

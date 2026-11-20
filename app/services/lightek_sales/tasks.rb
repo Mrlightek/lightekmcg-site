@@ -6,11 +6,11 @@ module LightekSales
       @actor, @site = actor, @workspace.site
     end
     def create!(kind:, id:, values:, source_key: SecureRandom.uuid)
-      raise ArgumentError, 'Choose a sales relationship for this task.' unless kind.in?(%w[lead opportunity account contact])
-      record = @workspace.find(kind, id)
+      raise ArgumentError, 'Choose a sales relationship for this task.' unless Task::RECORD_KINDS.value?(kind)
       attrs = values.to_h.stringify_keys.slice('title', 'owner_id', 'due_at')
       @site.with_lock do
         @workspace.revalidate!
+        record = task_record(kind, id)
         existing = Task.find_by(site: @site, source_key: source_key)
         if existing
           raise ArgumentError, 'This request already belongs to another relationship.' if existing.record_type != record.class.name || existing.record_id != record.id
@@ -22,7 +22,7 @@ module LightekSales
       end
     end
     def update!(id, action:, lock_version:, due_at: nil)
-      task = Task.where(site: @site).find(id)
+      task = Task.visible_in_sales(@site).find(id)
       task.with_lock do
         @workspace.revalidate!
         unless lock_version.to_s.match?(/\A\d+\z/) && task.lock_version == lock_version.to_i
@@ -49,7 +49,26 @@ module LightekSales
       end
       task
     end
+
+    def cancel_prospect_follow_ups!(prospect)
+      @workspace.revalidate!
+      Task.where(site: @site, record: prospect).open_tasks.order(:id).lock.each do |task|
+        update!(task.id, action: 'cancel', lock_version: task.lock_version)
+      end
+    end
+
     private
+
+    def task_record(kind, id)
+      return @workspace.find(kind, id) unless kind == 'prospect'
+      raise ActiveRecord::RecordNotFound unless LightekSales::Access.prospecting_allowed?(@site)
+
+      prospect = SocialProspect.where(site: @site, provider: 'x').lock.find(id)
+      raise ArgumentError, 'This prospect is marked Do not contact.' if prospect.contact_blocked_at?
+
+      prospect
+    end
+
     def log!(task, kind, body)
       Activity.create!(site: @site, actor: @actor, record: task.record, kind: kind, body: body)
     end

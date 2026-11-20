@@ -3,7 +3,10 @@ module LightekSales
   class Task < ApplicationRecord
     self.table_name = 'lightek_sales_tasks'
     include SalesSiteRecord
-    RECORD_TYPES = %w[LightekSales::Lead LightekSales::Opportunity LightekSales::Account LightekMarketing::Contact].freeze
+    RECORD_KINDS = {'LightekSales::Lead' => 'lead', 'LightekSales::Opportunity' => 'opportunity',
+      'LightekSales::Account' => 'account', 'LightekMarketing::Contact' => 'contact',
+      'LightekSales::SocialProspect' => 'prospect'}.freeze
+    RECORD_TYPES = RECORD_KINDS.keys.freeze
     belongs_to :created_by, class_name: 'User'
     belongs_to :completed_by, class_name: 'User', optional: true
     belongs_to :record, polymorphic: true
@@ -15,11 +18,15 @@ module LightekSales
     validate { same_sales_site(:record) }
     scope :open_tasks, -> { where(status: 'open') }
     scope :due, -> { open_tasks.where('due_at <= ?', Time.current) }
+
+    def self.visible_in_sales(site)
+      tasks = where(site: site)
+      LightekSales::Access.prospecting_allowed?(site) ? tasks : tasks.where.not(record_type: 'LightekSales::SocialProspect')
+    end
+
     private def sales_owner_has_site_access
       super if new_record? || owner_id_changed?
     end
-    def record_kind
-      {'LightekSales::Lead' => 'lead', 'LightekSales::Opportunity' => 'opportunity', 'LightekSales::Account' => 'account', 'LightekMarketing::Contact' => 'contact'}.fetch(record_type)
-    end
+    def record_kind = RECORD_KINDS.fetch(record_type)
   end
 end

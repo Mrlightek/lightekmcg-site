@@ -17,6 +17,7 @@ module LightekSales
     WEB_HOSTS = %w[x.com www.x.com mobile.x.com twitter.com www.twitter.com mobile.twitter.com].freeze
     PURPOSE = 'social_prospecting'
     SCOPES = %w[tweet.read users.read dm.write offline.access].freeze
+    OUTREACH_OUTCOMES = ['Message sent on X', 'Reply received', 'No response', 'Not a fit'].freeze
     CONSUMER = name
 
     def initialize(actor:, site:)
@@ -153,6 +154,17 @@ module LightekSales
         prospect.update!(outreach_status: 'uncertain')
         raise
       end
+    end
+
+    def record_outreach!(prospect, outcome:, notes:)
+      authorize!
+      raise ActiveRecord::RecordNotFound unless prospect.site_id == @site.id
+      raise ArgumentError, 'Choose an outreach outcome.' unless OUTREACH_OUTCOMES.include?(outcome)
+      notes = notes.to_s.strip
+      raise ArgumentError, 'Keep the outreach note to 1000 characters.' if notes.length > 1000
+
+      Activity.create!(site: @site, actor: @actor, record: prospect, kind: 'outreach',
+        body: [outcome, notes.presence].compact.join("\n"))
     end
 
     def link_lead!(prospect, name:, email:, company:)

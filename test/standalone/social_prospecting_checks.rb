@@ -195,6 +195,58 @@ class SocialProspectingChecks < GrowthFoundationChecks
     end
   end
 
+  def test_prospecting_follow_up_uses_the_sales_queue_and_honors_do_not_contact
+    prospect = @prospecting.save_web_post!('https://x.com/TaylorWorks/status/123')
+    focused_path = dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: prospect.id)
+    scheduled = {record_kind: 'prospect', record_id: prospect.id, request_key: 'x-follow-up-1',
+      task: {title: 'Review the X reply', due_at: 1.minute.ago.iso8601, owner_id: @member.id}}
+
+    get focused_path, headers: headers
+    assert_response :success
+    assert_includes response.body, 'Schedule follow-up'
+    2.times do
+      post dashboard_sales_tasks_path(site_id: @site.id), params: scheduled.merge(authenticity_token: token), headers: headers
+      assert_redirected_to focused_path
+    end
+    task = LightekSales::Task.where(record: prospect).sole
+    assert_equal @member, task.owner
+
+    get dashboard_sales_path(site_id: @site.id, owner_id: @member.id), headers: headers
+    assert_response :success
+    assert_includes response.body, task.title
+    assert_equal focused_path, Nokogiri::HTML(response.body).css('a').find { |link| link.text == prospect.name }['href']
+
+    patch dashboard_sales_task_path(site_id: @site.id, id: task.id),
+      params: {authenticity_token: token, task: {action: 'complete', lock_version: task.lock_version}}, headers: headers
+    assert_equal 'completed', task.reload.status
+    assert_equal @owner, task.completed_by
+    assert_equal %w[task_created task_completed], LightekSales::Activity.where(record: prospect).order(:id).pluck(:kind)
+
+    pending_task = LightekSales::Tasks.new(actor: @owner, site: @site).create!(
+      kind: 'prospect', id: prospect.id, values: {title: 'Check back', owner_id: @owner.id, due_at: 1.day.from_now})
+    post block_contact_dashboard_sales_prospect_path(prospect, site_id: @site.id),
+      params: {authenticity_token: token}, headers: headers
+    assert_response :see_other
+    assert_equal 'canceled', pending_task.reload.status
+    assert_equal 'completed', task.reload.status
+    Net::HTTP.stub(:start, ->(*) { flunk 'Recording outreach must not send a message' }) do
+      post outreach_dashboard_sales_prospect_path(prospect, site_id: @site.id),
+        params: {authenticity_token: token, outreach: {outcome: 'Reply received', notes: 'Asked for a portfolio'}}, headers: headers
+      assert_redirected_to focused_path
+    end
+    get focused_path, headers: headers
+    assert_includes response.body, 'Asked for a portfolio'
+    assert_includes response.body, 'Task canceled'
+    assert_not_includes response.body, 'Schedule follow-up'
+    assert_equal @owner, LightekSales::Activity.where(record: prospect, kind: 'outreach').sole.actor
+    assert_raises(ArgumentError) do
+      LightekSales::Tasks.new(actor: @owner, site: @site).create!(kind: 'prospect', id: prospect.id, values: scheduled[:task])
+    end
+    assert_raises(ActiveRecord::RecordNotFound) do
+      LightekSales::Tasks.new(actor: @other, site: @foreign_site).create!(kind: 'prospect', id: prospect.id, values: scheduled[:task])
+    end
+  end
+
   def test_prospecting_search_save_send_and_link_lead
     with_provider do
       prospect = capture_http

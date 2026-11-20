@@ -24,6 +24,7 @@ module LightekSales
     end
 
     def web_only? = web_username.present?
+    def name = web_only? ? "@#{web_username}" : "X profile #{remote_id}"
     def profile_url = web_only? ? "https://x.com/#{web_username}" : "https://x.com/i/user/#{remote_id}"
     def source_url = web_only? ? "#{profile_url}/status/#{source_post_id}" : "https://x.com/i/web/status/#{source_post_id}"
 

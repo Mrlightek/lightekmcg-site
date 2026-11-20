@@ -31,7 +31,7 @@ class Dashboard::SalesController < Dashboard::SettingsHomeController
     @missing_leads = leads.active.where("next_step IS NULL OR next_step = '' OR follow_up_on IS NULL").order(:created_at).limit(100)
     @missing_deals = deals.open_pipeline.where("next_step IS NULL OR next_step = '' OR follow_up_on IS NULL").order(:created_at).limit(100)
     @forecast = LightekSales::Forecast.call(deals, month: @month)
-    tasks = LightekSales::Task.where(site: @site).includes(:owner, :record)
+    tasks = LightekSales::Task.visible_in_sales(@site).includes(:owner, :record)
     tasks = tasks.where(owner_id: @owner_id) if @owner_id
     @task_status = params[:task_status].to_s.in?(%w[open completed canceled]) ? params[:task_status] : 'open'
     @tasks = tasks.where(status: @task_status).order(:due_at, :id).limit(100)
@@ -109,7 +109,11 @@ class Dashboard::SalesController < Dashboard::SettingsHomeController
     raise ActiveRecord::RecordNotFound if @kind == 'routing_rule' && !@manage_routing
   end
   def record_params = params.require(:record).permit(*LightekSales::Workspace::FIELDS.fetch(@kind))
-  def record_url(kind, record) = dashboard_sales_record_path(kind: kind, id: record.id, site_id: @site.id)
+  def record_url(kind, record)
+    return dashboard_sales_prospecting_path(site_id: @site.id, prospect_id: record.id) if kind == 'prospect'
+
+    dashboard_sales_record_path(kind: kind, id: record.id, site_id: @site.id)
+  end
   def filtered(scope, owner_key:)
     scope = scope.where(owner_key => @owner_id) if @owner_id
     query = params[:q].to_s.strip.first(160)

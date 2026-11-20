@@ -1,0 +1,17 @@
+<details>
+  <summary>Schedule follow-up</summary>
+  <%= form_with url: dashboard_sales_tasks_path(site_id: @site.id), scope: :task,
+    namespace: "prospect_#{prospect.id}", class: 'sales-form' do |form| %>
+    <%= hidden_field_tag :record_kind, 'prospect', id: nil %>
+    <%= hidden_field_tag :record_id, prospect.id, id: nil %>
+    <%= hidden_field_tag :request_key, SecureRandom.uuid, id: nil %>
+    <div class="sales-form-grid">
+      <label class="full">Next action<%= form.text_field :title, required: true, maxlength: 300, placeholder: 'Review their reply on X' %></label>
+      <label>Assigned to<%= form.collection_select :owner_id, @owners, :id, :email_address,
+        {selected: (@owners.find { |owner| owner.id == current_user.id } || @owners.first).id}, required: true %></label>
+      <label>Due time (<%= Time.zone.name %>)<%= form.datetime_local_field :due_at,
+        value: (Time.current + 1.day).strftime('%Y-%m-%dT%H:%M'), required: true %></label>
+    </div>
+    <div class="sales-actions"><%= form.submit 'Schedule task', class: 'sales-button' %></div>
+  <% end %>
+</details>

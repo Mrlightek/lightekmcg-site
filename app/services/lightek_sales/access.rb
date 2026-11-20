@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 module LightekSales
   module Access
+    def self.prospecting_allowed?(site)
+      LightekAgency::PackagePolicy.allowed?(site.tenant, 'marketing') &&
+        LightekAgency::PackagePolicy.allowed?(site.tenant, 'commerce')
+    end
+
     def self.sites_for(actor)
       owned = LightekSettings::WebsiteIdentity.sites_for(actor)
       delegated = LightekAgency::SiteMembership.where(user: actor, role: %w[manager marketer]).select(:site_id)

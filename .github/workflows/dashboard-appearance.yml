@@ -8,6 +8,7 @@ on:
       - 'app/views/dymond_dash/**'
       - 'public/lightek/dashboard.*'
       - 'public/lightek/guided-tour.*'
+      - 'public/lightek/agency-demo-preview.*'
       - 'test/javascript/lightek_guided_tour_browser_test.cjs'
       - 'public/lightek/dashboard-forms.css'
       - 'test/javascript/dashboard_forms_browser_test.cjs'

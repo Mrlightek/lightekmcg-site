@@ -4,10 +4,13 @@ const { chromium, webkit } = require('playwright');
 
 const css = readFileSync('public/lightek/guided-tour.css', 'utf8');
 const script = readFileSync('public/lightek/guided-tour.js', 'utf8');
+const previewScript = readFileSync('public/lightek/agency-demo-preview.js', 'utf8');
 const step = (scope, title) => `data-tour-step="${scope}" data-tour-title="${title}" data-tour-body="About ${title}."`;
 const fixture = (route) => {
   const scope = route === 'pwa' ? 'pwa' : 'dashboard';
-  const demo = route === 'demo';
+  const demo = route.startsWith('demo');
+  const webDesign = route === 'demo-web';
+  const marketing = route === 'demo-marketing';
   const business = route === 'business';
   return `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
@@ -24,15 +27,21 @@ const fixture = (route) => {
     <label id="tool-search" ${step(scope, 'Find a tool')} data-tour-fallback="#menu">Search <input type="search"></label>
     <button type="button" ${step(scope, 'Open settings')}>Settings</button>
   </header>
-  ${demo ? `<main data-tour-page="agency-demo" data-tour-auto>
+  ${demo ? `<main data-tour-page="agency-demo" data-tour-auto data-tour-variant="${webDesign ? 'web_design' : marketing ? 'marketing' : 'general'}">
     <h1 ${step('agency-demo', 'Your agency demo')}>Demo</h1>
     <section ${step('agency-demo', 'Name your agency')} data-tour-try><label>Agency name <input name="brand_name"></label></section>
     <section hidden ${step('agency-demo', 'Unavailable feature')}>Hidden features</section>
+    ${webDesign ? `<section data-agency-preview><div ${step('agency-demo', 'Edit a page section')} data-tour-try>
+      <label>Hero headline <input data-demo-input="headline" value="Sample headline"></label>
+      <output data-demo-output="headline">Sample headline</output></div></section>` : ''}
+    ${marketing ? `<section data-agency-preview><div ${step('agency-demo', 'Find a prospect')} data-tour-try>
+      <label>Practice search <select data-demo-input="prospect"><option>Bakery</option><option>Salon</option></select></label>
+      <output data-demo-output="prospect">Bakery</output></div></section>` : ''}
     <div style="min-height:830px"></div>
     <button type="button" ${step('agency-demo', 'Activate your agency when ready')} onclick="window.checkoutStarted = true">Upgrade</button>
   </main>` : ''}
   ${business ? `<main data-tour-page="business"><h1 ${step('business', 'Choose the website')}>Business</h1></main>` : ''}
-  <script>${script}</script></body>`;
+  <script>${script}</script><script>${previewScript}</script></body>`;
 };
 
 async function assertPosition(page) {
@@ -80,6 +89,25 @@ async function exercise(engine) {
       await page.keyboard.press('Escape');
       await dialog.waitFor({ state: 'hidden' });
       assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Take a tour');
+
+      await visit('demo-web');
+      await heading.waitFor();
+      assert.equal(await dialog.locator('[data-tour-count]').textContent(), '1 of 4');
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      assert.equal(await heading.textContent(), 'Edit a page section');
+      await dialog.getByRole('button', { name: 'Try it' }).click();
+      await page.getByRole('textbox', { name: 'Hero headline' }).fill('Open for business');
+      assert.equal(await page.locator('[data-demo-output="headline"]').textContent(), 'Open for business');
+
+      await visit('demo-marketing');
+      await heading.waitFor();
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      assert.equal(await heading.textContent(), 'Find a prospect');
+      await dialog.getByRole('button', { name: 'Try it' }).click();
+      await page.getByRole('combobox', { name: 'Practice search' }).selectOption('Salon');
+      assert.equal(await page.locator('[data-demo-output="prospect"]').textContent(), 'Salon');
 
       await visit('dashboard');
       await heading.waitFor();

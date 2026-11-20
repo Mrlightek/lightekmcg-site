@@ -17,14 +17,14 @@
     return rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.left < document.documentElement.clientWidth;
   }
 
-  function context(scope, user) {
+  function context(scope, user, variant) {
     const steps = Array.from(document.querySelectorAll("[data-tour-step]"))
       .filter(marker => marker.dataset.tourStep === scope)
       .map(marker => ({
         marker, target: available(marker) ? marker : marker.dataset.tourFallback && document.querySelector(marker.dataset.tourFallback)
       }))
       .filter(step => available(step.target));
-    return { key: `lightek:guided-tour:v1:${user}:${scope}`, steps };
+    return { key: `lightek:guided-tour:v1:${user}:${scope}${variant ? `:${variant}` : ""}`, steps };
   }
 
   function hasSeen(key) {
@@ -159,19 +159,20 @@
     const appScope = shell.dataset.tourApp;
     const pageScope = page?.dataset.tourPage;
     const preferredScope = pageScope || appScope;
-    const preferred = context(preferredScope, user);
+    const tourFor = scope => context(scope, user, scope === pageScope ? page.dataset.tourVariant : null);
+    const preferred = tourFor(preferredScope);
     const primary = preferred.steps.length ? preferredScope : appScope;
-    const manual = primary === preferredScope ? preferred : context(primary, user);
+    const manual = primary === preferredScope ? preferred : tourFor(primary);
     trigger.hidden = !manual.steps.length;
     trigger.textContent = resumeStep(manual.key) === null ? "Take a tour" : "Resume tour";
     trigger.onclick = () => {
-      const tour = context(primary, user);
+      const tour = tourFor(primary);
       open(tour, trigger, resumeStep(tour.key) ?? 0);
     };
 
     const autoScope = page?.hasAttribute("data-tour-auto") ? preferredScope : appScope;
     if (!shell.hasAttribute("data-tour-quiet")) {
-      const tour = context(autoScope, user);
+      const tour = tourFor(autoScope);
       if (!hasSeen(tour.key)) open(tour, trigger);
     }
   }

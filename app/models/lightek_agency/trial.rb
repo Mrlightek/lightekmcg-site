@@ -5,6 +5,14 @@ module LightekAgency
     self.table_name = 'lightek_agency_trials'
 
     DEFAULT_DURATION_DAYS = 3
+    BUSINESS_TYPES = {
+      'web_design' => 'Web design and development',
+      'marketing' => 'Marketing and lead generation',
+      'ecommerce' => 'Ecommerce and retail',
+      'services' => 'Professional services',
+      'media' => 'Media and content production',
+      'general' => 'Other / still exploring'
+    }.freeze
     PLATFORM_HOST = 'lightekmcg.com'
     PUBLIC_SITE_FLAG = 'public_agency_trial'
     DEFAULT_ANNUAL_PRICE_CENTS = 20_000
@@ -18,6 +26,7 @@ module LightekAgency
     belongs_to :billing_site, class_name: 'DymondSite::Site'
     belongs_to :order, class_name: 'LightekCommerce::Order', optional: true
     belongs_to :paid_order, class_name: 'LightekCommerce::Order', optional: true
+    validates :business_type, inclusion: {in: BUSINESS_TYPES.keys}
     validates :brand_name, presence: true, length: {maximum: 120}
     validates :sample_client_name, presence: true, length: {maximum: 120}
     validates :sample_retail_dollars, numericality: {
@@ -54,7 +63,7 @@ module LightekAgency
 
     def self.public_site?(site) = public_operator(site).present?
 
-    def self.invite!(operator:, billing_site:, identity:, brand_name:, duration_days:, skip_invitation: false)
+    def self.invite!(operator:, billing_site:, identity:, brand_name:, duration_days:, business_type: 'general', skip_invitation: false)
       raise Invalid, 'Platform operator access required.' unless operator.role == 'super_admin'
       days = Integer(duration_days.to_s, 10, exception: false)
       raise Invalid, 'Choose a trial length between 1 and 90 days.' unless days && (1..90).cover?(days)
@@ -65,7 +74,7 @@ module LightekAgency
           user.skip_password_setup_invitation = true if skip_invitation
         end
         create!(prospect: prospect, operator: operator, billing_site: billing_sites(operator).find(billing_site.id),
-          brand_name: brand_name, expires_at: days.days.from_now)
+          brand_name: brand_name, business_type: business_type, expires_at: days.days.from_now)
       end
     rescue ActiveRecord::RecordNotUnique
       raise Invalid, 'That email already has an account.'

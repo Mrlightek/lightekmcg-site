@@ -4,6 +4,8 @@ require ROOT.join('db/migrate/20261120190000_create_lightek_agency_trials')
 require ROOT.join('db/migrate/20261120200000_create_lightek_agency_trial_requests')
 CreateLightekAgencyTrials.new.migrate(:up)
 CreateLightekAgencyTrialRequests.new.migrate(:up)
+require ROOT.join('db/migrate/20261120210000_add_business_type_to_agency_demos')
+AddBusinessTypeToAgencyDemos.new.migrate(:up)
 require ROOT.join('db/migrate/20261117145500_create_pwa_platform_operators')
 CreatePwaPlatformOperators.new.migrate(:up)
 require ROOT.join('app/models/lightek_pwa/platform_operator')
@@ -62,8 +64,10 @@ class AgencyTrialPublicChecks < AgencyDemoChecks
     assert_response :success
     assert_select 'form input[name="trial_request[email_address]"]'
     assert_select 'form input[name="trial_request[brand_name]"]', count: 0
+    assert_select 'select[name="trial_request[business_type]"] option[value="web_design"]'
     assert_includes response.body, '$200'
-    trial_request = request_trial
+    trial_request = request_trial(@contact.merge(business_type: 'web_design'))
+    assert_equal 'web_design', trial_request.business_type
     assert_equal 'nia@example.test', trial_request.email_address
     assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.size
     assert_equal 0, LightekAgency::Trial.count
@@ -88,6 +92,7 @@ class AgencyTrialPublicChecks < AgencyDemoChecks
     assert_match %r{/account/setup/}, response.location
     assert_equal 'client', trial.prospect.role
     assert_equal 'My agency', trial.brand_name
+    assert_equal 'web_design', trial.business_type
     assert_equal @site.id, trial.billing_site_id
     assert_in_delta 3.days.to_i, trial.expires_at - Time.current, 5
     assert_equal 1, ActiveJob::Base.queue_adapter.enqueued_jobs.size
@@ -170,7 +175,7 @@ class AgencyTrialPublicChecks < AgencyDemoChecks
 
   def test_public_agency_trial_reuses_an_eligible_login_without_reassigning_it
     existing = User.create!(role: 'client', email_address: 'nia@example.test')
-    trial_request = request_trial
+    trial_request = request_trial(@contact.merge(business_type: 'marketing'))
     post confirm_agency_demo_path(trial_request.generate_token_for(:confirmation))
     trial = LightekAgency::Trial.sole
     assert_redirected_to dashboard_agency_trial_path(trial)
@@ -178,6 +183,17 @@ class AgencyTrialPublicChecks < AgencyDemoChecks
     assert_equal 'client', existing.reload.role
     assert_nil existing.agency_id
     refute existing.password_setup_required?
+    assert_equal 'marketing', trial.business_type
+    login(existing)
+    get dashboard_agency_trial_path(trial)
+    assert_select '[data-tour-variant="marketing"] [data-demo-input="prospect"]'
+    assert_select '[data-demo-input="headline"]', count: 0
+    patch dashboard_agency_trial_path(trial), params: {trial: {business_type: 'web_design'}}
+    assert_redirected_to dashboard_agency_trial_path(trial)
+    assert_equal 'web_design', trial.reload.business_type
+    get dashboard_agency_trial_path(trial)
+    assert_select '[data-tour-variant="web_design"] [data-demo-input="headline"]'
+    assert_select '[data-demo-input="prospect"]', count: 0
   end
 
   def test_public_agency_trial_never_replaces_an_existing_login_or_elevates_it

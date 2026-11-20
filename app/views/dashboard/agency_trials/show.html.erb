@@ -1,6 +1,10 @@
 <% content_for :page_title, 'Lightek Agency' %>
 <%= stylesheet_link_tag '/lightek/people-workspace.css' %>
-<main class="lp-workspace"<% if @trial.preview_open? %> data-tour-page="agency-demo" data-tour-auto<% end %>>
+<% if @trial.preview_open? %>
+  <%= stylesheet_link_tag '/lightek/agency-demo-preview.css?v=1' %>
+  <%= javascript_include_tag '/lightek/agency-demo-preview.js?v=1', type: 'module' %>
+<% end %>
+<main class="lp-workspace"<% if @trial.preview_open? %> data-tour-page="agency-demo" data-tour-variant="<%= @trial.business_type %>" data-tour-auto<% end %>>
   <header class="lp-heading"><div><h1><%= @trial.brand_name %></h1><p>Lightek Agency</p></div></header>
 
   <% if @trial.preview_open? %>
@@ -21,6 +25,17 @@
             tour_body: 'Save the demo to see the difference between your resale price and the sample wholesale cost.', tour_try: true} %>
       <% end %>
     </section>
+    <section class="lp-card">
+      <h2>Choose your walkthrough</h2>
+      <%= form_with model: @trial, scope: :trial, url: dashboard_agency_trial_path(@trial), class: 'lp-form' do |f| %>
+        <div>
+          <%= f.label :business_type %>
+          <%= f.select :business_type, LightekAgency::Trial::BUSINESS_TYPES.invert.to_a %>
+        </div>
+        <%= f.submit 'Change walkthrough', class: 'lp-button secondary' %>
+      <% end %>
+    </section>
+    <%= render 'business_preview', business_type: @trial.business_type %>
   <% elsif !@trial.activated_at? %>
     <section class="lp-card"><h2>Your demo has ended</h2><p>You can still activate your agency with this login.</p></section>
   <% end %>

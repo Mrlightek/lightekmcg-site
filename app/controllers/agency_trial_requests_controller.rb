@@ -12,7 +12,7 @@ class AgencyTrialRequestsController < ApplicationController
   def new; end
 
   def create
-    values = params.require(:trial_request).permit(:first_name, :last_name, :email_address)
+    values = params.require(:trial_request).permit(:first_name, :last_name, :email_address, :business_type)
     email = values[:email_address].to_s.strip.downcase
     if params[:website_url].blank?
       trial_request = @site.with_lock do
@@ -21,7 +21,7 @@ class AgencyTrialRequestsController < ApplicationController
         scope = LightekAgency::TrialRequest.where(site: @site, email_address: email)
         next if scope.where('created_at > ?', 1.hour.ago).exists?
 
-        scope.create!(operator: operator, first_name: values[:first_name], last_name: values[:last_name])
+        scope.create!(operator: operator, business_type: values[:business_type].presence || 'general', first_name: values[:first_name], last_name: values[:last_name])
       end
       queue_confirmation!(trial_request) if trial_request
     end

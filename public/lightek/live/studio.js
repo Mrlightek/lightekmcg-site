@@ -14,12 +14,26 @@ function boot(){
  let libraryVisual=null,libraryOverlay=null,libraryBed=null,libraryBedGain=null,libraryVideoGain=null,libraryBusy=false;
  const source=document.createElement('video');source.muted=true;source.playsInline=true;
  const cameraVideo=document.createElement('video');cameraVideo.muted=true;cameraVideo.playsInline=true;
- const supported=!!(window.isSecureContext&&navigator.mediaDevices?.getUserMedia&&window.MediaRecorder&&HTMLCanvasElement.prototype.captureStream);
+ const canCompose=!!(window.isSecureContext&&navigator.mediaDevices?.getUserMedia&&HTMLCanvasElement.prototype.captureStream);
+ const captureFormat=[
+  {mime:'video/webm;codecs=vp8,opus',container:'webm'},
+  {mime:'video/webm;codecs=vp9,opus',container:'webm'},
+  {mime:'video/webm',container:'webm'},
+  {mime:'video/mp4;codecs=avc1.42E01E,mp4a.40.2',container:'mp4'},
+  {mime:'video/mp4',container:'mp4'}
+ ].find(({mime})=>window.MediaRecorder?.isTypeSupported?.(mime));
  const live=stream=>!!stream?.getVideoTracks().some(track=>track.readyState==='live');
  function missingSource(){const mode=q('[data-layout]').value;if(mode==='session')return sessionSource?.ready?'':'Connect a Lightek session first.';if(mode==='stage')return stage?.ready?'':'Load a 3D stage first.';if(mode==='library')return libraryVisual?.ready?'':'Load a library image or video first.';if(mode!=='screen'&&!live(camera))return 'Enable your camera first.';if(mode!=='camera'&&!live(screen))return 'Choose a screen or window first.';return '';}
  function sourceStatus(){q('[data-source-status]').textContent=[live(screen)?'Screen selected':null,live(camera)?camera.getVideoTracks()[0].label||'Camera enabled':null,libraryVisual?.name].filter(Boolean).join(' · ')||'No video source selected';}
- function message(text){error.textContent=text||'';error.hidden=!text;}
- function controls(){q('[data-start]').disabled=active||productionSetup?.busy()||!supported||root.dataset.encoder!=='ready';q('[data-stop]').disabled=!active||stopping;q('[data-title]').disabled=active;q('[data-destination]').disabled=active;}
+ function message(text){const notice=text||(!canCompose||!captureFormat?startBlocker():'');error.textContent=notice;error.hidden=!notice;}
+ function startBlocker(){
+  if(root.dataset.encoder!=='ready')return 'Live Studio cannot reach the server encoder. Try again after it is ready.';
+  if(!canCompose)return 'This browser cannot capture the Live Studio program. Open Live Studio in a supported browser over HTTPS.';
+  if(!captureFormat)return 'This browser cannot record the program as WebM or MP4. Try a newer browser or Firefox.';
+  if(productionSetup?.busy())return 'Wait for the production setup to finish loading.';
+  return '';
+ }
+ function controls(){q('[data-start]').disabled=active||!!startBlocker();q('[data-stop]').disabled=!active||stopping;q('[data-title]').disabled=active;q('[data-destination]').disabled=active;}
  function micUI(){q('[data-mic]').setAttribute('aria-pressed',String(!muted));q('[data-mic]').textContent=muted?'Enable microphone':'Mute microphone';q('[data-mic-status]').textContent=holding?'Muted during holding screen':muted?'Microphone off':'Microphone on';if(gain)gain.gain.value=muted||holding?0:1;libraryMix();}
  function hold(value,playBreak=false){if(value&&holding)return;holdingBreak?.stop();if(value){comments?.clear();effects?.clear();}holding=value;q('[data-hold]').setAttribute('aria-pressed',String(value));q('[data-hold]').textContent=value?'Resume program':'Holding screen';micUI();if(value&&playBreak&&audio&&mixer)holdingBreak?.start(audio,mixer);}
  async function ensureProgram(){
@@ -61,7 +75,7 @@ function boot(){
   libraryMix();sourceStatus();message('');if(q('[data-library-status]'))q('[data-library-status]').textContent='Library media loaded. Check the program preview before going live.';return true;
  }catch(error){loading.forEach(element=>{element.pause?.();element.src='';});clearLibrary();message(error.message);return false;}finally{libraryBusy=false;}}
  async function share(){try{
-  if(!supported||!navigator.mediaDevices.getDisplayMedia)throw Error('This browser does not support screen capture. You can use Camera only, or choose a compatible Firefox or Chrome browser over HTTPS.');
+  if(!canCompose||!navigator.mediaDevices.getDisplayMedia)throw Error('This browser does not support screen capture. You can use Camera only, or choose a compatible Firefox or Chrome browser over HTTPS.');
   const next=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:24,max:24},width:{ideal:1280},height:{ideal:720}},audio:false});
   const previous=screen;screen=next;source.srcObject=screen;await source.play();previous?.getTracks().forEach(track=>track.stop());
   const track=screen.getVideoTracks()[0];track.addEventListener('ended',()=>{if(screen?.getVideoTracks()[0]===track){if(q('[data-layout]').value!=='camera')hold(true);sourceStatus();}});
@@ -84,7 +98,7 @@ function boot(){
   if(pending||!active)return;
   if(!queue.length){if(stopping){send('stop');status.textContent='Finishing server output…';}return;}
   // Recorder timeslices are hints: Firefox can return several seconds in one Blob.
-  // Split bytes without dropping/re-encoding WebM headers or cluster boundaries.
+  // Split bytes without dropping or rewriting the original container data.
   const head=queue[0],blob=head.slice(0,262144);
   if(blob.size===head.size)queue.shift();else queue[0]=head.slice(blob.size);
   pending={blob,sequence:sequence++};queuedBytes-=blob.size;
@@ -95,15 +109,14 @@ function boot(){
  function fail(text){message(text);finish('Session stopped. Preview stays local.');}
  function startRecorder(){
   if(!active||stopping)return;
-  clearTimeout(connectTimer);const mime=['video/webm;codecs=vp8,opus','video/webm;codecs=vp9,opus','video/webm'].find(type=>MediaRecorder.isTypeSupported(type));
-  if(!mime)return fail('This browser cannot encode WebM screen capture. Use Firefox or Chrome.');
-  recorder=new MediaRecorder(program,{mimeType:mime,videoBitsPerSecond:1400000,audioBitsPerSecond:96000});
+  clearTimeout(connectTimer);
+  recorder=new MediaRecorder(program,{mimeType:captureFormat.mime,videoBitsPerSecond:1400000,audioBitsPerSecond:96000});
   recorder.addEventListener('dataavailable',event=>{if(!event.data.size||!active)return;if(queuedBytes+event.data.size+(pending?.blob.size||0)>4194304)return fail('Capture has more than 4 MB waiting for server acknowledgement. Session stopped to keep memory bounded. Check upload speed and the broadcaster service log.');queue.push(event.data);queuedBytes+=event.data.size;pump();});
   recorder.addEventListener('stop',()=>{if(active)pump();});recorder.addEventListener('error',()=>fail('The browser recorder stopped unexpectedly.'));
   recorder.start(500);started=Date.now();clockTimer=setInterval(()=>{const elapsed=Math.floor((Date.now()-started)/1000);q('[data-clock]').textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(elapsed%60).padStart(2,'0');},1000);
   status.textContent='Connected. Waiting for encoded output…';
  }
- async function start(){if(productionSetup?.busy())return message('Wait for the production setup to finish loading.');
+ async function start(){const blocked=startBlocker();if(blocked)return message(blocked);
   if(active)return;if(missingSource())return message(missingSource());
   const destination=q('[data-destination]').value;
   if(!['test','channel_input'].includes(destination)&&!window.confirm(destination==='simulcast'?'Go live on Lightek and send this program to every enabled Restream channel?':destination==='lightek'?'Go live on Lightek for the selected community and audience?':destination==='restream'?'Send this preview and microphone to Restream? All enabled channels in your Restream stream may go live. Confirm TikTok is connected and check the selected channels first.':'Start sending this preview and microphone to your configured TikTok destination?'))return;
@@ -114,7 +127,7 @@ function boot(){
    identifier=JSON.stringify({channel:'StudioBroadcastChannel',ticket:session.ticket});const url=new URL(session.cable_path,location.href);url.protocol=location.protocol==='https:'?'wss:':'ws:';transportPhase='opening';ws=new WebSocket(url,['actioncable-v1-json','actioncable-unsupported']);
    connectTimer=setTimeout(()=>fail('Broadcast timed out during '+transportPhase+'. Check the browser WebSocket console and server log.'),20000);
    ws.addEventListener('open',()=>{transportPhase='socket open';status.textContent='Socket open. Waiting for server welcome…';});
-   ws.addEventListener('message',event=>{try{const packet=JSON.parse(event.data);if(packet.type==='welcome'){transportPhase='welcomed';return ws.send(JSON.stringify({command:'subscribe',identifier}));}if(packet.type==='disconnect')return fail('Server closed the connection: '+String(packet.reason||'unknown reason')+'.');if(packet.type==='reject_subscription')return fail('Broadcast subscription was rejected. Reload and start a new session.');if(packet.type==='confirm_subscription'){transportPhase='subscribed';return send('start');}if(!packet.message)return;const data=packet.message;
+   ws.addEventListener('message',event=>{try{const packet=JSON.parse(event.data);if(packet.type==='welcome'){transportPhase='welcomed';return ws.send(JSON.stringify({command:'subscribe',identifier}));}if(packet.type==='disconnect')return fail('Server closed the connection: '+String(packet.reason||'unknown reason')+'.');if(packet.type==='reject_subscription')return fail('Broadcast subscription was rejected. Reload and start a new session.');if(packet.type==='confirm_subscription'){transportPhase='subscribed';return send('start',{capture_container:captureFormat.container});}if(!packet.message)return;const data=packet.message;
     if(data.event==='ready')startRecorder();
     else if(data.event==='ack'){if(pending?.sequence!==data.sequence)return fail('Capture acknowledgement changed. Start a new session.');clearTimeout(pending.timer);pending=null;pump();}
     else if(data.event==='sending'){if(destination==='channel_input'){badge.textContent='Channel input ready';badge.dataset.active='true';status.textContent='Keep this tab open. Take the contribution to air from the channel rundown.';return;}badge.textContent=destination==='simulcast'?'Lightek + Restream':destination==='lightek'?'Live on Lightek':destination==='test'?'Private recording':destination==='restream'?'Sending to Restream':'Sending to TikTok';badge.dataset.active='true';status.textContent=destination==='simulcast'?'Sending to Lightek and Restream. Confirm delivery in Restream and on your enabled channels.':destination==='lightek'?'Live on Lightek. Your audience can open the stream in Watch or the community.':destination==='test'?'Recording on the server. Stop to download and review.':destination==='restream'?'Sending to Restream. Verify its preview and TikTok channel; this does not confirm TikTok is live.':'Sending to TikTok. Confirm your broadcast in TikTok.';}
@@ -137,7 +150,7 @@ function boot(){
  q('[data-save-presentation]')?.addEventListener('click',async()=>{const selectedKey=q('[data-session-key]').value;if(!selectedKey)return message('Choose a session room first.');try{const response=await fetch('/sessions/'+selectedKey+'/presentation',{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json',Accept:'application/json','X-CSRF-Token':document.querySelector('meta[name=csrf-token]')?.content||''},body:JSON.stringify({presentation:presentationValues()})});const data=await response.json();if(!response.ok)throw Error(data.error||'Presentation could not be saved.');presentationDraft=data.presentation;sessionSource?.configure(data.presentation);q('[data-presentation-status]').textContent='Presentation saved for this room.';}catch(e){message(e.message);}});
  q('[data-session-key]')?.addEventListener('change',async event=>{const key=event.target.value,generation=captureGeneration;if(sessionSource&&sessionSource.key!==key){if(active)hold(true);sessionSource.dispose();sessionSource=null;}if(!key)return;try{const response=await fetch('/sessions/'+key+'/state',{credentials:'same-origin',headers:{Accept:'application/json'}});const data=await response.json();if(!response.ok)throw Error(data.error||'Room unavailable.');if(q('[data-session-key]').value!==key||generation!==captureGeneration)return;roomPresentation(data.presentation||{participants:{}});}catch(e){message(e.message);}});
  q('[data-connect-session]')?.addEventListener('click',async()=>{if(sessionLoading)return;sessionLoading=true;const generation=captureGeneration;const key=q('[data-session-key]').value;let next;try{await ensureProgram();const {connectSessionSource}=await import('/lightek/sessions/studio-source.js?v=2');next=await connectSessionSource({key,audio,mixer,onStatus:people=>{if(q('[data-session-status]'))q('[data-session-status]').textContent=people.length+' participants · '+people.map(p=>p.name).join(', ');for(const selector of ['[data-style-person]','[data-presentation=featured]']){const select=q(selector);if(!select)continue;const chosen=select.value;select.replaceChildren(new Option('Automatic / choose participant',''));people.forEach(p=>select.add(new Option(p.name,p.identity)));select.value=chosen;}},onLost:text=>{if(q('[data-layout]').value==='session'||q('[data-layout]').value==='stage'&&q('[data-stage-subject-source]')?.value==='session')hold(true);message(text);},onMessage:(name,text)=>{root.dispatchEvent(new CustomEvent('lightek:room-chat',{detail:{name,text}}));}});if(generation!==captureGeneration||key!==q('[data-session-key]').value){next.dispose();return;}sessionSource?.dispose();sessionSource=next;roomPresentation(next.presentation);q('[data-layout]').value=stage?.ready&&q('[data-stage-subject-source]')?.value==='session'?'stage':'session';libraryMix();message('');status.textContent='Session connected. Check the program preview before going live.';}catch(e){next?.dispose();message(e.message);}finally{sessionLoading=false;}});
- q('[data-share]').addEventListener('click',share);q('[data-camera]').addEventListener('click',()=>live(camera)?disableCamera():enableCamera());q('[data-camera-device]').addEventListener('change',()=>{if(live(camera))enableCamera();});q('[data-layout]').addEventListener('change',()=>{if(active&&missingSource())hold(true);libraryMix();});q('[data-mic]').addEventListener('click',toggleMic);q('[data-hold]').addEventListener('click',async()=>{if(holding&&missingSource())return message(missingSource());const next=!holding;hold(next,true);if(next&&!program){const generation=captureGeneration;try{if(!supported)throw Error('This browser cannot preview a break. Use Firefox or Chrome.');await ensureProgram();if(generation===captureGeneration&&holding)holdingBreak?.start(audio,mixer);}catch(e){message(e.message);}}});q('[data-release]').addEventListener('click',release);q('[data-start]').addEventListener('click',start);q('[data-stop]').addEventListener('click',stop);
+ q('[data-share]').addEventListener('click',share);q('[data-camera]').addEventListener('click',()=>live(camera)?disableCamera():enableCamera());q('[data-camera-device]').addEventListener('change',()=>{if(live(camera))enableCamera();});q('[data-layout]').addEventListener('change',()=>{if(active&&missingSource())hold(true);libraryMix();});q('[data-mic]').addEventListener('click',toggleMic);q('[data-hold]').addEventListener('click',async()=>{if(holding&&missingSource())return message(missingSource());const next=!holding;hold(next,true);if(next&&!program){const generation=captureGeneration;try{if(!canCompose)throw Error('This browser cannot preview a break. Use Firefox or Chrome.');await ensureProgram();if(generation===captureGeneration&&holding)holdingBreak?.start(audio,mixer);}catch(e){message(e.message);}}});q('[data-release]').addEventListener('click',release);q('[data-start]').addEventListener('click',start);q('[data-stop]').addEventListener('click',stop);
  async function loadStage(){if(stageLoading)return;stageLoading=true;const button=q('[data-stage-load]'),notice=q('[data-stage-status]'),generation=captureGeneration;button.disabled=true;let next=null;try{const option=q('[data-stage-asset]').selectedOptions[0];if(!option?.value)throw Error('Choose a prepared Blender stage.');notice.textContent='Loading 3D stage…';const {StageComposer}=await import('/lightek/live/stage.js?v=2');next=new StageComposer();const cameras=await next.load(option.dataset.stageUrl);if(generation!==captureGeneration){next.dispose();return;}stage?.dispose();stage=next;next=null;const select=q('[data-stage-camera]');select.replaceChildren(new Option('Automatic stage framing',''));cameras.forEach(camera=>select.add(new Option(camera.name,String(camera.index))));q('[data-layout]').value='stage';await ensureProgram();libraryMix();notice.textContent='Stage ready. Check camera placement and keying in the program preview before going live.';message('');return true;}catch(e){next?.dispose();notice.textContent=e.message;message(e.message);return false;}finally{stageLoading=false;button.disabled=false;}}
  q('[data-stage-load]')?.addEventListener('click',loadStage);
 
@@ -151,7 +164,7 @@ function boot(){
  const cleanup=()=>{finish('Session ended.');release();window.removeEventListener('beforeunload',unload);delete root.dataset.wired;};
  document.addEventListener('turbo:before-cache',cleanup,{once:true});window.addEventListener('pagehide',cleanup,{once:true});
  if(q('[data-session-key]')?.value)q('[data-session-key]').dispatchEvent(new Event('change'));
- root.dataset.encoder=q('[data-start]').disabled?'missing':'ready';controls();if(!supported)message('Screen capture needs a compatible Firefox or Chrome browser over HTTPS. Your Mac does not need TikTok LIVE Studio.');
+ controls();if(!canCompose||!captureFormat||root.dataset.encoder!=='ready')message(startBlocker());
 }
 document.addEventListener('turbo:load',boot);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();

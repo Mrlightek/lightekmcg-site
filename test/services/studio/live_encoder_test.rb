@@ -37,6 +37,26 @@ class StudioLiveEncoderTest < ActiveSupport::TestCase
     assert_includes codecs, "h264"
     assert_includes codecs, "aac"
   end
+  test "fragmented MP4 from Safari is read incrementally from the capture pipe" do
+    input = File.join(@directory, "capture.mp4")
+    _out, status = Open3.capture2(ENV.fetch("LIGHTEK_FFMPEG", "ffmpeg"), "-v", "error", "-y",
+      "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24", "-f", "lavfi", "-i", "sine=sample_rate=44100",
+      "-t", "4", "-c:v", "libx264", "-threads", "2", "-g", "24", "-c:a", "aac",
+      "-movflags", "frag_keyframe+empty_moov+default_base_moof", input, err: File::NULL)
+    assert status.success?
+    @encoder = Studio::Live::Encoder.new(output: File.join(@directory, "test.mp4"), test: true,
+      input_format: Studio::Live::Encoder.capture_format("mp4"), on_event: ->(event, error) { @events << [event, error] }).start!
+    File.binread(input).bytes.each_slice(24_000).with_index do |bytes, sequence|
+      encoder.append!(encoded: Base64.strict_encode64(bytes.pack("C*")), sequence: sequence)
+    end
+    assert_equal ["sending", nil], Timeout.timeout(10) { @events.pop }
+    encoder.stop!
+    assert_equal ["ended", nil], terminal_event
+    probe, result = Open3.capture2("ffprobe", "-v", "error", "-show_streams", "-of", "json", File.join(@directory, "test.mp4"))
+    assert result.success?
+    assert_equal %w[h264 aac], JSON.parse(probe).fetch("streams").map { |stream| stream.fetch("codec_name") }
+    assert_raises(Studio::Live::Encoder::Failure) { Studio::Live::Encoder.capture_format("anything_else") }
+  end
   test "invalid oversized and reordered capture chunks are rejected" do
     assert_raises(Studio::Live::Encoder::Failure) { encoder.append!(encoded: "%%%", sequence: 0) }
     assert_raises(Studio::Live::Encoder::Failure) { encoder.append!(encoded: "a" * 1_500_000, sequence: 0) }

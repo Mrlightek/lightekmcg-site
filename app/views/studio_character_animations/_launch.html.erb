@@ -2,6 +2,7 @@
 <section id="character-animation" aria-labelledby="character-animation-title" class="panel">
   <h2 id="character-animation-title">Create a character animation</h2>
   <% if alert.present? %><p role="alert"><%= alert %></p><% end %>
+  <% if notice.present? %><p role="status"><%= notice %></p><% end %>
   <%= form_with url: studio_character_animations_path(site_id: @site.id), scope: :character_animation, local: true do |form| %>
     <div class="field-pair">
       <label>Gender
@@ -29,13 +30,26 @@
     <%= render "studio_character_animations/render_settings", form: form, settings: defaults %>
     <%= form.submit "Create and render", class: "primary" %>
   <% end %>
+  <% if @mixamo_operator %>
+    <details id="mixamo-connection">
+      <summary>Mixamo connection settings<% if @mixamo_waiting_count.positive? %> · <%= pluralize(@mixamo_waiting_count, "waiting job") %><% end %></summary>
+      <p><%= @mixamo_configured ? "Credentials saved in Lightek Vault." : "Save the platform Mixamo login in Lightek Vault." %></p>
+      <%= form_with url: studio_mixamo_connection_path(site_id: @site.id), scope: :mixamo_credentials, local: true do |form| %>
+        <div class="field-pair">
+          <label>Mixamo email <%= form.email_field :email, autocomplete: "off", maxlength: 254, required: true %></label>
+          <label>Mixamo password <%= form.password_field :password, autocomplete: "new-password", maxlength: 1024, required: true %></label>
+        </div>
+        <%= form.submit "Save Mixamo connection", class: "primary" %>
+      <% end %>
+    </details>
+  <% end %>
   <% if @character_jobs.any? %>
     <h3>Recent character jobs</h3>
     <ul>
       <% @character_jobs.each do |job| %>
         <li>
           <%= link_to "#{job.manifest['animation']} · Job #{job.id}", studio_character_animation_path(job, site_id: @site.id) %>
-          · <%= job.status == "pending" ? "Queued" : job.status.humanize %>
+          · <%= Studio::Pipeline::CharacterAnimation.status_label(job) %>
         </li>
       <% end %>
     </ul>

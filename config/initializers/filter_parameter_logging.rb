@@ -4,7 +4,7 @@
 # Use this to limit dissemination of sensitive information.
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += [
-  :key, :api_key, :file, :pasted_statement, :mapping, :entry, :account, :tax, :value, :otp, :recovery_codes, :state, :code, :id_token, :join_password, :account_number, :routing_number, :iban, :sender, :statement, :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
+  :key, :api_key, :file, :pasted_statement, :mapping, :entry, :account, :tax, :value, :otp, :recovery_codes, :state, :code, :id_token, :join_password, :account_number, :routing_number, :iban, :sender, :statement, :passw, :email, :mixamo_credentials, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
 ]
 
 Rails.application.config.filter_redirect += [%r{/passwords/}, %r{/account/setup/}]

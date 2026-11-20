@@ -23,6 +23,13 @@ module Api
       end
 
       def page
+        credentials = ::Studio::Pipeline::MixamoCredentials
+        @mixamo_operator = credentials.operator?(current_user)
+        if @mixamo_operator
+          @mixamo_configured = credentials.configured?
+          @mixamo_waiting_count = StudioOperation.where(capability: ::Studio::Pipeline::CharacterAnimation::CAPABILITY,
+            status: "awaiting_manual_login", studio_project_id: StudioProject.where(site: @site)).count
+        end
         @character_jobs = ::Studio::Pipeline::CharacterAnimation.new(@access).operations.order(id: :desc).limit(10)
         render "studio_pipeline/index", layout: false
       end

@@ -19,7 +19,7 @@ trap 'test -z "$stage" || rm -rf -- "$stage"' EXIT
 # Exit 42 is reserved for the Mixamo wrapper.
 step() {
     local code=0
-    env -u MIXAMO_EMAIL -u MIXAMO_PASSWORD "$@" || code=$?
+    env -u MIXAMO_EMAIL -u MIXAMO_PASSWORD "$@" </dev/null || code=$?
     if (( code == 42 )); then code=1; fi
     return "$code"
 }

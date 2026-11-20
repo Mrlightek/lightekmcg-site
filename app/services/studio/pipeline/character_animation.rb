@@ -48,6 +48,14 @@ module Studio
         end
       end
 
+      def self.status_label(operation)
+        case operation.status
+        when "pending" then "Queued"
+        when "awaiting_manual_login" then "Waiting for studio operator"
+        else operation.status.humanize
+        end
+      end
+
       def self.file(operation, kind)
         artifact = operation.artifacts.where(kind: kind).order(id: :desc).first
         artifact.file if artifact&.file&.attached?

@@ -66,6 +66,10 @@ class Dashboard::SalesProspectingController < Dashboard::SettingsHomeController
     provider = params[:provider].presence || 'x'
     if provider == 'x'
       @prospecting.save_web_post!(params[:post_url])
+    elsif provider == 'google_maps'
+      LightekSales::WebProspecting.new(actor: current_user, site: @site).save_maps_business!(
+        listing_url: params[:listing_url], name: params[:display_name], website_url: params[:website_url],
+        finding: params[:website_finding])
     else
       LightekSales::WebProspecting.new(actor: current_user, site: @site).save!(
         provider: provider, post_url: params[:post_url], profile_url: params[:profile_url], name: params[:display_name])

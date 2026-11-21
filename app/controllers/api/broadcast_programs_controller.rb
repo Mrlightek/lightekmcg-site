@@ -15,7 +15,7 @@ class Api::BroadcastProgramsController < Api::ReservationFederationController
       .includes(:licensor_site).order(id: :desc).limit(50)
     incoming = incoming.map { |license| transfer.reference!(license); transfer.describe(license) }
     sent = ProgramLicense.where(publisher_peer: @peer).includes(:licensor_site).order(id: :desc).limit(50)
-    render json: { destinations: destinations, incoming: incoming, sent: sent.map { |license| transfer.describe(license) } }
+    render json: { rights_scope_version: 1, destinations: destinations, incoming: incoming, sent: sent.map { |license| transfer.describe(license) } }
   end
 
   def upload
@@ -29,6 +29,9 @@ class Api::BroadcastProgramsController < Api::ReservationFederationController
 
   def download
     license = incoming_license
+    if license.scoped? && request.headers["X-Lightek-Rights-Scope"] != "1"
+      raise Studio::Broadcasting::HostedPrograms::Unavailable, "Update the station before downloading scoped programming."
+    end
     raise ActiveRecord::RecordNotFound unless license.status.in?(%w[offered accepted]) && license.ends_at.future? && license.transferable? &&
       license.covers?(license.starts_at, license.ends_at)
     blob = license.asset.proxy.blob
@@ -47,6 +50,9 @@ class Api::BroadcastProgramsController < Api::ReservationFederationController
 
   def accept
     license = incoming_license
+    if license.scoped? && params[:rights_scope_version] != 1
+      raise Studio::Broadcasting::HostedPrograms::Unavailable, "Update the station before accepting scoped programming."
+    end
     license.with_lock do
       raise ArgumentError, "This offer is no longer available." unless license.status.in?(%w[offered accepted]) && license.ends_at.future? && license.transferable?
       license.update!(status: "accepted")
@@ -60,11 +66,12 @@ class Api::BroadcastProgramsController < Api::ReservationFederationController
 
   def sublicense
     source = incoming_license
-    form = params.permit(:recipient, :title, :starts_at, :ends_at, additional_rights: [])
+    form = params.permit(:recipient, :title, :starts_at, :ends_at, :territories, additional_rights: [], platforms: [])
     recipient = transfer.directory.where.not(id: @peer.site_id).find(form[:recipient])
     child = source.relicense!(site: @peer.site, recipient: recipient, title: form[:title].to_s.strip,
       starts_at: Time.iso8601(form[:starts_at].to_s), ends_at: Time.iso8601(form[:ends_at].to_s),
-      additional_rights: form.fetch(:additional_rights, []), publisher_peer: @peer)
+      additional_rights: form.fetch(:additional_rights, []), territories: form.fetch(:territories, source.territories),
+      platforms: form.fetch(:platforms, source.platforms), publisher_peer: @peer)
     transfer.reference!(child)
     render json: transfer.describe(child)
   end

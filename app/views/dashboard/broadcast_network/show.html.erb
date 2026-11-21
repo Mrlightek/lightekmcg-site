@@ -77,6 +77,26 @@
 
   <section class="ll-panel">
     <h2>Programming rights</h2>
+    <% if @handoffs && @assets.any? %>
+      <details class="ll-config">
+        <summary>Register rights for a title you control</summary>
+        <%= form_with url: dashboard_register_owned_program_path(site_id: @site.id), scope: :license, class: "ll-playout-actions" do |form| %>
+          <label>Title <%= form.text_field :title, maxlength: 120, required: true %></label>
+          <label>Video <%= form.collection_select :asset_id, @assets, :id, :name, { prompt: "Choose a video" }, required: true %></label>
+          <label>Rights start <%= form.datetime_local_field :starts_at, required: true %></label>
+          <label>Rights end <%= form.datetime_local_field :ends_at, required: true %></label>
+          <%= render "license_scope", form: form, license: nil %>
+          <fieldset class="ll-config"><legend>Additional rights</legend>
+            <% Studio::Broadcasting::ProgramLicense::EXTRA_RIGHTS.each do |right, label| %>
+              <label><%= check_box_tag "license[additional_rights][]", right, false, id: "owned_right_#{right}" %> <%= label %></label>
+            <% end %>
+          </fieldset>
+          <label>Chain-of-title or rights document reference <%= form.text_field :rights_evidence_reference, required: true, maxlength: 180 %></label>
+          <label><%= form.check_box :attest, { required: true } %> I am authorized to declare these rights for this title.</label>
+          <%= form.submit "Register rights" %>
+        <% end %>
+      </details>
+    <% end %>
     <% if @assets.any? && @receiving_sites.any? %>
       <%= form_with url: dashboard_program_licenses_path(site_id: @site.id), scope: :license, class: "ll-playout-actions" do |form| %>
         <label>Station <%= form.collection_select :licensee_site_id, @receiving_sites, :id, :name, { prompt: "Choose a station" }, required: true %></label>
@@ -90,6 +110,7 @@
             <label><%= check_box_tag "license[additional_rights][]", right, false, id: "license_#{form.object_id}_#{right}" %> <%= label %></label>
           <% end %>
         </fieldset>
+        <%= render "license_scope", form: form, license: nil %>
         <%= form.submit "Offer managed-channel rights" %>
       <% end %>
     <% else %>
@@ -97,11 +118,37 @@
     <% end %>
     <ul class="ll-playout-list">
       <% @incoming.each do |license| %>
-        <li><%= license.title %> from <%= license.source_name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
+        <li><%= license.title %> from <%= license.source_name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %> · <%= license.scope_label %>
           <% if LightekPwa::Policy.new(user: current_user, site: @site).role == "admin" %>
             · <%= link_to "License performance CSV", dashboard_program_license_performance_path(license, site_id: @site.id) %>
           <% end %>
           <%= button_to "Accept rights", dashboard_accept_program_license_path(license, site_id: @site.id) if license.status == "offered" && license.ends_at.future? %>
+          <% if license.web_screening_key? %>
+            <%= link_to "Open web screening", "https://#{@site.host}#{broadcast_program_screening_path(license.web_screening_key)}" %>
+            <%= button_to "Remove web screening", dashboard_remove_program_screening_path(license, site_id: @site.id), method: :delete %>
+          <% elsif license.web_screening_allowed? %>
+            <%= button_to "Publish web screening", dashboard_publish_program_screening_path(license, site_id: @site.id) %>
+          <% end %>
+          <% if @handoffs && license.status == "accepted" && license.ends_at.future? && license.allows_use?("syndicate") && license.allows_use?("stream") &&
+              (destinations = Studio::Broadcasting::ProgramDistributionHandoff::DESTINATIONS.slice(*Array(license.platforms))).any? %>
+            <details class="ll-config">
+              <summary>Prepare a distribution handoff</summary>
+              <%= form_with url: dashboard_program_distribution_handoffs_path(license, site_id: @site.id), scope: :handoff, class: "ll-playout-actions" do |form| %>
+                <label>Service <%= form.select :platform, destinations.invert.to_a, {}, required: true %></label>
+                <label>Distributor or buyer <%= form.text_field :partner, required: true, maxlength: 180 %></label>
+                <label>Territories <%= form.text_field :territories, value: license.territories&.join(", ") || "WORLDWIDE", required: true %></label>
+                <label>Starts <%= form.datetime_local_field :starts_at, required: true %></label>
+                <label>Ends <%= form.datetime_local_field :ends_at, required: true %></label>
+                <label><%= form.check_box :commercial %> Commercial distribution</label>
+                <%= form.submit "Prepare handoff" %>
+              <% end %>
+            </details>
+          <% end %>
+          <% @handoffs.to_h.fetch(license.id, []).each do |handoff| %>
+            <p><%= handoff.partner %> · <%= Studio::Broadcasting::ProgramDistributionHandoff::DESTINATIONS.fetch(handoff.platform) %>
+              · <%= link_to "Download rights manifest", dashboard_program_distribution_manifest_path(handoff, site_id: @site.id) %>
+              · <%= link_to "Download licensed video", dashboard_program_distribution_media_path(handoff, site_id: @site.id) %></p>
+          <% end %>
           <% if license.status == "accepted" && license.ends_at.future? && license.allows_use?("clip") && license.transferable? %>
             <details class="ll-config">
               <summary>Publish a clip</summary>
@@ -139,6 +186,7 @@
                   <% Studio::Broadcasting::ProgramLicense::EXTRA_RIGHTS.slice(*license.additional_rights).each do |right, label| %>
                     <label><%= check_box_tag "license[additional_rights][]", right, false, id: "sublicense_#{license.id}_#{right}" %> <%= label %></label>
                   <% end %>
+                  <%= render "license_scope", form: form, license: license %>
                   <%= form.submit "Send sublicense" %>
                 <% end %>
               </details>
@@ -147,7 +195,7 @@
         </li>
       <% end %>
       <% @outgoing.each do |license| %>
-        <li><%= license.title %> offered to <%= license.licensee_site.name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
+        <li><%= license.title %> offered to <%= license.licensee_site.name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %> · <%= license.scope_label %>
           <% if LightekPwa::Policy.new(user: current_user, site: @site).role == "admin" %>
             · <%= link_to "License performance CSV", dashboard_program_license_performance_path(license, site_id: @site.id) %>
           <% end %>
@@ -170,6 +218,7 @@
               <label><%= check_box_tag "license[additional_rights][]", right, false, id: "license_#{form.object_id}_#{right}" %> <%= label %></label>
             <% end %>
           </fieldset>
+          <%= render "license_scope", form: form, license: nil %>
           <%= form.submit "Offer program to network station" %>
         <% end %>
       <% end %>

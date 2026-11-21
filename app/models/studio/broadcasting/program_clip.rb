@@ -23,7 +23,8 @@ module Studio
 
       def licensed_now?
         now = Time.current
-        return false unless license.licensee_site_id == site_id && license.permits?(now, now, use: "clip")
+        return false unless license.licensee_site_id == site_id && license.permits?(now, now, use: "clip") &&
+          license.allows_destination?(["web"], ["WORLDWIDE"])
 
         HostedPrograms.check_booking!(license)
         true

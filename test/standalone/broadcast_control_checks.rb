@@ -69,6 +69,8 @@ end)
 CompleteBroadcastDistribution.new.migrate(:up)
 require File.join(ROOT, "db/migrate/20261121140000_add_broadcast_contracts_and_reporting")
 AddBroadcastContractsAndReporting.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261121150000_add_distribution_scope_to_program_licenses")
+AddDistributionScopeToProgramLicenses.new.migrate(:up)
 %w[broadcast_contract broadcast_contract_version broadcast_contract_signature broadcast_contract_evidence broadcast_report_archive broadcast_feed_incident].each do |file|
   require File.join(ROOT, "app/models/studio/broadcasting", file)
 end
@@ -123,6 +125,9 @@ require File.join(ROOT, "app/controllers/api/broadcast_programs_controller")
 require File.join(ROOT, "app/controllers/api/broadcast_carriage_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_contracts_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
+require File.join(ROOT, "app/models/studio/broadcasting/program_distribution_handoff")
+require File.join(ROOT, "app/controllers/dashboard/program_distribution_handoffs_controller")
+require File.join(ROOT, "app/controllers/broadcast_program_screenings_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_network_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_operations_controller")
 require File.join(ROOT, "app/controllers/broadcast_sponsor_packages_controller")
@@ -136,7 +141,7 @@ require File.join(ROOT, "app/services/studio/broadcasting/affiliate_failover")
 require File.join(ROOT, "app/jobs/studio/broadcasting/archive_network_reports_job")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
 Dashboard::MediaStudioController.prepend_view_path(File.join(ROOT, "app/views"))
-[Dashboard::BroadcastContractsController, Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController, BroadcastProgramClipsController].each do |controller|
+[BroadcastProgramScreeningsController, Dashboard::BroadcastContractsController, Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController, BroadcastProgramClipsController].each do |controller|
   controller.prepend_view_path(File.join(ROOT, "app/views"))
   controller.layout false
 end
@@ -682,6 +687,56 @@ class BroadcastControlTest < PwaHttpIntegrationTest
       licensed_outlet.get "#{url}/video"
       assert_equal 404, licensed_outlet.response.status
     end
+  end
+
+  def test_program_distribution_blocks_out_of_scope_handoffs_and_revoked_screenings
+    @site.update!(tenant: @alice)
+    @other_site.update!(tenant: @bob)
+    asset = StudioAsset.create!(site: @other_site, owner: @bob, name: "Licensed program", kind: "video", status: "ready",
+      request_key: "partner-program", metadata: { duration: 30 })
+    asset.proxy.attach(io: StringIO.new("original licensed video"), filename: "program.mp4", content_type: "video/mp4", identify: false)
+    model = Studio::Broadcasting::ProgramLicense
+    fields = { licensor_site: @other_site, licensee_site: @site, asset: asset, blob_id: asset.proxy.blob.id, title: "Regional Series",
+      status: "accepted", starts_at: 1.day.ago, ends_at: 7.days.from_now, additional_rights: %w[stream syndicate monetize] }
+    peer = LightekReservations::Peer.create!(site: @site, merchant: @alice, key: SecureRandom.hex(16))
+    restricted = model.create!(**fields.merge(territories: "us", platforms: ["netflix"], federation_key: SecureRandom.hex(16)))
+    assert_equal ["US"], restricted.territories
+    refute restricted.broadcast_allowed?(Time.current, 10.minutes.from_now, replay: false, commercial: false)
+    assert_raises(ArgumentError) { restricted.publish_web_screening! }
+    assert_raises(ActiveRecord::RecordInvalid) do
+      restricted.relicense!(site: @site, recipient: DymondSite::Site.create!(host: "new.test", name: "New"),
+        title: "Unauthorized expansion", starts_at: Time.current, ends_at: 1.hour.from_now, additional_rights: ["stream"],
+        territories: "US, CA", platforms: ["netflix"])
+    end
+    model = Studio::Broadcasting::ProgramDistributionHandoff
+    handoff = { license: restricted, operator: @alice, platform: "netflix", partner: "Example Distributor", territories: "US",
+      starts_at: 1.hour.from_now, ends_at: 2.days.from_now, commercial: true }
+    assert_raises(ActiveRecord::RecordInvalid) { model.create!(**handoff.merge(platform: "hulu")) }
+    assert_raises(ActiveRecord::RecordInvalid) { model.create!(**handoff.merge(territories: "CA")) }
+    cleared = model.create!(**handoff)
+    client = session_for
+    url = "/dashboard/live/network/handoffs/#{cleared.id}"
+    client.get "#{url}/manifest", params: { site_id: @site.id }, headers: headers
+    assert_equal 200, client.response.status
+    assert_equal ["US"], JSON.parse(client.response.body).fetch("territories")
+    client.get "/api/reservations/federation/broadcast/programs/#{restricted.federation_key}/media", headers: { "Authorization" => "Bearer #{peer.key}" }
+    assert_equal 422, client.response.status
+    client.get "#{url}/manifest", params: { site_id: @other_site.id }, headers: headers(@bob)
+    assert_equal 404, client.response.status
+    restricted.update!(status: "withdrawn")
+    assert_raises(ArgumentError) { cleared.authorize_delivery! }
+
+    screening = Studio::Broadcasting::ProgramLicense.create!(**fields.merge(platforms: ["web"], territories: "WORLDWIDE"))
+    screening.publish_web_screening!
+    watch = "/watch/programs/#{screening.web_screening_key}"
+    client.get watch, headers: headers.merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    client.get "#{watch}/video", headers: { "Range" => "bytes=0-7" }
+    assert_equal 206, client.response.status
+    assert_equal "original", client.response.body
+    screening.update!(status: "withdrawn")
+    client.get "#{watch}/video"
+    assert_equal 404, client.response.status
   end
 
   def test_sublicense_cannot_expand_rights_or_outlive_the_upstream_grant

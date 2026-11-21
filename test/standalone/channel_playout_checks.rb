@@ -140,6 +140,10 @@ end
 ConnectManagedBroadcastInstallations.new.migrate(:up)
 AddHostedProgramLicenseExchange.new.migrate(:up)
 ActiveRecord::Schema.define do
+  add_column :studio_program_licenses, :territories, :json
+  add_column :studio_program_licenses, :platforms, :json
+  add_column :studio_program_licenses, :rights_attested_by_id, :integer
+  add_column :studio_program_licenses, :rights_evidence_reference, :string
   add_column :studio_program_licenses, :additional_rights, :json, default: [], null: false
   add_reference :studio_program_licenses, :parent_license
 end

@@ -70,3 +70,12 @@ get "/dashboard/live/contracts/licenses/:id/report", to: "dashboard/broadcast_co
 get "/dashboard/live/contracts/hosted/:id/report", to: "dashboard/broadcast_contracts#hosted_document",
   as: :dashboard_hosted_carriage_performance, defaults: { document: "report" }
 get "/api/reservations/federation/broadcast/agreements/:id/contract/report", to: "api/broadcast_carriage#legacy_contract_report"
+
+post "/dashboard/live/network/licenses/:license_id/handoffs", to: "dashboard/program_distribution_handoffs#create", as: :dashboard_program_distribution_handoffs
+get "/dashboard/live/network/handoffs/:id/manifest", to: "dashboard/program_distribution_handoffs#manifest", as: :dashboard_program_distribution_manifest
+get "/dashboard/live/network/handoffs/:id/media", to: "dashboard/program_distribution_handoffs#media", as: :dashboard_program_distribution_media
+post "/dashboard/live/network/licenses/:license_id/screening", to: "dashboard/broadcast_network#publish_web_screening", as: :dashboard_publish_program_screening
+delete "/dashboard/live/network/licenses/:license_id/screening", to: "dashboard/broadcast_network#remove_web_screening", as: :dashboard_remove_program_screening
+get "/watch/programs/:key", to: "broadcast_program_screenings#show", as: :broadcast_program_screening, constraints: { key: /[A-Za-z0-9]{32}/ }
+get "/watch/programs/:key/video", to: "broadcast_program_screenings#video", as: :broadcast_program_screening_video, constraints: { key: /[A-Za-z0-9]{32}/ }
+post "/dashboard/live/network/owned-programs", to: "dashboard/broadcast_network#register_owned_program", as: :dashboard_register_owned_program

@@ -74,8 +74,9 @@ module Studio
           end
           license_ids = rundown.filter_map { |item| item["license_id"] }.uniq
           licenses = ProgramLicense.where(licensee_site_id: channel.site_id, id: license_ids).order(:id).lock.to_a
-          unless licenses.size == license_ids.size && licenses.all? { |license| license.permits?(starts_at, ends_at, use: replay ? "replay" : "air") }
-            raise ArgumentError, "The accepted programming license must cover the playback type and the full rundown window."
+          commercial = rundown.any? { |item| item["ad_campaign_id"].present? || item["sponsor"].present? }
+          unless licenses.size == license_ids.size && licenses.all? { |license| license.broadcast_allowed?(starts_at, ends_at, replay: replay, commercial: commercial) }
+            raise ArgumentError, "The license must cover the rundown window, both managed-channel platforms, worldwide delivery, and any commercial use."
           end
           airing = channel.airings.create!(operator: operator, title: title.to_s.strip, starts_at: starts_at,
             ends_at: ends_at, relay: relay, rundown: rundown, measurement: AudienceReport.normalize_metadata(measurement))

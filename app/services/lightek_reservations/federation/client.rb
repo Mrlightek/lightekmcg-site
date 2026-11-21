@@ -59,6 +59,7 @@ module LightekReservations
         uri.path = "/api/reservations/federation/#{path}"
         request = upload ? Net::HTTP::Put.new(uri) : Net::HTTP::Get.new(uri)
         request["Authorization"] = "Bearer #{secret.fetch('token')}"
+        request["X-Lightek-Rights-Scope"] = "1"
         if upload
           raise Unavailable, "The program is too large" unless bytes.between?(1, limit)
           request["X-Lightek-Program"] = JSON.generate(metadata)

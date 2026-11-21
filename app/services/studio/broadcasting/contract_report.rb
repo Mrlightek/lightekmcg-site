@@ -90,7 +90,7 @@ module Studio
           "title" => license.title, "kind" => "program_license", "issuer" => license.source_name,
           "counterparty" => license.licensee_site.name, "starts_on" => license.starts_at.utc.iso8601, "ends_on" => license.ends_at.utc.iso8601,
           "status" => license.transferable? ? license.status.humanize : "Withdrawn upstream",
-          "terms" => license.rights_label, "as_of" => Time.current.utc.iso8601,
+          "terms" => "#{license.rights_label} · #{license.scope_label}", "as_of" => Time.current.utc.iso8601,
           "delivered" => matched.count { |airing| airing["observed_rows"].present? },
           "currency" => "USD", "payment_basis" => "The rights grant has no structured fee or delivery quota.",
           "delivery_basis" => "Public playout observed for the licensed rows on this installation",

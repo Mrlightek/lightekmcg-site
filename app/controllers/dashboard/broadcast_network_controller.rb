@@ -35,6 +35,8 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
     @metadata = report.measurement_metadata
     @outgoing = licensing.where(licensor_site: @site).includes(:licensee_site).order(id: :desc).limit(50)
     @incoming = licensing.where(licensee_site: @site).includes(:licensor_site).order(id: :desc).limit(50)
+    @handoffs = Studio::Broadcasting::ProgramDistributionHandoff.where(license_id: @incoming.map(&:id)).order(id: :desc).limit(150)
+      .group_by(&:license_id) if LightekPwa::Policy.new(user: current_user, site: @site).role == "admin"
     @clips = clips.where(withdrawn_at: nil).with_attached_video.order(id: :desc).limit(100).group_by(&:license_id)
     @hosted_program_board = hosted_program_board
     @receiving_sites = receiving_sites.order(:name, :id)
@@ -97,27 +99,47 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
     back("Hosted station lineup updated.")
   end
 
+  def register_owned_program
+    unless LightekPwa::Policy.new(user: current_user, site: @site).role == "admin"
+      raise LightekPwa::Policy::Denied, "A site administrator must declare ownership rights."
+    end
+
+    fields = params.require(:license).permit(:asset_id, :title, :starts_at, :ends_at, :territories, :rights_evidence_reference, :attest,
+      additional_rights: [], platforms: [])
+    unless fields[:attest] == "1" && fields[:platforms].present? && fields[:territories].present?
+      raise ArgumentError, "Confirm the ownership declaration and specify platforms and territories."
+    end
+
+    asset = assets.find(fields[:asset_id])
+    licensing.create!(licensor_site: @site, licensee_site: @site, asset: asset, blob_id: asset.proxy.blob&.id,
+      title: fields[:title].to_s.strip, starts_at: Time.zone.parse(fields[:starts_at].to_s), ends_at: Time.zone.parse(fields[:ends_at].to_s),
+      additional_rights: fields.fetch(:additional_rights, []), territories: fields[:territories], platforms: fields[:platforms],
+      rights_attested_by: current_user, rights_evidence_reference: fields[:rights_evidence_reference].to_s.strip, status: "accepted")
+    back("Owned-program rights recorded. Choose a screening, sublicense, or partner handoff permitted by the declaration.")
+  end
+
   def offer_license
-    values = params.require(:license).permit(:licensee_site_id, :asset_id, :title, :starts_at, :ends_at, additional_rights: [])
+    values = params.require(:license).permit(:licensee_site_id, :asset_id, :title, :starts_at, :ends_at, :territories, additional_rights: [], platforms: [])
     asset = assets.find(values[:asset_id])
     recipient = receiving_sites.find(values[:licensee_site_id])
     licensing.create!(licensor_site: @site, licensee_site: recipient, asset: asset,
       blob_id: asset.proxy.blob&.id, title: values[:title].to_s.strip,
       starts_at: Time.zone.parse(values[:starts_at].to_s), ends_at: Time.zone.parse(values[:ends_at].to_s),
-      additional_rights: values.fetch(:additional_rights, []))
+      additional_rights: values.fetch(:additional_rights, []), territories: values[:territories], platforms: values[:platforms])
     back("Programming rights offered to #{recipient.name}.")
   end
 
   def offer_hosted_license
     raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
-    form = params.require(:license).permit(:recipient, :asset_id, :title, :starts_at, :ends_at, additional_rights: [])
+    form = params.require(:license).permit(:recipient, :asset_id, :title, :starts_at, :ends_at, :territories, additional_rights: [], platforms: [])
     asset = assets.find(form[:asset_id])
     starts_at = Time.zone.parse(form[:starts_at].to_s)
     ends_at = Time.zone.parse(form[:ends_at].to_s)
     raise ArgumentError, "Choose a valid rights window." unless starts_at && ends_at && ends_at > starts_at && ends_at.future?
 
     Studio::Broadcasting::HostedPrograms.publish!(site: @site, asset: asset, recipient: form[:recipient], title: form[:title].to_s.strip,
-      starts_at: starts_at, ends_at: ends_at, additional_rights: form.fetch(:additional_rights, []))
+      starts_at: starts_at, ends_at: ends_at, additional_rights: form.fetch(:additional_rights, []),
+      territories: form[:territories], platforms: form[:platforms])
     back("Program offered through the Lightek network.")
   end
 
@@ -131,6 +153,18 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
     raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
     Studio::Broadcasting::HostedPrograms.client(@site).request("broadcast/programs/#{params[:key]}/withdraw", method: :post, body: {})
     back("License closed to future bookings.")
+  end
+
+  def publish_web_screening
+    license = licensing.where(licensee_site: @site).find(params[:license_id])
+    Studio::Broadcasting::HostedPrograms.check_booking!(license)
+    license.publish_web_screening!
+    back("The web screening is available under the current programming license.")
+  end
+
+  def remove_web_screening
+    licensing.where(licensee_site: @site).find(params[:license_id]).update!(web_screening_key: nil)
+    back("The web screening was removed.")
   end
 
   def create_clip
@@ -149,15 +183,20 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
 
   def sublicense
     source = licensing.where(licensee_site: @site, status: "accepted").find(params[:license_id])
-    form = params.require(:license).permit(:recipient, :title, :starts_at, :ends_at, additional_rights: [])
+    form = params.require(:license).permit(:recipient, :title, :starts_at, :ends_at, :territories, additional_rights: [], platforms: [])
     starts_at = Time.zone.parse(form[:starts_at].to_s)
     ends_at = Time.zone.parse(form[:ends_at].to_s)
     raise ArgumentError, "Choose a valid rights window." unless starts_at && ends_at && ends_at > starts_at && ends_at.future?
 
     attributes = { title: form[:title].to_s.strip, starts_at: starts_at, ends_at: ends_at, additional_rights: form.fetch(:additional_rights, []) }
+    attributes[:territories] = form[:territories] if form.key?(:territories)
+    attributes[:platforms] = form[:platforms] if form.key?(:platforms)
     if source.imported?
       raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
-      Studio::Broadcasting::HostedPrograms.client(@site).request("broadcast/programs/#{source.federation_key}/sublicense", method: :post,
+      exchange = Studio::Broadcasting::HostedPrograms
+      connection = exchange.client(@site)
+      exchange.require_scoped_exchange!(connection) if source.scoped? || attributes.key?(:territories) || attributes.key?(:platforms)
+      connection.request("broadcast/programs/#{source.federation_key}/sublicense", method: :post,
         body: attributes.merge(recipient: form[:recipient], starts_at: starts_at.iso8601, ends_at: ends_at.iso8601))
     else
       recipient = receiving_sites.find(form[:recipient])

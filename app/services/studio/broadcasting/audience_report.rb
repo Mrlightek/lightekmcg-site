@@ -5,16 +5,18 @@ require "csv"
 module Studio
   module Broadcasting
     class AudienceReport
-      INPUT_FIELDS = %i[asset_id program episode_title episode_id originator_id full_episode ad_load_type].freeze
+      INPUT_FIELDS = %i[asset_id program episode_title episode_id originator_id full_episode ad_load_type roku_genre].freeze
       AD_TYPES = { "pre_roll" => "preroll", "mid_roll" => "midroll" }.freeze
-      REQUIRED_FIELDS = INPUT_FIELDS - [:originator_id]
+      REQUIRED_FIELDS = INPUT_FIELDS - [:originator_id, :roku_genre]
       HEADERS = %w[utc_day station_id outlet_id channel_id airing_id ad_row platform playback_sessions requested_segments requested_media_seconds].freeze
 
       def self.normalize_metadata(values)
         input = values.to_h.stringify_keys.slice(*INPUT_FIELDS.map(&:to_s)).transform_values { |value| value.to_s.squish }.compact_blank
         if input.any? { |_key, value| value.length > 120 } ||
             (input["asset_id"] && !input["asset_id"].match?(/\A[A-Za-z0-9]{1,48}\z/)) ||
-            (input["full_episode"] && !%w[y n].include?(input["full_episode"])) ||
+            (input["roku_genre"] && !input["roku_genre"].match?(/\A[A-Z0-9]{1,8}\z/)) ||
+            (input["full_episode"] && !%w[y n].include?(input["roku_genre"] && !input["roku_genre"].match?(/\A[A-Z0-9]{1,8}\z/)) ||
+            (input["full_episode"])) ||
             (input["ad_load_type"] && !%w[1 2].include?(input["ad_load_type"]))
           raise ArgumentError, "Check the audience measurement IDs and selections."
         end
@@ -54,7 +56,7 @@ module Studio
 
       def measurement_metadata
         time_window = utc_midnight(@days.begin)...utc_midnight(@days.end + 1)
-        ids = scope.distinct.pluck(:airing_id)
+        ids = scope.where(channel_id: 1..).distinct.pluck(:airing_id)
         # A broadcaster may export metadata for its own airings with no measured activity.
         airings = if @outlet
           Airing.where(id: ids)

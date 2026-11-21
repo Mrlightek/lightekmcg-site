@@ -25,15 +25,16 @@ module Studio
         name = "out-#{@sequence}.ts"
         FileUtils.cp(segment.path, @path.join("#{name}.tmp"))
         File.rename(@path.join("#{name}.tmp"), @path.join(name))
+        published_at = Time.current.utc.iso8601(3)
         if audience
           metadata = @path.join("out-#{@sequence}.json")
           temp_metadata = metadata.sub_ext(".json.tmp")
-          temp_metadata.write(JSON.generate(audience.merge("aired_at" => Time.current.utc.iso8601, "media_ms" => (segment.duration * 1000).round)))
+          temp_metadata.write(JSON.generate(audience.merge("aired_at" => published_at, "media_ms" => (segment.duration * 1000).round)))
           File.rename(temp_metadata, metadata)
         end
         discontinuity = @last_source && @last_source != source
         @last_source = source
-        @entries << [@sequence, segment.duration, name, discontinuity]
+        @entries << [@sequence, segment.duration, name, published_at, discontinuity]
         @sequence += 1
         if @entries.size > WINDOW
           removed = @entries.shift
@@ -55,8 +56,9 @@ module Studio
       def write!(finished: false)
         lines = ["#EXTM3U", "#EXT-X-VERSION:6", "#EXT-X-TARGETDURATION:#{target_duration}",
           "#EXT-X-INDEPENDENT-SEGMENTS", "#EXT-X-MEDIA-SEQUENCE:#{@entries.first.first}", "#EXT-X-DISCONTINUITY-SEQUENCE:#{@discontinuities}"]
-        @entries.each do |_sequence, duration, name, discontinuity|
+        @entries.each do |_sequence, duration, name, published_at, discontinuity|
           lines << "#EXT-X-DISCONTINUITY" if discontinuity
+          lines << "#EXT-X-PROGRAM-DATE-TIME:#{published_at}"
           lines << format("#EXTINF:%.6f,", duration) << name
         end
         lines << "#EXT-X-ENDLIST" if finished

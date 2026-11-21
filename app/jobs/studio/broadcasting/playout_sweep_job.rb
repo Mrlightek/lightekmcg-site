@@ -5,6 +5,9 @@ module Studio
     class PlayoutSweepJob < ApplicationJob
       def perform
         now = Time.current
+        NetworkCarriage.where.not(remote_key: nil).where.not(status: "withdrawn").limit(100).pluck(:id).each do |id|
+          CarriageSyncJob.perform_later(id)
+        end
         Advertising::Placement.where(sync_after: ..now, peer_id: nil).order(:sync_after).limit(50).pluck(:id).each do |id|
           Advertising::ExchangeJob.perform_later(id)
         end

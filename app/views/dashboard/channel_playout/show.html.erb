@@ -97,6 +97,7 @@
             <label>Standard episode ID <%= fields.text_field :episode_id, maxlength: 100 %></label>
             <label>Nielsen-assigned originator ID <%= fields.text_field :originator_id, maxlength: 100 %></label>
             <label>Episode type <%= fields.select :full_episode, [["Full episode", "y"], ["Clip or partial", "n"]], include_blank: true %></label>
+            <label>Nielsen Roku genre code <%= fields.text_field :roku_genre, maxlength: 8, pattern: "[A-Z0-9]+" %></label>
             <label>Ad load <%= fields.select :ad_load_type, [["Matches the linear ad load", "1"], ["Dynamic ad insertion", "2"]], include_blank: true %></label>
           <% end %>
         </details>

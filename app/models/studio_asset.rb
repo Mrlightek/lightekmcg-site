@@ -18,6 +18,7 @@ class StudioAsset < ApplicationRecord
   validates :request_key, presence: true, uniqueness: { scope: :owner_id }
   def self.for_actor(access)
     library = where("COALESCE(metadata ->> 'network_ad_exchange', '') <> 'reserved'")
+      .where("COALESCE(metadata ->> 'broadcast_program_exchange', '') <> 'reserved'")
     return library if access.user.role == "super_admin"
     if access.site_id && %w[admin editor].include?(LightekPwa::Policy.new(user: access.user, site: DymondSite::Site.find(access.site_id)).role)
       return library.where(site_id: access.site_id)

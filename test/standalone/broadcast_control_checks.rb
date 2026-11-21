@@ -12,6 +12,7 @@ ActiveRecord::Schema.define do
   create_table(:lightek_reservation_peers) do |table|
     table.integer :site_id
     table.integer :merchant_id
+    table.string :key
   end
 end
 module LightekReservations
@@ -19,9 +20,11 @@ module LightekReservations
     self.table_name = "lightek_reservation_peers"
     belongs_to :site, class_name: "DymondSite::Site"
     belongs_to :merchant, class_name: "User"
+    def active? = true
   end
 end
 require "active_support/testing/time_helpers"
+require "minitest/mock"
 require File.join(ROOT, "db/migrate/20261121103000_exchange_studio_ad_campaigns")
 ExchangeStudioAdCampaigns.new.migrate(:up)
 require File.join(ROOT, "app/services/lightek_reservations/federation/client")
@@ -33,11 +36,18 @@ class AddBroadcastNetworkDistributionAndMeasurement
   end
 end
 AddBroadcastNetworkDistributionAndMeasurement.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261121112500_connect_managed_broadcast_installations")
+require File.join(ROOT, "db/migrate/20261121113500_add_hosted_program_license_exchange")
+ConnectManagedBroadcastInstallations.new.migrate(:up)
+AddHostedProgramLicenseExchange.new.migrate(:up)
+
 require File.join(ROOT, "app/services/lightek_reservations/federation/issuer")
 
 %w[app/models/studio/broadcasting/application app/models/studio/broadcasting/channel app/models/studio/broadcasting/program
    app/models/studio/broadcasting/airing app/models/studio/broadcasting/network_carriage
-   app/models/studio/broadcasting/program_license app/models/studio/broadcasting/view_session app/services/studio/broadcasting/audience app/services/studio/broadcasting/audience_report
+   app/models/studio/broadcasting/program_license app/models/studio/broadcasting/view_session
+   app/models/studio/broadcasting/hosted_carriage app/services/studio/broadcasting/audience app/services/studio/broadcasting/audience_report
+   app/services/studio/broadcasting/nielsen app/services/studio/broadcasting/installation_carriage app/services/studio/broadcasting/hosted_programs
    app/models/studio/advertising/network app/models/studio/advertising/membership
    app/models/studio/advertising/campaign app/models/studio/advertising/placement
    app/models/studio/advertising/payment app/models/studio/advertising/payout app/services/dymond_bank/broadcast_advertising/funding
@@ -65,6 +75,7 @@ require File.join(ROOT, "app/controllers/concerns/lightek_identity/sensitive_ses
 require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_network_controller")
 require File.join(ROOT, "app/controllers/broadcast_tv_controller")
+require File.join(ROOT, "app/controllers/affiliate_channel_streams_controller")
 require File.join(ROOT, "app/controllers/linear_channel_streams_controller")
 require File.join(ROOT, "app/services/studio/broadcasting/playout_media")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
@@ -148,6 +159,91 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     Dashboard::MediaStudioController.allow_forgery_protection = true
     super
   end
+  def test_hosted_carriage_validates_the_station_and_serves_the_network_playback
+    with_network_origin do
+      @other_site.update!(tenant: @bob)
+      peer = LightekReservations::Peer.create!(site: @other_site, merchant: @bob, key: SecureRandom.uuid)
+      key = SecureRandom.hex(16)
+      carrier = Studio::Broadcasting::InstallationCarriage
+      receipt = carrier.receive!(peer, key, { "name" => "Hosted station", "published" => true, "schedule" => [] })
+      assert_equal "requested", receipt.fetch(:status)
+      channel = Studio::Broadcasting::Channel.create!(site: @other_site, name: "Source", status: "published", managed_playout: true)
+      source = Studio::Broadcasting::NetworkCarriage.create!(channel: channel, remote_key: key, status: "accepted",
+        ownership: "affiliate", relay_digest: Digest::SHA256.hexdigest(receipt.fetch(:relay_proof)))
+      record = Studio::Broadcasting::HostedCarriage.find_by!(key: key)
+      record.update!(status: "accepted", ownership: "affiliate")
+      path = Studio::Broadcasting::PlayoutMedia.channel_path(channel.id)
+      FileUtils.mkdir_p(path)
+      path.join("index.m3u8").write("#EXTM3U\n#EXTINF:2,\nout-1.ts\n")
+      path.join("out-1.ts").binwrite("station HLS bytes")
+      path.join("out-1.json").write(JSON.generate(airing_id: 51, aired_at: Time.current.utc.iso8601, media_ms: 2000))
+
+      hub, edge = session_for, session_for
+      edge.host! @other_site.host
+      edge.get "/gatekeeper/affiliate-source/#{key}/index.m3u8"
+      assert_equal 404, edge.response.status
+      card = network_guide(hub).find { |value| value["id"] == "station-#{key}" }
+      assert_equal "Independent affiliate", card.fetch("ownership")
+
+      relay = lambda do |entry, name, viewer:|
+        assert_equal record.id, entry.id
+        headers = { "Authorization" => "Bearer #{receipt.fetch(:relay_proof)}" }
+        headers.merge!("X-Lightek-Playback" => viewer.fetch("id"), "X-Lightek-Platform" => viewer.fetch("platform")) if viewer
+        edge.get "/gatekeeper/affiliate-source/#{key}/#{name}", headers: headers
+        assert_equal 200, edge.response.status
+        [edge.response.body, edge.response.media_type, edge.response.headers["X-Lightek-Media"]]
+      end
+      carrier.stub(:relay!, relay) do
+        hub.get URI.parse(card.dig("action", "playback_url")).request_uri
+        assert_equal 200, hub.response.status
+        segment = hub.response.body.lines.last.strip
+        assert_match(/\Aout-1\.ts\?view_session=/, segment)
+        hub.get "/gatekeeper/network/#{key}/#{segment}"
+        assert_equal 200, hub.response.status
+        assert_equal "station HLS bytes", hub.response.body
+      end
+      assert_equal 1, Studio::Broadcasting::ViewSession.where(channel_id: channel.id, station_site_id: @other_site.id).sum(:segments)
+      assert_equal 1, Studio::Broadcasting::ViewSession.where(channel_id: -record.id, outlet_site_id: @site.id).sum(:segments)
+
+      source.update!(status: "withdrawn")
+      edge.get "/gatekeeper/affiliate-source/#{key}/index.m3u8", headers: { "Authorization" => "Bearer #{receipt.fetch(:relay_proof)}" }
+      assert_equal 404, edge.response.status
+    end
+  end
+
+  def test_hosted_program_exchange_pins_video_hash_and_requires_an_accepted_current_license
+    with_network_origin do
+      source_user = @bob
+      @other_site.update!(tenant: source_user)
+      peer = LightekReservations::Peer.create!(site: @other_site, merchant: source_user, key: SecureRandom.uuid)
+      exchange = Studio::Broadcasting::HostedPrograms
+      key = SecureRandom.hex(16)
+      Dir.mktmpdir do |directory|
+        path = File.join(directory, "source.mp4")
+        assert system("ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=red:s=160x90:r=24",
+          "-t", "4", "-c:v", "libx264", "-threads", "1", path)
+        data = File.binread(path)
+        checksum = Digest::SHA256.hexdigest(data)
+        terms = { recipient: @site.id, title: "Affiliate special", sha256: checksum,
+          starts_at: Time.current.iso8601, ends_at: 1.day.from_now.iso8601 }
+        assert_raises(Studio::Broadcasting::HostedPrograms::Unavailable) do
+          exchange.receive!(peer, key, JSON.generate(terms.merge(sha256: "wrong")), StringIO.new(data), data.bytesize)
+        end
+        agreement = exchange.receive!(peer, key, JSON.generate(terms), StringIO.new(data), data.bytesize)
+        assert_equal @site, agreement.licensee_site
+        assert_equal @other_site, agreement.licensor_site
+        assert_equal "offered", agreement.status
+        assert_equal agreement.id, exchange.receive!(peer, key, JSON.generate(terms), StringIO.new(data), data.bytesize).id
+        refute agreement.permits?(Time.current, 2.hours.from_now)
+        agreement.update!(status: "accepted")
+        assert agreement.permits?(Time.current, 2.hours.from_now)
+        assert_equal checksum, agreement.asset.proxy.blob.open { |blob| Digest::SHA256.file(blob.path).hexdigest }
+        agreement.update!(status: "withdrawn")
+        refute agreement.permits?(Time.current, 2.hours.from_now)
+      end
+    end
+  end
+
   def test_network_guide_requires_approved_carriage_and_counts_real_segment_requests
     with_network_origin do
       hub_channel = Studio::Broadcasting::Channel.create!(site: @site, name: "Lightek Movies", status: "published", managed_playout: true)
@@ -193,6 +289,12 @@ class BroadcastControlTest < PwaHttpIntegrationTest
         client.get "#{File.dirname(first.path)}/#{segment}"
         assert_equal 200, client.response.status
       end
+      client.get cards.last.dig("action", "measurement_url")
+      assert_equal 200, client.response.status
+      cue = body(client).fetch("timeline").sole
+      assert_equal "out-1.ts", cue.fetch("segment")
+      assert_equal "NEIGH1", cue.dig("content", "assetid")
+
       visit = Studio::Broadcasting::ViewSession.find_by!(airing_id: airing.id)
       assert_equal [@other_site.id, @site.id, 1, 2000], [visit.station_site_id, visit.outlet_site_id, visit.segments, visit.media_ms]
 

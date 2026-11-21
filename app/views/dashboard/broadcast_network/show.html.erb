@@ -6,6 +6,20 @@
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
   <header class="ll-header"><h1>TV network and audience</h1></header>
 
+  <% if @portfolio %>
+    <section class="ll-panel">
+      <h2>LightekMCG divisions</h2>
+      <ul class="ll-playout-list">
+        <% LightekPeople::CorporatePortfolio::DIVISIONS.each do |code, (name, units)| %>
+          <li><strong><%= @portfolio[code]&.name || name %></strong> · <%= units.values.to_sentence %></li>
+        <% end %>
+      </ul>
+      <% if @portfolio.size < LightekPeople::CorporatePortfolio::DIVISIONS.size %>
+        <%= button_to "Set up divisions in People", dashboard_broadcast_portfolio_path(site_id: @site.id) %>
+      <% end %>
+    </section>
+  <% end %>
+
   <section class="ll-panel">
     <h2>Channel carriage</h2>
     <p><%= link_to "Open the web TV guide", "https://#{@site.host}#{broadcast_tv_path}" %></p>
@@ -39,6 +53,20 @@
           </li>
         <% end %>
       </ul>
+      <% if @hosted.any? %>
+        <h3>Stations on connected installations</h3>
+        <ul class="ll-playout-list">
+          <% @hosted.each do |entry| %>
+            <li><%= entry.name %> · <%= entry.peer.site.name %> · <%= entry.status.humanize %>
+              <%= form_with url: dashboard_hosted_carriage_path(entry.key, site_id: @site.id), class: "ll-playout-actions" do |form| %>
+                <label>Ownership <%= form.select :ownership, Studio::Broadcasting::NetworkCarriage::OWNERSHIPS.invert.to_a, { selected: entry.ownership || "affiliate" } %></label>
+                <%= form.submit(entry.status == "requested" ? "Approve hosted station" : "Save ownership") %>
+                <%= form.button "Remove from guide", name: "carriage", value: "withdraw" %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
     <% end %>
   </section>
 
@@ -58,7 +86,7 @@
     <% end %>
     <ul class="ll-playout-list">
       <% @incoming.each do |license| %>
-        <li><%= license.title %> from <%= license.licensor_site.name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %>
+        <li><%= license.title %> from <%= license.source_name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %>
           <%= button_to "Accept rights", dashboard_accept_program_license_path(license, site_id: @site.id) if license.status == "offered" && license.ends_at.future? %>
         </li>
       <% end %>
@@ -68,6 +96,33 @@
         </li>
       <% end %>
     </ul>
+    <% if @hosted_program_board %>
+      <h3>Programming across installations</h3>
+      <% if @assets.any? && @hosted_program_board.fetch("destinations").any? %>
+        <%= form_with url: dashboard_hosted_program_licenses_path(site_id: @site.id), scope: :license, class: "ll-playout-actions" do |form| %>
+          <label>Network station <%= form.select :recipient, @hosted_program_board.fetch("destinations").map { |id, name| [name, id] }, { prompt: "Choose a station" }, required: true %></label>
+          <label>Ready video <%= form.collection_select :asset_id, @assets, :id, :name, { prompt: "Choose a video" }, required: true %></label>
+          <label>Program title <%= form.text_field :title, maxlength: 120, required: true %></label>
+          <label>Rights start (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, required: true %></label>
+          <label>Rights end (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, required: true %></label>
+          <%= form.submit "Offer program to network station" %>
+        <% end %>
+      <% end %>
+      <ul class="ll-playout-list">
+        <% imported_keys = @incoming.filter_map(&:federation_key) %>
+        <% @hosted_program_board.fetch("incoming").each do |offer| %>
+          <% next if imported_keys.include?(offer.fetch("key")) %>
+          <li><%= offer.fetch("title") %> from <%= offer.fetch("source") %>
+            <%= button_to "Accept and download program", dashboard_accept_hosted_program_license_path(offer.fetch("key"), site_id: @site.id) %>
+          </li>
+        <% end %>
+        <% @hosted_program_board.fetch("sent").each do |offer| %>
+          <li><%= offer.fetch("title") %> · <%= offer.fetch("status").humanize %>
+            <%= button_to "Close to future bookings", dashboard_withdraw_hosted_program_license_path(offer.fetch("key"), site_id: @site.id) if offer.fetch("status") != "withdrawn" %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
   </section>
 
   <section class="ll-panel">

@@ -125,11 +125,21 @@ module SqliteBroadcastMetadata
     super(table, name, type == :jsonb ? :json : type, **options)
   end
 end
+module SqliteBroadcastTables
+  def jsonb(*names, **options) = json(*names, **options)
+end
+ActiveRecord::ConnectionAdapters::TableDefinition.prepend(SqliteBroadcastTables)
 require ROOT.join("db/migrate/20261121110000_add_broadcast_network_distribution_and_measurement").to_s
 AddBroadcastNetworkDistributionAndMeasurement.prepend(SqliteBroadcastMetadata)
 AddBroadcastNetworkDistributionAndMeasurement.new.migrate(:up)
+%w[20261121112500_connect_managed_broadcast_installations 20261121113500_add_hosted_program_license_exchange].each do |name|
+  require ROOT.join("db/migrate", name).to_s
+end
+ConnectManagedBroadcastInstallations.new.migrate(:up)
+AddHostedProgramLicenseExchange.new.migrate(:up)
+
 %w[program_license view_session].each { |name| require ROOT.join("app/models/studio/broadcasting", name).to_s }
-%w[audience audience_report].each { |name| require ROOT.join("app/services/studio/broadcasting", name).to_s }
+%w[audience audience_report nielsen].each { |name| require ROOT.join("app/services/studio/broadcasting", name).to_s }
 module LightekReservations
   class Peer < ApplicationRecord
     self.table_name = "lightek_reservation_peers"

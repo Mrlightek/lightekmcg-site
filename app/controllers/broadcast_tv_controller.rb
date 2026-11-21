@@ -14,7 +14,24 @@ class BroadcastTvController < ApplicationController
     @channels = @guide[:rows].find { |row| row[:id] == "live-channels" }&.fetch(:items) || []
     @schedule = @guide[:rows].find { |row| row[:id] == "program-guide" }&.fetch(:items) || []
     @selected = @channels.find { |channel| channel[:id] == params[:channel] }
+    if @selected&.dig(:action, :measurement_url)
+      @nielsen = Studio::Broadcasting::Nielsen.browser_configuration(site)
+    end
   rescue ActiveRecord::RecordNotFound
+    head :not_found
+  end
+
+  def measurement
+    response.set_header("Cache-Control", "private, no-store")
+    site = LightekPwa::SiteContext.resolve(request.host)
+    LightekPwa::Policy.new(user: current_user, site: site).authorize!("watch")
+    channel = Studio::Broadcasting::Channel.find_by(site: site, id: params[:channel_id], managed_playout: true, status: "published")
+    channel ||= Studio::Broadcasting::NetworkCarriage.find_visible(site, params[:channel_id], user: current_user)
+    token = Studio::Broadcasting::Audience.identity(params[:view_session], channel: channel, outlet: site)
+    return head :not_found unless token
+
+    render json: { timeline: Studio::Broadcasting::Nielsen.timeline(channel, distributor: channel.site_id != site.id) }
+  rescue ActiveRecord::RecordNotFound, LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied
     head :not_found
   end
 end

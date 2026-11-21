@@ -2,7 +2,8 @@
 <%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
 <%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
 <%= javascript_include_tag "/lightek/vendor/hls/hls.light.min.js", defer: true %>
-<%= javascript_include_tag "/lightek/live/watch-tv.js?v=1", defer: true %>
+<% if @nielsen %><%= javascript_include_tag "/lightek/live/nielsen-viewership.js?v=1", defer: true %><% end %>
+<%= javascript_include_tag "/lightek/live/watch-tv.js?v=2", defer: true %>
 
 <main class="ll-studio ll-playout">
   <header class="ll-header"><h1><%= @guide.dig(:screen, :title) %></h1></header>
@@ -12,6 +13,11 @@
       <video controls playsinline preload="none" width="800" style="max-width:100%" data-tv-playback="<%= @selected.dig(:action, :playback_url) %>"
         data-tv-format="<%= @selected.dig(:action, :stream_format) %>"></video>
       <p data-tv-status role="status"></p>
+      <% if @nielsen %>
+        <label><input type="checkbox" data-nielsen-app="<%= @nielsen.fetch(:app_id) %>"
+          data-nielsen-debug="<%= @nielsen.fetch(:debug) %>" data-nielsen-timeline="<%= @selected.dig(:action, :measurement_url) %>">
+          Allow Nielsen audience measurement</label>
+      <% end %>
     </section>
   <% end %>
 

@@ -7,7 +7,8 @@ class Dashboard::ChannelPlayoutController < Dashboard::SettingsHomeController
   rescue_from LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied, ::Gatekeeper::StudioLivePolicy::Denied do |error|
     render plain: error.message, status: :forbidden
   end
-  rescue_from ArgumentError, KeyError, ActiveRecord::RecordInvalid do |error|
+  rescue_from ArgumentError, KeyError, ActiveRecord::RecordInvalid, Studio::Broadcasting::HostedPrograms::Unavailable,
+    LightekReservations::Federation::Client::Unavailable do |error|
     redirect_to dashboard_channel_playout_path(@channel, site_id: @site.id), alert: error.message, status: :see_other
   end
 

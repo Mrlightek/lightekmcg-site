@@ -1,5 +1,6 @@
 get "/gatekeeper/linear/:channel_id/:name", to: "linear_channel_streams#show", format: false,
   constraints: { channel_id: /[0-9]+/, name: /index\.m3u8|out-[0-9]+\.ts/ }
+get "/watch/tv/measurement/:channel_id", to: "broadcast_tv#measurement", constraints: { channel_id: /[0-9]+/ }
 get "/watch/tv", to: "broadcast_tv#show", as: :broadcast_tv
 get "/dashboard/live/network", to: "dashboard/broadcast_network#show", as: :dashboard_broadcast_network
 post "/dashboard/live/network/channels/:channel_id", to: "dashboard/broadcast_network#station_carriage", as: :dashboard_station_carriage
@@ -9,3 +10,19 @@ post "/dashboard/live/network/licenses/:license_id/accept", to: "dashboard/broad
 post "/dashboard/live/network/licenses/:license_id/withdraw", to: "dashboard/broadcast_network#withdraw_license", as: :dashboard_withdraw_program_license
 get "/dashboard/live/network/audience.csv", to: "dashboard/broadcast_network#audience_csv", as: :dashboard_broadcast_audience
 get "/dashboard/live/network/measurement.json", to: "dashboard/broadcast_network#measurement_metadata", as: :dashboard_broadcast_measurement
+post "/dashboard/live/network/portfolio", to: "dashboard/broadcast_network#install_portfolio", as: :dashboard_broadcast_portfolio
+post "/api/reservations/federation/broadcast/channels/:key", to: "api/broadcast_carriage#save", constraints: { key: /[0-9a-f]{32}/ }
+get "/gatekeeper/network/:key/:name", to: "affiliate_channel_streams#show", format: false,
+  constraints: { key: /[0-9a-f]{32}/, name: /index\.m3u8|measurement\.json|out-[0-9]+\.ts/ }
+get "/gatekeeper/affiliate-source/:key/:name", to: "affiliate_channel_streams#source", format: false,
+  constraints: { key: /[0-9a-f]{32}/, name: /index\.m3u8|measurement\.json|out-[0-9]+\.ts/ }
+post "/dashboard/live/network/hosted/:key", to: "dashboard/broadcast_network#hosted_carriage", as: :dashboard_hosted_carriage
+get "/api/reservations/federation/broadcast/programs", to: "api/broadcast_programs#index"
+put "/api/reservations/federation/broadcast/programs/:key/media", to: "api/broadcast_programs#upload", constraints: { key: /[0-9a-f]{32}/ }
+get "/api/reservations/federation/broadcast/programs/:key/media", to: "api/broadcast_programs#download", constraints: { key: /[0-9a-f]{32}/ }
+post "/api/reservations/federation/broadcast/programs/:key/accept", to: "api/broadcast_programs#accept", constraints: { key: /[0-9a-f]{32}/ }
+get "/api/reservations/federation/broadcast/programs/:key/status", to: "api/broadcast_programs#status", constraints: { key: /[0-9a-f]{32}/ }
+post "/api/reservations/federation/broadcast/programs/:key/withdraw", to: "api/broadcast_programs#withdraw", constraints: { key: /[0-9a-f]{32}/ }
+post "/dashboard/live/network/licenses/hosted", to: "dashboard/broadcast_network#offer_hosted_license", as: :dashboard_hosted_program_licenses
+post "/dashboard/live/network/licenses/hosted/:key/accept", to: "dashboard/broadcast_network#accept_hosted_license", as: :dashboard_accept_hosted_program_license
+post "/dashboard/live/network/licenses/hosted/:key/withdraw", to: "dashboard/broadcast_network#withdraw_hosted_license", as: :dashboard_withdraw_hosted_program_license

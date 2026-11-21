@@ -7,34 +7,58 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
   rescue_from LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied do |error|
     render plain: error.message, status: :forbidden
   end
-  rescue_from ArgumentError, ActiveRecord::RecordInvalid do |error|
+  rescue_from ArgumentError, ActiveRecord::RecordInvalid, Studio::Broadcasting::InstallationCarriage::Unavailable,
+    LightekReservations::Federation::Client::Unavailable, Studio::Broadcasting::HostedPrograms::Unavailable do |error|
     redirect_to dashboard_broadcast_network_path(site_id: @site.id), alert: error.message, status: :see_other
   end
 
   def show
+    if @hub && current_user.role == "super_admin"
+      @corporate_owner = LightekPwa::Policy.platform_operator(@site)
+      @portfolio = LightekPeople::Department.where(employer: @corporate_owner,
+        code: LightekPeople::CorporatePortfolio::DIVISIONS.keys).includes(:parent).index_by(&:code) if @corporate_owner && defined?(LightekPeople::Department)
+    end
     @channels = channels.order(:position, :id)
     @carriages = carriage.where(channel_id: channels).index_by(&:channel_id)
+    @hosted = Studio::Broadcasting::HostedCarriage.where(status: %w[requested accepted]).includes(peer: :site).order(:created_at) if @hub
     @pending = carriage.where(status: %w[requested accepted]).includes(channel: :site).order(:updated_at) if @hub
     @start_day, @end_day = report_days
     @scope = params[:scope] == "outlet" && @hub ? "outlet" : "station"
     report = audience_report
     @totals = report.totals
     @channel_totals = report.channel_totals
-    @channel_names = Studio::Broadcasting::Channel.where(id: @channel_totals.map(&:first)).pluck(:id, :name).to_h
+    ids = @channel_totals.map(&:first)
+    @channel_names = Studio::Broadcasting::Channel.where(id: ids.select(&:positive?)).pluck(:id, :name).to_h
+    Studio::Broadcasting::HostedCarriage.where(id: ids.select(&:negative?).map(&:abs)).pluck(:id, :name)
+      .each { |id, name| @channel_names[-id] = name }
     @metadata = report.measurement_metadata
     @outgoing = licensing.where(licensor_site: @site).includes(:licensee_site).order(id: :desc).limit(50)
     @incoming = licensing.where(licensee_site: @site).includes(:licensor_site).order(id: :desc).limit(50)
+    @hosted_program_board = hosted_program_board
     @receiving_sites = receiving_sites.order(:name, :id)
     @assets = assets.includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }
+  end
+
+  def install_portfolio
+    raise LightekPwa::Policy::Denied, "Only the Lightek platform operator can set up the company portfolio." unless @hub
+    LightekPwa::Policy.authorize_platform!(user: current_user, site: @site)
+    owner = LightekPwa::Policy.platform_operator(@site)
+    raise ArgumentError, "Bind the platform operator to this network site first." unless owner
+
+    LightekPeople::CorporatePortfolio.install!(owner)
+    back("Lightek divisions and their reporting lines are available in People.")
   end
 
   def station_carriage
     channel = channels.find(params[:channel_id])
     entry = carriage.create_or_find_by!(channel: channel)
+    connected = Studio::Broadcasting::InstallationCarriage.connected?(@site)
     entry.with_lock do
+      entry.update!(remote_key: SecureRandom.hex(16)) if connected && entry.remote_key.nil?
       state = params[:carriage] == "withdraw" ? "withdrawn" : "requested"
       entry.update!(status: state, ownership: nil) unless entry.status == "accepted" && state == "requested"
     end
+    Studio::Broadcasting::InstallationCarriage.sync!(entry, renew: params[:carriage] != "withdraw") if connected
     back("Channel carriage updated.")
   end
 
@@ -53,6 +77,21 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
     back("Network lineup updated.")
   end
 
+  def hosted_carriage
+    raise LightekPwa::Policy::Denied, "Only the network operator can approve carriage." unless @hub
+
+    entry = Studio::Broadcasting::HostedCarriage.find_by!(key: params[:key])
+    entry.with_lock do
+      if params[:carriage] == "withdraw"
+        entry.update!(status: "withdrawn")
+      else
+        raise ArgumentError, "This station needs to request carriage again." unless entry.status.in?(%w[requested accepted]) && entry.peer.active?
+        entry.update!(status: "accepted", ownership: params.require(:ownership))
+      end
+    end
+    back("Hosted station lineup updated.")
+  end
+
   def offer_license
     values = params.require(:license).permit(:licensee_site_id, :asset_id, :title, :starts_at, :ends_at)
     asset = assets.find(values[:asset_id])
@@ -61,6 +100,31 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
       blob_id: asset.proxy.blob&.id, title: values[:title].to_s.strip,
       starts_at: Time.zone.parse(values[:starts_at].to_s), ends_at: Time.zone.parse(values[:ends_at].to_s))
     back("Programming rights offered to #{recipient.name}.")
+  end
+
+  def offer_hosted_license
+    raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
+    form = params.require(:license).permit(:recipient, :asset_id, :title, :starts_at, :ends_at)
+    asset = assets.find(form[:asset_id])
+    starts_at = Time.zone.parse(form[:starts_at].to_s)
+    ends_at = Time.zone.parse(form[:ends_at].to_s)
+    raise ArgumentError, "Choose a valid rights window." unless starts_at && ends_at && ends_at > starts_at && ends_at.future?
+
+    Studio::Broadcasting::HostedPrograms.publish!(site: @site, asset: asset, recipient: form[:recipient], title: form[:title].to_s.strip,
+      starts_at: starts_at, ends_at: ends_at)
+    back("Program offered through the Lightek network.")
+  end
+
+  def accept_hosted_license
+    raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
+    Studio::Broadcasting::HostedPrograms.import!(@site, params[:key])
+    back("Licensed program downloaded and available in channel rundowns.")
+  end
+
+  def withdraw_hosted_license
+    raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
+    Studio::Broadcasting::HostedPrograms.client(@site).request("broadcast/programs/#{params[:key]}/withdraw", method: :post, body: {})
+    back("License closed to future bookings.")
   end
 
   def accept_license
@@ -101,6 +165,14 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
     @hub = carriage.hub?(@site)
   end
 
+  def hosted_program_board
+    return unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
+
+    Studio::Broadcasting::HostedPrograms.board(@site)
+  rescue LightekReservations::Federation::Client::Unavailable
+    nil
+  end
+
   def participating_site_ids
     Studio::Broadcasting::Channel.where(id: carriage.accepted.select(:channel_id)).select(:site_id)
   end
@@ -108,7 +180,9 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
   def receiving_sites
     hub_host = URI.parse(LightekReservations::Federation::Issuer.origin).host
     scope = DymondSite::Site.where(id: participating_site_ids)
-    scope.or(DymondSite::Site.where(host: hub_host)).where.not(id: @site.id)
+    scope = scope.or(DymondSite::Site.where(host: hub_host))
+    scope = scope.or(Studio::Broadcasting::HostedPrograms.directory) if @hub
+    scope.where.not(id: @site.id)
   end
 
   def assets

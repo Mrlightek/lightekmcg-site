@@ -90,7 +90,10 @@ module Studio
             airing.state = airing.state.merge("position" => late_by > 3 ? late_by : 0)
             airing.record_event!("started")
           end
-          @prepared_rows.clear if @prepared_for != airing.id
+          if @prepared_for != airing.id
+          @prepared_rows.clear
+          @ad_metadata = {}
+        end
           @prepared_for = airing.id
           seconds = airing.state["input"] ? publish_input(airing) : publish_rundown(airing)
           manage_relay(airing) if seconds
@@ -114,6 +117,7 @@ module Studio
             end
           end
           if ad_media && ad_media.sum(&:duration) >= item.fetch("seconds") - 0.1
+            @ad_metadata[index] = Nielsen.ad_for(placement.campaign, item.fetch("kind"))
             [ad_media, true]
           else
             [PlayoutMedia.segments(directory.join(index.to_s)), false]
@@ -141,7 +145,10 @@ module Studio
         # Seeking within a row resets its media timestamps too.
         generation = airing.state.fetch("generation", 0)
         audience = { "airing_id" => airing.id }
-        audience["ad_row"] = index if ad
+        if ad
+          audience["ad_row"] = index
+          audience["ad"] = @ad_metadata.fetch(index)
+        end
         @feed.push(segment, source: [source, generation], audience: @channel.status == "published" ? audience : nil)
         mark_public_airtime(airing) if @channel.status == "published"
         if ad && @channel.status == "published"

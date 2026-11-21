@@ -32,6 +32,7 @@ module Studio
           if (match = /\Alicense-(\d+)\z/.match(selection.to_s))
             raise ArgumentError, "Use licensed programming in a show segment on your managed channel." if relay || row["kind"] != "segment" || row["ad_campaign_id"].present?
             license = ProgramLicense.where(licensee_site_id: channel.site_id, status: "accepted").find(match[1])
+            HostedPrograms.check_booking!(license) if license.imported?
             asset = license.asset || raise(ArgumentError, "That licensed program is unavailable.")
           else
             asset = assets.find(selection)

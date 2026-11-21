@@ -22,7 +22,7 @@ module LightekReservations
         raise Unavailable, 'Invalid reservation network origin' unless @origin.is_a?(URI::HTTPS) && @origin.host.present? && !@origin.userinfo && @origin.path.in?(['','/']) && !@origin.query && !@origin.fragment
       end
       def request(path, body: nil, method: :get)
-        raise Unavailable, 'Invalid reservation operation' unless path.match?(%r{\Aads/(?:catalog|sales|offers/[a-f0-9-]{36}|placements/[a-f0-9-]{36})\z}) || path.match?(%r{\Astudio/cpu(?:/[0-9a-f]{48}(?:/(?:resume|cancel))?)?\z}) || path.match?(%r{\A(?:pwa/publications|pwa/member-session|pwa/youtube(?:/[0-9a-f-]{36})?|connect/(?:redeem|validate)|commerce/checkouts|commerce/connect|commerce/summary|commerce/orders/[a-f0-9-]{36}(?:/(?:fulfill|refund|payout|cancel-subscription))?|shipping/quotes(?:/[a-f0-9-]{36}/(?:purchase|status|cancel|labels/[0-9]+))?|catalog|offers|intents|reservations/[a-zA-Z0-9_-]{1,64}|payouts)\z})
+        raise Unavailable, 'Invalid reservation operation' unless path.match?(%r{\Abroadcast/(?:channels/[0-9a-f]{32}|programs(?:/[0-9a-f]{32}/(?:accept|status|withdraw))?)\z}) || path.match?(%r{\Aads/(?:catalog|sales|offers/[a-f0-9-]{36}|placements/[a-f0-9-]{36})\z}) || path.match?(%r{\Astudio/cpu(?:/[0-9a-f]{48}(?:/(?:resume|cancel))?)?\z}) || path.match?(%r{\A(?:pwa/publications|pwa/member-session|pwa/youtube(?:/[0-9a-f-]{36})?|connect/(?:redeem|validate)|commerce/checkouts|commerce/connect|commerce/summary|commerce/orders/[a-f0-9-]{36}(?:/(?:fulfill|refund|payout|cancel-subscription))?|shipping/quotes(?:/[a-f0-9-]{36}/(?:purchase|status|cancel|labels/[0-9]+))?|catalog|offers|intents|reservations/[a-zA-Z0-9_-]{1,64}|payouts)\z})
         secret = LightekVault::Service.checkout!(slug: @config.fetch('credential_slug'), consumer: CONSUMER,
           purpose: 'reservation_federation', requested_by: 'reservation-network')
         uri = @origin.dup; uri.path = "/api/reservations/federation/#{path}"
@@ -50,6 +50,46 @@ module LightekReservations
       ensure
         secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
       end
+      def broadcast_media(path, upload: nil, download: nil, bytes: nil, metadata: nil)
+        raise Unavailable, "Invalid program exchange path" unless path.match?(%r{\Abroadcast/programs/[0-9a-f]{32}/media\z})
+        limit = 256.megabytes
+        secret = LightekVault::Service.checkout!(slug: @config.fetch("credential_slug"), consumer: CONSUMER,
+          purpose: "reservation_federation", requested_by: "broadcast-program-transfer")
+        uri = @origin.dup
+        uri.path = "/api/reservations/federation/#{path}"
+        request = upload ? Net::HTTP::Put.new(uri) : Net::HTTP::Get.new(uri)
+        request["Authorization"] = "Bearer #{secret.fetch('token')}"
+        if upload
+          raise Unavailable, "The program is too large" unless bytes.between?(1, limit)
+          request["X-Lightek-Program"] = JSON.generate(metadata)
+          request["Content-Type"] = "video/mp4"
+          request.content_length = bytes
+          request.body_stream = upload
+        end
+        Timeout.timeout(180) do
+          Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 25) do |http|
+            http.request(request) do |response|
+              raise Unavailable, "The program transfer is unavailable" unless response.is_a?(Net::HTTPSuccess)
+              if upload
+                return JSON.parse(response.body)
+              end
+              header = response.fetch("X-Lightek-Program")
+              size = 0
+              response.read_body do |part|
+                size += part.bytesize
+                raise Unavailable, "The program exceeds its transfer limit" if size > limit
+                download.write(part)
+              end
+              return JSON.parse(header)
+            end
+          end
+        end
+      rescue JSON::ParserError, KeyError, IOError, SystemCallError, Timeout::Error, OpenSSL::SSL::SSLError
+        raise Unavailable, "The program transfer was interrupted."
+      ensure
+        secret&.each_value { |value| value.clear if value.is_a?(String) && !value.frozen? }
+      end
+
       # Fixed-origin streaming transfer; no response-provided URL or redirect is followed.
       def download_cpu_file(key:, filename:, io:)
         raise Unavailable, 'Invalid remote CPU file' unless key.match?(/\A[0-9a-f]{48}\z/) && %w[movie.mp4 scene.blend preview.png].include?(filename)

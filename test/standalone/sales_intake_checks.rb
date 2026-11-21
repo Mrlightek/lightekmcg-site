@@ -198,8 +198,12 @@ class SalesIntakeChecks < SalesCrmChecks
     assert_equal @member, row.reload.completed_by
     assert_equal 1, LightekSales::Activity.where(kind: 'task_completed').count
 
-    second = LightekSales::Tasks.new(actor: @owner, site: @site).create!(kind: 'lead', id: row.record_id,
-      values: {title: 'Other follow-up', owner_id: @member.id, due_at: Time.current + 3.days})
+    due = 3.days.from_now.change(usec: 0).iso8601
+    schedule = nevaeh_service_command("Schedule a follow-up called \"Send notes\" for lead ##{row.record_id} on site ##{@site.id} assigning user ##{@member.id} due #{due}")
+    next_task = commands.perform!(actor: @owner, command: schedule, action_id: 16)
+    assert_equal next_task, commands.perform!(actor: @owner, command: schedule, action_id: 16)
+    second = LightekSales::Task.find(next_task.fetch('task_id'))
+    assert_equal @member, second.owner
     cancel = nevaeh_service_command("Cancel sales task ##{second.id} on site ##{@site.id} at version #{second.lock_version}")
     assert_equal 'canceled', commands.perform!(actor: @owner, command: cancel, action_id: 16).fetch('task_status')
   end

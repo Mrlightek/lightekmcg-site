@@ -37,12 +37,14 @@ Examples of in-app operations include `/execute sales.lead.create`, `/execute re
 | Check a lead and get its current version | `Show lead #12 on site #3` |
 | Convert a qualified lead to a deal | `Convert lead #12 on site #3 at version 0 to a deal called "Spring launch" for 1500.00 USD closing 2027-03-31` |
 | Check a quote and its order | `Show quote #42 on site #3` |
+| Draft a quote from catalog products | `Draft a quote for deal #42 on site #3 called "Spring launch" for "buyer@example.com" expiring 2027-03-31 with 2 of product #7` |
 | Issue a draft quote | `Issue quote #42 on site #3 at version 0` |
 | Record a customer's confirmed approval | `Record customer approval for quote #42 on site #3 from "Jane Doe" with reference "Approval email"` |
 | Check payment, delivery, and installation status | `Check order #42 on site #3` |
 | Finish fulfillment of a paid order | `Fulfill order #42 on site #3 with reference "Delivery receipt"` |
 | Queue installation recovery for a paid order | `Retry installation for order #42 on site #3` |
 | Check a sales task and get its current version | `Check sales task #42 on site #3` |
+| Schedule a follow-up | `Schedule a follow-up called "Send proposal" for lead #42 on site #3 assigning user #5 due 2027-03-31T15:30:00-04:00` |
 | Complete a sales task | `Complete sales task #42 on site #3 at version 0` |
 | Cancel a sales task | `Cancel sales task #42 on site #3 at version 0` |
 | Snooze a sales task | `Snooze sales task #42 on site #3 at version 0 until 2027-03-31T15:30:00-04:00` |

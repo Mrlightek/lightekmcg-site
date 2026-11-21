@@ -204,9 +204,15 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
   def test_nevaeh_records_explicit_customer_approval_and_creates_one_pending_order
     opportunity = deal
     product = LightekCommerce::Product.create!(site: @site, name: 'Launch package', slug: 'launch-package', price_cents: 3500)
-    quote = LightekSales::Quotes.new(actor: @owner, site: @site).draft!(opportunity_id: opportunity.id,
-      values: {title: 'Launch package', customer_email: 'buyer@example.test', expires_on: Date.current + 7},
-      quantities: {product.id.to_s=>1})
+    phrase = "Draft a quote for deal ##{opportunity.id} on site ##{@site.id} called \"Launch package\""
+    phrase += " for \"buyer@example.test\" expiring #{Date.current + 7} with 1 of product ##{product.id}"
+    draft = nevaeh_service_command(phrase)
+    assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::PlatformActions.perform!(actor: @other, command: draft, action_id: 1) }
+    assert_raises(ArgumentError) { nevaeh_service_command("#{phrase} and 2 of product ##{product.id}") }
+    receipt = NevaehOs::PlatformActions.perform!(actor: @member, command: draft, action_id: 1)
+    assert_equal 'draft', receipt.fetch('quote_status')
+    quote = LightekSales::Quote.find(receipt.fetch('quote_id'))
+    assert_equal product.price_cents, quote.total_cents
     issue = nevaeh_service_command("Issue quote ##{quote.id} on site ##{@site.id} using version #{quote.lock_version}")
     assert_equal 'issued', NevaehOs::PlatformActions.perform!(actor: @member, command: issue, action_id: 1).fetch('quote_status')
 

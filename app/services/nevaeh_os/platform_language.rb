@@ -9,6 +9,7 @@ module NevaehOs
     QUOTED = /"(?:[^"\\\x00-\x1f]|\\.)*"/
     TIMESTAMP = /\d{4}-\d{2}-\d{2}t\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:z|[+-]\d{2}:\d{2})?/i
     SALES_TASK = /(?:sales |follow-up )?task #?(?<task_id>[1-9]\d{0,17})/i
+    QUOTE_ITEM = /([1-9]\d{0,2}) of (?:product |item )?#?([1-9]\d{0,17})/i
     PHRASES = {
       'reservations.list' => [
         /(?:show|list) (?:me )?my reservations/i,
@@ -50,6 +51,10 @@ module NevaehOs
         /issue (?:sales )?quote #?(?<quote_id>[1-9]\d{0,17}) #{SITE} #{VERSION}/i,
         'Issue quote #42 on site #3 at version 0'
       ],
+      'sales.quote.draft' => [
+        /draft (?:a )?quote for (?:deal|opportunity) #?(?<opportunity_id>[1-9]\d{0,17}) #{SITE} (?:called|named) (?<title>#{QUOTED}) for (?<customer_email>#{QUOTED}) expiring (?<expires_on>\d{4}-\d{2}-\d{2}) with (?<quantities>#{QUOTE_ITEM}(?: and #{QUOTE_ITEM})*)/i,
+        'Draft a quote for deal #42 on site #3 called "Spring launch" for "buyer@example.com" expiring 2027-03-31 with 2 of product #7'
+      ],
       'sales.quote.status' => [
         /(?:show|check) (?:the )?(?:status of )?(?:sales )?quote #?(?<quote_id>[1-9]\d{0,17}) #{SITE}/i,
         'Show quote #42 on site #3'
@@ -61,6 +66,10 @@ module NevaehOs
       'sales.task.status' => [
         /(?:show|check) (?:the )?(?:status of )?#{SALES_TASK} #{SITE}/i,
         'Check sales task #42 on site #3'
+      ],
+      'sales.task.schedule' => [
+        /schedule (?:a )?(?:sales (?:task|follow-up)|follow-up) (?:called|named) (?<title>#{QUOTED}) for (?<record_kind>lead|account|contact|opportunity|prospect) #?(?<record_id>[1-9]\d{0,17}) #{SITE} assigning (?:it to )?(?:user )?#?(?<owner_id>[1-9]\d{0,17}) due (?<due_at>#{TIMESTAMP})/i,
+        'Schedule a follow-up called "Send proposal" for lead #42 on site #3 assigning user #5 due 2027-03-31T15:30:00-04:00'
       ],
       'sales.task.complete' => [
         /complete #{SALES_TASK} #{SITE} #{VERSION}/i,
@@ -97,6 +106,14 @@ module NevaehOs
         end
         payload['confirmed'] = true if intent == 'sales.quote.accept'
         payload['currency']&.upcase!
+        payload['record_kind']&.downcase!
+        if payload.key?('quantities')
+          items = payload.fetch('quantities').scan(QUOTE_ITEM)
+          quantities = items.to_h { |quantity, id| [id, Integer(quantity, 10)] }
+          raise ArgumentError, 'Include each quote product once' unless quantities.size == items.size
+
+          payload['quantities'] = quantities
+        end
         return {'kind'=>'capability', 'intent'=>intent, 'payload'=>payload}
       end
       nil

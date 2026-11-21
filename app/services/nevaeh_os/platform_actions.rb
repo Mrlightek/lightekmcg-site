@@ -18,9 +18,13 @@ module NevaehOs
       'sales.lead.convert' => {'site_id'=>:id, 'lead_id'=>:id, 'lock_version'=>:version, 'name'=>160,
                                'amount'=>:amount, 'currency'=>3, 'close_on'=>:date}.freeze,
       'sales.quote.issue' => {'site_id'=>:id, 'quote_id'=>:id, 'lock_version'=>:version}.freeze,
+      'sales.quote.draft' => {'site_id'=>:id, 'opportunity_id'=>:id, 'title'=>160, 'customer_email'=>254,
+                             'expires_on'=>:date, 'quantities'=>:quote_quantities}.freeze,
       'sales.quote.accept' => {'site_id'=>:id, 'quote_id'=>:id, 'accepted_name'=>160, 'acceptance_reference'=>300,
                                'confirmed'=>:confirmation}.freeze,
       'sales.task.status' => {'site_id'=>:id, 'task_id'=>:id}.freeze,
+      'sales.task.schedule' => {'site_id'=>:id, 'record_kind'=>:sales_relationship, 'record_id'=>:id,
+                                'title'=>300, 'owner_id'=>:id, 'due_at'=>40}.freeze,
       'sales.task.complete' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version}.freeze,
       'sales.task.cancel' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version}.freeze,
       'sales.task.snooze' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version, 'due_at'=>40}.freeze,
@@ -76,6 +80,11 @@ module NevaehOs
         when :date then value.is_a?(String) && /\A\d{4}-\d{2}-\d{2}\z/.match?(value)
         when :amount then value.is_a?(String) && /\A\d{1,14}(?:\.\d{1,2})?\z/.match?(value)
         when :confirmation then value == true
+        when :quote_quantities
+          value.is_a?(Hash) && value.size.between?(1, 50) && value.all? do |id, quantity|
+            id.is_a?(String) && id.match?(/\A[1-9]\d{0,17}\z/) && quantity.is_a?(Integer) && quantity.between?(1, 100)
+          end
+        when :sales_relationship then %w[lead account contact opportunity prospect].include?(value)
         else value.is_a?(String) && value.strip.length.between?(1, type) && !value.match?(/[\x00-\x1f\x7f]/)
         end
         raise ArgumentError, "Invalid #{field} for #{key}" unless valid
@@ -86,16 +95,17 @@ module NevaehOs
       key, values = command.values_at('intent', 'payload')
       validate!(key, values)
       case key
-      when 'sales.lead.create', 'sales.lead.status', 'sales.lead.convert', 'sales.quote.status', 'sales.quote.issue', 'sales.quote.accept',
-        'sales.task.status', 'sales.task.complete', 'sales.task.cancel', 'sales.task.snooze'
+      when 'sales.lead.create', 'sales.lead.status', 'sales.lead.convert', 'sales.quote.status', 'sales.quote.draft', 'sales.quote.issue',
+        'sales.quote.accept', 'sales.task.status', 'sales.task.schedule', 'sales.task.complete', 'sales.task.cancel', 'sales.task.snooze'
         raise ArgumentError, 'Sales access required' unless %w[super_admin admin white_label client employee].include?(actor.role)
 
         site = LightekSales::Access.sites_for(actor).find(values.fetch('site_id'))
         workspace = LightekSales::Workspace.new(actor: actor, site: site)
         workspace.revalidate!
         case key
-        when 'sales.lead.create' then site
+        when 'sales.lead.create', 'sales.task.schedule' then site
         when 'sales.lead.status', 'sales.lead.convert' then workspace.find('lead', values.fetch('lead_id'))
+        when 'sales.quote.draft' then workspace.find('opportunity', values.fetch('opportunity_id'))
         when /\Asales\.task\./ then LightekSales::Task.visible_in_sales(site).find(values.fetch('task_id'))
         else LightekSales::Quote.where(site: site).find(values.fetch('quote_id'))
         end
@@ -172,8 +182,11 @@ module NevaehOs
           target.id, values.slice('name', 'amount', 'currency', 'close_on'), lock_version: values.fetch('lock_version'))
         {'lead_id'=>target.id, 'opportunity_id'=>opportunity.id, 'opportunity_stage'=>opportunity.stage}
       when 'sales.quote.status'
-        {'quote_id'=>target.id, 'quote_status'=>target.status, 'lock_version'=>target.lock_version,
-         'order_id'=>target.order_id, 'order_status'=>target.order&.status}
+        quote_receipt(target)
+      when 'sales.quote.draft'
+        quote = LightekSales::Quotes.new(actor: actor, site: target.site).draft!(opportunity_id: target.id,
+          values: values.slice('title', 'customer_email', 'expires_on'), quantities: values.fetch('quantities'))
+        quote_receipt(quote)
       when 'sales.quote.issue'
         quote = LightekSales::Quotes.new(actor: actor, site: target.site).issue!(id: target.id, version: values.fetch('lock_version'))
         {'quote_id'=>quote.id, 'quote_status'=>quote.status, 'text'=>"Quote ##{quote.id} issued. It is ready for customer review."}
@@ -183,6 +196,11 @@ module NevaehOs
         {'quote_id'=>quote.id, 'quote_status'=>quote.status, 'order_id'=>quote.order_id, 'order_status'=>quote.order.status}
       when 'sales.task.status'
         sales_task_receipt(target)
+      when 'sales.task.schedule'
+        task = LightekSales::Tasks.new(actor: actor, site: target).create!(kind: values.fetch('record_kind'),
+          id: values.fetch('record_id'), values: values.slice('title', 'owner_id', 'due_at'),
+          source_key: "nevaeh-action:#{action_id}")
+        sales_task_receipt(task)
       when 'sales.task.complete', 'sales.task.cancel', 'sales.task.snooze'
         task = LightekSales::Tasks.new(actor: actor, site: target.site).update!(target.id, action: key.delete_prefix('sales.task.'),
           lock_version: values.fetch('lock_version'), due_at: values['due_at'])
@@ -240,6 +258,12 @@ module NevaehOs
         slot = publication_calendar!(actor, target.site).cancel!(id: target.id, version: values.fetch('lock_version'))
         publication_receipt(slot).merge('text'=>'The local calendar slot is canceled.')
       end
+    end
+
+    def quote_receipt(quote)
+      {'quote_id'=>quote.id, 'quote_status'=>quote.status, 'lock_version'=>quote.lock_version,
+       'order_id'=>quote.order_id, 'order_status'=>quote.order&.status,
+       'links'=>[{'label'=>'Open quote','url'=>"/dashboard/sales/quotes/#{quote.id}?site_id=#{quote.site_id}"}]}
     end
 
     def sales_task_receipt(task)

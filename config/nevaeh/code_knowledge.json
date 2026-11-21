@@ -1810,6 +1810,114 @@
           "coverage": "partial"
         }
       ]
+    },
+    {
+      "id": "sales.quote.draft",
+      "title": "Draft a quote for a deal",
+      "summary": "Draft a quote against published products and the selected deal.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_quotes_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/quotes.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/quote.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.quote.draft",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "opportunity_id": "OPPORTUNITY_ID",
+          "title": "Spring launch",
+          "customer_email": "buyer@example.com",
+          "expires_on": "2027-03-31",
+          "quantities": {
+            "7": 2
+          }
+        },
+        "result": "Draft a quote against published products and the selected deal."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales_quotes#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.schedule",
+      "title": "Schedule a sales follow-up",
+      "summary": "Assign a due-dated follow-up to a site team member using the sales task workflow.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_tasks_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.schedule",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "record_kind": "lead",
+          "record_id": "RECORD_ID",
+          "title": "Send proposal",
+          "owner_id": "OWNER_ID",
+          "due_at": "2027-03-31T15:30:00-04:00"
+        },
+        "result": "Assign a due-dated follow-up to a site team member using the sales task workflow."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales_tasks#schedule",
+          "coverage": "bound"
+        }
+      ]
     }
   ]
 }

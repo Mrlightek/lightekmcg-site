@@ -11,6 +11,54 @@ module NevaehOs
     SALES_TASK = /(?:sales |follow-up )?task #?(?<task_id>[1-9]\d{0,17})/i
     QUOTE_ITEM = /([1-9]\d{0,2}) of (?:product |item )?#?([1-9]\d{0,17})/i
     PHRASES = {
+      'hosting.server.list' => [
+        /(?:show|list) (?:me )?my servers/i,
+        'Show my servers'
+      ],
+      'hosting.server.status' => [
+        /(?:show|check) (?:the )?(?:status of )?server #?(?<node_id>[1-9]\d{0,17})/i,
+        'Check server #3'
+      ],
+      'hosting.fleet.rollout.list' => [
+        /(?:show|list) (?:me )?(?:the )?fleet rollouts/i,
+        'List fleet rollouts'
+      ],
+      'hosting.fleet.rollout.status' => [
+        /(?:show|check) (?:the )?(?:status of )?(?:fleet )?rollout #?(?<rollout_id>[1-9]\d{0,17})/i,
+        'Check fleet rollout #42'
+      ],
+      'hosting.fleet.rollout.control' => [
+        /confirm (?<operation>start|pause|resume|retry|cancel) (?:fleet )?rollout #?(?<rollout_id>[1-9]\d{0,17})/i,
+        'Confirm pause fleet rollout #42'
+      ],
+      'mail.mailbox.list' => [
+        /(?:show|list) (?:me )?my mailboxes/i,
+        'Show my mailboxes'
+      ],
+      'mail.mailbox.status' => [
+        /(?:show|check) (?:the )?(?:status of )?mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Check mailbox #3'
+      ],
+      'mail.message.search' => [
+        /search (?:the )?(?<folder>inbox|unread|junk|starred|sent|draft|outbox|archived|all|trash) in mailbox #?(?<mailbox_id>[1-9]\d{0,17}) for (?<query>#{QUOTED})/i,
+        'Search inbox in mailbox #3 for "Proposal"'
+      ],
+      'mail.message.open' => [
+        /open (?:mail )?message #?(?<message_id>[1-9]\d{0,17}) in mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Open message #42 in mailbox #3'
+      ],
+      'mail.message.flag' => [
+        /set (?:mail )?message #?(?<message_id>[1-9]\d{0,17}) in mailbox #?(?<mailbox_id>[1-9]\d{0,17}) (?<flag>archived|trashed|starred|unread|junk) to (?<value>true|false)/i,
+        'Set message #42 in mailbox #3 starred to true'
+      ],
+      'mail.draft.create' => [
+        /draft (?:an )?email from mailbox #?(?<mailbox_id>[1-9]\d{0,17}) to (?<to>#{QUOTED}) with subject (?<subject>#{QUOTED}) and body (?<text>#{QUOTED})/i,
+        'Draft an email from mailbox #3 to "buyer@example.com" with subject "Proposal" and body "The proposal is ready."'
+      ],
+      'mail.draft.send' => [
+        /confirm sending (?:email )?draft #?(?<message_id>[1-9]\d{0,17}) from mailbox #?(?<mailbox_id>[1-9]\d{0,17})/i,
+        'Confirm sending draft #42 from mailbox #3'
+      ],
       'reservations.list' => [
         /(?:show|list) (?:me )?my reservations/i,
         'Show my reservations'
@@ -124,8 +172,14 @@ module NevaehOs
         payload = match.named_captures.transform_values do |value|
           value.start_with?('"') ? JSON.parse(value) : value
         end
-        payload['confirmed'] = true if intent == 'sales.quote.accept'
+        payload['confirmed'] = true if %w[sales.quote.accept mail.draft.send hosting.fleet.rollout.control].include?(intent)
         payload['currency']&.upcase!
+        payload['folder']&.downcase!
+        payload['operation']&.downcase!
+        if intent == 'mail.message.flag'
+          payload['flag'].downcase!
+          payload['value'] = payload.fetch('value').casecmp?('true')
+        end
         payload['record_kind']&.downcase!
         if payload.key?('quantities')
           items = payload.fetch('quantities').scan(QUOTE_ITEM)

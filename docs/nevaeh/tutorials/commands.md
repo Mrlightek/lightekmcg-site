@@ -78,6 +78,12 @@ Open **Software Library → Code map → Platform coverage** to search the loade
 
 Try `/code sign-in`, `/code merchant payout`, or `/code action status` for account security, payout setup, and execution diagnostics. Enter authentication factors and payout account details in the existing secure forms.
 
+### Mail Studio and hosting
+
+Say `Show my mailboxes`, `Search inbox in mailbox #3 for "Proposal"`, or `Open message #42 in mailbox #3`. Search returns message metadata and opening a message takes you to Mail Studio. `Draft an email from mailbox #3 to "buyer@example.com" with subject "Proposal" and body "The proposal is ready."` saves a draft for review. `Confirm sending draft #42 from mailbox #3` queues the existing draft through the mail service. Check Mail Studio for the delivery result.
+
+Say `Show my servers` to list servers you manage or `Check fleet rollout #42` to inspect a rollout and its target counts. Fleet operators can use explicit confirmation phrases such as `Confirm pause fleet rollout #42`. A rollout receipt reports the current rollout state. Individual installation results remain in the fleet console.
+
 ## Query and edit resources
 
 ```text

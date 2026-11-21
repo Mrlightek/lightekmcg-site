@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative 'mail_actions'
+require_relative 'hosting_actions'
+
 module NevaehOs
   # Explicit OS bindings. These commands run through the saved-action worker
   # and reuse the same access checks as their Dashboard entry points.
@@ -42,7 +45,6 @@ module NevaehOs
       'reservations.cancel' => {'reservation_id'=>:id}.freeze,
       'reservations.reschedule' => {'reservation_id'=>:id, 'starts_at'=>40}.freeze,
       'connect.connections.list' => {}.freeze,
-      'mail.mailbox.status' => {'mailbox_id'=>:id}.freeze,
       'studio.broadcast.channel.status' => {'site_id'=>:id, 'channel_id'=>:id}.freeze,
       'website.design.list' => {}.freeze,
       'website.design.create' => {'name'=>120}.freeze,
@@ -53,7 +55,7 @@ module NevaehOs
                                            'scheduled_at'=>40, 'time_zone'=>100}.freeze,
       'marketing.publication.status' => {'site_id'=>:id, 'slot_id'=>:id}.freeze,
       'marketing.publication.cancel' => {'site_id'=>:id, 'slot_id'=>:id, 'lock_version'=>:version}.freeze
-    }.freeze
+    }.merge(MailActions::INPUTS, HostingActions::INPUTS).freeze
 
     module_function
 
@@ -84,6 +86,9 @@ module NevaehOs
         when :version then (value.is_a?(Integer) || value.is_a?(String)) && /\A[0-9]{1,10}\z/.match?(value.to_s)
         when :date then value.is_a?(String) && /\A\d{4}-\d{2}-\d{2}\z/.match?(value)
         when :amount then value.is_a?(String) && /\A\d{1,14}(?:\.\d{1,2})?\z/.match?(value)
+        when :boolean then value == true || value == false
+        when :mail_query then value.is_a?(String) && value.length <= 240 && !value.match?(/[\x00-\x1f\x7f]/)
+        when :mail_body then value.is_a?(String) && value.strip.length.between?(1, 8000) && !value.match?(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/)
         when :confirmation then value == true
         when :quote_quantities
           value.is_a?(Hash) && value.size.between?(1, 50) && value.all? do |id, quantity|
@@ -99,6 +104,9 @@ module NevaehOs
     def authorize!(actor, command)
       key, values = command.values_at('intent', 'payload')
       validate!(key, values)
+      return MailActions.authorize!(actor, key, values) if MailActions::INPUTS.key?(key)
+      return HostingActions.authorize!(actor, key, values) if HostingActions::INPUTS.key?(key)
+
       case key
       when 'sales.lead.create', 'sales.lead.status', 'sales.lead.convert', 'sales.quote.status', 'sales.quote.draft', 'sales.quote.issue',
         'sales.quote.accept', 'sales.task.status', 'sales.task.schedule', 'sales.task.complete', 'sales.task.cancel', 'sales.task.snooze'
@@ -140,8 +148,6 @@ module NevaehOs
         raise ArgumentError, 'Agency access required' unless %w[white_label super_admin].include?(actor.role)
 
         LightekConnect::Connection.where(user: actor)
-      when 'mail.mailbox.status'
-        mailbox!(actor, values.fetch('mailbox_id'))
       when 'studio.broadcast.channel.status'
         site = Studio::Broadcasting::Access.sites(actor).find(values.fetch('site_id'))
         Studio::Broadcasting::Access.authorize!(actor, site)
@@ -175,15 +181,12 @@ module NevaehOs
       raise ArgumentError, error.message
     end
 
-    def mailbox!(actor, id)
-      LightekMail::Access.accounts(actor).find(id)
-    rescue LightekMail::Access::Denied => error
-      raise ArgumentError, error.message
-    end
-
     def perform!(actor:, command:, action_id:)
       key, values = command.values_at('intent', 'payload')
       target = authorize!(actor, command)
+      return MailActions.perform!(key, target, values, action_id: action_id) if MailActions::INPUTS.key?(key)
+      return HostingActions.perform!(key, target, values) if HostingActions::INPUTS.key?(key)
+
       case key
       when 'sales.lead.create'
         lead = LightekSales::Workspace.new(actor: actor, site: target).save!('lead', values.except('site_id'))
@@ -256,8 +259,6 @@ module NevaehOs
         reservation_receipt(reservation)
       when 'connect.connections.list'
         SpecialistTasks.summary(target, %w[id label platform revoked_at])
-      when 'mail.mailbox.status'
-        {'mailbox_id'=>target.id, 'enabled'=>target.enabled?, 'sending_ready'=>target.sending_ready?}
       when 'studio.broadcast.channel.status'
         {'channel_id'=>target.id, 'configured_status'=>target.status, 'managed_playout'=>target.managed_playout?}
       when 'website.design.list'

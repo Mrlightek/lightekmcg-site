@@ -9,6 +9,7 @@ require "active_job"
 require "active_support/all"
 require "logger"
 require "pathname"
+require_relative "../../app/services/nevaeh_os/platform_actions"
 require "active_support/testing/time_helpers"
 
 module Rails
@@ -175,6 +176,23 @@ class FleetUpdatesTest < Minitest::Test
     Gatekeeper::Fleet::Transport.stub(:call!, ->(target) { succeeded(target) }) do
       record.gatekeeper_update_targets.where(status: "queued").each { |target| Gatekeeper::Fleet::Update.call!(target) }
     end
+  end
+
+  def test_nevaeh_controls_fleet_through_the_existing_operator_policy
+    admin = User.create!(role: 'super_admin')
+    client = User.create!(role: 'client')
+    deployment = rollout(1)
+    params = {'rollout_id'=>deployment.id, 'operation'=>'start', 'confirmed'=>true}
+    command = NevaehOs::PlatformActions.command('hosting.fleet.rollout.control', params)
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: client, command: command, action_id: 1) }
+    assert_equal 'draft', deployment.reload.status
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.command('hosting.fleet.rollout.control', params.merge('confirmed'=>false)) }
+
+    receipt = NevaehOs::PlatformActions.perform!(actor: admin, command: command, action_id: 2)
+    assert_equal 'running', receipt.fetch('status')
+    assert_equal({'reserved'=>1}, receipt.fetch('targets_by_status'))
+    pause = NevaehOs::PlatformActions.command('hosting.fleet.rollout.control', params.merge('operation'=>'pause'))
+    assert_equal 'paused', NevaehOs::PlatformActions.perform!(actor: admin, command: pause, action_id: 3).fetch('status')
   end
 
   def test_only_persisted_super_admin_can_control_fleet

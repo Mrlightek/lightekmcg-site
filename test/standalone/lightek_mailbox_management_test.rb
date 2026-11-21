@@ -20,7 +20,15 @@ ActiveRecord::Schema.define do
   create_table(:lightek_mail_sending_policies) { |t| t.boolean :sending_enabled,default:false; t.string :stop_reason }
   create_table(:lightek_mail_envelopes) { |t| t.json :recipients,default:[] }
   create_table(:lightek_mail_templates) { |t| t.integer :account_id }
-  create_table(:lightek_mail_messages) { |t| t.integer :account_id; t.string :subject }
+  create_table(:lightek_mail_messages) do |t|
+    t.integer :account_id
+    t.string :subject
+    t.string :direction, default: 'inbound'
+    t.string :text_body
+    %i[trashed archived starred].each { |flag| t.boolean flag, default: false }
+    t.datetime :read_at
+    t.timestamps
+  end
   create_table(:lightek_mail_customer_suspensions) { |t| t.integer :user_id }
 end
 # The source migration is applied to this public ActiveRecord fixture. Local
@@ -39,7 +47,8 @@ module LightekMail
   class CustomerSuspension < ApplicationRecord; self.table_name = 'lightek_mail_customer_suspensions'; end
 end
 %w[domain account group_member].each { |file| require ROOT+"/app/models/lightek_mail/#{file}" }
-%w[access mailbox_management recipient_directory spam_filter].each { |file| require ROOT+"/app/services/lightek_mail/#{file}" }
+%w[access mailbox_management recipient_directory spam_filter message_folder message_flag search].each { |file| require ROOT+"/app/services/lightek_mail/#{file}" }
+require ROOT+'/app/services/nevaeh_os/platform_actions'
 class LightekMailboxManagementTest < Minitest::Test
   def setup
     @user = User.create!(role:'client')
@@ -48,6 +57,31 @@ class LightekMailboxManagementTest < Minitest::Test
   def mailbox(name)
     LightekMail::MailboxManagement.create!(user:@user,domain:@domain,local_part:name,display_name:name.capitalize)
   end
+  def test_nevaeh_searches_and_flags_only_the_selected_mailbox
+    account = mailbox('primary')
+    second = mailbox('other')
+    message = account.messages.create!(subject: 'Proposal', text_body: 'Private body')
+    archived = account.messages.create!(subject: 'Proposal', archived: true)
+    foreign = second.messages.create!(subject: 'Proposal')
+    search = NevaehOs::PlatformActions.command('mail.message.search',
+      {'mailbox_id'=>account.id, 'folder'=>'inbox', 'query'=>'subject:Proposal'})
+    receipt = NevaehOs::PlatformActions.perform!(actor: @user, command: search, action_id: 1)
+    assert_equal [message.id], receipt.fetch('records').pluck('id')
+    refute_includes receipt.to_json, 'Private body'
+    assert_includes LightekMail::MessageFolder.scope(account, 'archived'), archived
+
+    params = {'mailbox_id'=>account.id, 'message_id'=>foreign.id, 'flag'=>'starred', 'value'=>true}
+    flag = NevaehOs::PlatformActions.command('mail.message.flag', params)
+    assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::PlatformActions.perform!(actor: @user, command: flag, action_id: 2) }
+    refute foreign.reload.starred?
+    flag = NevaehOs::PlatformActions.command('mail.message.flag', params.merge('message_id'=>message.id))
+    NevaehOs::PlatformActions.perform!(actor: @user, command: flag, action_id: 3)
+    assert message.reload.starred?
+    assert_raises(ArgumentError) do
+      NevaehOs::PlatformActions.command('mail.draft.send', {'mailbox_id'=>account.id, 'message_id'=>message.id, 'confirmed'=>false})
+    end
+  end
+
   def test_new_mailboxes_are_automatically_enabled_and_exported
     account = mailbox('andrew')
     assert account.enabled?

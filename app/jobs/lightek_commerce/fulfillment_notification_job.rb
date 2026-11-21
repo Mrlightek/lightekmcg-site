@@ -2,6 +2,7 @@
 module LightekCommerce
   class FulfillmentNotificationJob < ApplicationJob
     queue_as :default
+    self.enqueue_after_transaction_commit = true
     def perform(order_id)
       order = Order.find_by(id: order_id)
       return unless order && order.status == "fulfilled"

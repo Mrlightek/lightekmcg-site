@@ -2,8 +2,20 @@
 module LightekCommerce
   class PaidInstanceProvisioningJob < ApplicationJob
     queue_as :default
+    self.enqueue_after_transaction_commit = true
     retry_on LightekCommerce::PaidInstanceProvisioning::NotReady,
       wait: :polynomially_longer, attempts: 5
+
+    def self.enqueue_recovery!(order)
+      order.with_lock do
+        eligible = order.paid_at? && %w[paid fulfilled].include?(order.status) &&
+          order.purpose != "reservation_change" && !order.provisioned_at? &&
+          order.items.any? { |item| item.product.product_type == "lightek_instance" }
+        raise ActiveRecord::RecordNotFound, "No recoverable installation for this order" unless eligible
+
+        perform_later(order.id) || raise(LightekCommerce::PaidInstanceProvisioning::NotReady, "Installation recovery could not be queued")
+      end
+    end
 
     # A PostgreSQL session advisory lock spans the external Linode allocation
     # and deployment. Locking only the order row cannot protect cloud calls

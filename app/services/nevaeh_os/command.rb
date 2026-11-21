@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 require 'json'
+require_relative 'console_language'
+require_relative 'platform_language'
 module NevaehOs
   module Command
     HELP = <<~TEXT.freeze
@@ -24,6 +26,7 @@ module NevaehOs
       show my susus — list the Susus you organize or belong to
       /models · /schema User — discover the installed Rails data model
       User.where(role: "client").limit(10) — Ruby-style data console; /rails also works
+      List user records where role is client limit 10 — use the data console in English
       /ubuntu search video · /ubuntu show ffmpeg · /ubuntu plan ffmpeg
       /ubuntu setup ffmpeg — install, document and connect a supported application
       /ubuntu install ffmpeg · /ubuntu docs ffmpeg · /ubuntu integrate ffmpeg
@@ -33,6 +36,8 @@ module NevaehOs
       /read workers [ID] · /create workers {"name":"…","sections":[…]}
       /update workers ID {"lock_version":0,"status":"paused"} · /delete workers ID
       /execute INTENT {"field":"value"} — invoke a published intelligence
+      Run capability susu.list — invoke an installed action in English
+      Show quote #42 on site #3 — check a sales quote and its order
       /build ID — build and verify a construction
       /activate ID — activate a verified construction release
       /approve ID — approve a reviewed training dataset
@@ -66,6 +71,8 @@ module NevaehOs
     def parse(text)
       raise ArgumentError, 'Message must contain 1–4000 characters' unless text.is_a?(String) && text.strip.length.between?(1,4000)
       q = text.strip
+      platform_phrase = PlatformLanguage.command(q)
+      return platform_phrase if platform_phrase
       if (m = q.match(/\A(?:please )?(?:build|create|make)(?: me)? (?:a |my |the )?(?:feature|features|feature showcase) (?:page|webpage)(?: with (?:feature |overview |captioned )?videos)?(?: for site ([1-9][0-9]{0,17}))?[.!]?\z/i))
         return {'kind'=>'feature_showcase', 'site_id'=>m[1]&.to_i}.compact
       end
@@ -197,6 +204,11 @@ module NevaehOs
       end
       if (m = q.match(/\A\/?schema\s+([A-Z][A-Za-z0-9_:]*)\z/))
         return {'kind'=>'schema','model'=>m[1]}
+      end
+      console_phrase = ConsoleLanguage.request(q)
+      return console_phrase if console_phrase
+      if (m = q.sub(ConsoleLanguage::PREFIX, '').match(/\A(?:run|execute) (?:the )?capability ([a-z][a-z0-9_.-]+)(?:\s+with\s+(\{.*\}))?[.!]?\z/im))
+        return parse(['/execute', m[1].downcase, m[2]].compact.join(' '))
       end
       if (m = q.match(/\A\/?ubuntu\s+(search|show|plan|install|docs|integrate|setup|catalog)\s+([a-z0-9][a-z0-9+ ._-]{0,100})\z/i))
         return {'kind'=>'ubuntu','operation'=>m[1].downcase,'package'=>m[2].strip.downcase}

@@ -6,6 +6,8 @@ require 'minitest/autorun'
 require 'ostruct'
 require 'stripe'
 require 'pathname'
+require_relative '../../app/services/nevaeh_os/command'
+require_relative '../../app/services/nevaeh_os/platform_actions'
 ROOT = Pathname.new(File.expand_path('../..', __dir__))
 module Rails
   def self.root = ROOT
@@ -260,6 +262,31 @@ class ReservationsChecks < Minitest::Test
     assert_equal 'confirmed', booking.status
     assert_nil booking.order_id
     assert_equal 60.minutes, booking.ends_at - booking.starts_at
+  end
+
+  def test_nevaeh_lists_moves_and_cancels_only_the_customers_own_reservations
+    booking = reserve
+    reserve(customer: @other, start: @start + 2.hours)
+    run_command = lambda do |phrase, actor = @guest|
+      parsed = NevaehOs::Command.parse(phrase)
+      command = NevaehOs::PlatformActions.command(parsed.fetch('intent'), parsed.fetch('payload'))
+      NevaehOs::PlatformActions.perform!(actor: actor, command: command, action_id: 1)
+    end
+
+    result = run_command.call('Show my reservations')
+    assert_equal [booking.id], result.fetch('reservations').map { |item| item.fetch('reservation_id') }
+    assert_equal 'confirmed', run_command.call("Check reservation ##{booking.id}").fetch('reservation_status')
+    assert_raises(ActiveRecord::RecordNotFound) { run_command.call("Cancel my reservation ##{booking.id}", @other) }
+    assert_equal 'confirmed', booking.reload.status
+
+    start = (@start + 4.hours).iso8601
+    result = run_command.call("Reschedule my reservation ##{booking.id} to #{start}")
+    assert_equal Time.iso8601(start), Time.iso8601(result.fetch('starts_at'))
+    assert_equal 60.minutes, booking.reload.ends_at - booking.starts_at
+    result = run_command.call("Cancel my reservation ##{booking.id}")
+    assert_equal 'canceled', result.fetch('reservation_status')
+    assert_nil result.fetch('order_status')
+    assert_equal result, run_command.call("Cancel my reservation ##{booking.id}")
   end
   def test_checkout_retry_reuses_reservation
     key = SecureRandom.uuid

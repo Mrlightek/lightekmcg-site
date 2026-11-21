@@ -61,6 +61,8 @@ class GatekeeperHostedApplication < ApplicationRecord
   belongs_to :owner,class_name: 'User'
 end
 require ROOT.join('app/services/gatekeeper/hosting/access')
+require_relative '../../app/services/nevaeh_os/platform_actions'
+
 class EnterpriseAccountingChecks < PeoplePayrollChecks
   def self.runnable_methods = super.grep(/test_enterprise_/)
   def setup
@@ -79,6 +81,22 @@ class EnterpriseAccountingChecks < PeoplePayrollChecks
     row.save!
     row
   end
+  def test_enterprise_nevaeh_accounting_handoff_does_not_expose_the_ledger
+    command = NevaehOs::PlatformActions.command('accounting.workspace.open', {'employer_id'=>@employer.id})
+    assert_raises(ArgumentError) do
+      NevaehOs::PlatformActions.perform!(actor: @worker.worker, command: command, action_id: 1)
+    end
+    entitled_employer = @employer
+    entitled_employer.define_singleton_method(:can_access_feature?) { |feature| feature == 'bookkeeping_workspace' }
+    employers = Object.new
+    employers.define_singleton_method(:find) { |id| raise ActiveRecord::RecordNotFound unless id == entitled_employer.id; entitled_employer }
+    LightekPeople::Access.stub(:employers_for, employers) do
+      result = NevaehOs::PlatformActions.perform!(actor: @employer, command: command, action_id: 2)
+      assert_equal %w[employer_id links text], result.keys.sort
+      assert_equal "/dashboard/accounting?employer_id=#{@employer.id}", result.fetch('links').sole.fetch('url')
+    end
+  end
+
   def test_enterprise_defaults_are_ready_and_do_not_overwrite_custom_departments
     custom = LightekPeople::Department.create!(employer: @employer,name: 'IT',code: 'CUSTOM',active: false)
     LightekPeople::StarterDepartments.ensure!(@employer)

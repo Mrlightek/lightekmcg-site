@@ -52,6 +52,14 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
     assert_equal '', NevaehOs::Command.parse('/code').fetch('query')
   end
 
+  def test_platform_phrase_examples_resolve_to_their_typed_bindings
+    NevaehOs::PlatformLanguage::PHRASES.each do |key, (_, phrase)|
+      parsed = NevaehOs::Command.parse("Please #{phrase}.")
+      assert_equal key, parsed.fetch('intent')
+      assert_equal 'platform_action', NevaehOs::PlatformActions.command(key, parsed.fetch('payload')).fetch('kind')
+    end
+  end
+
   def test_route_coverage_counts_only_exact_reviewed_bindings
     path = Struct.new(:spec)
     route = Struct.new(:verb, :path, :defaults)
@@ -61,6 +69,8 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
       {'capability'=>{'key'=>'sales.quote.issue'}, 'binding_status'=>'enabled', 'endpoints'=>[endpoint]},
       {'capability'=>{'key'=>'sales.quote.cancel'}, 'binding_status'=>'disabled',
        'endpoints'=>[endpoint.merge('action'=>'sales#cancel')]},
+      {'capability'=>{'key'=>'sales.checkout'}, 'binding_status'=>'enabled',
+       'endpoints'=>[endpoint.merge('action'=>'sales#removed'), endpoint.merge('source'=>'Studio')]},
       {'capability'=>{'key'=>'sales.workspace.open'}, 'binding_status'=>'registers_on_dispatch',
        'endpoints'=>[endpoint.merge('method'=>'GET', 'action'=>'sales#index', 'coverage'=>'handoff')]}
     ]}
@@ -72,9 +82,14 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
       route.new('GET', path.new('/mount'), {})
     ])
     engine = routes.new([host.routes.first])
-    coverage = NevaehIntelligences::PlatformCoverage.new(route_sets: {'Host application'=>host, 'Billing'=>engine}, code_map: map)
+    coverage = NevaehIntelligences::PlatformCoverage.new(route_sets: {'Host application'=>host, 'Billing'=>engine},
+      code_map: map, unavailable_route_sets: ['Studio'])
     report = coverage.report(query: 'unmapped')
     assert_equal 5, report.fetch('total_routes')
+    assert_equal 4, report.fetch('routes_without_full_binding')
+    refute report.fetch('all_loaded_routes_bound')
+    assert_equal ['Studio'], report.fetch('unavailable_route_sets')
+    assert_equal ['sales#removed'], report.fetch('stale_route_bindings').map { |entry| entry.fetch('action') }
     assert_equal({'bound'=>1, 'unmapped'=>2, 'binding_unavailable'=>1, 'handoff'=>1}, report.fetch('counts'))
     assert_equal ['Billing', 'Host application'], report.fetch('routes').map { |row| row.fetch('source') }
     assert_empty report.fetch('routes').flat_map { |row| row.fetch('bindings') }

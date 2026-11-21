@@ -22,7 +22,7 @@
   <% end %>
 
   <% statuses = { 'architecture_reference' => 'Architecture reference', 'enabled' => 'Enabled in registry',
-                  'disabled' => 'Disabled', 'not_installed' => 'Missing from registry',
+                  'registers_on_dispatch' => 'Registers on first dispatch', 'disabled' => 'Disabled', 'not_installed' => 'Missing from registry',
                   'binding_mismatch' => 'Registry binding mismatch' } %>
   <% @code_map.fetch('entries').each do |entry| %>
     <details class="nc-panel">

@@ -23,7 +23,10 @@ module NevaehIntelligences
         terms.all? { |term| searchable.include?(term) }
       end
 
-      keys = entries.filter_map { |entry| entry.dig('capability', 'key') }
+      keys = entries.filter_map do |entry|
+        link = entry['capability']
+        registry_key(link) if link
+      end
       installed = keys.empty? ? {} : NevaehCapability.where(slug: keys).index_by(&:slug)
       {
         'schema_version' => @catalog.fetch('schema_version'),
@@ -31,9 +34,10 @@ module NevaehIntelligences
           link = entry['capability']
           next entry.merge('binding_status' => 'architecture_reference') unless link
 
-          status = binding_status(link, installed[link.fetch('key')])
+          record = installed[registry_key(link)]
+          status = link['route'] == 'operating' ? operating_status(link, record) : binding_status(link, record)
           result = entry.merge('binding_status' => status)
-          if status == 'enabled'
+          if %w[enabled registers_on_dispatch].include?(status)
             result['example'] = "/execute #{link.fetch('key')} #{JSON.generate(link.fetch('inputs'))}"
           end
           result
@@ -42,6 +46,24 @@ module NevaehIntelligences
     end
 
     private
+
+    def registry_key(link)
+      link['route'] == 'operating' ? NevaehOs::Dispatch::CAPABILITY : link.fetch('key')
+    end
+
+    def operating_status(link, record)
+      return 'binding_mismatch' unless NevaehOs::PlatformActions.supported?(link.fetch('key')) &&
+        link.fetch('worker') == 'NevaehOs::Worker' && link.fetch('action') == 'execute'
+
+      # The shared worker registers lazily during first submission.
+      return 'registers_on_dispatch' unless record
+      return 'disabled' unless record.enabled?
+      return 'binding_mismatch' unless record.handler == link.fetch('worker') &&
+        record.subject_type == 'NevaehOsAction' && record.gatekeeper_capability == NevaehOs::Dispatch::CAPABILITY &&
+        Array(record.event_types).include?('nevaeh.os.execute.requested')
+
+      'enabled'
+    end
 
     def binding_status(link, record)
       return 'not_installed' unless record

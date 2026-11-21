@@ -39,10 +39,15 @@ Examples of in-app operations include `/execute sales.lead.create`, `/execute re
 | Check a quote and its order | `Show quote #42 on site #3` |
 | Issue a draft quote | `Issue quote #42 on site #3 at version 0` |
 | Record a customer's confirmed approval | `Record customer approval for quote #42 on site #3 from "Jane Doe" with reference "Approval email"` |
+| Check payment, delivery, and installation status | `Check order #42 on site #3` |
+| Finish fulfillment of a paid order | `Fulfill order #42 on site #3 with reference "Delivery receipt"` |
+| Queue installation recovery for a paid order | `Retry installation for order #42 on site #3` |
 | Check a calendar slot and get its current version | `Check publication slot #12 on site #3` |
 | Cancel a pending local slot | `Cancel publication slot #12 on site #3 at version 0` |
 
 Use the IDs and record versions from your own workspace. Recording approval requires evidence that the customer approved that quote. The action creates an order awaiting payment. Canceling a local publication slot follows the calendar's operator and version checks. For a submission that has already started, reconcile it through the publishing calendar.
+
+Use the order status command to follow a queued installation. It reports the latest installation state recorded by the existing Commerce worker.
 
 ### Review platform coverage
 

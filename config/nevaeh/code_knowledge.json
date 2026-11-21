@@ -1272,6 +1272,153 @@
           "coverage": "bound"
         }
       ]
+    },
+    {
+      "id": "commerce.order.status",
+      "title": "Check a commerce order",
+      "summary": "Read the recorded payment, fulfillment and installation status.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/commerce_orders_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "commerce.order.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "order_id": "ORDER_ID"
+        },
+        "result": "Read the recorded payment, fulfillment and installation status."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/commerce_orders#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "commerce.order.fulfill",
+      "title": "Fulfill a paid order",
+      "summary": "Complete fulfillment through Commerce and return the resulting order status.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/commerce_fulfillments_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_commerce/fulfillment.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "commerce.order.fulfill",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "order_id": "ORDER_ID",
+          "reference": "Delivery receipt"
+        },
+        "result": "Complete fulfillment through Commerce and return the resulting order status."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/commerce_fulfillments#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "commerce.order.provisioning.retry",
+      "title": "Retry a paid installation",
+      "summary": "Queue the existing paid-installation worker for an eligible order and return the queue receipt.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/commerce_orders_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/jobs/lightek_commerce/paid_instance_provisioning_job.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "commerce.order.provisioning.retry",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "order_id": "ORDER_ID"
+        },
+        "result": "Queue the existing paid-installation worker for an eligible order and return the queue receipt."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/commerce_orders#retry_provisioning",
+          "coverage": "bound"
+        }
+      ]
     }
   ]
 }

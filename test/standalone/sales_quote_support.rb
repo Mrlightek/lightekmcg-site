@@ -17,6 +17,7 @@ ActiveRecord::Schema.define do
     t.string :purpose; t.integer :shipping_quote_id; t.integer :hosting_owner_id; t.integer :gatekeeper_application_launch_id
     t.datetime :paid_at; t.datetime :provisioned_at; t.datetime :fulfilled_at; t.string :fulfillment_reference; t.text :fulfillment_note
     t.boolean :stock_reserved, default: true; t.datetime :canceled_at
+    t.datetime :deleted_at; t.string :provisioning_state
   end
   create_table(:lightek_commerce_order_items) { |t| t.references :order; t.references :product; t.references :variant; t.string :name; t.integer :quantity; t.integer :unit_price_cents; t.integer :line_total_cents; t.json :purchase_snapshot, default: {} }
 end

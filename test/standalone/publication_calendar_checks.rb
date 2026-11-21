@@ -103,13 +103,13 @@ class PublicationCalendarChecks < CampaignContentChecks
   def test_calendar_nevaeh_checks_and_cancels_only_the_authorized_current_slot
     review
     entry = slot
-    check = nevaeh_sales_command("Check publication slot ##{entry.id} on site ##{@site.id}")
+    check = nevaeh_service_command("Check publication slot ##{entry.id} on site ##{@site.id}")
     result = NevaehOs::PlatformActions.perform!(actor: @owner, command: check, action_id: 1)
     assert_equal 'scheduled', result.fetch('publication_status')
     assert_equal entry.lock_version, result.fetch('lock_version')
     assert_nil result.fetch('provider_status')
 
-    cancel = nevaeh_sales_command("Cancel publication slot ##{entry.id} on site ##{@site.id} at version #{entry.lock_version}")
+    cancel = nevaeh_service_command("Cancel publication slot ##{entry.id} on site ##{@site.id} at version #{entry.lock_version}")
     stale = cancel.merge('payload'=>cancel.fetch('payload').merge('lock_version'=>entry.lock_version + 1))
     assert_raises(ActiveRecord::StaleObjectError) { NevaehOs::PlatformActions.perform!(actor: @owner, command: stale, action_id: 2) }
     assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: @member, command: cancel, action_id: 3) }

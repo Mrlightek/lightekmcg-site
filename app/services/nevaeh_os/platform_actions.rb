@@ -22,6 +22,9 @@ module NevaehOs
                                'confirmed'=>:confirmation}.freeze,
       'sessions.room.create' => {'site_id'=>:id, 'name'=>120, 'kind'=>10}.freeze,
       'commerce.payouts.open' => {'site_id'=>:id}.freeze,
+      'commerce.order.status' => {'site_id'=>:id, 'order_id'=>:id}.freeze,
+      'commerce.order.fulfill' => {'site_id'=>:id, 'order_id'=>:id, 'reference'=>300}.freeze,
+      'commerce.order.provisioning.retry' => {'site_id'=>:id, 'order_id'=>:id}.freeze,
       'identity.security.status' => {}.freeze,
       'nevaeh.action.status' => {'action_id'=>:id}.freeze,
       'sales.quote.status' => {'site_id'=>:id, 'quote_id'=>:id}.freeze,
@@ -92,6 +95,11 @@ module NevaehOs
         raise ArgumentError, 'Commerce access required' unless %w[super_admin admin white_label client].include?(actor.role)
 
         LightekSettings::WebsiteIdentity.sites_for(actor).where(tenant: actor).find(values.fetch('site_id'))
+      when 'commerce.order.status', 'commerce.order.fulfill', 'commerce.order.provisioning.retry'
+        raise ArgumentError, 'Commerce access required' unless %w[super_admin admin white_label client].include?(actor.role)
+
+        site = LightekSettings::WebsiteIdentity.sites_for(actor).find(values.fetch('site_id'))
+        LightekCommerce::Order.visible.where(site: site).find(values.fetch('order_id'))
       when 'identity.security.status'
         actor
       when 'nevaeh.action.status'
@@ -166,6 +174,15 @@ module NevaehOs
       when 'commerce.payouts.open'
         {'site_id'=>target.id, 'links'=>[{'label'=>'Open secure payout setup', 'url'=>"/dashboard/commerce/payouts?site_id=#{target.id}"}],
          'text'=>'Open payout setup to continue with your authenticated browser session.'}
+      when 'commerce.order.status'
+        commerce_receipt(target)
+      when 'commerce.order.fulfill'
+        order = LightekCommerce::Fulfillment.complete!(order: target, reference: values.fetch('reference'))
+        commerce_receipt(order.reload)
+      when 'commerce.order.provisioning.retry'
+        job = LightekCommerce::PaidInstanceProvisioningJob.enqueue_recovery!(target)
+        commerce_receipt(target).merge('recovery_job_id'=>job.job_id, 'recovery_status'=>'queued',
+          'text'=>'Installation recovery was queued. Check the order for installation status.')
       when 'identity.security.status'
         {'mfa_enabled'=>LightekIdentity::Mfa.enabled?(target), 'mfa_required'=>LightekIdentity::Mfa.required?(target),
          'links'=>[{'label'=>'Open sign-in security', 'url'=>'/identity/security'}]}
@@ -192,6 +209,13 @@ module NevaehOs
         slot = publication_calendar!(actor, target.site).cancel!(id: target.id, version: values.fetch('lock_version'))
         publication_receipt(slot).merge('text'=>'The local calendar slot is canceled.')
       end
+    end
+
+    def commerce_receipt(order)
+      {'order_id'=>order.id, 'order_status'=>order.status, 'paid_at'=>order.paid_at&.iso8601,
+       'fulfilled_at'=>order.fulfilled_at&.iso8601, 'provisioned_at'=>order.provisioned_at&.iso8601,
+       'provisioning_status'=>order.provisioning_state,
+       'links'=>[{'label'=>'Open commerce orders','url'=>"/dashboard/commerce/orders?site_id=#{order.site_id}"}]}
     end
 
     def publication_receipt(slot)

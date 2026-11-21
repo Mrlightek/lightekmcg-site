@@ -8,6 +8,18 @@ module NevaehOs
     VERSION = /(?:at |using )?version (?<lock_version>\d{1,10})/
     QUOTED = /"(?:[^"\\\x00-\x1f]|\\.)*"/
     PHRASES = {
+      'commerce.order.status' => [
+        /(?:show|check) (?:the )?(?:status of )?(?:commerce )?order #?(?<order_id>[1-9]\d{0,17}) #{SITE}/i,
+        'Check order #42 on site #3'
+      ],
+      'commerce.order.fulfill' => [
+        /fulfill (?:commerce )?order #?(?<order_id>[1-9]\d{0,17}) #{SITE} with reference (?<reference>#{QUOTED})/i,
+        'Fulfill order #42 on site #3 with reference "Delivery receipt"'
+      ],
+      'commerce.order.provisioning.retry' => [
+        /retry (?:the )?installation for (?:commerce )?order #?(?<order_id>[1-9]\d{0,17}) #{SITE}/i,
+        'Retry installation for order #42 on site #3'
+      ],
       'sales.lead.status' => [
         /(?:show|check) (?:the )?(?:status of )?(?:sales )?lead #?(?<lead_id>[1-9]\d{0,17}) #{SITE}/i,
         'Show lead #12 on site #3'

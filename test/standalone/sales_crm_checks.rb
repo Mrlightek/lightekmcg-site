@@ -66,6 +66,18 @@ require ROOT.join('app/models/lightek_marketing/contact')
 %w[workspace forecast].each { |name| require ROOT.join("app/services/lightek_sales/#{name}") }
 require ROOT.join('app/services/lightek_agency/package_features')
 require_relative 'sales_intake_support'
+class ApplicationJob < ActiveJob::Base; end
+module LightekReservations
+  module Federation
+    module Client
+      class Unavailable < StandardError; end
+    end
+  end
+end
+require ROOT.join('app/services/lightek_commerce/fulfillment')
+require ROOT.join('app/services/lightek_commerce/paid_instance_provisioning')
+require ROOT.join('app/jobs/lightek_commerce/fulfillment_notification_job')
+require ROOT.join('app/jobs/lightek_commerce/paid_instance_provisioning_job')
 module Dashboard
   class SettingsHomeController < ActionController::Base
     before_action :require_settings_operator!, except: :csrf
@@ -159,14 +171,14 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     assert LightekSales::Activity.exists?(site: @site, actor: @member, record: record, kind: 'created')
   end
 
-  def nevaeh_sales_command(phrase)
+  def nevaeh_service_command(phrase)
     parsed = NevaehOs::PlatformLanguage.command(phrase)
     NevaehOs::PlatformActions.command(parsed.fetch('intent'), parsed.fetch('payload'))
   end
 
   def test_nevaeh_converts_a_qualified_lead_and_reports_the_deal
     record = lead
-    status = nevaeh_sales_command("Show lead ##{record.id} on site ##{@site.id}")
+    status = nevaeh_service_command("Show lead ##{record.id} on site ##{@site.id}")
     receipt = NevaehOs::PlatformActions.perform!(actor: @member, command: status, action_id: 1)
     assert_equal 'qualified', receipt.fetch('lead_status')
     assert_equal record.lock_version, receipt.fetch('lock_version')
@@ -174,7 +186,7 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     close_on = Date.current + 30
     phrase = "Convert lead ##{record.id} on site ##{@site.id} at version #{record.lock_version}"
     phrase += " into a deal named \"Launch services\" for 1250.55 USD closing #{close_on}"
-    command = nevaeh_sales_command(phrase)
+    command = nevaeh_service_command(phrase)
     stale = command.merge('payload'=>command.fetch('payload').merge('lock_version'=>record.lock_version + 1))
     assert_no_difference 'LightekSales::Opportunity.count' do
       assert_raises(ActiveRecord::StaleObjectError) { NevaehOs::PlatformActions.perform!(actor: @member, command: stale, action_id: 2) }
@@ -195,10 +207,10 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     quote = LightekSales::Quotes.new(actor: @owner, site: @site).draft!(opportunity_id: opportunity.id,
       values: {title: 'Launch package', customer_email: 'buyer@example.test', expires_on: Date.current + 7},
       quantities: {product.id.to_s=>1})
-    issue = nevaeh_sales_command("Issue quote ##{quote.id} on site ##{@site.id} using version #{quote.lock_version}")
+    issue = nevaeh_service_command("Issue quote ##{quote.id} on site ##{@site.id} using version #{quote.lock_version}")
     assert_equal 'issued', NevaehOs::PlatformActions.perform!(actor: @member, command: issue, action_id: 1).fetch('quote_status')
 
-    approval = nevaeh_sales_command("Record customer approval for quote ##{quote.id} on site ##{@site.id} from \"Jane Doe\" with reference \"Approval email\"")
+    approval = nevaeh_service_command("Record customer approval for quote ##{quote.id} on site ##{@site.id} from \"Jane Doe\" with reference \"Approval email\"")
     assert_no_difference 'LightekCommerce::Order.count' do
       assert_raises(ArgumentError) { NevaehOs::PlatformActions.command(approval.fetch('intent'), approval.fetch('payload').merge('confirmed'=>false)) }
       assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::PlatformActions.perform!(actor: @other, command: approval, action_id: 2) }
@@ -211,6 +223,38 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     end
     assert_equal 'closed_won', opportunity.reload.stage
     assert_equal 'Approval email', quote.reload.acceptance_reference
+  end
+
+  def test_nevaeh_checks_and_fulfills_orders_through_commerce
+    order = LightekCommerce::Order.create!(site: @site, customer_email: 'buyer@example.test')
+    check = nevaeh_service_command("Check order ##{order.id} on site ##{@site.id}")
+    assert_equal 'pending_payment', NevaehOs::PlatformActions.perform!(actor: @owner, command: check, action_id: 21).fetch('order_status')
+    assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::PlatformActions.perform!(actor: @other, command: check, action_id: 22) }
+
+    fulfill = nevaeh_service_command("Fulfill order ##{order.id} on site ##{@site.id} with reference \"Carrier delivered\"")
+    assert_raises(LightekCommerce::Fulfillment::Invalid) { NevaehOs::PlatformActions.perform!(actor: @owner, command: fulfill, action_id: 23) }
+    order.update!(status: 'paid', paid_at: Time.current)
+    assert_equal 'fulfilled', NevaehOs::PlatformActions.perform!(actor: @owner, command: fulfill, action_id: 24).fetch('order_status')
+    NevaehOs::PlatformActions.perform!(actor: @owner, command: fulfill, action_id: 24)
+    assert_equal 'Carrier delivered', order.reload.fulfillment_reference
+    jobs = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |job| job[:job] == LightekCommerce::FulfillmentNotificationJob }
+    assert_equal [[order.id]], jobs.map { |job| job[:args] }
+  end
+
+  def test_nevaeh_recovery_queues_only_eligible_orders
+    product = LightekCommerce::Product.create!(site: @site, name: 'Hosting plan', slug: 'hosting-plan', product_type: 'service')
+    product.update_columns(product_type: 'lightek_instance')
+    order = LightekCommerce::Order.create!(site: @site, customer_email: 'buyer@example.test')
+    order.items.create!(product: product, name: product.name, quantity: 1, unit_price_cents: 1000, line_total_cents: 1000)
+    command = nevaeh_service_command("Retry installation for order ##{order.id} on site ##{@site.id}")
+    assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::PlatformActions.perform!(actor: @owner, command: command, action_id: 31) }
+    order.update!(status: 'paid', paid_at: Time.current, provisioning_state: 'failed')
+    result = NevaehOs::PlatformActions.perform!(actor: @owner, command: command, action_id: 32)
+    assert_equal 'queued', result.fetch('recovery_status')
+    assert_equal 'failed', result.fetch('provisioning_status')
+    assert_nil result.fetch('provisioned_at')
+    jobs = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |job| job[:job] == LightekCommerce::PaidInstanceProvisioningJob }
+    assert_equal [[order.id]], jobs.map { |job| job[:args] }
   end
 
   def test_conversion_reuses_company_and_marketing_contact_preserves_consent_and_is_idempotent

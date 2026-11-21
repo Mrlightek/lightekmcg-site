@@ -11,6 +11,7 @@
 
   <nav class="nc-links" aria-label="Code map links">
     <%= link_to 'Software Library', employee_software_library_path %>
+    <%= link_to 'Platform coverage', employee_software_library_path(view: 'coverage') %>
     <%= link_to 'Download JSON', employee_software_library_path(view: 'code', q: params[:q], format: :json), download: 'lightek-code-map.json' %>
   </nav>
 

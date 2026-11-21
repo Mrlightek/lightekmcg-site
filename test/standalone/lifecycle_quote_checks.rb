@@ -120,6 +120,24 @@ class LifecycleQuoteChecks < SalesCrmChecks
     quote = draft(**values)
     LightekSales::Quotes.new(actor: @owner, site: @site).issue!(id: quote.id, version: quote.lock_version)
   end
+  def test_workflow_nevaeh_issues_only_the_reviewed_quote_revision
+    quote = draft
+    command = NevaehOs::PlatformActions.command('sales.quote.issue',
+      {'site_id'=>@site.id, 'quote_id'=>quote.id, 'lock_version'=>quote.lock_version})
+    assert_raises(ActiveRecord::RecordNotFound) do
+      NevaehOs::PlatformActions.perform!(actor: @other, command: command, action_id: 1)
+    end
+    quote.update!(title: 'New reviewed title')
+    assert_raises(ActiveRecord::StaleObjectError) do
+      NevaehOs::PlatformActions.perform!(actor: @owner, command: command, action_id: 2)
+    end
+    command['payload']['lock_version'] = quote.reload.lock_version
+    receipt = NevaehOs::PlatformActions.perform!(actor: @owner, command: command, action_id: 3)
+    assert_equal 'issued', receipt.fetch('quote_status')
+    assert_equal 'issued', quote.reload.status
+    assert_nil quote.order_id
+  end
+
   def finish_steps(record, service = workflow)
     LightekPeople::Lifecycle::STEPS.fetch(record.kind).each_key do |key|
       service.attest!(id: record.id, step: key, evidence: "Reviewed #{key}", version: record.reload.lock_version)

@@ -1,4 +1,5 @@
 require_relative 'session_rooms_checks'
+require_relative '../../app/services/nevaeh_os/platform_actions'
 require ROOT.join('app/services/lightek_sessions/room_creation').to_s
 require ROOT.join('app/controllers/dashboard/rooms_controller').to_s
 Dashboard::RoomsController.layout 'reservations'
@@ -19,6 +20,20 @@ class ProductionRoomsChecks < SessionRoomsChecks
     LightekSessions::RoomCreation.call(site: @site, actor: @owner,
       attributes: {name: 'Lightek conversation', kind: 'video', duration_minutes: 60, capacity: 2}.merge(attributes))
   end
+  def test_nevaeh_creates_an_owned_production_room
+    command = NevaehOs::PlatformActions.command('sessions.room.create',
+      {'site_id'=>@site.id, 'name'=>'Nevaeh production', 'kind'=>'voice'})
+    assert_raises(ActiveRecord::RecordNotFound) do
+      NevaehOs::PlatformActions.perform!(actor: @other, command: command, action_id: 1)
+    end
+    receipt = NevaehOs::PlatformActions.perform!(actor: @owner, command: command, action_id: 1)
+    room = LightekSessions::Room.find(receipt.fetch('room_id'))
+    assert room.production?
+    assert_equal @owner.id, room.host_user_id
+    assert_equal 'voice', room.resource.kind
+    assert_equal "/sessions/#{room.key}", receipt.fetch('links').sole.fetch('url')
+  end
+
   def test_private_room_has_no_fake_booking_or_order_and_is_not_in_catalog
     bookings = LightekReservations::Reservation.count
     orders = LightekCommerce::Order.count

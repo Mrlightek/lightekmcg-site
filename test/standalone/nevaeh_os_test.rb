@@ -1043,3 +1043,20 @@ class NevaehOsHttpTest
     assert_equal 'failed', action.reload.status
   end
 end
+
+class NevaehOsHttpTest
+  def test_action_status_returns_only_the_callers_effective_execution_state
+    own = NevaehOsAction.create!(user: @actor, request_key: 'own-action-status', command: {'kind'=>'capability'},
+      status: 'completed', result: {'private_payload'=>'sensitive'})
+    foreign = NevaehOsAction.create!(user: @other, request_key: 'foreign-action-status', command: {'kind'=>'capability'})
+    post :ask, params: {q: "/execute nevaeh.action.status {\"action_id\":#{foreign.id}}", request_key: 'foreign-status-query'}, as: :json
+    assert_response :not_found
+
+    post :ask, params: {q: "/execute nevaeh.action.status {\"action_id\":#{own.id}}", request_key: 'own-status-query'}, as: :json
+    assert_response :success
+    receipt = NevaehOs::Worker.perform('execute', {'action_id'=>response.parsed_body.fetch('action_id')})
+    assert_equal 'completed', receipt.fetch('execution_status')
+    assert_equal own.id, receipt.fetch('action_id')
+    refute_includes receipt.to_json, 'sensitive'
+  end
+end

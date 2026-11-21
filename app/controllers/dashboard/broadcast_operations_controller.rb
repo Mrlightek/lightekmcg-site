@@ -86,7 +86,7 @@ class Dashboard::BroadcastOperationsController < Dashboard::SettingsHomeControll
     require_admin!
     package = packages.find(params[:id])
     csv = CSV.generate do |data|
-      data << %w[spot station channel campaign scheduled_at delivered_at payment_status amount_usd station_payout producer_payout network_payout]
+      data << %w[spot payment_id station channel campaign scheduled_at delivered_at payment_status amount_usd station_payout producer_payout network_payout]
       package.report_payments.each do |payment|
         spot = payment.placement
         names = [spot.station_site.name, spot.airing&.channel&.name, spot.campaign.name].map do |name|
@@ -94,7 +94,7 @@ class Dashboard::BroadcastOperationsController < Dashboard::SettingsHomeControll
           value.match?(/\A[[:space:]]*[=+@-]|\A[\t\r\n]/) ? "'#{value}" : value
         end
         payouts = payment.payouts.index_by(&:role)
-        data << [spot.id, *names, spot.booked_start&.utc&.iso8601, spot.delivered_at&.utc&.iso8601, payment.state,
+        data << [spot.id, payment.id, *names, spot.booked_start&.utc&.iso8601, spot.delivered_at&.utc&.iso8601, payment.state,
           format("%.2f", payment.amount_cents / 100.0), *%w[station producer network].map { |role| payout_status(payouts[role]) }]
       end
     end

@@ -6,6 +6,8 @@
   <header class="ll-header"><h1>Network operations</h1></header>
   <nav class="ll-playout-actions" aria-label="Broadcast tools">
     <%= link_to "Lineup, programming rights, and audience reports", dashboard_broadcast_network_path(site_id: @site.id) %>
+    <%= link_to "Broadcast agreements", dashboard_broadcast_contracts_path(site_id: @site.id) %>
+    <%= link_to "Network reporting", dashboard_broadcast_network_report_path(site_id: @site.id) if @admin %>
     <%= link_to "Broadcast advertising", dashboard_broadcast_advertising_path(site_id: @site.id) %>
     <%= link_to "Watch TV", "https://#{@site.host}#{broadcast_tv_path}" %>
   </nav>
@@ -40,6 +42,7 @@
             <dt><strong><%= label %></strong></dt><dd><%= simple_format(agreement.terms.fetch(field)) %></dd>
           <% end %>
         </dl>
+        <% if @admin %><%= link_to "Download carriage agreement report", dashboard_carriage_agreement_report_path(agreement, site_id: @site.id) %><% end %>
         <% if agreement.accepted_at? %>
           <p>Accepted by <%= agreement.hosted_carriage_id? ? agreement.station_site.name : agreement.accepted_by.full_name %> on <%= l(agreement.accepted_at, format: :short) %>.</p>
         <% elsif @admin && agreement.channel_id? && agreement.station_site_id == @site.id && agreement.ends_on >= Date.current %>
@@ -57,6 +60,9 @@
             <dt><strong><%= label %></strong></dt><dd><%= simple_format(agreement.fetch("terms").fetch(field)) %></dd>
           <% end %>
         </dl>
+        <% if @admin %>
+          <%= link_to "Open agreement and delivery report", dashboard_hosted_broadcast_contract_path(agreement.fetch("id"), site_id: @site.id) %>
+        <% end %>
         <% if @admin && agreement["accepted_at"].blank? && agreement.fetch("ends_on") >= Date.current.iso8601 %>
           <%= button_to "Accept these carriage terms", dashboard_accept_hosted_broadcast_agreement_path(agreement.fetch("id"), site_id: @site.id) %>
         <% end %>

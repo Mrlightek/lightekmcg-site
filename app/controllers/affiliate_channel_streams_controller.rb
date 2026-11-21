@@ -7,7 +7,11 @@ class AffiliateChannelStreamsController < ApplicationController
   rescue_from ActiveRecord::RecordNotFound, LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied, Errno::ENOENT do
     head :not_found
   end
-  rescue_from Studio::Broadcasting::InstallationCarriage::Unavailable do
+  rescue_from Studio::Broadcasting::InstallationCarriage::Unavailable do |error|
+    if @relay_entry && params[:name] == "index.m3u8" && !request.head? &&
+        !error.is_a?(Studio::Broadcasting::InstallationCarriage::Rejected)
+      Studio::Broadcasting::BroadcastFeedIncident.observe!(@relay_entry, "unavailable")
+    end
     head :service_unavailable
   end
 
@@ -17,6 +21,7 @@ class AffiliateChannelStreamsController < ApplicationController
     LightekPwa::Policy.new(user: current_user, site: site).authorize!("watch")
     entry = Studio::Broadcasting::HostedCarriage.available.find_by!(key: params[:key])
     raise ActiveRecord::RecordNotFound unless entry.peer.active?
+    @relay_entry = entry
     audience = Studio::Broadcasting::Audience
     token = params[:view_session]
     viewer = audience.identity(token, channel: entry, outlet: site)
@@ -34,6 +39,9 @@ class AffiliateChannelStreamsController < ApplicationController
     if name == "index.m3u8"
       # Relay accepts only the station's own HLS segment filenames.
       bytes = validated_playlist(bytes)
+      if entry.observed_feed_state == "unavailable" && !entry.fallback_channel_id? && entry.relay_cursor.blank? && !request.head?
+        Studio::Broadcasting::BroadcastFeedIncident.observe!(entry, "station")
+      end
       bytes = audience.instrument_playlist(bytes, token) if viewer
     elsif name.end_with?(".ts") && viewer && metadata && !request.head?
       record_hub_view(audience, viewer, site, entry, name, metadata)

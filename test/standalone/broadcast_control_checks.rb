@@ -67,6 +67,12 @@ CompleteBroadcastDistribution.prepend(Module.new do
   end
 end)
 CompleteBroadcastDistribution.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261121140000_add_broadcast_contracts_and_reporting")
+AddBroadcastContractsAndReporting.new.migrate(:up)
+%w[broadcast_contract broadcast_contract_version broadcast_contract_signature broadcast_contract_evidence broadcast_report_archive broadcast_feed_incident].each do |file|
+  require File.join(ROOT, "app/models/studio/broadcasting", file)
+end
+%w[contract_report network_report].each { |file| require File.join(ROOT, "app/services/studio/broadcasting", file) }
 %w[broadcasting/carriage_agreement broadcasting/operating_plan advertising/sponsor_package advertising/sponsor_package_spot].each do |name|
   require File.join(ROOT, "app/models/studio", name)
 end
@@ -114,6 +120,8 @@ require File.join(ROOT, "app/services/lightek_reservations/availability")
 require File.join(ROOT, "app/services/lightek_reservations/booking")
 require File.join(ROOT, "app/controllers/api/reservation_federation_controller")
 require File.join(ROOT, "app/controllers/api/broadcast_programs_controller")
+require File.join(ROOT, "app/controllers/api/broadcast_carriage_controller")
+require File.join(ROOT, "app/controllers/dashboard/broadcast_contracts_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_network_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_operations_controller")
@@ -125,9 +133,10 @@ require File.join(ROOT, "app/controllers/linear_channel_streams_controller")
 require File.join(ROOT, "app/services/studio/broadcasting/playout_media")
 require File.join(ROOT, "app/services/studio/broadcasting/channel_feed")
 require File.join(ROOT, "app/services/studio/broadcasting/affiliate_failover")
+require File.join(ROOT, "app/jobs/studio/broadcasting/archive_network_reports_job")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
 Dashboard::MediaStudioController.prepend_view_path(File.join(ROOT, "app/views"))
-[Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController, BroadcastProgramClipsController].each do |controller|
+[Dashboard::BroadcastContractsController, Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController, BroadcastProgramClipsController].each do |controller|
   controller.prepend_view_path(File.join(ROOT, "app/views"))
   controller.layout false
 end
@@ -330,6 +339,181 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     controller.allow_forgery_protection = true if controller
   end
 
+  def test_broadcast_contract_signing_reporting_and_amendment_preserve_executed_versions
+    controller = Dashboard::BroadcastContractsController
+    controller.allow_forgery_protection = false
+    @site.update!(tenant: @alice)
+    @bob.update!(email_address: "producer@example.test")
+    client = session_for
+    start = Date.current
+    site_id = @site.id
+    base = "/dashboard/live/contracts"
+    client.get base, params: { site_id: site_id }, headers: headers.merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Producer agreement"
+    terms = { starts_on: start.iso8601, ends_on: (start + 7).iso8601, terms: "Deliver two finished episodes",
+      amount: "300.00", delivery_target: 2, market: "Brooklyn" }
+    client.post base, params: { site_id: site_id,
+      contract: { title: "Season premiere", kind: "producer", counterparty_email: @bob.email_address }, version: terms }, headers: headers
+    assert_equal 303, client.response.status
+    contract = Studio::Broadcasting::BroadcastContract.find_by!(title: "Season premiere")
+    version = contract.versions.sole
+    offer = "#{base}/#{contract.id}"
+    path = "#{offer}/versions/#{version.id}"
+    client.get offer, headers: headers(@carol).merge("Accept" => "text/html")
+    assert_equal 404, client.response.status
+    client.get "#{path}/copy", headers: headers(@bob)
+    assert_equal 404, client.response.status
+
+    signature = { name: "Station Manager", digest: version.document_digest, consent: "1" }
+    client.post "#{path}/sign", params: { site_id: site_id, signature: signature.merge(digest: "stale") }, headers: headers
+    assert_equal 303, client.response.status
+    assert_empty version.signatures.reload
+    client.post "#{path}/sign", params: { site_id: site_id, signature: signature }, headers: headers
+    client.post "#{path}/sign", params: { signature: signature.merge(name: "Producer") }, headers: headers(@bob)
+    assert_equal 303, client.response.status
+    assert version.reload.executed?
+    client.get "#{path}/copy", headers: headers(@bob)
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Producer"
+    assert_includes client.response.body, version.document_digest
+
+    evidence = { occurred_on: start.iso8601, reference: "Episode-01", kind: "delivery", quantity: "1" }
+    client.post "#{path}/evidence", params: { site_id: site_id, evidence: evidence }, headers: headers
+    assert_equal 303, client.response.status
+    client.post "#{path}/evidence", params: { site_id: site_id, evidence: evidence }, headers: headers
+    assert_equal 1, version.evidence.count
+    client.post "#{path}/evidence", params: { site_id: site_id,
+      evidence: evidence.merge(reference: "Reviewed receipt #44", kind: "reviewed_payment", quantity: "75.25") }, headers: headers
+    client.get "#{path}/report", headers: headers(@bob)
+    assert_equal 200, client.response.status
+    row = CSV.parse(client.response.body, headers: true).first
+    assert_equal %w[2 1 1 30000 7525 22475], row.values_at("promised_deliveries", "delivered", "deliveries_remaining",
+      "agreed_cents", "confirmed_paid_cents", "outstanding_cents")
+    client.get offer, headers: headers(@bob).merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "What’s still owed"
+
+    client.post "#{offer}/versions", params: { site_id: site_id, version: terms.merge(terms: "Revised scope") }, headers: headers
+    assert_equal [1, 2], contract.versions.order(:number).pluck(:number)
+    assert version.reload.executed?
+    assert_includes version.executed_copy, "Deliver two finished episodes"
+    amended = contract.versions.order(:number).last
+    refute amended.executed?
+    amended.sign!(actor: @alice, party: "issuer", name: "Issuer", digest: amended.document_digest)
+    amended.sign!(actor: @bob, party: "counterparty", name: "Producer", digest: amended.document_digest)
+    amended_report = Studio::Broadcasting::ContractReport.new(version: amended).snapshot
+    assert_equal [1, 7525], amended_report.values_at("delivered", "confirmed_paid_cents")
+    client.get base, params: { site_id: site_id }, headers: headers.merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Renewals due within 30 days"
+    client.get "#{base}/network-report", params: { site_id: site_id }, headers: headers.merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Advertising and royalty settlement"
+    client.get "#{base}/network-report.csv", params: { site_id: site_id }, headers: headers
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "audience"
+    client.get "#{base}/performance", params: { site_id: site_id }, headers: headers
+    assert_equal 200, client.response.status
+    portfolio = CSV.parse(client.response.body, headers: true).find { |record| record["title"] == contract.title }
+    assert_equal ["2", "1", "22475"], portfolio.values_at("version", "delivered", "outstanding_cents")
+  ensure
+    controller.allow_forgery_protection = true
+  end
+
+  def test_broadcast_contract_uses_only_its_booked_spots_and_verified_settlement
+    @site.update!(tenant: @alice)
+    @other_site.update!(tenant: @bob)
+    network = Studio::Advertising::Network.create!(site: @site, name: "Contract ads")
+    asset = StudioAsset.create!(site: @site, owner: @alice, name: "Contract creative", kind: "video", status: "ready",
+      request_key: "contract-spot", metadata: { "duration" => 30 })
+    asset.proxy.attach(io: StringIO.new("video"), filename: "ad.mp4", content_type: "video/mp4", identify: false)
+    campaign = network.campaigns.create!(name: "Sponsor creative", asset: asset, blob_id: asset.proxy.blob.id,
+      seconds: 30, rate_cents: 1500, network_bps: 1000, producer_bps: 0, platform_bps: 0)
+    channel = Studio::Broadcasting::Channel.create!(site: @other_site, name: "Metro TV", status: "published", managed_playout: true)
+    payments = 3.times.map do |index|
+      airing = channel.airings.create!(operator: @alice, title: "Show", status: "ready", starts_at: 2.hours.from_now, ends_at: 3.hours.from_now)
+      Studio::Advertising::Payment.reserve!(campaign.placements.create!(station_site: @other_site, airing: airing, row_index: index, **campaign.split))
+    end
+    package = Studio::Advertising::SponsorPackage.book!(site: @site, name: "Two spots", payment_ids: payments.first(2).map(&:id))
+    contract = Studio::Broadcasting::BroadcastContract.create!(site: @site, title: "Metro sponsorship", kind: "sponsor", counterparty: @bob, sponsor_package: package)
+    today = Time.current.utc.to_date
+    version = contract.offer!(actor: @alice, starts_on: today, ends_on: today + 3, terms: "Two ad insertions",
+      delivery_target: 0, amount_cents: 0, market: "Metro")
+    version.sign!(actor: @alice, party: "issuer", name: "Operator", digest: version.document_digest)
+    version.sign!(actor: @bob, party: "counterparty", name: "Sponsor", digest: version.document_digest)
+    payments.each { |payment| payment.placement.update!(delivered_at: Time.current) }
+    payments[0].update!(state: "captured", captured_at: Time.current, charge_reference: "ch_verified")
+    payments[1].update!(state: "held", captured_at: Time.current, charge_reference: "ch_held")
+    report = Studio::Broadcasting::ContractReport.new(version: version).snapshot
+    assert_equal [2, 2, 3000, 1500, 0, 1500], report.values_at("promised_deliveries", "delivered", "agreed_cents", "confirmed_paid_cents",
+      "outstanding_cents", "held_cents")
+    assert_equal payments.first(2).map(&:id), report.fetch("booked_spots").pluck("payment_id")
+    station_report = Studio::Broadcasting::NetworkReport.new(site: @other_site, first: today, last: today).finance
+    assert station_report.none? { |row| row["verified_captured_cents"].positive? }
+    finance = Studio::Broadcasting::NetworkReport.new(site: @site, first: today, last: today).finance
+    assert_equal 1500, finance.find { |row| row["market"] == "Metro" }.fetch("verified_captured_cents")
+    carriage = Studio::Broadcasting::CarriageAgreement.create!(outlet_site: @site, station_site: @other_site, channel: channel,
+      offered_by: @alice, starts_on: today, ends_on: today + 3,
+      terms: Studio::Broadcasting::CarriageAgreement::TERMS.keys.index_with { "Regional carriage" })
+    station_contract = Studio::Broadcasting::BroadcastContract.create!(site: @site, kind: "carriage", title: "Station ad share", carriage_agreement: carriage)
+    station_version = station_contract.offer!(actor: @alice, starts_on: today, ends_on: today + 3, terms: "One ad spot",
+      delivery_target: 1, amount_cents: 0, market: "Metro", payment_ids: [payments[0].id], delivery_mode: "booked_spots")
+    station_version.sign!(actor: @alice, party: "issuer", name: "Operator", digest: station_version.document_digest)
+    station_version.sign!(actor: @bob, party: "counterparty", name: "Station", digest: station_version.document_digest)
+    result = Studio::Broadcasting::ContractReport.new(version: station_version)
+    assert_equal [1, 1350, 0], result.snapshot.values_at("delivered", "royalty_owed_cents", "royalty_paid_cents")
+    payout = payments[0].payouts.find_by!(role: "station")
+    payout.update!(transfer_reference: "tr_verified")
+    assert_equal [0, 1350], result.snapshot.values_at("royalty_owed_cents", "royalty_paid_cents")
+    @other_site.update!(tenant: @carol)
+    assert_equal 1350, result.snapshot.fetch("royalty_paid_cents")
+  end
+
+  def test_broadcast_contract_report_archives_are_idempotent_and_site_scoped
+    @site.update!(tenant: @alice)
+    Studio::Broadcasting::Channel.create!(site: @site, name: "Report channel", status: "draft", managed_playout: true)
+    month = 1.month.ago.to_date.beginning_of_month
+    job = Studio::Broadcasting::ArchiveNetworkReportsJob.new
+    2.times { job.perform }
+    archive = Studio::Broadcasting::BroadcastReportArchive.where(site: @site, month: month).sole
+    client = session_for
+    path = "/dashboard/live/contracts/archives/#{archive.id}"
+    client.get path, params: { site_id: @site.id }, headers: headers
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "playout"
+    client.get path, params: { site_id: @other_site.id }, headers: headers
+    assert_equal 404, client.response.status
+  end
+
+  def test_broadcast_contract_hosted_signing_is_scoped_to_the_registered_installation
+    @other_site.update!(tenant: @bob)
+    peer = LightekReservations::Peer.create!(site: @other_site, merchant: @bob, key: SecureRandom.hex(16))
+    foreign = LightekReservations::Peer.create!(site: @site, merchant: @alice, key: SecureRandom.hex(16))
+    entry = Studio::Broadcasting::HostedCarriage.create!(peer: peer, key: SecureRandom.hex(16), name: "Hosted station")
+    terms = Studio::Broadcasting::CarriageAgreement::TERMS.keys.index_with { "Carriage terms" }
+    carriage = Studio::Broadcasting::CarriageAgreement.create!(outlet_site: @site, station_site: @other_site, hosted_carriage: entry,
+      offered_by: @alice, starts_on: Date.current, ends_on: Date.current + 7, terms: terms)
+    contract = Studio::Broadcasting::BroadcastContract.create!(kind: "carriage", carriage_agreement: carriage, site: @site, title: "Hosted carriage")
+    version = contract.offer!(actor: @alice, starts_on: Date.current, ends_on: Date.current + 7, terms: "Outlet incl. reporting",
+      delivery_target: 4, amount_cents: 0, market: "")
+    version.sign!(actor: @alice, party: "issuer", name: "Issuer", digest: version.document_digest)
+    path = "/api/reservations/federation/broadcast/agreements/#{carriage.id}/contract"
+    client = session_for
+    client.get path, headers: { "Authorization" => "Bearer #{foreign.key}" }
+    assert_equal 404, client.response.status
+    client.get path, headers: { "Authorization" => "Bearer #{peer.key}" }
+    assert_equal 200, client.response.status
+    assert_equal version.id, JSON.parse(client.response.body).fetch("current")
+    client.post "#{path}/sign", as: :json, params: { signature: { version_id: version.id, name: "Station officer",
+      consent: "1", digest: version.document_digest } }, headers: { "Authorization" => "Bearer #{peer.key}" }
+    assert_equal 200, client.response.status
+    assert version.reload.executed?
+    client.get "#{path}/versions/#{version.id}/copy", headers: { "Authorization" => "Bearer #{peer.key}" }
+    assert_equal 200, client.response.status
+    assert_includes JSON.parse(client.response.body).fetch("copy"), "Station officer"
+  end
+
   def test_hosted_carriage_validates_the_station_and_serves_the_network_playback
     with_network_origin do
       @other_site.update!(tenant: @bob)
@@ -428,6 +612,8 @@ class BroadcastControlTest < PwaHttpIntegrationTest
             assert_equal 200, client.response.status
             assert_equal "backup media", client.response.body
             assert_empty broadcast::ViewSession.where(channel_id: -entry.id)
+            report = broadcast::NetworkReport.new(site: @site, first: Date.current, last: Date.current)
+            assert_equal ["backup_started"], report.feed_incidents.pluck("event")
             client.get "/gatekeeper/network/#{entry.key}/measurement.json?#{token}"
             assert_equal({ "timeline" => [] }, JSON.parse(client.response.body))
 

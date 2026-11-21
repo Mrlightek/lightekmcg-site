@@ -1,0 +1,83 @@
+<% content_for :page_title, "Broadcast agreements" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<main class="ll-studio ll-playout">
+  <% if @site %><%= render "shared/production_navigation", site: @site, section: "Live Studio" %><% end %>
+  <header class="ll-header"><h1>Broadcast agreements</h1></header>
+  <% if @site %>
+    <nav class="ll-playout-actions" aria-label="Broadcast tools">
+      <%= link_to "Network operations", dashboard_broadcast_operations_path(site_id: @site.id) %>
+      <%= link_to "Download agreement performance CSV", dashboard_broadcast_contract_performance_path(site_id: @site.id) %>
+      <%= link_to "Network reporting", dashboard_broadcast_network_report_path(site_id: @site.id) %>
+    </nav>
+  <% end %>
+  <% if @renewals.any? %>
+    <section class="ll-panel"><h2>Renewals due within 30 days</h2>
+      <ul class="ll-playout-list">
+        <% @renewals.each do |version| %>
+          <li><%= link_to version.contract.title, dashboard_broadcast_contract_path(version.contract, site_id: @site&.id, version_id: version.id) %>
+            · Ends <%= l(version.ends_on) %></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+  <% if @site %>
+    <section class="ll-panel"><h2>Offer an agreement</h2>
+      <% Studio::Broadcasting::BroadcastContract::KINDS.each do |kind| %>
+        <% next if kind == "carriage" && @carriages.empty? %>
+        <% next if kind == "sponsor" && @packages.empty? %>
+        <details class="ll-config">
+          <summary><%= kind.humanize %> agreement</summary>
+          <%= form_with url: dashboard_broadcast_contracts_path(site_id: @site.id), class: "ll-config" do %>
+            <%= hidden_field_tag "contract[kind]", kind, id: "contract_kind_#{kind}" %>
+            <label>Title <%= text_field_tag "contract[title]", nil, maxlength: 120, required: true %></label>
+            <% if kind == "carriage" %>
+              <label>Carriage terms <%= select_tag "contract[source_id]", options_for_select(@carriages.map { |row| ["#{row.channel_name} · #{row.station_site.name} (#{row.id})", row.id] }),
+                prompt: "Select carriage terms", required: true %></label>
+            <% else %>
+              <label>Counterparty account email <%= email_field_tag "contract[counterparty_email]", nil, required: true %></label>
+              <% if kind == "sponsor" %>
+                <label>Booked sponsor package <%= select_tag "contract[source_id]", options_from_collection_for_select(@packages, :id, :name),
+                  prompt: "Select a sponsor package", required: true %></label>
+                <p>The booked spots and agreed price come from the selected package.</p>
+              <% end %>
+            <% end %>
+            <%= render "version_fields", version: nil, kind: kind %>
+            <%= submit_tag "Offer agreement" %>
+          <% end %>
+        </details>
+      <% end %>
+    </section>
+  <% end %>
+  <% { "Issued agreements" => @outgoing, "Received agreements" => @incoming }.each do |label, rows| %>
+    <% next if label == "Issued agreements" && !@site %>
+    <section class="ll-panel"><h2><%= label %></h2>
+      <% if rows.empty? %><p>No agreements yet.</p><% end %>
+      <ul class="ll-playout-list">
+        <% rows.each do |contract| %>
+          <li><%= link_to contract.title, dashboard_broadcast_contract_path(contract, site_id: @site&.id) %> · <%= contract.kind.humanize %></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+  <% if @hosted_unavailable %><p>Hosted agreements are temporarily unavailable.</p><% end %>
+  <% if @hosted.present? %>
+    <section class="ll-panel"><h2>Agreements from the network hub</h2>
+      <ul class="ll-playout-list">
+        <% @hosted.each do |row| %>
+          <li><%= link_to row.dig("contract", "title"), dashboard_hosted_broadcast_contract_path(row.fetch("id"), site_id: @site.id) %>
+            · Proposed term ends <%= row.dig("contract", "ends_on") %></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+  <% if @archives.present? %>
+    <section class="ll-panel"><h2>Monthly report archive</h2>
+      <ul class="ll-playout-list">
+        <% @archives.each do |report| %>
+          <li><%= link_to report.month.strftime("%B %Y CSV"), dashboard_broadcast_report_archive_path(report, site_id: @site.id) %></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+</main>

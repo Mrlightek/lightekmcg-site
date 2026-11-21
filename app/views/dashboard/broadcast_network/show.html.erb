@@ -98,6 +98,9 @@
     <ul class="ll-playout-list">
       <% @incoming.each do |license| %>
         <li><%= license.title %> from <%= license.source_name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
+          <% if LightekPwa::Policy.new(user: current_user, site: @site).role == "admin" %>
+            · <%= link_to "License performance CSV", dashboard_program_license_performance_path(license, site_id: @site.id) %>
+          <% end %>
           <%= button_to "Accept rights", dashboard_accept_program_license_path(license, site_id: @site.id) if license.status == "offered" && license.ends_at.future? %>
           <% if license.status == "accepted" && license.ends_at.future? && license.allows_use?("clip") && license.transferable? %>
             <details class="ll-config">
@@ -145,6 +148,9 @@
       <% end %>
       <% @outgoing.each do |license| %>
         <li><%= license.title %> offered to <%= license.licensee_site.name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
+          <% if LightekPwa::Policy.new(user: current_user, site: @site).role == "admin" %>
+            · <%= link_to "License performance CSV", dashboard_program_license_performance_path(license, site_id: @site.id) %>
+          <% end %>
           <%= button_to "Close to future bookings", dashboard_withdraw_program_license_path(license, site_id: @site.id) if license.status != "withdrawn" %>
         </li>
       <% end %>

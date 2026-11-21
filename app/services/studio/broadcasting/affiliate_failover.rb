@@ -91,6 +91,8 @@ module Studio
             "last_cut" => [discontinuity + cut_offset + cuts, previous.fetch("last_cut", 0)].max,
             "upstream_first" => sequence, "upstream_discontinuity" => discontinuity }
           @entry.update_columns(relay_cursor: updated) unless updated == previous
+          observed = source == "station" ? "station" : "backup"
+          BroadcastFeedIncident.observe!(@entry, observed) if @entry.observed_feed_state != observed
           updated
         end
         body = body.sub(/^#EXT-X-MEDIA-SEQUENCE:\d+$/, "#EXT-X-MEDIA-SEQUENCE:#{sequence + cursor.fetch('offset')}")

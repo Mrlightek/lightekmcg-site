@@ -1,0 +1,55 @@
+<% content_for :page_title, @contract.title %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<main class="ll-studio ll-playout">
+  <nav aria-label="Broadcast agreements"><%= link_to "All agreements", dashboard_broadcast_contracts_path(site_id: @site&.id) %></nav>
+  <header class="ll-header"><h1><%= @contract.title %></h1></header>
+  <section class="ll-panel">
+    <h2>Version <%= @version.number %></h2>
+    <nav class="ll-playout-actions" aria-label="Versions">
+      <% @versions.each do |version| %>
+        <%= link_to "Version #{version.number}#{version.executed? ? ' · Executed' : ''}", dashboard_broadcast_contract_path(@contract, site_id: @site&.id, version_id: version.id),
+          aria: { current: (version == @version ? "page" : nil) } %>
+      <% end %>
+    </nav>
+    <% @version.signatures.order(:signed_at, :id).each do |signature| %>
+      <p><%= signature.party.humanize %> signed as <%= signature.signer_name %> on <%= l(signature.signed_at, format: :short) %>.</p>
+    <% end %>
+    <div class="ll-playout-actions">
+      <%= link_to "Download agreement report", dashboard_broadcast_contract_report_path(@contract, @version, site_id: @site&.id) %>
+      <% if @version.executed? %><%= link_to "Download executed agreement", dashboard_broadcast_contract_copy_path(@contract, @version, site_id: @site&.id) %><% end %>
+    </div>
+  </section>
+  <%= render "report", report: @report %>
+  <% if !@version.withdrawn_at? && @version.ends_on >= Date.current && @version.signatures.none? { |signature| signature.party == @party } %>
+    <section class="ll-panel"><h2>Sign agreement</h2>
+      <%= render "signature", url: dashboard_sign_broadcast_contract_path(@contract, @version, site_id: @site&.id), digest: @version.document_digest %>
+    </section>
+  <% end %>
+  <% if @party == "issuer" %>
+    <section class="ll-panel"><h2>Manage agreement</h2>
+      <% unless @version.executed? || @version.withdrawn_at? %>
+        <%= button_to "Withdraw unsigned offer", dashboard_withdraw_broadcast_contract_path(@contract, @version, site_id: @site.id) %>
+      <% end %>
+      <% if @versions.first.executed? || @versions.first.withdrawn_at? %>
+        <details class="ll-config"><summary>Offer an amendment or renewal</summary>
+          <%= form_with url: dashboard_revise_broadcast_contract_path(@contract, site_id: @site.id), class: "ll-config" do %>
+            <%= render "version_fields", version: @version, kind: @contract.kind %>
+            <%= submit_tag "Offer new version" %>
+          <% end %>
+        </details>
+      <% end %>
+      <% if @version.executed? && @contract.kind != "sponsor" %>
+        <details class="ll-config"><summary>Record delivery or payment evidence</summary>
+          <%= form_with url: dashboard_record_broadcast_contract_evidence_path(@contract, @version, site_id: @site.id), scope: :evidence, class: "ll-config" do |form| %>
+            <label>Evidence type <%= form.select :kind, @evidence_kinds.invert.to_a, {}, required: true %></label>
+            <label>Delivered units or USD amount <%= form.number_field :quantity, min: 0.01, step: 0.01, required: true %></label>
+            <label>Evidence reference <%= form.text_field :reference, maxlength: 200, required: true %></label>
+            <label>Date (UTC) <%= form.date_field :occurred_on, max: Date.current, required: true %></label>
+            <%= form.submit "Record evidence" %>
+          <% end %>
+        </details>
+      <% end %>
+    </section>
+  <% end %>
+</main>

@@ -41,3 +41,13 @@ The payload is:
 Set production only after Nielsen authorizes the app and measurement mode. Audience measurement metadata on each rundown identifies the program, episode, airdate, rights originator, and ad load. Roku DCR cloud measurement uses the provider’s OTT genre code and currently covers the dynamic-ad-load configuration. The web player asks the viewer to allow Nielsen measurement and uses the actual HLS playback clock. The first-party audience reports remain separate.
 
 Digital TV Ratings that depend on Nielsen ID3 or watermark data require the appropriate Nielsen-approved signal and client configuration. The Digital Content Ratings adapter does not generate those signals.
+
+## Broadcast agreements and reporting
+
+Open **Live Studio → Network operations → Broadcast agreements** to offer carriage, sponsor, or producer terms. Carriage starts from a channel’s existing carriage terms. Sponsor agreements take their scheduled inventory and booked prices from the selected sponsor package. Producer agreements can reference payout-bearing ad payments belonging to the named producer and issued by the site’s ad networks.
+
+Each side signs the specific version from its authenticated dashboard. A hosted station uses its authorized installation connection. The executed text copy includes both signature receipts, the agreed terms and inventory, and the version checksum. Amendments retain prior versions and supporting evidence for the same term. Renewals open a new term. The workspace shows signed agreements approaching expiry within 30 days.
+
+The portfolio CSV covers the issuing site’s agreement versions plus legacy carriage and program licenses. Each agreement’s page and CSV show what was promised, what was delivered, and what’s still owed. Sponsor reports distinguish delivered but uncaptured spots, held payments, and spots still undelivered. Fixed fees and delivery evidence entered by an operator are identified as reviewed records. Linked carriage and producer ad proceeds use recorded ad payment and payout events and appear alongside the fixed fee. Existing carriage terms and program licenses have performance exports. Legacy free-text compensation and data held on other installations may leave a balance or delivery total unavailable.
+
+**Network reporting** combines first-party audience activity, local airings, observed hosted feed transitions, Dymond Bank ad captures and transfers, and operating plans. Amounts are grouped by recorded station, channel, and contract market. Plans show operator-entered actuals. Monthly CSV snapshots appear in the agreement workspace after the scheduled job runs. Hosted feed incidents are observations from relay requests.

@@ -44,3 +44,29 @@ post "/dashboard/live/network/licenses/:license_id/clips", to: "dashboard/broadc
 post "/dashboard/live/network/clips/:id/withdraw", to: "dashboard/broadcast_network#withdraw_clip", as: :dashboard_withdraw_program_clip
 get "/watch/clips/:key", to: "broadcast_program_clips#show", as: :broadcast_program_clip, constraints: { key: /[a-zA-Z0-9]{32}/ }
 get "/watch/clips/:key/video", to: "broadcast_program_clips#video", as: :broadcast_program_clip_video, constraints: { key: /[a-zA-Z0-9]{32}/ }
+
+get "/dashboard/live/contracts", to: "dashboard/broadcast_contracts#index", as: :dashboard_broadcast_contracts
+post "/dashboard/live/contracts", to: "dashboard/broadcast_contracts#create"
+get "/dashboard/live/contracts/network-report", to: "dashboard/broadcast_contracts#network", as: :dashboard_broadcast_network_report
+get "/dashboard/live/contracts/archives/:id", to: "dashboard/broadcast_contracts#archive", as: :dashboard_broadcast_report_archive
+get "/dashboard/live/contracts/carriage/:id/report", to: "dashboard/broadcast_contracts#carriage_report", as: :dashboard_carriage_agreement_report
+get "/dashboard/live/contracts/hosted/:id", to: "dashboard/broadcast_contracts#hosted", as: :dashboard_hosted_broadcast_contract
+post "/dashboard/live/contracts/hosted/:id/sign", to: "dashboard/broadcast_contracts#sign_hosted", as: :dashboard_sign_hosted_broadcast_contract
+get "/dashboard/live/contracts/hosted/:id/versions/:version_id/:document", to: "dashboard/broadcast_contracts#hosted_document",
+  as: :dashboard_hosted_broadcast_document, constraints: { document: /report|copy/ }
+get "/dashboard/live/contracts/performance", to: "dashboard/broadcast_contracts#portfolio_report", as: :dashboard_broadcast_contract_performance
+get "/dashboard/live/contracts/:id", to: "dashboard/broadcast_contracts#show", as: :dashboard_broadcast_contract
+post "/dashboard/live/contracts/:id/versions", to: "dashboard/broadcast_contracts#revise", as: :dashboard_revise_broadcast_contract
+post "/dashboard/live/contracts/:id/versions/:version_id/sign", to: "dashboard/broadcast_contracts#sign", as: :dashboard_sign_broadcast_contract
+post "/dashboard/live/contracts/:id/versions/:version_id/withdraw", to: "dashboard/broadcast_contracts#withdraw", as: :dashboard_withdraw_broadcast_contract
+post "/dashboard/live/contracts/:id/versions/:version_id/evidence", to: "dashboard/broadcast_contracts#record_evidence", as: :dashboard_record_broadcast_contract_evidence
+get "/dashboard/live/contracts/:id/versions/:version_id/report", to: "dashboard/broadcast_contracts#report", as: :dashboard_broadcast_contract_report
+get "/dashboard/live/contracts/:id/versions/:version_id/copy", to: "dashboard/broadcast_contracts#executed_copy", as: :dashboard_broadcast_contract_copy
+get "/api/reservations/federation/broadcast/agreements/:id/contract", to: "api/broadcast_carriage#contract"
+post "/api/reservations/federation/broadcast/agreements/:id/contract/sign", to: "api/broadcast_carriage#sign_contract"
+get "/api/reservations/federation/broadcast/agreements/:id/contract/versions/:version_id/report", to: "api/broadcast_carriage#contract_report"
+get "/api/reservations/federation/broadcast/agreements/:id/contract/versions/:version_id/copy", to: "api/broadcast_carriage#contract_copy"
+get "/dashboard/live/contracts/licenses/:id/report", to: "dashboard/broadcast_contracts#license_report", as: :dashboard_program_license_performance
+get "/dashboard/live/contracts/hosted/:id/report", to: "dashboard/broadcast_contracts#hosted_document",
+  as: :dashboard_hosted_carriage_performance, defaults: { document: "report" }
+get "/api/reservations/federation/broadcast/agreements/:id/contract/report", to: "api/broadcast_carriage#legacy_contract_report"

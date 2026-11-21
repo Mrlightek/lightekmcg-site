@@ -114,6 +114,12 @@ jobs:
           BUNDLE_GEMFILE: test/standalone/Gemfile
           LIGHTEK_TEST_BLENDER: '1'
         run: bundle exec ruby test/standalone/media_checks.rb
+      - name: Broadcast ad networks and channel playout
+        env:
+          BUNDLE_GEMFILE: test/standalone/Gemfile
+        run: |
+          bundle exec ruby test/standalone/broadcast_control_checks.rb -n /test_station_joins_only_an_offered_network/
+          bundle exec ruby test/standalone/channel_playout_checks.rb
       - name: Client execution and transform tests
         run: |
           node --test test/javascript/nevaeh-client.test.cjs test/javascript/pwa-membership.test.cjs test/javascript/pwa-remote-content.test.cjs test/javascript/pwa-commercial.test.cjs test/javascript/pwa-route-guard.test.cjs test/javascript/pwa-shell-update.test.cjs

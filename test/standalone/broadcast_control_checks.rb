@@ -2,7 +2,13 @@
 require_relative "pwa_http_checks"
 require File.join(ROOT, "db/migrate/20261101010000_create_studio_broadcast_control")
 CreateStudioBroadcastControl.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261120220000_create_studio_channel_airings")
+require File.join(ROOT, "db/migrate/20261121090000_create_studio_ad_networks")
+CreateStudioChannelAirings.new.migrate(:up)
+CreateStudioAdNetworks.new.migrate(:up)
 %w[app/models/studio/broadcasting/application app/models/studio/broadcasting/channel app/models/studio/broadcasting/program
+   app/models/studio/broadcasting/airing app/models/studio/advertising/network app/models/studio/advertising/membership
+   app/models/studio/advertising/campaign app/models/studio/advertising/placement
    app/services/studio/broadcasting/access app/services/studio/broadcasting/experience
    app/services/gatekeeper/studio_live_policy app/services/studio/live/destination app/services/studio/live/encoder app/services/studio/live/sessions].each { |file| require File.join(ROOT, file) }
 %w[app/services/studio/gatekeeper/client app/services/studio/publishers/lightek_streaming app/services/studio/publishers/registry app/services/studio/publishing/dispatch app/jobs/studio_publication_dispatch_job].each { |file| require File.join(ROOT, file) }
@@ -19,13 +25,17 @@ module DymondDash
 end
 require File.join(ROOT, "app/controllers/dashboard/settings_home_controller")
 require File.join(ROOT, "app/controllers/dashboard/media_studio_controller")
+require File.join(ROOT, "app/services/lightek_agency/package_policy")
 require File.join(ROOT, "app/controllers/dashboard/live_broadcasts_controller")
+require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
 Dashboard::MediaStudioController.prepend_view_path(File.join(ROOT, "app/views"))
+Dashboard::BroadcastAdvertisingController.prepend_view_path(File.join(ROOT, "app/views"))
 Dashboard::LiveBroadcastsController.prepend_view_path(File.join(ROOT, "app/views"))
 # Host engine layouts/auth are not part of the standalone runtime.
 Dashboard::MediaStudioController.layout false
 Dashboard::LiveBroadcastsController.layout false
+Dashboard::BroadcastAdvertisingController.layout false
 Rails.application.routes.append do
   unless Rails.application.routes.named_routes.names.include?(:dashboard_studio_editor_new)
     get "/dashboard/studio/editors/:kind/new", to: "dashboard/studio_editors#new", as: :dashboard_studio_editor_new
@@ -60,6 +70,13 @@ Rails.application.routes.append do
   post "/dashboard/studio-broadcasting/publications", to: "dashboard/media_studio#publish", as: :dashboard_broadcast_publications
   delete "/dashboard/studio-broadcasting/publications/:id", to: "dashboard/media_studio#cancel_publication", as: :dashboard_broadcast_publication
   post "/dashboard/studio-broadcasting/live/:id/stop", to: "dashboard/media_studio#stop_live", as: :stop_dashboard_broadcast
+  get "/dashboard/live/advertising", to: "dashboard/broadcast_advertising#show", as: :dashboard_broadcast_advertising
+  post "/dashboard/live/advertising/networks", to: "dashboard/broadcast_advertising#create_network", as: :dashboard_broadcast_ad_networks
+  post "/dashboard/live/advertising/networks/:network_id/membership", to: "dashboard/broadcast_advertising#join", as: :dashboard_broadcast_ad_membership
+  delete "/dashboard/live/advertising/networks/:network_id/membership", to: "dashboard/broadcast_advertising#leave"
+  post "/dashboard/live/advertising/networks/:network_id/campaigns", to: "dashboard/broadcast_advertising#create_campaign", as: :dashboard_broadcast_ad_campaigns
+  patch "/dashboard/live/advertising/networks/:network_id/campaigns/:campaign_id/offer", to: "dashboard/broadcast_advertising#update_offer", as: :dashboard_broadcast_ad_offer
+  get "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/live_broadcasts#index", as: :dashboard_channel_playout
   get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live
   post "/dashboard/live/sessions", to: "dashboard/live_broadcasts#create", as: :dashboard_live_sessions
   post "/dashboard/live/destination", to: "dashboard/live_broadcasts#destination", as: :dashboard_live_destination
@@ -86,6 +103,52 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     Dashboard::MediaStudioController.allow_forgery_protection = true
     super
   end
+  def test_station_joins_only_an_offered_network_and_cannot_edit_its_campaign
+    controller = Dashboard::BroadcastAdvertisingController
+    controller.allow_forgery_protection = false
+    client = session_for
+
+    client.post "/dashboard/live/advertising/networks", headers: headers.merge("Accept" => "text/html"), params: { site_id: @site.id, network: { name: "Atlantic Ads" } }
+    assert_equal 303, client.response.status
+    network = Studio::Advertising::Network.find_by!(site_id: @site.id, name: "Atlantic Ads")
+    asset = StudioAsset.create!(site: @site, owner: @alice, name: "Private library filename", kind: "video",
+      status: "ready", request_key: "atlantic-ad", metadata: { "duration" => 30 })
+    asset.proxy.attach(io: StringIO.new("ad-video"), filename: "ad.mp4", content_type: "video/mp4", identify: false)
+    base = "/dashboard/live/advertising/networks/#{network.id}"
+
+    client.post "#{base}/campaigns", headers: headers.merge("Accept" => "text/html"), params: { site_id: @site.id, campaign: {
+      name: "Grocer", asset_id: asset.id, seconds: "30", rate_cents: "10.01", network_bps: "20", producer_bps: "0", platform_bps: "5"
+    } }
+    assert_equal 303, client.response.status
+    campaign = network.campaigns.sole
+    assert_equal 1001, campaign.rate_cents
+    assert_equal 2000, campaign.network_bps
+
+    client.post "#{base}/membership", headers: headers.merge("Accept" => "text/html"), params: { site_id: @other_site.id }
+    assert_equal 404, client.response.status
+    client.patch "#{base}/campaigns/#{campaign.id}/offer", headers: headers.merge("Accept" => "text/html"), params: { site_id: @other_site.id, open_for_booking: "1" }
+    assert_equal 404, client.response.status
+    client.patch "#{base}/campaigns/#{campaign.id}/offer", headers: headers.merge("Accept" => "text/html"), params: { site_id: @site.id, open_for_booking: "1" }
+    assert_equal 303, client.response.status
+    assert campaign.reload.open_for_booking?
+
+    client.get "/dashboard/live/advertising", headers: headers.merge("Accept" => "text/html"), params: { site_id: @other_site.id }
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Atlantic Ads"
+    refute_includes client.response.body, "Private library filename"
+    assert_equal "private, no-store", client.response.headers["Cache-Control"]
+    2.times do
+      client.post "#{base}/membership", headers: headers.merge("Accept" => "text/html"), params: { site_id: @other_site.id }
+      assert_equal 303, client.response.status
+    end
+    assert_equal 1, network.memberships.where(station_site_id: @other_site.id).count
+    client.delete "#{base}/membership", headers: headers.merge("Accept" => "text/html"), params: { site_id: @other_site.id }
+    assert_equal 303, client.response.status
+    assert_empty network.memberships.reload
+  ensure
+    controller.allow_forgery_protection = true
+  end
+
   def video(site = @site, **attrs)
     post = Post.create!({user: @alice, site: site, title: "A real studio release", kind: "video", distribution: "octavia", content: "Premiere"}.merge(attrs))
     post.media.attach(io: StringIO.new("0123456789"), filename: "master.mp4", content_type: "video/mp4", identify: false)

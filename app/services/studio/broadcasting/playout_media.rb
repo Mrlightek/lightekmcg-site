@@ -37,10 +37,28 @@ module Studio
               encode!(root.join(index.to_s), source: source.path, seconds: item.fetch("seconds"), sponsor: item.fetch("sponsor"),
                 audio: asset.metadata["has_audio"], cancel_if: still_preparing)
             end
+            prepare_ad!(airing, index, root, still_preparing) if item["ad_campaign_id"]
           end
           airing.with_lock { airing.update!(status: "ready") if airing.status == "preparing" }
         end
       end
+
+      def self.prepare_ad!(airing, index, root, cancel_if)
+        placement = Advertising::Placement.find_by(airing_id: airing.id, row_index: index)
+        campaign = placement&.campaign
+        directory = root.join("ad-#{index}")
+        # A retried preparation must never reuse a stale campaign playlist.
+        FileUtils.rm_f(directory.join("index.m3u8"))
+        return unless campaign&.creative_available?
+
+        campaign.asset.proxy.blob.open(tmpdir: Studio::MediaProcess.temp_root) do |source|
+          encode!(directory, source: source.path, seconds: campaign.seconds,
+            audio: campaign.asset.metadata["has_audio"], cancel_if: cancel_if)
+        end
+      rescue StandardError => error
+        Rails.logger.warn("[StudioPlayout] airing=#{airing.id} ad_row=#{index} backup=true error=#{error.class}")
+      end
+      private_class_method :prepare_ad!
 
       def self.standby(channel_id)
         path = channel_path(channel_id).join("standby")

@@ -740,6 +740,12 @@ get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 
+get "/dashboard/live/advertising", to: "dashboard/broadcast_advertising#show", as: :dashboard_broadcast_advertising
+post "/dashboard/live/advertising/networks", to: "dashboard/broadcast_advertising#create_network", as: :dashboard_broadcast_ad_networks
+post "/dashboard/live/advertising/networks/:network_id/membership", to: "dashboard/broadcast_advertising#join", as: :dashboard_broadcast_ad_membership
+delete "/dashboard/live/advertising/networks/:network_id/membership", to: "dashboard/broadcast_advertising#leave"
+post "/dashboard/live/advertising/networks/:network_id/campaigns", to: "dashboard/broadcast_advertising#create_campaign", as: :dashboard_broadcast_ad_campaigns
+patch "/dashboard/live/advertising/networks/:network_id/campaigns/:campaign_id/offer", to: "dashboard/broadcast_advertising#update_offer", as: :dashboard_broadcast_ad_offer
 get "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/channel_playout#show", as: :dashboard_channel_playout
 post "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/channel_playout#create"
 post "/dashboard/live/channels/:channel_id/rundown/:airing_id/command", to: "dashboard/channel_playout#command", as: :dashboard_channel_playout_command

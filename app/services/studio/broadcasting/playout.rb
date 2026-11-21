@@ -104,6 +104,18 @@ module Studio
         nil
       end
 
+      def rundown_media(airing, index, item)
+        @prepared_rows[index] ||= begin
+          directory = PlayoutMedia.airing_path(airing.id)
+          ad_media = PlayoutMedia.segments(directory.join("ad-#{index}")) if item["ad_campaign_id"]
+          if ad_media && ad_media.sum(&:duration) >= item.fetch("seconds") - 0.1
+            [ad_media, true]
+          else
+            [PlayoutMedia.segments(directory.join(index.to_s)), false]
+          end
+        end
+      end
+
       def publish_rundown(airing)
         row = airing.row_at(airing.position)
         unless row
@@ -113,7 +125,8 @@ module Studio
           return nil
         end
         index, offset, finishing = row
-        media = @prepared_rows[index] ||= PlayoutMedia.segments(PlayoutMedia.airing_path(airing.id).join(index.to_s))
+        item = airing.rundown.fetch(index)
+        media, ad = rundown_media(airing, index, item)
         boundary = 0
         segment = media.find { |part| (boundary += part.duration) > offset + 0.01 }
         # Sub-frame differences in indexed media should not repeat or skip a row.
@@ -121,13 +134,20 @@ module Studio
         raise "Scheduled media is missing" unless segment
         source = "airing-#{airing.id}-row-#{index}"
         # Seeking within a row resets its media timestamps too.
-        @feed.push(segment, source: [source, airing.state.fetch("generation", 0)])
+        generation = airing.state.fetch("generation", 0)
+        @feed.push(segment, source: [source, generation])
+        if ad && @channel.status == "published"
+          Advertising::Placement.observe!(airing, row: index, source: [source, generation],
+            offset: boundary - segment.duration, boundary: boundary, media_end: item.fetch("seconds"), final: segment.equal?(media.last))
+        else
+          airing.state = airing.state.except("ad_progress")
+        end
         if airing.state["return"]
           airing.record_event!("returned", "mode" => airing.state["return"])
           airing.state = airing.state.except("return")
         end
         if airing.state["source"] != source
-          item = airing.rundown.fetch(index)
+          airing.record_event!("ad_backup", "row" => index + 1) if item["ad_campaign_id"] && !ad
           airing.record_event!("row_aired", "row" => index + 1, "label" => item.fetch("label"), "kind" => item.fetch("kind"), "sponsor" => item.fetch("sponsor"), "offset" => (boundary - segment.duration).round(2))
         end
         position = finishing - airing.rundown.fetch(index).fetch("seconds") + boundary

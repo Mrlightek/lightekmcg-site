@@ -1,0 +1,84 @@
+<% content_for :page_title, "Broadcast advertising" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+
+<main class="ll-studio ll-playout">
+  <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
+  <header class="ll-header"><h1>Broadcast advertising</h1></header>
+
+  <section class="ll-panel">
+    <h2>Your ad networks</h2>
+    <%= form_with url: dashboard_broadcast_ad_networks_path(site_id: @site.id), scope: :network, class: "ll-playout-actions" do |form| %>
+      <label>Network name <%= form.text_field :name, maxlength: 100, required: true %></label>
+      <%= form.submit "Create ad network" %>
+    <% end %>
+
+    <% @networks.each do |network| %>
+      <details class="ll-config">
+        <summary><%= network.name %></summary>
+        <ul class="ll-playout-list">
+          <% network.campaigns.sort_by(&:id).reverse_each do |campaign| %>
+            <li>
+              <strong><%= campaign.name %></strong> · <%= campaign.seconds %>s · <%= number_to_currency(campaign.rate_cents / 100.0) %> per airing
+              <%= button_to(campaign.open_for_booking? ? "Close bookings" : "Offer to stations",
+                dashboard_broadcast_ad_offer_path(network, campaign, site_id: @site.id), method: :patch,
+                params: { open_for_booking: campaign.open_for_booking? ? "0" : "1" }) %>
+            </li>
+          <% end %>
+        </ul>
+        <% if @videos.any? %>
+          <%= form_with url: dashboard_broadcast_ad_campaigns_path(network, site_id: @site.id), scope: :campaign, class: "ll-playout-actions" do |form| %>
+            <label>Campaign name <%= form.text_field :name, maxlength: 100, required: true %></label>
+            <label>Ad video <%= form.select :asset_id, @videos.map { |asset| [asset.name, asset.id] }, { prompt: "Choose a ready video" }, required: true %></label>
+            <label>Seconds <%= form.number_field :seconds, min: 2, max: 120, required: true %></label>
+            <label>Price per airing (USD) <%= form.number_field :rate_cents, min: 0.01, max: 10000, step: 0.01, required: true %></label>
+            <label>Ad network share (%) <%= form.number_field :network_bps, min: 0, max: 99.99, step: 0.01, value: 0, required: true %></label>
+            <label>Show producer share (%) <%= form.number_field :producer_bps, min: 0, max: 99.99, step: 0.01, value: 0, required: true %></label>
+            <label>Lightek share (%) <%= form.number_field :platform_bps, min: 0, max: 99.99, step: 0.01, value: 0, required: true %></label>
+            <p>The station receives the remaining amount. Opening bookings shares this campaign with other stations and allows playback on their channel and any connected simulcast.</p>
+            <%= form.submit "Save draft campaign" %>
+          <% end %>
+        <% else %>
+          <p>Add a ready ad video in <%= link_to "Live Studio", dashboard_live_path(site_id: @site.id) %> to create a campaign.</p>
+        <% end %>
+      </details>
+    <% end %>
+  </section>
+
+  <section class="ll-panel">
+    <h2>Ad networks you carry</h2>
+    <% if @memberships.empty? %><p>You haven’t joined an ad network yet.</p><% end %>
+    <ul class="ll-playout-list">
+      <% @memberships.each do |membership| %>
+        <li><%= membership.network.name %>
+          <%= button_to "Leave network", dashboard_broadcast_ad_membership_path(membership.network, site_id: @site.id), method: :delete %>
+        </li>
+      <% end %>
+    </ul>
+    <h3>Open to join</h3>
+    <% if @available_networks.empty? %><p>No other networks are offering campaigns.</p><% end %>
+    <ul class="ll-playout-list">
+      <% @available_networks.each do |network| %>
+        <li><%= network.name %>
+          <%= button_to "Join network", dashboard_broadcast_ad_membership_path(network, site_id: @site.id) %>
+        </li>
+      <% end %>
+    </ul>
+    <% if @channels.any? %>
+      <h3>Book ads in a channel rundown</h3>
+      <ul class="ll-playout-list">
+        <% @channels.each do |channel| %>
+          <li><%= link_to channel.name, dashboard_channel_playout_path(channel, site_id: @site.id) %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+
+  <section class="ll-panel">
+    <h2>Delivered ads</h2>
+    <p>One receipt per complete public airing. Shares are recorded here and await funding and payout.</p>
+    <%= render "receipts", title: "Ads your stations aired", receipts: @station_receipts, share: :station_cents %>
+    <%= render "receipts", title: "Ads your networks supplied", receipts: @network_receipts, share: :network_cents %>
+    <%= render "receipts", title: "Your show producer share", receipts: @producer_receipts, share: :producer_cents if @producer_receipts.any? %>
+  </section>
+</main>

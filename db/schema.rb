@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_21_162000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -5249,6 +5249,181 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "studio_ad_campaigns", force: :cascade do |t|
+    t.bigint "network_id", null: false
+    t.bigint "asset_id", null: false
+    t.bigint "blob_id", null: false
+    t.string "name", null: false
+    t.integer "seconds", null: false
+    t.integer "rate_cents", null: false
+    t.integer "network_bps", null: false
+    t.integer "producer_bps", null: false
+    t.integer "platform_bps", null: false
+    t.boolean "open_for_booking", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "exchange_key"
+    t.string "creative_sha256"
+    t.boolean "exchange_authority", default: true, null: false
+    t.index ["asset_id"], name: "index_studio_ad_campaigns_on_asset_id"
+    t.index ["exchange_key"], name: "index_studio_ad_campaigns_on_exchange_key", unique: true, where: "exchange_authority"
+    t.index ["network_id", "exchange_key"], name: "index_studio_ad_campaigns_on_network_id_and_exchange_key", unique: true
+    t.index ["network_id"], name: "index_studio_ad_campaigns_on_network_id"
+  end
+
+  create_table "studio_ad_demand_sources", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.string "vault_slug", null: false
+    t.string "platform", default: "both", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "enabled", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "name"], name: "index_studio_ad_demand_sources_on_site_id_and_name", unique: true
+  end
+
+  create_table "studio_ad_memberships", force: :cascade do |t|
+    t.bigint "network_id", null: false
+    t.bigint "station_site_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["network_id"], name: "index_studio_ad_memberships_on_network_id"
+    t.index ["station_site_id", "network_id"], name: "index_studio_ad_memberships_on_station_site_id_and_network_id", unique: true
+    t.index ["station_site_id"], name: "index_studio_ad_memberships_on_station_site_id"
+  end
+
+  create_table "studio_ad_networks", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "exchange_key"
+    t.boolean "imported", default: false, null: false
+    t.bigint "peer_id"
+    t.index ["peer_id"], name: "index_studio_ad_networks_on_peer_id"
+    t.index ["site_id", "exchange_key"], name: "index_studio_ad_networks_on_site_id_and_exchange_key", unique: true
+    t.index ["site_id"], name: "index_studio_ad_networks_on_site_id"
+  end
+
+  create_table "studio_ad_payments", force: :cascade do |t|
+    t.bigint "placement_id", null: false
+    t.string "public_key", null: false
+    t.integer "amount_cents", null: false
+    t.string "state", default: "unfunded", null: false
+    t.integer "checkout_attempt", default: 0, null: false
+    t.integer "checkout_amount_cents"
+    t.string "checkout_reference"
+    t.datetime "checkout_requested_at"
+    t.string "intent_reference"
+    t.string "charge_reference"
+    t.datetime "authorized_until"
+    t.datetime "captured_at"
+    t.datetime "reconcile_after"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["charge_reference"], name: "index_studio_ad_payments_on_charge_reference", unique: true
+    t.index ["checkout_reference"], name: "index_studio_ad_payments_on_checkout_reference", unique: true
+    t.index ["intent_reference"], name: "index_studio_ad_payments_on_intent_reference", unique: true
+    t.index ["placement_id"], name: "index_studio_ad_payments_on_placement_id", unique: true
+    t.index ["public_key"], name: "index_studio_ad_payments_on_public_key", unique: true
+    t.index ["state", "reconcile_after"], name: "index_studio_ad_payments_on_state_and_reconcile_after"
+  end
+
+  create_table "studio_ad_payouts", force: :cascade do |t|
+    t.bigint "payment_id", null: false
+    t.bigint "recipient_id", null: false
+    t.string "role", null: false
+    t.integer "amount_cents", null: false
+    t.string "destination"
+    t.datetime "requested_at"
+    t.string "transfer_reference"
+    t.string "reversal_reference"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["payment_id", "role"], name: "index_studio_ad_payouts_on_payment_id_and_role", unique: true
+    t.index ["payment_id"], name: "index_studio_ad_payouts_on_payment_id"
+    t.index ["recipient_id"], name: "index_studio_ad_payouts_on_recipient_id"
+    t.index ["transfer_reference"], name: "index_studio_ad_payouts_on_transfer_reference", unique: true
+  end
+
+  create_table "studio_ad_placements", force: :cascade do |t|
+    t.bigint "campaign_id", null: false
+    t.bigint "station_site_id", null: false
+    t.bigint "airing_id"
+    t.integer "row_index", null: false
+    t.bigint "producer_id"
+    t.integer "station_cents", null: false
+    t.integer "producer_cents", null: false
+    t.integer "network_cents", null: false
+    t.integer "platform_cents", null: false
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "peer_id"
+    t.string "exchange_key"
+    t.datetime "scheduled_start"
+    t.datetime "scheduled_end"
+    t.boolean "remote_retired", default: false, null: false
+    t.datetime "remote_authorized_until"
+    t.string "remote_state"
+    t.datetime "sync_after"
+    t.index ["airing_id", "row_index"], name: "index_studio_ad_placements_on_airing_id_and_row_index", unique: true
+    t.index ["campaign_id"], name: "index_studio_ad_placements_on_campaign_id"
+    t.index ["exchange_key"], name: "index_studio_ad_placements_on_exchange_key", unique: true
+    t.index ["peer_id"], name: "index_studio_ad_placements_on_peer_id"
+    t.index ["station_site_id"], name: "index_studio_ad_placements_on_station_site_id"
+    t.index ["sync_after"], name: "index_studio_ad_placements_on_sync_after"
+  end
+
+  create_table "studio_ad_provider_statements", force: :cascade do |t|
+    t.bigint "source_id", null: false
+    t.string "reference", null: false
+    t.date "starts_on", null: false
+    t.date "ends_on", null: false
+    t.bigint "impressions", null: false
+    t.bigint "reported_cents", null: false
+    t.bigint "received_cents"
+    t.string "deposit_reference"
+    t.datetime "reconciled_at"
+    t.bigint "reconciled_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["source_id", "reference"], name: "index_studio_ad_provider_statements_on_source_id_and_reference", unique: true
+  end
+
+  create_table "studio_ad_stream_profiles", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "channel_id", null: false
+    t.string "platform", null: false
+    t.string "playback_url", null: false
+    t.string "decision_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["decision_key"], name: "index_studio_ad_stream_profiles_on_decision_key", unique: true
+    t.index ["site_id", "channel_id", "platform"], name: "idx_studio_ad_stream_profiles", unique: true
+  end
+
+  create_table "studio_ad_viewing_links", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "user_id", null: false
+    t.string "code_digest", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "linked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code_digest"], name: "index_studio_ad_viewing_links_on_code_digest", unique: true
+    t.index ["site_id", "user_id"], name: "index_studio_ad_viewing_links_on_site_id_and_user_id"
+  end
+
+  create_table "studio_ad_viewing_offers", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "product_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_studio_ad_viewing_offers_on_site_id", unique: true
+  end
+
   create_table "studio_assets", force: :cascade do |t|
     t.bigint "owner_id", null: false
     t.bigint "site_id"
@@ -5294,7 +5469,117 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "managed_playout", default: false, null: false
+    t.bigint "backup_asset_id"
+    t.bigint "backup_blob_id"
     t.index ["site_id"], name: "index_studio_broadcast_channels_on_site_id"
+  end
+
+  create_table "studio_broadcast_contract_evidence", force: :cascade do |t|
+    t.bigint "version_id", null: false
+    t.bigint "recorded_by_id", null: false
+    t.string "reference", null: false
+    t.string "kind", null: false
+    t.bigint "quantity", null: false
+    t.date "occurred_on", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["recorded_by_id"], name: "index_studio_broadcast_contract_evidence_on_recorded_by_id"
+    t.index ["version_id", "kind", "reference"], name: "index_broadcast_contract_evidence_on_reference", unique: true
+    t.index ["version_id"], name: "index_studio_broadcast_contract_evidence_on_version_id"
+  end
+
+  create_table "studio_broadcast_contract_signatures", force: :cascade do |t|
+    t.bigint "version_id", null: false
+    t.bigint "signer_id", null: false
+    t.string "party", null: false
+    t.string "signer_name", null: false
+    t.string "document_digest", null: false
+    t.datetime "signed_at", null: false
+    t.index ["signer_id"], name: "index_studio_broadcast_contract_signatures_on_signer_id"
+    t.index ["version_id", "party"], name: "index_broadcast_contract_signatures_on_party", unique: true
+    t.index ["version_id"], name: "index_studio_broadcast_contract_signatures_on_version_id"
+  end
+
+  create_table "studio_broadcast_contract_versions", force: :cascade do |t|
+    t.bigint "contract_id", null: false
+    t.bigint "offered_by_id", null: false
+    t.integer "number", null: false
+    t.date "starts_on", null: false
+    t.date "ends_on", null: false
+    t.json "terms_snapshot", null: false
+    t.string "document_digest", null: false
+    t.datetime "withdrawn_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contract_id", "number"], name: "index_broadcast_contract_versions_on_number", unique: true
+    t.index ["contract_id"], name: "index_studio_broadcast_contract_versions_on_contract_id"
+    t.index ["offered_by_id"], name: "index_studio_broadcast_contract_versions_on_offered_by_id"
+  end
+
+  create_table "studio_broadcast_contracts", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "counterparty_id"
+    t.bigint "carriage_agreement_id"
+    t.bigint "sponsor_package_id"
+    t.string "kind", null: false
+    t.string "title", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["carriage_agreement_id"], name: "index_studio_broadcast_contracts_on_carriage_agreement_id", unique: true
+    t.index ["counterparty_id"], name: "index_studio_broadcast_contracts_on_counterparty_id"
+    t.index ["site_id"], name: "index_studio_broadcast_contracts_on_site_id"
+    t.index ["sponsor_package_id"], name: "index_studio_broadcast_contracts_on_sponsor_package_id", unique: true
+  end
+
+  create_table "studio_broadcast_delivery_rates", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.decimal "egress", precision: 12, scale: 6, null: false
+    t.decimal "storage", precision: 12, scale: 6, null: false
+    t.decimal "encoding", precision: 12, scale: 6, null: false
+    t.decimal "support", precision: 12, scale: 6, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id"], name: "index_studio_broadcast_delivery_rates_on_site_id", unique: true
+  end
+
+  create_table "studio_broadcast_delivery_usage", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "channel_key", null: false
+    t.date "day", null: false
+    t.bigint "bytes_served", default: 0, null: false
+    t.bigint "encoding_ms", default: 0, null: false
+    t.bigint "stored_bytes", default: 0, null: false
+    t.bigint "support_minutes", default: 0, null: false
+    t.index ["site_id", "channel_key", "day"], name: "idx_broadcast_delivery_usage", unique: true
+  end
+
+  create_table "studio_broadcast_feed_incidents", force: :cascade do |t|
+    t.bigint "hosted_carriage_id", null: false
+    t.string "event", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["hosted_carriage_id", "created_at"], name: "index_broadcast_feed_incidents_on_time"
+    t.index ["hosted_carriage_id"], name: "index_studio_broadcast_feed_incidents_on_hosted_carriage_id"
+  end
+
+  create_table "studio_broadcast_operating_plans", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.bigint "department_id", null: false
+    t.bigint "owner_id", null: false
+    t.bigint "channel_id"
+    t.string "market"
+    t.date "month", null: false
+    t.text "coverage", null: false
+    t.text "targets", null: false
+    t.bigint "budget_cents", null: false
+    t.bigint "actual_cost_cents", null: false
+    t.bigint "actual_revenue_cents", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["channel_id"], name: "index_studio_broadcast_operating_plans_on_channel_id"
+    t.index ["department_id"], name: "index_studio_broadcast_operating_plans_on_department_id"
+    t.index ["owner_id"], name: "index_studio_broadcast_operating_plans_on_owner_id"
+    t.index ["site_id"], name: "index_studio_broadcast_operating_plans_on_site_id"
   end
 
   create_table "studio_broadcast_programs", force: :cascade do |t|
@@ -5307,6 +5592,58 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
     t.index ["channel_id", "starts_at"], name: "index_studio_broadcast_programs_on_channel_id_and_starts_at"
     t.index ["channel_id"], name: "index_studio_broadcast_programs_on_channel_id"
     t.index ["post_id"], name: "index_studio_broadcast_programs_on_post_id"
+  end
+
+  create_table "studio_broadcast_report_archives", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.date "month", null: false
+    t.text "csv", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site_id", "month"], name: "index_studio_broadcast_report_archives_on_site_id_and_month", unique: true
+    t.index ["site_id"], name: "index_studio_broadcast_report_archives_on_site_id"
+  end
+
+  create_table "studio_broadcast_view_sessions", force: :cascade do |t|
+    t.bigint "channel_id", null: false
+    t.bigint "station_site_id", null: false
+    t.bigint "outlet_site_id", null: false
+    t.bigint "airing_id", null: false
+    t.integer "ad_row", default: -1, null: false
+    t.date "day", null: false
+    t.string "platform", null: false
+    t.string "session_key", null: false
+    t.bigint "highest_sequence", default: -1, null: false
+    t.bigint "sequence_window", default: 0, null: false
+    t.integer "segments", default: 0, null: false
+    t.bigint "media_ms", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["outlet_site_id", "day"], name: "index_studio_broadcast_outlet_day"
+    t.index ["session_key", "channel_id", "airing_id", "ad_row", "day"], name: "index_studio_broadcast_session_context", unique: true
+    t.index ["station_site_id", "day"], name: "index_studio_broadcast_station_day"
+  end
+
+  create_table "studio_carriage_agreements", force: :cascade do |t|
+    t.bigint "outlet_site_id", null: false
+    t.bigint "station_site_id", null: false
+    t.bigint "channel_id"
+    t.bigint "hosted_carriage_id"
+    t.bigint "offered_by_id", null: false
+    t.bigint "accepted_by_id"
+    t.datetime "accepted_at"
+    t.date "starts_on", null: false
+    t.date "ends_on", null: false
+    t.jsonb "terms", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["accepted_by_id"], name: "index_studio_carriage_agreements_on_accepted_by_id"
+    t.index ["channel_id"], name: "index_studio_carriage_agreements_on_channel_id"
+    t.index ["hosted_carriage_id"], name: "index_studio_carriage_agreements_on_hosted_carriage_id"
+    t.index ["offered_by_id"], name: "index_studio_carriage_agreements_on_offered_by_id"
+    t.index ["outlet_site_id"], name: "index_studio_carriage_agreements_on_outlet_site_id"
+    t.index ["station_site_id"], name: "index_studio_carriage_agreements_on_station_site_id"
+    t.check_constraint "(channel_id IS NULL) <> (hosted_carriage_id IS NULL)", name: "studio_carriage_agreement_source"
   end
 
   create_table "studio_channel_airings", force: :cascade do |t|
@@ -5323,6 +5660,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
     t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "measurement", default: {}, null: false
     t.index ["channel_id", "starts_at"], name: "index_studio_channel_airings_on_channel_id_and_starts_at"
     t.index ["channel_id"], name: "index_studio_channel_airings_on_channel_id"
     t.index ["operator_id"], name: "index_studio_channel_airings_on_operator_id"
@@ -5347,6 +5685,26 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
     t.index ["name"], name: "index_studio_compute_pools_on_name", unique: true
   end
 
+  create_table "studio_hosted_carriages", force: :cascade do |t|
+    t.bigint "peer_id", null: false
+    t.string "key", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.string "status", default: "requested", null: false
+    t.string "ownership"
+    t.boolean "published", default: false, null: false
+    t.jsonb "schedule", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "fallback_channel_id"
+    t.jsonb "relay_cursor", default: {}, null: false
+    t.string "observed_feed_state"
+    t.index ["fallback_channel_id"], name: "index_studio_hosted_carriages_on_fallback_channel_id"
+    t.index ["key"], name: "index_studio_hosted_carriages_on_key", unique: true
+    t.index ["peer_id"], name: "index_studio_hosted_carriages_on_peer_id"
+    t.index ["status", "published"], name: "index_studio_hosted_carriages_on_status_and_published"
+  end
+
   create_table "studio_live_operations", force: :cascade do |t|
     t.bigint "studio_project_id", null: false
     t.bigint "production_id"
@@ -5369,6 +5727,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
     t.index ["production_id"], name: "index_studio_live_operations_on_production_id"
     t.index ["status"], name: "index_studio_live_operations_on_status"
     t.index ["studio_project_id"], name: "index_studio_live_operations_on_studio_project_id"
+  end
+
+  create_table "studio_network_carriages", force: :cascade do |t|
+    t.bigint "channel_id", null: false
+    t.string "status", default: "requested", null: false
+    t.string "ownership"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "remote_key"
+    t.string "relay_digest"
+    t.index ["channel_id"], name: "index_studio_network_carriages_on_channel_id", unique: true
+    t.index ["remote_key"], name: "index_studio_network_carriages_on_remote_key", unique: true
   end
 
   create_table "studio_operations", force: :cascade do |t|
@@ -5396,6 +5766,73 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
     t.index ["status"], name: "index_studio_operations_on_status"
     t.index ["studio_project_id"], name: "index_studio_operations_on_studio_project_id"
     t.index ["studio_scene_id"], name: "index_studio_operations_on_studio_scene_id"
+  end
+
+  create_table "studio_program_clips", force: :cascade do |t|
+    t.bigint "license_id", null: false
+    t.bigint "site_id", null: false
+    t.string "title", null: false
+    t.integer "start_second", null: false
+    t.integer "duration_seconds", null: false
+    t.string "error_message"
+    t.string "public_key", null: false
+    t.datetime "withdrawn_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["license_id"], name: "index_studio_program_clips_on_license_id"
+    t.index ["public_key"], name: "index_studio_program_clips_on_public_key", unique: true
+    t.index ["site_id"], name: "index_studio_program_clips_on_site_id"
+  end
+
+  create_table "studio_program_distribution_handoffs", force: :cascade do |t|
+    t.bigint "license_id", null: false
+    t.bigint "operator_id", null: false
+    t.string "platform", null: false
+    t.string "partner", null: false
+    t.json "territories", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.boolean "commercial", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "spec_reference"
+    t.string "submission_reference"
+    t.datetime "submitted_at"
+    t.json "quality_checks"
+    t.index ["license_id"], name: "index_studio_program_distribution_handoffs_on_license_id"
+    t.index ["operator_id"], name: "index_studio_program_distribution_handoffs_on_operator_id"
+  end
+
+  create_table "studio_program_licenses", force: :cascade do |t|
+    t.bigint "licensor_site_id"
+    t.bigint "licensee_site_id", null: false
+    t.bigint "asset_id", null: false
+    t.bigint "blob_id", null: false
+    t.string "title", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "ends_at", null: false
+    t.string "status", default: "offered", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "federation_key"
+    t.string "originator_name"
+    t.string "creative_digest"
+    t.bigint "publisher_peer_id"
+    t.jsonb "additional_rights", default: [], null: false
+    t.bigint "parent_license_id"
+    t.json "territories"
+    t.json "platforms"
+    t.string "web_screening_key"
+    t.bigint "rights_attested_by_id"
+    t.string "rights_evidence_reference"
+    t.index ["federation_key"], name: "index_studio_program_licenses_on_federation_key", unique: true
+    t.index ["licensee_site_id", "status", "ends_at"], name: "idx_on_licensee_site_id_status_ends_at_2441e1a5c5"
+    t.index ["licensee_site_id"], name: "index_studio_program_licenses_on_licensee_site_id"
+    t.index ["licensor_site_id"], name: "index_studio_program_licenses_on_licensor_site_id"
+    t.index ["parent_license_id"], name: "index_studio_program_licenses_on_parent_license_id"
+    t.index ["publisher_peer_id"], name: "index_studio_program_licenses_on_publisher_peer_id"
+    t.index ["rights_attested_by_id"], name: "index_studio_program_licenses_on_rights_attested_by_id"
+    t.index ["web_screening_key"], name: "index_studio_program_licenses_on_web_screening_key", unique: true
   end
 
   create_table "studio_projects", force: :cascade do |t|
@@ -5462,6 +5899,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
     t.integer "lock_version", default: 0, null: false
     t.index ["production_id"], name: "index_studio_scenes_on_production_id"
     t.index ["studio_project_id"], name: "index_studio_scenes_on_studio_project_id"
+  end
+
+  create_table "studio_sponsor_package_spots", force: :cascade do |t|
+    t.bigint "package_id", null: false
+    t.bigint "payment_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["package_id"], name: "index_studio_sponsor_package_spots_on_package_id"
+    t.index ["payment_id"], name: "index_studio_sponsor_package_spots_on_payment_id", unique: true
+  end
+
+  create_table "studio_sponsor_packages", force: :cascade do |t|
+    t.bigint "site_id", null: false
+    t.string "name", null: false
+    t.string "public_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["public_key"], name: "index_studio_sponsor_packages_on_public_key", unique: true
+    t.index ["site_id"], name: "index_studio_sponsor_packages_on_site_id"
   end
 
   create_table "studio_workstations", force: :cascade do |t|
@@ -6208,21 +6664,66 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
   add_foreign_key "sessions", "lightek_identity_connections", column: "identity_connection_id"
   add_foreign_key "sessions", "users"
   add_foreign_key "shows", "episodes"
+  add_foreign_key "studio_ad_campaigns", "studio_ad_networks", column: "network_id"
+  add_foreign_key "studio_ad_memberships", "dymond_site_sites", column: "station_site_id"
+  add_foreign_key "studio_ad_memberships", "studio_ad_networks", column: "network_id"
+  add_foreign_key "studio_ad_networks", "dymond_site_sites", column: "site_id"
+  add_foreign_key "studio_ad_networks", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "studio_ad_payments", "studio_ad_placements", column: "placement_id"
+  add_foreign_key "studio_ad_payouts", "studio_ad_payments", column: "payment_id"
+  add_foreign_key "studio_ad_payouts", "users", column: "recipient_id"
+  add_foreign_key "studio_ad_placements", "dymond_site_sites", column: "station_site_id"
+  add_foreign_key "studio_ad_placements", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "studio_ad_placements", "studio_ad_campaigns", column: "campaign_id"
   add_foreign_key "studio_assets", "dymond_site_sites", column: "site_id"
   add_foreign_key "studio_assets", "studio_projects"
   add_foreign_key "studio_assets", "users", column: "owner_id"
   add_foreign_key "studio_broadcast_applications", "dymond_site_sites", column: "site_id", on_delete: :cascade
   add_foreign_key "studio_broadcast_channels", "dymond_site_sites", column: "site_id", on_delete: :cascade
+  add_foreign_key "studio_broadcast_contract_evidence", "studio_broadcast_contract_versions", column: "version_id"
+  add_foreign_key "studio_broadcast_contract_evidence", "users", column: "recorded_by_id"
+  add_foreign_key "studio_broadcast_contract_signatures", "studio_broadcast_contract_versions", column: "version_id"
+  add_foreign_key "studio_broadcast_contract_signatures", "users", column: "signer_id"
+  add_foreign_key "studio_broadcast_contract_versions", "studio_broadcast_contracts", column: "contract_id"
+  add_foreign_key "studio_broadcast_contract_versions", "users", column: "offered_by_id"
+  add_foreign_key "studio_broadcast_contracts", "dymond_site_sites", column: "site_id"
+  add_foreign_key "studio_broadcast_contracts", "studio_carriage_agreements", column: "carriage_agreement_id"
+  add_foreign_key "studio_broadcast_contracts", "studio_sponsor_packages", column: "sponsor_package_id"
+  add_foreign_key "studio_broadcast_contracts", "users", column: "counterparty_id"
+  add_foreign_key "studio_broadcast_feed_incidents", "studio_hosted_carriages", column: "hosted_carriage_id", on_delete: :cascade
+  add_foreign_key "studio_broadcast_operating_plans", "dymond_site_sites", column: "site_id"
+  add_foreign_key "studio_broadcast_operating_plans", "lightek_people_departments", column: "department_id"
+  add_foreign_key "studio_broadcast_operating_plans", "studio_broadcast_channels", column: "channel_id"
+  add_foreign_key "studio_broadcast_operating_plans", "users", column: "owner_id"
   add_foreign_key "studio_broadcast_programs", "posts", on_delete: :cascade
   add_foreign_key "studio_broadcast_programs", "studio_broadcast_channels", column: "channel_id", on_delete: :cascade
+  add_foreign_key "studio_broadcast_report_archives", "dymond_site_sites", column: "site_id"
+  add_foreign_key "studio_carriage_agreements", "dymond_site_sites", column: "outlet_site_id"
+  add_foreign_key "studio_carriage_agreements", "dymond_site_sites", column: "station_site_id"
+  add_foreign_key "studio_carriage_agreements", "studio_broadcast_channels", column: "channel_id"
+  add_foreign_key "studio_carriage_agreements", "studio_hosted_carriages", column: "hosted_carriage_id"
+  add_foreign_key "studio_carriage_agreements", "users", column: "accepted_by_id"
+  add_foreign_key "studio_carriage_agreements", "users", column: "offered_by_id"
   add_foreign_key "studio_channel_airings", "studio_broadcast_channels", column: "channel_id", on_delete: :cascade
   add_foreign_key "studio_channel_airings", "users", column: "operator_id", on_delete: :cascade
   add_foreign_key "studio_compute_leases", "studio_operations"
+  add_foreign_key "studio_hosted_carriages", "lightek_reservation_peers", column: "peer_id"
+  add_foreign_key "studio_hosted_carriages", "studio_broadcast_channels", column: "fallback_channel_id", on_delete: :nullify
   add_foreign_key "studio_live_operations", "productions"
   add_foreign_key "studio_live_operations", "studio_projects"
+  add_foreign_key "studio_network_carriages", "studio_broadcast_channels", column: "channel_id", on_delete: :cascade
   add_foreign_key "studio_operations", "productions"
   add_foreign_key "studio_operations", "studio_projects"
   add_foreign_key "studio_operations", "studio_scenes"
+  add_foreign_key "studio_program_clips", "dymond_site_sites", column: "site_id"
+  add_foreign_key "studio_program_clips", "studio_program_licenses", column: "license_id"
+  add_foreign_key "studio_program_distribution_handoffs", "studio_program_licenses", column: "license_id"
+  add_foreign_key "studio_program_distribution_handoffs", "users", column: "operator_id"
+  add_foreign_key "studio_program_licenses", "dymond_site_sites", column: "licensee_site_id"
+  add_foreign_key "studio_program_licenses", "dymond_site_sites", column: "licensor_site_id"
+  add_foreign_key "studio_program_licenses", "lightek_reservation_peers", column: "publisher_peer_id"
+  add_foreign_key "studio_program_licenses", "studio_program_licenses", column: "parent_license_id"
+  add_foreign_key "studio_program_licenses", "users", column: "rights_attested_by_id"
   add_foreign_key "studio_projects", "dymond_site_sites", column: "site_id"
   add_foreign_key "studio_projects", "users", column: "owner_id"
   add_foreign_key "studio_publications", "artifacts"
@@ -6232,6 +6733,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_20_220000) do
   add_foreign_key "studio_remote_renders", "studio_operations"
   add_foreign_key "studio_scenes", "productions"
   add_foreign_key "studio_scenes", "studio_projects"
+  add_foreign_key "studio_sponsor_package_spots", "studio_ad_payments", column: "payment_id"
+  add_foreign_key "studio_sponsor_package_spots", "studio_sponsor_packages", column: "package_id"
+  add_foreign_key "studio_sponsor_packages", "dymond_site_sites", column: "site_id"
   add_foreign_key "studio_workstations", "studio_scenes"
   add_foreign_key "studio_workstations", "users", column: "owner_id"
   add_foreign_key "subscription_infrastructure_entitlements", "compute_policies"

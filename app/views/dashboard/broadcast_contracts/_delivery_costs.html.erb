@@ -1,0 +1,36 @@
+<section class="ll-panel">
+  <h2>Delivery costs</h2>
+  <p>Estimates use this installation’s rates and a 30-day storage month. Usage includes origin responses, local playout storage snapshots, encoding time, and recorded support.</p>
+  <%= form_with model: @delivery_rates, scope: :delivery_rate, method: :post, url: dashboard_broadcast_delivery_rates_path(site_id: @site.id), class: "ll-playout-actions" do |form| %>
+    <% Studio::Broadcasting::DeliveryRate::UNITS.each do |metric, unit| %>
+      <label><%= unit %> <%= form.number_field metric, min: 0, max: 100_000, step: 0.000001, required: true %></label>
+    <% end %>
+    <%= form.submit "Save cost rates" %>
+  <% end %>
+  <% if @delivery_channels.any? %>
+    <%= form_with url: dashboard_broadcast_delivery_support_path(site_id: @site.id), class: "ll-playout-actions" do |form| %>
+      <label>Channel <%= form.collection_select :channel_id, @delivery_channels, :id, :name, {}, required: true %></label>
+      <label>Support minutes today <%= form.number_field :minutes, min: 1, max: 1440, required: true %></label>
+      <%= form.submit "Record support time" %>
+    <% end %>
+  <% end %>
+  <% if @delivery_costs.empty? %>
+    <p>No delivery usage recorded in this period.</p>
+  <% else %>
+    <table>
+      <thead><tr><th>Channel</th><th>GB served</th><th>GB-days stored</th><th>Encoding hours</th><th>Support hours</th><th>Estimated cost</th></tr></thead>
+      <tbody>
+        <% @delivery_costs.each do |row| %>
+          <tr>
+            <th scope="row"><%= row.fetch("channel") %></th>
+            <td><%= number_with_precision(row.fetch("bytes_served") / 1e9, precision: 3) %></td>
+            <td><%= number_with_precision(row.fetch("stored_bytes") / 1e9, precision: 3) %></td>
+            <td><%= number_with_precision(row.fetch("encoding_ms") / 3_600_000.0, precision: 3) %></td>
+            <td><%= number_with_precision(row.fetch("support_minutes") / 60.0, precision: 2) %></td>
+            <td><%= row["estimated_cost_usd"] ? number_to_currency(row["estimated_cost_usd"]) : "Set rates" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>

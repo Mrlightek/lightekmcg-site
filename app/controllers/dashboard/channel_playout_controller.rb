@@ -7,7 +7,8 @@ class Dashboard::ChannelPlayoutController < Dashboard::SettingsHomeController
   rescue_from LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied, ::Gatekeeper::StudioLivePolicy::Denied do |error|
     render plain: error.message, status: :forbidden
   end
-  rescue_from ArgumentError, KeyError, ActiveRecord::RecordInvalid do |error|
+  rescue_from ArgumentError, KeyError, ActiveRecord::RecordInvalid, Studio::Broadcasting::HostedPrograms::Unavailable,
+    LightekReservations::Federation::Client::Unavailable do |error|
     redirect_to dashboard_channel_playout_path(@channel, site_id: @site.id), alert: error.message, status: :see_other
   end
 
@@ -21,17 +22,43 @@ class Dashboard::ChannelPlayoutController < Dashboard::SettingsHomeController
     @relays = %w[tiktok restream].filter_map do |provider|
       [Studio::Live::Destination.provider!(provider).fetch(:label), provider] if Studio::Live::Destination.configured?(current_user, provider: provider)
     end
+    @campaigns = Studio::Advertising::Campaign.for_station(@site.id).includes(:network, asset: { proxy_attachment: :blob })
+      .order(:name, :id).limit(100).select(&:creative_available?)
+    @ad_placements = Studio::Advertising::Placement.where(airing_id: @airings.select(:id)).includes(:campaign).group_by(&:airing_id)
+    @show_projects = StudioProject.where(site_id: @site.id).where.not(owner_id: nil).order(:name, :id)
+    @licensed_programs = Studio::Broadcasting::ProgramLicense.where(licensee_site_id: @site.id, status: "accepted")
+      .where("ends_at > ?", Time.current).includes(:asset).order(:title, :id)
     @playlist = @channel.managed_path
+    @feed_health = Studio::Broadcasting::PlayoutMedia.feed_health(@channel.id)
+    @backup_ready = Studio::Broadcasting::PlayoutMedia.backup(@channel).present?
   end
 
   def create
-    raw = params.require(:airing).permit(:title, :starts_at, :relay, rows: %i[kind asset_id seconds label sponsor])
+    raw = params.require(:airing).permit(:title, :starts_at, :weekly_occurrences, :replay, :relay, :show_project_id, rows: %i[kind asset_id seconds label sponsor ad_campaign_id external_ad],
+      measurement: Studio::Broadcasting::AudienceReport::INPUT_FIELDS)
     source = raw[:rows]
     rows = source.respond_to?(:values) ? source.values.map(&:to_h) : []
-    airing = Studio::Broadcasting::Airing.schedule!(channel: @channel, operator: current_user, title: raw[:title],
-      starts_at: Time.zone.parse(raw[:starts_at].to_s), relay: raw[:relay].presence, rows: rows)
-    Studio::Broadcasting::PrepareAiringJob.perform_later(airing.id)
-    back("Rundown scheduled. Check preparation status before airtime.")
+    airings = Studio::Broadcasting::Airing.schedule_weekly!(channel: @channel, operator: current_user, title: raw[:title],
+      starts_at: Time.zone.parse(raw[:starts_at].to_s), occurrences: raw[:weekly_occurrences], relay: raw[:relay].presence,
+      rows: rows, replay: raw[:replay] == "1", show_project_id: raw[:show_project_id], measurement: raw[:measurement].to_h)
+    airings.each { |airing| Studio::Broadcasting::PrepareAiringJob.perform_later(airing.id) }
+    back("#{helpers.pluralize(airings.size, "airing")} scheduled. Check preparation status before airtime.")
+  end
+
+  def save_backup
+    selection = params[:asset_id].presence
+    unless selection
+      @channel.update!(backup_asset_id: nil, backup_blob_id: nil)
+      return back("The channel now uses the default standby slate.")
+    end
+
+    actor = Studio::PwaAccess.new("user_id" => current_user.id, "site_id" => @site.id)
+    asset = StudioAsset.for_actor(actor).where(site_id: @site.id, status: "ready", kind: "video").find(selection)
+    raise ArgumentError, "Choose a ready video with at least two seconds of footage." unless asset.proxy.attached? && asset.metadata["duration"].to_f >= 2
+
+    @channel.update!(backup_asset_id: asset.id, backup_blob_id: asset.proxy.blob.id)
+    Studio::Broadcasting::PrepareChannelBackupJob.perform_later(@channel.id, asset.id, asset.proxy.blob.id)
+    back("Backup video is preparing. Refresh the channel status to check when it is ready.")
   end
 
   def command

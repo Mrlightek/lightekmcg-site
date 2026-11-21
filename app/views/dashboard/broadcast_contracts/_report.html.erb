@@ -1,0 +1,59 @@
+<section class="ll-panel">
+  <h2>Promised, delivered, and still owed</h2>
+  <p><%= report.fetch("status") %> · <%= report.fetch("issuer") %> / <%= report.fetch("counterparty") %> · <%= report.fetch("starts_on") %> through <%= report.fetch("ends_on") %></p>
+  <dl>
+    <dt><strong>What was promised</strong></dt>
+    <dd><%= simple_format(report["terms"]) if report["terms"].present? %>
+      <% report.fetch("carriage_terms", {}).each do |key, value| %>
+        <p><strong><%= Studio::Broadcasting::CarriageAgreement::TERMS.fetch(key) %></strong> · <%= value %></p>
+      <% end %>
+      <% if report["promised_deliveries"] %><p><%= report["promised_deliveries"] %> promised deliveries · <%= number_to_currency(report.fetch("agreed_cents") / 100.0) %> agreed</p><% end %>
+    </dd>
+    <dt><strong>What was delivered</strong></dt>
+    <dd>
+      <% if report["delivered"] %><p><%= report["delivered"] %> recorded deliveries · <%= number_to_currency(report.fetch("confirmed_paid_cents") / 100.0) %> recorded paid</p><% end %>
+      <% if (audience = report["audience"]) %>
+        <p><%= audience.fetch("sessions") %> first-party sessions · <%= number_with_precision(audience.fetch("viewing_ms") / 3600000.0, precision: 2) %> hours requested on this outlet</p>
+      <% end %>
+      <% if report["delivery_basis"] %><p><%= report["delivery_basis"] %></p><% end %>
+    </dd>
+    <dt><strong>What’s still owed</strong></dt>
+    <dd>
+      <% if report["outstanding_cents"] %>
+        <p><%= report.fetch("deliveries_remaining") %> deliveries remaining · <%= number_to_currency(report.fetch("outstanding_cents") / 100.0) %> outstanding</p>
+      <% else %>
+        <p>No verified outstanding balance.</p>
+      <% end %>
+      <% if report["fixed_fee_due_on"] && report["outstanding_cents"].to_i.positive? %>
+        <p>Fixed fee due <%= report.fetch("fixed_fee_due_on") %></p>
+      <% end %>
+      <% if report["held_cents"] %>
+        <p><%= number_to_currency(report.fetch("held_cents") / 100.0) %> held for reconciliation · <%= number_to_currency(report.fetch("not_yet_delivered_cents") / 100.0) %> in undelivered spots</p>
+      <% end %>
+      <% if report["royalty_owed_cents"] %>
+        <p><%= report.fetch("royalty_role").humanize %> ad proceeds · <%= number_to_currency(report.fetch("royalty_paid_cents") / 100.0) %> transferred · <%= number_to_currency(report.fetch("royalty_owed_cents") / 100.0) %> unreleased · <%= number_to_currency(report.fetch("royalty_held_cents") / 100.0) %> held</p>
+      <% end %>
+      <p><%= report["payment_basis"] %></p>
+    </dd>
+  </dl>
+  <% if report["booked_spots"].present? %>
+    <details class="ll-config"><summary>Booked spots and payment evidence</summary>
+      <ul class="ll-playout-list">
+        <% report.fetch("booked_spots").each do |spot| %>
+          <li>Payment <%= spot.fetch("payment_id") %> · <%= spot.fetch("station") %> · <%= spot["scheduled_at"] %>
+            · <%= spot["delivered_at"].present? ? "Delivered #{spot['delivered_at']}" : "Delivery pending" %> · <%= spot.fetch("funding_status").humanize %></li>
+        <% end %>
+      </ul>
+    </details>
+  <% end %>
+  <% if report["evidence"].present? %>
+    <details class="ll-config"><summary>Operator-reviewed evidence</summary>
+      <ul class="ll-playout-list">
+        <% report.fetch("evidence").each do |row| %>
+          <li><%= row.fetch("occurred_on") %> · <%= row.fetch("reference") %> ·
+            <%= row.fetch("kind") == "delivery" ? "#{row.fetch('quantity')} delivered" : number_to_currency(row.fetch("quantity") / 100.0) %></li>
+        <% end %>
+      </ul>
+    </details>
+  <% end %>
+</section>

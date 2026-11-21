@@ -1,0 +1,8 @@
+.lt-player { max-width: 58rem; }
+.lt-player video { width: 100%; display: block; aspect-ratio: 16 / 9; background: #111; }
+.lt-player-controls { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; padding: .65rem 0; }
+.lt-player-controls[hidden] { display: none; }
+.lt-player-controls input { flex: 1; min-width: 6rem; }
+.lt-player:fullscreen { background: #111; max-width: none; display: flex; flex-direction: column; justify-content: center; }
+.lt-player:fullscreen video { max-height: calc(100vh - 6rem); }
+.lt-player:fullscreen .lt-player-controls { padding-inline: 1rem; }

@@ -1,0 +1,25 @@
+<% content_for :page_title, @report.fetch("title") %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<main class="ll-studio ll-playout">
+  <nav aria-label="Broadcast agreements"><%= link_to "All agreements", dashboard_broadcast_contracts_path(site_id: @site.id) %></nav>
+  <header class="ll-header"><h1><%= @report.fetch("title") %></h1></header>
+  <%= render "report", report: @report %>
+  <% current = @hosted_agreement.fetch("versions").find { |version| version.fetch("id") == @hosted_agreement.fetch("current") } %>
+  <% if current && !(current.fetch("withdrawn") || current.fetch("signed") || @report.fetch("ends_on") < Date.current.iso8601) %>
+    <section class="ll-panel"><h2>Sign agreement</h2>
+      <%= render "signature", url: dashboard_sign_hosted_broadcast_contract_path(params[:id], site_id: @site.id),
+        digest: current.fetch("digest"), remote_version: current.fetch("id") %>
+    </section>
+  <% end %>
+  <section class="ll-panel"><h2>Downloads</h2>
+    <% unless current %><p><%= link_to "Download carriage report", dashboard_hosted_carriage_performance_path(params[:id], site_id: @site.id) %></p><% end %>
+    <ul class="ll-playout-list">
+      <% @hosted_agreement.fetch("versions").each do |version| %>
+        <li>Version <%= version.fetch("number") %> ·
+          <%= link_to "Agreement report", dashboard_hosted_broadcast_document_path(params[:id], version.fetch("id"), "report", site_id: @site.id) %>
+          <% if version.fetch("executed") %> · <%= link_to "Executed agreement", dashboard_hosted_broadcast_document_path(params[:id], version.fetch("id"), "copy", site_id: @site.id) %><% end %></li>
+      <% end %>
+    </ul>
+  </section>
+</main>

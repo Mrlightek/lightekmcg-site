@@ -150,12 +150,21 @@ jobs:
         with:
           ruby-version: '3.3.6'
           bundler-cache: true
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg blender libegl1 libgl1 python3-numpy python3-venv
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg imagemagick blender libegl1 libgl1 python3-numpy python3-venv
       - name: Install the pinned character-compatible Blender runtime
         run: |
-          curl --fail --location --retry 2 https://download.blender.org/release/Blender4.5/blender-4.5.16-linux-x64.tar.xz -o "$RUNNER_TEMP/blender.tar.xz"
-          echo "23432b064977908beb1ab4b7f32f024e7331105c875c187dce002aff84b10c11  $RUNNER_TEMP/blender.tar.xz" | sha256sum --check -
-          tar -xJf "$RUNNER_TEMP/blender.tar.xz" -C "$RUNNER_TEMP"
+          filename=blender-4.5.16-linux-x64.tar.xz
+          archive="$RUNNER_TEMP/blender.tar.xz"
+          checksum=23432b064977908beb1ab4b7f32f024e7331105c875c187dce002aff84b10c11
+          for mirror in https://mirror.blender.org https://mirror.clarkson.edu/blender https://download.blender.org; do
+            if curl --fail --location --retry 2 --connect-timeout 15 --max-time 420 "$mirror/release/Blender4.5/$filename" -o "$archive" &&
+                printf '%s  %s\n' "$checksum" "$archive" | sha256sum --check -; then
+              break
+            fi
+            rm -f "$archive"
+          done
+          test -s "$archive"
+          tar -xJf "$archive" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/blender-4.5.16-linux-x64" >> "$GITHUB_PATH"
       - name: Official Rain and Snow download, native import and starter scene
         env:

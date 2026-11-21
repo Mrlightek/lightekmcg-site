@@ -1,0 +1,7 @@
+<%= form_with url: url, scope: :signature, class: "ll-config" do |form| %>
+  <%= form.hidden_field :digest, value: digest %>
+  <% if local_assigns[:remote_version] %><%= form.hidden_field :version_id, value: remote_version %><% end %>
+  <label>Full name <%= form.text_field :name, maxlength: 160, required: true, autocomplete: "name" %></label>
+  <label><%= form.check_box :consent, { required: true } %> <%= Studio::Broadcasting::BroadcastContractVersion::SIGNING_INTENT %></label>
+  <%= form.submit "Sign this version" %>
+<% end %>

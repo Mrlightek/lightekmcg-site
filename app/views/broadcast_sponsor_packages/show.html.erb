@@ -1,0 +1,29 @@
+<% content_for :page_title, @package.name %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<main class="ll-studio ll-playout">
+  <header class="ll-header"><h1><%= @package.name %></h1></header>
+  <% if @agreement_id %>
+    <p><%= link_to "Review sponsor agreement", dashboard_broadcast_contract_path(@agreement_id) %></p>
+  <% end %>
+  <section class="ll-panel">
+    <h2>Booked spots</h2>
+    <p><%= number_to_currency(@payments.sum(&:amount_cents) / 100.0) %> USD in booked media. Each spot has its own authorization.</p>
+    <ul class="ll-playout-list">
+      <% @payments.each do |payment| %>
+        <% spot = payment.placement %>
+        <li>
+          <strong><%= spot.campaign.name %></strong>
+          · <%= spot.airing&.channel&.name || spot.station_site.name %>
+          · <%= spot.booked_start&.utc&.strftime("%b %-d, %Y %H:%M UTC") || "Airtime unavailable" %>
+          · <%= number_to_currency(payment.amount_cents / 100.0) %>
+          · <%= payment.state.humanize %>
+          <% if spot.delivered_at? %> · Delivered <%= spot.delivered_at.utc.strftime("%b %-d, %Y %H:%M UTC") %><% end %>
+          <% if payment.state == "unfunded" && payment.can_book_payment? %>
+            · <%= link_to "Authorize this spot", broadcast_ad_payment_path(payment.public_key) %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+</main>

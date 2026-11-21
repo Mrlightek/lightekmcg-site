@@ -6,12 +6,14 @@ module Studio
     # same audience-authorized media store used by Studio and the PWA.
     class Experience
       attr_reader :site, :application, :access
-      def initialize(site:, user:, platform:, slug: nil, origin:)
+      def initialize(site:, user:, platform:, slug: nil, origin:, viewing_user: nil, viewing_links: false)
         @site, @origin = site, origin
         raise ArgumentError, "Unsupported OTT platform" unless Application::PLATFORMS.include?(platform)
         apps = Application.where(site_id: site.id, platform: platform)
         @application = slug.present? ? apps.find_by!(slug: slug) : apps.order(:id).first
         @application ||= Application.new(site: site, name: site.name, slug: "default", platform: platform)
+        @user = viewing_user || user
+        @viewing_links = viewing_links
         @access = LightekCommunity::Access.new(user: user, site_id: site.id)
         @config = @application.configuration
         @available = @application.status == "published"
@@ -26,7 +28,7 @@ module Studio
         "#{@origin}#{path}?#{URI.encode_www_form(query)}"
       end
       def config
-        {schema_version: "1.0", platform: application.platform.upcase, application: {
+        response = {schema_version: "1.0", platform: application.platform.upcase, application: {
           id: "com.lightekmcg.#{site.id}.#{application.slug}", name: application.name,
           environment: Rails.env, status: @available ? "published" : "maintenance", minimum_client_version: application.minimum_client_version,
           revision: revision}, refresh: {configuration_ttl_seconds: @config["configuration_ttl"], screen_ttl_seconds: @config["configuration_ttl"]},
@@ -36,6 +38,13 @@ module Studio
             dimensions: {screen_width: 1920, screen_height: 1080, safe_margin_horizontal: 90, safe_margin_vertical: 60, card_spacing: 24, row_spacing: 48}},
           controls: @config.slice("autoplay", "captions", "search", "live", "catalog"),
           capabilities: {supported_screen_types: %w[home details search channel player], supported_component_types: %w[hero navigation content_row poster_card landscape_card live_card text], supported_action_types: %w[open_screen open_details play search exit], supported_stream_formats: %w[hls mp4]}}
+        if @available && application.platform == "roku"
+          response[:nielsen] = settings if (settings = Nielsen.roku_configuration(site))
+          if viewing_link_available?
+            response[:viewing_offer] = { active: fewer_commercials?, redeem_url: "#{@origin}/api/broadcast/viewing-links/redeem" }
+          end
+        end
+        response
       end
       def posts
         base = access.posts.where(parent_id: nil, distribution: %w[lightek_streaming octavia], kind: %w[video live])
@@ -58,6 +67,7 @@ module Studio
         if @available && @config["live"] && (live || query.blank?)
           channels = active_channels
           channel_items = channels.map { |channel| channel_card(channel) }
+          channel_items.concat(hosted_channels.map { |channel| hosted_card(channel) })
           rows << row("live-channels", "Live channels", channel_items) if channel_items.any?
         end
         rows << row("published-media", live ? "Live broadcasts" : "Latest releases", items) if items.any?
@@ -82,6 +92,10 @@ module Studio
       def navigation
         items = [{id: "nav-home", label: "Home", action: {type: "open_screen", target: url("/gatekeeper")}}]
         items << {id: "nav-watch", label: "Live TV", action: {type: "open_screen", target: url("/gatekeeper/screens/live")}} if @config["live"]
+        if viewing_link_available?
+          items << {id: "nav-viewing-link", label: fewer_commercials? ? "Fewer Commercials active" : "Link Fewer Commercials",
+            action: {type: "link_viewing", target: "#{@origin}/api/broadcast/viewing-links/redeem"}}
+        end
         items << {id: "nav-search", label: "Search", action: {type: "search", target: url("/gatekeeper/search")}} if @config["search"]
         items
       end
@@ -113,15 +127,70 @@ module Studio
           autoplay: @config["autoplay"], captions: @config["captions"]}
       end
       def channel_card(channel)
-        playback = channel.managed_playout? ? "#{@origin}#{channel.managed_path}" : channel.playback_url
+        origin_playback = "#{@origin}#{Audience.path(channel: channel, outlet: site, platform: application.platform)}" if channel.managed_playout?
+        profile = stream_profiles[channel.id] if origin_playback
+        playback = if profile && !fewer_commercials?
+          profile.playback_url
+        else
+          origin_playback || channel.playback_url
+        end
         {id: "channel-#{channel.id}", title: channel.name, description: channel.description, image_url: channel.image_url, is_live: true, badge: "LIVE",
+          ownership: ownership_label(channel),
           action: {type: "play", id: "play-channel-#{channel.id}", label: "Watch live", content_id: "channel-#{channel.id}", playback_url: playback,
+            fallback_url: (origin_playback if profile && playback != origin_playback),
+            measurement_url: ("#{@origin}/watch/tv/measurement/#{channel.id}?#{URI.parse(playback).query}" if origin_playback && playback == origin_playback),
             stream_format: URI.parse(playback).path.end_with?(".m3u8") ? "hls" : "mp4", captions: @config["captions"], autoplay: @config["autoplay"]}}
       end
-      def active_channels
-        scope = Channel.where(site_id: site.id, status: "published").order(:position, :id)
-        @config["channel_source"] == "selected" ? scope.where(id: @config["channel_ids"]) : scope
+      def viewing_link_available?
+        @viewing_links && application.platform == "roku" && stream_profiles.any? && Studio::Advertising::ViewingOffer.exists?(site: site)
       end
+
+      def stream_profiles
+        @stream_profiles ||= Studio::Advertising::StreamProfile.where(site: site, platform: application.platform).index_by(&:channel_id)
+      end
+
+      def fewer_commercials?
+        return @fewer_commercials if defined?(@fewer_commercials)
+
+        @fewer_commercials = Studio::Advertising::ViewingOffer.active?(site, @user)
+      end
+
+      def active_channels
+        @active_channels ||= begin
+          scope = Channel.where(site_id: site.id, status: "published")
+          if @config["channel_source"] == "selected"
+            scope = scope.where(id: @config["channel_ids"])
+          else
+            affiliates = NetworkCarriage.visible_channels(site, user: access.user)
+            scope = Channel.where(id: scope.select(:id)).or(Channel.where(id: affiliates.select(:id)))
+          end
+          scope.order(:position, :id)
+        end
+      end
+      def ownership_label(channel)
+        return unless NetworkCarriage.hub?(site)
+        return "Lightek-owned" if channel.site_id == site.id
+
+        @ownership ||= NetworkCarriage.accepted.pluck(:channel_id, :ownership).to_h
+        NetworkCarriage::OWNERSHIPS[@ownership[channel.id]]
+      end
+      def hosted_channels
+        return [] unless NetworkCarriage.hub?(site) && @config["channel_source"] == "all"
+
+        @hosted_channels ||= HostedCarriage.available.includes(:peer).order(:name, :id).limit(100)
+          .select { |channel| channel.peer.active? }
+      end
+
+      def hosted_card(channel)
+        playback = "#{@origin}#{Audience.path(channel: channel, outlet: site, platform: application.platform)}"
+        guide_id = "station-#{channel.key}"
+        { id: guide_id, title: channel.name, description: channel.description, is_live: true, badge: "LIVE",
+          ownership: NetworkCarriage::OWNERSHIPS[channel.ownership],
+          action: { type: "play", id: "play-#{guide_id}", label: "Watch live", content_id: guide_id,
+            playback_url: playback, measurement_url: playback.sub("/index.m3u8?", "/measurement.json?"),
+            stream_format: "hls", captions: @config["captions"], autoplay: @config["autoplay"] } }
+      end
+
       def schedule_row
         slots = Program.where(channel_id: active_channels.select(:id)).where("ends_at > ?", Time.current)
           .where(post_id: posts.select(:id)).includes(:post).order(:starts_at).limit(50)
@@ -135,6 +204,14 @@ module Studio
           channel_card(slot.channel).merge(id: "airing-#{slot.id}", title: slot.title, starts_at: slot.starts_at.iso8601,
             ends_at: slot.ends_at.iso8601, subtitle: slot.status == "on_air" ? "On now" : "Up next")
         end
+        items.concat(hosted_channels.flat_map do |channel|
+          channel.schedule.filter_map.with_index do |program, index|
+            next if Time.iso8601(program.fetch("ends_at")) <= Time.current
+            hosted_card(channel).merge(id: "#{channel.key}-#{index}", title: program.fetch("title"),
+              starts_at: program.fetch("starts_at"), ends_at: program.fetch("ends_at"),
+              subtitle: program["on_air"] ? "On now" : "Up next")
+          end
+        end)
         row("program-guide", "On now & up next", items.sort_by { |item| item[:starts_at] }.first(50)) if items.any?
       end
     end

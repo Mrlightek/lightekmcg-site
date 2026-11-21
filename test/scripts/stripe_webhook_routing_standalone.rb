@@ -2,6 +2,7 @@
 # Run without Rails, gems, database, or private repository credentials.
 require "minitest/autorun"
 require_relative "../../app/services/lightek_commerce/subscription_events"
+require_relative "../../app/services/dymond_bank/broadcast_advertising/funding"
 
 module Rails
   def self.application = Application.new

@@ -1,0 +1,72 @@
+<% content_for :page_title, "Network reporting" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<main class="ll-studio ll-playout">
+  <nav aria-label="Network reporting"><%= link_to "Broadcast agreements", dashboard_broadcast_contracts_path(site_id: @site.id) %></nav>
+  <header class="ll-header"><h1>Network reporting</h1></header>
+  <%= form_with url: dashboard_broadcast_network_report_path, method: :get, class: "ll-playout-actions" do |form| %>
+    <%= form.hidden_field :site_id, value: @site.id %>
+    <label>From (UTC) <%= form.date_field :from, value: @network.days.begin, required: true %></label>
+    <label>Through (UTC) <%= form.date_field :through, value: @network.days.end, required: true %></label>
+    <%= form.submit "Update report" %>
+    <%= link_to "Download CSV", dashboard_broadcast_network_report_path(format: :csv, site_id: @site.id,
+      from: @network.days.begin, through: @network.days.end) %>
+  <% end %>
+  <section class="ll-panel"><h2>Audience and delivery</h2>
+    <p><%= @audience.fetch("sessions") %> first-party sessions · <%= @audience.fetch("segments") %> requested segments ·
+      <%= number_with_precision(@audience.fetch("viewing_ms") / 3600000.0, precision: 2) %> hours of requested viewing</p>
+    <p>Local airings · <%= @reliability.fetch("local_airings").map { |status, count| "#{count} #{status.humanize.downcase}" }.join(" · ").presence || "No airings" %></p>
+    <p>Observed hosted feed transitions · <%= @reliability.fetch("observed_hosted_transitions").map { |event, count| "#{count} #{event.humanize.downcase}" }.join(" · ").presence || "No transitions recorded" %></p>
+    <% if @incidents.any? %>
+      <details class="ll-config"><summary>Hosted feed incident log</summary>
+        <ul class="ll-playout-list">
+          <% @incidents.reverse_each do |row| %>
+            <li><%= row.fetch("at") %> · <%= row.fetch("station") %> · <%= row.fetch("channel") %> · <%= row.fetch("event").humanize %></li>
+          <% end %>
+        </ul>
+      </details>
+    <% end %>
+  </section>
+  <section class="ll-panel"><h2>Advertising and royalty settlement</h2>
+    <p>Grouped by delivery date. Captures and transfers reflect the latest reconciled records available in this installation.</p>
+    <% if @finance.empty? %><p>No delivered paid inventory in this period.</p><% end %>
+    <ul class="ll-playout-list">
+      <% @finance.each do |row| %>
+        <li><strong><%= row.fetch("station") %></strong> · <%= row["channel"] || "Channel unassigned" %> · <%= row["market"] || "Market unassigned" %>
+          · <%= row.fetch("delivered_spots") %> delivered
+          · <%= number_to_currency(row.fetch("verified_captured_cents", 0) / 100.0) %> captured
+          · <%= number_to_currency(row.fetch("transferred_cents", 0) / 100.0) %> transferred
+          · <%= number_to_currency(row.fetch("unreleased_cents", 0) / 100.0) %> unreleased
+          · <%= number_to_currency(row.fetch("held_payout_cents", 0) / 100.0) %> held
+          · <%= number_to_currency(row.fetch("reversed_cents", 0) / 100.0) %> reversed
+          <% if row["by_role"].present? %>
+            <details class="ll-config"><summary>Payouts by recipient role</summary>
+              <dl><% row.fetch("by_role").each do |role, amounts| %>
+                <dt><%= role.humanize %></dt>
+                <dd><%= number_to_currency(amounts.fetch("transferred_cents", 0) / 100.0) %> transferred
+                  · <%= number_to_currency(amounts.fetch("unreleased_cents", 0) / 100.0) %> unreleased
+                  · <%= number_to_currency(amounts.fetch("held_payout_cents", 0) / 100.0) %> held
+                  · <%= number_to_currency(amounts.fetch("reversed_cents", 0) / 100.0) %> reversed</dd>
+              <% end %></dl>
+            </details>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+  <% if @show_operating_plans %>
+  <%= render "delivery_costs" %>
+  <section class="ll-panel"><h2>Operating plans</h2>
+    <% if @plans.empty? %><p>No operating plans in this period.</p><% end %>
+    <ul class="ll-playout-list">
+      <% @plans.each do |row| %>
+        <li><%= row.fetch("month") %> · <%= row.fetch("division") %> · <%= row["channel"] %> · <%= row["market"] %>
+          · <%= number_to_currency(row.fetch("budget_cents") / 100.0) %> budget
+          · <%= number_to_currency(row.fetch("reported_revenue_cents") / 100.0) %> reported revenue
+          · <%= number_to_currency(row.fetch("reported_cost_cents") / 100.0) %> reported cost
+          · <%= number_to_currency(row.fetch("reported_margin_cents") / 100.0) %> reported margin</li>
+      <% end %>
+    </ul>
+  </section>
+  <% end %>
+</main>

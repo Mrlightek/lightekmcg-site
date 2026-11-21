@@ -63,7 +63,9 @@ class GatekeeperController < ApplicationController
   private
   def build_experience
     site = LightekPwa::SiteContext.resolve(request.host)
+    platform = params[:platform].presence || "roku"
+    viewing_user = Studio::Advertising::ViewingLink.viewer(site: site, authorization: request.authorization) if platform == "roku"
     @experience = Studio::Broadcasting::Experience.new(site: site, user: current_user,
-      platform: params[:platform].presence || "roku", slug: params[:application], origin: request.base_url)
+      platform: platform, slug: params[:application], origin: request.base_url, viewing_user: viewing_user, viewing_links: request.headers["X-Lightek-Viewing-Link"] == "1")
   end
 end

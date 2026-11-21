@@ -1,0 +1,8 @@
+<% content_for :page_title, "Link Roku" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<main class="ll-studio">
+  <h1>Link Roku</h1>
+  <p>In the Roku app, select Link Fewer Commercials and enter this code within five minutes.</p>
+  <p><strong><%= @viewing_code %></strong></p>
+  <%= link_to "Back to Live TV", broadcast_tv_path %>
+</main>

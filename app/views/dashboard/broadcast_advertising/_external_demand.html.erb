@@ -1,0 +1,83 @@
+<section class="ll-panel">
+  <h2>External ad demand</h2>
+  <p>Connect publisher VAST tags supplied for your inventory. Lower priority numbers appear first in the ad response.</p>
+  <%= form_with url: dashboard_broadcast_ad_demand_path(site_id: @site.id), scope: :demand, class: "ll-playout-actions" do |form| %>
+    <label>Provider <%= form.text_field :name, required: true, maxlength: 120 %></label>
+    <label>VAST tag <%= form.password_field :vast_tag, required: true, autocomplete: "off" %></label>
+    <label>Priority <%= form.number_field :position, min: 0, max: 10000, value: 0, required: true %></label>
+    <label>Inventory <%= form.select :platform, [["Web and Roku", "both"], ["Web", "web"], ["Roku", "roku"]] %></label>
+    <label><%= form.check_box :enabled %> Enabled</label>
+    <%= form.submit "Connect provider" %>
+  <% end %>
+  <% @demand_sources.each do |source| %>
+    <%= form_with model: source, url: dashboard_broadcast_ad_demand_source_path(source, site_id: @site.id), scope: :demand, class: "ll-playout-actions" do |form| %>
+      <label>Provider <%= form.text_field :name, required: true, maxlength: 120 %></label>
+      <label>Replacement VAST tag <%= form.password_field :vast_tag, value: nil, autocomplete: "off" %></label>
+      <label>Priority <%= form.number_field :position, min: 0, max: 10000, required: true %></label>
+      <label>Inventory <%= form.select :platform, [["Web and Roku", "both"], ["Web", "web"], ["Roku", "roku"]] %></label>
+      <label><%= form.check_box :enabled %> Enabled</label>
+      <%= form.submit "Update provider" %>
+    <% end %>
+  <% end %>
+</section>
+<section class="ll-panel">
+  <h2>Stitched playback</h2>
+  <p>Use the channel’s HLS feed as the insertion service’s origin. Configure its ad decision URL from the saved profile. Use a Roku-certified playback integration for the Roku profile.</p>
+  <%= form_with url: dashboard_broadcast_ad_stream_profile_path(site_id: @site.id), scope: :profile, class: "ll-playout-actions" do |form| %>
+    <label>Channel <%= form.collection_select :channel_id, @channels, :id, :name, {}, required: true %></label>
+    <label>Platform <%= form.select :platform, [["Web", "web"], ["Roku", "roku"]] %></label>
+    <label>Stitched HLS URL <%= form.url_field :playback_url, required: true %></label>
+    <%= form.submit "Save playback profile" %>
+  <% end %>
+  <% @stream_profiles.each do |profile| %>
+    <p><strong><%= profile.channel.name %> · <%= profile.platform == "roku" ? "Roku" : "Web" %></strong></p>
+    <p>Origin <code><%= request.base_url + profile.channel.managed_path %></code></p>
+    <p>Ad decision URL <code><%= broadcast_ad_decision_url(profile.decision_key) %></code></p>
+    <%= button_to "Remove playback profile", dashboard_remove_broadcast_ad_stream_profile_path(profile, site_id: @site.id), method: :delete %>
+  <% end %>
+</section>
+<section class="ll-panel">
+  <h2>Fewer Commercials</h2>
+  <p>Subscribers play the channel’s editorial fallback during external ad slots. Keep those fallback videos free of commercials. Contracted spots still air.</p>
+  <% if @viewing_products.any? %>
+    <%= form_with url: dashboard_broadcast_ad_viewing_offer_path(site_id: @site.id), class: "ll-playout-actions" do |form| %>
+      <label>Recurring viewing product <%= form.collection_select :product_id, @viewing_products, :id, :name, { selected: @viewing_offer&.product_id }, required: true %></label>
+      <%= form.submit "Save viewing offer" %>
+    <% end %>
+  <% else %>
+    <p>Publish a recurring service product in Commerce to sell the viewing offer.</p>
+  <% end %>
+</section>
+<section class="ll-panel">
+  <h2>Provider statements and deposits</h2>
+  <% if @demand_sources.any? %>
+    <%= form_with url: dashboard_broadcast_ad_statement_path(site_id: @site.id), scope: :statement, class: "ll-playout-actions" do |form| %>
+      <label>Provider <%= form.collection_select :source_id, @demand_sources, :id, :name, {}, required: true %></label>
+      <label>Statement reference <%= form.text_field :reference, required: true, maxlength: 180 %></label>
+      <label>From <%= form.date_field :starts_on, required: true %></label>
+      <label>Through <%= form.date_field :ends_on, required: true %></label>
+      <label>Billable impressions <%= form.number_field :impressions, required: true, min: 0 %></label>
+      <label>Reported USD cents <%= form.number_field :reported_cents, required: true, min: 0 %></label>
+      <%= form.submit "Record statement" %>
+    <% end %>
+  <% end %>
+  <% @provider_statements.each do |statement| %>
+    <div>
+      <p><strong><%= statement.source.name %> · <%= statement.reference %></strong>
+        · <%= statement.starts_on %> through <%= statement.ends_on %>
+        · <%= number_with_delimiter(statement.impressions) %> impressions
+        · <%= number_to_currency(statement.reported_cents / 100.0) %> reported</p>
+      <% if statement.reconciled_at? %>
+        <p><%= number_to_currency(statement.received_cents / 100.0) %> received
+          · <%= number_to_currency(statement.variance_cents / 100.0) %> variance
+          · Receipt <%= statement.deposit_reference %></p>
+      <% else %>
+        <%= form_with url: dashboard_reconcile_broadcast_ad_statement_path(statement, site_id: @site.id), scope: :receipt, class: "ll-playout-actions" do |form| %>
+          <label>Received USD cents <%= form.number_field :received_cents, min: 0, required: true %></label>
+          <label>Bank deposit reference <%= form.text_field :deposit_reference, required: true, maxlength: 180 %></label>
+          <%= form.submit "Reconcile deposit" %>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+</section>

@@ -54,3 +54,7 @@
 .ll-motion-controls [data-effects-delete]{margin-top:6px}
 
 .ll-studio [data-look-score][hidden]{display:none}
+
+.ll-studio .ll-look-preview{max-width:540px;margin-bottom:14px}
+.ll-look-preview canvas{display:block;width:100%;aspect-ratio:16/9;height:auto;border:1px solid var(--ll-line);border-radius:8px;background:radial-gradient(ellipse at 60% 22%,#405768,#171f2d 74%)}
+.ll-studio [data-look-themes="background"] [data-theme-portability]{display:none}

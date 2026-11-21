@@ -84,6 +84,8 @@ Say `Show my mailboxes`, `Search inbox in mailbox #3 for "Proposal"`, or `Open m
 
 Say `Show my servers` to list servers you manage or `Check fleet rollout #42` to inspect a rollout and its target counts. Fleet operators can use explicit confirmation phrases such as `Confirm pause fleet rollout #42`. A rollout receipt reports the current rollout state. Individual installation results remain in the fleet console.
 
+Say `Check production room #42` or `Invite "guest@example.com" to room #42`. An invitation reserves a guest place in the room. Share the returned link with the guest. `Open accounting for employer #42` opens the existing Books & Accounting workspace, where the browser verifies your session before displaying books.
+
 ## Query and edit resources
 
 ```text

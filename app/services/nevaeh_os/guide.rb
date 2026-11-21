@@ -103,7 +103,7 @@ module NevaehOs
           fields = PlatformActions::INPUTS.fetch(key).transform_values do |type|
             case type
             when :id, :version then 'integer'
-            when :confirmation then 'boolean'
+            when :confirmation, :boolean then 'boolean'
             when :quote_quantities then 'object'
             else 'string'
             end

@@ -11,6 +11,18 @@ module NevaehOs
     SALES_TASK = /(?:sales |follow-up )?task #?(?<task_id>[1-9]\d{0,17})/i
     QUOTE_ITEM = /([1-9]\d{0,2}) of (?:product |item )?#?([1-9]\d{0,17})/i
     PHRASES = {
+      'accounting.workspace.open' => [
+        /open (?:the )?(?:books|accounting|books and accounting) for employer #?(?<employer_id>[1-9]\d{0,17})/i,
+        'Open accounting for employer #42'
+      ],
+      'sessions.room.status' => [
+        /(?:show|check) (?:the )?(?:status of )?(?:production |session )?room #?(?<room_id>[1-9]\d{0,17})/i,
+        'Check production room #42'
+      ],
+      'sessions.room.invite' => [
+        /invite (?<email_address>#{QUOTED}) to (?:production |session )?room #?(?<room_id>[1-9]\d{0,17})/i,
+        'Invite "guest@example.com" to room #42'
+      ],
       'hosting.server.list' => [
         /(?:show|list) (?:me )?my servers/i,
         'Show my servers'

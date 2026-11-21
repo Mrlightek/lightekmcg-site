@@ -52,8 +52,14 @@ module NevaehIntelligences
       end
       counts = rows.map { |row| row.fetch('status') }.tally
       remaining = rows.size - counts.fetch('bound', 0)
+      loaded_endpoints = rows.map { |row| row.values_at('source', 'method', 'action') }
+      stale = (index.keys - loaded_endpoints).filter_map do |source, method, action|
+        next unless @route_sets.key?(source)
+
+        {'source'=>source, 'method'=>method, 'action'=>action, 'bindings'=>index.fetch([source, method, action])}
+      end
       {'total_routes'=>rows.size, 'counts'=>counts, 'routes_without_full_binding'=>remaining,
-       'all_loaded_routes_bound'=>rows.any? && remaining.zero?,
+       'all_loaded_routes_bound'=>rows.any? && remaining.zero?, 'stale_route_bindings'=>stale,
        'route_sets'=>@route_sets.keys, 'unavailable_route_sets'=>@unavailable_route_sets, 'routes'=>matches}
     end
 

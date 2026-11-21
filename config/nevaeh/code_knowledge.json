@@ -41,6 +41,44 @@
       }
     },
     {
+      "id": "accounting.workspace.open",
+      "title": "Open Books & Accounting",
+      "summary": "Open the business accounting workspace in the browser with its existing MFA checks.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/accounting_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_accounting/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/enterprise_accounting_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "accounting.workspace.open",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Open the business accounting workspace in the browser with its existing MFA checks."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/accounting#index",
+          "coverage": "handoff"
+        }
+      ]
+    },
+    {
       "id": "commerce.order.fulfill",
       "title": "Fulfill a paid order",
       "summary": "Complete fulfillment through Commerce and return the resulting order status.",
@@ -2102,6 +2140,83 @@
           "source": "Host application",
           "method": "POST",
           "action": "dashboard/rooms#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sessions.room.invite",
+      "title": "Assign a guest place",
+      "summary": "Assign a guest place in an authorized room using the existing capacity rules.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/session_rooms_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/room_actions.rb",
+          "app/services/lightek_sessions/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/production_rooms_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sessions.room.invite",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "room_id": "ROOM_ID",
+          "email_address": "guest@example.com"
+        },
+        "result": "Assign a guest place in an authorized room using the existing capacity rules."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "session_rooms#invite",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "sessions.room.status",
+      "title": "Check a session room",
+      "summary": "Return the status and schedule of an authorized room.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/session_rooms_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/room_actions.rb",
+          "app/services/lightek_sessions/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/production_rooms_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sessions.room.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "room_id": "ROOM_ID"
+        },
+        "result": "Return the status and schedule of an authorized room."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "session_rooms#show",
           "coverage": "partial"
         }
       ]

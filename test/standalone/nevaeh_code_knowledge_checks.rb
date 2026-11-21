@@ -69,6 +69,8 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
       {'capability'=>{'key'=>'sales.quote.issue'}, 'binding_status'=>'enabled', 'endpoints'=>[endpoint]},
       {'capability'=>{'key'=>'sales.quote.cancel'}, 'binding_status'=>'disabled',
        'endpoints'=>[endpoint.merge('action'=>'sales#cancel')]},
+      {'capability'=>{'key'=>'sales.checkout'}, 'binding_status'=>'enabled',
+       'endpoints'=>[endpoint.merge('action'=>'sales#removed'), endpoint.merge('source'=>'Studio')]},
       {'capability'=>{'key'=>'sales.workspace.open'}, 'binding_status'=>'registers_on_dispatch',
        'endpoints'=>[endpoint.merge('method'=>'GET', 'action'=>'sales#index', 'coverage'=>'handoff')]}
     ]}
@@ -87,6 +89,7 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
     assert_equal 4, report.fetch('routes_without_full_binding')
     refute report.fetch('all_loaded_routes_bound')
     assert_equal ['Studio'], report.fetch('unavailable_route_sets')
+    assert_equal ['sales#removed'], report.fetch('stale_route_bindings').map { |entry| entry.fetch('action') }
     assert_equal({'bound'=>1, 'unmapped'=>2, 'binding_unavailable'=>1, 'handoff'=>1}, report.fetch('counts'))
     assert_equal ['Billing', 'Host application'], report.fetch('routes').map { |row| row.fetch('source') }
     assert_empty report.fetch('routes').flat_map { |row| row.fetch('bindings') }

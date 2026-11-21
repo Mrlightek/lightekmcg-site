@@ -2,6 +2,7 @@
 
 require_relative 'mail_actions'
 require_relative 'hosting_actions'
+require_relative 'room_actions'
 
 module NevaehOs
   # Explicit OS bindings. These commands run through the saved-action worker
@@ -31,6 +32,7 @@ module NevaehOs
       'sales.task.complete' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version}.freeze,
       'sales.task.cancel' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version}.freeze,
       'sales.task.snooze' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version, 'due_at'=>40}.freeze,
+      'accounting.workspace.open' => {'employer_id'=>:id}.freeze,
       'sessions.room.create' => {'site_id'=>:id, 'name'=>120, 'kind'=>10}.freeze,
       'commerce.payouts.open' => {'site_id'=>:id}.freeze,
       'commerce.order.status' => {'site_id'=>:id, 'order_id'=>:id}.freeze,
@@ -55,7 +57,7 @@ module NevaehOs
                                            'scheduled_at'=>40, 'time_zone'=>100}.freeze,
       'marketing.publication.status' => {'site_id'=>:id, 'slot_id'=>:id}.freeze,
       'marketing.publication.cancel' => {'site_id'=>:id, 'slot_id'=>:id, 'lock_version'=>:version}.freeze
-    }.merge(MailActions::INPUTS, HostingActions::INPUTS).freeze
+    }.merge(MailActions::INPUTS, HostingActions::INPUTS, RoomActions::INPUTS).freeze
 
     module_function
 
@@ -106,6 +108,7 @@ module NevaehOs
       validate!(key, values)
       return MailActions.authorize!(actor, key, values) if MailActions::INPUTS.key?(key)
       return HostingActions.authorize!(actor, key, values) if HostingActions::INPUTS.key?(key)
+      return RoomActions.authorize!(actor, values) if RoomActions::INPUTS.key?(key)
 
       case key
       when 'sales.lead.create', 'sales.lead.status', 'sales.lead.convert', 'sales.quote.status', 'sales.quote.draft', 'sales.quote.issue',
@@ -122,6 +125,8 @@ module NevaehOs
         when /\Asales\.task\./ then LightekSales::Task.visible_in_sales(site).find(values.fetch('task_id'))
         else LightekSales::Quote.where(site: site).find(values.fetch('quote_id'))
         end
+      when 'accounting.workspace.open'
+        accounting_employer!(actor, values.fetch('employer_id'))
       when 'sessions.room.create'
         LightekSettings::WebsiteIdentity.sites_for(actor).find(values.fetch('site_id'))
       when 'commerce.payouts.open'
@@ -173,6 +178,18 @@ module NevaehOs
       end
     end
 
+    def accounting_employer!(actor, employer_id)
+      employer = LightekPeople::Access.employers_for(actor).find(employer_id)
+      LightekAccounting::Access.new(actor: actor, employer: employer).require!
+      unless employer.can_access_feature?('commerce_workspace') || employer.can_access_feature?('bookkeeping_workspace')
+        raise ArgumentError, 'This business needs an accounting workspace entitlement.'
+      end
+
+      employer
+    rescue LightekAccounting::Access::Denied => error
+      raise ArgumentError, error.message
+    end
+
     def publication_calendar!(actor, site)
       calendar = LightekMarketing::PublicationCalendar.new(actor: actor, site: site)
       calendar.authorize!
@@ -186,6 +203,7 @@ module NevaehOs
       target = authorize!(actor, command)
       return MailActions.perform!(key, target, values, action_id: action_id) if MailActions::INPUTS.key?(key)
       return HostingActions.perform!(key, target, values) if HostingActions::INPUTS.key?(key)
+      return RoomActions.perform!(actor, key, target, values) if RoomActions::INPUTS.key?(key)
 
       case key
       when 'sales.lead.create'
@@ -221,6 +239,9 @@ module NevaehOs
         task = LightekSales::Tasks.new(actor: actor, site: target.site).update!(target.id, action: key.delete_prefix('sales.task.'),
           lock_version: values.fetch('lock_version'), due_at: values['due_at'])
         sales_task_receipt(task)
+      when 'accounting.workspace.open'
+        {'employer_id'=>target.id, 'text'=>'Open Books & Accounting in your verified browser session.',
+         'links'=>[{'label'=>'Open Books & Accounting', 'url'=>"/dashboard/accounting?employer_id=#{target.id}"}]}
       when 'sessions.room.create'
         room = create_room!(actor, target, values.except('site_id'))
         {'room_id'=>room.id, 'starts_at'=>room.starts_at.iso8601, 'ends_at'=>room.ends_at.iso8601,

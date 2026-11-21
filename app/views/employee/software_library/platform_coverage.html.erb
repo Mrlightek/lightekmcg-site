@@ -19,6 +19,20 @@
   <% rows = @coverage.fetch('routes') %>
   <div class="nc-panel">
     <p><strong><%= @coverage.fetch('total_routes') %> loaded controller routes</strong> across <%= @coverage.fetch('route_sets').join(', ') %>.</p>
+    <p><strong><%= @coverage.fetch('routes_without_full_binding') %> loaded routes</strong> lack a full executable binding.</p>
+    <% if @coverage.fetch('unavailable_route_sets').any? %>
+      <p>Unavailable route inventories include <%= @coverage.fetch('unavailable_route_sets').join(', ') %>.</p>
+    <% end %>
+    <% if @coverage.fetch('stale_route_bindings').any? %>
+      <details>
+        <summary><%= @coverage.fetch('stale_route_bindings').size %> bindings refer to routes missing from loaded sources</summary>
+        <ul>
+          <% @coverage.fetch('stale_route_bindings').each do |entry| %>
+            <li><%= entry.fetch('source') %> · <code><%= entry.fetch('method') %> <%= entry.fetch('action') %></code></li>
+          <% end %>
+        </ul>
+      </details>
+    <% end %>
     <ul>
       <% labels.each do |key, label| %>
         <li><%= label %> · <%= @coverage.fetch('counts').fetch(key, 0) %></li>

@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 require 'ripper'
+require_relative 'console_language'
 module NevaehOs
   # Parse a useful Ruby/ActiveRecord vocabulary into data. No eval, send, SQL,
   # blocks, interpolation, callbacks supplied as code, or arbitrary constants.
   module RailsConsole
-    METHODS = %w[all count first last find where limit order create create! update update! destroy destroy!].freeze
+    CALCULATIONS = %w[sum average minimum maximum].freeze
+    METHODS = (%w[all count first last find find_by where limit offset order distinct exists? pluck ids create create! update update! destroy destroy!] + CALCULATIONS).freeze
     SECRET = /password|secret|token|credential|private_key|encrypted|ciphertext|otp|session_id/i
     SERVICE_BOUND = /\A(?:Studio|DymondStudio|Susu|DymondBank|Gatekeeper|NevaehCapability|NevaehIntelligence|Session|ActiveStorage::|LightekVault|NevaehOsAction|NevaehOsAgent|NevaehGoal|NevaehSpeech|NevaehApplicationAdapter|NevaehAgentRun|NevaehAgentWorker|NevaehWatcher|NevaehWatchEvent|NevaehConstructionRelease|NevaehLanguageCheckpoint|NevaehTrainingRun|DymondDispatch::)/
     module_function
@@ -16,15 +18,32 @@ module NevaehOs
       Rails.application.eager_load! if Rails.respond_to?(:application) && Rails.application
       ActiveRecord::Base.descendants.select { |m| m.name.present? && !m.abstract_class? && m.table_exists? }.sort_by(&:name)
     end
-    def model!(name, actor)
-      models(actor).find { |m| m.name == name } || raise(ArgumentError, 'Model is not in the installed application. Use /models.')
+    def model!(name, actor, english: false)
+      installed = models(actor)
+      exact = installed.find { |model| model.name == name }
+      return exact if exact
+
+      if english
+        normalized = normalize_model_label(name)
+        matches = installed.select { |model| normalize_model_label(model.name) == normalized }
+        return matches.first if matches.one?
+        raise ArgumentError, "Choose a qualified model: #{matches.map(&:name).join(', ')}" if matches.any?
+      end
+      raise ArgumentError, 'Model is not in the installed application. Use /models.'
     end
-    def schema(name, actor)
-      klass = model!(name, actor)
+    def normalize_model_label(name)
+      ActiveSupport::Inflector.singularize(ActiveSupport::Inflector.underscore(name).tr('/_', ' ').squish)
+    end
+    def schema(name, actor, english: false)
+      klass = model!(name, actor, english: english)
       {'model'=>klass.name,'table'=>klass.table_name,'fields'=>klass.columns.reject { |c| c.name.match?(SECRET) }.map { |c| {'name'=>c.name,'type'=>c.type.to_s,'nullable'=>c.null} },
+        'english_example'=>"List #{klass.name} records",
         'mutations'=>klass.name.match?(SERVICE_BOUND) ? 'Use the domain capability API' : 'create / update / destroy with model validation and your permissions'}
     end
     def parse(expression)
+      english = ConsoleLanguage.parse(expression)
+      return english if english
+
       tree = Ripper.sexp(expression)
       raise ArgumentError, 'Use one Ruby-style model expression' unless tree && tree[0] == :program && tree[1]&.one?
       model, calls = chain(tree[1].first)
@@ -101,12 +120,14 @@ module NevaehOs
     def execute(expression, actor)
       authorize!(actor)
       definition = parse(expression)
-      klass = model!(definition.fetch('model'),actor)
+      klass = model!(definition.fetch('model'), actor, english: definition.fetch('english_model', false))
       raise ArgumentError,'Use the credential service for credential records' if klass.name.match?(/Vault|Credential|Secret/)
       ability = Ability.new(actor)
       scope = klass.accessible_by(ability,:read)
-      record=nil; result=nil
-      definition.fetch('calls').each_with_index do |call,index|
+      record = nil
+      result = nil
+      calls = definition.fetch('calls')
+      calls.each_with_index do |call,index|
         method,args = call.values_at('method','args')
         final = index == definition['calls'].length-1
         raise ArgumentError, 'Only find can precede a record mutation' if record && !%w[update update! destroy destroy!].include?(method)
@@ -117,18 +138,48 @@ module NevaehOs
         when 'limit'
           raise ArgumentError, 'limit must be 1–100' unless args.one? && args.first.is_a?(Integer) && args.first.between?(1,100)
           scope=scope.limit(args.first)
+        when 'offset'
+          raise ArgumentError, 'offset must be between 0 and 10000' unless args.one? && args.first.is_a?(Integer) && args.first.between?(0, 10_000)
+          scope = scope.offset(args.first)
         when 'order'
           values=fields!(klass,args.first)
           raise ArgumentError, 'Order needs asc or desc field values' unless args.one? && values.values.all? { |v| %w[asc desc].include?(v.to_s) }
           scope=scope.order(values)
         when 'all'
           raise ArgumentError, 'all takes no arguments' unless args.empty?
+        when 'distinct'
+          raise ArgumentError, 'distinct takes no arguments' unless args.empty?
+          scope = scope.distinct
         when 'find'
           raise ArgumentError, 'find requires one positive ID' unless args.one? && args.first.is_a?(Integer) && args.first.positive?
           record=scope.find(args.first);result=record
         when 'count','first','last'
           raise ArgumentError, 'Use count/first/last without arguments at the end' unless args.empty? && final
           result = method == 'count' ? scope.count : method == 'first' ? scope.first : scope.last
+        when 'find_by', 'exists?'
+          unless final && (args.one? || (method == 'exists?' && args.empty?))
+            raise ArgumentError, "Use #{method} at the end with a field hash"
+          end
+          scope = scope.where(fields!(klass, args.first)) if args.one?
+          result = method == 'find_by' ? scope.take : scope.exists?
+        when 'pluck', 'ids'
+          columns = method == 'ids' && args.empty? ? Array(klass.primary_key) : args
+          unless final && columns.size.between?(1, 30) && columns.all? { |column| column.is_a?(String) } &&
+                 (method == 'pluck' || args.empty?)
+            raise ArgumentError, 'Use ids or pluck with column names at the end'
+          end
+          fields!(klass, columns.to_h { |column| [column, nil] })
+          result = scope.limit([scope.limit_value || 100, 100].min).pluck(*columns)
+        when *CALCULATIONS
+          field = args.first
+          unless final && args.one? && field.is_a?(String)
+            raise ArgumentError, "Use #{method} with one column name at the end"
+          end
+          fields!(klass, { field => nil })
+          unless %i[integer bigint decimal float].include?(klass.type_for_attribute(field).type)
+            raise ArgumentError, 'Choose a numeric field for calculations'
+          end
+          result = scope.calculate(method, field)
         when 'create','create!','update','update!','destroy','destroy!'
           raise ArgumentError, 'Mutations must be the final operation' unless final
           raise ArgumentError, 'This model uses domain services. Execute its registered capability instead of bypassing the workflow.' if klass.name.match?(SERVICE_BOUND)
@@ -153,7 +204,9 @@ module NevaehOs
           end
         end
       end
-      result=scope.limit(100).to_a if result.nil? && !record && !%w[first last].include?(definition['calls'].last['method'])
+      if result.nil? && !record && %w[all where limit offset order distinct].include?(calls.last['method'])
+        result = scope.limit([scope.limit_value || 100, 100].min).to_a
+      end
       {'model'=>klass.name,'result'=>serialize(result),'expression'=>expression}
     end
     def serialize(value)

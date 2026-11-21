@@ -13,34 +13,14 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
     @domains = LightekMail::Access.domains(current_user).order(:name)
     @groups = LightekMail::Access.groups(current_user).includes(:members, :domain).order(:address)
     @account = params[:account_id].present? ? @accounts.find(params[:account_id]) : @accounts.first
-    @folder = params[:folder].to_s.in?(%w[inbox unread junk starred sent draft outbox archived all trash]) ? params[:folder] : "inbox"
+    @folder = LightekMail::MessageFolder::NAMES.include?(params[:folder]) ? params[:folder] : "inbox"
     return unless @account
-    visible = @account.messages.where(trashed: false)
-    @folder_counts = {
-      "inbox" => visible.where(direction: "inbound", archived: false, junk: false).count,
-      "unread" => visible.where(direction: "inbound", archived: false, junk: false, read_at: nil).count,
-      "junk" => visible.where(junk: true).count,
-      "starred" => visible.where(starred: true).count,
-      "archived" => visible.where(archived: true).count,
-      "sent" => visible.where(state: "sent").count,
-      "draft" => visible.where(state: "draft").count,
-      "outbox" => visible.where(state: %w[queued submitting failed uncertain]).count,
-      "all" => visible.count,
-      "trash" => @account.messages.where(trashed: true).count
-    }
-    @unread_count = visible.where(direction: "inbound", archived: false, junk: false, read_at: nil).count
+    @folder_counts = LightekMail::MessageFolder::NAMES.index_with { |folder| LightekMail::MessageFolder.scope(@account, folder).count }
+    @unread_count = @folder_counts.fetch("unread")
     @storage_used = @account.messages.sum(:bytesize)
     @last_received_at = @account.messages.where(direction: "inbound").maximum(:created_at)
     @templates = @account.templates.order(:name)
-    @messages = @account.messages.where(trashed: @folder == "trash")
-    @messages = @messages.where(direction: "inbound", archived: false, junk: false) if @folder == "inbox"
-    @messages = @messages.where(direction: "inbound", archived: false, junk: false, read_at: nil) if @folder == "unread"
-    @messages = @messages.where(junk: true) if @folder == "junk"
-    @messages = @messages.where(starred: true) if @folder == "starred"
-    @messages = @messages.where(archived: true) if @folder == "archived"
-    @messages = @messages.where(state: @folder) if %w[sent draft].include?(@folder)
-    @messages = @messages.where(state: %w[queued submitting failed uncertain]) if @folder == "outbox"
-    @messages = LightekMail::Search.apply(@messages, params[:q])
+    @messages = LightekMail::Search.apply(LightekMail::MessageFolder.scope(@account, @folder), params[:q])
     @result_count = @messages.count
     @page = params[:page].to_i.clamp(1, [(@result_count / 40.0).ceil, 1].max)
     @messages = @messages.order(created_at: :desc, id: :desc).offset((@page - 1) * 40).limit(40).with_attached_attachments
@@ -165,10 +145,7 @@ class Dashboard::MailStudioController < DymondDash::ApplicationController
 
   def flag_message
     message = @account.messages.find(params[:id])
-    raise ArgumentError, "Choose archive, trash, star, unread or junk." unless params[:flag].to_s.in?(%w[archived trashed starred unread junk])
-    attrs = params[:flag] == "unread" ? {read_at: nil} : {params[:flag] => params[:value] == "1"}
-    attrs = {junk: params[:value] == "1", archived: false, trashed: false} if params[:flag] == "junk"
-    message.update!(attrs)
+    LightekMail::MessageFlag.update!(message, flag: params[:flag].to_s, value: params[:value] == "1")
     if params[:return_to] == "message" && params[:flag] == "starred"
       redirect_to dashboard_mail_message_path(account_id: @account.id, id: message.id, workspace: params[:workspace].presence)
     else

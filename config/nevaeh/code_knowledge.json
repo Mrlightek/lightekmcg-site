@@ -1,0 +1,526 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "id": "accounting.books",
+      "title": "Accounting and reconciliation",
+      "summary": "Import bank statements into books and reconcile transactions.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/accounting_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_accounting/imports.rb",
+          "app/services/lightek_accounting/reconcile.rb"
+        ],
+        "guides": [
+          "docs/enterprise-directory-and-accounting.md"
+        ],
+        "models": [
+          "app/models/lightek_accounting/book.rb",
+          "app/models/lightek_accounting/transaction.rb"
+        ]
+      }
+    },
+    {
+      "id": "commerce.orders",
+      "title": "Commerce orders and fulfillment",
+      "summary": "Place orders, connect settlement and manage fulfillment.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/commerce_orders_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_commerce/order_placement.rb",
+          "app/controllers/dashboard/commerce_fulfillments_controller.rb"
+        ],
+        "guides": [
+          "docs/commerce/platform-operations.md"
+        ],
+        "models": [
+          "app/models/lightek_commerce/order.rb"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ]
+    },
+    {
+      "id": "commerce.payouts",
+      "title": "Merchant payout accounts",
+      "summary": "Manage merchant payout account setup and verification through Dymond Bank.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/commerce_payouts_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_commerce/merchant_payouts.rb"
+        ],
+        "guides": [
+          "docs/payments/payout-accounts.md"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ]
+    },
+    {
+      "id": "hosting.provisioning",
+      "title": "Server and application provisioning",
+      "summary": "Track provisioning requests and run the registered hosting installation workflow.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/provisioning_requests_controller.rb"
+        ],
+        "implementation": [
+          "app/services/gatekeeper/website_deployment.rb",
+          "app/jobs/gatekeeper/hosting/provision_application_job.rb"
+        ],
+        "guides": [
+          "docs/server-application-management.md"
+        ],
+        "models": [
+          "app/models/provisioning_request.rb",
+          "app/models/provisioning_profile.rb"
+        ]
+      },
+      "gems": [
+        "dymond_dispatch"
+      ]
+    },
+    {
+      "id": "identity.sign_in",
+      "title": "Sign-in and MFA",
+      "summary": "Authenticate sessions and enforce sign-in security and account access.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/sessions_controller.rb"
+        ],
+        "implementation": [
+          "app/controllers/concerns/authentication.rb"
+        ],
+        "guides": [
+          "docs/security/sign-in-and-mfa.md"
+        ]
+      }
+    },
+    {
+      "id": "integrations.connect",
+      "title": "Lightek Connect",
+      "summary": "Connect agency and client workflows to WordPress and Shopify.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/connect_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_connect/workspace.rb",
+          "app/services/lightek_connect/shopify.rb",
+          "app/services/lightek_connect/wordpress_package.rb"
+        ],
+        "guides": [
+          "docs/integrations/lightek-connect.md"
+        ],
+        "models": [
+          "app/models/lightek_connect/connection.rb"
+        ]
+      }
+    },
+    {
+      "id": "mail.operations",
+      "title": "Mail submission and delivery",
+      "summary": "Submit messages for delivery and manage mailbox access and routing.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/api/lightek_mail_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_mail/submission.rb",
+          "app/services/lightek_mail/mailbox_management.rb",
+          "app/jobs/lightek_mail/deliver_job.rb"
+        ],
+        "guides": [
+          "docs/mail/operations.md"
+        ],
+        "models": [
+          "app/models/lightek_mail/message.rb"
+        ]
+      }
+    },
+    {
+      "id": "marketing.publishing",
+      "title": "Publishing calendar",
+      "summary": "Schedule approved content and track social provider delivery.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/publication_calendar_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_marketing/publication_calendar.rb",
+          "app/jobs/lightek_marketing/publication_slot_job.rb"
+        ],
+        "guides": [
+          "docs/sales/publishing-calendar.md"
+        ],
+        "models": [
+          "app/models/lightek_marketing/publication_slot.rb"
+        ]
+      }
+    },
+    {
+      "id": "messages.conversations.list",
+      "title": "List my messages",
+      "summary": "List conversations available to the caller in the active site scope.",
+      "sources": {
+        "entry_points": [
+          "public/lightek/index.html",
+          "app/controllers/api/nevaeh_controller.rb"
+        ],
+        "models": [
+          "app/models/lightek_messaging/conversation.rb"
+        ],
+        "workers": [
+          "app/services/lightek_messaging/workers/pwa.rb"
+        ],
+        "registration": [
+          "db/seeds/lightek_messaging_capabilities.rb"
+        ],
+        "tests": [
+          "test/services/lightek_messaging/workers/pwa_test.rb"
+        ]
+      },
+      "gems": [
+        "dymond_dispatch"
+      ],
+      "capability": {
+        "key": "messages.list",
+        "worker": "LightekMessaging::Workers::Pwa",
+        "action": "list",
+        "inputs": {},
+        "result": "Returns the caller’s visible conversations in the completed work-item result."
+      }
+    },
+    {
+      "id": "nevaeh.execution",
+      "title": "Nevaeh conversation and execution",
+      "summary": "Parse an explicit action, apply Gatekeeper authorization, dispatch the registered worker and follow durable execution receipts.",
+      "sources": {
+        "entry_points": [
+          "app/services/nevaeh_os/conversation.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/command.rb",
+          "app/services/nevaeh_os/executor.rb",
+          "app/services/nevaeh_orchestration/native_contracts.rb",
+          "app/services/gatekeeper/authorization_service.rb",
+          "app/services/nevaeh_os/receipts.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/nevaeh_os_test.rb"
+        ],
+        "guides": [
+          "docs/nevaeh_operating_system.md",
+          "docs/nevaeh/tutorials/reporting_system.md"
+        ]
+      },
+      "gems": [
+        "dymond_dispatch",
+        "marlon"
+      ]
+    },
+    {
+      "id": "people.payroll",
+      "title": "People and payroll",
+      "summary": "Manage payroll preparation and employer-funded payouts using existing employment records.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/people_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_people/payroll.rb",
+          "app/jobs/payroll_preparation_job.rb"
+        ],
+        "guides": [
+          "docs/people/organization-benefits-payroll.md"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ]
+    },
+    {
+      "id": "reservations.booking",
+      "title": "Reservations and booking",
+      "summary": "Manage bookable resources, booking and settlement.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_reservations/booking.rb",
+          "app/services/lightek_reservations/settlement.rb"
+        ],
+        "guides": [
+          "docs/reservations_and_payouts.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb",
+          "app/models/lightek_reservations/resource.rb"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ]
+    },
+    {
+      "id": "sales.crm",
+      "title": "Sales CRM",
+      "summary": "Manage leads, opportunities, follow-through tasks and forecasts.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/workspace.rb",
+          "app/services/lightek_sales/forecast.rb"
+        ],
+        "guides": [
+          "docs/sales/crm.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/lead.rb",
+          "app/models/lightek_sales/opportunity.rb"
+        ]
+      }
+    },
+    {
+      "id": "sales.quotes",
+      "title": "Quotes to delivery",
+      "summary": "Connect approved sales quotes and won deals to orders and delivery.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_quotes_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/quotes.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/quote.rb",
+          "app/models/lightek_commerce/order.rb"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ]
+    },
+    {
+      "id": "studio.broadcast.playout",
+      "title": "Studio live broadcasting and playout",
+      "summary": "Operate channel playout and feed configured broadcasts.",
+      "sources": {
+        "entry_points": [
+          "app/channels/studio_broadcast_channel.rb"
+        ],
+        "implementation": [
+          "app/services/studio/broadcasting/playout.rb",
+          "app/services/studio/broadcasting/channel_feed.rb",
+          "app/jobs/studio/broadcasting/channel_playout_job.rb"
+        ],
+        "guides": [
+          "docs/studio/session-rooms-and-audience.md"
+        ],
+        "models": [
+          "app/models/studio/broadcasting/channel.rb",
+          "app/models/studio/broadcasting/airing.rb"
+        ]
+      }
+    },
+    {
+      "id": "studio.cpu.quote",
+      "title": "Quote a Studio CPU render",
+      "summary": "Quote a still or movie render for a saved scene. The scene and its installed compute configuration determine render routing.",
+      "sources": {
+        "entry_points": [
+          "public/lightek/studio-app.js",
+          "app/controllers/api/nevaeh_controller.rb"
+        ],
+        "implementation": [
+          "app/services/studio/compute/guardrails.rb",
+          "app/services/studio/billing/quote.rb"
+        ],
+        "models": [
+          "app/models/studio_scene.rb",
+          "app/models/studio_operation.rb"
+        ],
+        "workers": [
+          "app/services/studio/workers/workspace.rb"
+        ],
+        "registration": [
+          "db/seeds/lightek_studio_workspace_capabilities.rb"
+        ],
+        "tests": [
+          "test/standalone/studio_cpu_economy_checks.rb"
+        ],
+        "guides": [
+          "docs/studio/cpu-economy.md",
+          "docs/studio/shared-cpu-workers.md"
+        ]
+      },
+      "gems": [
+        "dymond_dispatch"
+      ],
+      "capability": {
+        "key": "studio.workspace.render.quote",
+        "worker": "Studio::Workers::Workspace",
+        "action": "render_quote",
+        "inputs": {
+          "scene_id": "SCENE_ID",
+          "output": "movie"
+        },
+        "result": "Returns an operation ID, a quote and the operation status. A quote does not submit a render."
+      }
+    },
+    {
+      "id": "studio.cpu.resume",
+      "title": "Resume a paid Studio CPU render",
+      "summary": "Resume an eligible failed paid render, or retrieve the status of an eligible render already in progress or completed.",
+      "sources": {
+        "entry_points": [
+          "public/lightek/studio-app.js",
+          "app/controllers/api/nevaeh_controller.rb"
+        ],
+        "implementation": [
+          "app/services/studio/compute/guardrails.rb",
+          "app/jobs/execute_studio_operation_job.rb"
+        ],
+        "models": [
+          "app/models/studio_scene.rb",
+          "app/models/studio_operation.rb"
+        ],
+        "workers": [
+          "app/services/studio/workers/workspace.rb"
+        ],
+        "registration": [
+          "db/seeds/lightek_studio_workspace_capabilities.rb"
+        ],
+        "tests": [
+          "test/standalone/studio_cpu_economy_checks.rb"
+        ],
+        "guides": [
+          "docs/studio/cpu-economy.md",
+          "docs/studio/shared-cpu-workers.md"
+        ]
+      },
+      "gems": [
+        "dymond_dispatch"
+      ],
+      "capability": {
+        "key": "studio.workspace.render.resume",
+        "worker": "Studio::Workers::Workspace",
+        "action": "render_resume",
+        "inputs": {
+          "operation_id": "OPERATION_ID"
+        },
+        "result": "Returns the operation ID and status. Follow that operation for the completed artifact."
+      }
+    },
+    {
+      "id": "studio.timeline.export",
+      "title": "Quote a Studio video timeline export",
+      "summary": "Quote an FFmpeg export for a saved video edit.",
+      "sources": {
+        "entry_points": [
+          "public/lightek/studio-app.js",
+          "app/controllers/api/nevaeh_controller.rb"
+        ],
+        "implementation": [
+          "app/services/studio/editing/timeline.rb",
+          "app/services/studio/billing/quote.rb"
+        ],
+        "models": [
+          "app/models/studio_scene.rb",
+          "app/models/studio_operation.rb",
+          "app/models/studio_asset.rb"
+        ],
+        "workers": [
+          "app/services/studio/workers/workspace.rb"
+        ],
+        "registration": [
+          "db/seeds/lightek_studio_workspace_capabilities.rb"
+        ],
+        "tests": [
+          "test/standalone/timeline_finishing_checks.rb"
+        ],
+        "guides": [
+          "docs/studio/open-source-editors.md"
+        ]
+      },
+      "gems": [
+        "dymond_dispatch"
+      ],
+      "capability": {
+        "key": "studio.workspace.timeline.quote",
+        "worker": "Studio::Workers::Workspace",
+        "action": "timeline_quote",
+        "inputs": {
+          "scene_id": "SCENE_ID"
+        },
+        "result": "Returns an operation ID, a quote and the operation status. Export runs after the existing settlement flow."
+      }
+    },
+    {
+      "id": "susu.groups.list",
+      "title": "List my Susu groups",
+      "summary": "List savings groups the caller organizes or belongs to in the active site scope.",
+      "sources": {
+        "entry_points": [
+          "public/lightek/index.html",
+          "app/controllers/api/nevaeh_controller.rb"
+        ],
+        "workers": [
+          "app/services/susu/workers/pwa.rb"
+        ],
+        "tests": [
+          "test/standalone/nevaeh_os_test.rb"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ],
+      "capability": {
+        "key": "susu.list",
+        "worker": "Susu::Workers::Pwa",
+        "action": "list",
+        "inputs": {},
+        "result": "Returns the caller's visible groups in the completed work-item result."
+      }
+    },
+    {
+      "id": "websites.cms",
+      "title": "Website design and CMS",
+      "summary": "Configure website identity and design in the Dashboard.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/website_designs_controller.rb"
+        ],
+        "implementation": [
+          "app/controllers/dashboard/website_settings_controller.rb",
+          "app/services/lightek_settings/website_identity.rb",
+          "app/services/nevaeh_os/website_pages.rb"
+        ],
+        "guides": [
+          "docs/cms/site-themes-and-journal.md"
+        ]
+      },
+      "gems": [
+        "dymond_dash",
+        "dymond_site"
+      ]
+    }
+  ]
+}

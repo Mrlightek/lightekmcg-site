@@ -48,7 +48,7 @@ A business can build its website, sell products or book services, manage custome
 | Configure books, people, payroll or company security | [Enterprise operations](docs/enterprise-directory-and-accounting.md) · [People and payroll](docs/people/organization-benefits-payroll.md) |
 | Operate a server or update client installations | [Servers & applications](docs/server-application-management.md) · [Customer Updates](docs/customer_fleet_updates.md) |
 
-These guides are also discoverable in **Dashboard → Software Library** after the updated repository is deployed. **Nevaeh → Guide** describes installed commands and capability availability. Access to each workspace still follows the signed-in account's permissions and feature entitlements.
+These guides are also discoverable in **Dashboard → Software Library** after the updated repository is deployed. The [Code map](docs/nevaeh/tutorials/commands.md#find-a-features-implementation) lists the source behind platform workflows and connects mapped actions to their installed registry entries. **Nevaeh → Guide** describes installed commands and capability availability. Access to each workspace still follows the signed-in account's permissions and feature entitlements.
 
 ## What is in the platform now
 

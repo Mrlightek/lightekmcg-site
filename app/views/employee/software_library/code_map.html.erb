@@ -1,0 +1,52 @@
+<% content_for :title, 'Code map' %>
+<% content_for :head do %>
+  <link rel="stylesheet" href="/lightek/nevaeh/control-center.css">
+<% end %>
+
+<section class="nc">
+  <header class="nc-hero">
+    <h1>Code map</h1>
+    <p class="nc-muted">Find the source behind a feature and check its Nevaeh capability.</p>
+  </header>
+
+  <nav class="nc-links" aria-label="Code map links">
+    <%= link_to 'Software Library', employee_software_library_path %>
+    <%= link_to 'Download JSON', employee_software_library_path(view: 'code', q: params[:q], format: :json), download: 'lightek-code-map.json' %>
+  </nav>
+
+  <%= form_with url: employee_software_library_path, method: :get, class: 'nc-panel' do %>
+    <%= hidden_field_tag :view, 'code' %>
+    <%= label_tag :q, 'Search code map' %>
+    <%= search_field_tag :q, params[:q], placeholder: 'Studio CPU, payroll, or a capability key' %>
+    <button class="nc-button">Search</button>
+  <% end %>
+
+  <% statuses = { 'architecture_reference' => 'Architecture reference', 'enabled' => 'Enabled in registry',
+                  'disabled' => 'Disabled', 'not_installed' => 'Missing from registry',
+                  'binding_mismatch' => 'Registry binding mismatch' } %>
+  <% @code_map.fetch('entries').each do |entry| %>
+    <details class="nc-panel">
+      <summary><strong><%= entry.fetch('title') %></strong> · <%= statuses.fetch(entry.fetch('binding_status')) %></summary>
+      <p><%= entry.fetch('summary') %></p>
+      <% if (binding = entry['capability']) %>
+        <p><code><%= binding.fetch('key') %></code> · <code><%= binding.fetch('worker') %>#<%= binding.fetch('action') %></code></p>
+        <p><%= binding.fetch('result') %></p>
+        <% if entry['example'] %>
+          <p>Example command with sample inputs</p>
+          <pre><%= entry['example'] %></pre>
+        <% end %>
+      <% end %>
+      <% if entry['gems'] %>
+        <p>Gem dependencies from Gemfile.lock</p>
+        <ul><% entry.fetch('gems').each do |gem_name| %><li><code><%= gem_name %></code></li><% end %></ul>
+      <% end %>
+      <% entry.fetch('sources').each do |section, paths| %>
+        <h3><%= section.humanize %></h3>
+        <ul><% paths.each do |path| %><li><code><%= path %></code></li><% end %></ul>
+      <% end %>
+    </details>
+  <% end %>
+  <% if @code_map.fetch('entries').empty? %>
+    <p class="nc-panel">No code map entries match that search.</p>
+  <% end %>
+</section>

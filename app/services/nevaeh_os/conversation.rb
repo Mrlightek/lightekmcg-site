@@ -75,7 +75,7 @@ module NevaehOs
         recipient=Agents.resolve!(routed_to,@actor)
         command={'kind'=>'agent_task','agent_ref'=>recipient.id.to_s,'command'=>command}
       end
-      command['agent_id']=(routed_to ? Agents.resolve!('nevaeh',@actor).id : persona.id) unless %w[help resources capabilities status briefing remember search models schema agents guide describe goals goal_show].include?(command['kind'])
+      command['agent_id']=(routed_to ? Agents.resolve!('nevaeh',@actor).id : persona.id) unless %w[help resources capabilities status briefing remember search models schema agents guide describe code_knowledge goals goal_show].include?(command['kind'])
       if command['kind']=='agent_task'
         inner = command['command'] || Command.parse(command.delete('instruction'))
         if inner['kind'] == 'search' && defined?(Language)
@@ -90,7 +90,7 @@ module NevaehOs
         WorkerReports.context(actor:@actor,agent:specialist,command:command['command'])
       end
       command['persona_id']=persona.id if command['kind']=='model'
-      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe goals goal_show].include?(command['kind'])
+      planning = %w[2 3 decide reflect].include?(mode.to_s) && !%w[help resources capabilities status briefing search remember models schema agents guide describe code_knowledge goals goal_show].include?(command['kind'])
       result = if language && language['status'] == 'needs_clarification'
         language.slice('text', 'status', 'sources', 'language_request')
       elsif planning
@@ -115,7 +115,14 @@ module NevaehOs
         {'text'=>tutorial.fetch(:body),'guide_url'=>"/dashboard/nevaeh/guide?topic=#{tutorial[:id]}",'status'=>'ready','tutorial'=>tutorial.except(:body)}
       when 'describe'
         entry=Guide.capability(command.fetch('capability'),actor:@actor)
-        {'text'=>JSON.pretty_generate(entry),'guide_url'=>"/dashboard/nevaeh/guide?capability=#{entry[:key]}",'status'=>'ready','capability'=>entry}
+        response={'text'=>JSON.pretty_generate(entry),'guide_url'=>"/dashboard/nevaeh/guide?capability=#{entry[:key]}",'status'=>'ready','capability'=>entry}
+        if Ability.new(@actor).can?(:manage, NevaehWorkflow)
+          references=NevaehIntelligences::CodeKnowledge.new.search(capability:entry[:key])
+          response['code_knowledge']=references if references.fetch('entries').any?
+        end
+        response
+      when 'code_knowledge'
+        code_knowledge(command.fetch('query'))
       when 'help'
         help=overview
         help.merge('text'=>text.strip.start_with?('/help') ? Command::HELP : help['text'],'spoken_text'=>help['text'],'commands'=>Command::HELP)
@@ -257,6 +264,24 @@ module NevaehOs
       end
       command
     end
+    def code_knowledge(query)
+      raise ArgumentError, 'The code map requires administration permissions' unless Ability.new(@actor).can?(:manage, NevaehWorkflow)
+
+      result = NevaehIntelligences::CodeKnowledge.new.search(query: query)
+      rows = result.fetch('entries')
+      text = rows.first(6).map do |entry|
+        paths = entry.fetch('sources').values.flatten.first(3).join("\n")
+        binding = entry['capability']
+        status = "#{binding.fetch('key')} · #{entry.fetch('binding_status').tr('_', ' ')}" if binding
+        [entry.fetch('title'), entry.fetch('summary'), paths, status, entry['example']].compact.join("\n")
+      end.join("\n\n")
+      text = 'No code map entries match that search.' if rows.empty?
+      if rows.any?
+        text += "\n\nOpen Software Library → Code map for all matching references. Run an example only with IDs for the intended site and records."
+      end
+      {'text'=>text,'status'=>'grounded','code_knowledge'=>result}
+    end
+
     def search(query, persona: nil)
       # Application manuals can contain operational details. Keep that corpus admin-only.
       return native_response(query, persona:persona) unless Ability.new(@actor).can?(:manage, NevaehWorkflow)

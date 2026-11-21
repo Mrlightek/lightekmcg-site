@@ -6,6 +6,18 @@ on:
     branches: [ main ]
 
 jobs:
+  code_knowledge:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+      - name: Verify code map references and Nevaeh capability bindings
+        run: ruby test/standalone/nevaeh_code_knowledge_checks.rb
+
   scan_ruby:
     runs-on: ubuntu-24.04
 

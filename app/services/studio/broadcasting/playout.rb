@@ -107,7 +107,12 @@ module Studio
       def rundown_media(airing, index, item)
         @prepared_rows[index] ||= begin
           directory = PlayoutMedia.airing_path(airing.id)
-          ad_media = PlayoutMedia.segments(directory.join("ad-#{index}")) if item["ad_campaign_id"]
+          if item["ad_campaign_id"]
+            placement = Advertising::Placement.find_by(airing_id: airing.id, row_index: index)
+            if @channel.status == "published" && placement&.authorized_for?(airing.ends_at)
+              ad_media = PlayoutMedia.segments(directory.join("ad-#{index}"))
+            end
+          end
           if ad_media && ad_media.sum(&:duration) >= item.fetch("seconds") - 0.1
             [ad_media, true]
           else

@@ -55,6 +55,19 @@
         </li>
       <% end %>
     </ul>
+    <% if @exchange_catalog %>
+      <h3>Campaigns from other installations</h3>
+      <% if @exchange_catalog.empty? %><p>No campaigns are offered through the exchange.</p><% end %>
+      <ul class="ll-playout-list">
+        <% @exchange_catalog.each do |offer| %>
+          <li><%= offer.fetch("network_name") %> · <%= offer.fetch("name") %> · <%= offer.fetch("seconds") %>s
+            <%= button_to "Add campaign to rundown choices", dashboard_broadcast_ad_import_path(offer.fetch("key"), site_id: @site.id) %>
+          </li>
+        <% end %>
+      </ul>
+    <% elsif @exchange_unavailable %>
+      <p>The exchange is temporarily unavailable. Existing bookings are preserved.</p>
+    <% end %>
     <h3>Open to join</h3>
     <% if @available_networks.empty? %><p>No other networks are offering campaigns.</p><% end %>
     <ul class="ll-playout-list">
@@ -75,8 +88,59 @@
   </section>
 
   <section class="ll-panel">
+    <h2>Advertiser payments</h2>
+    <% if @exchange_sales %>
+      <ul class="ll-playout-list">
+        <% @exchange_sales.fetch("payments").each do |payment| %>
+          <li><%= payment.fetch("name") %> · <%= payment.fetch("state").humanize %>
+            <% if payment.fetch("payable") %>
+              <%= link_to "Advertiser payment link", "#{@exchange_origin}#{broadcast_ad_payment_path(payment.fetch('key'))}" %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+      <%= link_to "Open Lightek network earnings", "#{@exchange_origin}#{dashboard_broadcast_advertising_path(site_id: @exchange_sales.fetch('site_id'))}" %>
+    <% end %>
+    <% if @funding_offers.empty? && @exchange_sales.to_h.fetch("payments", []).empty? %><p>Payment links appear once a station books a campaign from your network.</p><% end %>
+    <ul class="ll-playout-list">
+      <% @funding_offers.each do |payment| %>
+        <li>
+          <%= payment.placement.campaign.name %> · <%= payment.state.humanize %>
+          <% if payment.state == "unfunded" && payment.can_book_payment? %>
+            <%= link_to "Advertiser payment link", "#{LightekReservations::Federation::Issuer.origin}#{broadcast_ad_payment_path(payment.public_key)}" %>
+          <% elsif payment.state == "unfunded" && payment.placement.booked_start&.future? %>
+            <span>Payment opens five days before airtime and closes one hour before airtime.</span>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+
+  <% if @payouts.any? %>
+    <section class="ll-panel">
+      <h2>Your ad earnings</h2>
+      <ul class="ll-playout-list">
+        <% @payouts.each do |payout| %>
+          <li>
+            <%= payout.payment.placement.campaign.name %> · <%= payout.role.humanize %> · <%= number_to_currency(payout.amount_cents / 100.0) %>
+            <% if payout.reversal_reference? %>
+              · Reversed
+            <% elsif payout.transfer_reference? %>
+              · Transferred
+            <% elsif payout.payment.state == "captured" %>
+              <%= button_to "Transfer to payout account", dashboard_broadcast_ad_payout_path(payout, site_id: @site.id), method: :post %>
+            <% else %>
+              · <%= payout.payment.state.humanize %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+
+  <section class="ll-panel">
     <h2>Delivered ads</h2>
-    <p>One receipt per complete public airing. Shares are recorded here and await funding and payout.</p>
+    <p>One receipt per complete public airing. Ad payments are collected after delivery.</p>
     <%= render "receipts", title: "Ads your stations aired", receipts: @station_receipts, share: :station_cents %>
     <%= render "receipts", title: "Ads your networks supplied", receipts: @network_receipts, share: :network_cents %>
     <%= render "receipts", title: "Your show producer share", receipts: @producer_receipts, share: :producer_cents if @producer_receipts.any? %>

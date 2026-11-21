@@ -6,6 +6,8 @@ require "minitest/autorun"
 require "minitest/mock"
 require "tmpdir"
 require "pathname"
+require "stripe"
+require "uri"
 
 ROOT = Pathname(__dir__).join("../..").expand_path
 class ApplicationRecord < ActiveRecord::Base
@@ -15,6 +17,7 @@ end
 module DymondSite
   class Site < ApplicationRecord
     self.table_name = "dymond_site_sites"
+    belongs_to :tenant, class_name: "User", optional: true
   end
 end
 class User < ApplicationRecord; end
@@ -53,7 +56,7 @@ module Studio::Live
 end
 require ROOT.join("app/models/studio/broadcasting/channel").to_s
 require ROOT.join("app/models/studio/broadcasting/airing").to_s
-%w[network membership campaign placement].each do |name|
+%w[network membership campaign placement payment payout].each do |name|
   require ROOT.join("app/models/studio/advertising", name).to_s
 end
 %w[playout_media playout_relay channel_feed playout].each do |name|
@@ -63,8 +66,9 @@ end
 ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
 ActiveRecord::Schema.verbose = false
 ActiveRecord::Schema.define do
-  create_table(:dymond_site_sites)
-  create_table(:users)
+  create_table(:dymond_site_sites) { |table| table.integer :tenant_id }
+  create_table(:lightek_reservation_peers) { |table| table.integer :merchant_id; table.integer :site_id }
+  create_table(:users) { |table| table.string :stripe_connect_account_id }
   create_table(:studio_projects) do |table|
     table.integer :site_id
     table.integer :owner_id
@@ -112,6 +116,34 @@ end
 ActiveRecord::Migration.verbose = false
 require ROOT.join("db/migrate/20261121090000_create_studio_ad_networks").to_s
 CreateStudioAdNetworks.new.migrate(:up)
+require ROOT.join("db/migrate/20261121101500_fund_studio_ad_placements").to_s
+FundStudioAdPlacements.new.migrate(:up)
+require ROOT.join("db/migrate/20261121103000_exchange_studio_ad_campaigns").to_s
+ExchangeStudioAdCampaigns.new.migrate(:up)
+module LightekReservations
+  class Peer < ApplicationRecord
+    self.table_name = "lightek_reservation_peers"
+    belongs_to :site, class_name: "DymondSite::Site"
+    belongs_to :merchant, class_name: "User"
+  end
+  module Federation
+    class Client
+      def self.config(_site) = nil
+    end
+  end
+end
+require ROOT.join("app/services/studio/advertising/exchange").to_s
+
+module LightekPayments
+  class PayoutAccounts
+    class Unavailable < StandardError; end
+    def self.options = { api_key: "sk_test_fixture" }
+    def self.status(_user) = { state: "ready" }
+  end
+end
+require ROOT.join("app/services/lightek_commerce/merchant_payouts").to_s
+require ROOT.join("app/services/dymond_bank/broadcast_advertising/funding").to_s
+require ROOT.join("app/services/dymond_bank/broadcast_advertising/settlement").to_s
 
 module Studio::Broadcasting
   class Access
@@ -123,7 +155,7 @@ class ChannelPlayoutChecks < Minitest::Test
   include Studio::Broadcasting
 
   def setup
-    @site = DymondSite::Site.create!
+    @site = DymondSite::Site.create!(tenant: User.create!)
     @channel = Channel.create!(site: @site, name: "Lightek TV", status: "published", managed_playout: true)
     @airing = @channel.airings.create!(operator: User.create!, title: "Friday Show", status: "ready",
       starts_at: Time.current, ends_at: 8.seconds.from_now, rundown: [
@@ -264,6 +296,11 @@ class ChannelPlayoutChecks < Minitest::Test
       2.times { assert_equal 2, runner.send(:publish, airing) }
       assert_nil receipt.reload.delivered_at
     end
+    run_network_ad(funded: false) do |runner, airing, receipt, _directory, _ad_segment|
+      2.times { assert_equal 2, runner.send(:publish, airing) }
+      assert_includes airing.events.pluck("type"), "ad_backup"
+      assert_nil receipt.reload.delivered_at
+    end
     run_network_ad(remove_creative: true) do |runner, airing, receipt, _directory, ad_segment|
       assert_nil ad_segment
       2.times { assert_equal 2, runner.send(:publish, airing) }
@@ -272,10 +309,106 @@ class ChannelPlayoutChecks < Minitest::Test
     end
   end
 
+  def test_card_hold_captures_only_after_delivery_and_share_uses_that_charge
+    funding = DymondBank::BroadcastAdvertising::Funding
+    settlement = DymondBank::BroadcastAdvertising::Settlement
+    airing, payment = payment_fixture
+    expect_checkout = lambda do |attributes, options|
+      assert_equal "manual", attributes.dig(:payment_intent_data, :capture_method)
+      assert_equal funding.checkout_key(payment), options[:idempotency_key]
+      stripe_object(id: "cs_#{payment.id}", status: "open", url: "https://checkout.stripe.com/test")
+    end
+    Stripe::Checkout::Session.stub(:create, expect_checkout) do
+      assert_equal "https://checkout.stripe.com/test", funding.checkout!(payment, return_url: "https://lightek.test/done")
+    end
+
+    session, authorization, captured = payment_objects(payment)
+    Stripe::Checkout::Session.stub(:retrieve, session) do
+      Stripe::PaymentIntent.stub(:retrieve, authorization) { funding.reconcile!(payment) }
+      assert_equal "authorized", payment.reload.state
+      assert payment.ready_at?(airing.ends_at)
+      payout = payment.payouts.find_by!(role: "station")
+      actor = payout.recipient
+      actor.update!(stripe_connect_account_id: "acct_station")
+      assert_raises(DymondBank::BroadcastAdvertising::Funding::Unavailable) { settlement.release!(payout, actor: actor) }
+      assert_nil payout.reload.requested_at
+
+      payment.placement.update!(delivered_at: Time.current)
+      intent_reads = [authorization, captured]
+      capture = lambda do |reference, _, options|
+        assert_equal "pi_#{payment.id}", reference
+        assert_equal funding.key(payment, "capture"), options[:idempotency_key]
+      end
+      Stripe::PaymentIntent.stub(:retrieve, ->(*) { intent_reads.shift }) do
+        Stripe::PaymentIntent.stub(:capture, capture) { funding.reconcile!(payment) }
+      end
+      assert_equal "captured", payment.reload.state
+
+      transfer = lambda do |attributes, options|
+        assert_equal "ch_#{payment.id}", attributes[:source_transaction]
+        assert_equal payout.amount_cents, attributes[:amount]
+        assert_equal funding.key(payment, "payout-station"), options[:idempotency_key]
+        stripe_object(attributes.merge(id: "tr_#{payment.id}"))
+      end
+      Stripe::PaymentIntent.stub(:retrieve, captured) do
+        Stripe::Transfer.stub(:create, transfer) { settlement.release!(payout, actor: actor) }
+        Stripe::Transfer.stub(:create, ->(*) { flunk "duplicate transfer" }) { settlement.release!(payout, actor: actor) }
+      end
+      assert_equal "tr_#{payment.id}", payout.reload.transfer_reference
+    end
+  end
+
+  def test_unplayed_canceled_airing_voids_the_hold
+    funding = DymondBank::BroadcastAdvertising::Funding
+    airing, payment = payment_fixture
+    payment.update!(checkout_reference: "cs_#{payment.id}", checkout_amount_cents: 1100)
+    session, authorization, = payment_objects(payment)
+    airing.command!("cancel")
+    cancel = lambda do |reference, _, options|
+      assert_equal "pi_#{payment.id}", reference
+      assert_equal funding.key(payment, "void"), options[:idempotency_key]
+    end
+    Stripe::Checkout::Session.stub(:retrieve, session) do
+      Stripe::PaymentIntent.stub(:retrieve, authorization) do
+        Stripe::PaymentIntent.stub(:cancel, cancel) { funding.reconcile!(payment) }
+      end
+    end
+    assert_equal "void", payment.reload.state
+    assert_nil payment.charge_reference
+  end
+
   private
 
+  def payment_fixture
+    campaign, rows = ad_inventory
+    join_network(campaign)
+    project = StudioProject.create!(site_id: @site.id, owner: @airing.operator)
+    airing = Airing.schedule!(channel: @channel, operator: @airing.operator, title: "Ad-funded show", starts_at: 2.hours.from_now,
+      relay: nil, rows: rows, show_project_id: project.id)
+    [airing, Studio::Advertising::Placement.find_by!(airing: airing).payment]
+  end
+
+  def stripe_object(attributes) = Stripe::StripeObject.construct_from(attributes)
+
+  def payment_objects(payment)
+    amount = payment.reload.checkout_amount_cents
+    metadata = DymondBank::BroadcastAdvertising::Funding.metadata(payment)
+    session = stripe_object(id: "cs_#{payment.id}", status: "complete", mode: "payment", currency: "usd",
+      amount_total: amount, payment_intent: "pi_#{payment.id}", metadata: metadata)
+    charge = {
+      id: "ch_#{payment.id}", payment_intent: "pi_#{payment.id}", currency: "usd", amount: amount,
+      payment_method_details: { card: { capture_before: 1.day.from_now.to_i } },
+      balance_transaction: { net: payment.amount_cents, status: "available", currency: "usd" },
+      amount_refunded: 0, disputed: false, paid: true
+    }
+    base = { id: "pi_#{payment.id}", capture_method: "manual", currency: "usd", metadata: metadata, amount: amount }
+    authorized = stripe_object(base.merge(status: "requires_capture", amount_capturable: amount, latest_charge: charge.merge(captured: false)))
+    captured = stripe_object(base.merge(status: "succeeded", amount_received: amount, latest_charge: charge.merge(captured: true)))
+    [session, authorized, captured]
+  end
+
   def ad_inventory(creative: "fixture-ad.mp4", backup: "fixture-backup.mp4")
-    network_site = DymondSite::Site.create!
+    network_site = DymondSite::Site.create!(tenant: User.create!)
     network = Studio::Advertising::Network.create!(name: "Affiliate ads", site: network_site)
     asset = video(network_site, creative)
     campaign = network.campaigns.create!(name: "Local sponsor", asset: asset, blob_id: asset.proxy.id,
@@ -297,7 +430,7 @@ class ChannelPlayoutChecks < Minitest::Test
       relay: nil, rows: rows, show_project_id: project&.id)
   end
 
-  def run_network_ad(status: "published", remove_creative: false)
+  def run_network_ad(status: "published", remove_creative: false, funded: true)
     Dir.mktmpdir do |tmp|
       root = Pathname(tmp)
       FileUtils.mkdir_p(root.join("media"))
@@ -313,6 +446,9 @@ class ChannelPlayoutChecks < Minitest::Test
       project = StudioProject.create!(site_id: @site.id, owner: @airing.operator)
       airing = schedule_ad(rows, project)
       receipt = Studio::Advertising::Placement.find_by!(airing: airing)
+      if funded
+        receipt.payment.update!(state: "authorized", authorized_until: 1.day.from_now)
+      end
       campaign.asset.destroy! if remove_creative
 
       PlayoutMedia.stub(:root, root) do

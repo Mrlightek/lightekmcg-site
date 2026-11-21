@@ -8,7 +8,35 @@ module Studio
       belongs_to :campaign, class_name: "Studio::Advertising::Campaign"
       belongs_to :station_site, class_name: "DymondSite::Site"
       belongs_to :producer, class_name: "::User", optional: true
-      belongs_to :airing, class_name: "Studio::Broadcasting::Airing"
+      belongs_to :airing, class_name: "Studio::Broadcasting::Airing", optional: true
+      belongs_to :peer, class_name: "LightekReservations::Peer", optional: true
+
+      def locally_exchanged? = exchange_key.present? && !peer_id?
+
+      def payable_airing?
+        return remote_state == "published" && !remote_retired? if peer_id?
+
+        airing && airing.channel.managed_playout? && airing.channel.status == "published" &&
+          airing.status.in?(Studio::Broadcasting::Airing::ACTIVE)
+      end
+
+      def booked_start = peer_id? ? scheduled_start : airing&.starts_at
+
+      def authorized_for?(ends_at)
+        if locally_exchanged?
+          remote_state == "authorized" && remote_authorized_until && remote_authorized_until > ends_at + 10.minutes
+        else
+          payment&.ready_at?(ends_at)
+        end
+      end
+
+      has_one :payment, class_name: "Studio::Advertising::Payment", dependent: :restrict_with_error
+
+      def finished_without_delivery?
+        return !delivered_at? && (remote_retired? || scheduled_end < 30.minutes.ago) if peer_id?
+
+        !delivered_at? && (!airing || !airing.status.in?(Studio::Broadcasting::Airing::ACTIVE) || airing.ends_at < 30.minutes.ago)
+      end
 
       scope :delivered, -> { where.not(delivered_at: nil) }
       attr_readonly :campaign_id, :station_site_id, :producer_id, :airing_id, :row_index,
@@ -24,14 +52,22 @@ module Studio
           next unless item["ad_campaign_id"]
           campaign = campaigns[item.fetch("ad_campaign_id")]
           unless campaign&.open_for_booking? && campaign.creative_available? && campaign.seconds == item.fetch("seconds") &&
-              (campaign.network.site_id == station_id || membership_networks.include?(campaign.network_id))
+              ((campaign.network.site_id == station_id && !campaign.network.imported?) || membership_networks.include?(campaign.network_id))
             raise ArgumentError, "The ad campaign is unavailable for booking."
           end
           if campaign.producer_bps.positive? && !producer
             raise ArgumentError, "Choose a show project with a producer for this ad’s revenue share."
           end
-          create!(campaign: campaign, station_site_id: station_id, airing: airing, row_index: index,
+          placement = create!(campaign: campaign, station_site_id: station_id, airing: airing, row_index: index,
             producer: campaign.producer_bps.positive? ? producer : nil, **campaign.split)
+          if Exchange.connected?(placement.station_site)
+            raise ArgumentError, "Publish this campaign to the ad exchange before booking." unless campaign.exchange_key?
+            slot_start = airing.starts_at + rows.take(index).sum { |row| row.fetch("seconds") }
+            placement.update!(exchange_key: SecureRandom.uuid, scheduled_start: slot_start, scheduled_end: slot_start + campaign.seconds,
+              sync_after: Time.current)
+          else
+            Payment.reserve!(placement)
+          end
         end
       end
 
@@ -49,7 +85,9 @@ module Studio
 
         if final
           if boundary >= media_end - 0.1
-            where(airing_id: airing.id, row_index: row, delivered_at: nil).update_all(delivered_at: Time.current, updated_at: Time.current)
+            matches = where(airing_id: airing.id, row_index: row, delivered_at: nil)
+            matches.where.not(sync_after: nil).update_all(sync_after: Time.current)
+            matches.update_all(delivered_at: Time.current, updated_at: Time.current)
           end
           airing.state = airing.state.except("ad_progress")
         else

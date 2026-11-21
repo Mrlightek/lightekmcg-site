@@ -13,7 +13,7 @@ module Studio
       scope :offered, -> { where(open_for_booking: true) }
 
       def self.for_station(site_id)
-        own = Network.where(site_id: site_id).select(:id)
+        own = Network.where(site_id: site_id, imported: false).select(:id)
         joined = Membership.where(station_site_id: site_id).select(:network_id)
         offered.where(network_id: own).or(offered.where(network_id: joined))
       end

@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
 class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeController
+  include LightekIdentity::SensitiveSession
   skip_before_action :require_settings_operator!
   protect_from_forgery with: :exception
   before_action :load_site
+  before_action :require_sensitive_session!, only: :release
 
   rescue_from LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied, ::Gatekeeper::StudioLivePolicy::Denied do |error|
     render plain: error.message, status: :forbidden
@@ -12,7 +14,24 @@ class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeControl
     redirect_to dashboard_broadcast_advertising_path(site_id: @site.id), alert: error.record.errors.full_messages.to_sentence, status: :see_other
   end
 
+  rescue_from DymondBank::BroadcastAdvertising::Funding::Unavailable do |error|
+    redirect_to dashboard_broadcast_advertising_path(site_id: @site.id), alert: error.message, status: :see_other
+  end
+
+  rescue_from Studio::Advertising::Exchange::Unavailable, LightekReservations::Federation::Client::Unavailable do |error|
+    redirect_to dashboard_broadcast_advertising_path(site_id: @site.id), alert: error.message, status: :see_other
+  end
+
   def show
+    if Studio::Advertising::Exchange.connected?(@site)
+      begin
+        @exchange_catalog = Studio::Advertising::Exchange.catalog(@site)
+        @exchange_sales = Studio::Advertising::Exchange.sales(@site)
+        @exchange_origin = LightekReservations::Federation::Client.config(@site).fetch("origin").delete_suffix("/")
+      rescue Studio::Advertising::Exchange::Unavailable, LightekReservations::Federation::Client::Unavailable
+        @exchange_unavailable = true
+      end
+    end
     @networks = networks.includes(:campaigns).order(:name, :id)
     @memberships = Studio::Advertising::Membership.where(station_site_id: @site.id).includes(:network)
     public_network_ids = Studio::Advertising::Campaign.offered.select(:network_id)
@@ -25,8 +44,23 @@ class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeControl
       .includes(:campaign).order(delivered_at: :desc).limit(50)
     @producer_receipts = Studio::Advertising::Placement.delivered.where(station_site_id: @site.id, producer_id: current_user.id)
       .includes(:campaign).order(delivered_at: :desc).limit(50)
-    @network_receipts = Studio::Advertising::Placement.delivered.where(campaign_id: Studio::Advertising::Campaign.where(network: networks))
+    @sold = Studio::Advertising::Placement.where(campaign_id: Studio::Advertising::Campaign.where(network: networks))
+    @funding_offers = Studio::Advertising::Payment.where(placement: @sold).includes(placement: [:campaign, :airing])
+      .order(id: :desc).limit(50)
+    @payouts = personal_payouts.includes(payment: { placement: :campaign }).order(id: :desc).limit(50)
+    @network_receipts = @sold.delivered
       .includes(:campaign).order(delivered_at: :desc).limit(50)
+  end
+
+  def import_offer
+    campaign = Studio::Advertising::Exchange.import!(@site, params[:key])
+    campaign.network.memberships.create_or_find_by!(station_site_id: @site.id)
+    back("Campaign is available in your channel rundown.")
+  end
+
+  def release
+    DymondBank::BroadcastAdvertising::Settlement.release!(personal_payouts.find(params[:payout_id]), actor: current_user)
+    back("Ad earnings transferred to your payout account.")
   end
 
   def create_network
@@ -66,7 +100,11 @@ class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeControl
       return redirect_to dashboard_broadcast_advertising_path(site_id: @site.id), alert: "This campaign’s original video is unavailable. Create a campaign using a ready video.", status: :see_other
     end
 
-    campaign.update!(open_for_booking: open)
+    if Studio::Advertising::Exchange.connected?(@site)
+      Studio::Advertising::Exchange.publish!(@site, campaign, open: open)
+    else
+      campaign.update!(open_for_booking: open)
+    end
     back(open ? "Campaign open for booking." : "Campaign closed to new bookings. Existing bookings are still scheduled.")
   end
 
@@ -82,7 +120,11 @@ class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeControl
   end
 
   def networks
-    Studio::Advertising::Network.where(site_id: @site.id)
+    Studio::Advertising::Network.where(site_id: @site.id, imported: false)
+  end
+
+  def personal_payouts
+    Studio::Advertising::Payout.where(recipient: current_user)
   end
 
   def videos

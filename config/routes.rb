@@ -52,6 +52,7 @@ Rails.application.routes.draw do
     end
   end
   draw :reservations
+  draw :broadcast_ad_exchange
   draw :people
   draw :lifecycle
   draw :enterprise_identity
@@ -740,6 +741,9 @@ get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 
+get "/broadcast-ads/payment/:key", to: "broadcast_ad_payments#show", as: :broadcast_ad_payment
+post "/broadcast-ads/payment/:key", to: "broadcast_ad_payments#create"
+post "/dashboard/live/advertising/payouts/:payout_id", to: "dashboard/broadcast_advertising#release", as: :dashboard_broadcast_ad_payout
 get "/dashboard/live/advertising", to: "dashboard/broadcast_advertising#show", as: :dashboard_broadcast_advertising
 post "/dashboard/live/advertising/networks", to: "dashboard/broadcast_advertising#create_network", as: :dashboard_broadcast_ad_networks
 post "/dashboard/live/advertising/networks/:network_id/membership", to: "dashboard/broadcast_advertising#join", as: :dashboard_broadcast_ad_membership

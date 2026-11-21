@@ -6,9 +6,30 @@ require File.join(ROOT, "db/migrate/20261120220000_create_studio_channel_airings
 require File.join(ROOT, "db/migrate/20261121090000_create_studio_ad_networks")
 CreateStudioChannelAirings.new.migrate(:up)
 CreateStudioAdNetworks.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261121101500_fund_studio_ad_placements")
+FundStudioAdPlacements.new.migrate(:up)
+ActiveRecord::Schema.define do
+  create_table(:lightek_reservation_peers) do |table|
+    table.integer :site_id
+    table.integer :merchant_id
+  end
+end
+module LightekReservations
+  class Peer < ApplicationRecord
+    self.table_name = "lightek_reservation_peers"
+    belongs_to :site, class_name: "DymondSite::Site"
+    belongs_to :merchant, class_name: "User"
+  end
+end
+require "active_support/testing/time_helpers"
+require File.join(ROOT, "db/migrate/20261121103000_exchange_studio_ad_campaigns")
+ExchangeStudioAdCampaigns.new.migrate(:up)
+require File.join(ROOT, "app/services/lightek_reservations/federation/client")
+require File.join(ROOT, "app/services/studio/advertising/exchange")
 %w[app/models/studio/broadcasting/application app/models/studio/broadcasting/channel app/models/studio/broadcasting/program
    app/models/studio/broadcasting/airing app/models/studio/advertising/network app/models/studio/advertising/membership
    app/models/studio/advertising/campaign app/models/studio/advertising/placement
+   app/models/studio/advertising/payment app/models/studio/advertising/payout app/services/dymond_bank/broadcast_advertising/funding
    app/services/studio/broadcasting/access app/services/studio/broadcasting/experience
    app/services/gatekeeper/studio_live_policy app/services/studio/live/destination app/services/studio/live/encoder app/services/studio/live/sessions].each { |file| require File.join(ROOT, file) }
 %w[app/services/studio/gatekeeper/client app/services/studio/publishers/lightek_streaming app/services/studio/publishers/registry app/services/studio/publishing/dispatch app/jobs/studio_publication_dispatch_job].each { |file| require File.join(ROOT, file) }
@@ -27,6 +48,7 @@ require File.join(ROOT, "app/controllers/dashboard/settings_home_controller")
 require File.join(ROOT, "app/controllers/dashboard/media_studio_controller")
 require File.join(ROOT, "app/services/lightek_agency/package_policy")
 require File.join(ROOT, "app/controllers/dashboard/live_broadcasts_controller")
+require File.join(ROOT, "app/controllers/concerns/lightek_identity/sensitive_session")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
 Dashboard::MediaStudioController.prepend_view_path(File.join(ROOT, "app/views"))
@@ -92,6 +114,7 @@ Rails.application.routes.append do
 end
 Rails.application.reload_routes!
 class BroadcastControlTest < PwaHttpIntegrationTest
+  include ActiveSupport::Testing::TimeHelpers
   PwaHttpIntegrationTest.instance_methods(false).grep(/^test_/).each { |method| undef_method(method) }
   def setup
     super
@@ -147,6 +170,74 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     assert_empty network.memberships.reload
   ensure
     controller.allow_forgery_protection = true
+  end
+
+  def test_ad_exchange_moves_only_opted_in_creative_and_binds_funding_to_the_station
+    exchange = Studio::Advertising::Exchange
+    @site.update!(tenant: @alice)
+    @other_site.update!(tenant: @bob)
+    supplier = LightekReservations::Peer.create!(site: @site, merchant: @alice)
+    station = LightekReservations::Peer.create!(site: @other_site, merchant: @bob)
+    offer_key = SecureRandom.uuid
+    network_key = SecureRandom.uuid
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, "ad.mp4")
+      assert system("ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=blue:s=160x90:r=24",
+        "-t", "4", "-c:v", "libx264", "-threads", "1", path)
+      bytes = File.binread(path)
+      terms = {
+        "merchant_key" => "owner", "open" => true, "network_key" => network_key, "network_name" => "Independent Ads",
+        "name" => "Sponsor", "seconds" => 4, "rate_cents" => 1000, "network_bps" => 2000,
+        "producer_bps" => 0, "platform_bps" => 500, "media" => Base64.strict_encode64(bytes), "sha256" => Digest::SHA256.hexdigest(bytes)
+      }
+
+      assert_raises(Studio::Advertising::Exchange::Unavailable) do
+        exchange.receive_offer!(supplier, offer_key, terms.merge("sha256" => "different"))
+      end
+      assert_equal({ "key" => offer_key, "open" => true }, exchange.receive_offer!(supplier, offer_key, terms))
+      assert_equal({ "key" => offer_key, "open" => true }, exchange.receive_offer!(supplier, offer_key, terms))
+      assert_raises(Studio::Advertising::Exchange::Unavailable) { exchange.receive_offer!(station, offer_key, terms) }
+
+      central = exchange.public_offers.find_by!(exchange_key: offer_key)
+      payload = exchange.serialize(central).merge(exchange.creative_payload(central))
+      assert_equal bytes, Base64.strict_decode64(payload.fetch("media"))
+      refute payload.key?("site_id")
+      refute payload.key?("email")
+      replica = exchange.save_copy!(site: @other_site, actor: @bob, attributes: payload, imported: true)
+      assert replica.network.imported?
+      actor = Studio::PwaAccess.new("user_id" => @bob.id, "site_id" => @other_site.id)
+      refute StudioAsset.for_actor(actor).exists?(id: replica.asset_id)
+      assert_equal central.exchange_key, replica.exchange_key
+      assert_equal 1, exchange.public_offers.where(exchange_key: offer_key).count
+      refute Studio::Advertising::Campaign.for_station(@other_site.id).exists?(id: replica.id)
+      replica.network.memberships.create!(station_site: @other_site)
+      assert Studio::Advertising::Campaign.for_station(@other_site.id).exists?(id: replica.id)
+
+      key = SecureRandom.uuid
+      starts_at = 2.hours.from_now.change(usec: 0)
+      ends_at = starts_at + 4.seconds
+      booking = { "merchant_key" => "owner", "campaign_key" => offer_key, "starts_at" => starts_at.iso8601,
+        "ends_at" => ends_at.iso8601, "published" => true }
+      assert_equal "unfunded", exchange.receive_placement!(station, key, booking).fetch("state")
+      assert_equal "unfunded", exchange.receive_placement!(station, key, booking).fetch("state")
+      placement = Studio::Advertising::Placement.find_by!(exchange_key: key)
+      payment = placement.payment
+      assert_equal station, placement.peer
+      assert_equal @bob, payment.payouts.find_by!(role: "station").recipient
+      assert_equal @alice, payment.payouts.find_by!(role: "network").recipient
+      assert payment.can_book_payment?
+      assert_raises(Studio::Advertising::Exchange::Unavailable) do
+        exchange.receive_placement!(station, key, booking.merge("delivered_at" => ends_at.iso8601))
+      end
+      payment.update!(state: "authorized", authorized_until: 1.day.from_now)
+      travel_to ends_at do
+        exchange.receive_placement!(station, key, booking.merge("delivered_at" => ends_at.iso8601))
+        assert_equal ends_at, placement.reload.delivered_at
+        assert_equal 1, Studio::Advertising::Payment.where(placement: placement).count
+      end
+      exchange.receive_offer!(supplier, offer_key, terms.merge("open" => false))
+      refute exchange.public_offers.exists?(exchange_key: offer_key)
+    end
   end
 
   def video(site = @site, **attrs)

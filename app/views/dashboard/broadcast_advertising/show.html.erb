@@ -6,6 +6,7 @@
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
   <header class="ll-header"><h1>Broadcast advertising</h1></header>
 
+  <%= render "external_demand" %>
   <section class="ll-panel">
     <h2>Your ad networks</h2>
     <%= form_with url: dashboard_broadcast_ad_networks_path(site_id: @site.id), scope: :network, class: "ll-playout-actions" do |form| %>

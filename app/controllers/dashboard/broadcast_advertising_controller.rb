@@ -5,7 +5,7 @@ class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeControl
   skip_before_action :require_settings_operator!
   protect_from_forgery with: :exception
   before_action :load_site
-  before_action :require_sensitive_session!, only: :release
+  before_action :require_sensitive_session!, only: %i[release create_demand update_demand save_stream_profile remove_stream_profile reconcile_provider_statement save_viewing_offer]
 
   rescue_from LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied, ::Gatekeeper::StudioLivePolicy::Denied do |error|
     render plain: error.message, status: :forbidden
@@ -22,7 +22,16 @@ class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeControl
     redirect_to dashboard_broadcast_advertising_path(site_id: @site.id), alert: error.message, status: :see_other
   end
 
+  rescue_from ArgumentError, LightekVault::Service::AccessDenied do |error|
+    redirect_to dashboard_broadcast_advertising_path(site_id: @site.id), alert: error.message, status: :see_other
+  end
+
   def show
+    @demand_sources = demand_sources.order(:position, :id)
+    @stream_profiles = stream_profiles.includes(:channel).order(:channel_id, :platform)
+    @provider_statements = provider_statements.includes(:source).order(ends_on: :desc, id: :desc).limit(100)
+    @viewing_offer = Studio::Advertising::ViewingOffer.find_by(site: @site)
+    @viewing_products = LightekCommerce::Product.where(site: @site, published: true, product_type: "service", billing_interval: %w[month year]).order(:name)
     if Studio::Advertising::Exchange.connected?(@site)
       begin
         @exchange_catalog = Studio::Advertising::Exchange.catalog(@site)
@@ -50,6 +59,52 @@ class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeControl
     @payouts = personal_payouts.includes(payment: { placement: :campaign }).order(id: :desc).limit(50)
     @network_receipts = @sold.delivered
       .includes(:campaign).order(delivered_at: :desc).limit(50)
+  end
+
+  def create_demand
+    source = demand_sources.new(params.require(:demand).permit(:name, :position, :enabled, :platform))
+    source.configure!(tag: params.dig(:demand, :vast_tag), operator: current_user)
+    back("Demand source connected.")
+  end
+
+  def update_demand
+    source = demand_sources.find(params[:id])
+    fields = params.require(:demand).permit(:name, :position, :enabled, :platform, :vast_tag)
+    tag = fields.delete(:vast_tag)
+    source.assign_attributes(fields)
+    tag.present? ? source.configure!(tag: tag, operator: current_user) : source.save!
+    back("Demand source updated.")
+  end
+
+  def save_stream_profile
+    fields = params.require(:profile).permit(:channel_id, :platform, :playback_url)
+    profile = stream_profiles.find_or_initialize_by(channel_id: fields[:channel_id], platform: fields[:platform])
+    profile.update!(playback_url: fields[:playback_url])
+    back("Stitched playback URL saved.")
+  end
+
+  def remove_stream_profile
+    stream_profiles.find(params[:id]).destroy!
+    back("Channel now uses its Lightek feed on this platform.")
+  end
+
+  def record_provider_statement
+    fields = params.require(:statement).permit(:source_id, :reference, :starts_on, :ends_on, :impressions, :reported_cents)
+    source = demand_sources.find(fields.delete(:source_id))
+    source.statements.create!(fields)
+    back("Provider statement recorded.")
+  end
+
+  def reconcile_provider_statement
+    fields = params.require(:receipt).permit(:received_cents, :deposit_reference)
+    provider_statements.find(params[:id]).reconcile!(received: fields[:received_cents], deposit: fields[:deposit_reference], operator: current_user)
+    back("Provider deposit reconciled.")
+  end
+
+  def save_viewing_offer
+    offer = Studio::Advertising::ViewingOffer.find_or_initialize_by(site: @site)
+    offer.update!(product_id: params[:product_id])
+    back("Fewer Commercials offer saved.")
   end
 
   def import_offer
@@ -118,6 +173,10 @@ class Dashboard::BroadcastAdvertisingController < Dashboard::SettingsHomeControl
 
     Studio::Broadcasting::Access.authorize!(current_user, @site)
   end
+
+  def demand_sources = Studio::Advertising::DemandSource.where(site: @site)
+  def stream_profiles = Studio::Advertising::StreamProfile.where(site: @site)
+  def provider_statements = Studio::Advertising::ProviderStatement.where(source_id: demand_sources.select(:id))
 
   def networks
     Studio::Advertising::Network.where(site_id: @site.id, imported: false)

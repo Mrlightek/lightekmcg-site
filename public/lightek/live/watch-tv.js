@@ -16,9 +16,15 @@
     const fullscreen = query("fullscreen");
     let hls;
     let detach;
+    let source = video.dataset.tvPlayback;
 
     const listen = (target, event, handler) => target.addEventListener(event, handler, { signal: listeners.signal });
     const unavailable = () => {
+      if (video.dataset.tvFallback && source !== video.dataset.tvFallback) {
+        source = video.dataset.tvFallback;
+        connectSource();
+        return;
+      }
       status.textContent = "Playback is temporarily unavailable.";
       retry.hidden = false;
     };
@@ -42,12 +48,12 @@
       retry.hidden = true;
       status.textContent = "";
       if (!isLive || video.canPlayType("application/vnd.apple.mpegurl")) {
-        if (video.getAttribute("src") === video.dataset.tvPlayback) video.load();
-        else video.src = video.dataset.tvPlayback;
+        if (video.getAttribute("src") === source) video.load();
+        else video.src = source;
       } else if (window.Hls?.isSupported()) {
         hls = new window.Hls();
         hls.on(window.Hls.Events.ERROR, (_event, problem) => { if (problem.fatal) unavailable(); });
-        hls.loadSource(video.dataset.tvPlayback);
+        hls.loadSource(source);
         hls.attachMedia(video);
       } else {
         unavailable();
@@ -79,7 +85,10 @@
       else if (root.requestFullscreen) root.requestFullscreen().catch(() => {});
       else video.webkitEnterFullscreen?.();
     });
-    listen(retry, "click", connectSource);
+    listen(retry, "click", () => {
+      source = video.dataset.tvPlayback;
+      connectSource();
+    });
     live.hidden = !isLive;
     fullscreen.hidden = !root.requestFullscreen && !video.webkitEnterFullscreen;
     listen(video, "loadedmetadata", () => {

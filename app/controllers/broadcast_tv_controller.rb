@@ -10,6 +10,11 @@ class BroadcastTvController < ApplicationController
     site = LightekPwa::SiteContext.resolve(request.host)
     experience = Studio::Broadcasting::Experience.new(site: site, user: current_user, platform: "web",
       slug: params[:application].presence, origin: request.base_url)
+    if Studio::Advertising::StreamProfile.where(site: site).exists?
+      offer = Studio::Advertising::ViewingOffer.find_by(site: site)
+      @viewing_product = offer.product if offer&.valid?
+      @fewer_commercials = Studio::Advertising::ViewingOffer.active?(site, current_user) if @viewing_product
+    end
     @guide = experience.home(live: true)
     @channels = @guide[:rows].find { |row| row[:id] == "live-channels" }&.fetch(:items) || []
     @schedule = @guide[:rows].find { |row| row[:id] == "program-guide" }&.fetch(:items) || []

@@ -4,14 +4,23 @@
 <%= javascript_include_tag "/lightek/vendor/hls/hls.light.min.js", defer: true %>
 <% if @nielsen %><%= javascript_include_tag "/lightek/live/nielsen-viewership.js?v=1", defer: true %><% end %>
 <%= stylesheet_link_tag "/lightek/live/lightek-player.css?v=1" %>
-<%= javascript_include_tag "/lightek/live/watch-tv.js?v=3", defer: true %>
+<%= javascript_include_tag "/lightek/live/watch-tv.js?v=4", defer: true %>
 
 <main class="ll-studio ll-playout">
   <header class="ll-header"><h1><%= @guide.dig(:screen, :title) %></h1></header>
+  <% if @viewing_product %>
+    <% if @fewer_commercials %>
+      <p>Fewer Commercials is active.</p>
+      <%= button_to "Link Roku", broadcast_viewing_link_path, form: { data: { turbo: false } } %>
+    <% else %>
+      <%= button_to "Fewer Commercials · #{number_to_currency(@viewing_product.price_cents / 100.0)} per #{@viewing_product.billing_interval}",
+        broadcast_viewing_offer_path, form: { data: { turbo: false } } %>
+    <% end %>
+  <% end %>
   <% if @selected %>
     <section class="ll-panel">
       <h2><%= @selected[:title] %></h2>
-      <%= render "shared/lightek_player", source: @selected.dig(:action, :playback_url), format: @selected.dig(:action, :stream_format) %>
+      <%= render "shared/lightek_player", source: @selected.dig(:action, :playback_url), format: @selected.dig(:action, :stream_format), fallback: @selected.dig(:action, :fallback_url) %>
       <% if @nielsen %>
         <label><input type="checkbox" data-nielsen-app="<%= @nielsen.fetch(:app_id) %>"
           data-nielsen-debug="<%= @nielsen.fetch(:debug) %>" data-nielsen-timeline="<%= @selected.dig(:action, :measurement_url) %>">

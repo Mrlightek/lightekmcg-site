@@ -124,6 +124,27 @@ require File.join(ROOT, "app/controllers/api/reservation_federation_controller")
 require File.join(ROOT, "app/controllers/api/broadcast_programs_controller")
 require File.join(ROOT, "app/controllers/api/broadcast_carriage_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_contracts_controller")
+require File.join(ROOT, "db/migrate/20261121162000_connect_broadcast_ad_demand")
+ConnectBroadcastAdDemand.new.migrate(:up)
+%w[demand_source provider_statement stream_profile viewing_offer viewing_link].each do |file|
+  require File.join(ROOT, "app/models/studio/advertising", file)
+end
+%w[broadcast_ad_decisions broadcast_viewing_links].each do |file|
+  require File.join(ROOT, "app/controllers/#{file}_controller")
+end
+%w[order order_item subscription].each do |file|
+  require File.join(ROOT, "app/models/lightek_commerce", file)
+end
+ActiveRecord::Schema.define do
+  add_column :lightek_commerce_products, :billing_interval, :string, default: "one_time"
+  add_column :lightek_commerce_products, :product_type, :string, default: "service"
+  add_column :lightek_commerce_orders, :hosting_owner_id, :bigint
+  create_table :lightek_commerce_subscriptions do |t|
+    t.bigint :order_id, null: false
+    t.string :status
+    t.datetime :current_period_end
+  end
+end
 require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
 require File.join(ROOT, "app/models/studio/broadcasting/program_distribution_handoff")
 require File.join(ROOT, "app/controllers/dashboard/program_distribution_handoffs_controller")
@@ -959,6 +980,68 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     client.get "/gatekeeper/screens/live"
     assert_equal 200, client.response.status
     body(client).fetch("rows").find { |row| row["id"] == "live-channels" }.fetch("items")
+  end
+
+  def test_stream_uses_multiple_provider_tags_and_reconciles_the_deposit
+    advertising = Studio::Advertising
+    channel = Studio::Broadcasting::Channel.create!(site: @site, name: "Stitched TV", status: "published", managed_playout: true)
+    profile = advertising::StreamProfile.create!(site: @site, channel: channel, platform: "roku",
+      playback_url: "https://stitch.example/stream.m3u8")
+    [
+      [@site, "CTV exchange", 1, "https://ads.example/ctv?a=1&b=2"],
+      [@site, "Web and TV vendor", 0, "https://ads.example/multi"],
+      [@other_site, "Other tenant", 0, "https://other.example/private"]
+    ].each do |site, name, position, tag|
+      advertising::DemandSource.new(site: site, name: name, position: position, enabled: true).configure!(tag: tag, operator: @alice)
+    end
+    advertising::DemandSource.new(site: @site, name: "Browser only", position: 0, enabled: true, platform: "web")
+      .configure!(tag: "https://ads.example/web", operator: @alice)
+    client = session_for
+    cards = network_guide(client)
+    action = cards.find { |row| row["id"] == "channel-#{channel.id}" }.fetch("action")
+    assert_equal profile.playback_url, action.fetch("playback_url")
+    assert_includes action.fetch("fallback_url"), channel.managed_path
+
+    client.get "/api/broadcast/advertising/decision/#{profile.decision_key}"
+    assert_equal 200, client.response.status
+    assert_equal ["https://ads.example/multi", "https://ads.example/ctv?a=1&b=2"],
+      Nokogiri::XML(client.response.body).xpath("//VASTAdTagURI").map(&:text)
+
+    source = advertising::DemandSource.find_by!(site: @site, name: "CTV exchange")
+    statement = source.statements.create!(reference: "P-18", starts_on: Date.current - 2, ends_on: Date.current, impressions: 1200, reported_cents: 4000)
+    statement.reconcile!(received: "3950", deposit: "D-1", operator: @alice)
+    assert_equal(-50, statement.reload.variance_cents)
+    assert_raises(ArgumentError) { statement.reconcile!(received: "4000", deposit: "D-2", operator: @alice) }
+  end
+
+  def test_paid_viewer_link_is_one_time_site_scoped_and_rechecks_subscription
+    advertising = Studio::Advertising
+    channel = Studio::Broadcasting::Channel.create!(site: @site, name: "Paid TV", status: "published", managed_playout: true)
+    advertising::StreamProfile.create!(site: @site, channel: channel, platform: "roku", playback_url: "https://stitch.example/standard.m3u8")
+    product = LightekCommerce::Product.insert_all!([{ site_id: @site.id, name: "Fewer Commercials", slug: "fewer", published: true,
+      price_cents: 500, billing_interval: "month" }]).rows.sole.sole
+    advertising::ViewingOffer.create!(site: @site, product_id: product)
+    assert_raises(ActiveRecord::RecordNotFound) { advertising::ViewingLink.issue!(site: @site, user: @alice) }
+    order = LightekCommerce::Order.insert_all!([{ site_id: @site.id, customer_email: "viewer@example.test", hosting_owner_id: @alice.id,
+      purpose: "fewer_commercials", status: "paid", paid_at: Time.current }]).rows.sole.sole
+    LightekCommerce::OrderItem.insert_all!([{ order_id: order, product_id: product, name: "Fewer Commercials", quantity: 1,
+      unit_price_cents: 500, line_total_cents: 500 }])
+    LightekCommerce::Subscription.insert_all!([{ order_id: order, status: "active", current_period_end: 1.day.from_now }])
+    code = advertising::ViewingLink.issue!(site: @site, user: @alice)
+    assert_raises(ActiveRecord::RecordNotFound) { advertising::ViewingLink.redeem!(site: @other_site, code: code) }
+
+    client = session_for
+    client.post "/api/broadcast/viewing-links/redeem", params: { viewing_code: code }
+    assert_equal 200, client.response.status
+    token = body(client).fetch("token")
+    client.post "/api/broadcast/viewing-links/redeem", params: { viewing_code: code }
+    assert_equal 422, client.response.status
+    bearer = { "Authorization" => "Bearer #{token}" }
+    client.get "/gatekeeper/screens/live", headers: bearer
+    action = body(client).fetch("rows").first.fetch("items").find { |row| row["id"] == "channel-#{channel.id}" }.fetch("action")
+    assert_includes action.fetch("playback_url"), channel.managed_path
+    LightekCommerce::Subscription.where(order_id: order).update_all(status: "canceled")
+    assert_nil advertising::ViewingLink.viewer(site: @site, authorization: bearer.fetch("Authorization"))
   end
 
   def test_station_joins_only_an_offered_network_and_cannot_edit_its_campaign

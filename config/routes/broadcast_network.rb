@@ -84,3 +84,17 @@ delete "/dashboard/live/network/licenses/:license_id/screening", to: "dashboard/
 get "/watch/programs/:key", to: "broadcast_program_screenings#show", as: :broadcast_program_screening, constraints: { key: /[A-Za-z0-9]{32}/ }
 get "/watch/programs/:key/video", to: "broadcast_program_screenings#video", as: :broadcast_program_screening_video, constraints: { key: /[A-Za-z0-9]{32}/ }
 post "/dashboard/live/network/owned-programs", to: "dashboard/broadcast_network#register_owned_program", as: :dashboard_register_owned_program
+
+get "/api/broadcast/advertising/wrapper-impression", to: "broadcast_ad_decisions#impression", as: :broadcast_wrapper_impression
+get "/api/broadcast/advertising/decision/:decision_key", to: "broadcast_ad_decisions#show", as: :broadcast_ad_decision,
+  format: false, constraints: { decision_key: /[A-Za-z0-9]{48}/ }
+post "/watch/tv/fewer-commercials", to: "broadcast_viewing_offers#checkout", as: :broadcast_viewing_offer
+post "/dashboard/live/advertising/demand", to: "dashboard/broadcast_advertising#create_demand", as: :dashboard_broadcast_ad_demand
+patch "/dashboard/live/advertising/demand/:id", to: "dashboard/broadcast_advertising#update_demand", as: :dashboard_broadcast_ad_demand_source
+post "/dashboard/live/advertising/stream", to: "dashboard/broadcast_advertising#save_stream_profile", as: :dashboard_broadcast_ad_stream_profile
+delete "/dashboard/live/advertising/stream/:id", to: "dashboard/broadcast_advertising#remove_stream_profile", as: :dashboard_remove_broadcast_ad_stream_profile
+post "/dashboard/live/advertising/statement", to: "dashboard/broadcast_advertising#record_provider_statement", as: :dashboard_broadcast_ad_statement
+post "/dashboard/live/advertising/statement/:id/reconcile", to: "dashboard/broadcast_advertising#reconcile_provider_statement", as: :dashboard_reconcile_broadcast_ad_statement
+post "/dashboard/live/advertising/viewing-offer", to: "dashboard/broadcast_advertising#save_viewing_offer", as: :dashboard_broadcast_ad_viewing_offer
+post "/watch/tv/link-roku", to: "broadcast_viewing_links#create", as: :broadcast_viewing_link
+post "/api/broadcast/viewing-links/redeem", to: "broadcast_viewing_links#redeem"

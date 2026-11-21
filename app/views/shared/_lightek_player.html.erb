@@ -1,5 +1,6 @@
 <div class="lt-player" data-lightek-player>
   <video controls playsinline preload="metadata" data-tv-playback="<%= source %>" data-tv-format="<%= format %>"
+    <% if local_assigns[:fallback] %>data-tv-fallback="<%= fallback %>"<% end %>
     <% unless format == "hls" %>src="<%= source %>"<% end %>></video>
   <div class="lt-player-controls" data-player-controls hidden>
     <button type="button" data-player-play>Play</button>

@@ -6,12 +6,14 @@ module Studio
     # same audience-authorized media store used by Studio and the PWA.
     class Experience
       attr_reader :site, :application, :access
-      def initialize(site:, user:, platform:, slug: nil, origin:)
+      def initialize(site:, user:, platform:, slug: nil, origin:, viewing_user: nil, viewing_links: false)
         @site, @origin = site, origin
         raise ArgumentError, "Unsupported OTT platform" unless Application::PLATFORMS.include?(platform)
         apps = Application.where(site_id: site.id, platform: platform)
         @application = slug.present? ? apps.find_by!(slug: slug) : apps.order(:id).first
         @application ||= Application.new(site: site, name: site.name, slug: "default", platform: platform)
+        @user = viewing_user || user
+        @viewing_links = viewing_links
         @access = LightekCommunity::Access.new(user: user, site_id: site.id)
         @config = @application.configuration
         @available = @application.status == "published"
@@ -36,8 +38,11 @@ module Studio
             dimensions: {screen_width: 1920, screen_height: 1080, safe_margin_horizontal: 90, safe_margin_vertical: 60, card_spacing: 24, row_spacing: 48}},
           controls: @config.slice("autoplay", "captions", "search", "live", "catalog"),
           capabilities: {supported_screen_types: %w[home details search channel player], supported_component_types: %w[hero navigation content_row poster_card landscape_card live_card text], supported_action_types: %w[open_screen open_details play search exit], supported_stream_formats: %w[hls mp4]}}
-        if @available && application.platform == "roku" && (settings = Nielsen.roku_configuration(site))
-          response[:nielsen] = settings
+        if @available && application.platform == "roku"
+          response[:nielsen] = settings if (settings = Nielsen.roku_configuration(site))
+          if viewing_link_available?
+            response[:viewing_offer] = { active: fewer_commercials?, redeem_url: "#{@origin}/api/broadcast/viewing-links/redeem" }
+          end
         end
         response
       end
@@ -87,6 +92,10 @@ module Studio
       def navigation
         items = [{id: "nav-home", label: "Home", action: {type: "open_screen", target: url("/gatekeeper")}}]
         items << {id: "nav-watch", label: "Live TV", action: {type: "open_screen", target: url("/gatekeeper/screens/live")}} if @config["live"]
+        if viewing_link_available?
+          items << {id: "nav-viewing-link", label: fewer_commercials? ? "Fewer Commercials active" : "Link Fewer Commercials",
+            action: {type: "link_viewing", target: "#{@origin}/api/broadcast/viewing-links/redeem"}}
+        end
         items << {id: "nav-search", label: "Search", action: {type: "search", target: url("/gatekeeper/search")}} if @config["search"]
         items
       end
@@ -118,17 +127,34 @@ module Studio
           autoplay: @config["autoplay"], captions: @config["captions"]}
       end
       def channel_card(channel)
-        playback = if channel.managed_playout?
-          "#{@origin}#{Audience.path(channel: channel, outlet: site, platform: application.platform)}"
+        origin_playback = "#{@origin}#{Audience.path(channel: channel, outlet: site, platform: application.platform)}" if channel.managed_playout?
+        profile = stream_profiles[channel.id] if origin_playback
+        playback = if profile && !fewer_commercials?
+          profile.playback_url
         else
-          channel.playback_url
+          origin_playback || channel.playback_url
         end
         {id: "channel-#{channel.id}", title: channel.name, description: channel.description, image_url: channel.image_url, is_live: true, badge: "LIVE",
           ownership: ownership_label(channel),
           action: {type: "play", id: "play-channel-#{channel.id}", label: "Watch live", content_id: "channel-#{channel.id}", playback_url: playback,
-            measurement_url: ("#{@origin}/watch/tv/measurement/#{channel.id}?#{URI.parse(playback).query}" if channel.managed_playout?),
+            fallback_url: (origin_playback if profile && playback != origin_playback),
+            measurement_url: ("#{@origin}/watch/tv/measurement/#{channel.id}?#{URI.parse(playback).query}" if origin_playback && playback == origin_playback),
             stream_format: URI.parse(playback).path.end_with?(".m3u8") ? "hls" : "mp4", captions: @config["captions"], autoplay: @config["autoplay"]}}
       end
+      def viewing_link_available?
+        @viewing_links && application.platform == "roku" && stream_profiles.any? && Studio::Advertising::ViewingOffer.exists?(site: site)
+      end
+
+      def stream_profiles
+        @stream_profiles ||= Studio::Advertising::StreamProfile.where(site: site, platform: application.platform).index_by(&:channel_id)
+      end
+
+      def fewer_commercials?
+        return @fewer_commercials if defined?(@fewer_commercials)
+
+        @fewer_commercials = Studio::Advertising::ViewingOffer.active?(site, @user)
+      end
+
       def active_channels
         @active_channels ||= begin
           scope = Channel.where(site_id: site.id, status: "published")

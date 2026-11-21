@@ -262,6 +262,43 @@ class ChannelPlayoutChecks < Minitest::Test
     assert_equal [first.to_i, first.advance(weeks: 1).to_i], series.map { |airing| airing.starts_at.to_i }
   end
 
+  def test_contiguous_external_slots_publish_one_break_and_keep_fallback_playable
+    asset = video(@site, "Fallback")
+    fallback = { "kind" => "mid_roll", "asset_id" => asset.id, "seconds" => "2", "external_ad" => "1" }
+    program = fallback.except("external_ad").merge("kind" => "segment")
+    first = 10.minutes.from_now
+    assert_raises(ArgumentError) { schedule_ad([fallback.merge("kind" => "segment")]) }
+    assert_raises(ArgumentError) { schedule_ad([fallback.merge("sponsor" => "Reserved sponsor")]) }
+    airing = Airing.schedule!(channel: @channel, operator: @airing.operator, title: "External break", relay: nil,
+      starts_at: first, rows: [program, fallback, fallback, program])
+    assert_equal({ row: 1, seconds: 4 }, airing.external_ad_break(1))
+    assert_equal airing.external_ad_break(1), airing.external_ad_break(2)
+    assert_nil airing.external_ad_break(3)
+    airing.update!(status: "ready", starts_at: Time.current, ends_at: 8.seconds.from_now)
+    @channel.update!(status: "published")
+
+    Dir.mktmpdir do |tmp|
+      PlayoutMedia.stub(:root, Pathname(tmp)) do
+        original = Pathname(tmp).join("fallback")
+        PlayoutMedia.encode!(original, seconds: 2)
+        4.times do |index|
+          destination = PlayoutMedia.airing_path(airing.id).join(index.to_s)
+          FileUtils.mkdir_p(destination.dirname)
+          FileUtils.cp_r(original, destination)
+        end
+        directory = PlayoutMedia.channel_path(@channel.id)
+        FileUtils.mkdir_p(directory)
+        runner = Playout.new(@channel)
+        runner.instance_variable_set(:@feed, ChannelFeed.new(directory))
+        4.times { assert_equal 2, runner.send(:publish, airing) }
+        playlist = directory.join("index.m3u8").read
+        assert_equal ["#EXT-X-CUE-OUT:4", "#EXT-X-CUE-OUT-CONT:2.000/4", "#EXT-X-CUE-IN"],
+          playlist.lines.grep(/^#EXT-X-CUE/).map(&:chomp)
+        assert_equal 4, playlist.lines.grep(/^out-.*\.ts$/).count { |line| directory.join(line.chomp).file? }
+      end
+    end
+  end
+
   def test_missing_rundown_publishes_backups_without_attributing_them_to_the_show
     Dir.mktmpdir do |tmp|
       root = Pathname(tmp)
@@ -335,6 +372,20 @@ class ChannelPlayoutChecks < Minitest::Test
     assert_raises(ActiveRecord::RecordNotFound) { schedule_ad(rows, project) }
     assert_equal 1, Studio::Advertising::Placement.where(airing: airing).count
     assert_nil receipt.delivered_at
+  end
+
+  def test_one_break_can_book_paid_spots_from_several_networks
+    first, first_spot = ad_inventory
+    second, second_spot = ad_inventory
+    [first, second].each { |campaign| join_network(campaign) }
+    project = StudioProject.create!(site_id: @site.id, owner: User.create!)
+
+    airing = schedule_ad(first_spot + second_spot, project)
+    placements = Studio::Advertising::Placement.where(airing: airing).order(:row_index)
+    assert_equal [[0, first.id], [1, second.id]], placements.pluck(:row_index, :campaign_id)
+    assert_equal 8, airing.ends_at - airing.starts_at
+    assert_nil airing.external_ad_break(0)
+    assert_nil airing.external_ad_break(1)
   end
 
   def test_public_feed_inserts_campaign_video_and_records_one_complete_delivery

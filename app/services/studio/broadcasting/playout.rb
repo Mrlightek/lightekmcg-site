@@ -164,7 +164,12 @@ module Studio
           audience["ad_row"] = index
           audience["ad"] = @ad_metadata.fetch(index)
         end
-        @feed.push(segment, source: [source, generation], audience: @channel.status == "published" ? audience : nil)
+        commercial = airing.external_ad_break(index) if @channel.status == "published"
+        avail = if commercial
+          { id: [airing.id, generation, commercial.fetch(:row)], duration: commercial.fetch(:seconds),
+            starts_here: index == commercial.fetch(:row) && offset < 0.01 }
+        end
+        @feed.push(segment, source: [source, generation], audience: @channel.status == "published" ? audience : nil, avail: avail)
         mark_public_airtime(airing) if @channel.status == "published"
         if ad && @channel.status == "published"
           Advertising::Placement.observe!(airing, row: index, source: [source, generation],

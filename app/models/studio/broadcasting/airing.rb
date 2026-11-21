@@ -39,8 +39,9 @@ module Studio
         assets = StudioAsset.for_actor(actor).where(site_id: channel.site_id, kind: "video", status: "ready")
         rundown = rows.map do |row|
           selection = row.fetch("asset_id")
+          external_ad = row["external_ad"] == "1"
           if (match = /\Alicense-(\d+)\z/.match(selection.to_s))
-            raise ArgumentError, "Use licensed programming in a show segment on your managed channel." if relay || row["kind"] != "segment" || row["ad_campaign_id"].present?
+            raise ArgumentError, "Use licensed programming in a show segment on your managed channel." if relay || row["kind"] != "segment" || row["ad_campaign_id"].present? || external_ad
             license = ProgramLicense.where(licensee_site_id: channel.site_id, status: "accepted").find(match[1])
             HostedPrograms.check_booking!(license) if license.imported?
             asset = license.asset || raise(ArgumentError, "That licensed program is unavailable.")
@@ -50,6 +51,9 @@ module Studio
           raise ArgumentError, "Choose a video with an available Studio proxy." unless asset.proxy.attached?
           type = row.fetch("kind")
           raise ArgumentError, "Choose a rundown slot type." unless SLOT_TYPES.key?(type)
+          if external_ad && (!Advertising::Campaign::BREAKS.include?(type) || row["ad_campaign_id"].present? || row["sponsor"].present?)
+            raise ArgumentError, "Use an unsold commercial slot and local fallback video for external advertising."
+          end
           available = asset.metadata["duration"].to_f.floor
           if row["ad_campaign_id"].present?
             raise ArgumentError, "Choose an ad break for the network campaign." unless Advertising::Campaign::BREAKS.include?(type)
@@ -63,7 +67,7 @@ module Studio
           label = row["label"].to_s.strip.presence || asset.name
           { "kind" => type, "label" => label.first(120), "asset_id" => asset.id, "blob_id" => asset.proxy.blob.id,
             "seconds" => duration, "sponsor" => row["sponsor"].to_s.squish.first(80), "ad_campaign_id" => campaign&.id,
-            "license_id" => license&.id, "license_use" => ("replay" if replay && license) }.compact
+            "external_ad" => (true if external_ad), "license_id" => license&.id, "license_use" => ("replay" if replay && license) }.compact
         end
         duration = rundown.sum { |item| item.fetch("seconds") }
         raise ArgumentError, "A rundown can run up to two hours." if duration > 2.hours.to_i
@@ -74,7 +78,7 @@ module Studio
           end
           license_ids = rundown.filter_map { |item| item["license_id"] }.uniq
           licenses = ProgramLicense.where(licensee_site_id: channel.site_id, id: license_ids).order(:id).lock.to_a
-          commercial = rundown.any? { |item| item["ad_campaign_id"].present? || item["sponsor"].present? }
+          commercial = rundown.any? { |item| item["ad_campaign_id"].present? || item["sponsor"].present? || item["external_ad"] }
           unless licenses.size == license_ids.size && licenses.all? { |license| license.broadcast_allowed?(starts_at, ends_at, replay: replay, commercial: commercial) }
             raise ArgumentError, "The license must cover the rundown window, both managed-channel platforms, worldwide delivery, and any commercial use."
           end
@@ -88,7 +92,22 @@ module Studio
         end
       end
 
+      def external_ad_break(index)
+        item = rundown.fetch(index)
+        return unless item["external_ad"]
+
+        first = index
+        first -= 1 while first.positive? && matching_external_slot?(rundown[first - 1], item)
+        slots = rundown.drop(first).take_while { |slot| matching_external_slot?(slot, item) }
+        { row: first, seconds: slots.sum { |slot| slot.fetch("seconds") } }
+      end
+
       def position = state.fetch("position", 0).to_f
+
+      def matching_external_slot?(slot, item)
+        slot["external_ad"] && slot["kind"] == item["kind"]
+      end
+      private :matching_external_slot?
 
       def row_at(position)
         boundary = 0

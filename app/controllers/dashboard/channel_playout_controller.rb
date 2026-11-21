@@ -34,7 +34,7 @@ class Dashboard::ChannelPlayoutController < Dashboard::SettingsHomeController
   end
 
   def create
-    raw = params.require(:airing).permit(:title, :starts_at, :weekly_occurrences, :replay, :relay, :show_project_id, rows: %i[kind asset_id seconds label sponsor ad_campaign_id],
+    raw = params.require(:airing).permit(:title, :starts_at, :weekly_occurrences, :replay, :relay, :show_project_id, rows: %i[kind asset_id seconds label sponsor ad_campaign_id external_ad],
       measurement: Studio::Broadcasting::AudienceReport::INPUT_FIELDS)
     source = raw[:rows]
     rows = source.respond_to?(:values) ? source.values.map(&:to_h) : []

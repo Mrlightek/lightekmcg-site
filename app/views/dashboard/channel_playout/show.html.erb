@@ -1,7 +1,7 @@
 <% content_for :page_title, "#{@channel.name} · Channel playout" %>
 <%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
 <%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
-<%= javascript_include_tag "/lightek/live/playout.js?v=1", defer: true %>
+<%= javascript_include_tag "/lightek/live/playout.js?v=2", defer: true %>
 
 <main class="ll-studio ll-playout">
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
@@ -113,6 +113,7 @@
           <% end %>
         </details>
         <p class="ll-note">Rows air in order. Leave duration blank to use the full video in whole seconds. Sponsor text appears over that row’s video.</p>
+        <p class="ll-note">Put commercial slots of the same type next to each other to create a break. Adjacent slots offered to external advertisers share one break. The selected library videos fill the time if no external ad is available.</p>
         <div data-rundown-rows></div>
         <template data-rundown-row>
           <fieldset class="ll-playout-row">
@@ -123,12 +124,14 @@
             <% if @campaigns.any? %>
               <label>Network campaign <select data-field="ad_campaign_id"><option value="">Use library video</option><%= options_for_select(@campaigns.map { |campaign| ["#{campaign.network.name} · #{campaign.name} · #{campaign.seconds}s · #{number_to_currency(campaign.split.fetch(:station_cents) / 100.0)} to station", campaign.id] }) %></select></label>
             <% end %>
+            <label data-external-slot hidden><input type="checkbox" value="1" data-field="external_ad"> Offer to external advertisers</label>
             <label>Label <input data-field="label" maxlength="120"></label>
             <label>Duration in seconds <input type="number" data-field="seconds" min="2" max="7200"></label>
             <label>Sponsor text <input data-field="sponsor" maxlength="80"></label>
             <div class="ll-playout-actions">
               <button type="button" data-move="up" aria-label="Move row up">↑</button>
               <button type="button" data-move="down" aria-label="Move row down">↓</button>
+              <button type="button" data-add-slot hidden>Add commercial slot</button>
               <button type="button" data-remove-row>Remove row</button>
             </div>
           </fieldset>

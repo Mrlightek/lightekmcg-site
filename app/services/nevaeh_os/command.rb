@@ -9,6 +9,7 @@ module NevaehOs
       /guide — open the operating manual and tutorials
       /page commands How do I delegate? — ask the SME for one documentation page
       /describe susu.list — inputs, permissions, examples and verification
+      /code Studio CPU — search the engineering code map (administrators)
       /watch create {"name":"FFmpeg updates","kind":"ubuntu_package","target":{"package":"ffmpeg"},"response":"prepare"}
       /watch list · /watch show ID · /watch poll ID · /watch pause ID · /watch resume ID
       /watch apply EVENT_ID — apply a prepared event response
@@ -148,6 +149,9 @@ module NevaehOs
       end
       if (m=q.match(/\A\/?(?:guide|tutorial)(?:\s+([a-z0-9_-]+))?\z/i))
         return {'kind'=>'guide','topic'=>m[1] || 'start'}
+      end
+      if q.match?(/\A\/code(?:\s|\z)/i)
+        return {'kind'=>'code_knowledge','query'=>q.sub(/\A\/code\s*/i,'')}
       end
       if (m=q.match(/\A\/?describe\s+([a-zA-Z0-9_.-]+)\z/))
         return {'kind'=>'describe','capability'=>m[1]}

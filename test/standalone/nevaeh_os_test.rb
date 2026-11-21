@@ -585,8 +585,9 @@ end
 class NevaehOsHttpTest
   def installed_susu
     NevaehCapability.where(slug:['susu.list','nevaeh.os.execute']).delete_all
-    NevaehCapability.create!(slug:'susu.list',name:'My Susus',domain:'susu',intent_name:'susu_list',handler:'Susu::Workers::Pwa',queue:'default',priority:5,event_types:['susu.list.requested'])
+    capability = NevaehCapability.create!(slug:'susu.list',name:'My Susus',domain:'susu',intent_name:'susu_list',handler:'Susu::Workers::Pwa',queue:'default',priority:5,event_types:['susu.list.requested'])
     DymondSite::Site.create!(host:@request.host)
+    capability
   end
   def test_exact_reported_bare_susu_command_is_dispatched_without_search
     installed_susu
@@ -943,5 +944,52 @@ class NevaehOsHttpTest
     refute_includes response.body,'<script>window.BAD_GUIDE=1</script>'
     File.write(File.join(ROOT,'tmp/nevaeh-guide-preview.html'),response.body)
     unsafe.destroy!
+  end
+end
+
+require_relative '../../app/services/nevaeh_intelligences/code_knowledge'
+
+class NevaehOsHttpTest
+  def test_code_map_discovers_an_enabled_binding_and_existing_command_dispatches_it
+    installed_susu.update!(gatekeeper_capability: 'susu.list')
+    assert_no_difference 'NevaehOsAction.count' do
+      post :ask, params: { q: '/code susu groups', mode: 'reflect', request_key: 'code-map-discovery' }, as: :json
+      assert_response :success
+    end
+    row = response.parsed_body.fetch('code_knowledge').fetch('entries').sole
+    assert_equal 'enabled', row.fetch('binding_status')
+    assert_equal 'susu.list', row.dig('capability', 'key')
+
+    post :ask, params: { q: row.fetch('example'), request_key: 'code-map-execution' }, as: :json
+    assert_response :success
+    action = NevaehOsAction.find(response.parsed_body.fetch('action_id'))
+    NevaehOs::Worker.perform('execute', { 'action_id' => action.id })
+    child = DymondDispatch::WorkItem.find(action.reload.result.fetch('work_item_id'))
+    assert_equal 'list', child.args.first
+    assert_equal @actor.id, child.args.last.fetch('user_id')
+    assert_equal 'dispatched', NevaehOs::Receipts.for(action).fetch(:status)
+    child.update!(status: 'done', result: { 'groups' => [] })
+    assert_equal 'completed', NevaehOs::Receipts.for(action).fetch(:status)
+  end
+
+  def test_code_map_hides_execution_examples_when_binding_is_disabled_or_mismatched
+    record = installed_susu
+    record.update!(enabled: false)
+    library = NevaehIntelligences::CodeKnowledge.new
+    row = library.search(capability: 'susu.list').fetch('entries').sole
+    assert_equal 'disabled', row.fetch('binding_status')
+    refute row.key?('example')
+
+    record.update!(enabled: true, gatekeeper_capability: 'susu.list', handler: 'WrongWorker')
+    row = library.search(capability: 'susu.list').fetch('entries').sole
+    assert_equal 'binding_mismatch', row.fetch('binding_status')
+    refute row.key?('example')
+  end
+
+  def test_client_cannot_read_engineering_code_map
+    @request.session[:actor_id] = @other.id
+    post :ask, params: { q: '/code susu', request_key: 'code-map-client' }, as: :json
+    assert_response :unprocessable_entity
+    refute response.parsed_body.key?('code_knowledge')
   end
 end

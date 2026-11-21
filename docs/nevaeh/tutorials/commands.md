@@ -18,6 +18,14 @@ susu.show {"group_id":123}
 
 `group_id:123` is an example, not a real account record. Use an ID from your Susu list. Your identity is inserted by the server. When the host is not mapped and several applications are available, specify your authorized `site_id` in the inputs.
 
+## Find a feature's implementation
+
+Open **Dashboard → Software Library → Code map** or ask Nevaeh with `/code Studio CPU`, `/code payout accounts`, or `/code susu.list`. Both views require permission to manage Nevaeh workflows. The code map offers JSON export and lists source paths, workers, locked gem dependencies and verification references where available.
+
+A mapped binding appears as enabled when its installed registry entry matches the worker, event, and Gatekeeper capability. For enabled entries, Nevaeh shows an example command. Replace placeholders such as `SCENE_ID` with IDs for records you can access. Submit the command through the normal conversation and follow the existing execution receipt. A render quote returns an operation and quote, and the render follows the existing Studio settlement workflow.
+
+An architecture reference documents a workflow's source. Check Guide for execution routes outside the map. To extend the map, update `config/nevaeh/code_knowledge.json` with repository-relative references. Add a capability link after the shared native registry can resolve the action. CI checks that source paths, gem references and worker method bindings resolve.
+
 ## Query and edit resources
 
 ```text

@@ -23,3 +23,5 @@ Rails.application.config.filter_redirect += [%r{/pwa/member-session}]
 
 Rails.application.config.filter_parameters += [:sales_submission, :outreach_text, :contact_permission, :selection]
 Rails.application.config.filter_redirect += [%r{[?&](?:code_challenge|state)=}]
+
+Rails.application.config.filter_parameters += [:view_session]

@@ -1,0 +1,42 @@
+<% content_for :page_title, @guide.dig(:screen, :title) %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<%= javascript_include_tag "/lightek/vendor/hls/hls.light.min.js", defer: true %>
+<%= javascript_include_tag "/lightek/live/watch-tv.js?v=1", defer: true %>
+
+<main class="ll-studio ll-playout">
+  <header class="ll-header"><h1><%= @guide.dig(:screen, :title) %></h1></header>
+  <% if @selected %>
+    <section class="ll-panel">
+      <h2><%= @selected[:title] %></h2>
+      <video controls playsinline preload="none" width="800" style="max-width:100%" data-tv-playback="<%= @selected.dig(:action, :playback_url) %>"
+        data-tv-format="<%= @selected.dig(:action, :stream_format) %>"></video>
+      <p data-tv-status role="status"></p>
+    </section>
+  <% end %>
+
+  <section class="ll-panel">
+    <h2>Live channels</h2>
+    <% if @channels.empty? %><p><%= @guide.dig(:metadata, :empty_message) %></p><% end %>
+    <ul class="ll-playout-list">
+      <% @channels.each do |channel| %>
+        <li>
+          <%= link_to channel[:title], broadcast_tv_path(channel: channel[:id], application: params[:application].presence) %>
+          <% if channel[:ownership] %> · <%= channel[:ownership] %><% end %>
+          <% if channel[:description].present? %><p><%= channel[:description] %></p><% end %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+
+  <% if @schedule.any? %>
+    <section class="ll-panel">
+      <h2>On now &amp; up next</h2>
+      <ul class="ll-playout-list">
+        <% @schedule.each do |item| %>
+          <li><%= item[:title] %> · <%= item[:subtitle] %> · <time datetime="<%= item[:starts_at] %>"><%= l(Time.iso8601(item[:starts_at]).in_time_zone, format: :short) %></time></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+</main>

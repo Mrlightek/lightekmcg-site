@@ -68,6 +68,8 @@ ReservationHarness.routes.draw do
   get '/dashboard/commerce/payouts', to: 'dashboard/commerce_payouts#index', as: :dashboard_commerce_payouts
   get '/dashboard/business', to: 'reservations#index', as: :dashboard_business_hub
   get '/dashboard/studio-broadcasting', to: 'reservations#index', as: :dashboard_media_studio
+  get '/dashboard/live/network', to: 'dashboard/broadcast_network#show', as: :dashboard_broadcast_network
+  get '/dashboard/live/advertising', to: 'dashboard/broadcast_advertising#show', as: :dashboard_broadcast_advertising
   get '/dashboard/live', to: 'reservations#index', as: :dashboard_live
   get '/preview/live', to: 'production_live_preview#index'
   post '/dashboard/live', to: 'production_live_preview#index', as: :dashboard_live_sessions

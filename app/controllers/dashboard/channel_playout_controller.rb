@@ -25,15 +25,18 @@ class Dashboard::ChannelPlayoutController < Dashboard::SettingsHomeController
       .order(:name, :id).limit(100).select(&:creative_available?)
     @ad_placements = Studio::Advertising::Placement.where(airing_id: @airings.select(:id)).includes(:campaign).group_by(&:airing_id)
     @show_projects = StudioProject.where(site_id: @site.id).where.not(owner_id: nil).order(:name, :id)
+    @licensed_programs = Studio::Broadcasting::ProgramLicense.where(licensee_site_id: @site.id, status: "accepted")
+      .where("ends_at > ?", Time.current).includes(:asset).order(:title, :id)
     @playlist = @channel.managed_path
   end
 
   def create
-    raw = params.require(:airing).permit(:title, :starts_at, :relay, :show_project_id, rows: %i[kind asset_id seconds label sponsor ad_campaign_id])
+    raw = params.require(:airing).permit(:title, :starts_at, :relay, :show_project_id, rows: %i[kind asset_id seconds label sponsor ad_campaign_id],
+      measurement: Studio::Broadcasting::AudienceReport::INPUT_FIELDS)
     source = raw[:rows]
     rows = source.respond_to?(:values) ? source.values.map(&:to_h) : []
     airing = Studio::Broadcasting::Airing.schedule!(channel: @channel, operator: current_user, title: raw[:title],
-      starts_at: Time.zone.parse(raw[:starts_at].to_s), relay: raw[:relay].presence, rows: rows, show_project_id: raw[:show_project_id])
+      starts_at: Time.zone.parse(raw[:starts_at].to_s), relay: raw[:relay].presence, rows: rows, show_project_id: raw[:show_project_id], measurement: raw[:measurement].to_h)
     Studio::Broadcasting::PrepareAiringJob.perform_later(airing.id)
     back("Rundown scheduled. Check preparation status before airtime.")
   end

@@ -113,14 +113,34 @@ module Studio
           autoplay: @config["autoplay"], captions: @config["captions"]}
       end
       def channel_card(channel)
-        playback = channel.managed_playout? ? "#{@origin}#{channel.managed_path}" : channel.playback_url
+        playback = if channel.managed_playout?
+          "#{@origin}#{Audience.path(channel: channel, outlet: site, platform: application.platform)}"
+        else
+          channel.playback_url
+        end
         {id: "channel-#{channel.id}", title: channel.name, description: channel.description, image_url: channel.image_url, is_live: true, badge: "LIVE",
+          ownership: ownership_label(channel),
           action: {type: "play", id: "play-channel-#{channel.id}", label: "Watch live", content_id: "channel-#{channel.id}", playback_url: playback,
             stream_format: URI.parse(playback).path.end_with?(".m3u8") ? "hls" : "mp4", captions: @config["captions"], autoplay: @config["autoplay"]}}
       end
       def active_channels
-        scope = Channel.where(site_id: site.id, status: "published").order(:position, :id)
-        @config["channel_source"] == "selected" ? scope.where(id: @config["channel_ids"]) : scope
+        @active_channels ||= begin
+          scope = Channel.where(site_id: site.id, status: "published")
+          if @config["channel_source"] == "selected"
+            scope = scope.where(id: @config["channel_ids"])
+          else
+            affiliates = NetworkCarriage.visible_channels(site, user: access.user)
+            scope = Channel.where(id: scope.select(:id)).or(Channel.where(id: affiliates.select(:id)))
+          end
+          scope.order(:position, :id)
+        end
+      end
+      def ownership_label(channel)
+        return unless NetworkCarriage.hub?(site)
+        return "Lightek-owned" if channel.site_id == site.id
+
+        @ownership ||= NetworkCarriage.accepted.pluck(:channel_id, :ownership).to_h
+        NetworkCarriage::OWNERSHIPS[@ownership[channel.id]]
       end
       def schedule_row
         slots = Program.where(channel_id: active_channels.select(:id)).where("ends_at > ?", Time.current)

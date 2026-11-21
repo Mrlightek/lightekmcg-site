@@ -26,8 +26,19 @@ require File.join(ROOT, "db/migrate/20261121103000_exchange_studio_ad_campaigns"
 ExchangeStudioAdCampaigns.new.migrate(:up)
 require File.join(ROOT, "app/services/lightek_reservations/federation/client")
 require File.join(ROOT, "app/services/studio/advertising/exchange")
+require File.join(ROOT, "db/migrate/20261121110000_add_broadcast_network_distribution_and_measurement")
+class AddBroadcastNetworkDistributionAndMeasurement
+  def add_column(table, name, type, **options)
+    super(table, name, type == :jsonb ? :json : type, **options)
+  end
+end
+AddBroadcastNetworkDistributionAndMeasurement.new.migrate(:up)
+require File.join(ROOT, "app/services/lightek_reservations/federation/issuer")
+
 %w[app/models/studio/broadcasting/application app/models/studio/broadcasting/channel app/models/studio/broadcasting/program
-   app/models/studio/broadcasting/airing app/models/studio/advertising/network app/models/studio/advertising/membership
+   app/models/studio/broadcasting/airing app/models/studio/broadcasting/network_carriage
+   app/models/studio/broadcasting/program_license app/models/studio/broadcasting/view_session app/services/studio/broadcasting/audience app/services/studio/broadcasting/audience_report
+   app/models/studio/advertising/network app/models/studio/advertising/membership
    app/models/studio/advertising/campaign app/models/studio/advertising/placement
    app/models/studio/advertising/payment app/models/studio/advertising/payout app/services/dymond_bank/broadcast_advertising/funding
    app/services/studio/broadcasting/access app/services/studio/broadcasting/experience
@@ -46,12 +57,22 @@ module DymondDash
 end
 require File.join(ROOT, "app/controllers/dashboard/settings_home_controller")
 require File.join(ROOT, "app/controllers/dashboard/media_studio_controller")
+require File.join(ROOT, "app/models/lightek_agency/installed_package")
 require File.join(ROOT, "app/services/lightek_agency/package_policy")
+require File.join(ROOT, "app/services/lightek_pwa/media_ownership")
 require File.join(ROOT, "app/controllers/dashboard/live_broadcasts_controller")
 require File.join(ROOT, "app/controllers/concerns/lightek_identity/sensitive_session")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
+require File.join(ROOT, "app/controllers/dashboard/broadcast_network_controller")
+require File.join(ROOT, "app/controllers/broadcast_tv_controller")
+require File.join(ROOT, "app/controllers/linear_channel_streams_controller")
+require File.join(ROOT, "app/services/studio/broadcasting/playout_media")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
 Dashboard::MediaStudioController.prepend_view_path(File.join(ROOT, "app/views"))
+[Dashboard::BroadcastNetworkController, BroadcastTvController].each do |controller|
+  controller.prepend_view_path(File.join(ROOT, "app/views"))
+  controller.layout false
+end
 Dashboard::BroadcastAdvertisingController.prepend_view_path(File.join(ROOT, "app/views"))
 Dashboard::LiveBroadcastsController.prepend_view_path(File.join(ROOT, "app/views"))
 # Host engine layouts/auth are not part of the standalone runtime.
@@ -59,6 +80,7 @@ Dashboard::MediaStudioController.layout false
 Dashboard::LiveBroadcastsController.layout false
 Dashboard::BroadcastAdvertisingController.layout false
 Rails.application.routes.append do
+  instance_eval(File.read(File.join(ROOT, "config/routes/broadcast_network.rb")))
   unless Rails.application.routes.named_routes.names.include?(:dashboard_studio_editor_new)
     get "/dashboard/studio/editors/:kind/new", to: "dashboard/studio_editors#new", as: :dashboard_studio_editor_new
     get "/dashboard/studio/editors/:kind/:id", to: "dashboard/studio_editors#show", as: :dashboard_studio_editor
@@ -126,6 +148,90 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     Dashboard::MediaStudioController.allow_forgery_protection = true
     super
   end
+  def test_network_guide_requires_approved_carriage_and_counts_real_segment_requests
+    with_network_origin do
+      hub_channel = Studio::Broadcasting::Channel.create!(site: @site, name: "Lightek Movies", status: "published", managed_playout: true)
+      local_channel = Studio::Broadcasting::Channel.create!(site: @other_site, name: "Neighborhood TV", status: "published", managed_playout: true)
+      Studio::Broadcasting::Application.create!(site: @site, slug: "octavia-web", name: "Octavia", platform: "web", status: "published")
+      controller = Dashboard::BroadcastNetworkController
+      controller.allow_forgery_protection = false
+      client = session_for
+      assert_equal [hub_channel.name], network_guide(client).pluck("title")
+
+      client.post "/dashboard/live/network/channels/#{local_channel.id}", headers: headers,
+        params: { site_id: @other_site.id }
+      assert_equal 303, client.response.status
+      client.post "/dashboard/live/network/lineup/#{local_channel.id}", headers: headers,
+        params: { site_id: @other_site.id, ownership: "affiliate" }
+      assert_equal 403, client.response.status
+
+      client.post "/dashboard/live/network/lineup/#{local_channel.id}", headers: headers,
+        params: { site_id: @site.id, ownership: "affiliate" }
+      assert_equal 303, client.response.status
+      cards = network_guide(client)
+      assert_equal ["Lightek-owned", "Independent affiliate"], cards.pluck("ownership")
+      client.get "/watch/tv", params: { channel: "channel-#{local_channel.id}" }
+      assert_equal 200, client.response.status
+      assert_includes client.response.body, "Neighborhood TV"
+
+      airing = local_channel.airings.create!(operator: @alice, title: "Neighborhood Stories", status: "on_air",
+        starts_at: 1.minute.ago, ends_at: 1.minute.from_now, state: { "public_started_at" => Time.current.utc.iso8601 },
+        events: [{ "type" => "row_aired" }],
+        measurement: { "asset_id" => "NEIGH1", "program" => "Neighborhood Stories", "episode_title" => "Pilot",
+          "episode_id" => "NEIGH101", "originator_id" => "ORIGIN", "full_episode" => "y", "ad_load_type" => "1" })
+      first = URI.parse(cards.last.dig("action", "playback_url"))
+      media_path = Studio::Broadcasting::PlayoutMedia.channel_path(local_channel.id)
+      FileUtils.mkdir_p(media_path)
+      media_path.join("index.m3u8").write("#EXTM3U\n#EXTINF:2,\nout-1.ts\n")
+      media_path.join("out-1.ts").write("fixture")
+      media_path.join("out-1.json").write(JSON.generate(airing_id: airing.id, aired_at: Time.current.utc.iso8601, media_ms: 2000))
+      client.get first.request_uri
+      assert_equal 200, client.response.status
+      segment = client.response.body.lines.last.strip
+      assert_includes segment, "?view_session="
+      2.times do
+        client.get "#{File.dirname(first.path)}/#{segment}"
+        assert_equal 200, client.response.status
+      end
+      visit = Studio::Broadcasting::ViewSession.find_by!(airing_id: airing.id)
+      assert_equal [@other_site.id, @site.id, 1, 2000], [visit.station_site_id, visit.outlet_site_id, visit.segments, visit.media_ms]
+
+      client.get "/dashboard/live/network", headers: headers.merge("Accept" => "text/html"), params: { site_id: @site.id, scope: "outlet" }
+      assert_equal 200, client.response.status
+      assert_includes client.response.body, "Neighborhood TV"
+      assert_includes client.response.body, "Share of requested time"
+
+      client.get "/dashboard/live/network/measurement.json", headers: headers, params: { site_id: @site.id, scope: "outlet" }
+      assert_equal 200, client.response.status
+      assert_equal false, body(client).fetch("certified")
+      metadata = body(client).fetch("airings").sole
+      assert_empty metadata.fetch("missing")
+      assert_equal "ORIGIN", metadata.dig("content", "crossId2")
+
+      client.post "/dashboard/live/network/channels/#{local_channel.id}", headers: headers,
+        params: { site_id: @other_site.id, carriage: "withdraw" }
+      assert_equal [hub_channel.name], network_guide(client).pluck("title")
+      client.get first.request_uri
+      assert_equal 404, client.response.status
+    ensure
+      controller.allow_forgery_protection = true
+    end
+  end
+
+  def with_network_origin
+    previous = ENV["LIGHTEK_RESERVATION_ORIGIN"]
+    ENV["LIGHTEK_RESERVATION_ORIGIN"] = "https://#{@site.host}"
+    yield
+  ensure
+    ENV["LIGHTEK_RESERVATION_ORIGIN"] = previous
+  end
+
+  def network_guide(client)
+    client.get "/gatekeeper/screens/live"
+    assert_equal 200, client.response.status
+    body(client).fetch("rows").find { |row| row["id"] == "live-channels" }.fetch("items")
+  end
+
   def test_station_joins_only_an_offered_network_and_cannot_edit_its_campaign
     controller = Dashboard::BroadcastAdvertisingController
     controller.allow_forgery_protection = false

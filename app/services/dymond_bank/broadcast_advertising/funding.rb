@@ -14,7 +14,7 @@ module DymondBank
       def self.key(payment, action) = "lightek-ad-#{payment.public_key}-#{action}"
 
       def self.checkout_event?(event)
-        CHECKOUT_EVENTS.include?(event.type) && event.data.object.metadata.to_h.stringify_keys[MARKER].present?
+        CHECKOUT_EVENTS.include?(event.type) && !event.data.object.metadata.to_h.transform_keys(&:to_s)[MARKER].to_s.empty?
       end
 
       def self.process!(event)

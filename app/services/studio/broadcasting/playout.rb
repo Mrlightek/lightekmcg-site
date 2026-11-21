@@ -140,7 +140,10 @@ module Studio
         source = "airing-#{airing.id}-row-#{index}"
         # Seeking within a row resets its media timestamps too.
         generation = airing.state.fetch("generation", 0)
-        @feed.push(segment, source: [source, generation])
+        audience = { "airing_id" => airing.id }
+        audience["ad_row"] = index if ad
+        @feed.push(segment, source: [source, generation], audience: @channel.status == "published" ? audience : nil)
+        mark_public_airtime(airing) if @channel.status == "published"
         if ad && @channel.status == "published"
           Advertising::Placement.observe!(airing, row: index, source: [source, generation],
             offset: boundary - segment.duration, boundary: boundary, media_end: item.fetch("seconds"), final: segment.equal?(media.last))
@@ -183,10 +186,18 @@ module Studio
         if last && segment_number(segment) != last + 1
           generation += 1
         end
-        @feed.push(segment, source: [source, generation])
+        audience = { "airing_id" => airing.id } if @channel.status == "published"
+        @feed.push(segment, source: [source, generation], audience: audience)
+        mark_public_airtime(airing) if audience
         airing.record_event!("cut_in", "input" => operation_id) if airing.state["source"] != source
         airing.state = airing.state.merge("source" => source, "input_segment" => segment_number(segment), "generation" => generation)
         segment.duration
+      end
+
+      def mark_public_airtime(airing)
+        return if airing.state["public_started_at"]
+
+        airing.state = airing.state.merge("public_started_at" => Time.current.utc.iso8601)
       end
 
       def segment_number(segment) = segment.key[/\d+/].to_i

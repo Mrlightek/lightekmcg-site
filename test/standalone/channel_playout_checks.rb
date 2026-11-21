@@ -120,6 +120,16 @@ require ROOT.join("db/migrate/20261121101500_fund_studio_ad_placements").to_s
 FundStudioAdPlacements.new.migrate(:up)
 require ROOT.join("db/migrate/20261121103000_exchange_studio_ad_campaigns").to_s
 ExchangeStudioAdCampaigns.new.migrate(:up)
+module SqliteBroadcastMetadata
+  def add_column(table, name, type, **options)
+    super(table, name, type == :jsonb ? :json : type, **options)
+  end
+end
+require ROOT.join("db/migrate/20261121110000_add_broadcast_network_distribution_and_measurement").to_s
+AddBroadcastNetworkDistributionAndMeasurement.prepend(SqliteBroadcastMetadata)
+AddBroadcastNetworkDistributionAndMeasurement.new.migrate(:up)
+%w[program_license view_session].each { |name| require ROOT.join("app/models/studio/broadcasting", name).to_s }
+%w[audience audience_report].each { |name| require ROOT.join("app/services/studio/broadcasting", name).to_s }
 module LightekReservations
   class Peer < ApplicationRecord
     self.table_name = "lightek_reservation_peers"
@@ -306,6 +316,64 @@ class ChannelPlayoutChecks < Minitest::Test
       2.times { assert_equal 2, runner.send(:publish, airing) }
       assert_includes airing.events.pluck("type"), "ad_backup"
       assert_nil receipt.reload.delivered_at
+    end
+  end
+
+  def test_program_license_is_recipient_scoped_and_pins_the_media
+    source = DymondSite::Site.create!(tenant: User.create!)
+    asset = video(source, "rights.mp4")
+    license = ProgramLicense.create!(licensor_site: source, licensee_site: @site, asset: asset, blob_id: asset.proxy.id,
+      title: "Neighborhood Stories", starts_at: Time.current, ends_at: 1.hour.from_now)
+    rows = [{ "kind" => "segment", "asset_id" => "license-#{license.id}" }]
+    assert_raises(ActiveRecord::RecordNotFound) { schedule_ad(rows) }
+
+    license.update!(status: "accepted")
+    airing = schedule_ad(rows)
+    assert_equal license.id, airing.rundown.first.fetch("license_id")
+    assert_equal asset.id, airing.rundown.first.fetch("asset_id")
+    assert license.covers?(airing.starts_at, airing.ends_at)
+    refute license.covers?(airing.starts_at, 2.hours.from_now)
+
+    another_site = DymondSite::Site.create!(tenant: User.create!)
+    another_station = Channel.create!(site: another_site, name: "Other station", status: "published", managed_playout: true)
+    assert_raises(ActiveRecord::RecordNotFound) do
+      Airing.schedule!(channel: another_station, operator: @airing.operator, title: "Forbidden", starts_at: 10.minutes.from_now,
+        relay: nil, rows: rows)
+    end
+
+    license.update!(status: "withdrawn")
+    assert_raises(ActiveRecord::RecordNotFound) { schedule_ad(rows) }
+    assert license.covers?(airing.starts_at, airing.ends_at)
+  end
+
+  def test_hls_statistics_deduplicate_requests_and_separate_station_and_outlet
+    outlet = DymondSite::Site.create!(tenant: User.create!)
+    other = DymondSite::Site.create!(tenant: User.create!)
+    claims = { "id" => SecureRandom.uuid, "platform" => "roku" }
+    day = Time.current.utc.to_date
+    Dir.mktmpdir do |directory|
+      base = Pathname(directory)
+      source = base.join("input.ts")
+      source.write("fixture")
+      publisher = ChannelFeed.new(base)
+      3.times do |index|
+        publisher.push(PlayoutMedia::Segment.new("fixture", source, 2), source: index, audience: {
+          "airing_id" => @airing.id, "ad_row" => (2 if index == 2)
+        }.compact)
+      end
+      assert_includes Audience.instrument_playlist(base.join("index.m3u8").read, "abc + def"), "out-1.ts?view_session=abc+%2B+def"
+      [2, 1, 2, 3, 3].each { |id| Audience.record(claims: claims, outlet: outlet, channel: @channel, path: base.join("out-#{id}.ts")) }
+
+      report = ->(site, network) { AudienceReport.new(site: site, start_day: day, end_day: day, outlet: network) }
+      assert_equal [1, 3, 6000], report.call(@site, false).totals
+      assert_equal [1, 3, 6000], report.call(outlet, true).totals
+      assert_equal [0, 0, 0], report.call(outlet, false).totals
+      assert_equal [0, 0, 0], report.call(other, true).totals
+      assert_equal(-1, report.call(@site, false).breakdown.first[5])
+      assert_equal 2, report.call(@site, false).breakdown.last[5]
+      report_csv = report.call(@site, false).csv
+      refute_includes report_csv, claims.fetch("id")
+      assert_includes report_csv, "requested_media_seconds"
     end
   end
 

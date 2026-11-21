@@ -25,7 +25,15 @@ module Studio
           Studio::Broadcasting::Access.authorize!(airing.operator, airing.channel.site)
           airing.touch
           airing.rundown.each_with_index do |item, index|
-            asset = StudioAsset.for_actor(actor).where(site_id: airing.channel.site_id, status: "ready", kind: "video").find(item.fetch("asset_id"))
+            asset = if item["license_id"]
+              license = ProgramLicense.where(licensee_site_id: airing.channel.site_id).find(item["license_id"])
+              unless license.asset_id == item["asset_id"] && license.covers?(airing.starts_at, airing.ends_at) && airing.relay.blank?
+                raise ArgumentError, "A licensed source is unavailable for this airing."
+              end
+              license.asset
+            else
+              StudioAsset.for_actor(actor).where(site_id: airing.channel.site_id, status: "ready", kind: "video").find(item.fetch("asset_id"))
+            end
             raise ArgumentError, "A scheduled source has changed." unless asset.proxy.attached? && asset.proxy.blob.id == item.fetch("blob_id")
             heartbeat = Time.current
             still_preparing = lambda do

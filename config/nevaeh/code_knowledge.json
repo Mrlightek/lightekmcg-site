@@ -1918,6 +1918,231 @@
           "coverage": "bound"
         }
       ]
+    },
+    {
+      "id": "website.design.list",
+      "title": "List website designs",
+      "summary": "List design workspaces visible to the current editor.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/design_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/studio_document.rb"
+        ],
+        "guides": [
+          "docs/lightek_design_studio.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.design.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "List design workspaces visible to the current editor."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/design_studio#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "website.design.create",
+      "title": "Create a website design",
+      "summary": "Create a blank owned Design Studio workspace.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/design_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/studio_document.rb"
+        ],
+        "guides": [
+          "docs/lightek_design_studio.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.design.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "name": "Spring launch"
+        },
+        "result": "Create a blank owned Design Studio workspace."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/design_studio#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "website.design.status",
+      "title": "Check a website design",
+      "summary": "Return the saved design revision and latest release version.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/design_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/studio_document.rb"
+        ],
+        "guides": [
+          "docs/lightek_design_studio.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.design.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "design_id": "DESIGN_ID"
+        },
+        "result": "Return the saved design revision and latest release version."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/design_studio#edit",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "website.design.publish",
+      "title": "Publish a website design to the library",
+      "summary": "Publish a saved revision through Design Studio and return its immutable library release.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/design_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/studio_document.rb"
+        ],
+        "guides": [
+          "docs/lightek_design_studio.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.design.publish",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "design_id": "DESIGN_ID",
+          "revision": 1
+        },
+        "result": "Publish a saved revision through Design Studio and return its immutable library release."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/design_studio#publish",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "website.theme.activate",
+      "title": "Activate a website theme",
+      "summary": "Activate a prepared theme on its website through the existing theme service.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/website_designs_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/site_theme.rb"
+        ],
+        "guides": [
+          "docs/cms/site-themes-and-journal.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.theme.activate",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "template_id": "TEMPLATE_ID"
+        },
+        "result": "Activate a prepared theme on its website through the existing theme service."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/website_designs#activate_theme",
+          "coverage": "bound"
+        }
+      ]
     }
   ]
 }

@@ -66,6 +66,12 @@ Use the order status command to follow a queued installation. It reports the lat
 
 Nevaeh uses the existing booking rules for availability, cancellation windows, and orders awaiting payment. Refunds follow the separate payment workflow.
 
+### Website designs
+
+Say `Show my website designs`, `Create a website design called "Spring launch"`, or `Check website design #42`. After reviewing the saved design, say `Publish website design #42 to the library at revision 1`. This creates a versioned library release. Use Website Designs to apply a release to a live site.
+
+Once a theme has been prepared for a website in Website Designs, say `Activate website theme #42 on site #3`. The existing theme workflow applies the theme and keeps draft pages private.
+
 ### Review platform coverage
 
 Open **Software Library → Code map → Platform coverage** to search the loaded host and engine controller routes. Download JSON for the complete matching list. A bound route has an explicit reviewed capability. A partial route has a capability for part of the workflow. A browser handoff links to the existing workflow, which applies its own session and authorization requirements. An unmapped route needs a review before it can count toward execution coverage. The inventory shows installed routing and binding evidence. Live acceptance is tracked through execution receipts.

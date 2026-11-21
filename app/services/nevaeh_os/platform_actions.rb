@@ -44,6 +44,11 @@ module NevaehOs
       'connect.connections.list' => {}.freeze,
       'mail.mailbox.status' => {'mailbox_id'=>:id}.freeze,
       'studio.broadcast.channel.status' => {'site_id'=>:id, 'channel_id'=>:id}.freeze,
+      'website.design.list' => {}.freeze,
+      'website.design.create' => {'name'=>120}.freeze,
+      'website.design.status' => {'design_id'=>:id}.freeze,
+      'website.design.publish' => {'design_id'=>:id, 'revision'=>:version}.freeze,
+      'website.theme.activate' => {'site_id'=>:id, 'template_id'=>:id}.freeze,
       'marketing.publication.schedule' => {'site_id'=>:id, 'campaign_id'=>:id, 'connection_id'=>:id,
                                            'scheduled_at'=>40, 'time_zone'=>100}.freeze,
       'marketing.publication.status' => {'site_id'=>:id, 'slot_id'=>:id}.freeze,
@@ -141,6 +146,14 @@ module NevaehOs
         site = Studio::Broadcasting::Access.sites(actor).find(values.fetch('site_id'))
         Studio::Broadcasting::Access.authorize!(actor, site)
         Studio::Broadcasting::Channel.where(site: site).find(values.fetch('channel_id'))
+      when 'website.design.list', 'website.design.create', 'website.design.status', 'website.design.publish'
+        unless %w[admin super_admin].include?(actor.role) || LightekSettings::WebsiteIdentity.sites_for(actor).exists?
+          raise ArgumentError, 'Website design editor access required'
+        end
+        design_id = values['design_id']
+        LightekDesign::StudioDocument.find_for!(design_id, actor) if design_id
+      when 'website.theme.activate'
+        LightekSettings::WebsiteIdentity.sites_for(actor).find(values.fetch('site_id'))
       when 'marketing.publication.schedule', 'marketing.publication.status', 'marketing.publication.cancel'
         site = LightekSales::Access.sites_for(actor).find(values.fetch('site_id'))
         return publication_calendar!(actor, site) if key == 'marketing.publication.schedule'
@@ -247,6 +260,21 @@ module NevaehOs
         {'mailbox_id'=>target.id, 'enabled'=>target.enabled?, 'sending_ready'=>target.sending_ready?}
       when 'studio.broadcast.channel.status'
         {'channel_id'=>target.id, 'configured_status'=>target.status, 'managed_playout'=>target.managed_playout?}
+      when 'website.design.list'
+        {'designs'=>LightekDesign::StudioDocument.documents_for(actor).map { |design| design_receipt(design) }}
+      when 'website.design.create'
+        design = LightekDesign::StudioDocument.create!(user: actor, name: values.fetch('name'))
+        design_receipt(design)
+      when 'website.design.status'
+        design_receipt(target)
+      when 'website.design.publish'
+        studio = LightekDesign::StudioDocument
+        release = studio.publish!(record: target, document: studio.draft(target), expected_revision: values.fetch('revision'))
+        design_receipt(target).merge('release_key'=>release.key, 'release_version'=>release.settings.dig('lightek_studio_release', 'version'))
+      when 'website.theme.activate'
+        site = LightekDesign::SiteTheme.activate!(site: target, user: actor, template_id: values.fetch('template_id'))
+        {'site_id'=>site.id, 'active_template_id'=>site.active_template_id,
+         'links'=>[{'label'=>'Open website designs','url'=>"/dashboard/website/designs?site_id=#{site.id}"}]}
       when 'marketing.publication.schedule'
         slot = target.schedule!(campaign_id: values.fetch('campaign_id'), connection_id: values.fetch('connection_id'),
           scheduled_at: values.fetch('scheduled_at'), time_zone: values.fetch('time_zone'), request_key: "nevaeh-action-#{action_id}")
@@ -258,6 +286,15 @@ module NevaehOs
         slot = publication_calendar!(actor, target.site).cancel!(id: target.id, version: values.fetch('lock_version'))
         publication_receipt(slot).merge('text'=>'The local calendar slot is canceled.')
       end
+    end
+
+    def design_receipt(design)
+      studio = LightekDesign::StudioDocument
+      metadata = studio.metadata(design)
+      latest = metadata.fetch('releases', []).last
+      {'design_id'=>design.id, 'name'=>metadata.dig('draft', 'name'), 'revision'=>studio.revision(design),
+       'release_version'=>latest&.fetch('version'),
+       'links'=>[{'label'=>'Open Design Studio','url'=>"/dashboard/design-studio/#{design.id}/edit"}]}
     end
 
     def quote_receipt(quote)

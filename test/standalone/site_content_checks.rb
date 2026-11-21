@@ -2,6 +2,8 @@
 # and registry interfaces stand in for the private DymondSite/DymondDash gems.
 require_relative 'pwa_http_checks'
 require 'nokogiri'
+require_relative '../../app/services/nevaeh_os/command'
+require_relative '../../app/services/nevaeh_os/platform_actions'
 def Rails.root = Pathname.new(File.expand_path('../..',__dir__))
 ActiveRecord::Schema.define do
   add_column :dymond_site_sites,:active_template_id,:integer
@@ -366,6 +368,34 @@ class SiteContentChecks < ActionDispatch::IntegrationTest
     get "/dashboard/design-studio/#{foreign.id}/edit",headers:headers;assert_response :not_found
     stranger=User.create!(role:'client',email_address:'no-site@example.test')
     get '/dashboard/design-studio',headers:headers(stranger);assert_response :forbidden
+  end
+  def test_site_nevaeh_publishes_the_reviewed_saved_design_to_its_owners_library
+    run = lambda do |phrase, actor = @user|
+      parsed = NevaehOs::Command.parse(phrase)
+      action = NevaehOs::PlatformActions.command(parsed.fetch('intent'), parsed.fetch('payload'))
+      NevaehOs::PlatformActions.perform!(actor: actor, command: action, action_id: 1)
+    end
+    design = run.call('Create a website design called "Spring launch"')
+    id = design.fetch('design_id')
+    revision = design.fetch('revision')
+    assert_equal [id], run.call('Show my website designs').fetch('designs').map { |item| item.fetch('design_id') }
+    assert_equal design, run.call("Check website design ##{id}")
+    assert_raises(ActiveRecord::RecordNotFound) { run.call("Check website design ##{id}", @other) }
+    assert_raises(LightekDesign::StudioDocument::Conflict) { run.call("Publish website design ##{id} to the library at revision 0") }
+    published = run.call("Publish website design ##{id} to the library at revision #{revision}")
+    assert_equal 1, published.fetch('release_version')
+    assert_equal revision + 1, published.fetch('revision')
+    release = DymondSite::SiteTemplate.find_by!(key: published.fetch('release_key'))
+    assert_equal @user.id, release.settings.dig('lightek_studio_release', 'owner_id')
+    assert_nil @site.reload.active_template_id
+
+    theme = install
+    phrase = "Activate website theme ##{theme.id} on site ##{@site.id}"
+    assert_raises(ActiveRecord::RecordNotFound) { run.call(phrase, @other) }
+    activation = run.call(phrase)
+    assert_equal theme.id, activation.fetch('active_template_id')
+    assert_equal theme.id, @site.reload.active_template_id
+    refute @site.pages.where(published: true).exists?
   end
   def test_site_uploaded_store_uses_actual_products_cart_and_checkout_in_the_shared_theme
     theme=install

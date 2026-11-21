@@ -90,6 +90,26 @@ module NevaehOs
       'marketing.publication.cancel' => [
         /cancel (?:publication|publishing) slot #?(?<slot_id>[1-9]\d{0,17}) #{SITE} #{VERSION}/i,
         'Cancel publication slot #12 on site #3 at version 0'
+      ],
+      'website.design.list' => [
+        /(?:show|list) (?:me )?my website designs/i,
+        'Show my website designs'
+      ],
+      'website.design.create' => [
+        /create (?:a )?website design (?:called|named) (?<name>#{QUOTED})/i,
+        'Create a website design called "Spring launch"'
+      ],
+      'website.design.status' => [
+        /(?:show|check) (?:my )?website design #?(?<design_id>[1-9]\d{0,17})/i,
+        'Check website design #42'
+      ],
+      'website.design.publish' => [
+        /publish (?:my )?website design #?(?<design_id>[1-9]\d{0,17}) to the library (?:at |using )?revision (?<revision>\d{1,10})/i,
+        'Publish website design #42 to the library at revision 1'
+      ],
+      'website.theme.activate' => [
+        /activate (?:website )?theme #?(?<template_id>[1-9]\d{0,17}) #{SITE}/i,
+        'Activate website theme #42 on site #3'
       ]
     }.freeze
 

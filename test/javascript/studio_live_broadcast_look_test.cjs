@@ -11,6 +11,8 @@ const dom = new JSDOM('<main>' + markup + '</main>', { runScripts: 'outside-only
 const { window } = dom;
 const createElement = window.document.createElement.bind(window.document);
 window.document.createElement = name => name === 'canvas' ? createCanvas(300, 150) : createElement(name);
+const preview = createCanvas(1280, 720);
+window.HTMLCanvasElement.prototype.getContext = () => preview.getContext('2d');
 window.eval(readFileSync('public/lightek/live/broadcast-look.js', 'utf8'));
 const root = window.document.querySelector('main');
 const look = window.LightekBroadcastLook.boot(root);
@@ -21,38 +23,40 @@ const program = createCanvas(1280, 720);
 const ctx = program.getContext('2d');
 const pixel = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data);
 
-for (const style of ['studio', 'news', 'breaking', 'sports']) {
+for (const style of Array.from(field('frame').options, option => option.value).filter(style => style !== 'off')) {
   ctx.clearRect(0, 0, 1280, 720);
   field('frame').value = style;
   field('frame').dispatchEvent(new window.Event('change'));
-  assert.equal(root.querySelector('[data-look-score]').hidden, style !== 'sports');
-  if (style === 'sports') field('score').value = 'ATL 24 · NY 17 · FINAL';
+  const scores = ['sports', 'gaming'].includes(style);
+  assert.equal(root.querySelector('[data-look-score]').hidden, !scores);
+  if (scores) field('score').value = 'ATL 24 · NY 17 · FINAL';
   field('frame-color').value = '#ff0000';
   field('headline').value = 'Come to Lightek!';
   apply();
   look.drawFrame(ctx);
-  for (const [x, y] of [[640, 4], [640, 715], [4, 360], [1275, 360], [640, 360], [1200, 655]]) {
+  for (const [x, y] of [[640, 4], [640, 715], [4, 360], [1275, 360], [640, 360], [640, 100]]) {
     assert.equal(pixel(x, y)[3], 0, style + ' preserves the open program and the picture edges');
   }
-  assert(pixel(33, 24)[3] > 100, style + ' draws a subtle inset bracket');
-  assert(pixel(88, 640)[3] > 230, style + ' keeps the headline plate at lower left');
-  const [red, green] = pixel(88, 640);
-  assert(red - green < 35, 'the chosen panel tint does not turn into an opaque red strip');
-  const topX = style === 'studio' ? 1220 : 55;
+  assert(pixel(40, 32)[3] > 65, style + ' draws a subtle inset bracket');
+  const headlineX = style === 'sponsor' ? 1200 : ['cinema', 'entertainment'].includes(style) ? 640 : 68;
+  assert(pixel(headlineX, 658)[3] > 230, style + ' draws its headline plate');
+  const [red] = pixel(headlineX, 658);
+  assert(red < 110, 'the chosen panel tint does not turn into an opaque red strip');
+  const topX = ['studio', 'affiliate', 'sponsor'].includes(style) ? 1220 : 55;
   assert(pixel(topX, 55)[3] > 120, style + ' draws a compact identity plate');
-  if (style === 'sports') assert(pixel(1190, 70)[3] > 230, 'sports score draws in the upper right');
+  if (scores) assert(pixel(1190, 70)[3] > 230, 'sports score draws in the upper right');
 }
 field('frame').value = 'news';
 field('texture').value = 'scanlines';
 apply();
 ctx.clearRect(0, 0, 1280, 720);
 look.drawFrame(ctx);
-const textured = pixel(80, 640);
+const textured = pixel(80, 648);
 field('texture').value = 'none';
 apply();
 ctx.clearRect(0, 0, 1280, 720);
 look.drawFrame(ctx);
-assert.notDeepEqual(pixel(80, 640), textured, 'the panel texture selector changes the rendered pixels');
+assert.notDeepEqual(pixel(80, 648), textured, 'the panel texture selector changes the rendered pixels');
 assert.equal(pixel(700, 360)[3], 0, 'textures are confined to the graphic plates');
 
 const camera = createCanvas(640, 360);
@@ -60,6 +64,13 @@ camera.videoWidth = 640;
 camera.videoHeight = 360;
 const cameraCtx = camera.getContext('2d');
 const rect = [0, 0, 1280, 720];
+field('frame').value = 'affiliate';
+field('frame').dispatchEvent(new window.Event('change'));
+assert(preview.getContext('2d').getImageData(1220, 55, 1, 1).data[3] > 0);
+ctx.clearRect(0, 0, 1280, 720);
+look.drawFrame(ctx);
+assert.equal(pixel(1220, 55)[3], 0, 'draft station graphics stay private while the previous look is applied');
+
 field('backdrop').value = 'sports';
 apply();
 cameraCtx.fillStyle = '#00b500';
@@ -161,9 +172,44 @@ const applied = new Promise((resolve, reject) => {
 });
 apply();
 
-applied.then(() => {
+applied.then(async () => {
   assert.equal(look.drawKeyedCamera(ctx, camera, rect, 0), true);
   assert.deepEqual(pixel(640, 360), [170, 51, 187, 255], 'uploaded image fills the keyed background');
+  const importer = themeField('frame', 'import');
+  Object.defineProperty(importer, 'files', { value: [{ size: 345, text: async () => JSON.stringify({
+    version: 1, name: 'Affiliate 12', values: {
+      frame: 'affiliate', brand: 'Station 12', badge: '', accent: '#ffffff', 'frame-color': '#ececec', markers: false,
+      headline: 'Do not import show copy'
+    }
+  }) }] });
+  importer.dispatchEvent(new window.Event('change'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(field('brand').value, 'Station 12');
+  assert.equal(field('headline').value, '');
+  assert.equal(field('markers').checked, false);
+  assert.match(themeField('frame', 'status').textContent, /private preview/);
+  ctx.clearRect(0, 0, 1280, 720);
+  look.drawFrame(ctx);
+  assert.equal(pixel(1220, 55)[3], 0, 'import does not change the on-air overlay');
+  themeField('frame', 'save').click();
+  assert.equal(themeField('frame', 'list').value, 'Affiliate 12');
+  let exported;
+  window.URL.createObjectURL = blob => { exported = blob; return 'blob:fixture'; };
+  window.HTMLAnchorElement.prototype.click = () => {};
+  field('headline').value = 'Tonight’s live headline';
+  themeField('frame', 'save').click();
+  themeField('frame', 'export').click();
+  const shared = await new Promise((resolve, reject) => {
+    const reader = new window.FileReader();
+    reader.onload = () => resolve(JSON.parse(reader.result));
+    reader.onerror = reject;
+    reader.readAsText(exported);
+  });
+  assert.equal(shared.version, 1);
+  assert.equal(shared.name, 'Affiliate 12');
+  assert.equal(shared.values['frame-color'], '#ececec');
+  assert.equal(shared.values.markers, false);
+  for (const key of ['headline', 'subtitle', 'score']) assert.equal(Object.hasOwn(shared.values, key), false);
   dom.window.close();
   console.log('STUDIO_LIVE_BROADCAST_LOOK_PASS inset frames, open picture, compact headline, textures, score, green and blue key, still and animated backdrops, local image');
 }).catch(error => {

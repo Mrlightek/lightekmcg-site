@@ -858,13 +858,22 @@ def stage_manifest(manifest):
             "Scene objects must be an array"
         )
 
+    if any(not isinstance(item, dict) for item in objects):
+        raise RuntimeError("Every scene object must be an object")
+
+    # Older manifests did not require IDs for independently placed objects.
+    # Give those objects unique IDs shared by all of the staging passes.
+    used_ids = {str(item["id"]) for item in objects if item.get("id") is not None}
+    for index, item in enumerate(objects):
+        if item.get("id") is None:
+            generated_id = f"legacy-object-{index}"
+            while generated_id in used_ids:
+                generated_id += "-"
+            item["id"] = generated_id
+            used_ids.add(generated_id)
+
     created = {}
     for item in objects:
-        if not isinstance(item, dict):
-            raise RuntimeError(
-                "Every scene object must be an object"
-            )
-
         definition = item.get("definition") or {}
         if definition.get("native_source_preview"):
             continue

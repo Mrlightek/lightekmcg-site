@@ -135,13 +135,19 @@ require File.join(ROOT, "app/controllers/broadcast_tv_controller")
 require File.join(ROOT, "app/controllers/affiliate_channel_streams_controller")
 require File.join(ROOT, "app/controllers/broadcast_program_clips_controller")
 require File.join(ROOT, "app/controllers/linear_channel_streams_controller")
+require File.join(ROOT, "db/migrate/20261121160000_add_broadcast_delivery_usage")
+AddBroadcastDeliveryUsage.new.migrate(:up)
+require File.join(ROOT, "app/models/studio/broadcasting/delivery_usage")
+require File.join(ROOT, "db/migrate/20261121161000_add_partner_submission_review")
+AddPartnerSubmissionReview.new.migrate(:up)
+require File.join(ROOT, "app/models/studio/broadcasting/delivery_rate")
 require File.join(ROOT, "app/services/studio/broadcasting/playout_media")
 require File.join(ROOT, "app/services/studio/broadcasting/channel_feed")
 require File.join(ROOT, "app/services/studio/broadcasting/affiliate_failover")
 require File.join(ROOT, "app/jobs/studio/broadcasting/archive_network_reports_job")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
 Dashboard::MediaStudioController.prepend_view_path(File.join(ROOT, "app/views"))
-[BroadcastProgramScreeningsController, Dashboard::BroadcastContractsController, Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController, BroadcastProgramClipsController].each do |controller|
+[BroadcastProgramScreeningsController, Dashboard::ProgramDistributionHandoffsController, Dashboard::BroadcastContractsController, Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController, BroadcastProgramClipsController].each do |controller|
   controller.prepend_view_path(File.join(ROOT, "app/views"))
   controller.layout false
 end
@@ -719,6 +725,21 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     client.get "#{url}/manifest", params: { site_id: @site.id }, headers: headers
     assert_equal 200, client.response.status
     assert_equal ["US"], JSON.parse(client.response.body).fetch("territories")
+    client.get url, params: { site_id: @site.id }, headers: headers.merge("Accept" => "text/html")
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "handoff[checks][master]"
+    assert_raises(ArgumentError) { cleared.record_submission!(reference: "DIS-123") }
+    checks = model::REVIEW_CHECKS.keys.index_with("Reviewed against partner specification")
+    token = Nokogiri::HTML(client.response.body).at_css("input[name=authenticity_token]")["value"]
+    client.post "#{url}/review", params: { site_id: @site.id, authenticity_token: token, handoff: { spec_reference: "Partner delivery v2", checks: checks } }, headers: headers
+    assert_equal 303, client.response.status
+    assert_equal "Partner delivery v2", cleared.reload.spec_reference
+    client.get url, params: { site_id: @site.id }, headers: headers.merge("Accept" => "text/html")
+    token = Nokogiri::HTML(client.response.body).at_css("form[action^='#{url}/submission'] input[name=authenticity_token]")["value"]
+    client.post "#{url}/submission", params: { site_id: @site.id, authenticity_token: token, submission_reference: "DIS-123" }, headers: headers
+    assert_equal 303, client.response.status
+    assert_equal "DIS-123", cleared.reload.manifest.dig(:submission, :receipt)
+    assert_raises(ArgumentError) { cleared.record_review!(reference: "v3", checks: checks) }
     client.get "/api/reservations/federation/broadcast/programs/#{restricted.federation_key}/media", headers: { "Authorization" => "Bearer #{peer.key}" }
     assert_equal 422, client.response.status
     client.get "#{url}/manifest", params: { site_id: @other_site.id }, headers: headers(@bob)
@@ -737,6 +758,24 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     screening.update!(status: "withdrawn")
     client.get "#{watch}/video"
     assert_equal 404, client.response.status
+  end
+
+  def test_delivery_report_aggregates_and_prices_usage_without_sharing_other_sites
+    usage = Studio::Broadcasting::DeliveryUsage
+    rate = Studio::Broadcasting::DeliveryRate
+    date = Time.current.utc.to_date
+    %i[bytes_served encoding_ms support_minutes].zip([1_000_000_000, 3_600_000, 60]).each do |metric, amount|
+      usage.record!(site_id: @site.id, channel_key: "screenings", metric: metric, amount: amount)
+    end
+    usage.record!(site_id: @site.id, channel_key: "screenings", metric: :bytes_served, amount: 1_000_000_000)
+    usage.record!(site_id: @other_site.id, channel_key: "screenings", metric: :bytes_served, amount: 100_000_000_000)
+    usage.find_by!(site_id: @site.id, channel_key: "screenings", day: date).update!(stored_bytes: 30_000_000_000)
+    rate.create!(site_id: @site.id, egress: 2, storage: 3, encoding: 4, support: 5)
+
+    row = Studio::Broadcasting::NetworkReport.new(site: @site, first: date, last: date).delivery_costs.sole
+    assert_equal 2_000_000_000, row.fetch("bytes_served")
+    assert_equal "16.0", row.fetch("estimated_cost_usd")
+    assert_empty Studio::Broadcasting::NetworkReport.new(site: @site, first: date, last: date, include_plans: false).delivery_costs
   end
 
   def test_sublicense_cannot_expand_rights_or_outlive_the_upstream_grant

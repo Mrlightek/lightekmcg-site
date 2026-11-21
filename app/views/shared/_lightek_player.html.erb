@@ -1,0 +1,13 @@
+<div class="lt-player" data-lightek-player>
+  <video controls playsinline preload="metadata" data-tv-playback="<%= source %>" data-tv-format="<%= format %>"
+    <% unless format == "hls" %>src="<%= source %>"<% end %>></video>
+  <div class="lt-player-controls" data-player-controls hidden>
+    <button type="button" data-player-play>Play</button>
+    <button type="button" data-player-mute>Mute</button>
+    <input type="range" min="0" max="1000" value="0" aria-label="Playback position" data-player-seek>
+    <button type="button" data-player-live hidden>Go live</button>
+    <button type="button" data-player-fullscreen>Full screen</button>
+    <button type="button" data-player-retry hidden>Retry</button>
+  </div>
+  <p data-tv-status role="status"></p>
+</div>

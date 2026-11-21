@@ -3,16 +3,15 @@
 <%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
 <%= javascript_include_tag "/lightek/vendor/hls/hls.light.min.js", defer: true %>
 <% if @nielsen %><%= javascript_include_tag "/lightek/live/nielsen-viewership.js?v=1", defer: true %><% end %>
-<%= javascript_include_tag "/lightek/live/watch-tv.js?v=2", defer: true %>
+<%= stylesheet_link_tag "/lightek/live/lightek-player.css?v=1" %>
+<%= javascript_include_tag "/lightek/live/watch-tv.js?v=3", defer: true %>
 
 <main class="ll-studio ll-playout">
   <header class="ll-header"><h1><%= @guide.dig(:screen, :title) %></h1></header>
   <% if @selected %>
     <section class="ll-panel">
       <h2><%= @selected[:title] %></h2>
-      <video controls playsinline preload="none" width="800" style="max-width:100%" data-tv-playback="<%= @selected.dig(:action, :playback_url) %>"
-        data-tv-format="<%= @selected.dig(:action, :stream_format) %>"></video>
-      <p data-tv-status role="status"></p>
+      <%= render "shared/lightek_player", source: @selected.dig(:action, :playback_url), format: @selected.dig(:action, :stream_format) %>
       <% if @nielsen %>
         <label><input type="checkbox" data-nielsen-app="<%= @nielsen.fetch(:app_id) %>"
           data-nielsen-debug="<%= @nielsen.fetch(:debug) %>" data-nielsen-timeline="<%= @selected.dig(:action, :measurement_url) %>">

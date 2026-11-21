@@ -92,6 +92,21 @@ module Studio
         totals.map { |(station_id, channel_id, market), amounts| amounts.merge("station_id" => station_id, "channel_id" => channel_id, "market" => market) }
       end
 
+      def delivery_costs
+        return [] unless @include_plans
+
+        metrics = %w[bytes_served stored_bytes encoding_ms support_minutes]
+        rates = DeliveryRate.find_by(site_id: site.id)
+        rows = DeliveryUsage.where(site_id: site.id, day: days).group(:channel_key)
+          .pluck(:channel_key, *metrics.map { |metric| DeliveryUsage.arel_table[metric].sum })
+        channels = Channel.where(site: site, id: rows.map(&:first).grep(/\A\d+\z/)).pluck(:id, :name).to_h
+        rows.sort_by(&:first).map do |channel_key, *values|
+          usage = metrics.zip(values).to_h
+          usage.merge("channel_key" => channel_key, "channel" => channels.fetch(channel_key.to_i, channel_key),
+            "estimated_cost_usd" => rates&.estimate(usage)&.round(2)&.to_s("F"))
+        end
+      end
+
       def plans
         return [] unless @include_plans
 
@@ -108,7 +123,7 @@ module Studio
           out << %w[report from through evidence]
           { "audience" => [audience], "audience_detail" => CSV.parse(audience_report.csv, headers: true).map(&:to_h),
             "playout" => [reliability], "hosted_feed_transitions" => feed_incidents, "advertising_and_royalties" => finance,
-            "operating_plans" => plans, "agreement_balances_as_of_export" => ContractReport.for_site(site) }.each do |name, rows|
+            "operating_plans" => plans, "delivery_costs" => delivery_costs, "agreement_balances_as_of_export" => ContractReport.for_site(site) }.each do |name, rows|
             rows.each { |row| out << [name, days.begin.iso8601, days.end.iso8601, JSON.generate(row)] }
           end
         end

@@ -144,3 +144,9 @@ studio_broadcast_monthly_reports:
   class: "Studio::Broadcasting::ArchiveNetworkReportsJob"
   queue: default
   active_job: true
+
+broadcast_delivery_storage:
+  cron: '17 23 * * *'
+  class: 'Studio::Broadcasting::DeliveryStorageSnapshotJob'
+  queue: default
+  active_job: true

@@ -116,6 +116,9 @@ ActiveRecord::Schema.define do
 end
 
 ActiveRecord::Migration.verbose = false
+require File.join(ROOT, "db/migrate/20261121160000_add_broadcast_delivery_usage")
+AddBroadcastDeliveryUsage.new.migrate(:up)
+require File.join(ROOT, "app/models/studio/broadcasting/delivery_usage")
 require ROOT.join("db/migrate/20261121090000_create_studio_ad_networks").to_s
 CreateStudioAdNetworks.new.migrate(:up)
 require ROOT.join("db/migrate/20261121101500_fund_studio_ad_placements").to_s

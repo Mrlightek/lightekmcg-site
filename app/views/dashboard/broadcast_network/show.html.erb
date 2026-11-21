@@ -146,6 +146,7 @@
           <% end %>
           <% @handoffs.to_h.fetch(license.id, []).each do |handoff| %>
             <p><%= handoff.partner %> · <%= Studio::Broadcasting::ProgramDistributionHandoff::DESTINATIONS.fetch(handoff.platform) %>
+              · <%= link_to "Review partner submission", dashboard_program_distribution_package_path(handoff, site_id: @site.id) %>
               · <%= link_to "Download rights manifest", dashboard_program_distribution_manifest_path(handoff, site_id: @site.id) %>
               · <%= link_to "Download licensed video", dashboard_program_distribution_media_path(handoff, site_id: @site.id) %></p>
           <% end %>

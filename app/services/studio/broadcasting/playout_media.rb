@@ -43,8 +43,10 @@ module Studio
               airing.reload.status != "preparing" || !Airing.where(id: airing.id, status: "preparing").update_all(updated_at: heartbeat).positive?
             end
             asset.proxy.blob.open(tmpdir: Studio::MediaProcess.temp_root) do |source|
-              encode!(root.join(index.to_s), source: source.path, seconds: item.fetch("seconds"), sponsor: item.fetch("sponsor"),
-                audio: asset.metadata["has_audio"], cancel_if: still_preparing)
+              DeliveryUsage.encoding(airing.channel) do
+                encode!(root.join(index.to_s), source: source.path, seconds: item.fetch("seconds"), sponsor: item.fetch("sponsor"),
+                  audio: asset.metadata["has_audio"], cancel_if: still_preparing)
+              end
             end
             prepare_ad!(airing, index, root, still_preparing) if item["ad_campaign_id"]
           end
@@ -61,8 +63,10 @@ module Studio
         return unless campaign&.creative_available?
 
         campaign.asset.proxy.blob.open(tmpdir: Studio::MediaProcess.temp_root) do |source|
-          encode!(directory, source: source.path, seconds: campaign.seconds,
-            audio: campaign.asset.metadata["has_audio"], cancel_if: cancel_if)
+          DeliveryUsage.encoding(airing.channel) do
+            encode!(directory, source: source.path, seconds: campaign.seconds,
+              audio: campaign.asset.metadata["has_audio"], cancel_if: cancel_if)
+          end
         end
       rescue StandardError => error
         Rails.logger.warn("[StudioPlayout] airing=#{airing.id} ad_row=#{index} backup=true error=#{error.class}")
@@ -103,7 +107,9 @@ module Studio
 
         directory = backup_path(channel.id, asset_id, blob_id)
         asset.proxy.blob.open(tmpdir: Studio::MediaProcess.temp_root) do |source|
-          encode!(directory, seconds: seconds, source: source.path, audio: asset.metadata["has_audio"])
+          DeliveryUsage.encoding(channel) do
+            encode!(directory, seconds: seconds, source: source.path, audio: asset.metadata["has_audio"])
+          end
         end
       end
 

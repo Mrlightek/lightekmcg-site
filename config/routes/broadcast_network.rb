@@ -47,6 +47,8 @@ get "/watch/clips/:key/video", to: "broadcast_program_clips#video", as: :broadca
 
 get "/dashboard/live/contracts", to: "dashboard/broadcast_contracts#index", as: :dashboard_broadcast_contracts
 post "/dashboard/live/contracts", to: "dashboard/broadcast_contracts#create"
+post "/dashboard/live/contracts/network-report/delivery-rates", to: "dashboard/broadcast_contracts#delivery_rates", as: :dashboard_broadcast_delivery_rates
+post "/dashboard/live/contracts/network-report/support", to: "dashboard/broadcast_contracts#delivery_support", as: :dashboard_broadcast_delivery_support
 get "/dashboard/live/contracts/network-report", to: "dashboard/broadcast_contracts#network", as: :dashboard_broadcast_network_report
 get "/dashboard/live/contracts/archives/:id", to: "dashboard/broadcast_contracts#archive", as: :dashboard_broadcast_report_archive
 get "/dashboard/live/contracts/carriage/:id/report", to: "dashboard/broadcast_contracts#carriage_report", as: :dashboard_carriage_agreement_report
@@ -72,6 +74,9 @@ get "/dashboard/live/contracts/hosted/:id/report", to: "dashboard/broadcast_cont
 get "/api/reservations/federation/broadcast/agreements/:id/contract/report", to: "api/broadcast_carriage#legacy_contract_report"
 
 post "/dashboard/live/network/licenses/:license_id/handoffs", to: "dashboard/program_distribution_handoffs#create", as: :dashboard_program_distribution_handoffs
+get "/dashboard/live/network/handoffs/:id", to: "dashboard/program_distribution_handoffs#show", as: :dashboard_program_distribution_package
+post "/dashboard/live/network/handoffs/:id/review", to: "dashboard/program_distribution_handoffs#review", as: :dashboard_program_distribution_review
+post "/dashboard/live/network/handoffs/:id/submission", to: "dashboard/program_distribution_handoffs#record_submission", as: :dashboard_program_distribution_receipt
 get "/dashboard/live/network/handoffs/:id/manifest", to: "dashboard/program_distribution_handoffs#manifest", as: :dashboard_program_distribution_manifest
 get "/dashboard/live/network/handoffs/:id/media", to: "dashboard/program_distribution_handoffs#media", as: :dashboard_program_distribution_media
 post "/dashboard/live/network/licenses/:license_id/screening", to: "dashboard/broadcast_network#publish_web_screening", as: :dashboard_publish_program_screening

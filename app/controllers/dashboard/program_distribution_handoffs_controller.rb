@@ -23,6 +23,26 @@ class Dashboard::ProgramDistributionHandoffsController < Dashboard::SettingsHome
     redirect_to dashboard_broadcast_network_path(site_id: @site.id), notice: "Partner handoff prepared for review.", status: :see_other
   end
 
+  def show
+    @handoff = find_handoff
+    @handoff.authorize_delivery!
+  end
+
+  def review
+    handoff = find_handoff
+    fields = params.require(:handoff).permit(:spec_reference, checks: Studio::Broadcasting::ProgramDistributionHandoff::REVIEW_CHECKS.keys)
+    handoff.record_review!(reference: fields[:spec_reference], checks: fields.fetch(:checks, {}))
+    redirect_to dashboard_program_distribution_package_path(handoff, site_id: @site.id),
+      notice: "Partner specification review recorded.", status: :see_other
+  end
+
+  def record_submission
+    handoff = find_handoff
+    handoff.record_submission!(reference: params[:submission_reference])
+    redirect_to dashboard_program_distribution_package_path(handoff, site_id: @site.id),
+      notice: "Partner submission receipt recorded.", status: :see_other
+  end
+
   def manifest
     handoff = find_handoff
     send_data JSON.pretty_generate(handoff.manifest), filename: "program-handoff-#{handoff.id}.json", type: "application/json"
@@ -31,8 +51,14 @@ class Dashboard::ProgramDistributionHandoffsController < Dashboard::SettingsHome
   def media
     handoff = find_handoff
     handoff.authorize_delivery!
-    blob = handoff.license.asset.proxy.blob
-    send_stream(filename: "licensed-program-#{handoff.id}.mp4", type: blob.content_type) do |stream|
+    if params[:format] == "master"
+      blob = handoff.master
+      raise ActiveRecord::RecordNotFound unless blob
+    else
+      blob = handoff.license.asset.proxy.blob
+    end
+
+    send_stream(filename: "licensed-program-#{handoff.id}#{blob.filename.extension_with_delimiter}", type: blob.content_type) do |stream|
       blob.download { |chunk| stream.write(chunk) }
     end
   end

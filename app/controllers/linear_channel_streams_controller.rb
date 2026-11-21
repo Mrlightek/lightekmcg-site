@@ -34,6 +34,9 @@ class LinearChannelStreamsController < ApplicationController
       if identity && !request.head?
         Studio::Broadcasting::Audience.record(claims: identity, outlet: site, channel: channel, path: path)
       end
+      unless request.head?
+        Studio::Broadcasting::DeliveryUsage.observe(site_id: site.id, channel_key: channel.id, metric: :bytes_served, amount: path.size)
+      end
       send_file path, type: "video/mp2t", disposition: "inline"
     end
   end

@@ -55,6 +55,7 @@
     </ul>
   </section>
   <% if @show_operating_plans %>
+  <%= render "delivery_costs" %>
   <section class="ll-panel"><h2>Operating plans</h2>
     <% if @plans.empty? %><p>No operating plans in this period.</p><% end %>
     <ul class="ll-playout-list">

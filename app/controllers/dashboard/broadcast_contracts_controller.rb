@@ -164,7 +164,33 @@ class Dashboard::BroadcastContractsController < Dashboard::SettingsHomeControlle
       @incidents = @network.feed_incidents
       @finance = @network.finance
       @plans = @network.plans
+      if @show_operating_plans
+        @delivery_costs = @network.delivery_costs
+        @delivery_rates = Studio::Broadcasting::DeliveryRate.find_or_initialize_by(site_id: @site.id)
+        @delivery_channels = Studio::Broadcasting::Channel.where(site: @site).order(:name)
+      end
     end
+  end
+
+  def delivery_rates
+    require_site!
+    raise ActiveRecord::RecordNotFound unless plan_owner?
+
+    rate = Studio::Broadcasting::DeliveryRate.find_or_initialize_by(site_id: @site.id)
+    rate.update!(params.require(:delivery_rate).permit(*Studio::Broadcasting::DeliveryRate::UNITS.keys))
+    redirect_to dashboard_broadcast_network_report_path(site_id: @site.id), notice: "Delivery cost rates saved.", status: :see_other
+  end
+
+  def delivery_support
+    require_site!
+    raise ActiveRecord::RecordNotFound unless plan_owner?
+
+    channel = Studio::Broadcasting::Channel.where(site: @site).find(params[:channel_id])
+    minutes = Integer(params[:minutes].to_s, 10)
+    raise ArgumentError, "Enter support minutes between 1 and 1440." unless minutes.between?(1, 1440)
+
+    Studio::Broadcasting::DeliveryUsage.record!(site_id: @site.id, channel_key: channel.id, metric: :support_minutes, amount: minutes)
+    redirect_to dashboard_broadcast_network_report_path(site_id: @site.id), notice: "Support time recorded.", status: :see_other
   end
 
   def archive

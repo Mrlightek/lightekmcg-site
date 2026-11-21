@@ -46,6 +46,9 @@ class AffiliateChannelStreamsController < ApplicationController
     elsif name.end_with?(".ts") && viewer && metadata && !request.head?
       record_hub_view(audience, viewer, site, entry, name, metadata)
     end
+    if name.end_with?(".ts") && !request.head?
+      Studio::Broadcasting::DeliveryUsage.observe(site_id: site.id, channel_key: "hosted-#{entry.id}", metric: :bytes_served, amount: bytes.bytesize)
+    end
     render body: bytes, content_type: type
   end
 
@@ -68,7 +71,10 @@ class AffiliateChannelStreamsController < ApplicationController
     if name == "index.m3u8"
       render plain: file.read, content_type: "application/vnd.apple.mpegurl"
     else
-      record_edge_view(channel, file)
+      unless request.head?
+        record_edge_view(channel, file)
+        Studio::Broadcasting::DeliveryUsage.observe(site_id: channel.site_id, channel_key: channel.id, metric: :bytes_served, amount: file.size)
+      end
       send_file file, type: "video/mp2t", disposition: "inline"
     end
   end

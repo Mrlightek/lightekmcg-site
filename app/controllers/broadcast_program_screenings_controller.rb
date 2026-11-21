@@ -33,6 +33,7 @@ class BroadcastProgramScreeningsController < ApplicationController
     response.set_header("Content-Length", range.size.to_s)
     return head(response.status, content_type: blob.content_type) if request.head?
 
+    Studio::Broadcasting::DeliveryUsage.observe(site_id: @license.licensee_site_id, channel_key: "screenings", metric: :bytes_served, amount: range.size)
     send_stream(filename: "licensed-program.mp4", type: blob.content_type, disposition: "inline") do |stream|
       if requested.present?
         range.step(1.megabyte) do |first|

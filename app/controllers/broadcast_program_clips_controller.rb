@@ -34,6 +34,7 @@ class BroadcastProgramClipsController < ApplicationController
     return head status, content_type: "video/mp4" if request.head?
 
     bytes = range ? blob.download_chunk(range) : blob.download
+    Studio::Broadcasting::DeliveryUsage.observe(site_id: @clip.site_id, channel_key: "clips", metric: :bytes_served, amount: bytes.bytesize)
     send_data bytes, type: "video/mp4", disposition: "inline", status: status
   end
 

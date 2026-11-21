@@ -9,5 +9,6 @@ class BroadcastSponsorPackagesController < ApplicationController
     response.set_header("X-Robots-Tag", "noindex")
     @package = Studio::Advertising::SponsorPackage.find_by!(public_key: params[:key])
     @payments = @package.report_payments.to_a
+    @agreement_id = Studio::Broadcasting::BroadcastContract.where(sponsor_package: @package).pick(:id)
   end
 end

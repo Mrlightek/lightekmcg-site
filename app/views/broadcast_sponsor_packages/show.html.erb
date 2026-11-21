@@ -3,6 +3,9 @@
 <%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
 <main class="ll-studio ll-playout">
   <header class="ll-header"><h1><%= @package.name %></h1></header>
+  <% if @agreement_id %>
+    <p><%= link_to "Review sponsor agreement", dashboard_broadcast_contract_path(@agreement_id) %></p>
+  <% end %>
   <section class="ll-panel">
     <h2>Booked spots</h2>
     <p><%= number_to_currency(@payments.sum(&:amount_cents) / 100.0) %> USD in booked media. Each spot has its own authorization.</p>

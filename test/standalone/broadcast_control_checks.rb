@@ -445,6 +445,11 @@ class BroadcastControlTest < PwaHttpIntegrationTest
     payments.each { |payment| payment.placement.update!(delivered_at: Time.current) }
     payments[0].update!(state: "captured", captured_at: Time.current, charge_reference: "ch_verified")
     payments[1].update!(state: "held", captured_at: Time.current, charge_reference: "ch_held")
+    client = session_for
+    client.get "/broadcast-ads/package/#{package.public_key}"
+    assert_equal 200, client.response.status
+    assert_includes client.response.body, "Review sponsor agreement"
+    assert_includes client.response.body, "/dashboard/live/contracts/#{contract.id}"
     report = Studio::Broadcasting::ContractReport.new(version: version).snapshot
     assert_equal [2, 2, 3000, 1500, 0, 1500], report.values_at("promised_deliveries", "delivered", "agreed_cents", "confirmed_paid_cents",
       "outstanding_cents", "held_cents")

@@ -28,6 +28,10 @@
   <% end %>
   <% if @party == "issuer" %>
     <section class="ll-panel"><h2>Manage agreement</h2>
+      <% if @contract.counterparty_id? %>
+        <% invitation = "https://#{@contract.site.host}#{dashboard_broadcast_contract_path(@contract, version_id: @version.id)}" %>
+        <label>Link for the named counterparty <%= text_field_tag :agreement_review_link, invitation, readonly: true %></label>
+      <% end %>
       <% unless @version.executed? || @version.withdrawn_at? %>
         <%= button_to "Withdraw unsigned offer", dashboard_withdraw_broadcast_contract_path(@contract, @version, site_id: @site.id) %>
       <% end %>

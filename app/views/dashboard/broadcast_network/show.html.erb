@@ -1,0 +1,229 @@
+<% content_for :page_title, "TV network and audience" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+
+<main class="ll-studio ll-playout">
+  <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
+  <header class="ll-header"><h1>TV network and audience</h1></header>
+
+  <p><%= link_to "Open Network operations", dashboard_broadcast_operations_path(site_id: @site.id) %></p>
+
+  <% if @portfolio %>
+    <section class="ll-panel">
+      <h2>LightekMCG divisions</h2>
+      <ul class="ll-playout-list">
+        <% LightekPeople::CorporatePortfolio::DIVISIONS.each do |code, (name, units)| %>
+          <li><strong><%= @portfolio[code]&.name || name %></strong> · <%= units.values.to_sentence %></li>
+        <% end %>
+      </ul>
+      <% if @portfolio.size < LightekPeople::CorporatePortfolio::DIVISIONS.size %>
+        <%= button_to "Set up divisions in People", dashboard_broadcast_portfolio_path(site_id: @site.id) %>
+      <% end %>
+    </section>
+  <% end %>
+
+  <section class="ll-panel">
+    <h2>Channel carriage</h2>
+    <p><%= link_to "Open the web TV guide", "https://#{@site.host}#{broadcast_tv_path}" %></p>
+    <% if @channels.empty? %><p>Create a managed channel in <%= link_to "Media Studio", dashboard_media_studio_path(site_id: @site.id) %> to request carriage.</p><% end %>
+    <ul class="ll-playout-list">
+      <% @channels.each do |channel| %>
+        <% entry = @carriages[channel.id] %>
+        <li>
+          <%= channel.name %> · <%= entry&.status&.humanize || "Local channel" %>
+          <% unless @hub %>
+            <% if entry && entry.status.in?(%w[accepted requested]) %>
+              <%= button_to "Withdraw from network guide", dashboard_station_carriage_path(channel, site_id: @site.id), params: { carriage: "withdraw" } %>
+            <% else %>
+              <%= button_to "Request network carriage", dashboard_station_carriage_path(channel, site_id: @site.id) %>
+            <% end %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+    <% if @hub %>
+      <h3>Network lineup</h3>
+      <ul class="ll-playout-list">
+        <% @pending.each do |entry| %>
+          <li>
+            <%= entry.channel.name %> · <%= entry.channel.site.name %> · <%= entry.status.humanize %>
+            <%= form_with url: dashboard_hub_carriage_path(entry.channel, site_id: @site.id), class: "ll-playout-actions" do |form| %>
+              <label>Ownership <%= form.select :ownership, Studio::Broadcasting::NetworkCarriage::OWNERSHIPS.invert.to_a, { selected: entry.ownership || "affiliate" } %></label>
+              <%= form.submit(entry.status == "requested" ? "Approve carriage" : "Save ownership") %>
+              <%= form.button "Remove from guide", name: "carriage", value: "withdraw" %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+      <% if @hosted.any? %>
+        <h3>Stations on connected installations</h3>
+        <ul class="ll-playout-list">
+          <% @hosted.each do |entry| %>
+            <li><%= entry.name %> · <%= entry.peer.site.name %> · <%= entry.status.humanize %>
+              <%= form_with url: dashboard_hosted_carriage_path(entry.key, site_id: @site.id), class: "ll-playout-actions" do |form| %>
+                <label>Ownership <%= form.select :ownership, Studio::Broadcasting::NetworkCarriage::OWNERSHIPS.invert.to_a, { selected: entry.ownership || "affiliate" } %></label>
+                <label>Hub backup channel <%= form.collection_select :fallback_channel_id, @fallback_channels, :id, :name,
+                  { include_blank: "No backup", selected: entry.fallback_channel_id } %></label>
+                <% if entry.relay_cursor["source"].to_s.start_with?("fallback-") %><span>Using hub backup when last viewed</span><% end %>
+                <%= form.submit(entry.status == "requested" ? "Approve hosted station" : "Save ownership") %>
+                <%= form.button "Remove from guide", name: "carriage", value: "withdraw" %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="ll-panel">
+    <h2>Programming rights</h2>
+    <% if @assets.any? && @receiving_sites.any? %>
+      <%= form_with url: dashboard_program_licenses_path(site_id: @site.id), scope: :license, class: "ll-playout-actions" do |form| %>
+        <label>Station <%= form.collection_select :licensee_site_id, @receiving_sites, :id, :name, { prompt: "Choose a station" }, required: true %></label>
+        <label>Ready video <%= form.collection_select :asset_id, @assets, :id, :name, { prompt: "Choose a video" }, required: true %></label>
+        <label>Program title <%= form.text_field :title, maxlength: 120, required: true %></label>
+        <label>Rights start (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, required: true %></label>
+        <label>Rights end (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, required: true %></label>
+        <fieldset class="ll-config">
+          <legend>Additional rights</legend>
+          <% Studio::Broadcasting::ProgramLicense::EXTRA_RIGHTS.each do |right, label| %>
+            <label><%= check_box_tag "license[additional_rights][]", right, false, id: "license_#{form.object_id}_#{right}" %> <%= label %></label>
+          <% end %>
+        </fieldset>
+        <%= form.submit "Offer managed-channel rights" %>
+      <% end %>
+    <% else %>
+      <p>A ready Studio video and a participating station are required to offer programming rights.</p>
+    <% end %>
+    <ul class="ll-playout-list">
+      <% @incoming.each do |license| %>
+        <li><%= license.title %> from <%= license.source_name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
+          <%= button_to "Accept rights", dashboard_accept_program_license_path(license, site_id: @site.id) if license.status == "offered" && license.ends_at.future? %>
+          <% if license.status == "accepted" && license.ends_at.future? && license.allows_use?("clip") && license.transferable? %>
+            <details class="ll-config">
+              <summary>Publish a clip</summary>
+              <%= form_with url: dashboard_create_program_clip_path(license, site_id: @site.id), scope: :clip, class: "ll-playout-actions" do |form| %>
+                <label>Clip title <%= form.text_field :title, value: license.title, maxlength: 120, required: true %></label>
+                <label>Start in seconds <%= form.number_field :start_second, value: 0, min: 0, step: 1, required: true %></label>
+                <label>Duration in seconds <%= form.number_field :duration_seconds, min: 2, max: 60, step: 1, required: true %></label>
+                <%= form.submit "Prepare and publish clip" %>
+              <% end %>
+            </details>
+          <% end %>
+          <% @clips.fetch(license.id, []).each do |clip| %>
+            <div class="ll-playout-actions">
+              <% if clip.error_message? %>
+                <span><%= clip.title %> · <%= clip.error_message %></span>
+              <% elsif clip.video.attached? %>
+                <%= link_to clip.title, "https://#{@site.host}#{broadcast_program_clip_path(clip.public_key)}" %>
+                <% unless license.status == "accepted" && license.ends_at.future? && license.transferable? %><span>Rights inactive</span><% end %>
+              <% else %>
+                <span><%= clip.title %> · Preparing</span>
+              <% end %>
+              <%= button_to "Remove clip", dashboard_withdraw_program_clip_path(clip, site_id: @site.id) %>
+            </div>
+          <% end %>
+          <% if license.status == "accepted" && license.ends_at.future? && license.allows_use?("syndicate") && license.transferable? %>
+            <% destinations = license.imported? ? @hosted_program_board&.fetch("destinations", []) : @receiving_sites.map { |station| [station.id, station.name] } %>
+            <% if destinations.present? %>
+              <details class="ll-config">
+                <summary>Offer a sublicense</summary>
+                <%= form_with url: dashboard_sublicense_program_path(license, site_id: @site.id), scope: :license, class: "ll-playout-actions" do |form| %>
+                  <label>Station <%= form.select :recipient, destinations.map { |id, name| [name, id] }, { prompt: "Choose a station" }, required: true %></label>
+                  <label>Program title <%= form.text_field :title, value: license.title, maxlength: 120, required: true %></label>
+                  <label>Rights start (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, value: [Time.current, license.starts_at].max.in_time_zone, required: true %></label>
+                  <label>Rights end (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, value: license.ends_at.in_time_zone, required: true %></label>
+                  <% Studio::Broadcasting::ProgramLicense::EXTRA_RIGHTS.slice(*license.additional_rights).each do |right, label| %>
+                    <label><%= check_box_tag "license[additional_rights][]", right, false, id: "sublicense_#{license.id}_#{right}" %> <%= label %></label>
+                  <% end %>
+                  <%= form.submit "Send sublicense" %>
+                <% end %>
+              </details>
+            <% end %>
+          <% end %>
+        </li>
+      <% end %>
+      <% @outgoing.each do |license| %>
+        <li><%= license.title %> offered to <%= license.licensee_site.name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
+          <%= button_to "Close to future bookings", dashboard_withdraw_program_license_path(license, site_id: @site.id) if license.status != "withdrawn" %>
+        </li>
+      <% end %>
+    </ul>
+    <% if @hosted_program_board %>
+      <h3>Programming across installations</h3>
+      <% if @assets.any? && @hosted_program_board.fetch("destinations").any? %>
+        <%= form_with url: dashboard_hosted_program_licenses_path(site_id: @site.id), scope: :license, class: "ll-playout-actions" do |form| %>
+          <label>Network station <%= form.select :recipient, @hosted_program_board.fetch("destinations").map { |id, name| [name, id] }, { prompt: "Choose a station" }, required: true %></label>
+          <label>Ready video <%= form.collection_select :asset_id, @assets, :id, :name, { prompt: "Choose a video" }, required: true %></label>
+          <label>Program title <%= form.text_field :title, maxlength: 120, required: true %></label>
+          <label>Rights start (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, required: true %></label>
+          <label>Rights end (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, required: true %></label>
+          <fieldset class="ll-config">
+            <legend>Additional rights</legend>
+            <% Studio::Broadcasting::ProgramLicense::EXTRA_RIGHTS.each do |right, label| %>
+              <label><%= check_box_tag "license[additional_rights][]", right, false, id: "license_#{form.object_id}_#{right}" %> <%= label %></label>
+            <% end %>
+          </fieldset>
+          <%= form.submit "Offer program to network station" %>
+        <% end %>
+      <% end %>
+      <ul class="ll-playout-list">
+        <% imported_keys = @incoming.filter_map(&:federation_key) %>
+        <% @hosted_program_board.fetch("incoming").each do |offer| %>
+          <% next if imported_keys.include?(offer.fetch("key")) %>
+          <li><%= offer.fetch("title") %> from <%= offer.fetch("source") %> · <%= Studio::Broadcasting::ProgramLicense.rights_label(offer["additional_rights"]) %>
+            <%= button_to "Accept and download program", dashboard_accept_hosted_program_license_path(offer.fetch("key"), site_id: @site.id) %>
+          </li>
+        <% end %>
+        <% @hosted_program_board.fetch("sent").each do |offer| %>
+          <li><%= offer.fetch("title") %> · <%= offer.fetch("status").humanize %> · <%= Studio::Broadcasting::ProgramLicense.rights_label(offer["additional_rights"]) %>
+            <%= button_to "Close to future bookings", dashboard_withdraw_hosted_program_license_path(offer.fetch("key"), site_id: @site.id) if offer.fetch("status") != "withdrawn" %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+
+  <section class="ll-panel">
+    <h2>Audience reporting</h2>
+    <%= form_with url: dashboard_broadcast_network_path, method: :get, class: "ll-playout-actions" do |form| %>
+      <%= form.hidden_field :site_id, value: @site.id %>
+      <label>From (UTC) <%= form.date_field :start_day, value: @start_day, required: true %></label>
+      <label>Through (UTC) <%= form.date_field :end_day, value: @end_day, required: true %></label>
+      <% if @hub %><label>Report for <%= form.select :scope, [["Lightek-owned station channels", "station"], ["Entire TV service", "outlet"]], selected: @scope %></label><% end %>
+      <%= form.submit "Show audience" %>
+    <% end %>
+    <p><strong><%= number_with_delimiter(@totals[0]) %></strong> playback sessions ·
+      <strong><%= number_with_delimiter(@totals[1]) %></strong> segment requests ·
+      <strong><%= number_with_precision(@totals[2] / 1000.0 / 60, precision: 1) %></strong> minutes of media requested</p>
+    <p>Counts cover managed streams opened from the TV guide. Every playback link has a random session ID. Segment requests can include buffering and prefetch.</p>
+    <% if @channel_totals.any? %>
+      <table>
+        <thead><tr><th scope="col">Channel</th><th scope="col">Sessions</th><th scope="col">Requested minutes</th><th scope="col">Share of requested time</th></tr></thead>
+        <tbody>
+          <% @channel_totals.each do |channel_id, sessions, media_ms| %>
+            <tr>
+              <td><%= @channel_names.fetch(channel_id, "Channel ##{channel_id}") %></td>
+              <td><%= number_with_delimiter(sessions) %></td>
+              <td><%= number_with_precision(media_ms / 60_000.0, precision: 1) %></td>
+              <td><%= number_to_percentage(media_ms * 100.0 / @totals[2], precision: 1) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+    <% export = { site_id: @site.id, start_day: @start_day, end_day: @end_day, scope: @scope } %>
+    <div class="ll-playout-actions">
+      <%= link_to "Download viewership CSV", dashboard_broadcast_audience_path(**export) %>
+      <%= link_to "Export Nielsen measurement metadata", dashboard_broadcast_measurement_path(**export) %>
+    </div>
+    <p>The Nielsen export is for onboarding and validation. It requires Nielsen approval before use in official ratings.</p>
+    <h3>Measurement metadata</h3>
+    <ul class="ll-playout-list">
+      <% @metadata.each do |airing| %>
+        <li><%= airing.dig(:content, :title).presence || "Airing ##{airing.fetch(:airing_id)}" %> ·
+          <%= airing.fetch(:missing).empty? ? "Metadata recorded" : "Missing #{airing.fetch(:missing).map(&:humanize).to_sentence}" %></li>
+      <% end %>
+    </ul>
+  </section>
+</main>

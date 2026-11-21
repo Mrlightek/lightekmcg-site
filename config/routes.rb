@@ -52,6 +52,8 @@ Rails.application.routes.draw do
     end
   end
   draw :reservations
+  draw :broadcast_ad_exchange
+  draw :broadcast_network
   draw :people
   draw :lifecycle
   draw :enterprise_identity
@@ -740,11 +742,19 @@ get "/api/lightek-mail/routes", to: "api/lightek_mail#routes"
 post "/api/lightek-mail/inbound", to: "api/lightek_mail#inbound"
 post "/api/lightek-mail/feedback", to: "api/lightek_mail#feedback"
 
+get "/broadcast-ads/payment/:key", to: "broadcast_ad_payments#show", as: :broadcast_ad_payment
+post "/broadcast-ads/payment/:key", to: "broadcast_ad_payments#create"
+post "/dashboard/live/advertising/payouts/:payout_id", to: "dashboard/broadcast_advertising#release", as: :dashboard_broadcast_ad_payout
+get "/dashboard/live/advertising", to: "dashboard/broadcast_advertising#show", as: :dashboard_broadcast_advertising
+post "/dashboard/live/advertising/networks", to: "dashboard/broadcast_advertising#create_network", as: :dashboard_broadcast_ad_networks
+post "/dashboard/live/advertising/networks/:network_id/membership", to: "dashboard/broadcast_advertising#join", as: :dashboard_broadcast_ad_membership
+delete "/dashboard/live/advertising/networks/:network_id/membership", to: "dashboard/broadcast_advertising#leave"
+post "/dashboard/live/advertising/networks/:network_id/campaigns", to: "dashboard/broadcast_advertising#create_campaign", as: :dashboard_broadcast_ad_campaigns
+patch "/dashboard/live/advertising/networks/:network_id/campaigns/:campaign_id/offer", to: "dashboard/broadcast_advertising#update_offer", as: :dashboard_broadcast_ad_offer
 get "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/channel_playout#show", as: :dashboard_channel_playout
 post "/dashboard/live/channels/:channel_id/rundown", to: "dashboard/channel_playout#create"
+patch "/dashboard/live/channels/:channel_id/backup", to: "dashboard/channel_playout#save_backup", as: :dashboard_channel_playout_backup
 post "/dashboard/live/channels/:channel_id/rundown/:airing_id/command", to: "dashboard/channel_playout#command", as: :dashboard_channel_playout_command
-get "/gatekeeper/linear/:channel_id/:name", to: "linear_channel_streams#show", format: false,
-  constraints: { channel_id: /[0-9]+/, name: /index\.m3u8|out-[0-9]+\.ts/ }
 get "/dashboard/live/production", to: "dashboard/live_broadcasts#production", as: :dashboard_live_production
 post "/dashboard/live/production", to: "dashboard/live_broadcasts#save_production"
 get "/dashboard/live", to: "dashboard/live_broadcasts#index", as: :dashboard_live

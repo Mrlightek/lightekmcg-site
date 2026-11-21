@@ -73,8 +73,21 @@ module Studio
       end
 
       def standby
-        @feed.push(@standby, source: Object.new)
-        @standby.duration
+        segments = PlayoutMedia.backup(@channel)
+        if segments.present?
+          identity = [@channel.backup_asset_id, @channel.backup_blob_id]
+          @backup_index, @backup_source = 0, nil if @backup_identity != identity
+          @backup_identity = identity
+          @backup_index %= segments.length
+          @backup_source = Object.new if @backup_index.zero?
+          segment = segments.fetch(@backup_index)
+          @backup_index += 1
+          @feed.push(segment, source: @backup_source)
+          segment.duration
+        else
+          @feed.push(@standby, source: Object.new)
+          @standby.duration
+        end
       end
 
       def publish(airing)
@@ -90,8 +103,11 @@ module Studio
             airing.state = airing.state.merge("position" => late_by > 3 ? late_by : 0)
             airing.record_event!("started")
           end
-          @prepared_rows.clear if @prepared_for != airing.id
-          @prepared_for = airing.id
+          if @prepared_for != airing.id
+            @prepared_rows.clear
+            @ad_metadata = {}
+            @prepared_for = airing.id
+          end
           seconds = airing.state["input"] ? publish_input(airing) : publish_rundown(airing)
           manage_relay(airing) if seconds
           airing.save!
@@ -104,6 +120,24 @@ module Studio
         nil
       end
 
+      def rundown_media(airing, index, item)
+        @prepared_rows[index] ||= begin
+          directory = PlayoutMedia.airing_path(airing.id)
+          if item["ad_campaign_id"]
+            placement = Advertising::Placement.find_by(airing_id: airing.id, row_index: index)
+            if @channel.status == "published" && placement&.authorized_for?(airing.ends_at)
+              ad_media = PlayoutMedia.segments(directory.join("ad-#{index}"))
+            end
+          end
+          if ad_media && ad_media.sum(&:duration) >= item.fetch("seconds") - 0.1
+            @ad_metadata[index] = Nielsen.ad_for(placement.campaign, item.fetch("kind"))
+            [ad_media, true]
+          else
+            [PlayoutMedia.segments(directory.join(index.to_s), include_missing: true), false]
+          end
+        end
+      end
+
       def publish_rundown(airing)
         row = airing.row_at(airing.position)
         unless row
@@ -113,21 +147,34 @@ module Studio
           return nil
         end
         index, offset, finishing = row
-        media = @prepared_rows[index] ||= PlayoutMedia.segments(PlayoutMedia.airing_path(airing.id).join(index.to_s))
+        item = airing.rundown.fetch(index)
+        media, ad = rundown_media(airing, index, item)
         boundary = 0
         segment = media.find { |part| (boundary += part.duration) > offset + 0.01 }
         # Sub-frame differences in indexed media should not repeat or skip a row.
         segment ||= media.last if offset < airing.rundown.fetch(index).fetch("seconds")
-        raise "Scheduled media is missing" unless segment
+        unless segment&.path&.file?
+          return replace_missing_row(airing, index, finishing)
+        end
         source = "airing-#{airing.id}-row-#{index}"
         # Seeking within a row resets its media timestamps too.
-        @feed.push(segment, source: [source, airing.state.fetch("generation", 0)])
-        if airing.state["return"]
-          airing.record_event!("returned", "mode" => airing.state["return"])
-          airing.state = airing.state.except("return")
+        generation = airing.state.fetch("generation", 0)
+        audience = { "airing_id" => airing.id }
+        if ad
+          audience["ad_row"] = index
+          audience["ad"] = @ad_metadata.fetch(index)
         end
+        @feed.push(segment, source: [source, generation], audience: @channel.status == "published" ? audience : nil)
+        mark_public_airtime(airing) if @channel.status == "published"
+        if ad && @channel.status == "published"
+          Advertising::Placement.observe!(airing, row: index, source: [source, generation],
+            offset: boundary - segment.duration, boundary: boundary, media_end: item.fetch("seconds"), final: segment.equal?(media.last))
+        else
+          airing.state = airing.state.except("ad_progress")
+        end
+        record_input_return(airing)
         if airing.state["source"] != source
-          item = airing.rundown.fetch(index)
+          airing.record_event!("ad_backup", "row" => index + 1) if item["ad_campaign_id"] && !ad
           airing.record_event!("row_aired", "row" => index + 1, "label" => item.fetch("label"), "kind" => item.fetch("kind"), "sponsor" => item.fetch("sponsor"), "offset" => (boundary - segment.duration).round(2))
         end
         position = finishing - airing.rundown.fetch(index).fetch("seconds") + boundary
@@ -135,12 +182,34 @@ module Studio
         segment.duration
       end
 
+      def replace_missing_row(airing, index, finishing)
+        elapsed = standby
+        record_input_return(airing)
+        marker = "backup-row-#{index}"
+        airing.record_event!("scheduled_media_unavailable", "row" => index + 1) if airing.state["source"] != marker
+        airing.state = airing.state.except("ad_progress").merge("source" => marker, "position" => [airing.position + elapsed, finishing].min)
+        elapsed
+      end
+
+      def record_input_return(airing)
+        return unless airing.state["return"]
+
+        airing.record_event!("returned", "mode" => airing.state["return"])
+        airing.state = airing.state.except("return")
+      end
+
+      def return_from_input(airing, reason)
+        @waiting_for_input = nil
+        airing.state = airing.state.except("input", "input_segment").merge("return" => reason,
+          "generation" => airing.state.fetch("generation", 0) + 1)
+        publish_rundown(airing)
+      end
+
       def publish_input(airing)
         operation_id = airing.state.fetch("input")
         operation = StudioLiveOperation.find_by(id: operation_id, status: "live")
         unless operation && operation.studio_project.site_id == @channel.site_id && operation.metadata["destination"] == "channel_input" && operation.updated_at > 25.seconds.ago
-          airing.state = airing.state.except("input", "input_segment").merge("return" => "input_ended", "generation" => airing.state.fetch("generation", 0) + 1)
-          return publish_rundown(airing)
+          return return_from_input(airing, "input_ended")
         end
         source = "input-#{operation_id}"
         segments = PlayoutMedia.segments(Studio::Live::Encoder.hls_directory(operation_id))
@@ -148,8 +217,9 @@ module Studio
         segment = last ? segments.find { |part| segment_number(part) > last } : segments.last
         unless segment
           @waiting_for_input ||= monotonic
-          return 0.15 if monotonic - @waiting_for_input < 1
-          @waiting_for_input = nil
+          stalled_for = monotonic - @waiting_for_input
+          return return_from_input(airing, "input_stalled") if stalled_for >= 5
+          return 0.15 if stalled_for < 1
           return standby
         end
         @waiting_for_input = nil
@@ -158,10 +228,18 @@ module Studio
         if last && segment_number(segment) != last + 1
           generation += 1
         end
-        @feed.push(segment, source: [source, generation])
+        audience = { "airing_id" => airing.id } if @channel.status == "published"
+        @feed.push(segment, source: [source, generation], audience: audience)
+        mark_public_airtime(airing) if audience
         airing.record_event!("cut_in", "input" => operation_id) if airing.state["source"] != source
         airing.state = airing.state.merge("source" => source, "input_segment" => segment_number(segment), "generation" => generation)
         segment.duration
+      end
+
+      def mark_public_airtime(airing)
+        return if airing.state["public_started_at"]
+
+        airing.state = airing.state.merge("public_started_at" => Time.current.utc.iso8601)
       end
 
       def segment_number(segment) = segment.key[/\d+/].to_i

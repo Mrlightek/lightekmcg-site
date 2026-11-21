@@ -29,6 +29,10 @@ module NevaehOs
       'nevaeh.action.status' => {'action_id'=>:id}.freeze,
       'sales.quote.status' => {'site_id'=>:id, 'quote_id'=>:id}.freeze,
       'reservations.availability.list' => {'site_id'=>:id, 'resource_id'=>:id, 'date'=>:date}.freeze,
+      'reservations.list' => {}.freeze,
+      'reservations.status' => {'reservation_id'=>:id}.freeze,
+      'reservations.cancel' => {'reservation_id'=>:id}.freeze,
+      'reservations.reschedule' => {'reservation_id'=>:id, 'starts_at'=>40}.freeze,
       'connect.connections.list' => {}.freeze,
       'mail.mailbox.status' => {'mailbox_id'=>:id}.freeze,
       'studio.broadcast.channel.status' => {'site_id'=>:id, 'channel_id'=>:id}.freeze,
@@ -107,6 +111,10 @@ module NevaehOs
       when 'reservations.availability.list'
         site = LightekSettings::WebsiteIdentity.sites_for(actor).find(values.fetch('site_id'))
         LightekReservations::Resource.available.where(site: site).find(values.fetch('resource_id'))
+      when 'reservations.list'
+        LightekReservations::Reservation.where(customer: actor)
+      when 'reservations.status', 'reservations.cancel', 'reservations.reschedule'
+        LightekReservations::Reservation.where(customer: actor).find(values.fetch('reservation_id'))
       when 'connect.connections.list'
         raise ArgumentError, 'Agency access required' unless %w[white_label super_admin].include?(actor.role)
 
@@ -192,6 +200,17 @@ module NevaehOs
          'links'=>[{'label'=>'Open action receipt', 'url'=>"/dashboard/nevaeh/actions/#{target.id}"}]}
       when 'reservations.availability.list'
         reservation_slots(target, values.fetch('date'))
+      when 'reservations.list'
+        reservations = target.includes(:order).order(starts_at: :desc, id: :desc).limit(100)
+        {'reservations'=>reservations.map { |reservation| reservation_receipt(reservation) }}
+      when 'reservations.status'
+        reservation_receipt(target)
+      when 'reservations.cancel'
+        reservation = LightekReservations::Booking.cancel!(reservation: target, actor: actor)
+        reservation_receipt(reservation)
+      when 'reservations.reschedule'
+        reservation = LightekReservations::Booking.reschedule!(reservation: target, actor: actor, starts_at: values.fetch('starts_at'))
+        reservation_receipt(reservation)
       when 'connect.connections.list'
         SpecialistTasks.summary(target, %w[id label platform revoked_at])
       when 'mail.mailbox.status'
@@ -209,6 +228,13 @@ module NevaehOs
         slot = publication_calendar!(actor, target.site).cancel!(id: target.id, version: values.fetch('lock_version'))
         publication_receipt(slot).merge('text'=>'The local calendar slot is canceled.')
       end
+    end
+
+    def reservation_receipt(reservation)
+      {'reservation_id'=>reservation.id, 'reservation_status'=>reservation.status,
+       'experience'=>reservation.package_snapshot['name'], 'starts_at'=>reservation.starts_at.iso8601,
+       'ends_at'=>reservation.ends_at.iso8601, 'order_status'=>reservation.order&.status,
+       'links'=>[{'label'=>'Open reservation','url'=>"/my/reservations/#{reservation.id}"}]}
     end
 
     def commerce_receipt(order)

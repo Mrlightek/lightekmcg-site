@@ -49,6 +49,17 @@ Use the IDs and record versions from your own workspace. Recording approval requ
 
 Use the order status command to follow a queued installation. It reports the latest installation state recorded by the existing Commerce worker.
 
+### Customer reservations
+
+| Task | Say or type |
+| --- | --- |
+| See your local reservations and their IDs | `Show my reservations` |
+| Check a reservation and its order status | `Check reservation #42` |
+| Move an eligible appointment | `Reschedule my reservation #42 to 2027-03-31T15:30:00-04:00` |
+| Cancel an eligible reservation | `Cancel my reservation #42` |
+
+Nevaeh uses the existing booking rules for availability, cancellation windows, and orders awaiting payment. Refunds follow the separate payment workflow.
+
 ### Review platform coverage
 
 Open **Software Library → Code map → Platform coverage** to search the loaded host and engine controller routes. Download JSON for the complete matching list. A bound route has an explicit reviewed capability. A partial route has a capability for part of the workflow. A browser handoff links to the existing workflow, which applies its own session and authorization requirements. An unmapped route needs a review before it can count toward execution coverage. The inventory shows installed routing and binding evidence. Live acceptance is tracked through execution receipts.

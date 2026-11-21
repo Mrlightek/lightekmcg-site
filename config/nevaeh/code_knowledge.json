@@ -1419,6 +1419,197 @@
           "coverage": "bound"
         }
       ]
+    },
+    {
+      "id": "reservations.list",
+      "title": "List my reservations",
+      "summary": "List local bookings belonging to the signed-in customer.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_reservations/booking.rb"
+        ],
+        "guides": [
+          "docs/nevaeh/tutorials/commands.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/reservations_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "reservations.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "List local bookings belonging to the signed-in customer."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "reservations#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "reservations.status",
+      "title": "Check my reservation",
+      "summary": "Return the saved status, appointment time and order state of a customer booking.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_reservations/booking.rb"
+        ],
+        "guides": [
+          "docs/nevaeh/tutorials/commands.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/reservations_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "reservations.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "reservation_id": "RESERVATION_ID"
+        },
+        "result": "Return the saved status, appointment time and order state of a customer booking."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "reservations#show",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "reservations.cancel",
+      "title": "Cancel my reservation",
+      "summary": "Cancel an eligible reservation through the customer booking service.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_reservations/booking.rb"
+        ],
+        "guides": [
+          "docs/nevaeh/tutorials/commands.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/reservations_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "reservations.cancel",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "reservation_id": "RESERVATION_ID"
+        },
+        "result": "Cancel an eligible reservation through the customer booking service."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "reservations#cancel",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "reservations.reschedule",
+      "title": "Reschedule my reservation",
+      "summary": "Move an eligible appointment after checking availability.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_reservations/booking.rb"
+        ],
+        "guides": [
+          "docs/nevaeh/tutorials/commands.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/reservations_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "reservations.reschedule",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "reservation_id": "RESERVATION_ID",
+          "starts_at": "2027-03-31T15:30:00-04:00"
+        },
+        "result": "Move an eligible appointment after checking availability."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "reservations#reschedule",
+          "coverage": "bound"
+        }
+      ]
     }
   ]
 }

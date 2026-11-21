@@ -8,6 +8,22 @@ module NevaehOs
     VERSION = /(?:at |using )?version (?<lock_version>\d{1,10})/
     QUOTED = /"(?:[^"\\\x00-\x1f]|\\.)*"/
     PHRASES = {
+      'reservations.list' => [
+        /(?:show|list) (?:me )?my reservations/i,
+        'Show my reservations'
+      ],
+      'reservations.status' => [
+        /(?:show|check) (?:the )?(?:status of )?(?:my )?reservation #?(?<reservation_id>[1-9]\d{0,17})/i,
+        'Check reservation #42'
+      ],
+      'reservations.cancel' => [
+        /cancel (?:my )?reservation #?(?<reservation_id>[1-9]\d{0,17})/i,
+        'Cancel my reservation #42'
+      ],
+      'reservations.reschedule' => [
+        /reschedule (?:my )?reservation #?(?<reservation_id>[1-9]\d{0,17}) to (?<starts_at>\d{4}-\d{2}-\d{2}t\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:z|[+-]\d{2}:\d{2})?)/i,
+        'Reschedule my reservation #42 to 2027-03-31T15:30:00-04:00'
+      ],
       'commerce.order.status' => [
         /(?:show|check) (?:the )?(?:status of )?(?:commerce )?order #?(?<order_id>[1-9]\d{0,17}) #{SITE}/i,
         'Check order #42 on site #3'

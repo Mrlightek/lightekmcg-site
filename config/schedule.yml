@@ -138,3 +138,15 @@ studio_channel_playout_sweep:
   class: "Studio::Broadcasting::PlayoutSweepJob"
   queue: default
   active_job: true
+
+studio_broadcast_monthly_reports:
+  cron: "20 5 * * *"
+  class: "Studio::Broadcasting::ArchiveNetworkReportsJob"
+  queue: default
+  active_job: true
+
+broadcast_delivery_storage:
+  cron: '17 23 * * *'
+  class: 'Studio::Broadcasting::DeliveryStorageSnapshotJob'
+  queue: default
+  active_job: true

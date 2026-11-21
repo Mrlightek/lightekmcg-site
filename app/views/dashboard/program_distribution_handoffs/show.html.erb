@@ -1,0 +1,46 @@
+<% content_for :page_title, "Partner submission" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<main class="ll-studio ll-playout">
+  <nav><%= link_to "Broadcast network", dashboard_broadcast_network_path(site_id: @site.id) %></nav>
+  <header class="ll-header">
+    <h1><%= @handoff.license.title %></h1>
+    <p><%= @handoff.partner %> · <%= @handoff.class::DESTINATIONS.fetch(@handoff.platform) %></p>
+  </header>
+  <section class="ll-panel">
+    <h2>Delivery specification</h2>
+    <% if @handoff.submitted_at? %>
+      <p>Receipt <%= @handoff.submission_reference %> recorded on <%= @handoff.submitted_at.utc.to_date.iso8601 %>.</p>
+      <p>Reviewed against <%= @handoff.spec_reference %>.</p>
+      <dl>
+        <% @handoff.class::REVIEW_CHECKS.each do |key, label| %>
+          <dt><%= label %></dt><dd><%= @handoff.quality_checks.fetch(key) %></dd>
+        <% end %>
+      </dl>
+    <% else %>
+      <p>Use the named distribution partner’s current delivery specification. Record the matching asset and check result, or document the partner’s exception.</p>
+      <%= form_with url: dashboard_program_distribution_review_path(@handoff, site_id: @site.id), scope: :handoff, class: "ll-playout-actions" do |form| %>
+        <label>Specification and version <%= form.text_field :spec_reference, value: @handoff.spec_reference, required: true, maxlength: 255 %></label>
+        <%= form.fields_for :checks do |checks| %>
+          <% @handoff.class::REVIEW_CHECKS.each do |key, label| %>
+            <label><%= label %> <%= checks.text_area key, value: @handoff.quality_checks.to_h[key], required: true, maxlength: 2000 %></label>
+          <% end %>
+        <% end %>
+        <%= form.submit "Record specification review" %>
+      <% end %>
+      <% if @handoff.spec_reference? %>
+        <h2>Submission receipt</h2>
+        <p>Submit the package through your partner’s delivery channel, then record their reference here.</p>
+        <%= form_with url: dashboard_program_distribution_receipt_path(@handoff, site_id: @site.id), class: "ll-playout-actions" do |form| %>
+          <label>Partner receipt <%= form.text_field :submission_reference, required: true, maxlength: 255 %></label>
+          <%= form.submit "Record submission" %>
+        <% end %>
+      <% end %>
+    <% end %>
+    <% if @handoff.master %>
+      <p><%= link_to "Download licensed master", dashboard_program_distribution_media_path(@handoff, format: :master, site_id: @site.id) %></p>
+    <% end %>
+    <p><%= link_to "Download rights and review manifest", dashboard_program_distribution_manifest_path(@handoff, site_id: @site.id) %>
+      · <%= link_to "Download licensed preview", dashboard_program_distribution_media_path(@handoff, site_id: @site.id) %></p>
+  </section>
+</main>

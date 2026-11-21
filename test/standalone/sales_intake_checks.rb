@@ -176,6 +176,37 @@ class SalesIntakeChecks < SalesCrmChecks
     assert_equal 1, LightekSales::Activity.where(kind: 'task_completed').count
     assert_raises(ActiveRecord::RecordNotFound) { LightekSales::Tasks.new(actor: @member, site: @site) }
   end
+  def test_intake_nevaeh_manages_tasks_with_site_scope_and_current_versions
+    row = task
+    commands = NevaehOs::PlatformActions
+    status = nevaeh_service_command("Check sales task ##{row.id} on site ##{@site.id}")
+    result = commands.perform!(actor: @member, command: status, action_id: 11)
+    assert_equal 'open', result.fetch('task_status')
+    assert_equal row.lock_version, result.fetch('lock_version')
+    assert_raises(ActiveRecord::RecordNotFound) { commands.perform!(actor: @other, command: status, action_id: 12) }
+
+    phrase = "sales task ##{row.id} on site ##{@site.id} at version #{row.lock_version}"
+    complete = nevaeh_service_command("Complete #{phrase}")
+    snooze_until = 2.days.from_now.change(usec: 0).iso8601
+    snooze = nevaeh_service_command("Snooze #{phrase} until #{snooze_until}")
+    result = commands.perform!(actor: @member, command: snooze, action_id: 13)
+    assert_equal Time.iso8601(snooze_until), Time.iso8601(result.fetch('due_at'))
+    assert_raises(ActiveRecord::StaleObjectError) { commands.perform!(actor: @member, command: complete, action_id: 14) }
+
+    complete['payload']['lock_version'] = result.fetch('lock_version')
+    assert_equal 'completed', commands.perform!(actor: @member, command: complete, action_id: 15).fetch('task_status')
+    assert_equal @member, row.reload.completed_by
+    assert_equal 1, LightekSales::Activity.where(kind: 'task_completed').count
+
+    due = 3.days.from_now.change(usec: 0).iso8601
+    schedule = nevaeh_service_command("Schedule a follow-up called \"Send notes\" for lead ##{row.record_id} on site ##{@site.id} assigning user ##{@member.id} due #{due}")
+    next_task = commands.perform!(actor: @owner, command: schedule, action_id: 16)
+    assert_equal next_task, commands.perform!(actor: @owner, command: schedule, action_id: 16)
+    second = LightekSales::Task.find(next_task.fetch('task_id'))
+    assert_equal @member, second.owner
+    cancel = nevaeh_service_command("Cancel sales task ##{second.id} on site ##{@site.id} at version #{second.lock_version}")
+    assert_equal 'canceled', commands.perform!(actor: @owner, command: cancel, action_id: 16).fetch('task_status')
+  end
   def test_intake_task_calendar_escapes_injection_and_preserves_unicode_fold_boundaries
     row = task(title: "Review éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé; client, scope\r\nATTENDEE:evil@example.test")
     calendar = LightekSales::TaskCalendar.call(row)

@@ -1,0 +1,11 @@
+<% content_for :page_title, @license.title %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<%= stylesheet_link_tag "/lightek/live/lightek-player.css?v=1" %>
+<%= javascript_include_tag "/lightek/live/watch-tv.js?v=3", defer: true %>
+<main class="ll-studio ll-playout">
+  <header class="ll-header"><h1><%= @license.title %></h1></header>
+  <section class="ll-panel">
+    <%= render "shared/lightek_player", source: broadcast_program_screening_video_path(@license.web_screening_key), format: "mp4" %>
+  </section>
+</main>

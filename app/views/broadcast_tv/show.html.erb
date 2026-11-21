@@ -1,0 +1,56 @@
+<% content_for :page_title, @guide.dig(:screen, :title) %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<%= javascript_include_tag "/lightek/vendor/hls/hls.light.min.js", defer: true %>
+<% if @nielsen %><%= javascript_include_tag "/lightek/live/nielsen-viewership.js?v=1", defer: true %><% end %>
+<%= stylesheet_link_tag "/lightek/live/lightek-player.css?v=1" %>
+<%= javascript_include_tag "/lightek/live/watch-tv.js?v=4", defer: true %>
+
+<main class="ll-studio ll-playout">
+  <header class="ll-header"><h1><%= @guide.dig(:screen, :title) %></h1></header>
+  <% if @viewing_product %>
+    <% if @fewer_commercials %>
+      <p>Fewer Commercials is active.</p>
+      <%= button_to "Link Roku", broadcast_viewing_link_path, form: { data: { turbo: false } } %>
+    <% else %>
+      <%= button_to "Fewer Commercials · #{number_to_currency(@viewing_product.price_cents / 100.0)} per #{@viewing_product.billing_interval}",
+        broadcast_viewing_offer_path, form: { data: { turbo: false } } %>
+    <% end %>
+  <% end %>
+  <% if @selected %>
+    <section class="ll-panel">
+      <h2><%= @selected[:title] %></h2>
+      <%= render "shared/lightek_player", source: @selected.dig(:action, :playback_url), format: @selected.dig(:action, :stream_format), fallback: @selected.dig(:action, :fallback_url) %>
+      <% if @nielsen %>
+        <label><input type="checkbox" data-nielsen-app="<%= @nielsen.fetch(:app_id) %>"
+          data-nielsen-debug="<%= @nielsen.fetch(:debug) %>" data-nielsen-timeline="<%= @selected.dig(:action, :measurement_url) %>">
+          Allow Nielsen audience measurement</label>
+      <% end %>
+    </section>
+  <% end %>
+
+  <section class="ll-panel">
+    <h2>Live channels</h2>
+    <% if @channels.empty? %><p><%= @guide.dig(:metadata, :empty_message) %></p><% end %>
+    <ul class="ll-playout-list">
+      <% @channels.each do |channel| %>
+        <li>
+          <%= link_to channel[:title], broadcast_tv_path(channel: channel[:id], application: params[:application].presence) %>
+          <% if channel[:ownership] %> · <%= channel[:ownership] %><% end %>
+          <% if channel[:description].present? %><p><%= channel[:description] %></p><% end %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+
+  <% if @schedule.any? %>
+    <section class="ll-panel">
+      <h2>On now &amp; up next</h2>
+      <ul class="ll-playout-list">
+        <% @schedule.each do |item| %>
+          <li><%= item[:title] %> · <%= item[:subtitle] %> · <time datetime="<%= item[:starts_at] %>"><%= l(Time.iso8601(item[:starts_at]).in_time_zone, format: :short) %></time></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+</main>

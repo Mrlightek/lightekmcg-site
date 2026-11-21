@@ -206,9 +206,13 @@ class NevaehOsTest < Minitest::Test
     assert_equal 0,NevaehOsAgent.count
   end
   def test_registration_rejects_an_unexpected_worker_binding
-    NevaehOs::Dispatch.register!.update!(handler:'Unexpected::Worker')
+    capability = NevaehOs::Dispatch.register!
+    original_handler = capability.handler
+    capability.update!(handler:'Unexpected::Worker')
     assert_raises(ArgumentError) { dispatch('/create agents {"name":"Blocked"}') }
     assert_equal 0,DymondDispatch::WorkItem.count
+  ensure
+    capability&.update!(handler: original_handler)
   end
   def test_execution_rechecks_actor_permissions
     action=NevaehOsAction.create!(user:@actor,request_key:'revoke-request-1',command:{'kind'=>'run','id'=>42})
@@ -327,6 +331,20 @@ class NevaehOsHttpTest < ActionController::TestCase
     assert_response :success
     assert_equal 'planned',response.parsed_body['status']
     refute NevaehOsAgent.exists?(name:'Planned')
+  end
+  def test_english_console_dispatches_from_dashboard_and_respects_preview_mode
+    phrase = 'Create console note record with title to "Dashboard Test"'
+    post :ask, params: { q: phrase, request_key: 'english-console-preview', mode: 2 }, as: :json
+    assert_response :success
+    assert_equal 'planned', response.parsed_body['status']
+    refute NevaehOsAction.exists?(request_key: 'english-console-preview')
+
+    post :ask, params: { q: phrase, request_key: 'english-console-operate', mode: 1 }, as: :json
+    assert_response :success
+    action = NevaehOsAction.find(response.parsed_body.fetch('action_id'))
+    assert_equal 'console', action.command['kind']
+    NevaehOs::Worker.perform('execute', { 'action_id' => action.id })
+    assert_equal 'Dashboard Test', ConsoleNote.find(action.reload.result.dig('result', 'id')).title
   end
   def test_unauthenticated_request_is_rejected
     @request.session.delete(:actor_id)
@@ -502,6 +520,103 @@ class NevaehOperatingConsoleTest < Minitest::Test
     assert_raises(ArgumentError) { NevaehOs::RailsConsole.execute('ConsoleNote.count',@client) }
     assert_raises(ArgumentError) { NevaehOs::RailsConsole.execute('NevaehOsAction.create!(status: "completed")',@admin) }
     assert_raises(ActiveRecord::RecordInvalid) { NevaehOs::RailsConsole.execute('ConsoleNote.create!(title: "")',@admin) }
+  end
+  def test_english_console_uses_the_existing_dispatch_and_record_operations
+    assert_equal 'models', NevaehOs::Command.parse('List installed models')['kind']
+    schema_command = NevaehOs::Command.parse('Show fields for console note records')
+    assert_equal 'schema', schema_command['kind']
+    schema = NevaehOs::RailsConsole.schema(schema_command['model'], @admin, english: schema_command['english_model'])
+    assert_equal 'ConsoleNote', schema['model']
+
+    create = NevaehOs::Command.parse('Create console note record with title to "Opening Night"')
+    assert_equal 'console', create['kind']
+    action = NevaehOs::Dispatch.submit!(actor: @admin, command: create, request_key: 'english-console-create')
+    NevaehOs::Worker.perform('execute', { 'action_id' => action.id })
+    assert_equal 'completed', action.reload.status
+    first = ConsoleNote.find_by!(title: 'Opening Night')
+    second = ConsoleNote.create!(title: 'Opening Night', secret_token: 'redact-me')
+
+    queries = {
+      'Count ConsoleNote records where title is "Opening Night"' => 2,
+      'List console note records where title is "Opening Night" and id is [' +
+        "#{first.id}, #{second.id}] ordered by id descending limit 1" => [second.id],
+      'Show the first console note record where title is "Opening Night" ordered by id ascending' => first.id,
+      'Show the last console note record where title is "Opening Night" ordered by id ascending' => second.id,
+      'Find ConsoleNote record #' + second.id.to_s => second.id
+    }
+    queries.each do |phrase, expected|
+      result = NevaehOs::RailsConsole.execute(phrase, @admin)['result']
+      actual = case result
+               when Array then result.map { |row| row['id'] }
+               when Hash then result['id']
+               else result
+               end
+      assert_equal expected, actual, phrase
+    end
+    assert_equal [second.id], NevaehOs::RailsConsole.execute('ConsoleNote.where(title: "Opening Night").order(id: :desc).limit(1)', @admin)['result'].pluck('id')
+    assert_equal '[REDACTED]', NevaehOs::RailsConsole.execute("Find ConsoleNote record #{second.id}", @admin)['result']['secret_token']
+
+    NevaehOs::RailsConsole.execute("Update console note record #{first.id} set title to Revised", @admin)
+    assert_equal 'Revised', first.reload.title
+    NevaehOs::RailsConsole.execute("Delete ConsoleNote record #{first.id}", @admin)
+    refute ConsoleNote.exists?(first.id)
+  end
+
+  def test_english_console_keeps_ruby_console_boundaries
+    assert_raises(ArgumentError) { NevaehOs::Executor.authorize_command!(actor: @client, command: NevaehOs::Command.parse('List user records')) }
+    [
+      'List console note records limit 101',
+      'List console note records where secret_token is private',
+      'Create console note record with {"secret_token":"private"}',
+      'Delete ConsoleNote records',
+      'Delete ConsoleNote record 123 then delete ConsoleNote record 456',
+      'Create NevaehOsAction record with status to completed'
+    ].each do |phrase|
+      assert_raises(ArgumentError, phrase) { NevaehOs::RailsConsole.execute(phrase, @admin) }
+    end
+    assert_equal 'resource', NevaehOs::Command.parse('list workers')['kind']
+    assert_equal 'capability', NevaehOs::Command.parse('show my susus')['kind']
+    assert_equal NevaehOs::Command.parse('susu.show {"group_id":123}'),
+                 NevaehOs::Command.parse('Please run capability susu.show with {"group_id":123}')
+  end
+
+  def test_english_queries_match_ruby_find_projections_aggregates_and_pagination
+    first = ConsoleNote.create!(title: 'Match', secret_token: 'private')
+    second = ConsoleNote.create!(title: 'Match')
+    queries = {
+      'Find console note record where title is Missing' => ['ConsoleNote.find_by(title: "Missing")', nil],
+      'Check for any console note records where title is Match' => ['ConsoleNote.exists?(title: "Match")', true],
+      'Check for any console note records where title is Missing' => ['ConsoleNote.where(title: "Missing").exists?', false],
+      'List distinct console note records return only title where title is Match' =>
+        ['ConsoleNote.where(title: "Match").distinct.pluck(:title)', ['Match']],
+      'List console note records return only id, title where title is Match ordered by id ascending limit 1 skip 1' =>
+        ['ConsoleNote.where(title: "Match").order(id: :asc).limit(1).offset(1).pluck(:id, :title)', [[second.id, 'Match']]],
+      'List console note records return only id where title is Match ordered by id ascending' =>
+        ['ConsoleNote.where(title: "Match").order(id: :asc).ids', [first.id, second.id]],
+      'List console note records calculate maximum of id where title is Match' =>
+        ['ConsoleNote.where(title: "Match").maximum(:id)', second.id],
+      'List console note records calculate minimum of id where title is Missing' =>
+        ['ConsoleNote.where(title: "Missing").minimum(:id)', nil],
+      'List console note records calculate sum of id where title is Match' =>
+        ['ConsoleNote.where(title: "Match").sum(:id)', first.id + second.id],
+      'List console note records calculate average of id where title is Match' =>
+        ['ConsoleNote.where(title: "Match").average(:id)', (first.id + second.id) / 2.0]
+    }
+    queries.each do |phrase, (ruby, expected)|
+      assert_equal 'console', NevaehOs::Command.parse(phrase)['kind']
+      [phrase, ruby].each do |expression|
+        result = NevaehOs::RailsConsole.execute(expression, @admin)['result']
+        expected.nil? ? assert_nil(result, expression) : assert_equal(expected, result, expression)
+      end
+    end
+    [
+      'ConsoleNote.pluck(:secret_token)', 'ConsoleNote.find_by(secret_token: "private")',
+      'ConsoleNote.exists?("1=1")', 'ConsoleNote.offset(10001)', 'ConsoleNote.sum(:title)',
+      'List console note records return only secret_token',
+      'Check for console note records where secret_token is private'
+    ].each do |expression|
+      assert_raises(ArgumentError, expression) { NevaehOs::RailsConsole.execute(expression, @admin) }
+    end
   end
   def test_ubuntu_and_application_control_require_host_super_administrator
     assert_raises(ArgumentError) { NevaehOs::UbuntuPackages.authorize!(@client) }
@@ -991,5 +1106,99 @@ class NevaehOsHttpTest
     post :ask, params: { q: '/code susu', request_key: 'code-map-client' }, as: :json
     assert_response :unprocessable_entity
     refute response.parsed_body.key?('code_knowledge')
+  end
+end
+
+require_relative '../../app/services/nevaeh_os/platform_actions'
+
+module LightekConnect
+  class Connection < ApplicationRecord
+    self.table_name = 'test_connect_connections'
+    belongs_to :user
+  end
+end
+ActiveRecord::Schema.define do
+  create_table(:test_connect_connections) do |t|
+    t.references :user
+    t.string :label
+    t.string :platform
+    t.string :token_digest
+    t.datetime :revoked_at
+  end
+end
+
+class NevaehOsHttpTest
+  def test_operating_code_binding_runs_an_account_scoped_action
+    own = LightekConnect::Connection.create!(user: @actor, platform: 'shopify', label: 'My shop', token_digest: 'private')
+    LightekConnect::Connection.create!(user: @other, platform: 'wordpress', label: 'Another account')
+    post :ask, params: { q: '/code connect.connections.list', request_key: 'platform-code-discovery' }, as: :json
+    assert_response :success
+    row = response.parsed_body.fetch('code_knowledge').fetch('entries').sole
+    assert_equal 'enabled', row.fetch('binding_status')
+
+    post :ask, params: { q: row.fetch('example'), request_key: 'platform-code-execute' }, as: :json
+    assert_response :success
+    action = NevaehOsAction.find(response.parsed_body.fetch('action_id'))
+    assert_equal 'platform_action', action.command.fetch('kind')
+    assert_equal 'pending', action.status
+    output = NevaehOs::Worker.perform('execute', {'action_id'=>action.id})
+    assert_equal 'completed', action.reload.status
+    assert_equal [own.id], output.fetch('records').map { |record| record.fetch('id') }
+    refute output.fetch('records').sole.key?('token_digest')
+    assert_equal output, NevaehOs::Worker.perform('execute', {'action_id'=>action.id})
+  end
+
+  def test_platform_action_rechecks_role_before_worker_access
+    post :ask, params: { q: '/execute connect.connections.list {}', request_key: 'platform-code-role-loss' }, as: :json
+    assert_response :success
+    action = NevaehOsAction.find(response.parsed_body.fetch('action_id'))
+    @actor.update!(role: 'client')
+
+    assert_raises(Gatekeeper::AuthorizationDenied) { NevaehOs::Worker.perform('execute', {'action_id'=>action.id}) }
+    assert_equal 'failed', action.reload.status
+  end
+end
+
+class NevaehOsHttpTest
+  def test_action_status_returns_only_the_callers_effective_execution_state
+    own = NevaehOsAction.create!(user: @actor, request_key: 'own-action-status', command: {'kind'=>'capability'},
+      status: 'completed', result: {'private_payload'=>'sensitive'})
+    foreign = NevaehOsAction.create!(user: @other, request_key: 'foreign-action-status', command: {'kind'=>'capability'})
+    post :ask, params: {q: "/execute nevaeh.action.status {\"action_id\":#{foreign.id}}", request_key: 'foreign-status-query'}, as: :json
+    assert_response :not_found
+
+    post :ask, params: {q: "/execute nevaeh.action.status {\"action_id\":#{own.id}}", request_key: 'own-status-query'}, as: :json
+    assert_response :success
+    receipt = NevaehOs::Worker.perform('execute', {'action_id'=>response.parsed_body.fetch('action_id')})
+    assert_equal 'completed', receipt.fetch('execution_status')
+    assert_equal own.id, receipt.fetch('action_id')
+    refute_includes receipt.to_json, 'sensitive'
+  end
+
+  def test_english_platform_service_is_discoverable_and_uses_operating_dispatch
+    reference = NevaehOs::Guide.capability('sales.quote.accept', actor: @actor)
+    assert_equal 'boolean', reference.fetch(:inputs).fetch('confirmed')
+    phrase = reference.fetch(:example)
+    post :ask, params: {q: phrase, request_key: 'quote-approve-preview', mode: 'reflect'}, as: :json
+    assert_response :success
+    assert_equal 'planned', response.parsed_body.fetch('status')
+    refute NevaehOsAction.exists?(request_key: 'quote-approve-preview')
+
+    calls = []
+    # Real quote validation, access, and order writes run in sales_crm_checks.rb.
+    authorize = lambda do |actor, command|
+      calls << actor.id
+      assert_equal 'sales.quote.accept', command.fetch('intent')
+      assert_equal true, command.dig('payload', 'confirmed')
+    end
+    NevaehOs::PlatformActions.stub(:authorize!, authorize) do
+      post :ask, params: {q: phrase, request_key: 'quote-approve-dispatch', mode: 'operate'}, as: :json
+      assert_response :success
+      action = NevaehOsAction.find(response.parsed_body.fetch('action_id'))
+      assert_equal 'platform_action', action.command.fetch('kind')
+      item = DymondDispatch::WorkItem.find_by!(subject_id: action.id, kind: 'nevaeh.os.execute')
+      assert_equal ['execute', {'action_id'=>action.id}], item.args
+    end
+    assert_equal [@actor.id], calls.uniq
   end
 end

@@ -60,14 +60,22 @@ module LightekCommerce
     def self.configured? = raise('The shared readiness check must not consult a dedicated Commerce credential')
   end
 end
+module Studio
+  module Advertising
+    class Payment
+      def self.find_by(**) = nil
+    end
+  end
+end
 ROOT = File.expand_path('../..', __dir__)
+require ROOT + '/app/services/dymond_bank/broadcast_advertising/funding'
 load ROOT + '/config/initializers/lightek_commerce_stripe_routing.rb'
 require ROOT + '/app/services/lightek_pwa/launch_readiness'
 
 class SharedBankWebhookTest < Minitest::Test
   Event = Struct.new(:type, :data)
   Data = Struct.new(:object)
-  ObjectData = Struct.new(:id, :metadata)
+  ObjectData = Struct.new(:id, :metadata, :charge)
   def setup
     DymondBank::StripeWebhookService.events = []
     LightekCommerce::StripeEvents.events = []

@@ -11,7 +11,8 @@
         ],
         "implementation": [
           "app/services/lightek_accounting/imports.rb",
-          "app/services/lightek_accounting/reconcile.rb"
+          "app/services/lightek_accounting/reconcile.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
         ],
         "guides": [
           "docs/enterprise-directory-and-accounting.md"
@@ -19,8 +20,210 @@
         "models": [
           "app/models/lightek_accounting/book.rb",
           "app/models/lightek_accounting/transaction.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
+      },
+      "capability": {
+        "key": "operations.finance.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Lists uncategorized transactions in books the caller can read."
       }
+    },
+    {
+      "id": "accounting.workspace.open",
+      "title": "Open Books & Accounting",
+      "summary": "Open the business accounting workspace in the browser with its existing MFA checks.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/accounting_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_accounting/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/enterprise_accounting_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "accounting.workspace.open",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Open the business accounting workspace in the browser with its existing MFA checks."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/accounting#index",
+          "coverage": "handoff"
+        }
+      ]
+    },
+    {
+      "id": "commerce.order.fulfill",
+      "title": "Fulfill a paid order",
+      "summary": "Complete fulfillment through Commerce and return the resulting order status.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/commerce_fulfillments_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_commerce/fulfillment.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "commerce.order.fulfill",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "order_id": "ORDER_ID",
+          "reference": "Delivery receipt"
+        },
+        "result": "Complete fulfillment through Commerce and return the resulting order status."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/commerce_fulfillments#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "commerce.order.provisioning.retry",
+      "title": "Retry a paid installation",
+      "summary": "Queue the existing paid-installation worker for an eligible order and return the queue receipt.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/commerce_orders_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/jobs/lightek_commerce/paid_instance_provisioning_job.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "commerce.order.provisioning.retry",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "order_id": "ORDER_ID"
+        },
+        "result": "Queue the existing paid-installation worker for an eligible order and return the queue receipt."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/commerce_orders#retry_provisioning",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "commerce.order.status",
+      "title": "Check a commerce order",
+      "summary": "Read the recorded payment, fulfillment and installation status.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/commerce_orders_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "commerce.order.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "order_id": "ORDER_ID"
+        },
+        "result": "Read the recorded payment, fulfillment and installation status."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/commerce_orders#index",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "commerce.orders",
@@ -32,18 +235,36 @@
         ],
         "implementation": [
           "app/services/lightek_commerce/order_placement.rb",
-          "app/controllers/dashboard/commerce_fulfillments_controller.rb"
+          "app/controllers/dashboard/commerce_fulfillments_controller.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
         ],
         "guides": [
           "docs/commerce/platform-operations.md"
         ],
         "models": [
           "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_bank"
-      ]
+      ],
+      "capability": {
+        "key": "operations.commerce.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID"
+        },
+        "result": "Lists paid orders on the selected site that are awaiting fulfillment."
+      }
     },
     {
       "id": "commerce.payouts",
@@ -54,14 +275,150 @@
           "app/controllers/dashboard/commerce_payouts_controller.rb"
         ],
         "implementation": [
-          "app/services/lightek_commerce/merchant_payouts.rb"
+          "app/services/lightek_commerce/merchant_payouts.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/payments/payout-accounts.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
         ]
       },
       "gems": [
         "dymond_bank"
+      ],
+      "capability": {
+        "key": "commerce.payouts.open",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID"
+        },
+        "result": "Opens the current merchant’s secure payout workspace."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/commerce_payouts#index",
+          "coverage": "handoff"
+        }
+      ]
+    },
+    {
+      "id": "hosting.fleet.rollout.control",
+      "title": "Control an existing fleet rollout",
+      "summary": "Start, pause, resume, retry, or cancel a reviewed rollout.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/fleet_updates_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/hosting_actions.rb",
+          "app/services/gatekeeper/fleet/rollouts.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.fleet.rollout.control",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "rollout_id": "ROLLOUT_ID",
+          "operation": "pause",
+          "confirmed": true
+        },
+        "result": "Start, pause, resume, retry, or cancel a reviewed rollout."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/fleet_updates#control",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "hosting.fleet.rollout.list",
+      "title": "List fleet rollouts",
+      "summary": "List fleet rollout status and schedules for fleet operators.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/fleet_updates_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/hosting_actions.rb",
+          "app/services/gatekeeper/fleet/rollouts.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.fleet.rollout.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "List fleet rollout status and schedules for fleet operators."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/fleet_updates#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "hosting.fleet.rollout.status",
+      "title": "Check fleet rollout progress",
+      "summary": "Return saved target counts and the rollout state.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/fleet_updates_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/hosting_actions.rb",
+          "app/services/gatekeeper/fleet/rollouts.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.fleet.rollout.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "rollout_id": "ROLLOUT_ID"
+        },
+        "result": "Return saved target counts and the rollout state."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/fleet_updates#show",
+          "coverage": "partial"
+        }
       ]
     },
     {
@@ -74,7 +431,8 @@
         ],
         "implementation": [
           "app/services/gatekeeper/website_deployment.rb",
-          "app/jobs/gatekeeper/hosting/provision_application_job.rb"
+          "app/jobs/gatekeeper/hosting/provision_application_job.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
         ],
         "guides": [
           "docs/server-application-management.md"
@@ -82,10 +440,99 @@
         "models": [
           "app/models/provisioning_request.rb",
           "app/models/provisioning_profile.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_dispatch"
+      ],
+      "capability": {
+        "key": "operations.hosting.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "Lists saved unhealthy node states within the caller’s hosting access."
+      }
+    },
+    {
+      "id": "hosting.server.list",
+      "title": "List managed servers",
+      "summary": "List saved server records visible to the caller.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/server_instances_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/hosting_actions.rb",
+          "app/services/gatekeeper/hosting/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.server.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "List saved server records visible to the caller."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/server_instances#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "hosting.server.status",
+      "title": "Check a managed server",
+      "summary": "Read the saved server status and open its dashboard.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/server_instances_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/hosting_actions.rb",
+          "app/services/gatekeeper/hosting/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/fleet_updates_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "hosting.server.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "node_id": "NODE_ID"
+        },
+        "result": "Read the saved server status and open its dashboard."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/server_instances#show",
+          "coverage": "partial"
+        }
       ]
     },
     {
@@ -97,12 +544,50 @@
           "app/controllers/sessions_controller.rb"
         ],
         "implementation": [
-          "app/controllers/concerns/authentication.rb"
+          "app/controllers/concerns/authentication.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/security/sign-in-and-mfa.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
         ]
-      }
+      },
+      "capability": {
+        "key": "identity.security.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "Returns your authenticator status and a link to sign-in security."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "identity_security#show",
+          "coverage": "partial"
+        },
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "identity_security#enroll",
+          "coverage": "handoff"
+        },
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "identity_security#confirm",
+          "coverage": "handoff"
+        },
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "identity_security#disable",
+          "coverage": "handoff"
+        }
+      ]
     },
     {
       "id": "integrations.connect",
@@ -115,15 +600,281 @@
         "implementation": [
           "app/services/lightek_connect/workspace.rb",
           "app/services/lightek_connect/shopify.rb",
-          "app/services/lightek_connect/wordpress_package.rb"
+          "app/services/lightek_connect/wordpress_package.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/integrations/lightek-connect.md"
         ],
         "models": [
           "app/models/lightek_connect/connection.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/nevaeh_os_test.rb"
         ]
-      }
+      },
+      "capability": {
+        "key": "connect.connections.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "Lists the agency operator’s connections and recorded revocation state."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/connect#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "mail.draft.create",
+      "title": "Create an email draft",
+      "summary": "Save a plain-text draft for review.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/mail_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/mail_actions.rb",
+          "app/services/lightek_mail/compose_message.rb",
+          "app/services/lightek_mail/submission.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lightek_mailbox_management_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "mail.draft.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID",
+          "to": "buyer@example.com",
+          "subject": "Proposal",
+          "text": "The proposal is ready."
+        },
+        "result": "Save a plain-text draft for review."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/mail_studio#create_message",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "mail.draft.send",
+      "title": "Queue an email draft for delivery",
+      "summary": "Explicitly confirm an existing draft and queue it through the mail service.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/mail_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/mail_actions.rb",
+          "app/services/lightek_mail/submission.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lightek_mailbox_management_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "mail.draft.send",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID",
+          "message_id": "MESSAGE_ID",
+          "confirmed": true
+        },
+        "result": "Explicitly confirm an existing draft and queue it through the mail service."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/mail_studio#send_draft",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "mail.mailbox.list",
+      "title": "List my mailboxes",
+      "summary": "Return the mailbox directory visible to the caller.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/mail_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/mail_actions.rb",
+          "app/services/lightek_mail/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lightek_mailbox_management_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "mail.mailbox.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "Return the mailbox directory visible to the caller."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/mail_studio#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "mail.message.flag",
+      "title": "Set mail message flags",
+      "summary": "Set archive, trash, star, unread or junk flags using the shared mail action.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/mail_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/mail_actions.rb",
+          "app/services/lightek_mail/message_flag.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lightek_mailbox_management_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "mail.message.flag",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID",
+          "message_id": "MESSAGE_ID",
+          "flag": "starred",
+          "value": true
+        },
+        "result": "Set archive, trash, star, unread or junk flags using the shared mail action."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/mail_studio#flag_message",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "mail.message.open",
+      "title": "Open a mail message",
+      "summary": "Open a message in Mail Studio for its full conversation.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/mail_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/mail_actions.rb",
+          "app/services/lightek_mail/conversation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lightek_mailbox_management_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "mail.message.open",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID",
+          "message_id": "MESSAGE_ID"
+        },
+        "result": "Open a message in Mail Studio for its full conversation."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/mail_studio#show_message",
+          "coverage": "handoff"
+        }
+      ]
+    },
+    {
+      "id": "mail.message.search",
+      "title": "Search a mail folder",
+      "summary": "Find messages in an authorized mailbox and return matching metadata.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/mail_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/mail_actions.rb",
+          "app/services/lightek_mail/message_folder.rb",
+          "app/services/lightek_mail/search.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/lightek_mailbox_management_test.rb"
+        ]
+      },
+      "capability": {
+        "key": "mail.message.search",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID",
+          "folder": "inbox",
+          "query": "Proposal"
+        },
+        "result": "Find messages in an authorized mailbox and return matching metadata."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/mail_studio#index",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "mail.operations",
@@ -136,15 +887,135 @@
         "implementation": [
           "app/services/lightek_mail/submission.rb",
           "app/services/lightek_mail/mailbox_management.rb",
-          "app/jobs/lightek_mail/deliver_job.rb"
+          "app/jobs/lightek_mail/deliver_job.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/mail_actions.rb"
         ],
         "guides": [
           "docs/mail/operations.md"
         ],
         "models": [
           "app/models/lightek_mail/message.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
+      },
+      "capability": {
+        "key": "mail.mailbox.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "mailbox_id": "MAILBOX_ID"
+        },
+        "result": "Returns enabled and sending-readiness flags for an authorized mailbox."
       }
+    },
+    {
+      "id": "marketing.publication.cancel",
+      "title": "Cancel a publication slot",
+      "summary": "Cancel a scheduled or blocked local slot using the existing calendar policy and record version.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/publication_calendar_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_marketing/publication_calendar.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/publishing-calendar.md"
+        ],
+        "models": [
+          "app/models/lightek_marketing/publication_slot.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/publication_calendar_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "marketing.publication.cancel",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "slot_id": "SLOT_ID",
+          "lock_version": 0
+        },
+        "result": "Cancel a scheduled or blocked local slot using the existing calendar policy and record version."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/publication_calendar#cancel",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "marketing.publication.status",
+      "title": "Check a publication slot",
+      "summary": "Return the calendar slot, its record version, and the recorded provider status.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/publication_calendar_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_marketing/publication_calendar.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/publishing-calendar.md"
+        ],
+        "models": [
+          "app/models/lightek_marketing/publication_slot.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/publication_calendar_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "marketing.publication.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "slot_id": "SLOT_ID"
+        },
+        "result": "Return the calendar slot, its record version, and the recorded provider status."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/publication_calendar#index",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "marketing.publishing",
@@ -156,15 +1027,48 @@
         ],
         "implementation": [
           "app/services/lightek_marketing/publication_calendar.rb",
-          "app/jobs/lightek_marketing/publication_slot_job.rb"
+          "app/jobs/lightek_marketing/publication_slot_job.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/sales/publishing-calendar.md"
         ],
         "models": [
           "app/models/lightek_marketing/publication_slot.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/publication_calendar_checks.rb"
         ]
-      }
+      },
+      "capability": {
+        "key": "marketing.publication.schedule",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "campaign_id": "CAMPAIGN_ID",
+          "connection_id": "CONNECTION_ID",
+          "scheduled_at": "ISO_8601_WITH_OFFSET",
+          "time_zone": "UTC"
+        },
+        "result": "Schedules a reviewed campaign via the existing calendar and returns the saved slot state."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/publication_calendar#create",
+          "coverage": "bound"
+        }
+      ]
     },
     {
       "id": "messages.conversations.list",
@@ -212,7 +1116,8 @@
           "app/services/nevaeh_os/executor.rb",
           "app/services/nevaeh_orchestration/native_contracts.rb",
           "app/services/gatekeeper/authorization_service.rb",
-          "app/services/nevaeh_os/receipts.rb"
+          "app/services/nevaeh_os/receipts.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "workers": [
           "app/services/nevaeh_os/worker.rb"
@@ -228,6 +1133,24 @@
       "gems": [
         "dymond_dispatch",
         "marlon"
+      ],
+      "capability": {
+        "key": "nevaeh.action.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "action_id": "ACTION_ID"
+        },
+        "result": "Returns the effective status of one action you submitted."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/nevaeh_os#action",
+          "coverage": "partial"
+        }
       ]
     },
     {
@@ -240,15 +1163,33 @@
         ],
         "implementation": [
           "app/services/lightek_people/payroll.rb",
-          "app/jobs/payroll_preparation_job.rb"
+          "app/jobs/payroll_preparation_job.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
         ],
         "guides": [
           "docs/people/organization-benefits-payroll.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_bank"
-      ]
+      ],
+      "capability": {
+        "key": "operations.payroll.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "employer_id": "EMPLOYER_ID"
+        },
+        "result": "Lists payroll drafts due for approval within the caller’s employer access."
+      }
     },
     {
       "id": "reservations.booking",
@@ -260,7 +1201,8 @@
         ],
         "implementation": [
           "app/services/lightek_reservations/booking.rb",
-          "app/services/lightek_reservations/settlement.rb"
+          "app/services/lightek_reservations/settlement.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/reservations_and_payouts.md"
@@ -268,10 +1210,228 @@
         "models": [
           "app/models/lightek_reservations/reservation.rb",
           "app/models/lightek_reservations/resource.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_bank"
+      ],
+      "capability": {
+        "key": "reservations.availability.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "resource_id": "RESOURCE_ID",
+          "date": "YYYY-MM-DD"
+        },
+        "result": "Returns available slots for the published resource and its timezone."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "reservations#slots",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "reservations.cancel",
+      "title": "Cancel my reservation",
+      "summary": "Cancel an eligible reservation through the customer booking service.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_reservations/booking.rb"
+        ],
+        "guides": [
+          "docs/nevaeh/tutorials/commands.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/reservations_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "reservations.cancel",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "reservation_id": "RESERVATION_ID"
+        },
+        "result": "Cancel an eligible reservation through the customer booking service."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "reservations#cancel",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "reservations.list",
+      "title": "List my reservations",
+      "summary": "List local bookings belonging to the signed-in customer.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_reservations/booking.rb"
+        ],
+        "guides": [
+          "docs/nevaeh/tutorials/commands.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/reservations_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "reservations.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "List local bookings belonging to the signed-in customer."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "reservations#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "reservations.reschedule",
+      "title": "Reschedule my reservation",
+      "summary": "Move an eligible appointment after checking availability.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_reservations/booking.rb"
+        ],
+        "guides": [
+          "docs/nevaeh/tutorials/commands.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/reservations_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "reservations.reschedule",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "reservation_id": "RESERVATION_ID",
+          "starts_at": "2027-03-31T15:30:00-04:00"
+        },
+        "result": "Move an eligible appointment after checking availability."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "reservations#reschedule",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "reservations.status",
+      "title": "Check my reservation",
+      "summary": "Return the saved status, appointment time and order state of a customer booking.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/reservations_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_reservations/booking.rb"
+        ],
+        "guides": [
+          "docs/nevaeh/tutorials/commands.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/reservations_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "reservations.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "reservation_id": "RESERVATION_ID"
+        },
+        "result": "Return the saved status, appointment time and order state of a customer booking."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "reservations#show",
+          "coverage": "partial"
+        }
       ]
     },
     {
@@ -284,7 +1444,8 @@
         ],
         "implementation": [
           "app/services/lightek_sales/workspace.rb",
-          "app/services/lightek_sales/forecast.rb"
+          "app/services/lightek_sales/forecast.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/sales/crm.md"
@@ -292,8 +1453,342 @@
         "models": [
           "app/models/lightek_sales/lead.rb",
           "app/models/lightek_sales/opportunity.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
         ]
+      },
+      "capability": {
+        "key": "sales.lead.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "name": "LEAD_NAME",
+          "company": "COMPANY",
+          "email": "EMAIL_ADDRESS"
+        },
+        "result": "Creates a lead and records the normal CRM activity on the selected site."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.crm.follow_up",
+      "title": "Review overdue sales follow-ups",
+      "summary": "Review leads and opportunities with overdue follow-ups on an authorized site.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/workspace.rb",
+          "app/services/lightek_sales/forecast.rb",
+          "app/services/nevaeh_os/specialist_tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/crm.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/lead.rb",
+          "app/models/lightek_sales/opportunity.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ]
+      },
+      "capability": {
+        "key": "operations.sales.review",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID"
+        },
+        "result": "Returns overdue leads and opportunities on the selected site."
       }
+    },
+    {
+      "id": "sales.lead.convert",
+      "title": "Convert a qualified sales lead",
+      "summary": "Convert a qualified lead through CRM and return the opportunity ID and stage.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/workspace.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/crm.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/lead.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.lead.convert",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "lead_id": "LEAD_ID",
+          "lock_version": 0,
+          "name": "Spring launch",
+          "amount": "1500.00",
+          "currency": "USD",
+          "close_on": "2027-03-31"
+        },
+        "result": "Convert a qualified lead through CRM and return the opportunity ID and stage."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales#convert",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "sales.lead.status",
+      "title": "Check sales lead status",
+      "summary": "Read the lead status, conversion result and current record version.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/workspace.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/crm.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/lead.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.lead.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "lead_id": "LEAD_ID"
+        },
+        "result": "Read the lead status, conversion result and current record version."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/sales#show",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.quote.accept",
+      "title": "Record customer approval of a quote",
+      "summary": "Record staff confirmation of customer approval and create the pending Commerce order.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_quotes_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/quotes.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/quote.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.quote.accept",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "quote_id": "QUOTE_ID",
+          "accepted_name": "Jane Doe",
+          "acceptance_reference": "Approval email",
+          "confirmed": true
+        },
+        "result": "Record staff confirmation of customer approval and create the pending Commerce order."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales_quotes#accept",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "sales.quote.draft",
+      "title": "Draft a quote for a deal",
+      "summary": "Draft a quote against published products and the selected deal.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_quotes_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/quotes.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/quote.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.quote.draft",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "opportunity_id": "OPPORTUNITY_ID",
+          "title": "Spring launch",
+          "customer_email": "buyer@example.com",
+          "expires_on": "2027-03-31",
+          "quantities": {
+            "7": 2
+          }
+        },
+        "result": "Draft a quote against published products and the selected deal."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales_quotes#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.quote.issue",
+      "title": "Issue a draft sales quote",
+      "summary": "Issue the latest draft quote through the CRM revision and catalog checks.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_quotes_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/quotes.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/quote.rb",
+          "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ],
+      "capability": {
+        "key": "sales.quote.issue",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "quote_id": "QUOTE_ID",
+          "lock_version": 0
+        },
+        "result": "Issues the existing draft after checking its revision and prerequisites."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales_quotes#issue",
+          "coverage": "bound"
+        }
+      ]
     },
     {
       "id": "sales.quotes",
@@ -304,7 +1799,8 @@
           "app/controllers/dashboard/sales_quotes_controller.rb"
         ],
         "implementation": [
-          "app/services/lightek_sales/quotes.rb"
+          "app/services/lightek_sales/quotes.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/sales/quotes-to-delivery.md"
@@ -312,10 +1808,417 @@
         "models": [
           "app/models/lightek_sales/quote.rb",
           "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_bank"
+      ],
+      "capability": {
+        "key": "sales.quote.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "quote_id": "QUOTE_ID"
+        },
+        "result": "Returns the saved quote state and the linked order state when present."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/sales_quotes#show",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.cancel",
+      "title": "Cancel a sales task",
+      "summary": "Cancel an open task through the sales tasks service and activity log.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_tasks_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.cancel",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "task_id": "TASK_ID",
+          "lock_version": 0
+        },
+        "result": "Cancel an open task through the sales tasks service and activity log."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/sales_tasks#change",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.complete",
+      "title": "Complete a sales task",
+      "summary": "Complete an open task through the sales tasks service and activity log.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_tasks_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.complete",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "task_id": "TASK_ID",
+          "lock_version": 0
+        },
+        "result": "Complete an open task through the sales tasks service and activity log."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/sales_tasks#change",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.schedule",
+      "title": "Schedule a sales follow-up",
+      "summary": "Assign a due-dated follow-up to a site team member using the sales task workflow.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_tasks_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.schedule",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "record_kind": "lead",
+          "record_id": "RECORD_ID",
+          "title": "Send proposal",
+          "owner_id": "OWNER_ID",
+          "due_at": "2027-03-31T15:30:00-04:00"
+        },
+        "result": "Assign a due-dated follow-up to a site team member using the sales task workflow."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales_tasks#schedule",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.snooze",
+      "title": "Snooze a sales task",
+      "summary": "Move the due date of an open task through the sales tasks service.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_tasks_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.snooze",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "task_id": "TASK_ID",
+          "lock_version": 0,
+          "due_at": "2027-03-31T15:30:00-04:00"
+        },
+        "result": "Move the due date of an open task through the sales tasks service."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/sales_tasks#change",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.status",
+      "title": "Check a sales task",
+      "summary": "Read the task status, due date and current record version.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "task_id": "TASK_ID"
+        },
+        "result": "Read the task status, due date and current record version."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/sales#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sessions.room.create",
+      "title": "Create a live production room",
+      "summary": "Create an audio or video room using the existing room defaults.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/rooms_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sessions/room_creation.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
+        ],
+        "guides": [
+          "docs/reservations_and_payouts.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb",
+          "app/models/lightek_reservations/resource.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ],
+      "capability": {
+        "key": "sessions.room.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "name": "Production room",
+          "kind": "video"
+        },
+        "result": "Creates the room and returns its join link."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/rooms#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sessions.room.invite",
+      "title": "Assign a guest place",
+      "summary": "Assign a guest place in an authorized room using the existing capacity rules.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/session_rooms_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/room_actions.rb",
+          "app/services/lightek_sessions/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/production_rooms_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sessions.room.invite",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "room_id": "ROOM_ID",
+          "email_address": "guest@example.com"
+        },
+        "result": "Assign a guest place in an authorized room using the existing capacity rules."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "session_rooms#invite",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "sessions.room.status",
+      "title": "Check a session room",
+      "summary": "Return the status and schedule of an authorized room.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/session_rooms_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/room_actions.rb",
+          "app/services/lightek_sessions/access.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "tests": [
+          "test/standalone/production_rooms_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sessions.room.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "room_id": "ROOM_ID"
+        },
+        "result": "Return the status and schedule of an authorized room."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "session_rooms#show",
+          "coverage": "partial"
+        }
       ]
     },
     {
@@ -329,7 +2232,8 @@
         "implementation": [
           "app/services/studio/broadcasting/playout.rb",
           "app/services/studio/broadcasting/channel_feed.rb",
-          "app/jobs/studio/broadcasting/channel_playout_job.rb"
+          "app/jobs/studio/broadcasting/channel_playout_job.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/studio/session-rooms-and-audience.md"
@@ -337,7 +2241,25 @@
         "models": [
           "app/models/studio/broadcasting/channel.rb",
           "app/models/studio/broadcasting/airing.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
+      },
+      "capability": {
+        "key": "studio.broadcast.channel.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "channel_id": "CHANNEL_ID"
+        },
+        "result": "Returns the saved channel state and managed playout flag."
       }
     },
     {
@@ -501,6 +2423,231 @@
       }
     },
     {
+      "id": "website.design.create",
+      "title": "Create a website design",
+      "summary": "Create a blank owned Design Studio workspace.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/design_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/studio_document.rb"
+        ],
+        "guides": [
+          "docs/lightek_design_studio.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.design.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "name": "Spring launch"
+        },
+        "result": "Create a blank owned Design Studio workspace."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/design_studio#create",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "website.design.list",
+      "title": "List website designs",
+      "summary": "List design workspaces visible to the current editor.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/design_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/studio_document.rb"
+        ],
+        "guides": [
+          "docs/lightek_design_studio.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.design.list",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "List design workspaces visible to the current editor."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/design_studio#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "website.design.publish",
+      "title": "Publish a website design to the library",
+      "summary": "Publish a saved revision through Design Studio and return its immutable library release.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/design_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/studio_document.rb"
+        ],
+        "guides": [
+          "docs/lightek_design_studio.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.design.publish",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "design_id": "DESIGN_ID",
+          "revision": 1
+        },
+        "result": "Publish a saved revision through Design Studio and return its immutable library release."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/design_studio#publish",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "website.design.status",
+      "title": "Check a website design",
+      "summary": "Return the saved design revision and latest release version.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/design_studio_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/studio_document.rb"
+        ],
+        "guides": [
+          "docs/lightek_design_studio.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.design.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "design_id": "DESIGN_ID"
+        },
+        "result": "Return the saved design revision and latest release version."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/design_studio#edit",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "website.theme.activate",
+      "title": "Activate a website theme",
+      "summary": "Activate a prepared theme on its website through the existing theme service.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/website_designs_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_design/site_theme.rb"
+        ],
+        "guides": [
+          "docs/cms/site-themes-and-journal.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/site_content_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "website.theme.activate",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "template_id": "TEMPLATE_ID"
+        },
+        "result": "Activate a prepared theme on its website through the existing theme service."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/website_designs#activate_theme",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
       "id": "websites.cms",
       "title": "Website design and CMS",
       "summary": "Configure website identity and design in the Dashboard.",
@@ -515,12 +2662,30 @@
         ],
         "guides": [
           "docs/cms/site-themes-and-journal.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
         ]
       },
       "gems": [
         "dymond_dash",
         "dymond_site"
-      ]
+      ],
+      "capability": {
+        "key": "site.page.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "title": "PAGE_TITLE"
+        },
+        "result": "Creates a draft CMS page and returns its ID and edit link."
+      }
     }
   ]
 }

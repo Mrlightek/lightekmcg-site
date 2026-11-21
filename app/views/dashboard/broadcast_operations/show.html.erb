@@ -1,0 +1,138 @@
+<% content_for :page_title, "Network operations" %>
+<%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
+<%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
+<main class="ll-studio ll-playout">
+  <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
+  <header class="ll-header"><h1>Network operations</h1></header>
+  <nav class="ll-playout-actions" aria-label="Broadcast tools">
+    <%= link_to "Lineup, programming rights, and audience reports", dashboard_broadcast_network_path(site_id: @site.id) %>
+    <%= link_to "Broadcast agreements", dashboard_broadcast_contracts_path(site_id: @site.id) %>
+    <%= link_to "Network reporting", dashboard_broadcast_network_report_path(site_id: @site.id) if @admin %>
+    <%= link_to "Broadcast advertising", dashboard_broadcast_advertising_path(site_id: @site.id) %>
+    <%= link_to "Watch TV", "https://#{@site.host}#{broadcast_tv_path}" %>
+  </nav>
+
+  <section class="ll-panel">
+    <h2>Carriage agreements</h2>
+    <% if @offer_choices&.any? %>
+      <details class="ll-config">
+        <summary>Offer carriage terms to a station</summary>
+        <%= form_with url: dashboard_broadcast_agreements_path(site_id: @site.id), scope: :agreement, class: "ll-config" do |form| %>
+          <label>Channel <%= form.select :channel_id, @offer_choices, { prompt: "Select a channel" }, required: true %></label>
+          <label>Starts <%= form.date_field :starts_on, required: true %></label>
+          <label>Ends <%= form.date_field :ends_on, required: true %></label>
+          <%= form.fields_for :terms do |terms| %>
+            <% Studio::Broadcasting::CarriageAgreement::TERMS.each do |field, label| %>
+              <label><%= label %> <%= terms.text_area field, required: true, maxlength: 4000, rows: 2 %></label>
+            <% end %>
+          <% end %>
+          <%= form.submit "Send terms" %>
+        <% end %>
+      </details>
+    <% end %>
+    <% if @hosted_agreements_unavailable %><p>Hosted agreements are temporarily unavailable.</p><% end %>
+    <% if @agreements.empty? && @hosted_agreements.blank? && !@hosted_agreements_unavailable %><p>No carriage agreements yet.</p><% end %>
+    <% @agreements.each do |agreement| %>
+      <details class="ll-config">
+        <summary><%= agreement.channel_name %> · <%= agreement.station_site.name %> / <%= agreement.outlet_site.name %>
+          · <%= agreement.accepted_at? ? "Accepted" : (agreement.ends_on < Date.current ? "Expired offer" : "Awaiting station acceptance") %></summary>
+        <p><%= l(agreement.starts_on) %> – <%= l(agreement.ends_on) %></p>
+        <dl>
+          <% Studio::Broadcasting::CarriageAgreement::TERMS.each do |field, label| %>
+            <dt><strong><%= label %></strong></dt><dd><%= simple_format(agreement.terms.fetch(field)) %></dd>
+          <% end %>
+        </dl>
+        <% if @admin %><%= link_to "Download carriage agreement report", dashboard_carriage_agreement_report_path(agreement, site_id: @site.id) %><% end %>
+        <% if agreement.accepted_at? %>
+          <p>Accepted by <%= agreement.hosted_carriage_id? ? agreement.station_site.name : agreement.accepted_by.full_name %> on <%= l(agreement.accepted_at, format: :short) %>.</p>
+        <% elsif @admin && agreement.channel_id? && agreement.station_site_id == @site.id && agreement.ends_on >= Date.current %>
+          <%= button_to "Accept these carriage terms", dashboard_accept_broadcast_agreement_path(agreement, site_id: @site.id) %>
+        <% end %>
+      </details>
+    <% end %>
+    <% @hosted_agreements.to_a.each do |agreement| %>
+      <details class="ll-config">
+        <summary><%= agreement.fetch("channel") %> · <%= agreement.fetch("outlet") %>
+          · <%= agreement["accepted_at"].present? ? "Accepted" : "Awaiting station acceptance" %></summary>
+        <p><%= agreement.fetch("starts_on") %> – <%= agreement.fetch("ends_on") %></p>
+        <dl>
+          <% Studio::Broadcasting::CarriageAgreement::TERMS.each do |field, label| %>
+            <dt><strong><%= label %></strong></dt><dd><%= simple_format(agreement.fetch("terms").fetch(field)) %></dd>
+          <% end %>
+        </dl>
+        <% if @admin %>
+          <%= link_to "Open agreement and delivery report", dashboard_hosted_broadcast_contract_path(agreement.fetch("id"), site_id: @site.id) %>
+        <% end %>
+        <% if @admin && agreement["accepted_at"].blank? && agreement.fetch("ends_on") >= Date.current.iso8601 %>
+          <%= button_to "Accept these carriage terms", dashboard_accept_hosted_broadcast_agreement_path(agreement.fetch("id"), site_id: @site.id) %>
+        <% end %>
+      </details>
+    <% end %>
+  </section>
+
+  <section class="ll-panel">
+    <h2>Channel schedules and playout</h2>
+    <% if @channels.empty? %><p>Set up a managed channel in <%= link_to "Media Studio", dashboard_media_studio_path(site_id: @site.id) %>.</p><% end %>
+    <ul class="ll-playout-list">
+      <% @channels.each do |channel| %>
+        <li><%= link_to channel.name, dashboard_channel_playout_path(channel, site_id: @site.id) %> · <%= channel.status.humanize %></li>
+      <% end %>
+    </ul>
+  </section>
+
+  <% if @packages %>
+    <section class="ll-panel">
+      <h2>Sponsor packages</h2>
+      <% if @payments.any? %>
+        <details class="ll-config">
+          <summary>Assemble a package from booked spots</summary>
+          <%= form_with url: dashboard_broadcast_packages_path(site_id: @site.id), scope: :package, class: "ll-config" do |form| %>
+            <label>Package name <%= form.text_field :name, required: true, maxlength: 120 %></label>
+            <fieldset class="ll-config">
+              <legend>Booked spots</legend>
+              <% @payments.each do |payment| %>
+                <% spot = payment.placement %>
+                <label><%= check_box_tag "package[payment_ids][]", payment.id, false, id: "package_payment_#{payment.id}" %>
+                  <%= spot.campaign.name %> · <%= spot.airing&.channel&.name || spot.station_site.name %> · <%= l(spot.booked_start, format: :short) %> · <%= number_to_currency(payment.amount_cents / 100.0) %></label>
+              <% end %>
+            </fieldset>
+            <%= form.submit "Create sponsor package" %>
+          <% end %>
+        </details>
+      <% elsif @packages.empty? %>
+        <p>Book ad spots in channel rundowns to assemble a sponsor package.</p>
+      <% end %>
+      <ul class="ll-playout-list">
+        <% @packages.each do |package| %>
+          <li><strong><%= package.name %></strong>
+            · <%= link_to "Private sponsor link", "#{LightekReservations::Federation::Issuer.origin}#{broadcast_sponsor_package_path(package.public_key)}", rel: "noreferrer" %>
+            · <%= link_to "Download delivery and payout report", dashboard_broadcast_package_report_path(package, site_id: @site.id) %></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+
+  <% if @plans %>
+    <section class="ll-panel">
+      <h2>Monthly division plans</h2>
+      <p>Set the budget and ownership for a division, channel, or market. Record actual revenue and costs from your reviewed books.</p>
+      <% if @departments.any? %>
+        <details class="ll-config"><summary>Add a monthly plan</summary>
+          <%= render "plan_form", plan: Studio::Broadcasting::OperatingPlan.new(month: Date.current.beginning_of_month) %>
+        </details>
+      <% else %>
+        <p>Set up your operating departments in People to create a plan.</p>
+      <% end %>
+      <% @plans.each do |plan| %>
+        <details class="ll-config">
+          <summary><strong><%= plan.department.name %></strong> · <%= plan.month.strftime("%B %Y") %>
+            <%= " · #{plan.channel.name}" if plan.channel %><%= " · #{plan.market}" if plan.market.present? %>
+            · <%= plan.owner.full_name %></summary>
+          <p>Operating margin <%= number_to_currency(plan.margin_cents / 100.0) %>
+            · Remaining budget <%= number_to_currency(plan.remaining_budget_cents / 100.0) %></p>
+          <%= render "plan_form", plan: plan %>
+        </details>
+      <% end %>
+    </section>
+  <% end %>
+</main>

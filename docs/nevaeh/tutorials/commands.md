@@ -14,6 +14,8 @@ susu.list
 susu.show {"group_id":123}
 /execute susu.list
 /describe susu.show
+Run capability susu.list
+Run capability susu.show with {"group_id":123}
 ```
 
 `group_id:123` is an example, not a real account record. Use an ID from your Susu list. Your identity is inserted by the server. When the host is not mapped and several applications are available, specify your authorized `site_id` in the inputs.
@@ -24,7 +26,65 @@ Open **Dashboard → Software Library → Code map** or ask Nevaeh with `/code S
 
 A mapped binding appears as enabled when its installed registry entry matches the worker, event, and Gatekeeper capability. For enabled entries, Nevaeh shows an example command. Replace placeholders such as `SCENE_ID` with IDs for records you can access. Submit the command through the normal conversation and follow the existing execution receipt. A render quote returns an operation and quote, and the render follows the existing Studio settlement workflow.
 
-An architecture reference documents a workflow's source. Check Guide for execution routes outside the map. To extend the map, update `config/nevaeh/code_knowledge.json` with repository-relative references. Add a capability link after the shared native registry can resolve the action. CI checks that source paths, gem references and worker method bindings resolve.
+An architecture reference documents a workflow's source. Check Guide for execution routes outside the map. To extend the map, update `config/nevaeh/code_knowledge.json` with repository-relative references. Add a capability link after the shared native registry can resolve the action. For in-app operations, link to a named `NevaehOs::PlatformActions` entry. These commands use the saved-action worker, and authorization is checked at submission and execution. CI checks that source paths, gem references and both kinds of worker bindings resolve.
+
+Examples of in-app operations include `/execute sales.lead.create`, `/execute reservations.availability.list`, and `/execute marketing.publication.schedule`. Use their code map examples for the exact inputs. A calendar receipt confirms a saved schedule. Provider delivery has its own status. A saved broadcast channel status reports configuration. Check the broadcast workspace for live stream health.
+
+### Sales and publishing commands
+
+| Task | Say or type |
+| --- | --- |
+| Check a lead and get its current version | `Show lead #12 on site #3` |
+| Convert a qualified lead to a deal | `Convert lead #12 on site #3 at version 0 to a deal called "Spring launch" for 1500.00 USD closing 2027-03-31` |
+| Check a quote and its order | `Show quote #42 on site #3` |
+| Draft a quote from catalog products | `Draft a quote for deal #42 on site #3 called "Spring launch" for "buyer@example.com" expiring 2027-03-31 with 2 of product #7` |
+| Issue a draft quote | `Issue quote #42 on site #3 at version 0` |
+| Record a customer's confirmed approval | `Record customer approval for quote #42 on site #3 from "Jane Doe" with reference "Approval email"` |
+| Check payment, delivery, and installation status | `Check order #42 on site #3` |
+| Finish fulfillment of a paid order | `Fulfill order #42 on site #3 with reference "Delivery receipt"` |
+| Queue installation recovery for a paid order | `Retry installation for order #42 on site #3` |
+| Check a sales task and get its current version | `Check sales task #42 on site #3` |
+| Schedule a follow-up | `Schedule a follow-up called "Send proposal" for lead #42 on site #3 assigning user #5 due 2027-03-31T15:30:00-04:00` |
+| Complete a sales task | `Complete sales task #42 on site #3 at version 0` |
+| Cancel a sales task | `Cancel sales task #42 on site #3 at version 0` |
+| Snooze a sales task | `Snooze sales task #42 on site #3 at version 0 until 2027-03-31T15:30:00-04:00` |
+| Check a calendar slot and get its current version | `Check publication slot #12 on site #3` |
+| Cancel a pending local slot | `Cancel publication slot #12 on site #3 at version 0` |
+
+Use the IDs and record versions from your own workspace. Recording approval requires evidence that the customer approved that quote. The action creates an order awaiting payment. Canceling a local publication slot follows the calendar's operator and version checks. For a submission that has already started, reconcile it through the publishing calendar.
+
+Use the order status command to follow a queued installation. It reports the latest installation state recorded by the existing Commerce worker.
+
+### Customer reservations
+
+| Task | Say or type |
+| --- | --- |
+| See your local reservations and their IDs | `Show my reservations` |
+| Check a reservation and its order status | `Check reservation #42` |
+| Move an eligible appointment | `Reschedule my reservation #42 to 2027-03-31T15:30:00-04:00` |
+| Cancel an eligible reservation | `Cancel my reservation #42` |
+
+Nevaeh uses the existing booking rules for availability, cancellation windows, and orders awaiting payment. Refunds follow the separate payment workflow.
+
+### Website designs
+
+Say `Show my website designs`, `Create a website design called "Spring launch"`, or `Check website design #42`. After reviewing the saved design, say `Publish website design #42 to the library at revision 1`. This creates a versioned library release. Use Website Designs to apply a release to a live site.
+
+Once a theme has been prepared for a website in Website Designs, say `Activate website theme #42 on site #3`. The existing theme workflow applies the theme and keeps draft pages private.
+
+### Review platform coverage
+
+Open **Software Library → Code map → Platform coverage** to search the loaded host and engine controller routes. Download JSON for the complete matching list. A bound route has an explicit reviewed capability. A partial route has a capability for part of the workflow. A browser handoff links to the existing workflow, which applies its own session and authorization requirements. An unmapped route needs a review before it can count toward execution coverage. The inventory shows installed routing and binding evidence. Live acceptance is tracked through execution receipts.
+
+Try `/code sign-in`, `/code merchant payout`, or `/code action status` for account security, payout setup, and execution diagnostics. Enter authentication factors and payout account details in the existing secure forms.
+
+### Mail Studio and hosting
+
+Say `Show my mailboxes`, `Search inbox in mailbox #3 for "Proposal"`, or `Open message #42 in mailbox #3`. Search returns message metadata and opening a message takes you to Mail Studio. `Draft an email from mailbox #3 to "buyer@example.com" with subject "Proposal" and body "The proposal is ready."` saves a draft for review. `Confirm sending draft #42 from mailbox #3` queues the existing draft through the mail service. Check Mail Studio for the delivery result.
+
+Say `Show my servers` to list servers you manage or `Check fleet rollout #42` to inspect a rollout and its target counts. Fleet operators can use explicit confirmation phrases such as `Confirm pause fleet rollout #42`. A rollout receipt reports the current rollout state. Individual installation results remain in the fleet console.
+
+Say `Check production room #42` or `Invite "guest@example.com" to room #42`. An invitation reserves a guest place in the room. Share the returned link with the guest. `Open accounting for employer #42` opens the existing Books & Accounting workspace, where the browser verifies your session before displaying books.
 
 ## Query and edit resources
 

@@ -1,7 +1,7 @@
 <% content_for :page_title, "#{@channel.name} · Channel playout" %>
 <%= stylesheet_link_tag "/lightek/live/studio.css?v=10" %>
 <%= stylesheet_link_tag "/lightek/live/playout.css?v=1" %>
-<%= javascript_include_tag "/lightek/live/playout.js?v=1", defer: true %>
+<%= javascript_include_tag "/lightek/live/playout.js?v=2", defer: true %>
 
 <main class="ll-studio ll-playout">
   <%= render "shared/production_navigation", site: @site, section: "Live Studio" %>
@@ -13,11 +13,22 @@
   <section class="ll-panel" aria-labelledby="channel-control">
     <h2 id="channel-control">Channel control</h2>
     <div class="ll-playout-actions">
+      <%= link_to "Network lineup and viewership", dashboard_broadcast_network_path(site_id: @site.id) %>
       <%= link_to "Open live contribution in a new tab", dashboard_live_path(site_id: @site.id, contribution: "1"), target: "_blank", rel: "noopener" %>
       <%= link_to "Open channel playlist", @playlist %>
+      <%= link_to "Broadcast advertising", dashboard_broadcast_advertising_path(site_id: @site.id) %>
       <%= link_to "Refresh status", dashboard_channel_playout_path(@channel, site_id: @site.id) %>
     </div>
     <p class="ll-note">Preview your camera, screen, or guest feed in Live Studio and start a private contribution. Keep that tab open while you take it to air.</p>
+    <p>Feed status · <strong><%= @feed_health %></strong></p>
+    <details class="ll-config">
+      <summary>Backup programming · <%= @backup_ready ? "Ready" : (@channel.backup_asset_id? ? "Preparing or unavailable" : "Default slate") %></summary>
+      <%= form_with url: dashboard_channel_playout_backup_path(@channel, site_id: @site.id), method: :patch, class: "ll-playout-actions" do |form| %>
+        <label>Backup video <%= form.select :asset_id, @videos.map { |asset| [asset.name, asset.id] },
+          { include_blank: "Use default slate", selected: @channel.backup_asset_id } %></label>
+        <%= form.submit "Save backup" %>
+      <% end %>
+    </details>
     <% @airings.each do |airing| %>
       <details class="ll-config" <%= "open" if airing.status == "on_air" %>>
         <summary><strong><%= airing.title %></strong> · <%= l(airing.starts_at, format: :short) %> <%= airing.starts_at.strftime("%Z") %> · <%= airing.status.humanize %></summary>
@@ -42,8 +53,13 @@
           <%= button_to "Cancel airing", dashboard_channel_playout_command_path(@channel, airing, site_id: @site.id), params: { command: "cancel" } %>
         <% end %>
         <ol class="ll-playout-list">
-          <% airing.rundown.each do |row| %>
-            <li><%= Studio::Broadcasting::Airing::SLOT_TYPES.fetch(row["kind"]) %> · <%= row["label"] %> · <%= row["seconds"] %>s<%= " · #{row["sponsor"]}" if row["sponsor"].present? %></li>
+          <% placements = @ad_placements.fetch(airing.id, []).index_by(&:row_index) %>
+          <% airing.rundown.each_with_index do |row, index| %>
+            <li><%= Studio::Broadcasting::Airing::SLOT_TYPES.fetch(row["kind"]) %> · <%= row["label"] %> · <%= row["seconds"] %>s<%= " · #{row["sponsor"]}" if row["sponsor"].present? %>
+              <% if (placement = placements[index]) %>
+                · <%= placement.campaign.name %> · <%= placement.delivered_at? ? "Delivered" : "Network ad booked" %>
+              <% end %>
+            </li>
           <% end %>
         </ol>
         <% if airing.events.any? %>
@@ -66,28 +82,56 @@
     <h2 id="make-rundown">Schedule a rundown</h2>
     <% if @channel.status == "off_air" %>
       <p>Set the channel to Draft for a private test or On air for viewers before scheduling.</p>
-    <% elsif @videos.empty? %>
+    <% elsif @videos.empty? && @licensed_programs.empty? %>
       <p>Add a video to your Studio asset library or upload one from <%= link_to "Live Studio", dashboard_live_path(site_id: @site.id) %>. It appears here after processing.</p>
     <% else %>
       <%= form_with url: dashboard_channel_playout_path(@channel, site_id: @site.id), scope: :airing, data: { rundown_editor: true } do |form| %>
         <div class="ll-playout-actions">
           <label>Show title <%= form.text_field :title, maxlength: 120, required: true %></label>
           <label>Airtime (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, required: true %></label>
+          <label><%= form.check_box :replay %> This rundown is a replay</label>
+          <label>Weekly airings, including this date <%= form.number_field :weekly_occurrences, min: 1, max: 12, value: 1, required: true %></label>
           <label>Also send to <%= form.select :relay, @relays, { include_blank: "Channel only" }, disabled: @channel.status != "published" %></label>
         </div>
+        <% if @campaigns.any? && @show_projects.any? %>
+          <label>Show project for producer share <%= form.select :show_project_id, @show_projects.map { |project| [project.name, project.id] }, { include_blank: "Choose if the campaign pays a producer" } %></label>
+        <% end %>
+        <% if @campaigns.any? %>
+          <p class="ll-note">Campaigns can run in pre-roll, mid-roll or pre-end roll. The campaign sets the length. Choose a local backup video that can fill the whole slot.</p>
+        <% end %>
+        <details class="ll-config">
+          <summary>Audience measurement metadata</summary>
+          <%= form.fields_for :measurement do |fields| %>
+            <label>Stable asset ID <%= fields.text_field :asset_id, maxlength: 48, pattern: "[A-Za-z0-9]+" %></label>
+            <label>Program or series name <%= fields.text_field :program, maxlength: 120 %></label>
+            <label>Episode title <%= fields.text_field :episode_title, maxlength: 120 %></label>
+            <label>Standard episode ID <%= fields.text_field :episode_id, maxlength: 100 %></label>
+            <label>Nielsen-assigned originator ID <%= fields.text_field :originator_id, maxlength: 100 %></label>
+            <label>Episode type <%= fields.select :full_episode, [["Full episode", "y"], ["Clip or partial", "n"]], include_blank: true %></label>
+            <label>Nielsen Roku genre code <%= fields.text_field :roku_genre, maxlength: 8, pattern: "[A-Z0-9]+" %></label>
+            <label>Ad load <%= fields.select :ad_load_type, [["Matches the linear ad load", "1"], ["Dynamic ad insertion", "2"]], include_blank: true %></label>
+          <% end %>
+        </details>
         <p class="ll-note">Rows air in order. Leave duration blank to use the full video in whole seconds. Sponsor text appears over that row’s video.</p>
+        <p class="ll-note">Put commercial slots of the same type next to each other to create a break. Adjacent slots offered to external advertisers share one break. The selected library videos fill the time if no external ad is available.</p>
         <div data-rundown-rows></div>
         <template data-rundown-row>
           <fieldset class="ll-playout-row">
             <legend>Rundown row</legend>
             <label>Slot <select data-field="kind"><%= options_for_select(Studio::Broadcasting::Airing::SLOT_TYPES.map { |value, name| [name, value] }, "segment") %></select></label>
-            <label>Library video <select data-field="asset_id" required><option value="">Choose a video</option><%= options_for_select(@videos.map { |asset| ["#{asset.name} · #{asset.metadata["duration"].to_f.floor}s", asset.id] }) %></select></label>
+            <label>Library video <select data-field="asset_id" required><option value="">Choose a video</option><%= options_for_select(@videos.map { |asset| ["#{asset.name} · #{asset.metadata["duration"].to_f.floor}s", asset.id] }) %>
+              <% if @licensed_programs.any? %><optgroup label="Licensed programming"><%= options_for_select(@licensed_programs.map { |license| [license.title, "license-#{license.id}"] }) %></optgroup><% end %></select></label>
+            <% if @campaigns.any? %>
+              <label>Network campaign <select data-field="ad_campaign_id"><option value="">Use library video</option><%= options_for_select(@campaigns.map { |campaign| ["#{campaign.network.name} · #{campaign.name} · #{campaign.seconds}s · #{number_to_currency(campaign.split.fetch(:station_cents) / 100.0)} to station", campaign.id] }) %></select></label>
+            <% end %>
+            <label data-external-slot hidden><input type="checkbox" value="1" data-field="external_ad"> Offer to external advertisers</label>
             <label>Label <input data-field="label" maxlength="120"></label>
             <label>Duration in seconds <input type="number" data-field="seconds" min="2" max="7200"></label>
             <label>Sponsor text <input data-field="sponsor" maxlength="80"></label>
             <div class="ll-playout-actions">
               <button type="button" data-move="up" aria-label="Move row up">↑</button>
               <button type="button" data-move="down" aria-label="Move row down">↓</button>
+              <button type="button" data-add-slot hidden>Add commercial slot</button>
               <button type="button" data-remove-row>Remove row</button>
             </div>
           </fieldset>

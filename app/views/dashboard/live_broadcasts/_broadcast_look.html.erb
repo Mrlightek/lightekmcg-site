@@ -2,16 +2,27 @@
   <summary>Broadcast frame & green screen</summary>
   <fieldset>
     <legend>Broadcast frame</legend>
-    <div class="ll-grid">
-      <label>Style<select data-look="frame">
+    <div class="ll-look-preview">
+      <canvas width="1280" height="720" data-look-preview role="img" aria-label="Private preview of the broadcast frame"></canvas>
+      <p class="ll-note">Frame preview. Use Apply to program when ready.</p>
+    </div>
+    <div class="ll-grid" data-look-frame-controls>
+      <label>House look<select data-look="frame">
         <option value="off">No frame</option>
         <option value="studio">Studio signature</option>
         <option value="news">News desk</option>
         <option value="breaking">Breaking news</option>
         <option value="sports">Sports desk</option>
+        <option value="local">Local newsroom</option>
+        <option value="cinema">Lightek Originals</option>
+        <option value="entertainment">Entertainment live</option>
+        <option value="gaming">Gamecast</option>
+        <option value="affiliate">Affiliate station</option>
+        <option value="sponsor">Sponsor credit</option>
       </select></label>
       <label>Network or show name<input type="text" maxlength="40" placeholder="Lightek MCG" data-look="brand"></label>
       <label>Bottom headline<input type="text" maxlength="90" data-look="headline"></label>
+      <label>Second line<input type="text" maxlength="80" data-look="subtitle"></label>
       <label>Badge label<input type="text" maxlength="16" placeholder="Use style label" data-look="badge"></label>
       <label data-look-score hidden>Score or game status<input type="text" maxlength="40" placeholder="ATL 24 · NY 17 · FINAL" data-look="score"></label>
       <label>Panel texture<select data-look="texture">
@@ -23,6 +34,7 @@
       </select></label>
       <label>Panel tint<input type="color" value="#0b1324" data-look="frame-color"></label>
       <label>Accent<input type="color" value="#d6aa58" data-look="accent"></label>
+      <label><input type="checkbox" checked data-look="markers"> Show corner accents</label>
     </div>
     <%= render "dashboard/live_broadcasts/broadcast_themes", kind: "frame" %>
   </fieldset>

@@ -1,0 +1,15 @@
+<label>Starts (UTC) <%= date_field_tag "version[starts_on]", version&.starts_on, required: true %></label>
+<label>Ends (UTC) <%= date_field_tag "version[ends_on]", version&.ends_on, required: true %></label>
+<label>Market <%= text_field_tag "version[market]", version&.terms_snapshot&.fetch("market"), maxlength: 120 %></label>
+<label>Terms <%= text_area_tag "version[terms]", version&.terms_snapshot&.fetch("terms"), maxlength: 20000, rows: 4, required: true %></label>
+<% unless kind == "sponsor" %>
+  <label>Delivery evidence <%= select_tag "version[delivery_mode]",
+    options_for_select([["Operator-reviewed deliveries", "reviewed"], ["Verified playout of linked ad spots", "booked_spots"]],
+      version&.terms_snapshot&.fetch("delivery_mode")) %></label>
+  <label>Promised delivery units <%= number_field_tag "version[delivery_target]", version&.terms_snapshot&.fetch("delivery_target") || 0, min: 0, max: 100000 %></label>
+  <label>Fixed fee due (defaults to end of term) <%= date_field_tag "version[due_on]", version&.terms_snapshot&.fetch("due_on") %></label>
+  <label>Agreed fixed fee (USD) <%= number_field_tag "version[amount]", (format("%.2f", version.terms_snapshot["amount_cents"] / 100.0) if version), min: 0, step: "0.01" %></label>
+<% end %>
+<% if %w[carriage producer].include?(kind) %>
+  <label>Related ad payment IDs (optional) <%= text_field_tag "version[payable_placement_ids]", version&.terms_snapshot&.fetch("payment_ids")&.join(", ") %></label>
+<% end %>

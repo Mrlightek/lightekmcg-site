@@ -1,0 +1,11 @@
+<label>Territories <%= form.text_field :territories, value: license&.territories&.join(", ") || "WORLDWIDE", required: true %></label>
+<fieldset class="ll-config">
+  <legend>Platforms</legend>
+  <% names = Studio::Broadcasting::ProgramLicense::PLATFORMS %>
+  <% allowed = license ? (license.platforms || Studio::Broadcasting::ProgramLicense::MANAGED_PLATFORMS) : names.keys %>
+  <% selected = license&.platforms || Studio::Broadcasting::ProgramLicense::MANAGED_PLATFORMS %>
+  <% names.slice(*allowed).each do |key, label| %>
+    <label><%= check_box_tag "license[platforms][]", key, selected.include?(key), id: "license_platform_#{form.object_id}_#{key}" %> <%= label %></label>
+  <% end %>
+  <%= hidden_field_tag "license[platforms][]", "", id: nil %>
+</fieldset>

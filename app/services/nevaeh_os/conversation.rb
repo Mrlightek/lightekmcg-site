@@ -130,7 +130,7 @@ module NevaehOs
         rows=RailsConsole.models(@actor).map(&:name)
         {'text'=>rows.join("\n"),'models'=>rows,'status'=>'ready'}
       when 'schema'
-        schema=RailsConsole.schema(command.fetch('model'),@actor)
+        schema=RailsConsole.schema(command.fetch('model'),@actor,english:command.fetch('english_model',false))
         {'text'=>JSON.pretty_generate(schema),'schema'=>schema,'status'=>'ready'}
       when 'goals','goal_show'
         rows=command['kind']=='goal_show' ? [Goals.owned!(@actor,command.fetch('id'))] : NevaehGoal.where(user:@actor).order(id: :desc).limit(30)
@@ -218,6 +218,9 @@ module NevaehOs
       {'text'=>text,'status'=>'ready','guide_url'=>'/dashboard/nevaeh/guide','task_choices'=>(defined?(TaskCatalog) ? TaskCatalog.manifest : []),'capabilities'=>examples.map { |entry| {slug:entry[:key],name:entry[:title],invoke:entry[:example]} }}
     end
     def prepare_command(command)
+      if command['kind'] == 'capability' && defined?(PlatformActions) && PlatformActions.supported?(command['intent'])
+        command = PlatformActions.command(command.fetch('intent'), command.fetch('payload'))
+      end
       return command.merge('host'=>@host,'origin'=>@origin) if command['kind']=='goal'
       if command['kind']=='website_page'
         command['site_id']||=@page_context['site_id'] if @page_context

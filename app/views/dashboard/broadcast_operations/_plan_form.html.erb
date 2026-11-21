@@ -1,0 +1,14 @@
+<% path = plan.persisted? ? dashboard_broadcast_plan_path(plan, site_id: @site.id) : dashboard_broadcast_plans_path(site_id: @site.id) %>
+<%= form_with model: plan, scope: :plan, url: path, class: "ll-config" do |form| %>
+  <label>Division or department <%= form.collection_select :department_id, @departments, :id, :name, { prompt: "Select a department" }, required: true %></label>
+  <label>Accountable owner <%= form.collection_select :owner_id, @owners, :id, :full_name, { prompt: "Select an owner" }, required: true %></label>
+  <label>Budget month <%= form.month_field :month, value: plan.month.strftime("%Y-%m"), required: true %></label>
+  <label>Channel <%= form.collection_select :channel_id, @channels, :id, :name, include_blank: "All channels" %></label>
+  <label>Market <%= form.text_field :market, maxlength: 120 %></label>
+  <label>Staffing and coverage <%= form.text_area :coverage, required: true, maxlength: 4000, rows: 2 %></label>
+  <label>Targets <%= form.text_area :targets, required: true, maxlength: 4000, rows: 2 %></label>
+  <% { budget: "Budget", actual_cost: "Actual cost", actual_revenue: "Actual revenue" }.each do |field, label| %>
+    <label><%= label %> (USD) <%= form.number_field field, value: format("%.2f", plan.public_send("#{field}_cents").to_i / 100.0), min: 0, step: "0.01", required: true %></label>
+  <% end %>
+  <%= form.submit "Save monthly plan" %>
+<% end %>

@@ -12,12 +12,36 @@
     return luminance > .179 ? '#000' : '#fff';
   }
 
+  const widthSafe = 48;
+  const heightSafe = 36;
   const frameStyles = {
-    studio: { badge: 'LIVE', tint: '#42311f', accent: '#e3b76c', base: '#171720', texture: 'brushed', rail: 2 },
-    news: { badge: 'NEWS DESK', tint: '#294c7b', accent: '#b3d8ff', base: '#101e31', texture: 'scanlines', rail: 2 },
-    breaking: { badge: 'BREAKING', tint: '#8e2735', accent: '#f47877', base: '#2c1823', texture: 'scanlines', rail: 3 },
-    sports: { badge: 'SPORTS DESK', tint: '#244c48', accent: '#c7f178', base: '#132521', texture: 'mesh', rail: 3 }
+    studio: { badge: 'LIVE', tint: '#42311f', accent: '#e3b76c', base: '#171720', texture: 'brushed', rail: 2, layout: 'signature' },
+    news: { badge: 'NEWS DESK', tint: '#294c7b', accent: '#b3d8ff', base: '#101e31', texture: 'scanlines', rail: 2, layout: 'desk' },
+    breaking: { badge: 'BREAKING', tint: '#8e2735', accent: '#f47877', base: '#2c1823', texture: 'scanlines', rail: 3, layout: 'alert' },
+    sports: { badge: 'SPORTS DESK', tint: '#244c48', accent: '#c7f178', base: '#132521', texture: 'mesh', rail: 3, layout: 'score' },
+    local: { badge: 'LOCAL REPORT', tint: '#21605f', accent: '#a8f0d5', base: '#10272c', texture: 'none', rail: 2, layout: 'desk' },
+    cinema: { badge: 'LIGHTEK ORIGINAL', tint: '#513146', accent: '#edc797', base: '#201921', texture: 'brushed', rail: 2, layout: 'title' },
+    entertainment: { badge: 'ON STAGE', tint: '#5b2b69', accent: '#ffc0ea', base: '#25182c', texture: 'none', rail: 3, layout: 'title' },
+    gaming: { badge: 'GAMECAST', tint: '#2d3d74', accent: '#b8acf7', base: '#181d38', texture: 'mesh', rail: 3, layout: 'score' },
+    affiliate: { badge: 'NETWORK FEED', tint: '#3b4b61', accent: '#d1e0f1', base: '#172330', texture: 'none', rail: 2, layout: 'signature' },
+    sponsor: { badge: 'PRESENTED BY', tint: '#654624', accent: '#ffdb9b', base: '#251d15', texture: 'brushed', rail: 2, layout: 'credit' }
   };
+
+  const frameFields = ['frame', 'brand', 'badge', 'frame-color', 'accent', 'texture', 'markers'];
+  const validFrame = id => Object.hasOwn(frameStyles, id);
+
+  function fitText(ctx, text, widthLimit) {
+    if (ctx.measureText(text).width <= widthLimit) return text;
+    const characters = Array.from(text);
+    while (characters.length && ctx.measureText(characters.join('') + '…').width > widthLimit) characters.pop();
+    return characters.join('').trimEnd() + '…';
+  }
+
+  function panelTint(color) {
+    return '#' + color.slice(1).match(/../g).map(part =>
+      Math.round(24 + parseInt(part, 16) * .28).toString(16).padStart(2, '0')
+    ).join('');
+  }
 
   function textureTile(kind) {
     if (kind === 'none') return null;
@@ -47,7 +71,7 @@
     const background = ctx.createLinearGradient(x, y, x + w, y + h);
     background.addColorStop(0, style.base);
     background.addColorStop(.64, style.base);
-    background.addColorStop(1, settings.frameColor);
+    background.addColorStop(1, panelTint(settings.frameColor));
     ctx.fillStyle = background;
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -64,73 +88,95 @@
   }
 
   function drawFrame(ctx, settings) {
+    if (!validFrame(settings.frame)) return;
     const style = frameStyles[settings.frame];
-    if (!style) return;
     const { accent } = settings;
-    const left = 44;
-    const top = 44;
-    const sports = settings.frame === 'sports';
-    const studio = settings.frame === 'studio';
-    const breaking = settings.frame === 'breaking';
-    const bevel = sports ? 14 : 0;
+    const left = widthSafe;
+    const top = heightSafe + 12;
+    const score = style.layout === 'score';
+    const alert = style.layout === 'alert';
+    const title = style.layout === 'title';
+    const credit = style.layout === 'credit';
+    const right = style.layout === 'signature' || credit;
+    const bevel = score || title ? 14 : 0;
     ctx.save();
 
-    // Discreet corner marks and localized plates preserve the camera composition.
-    ctx.strokeStyle = accent;
-    ctx.globalAlpha = studio ? .58 : .74;
-    ctx.lineWidth = style.rail;
-    ctx.beginPath();
-    for (const [x, y, dx, dy] of [[24, 24, 1, 1], [1256, 24, -1, 1], [24, 696, 1, -1], [1256, 696, -1, -1]]) {
-      ctx.moveTo(x, y + dy * 19);
-      ctx.lineTo(x, y);
-      ctx.lineTo(x + dx * (sports ? 58 : 34), y);
+    if (settings.markers) {
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = .65;
+      ctx.lineWidth = style.rail;
+      ctx.beginPath();
+      const inset = 32;
+      for (const [x, y, dx, dy] of [
+        [inset, inset, 1, 1], [width - inset, inset, -1, 1],
+        [inset, height - inset, 1, -1], [width - inset, height - inset, -1, -1]
+      ]) {
+        ctx.moveTo(x, y + dy * 19);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + dx * (score ? 54 : 32), y);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
     }
-    ctx.stroke();
-    ctx.globalAlpha = 1;
 
-    const label = settings.badge || style.badge;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = '750 15px system-ui';
-    const badgeWidth = Math.ceil(ctx.measureText(label).width) + 22;
-    ctx.font = '650 20px system-ui';
-    const brandWidth = Math.min(395, Math.ceil(ctx.measureText(settings.brand).width));
-    const brandOffset = badgeWidth + 23;
-    const identityWidth = brandOffset + brandWidth + 24;
-    const x = studio ? width - left - identityWidth : left;
+    ctx.font = '750 16px system-ui';
+    const label = fitText(ctx, settings.badge || style.badge, 180);
+    const badgeWidth = Math.ceil(ctx.measureText(label).width) + 24;
+    ctx.font = '650 21px system-ui';
+    const brand = fitText(ctx, settings.brand, 340);
+    const brandOffset = badgeWidth + 24;
+    const identityWidth = brandOffset + Math.ceil(ctx.measureText(brand).width) + 25;
+    const x = right ? width - left - identityWidth : left;
     panel(ctx, x, top, identityWidth, 44, style, settings, bevel);
     ctx.fillStyle = accent;
     ctx.fillRect(x + 8, top + 8, badgeWidth, 28);
-    ctx.font = '750 15px system-ui';
+    ctx.font = '750 16px system-ui';
     ctx.fillStyle = settings.accentInk;
-    ctx.fillText(label, x + 19, top + 22);
+    ctx.fillText(label, x + 20, top + 22);
     ctx.fillStyle = '#f8f7f3';
-    ctx.font = '650 20px system-ui';
-    ctx.fillText(settings.brand, x + brandOffset, top + 22, brandWidth);
+    ctx.font = '650 21px system-ui';
+    ctx.fillText(brand, x + brandOffset, top + 22);
 
-    if (sports && settings.score) {
+    if (score && settings.score) {
       ctx.font = '700 23px ui-monospace, monospace';
-      const scoreWidth = Math.min(418, Math.ceil(ctx.measureText(settings.score).width) + 34);
+      const game = fitText(ctx, settings.score, 384);
+      const scoreWidth = Math.ceil(ctx.measureText(game).width) + 36;
       const scoreX = width - left - scoreWidth;
       panel(ctx, scoreX, top, scoreWidth, 44, style, settings, bevel);
       ctx.fillStyle = accent;
       ctx.fillRect(scoreX, top + 42, scoreWidth, 2);
       ctx.fillStyle = '#f8f7f3';
-      ctx.fillText(settings.score, scoreX + 17, top + 23, scoreWidth - 34);
+      ctx.fillText(game, scoreX + 17, top + 23);
     }
 
     if (settings.headline) {
-      const h = breaking ? 61 : 52;
-      const y = height - left - h;
-      ctx.font = breaking ? '750 29px system-ui' : '650 24px system-ui';
-      const textWidth = Math.min(890, Math.ceil(ctx.measureText(settings.headline).width));
-      const w = Math.max(breaking ? 312 : 216, textWidth + 52);
-      panel(ctx, left, y, w, h, style, settings, bevel);
+      const headlineFont = title ? '600 32px Georgia, serif' : alert ? '750 29px system-ui' : '650 26px system-ui';
+      ctx.font = headlineFont;
+      const headline = fitText(ctx, settings.headline, 790);
+      const headlineWidth = ctx.measureText(headline).width;
+      ctx.font = '500 18px system-ui';
+      const subtitle = fitText(ctx, settings.subtitle, 790);
+      const subtitleWidth = ctx.measureText(subtitle).width;
+      const h = subtitle ? 80 : alert || title ? 62 : 53;
+      const y = height - heightSafe - 12 - h;
+      const w = Math.max(alert ? 340 : 226, Math.ceil(Math.max(headlineWidth, subtitleWidth)) + 54);
+      const headlineX = credit ? width - left - w : title ? Math.round((width - w) / 2) : left;
+      panel(ctx, headlineX, y, w, h, style, settings, bevel);
       ctx.fillStyle = accent;
-      ctx.fillRect(left, y, style.rail, h);
-      if (breaking) ctx.fillRect(left, y, w, 3);
+      ctx.fillRect(headlineX, y, style.rail, h);
+      if (alert || title) ctx.fillRect(headlineX, y, w - bevel, 2);
       ctx.fillStyle = '#f8f7f3';
-      ctx.fillText(settings.headline, left + 23, y + h / 2, w - 46);
+      ctx.font = headlineFont;
+      ctx.textAlign = title ? 'center' : 'left';
+      const copyX = headlineX + (title ? w / 2 : 24);
+      ctx.fillText(headline, copyX, y + (subtitle ? 25 : h / 2));
+      if (subtitle) {
+        ctx.fillStyle = '#d3dce9';
+        ctx.font = '500 18px system-ui';
+        ctx.fillText(subtitle, copyX, y + 56);
+      }
     }
 
     ctx.restore();
@@ -197,6 +243,8 @@
     const name = get('[data-theme-name]');
     const list = get('[data-theme-list]');
     const status = get('[data-theme-status]');
+    const exportButton = get('[data-theme-export]');
+    const importInput = get('[data-theme-import]');
     const key = 'lightek:broadcast-themes:v1:' + panel.dataset.themeScope + ':' + kind;
     let themes = [];
     function refresh(selected = '') {
@@ -242,21 +290,61 @@
       const next = themes.filter(theme => theme !== existing).concat({ name: title, values });
       store(next, title, existing ? 'Theme updated.' : 'Theme saved.');
     });
-    get('[data-theme-load]').addEventListener('click', () => {
-      const selected = themes.find(theme => theme.name === list.value);
-      if (!selected) return void (status.textContent = 'Choose a saved theme.');
+    function loadDraft(selected) {
       for (const name of names) {
         const control = field(name);
-        const value = selected.values[name] ?? (name === 'texture' ? 'auto' : undefined);
+        const value = selected.values[name] ?? (name === 'texture' ? 'auto' : name === 'markers' ? true : undefined);
         if (control.type === 'checkbox') {
           control.checked = value === true;
         } else if (typeof value === 'string' && (control.tagName !== 'SELECT' || Array.from(control.options).some(option => option.value === value))) {
-          control.value = value;
+          control.value = control.maxLength > 0 ? value.slice(0, control.maxLength) : value;
         }
       }
       onLoad?.();
       name.value = selected.name;
+    }
+
+    get('[data-theme-load]').addEventListener('click', () => {
+      const selected = themes.find(theme => theme.name === list.value);
+      if (!selected) return void (status.textContent = 'Choose a saved theme.');
+      loadDraft(selected);
       status.textContent = 'Theme loaded into the controls. Apply it to the program when ready.';
+    });
+
+    exportButton?.addEventListener('click', () => {
+      const selected = themes.find(theme => theme.name === list.value);
+      if (!selected) return void (status.textContent = 'Choose a saved look to export.');
+      const values = Object.fromEntries(frameFields.filter(key => Object.hasOwn(selected.values, key))
+        .map(key => [key, selected.values[key]]));
+      const blob = new Blob([JSON.stringify({ version: 1, name: selected.name, values }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'lightek-broadcast-look.json';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      status.textContent = 'Look exported.';
+    });
+
+    importInput?.addEventListener('change', async () => {
+      const file = importInput.files[0];
+      if (!file) return;
+      importInput.value = '';
+      try {
+        if (file.size > 8192) throw Error();
+        const { version, name: title, values } = JSON.parse(await file.text());
+        if (version !== 1 || typeof title !== 'string' || !title.trim() || !values || !validFrame(values.frame)) throw Error();
+        const { frame, brand, badge, accent, texture = 'auto', markers = true } = values;
+        if (typeof brand !== 'string' || typeof badge !== 'string' || typeof markers !== 'boolean' ||
+          !isColor(accent) || !isColor(values['frame-color']) ||
+          !Array.from(field('texture').options).some(option => option.value === texture)) throw Error();
+        list.value = '';
+        for (const key of ['headline', 'subtitle', 'score']) field(key).value = '';
+        loadDraft({ name: title.trim().slice(0, 40), values: { frame, brand, badge, accent, texture, markers, 'frame-color': values['frame-color'] } });
+        status.textContent = 'Look imported into the private preview. Save it under a new name to keep it.';
+      } catch {
+        status.textContent = 'Choose a valid Lightek broadcast look file.';
+      }
     });
     get('[data-theme-delete]').addEventListener('click', () => {
       if (!list.value) return void (status.textContent = 'Choose a saved theme.');
@@ -277,7 +365,9 @@
     const frameContext = frameCanvas.getContext('2d');
     let settings, revision = 0;
     const frameChoice = field('frame');
-    const showScoreControl = () => { panel.querySelector('[data-look-score]').hidden = frameChoice.value !== 'sports'; };
+    const previewCanvas = panel.querySelector('[data-look-preview]');
+    const previewContext = previewCanvas.getContext('2d');
+    const showScoreControl = () => { panel.querySelector('[data-look-score]').hidden = frameStyles[frameChoice.value]?.layout !== 'score'; };
     showScoreControl();
     frameChoice.addEventListener('change', () => {
       const choice = frameStyles[frameChoice.value];
@@ -287,8 +377,14 @@
         field('texture').value = 'auto';
       }
       showScoreControl();
+      updatePreview();
     });
-    bindThemes(panel, field, 'frame', ['frame', 'brand', 'headline', 'badge', 'frame-color', 'accent', 'texture'], showScoreControl);
+    bindThemes(panel, field, 'frame', [...frameFields, 'headline', 'subtitle'], () => {
+      showScoreControl();
+      updatePreview();
+    });
+    panel.querySelector('[data-look-frame-controls]').addEventListener('input', updatePreview);
+    updatePreview();
     bindThemes(panel, field, 'background', ['backdrop', 'base-color', 'backdrop-color', 'motion', 'speed']);
 
     function loadImage(file) {
@@ -311,16 +407,44 @@
       });
     }
 
-    panel.querySelector('[data-apply-broadcast-look]').addEventListener('click', async () => {
-      const pending = ++revision;
-      const next = {
+    function frameDraft() {
+      const accent = field('accent').value;
+      const frameColor = field('frame-color').value;
+      return {
         frame: field('frame').value,
         brand: field('brand').value.trim().slice(0, 40) || 'Lightek MCG',
         headline: field('headline').value.trim().slice(0, 90),
+        subtitle: field('subtitle').value.trim().slice(0, 80),
         badge: field('badge').value.trim().slice(0, 16),
         score: field('score').value.trim().slice(0, 40),
-        frameColor: field('frame-color').value,
-        accent: field('accent').value,
+        frameColor: isColor(frameColor) ? frameColor : '#0b1324',
+        accent: isColor(accent) ? accent : '#d6aa58',
+        texture: field('texture').value,
+        markers: field('markers').checked
+      };
+    }
+
+    function renderLook(ctx, draft) {
+      ctx.clearRect(0, 0, width, height);
+      if (!validFrame(draft.frame)) return;
+      const texture = draft.texture === 'auto' ? frameStyles[draft.frame].texture : draft.texture;
+      const tile = textureTile(texture);
+      drawFrame(ctx, { ...draft, pattern: tile && ctx.createPattern(tile, 'repeat'), accentInk: accentInk(draft.accent) });
+    }
+
+    function updatePreview() {
+      const draft = frameDraft();
+      if (draft.frame !== 'off' && !draft.headline) {
+        draft.headline = 'Your headline goes here';
+        draft.subtitle ||= 'Optional second line';
+      }
+      renderLook(previewContext, draft);
+    }
+
+    panel.querySelector('[data-apply-broadcast-look]').addEventListener('click', async () => {
+      const pending = ++revision;
+      const next = {
+        ...frameDraft(),
         backdrop: field('backdrop').value,
         color: field('backdrop-color').value,
         baseColor: field('base-color').value,
@@ -329,9 +453,6 @@
         strength: Number(field('strength').value),
         motion: field('motion').checked
       };
-      if (!isColor(next.accent)) next.accent = '#d6aa58';
-      next.accentInk = accentInk(next.accent);
-      if (!isColor(next.frameColor)) next.frameColor = '#0b1324';
       if (!isColor(next.baseColor)) next.baseColor = '#091020';
       if (!isColor(next.color)) next.color = '#223d74';
       try {
@@ -341,14 +462,7 @@
           next.image = await loadImage(field('image').files[0]);
         }
         if (pending !== revision) return;
-        const style = frameStyles[next.frame];
-        if (style) {
-          const texture = field('texture').value;
-          const tile = textureTile(texture === 'auto' ? style.texture : texture);
-          next.pattern = tile && frameContext.createPattern(tile, 'repeat');
-        }
-        frameContext.clearRect(0, 0, width, height);
-        drawFrame(frameContext, next);
+        renderLook(frameContext, next);
         settings = next;
         status.textContent = next.backdrop === 'off' ? 'Frame settings applied.' : 'Applied. The backdrop appears in Camera only.';
       } catch (error) {
@@ -362,13 +476,14 @@
       field('frame').value = field('backdrop').value = 'off';
       field('image').value = '';
       showScoreControl();
+      updatePreview();
       status.textContent = 'Frame and backdrop cleared.';
     }
     panel.querySelector('[data-clear-broadcast-look]').addEventListener('click', clear);
 
     return {
       drawFrame: ctx => {
-        if (!frameStyles[settings?.frame]) return;
+        if (!validFrame(settings?.frame)) return;
         ctx.save();
         ctx.globalAlpha = 1;
         ctx.filter = 'none';

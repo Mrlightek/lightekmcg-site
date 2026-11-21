@@ -5,6 +5,16 @@ module Studio
     class PlayoutSweepJob < ApplicationJob
       def perform
         now = Time.current
+        NetworkCarriage.where.not(remote_key: nil).where.not(status: "withdrawn").limit(100).pluck(:id).each do |id|
+          CarriageSyncJob.perform_later(id)
+        end
+        Advertising::Placement.where(sync_after: ..now, peer_id: nil).order(:sync_after).limit(50).pluck(:id).each do |id|
+          Advertising::ExchangeJob.perform_later(id)
+        end
+        Advertising::Payment.where(reconcile_after: ..now).where.not(checkout_reference: nil)
+          .order(:reconcile_after).limit(50).pluck(:id).each do |id|
+          Advertising::SettlePaymentJob.perform_later(id)
+        end
         Airing.where(status: %w[preparing ready], ends_at: ..now).update_all(status: "failed", updated_at: now, error_message: "The rundown missed its airtime.")
         Airing.where(status: "ready", starts_at: ..(now + Playout::LEAD))
           .or(Airing.where(status: "on_air", updated_at: ..(now - 20.seconds)))

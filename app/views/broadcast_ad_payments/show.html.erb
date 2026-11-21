@@ -1,0 +1,16 @@
+<% content_for :page_title, "Broadcast ad payment" %>
+
+<main>
+  <h1>Broadcast ad payment</h1>
+  <p><%= @payment.placement.campaign.name %></p>
+  <% if @payment.state == "captured" %>
+    <p>Your ad aired and the payment was collected.</p>
+  <% elsif @payment.state == "authorized" %>
+    <p>Your card is authorized. Payment is collected after the full ad airs.</p>
+  <% elsif @payment.state == "unfunded" && @payment.can_book_payment? %>
+    <p>Authorize <%= number_to_currency(DymondBank::BroadcastAdvertising::Funding.checkout_amount(@payment) / 100.0) %> for this placement. Payment is collected after the full ad airs.</p>
+    <%= button_to "Continue to secure payment", broadcast_ad_payment_path(@payment.public_key) %>
+  <% else %>
+    <p>This placement is closed to payments. Contact the ad network for details.</p>
+  <% end %>
+</main>

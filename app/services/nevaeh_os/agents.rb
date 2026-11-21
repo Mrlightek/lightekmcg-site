@@ -30,7 +30,7 @@ module NevaehOs
       when 'marketing_kit' then 'growth.marketing_kit'
       when 'growth_plan' then 'growth.plan'
       when 'growth_review' then 'growth.review'
-      when 'capability' then command['intent']
+      when 'capability', 'platform_action' then command['intent']
       when 'watch' then "watcher.#{command['operation']}"
       when 'ubuntu' then "ubuntu.#{command['operation']}"
       when 'application' then "application.#{command['operation']}"

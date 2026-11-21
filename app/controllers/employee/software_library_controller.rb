@@ -8,6 +8,7 @@ module Employee
     end
     def index
       return code_map if params[:view] == 'code'
+      return platform_coverage if params[:view] == 'coverage'
 
       library = NevaehIntelligences::SoftwareLibrary.new
       @documents = library.search(query: params[:q], section: params[:section])
@@ -24,6 +25,14 @@ module Employee
     end
 
     private
+
+    def platform_coverage
+      @coverage = NevaehIntelligences::PlatformCoverage.installed(query: params[:q])
+      respond_to do |format|
+        format.html { render :platform_coverage }
+        format.json { render json: @coverage }
+      end
+    end
 
     def code_map
       @code_map = NevaehIntelligences::CodeKnowledge.new.search(query: params[:q])

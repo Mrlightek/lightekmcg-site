@@ -65,7 +65,7 @@ module NevaehOs
       'memory.forget'=>['Forget a saved memory','/forget MEMORY_ID','memory','all'],
       'rails.models'=>['Discover Rails models','/models','console','admin'],
       'rails.schema'=>['Inspect a model schema','/schema User','console','admin'],
-      'rails.console'=>['Run a Ruby-style data expression','/rails User.count','console','admin'],
+      'rails.console'=>['Query and edit Rails records in English or Ruby','Count user records','console','admin'],
       'worker.run'=>['Run a structured worker','/run WORKER_ID','agents','admin'],
       'writing.generate'=>['Generate a writing draft','/write caption {"topic":"Opening night"}','writing','admin'],
       'model.reply'=>['Request a native neural draft','/model MODEL_ID Help me plan my production','training','admin'],
@@ -97,6 +97,20 @@ module NevaehOs
       rows=BUILTINS.filter_map do |key,(title,example,topic,permission)|
         next unless allowed?(permission,actor)
         entry(key,title,topic,permission,example:example,source:'built-in command',coverage:'tutorial')
+      end
+      if defined?(PlatformActions)
+        PlatformLanguage::PHRASES.each do |key, (_, example)|
+          fields = PlatformActions::INPUTS.fetch(key).transform_values do |type|
+            case type
+            when :id, :version then 'integer'
+            when :confirmation, :boolean then 'boolean'
+            when :quote_quantities then 'object'
+            else 'string'
+            end
+          end
+          rows << entry(key, key.tr('.', ' ').humanize, 'commands', 'current site and domain permissions',
+            example: example, source: 'platform action', coverage: 'fields', inputs: fields)
+        end
       end
       SpecialistTasks::DEFINITIONS.each do |role,(title,input)|
         rows << entry(SpecialistTasks.capability(role),title,'specialist_tasks','domain account access',

@@ -1,0 +1,17 @@
+<h3><%= title %></h3>
+<% if receipts.empty? %>
+  <p>No completed airings yet.</p>
+<% else %>
+  <table>
+    <thead><tr><th scope="col">Campaign</th><th scope="col">Aired at</th><th scope="col">Your share</th></tr></thead>
+    <tbody>
+      <% receipts.each do |receipt| %>
+        <tr>
+          <td><%= receipt.campaign.name %></td>
+          <td><%= l(receipt.delivered_at, format: :short) %></td>
+          <td><%= number_to_currency(receipt.public_send(share) / 100.0) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

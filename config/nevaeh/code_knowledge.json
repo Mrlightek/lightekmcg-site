@@ -1610,6 +1610,206 @@
           "coverage": "bound"
         }
       ]
+    },
+    {
+      "id": "sales.task.status",
+      "title": "Check a sales task",
+      "summary": "Read the task status, due date and current record version.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "task_id": "TASK_ID"
+        },
+        "result": "Read the task status, due date and current record version."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/sales#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.complete",
+      "title": "Complete a sales task",
+      "summary": "Complete an open task through the sales tasks service and activity log.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_tasks_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.complete",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "task_id": "TASK_ID",
+          "lock_version": 0
+        },
+        "result": "Complete an open task through the sales tasks service and activity log."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/sales_tasks#change",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.cancel",
+      "title": "Cancel a sales task",
+      "summary": "Cancel an open task through the sales tasks service and activity log.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_tasks_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.cancel",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "task_id": "TASK_ID",
+          "lock_version": 0
+        },
+        "result": "Cancel an open task through the sales tasks service and activity log."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/sales_tasks#change",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.task.snooze",
+      "title": "Snooze a sales task",
+      "summary": "Move the due date of an open task through the sales tasks service.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_tasks_controller.rb"
+        ],
+        "implementation": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/lightek_sales/tasks.rb"
+        ],
+        "guides": [
+          "docs/sales/intake-and-follow-through.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/task.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_intake_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.task.snooze",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "task_id": "TASK_ID",
+          "lock_version": 0,
+          "due_at": "2027-03-31T15:30:00-04:00"
+        },
+        "result": "Move the due date of an open task through the sales tasks service."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/sales_tasks#change",
+          "coverage": "partial"
+        }
+      ]
     }
   ]
 }

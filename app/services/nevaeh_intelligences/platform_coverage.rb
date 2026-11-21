@@ -4,19 +4,22 @@ module NevaehIntelligences
   # Controller routes are the inventory. Only reviewed code-map links count as
   # bindings, even when another action under the same controller is connected.
   class PlatformCoverage
-    def initialize(route_sets:, code_map:)
+    ENGINES = %w[DymondBank DymondBooking DymondCatalog DymondDash DymondKb DymondStudio].freeze
+
+    def initialize(route_sets:, code_map:, unavailable_route_sets: [])
       @route_sets = route_sets
       @code_map = code_map
+      @unavailable_route_sets = unavailable_route_sets
     end
 
     def self.installed(query: nil)
-      engines = %w[DymondBank DymondBooking DymondCatalog DymondDash DymondKb DymondStudio]
       route_sets = {'Host application' => Rails.application.routes}
-      engines.each do |name|
+      ENGINES.each do |name|
         engine = "#{name}::Engine".safe_constantize
         route_sets[name] = engine.routes if engine
       end
-      new(route_sets: route_sets, code_map: CodeKnowledge.new.search).report(query: query)
+      new(route_sets: route_sets, code_map: CodeKnowledge.new.search,
+        unavailable_route_sets: ENGINES - route_sets.keys).report(query: query)
     end
 
     def report(query: nil)
@@ -47,8 +50,11 @@ module NevaehIntelligences
         text = row.values_at('source', 'method', 'path', 'action', 'status').join(' ').downcase
         terms.all? { |term| text.include?(term) }
       end
-      {'total_routes'=>rows.size, 'counts'=>rows.group_by { |row| row.fetch('status') }.transform_values(&:size),
-       'route_sets'=>@route_sets.keys, 'routes'=>matches}
+      counts = rows.map { |row| row.fetch('status') }.tally
+      remaining = rows.size - counts.fetch('bound', 0)
+      {'total_routes'=>rows.size, 'counts'=>counts, 'routes_without_full_binding'=>remaining,
+       'all_loaded_routes_bound'=>rows.any? && remaining.zero?,
+       'route_sets'=>@route_sets.keys, 'unavailable_route_sets'=>@unavailable_route_sets, 'routes'=>matches}
     end
 
     private

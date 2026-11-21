@@ -80,9 +80,13 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
       route.new('GET', path.new('/mount'), {})
     ])
     engine = routes.new([host.routes.first])
-    coverage = NevaehIntelligences::PlatformCoverage.new(route_sets: {'Host application'=>host, 'Billing'=>engine}, code_map: map)
+    coverage = NevaehIntelligences::PlatformCoverage.new(route_sets: {'Host application'=>host, 'Billing'=>engine},
+      code_map: map, unavailable_route_sets: ['Studio'])
     report = coverage.report(query: 'unmapped')
     assert_equal 5, report.fetch('total_routes')
+    assert_equal 4, report.fetch('routes_without_full_binding')
+    refute report.fetch('all_loaded_routes_bound')
+    assert_equal ['Studio'], report.fetch('unavailable_route_sets')
     assert_equal({'bound'=>1, 'unmapped'=>2, 'binding_unavailable'=>1, 'handoff'=>1}, report.fetch('counts'))
     assert_equal ['Billing', 'Host application'], report.fetch('routes').map { |row| row.fetch('source') }
     assert_empty report.fetch('routes').flat_map { |row| row.fetch('bindings') }

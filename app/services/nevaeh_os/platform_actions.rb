@@ -20,6 +20,10 @@ module NevaehOs
       'sales.quote.issue' => {'site_id'=>:id, 'quote_id'=>:id, 'lock_version'=>:version}.freeze,
       'sales.quote.accept' => {'site_id'=>:id, 'quote_id'=>:id, 'accepted_name'=>160, 'acceptance_reference'=>300,
                                'confirmed'=>:confirmation}.freeze,
+      'sales.task.status' => {'site_id'=>:id, 'task_id'=>:id}.freeze,
+      'sales.task.complete' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version}.freeze,
+      'sales.task.cancel' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version}.freeze,
+      'sales.task.snooze' => {'site_id'=>:id, 'task_id'=>:id, 'lock_version'=>:version, 'due_at'=>40}.freeze,
       'sessions.room.create' => {'site_id'=>:id, 'name'=>120, 'kind'=>10}.freeze,
       'commerce.payouts.open' => {'site_id'=>:id}.freeze,
       'commerce.order.status' => {'site_id'=>:id, 'order_id'=>:id}.freeze,
@@ -82,7 +86,8 @@ module NevaehOs
       key, values = command.values_at('intent', 'payload')
       validate!(key, values)
       case key
-      when 'sales.lead.create', 'sales.lead.status', 'sales.lead.convert', 'sales.quote.status', 'sales.quote.issue', 'sales.quote.accept'
+      when 'sales.lead.create', 'sales.lead.status', 'sales.lead.convert', 'sales.quote.status', 'sales.quote.issue', 'sales.quote.accept',
+        'sales.task.status', 'sales.task.complete', 'sales.task.cancel', 'sales.task.snooze'
         raise ArgumentError, 'Sales access required' unless %w[super_admin admin white_label client employee].include?(actor.role)
 
         site = LightekSales::Access.sites_for(actor).find(values.fetch('site_id'))
@@ -91,6 +96,7 @@ module NevaehOs
         case key
         when 'sales.lead.create' then site
         when 'sales.lead.status', 'sales.lead.convert' then workspace.find('lead', values.fetch('lead_id'))
+        when /\Asales\.task\./ then LightekSales::Task.visible_in_sales(site).find(values.fetch('task_id'))
         else LightekSales::Quote.where(site: site).find(values.fetch('quote_id'))
         end
       when 'sessions.room.create'
@@ -175,6 +181,12 @@ module NevaehOs
         quote = LightekSales::Quotes.accept!(quote: target, name: values.fetch('accepted_name'),
           reference: values.fetch('acceptance_reference'), actor: actor)
         {'quote_id'=>quote.id, 'quote_status'=>quote.status, 'order_id'=>quote.order_id, 'order_status'=>quote.order.status}
+      when 'sales.task.status'
+        sales_task_receipt(target)
+      when 'sales.task.complete', 'sales.task.cancel', 'sales.task.snooze'
+        task = LightekSales::Tasks.new(actor: actor, site: target.site).update!(target.id, action: key.delete_prefix('sales.task.'),
+          lock_version: values.fetch('lock_version'), due_at: values['due_at'])
+        sales_task_receipt(task)
       when 'sessions.room.create'
         room = create_room!(actor, target, values.except('site_id'))
         {'room_id'=>room.id, 'starts_at'=>room.starts_at.iso8601, 'ends_at'=>room.ends_at.iso8601,
@@ -228,6 +240,11 @@ module NevaehOs
         slot = publication_calendar!(actor, target.site).cancel!(id: target.id, version: values.fetch('lock_version'))
         publication_receipt(slot).merge('text'=>'The local calendar slot is canceled.')
       end
+    end
+
+    def sales_task_receipt(task)
+      {'task_id'=>task.id, 'task_status'=>task.status, 'due_at'=>task.due_at.iso8601, 'lock_version'=>task.lock_version,
+       'links'=>[{'label'=>'Open sales tasks','url'=>"/dashboard/sales?site_id=#{task.site_id}&tab=tasks"}]}
     end
 
     def reservation_receipt(reservation)

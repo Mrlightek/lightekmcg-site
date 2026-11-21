@@ -42,6 +42,10 @@ Examples of in-app operations include `/execute sales.lead.create`, `/execute re
 | Check payment, delivery, and installation status | `Check order #42 on site #3` |
 | Finish fulfillment of a paid order | `Fulfill order #42 on site #3 with reference "Delivery receipt"` |
 | Queue installation recovery for a paid order | `Retry installation for order #42 on site #3` |
+| Check a sales task and get its current version | `Check sales task #42 on site #3` |
+| Complete a sales task | `Complete sales task #42 on site #3 at version 0` |
+| Cancel a sales task | `Cancel sales task #42 on site #3 at version 0` |
+| Snooze a sales task | `Snooze sales task #42 on site #3 at version 0 until 2027-03-31T15:30:00-04:00` |
 | Check a calendar slot and get its current version | `Check publication slot #12 on site #3` |
 | Cancel a pending local slot | `Cancel publication slot #12 on site #3 at version 0` |
 

@@ -7,6 +7,8 @@ module NevaehOs
     SITE = /(?:on|for) site #?(?<site_id>[1-9]\d{0,17})/
     VERSION = /(?:at |using )?version (?<lock_version>\d{1,10})/
     QUOTED = /"(?:[^"\\\x00-\x1f]|\\.)*"/
+    TIMESTAMP = /\d{4}-\d{2}-\d{2}t\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:z|[+-]\d{2}:\d{2})?/i
+    SALES_TASK = /(?:sales |follow-up )?task #?(?<task_id>[1-9]\d{0,17})/i
     PHRASES = {
       'reservations.list' => [
         /(?:show|list) (?:me )?my reservations/i,
@@ -21,7 +23,7 @@ module NevaehOs
         'Cancel my reservation #42'
       ],
       'reservations.reschedule' => [
-        /reschedule (?:my )?reservation #?(?<reservation_id>[1-9]\d{0,17}) to (?<starts_at>\d{4}-\d{2}-\d{2}t\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:z|[+-]\d{2}:\d{2})?)/i,
+        /reschedule (?:my )?reservation #?(?<reservation_id>[1-9]\d{0,17}) to (?<starts_at>#{TIMESTAMP})/i,
         'Reschedule my reservation #42 to 2027-03-31T15:30:00-04:00'
       ],
       'commerce.order.status' => [
@@ -55,6 +57,22 @@ module NevaehOs
       'sales.quote.accept' => [
         /record customer approval for (?:sales )?quote #?(?<quote_id>[1-9]\d{0,17}) #{SITE} from (?<accepted_name>#{QUOTED}) with reference (?<acceptance_reference>#{QUOTED})/i,
         'Record customer approval for quote #42 on site #3 from "Jane Doe" with reference "Approval email"'
+      ],
+      'sales.task.status' => [
+        /(?:show|check) (?:the )?(?:status of )?#{SALES_TASK} #{SITE}/i,
+        'Check sales task #42 on site #3'
+      ],
+      'sales.task.complete' => [
+        /complete #{SALES_TASK} #{SITE} #{VERSION}/i,
+        'Complete sales task #42 on site #3 at version 0'
+      ],
+      'sales.task.cancel' => [
+        /cancel #{SALES_TASK} #{SITE} #{VERSION}/i,
+        'Cancel sales task #42 on site #3 at version 0'
+      ],
+      'sales.task.snooze' => [
+        /snooze #{SALES_TASK} #{SITE} #{VERSION} until (?<due_at>#{TIMESTAMP})/i,
+        'Snooze sales task #42 on site #3 at version 0 until 2027-03-31T15:30:00-04:00'
       ],
       'marketing.publication.status' => [
         /(?:show|check) (?:the )?(?:status of )?(?:publication|publishing) slot #?(?<slot_id>[1-9]\d{0,17}) #{SITE}/i,

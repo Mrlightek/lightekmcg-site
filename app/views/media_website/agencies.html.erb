@@ -1,0 +1,17 @@
+<% precision = (@agency_price_cents % 100).zero? ? 0 : 2 %>
+<% annual_price = number_to_currency(@agency_price_cents.fdiv(100), precision: precision) %>
+<%= render layout: "topic", locals: {
+  headline: "Build your client business for #{annual_price} a year.",
+  intro: "Serve clients under your own brand. Build packages from Lightek services, set your own prices, and choose the features each client receives.",
+  action: "Ask about the agency plan", subject: "Lightek agency plan inquiry",
+  prompts: ["Business or agency name:", "Market and website:", "Services you want to sell:", "First client or project:"]
+} do %>
+  <section>
+    <h2>Start with your first client</h2>
+    <p>For example, build a local sports producer’s site and charge to manage it. Take on episode production if that’s a service you sell, then help pitch the show for distribution and bring a sponsor into the conversation.</p>
+  </section>
+  <section>
+    <h2>Earn from the services you sell</h2>
+    <p>Choose what goes into the client package and what you charge. If a project leads to programming, carriage, or sponsorship, the individual agreement sets rights, fees, and any revenue share.</p>
+  </section>
+<% end %>

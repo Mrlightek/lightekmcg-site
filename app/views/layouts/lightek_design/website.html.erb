@@ -50,6 +50,9 @@ body {font-family:var(--lt-body);background:var(--color-bg);color:var(--color-te
 </header>
 <% end %>
 <main id="main-content">
+<% if !@preview && %w[lightekmcg.com www.lightekmcg.com].include?(request.host.downcase) %>
+  <aside class="lt-agency-demo-link"><%= link_to "Explore the Lightek media network", main_app.media_website_path %></aside>
+<% end %>
 <% if !@preview && defined?(LightekAgency::Trial) && LightekAgency::Trial.public_site?(@site) %>
   <aside class="lt-agency-demo-link"><%= link_to 'Request an agency demo', main_app.request_agency_demo_path %></aside>
 <% end %>

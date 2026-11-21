@@ -1,0 +1,35 @@
+<section class="media-hero">
+  <div class="media-wrap">
+    <p class="media-kicker">A Black-led media network</p>
+    <h1>Start with a show.<br><em>Build a media company.</em></h1>
+    <p>Give your audience a place to gather. Turn what they care about into programming. Build a business around it with a crew, sponsors, a catalog, and a path to television.</p>
+    <div class="media-actions">
+      <%= link_to "Build as a creator", media_website_page_path(page: "creators"), class: "media-button" %>
+      <%= link_to "Explore the agency plan", media_website_page_path(page: "agencies"), class: "media-button media-button--outline" %>
+    </div>
+  </div>
+</section>
+
+<section class="media-section media-wrap" aria-labelledby="audience-heading">
+  <h2 id="audience-heading">Where do you want to start?</h2>
+  <div class="media-grid">
+    <% {
+      "watch" => ["Find shows and stations", "Get lineup updates and tell us what should be on."],
+      "creators" => ["Build a creator business", "Bring your community, produce a show, and pitch it for distribution."],
+      "stations" => ["Bring your station", "Explore carriage, programming exchange, and sponsored airings."],
+      "sponsors" => ["Sponsor programming", "Discuss placements around a show, a live event, or participating channels."],
+      "crew" => ["Work on a production", "Introduce yourself for production and broadcast opportunities."],
+      "agencies" => ["Build an agency", "Package services, set prices, and serve clients under your own brand."]
+    }.each do |page, (title, description)| %>
+      <article class="media-card">
+        <h3><%= link_to title, media_website_page_path(page: page) %></h3>
+        <p><%= description %></p>
+      </article>
+    <% end %>
+  </div>
+</section>
+
+<section class="media-section media-wrap media-split" aria-labelledby="community-heading">
+  <h2 id="community-heading">The community and the programming grow together.</h2>
+  <p>A local sports creator can ask fans which games they want covered, turn that interest into a weekly show, and bring in a crew and a local sponsor. If a station picks it up, the broadcast can bring new fans back to the creator’s community. Repeat that across cities and more creators, stations, and agencies can build their businesses alongside Lightek’s own productions.</p>
+</section>

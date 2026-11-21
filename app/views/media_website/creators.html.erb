@@ -1,0 +1,15 @@
+<%= render layout: "topic", locals: {
+  headline: "Build a business around what you make.",
+  intro: "Bring an idea, a pilot, a live event, or an audience you already serve. Start by telling us what you make and what you want to build around it.",
+  action: "Pitch a project", subject: "Lightek creator pitch",
+  prompts: ["Name and market:", "Project and audience:", "Trailer, reel, or community link:", "Production, distribution, or business support needed:"]
+} do %>
+  <section>
+    <h2>From a community to a catalog</h2>
+    <p>Give fans a place to discover clips, talk about the work, and tell you what they want next. Develop that interest into a series, bring on collaborators, and build a catalog you can pitch for distribution or license under agreed terms.</p>
+  </section>
+  <section>
+    <h2>How you can earn</h2>
+    <p>Explore paid production, licensing, and sponsorship. An agreement spells out deliverables, who controls the rights, where the work can appear, and how payment works. If your business will also serve other creators, <%= link_to "explore the agency plan", media_website_page_path(page: "agencies") %>.</p>
+  </section>
+<% end %>

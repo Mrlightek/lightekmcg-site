@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= @title ? "#{@title} | Lightek Media" : "Lightek Media | Build Your Media Company" %></title>
+  <meta name="description" content="<%= content_for(:description).presence || "Lightek is building a Black-led media network where creators can grow a community, produce programming, and build a media company." %>">
+  <%= stylesheet_link_tag "/lightek/media-website.css" %>
+</head>
+<body>
+  <a class="media-skip" href="#main-content">Skip to content</a>
+  <header class="media-header">
+    <div class="media-wrap media-bar">
+      <%= link_to "Lightek Media", media_website_path, class: "media-logo" %>
+      <nav aria-label="Media navigation">
+        <% MediaWebsiteController::PAGES.each do |page, label| %>
+          <%= link_to label, media_website_page_path(page: page), aria: { current: ("page" if page == @page) } %>
+        <% end %>
+      </nav>
+    </div>
+  </header>
+  <main id="main-content"><%= yield %></main>
+  <footer class="media-wrap media-footer">
+    <%= link_to "Lightek Media & Communications Group", root_path %>
+    <%= mail_to "hello@lightekmcg.com" %>
+  </footer>
+</body>
+</html>

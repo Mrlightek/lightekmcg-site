@@ -59,6 +59,7 @@ end
 require ROOT.join('app/models/lightek_agency/site_membership')
 require ROOT.join('app/services/lightek_agency/access')
 require ROOT.join('app/services/lightek_sales/access')
+require ROOT.join('app/services/nevaeh_os/platform_language')
 require ROOT.join('app/models/concerns/sales_site_record')
 require ROOT.join('app/models/lightek_marketing/contact')
 %w[account opportunity lead routing_rule activity].each { |name| require ROOT.join("app/models/lightek_sales/#{name}") }
@@ -156,6 +157,60 @@ class SalesCrmChecks < ActionDispatch::IntegrationTest
     assert_equal input.fetch('email'), record.email
     assert_equal 'new', record.status
     assert LightekSales::Activity.exists?(site: @site, actor: @member, record: record, kind: 'created')
+  end
+
+  def nevaeh_sales_command(phrase)
+    parsed = NevaehOs::PlatformLanguage.command(phrase)
+    NevaehOs::PlatformActions.command(parsed.fetch('intent'), parsed.fetch('payload'))
+  end
+
+  def test_nevaeh_converts_a_qualified_lead_and_reports_the_deal
+    record = lead
+    status = nevaeh_sales_command("Show lead ##{record.id} on site ##{@site.id}")
+    receipt = NevaehOs::PlatformActions.perform!(actor: @member, command: status, action_id: 1)
+    assert_equal 'qualified', receipt.fetch('lead_status')
+    assert_equal record.lock_version, receipt.fetch('lock_version')
+
+    close_on = Date.current + 30
+    phrase = "Convert lead ##{record.id} on site ##{@site.id} at version #{record.lock_version}"
+    phrase += " into a deal named \"Launch services\" for 1250.55 USD closing #{close_on}"
+    command = nevaeh_sales_command(phrase)
+    stale = command.merge('payload'=>command.fetch('payload').merge('lock_version'=>record.lock_version + 1))
+    assert_no_difference 'LightekSales::Opportunity.count' do
+      assert_raises(ActiveRecord::StaleObjectError) { NevaehOs::PlatformActions.perform!(actor: @member, command: stale, action_id: 2) }
+      assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::PlatformActions.perform!(actor: @other, command: command, action_id: 3) }
+    end
+    assert_difference 'LightekSales::Opportunity.count', 1 do
+      result = NevaehOs::PlatformActions.perform!(actor: @member, command: command, action_id: 4)
+      assert_equal 'qualified', result.fetch('opportunity_stage')
+      assert_equal result, NevaehOs::PlatformActions.perform!(actor: @member, command: command, action_id: 5)
+    end
+    assert_equal 125055, record.reload.opportunity.amount_cents
+    assert_equal 'converted', record.status
+  end
+
+  def test_nevaeh_records_explicit_customer_approval_and_creates_one_pending_order
+    opportunity = deal
+    product = LightekCommerce::Product.create!(site: @site, name: 'Launch package', slug: 'launch-package', price_cents: 3500)
+    quote = LightekSales::Quotes.new(actor: @owner, site: @site).draft!(opportunity_id: opportunity.id,
+      values: {title: 'Launch package', customer_email: 'buyer@example.test', expires_on: Date.current + 7},
+      quantities: {product.id.to_s=>1})
+    issue = nevaeh_sales_command("Issue quote ##{quote.id} on site ##{@site.id} using version #{quote.lock_version}")
+    assert_equal 'issued', NevaehOs::PlatformActions.perform!(actor: @member, command: issue, action_id: 1).fetch('quote_status')
+
+    approval = nevaeh_sales_command("Record customer approval for quote ##{quote.id} on site ##{@site.id} from \"Jane Doe\" with reference \"Approval email\"")
+    assert_no_difference 'LightekCommerce::Order.count' do
+      assert_raises(ArgumentError) { NevaehOs::PlatformActions.command(approval.fetch('intent'), approval.fetch('payload').merge('confirmed'=>false)) }
+      assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::PlatformActions.perform!(actor: @other, command: approval, action_id: 2) }
+    end
+    assert_difference 'LightekCommerce::Order.count', 1 do
+      result = NevaehOs::PlatformActions.perform!(actor: @member, command: approval, action_id: 3)
+      assert_equal 'accepted', result.fetch('quote_status')
+      assert_equal 'pending_payment', result.fetch('order_status')
+      assert_equal result, NevaehOs::PlatformActions.perform!(actor: @member, command: approval, action_id: 4)
+    end
+    assert_equal 'closed_won', opportunity.reload.stage
+    assert_equal 'Approval email', quote.reload.acceptance_reference
   end
 
   def test_conversion_reuses_company_and_marketing_contact_preserves_consent_and_is_idempotent

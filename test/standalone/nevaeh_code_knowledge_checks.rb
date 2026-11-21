@@ -52,6 +52,14 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
     assert_equal '', NevaehOs::Command.parse('/code').fetch('query')
   end
 
+  def test_platform_phrase_examples_resolve_to_their_typed_bindings
+    NevaehOs::PlatformLanguage::PHRASES.each do |key, (_, phrase)|
+      parsed = NevaehOs::Command.parse("Please #{phrase}.")
+      assert_equal key, parsed.fetch('intent')
+      assert_equal 'platform_action', NevaehOs::PlatformActions.command(key, parsed.fetch('payload')).fetch('kind')
+    end
+  end
+
   def test_route_coverage_counts_only_exact_reviewed_bindings
     path = Struct.new(:spec)
     route = Struct.new(:verb, :path, :defaults)

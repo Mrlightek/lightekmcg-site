@@ -130,7 +130,7 @@ module NevaehOs
         rows=RailsConsole.models(@actor).map(&:name)
         {'text'=>rows.join("\n"),'models'=>rows,'status'=>'ready'}
       when 'schema'
-        schema=RailsConsole.schema(command.fetch('model'),@actor)
+        schema=RailsConsole.schema(command.fetch('model'),@actor,english:command.fetch('english_model',false))
         {'text'=>JSON.pretty_generate(schema),'schema'=>schema,'status'=>'ready'}
       when 'goals','goal_show'
         rows=command['kind']=='goal_show' ? [Goals.owned!(@actor,command.fetch('id'))] : NevaehGoal.where(user:@actor).order(id: :desc).limit(30)

@@ -14,7 +14,12 @@ module NevaehOs
 
     INPUTS = {
       'sales.lead.create' => {'site_id'=>:id, 'name'=>160, 'company'=>160, 'email'=>254}.freeze,
+      'sales.lead.status' => {'site_id'=>:id, 'lead_id'=>:id}.freeze,
+      'sales.lead.convert' => {'site_id'=>:id, 'lead_id'=>:id, 'lock_version'=>:version, 'name'=>160,
+                               'amount'=>:amount, 'currency'=>3, 'close_on'=>:date}.freeze,
       'sales.quote.issue' => {'site_id'=>:id, 'quote_id'=>:id, 'lock_version'=>:version}.freeze,
+      'sales.quote.accept' => {'site_id'=>:id, 'quote_id'=>:id, 'accepted_name'=>160, 'acceptance_reference'=>300,
+                               'confirmed'=>:confirmation}.freeze,
       'sessions.room.create' => {'site_id'=>:id, 'name'=>120, 'kind'=>10}.freeze,
       'commerce.payouts.open' => {'site_id'=>:id}.freeze,
       'identity.security.status' => {}.freeze,
@@ -25,7 +30,9 @@ module NevaehOs
       'mail.mailbox.status' => {'mailbox_id'=>:id}.freeze,
       'studio.broadcast.channel.status' => {'site_id'=>:id, 'channel_id'=>:id}.freeze,
       'marketing.publication.schedule' => {'site_id'=>:id, 'campaign_id'=>:id, 'connection_id'=>:id,
-                                           'scheduled_at'=>40, 'time_zone'=>100}.freeze
+                                           'scheduled_at'=>40, 'time_zone'=>100}.freeze,
+      'marketing.publication.status' => {'site_id'=>:id, 'slot_id'=>:id}.freeze,
+      'marketing.publication.cancel' => {'site_id'=>:id, 'slot_id'=>:id, 'lock_version'=>:version}.freeze
     }.freeze
 
     module_function
@@ -56,6 +63,8 @@ module NevaehOs
         when :id then (value.is_a?(Integer) || value.is_a?(String)) && /\A[1-9][0-9]{0,17}\z/.match?(value.to_s)
         when :version then (value.is_a?(Integer) || value.is_a?(String)) && /\A[0-9]{1,10}\z/.match?(value.to_s)
         when :date then value.is_a?(String) && /\A\d{4}-\d{2}-\d{2}\z/.match?(value)
+        when :amount then value.is_a?(String) && /\A\d{1,14}(?:\.\d{1,2})?\z/.match?(value)
+        when :confirmation then value == true
         else value.is_a?(String) && value.strip.length.between?(1, type) && !value.match?(/[\x00-\x1f\x7f]/)
         end
         raise ArgumentError, "Invalid #{field} for #{key}" unless valid
@@ -66,12 +75,17 @@ module NevaehOs
       key, values = command.values_at('intent', 'payload')
       validate!(key, values)
       case key
-      when 'sales.lead.create', 'sales.quote.status', 'sales.quote.issue'
+      when 'sales.lead.create', 'sales.lead.status', 'sales.lead.convert', 'sales.quote.status', 'sales.quote.issue', 'sales.quote.accept'
         raise ArgumentError, 'Sales access required' unless %w[super_admin admin white_label client employee].include?(actor.role)
 
         site = LightekSales::Access.sites_for(actor).find(values.fetch('site_id'))
-        LightekSales::Workspace.new(actor: actor, site: site).revalidate!
-        key == 'sales.lead.create' ? site : LightekSales::Quote.where(site: site).find(values.fetch('quote_id'))
+        workspace = LightekSales::Workspace.new(actor: actor, site: site)
+        workspace.revalidate!
+        case key
+        when 'sales.lead.create' then site
+        when 'sales.lead.status', 'sales.lead.convert' then workspace.find('lead', values.fetch('lead_id'))
+        else LightekSales::Quote.where(site: site).find(values.fetch('quote_id'))
+        end
       when 'sessions.room.create'
         LightekSettings::WebsiteIdentity.sites_for(actor).find(values.fetch('site_id'))
       when 'commerce.payouts.open'
@@ -95,9 +109,16 @@ module NevaehOs
         site = Studio::Broadcasting::Access.sites(actor).find(values.fetch('site_id'))
         Studio::Broadcasting::Access.authorize!(actor, site)
         Studio::Broadcasting::Channel.where(site: site).find(values.fetch('channel_id'))
-      when 'marketing.publication.schedule'
+      when 'marketing.publication.schedule', 'marketing.publication.status', 'marketing.publication.cancel'
         site = LightekSales::Access.sites_for(actor).find(values.fetch('site_id'))
-        publication_calendar!(actor, site)
+        return publication_calendar!(actor, site) if key == 'marketing.publication.schedule'
+
+        if key == 'marketing.publication.cancel'
+          publication_calendar!(actor, site)
+        else
+          LightekGrowth::Workspace.new(actor: actor, site: site).revalidate!
+        end
+        LightekMarketing::PublicationSlot.where(site: site).find(values.fetch('slot_id'))
       end
     end
 
@@ -122,12 +143,22 @@ module NevaehOs
       when 'sales.lead.create'
         lead = LightekSales::Workspace.new(actor: actor, site: target).save!('lead', values.except('site_id'))
         {'lead_id'=>lead.id, 'lead_status'=>lead.status, 'text'=>"Created lead ##{lead.id}."}
+      when 'sales.lead.status'
+        {'lead_id'=>target.id, 'lead_status'=>target.status, 'lock_version'=>target.lock_version, 'opportunity_id'=>target.opportunity_id}
+      when 'sales.lead.convert'
+        opportunity = LightekSales::Workspace.new(actor: actor, site: target.site).convert!(
+          target.id, values.slice('name', 'amount', 'currency', 'close_on'), lock_version: values.fetch('lock_version'))
+        {'lead_id'=>target.id, 'opportunity_id'=>opportunity.id, 'opportunity_stage'=>opportunity.stage}
       when 'sales.quote.status'
         {'quote_id'=>target.id, 'quote_status'=>target.status, 'lock_version'=>target.lock_version,
          'order_id'=>target.order_id, 'order_status'=>target.order&.status}
       when 'sales.quote.issue'
         quote = LightekSales::Quotes.new(actor: actor, site: target.site).issue!(id: target.id, version: values.fetch('lock_version'))
         {'quote_id'=>quote.id, 'quote_status'=>quote.status, 'text'=>"Quote ##{quote.id} issued. It is ready for customer review."}
+      when 'sales.quote.accept'
+        quote = LightekSales::Quotes.accept!(quote: target, name: values.fetch('accepted_name'),
+          reference: values.fetch('acceptance_reference'), actor: actor)
+        {'quote_id'=>quote.id, 'quote_status'=>quote.status, 'order_id'=>quote.order_id, 'order_status'=>quote.order.status}
       when 'sessions.room.create'
         room = create_room!(actor, target, values.except('site_id'))
         {'room_id'=>room.id, 'starts_at'=>room.starts_at.iso8601, 'ends_at'=>room.ends_at.iso8601,
@@ -155,7 +186,17 @@ module NevaehOs
           scheduled_at: values.fetch('scheduled_at'), time_zone: values.fetch('time_zone'), request_key: "nevaeh-action-#{action_id}")
         {'slot_id'=>slot.id, 'publication_status'=>slot.status, 'scheduled_at'=>slot.scheduled_at.iso8601,
          'text'=>"Calendar slot ##{slot.id} is #{slot.status}. Check the calendar for provider confirmation."}
+      when 'marketing.publication.status'
+        publication_receipt(target)
+      when 'marketing.publication.cancel'
+        slot = publication_calendar!(actor, target.site).cancel!(id: target.id, version: values.fetch('lock_version'))
+        publication_receipt(slot).merge('text'=>'The local calendar slot is canceled.')
       end
+    end
+
+    def publication_receipt(slot)
+      {'slot_id'=>slot.id, 'publication_status'=>slot.status, 'scheduled_at'=>slot.scheduled_at.iso8601,
+       'lock_version'=>slot.lock_version, 'provider_status'=>slot.social_post&.status}
     end
 
     def create_room!(actor, site, attributes)

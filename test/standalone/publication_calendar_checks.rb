@@ -100,6 +100,27 @@ class PublicationCalendarChecks < CampaignContentChecks
     assert_nil slot.social_post_id
   end
 
+  def test_calendar_nevaeh_checks_and_cancels_only_the_authorized_current_slot
+    review
+    entry = slot
+    check = nevaeh_sales_command("Check publication slot ##{entry.id} on site ##{@site.id}")
+    result = NevaehOs::PlatformActions.perform!(actor: @owner, command: check, action_id: 1)
+    assert_equal 'scheduled', result.fetch('publication_status')
+    assert_equal entry.lock_version, result.fetch('lock_version')
+    assert_nil result.fetch('provider_status')
+
+    cancel = nevaeh_sales_command("Cancel publication slot ##{entry.id} on site ##{@site.id} at version #{entry.lock_version}")
+    stale = cancel.merge('payload'=>cancel.fetch('payload').merge('lock_version'=>entry.lock_version + 1))
+    assert_raises(ActiveRecord::StaleObjectError) { NevaehOs::PlatformActions.perform!(actor: @owner, command: stale, action_id: 2) }
+    assert_raises(ArgumentError) { NevaehOs::PlatformActions.perform!(actor: @member, command: cancel, action_id: 3) }
+    assert_raises(ActiveRecord::RecordNotFound) { NevaehOs::PlatformActions.perform!(actor: @other, command: cancel, action_id: 4) }
+    assert_no_difference 'LightekMarketing::SocialPost.count' do
+      canceled = NevaehOs::PlatformActions.perform!(actor: @owner, command: cancel, action_id: 5)
+      assert_equal 'canceled', canceled.fetch('publication_status')
+      assert_equal canceled, NevaehOs::PlatformActions.perform!(actor: @owner, command: cancel, action_id: 6)
+    end
+  end
+
   def test_calendar_reviewed_schedule_is_idempotent_and_worker_publishes_once
     review
     destination = connection

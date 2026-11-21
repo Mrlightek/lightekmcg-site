@@ -14,6 +14,8 @@ susu.list
 susu.show {"group_id":123}
 /execute susu.list
 /describe susu.show
+Run capability susu.list
+Run capability susu.show with {"group_id":123}
 ```
 
 `group_id:123` is an example, not a real account record. Use an ID from your Susu list. Your identity is inserted by the server. When the host is not mapped and several applications are available, specify your authorized `site_id` in the inputs.
@@ -27,6 +29,20 @@ A mapped binding appears as enabled when its installed registry entry matches th
 An architecture reference documents a workflow's source. Check Guide for execution routes outside the map. To extend the map, update `config/nevaeh/code_knowledge.json` with repository-relative references. Add a capability link after the shared native registry can resolve the action. For in-app operations, link to a named `NevaehOs::PlatformActions` entry. These commands use the saved-action worker, and authorization is checked at submission and execution. CI checks that source paths, gem references and both kinds of worker bindings resolve.
 
 Examples of in-app operations include `/execute sales.lead.create`, `/execute reservations.availability.list`, and `/execute marketing.publication.schedule`. Use their code map examples for the exact inputs. A calendar receipt confirms a saved schedule. Provider delivery has its own status. A saved broadcast channel status reports configuration. Check the broadcast workspace for live stream health.
+
+### Sales and publishing commands
+
+| Task | Say or type |
+| --- | --- |
+| Check a lead and get its current version | `Show lead #12 on site #3` |
+| Convert a qualified lead to a deal | `Convert lead #12 on site #3 at version 0 to a deal called "Spring launch" for 1500.00 USD closing 2027-03-31` |
+| Check a quote and its order | `Show quote #42 on site #3` |
+| Issue a draft quote | `Issue quote #42 on site #3 at version 0` |
+| Record a customer's confirmed approval | `Record customer approval for quote #42 on site #3 from "Jane Doe" with reference "Approval email"` |
+| Check a calendar slot and get its current version | `Check publication slot #12 on site #3` |
+| Cancel a pending local slot | `Cancel publication slot #12 on site #3 at version 0` |
+
+Use the IDs and record versions from your own workspace. Recording approval requires evidence that the customer approved that quote. The action creates an order awaiting payment. Canceling a local publication slot follows the calendar's operator and version checks. For a submission that has already started, reconcile it through the publishing calendar.
 
 ### Review platform coverage
 

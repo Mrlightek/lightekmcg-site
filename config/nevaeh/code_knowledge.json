@@ -1013,6 +1013,265 @@
         },
         "result": "Creates a draft CMS page and returns its ID and edit link."
       }
+    },
+    {
+      "id": "sales.lead.status",
+      "title": "Check sales lead status",
+      "summary": "Read the lead status, conversion result and current record version.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/workspace.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/crm.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/lead.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.lead.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "lead_id": "LEAD_ID"
+        },
+        "result": "Read the lead status, conversion result and current record version."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/sales#show",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sales.lead.convert",
+      "title": "Convert a qualified sales lead",
+      "summary": "Convert a qualified lead through CRM and return the opportunity ID and stage.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/workspace.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/crm.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/lead.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.lead.convert",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "lead_id": "LEAD_ID",
+          "lock_version": 0,
+          "name": "Spring launch",
+          "amount": "1500.00",
+          "currency": "USD",
+          "close_on": "2027-03-31"
+        },
+        "result": "Convert a qualified lead through CRM and return the opportunity ID and stage."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales#convert",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "sales.quote.accept",
+      "title": "Record customer approval of a quote",
+      "summary": "Record staff confirmation of customer approval and create the pending Commerce order.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_quotes_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/quotes.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/quote.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/sales_crm_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "sales.quote.accept",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "quote_id": "QUOTE_ID",
+          "accepted_name": "Jane Doe",
+          "acceptance_reference": "Approval email",
+          "confirmed": true
+        },
+        "result": "Record staff confirmation of customer approval and create the pending Commerce order."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales_quotes#accept",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
+      "id": "marketing.publication.status",
+      "title": "Check a publication slot",
+      "summary": "Return the calendar slot, its record version, and the recorded provider status.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/publication_calendar_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_marketing/publication_calendar.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/publishing-calendar.md"
+        ],
+        "models": [
+          "app/models/lightek_marketing/publication_slot.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/publication_calendar_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "marketing.publication.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "slot_id": "SLOT_ID"
+        },
+        "result": "Return the calendar slot, its record version, and the recorded provider status."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/publication_calendar#index",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "marketing.publication.cancel",
+      "title": "Cancel a publication slot",
+      "summary": "Cancel a scheduled or blocked local slot using the existing calendar policy and record version.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/publication_calendar_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_marketing/publication_calendar.rb",
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/platform_language.rb"
+        ],
+        "guides": [
+          "docs/sales/publishing-calendar.md"
+        ],
+        "models": [
+          "app/models/lightek_marketing/publication_slot.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ],
+        "tests": [
+          "test/standalone/publication_calendar_checks.rb"
+        ]
+      },
+      "capability": {
+        "key": "marketing.publication.cancel",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "slot_id": "SLOT_ID",
+          "lock_version": 0
+        },
+        "result": "Cancel a scheduled or blocked local slot using the existing calendar policy and record version."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "PATCH",
+          "action": "dashboard/publication_calendar#cancel",
+          "coverage": "bound"
+        }
+      ]
     }
   ]
 }

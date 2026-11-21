@@ -28,6 +28,12 @@ An architecture reference documents a workflow's source. Check Guide for executi
 
 Examples of in-app operations include `/execute sales.lead.create`, `/execute reservations.availability.list`, and `/execute marketing.publication.schedule`. Use their code map examples for the exact inputs. A calendar receipt confirms a saved schedule. Provider delivery has its own status. A saved broadcast channel status reports configuration. Check the broadcast workspace for live stream health.
 
+### Review platform coverage
+
+Open **Software Library → Code map → Platform coverage** to search the loaded host and engine controller routes. Download JSON for the complete matching list. A bound route has an explicit reviewed capability. A partial route has a capability for part of the workflow. A browser handoff links to the existing workflow, which applies its own session and authorization requirements. An unmapped route needs a review before it can count toward execution coverage. The inventory shows installed routing and binding evidence. Live acceptance is tracked through execution receipts.
+
+Try `/code sign-in`, `/code merchant payout`, or `/code action status` for account security, payout setup, and execution diagnostics. Enter authentication factors and payout account details in the existing secure forms.
+
 ## Query and edit resources
 
 ```text

@@ -14,6 +14,11 @@ module NevaehOs
 
     INPUTS = {
       'sales.lead.create' => {'site_id'=>:id, 'name'=>160, 'company'=>160, 'email'=>254}.freeze,
+      'sales.quote.issue' => {'site_id'=>:id, 'quote_id'=>:id, 'lock_version'=>:version}.freeze,
+      'sessions.room.create' => {'site_id'=>:id, 'name'=>120, 'kind'=>10}.freeze,
+      'commerce.payouts.open' => {'site_id'=>:id}.freeze,
+      'identity.security.status' => {}.freeze,
+      'nevaeh.action.status' => {'action_id'=>:id}.freeze,
       'sales.quote.status' => {'site_id'=>:id, 'quote_id'=>:id}.freeze,
       'reservations.availability.list' => {'site_id'=>:id, 'resource_id'=>:id, 'date'=>:date}.freeze,
       'connect.connections.list' => {}.freeze,
@@ -49,6 +54,7 @@ module NevaehOs
         value = values.fetch(field)
         valid = case type
         when :id then (value.is_a?(Integer) || value.is_a?(String)) && /\A[1-9][0-9]{0,17}\z/.match?(value.to_s)
+        when :version then (value.is_a?(Integer) || value.is_a?(String)) && /\A[0-9]{1,10}\z/.match?(value.to_s)
         when :date then value.is_a?(String) && /\A\d{4}-\d{2}-\d{2}\z/.match?(value)
         else value.is_a?(String) && value.strip.length.between?(1, type) && !value.match?(/[\x00-\x1f\x7f]/)
         end
@@ -60,12 +66,22 @@ module NevaehOs
       key, values = command.values_at('intent', 'payload')
       validate!(key, values)
       case key
-      when 'sales.lead.create', 'sales.quote.status'
+      when 'sales.lead.create', 'sales.quote.status', 'sales.quote.issue'
         raise ArgumentError, 'Sales access required' unless %w[super_admin admin white_label client employee].include?(actor.role)
 
         site = LightekSales::Access.sites_for(actor).find(values.fetch('site_id'))
         LightekSales::Workspace.new(actor: actor, site: site).revalidate!
         key == 'sales.lead.create' ? site : LightekSales::Quote.where(site: site).find(values.fetch('quote_id'))
+      when 'sessions.room.create'
+        LightekSettings::WebsiteIdentity.sites_for(actor).find(values.fetch('site_id'))
+      when 'commerce.payouts.open'
+        raise ArgumentError, 'Commerce access required' unless %w[super_admin admin white_label client].include?(actor.role)
+
+        LightekSettings::WebsiteIdentity.sites_for(actor).where(tenant: actor).find(values.fetch('site_id'))
+      when 'identity.security.status'
+        actor
+      when 'nevaeh.action.status'
+        NevaehOsAction.where(user: actor).find(values.fetch('action_id'))
       when 'reservations.availability.list'
         site = LightekSettings::WebsiteIdentity.sites_for(actor).find(values.fetch('site_id'))
         LightekReservations::Resource.available.where(site: site).find(values.fetch('resource_id'))
@@ -107,8 +123,25 @@ module NevaehOs
         lead = LightekSales::Workspace.new(actor: actor, site: target).save!('lead', values.except('site_id'))
         {'lead_id'=>lead.id, 'lead_status'=>lead.status, 'text'=>"Created lead ##{lead.id}."}
       when 'sales.quote.status'
-        {'quote_id'=>target.id, 'quote_status'=>target.status, 'order_id'=>target.order_id,
-         'order_status'=>target.order&.status}
+        {'quote_id'=>target.id, 'quote_status'=>target.status, 'lock_version'=>target.lock_version,
+         'order_id'=>target.order_id, 'order_status'=>target.order&.status}
+      when 'sales.quote.issue'
+        quote = LightekSales::Quotes.new(actor: actor, site: target.site).issue!(id: target.id, version: values.fetch('lock_version'))
+        {'quote_id'=>quote.id, 'quote_status'=>quote.status, 'text'=>"Quote ##{quote.id} issued. It is ready for customer review."}
+      when 'sessions.room.create'
+        room = create_room!(actor, target, values.except('site_id'))
+        {'room_id'=>room.id, 'starts_at'=>room.starts_at.iso8601, 'ends_at'=>room.ends_at.iso8601,
+         'links'=>[{'label'=>'Open room', 'url'=>"/sessions/#{room.key}"}]}
+      when 'commerce.payouts.open'
+        {'site_id'=>target.id, 'links'=>[{'label'=>'Open secure payout setup', 'url'=>"/dashboard/commerce/payouts?site_id=#{target.id}"}],
+         'text'=>'Open payout setup to continue with your authenticated browser session.'}
+      when 'identity.security.status'
+        {'mfa_enabled'=>LightekIdentity::Mfa.enabled?(target), 'mfa_required'=>LightekIdentity::Mfa.required?(target),
+         'links'=>[{'label'=>'Open sign-in security', 'url'=>'/identity/security'}]}
+      when 'nevaeh.action.status'
+        receipt = Receipts.for(target)
+        {'action_id'=>target.id, 'execution_status'=>receipt.fetch(:status), 'action_kind'=>receipt.fetch(:kind),
+         'links'=>[{'label'=>'Open action receipt', 'url'=>"/dashboard/nevaeh/actions/#{target.id}"}]}
       when 'reservations.availability.list'
         reservation_slots(target, values.fetch('date'))
       when 'connect.connections.list'
@@ -123,6 +156,12 @@ module NevaehOs
         {'slot_id'=>slot.id, 'publication_status'=>slot.status, 'scheduled_at'=>slot.scheduled_at.iso8601,
          'text'=>"Calendar slot ##{slot.id} is #{slot.status}. Check the calendar for provider confirmation."}
       end
+    end
+
+    def create_room!(actor, site, attributes)
+      LightekSessions::RoomCreation.call(actor: actor, site: site, attributes: attributes)
+    rescue LightekSessions::Access::Denied => error
+      raise ArgumentError, error.message
     end
 
     def reservation_slots(resource, date)

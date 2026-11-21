@@ -12,6 +12,7 @@ require_relative '../../app/services/nevaeh_os/platform_actions'
 require_relative '../../app/services/nevaeh_os/specialist_tasks'
 require_relative '../../app/services/nevaeh_os/worker'
 require_relative '../../app/services/nevaeh_intelligences/code_knowledge'
+require_relative '../../app/services/nevaeh_intelligences/platform_coverage'
 
 class NevaehCodeKnowledgeChecks < Minitest::Test
   ROOT = File.expand_path('../..', __dir__)
@@ -49,6 +50,34 @@ class NevaehCodeKnowledgeChecks < Minitest::Test
     assert_equal({ 'kind' => 'code_knowledge', 'query' => 'Studio CPU' },
                  NevaehOs::Command.parse('/code Studio CPU'))
     assert_equal '', NevaehOs::Command.parse('/code').fetch('query')
+  end
+
+  def test_route_coverage_counts_only_exact_reviewed_bindings
+    path = Struct.new(:spec)
+    route = Struct.new(:verb, :path, :defaults)
+    routes = Struct.new(:routes)
+    endpoint = {'source'=>'Host application', 'method'=>'POST', 'action'=>'sales#issue', 'coverage'=>'bound'}
+    map = {'entries'=>[
+      {'capability'=>{'key'=>'sales.quote.issue'}, 'binding_status'=>'enabled', 'endpoints'=>[endpoint]},
+      {'capability'=>{'key'=>'sales.quote.cancel'}, 'binding_status'=>'disabled',
+       'endpoints'=>[endpoint.merge('action'=>'sales#cancel')]},
+      {'capability'=>{'key'=>'sales.workspace.open'}, 'binding_status'=>'registers_on_dispatch',
+       'endpoints'=>[endpoint.merge('method'=>'GET', 'action'=>'sales#index', 'coverage'=>'handoff')]}
+    ]}
+    host = routes.new([
+      route.new('POST', path.new('/sales/issue'), {controller:'sales', action:'issue'}),
+      route.new('GET', path.new('/sales/issue'), {controller:'sales', action:'issue'}),
+      route.new('POST', path.new('/sales/cancel'), {controller:'sales', action:'cancel'}),
+      route.new('GET', path.new('/sales'), {controller:'sales', action:'index'}),
+      route.new('GET', path.new('/mount'), {})
+    ])
+    engine = routes.new([host.routes.first])
+    coverage = NevaehIntelligences::PlatformCoverage.new(route_sets: {'Host application'=>host, 'Billing'=>engine}, code_map: map)
+    report = coverage.report(query: 'unmapped')
+    assert_equal 5, report.fetch('total_routes')
+    assert_equal({'bound'=>1, 'unmapped'=>2, 'binding_unavailable'=>1, 'handoff'=>1}, report.fetch('counts'))
+    assert_equal ['Billing', 'Host application'], report.fetch('routes').map { |row| row.fetch('source') }
+    assert_empty report.fetch('routes').flat_map { |row| row.fetch('bindings') }
   end
 
   private

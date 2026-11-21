@@ -90,14 +90,36 @@
           "app/controllers/dashboard/commerce_payouts_controller.rb"
         ],
         "implementation": [
-          "app/services/lightek_commerce/merchant_payouts.rb"
+          "app/services/lightek_commerce/merchant_payouts.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/payments/payout-accounts.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
         ]
       },
       "gems": [
         "dymond_bank"
+      ],
+      "capability": {
+        "key": "commerce.payouts.open",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID"
+        },
+        "result": "Opens the current merchant’s secure payout workspace."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/commerce_payouts#index",
+          "coverage": "handoff"
+        }
       ]
     },
     {
@@ -149,12 +171,50 @@
           "app/controllers/sessions_controller.rb"
         ],
         "implementation": [
-          "app/controllers/concerns/authentication.rb"
+          "app/controllers/concerns/authentication.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "guides": [
           "docs/security/sign-in-and-mfa.md"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
         ]
-      }
+      },
+      "capability": {
+        "key": "identity.security.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {},
+        "result": "Returns your authenticator status and a link to sign-in security."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "identity_security#show",
+          "coverage": "partial"
+        },
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "identity_security#enroll",
+          "coverage": "handoff"
+        },
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "identity_security#confirm",
+          "coverage": "handoff"
+        },
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "identity_security#disable",
+          "coverage": "handoff"
+        }
+      ]
     },
     {
       "id": "integrations.connect",
@@ -194,7 +254,15 @@
         "route": "operating",
         "inputs": {},
         "result": "Lists the agency operator’s connections and recorded revocation state."
-      }
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/connect#index",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "mail.operations",
@@ -278,7 +346,15 @@
           "time_zone": "UTC"
         },
         "result": "Schedules a reviewed campaign via the existing calendar and returns the saved slot state."
-      }
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/publication_calendar#create",
+          "coverage": "bound"
+        }
+      ]
     },
     {
       "id": "messages.conversations.list",
@@ -326,7 +402,8 @@
           "app/services/nevaeh_os/executor.rb",
           "app/services/nevaeh_orchestration/native_contracts.rb",
           "app/services/gatekeeper/authorization_service.rb",
-          "app/services/nevaeh_os/receipts.rb"
+          "app/services/nevaeh_os/receipts.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
         ],
         "workers": [
           "app/services/nevaeh_os/worker.rb"
@@ -342,6 +419,24 @@
       "gems": [
         "dymond_dispatch",
         "marlon"
+      ],
+      "capability": {
+        "key": "nevaeh.action.status",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "action_id": "ACTION_ID"
+        },
+        "result": "Returns the effective status of one action you submitted."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/nevaeh_os#action",
+          "coverage": "partial"
+        }
       ]
     },
     {
@@ -424,7 +519,15 @@
           "date": "YYYY-MM-DD"
         },
         "result": "Returns available slots for the published resource and its timezone."
-      }
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "reservations#slots",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "sales.crm",
@@ -469,7 +572,15 @@
           "email": "EMAIL_ADDRESS"
         },
         "result": "Creates a lead and records the normal CRM activity on the selected site."
-      }
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales#create",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "sales.crm.follow_up",
@@ -511,6 +622,57 @@
       }
     },
     {
+      "id": "sales.quote.issue",
+      "title": "Issue a draft sales quote",
+      "summary": "Issue the latest draft quote through the CRM revision and catalog checks.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/sales_quotes_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sales/quotes.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
+        ],
+        "guides": [
+          "docs/sales/quotes-to-delivery.md"
+        ],
+        "models": [
+          "app/models/lightek_sales/quote.rb",
+          "app/models/lightek_commerce/order.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ],
+      "capability": {
+        "key": "sales.quote.issue",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "quote_id": "QUOTE_ID",
+          "lock_version": 0
+        },
+        "result": "Issues the existing draft after checking its revision and prerequisites."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/sales_quotes#issue",
+          "coverage": "bound"
+        }
+      ]
+    },
+    {
       "id": "sales.quotes",
       "title": "Quotes to delivery",
       "summary": "Connect approved sales quotes and won deals to orders and delivery.",
@@ -550,7 +712,66 @@
           "quote_id": "QUOTE_ID"
         },
         "result": "Returns the saved quote state and the linked order state when present."
-      }
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "GET",
+          "action": "dashboard/sales_quotes#show",
+          "coverage": "partial"
+        }
+      ]
+    },
+    {
+      "id": "sessions.room.create",
+      "title": "Create a live production room",
+      "summary": "Create an audio or video room using the existing room defaults.",
+      "sources": {
+        "entry_points": [
+          "app/controllers/dashboard/rooms_controller.rb"
+        ],
+        "implementation": [
+          "app/services/lightek_sessions/room_creation.rb",
+          "app/services/nevaeh_os/platform_actions.rb"
+        ],
+        "guides": [
+          "docs/reservations_and_payouts.md"
+        ],
+        "models": [
+          "app/models/lightek_reservations/reservation.rb",
+          "app/models/lightek_reservations/resource.rb"
+        ],
+        "workers": [
+          "app/services/nevaeh_os/worker.rb"
+        ],
+        "registration": [
+          "app/services/nevaeh_os/platform_actions.rb",
+          "app/services/nevaeh_os/dispatch.rb"
+        ]
+      },
+      "gems": [
+        "dymond_bank"
+      ],
+      "capability": {
+        "key": "sessions.room.create",
+        "worker": "NevaehOs::Worker",
+        "action": "execute",
+        "route": "operating",
+        "inputs": {
+          "site_id": "SITE_ID",
+          "name": "Production room",
+          "kind": "video"
+        },
+        "result": "Creates the room and returns its join link."
+      },
+      "endpoints": [
+        {
+          "source": "Host application",
+          "method": "POST",
+          "action": "dashboard/rooms#create",
+          "coverage": "partial"
+        }
+      ]
     },
     {
       "id": "studio.broadcast.playout",

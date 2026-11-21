@@ -1,0 +1,52 @@
+<% content_for :title, 'Platform coverage' %>
+<% content_for :head do %>
+  <link rel="stylesheet" href="/lightek/nevaeh/control-center.css">
+<% end %>
+
+<section class="nc">
+  <header class="nc-hero">
+    <h1>Platform coverage</h1>
+    <p class="nc-muted">Review which controller routes have Nevaeh bindings, which open a secure workspace, and which still need review.</p>
+  </header>
+
+  <nav class="nc-links" aria-label="Coverage links">
+    <%= link_to 'Code map', employee_software_library_path(view: 'code') %>
+    <%= link_to 'Download JSON', employee_software_library_path(view: 'coverage', q: params[:q], format: :json), download: 'lightek-platform-coverage.json' %>
+  </nav>
+
+  <% labels = {'bound'=>'Bound', 'partial'=>'Partial', 'handoff'=>'Browser handoff',
+               'binding_unavailable'=>'Binding unavailable', 'unmapped'=>'Unmapped'} %>
+  <% rows = @coverage.fetch('routes') %>
+  <div class="nc-panel">
+    <p><strong><%= @coverage.fetch('total_routes') %> loaded controller routes</strong> across <%= @coverage.fetch('route_sets').join(', ') %>.</p>
+    <ul>
+      <% labels.each do |key, label| %>
+        <li><%= label %> · <%= @coverage.fetch('counts').fetch(key, 0) %></li>
+      <% end %>
+    </ul>
+  </div>
+  <%= form_with url: employee_software_library_path, method: :get, class: 'nc-panel' do %>
+    <%= hidden_field_tag :view, 'coverage' %>
+    <%= label_tag :q, 'Search routes' %>
+    <%= search_field_tag :q, params[:q], placeholder: 'Payroll, POST, or unmapped' %>
+    <button class="nc-button">Search</button>
+  <% end %>
+  <div class="nc-panel" style="overflow-x: auto">
+    <p><%= rows.size %> matching routes. Showing up to 100. Download JSON for every match.</p>
+    <table>
+      <thead>
+        <tr><th scope="col">Route</th><th scope="col">Source</th><th scope="col">Coverage</th><th scope="col">Binding</th></tr>
+      </thead>
+      <tbody>
+        <% rows.first(100).each do |row| %>
+          <tr>
+            <td><code><%= row.fetch('method') %> <%= row.fetch('path') %></code><br><%= row.fetch('action') %></td>
+            <td><%= row.fetch('source') %></td>
+            <td><%= labels.fetch(row.fetch('status')) %></td>
+            <td><%= row.fetch('bindings').filter_map { |binding| binding['capability'] }.join(', ') %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

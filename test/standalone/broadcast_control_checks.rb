@@ -21,6 +21,9 @@ module LightekReservations
     belongs_to :site, class_name: "DymondSite::Site"
     belongs_to :merchant, class_name: "User"
     def active? = true
+    def self.authenticate(token)
+      find_by(key: token) if token.present?
+    end
   end
 end
 require "active_support/testing/time_helpers"
@@ -57,6 +60,13 @@ CreateBroadcastOperations.prepend(Module.new do
   end
 end)
 CreateBroadcastOperations.new.migrate(:up)
+require File.join(ROOT, "db/migrate/20261121130000_complete_broadcast_distribution")
+CompleteBroadcastDistribution.prepend(Module.new do
+  def add_column(table, name, type, **options)
+    super(table, name, type == :jsonb ? :json : type, **options)
+  end
+end)
+CompleteBroadcastDistribution.new.migrate(:up)
 %w[broadcasting/carriage_agreement broadcasting/operating_plan advertising/sponsor_package advertising/sponsor_package_spot].each do |name|
   require File.join(ROOT, "app/models/studio", name)
 end
@@ -64,7 +74,7 @@ require File.join(ROOT, "app/services/lightek_reservations/federation/issuer")
 
 %w[app/models/studio/broadcasting/application app/models/studio/broadcasting/channel app/models/studio/broadcasting/program
    app/models/studio/broadcasting/airing app/models/studio/broadcasting/network_carriage
-   app/models/studio/broadcasting/program_license app/models/studio/broadcasting/view_session
+   app/models/studio/broadcasting/program_license app/models/studio/broadcasting/program_clip app/models/studio/broadcasting/view_session
    app/models/studio/broadcasting/hosted_carriage app/services/studio/broadcasting/audience app/services/studio/broadcasting/audience_report
    app/services/studio/broadcasting/nielsen app/services/studio/broadcasting/installation_carriage app/services/studio/broadcasting/hosted_programs
    app/models/studio/advertising/network app/models/studio/advertising/membership
@@ -87,22 +97,37 @@ module DymondDash
 end
 require File.join(ROOT, "app/controllers/dashboard/settings_home_controller")
 require File.join(ROOT, "app/controllers/dashboard/media_studio_controller")
+require File.join(ROOT, "db/migrate/20261114010000_create_agency_demos")
+CreateAgencyDemos.prepend(Module.new do
+  def add_column(table, name, type, **options)
+    super(table, name, type == :jsonb ? :json : type, **options)
+  end
+end)
+CreateAgencyDemos.new.migrate(:up)
+require File.join(ROOT, "app/models/lightek_agency/demo_setting")
 require File.join(ROOT, "app/models/lightek_agency/installed_package")
 require File.join(ROOT, "app/services/lightek_agency/package_policy")
 require File.join(ROOT, "app/services/lightek_pwa/media_ownership")
 require File.join(ROOT, "app/controllers/dashboard/live_broadcasts_controller")
 require File.join(ROOT, "app/controllers/concerns/lightek_identity/sensitive_session")
+require File.join(ROOT, "app/services/lightek_reservations/availability")
+require File.join(ROOT, "app/services/lightek_reservations/booking")
+require File.join(ROOT, "app/controllers/api/reservation_federation_controller")
+require File.join(ROOT, "app/controllers/api/broadcast_programs_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_advertising_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_network_controller")
 require File.join(ROOT, "app/controllers/dashboard/broadcast_operations_controller")
 require File.join(ROOT, "app/controllers/broadcast_sponsor_packages_controller")
 require File.join(ROOT, "app/controllers/broadcast_tv_controller")
 require File.join(ROOT, "app/controllers/affiliate_channel_streams_controller")
+require File.join(ROOT, "app/controllers/broadcast_program_clips_controller")
 require File.join(ROOT, "app/controllers/linear_channel_streams_controller")
 require File.join(ROOT, "app/services/studio/broadcasting/playout_media")
+require File.join(ROOT, "app/services/studio/broadcasting/channel_feed")
+require File.join(ROOT, "app/services/studio/broadcasting/affiliate_failover")
 require File.join(ROOT, "app/controllers/gatekeeper_controller")
 Dashboard::MediaStudioController.prepend_view_path(File.join(ROOT, "app/views"))
-[Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController].each do |controller|
+[Dashboard::BroadcastNetworkController, BroadcastTvController, Dashboard::BroadcastOperationsController, BroadcastSponsorPackagesController, BroadcastProgramClipsController].each do |controller|
   controller.prepend_view_path(File.join(ROOT, "app/views"))
   controller.layout false
 end
@@ -132,6 +157,7 @@ Rails.application.routes.append do
   get "/dashboard/rooms", to: "dashboard/media_studio#index", as: :dashboard_rooms
   get "/dashboard/reservations", to: "dashboard/media_studio#index", as: :dashboard_reservations
   get "/dashboard/session-media", to: "dashboard/media_studio#index", as: :dashboard_session_media
+  get "/studio/pipeline", to: "api/studio/pipeline#page", as: :studio_pipeline
   get "/dashboard/studio-broadcasting/workspace(/:scene_id)", to: "dashboard/media_studio#workspace", as: :dashboard_production_workspace
   get "/dashboard/studio-broadcasting/projects/:id/delete", to: "dashboard/media_studio#confirm_project_deletion", as: :delete_dashboard_studio_project
   delete "/dashboard/studio-broadcasting/projects/:id", to: "dashboard/media_studio#destroy_project", as: :dashboard_studio_project
@@ -353,6 +379,173 @@ class BroadcastControlTest < PwaHttpIntegrationTest
       source.update!(status: "withdrawn")
       edge.get "/gatekeeper/affiliate-source/#{key}/index.m3u8", headers: { "Authorization" => "Bearer #{receipt.fetch(:relay_proof)}" }
       assert_equal 404, edge.response.status
+    end
+  end
+
+  def test_hosted_failover_switches_the_same_hls_url_and_preserves_playback_sequence
+    with_network_origin do
+      broadcast = Studio::Broadcasting
+      peer = LightekReservations::Peer.create!(site: @other_site, merchant: @bob)
+      backup = broadcast::Channel.create!(site: @site, name: "Continuity", status: "published", managed_playout: true)
+      entry = broadcast::HostedCarriage.create!(peer: peer, key: SecureRandom.hex(16), name: "Affiliate",
+        status: "accepted", ownership: "affiliate", published: true, fallback_channel: backup)
+      connection = broadcast::InstallationCarriage
+      origin_state = :live
+      client = session_for
+      token = URI.parse(network_guide(client).find { |card| card["id"] == "station-#{entry.key}" }.dig("action", "playback_url")).query
+      manifest = "/gatekeeper/network/#{entry.key}/index.m3u8?#{token}"
+      fixture = lambda do |sequence|
+        "#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:#{sequence}\n#EXT-X-DISCONTINUITY-SEQUENCE:0\n" \
+          "#EXT-X-PROGRAM-DATE-TIME:#{Time.current.utc.iso8601}\n#EXTINF:2.0,\nout-#{sequence}.ts\n"
+      end
+      connection_response = lambda do |_entry, _name, viewer:|
+        raise connection::Unavailable if origin_state == :offline
+        raise connection::Rejected if origin_state == :withdrawn
+
+        [fixture.call(origin_state == :recovered ? 1 : 9), "application/vnd.apple.mpegurl", nil]
+      end
+
+      Dir.mktmpdir do |directory|
+        broadcast::PlayoutMedia.stub(:root, Pathname(directory)) do
+          backup_path = broadcast::PlayoutMedia.channel_path(backup.id)
+          FileUtils.mkdir_p(backup_path)
+          backup_path.join("index.m3u8").write(fixture.call(70))
+          backup_path.join("out-70.ts").binwrite("backup media")
+          connection.stub(:relay!, connection_response) do
+            client.get manifest
+            assert_equal 200, client.response.status
+            assert_includes client.response.body, "#EXT-X-MEDIA-SEQUENCE:9"
+            assert_match(/out-9\.ts\?view_session=/, client.response.body)
+
+            origin_state = :offline
+            entry.update_columns(updated_at: 7.minutes.ago)
+            client.get manifest
+            assert_equal 200, client.response.status
+            assert_includes client.response.body, "#EXT-X-MEDIA-SEQUENCE:10"
+            assert_includes client.response.body, "#EXT-X-DISCONTINUITY-SEQUENCE:1"
+            assert_includes client.response.body, "fallback-#{backup.id}-out-70.ts"
+            client.get "/gatekeeper/network/#{entry.key}/fallback-#{backup.id}-out-70.ts?#{token}"
+            assert_equal 200, client.response.status
+            assert_equal "backup media", client.response.body
+            assert_empty broadcast::ViewSession.where(channel_id: -entry.id)
+            client.get "/gatekeeper/network/#{entry.key}/measurement.json?#{token}"
+            assert_equal({ "timeline" => [] }, JSON.parse(client.response.body))
+
+            origin_state = :recovered
+            client.get manifest
+            assert_equal 200, client.response.status
+            assert_includes client.response.body, "#EXT-X-MEDIA-SEQUENCE:11"
+            assert_includes client.response.body, "#EXT-X-DISCONTINUITY-SEQUENCE:2"
+            assert_match(/out-1\.ts\?view_session=/, client.response.body)
+            origin_state = :withdrawn
+            client.get manifest
+            assert_equal 503, client.response.status
+            entry.update!(status: "withdrawn")
+            client.get manifest
+            assert_equal 404, client.response.status
+          end
+        end
+      end
+    end
+  end
+
+  def test_licensed_clip_uses_trimmed_media_and_honors_revocation
+    broadcast = Studio::Broadcasting
+    @other_site.update!(tenant: @bob)
+    Dir.mktmpdir do |directory|
+      path = File.join(directory, "source.mp4")
+      assert system("ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=red:s=160x90:r=24",
+        "-t", "5", "-c:v", "libx264", "-threads", "1", path)
+      asset = StudioAsset.create!(site: @other_site, owner: @bob, name: "Full program", kind: "video", status: "ready",
+        request_key: "clip-source", metadata: { duration: 5 })
+      File.open(path, "rb") { |file| asset.proxy.attach(io: file, filename: "source.mp4", content_type: "video/mp4", identify: false) }
+      license = broadcast::ProgramLicense.create!(licensor_site: @other_site, licensee_site: @site, asset: asset,
+        blob_id: asset.proxy.blob.id, title: "Show", starts_at: 1.hour.ago, ends_at: 1.hour.from_now,
+        status: "accepted", additional_rights: ["clip"])
+      attributes = { site: @site, license: license, title: "Show excerpt", start_second: 2, duration_seconds: 2 }
+      refute broadcast::ProgramClip.new(**attributes.merge(start_second: 4)).valid?
+      refute broadcast::ProgramClip.new(**attributes.merge(site: @other_site)).valid?
+      clip = broadcast::ProgramClip.create!(**attributes)
+      clip.prepare!
+      assert clip.reload.playable?
+      clip.video.blob.open do |file|
+        duration = Studio::MediaProcess.run!(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+          "-of", "default=noprint_wrappers=1:nokey=1", file.path]).to_f
+        assert_in_delta 2, duration, 0.2
+      end
+
+      client = session_for
+      url = "/watch/clips/#{clip.public_key}"
+      client.get url
+      assert_equal 200, client.response.status
+      assert_includes client.response.body, "#{url}/video"
+      client.get "#{url}/video", headers: { "Range" => "bytes=0-15" }
+      assert_equal 206, client.response.status
+      assert_equal clip.video.blob.download.byteslice(0, 16), client.response.body
+      licensed_outlet = client
+      foreign_outlet = session_for
+      foreign_outlet.host! @other_site.host
+      foreign_outlet.get "#{url}/video"
+      assert_equal 404, foreign_outlet.response.status
+      license.update!(status: "withdrawn")
+      licensed_outlet.get "#{url}/video"
+      assert_equal 404, licensed_outlet.response.status
+    end
+  end
+
+  def test_sublicense_cannot_expand_rights_or_outlive_the_upstream_grant
+    broadcast = Studio::Broadcasting
+    @other_site.update!(tenant: @bob)
+    recipient = DymondSite::Site.create!(host: "sublicense.test", name: "Sublicensee", tenant: @carol)
+    asset = StudioAsset.create!(site: @other_site, owner: @bob, name: "Program", kind: "video", status: "ready",
+      request_key: "sublicense-source", metadata: { duration: 8 })
+    asset.proxy.attach(io: StringIO.new("media"), filename: "source.mp4", content_type: "video/mp4", identify: false)
+    rights = broadcast::ProgramLicense.create!(licensor_site: @other_site, licensee_site: @site, asset: asset,
+      blob_id: asset.proxy.blob.id, title: "Show", starts_at: 1.hour.ago, ends_at: 1.hour.from_now,
+      status: "accepted", additional_rights: %w[replay syndicate])
+    options = { site: @site, recipient: recipient, title: "Affiliate replay", starts_at: Time.current, ends_at: 30.minutes.from_now,
+      additional_rights: ["replay"] }
+    assert_raises(ActiveRecord::RecordInvalid) { rights.relicense!(**options.merge(additional_rights: ["clip"])) }
+    assert_raises(ActiveRecord::RecordInvalid) { rights.relicense!(**options.merge(ends_at: 2.hours.from_now)) }
+    assert_raises(ActiveRecord::RecordNotFound) { rights.relicense!(**options.merge(site: recipient)) }
+    child = rights.relicense!(**options)
+    assert_equal asset.proxy.blob.id, child.blob_id
+    child.update!(status: "accepted")
+    assert child.permits?(1.minute.from_now, 2.minutes.from_now, use: "replay")
+    rights.update!(status: "withdrawn")
+    refute child.reload.permits?(1.minute.from_now, 2.minutes.from_now, use: "replay")
+    assert_equal "withdrawn", broadcast::HostedPrograms.describe(child).fetch(:status)
+  end
+
+  def test_sublicense_broker_scopes_creation_and_status_to_connected_stations
+    with_network_origin do
+      broadcast = Studio::Broadcasting
+      @other_site.update!(tenant: @bob)
+      syndicator = LightekReservations::Peer.create!(site: @other_site, merchant: @bob, key: SecureRandom.hex(16))
+      other = LightekReservations::Peer.create!(site: @site, merchant: @alice, key: SecureRandom.hex(16))
+      licensor = DymondSite::Site.create!(host: "rights-owner.test", name: "Rights owner", tenant: @carol)
+      asset = StudioAsset.create!(site: licensor, owner: @carol, name: "Program", kind: "video", status: "ready",
+        request_key: "broker-sublicense", metadata: { duration: 8 })
+      asset.proxy.attach(io: StringIO.new("media"), filename: "source.mp4", content_type: "video/mp4", identify: false)
+      parent = broadcast::ProgramLicense.create!(licensor_site: licensor, licensee_site: @other_site, asset: asset,
+        blob_id: asset.proxy.blob.id, title: "Show", starts_at: 1.hour.ago, ends_at: 1.hour.from_now,
+        status: "accepted", additional_rights: ["syndicate"], federation_key: SecureRandom.hex(16))
+      base = "/api/reservations/federation/broadcast/programs"
+      offer = "#{base}/#{parent.federation_key}/sublicense"
+      terms = { title: "Affiliate showing", recipient: @site.id, starts_at: Time.current.iso8601, ends_at: 15.minutes.from_now.iso8601 }
+      client = session_for
+      client.post offer, params: terms, as: :json, headers: { "Authorization" => "Bearer #{other.key}" }
+      assert_equal 404, client.response.status
+      client.post offer, params: terms, as: :json, headers: { "Authorization" => "Bearer #{syndicator.key}" }
+      assert_equal 200, client.response.status
+      child = broadcast::ProgramLicense.find_by!(federation_key: JSON.parse(client.response.body).fetch("key"))
+      assert_equal parent.id, child.parent_license_id
+      assert_equal syndicator.id, child.publisher_peer_id
+      assert_equal @site.id, child.licensee_site_id
+      parent.update!(status: "withdrawn")
+      client.get "#{base}/#{child.federation_key}/status", headers: { "Authorization" => "Bearer #{other.key}" }
+      assert_equal 200, client.response.status
+      assert_equal "withdrawn", JSON.parse(client.response.body).fetch("status")
     end
   end
 

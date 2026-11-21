@@ -62,6 +62,9 @@
             <li><%= entry.name %> · <%= entry.peer.site.name %> · <%= entry.status.humanize %>
               <%= form_with url: dashboard_hosted_carriage_path(entry.key, site_id: @site.id), class: "ll-playout-actions" do |form| %>
                 <label>Ownership <%= form.select :ownership, Studio::Broadcasting::NetworkCarriage::OWNERSHIPS.invert.to_a, { selected: entry.ownership || "affiliate" } %></label>
+                <label>Hub backup channel <%= form.collection_select :fallback_channel_id, @fallback_channels, :id, :name,
+                  { include_blank: "No backup", selected: entry.fallback_channel_id } %></label>
+                <% if entry.relay_cursor["source"].to_s.start_with?("fallback-") %><span>Using hub backup when last viewed</span><% end %>
                 <%= form.submit(entry.status == "requested" ? "Approve hosted station" : "Save ownership") %>
                 <%= form.button "Remove from guide", name: "carriage", value: "withdraw" %>
               <% end %>
@@ -96,6 +99,48 @@
       <% @incoming.each do |license| %>
         <li><%= license.title %> from <%= license.source_name %> · <%= license.status.humanize %> · Ends <%= l(license.ends_at, format: :short) %> · <%= license.rights_label %>
           <%= button_to "Accept rights", dashboard_accept_program_license_path(license, site_id: @site.id) if license.status == "offered" && license.ends_at.future? %>
+          <% if license.status == "accepted" && license.ends_at.future? && license.allows_use?("clip") && license.transferable? %>
+            <details class="ll-config">
+              <summary>Publish a clip</summary>
+              <%= form_with url: dashboard_create_program_clip_path(license, site_id: @site.id), scope: :clip, class: "ll-playout-actions" do |form| %>
+                <label>Clip title <%= form.text_field :title, value: license.title, maxlength: 120, required: true %></label>
+                <label>Start in seconds <%= form.number_field :start_second, value: 0, min: 0, step: 1, required: true %></label>
+                <label>Duration in seconds <%= form.number_field :duration_seconds, min: 2, max: 60, step: 1, required: true %></label>
+                <%= form.submit "Prepare and publish clip" %>
+              <% end %>
+            </details>
+          <% end %>
+          <% @clips.fetch(license.id, []).each do |clip| %>
+            <div class="ll-playout-actions">
+              <% if clip.error_message? %>
+                <span><%= clip.title %> · <%= clip.error_message %></span>
+              <% elsif clip.video.attached? %>
+                <%= link_to clip.title, "https://#{@site.host}#{broadcast_program_clip_path(clip.public_key)}" %>
+                <% unless license.status == "accepted" && license.ends_at.future? && license.transferable? %><span>Rights inactive</span><% end %>
+              <% else %>
+                <span><%= clip.title %> · Preparing</span>
+              <% end %>
+              <%= button_to "Remove clip", dashboard_withdraw_program_clip_path(clip, site_id: @site.id) %>
+            </div>
+          <% end %>
+          <% if license.status == "accepted" && license.ends_at.future? && license.allows_use?("syndicate") && license.transferable? %>
+            <% destinations = license.imported? ? @hosted_program_board&.fetch("destinations", []) : @receiving_sites.map { |station| [station.id, station.name] } %>
+            <% if destinations.present? %>
+              <details class="ll-config">
+                <summary>Offer a sublicense</summary>
+                <%= form_with url: dashboard_sublicense_program_path(license, site_id: @site.id), scope: :license, class: "ll-playout-actions" do |form| %>
+                  <label>Station <%= form.select :recipient, destinations.map { |id, name| [name, id] }, { prompt: "Choose a station" }, required: true %></label>
+                  <label>Program title <%= form.text_field :title, value: license.title, maxlength: 120, required: true %></label>
+                  <label>Rights start (<%= Time.zone.name %>) <%= form.datetime_local_field :starts_at, value: [Time.current, license.starts_at].max.in_time_zone, required: true %></label>
+                  <label>Rights end (<%= Time.zone.name %>) <%= form.datetime_local_field :ends_at, value: license.ends_at.in_time_zone, required: true %></label>
+                  <% Studio::Broadcasting::ProgramLicense::EXTRA_RIGHTS.slice(*license.additional_rights).each do |right, label| %>
+                    <label><%= check_box_tag "license[additional_rights][]", right, false, id: "sublicense_#{license.id}_#{right}" %> <%= label %></label>
+                  <% end %>
+                  <%= form.submit "Send sublicense" %>
+                <% end %>
+              </details>
+            <% end %>
+          <% end %>
         </li>
       <% end %>
       <% @outgoing.each do |license| %>

@@ -139,7 +139,10 @@ AddBroadcastNetworkDistributionAndMeasurement.new.migrate(:up)
 end
 ConnectManagedBroadcastInstallations.new.migrate(:up)
 AddHostedProgramLicenseExchange.new.migrate(:up)
-ActiveRecord::Schema.define { add_column :studio_program_licenses, :additional_rights, :json, default: [], null: false }
+ActiveRecord::Schema.define do
+  add_column :studio_program_licenses, :additional_rights, :json, default: [], null: false
+  add_reference :studio_program_licenses, :parent_license
+end
 
 %w[program_license view_session].each { |name| require ROOT.join("app/models/studio/broadcasting", name).to_s }
 %w[audience audience_report nielsen].each { |name| require ROOT.join("app/services/studio/broadcasting", name).to_s }

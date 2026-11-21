@@ -7,6 +7,7 @@ module Studio
   module Broadcasting
     module InstallationCarriage
       class Unavailable < StandardError; end
+      class Rejected < Unavailable; end
       MAX_SEGMENT = 8.megabytes
       module_function
 
@@ -90,9 +91,13 @@ module Studio
         type = metadata = nil
         bytes = +"".b
         limit = name.end_with?(".ts") ? MAX_SEGMENT : 64.kilobytes
-        Timeout.timeout(15) do
-          Net::HTTP.start(host, 443, use_ssl: true, open_timeout: 3, read_timeout: 5) do |http|
+        failover_probe = name == "index.m3u8" && entry.fallback_channel_id?
+        Timeout.timeout(failover_probe ? 3 : 15) do
+          Net::HTTP.start(host, 443, use_ssl: true, open_timeout: failover_probe ? 2 : 3, read_timeout: failover_probe ? 2 : 5) do |http|
             http.request(request) do |response|
+              if name == "index.m3u8" && response.code.to_i.in?([401, 403, 404, 410])
+                raise Rejected, "The source stopped authorizing carriage."
+              end
               raise Unavailable, "The station feed is unavailable." unless response.is_a?(Net::HTTPOK)
               type = response["Content-Type"].to_s.split(";").first
               metadata = response["X-Lightek-Media"]

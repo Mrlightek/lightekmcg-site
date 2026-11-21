@@ -25,7 +25,7 @@ module Studio
 
       def describe(record)
         { key: record.federation_key, title: record.title, source: record.source_name,
-          starts_at: record.starts_at.iso8601, ends_at: record.ends_at.iso8601, status: record.status, additional_rights: record.additional_rights }
+          starts_at: record.starts_at.iso8601, ends_at: record.ends_at.iso8601, status: (record.transferable? ? record.status : "withdrawn"), additional_rights: record.additional_rights }
       end
 
       def reference!(record)

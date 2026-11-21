@@ -16,13 +16,21 @@ class AffiliateChannelStreamsController < ApplicationController
     raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::NetworkCarriage.hub?(site)
     LightekPwa::Policy.new(user: current_user, site: site).authorize!("watch")
     entry = Studio::Broadcasting::HostedCarriage.available.find_by!(key: params[:key])
+    raise ActiveRecord::RecordNotFound unless entry.peer.active?
     audience = Studio::Broadcasting::Audience
     token = params[:view_session]
     viewer = audience.identity(token, channel: entry, outlet: site)
     name = params.fetch(:name)
     raise ActiveRecord::RecordNotFound if name == "measurement.json" && !viewer
 
-    bytes, type, metadata = Studio::Broadcasting::InstallationCarriage.relay!(entry, name, viewer: request.head? ? nil : viewer)
+    relay_viewer = request.head? ? nil : viewer
+    bytes, type, metadata = if entry.fallback_channel_id? || entry.relay_cursor.present?
+      Studio::Broadcasting::AffiliateFailover.new(entry, outlet: site, viewer: relay_viewer).fetch(name)
+    else
+      raise ActiveRecord::RecordNotFound if name.start_with?("fallback-")
+
+      Studio::Broadcasting::InstallationCarriage.relay!(entry, name, viewer: relay_viewer)
+    end
     if name == "index.m3u8"
       # Relay accepts only the station's own HLS segment filenames.
       bytes = validated_playlist(bytes)
@@ -46,6 +54,7 @@ class AffiliateChannelStreamsController < ApplicationController
       return
     end
     file = Studio::Broadcasting::PlayoutMedia.channel_path(channel.id).join(name)
+    return head :service_unavailable if name == "index.m3u8" && !file.file?
     raise ActiveRecord::RecordNotFound unless file.file?
 
     if name == "index.m3u8"
@@ -60,7 +69,7 @@ class AffiliateChannelStreamsController < ApplicationController
 
   def validated_playlist(bytes)
     lines = bytes.lines
-    unless lines.all? { |line| line.strip.empty? || line.start_with?("#") || line.strip.match?(/\Aout-\d+\.ts\z/) } &&
+    unless lines.all? { |line| line.strip.empty? || line.start_with?("#") || line.strip.match?(/\A(?:fallback-\d+-)?out-\d+\.ts\z/) } &&
         lines.grep(/\A#/).none? { |line| line.match?(/\bURI=/i) }
       raise Studio::Broadcasting::InstallationCarriage::Unavailable, "The station returned an unsupported playlist."
     end

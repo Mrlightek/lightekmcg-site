@@ -29,7 +29,7 @@ class Api::BroadcastProgramsController < Api::ReservationFederationController
 
   def download
     license = incoming_license
-    raise ActiveRecord::RecordNotFound unless license.status.in?(%w[offered accepted]) && license.ends_at.future? &&
+    raise ActiveRecord::RecordNotFound unless license.status.in?(%w[offered accepted]) && license.ends_at.future? && license.transferable? &&
       license.covers?(license.starts_at, license.ends_at)
     blob = license.asset.proxy.blob
     raise Studio::Broadcasting::HostedPrograms::Unavailable, "The video exceeds the exchange limit." unless blob.byte_size.between?(1, Studio::Broadcasting::HostedPrograms::MAX_BYTES)
@@ -48,7 +48,7 @@ class Api::BroadcastProgramsController < Api::ReservationFederationController
   def accept
     license = incoming_license
     license.with_lock do
-      raise ArgumentError, "This offer is no longer available." unless license.status.in?(%w[offered accepted]) && license.ends_at.future?
+      raise ArgumentError, "This offer is no longer available." unless license.status.in?(%w[offered accepted]) && license.ends_at.future? && license.transferable?
       license.update!(status: "accepted")
     end
     render json: transfer.describe(license)
@@ -56,6 +56,17 @@ class Api::BroadcastProgramsController < Api::ReservationFederationController
 
   def status
     render json: transfer.describe(incoming_license)
+  end
+
+  def sublicense
+    source = incoming_license
+    form = params.permit(:recipient, :title, :starts_at, :ends_at, additional_rights: [])
+    recipient = transfer.directory.where.not(id: @peer.site_id).find(form[:recipient])
+    child = source.relicense!(site: @peer.site, recipient: recipient, title: form[:title].to_s.strip,
+      starts_at: Time.iso8601(form[:starts_at].to_s), ends_at: Time.iso8601(form[:ends_at].to_s),
+      additional_rights: form.fetch(:additional_rights, []), publisher_peer: @peer)
+    transfer.reference!(child)
+    render json: transfer.describe(child)
   end
 
   def withdraw

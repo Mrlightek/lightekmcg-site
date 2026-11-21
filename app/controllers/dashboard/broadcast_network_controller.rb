@@ -7,7 +7,7 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
   rescue_from LightekPwa::Policy::Denied, LightekAgency::PackagePolicy::Denied do |error|
     render plain: error.message, status: :forbidden
   end
-  rescue_from ArgumentError, ActiveRecord::RecordInvalid, Studio::Broadcasting::InstallationCarriage::Unavailable,
+  rescue_from ArgumentError, KeyError, ActiveRecord::RecordInvalid, Studio::Broadcasting::InstallationCarriage::Unavailable,
     LightekReservations::Federation::Client::Unavailable, Studio::Broadcasting::HostedPrograms::Unavailable do |error|
     redirect_to dashboard_broadcast_network_path(site_id: @site.id), alert: error.message, status: :see_other
   end
@@ -21,6 +21,7 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
     @channels = channels.order(:position, :id)
     @carriages = carriage.where(channel_id: channels).index_by(&:channel_id)
     @hosted = Studio::Broadcasting::HostedCarriage.where(status: %w[requested accepted]).includes(peer: :site).order(:created_at) if @hub
+    @fallback_channels = @channels.where(status: "published") if @hub
     @pending = carriage.where(status: %w[requested accepted]).includes(channel: :site).order(:updated_at) if @hub
     @start_day, @end_day = report_days
     @scope = params[:scope] == "outlet" && @hub ? "outlet" : "station"
@@ -34,6 +35,7 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
     @metadata = report.measurement_metadata
     @outgoing = licensing.where(licensor_site: @site).includes(:licensee_site).order(id: :desc).limit(50)
     @incoming = licensing.where(licensee_site: @site).includes(:licensor_site).order(id: :desc).limit(50)
+    @clips = clips.where(withdrawn_at: nil).with_attached_video.order(id: :desc).limit(100).group_by(&:license_id)
     @hosted_program_board = hosted_program_board
     @receiving_sites = receiving_sites.order(:name, :id)
     @assets = assets.includes(proxy_attachment: :blob).order(id: :desc).limit(100).select { |asset| asset.proxy.attached? }
@@ -86,7 +88,10 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
         entry.update!(status: "withdrawn")
       else
         raise ArgumentError, "This station needs to request carriage again." unless entry.status.in?(%w[requested accepted]) && entry.peer.active?
-        entry.update!(status: "accepted", ownership: params.require(:ownership))
+        fallback = channels.where(status: "published").find(params[:fallback_channel_id]) if params[:fallback_channel_id].present?
+        attributes = { status: "accepted", ownership: params.require(:ownership) }
+        attributes[:fallback_channel] = fallback if params.key?(:fallback_channel_id)
+        entry.update!(attributes)
       end
     end
     back("Hosted station lineup updated.")
@@ -128,10 +133,43 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
     back("License closed to future bookings.")
   end
 
+  def create_clip
+    license = licensing.where(licensee_site: @site, status: "accepted").find(params[:license_id])
+    form = params.require(:clip).permit(:title, :start_second, :duration_seconds)
+    %i[start_second duration_seconds].each { |field| form[field] = Integer(form.fetch(field).to_s, 10) }
+    clip = clips.create!(license: license, **form.to_h.symbolize_keys)
+    Studio::Broadcasting::PrepareProgramClipJob.perform_later(clip.id)
+    back("Clip queued. Its share link appears after processing.")
+  end
+
+  def withdraw_clip
+    clips.find(params[:id]).update!(withdrawn_at: Time.current)
+    back("Clip removed from public playback.")
+  end
+
+  def sublicense
+    source = licensing.where(licensee_site: @site, status: "accepted").find(params[:license_id])
+    form = params.require(:license).permit(:recipient, :title, :starts_at, :ends_at, additional_rights: [])
+    starts_at = Time.zone.parse(form[:starts_at].to_s)
+    ends_at = Time.zone.parse(form[:ends_at].to_s)
+    raise ArgumentError, "Choose a valid rights window." unless starts_at && ends_at && ends_at > starts_at && ends_at.future?
+
+    attributes = { title: form[:title].to_s.strip, starts_at: starts_at, ends_at: ends_at, additional_rights: form.fetch(:additional_rights, []) }
+    if source.imported?
+      raise ActiveRecord::RecordNotFound unless Studio::Broadcasting::InstallationCarriage.connected?(@site)
+      Studio::Broadcasting::HostedPrograms.client(@site).request("broadcast/programs/#{source.federation_key}/sublicense", method: :post,
+        body: attributes.merge(recipient: form[:recipient], starts_at: starts_at.iso8601, ends_at: ends_at.iso8601))
+    else
+      recipient = receiving_sites.find(form[:recipient])
+      source.relicense!(site: @site, recipient: recipient, **attributes)
+    end
+    back("Programming sublicense offered to the station.")
+  end
+
   def accept_license
     license = licensing.where(licensee_site: @site).find(params[:license_id])
     license.with_lock do
-      raise ArgumentError, "This offer is no longer available." unless license.status == "offered" && license.ends_at.future?
+      raise ArgumentError, "This offer is no longer available." unless license.status == "offered" && license.ends_at.future? && license.transferable?
       license.update!(status: "accepted")
     end
     back("Licensed program is available in your channel rundown.")
@@ -193,6 +231,7 @@ class Dashboard::BroadcastNetworkController < Dashboard::SettingsHomeController
 
   def channels = Studio::Broadcasting::Channel.where(site_id: @site.id, managed_playout: true)
   def carriage = Studio::Broadcasting::NetworkCarriage
+  def clips = Studio::Broadcasting::ProgramClip.where(site: @site)
   def licensing = Studio::Broadcasting::ProgramLicense
   def report_days = [Date.iso8601(params.fetch(:start_day, 6.days.ago.utc.to_date.iso8601)), Date.iso8601(params.fetch(:end_day, Time.current.utc.to_date.iso8601))]
   def audience_report = Studio::Broadcasting::AudienceReport.new(site: @site, start_day: @start_day, end_day: @end_day, outlet: @scope == "outlet")
